@@ -27,6 +27,7 @@ says when it's done. Background and effort estimates for the big items are in
 | Terminal has no raw mode | No full-screen terminal programs (`less`, `top`, a nano-style editor); the editor is a window |
 | FAT | No permissions, owners or symlinks; names are case-insensitive; Cosmos doesn't store timestamps (`ls -l` shows 1970) |
 | Editor | No undo, no search |
+| Cosmos boot fault under nested KVM | On GitHub's runners about one boot in seven stops with a general-protection fault (exception 13) inside Cosmos' APIC/PIC setup, before Zenith code runs. Never seen locally. The smoke test retries such boots and reports it. |
 
 ---
 
@@ -167,6 +168,7 @@ requests or in our local fork until they land:
 4. virtio-gpu cursor queue and partial `TransferToHost2D` (M6)
 5. FAT timestamps (M1/M2; currently not persisted)
 6. USB HID mouse, RTL8168, I219 (M7)
+7. Intermittent #GP during `LegacyPic.RemapAndDisable`/APIC init under nested KVM (seen in CI): reproduce and report
 
 ## Decisions to make
 

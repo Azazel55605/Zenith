@@ -160,6 +160,36 @@ class Machine:
                 self.process.kill()
 
 
+BOOT_ATTEMPTS = 3
+
+
+def boot(iso: Path, timeout: float, label: str):
+    """
+    Boots a fresh VM until the desktop is up, retrying when the kernel faults during early
+    init. Cosmos 3.0.89 occasionally takes a general-protection fault while setting up the
+    APIC under nested KVM (GitHub's runners); see docs/ROADMAP.md. Returns (machine, attempts)
+    or (None, attempts).
+    """
+    for attempt in range(1, BOOT_ATTEMPTS + 1):
+        workdir = Path(tempfile.mkdtemp(prefix="zenith-smoke-"))
+        machine = Machine(iso, workdir)
+        start = time.time()
+        while time.time() - start < timeout:
+            log = machine.log()
+            if "kernel: desktop ready" in log:
+                return machine, attempt
+            if "FATAL: Exception" in log or machine.process.poll() is not None:
+                break
+            time.sleep(0.25)
+
+        fatal = [l for l in machine.log().splitlines() if "[INT]" in l or "FATAL" in l]
+        print(f"warn {label}: boot attempt {attempt} failed" + (": " + " | ".join(fatal[:3]) if fatal else " (timeout)"))
+        machine.stop()
+        shutil.rmtree(workdir, ignore_errors=True)
+
+    return None, BOOT_ATTEMPTS
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--iso", type=Path, default=ROOT / "output-x64" / "Zenith.iso")
@@ -172,15 +202,16 @@ def main() -> int:
         print(f"missing {args.iso}; build first", file=sys.stderr)
         return 2
 
-    workdir = Path(tempfile.mkdtemp(prefix="zenith-smoke-"))
-    machine = Machine(args.iso, workdir)
     failures = 0
-    try:
-        start = time.time()
-        if not machine.wait_for("kernel: desktop ready", args.timeout):
-            print("FAIL boot: desktop never came up")
-            failures += 1
-        else:
+    retried = 0
+    start = time.time()
+    machine, attempts = boot(args.iso, args.timeout, "main boot")
+    retried += attempts - 1
+    if machine is None:
+        print("FAIL boot: desktop never came up")
+        failures += 1
+    else:
+        try:
             print(f"ok   boot ({time.time() - start:.1f}s)")
             time.sleep(2)   # let the first frames settle before typing
             for line, expected in STEPS:
@@ -190,25 +221,28 @@ def main() -> int:
                 else:
                     print(f"FAIL {line}\n     expected in log: {expected}")
                     failures += 1
-            machine.screenshot(workdir / "final.ppm")
-    finally:
-        machine.stop()
-        if args.keep:
-            args.keep.mkdir(parents=True, exist_ok=True)
-            for name in ("serial.log", "final.ppm"):
-                if (workdir / name).exists():
-                    shutil.copy(workdir / name, args.keep / name)
-        if failures:
-            print("\n--- last 40 kernel log lines ---")
-            lines = [l for l in machine.log().splitlines() if l.startswith("[zenith]")]
-            print("\n".join(lines[-40:]))
-        shutil.rmtree(workdir, ignore_errors=True)
+            machine.screenshot(machine.workdir / "final.ppm")
+        finally:
+            machine.stop()
+            if args.keep:
+                args.keep.mkdir(parents=True, exist_ok=True)
+                for name in ("serial.log", "final.ppm"):
+                    if (machine.workdir / name).exists():
+                        shutil.copy(machine.workdir / name, args.keep / name)
+            if failures:
+                print("\n--- last 40 kernel log lines ---")
+                lines = [l for l in machine.log().splitlines() if l.startswith("[zenith]")]
+                print("\n".join(lines[-40:]))
+            shutil.rmtree(machine.workdir, ignore_errors=True)
 
     # Second, short boot: a clean power-off unmounts everything and the VM actually turns off.
-    workdir2 = Path(tempfile.mkdtemp(prefix="zenith-smoke-"))
-    machine2 = Machine(args.iso, workdir2)
-    try:
-        if machine2.wait_for("kernel: desktop ready", args.timeout):
+    machine2, attempts = boot(args.iso, args.timeout, "poweroff boot")
+    retried += attempts - 1
+    if machine2 is None:
+        print("FAIL poweroff: second boot never came up")
+        failures += 1
+    else:
+        try:
             time.sleep(2)
             machine2.type("poweroff\n")
             if machine2.wait_for("mounts: all filesystems unmounted", args.step_timeout) and machine2.wait_exit(args.step_timeout):
@@ -216,12 +250,12 @@ def main() -> int:
             else:
                 print("FAIL poweroff: no clean unmount, or the VM did not turn off")
                 failures += 1
-        else:
-            print("FAIL poweroff: second boot never came up")
-            failures += 1
-    finally:
-        machine2.stop()
-        shutil.rmtree(workdir2, ignore_errors=True)
+        finally:
+            machine2.stop()
+            shutil.rmtree(machine2.workdir, ignore_errors=True)
+
+    if retried:
+        print(f"\nnote: {retried} boot(s) had to be retried after an early kernel fault")
 
     total = len(STEPS) + 2
     print(f"\n{total - failures}/{total} checks passed")
