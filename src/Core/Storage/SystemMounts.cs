@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using Cosmos.Kernel.HAL.Interfaces.Devices;
 using Cosmos.Kernel.HAL.Vfs;
 using Cosmos.Kernel.System.Filesystems.Fat;
 using Cosmos.Kernel.System.Storage;
@@ -51,6 +54,105 @@ internal static class SystemMounts
         FileSystemLayout.Create();
         Log.PersistTo("/var/log/boot.log");
         MountRamDisk("tmpfs", 16, "/tmp");
+    }
+
+    /// <summary>Flushes every mounted filesystem to its disk (the <c>sync</c> command). Returns how many were synced.</summary>
+    public static int SyncAll()
+    {
+        int synced = 0;
+        foreach (VfsManager.VfsMount mount in VfsManager.Mounts)
+        {
+            if (mount.Superblock.SuperOperations.Sync(mount.Superblock))
+            {
+                synced++;
+            }
+        }
+
+        return synced;
+    }
+
+    /// <summary>
+    /// Mounts a FAT partition (by name, e.g. <c>sata0p1</c>) on an existing directory.
+    /// Returns an error message, or null on success.
+    /// </summary>
+    public static string? Mount(string partitionName, string mountPoint)
+    {
+        Partition? partition = null;
+        foreach (Partition candidate in StorageManager.Partitions)
+        {
+            if (candidate.Name == partitionName)
+            {
+                partition = candidate;
+            }
+        }
+
+        if (partition is null)
+        {
+            return partitionName + ": no such partition (see lsblk)";
+        }
+
+        foreach (VfsManager.VfsMount existing in VfsManager.Mounts)
+        {
+            if (ReferenceEquals(existing.Partition, partition))
+            {
+                return partitionName + " is already mounted on " + existing.MountPoint;
+            }
+
+            if (existing.MountPoint == mountPoint)
+            {
+                return mountPoint + " is already a mount point";
+            }
+        }
+
+        if (!Directory.Exists(mountPoint))
+        {
+            return mountPoint + ": mount point does not exist";
+        }
+
+        return VfsManager.TryMount(Fat, partition, MountFlags.None, mountPoint, out _) ? null : partitionName + ": not a FAT filesystem";
+    }
+
+    /// <summary>Unmounts one mount point (never the root). Returns an error message, or null on success.</summary>
+    public static string? Unmount(string mountPoint)
+    {
+        if (mountPoint == "/")
+        {
+            return "/: the root filesystem stays mounted while the system runs";
+        }
+
+        foreach (VfsManager.VfsMount mount in VfsManager.Mounts)
+        {
+            if (mount.MountPoint.StartsWith(mountPoint + "/"))
+            {
+                return mountPoint + ": target is busy (" + mount.MountPoint + " is mounted below it)";
+            }
+        }
+
+        return VfsManager.TryUnmount(mountPoint) ? null : mountPoint + ": not mounted";
+    }
+
+    /// <summary>
+    /// The shutdown sequence: stop writing the log file, sync, then unmount every filesystem
+    /// deepest-first (unmounting flushes) and flush the disks themselves.
+    /// </summary>
+    public static void Shutdown()
+    {
+        Log.StopPersisting();
+        SyncAll();
+
+        var mounts = new List<VfsManager.VfsMount>(VfsManager.Mounts);
+        mounts.Sort((a, b) => b.MountPoint.Length.CompareTo(a.MountPoint.Length));
+        foreach (VfsManager.VfsMount mount in mounts)
+        {
+            VfsManager.TryUnmount(mount.MountPoint);
+        }
+
+        foreach (IBlockDevice device in StorageManager.Devices)
+        {
+            device.Flush();
+        }
+
+        Log.Write("mounts", "all filesystems unmounted");
     }
 
     /// <summary>Mounts every partition in turn at <c>/</c> and keeps the first one carrying a Zenith installation.</summary>

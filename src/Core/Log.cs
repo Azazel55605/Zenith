@@ -66,6 +66,15 @@ internal static class Log
         }
     }
 
+    /// <summary>Stops mirroring to the file, before the filesystem holding it is unmounted.</summary>
+    public static void StopPersisting()
+    {
+        lock (s_lock)
+        {
+            s_file = null;
+        }
+    }
+
     /// <summary>Starts mirroring the log to <paramref name="path"/>, rotating the previous file to <c>.1</c>.</summary>
     public static void PersistTo(string path)
     {

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Cosmos.Kernel.System;
+using Zenith.Core;
 using Zenith.Gui.Graphics;
 
 namespace Zenith.Gui.Shell;
@@ -89,9 +89,9 @@ internal sealed class LauncherMenu
         surface.FillRect(new Rect(x + 8, y + SeparatorHeight / 2, w - 16, 1), Theme.TitleDivider);
         y += SeparatorHeight;
 
-        AddPowerItem(surface, new Rect(x, y, w, PowerItemHeight), "Restart", Power.Reboot, mouseX, mouseY);
+        AddPowerItem(surface, new Rect(x, y, w, PowerItemHeight), "Restart", PowerControl.Reboot, mouseX, mouseY);
         y += PowerItemHeight;
-        AddPowerItem(surface, new Rect(x, y, w, PowerItemHeight), "Shut down", Power.Shutdown, mouseX, mouseY);
+        AddPowerItem(surface, new Rect(x, y, w, PowerItemHeight), "Shut down", PowerControl.PowerOff, mouseX, mouseY);
     }
 
     private void AddPowerItem(Surface surface, Rect item, string label, Action run, int mouseX, int mouseY)

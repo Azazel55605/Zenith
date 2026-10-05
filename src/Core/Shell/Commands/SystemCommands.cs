@@ -30,7 +30,7 @@ internal static class SystemCommands
         add(new Command("uptime", "uptime", "Time since boot", Uptime));
         add(new Command("free", "free", "Show memory usage", Free));
         add(new Command("df", "df", "Show filesystem space usage", Df));
-        add(new Command("mount", "mount", "Show the mount table", Mount));
+        add(new Command("mount", "mount [partition mountpoint]", "Show the mount table, or mount a FAT partition", Mount));
         add(new Command("lsblk", "lsblk", "List disks and partitions", Lsblk));
         add(new Command("loadkeys", "loadkeys [layout]", "Switch the keyboard layout for this session", LoadKeys));
         add(new Command("localectl", "localectl [status | list-keymaps | set-keymap layout]", "Show or set the saved keyboard layout", Localectl));
@@ -38,8 +38,10 @@ internal static class SystemCommands
         add(new Command("logger", "logger [message...]", "Write a message (or stdin) to the kernel log", Logger));
         add(new Command("crash", "crash", "Trigger a kernel panic (for testing)", _ => { KernelPanic.Request("crash command"); return 0; }));
         add(new Command("install", "install [disk] [--yes]", "Install Zenith onto a disk", Install));
-        add(new Command("reboot", "reboot", "Restart the machine", _ => { Power.Reboot(); return 0; }));
-        add(new Command("poweroff", "poweroff", "Turn the machine off", _ => { Power.Shutdown(); return 0; }));
+        add(new Command("sync", "sync", "Write all cached filesystem data to disk", c => { SystemMounts.SyncAll(); return 0; }));
+        add(new Command("umount", "umount mountpoint", "Unmount a filesystem", Umount));
+        add(new Command("reboot", "reboot", "Sync, unmount and restart the machine", _ => { PowerControl.Reboot(); return 0; }));
+        add(new Command("poweroff", "poweroff", "Sync, unmount and turn the machine off", _ => { PowerControl.PowerOff(); return 0; }));
     }
 
     private static int Uname(CommandContext c)
@@ -129,12 +131,34 @@ internal static class SystemCommands
 
     private static int Mount(CommandContext c)
     {
+        if (c.Args.Length == 2)
+        {
+            string? error = SystemMounts.Mount(c.Args[0], c.Resolve(c.Args[1]));
+            return error is null ? 0 : c.Fail(error);
+        }
+
+        if (c.Args.Length != 0)
+        {
+            return c.Fail("usage: mount [partition mountpoint]");
+        }
+
         foreach (VfsManager.VfsMount m in VfsManager.Mounts)
         {
             c.WriteLine(Source(m) + " on " + m.MountPoint + " type " + (m.Name == SystemMounts.Fat ? "vfat" : "tmpfs (" + m.Name + ")"));
         }
 
         return 0;
+    }
+
+    private static int Umount(CommandContext c)
+    {
+        if (c.Args.Length != 1)
+        {
+            return c.Fail("usage: umount mountpoint");
+        }
+
+        string? error = SystemMounts.Unmount(c.Resolve(c.Args[0]));
+        return error is null ? 0 : c.Fail(error);
     }
 
     private static string Source(VfsManager.VfsMount m) => m.Partition?.Name ?? m.Name;

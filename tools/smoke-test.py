@@ -35,6 +35,8 @@ STEPS = [
     ("nope; echo status=$? | logger", "user: status=127"),
     ("echo 'oops\necho syntax=$? | logger", "user: syntax=2"),
     ("install sata0 --yes && logger INSTALL-OK", "user: INSTALL-OK"),
+    ("mkdir /mnt/inst && mount sata0p1 /mnt/inst && cat /mnt/inst/etc/hostname | logger", "user: zenith"),
+    ("umount /mnt/inst && sync && logger unmounted", "user: unmounted"),
     ("lsblk | grep sata0p1 | logger", "sata0p1       190M  part"),   # serial is ASCII-only: no box glyphs
     # German layout: the key QEMU calls "y" types "z". Switch back by typing "loadkezs us".
     ("localectl set-keymap de\nlogger y", "user: z"),
@@ -118,6 +120,13 @@ class Machine:
             self.command("sendkey " + key)
             time.sleep(0.03)
 
+    def wait_exit(self, timeout: float) -> bool:
+        try:
+            self.process.wait(timeout=timeout)
+            return True
+        except subprocess.TimeoutExpired:
+            return False
+
     def screenshot(self, path: Path):
         self.command(f"screendump {path}")
         time.sleep(1)
@@ -175,7 +184,27 @@ def main() -> int:
             print("\n".join(lines[-40:]))
         shutil.rmtree(workdir, ignore_errors=True)
 
-    print(f"\n{len(STEPS) + 1 - failures}/{len(STEPS) + 1} checks passed")
+    # Second, short boot: a clean power-off unmounts everything and the VM actually turns off.
+    workdir2 = Path(tempfile.mkdtemp(prefix="zenith-smoke-"))
+    machine2 = Machine(args.iso, workdir2)
+    try:
+        if machine2.wait_for("kernel: desktop ready", args.timeout):
+            time.sleep(2)
+            machine2.type("poweroff\n")
+            if machine2.wait_for("mounts: all filesystems unmounted", args.step_timeout) and machine2.wait_exit(args.step_timeout):
+                print("ok   poweroff (filesystems unmounted, VM turned off)")
+            else:
+                print("FAIL poweroff: no clean unmount, or the VM did not turn off")
+                failures += 1
+        else:
+            print("FAIL poweroff: second boot never came up")
+            failures += 1
+    finally:
+        machine2.stop()
+        shutil.rmtree(workdir2, ignore_errors=True)
+
+    total = len(STEPS) + 2
+    print(f"\n{total - failures}/{total} checks passed")
     return 1 if failures else 0
 
 
