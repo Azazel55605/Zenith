@@ -43,6 +43,7 @@ STEPS = [
     ("umount /mnt/inst && sync && logger unmounted", "user: unmounted"),
     # Editor: open a new file, type, save (Ctrl+S), close (Ctrl+Q); focus returns to the terminal.
     ("edit /tmp/ed.txt\n%%DELAY%%written in editor^S^Qcat /tmp/ed.txt | logger", "user: written in editor"),
+    ("man sh | grep COMPOUND | logger", "user: COMPOUND COMMANDS"),
     ("lsblk | grep sata0p1 | logger", "sata0p1       190M  part"),   # serial is ASCII-only: no box glyphs
     # German layout: the key QEMU calls "y" types "z". Switch back by typing "loadkezs us".
     ("localectl set-keymap de\nlogger y", "user: z"),

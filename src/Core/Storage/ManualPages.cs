@@ -1,0 +1,130 @@
+namespace Zenith.Core.Storage;
+
+/// <summary>
+/// Hand-written manual pages, installed to <c>/usr/share/man/&lt;name&gt;.txt</c> on every boot
+/// (they are system files, so a newer kernel brings newer pages). Commands without one get a
+/// page generated from their usage line by <c>man</c>.
+/// </summary>
+internal static class ManualPages
+{
+    public const string Directory = "/usr/share/man";
+
+    public static readonly (string Name, string Text)[] Pages =
+    {
+        ("zenith", """
+            NAME
+                zenith - introduction to the Zenith operating system
+
+            DESCRIPTION
+                Zenith is a small Unix-style operating system written in C# on Cosmos Gen 3.
+                It has a desktop, a terminal with a POSIX-flavoured shell, and a Unix
+                directory tree. Everything here is built into the kernel; there are no
+                separate programs yet, but shell scripts in /bin run like commands.
+
+            GETTING AROUND
+                help            list every command
+                man COMMAND     this kind of page, for any command
+                man sh          the shell language: variables, loops, functions
+                man hier        what the directories are for
+                edit FILE       open a file in the text editor
+                install         put Zenith on a disk (see 'man install')
+
+            SETTINGS
+                localectl set-keymap de           keyboard layout, saved in /etc/vconsole.conf
+                timedatectl set-timezone Europe/Berlin   saved in /etc/timezone
+
+            FILES
+                /etc/profile    run by every new terminal
+                /var/log/boot.log   the kernel log of this boot (boot.log.1: the previous one)
+            """),
+
+        ("sh", """
+            NAME
+                sh - the Zenith command language
+
+            SIMPLE COMMANDS
+                name arg...             run a command
+                a | b | c               pipe output into the next command
+                cmd > file, >> file, < file     redirect output (replace/append) or input
+                a; b    a && b    a || b        sequence, and-then, or-else
+                ! cmd                   invert the exit status
+                NAME=value              set a variable (export makes no difference yet)
+
+            WORDS AND EXPANSION
+                'literal'   "with $expansion"   back\slash escapes one character
+                $NAME ${NAME}           variable
+                $? $# $0 $1..$9 $@      status, argument count, script name, arguments
+                $(command) `command`    command substitution
+                $((1 + 2 * x))          integer arithmetic: + - * / % ** == != < <= > >= && || !
+                ~  *  ?                 home directory, file name wildcards
+                Unquoted expansions are split into words on spaces; quote them to keep one word.
+
+            COMPOUND COMMANDS
+                if cond; then ...; elif cond; then ...; else ...; fi
+                for x in a b c; do ...; done        (without 'in': loops over "$@")
+                while cond; do ...; done            until cond; do ...; done
+                { cmd; cmd; }                       group, e.g. to redirect all output
+                name() { ...; }                     define a function; $1.. are its arguments
+                break [n]  continue [n]  return [status]  exit [status]
+                Any command can be redirected: while read line; do ...; done < file
+
+            TESTS
+                [ -f file ] [ -d dir ] [ -e path ] [ -s file ]   file exists / is a directory / non-empty
+                [ -z str ] [ -n str ] [ a = b ] [ a != b ]       strings
+                [ 1 -lt 2 ]  -eq -ne -lt -le -gt -ge             integers
+                [ ! expr ]  [ e1 -a e2 ]  [ e1 -o e2 ]           not, and, or
+
+            SCRIPTS
+                sh script.sh args       run a script in a child shell (its variables don't leak)
+                . script.sh             run it in the current shell
+                Scripts in $PATH (/bin) run by name. '#!' lines are comments.
+                read [-p prompt] name   read a line of input into variables
+
+            INTERACTIVE USE
+                Up/Down history, Tab completion, Ctrl+C stops a command, Ctrl+L clears,
+                Ctrl+D ends input for 'read' (or closes the terminal at an empty prompt).
+                An unfinished line (open quote, 'if' without 'fi') continues with '> '.
+            """),
+
+        ("hier", """
+            NAME
+                hier - the Zenith directory layout
+
+            DIRECTORIES
+                /bin        shell scripts that run as commands (on $PATH)
+                /boot       boot files (the EFI partition holds the bootloader)
+                /dev        devices (not populated yet)
+                /etc        system configuration: hostname, passwd, profile, timezone, vconsole.conf
+                /home/user  your files
+                /mnt        mount points for other disks: mount sata0p1 /mnt/disk
+                /proc       process and kernel information (not populated yet)
+                /root       the administrator's home
+                /tmp        scratch space in memory, emptied on every boot
+                /usr/share  read-only data such as these manual pages
+                /var/log    logs: boot.log
+
+            NOTES
+                Without an installed disk, the whole tree lives in memory (live mode).
+                The disk format is FAT32 for now, so names are case-insensitive and
+                there are no permissions or symbolic links.
+            """),
+
+        ("install", """
+            NAME
+                install - install Zenith onto a disk
+
+            SYNOPSIS
+                install                 list disks Zenith can be installed on
+                install DISK --yes      erase DISK and install
+
+            DESCRIPTION
+                Creates a GPT partition table with a 64 MiB EFI system partition and a FAT32
+                root partition, then copies /etc, /home, /root, /usr and /var. The kernel and
+                the bootloader still have to be added from the host with
+                tools/make-bootable.sh before the disk boots on its own.
+
+                On the next boot Zenith finds the installed root partition by its
+                /etc/os-release and mounts it at /.
+            """),
+    };
+}

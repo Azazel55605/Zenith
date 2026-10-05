@@ -11,6 +11,7 @@ internal static class BuiltinCommands
     public static void Register(Action<Command> add)
     {
         add(new Command("help", "help [command]", "List commands, or show usage of one", Help));
+        add(new Command("man", "man topic", "Show the manual page for a command or topic (try: man zenith, man sh)", Man));
         add(new Command("echo", "echo [-n] [text...]", "Print arguments", Echo));
         add(new Command("cd", "cd [dir]", "Change the working directory", Cd));
         add(new Command("pwd", "pwd", "Print the working directory", c => { c.WriteLine(c.Shell.WorkingDirectory); return 0; }));
@@ -51,6 +52,46 @@ internal static class BuiltinCommands
         c.WriteLine();
         c.WriteLine(Ansi.Dim("Scripting: if/for/while/until, functions, $(cmd), $((math)), pipes, > >> <, ; && ||, wildcards."));
         c.WriteLine(Ansi.Dim("Scripts run with 'sh file', by path, or by name from $PATH (/bin). 'help cmd' shows usage."));
+        return 0;
+    }
+
+    /// <summary>
+    /// Shows /usr/share/man/TOPIC.txt when there is one, otherwise a page generated from the
+    /// command's usage and summary, so every command has a page.
+    /// </summary>
+    private static int Man(CommandContext c)
+    {
+        if (c.Args.Length != 1)
+        {
+            return c.Fail("usage: man topic (try: man zenith)");
+        }
+
+        string topic = c.Args[0];
+        string page = "/usr/share/man/" + topic + ".txt";
+        if (topic.IndexOf('/') < 0 && File.Exists(page))
+        {
+            foreach (string line in File.ReadAllText(page).Split('\n'))
+            {
+                // Section headings (unindented, upper case) in bold.
+                bool heading = line.Length > 0 && line == line.ToUpperInvariant() && !line.StartsWith(' ');
+                c.WriteLine(heading ? Ansi.Bold(line) : line);
+            }
+
+            return 0;
+        }
+
+        if (!Shell.Commands.TryGetValue(topic, out Command? command))
+        {
+            return c.Fail("no manual entry for " + topic);
+        }
+
+        c.WriteLine(Ansi.Bold("NAME"));
+        c.WriteLine("    " + command.Name + " - " + command.Summary);
+        c.WriteLine();
+        c.WriteLine(Ansi.Bold("SYNOPSIS"));
+        c.WriteLine("    " + command.Usage);
+        c.WriteLine();
+        c.WriteLine(Ansi.Dim("A built-in command. See also: man sh, help"));
         return 0;
     }
 

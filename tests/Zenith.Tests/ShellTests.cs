@@ -139,6 +139,16 @@ public class ShellTests
     }
 
     [Fact]
+    public void Man_GeneratesPagesForCommandsWithoutOne()
+    {
+        using var sh = new ShellHarness();
+        string page = sh.Run("man echo");
+        Assert.Contains("SYNOPSIS", page);
+        Assert.Contains("echo [-n] [text...]", page);
+        Assert.Contains("no manual entry", sh.Run("man nosuchthing"));
+    }
+
+    [Fact]
     public void History_RecordsLines()
     {
         using var sh = new ShellHarness();

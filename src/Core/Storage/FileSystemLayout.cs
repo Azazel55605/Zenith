@@ -13,7 +13,7 @@ internal static class FileSystemLayout
     private static readonly string[] s_directories =
     {
         "/bin", "/boot", "/dev", "/etc", "/home", "/home/user", "/mnt", "/proc", "/root",
-        "/tmp", "/usr", "/usr/share", "/usr/share/doc", "/var", "/var/log",
+        "/tmp", "/usr", "/usr/share", "/usr/share/doc", "/usr/share/man", "/var", "/var/log",
     };
 
     public static void Create(string root = "")
@@ -33,6 +33,12 @@ internal static class FileSystemLayout
         WriteIfMissing(root + "/etc/timezone", "UTC\n");
         WriteIfMissing(root + "/etc/motd", "Welcome to Zenith. Type 'help' to list commands.\n");
         WriteIfMissing(root + "/etc/profile", "export PATH=/bin\nexport EDITOR=edit\n");
+        // System documentation is refreshed on every boot.
+        foreach (var (name, text) in ManualPages.Pages)
+        {
+            File.WriteAllText(root + ManualPages.Directory + "/" + name + ".txt", text + "\n");
+        }
+
         WriteIfMissing(root + "/home/user/readme.txt",
             "This is your home directory.\nFiles here persist when Zenith runs from an installed disk.\n");
     }
