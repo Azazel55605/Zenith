@@ -1,168 +1,173 @@
-# MyOS roadmap and technical notes
+# MyOS roadmap
 
-Where MyOS stands, what Cosmos Gen 3 (3.0.89) gives us, and what each next step costs.
-Paths like `articles/user/filesystem.md` refer to the vendored Cosmos docs in `docs/cosmos/`.
+Milestones in recommended order. Each has a goal, its work items, and an exit criterion that
+says when it's done. Background and effort estimates for the big items are in
+[TECHNICAL-NOTES.md](TECHNICAL-NOTES.md).
 
-## 1. Display and input: what was wrong, what changed
+**Sizes:** S = a day or two · M = about a week · L = several weeks · XL = months.
+**↑ upstream** = a change to Cosmos itself (its HAL is internal; see "Upstream work" below).
 
-Measured with a serial-log probe (1280×800, one window open):
+## Where we are (v0.1)
 
-| Configuration                       | Full recompose | Copy to screen |
-|-------------------------------------|---------------:|---------------:|
-| std-vga, TCG (old VS Code task)     | ~44 ms         | ~5.7 ms        |
-| std-vga, KVM                        | 5–11 ms        | ~0.6 ms        |
-| virtio-gpu, KVM                     | 5–10 ms        | ~0.6 ms        |
-| virtio-gpu, KVM, after the fixes    | ~3 ms (rare)   | ~0.3 ms        |
+**Working:**
+- Desktop: compositor, windows, taskbar, launcher.
+- Terminal with a POSIX-flavored shell and ~45 built-in commands.
+- FAT32 root (installed disk) or RAM root (live), `/tmp` in RAM.
+- Installer (GPT + ESP + root), finished by a host-side bootable step.
+- Fast QEMU setup: KVM, virtio-gpu, virtio input.
 
-The slow, uneven mouse came from four things stacking up:
+**Known gaps in what exists:**
 
-1. **No KVM.** The run task used pure emulation (TCG), roughly 8× slower for this workload.
-2. **Every pointer move recomposed the whole desktop.** Now the desktop keeps a cached scene,
-   and a pointer move only restores the pixels under the old cursor and draws it at the new
-   position. A full recompose happens only when the hovered control changes, on clicks and
-   keys, or while dragging.
-3. **Text was drawn one virtual `DrawPoint` call per pixel.** `FontFace` now rasterizes each
-   glyph once (through the public API) and blits it from a cache.
-4. **`Thread.Sleep(10)` paced the loop**, and in this build every sleep also writes several
-   lines of scheduler logging to the serial port. The loop now calls `Power.Halt()`, which
-   wakes on the next interrupt (mouse, keyboard or timer).
+| Gap | Effect today |
+|---|---|
+| Shell commands run on the GUI loop | A long command (`install`, `find /`) freezes the desktop; Ctrl+C can't interrupt it |
+| No unhandled-exception handling | An exception in `Run()` prints over the screen and halts the kernel |
+| Clock and dates | Times are UTC, and the FAT driver doesn't store timestamps (`ls -l` shows 1970) |
+| Keyboard layout | US only, although Cosmos ships DE, FR, ES, GB, TR and Dvorak |
+| Notes | Can't open or save files |
+| Windows | Can't be resized or maximized; the terminal is fixed at its startup size |
+| Clipboard | None, and no text selection |
+| Tests and CI | None; everything was verified by hand in QEMU |
 
-`tools/run.sh` now boots with KVM (falling back to TCG), **virtio-gpu** (Cosmos picks
-`VirtioGpuCanvas` automatically when the device is present), and **virtio mouse/keyboard**.
-In testing, 150 synthetic moves of (3, 2) landed exactly 450×300 px away, with nothing lost.
-`grab-on-hover` keeps host and guest pointer motion in step; release the grab with Ctrl+Alt+G.
+---
 
-What is left in this area:
+## M0 · Foundation: make change safe (next)
 
-- **Absolute pointer (virtio-tablet / usb-tablet).** This makes the guest cursor track the host
-  cursor exactly, with no grab needed. Cosmos only handles relative input (`EV_REL`); a tablet
-  needs `EV_ABS` handling in `VirtioMouse` (a small upstream change, see section 4 for why it
-  has to be upstream).
-- **Hardware cursor.** virtio-gpu has a cursor queue (Cosmos creates it but sends nothing).
-  With it, pointer moves would cost nothing at all.
-- **Damage rectangles.** `Display()` transfers the whole frame to the host. Transferring only
-  changed rectangles needs the driver's private `TransferToHost2D(x, y, w, h)` exposed.
-- **Debug log noise.** `CosmosEnableUART=false` in the `.csproj` removes all serial output at
-  compile time. That makes the loop faster, but it also silences `dmesg`'s serial copy and
-  the boot log, so it's best kept for release builds.
+Infrastructure that every later milestone leans on.
 
-## 2. The Unix model: what exists and what doesn't
-
-**Working now:**
-
-- One root filesystem at `/` with mounts on top: an installed FAT32 partition, or a RAM disk
-  in live mode. `/tmp` is always a RAM disk.
-- FHS-style layout (`/bin /boot /dev /etc /home /mnt /proc /root /tmp /usr /var`), with
-  `/etc/os-release`, `hostname`, `passwd`, `group`, `motd`, `profile` and `fstab`.
-- A POSIX-flavored shell: quoting, `$VAR`/`${VAR}`/`$?`, `~`, globs, `|`, `>`, `>>`, `<`,
-  `;`, `&&`, `||`, history, tab completion and `/etc/profile`.
-- About 45 commands: coreutils-style tools plus `mount`, `df`, `lsblk`, `dmesg`, `free` and
-  `install`.
-
-**The big gap: there are no processes.** Every command is C# compiled into the kernel and
-runs in kernel mode, in one address space. Cosmos has no program loader and no ring-3
-userland. Its own roadmap lists "Userland WASM VM" as future work. Two ways forward:
-
-| Option | What it takes | Verdict |
+| Item | Size | Notes |
 |---|---|---|
-| **WASM + WASI runtime** in the kernel | An interpreter (or later a JIT), plus WASI's POSIX-like file/clock/args API mapped onto our VFS. Programs are compiled from C/Rust/Zig/C# to `.wasm` and live in `/bin`. | Recommended. It's sandboxed by design, follows Cosmos's own direction, and WASI maps directly to what we have. |
-| Native ELF processes | Per-process page tables, ring-3 transitions, a syscall interface, an ELF loader, and a libc port. All of it lives below what Cosmos exposes; most of it is in Cosmos internals. | Months of work against internals; not worth it before WASM. |
+| GitHub Actions: build the ISO on every push, attach it to tagged releases | S | `dotnet tool install -g Cosmos.Tools && cosmos install` works headless on Linux |
+| Host unit tests for the parser, shell, path handling and commands | M | These only use `System.IO`, so a normal xunit project can compile the same sources against a temp directory |
+| QEMU smoke test: boot headless, type commands over the monitor, assert on serial output | M | Generalize the `vm.py` harness used during development; run it in CI (KVM if the runner has it, TCG otherwise) |
+| Panic screen: catch exceptions from `Run()`, show the message and stack on a red screen, write it to the log | S | |
+| Persist the kernel log to `/var/log/boot.log` on installed systems | S | |
+| Local Cosmos source build + local NuGet feed | M | Needed for every ↑ upstream item; see `docs/cosmos/articles/dev/install-dev.md` |
 
-**Other Unix pieces, roughly in order:**
+**Exit:** a push builds and boot-tests automatically; a crash shows a readable panic screen.
 
-- **`/proc` and `/dev`** as virtual filesystems: implement `IVfsFilesystemType` with
-  synthesized inodes (`/proc/meminfo`, `/proc/mounts`, `/dev/null`, `/dev/sda`). Moderate
-  work; the interface is public.
-- **Users and permissions:** FAT stores no owner or mode bits, so real permissions need a
-  Unix filesystem (section 3). `login`/`su` can come once permissions exist.
-- **Background jobs, signals, `Ctrl+C` of a running command:** these need processes or at
-  least threads per command. Cosmos has a preemptive scheduler and threads, so threads come
-  first.
-- **A text editor** (`nano`-like) inside the terminal, and file open/save in Notes.
+## M1 · Usable daily shell (v0.2)
 
-## 3. How hard is ext4 or btrfs?
-
-Cosmos has a clean seam for this. A filesystem driver implements `IVfsFilesystemType`,
-`IVfsSuperblock`, `IVfsInode` and `IVfsOpenFile` over an `IBlockDevice`
-(`articles/user/filesystem.md`, "How it works"). Mount it with `VfsManager` and every
-`System.IO` call (and every shell command) works on it unchanged. The FAT driver in the
-Cosmos source is the reference implementation. Development can happen on a
-`MemoryBlockDevice` loaded from an image you build on the host with `mkfs.ext4`, and checked
-with `e2fsck`/`debugfs`.
-
-| Filesystem | Read-only | Read-write | Notes |
-|---|---|---|---|
-| **ext2** | ~1–2k lines, about a week | +1.5k lines (block/inode bitmaps, allocation), 2–3 weeks | The realistic first step. Gives permissions, owners, symlinks and case-sensitive names. |
-| **ext4** | ext2 + extent trees + 64-bit + flex_bg: about 2–3 more weeks | Hard. You need metadata checksums (crc32c on almost everything), htree directories, and a **journal** (jbd2). The alternative is mounting only clean, journal-less filesystems, which works but is fragile. | Read-only ext4 is very doable. Safe read-write ext4 is a multi-month project. |
-| **btrfs** | Months: copy-on-write B-trees, chunk-tree logical→physical mapping, checksums, often zstd/lzo/zlib compression | A team-scale project (CoW allocation, transactions, multi-device) | Not recommended. |
-
-**Recommendation:** ext2 read-write first, which is enough for a native Unix root
-filesystem. Then ext4 read-only, so MyOS can read Linux disks. Revisit ext4 writes only
-after a journal design.
-
-## 4. What a self-contained installer needs
-
-**What works today** (tested end to end in QEMU):
-
-```
-boot ISO (live, RAM root) → `install sata0 --yes` → tools/make-bootable.sh disk.img
-→ boot disk.img with UEFI (no ISO) → root found on sata0p1 → files persist
-```
-
-`install` writes a GPT with a 64 MiB EFI System Partition and a FAT32 root. It lays out the
-Unix tree, copies `/etc /home /root /usr /var`, writes `fstab`, and puts `limine.conf` on the
-ESP. Cosmos's GPT writer leaves the CRCs at zero and writes no backup header; that's
-documented as intended for test images, but firmware rejects such a disk.
-`GptChecksums.Complete` fixes it up, after which `parted` and OVMF accept the disk.
-
-**Gaps before it's a real installer:**
-
-1. **The kernel can't copy itself or the bootloader.** That's the only reason the host step
-   (`make-bootable.sh`) exists. Two fixes:
-   - **Limine modules (preferred):** add `module_path: boot():/boot/MyOS.elf` and the EFI
-     binary to the ISO's `limine.conf`, and Limine hands them to the kernel in memory. Cosmos
-     doesn't expose Limine's *module request* yet; `Cosmos.Kernel.Boot.Limine` has
-     framebuffer, memory map, cmdline and others, but not modules. That's a small upstream
-     addition.
-   - Or read the CD itself: ATAPI support plus an ISO9660 driver. More work.
-2. **Root selection:** scanning partitions for `/etc/os-release` works. Passing `root=UUID=…`
-   on the Limine `cmdline:` is the robust version (`Environment.GetCommandLineArgs()` already
-   works).
-3. **BIOS boot:** needs a BIOS-boot partition plus Limine's `bios-install` logic. UEFI-only
-   is reasonable for modern machines.
-4. **UX:** a graphical installer window (disk picker, confirmation, progress) on top of
-   `Installer.Install`, which already reports progress through a callback.
-5. **A Unix root filesystem:** ext2 from section 3, once it exists.
-
-## 5. Drivers
-
-The rule that matters most: **Cosmos drivers live in its internal HAL.** `VirtioTransport`,
-`Virtqueue`, device registration and the rest are `internal`. A kernel project can reach
-single members through `[UnsafeAccessor]` (as `Log.cs` does), but it can't sensibly write a
-whole driver that way. Real driver work means either contributing to Cosmos upstream, or
-building Cosmos from source (`articles/dev/install-dev.md`) and consuming it from a local
-NuGet feed. Set that up before starting driver work.
-
-| Area | Cosmos has | Missing, in priority order |
+| Item | Size | Notes |
 |---|---|---|
-| **Display** | UEFI GOP framebuffer (any UEFI PC), virtio-gpu, VMware SVGA II (+3D) | virtio-gpu hardware cursor and partial flush (VM smoothness). Native Intel/AMD/NVIDIA drivers are enormous; on real hardware GOP is the practical path (fixed resolution, CPU rendering). |
-| **Keyboard** | PS/2, virtio, USB HID (boot protocol) via xHCI | Fine for now |
-| **Mouse** | PS/2 (with wheel), virtio (relative) | **USB HID mouse**, which almost every real PC needs. **Absolute pointer** (tablet) for VMs. I2C-HID touchpads for laptops (hard). |
-| **Storage** | AHCI (SATA), NVMe, USB mass storage; MBR/GPT; FAT | virtio-blk (faster VM disks), ATAPI + ISO9660 (installer), then ext2 |
-| **Network** | Intel E1000E, virtio-net; ARP/IPv4/IPv6-link/UDP/TCP/DHCP/DNS | Realtek RTL8111/8168 (most desktop boards), Intel I219/I225. TLS is not implemented yet. **Wi-Fi is the hardest item on this list** (firmware blobs, 802.11 MAC, WPA2/3); skip it for a long time. |
-| **Audio** | none | Intel HDA (real hardware), virtio-sound (VMs) |
-| **Platform** | ACPI (LAI), APIC/GIC, timers, RTC, reboot/shutdown | SMP (not started in Cosmos), suspend, battery and thermal |
+| Run each command line on a worker thread; Ctrl+C sets a cancellation flag that commands check | M | Cosmos has a preemptive scheduler and threads. Terminal output is marshalled back to the GUI thread. |
+| Keyboard layouts: `loadkeys de`, persisted in `/etc/vconsole.conf` | S | Uses Cosmos `KeyboardManager.SetKeyLayout` and its ScanMaps |
+| Time zone: `/etc/timezone` as a fixed offset (no tz database yet); `date`, the clock and `ls -l` use it | S | |
+| Clean shutdown/reboot: unmount and flush every filesystem first; add `sync` and `umount` | S | |
+| Shell scripts: `sh file`, `#!` files, `if`/`for`/`while`, `test`/`[`, `read`, functions | L | Turns `/etc/profile` into real init scripts |
+| Text editor in the terminal (nano-like) and `edit` command; Notes gains open/save | M | |
+| Manual pages: `man cmd` reading `/usr/share/man/*.txt`, generated from command metadata | S | |
+| Window resize and maximize; the terminal reflows to the new size | M | |
+| Text selection and clipboard (terminal + Notes), Ctrl+Shift+C/V | M | |
+| More commands: `less`, `diff`, `sed` subset, `xargs`, `seq`, `basename`/`dirname`, `du` | M | |
 
-**Minimum set for running on a real PC:** UEFI GOP, xHCI with USB HID keyboard and **mouse**,
-AHCI or NVMe, and one common NIC (RTL8168 or Intel I219). Only the USB mouse and the NIC are
-missing.
+**Exit:** you can work in the terminal for an hour (German layout, scripts, editing files)
+without hitting a missing basic.
 
-## Suggested order of work
+## M2 · Unix filesystem semantics (v0.3)
 
-1. Set up a local Cosmos source build, then upstream small fixes: Limine module request,
-   virtio tablet (`EV_ABS`), virtio-gpu cursor and partial flush, GPT CRCs.
-2. `/proc` and `/dev` virtual filesystems; a terminal text editor; file open/save in Notes.
-3. ext2 read-write, then install onto ext2.
-4. Self-contained graphical installer (Limine modules + installer window).
-5. WASM/WASI runtime: real programs in `/bin`, then processes, jobs and signals.
-6. Real-hardware drivers: USB HID mouse, RTL8168/I219.
+| Item | Size | Notes |
+|---|---|---|
+| `/proc` virtual filesystem: `meminfo`, `mounts`, `uptime`, `cmdline`, later per-process entries | M | Implement `IVfsFilesystemType` with synthesized inodes |
+| `/dev` virtual filesystem: `null`, `zero`, `random`, block devices (`sda`, `sda1`) | M | |
+| **ext2 driver, read-write** | L | The native root filesystem: owners, permissions, symlinks, case-sensitive names, timestamps |
+| Installer formats the root as ext2 (the ESP stays FAT32) | S | Depends on ext2 |
+| Users: login screen, `/etc/shadow` with salted hashes, `passwd`, `su`, `useradd` | M | |
+| Permission checks in the VFS path for file operations | M | |
+| `fsck.ext2` (check-only first) | M | |
+| ext4 read-only (extents, 64-bit), to read Linux disks | L | Optional, after ext2 |
+
+**Exit:** an installed system runs on ext2 with real users and permissions, and `ls -l` shows
+the truth.
+
+## M3 · Networking (v0.4)
+
+| Item | Size | Notes |
+|---|---|---|
+| Network service: DHCP at boot, `/etc/hostname`, `/etc/hosts`, `/etc/resolv.conf` | S | The Cosmos stack already has DHCP, DNS, UDP and TCP |
+| `ip`/`ifconfig`, `ping`, `nslookup`, `nc` | M | |
+| NTP client: set the clock at boot | S | Fixes wrong time in VMs |
+| Plain-HTTP `fetch` (curl-like) and a tiny HTTP server for testing | M | No TLS in Cosmos yet |
+| TLS | XL | Track Cosmos's plans (it's on their "Future" list) before writing our own |
+
+**Exit:** a fresh boot gets an address and the right time, and can fetch a file over HTTP.
+
+## M4 · Self-contained installer (v0.5)
+
+| Item | Size | Notes |
+|---|---|---|
+| ↑ Limine module request in `Cosmos.Kernel.Boot.Limine` | S | Lets the ISO hand `BOOTX64.EFI` and the kernel to the running system |
+| Installer copies the boot files itself; `make-bootable.sh` retires | S | Depends on the above |
+| Root selection via `root=UUID=…` on the Limine command line | S | |
+| Graphical installer window: disk picker, summary, confirmation, progress | M | Built on `Installer.Install` (already reports progress) |
+| Install to a USB stick (Cosmos supports USB mass storage) | S | First step toward real hardware |
+| ↑ GPT writer computes CRCs and the backup header | S | Then drop `GptChecksums` |
+| BIOS boot (BIOS-boot partition + Limine stage 1) | M | Optional; UEFI covers modern PCs |
+
+**Exit:** boot the ISO, click through the installer, reboot into the installed system. No
+host tools involved.
+
+## M5 · Running programs (v0.6)
+
+The biggest architectural step: from "commands compiled into the kernel" to real programs.
+
+| Item | Size | Notes |
+|---|---|---|
+| WebAssembly interpreter in the kernel | XL | Sandboxed by design; matches Cosmos's planned "userland WASM VM" |
+| WASI preview 1 subset over our VFS: files, dirs, args, env, clocks, stdout/stderr | L | |
+| Process table: `ps`, `kill`, exit codes, background jobs (`&`, `jobs`, `fg`) | L | Each program runs on its own thread |
+| `/bin` holds `.wasm` programs; the shell looks up `PATH` before built-ins | S | |
+| Toolchain doc + sample: build C/Rust/Zig to `wasm32-wasi`, copy into the image | S | |
+| Package format and `pkg install` from a local directory or HTTP (needs M3) | L | |
+
+**Exit:** a C program compiled with wasi-sdk on the host runs from `/bin` in MyOS, reads and
+writes files, and shows up in `ps`.
+
+## M6 · Desktop polish (v0.7)
+
+| Item | Size | Notes |
+|---|---|---|
+| Widget toolkit: button, text box, list, scroll view, checkbox, layout | L | Every app afterwards gets cheaper |
+| File manager | M | Needs the toolkit |
+| Settings app: keyboard layout, time zone, wallpaper, display info | M | |
+| Damage tracking: recompose only changed regions | M | Smooth window drags without KVM |
+| ↑ virtio-gpu hardware cursor and partial flush | M | Pointer moves cost nothing |
+| ↑ virtio-tablet (absolute pointer) | S | Host and guest cursors stay in sync with no grab |
+| Notifications, Alt+Tab, keyboard shortcuts | M | |
+
+**Exit:** the desktop is usable without the terminal for basic file and settings tasks.
+
+## M7 · Real hardware (v0.8)
+
+| Item | Size | Notes |
+|---|---|---|
+| ↑ USB HID mouse driver | M | Almost every real PC needs it |
+| ↑ Realtek RTL8111/8168 and Intel I219 NIC drivers | L | Covers most desktop boards |
+| Hardware test matrix: boot from a USB stick on 2–3 real UEFI machines; record what works | M | |
+| ↑ Intel HDA audio | L | Optional |
+
+**Exit:** MyOS boots from a USB stick on a real PC with working keyboard, mouse, storage and
+wired network.
+
+---
+
+## Upstream work (Cosmos)
+
+Cosmos keeps drivers and boot plumbing `internal`, so these belong in Cosmos, either as pull
+requests or in our local fork until they land:
+
+1. Limine module request (M4)
+2. GPT CRC32s and backup header (M4)
+3. virtio-tablet / `EV_ABS` (M6)
+4. virtio-gpu cursor queue and partial `TransferToHost2D` (M6)
+5. FAT timestamps (M1/M2; currently not persisted)
+6. USB HID mouse, RTL8168, I219 (M7)
+
+## Decisions to make
+
+| Decision | Recommendation | Why it matters |
+|---|---|---|
+| How programs run | WASM + WASI | The alternative (native ELF, ring 3, syscalls) means months inside Cosmos internals |
+| Native root filesystem | ext2, then ext4 read-only | Our own format would save time now but lose host tooling (`mkfs`, `e2fsck`, `debugfs`) |
+| Target hardware | QEMU first; one or two real UEFI machines from M7 | Decides which NIC and input drivers come first |
+| Contributing upstream vs. forking Cosmos | Fork locally, upstream as we go | Some fixes are needed before Cosmos would release them |

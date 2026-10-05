@@ -20,7 +20,7 @@ virtio-gpu, and virtio mouse/keyboard. The pointer is grabbed on hover; **Ctrl+A
 
 1. **Run QEMU x64**. In the Terminal: `install` lists target disks, and `install sata0 --yes`
    partitions (GPT: ESP + root), formats (FAT32), and copies the system.
-2. **Make Disk Bootable** (the kernel can't copy itself or the bootloader yet; see the roadmap).
+2. **Make Disk Bootable** (the kernel can't copy itself or the bootloader yet; see roadmap M4).
 3. **Run QEMU x64 (installed disk)**. MyOS finds its root partition and changes now persist.
 
 Without an installed disk, MyOS boots **live**: the root is a 64 MiB RAM disk that is lost on reboot.
@@ -40,8 +40,10 @@ The Terminal opens at boot. Type `help` for the command list. Supported shell sy
 
 ## Documentation
 
-- [`docs/ROADMAP.md`](docs/ROADMAP.md): performance findings, the Unix model, ext4/btrfs
-  effort, the installer, and the driver landscape.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md): milestones M0–M7, known gaps, upstream work and
+  open decisions.
+- [`docs/TECHNICAL-NOTES.md`](docs/TECHNICAL-NOTES.md): performance findings, the Unix model,
+  ext4/btrfs effort, the installer, and the driver landscape.
 - [`docs/cosmos/`](docs/cosmos/index.md): the vendored Cosmos Gen 3 docs (source commit in
   `docs/cosmos/SOURCE.md`).
 
