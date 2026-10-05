@@ -69,6 +69,16 @@ internal abstract class Window
     {
     }
 
+    /// <summary>The pointer moved with the button held after a click in the content area (content-relative, may be outside it).</summary>
+    public virtual void OnMouseDrag(int x, int y)
+    {
+    }
+
+    /// <summary>The button was released after a click in the content area.</summary>
+    public virtual void OnMouseUp(int x, int y)
+    {
+    }
+
     /// <summary>Mouse wheel over the window; positive scrolls back (up).</summary>
     public virtual void OnScroll(int delta)
     {

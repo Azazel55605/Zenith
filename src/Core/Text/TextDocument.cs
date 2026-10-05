@@ -14,6 +14,7 @@ internal sealed class TextDocument
 {
     private readonly List<string> _lines = new() { string.Empty };
     private int _preferredColumn;
+    private (int Row, int Column)? _anchor;
 
     /// <summary>The file this document was loaded from or saved to; null for a new document.</summary>
     public string? Path { get; private set; }
@@ -27,6 +28,82 @@ internal sealed class TextDocument
 
     /// <summary>The whole text, lines joined by '\n'.</summary>
     public string Text => string.Join("\n", _lines);
+
+    // --- selection: from the anchor to the cursor, in either direction ---
+
+    public bool HasSelection => _anchor is not null && _anchor.Value != (Row, Column);
+
+    /// <summary>The selection as (start, end) positions in document order; empty when nothing is selected.</summary>
+    public ((int Row, int Column) Start, (int Row, int Column) End) Selection
+    {
+        get
+        {
+            var cursor = (Row, Column);
+            if (!HasSelection)
+            {
+                return (cursor, cursor);
+            }
+
+            var anchor = _anchor!.Value;
+            bool anchorFirst = anchor.Item1 < Row || (anchor.Item1 == Row && anchor.Item2 < Column);
+            return anchorFirst ? (anchor, cursor) : (cursor, anchor);
+        }
+    }
+
+    public string SelectedText
+    {
+        get
+        {
+            var (start, end) = Selection;
+            if (start.Row == end.Row)
+            {
+                return _lines[start.Row].Substring(start.Column, end.Column - start.Column);
+            }
+
+            var text = new StringBuilder(_lines[start.Row].Substring(start.Column));
+            for (int r = start.Row + 1; r < end.Row; r++)
+            {
+                text.Append('\n').Append(_lines[r]);
+            }
+
+            return text.Append('\n').Append(_lines[end.Row], 0, end.Column).ToString();
+        }
+    }
+
+    /// <summary>Starts a selection at the cursor if none is active (call before a Shift+movement).</summary>
+    public void BeginSelection()
+    {
+        _anchor ??= (Row, Column);
+    }
+
+    public void ClearSelection() => _anchor = null;
+
+    public void SelectAll()
+    {
+        _anchor = (0, 0);
+        MoveToEnd();
+    }
+
+    /// <summary>Removes the selected text; returns false when nothing was selected.</summary>
+    public bool DeleteSelection()
+    {
+        if (!HasSelection)
+        {
+            _anchor = null;
+            return false;
+        }
+
+        var (start, end) = Selection;
+        string head = _lines[start.Row].Substring(0, start.Column);
+        string tail = _lines[end.Row].Substring(end.Column);
+        _lines.RemoveRange(start.Row + 1, end.Row - start.Row);
+        _lines[start.Row] = head + tail;
+        Row = start.Row;
+        Column = start.Column;
+        _anchor = null;
+        Changed();
+        return true;
+    }
 
     public static TextDocument Open(string path)
     {
@@ -43,6 +120,7 @@ internal sealed class TextDocument
 
     public void SetText(string text)
     {
+        _anchor = null;
         _lines.Clear();
         _lines.AddRange(text.Replace("\r\n", "\n").Split('\n'));
         Row = Column = _preferredColumn = 0;
@@ -68,6 +146,7 @@ internal sealed class TextDocument
 
     public void Insert(char c)
     {
+        DeleteSelection();
         if (c == '\n')
         {
             NewLine();
@@ -80,28 +159,48 @@ internal sealed class TextDocument
         Changed();
     }
 
+    /// <summary>Inserts text as-is (pasting): replaces the selection, no auto-indent on line breaks.</summary>
     public void Insert(string text)
     {
-        foreach (char c in text)
+        DeleteSelection();
+        foreach (char c in text.Replace("\r\n", "\n"))
         {
-            Insert(c);
+            if (c == '\n')
+            {
+                BreakLine(indent: false);
+            }
+            else
+            {
+                Insert(c);
+            }
         }
     }
 
-    /// <summary>Splits the line at the cursor, carrying the current indentation over.</summary>
+    /// <summary>Splits the line at the cursor (Enter), carrying the current indentation over.</summary>
     public void NewLine()
     {
+        DeleteSelection();
+        BreakLine(indent: true);
+    }
+
+    private void BreakLine(bool indent)
+    {
         string line = _lines[Row];
-        string indent = LeadingWhitespace(line, Column);
+        string indentText = indent ? LeadingWhitespace(line, Column) : string.Empty;
         _lines[Row] = line.Substring(0, Column);
-        _lines.Insert(Row + 1, indent + line.Substring(Column));
+        _lines.Insert(Row + 1, indentText + line.Substring(Column));
         Row++;
-        Column = indent.Length;
+        Column = indentText.Length;
         Changed();
     }
 
     public void Backspace()
     {
+        if (DeleteSelection())
+        {
+            return;
+        }
+
         if (Column > 0)
         {
             string line = _lines[Row];
@@ -125,6 +224,11 @@ internal sealed class TextDocument
 
     public void Delete()
     {
+        if (DeleteSelection())
+        {
+            return;
+        }
+
         string line = _lines[Row];
         if (Column < line.Length)
         {

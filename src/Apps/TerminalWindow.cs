@@ -59,6 +59,13 @@ internal sealed class TerminalWindow : Window, IOutput
     // A multi-line command being entered (shown with the continuation prompt).
     private readonly StringBuilder _pendingScript = new();
 
+    // What the last frame showed: one entry per visible row, and whether that row's logical line
+    // continues on the next row (a wrap, not a line break). Mouse selection works on these rows.
+    private readonly List<(List<Cell> Cells, bool Continues)> _visibleRows = new();
+    private (int Row, int Column)? _selectionAnchor;
+    private (int Row, int Column) _selectionHead;
+    private const uint SelectionColor = 0x557C9CFF;
+
     // `read` waiting for a line from the user; guarded by _sync.
     private bool _readRequested;
     private string? _readReply;
@@ -136,6 +143,7 @@ internal sealed class TerminalWindow : Window, IOutput
         if (output.Length > 0)
         {
             _buffer.Write(output);
+            _selectionAnchor = null;   // the rows it referred to have moved
         }
 
         foreach (var (name, argument) in apps)
@@ -262,6 +270,7 @@ internal sealed class TerminalWindow : Window, IOutput
         UpdateGeometry();
         _columnsChanged |= columns != _columns;
         _scroll = 0;
+        _selectionAnchor = null;
         _buffer.Changed = true;
     }
 
@@ -272,8 +281,91 @@ internal sealed class TerminalWindow : Window, IOutput
         _rows = Math.Max(3, (Bounds.H - TitleBarHeight - 2 * Padding) / _cellHeight);
     }
 
+    public override void OnMouseDown(int x, int y)
+    {
+        var cell = CellAt(x, y);
+        _selectionAnchor = cell;
+        _selectionHead = cell;
+        _buffer.Changed = true;
+    }
+
+    public override void OnMouseDrag(int x, int y)
+    {
+        if (_selectionAnchor is not null)
+        {
+            _selectionHead = CellAt(x, y);
+            _buffer.Changed = true;
+        }
+    }
+
+    private (int Row, int Column) CellAt(int x, int y)
+    {
+        int row = Math.Clamp((y - Padding) / _cellHeight, 0, Math.Max(0, _visibleRows.Count - 1));
+        int column = Math.Clamp((x - Padding + _cellWidth / 2) / _cellWidth, 0, _columns);
+        return (row, column);
+    }
+
+    private ((int Row, int Column) Start, (int Row, int Column) End)? SelectionRange
+    {
+        get
+        {
+            if (_selectionAnchor is not { } anchor || anchor == _selectionHead)
+            {
+                return null;
+            }
+
+            var head = _selectionHead;
+            bool anchorFirst = anchor.Row < head.Row || (anchor.Row == head.Row && anchor.Column < head.Column);
+            return anchorFirst ? (anchor, head) : (head, anchor);
+        }
+    }
+
+    /// <summary>The selected text: wrapped rows join directly, real line ends become '\n'.</summary>
+    private string SelectedText()
+    {
+        if (SelectionRange is not { } range)
+        {
+            return string.Empty;
+        }
+
+        var text = new StringBuilder();
+        for (int row = range.Start.Row; row <= range.End.Row && row < _visibleRows.Count; row++)
+        {
+            var (cells, continues) = _visibleRows[row];
+            int from = row == range.Start.Row ? range.Start.Column : 0;
+            int to = row == range.End.Row ? range.End.Column : cells.Count;
+            for (int c = from; c < Math.Min(to, cells.Count); c++)
+            {
+                text.Append(cells[c].Char);
+            }
+
+            if (row < range.End.Row && !continues)
+            {
+                text.Append('\n');
+            }
+        }
+
+        return text.ToString();
+    }
+
+    /// <summary>Types the clipboard into the input; each line break submits a line, as if typed.</summary>
+    private void Paste()
+    {
+        string[] lines = Clipboard.Text.Replace("\r\n", "\n").Split('\n');
+        for (int i = 0; i < lines.Length; i++)
+        {
+            _input.Insert(_cursor, lines[i]);
+            _cursor += lines[i].Length;
+            if (i < lines.Length - 1)
+            {
+                Submit();
+            }
+        }
+    }
+
     public override void OnScroll(int delta)
     {
+        _selectionAnchor = null;
         _scroll = Math.Clamp(_scroll + delta * 3, 0, Math.Max(0, _buffer.LineCount - 1));
         _buffer.Changed = true;
     }
@@ -285,6 +377,28 @@ internal sealed class TerminalWindow : Window, IOutput
         {
             _scroll = 0;
         }
+
+        if (control && (key.Modifiers & ConsoleModifiers.Shift) != 0 && key.Key is ConsoleKeyEx.C or ConsoleKeyEx.V)
+        {
+            // Ctrl+Shift+C/V: the terminal clipboard keys (plain Ctrl+C interrupts).
+            if (key.Key == ConsoleKeyEx.C)
+            {
+                string selected = SelectedText();
+                if (selected.Length > 0)
+                {
+                    Clipboard.Text = selected;
+                }
+            }
+            else
+            {
+                Paste();
+            }
+
+            _buffer.Changed = true;
+            return;
+        }
+
+        _selectionAnchor = null;
 
         if (control)
         {
@@ -557,14 +671,26 @@ internal sealed class TerminalWindow : Window, IOutput
         int start = Math.Max(0, end - _rows);
         int x0 = content.X + Padding, y0 = content.Y + Padding;
 
-        // Walk logical lines from the bottom, drawing the wrapped rows that fall in [start, end).
+        // Collect the wrapped rows in [start, end), walking logical lines up from the bottom.
+        var visible = new (List<Cell> Cells, bool Continues)[end - start];
         int rowIndex = total - inputRows;
-        DrawRows(surface, TerminalBuffer.Wrap(input, _columns), rowIndex, start, end, x0, y0);
+        CollectRows(visible, TerminalBuffer.Wrap(input, _columns), rowIndex, start, end);
         for (int i = _buffer.LineCount - 2; i >= 0 && rowIndex > start; i--)
         {
             List<List<Cell>> rows = TerminalBuffer.Wrap(_buffer.Line(i), _columns);
             rowIndex -= rows.Count;
-            DrawRows(surface, rows, rowIndex, start, end, x0, y0);
+            CollectRows(visible, rows, rowIndex, start, end);
+        }
+
+        _visibleRows.Clear();
+        _visibleRows.AddRange(visible);
+        DrawSelection(surface, x0, y0);
+        for (int r = 0; r < visible.Length; r++)
+        {
+            if (visible[r].Cells is not null)
+            {
+                DrawCells(surface, visible[r].Cells, x0, y0 + r * _cellHeight);
+            }
         }
 
         if (IsFocused && _caretVisible && _scroll == 0)
@@ -584,15 +710,33 @@ internal sealed class TerminalWindow : Window, IOutput
         }
     }
 
-    /// <summary>Draws the rows of one logical line that lie in the visible range [start, end).</summary>
-    private void DrawRows(Surface surface, List<List<Cell>> rows, int firstRow, int start, int end, int x0, int y0)
+    /// <summary>Puts the rows of one logical line that lie in [start, end) into <paramref name="visible"/>.</summary>
+    private static void CollectRows((List<Cell> Cells, bool Continues)[] visible, List<List<Cell>> rows, int firstRow, int start, int end)
     {
         for (int k = 0; k < rows.Count; k++)
         {
             int row = firstRow + k;
             if (row >= start && row < end)
             {
-                DrawCells(surface, rows[k], x0, y0 + (row - start) * _cellHeight);
+                visible[row - start] = (rows[k], k < rows.Count - 1);
+            }
+        }
+    }
+
+    private void DrawSelection(Surface surface, int x0, int y0)
+    {
+        if (SelectionRange is not { } range)
+        {
+            return;
+        }
+
+        for (int row = range.Start.Row; row <= range.End.Row && row < _visibleRows.Count; row++)
+        {
+            int from = row == range.Start.Row ? range.Start.Column : 0;
+            int to = row == range.End.Row ? range.End.Column : _columns;
+            if (to > from)
+            {
+                surface.FillRect(new Rect(x0 + from * _cellWidth, y0 + row * _cellHeight, (to - from) * _cellWidth, _cellHeight), SelectionColor);
             }
         }
     }

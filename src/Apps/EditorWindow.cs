@@ -12,7 +12,8 @@ namespace Zenith.Apps;
 /// <summary>
 /// A plain-text editor for files (opened with <c>edit file</c> from the terminal, or from the
 /// launcher). The editing model is <see cref="TextDocument"/>; this window maps keys and draws.
-/// Ctrl+S save, Ctrl+O open, Ctrl+N new, Ctrl+Q close; Tab inserts four spaces.
+/// Ctrl+S save, Ctrl+O open, Ctrl+N new, Ctrl+Q close; Tab inserts four spaces. Selection:
+/// Shift+movement or mouse drag; Ctrl+A select all, Ctrl+C/X/V copy, cut, paste.
 /// </summary>
 internal sealed class EditorWindow : Window
 {
@@ -25,6 +26,7 @@ internal sealed class EditorWindow : Window
     private const uint GutterText = 0xFF4D556B;
     private const uint CurrentLine = 0x0AFFFFFF;
     private const uint StatusBar = 0xFF1F2433;
+    private const uint SelectionColor = 0x557C9CFF;
 
     private enum Prompt
     {
@@ -77,9 +79,19 @@ internal sealed class EditorWindow : Window
 
     public override void OnMouseDown(int x, int y)
     {
-        int row = _top + (y - Padding) / _lineHeight;
+        _document.ClearSelection();
+        MoveToPoint(x, y);
+        _document.BeginSelection();   // a drag from here selects; a plain click selects nothing
+    }
+
+    public override void OnMouseDrag(int x, int y) => MoveToPoint(x, y);
+
+    private void MoveToPoint(int x, int y)
+    {
+        int row = _top + (int)Math.Floor((y - Padding) / (double)_lineHeight);
         int column = _left + Math.Max(0, (x - TextX(0) + _cellWidth / 2) / _cellWidth);
         _document.MoveTo(row, column);
+        ScrollToCursor();
         _dirty = true;
     }
 
@@ -100,6 +112,20 @@ internal sealed class EditorWindow : Window
         }
 
         _confirmDiscard = false;
+
+        // Shift+movement extends the selection; plain movement drops it.
+        if (IsMovement(key.Key))
+        {
+            if ((key.Modifiers & ConsoleModifiers.Shift) != 0)
+            {
+                _document.BeginSelection();
+            }
+            else
+            {
+                _document.ClearSelection();
+            }
+        }
+
         switch (key.Key)
         {
             case ConsoleKeyEx.Enter:
@@ -151,10 +177,45 @@ internal sealed class EditorWindow : Window
         ScrollToCursor();
     }
 
+    private static bool IsMovement(ConsoleKeyEx key) => key is ConsoleKeyEx.LeftArrow or ConsoleKeyEx.RightArrow
+        or ConsoleKeyEx.UpArrow or ConsoleKeyEx.DownArrow or ConsoleKeyEx.PageUp or ConsoleKeyEx.PageDown
+        or ConsoleKeyEx.Home or ConsoleKeyEx.End;
+
     private void HandleCommand(ConsoleKeyEx key)
     {
         switch (key)
         {
+            case ConsoleKeyEx.A:
+                _document.SelectAll();
+                ScrollToCursor();
+                break;
+            case ConsoleKeyEx.C:
+                if (_document.HasSelection)
+                {
+                    Clipboard.Text = _document.SelectedText;
+                    _message = "Copied " + Clipboard.Text.Length + " characters";
+                }
+
+                break;
+            case ConsoleKeyEx.X:
+                if (_document.HasSelection)
+                {
+                    Clipboard.Text = _document.SelectedText;
+                    _document.DeleteSelection();
+                    UpdateTitle();
+                    ScrollToCursor();
+                }
+
+                break;
+            case ConsoleKeyEx.V:
+                if (Clipboard.Text.Length > 0)
+                {
+                    _document.Insert(Clipboard.Text);
+                    UpdateTitle();
+                    ScrollToCursor();
+                }
+
+                break;
             case ConsoleKeyEx.S:
                 if (_document.Path is null)
                 {
@@ -372,6 +433,7 @@ internal sealed class EditorWindow : Window
                 text.X + Padding + gutter - (number.Length + 1) * _cellWidth, y);
 
             string line = _document.Line(row);
+            DrawSelection(surface, row, line.Length, y, text.X);
             if (line.Length > _left)
             {
                 string visible = line.Substring(_left, Math.Min(_columns, line.Length - _left));
@@ -390,6 +452,30 @@ internal sealed class EditorWindow : Window
         }
 
         DrawStatusBar(surface, new Rect(content.X, text.Bottom, content.W, StatusHeight));
+    }
+
+    /// <summary>Highlights the selected part of one line (a selected line break shows as one extra cell).</summary>
+    private void DrawSelection(Surface surface, int row, int lineLength, int y, int textLeft)
+    {
+        if (!_document.HasSelection)
+        {
+            return;
+        }
+
+        var (start, end) = _document.Selection;
+        if (row < start.Row || row > end.Row)
+        {
+            return;
+        }
+
+        int from = row == start.Row ? start.Column : 0;
+        int to = row == end.Row ? end.Column : lineLength + 1;
+        from = Math.Max(from - _left, 0);
+        to = Math.Min(to - _left, _columns);
+        if (to > from)
+        {
+            surface.FillRect(new Rect(TextX(textLeft) + from * _cellWidth, y - 1, (to - from) * _cellWidth, _lineHeight), SelectionColor);
+        }
     }
 
     private void DrawStatusBar(Surface surface, Rect bar)

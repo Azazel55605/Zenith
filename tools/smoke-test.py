@@ -44,6 +44,9 @@ STEPS = [
     # Editor: open a new file, type, save (Ctrl+S), close (Ctrl+Q); focus returns to the terminal.
     ("edit /tmp/ed.txt\n%%DELAY%%written in editor^S^Qcat /tmp/ed.txt | logger", "user: written in editor"),
     ("man sh | grep COMPOUND | logger", "user: COMPOUND COMMANDS"),
+    # Clipboard: copy in the editor (Ctrl+A, Ctrl+C), discard and close (Ctrl+Q twice), paste into the
+    # terminal (Ctrl+Shift+V); the pasted line break submits the command.
+    ("edit\n{delay}logger clip-ok\n{ctrl-a}{ctrl-c}{ctrl-q}{ctrl-q}{ctrl-shift-v}", "user: clip-ok"),
     ("lsblk | grep sata0p1 | logger", "sata0p1       190M  part"),   # serial is ASCII-only: no box glyphs
     # German layout: the key QEMU calls "y" types "z". Switch back by typing "loadkezs us".
     ("localectl set-keymap de\nlogger y", "user: z"),
@@ -109,18 +112,20 @@ class Machine:
         sock.close()
 
     def type(self, text: str):
-        # ^C ^S ^Q: Ctrl+key chords; %%DELAY%%: give a window time to open.
-        text = text.replace("^C", "\x03").replace("^S", "\x13").replace("^Q", "\x11").replace("%%DELAY%%", "\x00")
-        chords = {"\x03": "ctrl-c", "\x13": "ctrl-s", "\x11": "ctrl-q"}
-        for ch in text:
-            if ch == "\x00":
+        # {ctrl-a}, {ctrl-shift-v}...: key chords; ^C ^S ^Q: shorthands; %%DELAY%%: let a window open.
+        text = text.replace("^C", "{ctrl-c}").replace("^S", "{ctrl-s}").replace("^Q", "{ctrl-q}").replace("%%DELAY%%", "{delay}")
+        for part in re.split(r"(\{[a-z0-9-]+\})", text):
+            if part == "{delay}":
                 time.sleep(1.5)
-                continue
-            if ch in chords:
+            elif part.startswith("{") and part.endswith("}"):
                 time.sleep(0.5)
-                self.command("sendkey " + chords[ch])
+                self.command("sendkey " + part[1:-1])
                 time.sleep(0.5)
-                continue
+            else:
+                self.type_plain(part)
+
+    def type_plain(self, text: str):
+        for ch in text:
             if ch in KEYS:
                 key = KEYS[ch]
             elif ch in SHIFTED:

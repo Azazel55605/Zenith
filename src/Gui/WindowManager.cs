@@ -37,6 +37,9 @@ internal sealed class WindowManager
     private int _dragStartX;
     private int _dragStartY;
 
+    // A press in a window's content area: drags and the release go to that window.
+    private Window? _contentDrag;
+
     private Window? _lastTitleClick;
     private long _lastTitleClickTime;
 
@@ -48,7 +51,7 @@ internal sealed class WindowManager
     /// <summary>Open windows, bottom to top.</summary>
     public IReadOnlyList<Window> Windows => _windows;
 
-    public bool IsDragging => _dragging is not null;
+    public bool IsDragging => _dragging is not null || _contentDrag is not null;
 
     public Window? Focused => _windows.Count > 0 && _windows[^1].IsFocused ? _windows[^1] : null;
 
@@ -147,6 +150,23 @@ internal sealed class WindowManager
             return true;
         }
 
+        if (_contentDrag is not null)
+        {
+            Window target = _contentDrag;
+            if (input.Left)
+            {
+                if (input.Moved)
+                {
+                    target.OnMouseDrag(input.X - target.Content.X, input.Y - target.Content.Y);
+                }
+            }
+            else
+            {
+                _contentDrag = null;
+                target.OnMouseUp(input.X - target.Content.X, input.Y - target.Content.Y);
+            }
+        }
+
         Window? hit = HitTest(input.X, input.Y, includeResizeMargin: true);
 
         if (input.LeftPressed && hit is not null)
@@ -190,6 +210,7 @@ internal sealed class WindowManager
             else if (hit.Content.Contains(input.X, input.Y))
             {
                 hit.OnMouseDown(input.X - hit.Content.X, input.Y - hit.Content.Y);
+                _contentDrag = hit;
             }
         }
 

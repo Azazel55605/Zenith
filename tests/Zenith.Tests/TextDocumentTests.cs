@@ -109,3 +109,81 @@ public class TextDocumentTests
         Assert.Throws<System.InvalidOperationException>(() => new TextDocument().Save());
     }
 }
+
+public class TextDocumentSelectionTests
+{
+    private static TextDocument Doc(string text)
+    {
+        var doc = new TextDocument();
+        doc.Insert(text);
+        return doc;
+    }
+
+    [Fact]
+    public void ShiftSelection_ForwardAndBackward()
+    {
+        TextDocument doc = Doc("hello world");
+        doc.MoveTo(0, 0);
+        doc.BeginSelection();
+        for (int i = 0; i < 5; i++)
+        {
+            doc.MoveRight();
+        }
+
+        Assert.Equal("hello", doc.SelectedText);
+
+        doc.ClearSelection();
+        doc.MoveEnd();
+        doc.BeginSelection();
+        for (int i = 0; i < 5; i++)
+        {
+            doc.MoveLeft();
+        }
+
+        Assert.Equal("world", doc.SelectedText);
+    }
+
+    [Fact]
+    public void MultiLineSelection_AndDelete()
+    {
+        TextDocument doc = Doc("one\ntwo\nthree");
+        doc.MoveTo(0, 1);
+        doc.BeginSelection();
+        doc.MoveTo(2, 2);
+        Assert.Equal("ne\ntwo\nth", doc.SelectedText);
+
+        doc.DeleteSelection();
+        Assert.Equal("oree", doc.Text);
+        Assert.Equal((0, 1), (doc.Row, doc.Column));
+        Assert.False(doc.HasSelection);
+    }
+
+    [Fact]
+    public void TypingReplacesTheSelection()
+    {
+        TextDocument doc = Doc("hello world");
+        doc.SelectAll();
+        Assert.Equal("hello world", doc.SelectedText);
+        doc.Insert("bye");
+        Assert.Equal("bye", doc.Text);
+    }
+
+    [Fact]
+    public void BackspaceDeletesOnlyTheSelection()
+    {
+        TextDocument doc = Doc("abcdef");
+        doc.MoveTo(0, 2);
+        doc.BeginSelection();
+        doc.MoveTo(0, 4);
+        doc.Backspace();
+        Assert.Equal("abef", doc.Text);
+    }
+
+    [Fact]
+    public void Paste_KeepsTextAsIs()
+    {
+        TextDocument doc = Doc("    ");
+        doc.Insert("a\n  b");
+        Assert.Equal("    a\n  b", doc.Text);
+    }
+}
