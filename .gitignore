@@ -12,3 +12,6 @@ output-arm64/
 .vs/
 *.user
 .DS_Store
+
+# Local Cosmos package override (tools/use-cosmos.sh)
+cosmos.local.props

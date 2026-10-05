@@ -1,0 +1,15 @@
+<Project>
+
+  <!--
+    Version of the Cosmos kernel packages. Defaults to the release on nuget.org (what CI uses).
+    `tools/use-cosmos.sh local` writes cosmos.local.props (git-ignored) to build against packages
+    from a local Cosmos checkout instead; `tools/use-cosmos.sh release` removes it again.
+  -->
+  <Import Project="$(MSBuildThisFileDirectory)cosmos.local.props" Condition="Exists('$(MSBuildThisFileDirectory)cosmos.local.props')" />
+
+  <PropertyGroup>
+    <!-- Keep in sync with global.json (Cosmos.Sdk) and tools/use-cosmos.sh. -->
+    <CosmosVersion Condition="'$(CosmosVersion)' == ''">3.0.89</CosmosVersion>
+  </PropertyGroup>
+
+</Project>

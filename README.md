@@ -45,6 +45,8 @@ The Terminal opens at boot. Type `help` for the command list. Supported shell sy
 
 ## Documentation
 
+- [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md): toolchain, tests, CI and releases, debugging
+  crashes, and working on Cosmos itself.
 - [`docs/ROADMAP.md`](docs/ROADMAP.md): milestones M0–M7, known gaps, upstream work and
   open decisions.
 - [`docs/TECHNICAL-NOTES.md`](docs/TECHNICAL-NOTES.md): performance findings, the Unix model,
@@ -79,7 +81,7 @@ src/Gui/
 src/Apps/                  Terminal, Welcome, Notes, System
 Resources/Fonts/           Inter (UI) and Hack (terminal); embedded via tools/gen-fonts.py
 tests/Zenith.Tests/        xunit tests compiled against the kernel's plain-.NET sources
-tools/                     run.sh, make-bootable.sh, smoke-test.py, gen-fonts.py
+tools/                     run.sh, make-bootable.sh, smoke-test.py, use-cosmos.sh, gen-fonts.py
 .github/workflows/ci.yml   Unit tests, ISO build, QEMU smoke test, releases
 ```
 

@@ -21,32 +21,33 @@ says when it's done. Background and effort estimates for the big items are in
 | Gap | Effect today |
 |---|---|
 | Shell commands run on the GUI loop | A long command (`install`, `find /`) freezes the desktop; Ctrl+C can't interrupt it |
-| No unhandled-exception handling | An exception in `Run()` prints over the screen and halts the kernel |
 | Clock and dates | Times are UTC, and the FAT driver doesn't store timestamps (`ls -l` shows 1970) |
 | Keyboard layout | US only, although Cosmos ships DE, FR, ES, GB, TR and Dvorak |
 | Notes | Can't open or save files |
 | Windows | Can't be resized or maximized; the terminal is fixed at its startup size |
 | Clipboard | None, and no text selection |
-| Tests and CI | None; everything was verified by hand in QEMU |
 
 ---
 
-## M0 · Foundation: make change safe (next)
+## M0 · Foundation: make change safe ✅ done
 
 Infrastructure that every later milestone leans on.
 
 | Item | Size | Notes |
 |---|---|---|
-| GitHub Actions: build the ISO on every push, attach it to tagged releases | S | `dotnet tool install -g Cosmos.Tools && cosmos install` works headless on Linux |
-| Host unit tests for the parser, shell, path handling and commands | M | These only use `System.IO`, so a normal xunit project can compile the same sources against a temp directory |
-| QEMU smoke test: boot headless, type commands over the monitor, assert on serial output | M | Generalize the `vm.py` harness used during development; run it in CI (KVM if the runner has it, TCG otherwise) |
-| Panic screen: catch exceptions from `Run()`, show the message and stack on a red screen, write it to the log | S | |
-| Persist the kernel log to `/var/log/boot.log` on installed systems | S | |
-| Local Cosmos source build + local NuGet feed | M | Needed for every ↑ upstream item; see `docs/cosmos/articles/dev/install-dev.md` |
+| ✅ GitHub Actions: unit tests, ISO build, QEMU smoke test on every push; ISO release on `v*` tags | S | `.github/workflows/ci.yml`; GitHub's runners have KVM |
+| ✅ Host unit tests for the parser, shell and commands, plus the terminal's ANSI buffer | M | `tests/Zenith.Tests`, 64 tests |
+| ✅ QEMU smoke test: boot headless, type commands over the monitor, assert on serial output | M | `tools/smoke-test.py`; covers pipes, `/tmp`, exit status, install and panic |
+| ✅ Panic screen: exceptions from boot or `Run()` show the message and stack trace, are logged, and R restarts | S | `crash` triggers it |
+| ✅ Kernel log mirrored to `/var/log/boot.log`, previous boot kept as `boot.log.1` | S | `logger` writes to it |
+| ✅ Local Cosmos source build + switch between local and released packages | M | `../Cosmos`, `tools/use-cosmos.sh`; see [DEVELOPMENT.md](DEVELOPMENT.md) |
 
-**Exit:** a push builds and boot-tests automatically; a crash shows a readable panic screen.
+**Exit:** a push builds and boot-tests automatically; a crash shows a readable panic screen. ✅
 
-## M1 · Usable daily shell (v0.2)
+Found and fixed along the way: pipes and redirections now carry plain text, and `ls` prints
+one entry per line when it isn't writing to the terminal.
+
+## M1 · Usable daily shell (v0.2) (next)
 
 | Item | Size | Notes |
 |---|---|---|
