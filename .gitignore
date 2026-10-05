@@ -1,0 +1,14 @@
+# Build outputs
+bin/
+obj/
+output-x64/
+output-arm64/
+
+# Disk images and firmware state created by tools/run.sh
+*.img
+*.fd
+
+# Editor / OS
+.vs/
+*.user
+.DS_Store
