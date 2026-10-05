@@ -36,7 +36,9 @@ internal sealed class TerminalWindow : Window, IOutput
     private readonly Shell _shell;
     private readonly int _cellWidth;
     private readonly int _cellHeight;
-    private readonly int _rows;
+    private int _rows;
+    private int _columns;
+    private bool _columnsChanged;
     private readonly StringBuilder _input = new();
     private int _cursor;
     private int _historyIndex;
@@ -66,12 +68,11 @@ internal sealed class TerminalWindow : Window, IOutput
     {
         _cellWidth = Fonts.Mono.GetGlyph('M', FontSize).Advance;
         _cellHeight = Fonts.Mono.GetLineHeight(FontSize);
-        int columns = (Bounds.W - 2 * Padding) / _cellWidth;
-        _rows = (Bounds.H - TitleBarHeight - 2 * Padding) / _cellHeight;
+        UpdateGeometry();
 
-        _buffer = new TerminalBuffer(columns);
+        _buffer = new TerminalBuffer();
         _shell = new Shell(this);
-        _shell.Set("COLUMNS", columns.ToString());
+        _shell.Set("COLUMNS", _columns.ToString());
         _shell.ExitRequested += () => { lock (_sync) { _exitRequested = true; } };
         _shell.OpenApp = QueueOpenApp;
         _shell.ReadInputLine = ReadLineForShell;
@@ -114,6 +115,12 @@ internal sealed class TerminalWindow : Window, IOutput
     /// <summary>Moves the worker's output and requests onto the GUI thread; finishes a completed job.</summary>
     private void SyncWithJob()
     {
+        if (_columnsChanged && !IsBusy)
+        {
+            _shell.Set("COLUMNS", _columns.ToString());
+            _columnsChanged = false;
+        }
+
         string output;
         (string Name, string? Argument)[] apps;
         bool exit;
@@ -245,6 +252,24 @@ internal sealed class TerminalWindow : Window, IOutput
 
             return true;
         }
+    }
+
+    public override (int Width, int Height) MinimumSize => (360, 200);
+
+    protected override void OnResized()
+    {
+        int columns = _columns;
+        UpdateGeometry();
+        _columnsChanged |= columns != _columns;
+        _scroll = 0;
+        _buffer.Changed = true;
+    }
+
+    /// <summary>Rows and columns of text that fit the current window size.</summary>
+    private void UpdateGeometry()
+    {
+        _columns = Math.Max(20, (Bounds.W - 2 * Padding) / _cellWidth);
+        _rows = Math.Max(3, (Bounds.H - TitleBarHeight - 2 * Padding) / _cellHeight);
     }
 
     public override void OnScroll(int delta)
@@ -507,35 +532,46 @@ internal sealed class TerminalWindow : Window, IOutput
     {
         surface.FillRect(content, Background);
 
-        // The visible lines: the scrollback, then its unfinished last line (e.g. a `read -p`
-        // prompt) continued by the shell prompt and the input, wrapped to the width. While a
-        // command runs there is no shell prompt, just whatever is being typed.
+        // What is shown: the scrollback, then its unfinished last line (e.g. a `read -p` prompt)
+        // continued by the shell prompt and the input. Lines are wrapped here, at the current
+        // width, so resizing the window reflows everything. While a command runs there is no
+        // shell prompt, just whatever is being typed.
         string prompt = IsBusy ? string.Empty : CurrentPrompt;
         List<Cell> tail = _buffer.Line(_buffer.LineCount - 1);
-        var promptBuffer = new TerminalBuffer(_buffer.Columns);
-        promptBuffer.AppendCells(tail);
-        promptBuffer.Write(prompt + _input);
-        int inputLines = promptBuffer.LineCount;
-        int total = _buffer.LineCount - 1 + inputLines;   // the buffer's last line is the empty current line
+        var inputLine = new TerminalBuffer();
+        inputLine.AppendCells(tail);
+        inputLine.Write(prompt + _input);
+        List<Cell> input = inputLine.Line(0);
 
-        int bottom = total - _scroll;
-        int first = Math.Max(0, bottom - _rows);
-        int x0 = content.X + Padding, y = content.Y + Padding;
+        int caretIndex = tail.Count + Ansi.Strip(prompt).Length + _cursor;
+        int inputRows = Math.Max(TerminalBuffer.RowCount(input, _columns), caretIndex / _columns + 1);
 
-        for (int i = first; i < bottom; i++)
+        int total = inputRows;
+        for (int i = 0; i < _buffer.LineCount - 1; i++)
         {
-            List<Cell> line = i < _buffer.LineCount - 1 ? _buffer.Line(i) : promptBuffer.Line(i - (_buffer.LineCount - 1));
-            DrawCells(surface, line, x0, y);
-            y += _cellHeight;
+            total += TerminalBuffer.RowCount(_buffer.Line(i), _columns);
+        }
+
+        _scroll = Math.Min(_scroll, Math.Max(0, total - _rows));
+        int end = total - _scroll;
+        int start = Math.Max(0, end - _rows);
+        int x0 = content.X + Padding, y0 = content.Y + Padding;
+
+        // Walk logical lines from the bottom, drawing the wrapped rows that fall in [start, end).
+        int rowIndex = total - inputRows;
+        DrawRows(surface, TerminalBuffer.Wrap(input, _columns), rowIndex, start, end, x0, y0);
+        for (int i = _buffer.LineCount - 2; i >= 0 && rowIndex > start; i--)
+        {
+            List<List<Cell>> rows = TerminalBuffer.Wrap(_buffer.Line(i), _columns);
+            rowIndex -= rows.Count;
+            DrawRows(surface, rows, rowIndex, start, end, x0, y0);
         }
 
         if (IsFocused && _caretVisible && _scroll == 0)
         {
-            int promptLength = Ansi.Strip(prompt).Length;
-            int position = tail.Count + promptLength + _cursor;
-            int row = total - 1 - (inputLines - 1) + position / _buffer.Columns - first;
-            int col = position % _buffer.Columns;
-            surface.FillRect(new Rect(x0 + col * _cellWidth, content.Y + Padding + row * _cellHeight, 2, _cellHeight), Theme.Accent);
+            int caretRow = total - inputRows + caretIndex / _columns - start;
+            int caretCol = caretIndex % _columns;
+            surface.FillRect(new Rect(x0 + caretCol * _cellWidth, y0 + caretRow * _cellHeight, 2, _cellHeight), Theme.Accent);
         }
 
         if (_scroll > 0)
@@ -545,6 +581,19 @@ internal sealed class TerminalWindow : Window, IOutput
             Rect badge = new(content.Right - w - 10, content.Y + 8, w, 22);
             surface.FillRoundRect(badge, 11, Theme.AccentSoft);
             surface.DrawTextCentered(label, Fonts.Regular, Theme.TextSmall, Theme.TextPrimary, badge, true);
+        }
+    }
+
+    /// <summary>Draws the rows of one logical line that lie in the visible range [start, end).</summary>
+    private void DrawRows(Surface surface, List<List<Cell>> rows, int firstRow, int start, int end, int x0, int y0)
+    {
+        for (int k = 0; k < rows.Count; k++)
+        {
+            int row = firstRow + k;
+            if (row >= start && row < end)
+            {
+                DrawCells(surface, rows[k], x0, y0 + (row - start) * _cellHeight);
+            }
         }
     }
 

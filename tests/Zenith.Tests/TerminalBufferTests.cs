@@ -13,7 +13,7 @@ public class TerminalBufferTests
     [Fact]
     public void Write_SplitsLinesAndKeepsCurrentLineOpen()
     {
-        var buffer = new TerminalBuffer(80);
+        var buffer = new TerminalBuffer();
         buffer.Write("one\ntwo");
 
         Assert.Equal(2, buffer.LineCount);
@@ -22,18 +22,23 @@ public class TerminalBufferTests
     }
 
     [Fact]
-    public void Write_WrapsAtColumnCount()
+    public void Lines_StayLogicalAndWrapAtAnyWidth()
     {
-        var buffer = new TerminalBuffer(4);
+        var buffer = new TerminalBuffer();
         buffer.Write("abcdef");
-        Assert.Equal("abcd", LineText(buffer, 0));
-        Assert.Equal("ef", LineText(buffer, 1));
+        Assert.Equal(1, buffer.LineCount);
+
+        var rows = TerminalBuffer.Wrap(buffer.Line(0), 4);
+        Assert.Equal(new[] { "abcd", "ef" }, rows.Select(r => new string(r.Select(c => c.Char).ToArray())));
+        Assert.Equal(2, TerminalBuffer.RowCount(buffer.Line(0), 4));
+        Assert.Equal(1, TerminalBuffer.RowCount(buffer.Line(0), 6));
+        Assert.Single(TerminalBuffer.Wrap(new System.Collections.Generic.List<Cell>(), 4));
     }
 
     [Fact]
     public void Write_ExpandsTabsToMultiplesOfEight()
     {
-        var buffer = new TerminalBuffer(80);
+        var buffer = new TerminalBuffer();
         buffer.Write("ab\tc");
         Assert.Equal("ab      c", LineText(buffer, 0));
     }
@@ -41,7 +46,7 @@ public class TerminalBufferTests
     [Fact]
     public void Sgr_ColorsCellsAndResets()
     {
-        var buffer = new TerminalBuffer(80);
+        var buffer = new TerminalBuffer();
         buffer.Write("\u001b[31mR\u001b[0mN");
 
         var cells = buffer.Line(0);
@@ -53,7 +58,7 @@ public class TerminalBufferTests
     [Fact]
     public void ClearScreen_EmptiesBuffer()
     {
-        var buffer = new TerminalBuffer(80);
+        var buffer = new TerminalBuffer();
         buffer.Write("x\ny\n\u001b[2J\u001b[Hz");
         Assert.Equal(1, buffer.LineCount);
         Assert.Equal("z", LineText(buffer, 0));
@@ -62,7 +67,7 @@ public class TerminalBufferTests
     [Fact]
     public void Scrollback_IsCapped()
     {
-        var buffer = new TerminalBuffer(80);
+        var buffer = new TerminalBuffer();
         var text = new StringBuilder();
         for (int i = 0; i < 3000; i++)
         {

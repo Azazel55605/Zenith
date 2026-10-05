@@ -16,6 +16,8 @@ internal sealed class WelcomeWindow : Window
     {
     }
 
+    public override bool CanResize => false;
+
     public override void DrawContent(Surface surface, Rect content)
     {
         int x = content.X + 28;

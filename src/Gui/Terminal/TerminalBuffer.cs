@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Zenith.Gui.Graphics;
 
@@ -17,7 +18,9 @@ internal readonly struct Cell
 }
 
 /// <summary>
-/// The terminal's scrollback: lines of colored cells, hard-wrapped at a fixed column count.
+/// The terminal's scrollback: logical lines of colored cells. Lines are not wrapped here;
+/// <see cref="Wrap"/> splits them into rows for whatever width the window has right now, so
+/// the text reflows when the window is resized.
 /// Understands the escape sequences the shell emits: SGR colors (30-37, 90-97, 1 bold, 0 reset),
 /// <c>ESC[2J</c> clear and <c>ESC[H</c> home.
 /// </summary>
@@ -37,12 +40,6 @@ internal sealed class TerminalBuffer
     private bool _bold;
     private int _baseColor = -1;
 
-    public TerminalBuffer(int columns)
-    {
-        Columns = columns;
-    }
-
-    public int Columns { get; }
     public int LineCount => _lines.Count;
 
     /// <summary>Raised whenever the content changes, so the window can redraw.</summary>
@@ -107,15 +104,27 @@ internal sealed class TerminalBuffer
 
     private void Put(char c) => Put(new Cell(c, _color));
 
-    private void Put(Cell cell)
+    private void Put(Cell cell) => _lines[^1].Add(cell);
+
+    /// <summary>Splits a logical line into rows of at most <paramref name="columns"/> cells (an empty line is one empty row).</summary>
+    public static List<List<Cell>> Wrap(List<Cell> line, int columns)
     {
-        if (_lines[^1].Count >= Columns)
+        var rows = new List<List<Cell>>();
+        for (int start = 0; start < line.Count; start += columns)
         {
-            NewLine();
+            rows.Add(line.GetRange(start, Math.Min(columns, line.Count - start)));
         }
 
-        _lines[^1].Add(cell);
+        if (rows.Count == 0)
+        {
+            rows.Add(new List<Cell>());
+        }
+
+        return rows;
     }
+
+    /// <summary>How many rows a logical line takes at <paramref name="columns"/> wide.</summary>
+    public static int RowCount(List<Cell> line, int columns) => Math.Max(1, (line.Count + columns - 1) / columns);
 
     private void NewLine()
     {

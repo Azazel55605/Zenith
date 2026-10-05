@@ -18,6 +18,8 @@ internal sealed class SystemInfoWindow : Window
         _display = screen.Width + " × " + screen.Height + " @ " + screen.RefreshRate + " Hz";
     }
 
+    public override bool CanResize => false;
+
     private static long UptimeSeconds => Stopwatch.GetTimestamp() / Stopwatch.Frequency;
 
     public override bool Update()
