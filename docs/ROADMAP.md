@@ -7,25 +7,26 @@ says when it's done. Background and effort estimates for the big items are in
 **Sizes:** S = a day or two · M = about a week · L = several weeks · XL = months.
 **↑ upstream** = a change to Cosmos itself (its HAL is internal; see "Upstream work" below).
 
-## Where we are (v0.1)
+## Where we are (v0.2)
 
 **Working:**
-- Desktop: compositor, windows, taskbar, launcher.
-- Terminal with a POSIX-flavored shell and ~45 built-in commands.
-- FAT32 root (installed disk) or RAM root (live), `/tmp` in RAM.
+- Desktop: compositor, resizable/maximizable windows, taskbar, launcher, clipboard.
+- Terminal: a POSIX-flavoured shell with scripting (if/for/while, functions, `$(...)`,
+  `$((...))`, `test`, `read`), ~70 commands, text selection, reflow on resize.
+- Text editor (`edit file`), manual pages (`man`), keyboard layouts, time zones.
+- FAT32 root (installed disk) or RAM root (live), `/tmp` in RAM, clean shutdown.
 - Installer (GPT + ESP + root), finished by a host-side bootable step.
-- Fast QEMU setup: KVM, virtio-gpu, virtio input.
+- CI: 198 unit tests and a 25-step QEMU smoke test on every push.
 
 **Known gaps in what exists:**
 
 | Gap | Effect today |
 |---|---|
-| Shell commands run on the GUI loop | A long command (`install`, `find /`) freezes the desktop; Ctrl+C can't interrupt it |
-| Clock and dates | Times are UTC, and the FAT driver doesn't store timestamps (`ls -l` shows 1970) |
-| Keyboard layout | US only, although Cosmos ships DE, FR, ES, GB, TR and Dvorak |
-| Notes | Can't open or save files |
-| Windows | Can't be resized or maximized; the terminal is fixed at its startup size |
-| Clipboard | None, and no text selection |
+| Pipes are buffered, not streamed | Each stage runs to completion before the next starts: `yes \| head` never ends (Ctrl+C stops it) |
+| No processes | Every command is built into the kernel; no background jobs (`&`), no `ps`/`kill` (M5) |
+| Terminal has no raw mode | No full-screen terminal programs (`less`, `top`, a nano-style editor); the editor is a window |
+| FAT | No permissions, owners or symlinks; names are case-insensitive; Cosmos doesn't store timestamps (`ls -l` shows 1970) |
+| Editor | No undo, no search |
 
 ---
 
@@ -47,25 +48,28 @@ Infrastructure that every later milestone leans on.
 Found and fixed along the way: pipes and redirections now carry plain text, and `ls` prints
 one entry per line when it isn't writing to the terminal.
 
-## M1 · Usable daily shell (v0.2) (next)
+## M1 · Usable daily shell (v0.2) ✅ done
 
 | Item | Size | Notes |
 |---|---|---|
-| Run each command line on a worker thread; Ctrl+C sets a cancellation flag that commands check | M | Cosmos has a preemptive scheduler and threads. Terminal output is marshalled back to the GUI thread. |
-| Keyboard layouts: `loadkeys de`, persisted in `/etc/vconsole.conf` | S | Uses Cosmos `KeyboardManager.SetKeyLayout` and its ScanMaps |
-| Time zone: `/etc/timezone` as a fixed offset (no tz database yet); `date`, the clock and `ls -l` use it | S | |
-| Clean shutdown/reboot: unmount and flush every filesystem first; add `sync` and `umount` | S | |
-| Shell scripts: `sh file`, `#!` files, `if`/`for`/`while`, `test`/`[`, `read`, functions | L | Turns `/etc/profile` into real init scripts |
-| Text editor in the terminal (nano-like) and `edit` command; Notes gains open/save | M | |
-| Manual pages: `man cmd` reading `/usr/share/man/*.txt`, generated from command metadata | S | |
-| Window resize and maximize; the terminal reflows to the new size | M | |
-| Text selection and clipboard (terminal + Notes), Ctrl+Shift+C/V | M | |
-| More commands: `less`, `diff`, `sed` subset, `xargs`, `seq`, `basename`/`dirname`, `du` | M | |
+| ✅ Each command line runs on a worker thread; Ctrl+C cancels (status 130); type-ahead | M | Cancellation is a flag, not exceptions: on Cosmos a typed `catch` before `catch (Exception)` wasn't selected |
+| ✅ Keyboard layouts: `loadkeys`, `localectl set-keymap` → `/etc/vconsole.conf` | S | us, de, fr, es, gb, tr, dvorak |
+| ✅ Time zones: `/etc/timezone`, `timedatectl`, `date [-u]`; built-in table with EU/US/AU daylight saving rules | S | Better than planned: real DST rules, not just fixed offsets |
+| ✅ Clean shutdown/reboot (sync, unmount, flush); `sync`, `umount`, `mount part dir` | S | |
+| ✅ Shell scripting: syntax tree + interpreter, functions, `$(...)`, `$((...))`, `test`/`[`, `read`, `sh`, `source`, scripts on `$PATH`, `> ` continuation prompt | L | |
+| ✅ Text editor and `edit` command; replaces Notes | M | A desktop window rather than nano-in-the-terminal: that needs a raw-mode terminal first |
+| ✅ `man`: pages for every command, hand-written `man sh`, `zenith`, `hier`, `install` | S | |
+| ✅ Window resize (edges/corners), maximize (button, double-click), terminal reflows | M | |
+| ✅ Selection and clipboard: editor (Shift+arrows, mouse, Ctrl+C/X/V), terminal (mouse, Ctrl+Shift+C/V) | M | |
+| ✅ `diff`, `sed`, `xargs`, `seq`, `basename`, `dirname`, `du`, `printf`, `tr`, `cut`, `grep -E` | M | `less` left out until the terminal has a raw mode |
 
 **Exit:** you can work in the terminal for an hour (German layout, scripts, editing files)
-without hitting a missing basic.
+without hitting a missing basic. ✅
 
-## M2 · Unix filesystem semantics (v0.3)
+Possible follow-ups, not blocking M2: streaming pipes (one thread per pipeline stage), a raw
+terminal mode with cursor addressing (enables `less`, `top`, a TUI editor), editor undo/search.
+
+## M2 · Unix filesystem semantics (v0.3) (next)
 
 | Item | Size | Notes |
 |---|---|---|

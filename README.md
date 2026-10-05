@@ -34,14 +34,19 @@ refuses to overwrite it). Delete `disk.img` to start over.
 
 ## Using it
 
-The Terminal opens at boot. Type `help` for the command list. Supported shell syntax:
+The Terminal opens at boot. `help` lists the commands, `man zenith` is the introduction and
+`man sh` the shell language:
 
-- quoting, `$VAR` / `${VAR}` / `$?`, `~`, and `*`/`?` globs
-- `|`, `>`, `>>`, `<`, `;`, `&&`, `||`
-- history (Up/Down), Tab completion, Ctrl+C / Ctrl+L / Ctrl+U / Ctrl+D
-- PageUp/PageDown or the mouse wheel for scrollback
+- quoting, `$VAR` / `${VAR}` / `$?` / `$1..$9`, `$(command)`, `$((arithmetic))`, `~`, `*`/`?` globs
+- `|`, `>`, `>>`, `<`, `;`, `&&`, `||`, `!`
+- `if`/`elif`/`else`, `for`, `while`/`until`, functions, `test`/`[`, `read`
+- scripts with `sh file`, by path, or by name from `$PATH` (`/bin`); unfinished lines continue with `> `
+- history (Up/Down), Tab completion, Ctrl+C (stop), Ctrl+L, Ctrl+U, Ctrl+D
+- mouse selection, Ctrl+Shift+C/V, PageUp/PageDown or the wheel for scrollback
 
-`edit file` opens the text editor, `open system` any desktop app, and `fps` shows compositor statistics.
+Settings: `localectl set-keymap de`, `timedatectl set-timezone Europe/Berlin`.
+`edit file` opens the text editor, `open system` any desktop app, `fps` shows compositor statistics.
+Windows resize from their edges; double-click a title bar to maximize.
 
 ## Documentation
 
@@ -60,6 +65,9 @@ The Terminal opens at boot. Type `help` for the command list. Supported shell sy
 Kernel.cs                  Boot: mounts, fonts, desktop; Run() ticks the desktop and halts until the next IRQ
 src/Core/                  UI-independent system layer
   Log.cs                   Kernel log → serial, ring buffer (dmesg), /var/log/boot.log
+  Input/, Time/           Keyboard layouts; time zones and the system clock
+  Text/TextDocument.cs     Editor model (cursor, selection, editing), unit-tested
+  PowerControl.cs          Reboot/power-off after sync + unmount
   Storage/
     SystemMounts.cs        Finds the installed root (or makes a RAM root), mounts /tmp
     FileSystemLayout.cs    The /bin /etc /home … tree and default /etc files
@@ -67,8 +75,10 @@ src/Core/                  UI-independent system layer
     GptChecksums.cs        Fills in the GPT CRCs + backup header Cosmos leaves out
     MemoryBlockDevice.cs   RAM-backed block device
   Shell/
-    Shell.cs               Interpreter: env, cwd, pipelines, redirection, globbing, completion
-    Parser.cs              Tokenizer (raw words) + per-command word expansion
+    Shell.cs               Interpreter: runs the syntax tree; variables, functions, scripts, completion
+    ScriptParser.cs        Recursive-descent parser → syntax tree (if/for/while/functions/pipelines)
+    Parser.cs              Tokenizer (raw words) + word expansion, $(...), field splitting
+    Arithmetic.cs          $((...)) evaluator
     Command.cs             Command, CommandContext (args, stdin/out/err, option parsing), ANSI
     Commands/              Builtin, File, Text, System commands
   KernelPanic.cs           Deliberate panics (`crash` command)
@@ -78,7 +88,7 @@ src/Gui/
   Terminal/                TerminalBuffer: ANSI-colored scrollback
   Shell/                   Desktop compositor, Taskbar, LauncherMenu, AppRegistry
   Window.cs, WindowManager.cs, Input.cs, FrameStats.cs
-src/Apps/                  Terminal, Welcome, Notes, System
+src/Apps/                  Terminal, Editor, Welcome, System
 Resources/Fonts/           Inter (UI) and Hack (terminal); embedded via tools/gen-fonts.py
 tests/Zenith.Tests/        xunit tests compiled against the kernel's plain-.NET sources
 tools/                     run.sh, make-bootable.sh, smoke-test.py, use-cosmos.sh, gen-fonts.py
