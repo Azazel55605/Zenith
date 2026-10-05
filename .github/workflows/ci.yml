@@ -50,7 +50,7 @@ jobs:
             output-x64/Zenith.elf
 
       - name: Install QEMU
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends qemu-system-x86
 
       - name: Enable KVM
         run: |
@@ -62,6 +62,9 @@ jobs:
           ls -l /dev/kvm || echo "no KVM, using TCG"
 
       - name: Smoke test in QEMU
+        # The Cosmos tool bundle puts its own QEMU wrappers first on PATH; use the distro's.
+        env:
+          QEMU: /usr/bin/qemu-system-x86_64
         run: python3 tools/smoke-test.py --timeout 600 --step-timeout 180 --keep smoke
 
       - uses: actions/upload-artifact@v4

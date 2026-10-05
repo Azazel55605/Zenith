@@ -9,7 +9,7 @@ results (commands report back with `logger`, which writes to the kernel log). En
   tools/smoke-test.py [--iso PATH] [--timeout SECONDS] [--step-timeout SECONDS] [--keep DIR]
 
 Exit status 0 when every check passes. Uses KVM when available, TCG otherwise (slower, so the
-timeouts are generous). Needs only qemu-system-x86_64 and Python 3.
+timeouts are generous). Needs only qemu-system-x86_64 (or $QEMU) and Python 3.
 """
 import argparse
 import os
@@ -49,9 +49,10 @@ class Machine:
         self.serial = workdir / "serial.log"
         self.monitor = workdir / "monitor.sock"
         self.disk = workdir / "disk.img"
-        subprocess.run(["qemu-img", "create", "-f", "raw", str(self.disk), "256M"], check=True, stdout=subprocess.DEVNULL)
+        with open(self.disk, "wb") as f:
+            f.truncate(256 * 1024 * 1024)   # sparse raw image; no qemu-img needed
         self.process = subprocess.Popen([
-            "qemu-system-x86_64", "-M", "q35", "-m", "512M",
+            os.environ.get("QEMU", "qemu-system-x86_64"), "-M", "q35", "-m", "512M",
             "-accel", "kvm", "-accel", "tcg", "-cpu", "max",
             "-display", "none", "-no-reboot",
             "-serial", f"file:{self.serial}",
