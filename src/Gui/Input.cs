@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Cosmos.Kernel.System.Keyboard;
 using Cosmos.Kernel.System.Mouse;
 
-namespace MyOS.Gui;
+namespace Zenith.Gui;
 
 /// <summary>
 /// One frame's worth of input: the pointer state, button edges since the previous frame,

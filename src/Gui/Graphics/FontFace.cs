@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using Cosmos.Kernel.System.Graphics.Fonts;
 
-namespace MyOS.Gui.Graphics;
+namespace Zenith.Gui.Graphics;
 
 /// <summary>An anti-aliased glyph bitmap, positioned relative to the top-left of its text line.</summary>
 internal sealed class Glyph

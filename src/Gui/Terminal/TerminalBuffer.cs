@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using MyOS.Gui.Graphics;
+using Zenith.Gui.Graphics;
 
-namespace MyOS.Gui.Terminal;
+namespace Zenith.Gui.Terminal;
 
 /// <summary>One character cell: the character and its foreground color.</summary>
 internal readonly struct Cell

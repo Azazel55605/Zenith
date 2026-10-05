@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using MyOS.Core.Shell.Commands;
+using Zenith.Core.Shell.Commands;
 
-namespace MyOS.Core.Shell;
+namespace Zenith.Core.Shell;
 
 /// <summary>
 /// A Unix-style command interpreter. It is UI-independent: a host (the terminal window, or a
@@ -25,7 +25,7 @@ internal sealed class Shell
         _environment["HOME"] = home;
         _environment["USER"] = "user";
         _environment["SHELL"] = "/bin/sh";
-        _environment["TERM"] = "myos";
+        _environment["TERM"] = "zenith";
         _environment["PATH"] = "/bin";
         _environment["HOSTNAME"] = ReadHostname();
 
@@ -51,7 +51,7 @@ internal sealed class Shell
     /// <summary>Raised by the <c>exit</c> command.</summary>
     public event Action? ExitRequested;
 
-    /// <summary>The prompt, e.g. <c>user@myos:~/docs$ </c>, with ANSI colors.</summary>
+    /// <summary>The prompt, e.g. <c>user@zenith:~/docs$ </c>, with ANSI colors.</summary>
     public string Prompt
     {
         get
@@ -418,11 +418,11 @@ internal sealed class Shell
     {
         try
         {
-            return File.Exists("/etc/hostname") ? File.ReadAllText("/etc/hostname").Trim() : "myos";
+            return File.Exists("/etc/hostname") ? File.ReadAllText("/etc/hostname").Trim() : "zenith";
         }
         catch (IOException)
         {
-            return "myos";
+            return "zenith";
         }
     }
 

@@ -4,12 +4,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using Cosmos.Kernel.System.Keyboard;
-using MyOS.Core.Shell;
-using MyOS.Gui;
-using MyOS.Gui.Graphics;
-using MyOS.Gui.Terminal;
+using Zenith.Core.Shell;
+using Zenith.Gui;
+using Zenith.Gui.Graphics;
+using Zenith.Gui.Terminal;
 
-namespace MyOS.Apps;
+namespace Zenith.Apps;
 
 /// <summary>
 /// A terminal emulator window hosting a <see cref="Shell"/>. The scrollback is a

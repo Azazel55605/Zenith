@@ -1,4 +1,4 @@
-namespace MyOS.Gui.Graphics;
+namespace Zenith.Gui.Graphics;
 
 /// <summary>An arrow pointer with a dark outline and a faint drop shadow, hotspot at its tip.</summary>
 internal static class Cursor

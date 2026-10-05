@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using MyOS.Gui.Graphics;
+using Zenith.Gui.Graphics;
 
-namespace MyOS.Gui.Shell;
+namespace Zenith.Gui.Shell;
 
 /// <summary>
 /// The floating bar along the bottom edge: the launcher button, one pill per open window,
@@ -126,15 +126,7 @@ internal sealed class Taskbar
             surface.FillRoundRect(b, 8, Theme.Hover);
         }
 
-        // A 2x2 grid of rounded tiles.
-        const int tile = 7, gap = 3;
-        int ox = b.X + (b.W - (2 * tile + gap)) / 2;
-        int oy = b.Y + (b.H - (2 * tile + gap)) / 2;
-        for (int i = 0; i < 4; i++)
-        {
-            Rect t = new(ox + (i % 2) * (tile + gap), oy + (i / 2) * (tile + gap), tile, tile);
-            surface.FillRoundRect(t, 2, i == 0 ? Theme.Accent : Theme.TextPrimary);
-        }
+        Logo.Draw(surface, b.Inflate(-8));
     }
 
     /// <summary>Draws the clock right-aligned and returns its left edge.</summary>

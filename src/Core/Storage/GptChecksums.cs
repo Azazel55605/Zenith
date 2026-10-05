@@ -1,7 +1,7 @@
 using System;
 using Cosmos.Kernel.HAL.Interfaces.Devices;
 
-namespace MyOS.Core.Storage;
+namespace Zenith.Core.Storage;
 
 /// <summary>
 /// Completes a GPT written by Cosmos' <c>Gpt</c> class, which (by design, for test images)

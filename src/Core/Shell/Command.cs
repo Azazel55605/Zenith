@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace MyOS.Core.Shell;
+namespace Zenith.Core.Shell;
 
 /// <summary>Where a command writes text: the terminal, a pipe buffer, or a file being redirected to.</summary>
 internal interface IOutput

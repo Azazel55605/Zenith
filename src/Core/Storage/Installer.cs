@@ -7,10 +7,10 @@ using Cosmos.Kernel.System.Filesystems.Fat;
 using Cosmos.Kernel.System.Storage;
 using Cosmos.Kernel.System.Vfs;
 
-namespace MyOS.Core.Storage;
+namespace Zenith.Core.Storage;
 
 /// <summary>
-/// Installs MyOS onto a disk:
+/// Installs Zenith onto a disk:
 /// <list type="number">
 /// <item>a fresh GPT with an EFI System Partition (64 MiB, FAT32) and a root partition (the rest, FAT32);</item>
 /// <item>the Unix layout plus the current <c>/etc</c>, <c>/home</c>, <c>/root</c>, <c>/usr</c>, <c>/var</c> copied onto the root;</item>
@@ -35,7 +35,7 @@ internal static class Installer
 
     private static readonly string[] s_copiedTrees = { "/etc", "/home", "/root", "/usr", "/var" };
 
-    /// <summary>Disks MyOS could be installed on: big enough, and not the disk the running root lives on.</summary>
+    /// <summary>Disks Zenith could be installed on: big enough, and not the disk the running root lives on.</summary>
     public static List<IBlockDevice> Candidates()
     {
         var disks = new List<IBlockDevice>();
@@ -89,7 +89,7 @@ internal static class Installer
         progress("Formatting EFI system partition (FAT32, 64 MiB)");
         Format(esp, "EFI        ");
         progress("Formatting root partition (FAT32, " + (rootSectors * disk.BlockSize / (1024 * 1024)) + " MiB)");
-        Format(root, "MYOS       ");
+        Format(root, "ZENITH     ");
 
         Directory.CreateDirectory(TargetMount);
         Directory.CreateDirectory(EspMount);
@@ -110,7 +110,7 @@ internal static class Installer
 
             File.WriteAllText(TargetMount + "/etc/fstab",
                 "# <device>  <mount point>  <type>  <options>\n" +
-                "LABEL=MYOS  /              fat     defaults\n" +
+                "LABEL=ZENITH /              fat     defaults\n" +
                 "LABEL=EFI   /boot/efi      fat     defaults\n" +
                 "tmpfs       /tmp           tmpfs   defaults\n");
         }
@@ -126,7 +126,7 @@ internal static class Installer
             Directory.CreateDirectory(EspMount + "/EFI/BOOT");
             Directory.CreateDirectory(EspMount + "/boot");
             File.WriteAllText(EspMount + "/limine.conf",
-                "timeout: 0\n\n/MyOS\n    protocol: limine\n    path: boot():/boot/MyOS.elf\n");
+                "timeout: 0\n\n/Zenith\n    protocol: limine\n    path: boot():/boot/Zenith.elf\n");
         }
         finally
         {

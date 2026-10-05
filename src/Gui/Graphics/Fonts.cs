@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace MyOS.Gui.Graphics;
+namespace Zenith.Gui.Graphics;
 
 /// <summary>The shell's fonts, decoded once from <see cref="EmbeddedFonts"/>.</summary>
 internal static class Fonts

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace MyOS.Core.Shell.Commands;
+namespace Zenith.Core.Shell.Commands;
 
 /// <summary>File and directory commands, coreutils style, on top of the standard System.IO API.</summary>
 internal static class FileCommands

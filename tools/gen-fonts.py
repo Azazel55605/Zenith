@@ -66,7 +66,7 @@ def write_csharp():
         "// Regenerate with tools/gen-fonts.py; do not edit by hand.",
         "// </auto-generated>",
         "",
-        "namespace MyOS.Gui.Graphics;",
+        "namespace Zenith.Gui.Graphics;",
         "",
         "internal static class EmbeddedFonts",
         "{",

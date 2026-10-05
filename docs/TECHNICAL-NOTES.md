@@ -1,4 +1,4 @@
-# MyOS technical notes
+# Zenith technical notes
 
 Findings behind the [roadmap](ROADMAP.md): what Cosmos Gen 3 (3.0.89) gives us, what we measured,
 and what each larger step costs.
@@ -98,7 +98,7 @@ with `e2fsck`/`debugfs`.
 | **btrfs** | Months: copy-on-write B-trees, chunk-tree logical→physical mapping, checksums, often zstd/lzo/zlib compression | A team-scale project (CoW allocation, transactions, multi-device) | Not recommended. |
 
 **Recommendation:** ext2 read-write first, which is enough for a native Unix root
-filesystem. Then ext4 read-only, so MyOS can read Linux disks. Revisit ext4 writes only
+filesystem. Then ext4 read-only, so Zenith can read Linux disks. Revisit ext4 writes only
 after a journal design.
 
 ## 4. What a self-contained installer needs
@@ -120,7 +120,7 @@ documented as intended for test images, but firmware rejects such a disk.
 
 1. **The kernel can't copy itself or the bootloader.** That's the only reason the host step
    (`make-bootable.sh`) exists. Two fixes:
-   - **Limine modules (preferred):** add `module_path: boot():/boot/MyOS.elf` and the EFI
+   - **Limine modules (preferred):** add `module_path: boot():/boot/Zenith.elf` and the EFI
      binary to the ISO's `limine.conf`, and Limine hands them to the kernel in memory. Cosmos
      doesn't expose Limine's *module request* yet; `Cosmos.Kernel.Boot.Limine` has
      framebuffer, memory map, cmdline and others, but not modules. That's a small upstream

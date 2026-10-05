@@ -1,7 +1,7 @@
-using MyOS.Gui;
-using MyOS.Gui.Graphics;
+using Zenith.Gui;
+using Zenith.Gui.Graphics;
 
-namespace MyOS.Apps;
+namespace Zenith.Apps;
 
 internal sealed class WelcomeWindow : Window
 {
@@ -22,10 +22,12 @@ internal sealed class WelcomeWindow : Window
         int y = content.Y + 24;
         int width = content.W - 56;
 
-        surface.DrawText("Welcome to MyOS", Fonts.SemiBold, Theme.TextHeading, Theme.TextPrimary, x, y);
+        int logo = Fonts.SemiBold.GetLineHeight(Theme.TextHeading);
+        Logo.Draw(surface, new Rect(x, y, logo, logo));
+        surface.DrawText("Welcome to Zenith", Fonts.SemiBold, Theme.TextHeading, Theme.TextPrimary, x + logo + 12, y);
         y += Fonts.SemiBold.GetLineHeight(Theme.TextHeading) + 6;
 
-        foreach (string line in Fonts.Wrap("A small graphical shell running on Cosmos Gen 3.", Fonts.Regular, Theme.TextBody, width))
+        foreach (string line in Fonts.Wrap("A small Unix-style operating system written in C# on Cosmos Gen 3.", Fonts.Regular, Theme.TextBody, width))
         {
             surface.DrawText(line, Fonts.Regular, Theme.TextBody, Theme.TextSecondary, x, y);
             y += Fonts.Regular.GetLineHeight(Theme.TextBody);

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace MyOS.Core.Shell.Commands;
+namespace Zenith.Core.Shell.Commands;
 
 /// <summary>Commands that act on the shell itself: navigation, variables, history, help.</summary>
 internal static class BuiltinCommands

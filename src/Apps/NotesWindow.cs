@@ -2,10 +2,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using Cosmos.Kernel.System.Keyboard;
-using MyOS.Gui;
-using MyOS.Gui.Graphics;
+using Zenith.Gui;
+using Zenith.Gui.Graphics;
 
-namespace MyOS.Apps;
+namespace Zenith.Apps;
 
 /// <summary>A minimal plain-text scratchpad: type, Backspace, Enter. The view follows the end of the text.</summary>
 internal sealed class NotesWindow : Window

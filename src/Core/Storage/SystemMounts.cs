@@ -4,11 +4,11 @@ using Cosmos.Kernel.System.Filesystems.Fat;
 using Cosmos.Kernel.System.Storage;
 using Cosmos.Kernel.System.Vfs;
 
-namespace MyOS.Core.Storage;
+namespace Zenith.Core.Storage;
 
 internal enum BootMode
 {
-    /// <summary>Root is a partition carrying a MyOS installation; changes persist.</summary>
+    /// <summary>Root is a partition carrying a Zenith installation; changes persist.</summary>
     Installed,
 
     /// <summary>No installation found: root is a RAM disk, like a live CD. Changes are lost on reboot.</summary>
@@ -52,7 +52,7 @@ internal static class SystemMounts
         MountRamDisk("tmpfs", 16, "/tmp");
     }
 
-    /// <summary>Mounts every partition in turn at <c>/</c> and keeps the first one carrying a MyOS installation.</summary>
+    /// <summary>Mounts every partition in turn at <c>/</c> and keeps the first one carrying a Zenith installation.</summary>
     private static Partition? FindInstalledRoot()
     {
         foreach (Partition partition in StorageManager.Partitions)
@@ -64,7 +64,7 @@ internal static class SystemMounts
 
             try
             {
-                if (FileSystemLayout.IsMyOsRoot())
+                if (FileSystemLayout.IsZenithRoot())
                 {
                     return partition;
                 }

@@ -1,12 +1,12 @@
 using Cosmos.Kernel.System.Graphics;
 using Cosmos.Kernel.System.Keyboard;
 using Cosmos.Kernel.System.Mouse;
-using MyOS.Apps;
-using MyOS.Core.Shell;
-using MyOS.Gui.Graphics;
-using CommandShell = MyOS.Core.Shell.Shell;
+using Zenith.Apps;
+using Zenith.Core.Shell;
+using Zenith.Gui.Graphics;
+using CommandShell = Zenith.Core.Shell.Shell;
 
-namespace MyOS.Gui.Shell;
+namespace Zenith.Gui.Shell;
 
 /// <summary>
 /// The shell root. Each <see cref="Tick"/> polls input, routes it (launcher menu, then taskbar,

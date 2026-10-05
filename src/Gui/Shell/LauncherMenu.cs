@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using Cosmos.Kernel.System;
-using MyOS.Gui.Graphics;
+using Zenith.Gui.Graphics;
 
-namespace MyOS.Gui.Shell;
+namespace Zenith.Gui.Shell;
 
 /// <summary>The popup above the launcher button: the registered apps, then the power actions.</summary>
 internal sealed class LauncherMenu

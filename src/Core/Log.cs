@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace MyOS.Core;
+namespace Zenith.Core;
 
 /// <summary>
 /// Kernel log. Lines go to the serial port (COM1, which QEMU forwards with <c>-serial stdio</c>)
@@ -32,6 +32,6 @@ internal static class Log
         }
 
         s_lines.Enqueue(line);
-        SerialWriteString(null, "[myos] " + line + "\n");
+        SerialWriteString(null, "[zenith] " + line + "\n");
     }
 }

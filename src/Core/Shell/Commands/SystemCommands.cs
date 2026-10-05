@@ -7,9 +7,9 @@ using Cosmos.Kernel.System;
 using Cosmos.Kernel.System.Diagnostics;
 using Cosmos.Kernel.System.Storage;
 using Cosmos.Kernel.System.Vfs;
-using MyOS.Core.Storage;
+using Zenith.Core.Storage;
 
-namespace MyOS.Core.Shell.Commands;
+namespace Zenith.Core.Shell.Commands;
 
 /// <summary>System information, storage and power commands.</summary>
 internal static class SystemCommands
@@ -30,7 +30,7 @@ internal static class SystemCommands
         add(new Command("mount", "mount", "Show the mount table", Mount));
         add(new Command("lsblk", "lsblk", "List disks and partitions", Lsblk));
         add(new Command("dmesg", "dmesg", "Print the kernel log", Dmesg));
-        add(new Command("install", "install [disk] [--yes]", "Install MyOS onto a disk", Install));
+        add(new Command("install", "install [disk] [--yes]", "Install Zenith onto a disk", Install));
         add(new Command("reboot", "reboot", "Restart the machine", _ => { Power.Reboot(); return 0; }));
         add(new Command("poweroff", "poweroff", "Turn the machine off", _ => { Power.Shutdown(); return 0; }));
     }
@@ -38,7 +38,7 @@ internal static class SystemCommands
     private static int Uname(CommandContext c)
     {
         bool all = c.Args.Length > 0 && c.Args[0] == "-a";
-        c.WriteLine(all ? "MyOS " + c.Shell.Get("HOSTNAME") + " 0.1 Cosmos-Gen3 x86_64" : "MyOS");
+        c.WriteLine(all ? "Zenith " + c.Shell.Get("HOSTNAME") + " 0.1 Cosmos-Gen3 x86_64" : "Zenith");
         return 0;
     }
 
@@ -152,7 +152,7 @@ internal static class SystemCommands
 
         if (selected is null)
         {
-            c.WriteLine(Ansi.Bold("MyOS installer") + "  (running from: " + (SystemMounts.Mode == BootMode.Live ? "live RAM disk" : "installed disk") + ")");
+            c.WriteLine(Ansi.Bold("Zenith installer") + "  (running from: " + (SystemMounts.Mode == BootMode.Live ? "live RAM disk" : "installed disk") + ")");
             if (candidates.Count == 0)
             {
                 c.WriteLine("No suitable disk found (needs " + Human(Installer.MinimumBytes) + " or more, other than the system disk).");

@@ -1,6 +1,6 @@
 using System;
 
-namespace MyOS.Gui.Graphics;
+namespace Zenith.Gui.Graphics;
 
 /// <summary>An integer rectangle in screen pixels. <see cref="Right"/> and <see cref="Bottom"/> are exclusive.</summary>
 internal readonly struct Rect

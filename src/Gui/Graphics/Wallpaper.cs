@@ -1,6 +1,6 @@
 using System;
 
-namespace MyOS.Gui.Graphics;
+namespace Zenith.Gui.Graphics;
 
 /// <summary>Renders the desktop background once at boot: a dark diagonal gradient with two soft color glows.</summary>
 internal static class Wallpaper

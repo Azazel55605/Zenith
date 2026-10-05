@@ -1,10 +1,10 @@
 using System;
 using System.Diagnostics;
 using Cosmos.Kernel.System.Graphics;
-using MyOS.Gui;
-using MyOS.Gui.Graphics;
+using Zenith.Gui;
+using Zenith.Gui.Graphics;
 
-namespace MyOS.Apps;
+namespace Zenith.Apps;
 
 internal sealed class SystemInfoWindow : Window
 {
@@ -36,7 +36,11 @@ internal sealed class SystemInfoWindow : Window
         int x = content.X + 28;
         int y = content.Y + 22;
 
-        surface.DrawText("MyOS", Fonts.SemiBold, Theme.TextHeading, Theme.TextPrimary, x, y);
+        int logo = Fonts.SemiBold.GetLineHeight(Theme.TextHeading);
+        Logo.Draw(surface, new Rect(x, y, logo, logo));
+        surface.DrawText("Zenith OS", Fonts.SemiBold, Theme.TextHeading, Theme.TextPrimary, x + logo + 12, y);
+        surface.DrawText("0.1", Fonts.Regular, Theme.TextBody, Theme.TextSecondary,
+            x + logo + 24 + Fonts.SemiBold.MeasureString("Zenith OS", Theme.TextHeading), y + 6);
         y += Fonts.SemiBold.GetLineHeight(Theme.TextHeading) + 14;
 
         long s = UptimeSeconds;

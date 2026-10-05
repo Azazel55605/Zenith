@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using MyOS.Apps;
+using Zenith.Apps;
 
-namespace MyOS.Gui.Shell;
+namespace Zenith.Gui.Shell;
 
 /// <summary>An installable application: what the launcher shows and how to open it.</summary>
 internal sealed class AppInfo

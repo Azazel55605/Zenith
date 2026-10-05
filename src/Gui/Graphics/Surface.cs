@@ -2,7 +2,7 @@ using System;
 using System.Drawing;
 using Cosmos.Kernel.System.Graphics;
 
-namespace MyOS.Gui.Graphics;
+namespace Zenith.Gui.Graphics;
 
 /// <summary>
 /// An off-screen, clippable drawing surface. It is a memory-backed <see cref="Canvas"/>,

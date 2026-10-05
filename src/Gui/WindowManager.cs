@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using MyOS.Gui.Graphics;
+using Zenith.Gui.Graphics;
 
-namespace MyOS.Gui;
+namespace Zenith.Gui;
 
 /// <summary>
 /// Owns the open windows: stacking order (last is topmost), focus, dragging by the title

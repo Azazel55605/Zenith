@@ -1,4 +1,4 @@
-namespace MyOS.Gui.Graphics;
+namespace Zenith.Gui.Graphics;
 
 /// <summary>
 /// Design tokens for the shell. Colors are packed ARGB (0xAARRGGBB); an alpha

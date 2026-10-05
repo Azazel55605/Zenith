@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Boots MyOS in QEMU.
+# Boots Zenith in QEMU.
 #
 #   tools/run.sh live        boot the ISO (live system, RAM root) with disk.img attached as a target
 #   tools/run.sh installed   boot disk.img itself with UEFI firmware (after `install` + make-bootable.sh)
@@ -32,7 +32,7 @@ args=(
 case "$mode" in
     live)
         exec qemu-system-x86_64 "${args[@]}" \
-            -cdrom "$root/output-x64/MyOS.iso" -boot order=d \
+            -cdrom "$root/output-x64/Zenith.iso" -boot order=d \
             -drive "file=$disk,format=raw,if=none,id=disk0" -device ide-hd,drive=disk0
         ;;
     installed)

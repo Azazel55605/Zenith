@@ -1,7 +1,7 @@
 using Cosmos.Kernel.System.Keyboard;
-using MyOS.Gui.Graphics;
+using Zenith.Gui.Graphics;
 
-namespace MyOS.Gui;
+namespace Zenith.Gui;
 
 /// <summary>
 /// Base class for every application window. The window manager owns position, focus and

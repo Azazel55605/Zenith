@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace MyOS.Gui;
+namespace Zenith.Gui;
 
 /// <summary>Running counters for the compositor, read by the <c>fps</c> shell command.</summary>
 internal static class FrameStats

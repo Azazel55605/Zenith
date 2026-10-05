@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace MyOS.Core.Shell.Commands;
+namespace Zenith.Core.Shell.Commands;
 
 /// <summary>Text filters. Each reads its named files, or stdin when none are given, so they compose in pipes.</summary>
 internal static class TextCommands

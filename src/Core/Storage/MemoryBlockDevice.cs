@@ -1,7 +1,7 @@
 using System;
 using Cosmos.Kernel.HAL.Interfaces.Devices;
 
-namespace MyOS.Core.Storage;
+namespace Zenith.Core.Storage;
 
 /// <summary>A block device backed by kernel memory. Used for the live root and <c>/tmp</c>.</summary>
 internal sealed class MemoryBlockDevice : IBlockDevice

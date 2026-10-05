@@ -1,12 +1,12 @@
 using Cosmos.Kernel.System.Graphics;
-using MyOS.Apps;
-using MyOS.Core;
-using MyOS.Core.Storage;
-using MyOS.Gui.Graphics;
-using MyOS.Gui.Shell;
+using Zenith.Apps;
+using Zenith.Core;
+using Zenith.Core.Storage;
+using Zenith.Gui.Graphics;
+using Zenith.Gui.Shell;
 using Sys = Cosmos.Kernel.System;
 
-namespace MyOS;
+namespace Zenith;
 
 public class Kernel : Sys.Kernel
 {

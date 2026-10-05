@@ -91,7 +91,7 @@
     },
     {
       "label": "Make Disk Bootable",
-      "detail": "Copy Limine + the kernel onto disk.img after running 'install' inside MyOS",
+      "detail": "Copy Limine + the kernel onto disk.img after running 'install' inside Zenith",
       "type": "shell",
       "dependsOn": "Build x64",
       "command": "${workspaceFolder}/tools/make-bootable.sh",
@@ -125,7 +125,7 @@
         "-cpu", "cortex-a72",
         "-m", "1G",
         "-bios", "/usr/share/AAVMF/AAVMF_CODE.fd",
-        "-drive", "if=none,id=cd,file=${workspaceFolder}/output-arm64/MyOS.iso",
+        "-drive", "if=none,id=cd,file=${workspaceFolder}/output-arm64/Zenith.iso",
         "-device", "virtio-scsi-pci",
         "-device", "scsi-cd,drive=cd,bootindex=0",
         "-device", "virtio-keyboard-device",
@@ -146,7 +146,7 @@
       "command": "bash",
       "args": [
         "-c",
-        "qemu-system-x86_64 -M q35 -cpu max -m 512M -serial stdio -cdrom ${workspaceFolder}/output-x64/MyOS.iso -vga std -s -S -no-reboot -no-shutdown & sleep 1 && echo QEMU-DEBUG-READY && wait"
+        "qemu-system-x86_64 -M q35 -cpu max -m 512M -serial stdio -cdrom ${workspaceFolder}/output-x64/Zenith.iso -vga std -s -S -no-reboot -no-shutdown & sleep 1 && echo QEMU-DEBUG-READY && wait"
       ],
       "isBackground": true,
       "problemMatcher": {
@@ -172,7 +172,7 @@
       "command": "bash",
       "args": [
         "-c",
-        "qemu-system-aarch64 -M virt -cpu cortex-a72 -m 1G -bios /usr/share/AAVMF/AAVMF_CODE.fd -drive if=none,id=cd,file=${workspaceFolder}/output-arm64/MyOS.iso -device virtio-scsi-pci -device scsi-cd,drive=cd,bootindex=0 -device virtio-keyboard-device -device ramfb -serial stdio -s -S & sleep 1 && echo QEMU-ARM64-DEBUG-READY && wait"
+        "qemu-system-aarch64 -M virt -cpu cortex-a72 -m 1G -bios /usr/share/AAVMF/AAVMF_CODE.fd -drive if=none,id=cd,file=${workspaceFolder}/output-arm64/Zenith.iso -device virtio-scsi-pci -device scsi-cd,drive=cd,bootindex=0 -device virtio-keyboard-device -device ramfb -serial stdio -s -S & sleep 1 && echo QEMU-ARM64-DEBUG-READY && wait"
       ],
       "isBackground": true,
       "problemMatcher": {
@@ -194,7 +194,7 @@
       "label": "Stop QEMU x64",
       "type": "shell",
       "command": "pkill",
-      "args": ["-f", "qemu-system-x86_64.*MyOS"],
+      "args": ["-f", "qemu-system-x86_64.*Zenith"],
       "problemMatcher": [],
       "presentation": {
         "reveal": "never"
@@ -204,7 +204,7 @@
       "label": "Stop QEMU ARM64",
       "type": "shell",
       "command": "pkill",
-      "args": ["-f", "qemu-system-aarch64.*MyOS"],
+      "args": ["-f", "qemu-system-aarch64.*Zenith"],
       "problemMatcher": [],
       "presentation": {
         "reveal": "never"

@@ -1,4 +1,4 @@
-# MyOS
+# Zenith
 
 A Cosmos Gen 3 (NativeAOT) kernel with a Unix-style system layer and a small graphical shell.
 
@@ -8,7 +8,7 @@ VS Code tasks:
 
 | Task | What it does |
 |---|---|
-| **Build x64** | `dotnet publish` → `output-x64/MyOS.iso` |
+| **Build x64** | `dotnet publish` → `output-x64/Zenith.iso` |
 | **Run QEMU x64** | Live system from the ISO, with `disk.img` (512 MiB, created if missing) attached |
 | **Make Disk Bootable** | Adds Limine + the kernel to `disk.img` after `install` |
 | **Run QEMU x64 (installed disk)** | Boots `disk.img` with UEFI (OVMF), no ISO |
@@ -21,10 +21,10 @@ virtio-gpu, and virtio mouse/keyboard. The pointer is grabbed on hover; **Ctrl+A
 1. **Run QEMU x64**. In the Terminal: `install` lists target disks, and `install sata0 --yes`
    partitions (GPT: ESP + root), formats (FAT32), and copies the system.
 2. **Make Disk Bootable** (the kernel can't copy itself or the bootloader yet; see roadmap M4).
-3. **Run QEMU x64 (installed disk)**. MyOS finds its root partition and changes now persist.
+3. **Run QEMU x64 (installed disk)**. Zenith finds its root partition and changes now persist.
 
-Without an installed disk, MyOS boots **live**: the root is a 64 MiB RAM disk that is lost on reboot.
-If the attached `disk.img` already holds MyOS, even an ISO boot uses it as the root (and `install`
+Without an installed disk, Zenith boots **live**: the root is a 64 MiB RAM disk that is lost on reboot.
+If the attached `disk.img` already holds Zenith, even an ISO boot uses it as the root (and `install`
 refuses to overwrite it). Delete `disk.img` to start over.
 
 ## Using it

@@ -1,6 +1,6 @@
 using System.IO;
 
-namespace MyOS.Core.Storage;
+namespace Zenith.Core.Storage;
 
 /// <summary>
 /// The Unix directory hierarchy and the default files under <c>/etc</c>. Creating it is
@@ -24,22 +24,22 @@ internal static class FileSystemLayout
         }
 
         WriteIfMissing(root + OsReleasePath,
-            "NAME=\"MyOS\"\nID=myos\nPRETTY_NAME=\"MyOS (Cosmos Gen 3)\"\nVERSION_ID=0.1\n");
-        WriteIfMissing(root + "/etc/hostname", "myos\n");
+            "NAME=\"Zenith\"\nID=zenith\nPRETTY_NAME=\"Zenith OS 0.1 (Cosmos Gen 3)\"\nVERSION_ID=0.1\nHOME_URL=\"https://github.com/Azazel55605/Zenith\"\n");
+        WriteIfMissing(root + "/etc/hostname", "zenith\n");
         WriteIfMissing(root + "/etc/passwd",
             "root:x:0:0:root:/root:/bin/sh\nuser:x:1000:1000:User:/home/user:/bin/sh\n");
         WriteIfMissing(root + "/etc/group", "root:x:0:\nusers:x:100:user\n");
-        WriteIfMissing(root + "/etc/motd", "Welcome to MyOS. Type 'help' to list commands.\n");
+        WriteIfMissing(root + "/etc/motd", "Welcome to Zenith. Type 'help' to list commands.\n");
         WriteIfMissing(root + "/etc/profile", "export PATH=/bin\nexport EDITOR=notes\n");
         WriteIfMissing(root + "/home/user/readme.txt",
-            "This is your home directory.\nFiles here persist when MyOS runs from an installed disk.\n");
+            "This is your home directory.\nFiles here persist when Zenith runs from an installed disk.\n");
     }
 
-    /// <summary>Whether the filesystem mounted at <paramref name="root"/> carries a MyOS installation.</summary>
-    public static bool IsMyOsRoot(string root = "")
+    /// <summary>Whether the filesystem mounted at <paramref name="root"/> carries a Zenith installation.</summary>
+    public static bool IsZenithRoot(string root = "")
     {
         string path = root + OsReleasePath;
-        return File.Exists(path) && File.ReadAllText(path).Contains("ID=myos");
+        return File.Exists(path) && File.ReadAllText(path).Contains("ID=zenith");
     }
 
     private static void WriteIfMissing(string path, string content)

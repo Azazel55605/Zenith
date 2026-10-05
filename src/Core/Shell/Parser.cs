@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace MyOS.Core.Shell;
+namespace Zenith.Core.Shell;
 
 internal enum TokenKind
 {

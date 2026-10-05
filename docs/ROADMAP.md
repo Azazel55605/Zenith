@@ -1,4 +1,4 @@
-# MyOS roadmap
+# Zenith roadmap
 
 Milestones in recommended order. Each has a goal, its work items, and an exit criterion that
 says when it's done. Background and effort estimates for the big items are in
@@ -120,7 +120,7 @@ The biggest architectural step: from "commands compiled into the kernel" to real
 | Toolchain doc + sample: build C/Rust/Zig to `wasm32-wasi`, copy into the image | S | |
 | Package format and `pkg install` from a local directory or HTTP (needs M3) | L | |
 
-**Exit:** a C program compiled with wasi-sdk on the host runs from `/bin` in MyOS, reads and
+**Exit:** a C program compiled with wasi-sdk on the host runs from `/bin` in Zenith, reads and
 writes files, and shows up in `ps`.
 
 ## M6 · Desktop polish (v0.7)
@@ -146,7 +146,7 @@ writes files, and shows up in `ps`.
 | Hardware test matrix: boot from a USB stick on 2–3 real UEFI machines; record what works | M | |
 | ↑ Intel HDA audio | L | Optional |
 
-**Exit:** MyOS boots from a USB stick on a real PC with working keyboard, mouse, storage and
+**Exit:** Zenith boots from a USB stick on a real PC with working keyboard, mouse, storage and
 wired network.
 
 ---
