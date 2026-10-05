@@ -61,14 +61,14 @@ internal sealed class Desktop
         }));
     }
 
-    /// <summary>Opens a registered app by (case-insensitive) name.</summary>
-    public bool OpenApp(string name)
+    /// <summary>Opens a registered app by (case-insensitive) name, passing it an optional argument such as a file path.</summary>
+    public bool OpenApp(string name, string? argument)
     {
         foreach (AppInfo app in AppRegistry.Apps)
         {
             if (string.Equals(app.Name, name, System.StringComparison.OrdinalIgnoreCase))
             {
-                Windows.Open(app.Create());
+                Windows.Open(app.Create(argument));
                 return true;
             }
         }

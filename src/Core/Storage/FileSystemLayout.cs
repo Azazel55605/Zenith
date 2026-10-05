@@ -32,7 +32,7 @@ internal static class FileSystemLayout
         WriteIfMissing(root + "/etc/vconsole.conf", "KEYMAP=us\n");
         WriteIfMissing(root + "/etc/timezone", "UTC\n");
         WriteIfMissing(root + "/etc/motd", "Welcome to Zenith. Type 'help' to list commands.\n");
-        WriteIfMissing(root + "/etc/profile", "export PATH=/bin\nexport EDITOR=notes\n");
+        WriteIfMissing(root + "/etc/profile", "export PATH=/bin\nexport EDITOR=edit\n");
         WriteIfMissing(root + "/home/user/readme.txt",
             "This is your home directory.\nFiles here persist when Zenith runs from an installed disk.\n");
     }

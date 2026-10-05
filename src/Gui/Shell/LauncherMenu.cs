@@ -82,7 +82,7 @@ internal sealed class LauncherMenu
             surface.DrawText(app.Description, Fonts.Regular, Theme.TextSmall, Theme.TextSecondary, textX, item.Y + 24);
 
             AppInfo captured = app;
-            _items.Add((item, () => _windows.Open(captured.Create())));
+            _items.Add((item, () => _windows.Open(captured.Create(null))));
             y += AppItemHeight;
         }
 

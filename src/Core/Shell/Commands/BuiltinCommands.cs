@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace Zenith.Core.Shell.Commands;
@@ -22,7 +23,8 @@ internal static class BuiltinCommands
         add(new Command("true", "true", "Do nothing, successfully", _ => 0));
         add(new Command("false", "false", "Do nothing, unsuccessfully", _ => 1));
         add(new Command("which", "which command...", "Show where a command comes from", Which));
-        add(new Command("open", "open app", "Open a desktop application (welcome, notes, system, terminal)", Open));
+        add(new Command("open", "open app [file]", "Open a desktop application (welcome, editor, system, terminal)", Open));
+        add(new Command("edit", "edit [file]", "Open a file in the text editor", Edit));
     }
 
     private static int Help(CommandContext c)
@@ -184,16 +186,38 @@ internal static class BuiltinCommands
 
     private static int Open(CommandContext c)
     {
-        if (c.Args.Length != 1)
+        if (c.Args.Length is < 1 or > 2)
         {
-            return c.Fail("usage: open app");
+            return c.Fail("usage: open app [file]");
         }
 
+        string? argument = c.Args.Length == 2 ? c.Resolve(c.Args[1]) : null;
+        return LaunchApp(c, c.Args[0], argument);
+    }
+
+    private static int Edit(CommandContext c)
+    {
+        if (c.Args.Length > 1)
+        {
+            return c.Fail("usage: edit [file]");
+        }
+
+        string? path = c.Args.Length == 1 ? c.Resolve(c.Args[0]) : null;
+        if (path is not null && Directory.Exists(path))
+        {
+            return c.Fail(c.Args[0] + ": Is a directory");
+        }
+
+        return LaunchApp(c, "editor", path);
+    }
+
+    private static int LaunchApp(CommandContext c, string name, string? argument)
+    {
         if (c.Shell.OpenApp is null)
         {
             return c.Fail("no desktop is running");
         }
 
-        return c.Shell.OpenApp(c.Args[0]) ? 0 : c.Fail(c.Args[0] + ": no such application");
+        return c.Shell.OpenApp(name, argument) ? 0 : c.Fail(name + ": no such application");
     }
 }

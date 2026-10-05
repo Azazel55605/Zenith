@@ -41,6 +41,8 @@ STEPS = [
     ("install sata0 --yes && logger INSTALL-OK", "user: INSTALL-OK"),
     ("mkdir /mnt/inst && mount sata0p1 /mnt/inst && cat /mnt/inst/etc/hostname | logger", "user: zenith"),
     ("umount /mnt/inst && sync && logger unmounted", "user: unmounted"),
+    # Editor: open a new file, type, save (Ctrl+S), close (Ctrl+Q); focus returns to the terminal.
+    ("edit /tmp/ed.txt\n%%DELAY%%written in editor^S^Qcat /tmp/ed.txt | logger", "user: written in editor"),
     ("lsblk | grep sata0p1 | logger", "sata0p1       190M  part"),   # serial is ASCII-only: no box glyphs
     # German layout: the key QEMU calls "y" types "z". Switch back by typing "loadkezs us".
     ("localectl set-keymap de\nlogger y", "user: z"),
@@ -106,12 +108,17 @@ class Machine:
         sock.close()
 
     def type(self, text: str):
-        text = text.replace("^C", "\x03")
+        # ^C ^S ^Q: Ctrl+key chords; %%DELAY%%: give a window time to open.
+        text = text.replace("^C", "\x03").replace("^S", "\x13").replace("^Q", "\x11").replace("%%DELAY%%", "\x00")
+        chords = {"\x03": "ctrl-c", "\x13": "ctrl-s", "\x11": "ctrl-q"}
         for ch in text:
-            if ch == "\x03":
+            if ch == "\x00":
+                time.sleep(1.5)
+                continue
+            if ch in chords:
                 time.sleep(0.5)
-                self.command("sendkey ctrl-c")
-                time.sleep(0.3)
+                self.command("sendkey " + chords[ch])
+                time.sleep(0.5)
                 continue
             if ch in KEYS:
                 key = KEYS[ch]

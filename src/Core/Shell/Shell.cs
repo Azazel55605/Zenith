@@ -95,8 +95,8 @@ internal sealed class Shell : IExpansionContext
     /// <summary>The root terminal: commands writing here are writing to a TTY.</summary>
     public IOutput Terminal => _terminal;
 
-    /// <summary>Opens a GUI application by name; set by the desktop. Returns false for an unknown name.</summary>
-    public Func<string, bool>? OpenApp { get; set; }
+    /// <summary>Opens a GUI application by name, with an optional argument (a file); set by the desktop. False for an unknown name.</summary>
+    public Func<string, string?, bool>? OpenApp { get; set; }
 
     /// <summary>Reads a line the user types (for <c>read</c> with no redirected input); null at end of input.</summary>
     public Func<string, string?>? ReadInputLine { get; set; }

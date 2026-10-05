@@ -41,7 +41,7 @@ The Terminal opens at boot. Type `help` for the command list. Supported shell sy
 - history (Up/Down), Tab completion, Ctrl+C / Ctrl+L / Ctrl+U / Ctrl+D
 - PageUp/PageDown or the mouse wheel for scrollback
 
-`open notes` launches a desktop app, and `fps` shows compositor statistics.
+`edit file` opens the text editor, `open system` any desktop app, and `fps` shows compositor statistics.
 
 ## Documentation
 

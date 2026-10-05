@@ -46,7 +46,7 @@ internal sealed class TerminalWindow : Window, IOutput
     // Shared with the worker thread; guarded by _sync.
     private readonly object _sync = new();
     private readonly StringBuilder _pendingOutput = new();
-    private readonly Queue<string> _pendingApps = new();
+    private readonly Queue<(string Name, string? Argument)> _pendingApps = new();
     private bool _exitRequested;
 
     private Thread? _job;
@@ -86,7 +86,7 @@ internal sealed class TerminalWindow : Window, IOutput
     }
 
     /// <summary>Opens a desktop app by name; set once by the desktop.</summary>
-    public static Func<string, bool>? OpenApp { get; set; }
+    public static Func<string, string?, bool>? OpenApp { get; set; }
 
     /// <summary>Whether a command line is running.</summary>
     public bool IsBusy => _jobRunning;
@@ -115,7 +115,7 @@ internal sealed class TerminalWindow : Window, IOutput
     private void SyncWithJob()
     {
         string output;
-        string[] apps;
+        (string Name, string? Argument)[] apps;
         bool exit;
         lock (_sync)
         {
@@ -131,9 +131,9 @@ internal sealed class TerminalWindow : Window, IOutput
             _buffer.Write(output);
         }
 
-        foreach (string app in apps)
+        foreach (var (name, argument) in apps)
         {
-            OpenApp?.Invoke(app);
+            OpenApp?.Invoke(name, argument);
         }
 
         if (exit)
@@ -488,7 +488,7 @@ internal sealed class TerminalWindow : Window, IOutput
     }
 
     /// <summary>Called by <c>open</c> on the worker thread: checks the name, then leaves the opening to the GUI thread.</summary>
-    private bool QueueOpenApp(string name)
+    private bool QueueOpenApp(string name, string? argument)
     {
         if (!AppRegistry.Exists(name))
         {
@@ -497,7 +497,7 @@ internal sealed class TerminalWindow : Window, IOutput
 
         lock (_sync)
         {
-            _pendingApps.Enqueue(name);
+            _pendingApps.Enqueue((name, argument));
         }
 
         return true;
