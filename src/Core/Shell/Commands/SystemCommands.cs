@@ -7,7 +7,9 @@ using Cosmos.Kernel.System;
 using Cosmos.Kernel.System.Diagnostics;
 using Cosmos.Kernel.System.Storage;
 using Cosmos.Kernel.System.Vfs;
+using Zenith.Core.Input;
 using Zenith.Core.Storage;
+using Zenith.Core.Time;
 
 namespace Zenith.Core.Shell.Commands;
 
@@ -23,12 +25,15 @@ internal static class SystemCommands
         add(new Command("hostname", "hostname", "Print the host name", c => { c.WriteLine(c.Shell.Get("HOSTNAME")); return 0; }));
         add(new Command("whoami", "whoami", "Print the current user", c => { c.WriteLine(c.Shell.Get("USER")); return 0; }));
         add(new Command("id", "id", "Print user and group ids", c => { c.WriteLine("uid=1000(user) gid=100(users) groups=100(users)"); return 0; }));
-        add(new Command("date", "date", "Print the date and time (UTC)", Date));
+        add(new Command("date", "date [-u]", "Print the date and time (-u: in UTC)", Date));
+        add(new Command("timedatectl", "timedatectl [status | list-timezones | set-timezone zone]", "Show or set the time zone", Timedatectl));
         add(new Command("uptime", "uptime", "Time since boot", Uptime));
         add(new Command("free", "free", "Show memory usage", Free));
         add(new Command("df", "df", "Show filesystem space usage", Df));
         add(new Command("mount", "mount", "Show the mount table", Mount));
         add(new Command("lsblk", "lsblk", "List disks and partitions", Lsblk));
+        add(new Command("loadkeys", "loadkeys [layout]", "Switch the keyboard layout for this session", LoadKeys));
+        add(new Command("localectl", "localectl [status | list-keymaps | set-keymap layout]", "Show or set the saved keyboard layout", Localectl));
         add(new Command("dmesg", "dmesg", "Print the kernel log", Dmesg));
         add(new Command("logger", "logger [message...]", "Write a message (or stdin) to the kernel log", Logger));
         add(new Command("crash", "crash", "Trigger a kernel panic (for testing)", _ => { KernelPanic.Request("crash command"); return 0; }));
@@ -46,10 +51,44 @@ internal static class SystemCommands
 
     private static int Date(CommandContext c)
     {
-        DateTime now = DateTime.UtcNow;
-        c.WriteLine(s_days[(int)now.DayOfWeek] + " " + s_months[now.Month - 1] + " " + now.Day.ToString().PadLeft(2) + " "
-            + Pad2(now.Hour) + ":" + Pad2(now.Minute) + ":" + Pad2(now.Second) + " UTC " + now.Year);
+        bool utc = c.Args.Length > 0 && c.Args[0] == "-u";
+        DateTime now = SystemClock.UtcNow;
+        c.WriteLine(utc ? SystemClock.Format(now, "UTC") : SystemClock.Format(SystemClock.ToLocal(now), SystemClock.Abbreviation));
         return 0;
+    }
+
+    private static int Timedatectl(CommandContext c)
+    {
+        string verb = c.Args.Length > 0 ? c.Args[0] : "status";
+        switch (verb)
+        {
+            case "status":
+                DateTime utc = SystemClock.UtcNow;
+                TimeSpan offset = SystemClock.Zone.OffsetAt(utc);
+                c.WriteLine("      Local time: " + SystemClock.Format(SystemClock.ToLocal(utc), SystemClock.Abbreviation));
+                c.WriteLine("  Universal time: " + SystemClock.Format(utc, "UTC"));
+                c.WriteLine("       Time zone: " + SystemClock.Zone.Name + " (" + SystemClock.Abbreviation + ", "
+                    + (offset < TimeSpan.Zero ? "-" : "+") + SystemClock.Pad2(Math.Abs(offset.Hours)) + SystemClock.Pad2(Math.Abs(offset.Minutes)) + ")");
+                return 0;
+            case "list-timezones":
+                foreach (TimeZoneInfoLite zone in TimeZones.All)
+                {
+                    c.WriteLine(zone.Name);
+                }
+
+                c.WriteLine(Ansi.Dim("Fixed offsets work too: UTC+2, UTC-5:30"));
+                return 0;
+            case "set-timezone" when c.Args.Length == 2:
+                if (!SystemClock.TrySetZone(c.Args[1]))
+                {
+                    return c.Fail("unknown time zone '" + c.Args[1] + "' (see 'timedatectl list-timezones')");
+                }
+
+                SystemClock.Save();
+                return 0;
+            default:
+                return c.Fail("usage: timedatectl [status | list-timezones | set-timezone zone]");
+        }
     }
 
     private static int Uptime(CommandContext c)
@@ -134,6 +173,49 @@ internal static class SystemCommands
         foreach (string line in Log.Lines)
         {
             c.WriteLine(line);
+        }
+
+        return 0;
+    }
+
+    private static int LoadKeys(CommandContext c)
+    {
+        if (c.Args.Length == 0)
+        {
+            return ListKeymaps(c);
+        }
+
+        return KeyboardLayouts.Apply(c.Args[0]) ? 0 : c.Fail("unknown layout '" + c.Args[0] + "' (see 'localectl list-keymaps')");
+    }
+
+    private static int Localectl(CommandContext c)
+    {
+        string verb = c.Args.Length > 0 ? c.Args[0] : "status";
+        switch (verb)
+        {
+            case "status":
+                c.WriteLine("   Keymap: " + KeyboardLayouts.Current);
+                return 0;
+            case "list-keymaps":
+                return ListKeymaps(c);
+            case "set-keymap" when c.Args.Length == 2:
+                if (!KeyboardLayouts.Apply(c.Args[1]))
+                {
+                    return c.Fail("unknown layout '" + c.Args[1] + "'");
+                }
+
+                KeyboardLayouts.Save(KeyboardLayouts.Current);
+                return 0;
+            default:
+                return c.Fail("usage: localectl [status | list-keymaps | set-keymap layout]");
+        }
+    }
+
+    private static int ListKeymaps(CommandContext c)
+    {
+        foreach (var (name, description) in KeyboardLayouts.All)
+        {
+            c.WriteLine((name == KeyboardLayouts.Current ? "* " : "  ") + name.PadRight(8) + description);
         }
 
         return 0;

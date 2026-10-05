@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using Cosmos.Kernel.System.Graphics;
+using Zenith.Core.Time;
 using Zenith.Gui;
 using Zenith.Gui.Graphics;
 
@@ -49,8 +50,9 @@ internal sealed class SystemInfoWindow : Window
         Row(surface, x, ref y, content.W - 56, "Kernel", "Cosmos Gen 3 (NativeAOT)");
         Row(surface, x, ref y, content.W - 56, "Display", _display);
         Row(surface, x, ref y, content.W - 56, "Uptime", uptime);
-        DateTime now = DateTime.Now;
+        DateTime now = SystemClock.Now;
         Row(surface, x, ref y, content.W - 56, "Date", now.Year + "-" + Pad2(now.Month) + "-" + Pad2(now.Day));
+        Row(surface, x, ref y, content.W - 56, "Time zone", SystemClock.Zone.Name + " (" + SystemClock.Abbreviation + ")");
     }
 
     private static void Row(Surface surface, int x, ref int y, int width, string label, string value)

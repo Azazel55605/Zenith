@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Zenith.Core.Time;
 using Zenith.Gui.Graphics;
 
 namespace Zenith.Gui.Shell;
@@ -37,7 +38,7 @@ internal sealed class Taskbar
     /// <summary>Refreshes the clock text; returns true when it changed.</summary>
     public bool Update()
     {
-        DateTime now = DateTime.Now;
+        DateTime now = SystemClock.Now;
         string time = Pad2(now.Hour) + ":" + Pad2(now.Minute);
         if (time == _time)
         {

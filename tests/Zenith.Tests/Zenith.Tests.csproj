@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <Compile Include="../../src/Core/Shell/**/*.cs" Exclude="../../src/Core/Shell/Commands/SystemCommands.cs" LinkBase="Kernel/Shell" />
+    <Compile Include="../../src/Core/Time/*.cs" LinkBase="Kernel/Time" />
     <Compile Include="../../src/Gui/Terminal/TerminalBuffer.cs;../../src/Gui/Graphics/Theme.cs" LinkBase="Kernel/Gui" />
   </ItemGroup>
 

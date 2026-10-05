@@ -29,6 +29,8 @@ internal static class FileSystemLayout
         WriteIfMissing(root + "/etc/passwd",
             "root:x:0:0:root:/root:/bin/sh\nuser:x:1000:1000:User:/home/user:/bin/sh\n");
         WriteIfMissing(root + "/etc/group", "root:x:0:\nusers:x:100:user\n");
+        WriteIfMissing(root + "/etc/vconsole.conf", "KEYMAP=us\n");
+        WriteIfMissing(root + "/etc/timezone", "UTC\n");
         WriteIfMissing(root + "/etc/motd", "Welcome to Zenith. Type 'help' to list commands.\n");
         WriteIfMissing(root + "/etc/profile", "export PATH=/bin\nexport EDITOR=notes\n");
         WriteIfMissing(root + "/home/user/readme.txt",

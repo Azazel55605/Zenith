@@ -13,6 +13,7 @@ timeouts are generous). Needs only qemu-system-x86_64 (or $QEMU) and Python 3.
 """
 import argparse
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -35,8 +36,17 @@ STEPS = [
     ("echo 'oops\necho syntax=$? | logger", "user: syntax=2"),
     ("install sata0 --yes && logger INSTALL-OK", "user: INSTALL-OK"),
     ("lsblk | grep sata0p1 | logger", "sata0p1       190M  part"),   # serial is ASCII-only: no box glyphs
+    # German layout: the key QEMU calls "y" types "z". Switch back by typing "loadkezs us".
+    ("localectl set-keymap de\nlogger y", "user: z"),
+    ("loadkezs us\ncat /etc/vconsole.conf | logger", "user: KEYMAP=de"),
+    ("timedatectl set-timezone Europe/Berlin && timedatectl | grep zone | logger", "Time zone: Europe/Berlin"),
     ("crash", "panic: InvalidOperationException: panic requested: crash command"),
 ]
+
+# Cosmos' own debug logging ("[Kernel] Run() returned", "[SCHED] ...") shares the serial port
+# and is written byte by byte from another thread, so it can land in the middle of one of our
+# lines. Dropping every tagged line that isn't ours stitches those lines back together.
+COSMOS_NOISE = re.compile(r"\[(?!zenith\])[A-Za-z][A-Za-z0-9 ]*\][^\n]*\n")
 
 KEYS = {" ": "spc", "\n": "ret", "/": "slash", ".": "dot", "-": "minus", "=": "equal", ",": "comma",
         ";": "semicolon", "'": "apostrophe", "\\": "backslash", "`": "grave_accent",
@@ -68,7 +78,8 @@ class Machine:
         ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
     def log(self) -> str:
-        return self.serial.read_text(errors="replace") if self.serial.exists() else ""
+        raw = self.serial.read_text(errors="replace") if self.serial.exists() else ""
+        return COSMOS_NOISE.sub("", raw)
 
     def wait_for(self, text: str, timeout: float) -> bool:
         deadline = time.time() + timeout

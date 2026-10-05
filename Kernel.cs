@@ -2,8 +2,10 @@ using System;
 using Cosmos.Kernel.System.Graphics;
 using Zenith.Apps;
 using Zenith.Core;
+using Zenith.Core.Input;
 using Zenith.Core.Shell.Commands;
 using Zenith.Core.Storage;
+using Zenith.Core.Time;
 using Zenith.Gui;
 using Zenith.Gui.Graphics;
 using Zenith.Gui.Shell;
@@ -21,6 +23,11 @@ public class Kernel : Sys.Kernel
         try
         {
             SystemMounts.Initialize();
+            KeyboardLayouts.LoadSaved();
+            if (SystemClock.LoadSaved() is string clockError)
+            {
+                Log.Write("clock", clockError);
+            }
             SystemCommands.Register(CommandShell.Register);
             Fonts.Load();
             _desktop = new Desktop(Canvas.GetFullScreen());
