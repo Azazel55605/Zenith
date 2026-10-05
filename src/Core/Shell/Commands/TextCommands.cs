@@ -13,7 +13,7 @@ internal static class TextCommands
         add(new Command("head", "head [-n N] [file...]", "Print the first lines", c => HeadTail(c, head: true)));
         add(new Command("tail", "tail [-n N] [file...]", "Print the last lines", c => HeadTail(c, head: false)));
         add(new Command("wc", "wc [-lwc] [file...]", "Count lines, words and bytes", Wc));
-        add(new Command("grep", "grep [-inv] pattern [file...]", "Print lines containing a pattern", Grep));
+        add(new Command("grep", "grep [-invE] pattern [file...]", "Print lines containing a pattern (-E: a regular expression)", Grep));
         add(new Command("sort", "sort [-r] [file...]", "Sort lines", Sort));
         add(new Command("uniq", "uniq [file...]", "Drop repeated adjacent lines", Uniq));
         add(new Command("tee", "tee [-a] file", "Copy stdin to a file and to stdout", Tee));
@@ -149,7 +149,7 @@ internal static class TextCommands
 
     private static int Grep(CommandContext c)
     {
-        if (!c.TryParse("inv", out var flags, out var operands))
+        if (!c.TryParse("invE", out var flags, out var operands))
         {
             return 2;
         }
@@ -161,15 +161,42 @@ internal static class TextCommands
 
         string pattern = operands[0];
         operands.RemoveAt(0);
-        var comparison = flags.Contains('i') ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        bool found = false;
+        bool ignoreCase = flags.Contains('i');
+        System.Text.RegularExpressions.Regex? regex = null;
+        if (flags.Contains('E'))
+        {
+            try
+            {
+                regex = new System.Text.RegularExpressions.Regex(pattern,
+                    ignoreCase ? System.Text.RegularExpressions.RegexOptions.IgnoreCase : System.Text.RegularExpressions.RegexOptions.None);
+            }
+            catch (ArgumentException e)
+            {
+                c.Fail("invalid regular expression: " + e.Message);
+                return 2;
+            }
+        }
 
+        bool found = false;
         foreach (var (name, text) in c.ReadInputs(operands))
         {
             List<string> lines = CommandContext.Lines(text);
             for (int i = 0; i < lines.Count; i++)
             {
-                int at = lines[i].IndexOf(pattern, comparison);
+                // Where the (first) match is, for highlighting.
+                int at, length;
+                if (regex is not null)
+                {
+                    var match = regex.Match(lines[i]);
+                    at = match.Success ? match.Index : -1;
+                    length = match.Length;
+                }
+                else
+                {
+                    at = lines[i].IndexOf(pattern, ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+                    length = pattern.Length;
+                }
+
                 if ((at >= 0) == flags.Contains('v'))
                 {
                     continue;
@@ -177,8 +204,8 @@ internal static class TextCommands
 
                 found = true;
                 string prefix = (operands.Count > 1 ? Ansi.Cyan(name) + ":" : "") + (flags.Contains('n') ? Ansi.Green((i + 1).ToString()) + ":" : "");
-                string line = at >= 0 && !flags.Contains('v') && pattern.Length > 0
-                    ? lines[i].Substring(0, at) + Ansi.Red(lines[i].Substring(at, pattern.Length)) + lines[i].Substring(at + pattern.Length)
+                string line = at >= 0 && !flags.Contains('v') && length > 0
+                    ? lines[i].Substring(0, at) + Ansi.Red(lines[i].Substring(at, length)) + lines[i].Substring(at + length)
                     : lines[i];
                 c.WriteLine(prefix + line);
             }

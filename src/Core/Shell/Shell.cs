@@ -878,6 +878,7 @@ internal sealed class Shell : IExpansionContext
         ScriptCommands.Register(Add);
         FileCommands.Register(Add);
         TextCommands.Register(Add);
+        UtilityCommands.Register(Add);
 
         // Commands that need Cosmos (storage, power, memory) are registered by the kernel at
         // boot, which keeps everything in this folder plain .NET and unit-testable on the host.
