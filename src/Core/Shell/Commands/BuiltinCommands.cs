@@ -18,7 +18,6 @@ internal static class BuiltinCommands
         add(new Command("env", "env", "Print the environment", Env));
         add(new Command("history", "history", "Show previously entered commands", History));
         add(new Command("clear", "clear", "Clear the terminal", c => { c.Write(Ansi.ClearScreen); return 0; }));
-        add(new Command("exit", "exit", "Close this shell", c => { c.Shell.RequestExit(); return 0; }));
         add(new Command("sleep", "sleep seconds", "Wait for a number of seconds (Ctrl+C stops it)", Sleep));
         add(new Command("true", "true", "Do nothing, successfully", _ => 0));
         add(new Command("false", "false", "Do nothing, unsuccessfully", _ => 1));
@@ -48,7 +47,8 @@ internal static class BuiltinCommands
         }
 
         c.WriteLine();
-        c.WriteLine(Ansi.Dim("Pipes (|), redirection (> >> <), ; && || and wildcards work. 'help cmd' shows usage."));
+        c.WriteLine(Ansi.Dim("Scripting: if/for/while/until, functions, $(cmd), $((math)), pipes, > >> <, ; && ||, wildcards."));
+        c.WriteLine(Ansi.Dim("Scripts run with 'sh file', by path, or by name from $PATH (/bin). 'help cmd' shows usage."));
         return 0;
     }
 

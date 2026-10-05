@@ -92,6 +92,9 @@ internal static class TextCommands
         }
 
         bool all = flags.Count == 0;
+
+        // Like GNU wc: a single count read from stdin is printed bare, so `$(ls | wc -l)` is a number.
+        bool bare = !all && flags.Count == 1 && files.Count == 0;
         long totalLines = 0, totalWords = 0, totalBytes = 0;
         int inputs = 0;
         foreach (var (name, text) in c.ReadInputs(files))
@@ -131,6 +134,11 @@ internal static class TextCommands
 
         string Format(long l, long w, long b)
         {
+            if (bare)
+            {
+                return (flags.Contains('l') ? l : flags.Contains('w') ? w : b).ToString();
+            }
+
             string s = "";
             if (all || flags.Contains('l')) s += l.ToString().PadLeft(7);
             if (all || flags.Contains('w')) s += w.ToString().PadLeft(8);

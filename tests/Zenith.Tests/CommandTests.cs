@@ -143,7 +143,7 @@ public class TextCommandTests
     {
         using var sh = WithFile("a b\nc\n");
         Assert.Equal("      2       3       6 f.txt\n", sh.Run("wc f.txt"));
-        Assert.Equal("      2\n", sh.Run("cat f.txt | wc -l"));
+        Assert.Equal("2\n", sh.Run("cat f.txt | wc -l"));   // a single count from stdin is bare
     }
 
     [Fact]

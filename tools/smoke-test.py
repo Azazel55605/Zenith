@@ -31,9 +31,13 @@ STEPS = [
     # Ctrl+C (^C) stops the running sleep; the next line was typed ahead while it ran.
     ("sleep 30\n^Cecho st=$? | logger", "user: st=130"),
     ("echo smoke-ok > /tmp/t.txt; cat /tmp/t.txt | logger", "user: smoke-ok"),
+    # Scripting: a script file, a loop typed over several lines, and `read` answered by the next line.
+    ("echo 'for i in 1 2 3; do echo n$i; done' > /tmp/s.sh && sh /tmp/s.sh | tail -1 | logger", "user: n3"),
+    ("for x in a b\ndo logger loop-$x\ndone", "user: loop-b"),
+    ("read -p 'name? ' who && logger hi-$who\nZen", "user: hi-Zen"),
     ("ls / | grep etc | logger", "user: etc"),
     ("nope; echo status=$? | logger", "user: status=127"),
-    ("echo 'oops\necho syntax=$? | logger", "user: syntax=2"),
+    ("then\necho syntax=$? | logger", "user: syntax=2"),   # (an open quote would ask for more lines)
     ("install sata0 --yes && logger INSTALL-OK", "user: INSTALL-OK"),
     ("mkdir /mnt/inst && mount sata0p1 /mnt/inst && cat /mnt/inst/etc/hostname | logger", "user: zenith"),
     ("umount /mnt/inst && sync && logger unmounted", "user: unmounted"),

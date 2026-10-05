@@ -8,7 +8,7 @@ public class ShellTests
     public void Pipeline_PassesOutputAlong()
     {
         using var sh = new ShellHarness();
-        Assert.Equal("2\n", sh.Run("echo one two | wc -w").TrimStart());
+        Assert.Equal("2\n", sh.Run("echo one two | wc -w"));
     }
 
     [Fact]

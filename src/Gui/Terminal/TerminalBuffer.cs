@@ -94,14 +94,27 @@ internal sealed class TerminalBuffer
         Changed = true;
     }
 
-    private void Put(char c)
+    /// <summary>Appends already-colored cells (e.g. a copy of another buffer's unfinished line).</summary>
+    public void AppendCells(List<Cell> cells)
+    {
+        foreach (Cell cell in cells)
+        {
+            Put(cell);
+        }
+
+        Changed = true;
+    }
+
+    private void Put(char c) => Put(new Cell(c, _color));
+
+    private void Put(Cell cell)
     {
         if (_lines[^1].Count >= Columns)
         {
             NewLine();
         }
 
-        _lines[^1].Add(new Cell(c, _color));
+        _lines[^1].Add(cell);
     }
 
     private void NewLine()

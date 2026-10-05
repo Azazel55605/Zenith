@@ -54,6 +54,14 @@ internal sealed class TerminalWindow : Window, IOutput
     private readonly Queue<string> _typeAhead = new();
     private string _prompt;
 
+    // A multi-line command being entered (shown with the continuation prompt).
+    private readonly StringBuilder _pendingScript = new();
+
+    // `read` waiting for a line from the user; guarded by _sync.
+    private bool _readRequested;
+    private string? _readReply;
+    private bool _readEof;
+
     public TerminalWindow() : base("Terminal", 740, 470)
     {
         _cellWidth = Fonts.Mono.GetGlyph('M', FontSize).Advance;
@@ -66,6 +74,7 @@ internal sealed class TerminalWindow : Window, IOutput
         _shell.Set("COLUMNS", columns.ToString());
         _shell.ExitRequested += () => { lock (_sync) { _exitRequested = true; } };
         _shell.OpenApp = QueueOpenApp;
+        _shell.ReadInputLine = ReadLineForShell;
         _prompt = _shell.Prompt;
 
         if (File.Exists("/etc/motd"))
@@ -150,8 +159,91 @@ internal sealed class TerminalWindow : Window, IOutput
 
             if (_typeAhead.Count > 0)
             {
-                Run(_typeAhead.Dequeue());
+                Accept(_typeAhead.Dequeue());
             }
+        }
+        else if (_job is not null && _typeAhead.Count > 0 && IsReadPending())
+        {
+            AnswerRead(_typeAhead.Dequeue());   // a line typed ahead answers `read`
+        }
+    }
+
+    private string CurrentPrompt => _pendingScript.Length > 0 ? _shell.ContinuationPrompt : _prompt;
+
+    /// <summary>
+    /// Called by <c>read</c> on the worker thread: waits for the user's next line (Enter), end of
+    /// input (Ctrl+D) or Ctrl+C. The GUI thread answers through <see cref="AnswerRead"/>.
+    /// </summary>
+    private string? ReadLineForShell(string prompt)
+    {
+        if (prompt.Length > 0)
+        {
+            Write(prompt);
+        }
+
+        lock (_sync)
+        {
+            _readRequested = true;
+            _readReply = null;
+            _readEof = false;
+        }
+
+        while (true)
+        {
+            lock (_sync)
+            {
+                if (_readReply is not null || _readEof)
+                {
+                    string? reply = _readEof ? null : _readReply;
+                    _readRequested = false;
+                    _readReply = null;
+                    _readEof = false;
+                    return reply;
+                }
+            }
+
+            if (_shell.IsCancelled)
+            {
+                lock (_sync)
+                {
+                    _readRequested = false;
+                }
+
+                return null;
+            }
+
+            Thread.Sleep(20);
+        }
+    }
+
+    private bool IsReadPending()
+    {
+        lock (_sync)
+        {
+            return _readRequested && _readReply is null && !_readEof;
+        }
+    }
+
+    /// <summary>Hands a line (or end of input, when null) to a waiting <c>read</c>; returns false if none is waiting.</summary>
+    private bool AnswerRead(string? line)
+    {
+        lock (_sync)
+        {
+            if (!_readRequested || _readReply is not null || _readEof)
+            {
+                return false;
+            }
+
+            if (line is null)
+            {
+                _readEof = true;
+            }
+            else
+            {
+                _readReply = line;
+            }
+
+            return true;
         }
     }
 
@@ -246,7 +338,8 @@ internal sealed class TerminalWindow : Window, IOutput
                 }
                 else
                 {
-                    _buffer.Write(_prompt + _input + Ansi.Dim("^C") + "\n");
+                    _buffer.Write(CurrentPrompt + _input + Ansi.Dim("^C") + "\n");
+                    _pendingScript.Clear();
                 }
 
                 ResetInput();
@@ -264,7 +357,11 @@ internal sealed class TerminalWindow : Window, IOutput
                 _cursor = _input.Length;
                 break;
             case ConsoleKeyEx.D:
-                if (_input.Length == 0 && !IsBusy)
+                if (_input.Length == 0 && IsBusy)
+                {
+                    AnswerRead(null);   // end of input for `read`
+                }
+                else if (_input.Length == 0 && _pendingScript.Length == 0)
                 {
                     Close();
                 }
@@ -283,23 +380,43 @@ internal sealed class TerminalWindow : Window, IOutput
 
         if (IsBusy)
         {
-            _typeAhead.Enqueue(line);
             Write(line + "\n");   // echoed like a terminal in cooked mode
+            if (!AnswerRead(line))
+            {
+                _typeAhead.Enqueue(line);
+            }
+
             return;
         }
 
-        Run(line);
+        Accept(line);
     }
 
-    /// <summary>Echoes the prompt and line, then runs it on a worker thread.</summary>
-    private void Run(string line)
+    /// <summary>
+    /// Takes a line at the prompt: echoes it, and either waits for more lines (an unfinished
+    /// <c>if</c>, loop, quote, or trailing <c>|</c>) or runs the whole command on a worker thread.
+    /// </summary>
+    private void Accept(string line)
     {
-        _buffer.Write(_prompt + line + "\n");
-        if (line.Trim().Length == 0)
+        _buffer.Write(CurrentPrompt + line + "\n");
+        string text = _pendingScript.Length > 0 ? _pendingScript + "\n" + line : line;
+        _pendingScript.Clear();
+
+        if (!Shell.IsComplete(text))
         {
+            _pendingScript.Append(text);
             return;
         }
 
+        if (text.Trim().Length > 0)
+        {
+            Run(text);
+        }
+    }
+
+    /// <summary>Runs a complete command on a worker thread.</summary>
+    private void Run(string line)
+    {
         _jobRunning = true;
         _job = new Thread(() =>
         {
@@ -366,7 +483,7 @@ internal sealed class TerminalWindow : Window, IOutput
         else if (candidates.Count > 1)
         {
             // Ambiguous: show the options under the current line, like bash's double-Tab.
-            _buffer.Write(_prompt + _input + "\n" + string.Join("  ", candidates) + "\n");
+            _buffer.Write(CurrentPrompt + _input + "\n" + string.Join("  ", candidates) + "\n");
         }
     }
 
@@ -390,10 +507,13 @@ internal sealed class TerminalWindow : Window, IOutput
     {
         surface.FillRect(content, Background);
 
-        // The visible lines: the scrollback, then the prompt + input wrapped to the width.
-        // While a command runs there is no prompt, just whatever is being typed ahead.
-        string prompt = IsBusy ? string.Empty : _prompt;
+        // The visible lines: the scrollback, then its unfinished last line (e.g. a `read -p`
+        // prompt) continued by the shell prompt and the input, wrapped to the width. While a
+        // command runs there is no shell prompt, just whatever is being typed.
+        string prompt = IsBusy ? string.Empty : CurrentPrompt;
+        List<Cell> tail = _buffer.Line(_buffer.LineCount - 1);
         var promptBuffer = new TerminalBuffer(_buffer.Columns);
+        promptBuffer.AppendCells(tail);
         promptBuffer.Write(prompt + _input);
         int inputLines = promptBuffer.LineCount;
         int total = _buffer.LineCount - 1 + inputLines;   // the buffer's last line is the empty current line
@@ -412,7 +532,7 @@ internal sealed class TerminalWindow : Window, IOutput
         if (IsFocused && _caretVisible && _scroll == 0)
         {
             int promptLength = Ansi.Strip(prompt).Length;
-            int position = promptLength + _cursor;
+            int position = tail.Count + promptLength + _cursor;
             int row = total - 1 - (inputLines - 1) + position / _buffer.Columns - first;
             int col = position % _buffer.Columns;
             surface.FillRect(new Rect(x0 + col * _cellWidth, content.Y + Padding + row * _cellHeight, 2, _cellHeight), Theme.Accent);

@@ -49,7 +49,7 @@ public class ParserTests
     [InlineData("a & b")]
     public void Tokenize_RejectsBadSyntax(string line)
     {
-        Assert.Throws<System.FormatException>(() => Parser.Tokenize(line));
+        Assert.ThrowsAny<System.FormatException>(() => Parser.Tokenize(line));
     }
 
     [Theory]

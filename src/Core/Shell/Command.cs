@@ -21,6 +21,41 @@ internal sealed class BufferOutput : IOutput
     public override string ToString() => _text.ToString();
 }
 
+/// <summary>
+/// A command's standard input: piped or redirected text, consumed from the front. <c>read</c>
+/// takes one line at a time, so <c>while read line; do ...; done &lt; file</c> walks the file.
+/// </summary>
+internal sealed class ShellInput
+{
+    private readonly string _text;
+    private int _position;
+
+    public ShellInput(string text) => _text = text;
+
+    public bool AtEnd => _position >= _text.Length;
+
+    /// <summary>The next line without its newline, or null at the end of input.</summary>
+    public string? ReadLine()
+    {
+        if (AtEnd)
+        {
+            return null;
+        }
+
+        int end = _text.IndexOf('\n', _position);
+        string line = end < 0 ? _text.Substring(_position) : _text.Substring(_position, end - _position);
+        _position = end < 0 ? _text.Length : end + 1;
+        return line;
+    }
+
+    public string ReadToEnd()
+    {
+        string rest = _text.Substring(Math.Min(_position, _text.Length));
+        _position = _text.Length;
+        return rest;
+    }
+}
+
 internal delegate int CommandHandler(CommandContext context);
 
 /// <summary>A built-in command. There is no program loader yet, so every command is compiled into the kernel.</summary>
@@ -43,13 +78,16 @@ internal sealed class Command
 /// <summary>Everything one command invocation sees: its arguments, standard streams and the shell.</summary>
 internal sealed class CommandContext
 {
-    public CommandContext(Shell shell, string name, string[] args, string? stdin, IOutput stdout, IOutput stderr, bool isTerminal)
+    private string? _stdin;
+    private bool _stdinRead;
+
+    public CommandContext(Shell shell, string name, string[] args, ShellInput? input, IOutput stdout, IOutput stderr, bool isTerminal)
     {
         IsTerminal = isTerminal;
         Shell = shell;
         Name = name;
         Args = args;
-        Stdin = stdin;
+        Input = input;
         Out = stdout;
         Err = stderr;
     }
@@ -60,8 +98,23 @@ internal sealed class CommandContext
     /// <summary>Arguments after the command name, already expanded (variables, ~, globs).</summary>
     public string[] Args { get; }
 
-    /// <summary>Piped or redirected input, or null when the command reads from nothing.</summary>
-    public string? Stdin { get; }
+    /// <summary>The input stream, for commands that read line by line (<c>read</c>); null when there is none.</summary>
+    public ShellInput? Input { get; }
+
+    /// <summary>All remaining piped or redirected input (consumed on first use), or null when there is none.</summary>
+    public string? Stdin
+    {
+        get
+        {
+            if (!_stdinRead)
+            {
+                _stdin = Input?.ReadToEnd();
+                _stdinRead = true;
+            }
+
+            return _stdin;
+        }
+    }
 
     public IOutput Out { get; }
 
