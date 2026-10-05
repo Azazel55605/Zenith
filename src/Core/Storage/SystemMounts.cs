@@ -49,6 +49,7 @@ internal static class SystemMounts
         }
 
         FileSystemLayout.Create();
+        Log.PersistTo("/var/log/boot.log");
         MountRamDisk("tmpfs", 16, "/tmp");
     }
 

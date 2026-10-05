@@ -43,8 +43,9 @@ internal sealed class Command
 /// <summary>Everything one command invocation sees: its arguments, standard streams and the shell.</summary>
 internal sealed class CommandContext
 {
-    public CommandContext(Shell shell, string name, string[] args, string? stdin, IOutput stdout, IOutput stderr)
+    public CommandContext(Shell shell, string name, string[] args, string? stdin, IOutput stdout, IOutput stderr, bool isTerminal)
     {
+        IsTerminal = isTerminal;
         Shell = shell;
         Name = name;
         Args = args;
@@ -63,6 +64,13 @@ internal sealed class CommandContext
     public string? Stdin { get; }
 
     public IOutput Out { get; }
+
+    /// <summary>
+    /// Whether stdout is the terminal (Unix <c>isatty</c>). Commands use it to pick a layout,
+    /// e.g. <c>ls</c> prints one name per line into a pipe. Colors need no check: the shell
+    /// strips them from anything that is not the terminal.
+    /// </summary>
+    public bool IsTerminal { get; }
     public IOutput Err { get; }
 
     public void Write(string text) => Out.Write(text);

@@ -116,6 +116,26 @@
       }
     },
     {
+      "label": "Unit Tests",
+      "detail": "Host-side xunit tests for the shell, commands and terminal buffer",
+      "type": "shell",
+      "command": "dotnet",
+      "args": ["test", "${workspaceFolder}/tests/Zenith.Tests"],
+      "group": "test",
+      "problemMatcher": ["$msCompile"],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "Smoke Test (QEMU)",
+      "detail": "Boot the ISO headless, run shell commands, install, and panic",
+      "type": "shell",
+      "dependsOn": "Build x64",
+      "command": "${workspaceFolder}/tools/smoke-test.py",
+      "group": "test",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
       "label": "Run QEMU ARM64",
       "type": "shell",
       "dependsOn": "Build ARM64",

@@ -13,6 +13,11 @@ VS Code tasks:
 | **Make Disk Bootable** | Adds Limine + the kernel to `disk.img` after `install` |
 | **Run QEMU x64 (installed disk)** | Boots `disk.img` with UEFI (OVMF), no ISO |
 
+Tests: **Unit Tests** (`dotnet test tests/Zenith.Tests`, host-side, no QEMU) and
+**Smoke Test (QEMU)** (`tools/smoke-test.py`: boots the ISO headless, runs shell commands,
+installs to a scratch disk and triggers a panic, checking the serial log). CI runs both on
+every push; tags `v*` publish the ISO as a GitHub release.
+
 From a shell: `tools/run.sh live` / `tools/run.sh installed`. QEMU uses KVM when available,
 virtio-gpu, and virtio mouse/keyboard. The pointer is grabbed on hover; **Ctrl+Alt+G** releases it.
 
@@ -52,7 +57,7 @@ The Terminal opens at boot. Type `help` for the command list. Supported shell sy
 ```
 Kernel.cs                  Boot: mounts, fonts, desktop; Run() ticks the desktop and halts until the next IRQ
 src/Core/                  UI-independent system layer
-  Log.cs                   Kernel log → serial + ring buffer (dmesg)
+  Log.cs                   Kernel log → serial, ring buffer (dmesg), /var/log/boot.log
   Storage/
     SystemMounts.cs        Finds the installed root (or makes a RAM root), mounts /tmp
     FileSystemLayout.cs    The /bin /etc /home … tree and default /etc files
@@ -64,14 +69,18 @@ src/Core/                  UI-independent system layer
     Parser.cs              Tokenizer (raw words) + per-command word expansion
     Command.cs             Command, CommandContext (args, stdin/out/err, option parsing), ANSI
     Commands/              Builtin, File, Text, System commands
+  KernelPanic.cs           Deliberate panics (`crash` command)
 src/Gui/
+  PanicScreen.cs           Full-screen report for uncaught exceptions; R restarts
   Graphics/                Surface (fills, AA shapes, shadows, cached glyph text), FontFace, Theme, …
   Terminal/                TerminalBuffer: ANSI-colored scrollback
   Shell/                   Desktop compositor, Taskbar, LauncherMenu, AppRegistry
   Window.cs, WindowManager.cs, Input.cs, FrameStats.cs
 src/Apps/                  Terminal, Welcome, Notes, System
 Resources/Fonts/           Inter (UI) and Hack (terminal); embedded via tools/gen-fonts.py
-tools/                     run.sh, make-bootable.sh, gen-fonts.py
+tests/Zenith.Tests/        xunit tests compiled against the kernel's plain-.NET sources
+tools/                     run.sh, make-bootable.sh, smoke-test.py, gen-fonts.py
+.github/workflows/ci.yml   Unit tests, ISO build, QEMU smoke test, releases
 ```
 
 ## Adding things

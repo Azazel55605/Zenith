@@ -30,6 +30,8 @@ internal static class SystemCommands
         add(new Command("mount", "mount", "Show the mount table", Mount));
         add(new Command("lsblk", "lsblk", "List disks and partitions", Lsblk));
         add(new Command("dmesg", "dmesg", "Print the kernel log", Dmesg));
+        add(new Command("logger", "logger [message...]", "Write a message (or stdin) to the kernel log", Logger));
+        add(new Command("crash", "crash", "Trigger a kernel panic (for testing)", _ => { KernelPanic.Request("crash command"); return 0; }));
         add(new Command("install", "install [disk] [--yes]", "Install Zenith onto a disk", Install));
         add(new Command("reboot", "reboot", "Restart the machine", _ => { Power.Reboot(); return 0; }));
         add(new Command("poweroff", "poweroff", "Turn the machine off", _ => { Power.Shutdown(); return 0; }));
@@ -132,6 +134,17 @@ internal static class SystemCommands
         foreach (string line in Log.Lines)
         {
             c.WriteLine(line);
+        }
+
+        return 0;
+    }
+
+    private static int Logger(CommandContext c)
+    {
+        string text = c.Args.Length > 0 ? string.Join(" ", c.Args) : c.Stdin ?? string.Empty;
+        foreach (string line in CommandContext.Lines(text))
+        {
+            Log.Write(c.Shell.Get("USER"), line);
         }
 
         return 0;

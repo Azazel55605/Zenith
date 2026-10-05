@@ -34,6 +34,11 @@ internal static class FileCommands
             operands.Add(".");
         }
 
+        if (!c.IsTerminal)
+        {
+            flags.Add('1');   // like GNU ls: one entry per line when piped or redirected
+        }
+
         int status = 0;
         for (int i = 0; i < operands.Count; i++)
         {

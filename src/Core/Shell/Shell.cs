@@ -17,7 +17,10 @@ internal sealed class Shell
     private readonly Dictionary<string, string> _environment = new();
     private readonly IOutput _terminal;
 
-    public Shell(IOutput terminal)
+    /// <param name="terminal">Where the shell and its commands print.</param>
+    /// <param name="login">Read <c>/etc/hostname</c> and run <c>/etc/profile</c>, like a login shell.
+    /// Off in host-side tests, which must not read the build machine's <c>/etc</c>.</param>
+    public Shell(IOutput terminal, bool login = true)
     {
         _terminal = terminal;
 
@@ -27,11 +30,14 @@ internal sealed class Shell
         _environment["SHELL"] = "/bin/sh";
         _environment["TERM"] = "zenith";
         _environment["PATH"] = "/bin";
-        _environment["HOSTNAME"] = ReadHostname();
+        _environment["HOSTNAME"] = login ? ReadHostname() : "zenith";
 
         WorkingDirectory = Directory.Exists(home) ? home : "/";
         _environment["PWD"] = WorkingDirectory;
-        RunProfile();
+        if (login)
+        {
+            RunProfile();
+        }
     }
 
     /// <summary>Every built-in command, by name.</summary>
@@ -327,7 +333,7 @@ internal sealed class Shell
         bool captured = !last || outputFile is not null;
         BufferOutput? buffer = captured ? new BufferOutput() : null;
         var context = new CommandContext(this, name, words.GetRange(1, words.Count - 1).ToArray(), stdin,
-            buffer is not null ? buffer : _terminal, _terminal);
+            buffer is not null ? buffer : _terminal, _terminal, isTerminal: buffer is null);
 
         int status;
         try
@@ -339,10 +345,10 @@ internal sealed class Shell
             status = context.Fail(e.Message);
         }
 
-        stdin = buffer?.ToString();
+        stdin = buffer is null ? null : Ansi.Strip(buffer.ToString());
         if (outputFile is not null)
         {
-            string text = Ansi.Strip(stdin ?? string.Empty);
+            string text = stdin ?? string.Empty;
             try
             {
                 if (append)
@@ -434,7 +440,9 @@ internal sealed class Shell
         BuiltinCommands.Register(Add);
         FileCommands.Register(Add);
         TextCommands.Register(Add);
-        SystemCommands.Register(Add);
+
+        // Commands that need Cosmos (storage, power, memory) are registered by the kernel at
+        // boot, which keeps everything in this folder plain .NET and unit-testable on the host.
         return table;
     }
 }

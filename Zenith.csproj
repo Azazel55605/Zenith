@@ -5,6 +5,12 @@
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 
+  <!-- Host-side test projects are built separately (dotnet test tests/Zenith.Tests). -->
+  <ItemGroup>
+    <Compile Remove="tests/**" />
+    <None Remove="tests/**" />
+  </ItemGroup>
+
   <!-- Core kernel packages -->
   <ItemGroup>
     <PackageReference Include="Cosmos.Kernel" Version="3.0.89" />
