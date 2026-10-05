@@ -73,9 +73,15 @@ internal sealed class CommandContext
     public bool IsTerminal { get; }
     public IOutput Err { get; }
 
-    public void Write(string text) => Out.Write(text);
+    // Every write is a cancellation point, so a command printing in a loop stops on Ctrl+C
+    // without checking for it explicitly.
+    public void Write(string text)
+    {
+        Shell.ThrowIfCancelled();
+        Out.Write(text);
+    }
 
-    public void WriteLine(string text = "") => Out.Write(text + "\n");
+    public void WriteLine(string text = "") => Write(text + "\n");
 
     /// <summary>Prints "name: message" to stderr and returns exit status 1.</summary>
     public int Fail(string message)

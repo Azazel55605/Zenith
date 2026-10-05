@@ -26,9 +26,13 @@ ROOT = Path(__file__).resolve().parent.parent
 # (command typed into the Terminal, text expected in the serial log)
 STEPS = [
     ("uname -a | logger", "user: Zenith zenith 0.1"),
+    ("sleep 1 && logger slept", "user: slept"),
+    # Ctrl+C (^C) stops the running sleep; the next line was typed ahead while it ran.
+    ("sleep 30\n^Cecho st=$? | logger", "user: st=130"),
     ("echo smoke-ok > /tmp/t.txt; cat /tmp/t.txt | logger", "user: smoke-ok"),
     ("ls / | grep etc | logger", "user: etc"),
     ("nope; echo status=$? | logger", "user: status=127"),
+    ("echo 'oops\necho syntax=$? | logger", "user: syntax=2"),
     ("install sata0 --yes && logger INSTALL-OK", "user: INSTALL-OK"),
     ("lsblk | grep sata0p1 | logger", "sata0p1       190M  part"),   # serial is ASCII-only: no box glyphs
     ("crash", "panic: InvalidOperationException: panic requested: crash command"),
@@ -85,7 +89,13 @@ class Machine:
         sock.close()
 
     def type(self, text: str):
+        text = text.replace("^C", "\x03")
         for ch in text:
+            if ch == "\x03":
+                time.sleep(0.5)
+                self.command("sendkey ctrl-c")
+                time.sleep(0.3)
+                continue
             if ch in KEYS:
                 key = KEYS[ch]
             elif ch in SHIFTED:

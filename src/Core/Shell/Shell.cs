@@ -16,6 +16,7 @@ internal sealed class Shell
 
     private readonly Dictionary<string, string> _environment = new();
     private readonly IOutput _terminal;
+    private volatile bool _cancelRequested;
 
     /// <param name="terminal">Where the shell and its commands print.</param>
     /// <param name="login">Read <c>/etc/hostname</c> and run <c>/etc/profile</c>, like a login shell.
@@ -86,6 +87,23 @@ internal sealed class Shell
 
     public void RequestExit() => ExitRequested?.Invoke();
 
+    /// <summary>
+    /// Asks the running command line to stop (Ctrl+C). Safe to call from another thread: the
+    /// command notices at its next output write or <see cref="ThrowIfCancelled"/> check, and the
+    /// line ends with status 130, like a shell killed by SIGINT.
+    /// </summary>
+    public void Cancel() => _cancelRequested = true;
+
+    public bool IsCancelled => _cancelRequested;
+
+    public void ThrowIfCancelled()
+    {
+        if (_cancelRequested)
+        {
+            throw new OperationCanceledException();
+        }
+    }
+
     /// <summary>Changes the working directory; returns false if it does not exist.</summary>
     public bool ChangeDirectory(string path)
     {
@@ -122,14 +140,30 @@ internal sealed class Shell
         }
 
         History.Add(line);
+
+        // The cancel flag is cleared when a line finishes, not when it starts, so a Ctrl+C that
+        // arrives before the worker thread gets going still stops it.
         try
         {
             RunList(Parser.Tokenize(line));
         }
-        catch (FormatException e)
+        catch (Exception e)
         {
-            _terminal.Write("sh: " + e.Message + "\n");
-            LastStatus = 2;
+            // One catch-all dispatching with `is`: on Cosmos a typed catch clause listed before
+            // `catch (Exception)` did not get selected for OperationCanceledException.
+            if (_cancelRequested || e is OperationCanceledException)
+            {
+                LastStatus = 130;   // 128 + SIGINT
+            }
+            else
+            {
+                _terminal.Write("sh: " + e.Message + "\n");
+                LastStatus = e is FormatException ? 2 : 1;
+            }
+        }
+        finally
+        {
+            _cancelRequested = false;
         }
     }
 
@@ -224,6 +258,11 @@ internal sealed class Shell
                 if (run)
                 {
                     LastStatus = RunPipeline(pipeline);
+                    if (_cancelRequested)
+                    {
+                        LastStatus = 130;
+                        return;   // Ctrl+C ends the whole line
+                    }
                 }
             }
             else if (kind != TokenKind.Sequence)
@@ -258,6 +297,10 @@ internal sealed class Shell
         {
             bool last = i == stages.Count - 1;
             status = RunSimple(stages[i], ref stdin, last);
+            if (_cancelRequested)
+            {
+                return 130;
+            }
         }
 
         return status;
@@ -342,7 +385,8 @@ internal sealed class Shell
         }
         catch (Exception e)
         {
-            status = context.Fail(e.Message);
+            // A cancelled command is not an error: no message, and the caller ends the line.
+            status = _cancelRequested ? 130 : context.Fail(e.Message);
         }
 
         stdin = buffer is null ? null : Ansi.Strip(buffer.ToString());

@@ -17,36 +17,51 @@ internal static class Log
 {
     private const int Capacity = 256;
     private static readonly Queue<string> s_lines = new();
+    private static readonly object s_lock = new();
     private static string? s_file;
 
     [UnsafeAccessor(UnsafeAccessorKind.StaticMethod, Name = "WriteString")]
     private static extern void SerialWriteString(
         [UnsafeAccessorType("Cosmos.Kernel.Core.IO.Serial, Cosmos.Kernel.Core")] object? serial, string text);
 
-    public static IEnumerable<string> Lines => s_lines;
+    /// <summary>A snapshot of the ring buffer.</summary>
+    public static string[] Lines
+    {
+        get
+        {
+            lock (s_lock)
+            {
+                return s_lines.ToArray();
+            }
+        }
+    }
 
     public static void Write(string tag, string message)
     {
         long ms = Stopwatch.GetTimestamp() * 1000 / Stopwatch.Frequency;
         string line = "[" + (ms / 1000).ToString().PadLeft(5) + "." + (ms % 1000).ToString().PadLeft(3, '0') + "] " + tag + ": " + message;
 
-        if (s_lines.Count == Capacity)
+        // Shell commands log from worker threads, the desktop from the main loop.
+        lock (s_lock)
         {
-            s_lines.Dequeue();
-        }
-
-        s_lines.Enqueue(line);
-        SerialWriteString(null, "[zenith] " + line + "\n");
-
-        if (s_file is not null)
-        {
-            try
+            if (s_lines.Count == Capacity)
             {
-                File.AppendAllText(s_file, line + "\n");
+                s_lines.Dequeue();
             }
-            catch (Exception)
+
+            s_lines.Enqueue(line);
+            SerialWriteString(null, "[zenith] " + line + "\n");
+
+            if (s_file is not null)
             {
-                s_file = null;   // the filesystem went away; keep logging to serial
+                try
+                {
+                    File.AppendAllText(s_file, line + "\n");
+                }
+                catch (Exception)
+                {
+                    s_file = null;   // the filesystem went away; keep logging to serial
+                }
             }
         }
     }

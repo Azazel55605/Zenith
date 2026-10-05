@@ -29,4 +29,7 @@ internal static class AppRegistry
         new AppInfo("Notes", "Jot something down", () => new NotesWindow()),
         new AppInfo("System", "About this machine", () => new SystemInfoWindow()),
     };
+
+    public static bool Exists(string name)
+        => Apps.Exists(app => string.Equals(app.Name, name, StringComparison.OrdinalIgnoreCase));
 }

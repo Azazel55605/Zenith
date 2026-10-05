@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
 using Cosmos.Kernel.System.Keyboard;
 using Zenith.Core.Shell;
 using Zenith.Gui;
 using Zenith.Gui.Graphics;
+using Zenith.Gui.Shell;
 using Zenith.Gui.Terminal;
 
 namespace Zenith.Apps;
@@ -16,6 +18,13 @@ namespace Zenith.Apps;
 /// <see cref="TerminalBuffer"/>; the line being edited is kept separately and drawn after it.
 /// Keys: arrows/Home/End edit, Up/Down history, Tab completes, Ctrl+C cancels, Ctrl+L clears,
 /// Ctrl+U kills the line, Ctrl+D on an empty line exits; PageUp/PageDown or the wheel scroll.
+/// <para>
+/// Each command line runs on its own thread, so a long command never freezes the desktop.
+/// Threading rules: the worker only touches the shell and <see cref="Write"/> (which queues
+/// text under a lock); everything else, including the scrollback, history recall, completion
+/// and window actions the shell asks for, stays on the GUI thread and is synced in
+/// <see cref="Update"/>. Lines entered while a command runs are queued, like type-ahead.
+/// </para>
 /// </summary>
 internal sealed class TerminalWindow : Window, IOutput
 {
@@ -34,6 +43,17 @@ internal sealed class TerminalWindow : Window, IOutput
     private int _scroll;   // lines scrolled back from the bottom
     private bool _caretVisible = true;
 
+    // Shared with the worker thread; guarded by _sync.
+    private readonly object _sync = new();
+    private readonly StringBuilder _pendingOutput = new();
+    private readonly Queue<string> _pendingApps = new();
+    private bool _exitRequested;
+
+    private Thread? _job;
+    private volatile bool _jobRunning;
+    private readonly Queue<string> _typeAhead = new();
+    private string _prompt;
+
     public TerminalWindow() : base("Terminal", 740, 470)
     {
         _cellWidth = Fonts.Mono.GetGlyph('M', FontSize).Advance;
@@ -44,8 +64,9 @@ internal sealed class TerminalWindow : Window, IOutput
         _buffer = new TerminalBuffer(columns);
         _shell = new Shell(this);
         _shell.Set("COLUMNS", columns.ToString());
-        _shell.ExitRequested += Close;
-        _shell.OpenApp = OpenAppFromShell;
+        _shell.ExitRequested += () => { lock (_sync) { _exitRequested = true; } };
+        _shell.OpenApp = QueueOpenApp;
+        _prompt = _shell.Prompt;
 
         if (File.Exists("/etc/motd"))
         {
@@ -58,16 +79,80 @@ internal sealed class TerminalWindow : Window, IOutput
     /// <summary>Opens a desktop app by name; set once by the desktop.</summary>
     public static Func<string, bool>? OpenApp { get; set; }
 
-    // IOutput: everything the shell and its commands print lands here.
-    public void Write(string text) => _buffer.Write(text);
+    /// <summary>Whether a command line is running.</summary>
+    public bool IsBusy => _jobRunning;
+
+    // IOutput: everything the shell and its commands print lands here, from the worker thread.
+    public void Write(string text)
+    {
+        lock (_sync)
+        {
+            _pendingOutput.Append(text);
+        }
+    }
 
     public override bool Update()
     {
+        SyncWithJob();
+
         bool visible = !IsFocused || Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 2) % 2 == 0;
         bool changed = visible != _caretVisible || _buffer.Changed;
         _caretVisible = visible;
         _buffer.Changed = false;
         return changed;
+    }
+
+    /// <summary>Moves the worker's output and requests onto the GUI thread; finishes a completed job.</summary>
+    private void SyncWithJob()
+    {
+        string output;
+        string[] apps;
+        bool exit;
+        lock (_sync)
+        {
+            output = _pendingOutput.ToString();
+            _pendingOutput.Clear();
+            apps = _pendingApps.ToArray();
+            _pendingApps.Clear();
+            exit = _exitRequested;
+        }
+
+        if (output.Length > 0)
+        {
+            _buffer.Write(output);
+        }
+
+        foreach (string app in apps)
+        {
+            OpenApp?.Invoke(app);
+        }
+
+        if (exit)
+        {
+            Close();
+            return;
+        }
+
+        if (_job is not null && !_jobRunning)
+        {
+            _job = null;
+
+            // Keep the prompt on its own line even if the command's output did not end in one.
+            if (_buffer.CursorColumn != 0)
+            {
+                _buffer.Write("\n");
+            }
+
+            _prompt = _shell.Prompt;
+            _historyIndex = _shell.History.Count;
+            Title = "Terminal — " + _shell.WorkingDirectory;
+            _buffer.Changed = true;
+
+            if (_typeAhead.Count > 0)
+            {
+                Run(_typeAhead.Dequeue());
+            }
+        }
     }
 
     public override void OnScroll(int delta)
@@ -153,7 +238,17 @@ internal sealed class TerminalWindow : Window, IOutput
         switch (key)
         {
             case ConsoleKeyEx.C:
-                _buffer.Write(_shell.Prompt + _input + Ansi.Dim("^C") + "\n");
+                if (IsBusy)
+                {
+                    _typeAhead.Clear();
+                    _shell.Cancel();
+                    Write(Ansi.Dim("^C") + "\n");
+                }
+                else
+                {
+                    _buffer.Write(_prompt + _input + Ansi.Dim("^C") + "\n");
+                }
+
                 ResetInput();
                 break;
             case ConsoleKeyEx.L:
@@ -169,7 +264,7 @@ internal sealed class TerminalWindow : Window, IOutput
                 _cursor = _input.Length;
                 break;
             case ConsoleKeyEx.D:
-                if (_input.Length == 0)
+                if (_input.Length == 0 && !IsBusy)
                 {
                     Close();
                 }
@@ -183,28 +278,60 @@ internal sealed class TerminalWindow : Window, IOutput
     private void Submit()
     {
         string line = _input.ToString();
-        _buffer.Write(_shell.Prompt + line + "\n");
-        ResetInput();
-        _shell.Execute(line);
+        _input.Clear();
+        _cursor = 0;
 
-        // Keep the prompt on its own line even if the command's output did not end in one.
-        if (_buffer.CursorColumn != 0)
+        if (IsBusy)
         {
-            _buffer.Write("\n");
+            _typeAhead.Enqueue(line);
+            Write(line + "\n");   // echoed like a terminal in cooked mode
+            return;
         }
 
-        Title = "Terminal — " + _shell.WorkingDirectory;
+        Run(line);
+    }
+
+    /// <summary>Echoes the prompt and line, then runs it on a worker thread.</summary>
+    private void Run(string line)
+    {
+        _buffer.Write(_prompt + line + "\n");
+        if (line.Trim().Length == 0)
+        {
+            return;
+        }
+
+        _jobRunning = true;
+        _job = new Thread(() =>
+        {
+            try
+            {
+                _shell.Execute(line);
+            }
+            finally
+            {
+                _jobRunning = false;
+            }
+        });
+        _job.Start();
     }
 
     private void ResetInput()
     {
         _input.Clear();
         _cursor = 0;
-        _historyIndex = _shell.History.Count;
+        if (!IsBusy)
+        {
+            _historyIndex = _shell.History.Count;
+        }
     }
 
     private void RecallHistory(int direction)
     {
+        if (IsBusy)
+        {
+            return;   // the worker may be appending to the history
+        }
+
         List<string> history = _shell.History;
         int index = Math.Clamp(_historyIndex + direction, 0, history.Count);
         if (index == _historyIndex)
@@ -224,6 +351,11 @@ internal sealed class TerminalWindow : Window, IOutput
 
     private void Complete()
     {
+        if (IsBusy)
+        {
+            return;   // completion reads the shell's working directory, which the worker owns
+        }
+
         string before = _input.ToString(0, _cursor);
         string insert = _shell.Complete(before, out List<string> candidates);
         if (insert.Length > 0)
@@ -234,19 +366,35 @@ internal sealed class TerminalWindow : Window, IOutput
         else if (candidates.Count > 1)
         {
             // Ambiguous: show the options under the current line, like bash's double-Tab.
-            _buffer.Write(_shell.Prompt + _input + "\n" + string.Join("  ", candidates) + "\n");
+            _buffer.Write(_prompt + _input + "\n" + string.Join("  ", candidates) + "\n");
         }
     }
 
-    private bool OpenAppFromShell(string name) => OpenApp?.Invoke(name) ?? false;
+    /// <summary>Called by <c>open</c> on the worker thread: checks the name, then leaves the opening to the GUI thread.</summary>
+    private bool QueueOpenApp(string name)
+    {
+        if (!AppRegistry.Exists(name))
+        {
+            return false;
+        }
+
+        lock (_sync)
+        {
+            _pendingApps.Enqueue(name);
+        }
+
+        return true;
+    }
 
     public override void DrawContent(Surface surface, Rect content)
     {
         surface.FillRect(content, Background);
 
         // The visible lines: the scrollback, then the prompt + input wrapped to the width.
+        // While a command runs there is no prompt, just whatever is being typed ahead.
+        string prompt = IsBusy ? string.Empty : _prompt;
         var promptBuffer = new TerminalBuffer(_buffer.Columns);
-        promptBuffer.Write(_shell.Prompt + _input);
+        promptBuffer.Write(prompt + _input);
         int inputLines = promptBuffer.LineCount;
         int total = _buffer.LineCount - 1 + inputLines;   // the buffer's last line is the empty current line
 
@@ -263,7 +411,7 @@ internal sealed class TerminalWindow : Window, IOutput
 
         if (IsFocused && _caretVisible && _scroll == 0)
         {
-            int promptLength = Ansi.Strip(_shell.Prompt).Length;
+            int promptLength = Ansi.Strip(prompt).Length;
             int position = promptLength + _cursor;
             int row = total - 1 - (inputLines - 1) + position / _buffer.Columns - first;
             int col = position % _buffer.Columns;

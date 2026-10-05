@@ -193,7 +193,9 @@ internal static class SystemCommands
             return c.Fail("this erases " + selected + "; add --yes to confirm");
         }
 
-        Installer.Install(target, step => c.WriteLine(Ansi.Cyan("==> ") + step));
+        // Progress goes straight to Out, skipping the cancellation check in WriteLine: stopping
+        // between partitioning and copying would leave a half-written disk.
+        Installer.Install(target, step => c.Out.Write(Ansi.Cyan("==> ") + step + "\n"));
         c.WriteLine("Root filesystem installed. To make the disk bootable, run on the host:");
         c.WriteLine("  tools/make-bootable.sh <disk image>");
         return 0;

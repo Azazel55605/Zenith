@@ -42,6 +42,33 @@ public class ShellTests
     }
 
     [Fact]
+    public void Cancel_FromAnotherThreadStopsTheLineWith130()
+    {
+        using var sh = new ShellHarness();
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var run = System.Threading.Tasks.Task.Run(() => sh.Run("sleep 10; echo not-reached"));
+        System.Threading.Thread.Sleep(200);
+        sh.Shell.Cancel();
+
+        Assert.True(run.Wait(System.TimeSpan.FromSeconds(3)));
+        Assert.DoesNotContain("not-reached", run.Result);
+        Assert.Equal(130, sh.Shell.LastStatus);
+        Assert.True(watch.Elapsed.TotalSeconds < 3);
+
+        Assert.Equal("next\n", sh.Run("echo next"));   // the flag does not leak into the next line
+    }
+
+    [Fact]
+    public void Sleep_WaitsAndValidatesItsArgument()
+    {
+        using var sh = new ShellHarness();
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        sh.Run("sleep 0.3");
+        Assert.InRange(watch.Elapsed.TotalSeconds, 0.25, 2);
+        Assert.Contains("usage", sh.Run("sleep soon"));
+    }
+
+    [Fact]
     public void ExitStatus_IsExpandedPerCommand()
     {
         using var sh = new ShellHarness();

@@ -19,6 +19,7 @@ internal static class BuiltinCommands
         add(new Command("history", "history", "Show previously entered commands", History));
         add(new Command("clear", "clear", "Clear the terminal", c => { c.Write(Ansi.ClearScreen); return 0; }));
         add(new Command("exit", "exit", "Close this shell", c => { c.Shell.RequestExit(); return 0; }));
+        add(new Command("sleep", "sleep seconds", "Wait for a number of seconds (Ctrl+C stops it)", Sleep));
         add(new Command("true", "true", "Do nothing, successfully", _ => 0));
         add(new Command("false", "false", "Do nothing, unsuccessfully", _ => 1));
         add(new Command("which", "which command...", "Show where a command comes from", Which));
@@ -140,6 +141,24 @@ internal static class BuiltinCommands
         for (int i = 0; i < c.Shell.History.Count; i++)
         {
             c.WriteLine((i + 1).ToString().PadLeft(5) + "  " + c.Shell.History[i]);
+        }
+
+        return 0;
+    }
+
+    private static int Sleep(CommandContext c)
+    {
+        if (c.Args.Length != 1 || !double.TryParse(c.Args[0], System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out double seconds) || seconds < 0)
+        {
+            return c.Fail("usage: sleep seconds");
+        }
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        while (watch.Elapsed.TotalSeconds < seconds)
+        {
+            c.Shell.ThrowIfCancelled();
+            System.Threading.Thread.Sleep(20);
         }
 
         return 0;
