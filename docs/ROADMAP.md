@@ -16,7 +16,7 @@ says when it's done. Background and effort estimates for the big items are in
 - Text editor (`edit file`), manual pages (`man`), keyboard layouts, time zones.
 - FAT32 root (installed disk) or RAM root (live), `/tmp` in RAM, clean shutdown.
 - Installer (GPT + ESP + root), finished by a host-side bootable step.
-- CI: 198 unit tests and a 25-step QEMU smoke test on every push.
+- CI: 204 unit tests and a 31-check QEMU smoke test on every push.
 
 **Known gaps in what exists:**
 
@@ -70,11 +70,11 @@ without hitting a missing basic. ✅
 Possible follow-ups, not blocking M2: streaming pipes (one thread per pipeline stage), a raw
 terminal mode with cursor addressing (enables `less`, `top`, a TUI editor), editor undo/search.
 
-## M2 · Unix filesystem semantics (v0.3) (next)
+## M2 · Unix filesystem semantics (v0.3) (in progress)
 
 | Item | Size | Notes |
 |---|---|---|
-| `/proc` virtual filesystem: `meminfo`, `mounts`, `uptime`, `cmdline`, later per-process entries | M | Implement `IVfsFilesystemType` with synthesized inodes |
+| `/proc` virtual filesystem: `meminfo`, `mounts`, `uptime`, `cmdline`, later per-process entries | M | Initial read-only driver implemented; validation and remaining work in [PROGRESS.md](PROGRESS.md) |
 | `/dev` virtual filesystem: `null`, `zero`, `random`, block devices (`sda`, `sda1`) | M | |
 | **ext2 driver, read-write** | L | The native root filesystem: owners, permissions, symlinks, case-sensitive names, timestamps |
 | Installer formats the root as ext2 (the ESP stays FAT32) | S | Depends on ext2 |

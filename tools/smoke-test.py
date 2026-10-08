@@ -38,6 +38,12 @@ STEPS = [
     ("ls / | grep etc | logger", "user: etc"),
     ("nope; echo status=$? | logger", "user: status=127"),
     ("then\necho syntax=$? | logger", "user: syntax=2"),   # (an open quote would ask for more lines)
+    ("ls /proc | grep meminfo | logger", "user: meminfo"),
+    ("cat /proc/meminfo | grep MemTotal | logger", "user: MemTotal:"),
+    ("cat /proc/mounts | grep /proc | logger", "user: proc /proc proc ro 0 0"),
+    ("test -n \"$(cat /proc/uptime)\" && logger proc-uptime-ok", "user: proc-uptime-ok"),
+    ("echo denied > /proc/meminfo; echo proc-write=$? | logger", "user: proc-write=1"),
+    ("cat /proc/cmdline | wc -c | logger", "user: 1"),
     ("install sata0 --yes && logger INSTALL-OK", "user: INSTALL-OK"),
     ("mkdir /mnt/inst && mount sata0p1 /mnt/inst && cat /mnt/inst/etc/hostname | logger", "user: zenith"),
     ("umount /mnt/inst && sync && logger unmounted", "user: unmounted"),
@@ -92,14 +98,19 @@ class Machine:
             "-drive", f"file={self.disk},format=raw,if=none,id=disk0", "-device", "ide-hd,drive=disk0",
         ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
+    def raw_log(self) -> str:
+        return self.serial.read_text(errors="replace") if self.serial.exists() else ""
+
     def log(self) -> str:
-        raw = self.serial.read_text(errors="replace") if self.serial.exists() else ""
-        return COSMOS_NOISE.sub("", raw)
+        return COSMOS_NOISE.sub("", self.raw_log())
 
     def wait_for(self, text: str, timeout: float) -> bool:
         deadline = time.time() + timeout
         while time.time() < deadline:
-            if text in self.log():
+            raw = self.raw_log()
+            # A Cosmos tag can precede an otherwise intact marker on the same
+            # line. Noise stripping then discards that marker; check both forms.
+            if text in raw or text in COSMOS_NOISE.sub("", raw):
                 return True
             if self.process.poll() is not None:
                 return False

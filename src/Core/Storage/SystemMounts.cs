@@ -6,6 +6,7 @@ using Cosmos.Kernel.HAL.Vfs;
 using Cosmos.Kernel.System.Filesystems.Fat;
 using Cosmos.Kernel.System.Storage;
 using Cosmos.Kernel.System.Vfs;
+using Zenith.Core.Storage.Proc;
 
 namespace Zenith.Core.Storage;
 
@@ -54,6 +55,7 @@ internal static class SystemMounts
         FileSystemLayout.Create();
         Log.PersistTo("/var/log/boot.log");
         MountRamDisk("tmpfs", 16, "/tmp");
+        ProcMount.Initialize();
     }
 
     /// <summary>Flushes every mounted filesystem to its disk (the <c>sync</c> command). Returns how many were synced.</summary>

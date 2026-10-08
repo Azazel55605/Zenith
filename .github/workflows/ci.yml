@@ -22,6 +22,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - run: dotnet test tests/Zenith.Tests --logger "console;verbosity=normal"
+      - run: python3 -B tools/test_smoke_test.py
 
   build:
     name: Build ISO + smoke test

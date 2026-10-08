@@ -44,11 +44,20 @@ The Terminal opens at boot. `help` lists the commands, `man zenith` is the intro
 - history (Up/Down), Tab completion, Ctrl+C (stop), Ctrl+L, Ctrl+U, Ctrl+D
 - mouse selection, Ctrl+Shift+C/V, PageUp/PageDown or the wheel for scrollback
 
+`/proc` exposes read-only `meminfo`, `mounts`, `uptime` and `cmdline` files.
+Values are sampled on the first read (or end-relative seek) of each open handle;
+reopen to refresh.
+`uptime` reports elapsed seconds only (no CPU idle counter is available), and
+`cmdline` is empty when the bootloader supplies no command line.
+
 Settings: `localectl set-keymap de`, `timedatectl set-timezone Europe/Berlin`.
 `edit file` opens the text editor, `open system` any desktop app, `fps` shows compositor statistics.
 Windows resize from their edges; double-click a title bar to maximize.
 
 ## Documentation
+
+- [`INSTRUCTIONS.md`](INSTRUCTIONS.md): shared contributor and agent guidance (also linked from `AGENTS.md` and `CLAUDE.md`).
+- [`docs/PROGRESS.md`](docs/PROGRESS.md): active M2 work, validation evidence and next steps.
 
 - [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md): toolchain, tests, CI and releases, debugging
   crashes, and working on Cosmos itself.

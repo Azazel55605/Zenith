@@ -15,6 +15,7 @@
 dotnet publish -c Debug -r linux-x64 -o output-x64   # → output-x64/Zenith.iso   (VS Code: Build x64)
 tools/run.sh live                                    # boot it                    (Run QEMU x64)
 dotnet test tests/Zenith.Tests                       # host unit tests            (Unit Tests)
+python3 -B tools/test_smoke_test.py                  # serial matcher regressions
 tools/smoke-test.py                                  # boot test in QEMU          (Smoke Test (QEMU))
 ```
 
@@ -25,6 +26,9 @@ If the build says `cosmos.patcher: command not found`, add `~/.dotnet/tools` to 
   shell, parser, commands and terminal buffer. Anything under `src/Core/Shell` must stay free of
   Cosmos types for this to work; Cosmos-dependent commands live in `SystemCommands.cs`, which
   the kernel registers at boot.
+- **Filesystem contract tests** link `ProcFilesystemType.cs` and download only the
+  Cosmos HAL assembly via `PackageDownload`. This exercises the actual driver
+  interfaces on the host without importing Cosmos build targets or calling hardware.
 - **The smoke test** boots the real ISO headless, types into the Terminal through the QEMU
   monitor, and checks the kernel log on the serial port. Commands report back with `logger`.
   Add a `(command, expected log text)` pair to `STEPS` in `tools/smoke-test.py` for new
