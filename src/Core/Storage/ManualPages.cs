@@ -61,7 +61,14 @@ internal static class ManualPages
             DEVICES
                 /dev/null reads EOF and discards writes.
                 /dev/zero fills every read with zero bytes and discards writes.
-                Both are character devices; they store no data. Use bounded reads
+                Both are character devices; they store no data.
+                Disks and partitions appear under their Cosmos names, e.g.
+                /dev/sata0 and /dev/sata0p1, as read-only block devices. They expose
+                their capacity as file size, support bounded byte reads and seeks,
+                and reject writes/truncation even on unmounted disks. Reopen after
+                removal or a partition rescan; old handles do not follow replacements.
+                /dev/random is pending a suitable kernel entropy source.
+                Use bounded reads
                 for /dev/zero. Text filters currently read entire inputs before
                 filtering, so head /dev/zero does not stop at a fixed number of lines.
             """),
@@ -121,7 +128,7 @@ internal static class ManualPages
             DIRECTORIES
                 /bin        shell scripts that run as commands (on $PATH)
                 /boot       boot files (the EFI partition holds the bootloader)
-                /dev        null and zero character devices
+                /dev        null/zero and read-only disks/partitions
                 /etc        system configuration: hostname, passwd, profile, timezone, vconsole.conf
                 /home/user  your files
                 /mnt        mount points for other disks: mount sata0p1 /mnt/disk

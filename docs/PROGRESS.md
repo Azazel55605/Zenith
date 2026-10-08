@@ -12,7 +12,7 @@
 | Slice | Status | Evidence / next step |
 |---|---|---|
 | `/proc`: meminfo, mounts, uptime, cmdline | Complete for initial scope | Read-only synthesized inodes, first-read snapshots, boot mount, six host tests and smoke coverage |
-| `/dev`: null, zero, random, block devices | Partial: null/zero implemented | Null/zero and bounded dd validated; full suite 39/39. Entropy and block devices pending |
+| `/dev`: null, zero, random, block devices | Partial: null/zero plus read-only block nodes | Dynamic disks/partitions implemented; entropy and raw writes pending |
 | Read-write ext2 | Pending | On-disk metadata and driver tests before changing the default root |
 | ext2 installer root | Pending | Depends on ext2 |
 | Users/login, shadow, passwd, su, useradd | Pending | Requires persistent ownership and permission model |
@@ -81,3 +81,45 @@ permissions and reports accurate metadata through `ls -l`.
 - Remaining `/dev` work: entropy source plus random-device contract, and block
   device I/O with partition bounds, mounted-volume safety and hot-unplug behavior.
   No random or raw-disk node is exposed by this slice.
+
+### Third M2 slice · Read-only disks and partitions under `/dev`
+
+- Added live disk/partition nodes using Cosmos names (`sata0`, `sata0p0`,
+  `sata0p1`, etc.). The kernel captures storage tables once per enumeration and
+  excludes partitions whose host is absent. Node identity persists while the
+  device instance remains present; removed instances are evicted on enumeration.
+- Block nodes expose 0444 block-device metadata, mount-local device IDs and byte
+  capacity. Reads handle unaligned offsets and partial sectors, batch aligned
+  sectors, return short reads at EOF, and cannot exceed device/partition bounds.
+  Seeks accept positions from zero through capacity, rejecting overflow and
+  out-of-range positions. Sector buffers are limited to 1 MiB; geometries whose
+  byte capacity exceeds `long.MaxValue` are omitted.
+- Raw writes and every truncation/metadata change are rejected, including when
+  the source is unmounted. This avoids aliasing writes behind mounted filesystem
+  caches. Writable raw devices need coordination with mounts/partition rescans
+  before they can be enabled. Ordinary reads can observe concurrent filesystem
+  changes; they are not a disk snapshot.
+- Presence is checked by device reference before each backing read, seek and
+  flush. Old handles fail after removal/rescan or same-name replacement; driver
+  I/O failures propagate. Host tests simulate removal between sector calls.
+  Physical USB unplug behavior still requires hardware/guest hotplug validation.
+- Entropy finding: Cosmos' `InteropSysPlug` currently routes its secure-random
+  plug to timer-mixed XorShift. No supported entropy service was found. Random
+  nodes remain pending; do not use this plug for `/dev/random` or password salts.
+- Validation: **240/240** C# tests pass (17 new block-device cases), and
+  **3/3** Python harness tests pass. Restore succeeded from cache with NU1900
+  because the NuGet vulnerability endpoint was unreachable; existing xUnit1031
+  warnings remain. The first build permission review timed out before execution;
+  its permitted retry built the ISO successfully (existing Cosmos warnings).
+  The first guest run exposed a Cosmos cached-interface dispatch failure at cell
+  `FFFFFFFF80380A60`, mapped by the ELF symbol table to the contravariant
+  `ReferenceEqualityComparer` call through `IEqualityComparer<IBlockDevice>`.
+  Replaced it with an explicitly typed identity comparer. The fresh full QEMU
+  run passed **46/46 checks**, including all seven new disk/partition checks,
+  existing character devices, installation, desktop interactions, panic and
+  clean poweroff. Local evidence: `/tmp/zenith-block-tests.log`,
+  `/tmp/zenith-block-build.log`, `/tmp/zenith-block-smoke-final.log`, and
+  `/tmp/zenith-block-smoke-final/serial.log` (scratch artifacts, not committed).
+- Remaining: kernel entropy service/random device, coordinated raw writes, then
+  ext2 groundwork. Shell `stat`/`ls -l` still use their existing generic display;
+  truthful type/owner/permission presentation remains part of the M2 exit work.

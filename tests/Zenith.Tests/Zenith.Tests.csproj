@@ -11,12 +11,17 @@
 
   <!-- Download only the HAL contract assembly: do not import the Cosmos kernel build pipeline. -->
   <ItemGroup>
+    <PackageDownload Include="Cosmos.Kernel.HAL.Interfaces" Version="[$(CosmosVersion)]" />
+    <Reference Include="Cosmos.Kernel.HAL.Interfaces">
+      <HintPath>$(NuGetPackageRoot)cosmos.kernel.hal.interfaces/$(CosmosVersion)/lib/net10.0/Cosmos.Kernel.HAL.Interfaces.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
     <PackageDownload Include="Cosmos.Kernel.HAL" Version="[$(CosmosVersion)]" />
     <Reference Include="Cosmos.Kernel.HAL">
       <HintPath>$(NuGetPackageRoot)cosmos.kernel.hal/$(CosmosVersion)/runtimes/linux-x64/lib/net10.0/Cosmos.Kernel.HAL.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Compile Include="../../src/Core/Storage/Dev/DevFilesystemType.cs" LinkBase="Kernel/Storage/Dev" />
+    <Compile Include="../../src/Core/Storage/Dev/*.cs" Exclude="../../src/Core/Storage/Dev/DevMount.cs" LinkBase="Kernel/Storage/Dev" />
     <Compile Include="../../src/Core/Storage/Proc/ProcFilesystemType.cs" LinkBase="Kernel/Storage/Proc" />
   </ItemGroup>
 

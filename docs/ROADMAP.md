@@ -16,7 +16,7 @@ says when it's done. Background and effort estimates for the big items are in
 - Text editor (`edit file`), manual pages (`man`), keyboard layouts, time zones.
 - FAT32 root (installed disk) or RAM root (live), `/tmp` in RAM, clean shutdown.
 - Installer (GPT + ESP + root), finished by a host-side bootable step.
-- CI: 223 unit tests and a 39-check QEMU smoke test on every push.
+- CI: 240 unit tests and a 46-check QEMU smoke test on every push.
 
 **Known gaps in what exists:**
 
@@ -75,7 +75,7 @@ terminal mode with cursor addressing (enables `less`, `top`, a TUI editor), edit
 | Item | Size | Notes |
 |---|---|---|
 | `/proc` virtual filesystem: `meminfo`, `mounts`, `uptime`, `cmdline`, later per-process entries | M | Initial read-only driver implemented; validation and remaining work in [PROGRESS.md](PROGRESS.md) |
-| `/dev` virtual filesystem: `null`, `zero`, `random`, block devices (`sda`, `sda1`) | M | Null/zero implemented with bounded `dd`; entropy and block devices pending. See [PROGRESS.md](PROGRESS.md) |
+| `/dev` virtual filesystem: `null`, `zero`, `random`, block devices (`sda`, `sda1`) | M | Null/zero and read-only live disk/partition nodes implemented with bounded `dd`; entropy and raw writes pending. See [PROGRESS.md](PROGRESS.md) |
 | **ext2 driver, read-write** | L | The native root filesystem: owners, permissions, symlinks, case-sensitive names, timestamps |
 | Installer formats the root as ext2 (the ESP stays FAT32) | S | Depends on ext2 |
 | Users: login screen, `/etc/shadow` with salted hashes, `passwd`, `su`, `useradd` | M | |

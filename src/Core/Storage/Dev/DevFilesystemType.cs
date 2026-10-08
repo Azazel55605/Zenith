@@ -2,16 +2,25 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Runtime.CompilerServices;
 using Cosmos.Kernel.HAL.Vfs;
+using Cosmos.Kernel.HAL.Interfaces.Devices;
 
 namespace Zenith.Core.Storage.Dev;
 
-/// <summary>A fixed device namespace with null and zero character devices.</summary>
+/// <summary>Null/zero character devices and a live read-only block-device namespace.</summary>
 internal sealed class DevFilesystemType : IVfsFilesystemType
 {
+    private readonly Func<IReadOnlyList<IBlockDevice>> _devices;
+
+    public DevFilesystemType(Func<IReadOnlyList<IBlockDevice>>? devices = null)
+    {
+        _devices = devices ?? (() => Array.Empty<IBlockDevice>());
+    }
+
     public bool TryMount(ReadOnlySpan<char> source, MountFlags flags, [NotNullWhen(true)] out IVfsSuperblock? superblock)
     {
-        superblock = source.IsEmpty ? new Superblock((flags & MountFlags.ReadOnly) != 0) : null;
+        superblock = source.IsEmpty ? new Superblock((flags & MountFlags.ReadOnly) != 0, _devices) : null;
         return superblock is not null;
     }
 
@@ -37,9 +46,9 @@ internal sealed class DevFilesystemType : IVfsFilesystemType
 
     private sealed class Superblock : IVfsSuperblock
     {
-        public Superblock(bool readOnly)
+        public Superblock(bool readOnly, Func<IReadOnlyList<IBlockDevice>> devices)
         {
-            var operations = new Operations(readOnly);
+            var operations = new Operations(readOnly, devices);
             Root = new Node("", 1, operations);
             operations.Root = Root;
             operations.Children = new IVfsInode[]
@@ -56,13 +65,70 @@ internal sealed class DevFilesystemType : IVfsFilesystemType
         public ulong MaxNameLength => 255;
     }
 
+    // Cosmos 3.0.89's interface dispatcher does not resolve the contravariant
+    // IEqualityComparer<object> implementation on ReferenceEqualityComparer.
+    private sealed class DeviceIdentityComparer : IEqualityComparer<IBlockDevice>
+    {
+        public bool Equals(IBlockDevice? left, IBlockDevice? right) => ReferenceEquals(left, right);
+        public int GetHashCode(IBlockDevice device) => RuntimeHelpers.GetHashCode(device);
+    }
+
     private sealed class Operations : IInodeOperations, IFileOperations, ISuperblockOperations
     {
         public IVfsInode Root = null!;
         public IReadOnlyList<IVfsInode> Children = Array.Empty<IVfsInode>();
         private readonly bool _readOnly;
 
-        public Operations(bool readOnly) => _readOnly = readOnly;
+        private static readonly DeviceIdentityComparer s_deviceComparer = new();
+        private readonly Func<IReadOnlyList<IBlockDevice>> _devices;
+        private readonly object _gate = new();
+        private Dictionary<IBlockDevice, BlockDeviceNode> _blocks = new(s_deviceComparer);
+        private ulong _nextNumber = 4;
+
+        public Operations(bool readOnly, Func<IReadOnlyList<IBlockDevice>> devices)
+        {
+            _readOnly = readOnly;
+            _devices = devices;
+        }
+
+        private bool IsPresent(IBlockDevice device)
+        {
+            foreach (IBlockDevice candidate in _devices())
+            {
+                if (ReferenceEquals(candidate, device))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private IReadOnlyList<IVfsInode> Entries()
+        {
+            lock (_gate)
+            {
+                var entries = new List<IVfsInode>(Children);
+                var names = new HashSet<string>(StringComparer.Ordinal) { "null", "zero" };
+                var current = new Dictionary<IBlockDevice, BlockDeviceNode>(s_deviceComparer);
+                foreach (IBlockDevice device in _devices())
+                {
+                    string name = device.Name;
+                    if (name.Length == 0 || name == "." || name == ".." || name.Contains('/') || name.Contains('\\')
+                        || !BlockDeviceNode.IsSupported(device) || !names.Add(name))
+                    {
+                        continue;
+                    }
+                    if (!_blocks.TryGetValue(device, out BlockDeviceNode? node))
+                    {
+                        node = new BlockDeviceNode(device, _nextNumber++, this, IsPresent);
+                    }
+                    current.Add(device, node);
+                    entries.Add(node);
+                }
+                _blocks = current; // Removed devices survive only while an old handle references them.
+                return entries;
+            }
+        }
 
         public bool Lookup(IVfsInode dir, ReadOnlySpan<char> name, [NotNullWhen(true)] out IVfsInode? child)
         {
@@ -71,7 +137,7 @@ internal sealed class DevFilesystemType : IVfsFilesystemType
             {
                 return false;
             }
-            foreach (IVfsInode entry in Children)
+            foreach (IVfsInode entry in Entries())
             {
                 if (name.SequenceEqual(entry.Name.AsSpan()))
                 {
@@ -85,13 +151,17 @@ internal sealed class DevFilesystemType : IVfsFilesystemType
         public bool ReadDir(IVfsInode dir, out IReadOnlyList<IVfsInode> entries)
         {
             bool isRoot = ReferenceEquals(dir, Root);
-            entries = isRoot ? Children : Array.Empty<IVfsInode>();
+            entries = isRoot ? Entries() : Array.Empty<IVfsInode>();
             return isRoot;
         }
 
         public bool GetAttr(IVfsInode inode, out VfsStat stat)
         {
             stat = default;
+            if (inode is BlockDeviceNode block && ReferenceEquals(block.InodeOperations, this))
+            {
+                return block.TryStat(out stat);
+            }
             if (inode is not Node node || !ReferenceEquals(node.InodeOperations, this))
             {
                 return false;
@@ -171,7 +241,7 @@ internal sealed class DevFilesystemType : IVfsFilesystemType
         public void Drop(IVfsSuperblock superblock) { }
         public bool StatFs(IVfsSuperblock superblock, out VfsStatFs statFs)
         {
-            statFs = new VfsStatFs { Type = 0x01021994, BlockSize = 4096, Frsize = 4096, Files = (ulong)Children.Count + 1, NameMax = 255 };
+            statFs = new VfsStatFs { Type = 0x01021994, BlockSize = 4096, Frsize = 4096, Files = (ulong)Entries().Count + 1, NameMax = 255 };
             return true;
         }
     }

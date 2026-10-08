@@ -54,6 +54,12 @@ reopen to refresh.
 reads with zero bytes. Use `dd if=/dev/zero of=/tmp/zeros bs=512 count=2` for a
 bounded binary copy (`man dd`). Text filters currently read entire inputs, so
 use bounded `dd` when reading `/dev/zero`.
+Disks and partitions also appear under `/dev` using their Cosmos names, such as
+`/dev/sata0` and `/dev/sata0p1`. These nodes support read-only byte access and
+seeking within capacity; writes and truncation fail even when the disk is unmounted.
+For example, `dd if=/dev/sata0p1 of=/tmp/sector count=1` reads its first 512 bytes.
+Nodes refresh after partition rescans; removed-device handles fail instead of
+following a replacement with the same name. Random devices await a kernel entropy source.
 
 Settings: `localectl set-keymap de`, `timedatectl set-timezone Europe/Berlin`.
 `edit file` opens the text editor, `open system` any desktop app, `fps` shows compositor statistics.
