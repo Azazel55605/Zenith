@@ -38,6 +38,34 @@ internal static class ManualPages
                 /var/log/boot.log   the kernel log of this boot (boot.log.1: the previous one)
             """),
 
+        ("dd", """
+            NAME
+                dd - copy a bounded number of binary blocks
+
+            SYNOPSIS
+                dd if=INPUT of=OUTPUT count=N [bs=N]
+
+            DESCRIPTION
+                Copy up to count input blocks, stopping at EOF. bs is a byte count
+                from 1 through 1048576 (default 512). A short read counts as one
+                block. count=0 creates/truncates OUTPUT without copying data.
+                INPUT and OUTPUT are required file/device paths. OUTPUT is replaced.
+                Identical paths (including case-only aliases on FAT) are rejected.
+                Numeric operands are decimal only. No stdin/stdout, skip, seek, conv
+                or suffix operands are supported. Ctrl+C cancels between I/O calls.
+
+            EXAMPLES
+                dd if=/dev/zero of=/tmp/zeros bs=512 count=2
+                dd if=/tmp/zeros of=/dev/null count=2
+
+            DEVICES
+                /dev/null reads EOF and discards writes.
+                /dev/zero fills every read with zero bytes and discards writes.
+                Both are character devices; they store no data. Use bounded reads
+                for /dev/zero. Text filters currently read entire inputs before
+                filtering, so head /dev/zero does not stop at a fixed number of lines.
+            """),
+
         ("sh", """
             NAME
                 sh - the Zenith command language
@@ -93,11 +121,11 @@ internal static class ManualPages
             DIRECTORIES
                 /bin        shell scripts that run as commands (on $PATH)
                 /boot       boot files (the EFI partition holds the bootloader)
-                /dev        devices (not populated yet)
+                /dev        null and zero character devices
                 /etc        system configuration: hostname, passwd, profile, timezone, vconsole.conf
                 /home/user  your files
                 /mnt        mount points for other disks: mount sata0p1 /mnt/disk
-                /proc       process and kernel information (not populated yet)
+                /proc       kernel memory, mounts, uptime and command line
                 /root       the administrator's home
                 /tmp        scratch space in memory, emptied on every boot
                 /usr/share  read-only data such as these manual pages

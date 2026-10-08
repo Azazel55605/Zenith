@@ -26,7 +26,7 @@ If the build says `cosmos.patcher: command not found`, add `~/.dotnet/tools` to 
   shell, parser, commands and terminal buffer. Anything under `src/Core/Shell` must stay free of
   Cosmos types for this to work; Cosmos-dependent commands live in `SystemCommands.cs`, which
   the kernel registers at boot.
-- **Filesystem contract tests** link `ProcFilesystemType.cs` and download only the
+- **Filesystem contract tests** link `ProcFilesystemType.cs` and `DevFilesystemType.cs` and download only the
   Cosmos HAL assembly via `PackageDownload`. This exercises the actual driver
   interfaces on the host without importing Cosmos build targets or calling hardware.
 - **The smoke test** boots the real ISO headless, types into the Terminal through the QEMU

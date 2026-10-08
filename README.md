@@ -50,6 +50,11 @@ reopen to refresh.
 `uptime` reports elapsed seconds only (no CPU idle counter is available), and
 `cmdline` is empty when the bootloader supplies no command line.
 
+`/dev/null` discards writes and reads EOF; `/dev/zero` discards writes and fills
+reads with zero bytes. Use `dd if=/dev/zero of=/tmp/zeros bs=512 count=2` for a
+bounded binary copy (`man dd`). Text filters currently read entire inputs, so
+use bounded `dd` when reading `/dev/zero`.
+
 Settings: `localectl set-keymap de`, `timedatectl set-timezone Europe/Berlin`.
 `edit file` opens the text editor, `open system` any desktop app, `fps` shows compositor statistics.
 Windows resize from their edges; double-click a title bar to maximize.

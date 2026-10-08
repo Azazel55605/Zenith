@@ -40,7 +40,7 @@ internal static class ProcMount
     private static string Mounts()
     {
         var text = new StringBuilder();
-        // Cosmos does not retain mount flags; proc is read-only and current FAT mounts are writable.
+        // Cosmos does not retain mount flags; proc is read-only; current dev and FAT mounts are writable.
         foreach (VfsManager.VfsMount mount in VfsManager.Mounts)
         {
             text.Append(Escape(mount.Partition?.Name ?? mount.Name)).Append(' ')

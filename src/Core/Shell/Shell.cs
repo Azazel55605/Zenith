@@ -877,6 +877,7 @@ internal sealed class Shell : IExpansionContext
         BuiltinCommands.Register(Add);
         ScriptCommands.Register(Add);
         FileCommands.Register(Add);
+        DeviceCommands.Register(Add);
         TextCommands.Register(Add);
         UtilityCommands.Register(Add);
 

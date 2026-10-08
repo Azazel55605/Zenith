@@ -16,6 +16,7 @@
       <HintPath>$(NuGetPackageRoot)cosmos.kernel.hal/$(CosmosVersion)/runtimes/linux-x64/lib/net10.0/Cosmos.Kernel.HAL.dll</HintPath>
       <Private>true</Private>
     </Reference>
+    <Compile Include="../../src/Core/Storage/Dev/DevFilesystemType.cs" LinkBase="Kernel/Storage/Dev" />
     <Compile Include="../../src/Core/Storage/Proc/ProcFilesystemType.cs" LinkBase="Kernel/Storage/Proc" />
   </ItemGroup>
 
