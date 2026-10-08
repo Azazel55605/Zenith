@@ -25,7 +25,11 @@ guidance here so the two entry points stay consistent.
 - Shell sources must remain host-testable without Cosmos. Cosmos-dependent
   commands belong in `src/Core/Shell/Commands/SystemCommands.cs` and register at boot.
 - Storage currently uses FAT for installed roots and RAM-backed FAT for live
-  root and `/tmp`. `/proc` and `/dev` directories already exist as mount points.
+  root and `/tmp`; virtual `/proc` and `/dev` are mounted at boot. Experimental
+  secondary ext2 volumes require explicit `mount -t ext2` and a supported-profile
+  check. The locally adapted driver, upstream revision and allocator fix are
+  documented in `src/Core/Storage/Ext2/SOURCE.md`; its BSD notice is retained in
+  LICENSE and `man licenses`. Root migration remains pending.
 - Follow existing C# conventions: file-scoped namespaces, explicit visibility,
   four-space indentation, and braces on separate lines.
 - Cosmos packages default to 3.0.89 (`global.json`, `Directory.Build.props`).

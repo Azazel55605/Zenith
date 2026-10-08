@@ -93,7 +93,7 @@ with `e2fsck`/`debugfs`.
 
 | Filesystem | Read-only | Read-write | Notes |
 |---|---|---|---|
-| **ext2** | ~1–2k lines, about a week | +1.5k lines (block/inode bitmaps, allocation), 2–3 weeks | The realistic first step. Gives permissions, owners, symlinks and case-sensitive names. |
+| **ext2** | Experimental driver already ships in Cosmos 3.0.89 | Integrate and validate the existing driver | Initial secondary-volume integration in Zenith; see [PROGRESS.md](PROGRESS.md). Root migration, ownership and permission enforcement remain pending. |
 | **ext4** | ext2 + extent trees + 64-bit + flex_bg: about 2–3 more weeks | Hard. You need metadata checksums (crc32c on almost everything), htree directories, and a **journal** (jbd2). The alternative is mounting only clean, journal-less filesystems, which works but is fragile. | Read-only ext4 is very doable. Safe read-write ext4 is a multi-month project. |
 | **btrfs** | Months: copy-on-write B-trees, chunk-tree logical→physical mapping, checksums, often zstd/lzo/zlib compression | A team-scale project (CoW allocation, transactions, multi-device) | Not recommended. |
 
@@ -133,7 +133,7 @@ documented as intended for test images, but firmware rejects such a disk.
    is reasonable for modern machines.
 4. **UX:** a graphical installer window (disk picker, confirmation, progress) on top of
    `Installer.Install`, which already reports progress through a callback.
-5. **A Unix root filesystem:** ext2 from section 3, once it exists.
+5. **A Unix root filesystem:** ext2 from section 3, once validated for installed roots.
 
 ## 5. Drivers
 
@@ -149,7 +149,7 @@ NuGet feed. Set that up before starting driver work.
 | **Display** | UEFI GOP framebuffer (any UEFI PC), virtio-gpu, VMware SVGA II (+3D) | virtio-gpu hardware cursor and partial flush (VM smoothness). Native Intel/AMD/NVIDIA drivers are enormous; on real hardware GOP is the practical path (fixed resolution, CPU rendering). |
 | **Keyboard** | PS/2, virtio, USB HID (boot protocol) via xHCI | Fine for now |
 | **Mouse** | PS/2 (with wheel), virtio (relative) | **USB HID mouse**, which almost every real PC needs. **Absolute pointer** (tablet) for VMs. I2C-HID touchpads for laptops (hard). |
-| **Storage** | AHCI (SATA), NVMe, USB mass storage; MBR/GPT; FAT | virtio-blk (faster VM disks), ATAPI + ISO9660 (installer), then ext2 |
+| **Storage** | AHCI (SATA), NVMe, USB mass storage; MBR/GPT; FAT; experimental ext2 | virtio-blk (faster VM disks), ATAPI + ISO9660 (installer), ext2 root integration |
 | **Network** | Intel E1000E, virtio-net; ARP/IPv4/IPv6-link/UDP/TCP/DHCP/DNS | Realtek RTL8111/8168 (most desktop boards), Intel I219/I225. TLS is not implemented yet. **Wi-Fi is the hardest item on this list** (firmware blobs, 802.11 MAC, WPA2/3); skip it for a long time. |
 | **Audio** | none | Intel HDA (real hardware), virtio-sound (VMs) |
 | **Platform** | ACPI (LAI), APIC/GIC, timers, RTC, reboot/shutdown | SMP (not started in Cosmos), suspend, battery and thermal |

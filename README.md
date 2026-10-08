@@ -61,6 +61,13 @@ For example, `dd if=/dev/sata0p1 of=/tmp/sector count=1` reads its first 512 byt
 Nodes refresh after partition rescans; removed-device handles fail instead of
 following a replacement with the same name. Random devices await a kernel entropy source.
 
+Experimental secondary ext2 volumes can be mounted with
+`mkdir /mnt/ext; mount -t ext2 sata1p0 /mnt/ext` (use `lsblk` for the actual partition
+name). `mount` lists volumes; `umount /mnt/ext` flushes and detaches one. The initial
+profile requires clean revision-1 ext2 with 1 KiB blocks, 128-byte inodes and only
+the filetype feature. See [ext2 validation](docs/DEVELOPMENT.md#ext2-secondary-volumes)
+for the disposable fixture and remaining limitations. Installed roots still use FAT32.
+
 Settings: `localectl set-keymap de`, `timedatectl set-timezone Europe/Berlin`.
 `edit file` opens the text editor, `open system` any desktop app, `fps` shows compositor statistics.
 Windows resize from their edges; double-click a title bar to maximize.

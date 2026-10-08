@@ -13,7 +13,7 @@
 |---|---|---|
 | `/proc`: meminfo, mounts, uptime, cmdline | Complete for initial scope | Read-only synthesized inodes, first-read snapshots, boot mount, six host tests and smoke coverage |
 | `/dev`: null, zero, random, block devices | Partial: null/zero plus read-only block nodes | Dynamic disks/partitions implemented; entropy and raw writes pending |
-| Read-write ext2 | Pending | On-disk metadata and driver tests before changing the default root |
+| Read-write ext2 | Partial: experimental secondary volumes | Explicit `mount -t ext2`, profile gate and independent host checks; root migration and broader semantics pending |
 | ext2 installer root | Pending | Depends on ext2 |
 | Users/login, shadow, passwd, su, useradd | Pending | Requires persistent ownership and permission model |
 | VFS permission enforcement | Pending | Audit every file-operation entry point |
@@ -123,3 +123,51 @@ permissions and reports accurate metadata through `ls -l`.
 - Remaining: kernel entropy service/random device, coordinated raw writes, then
   ext2 groundwork. Shell `stat`/`ls -l` still use their existing generic display;
   truthful type/owner/permission presentation remains part of the M2 exit work.
+
+### Fourth M2 slice · Experimental ext2 secondary volumes
+
+- Verified the installed Cosmos 3.0.89 package already contains an experimental
+  ext2 driver. Initial integration exposed an allocator defect; Zenith now
+  adapts the upstream source locally, retaining its BSD license and source
+  revision (also available through `man licenses`). Package versions and the
+  sibling Cosmos checkout are unchanged. `mount -t ext2 PARTITION DIRECTORY` explicitly selects it;
+  the existing two-operand mount still defaults to FAT. The mount table now
+  names proc/dev/ext2 correctly. Added `man mount` and updated developer docs.
+- Added a host-testable superblock gate: clean revision 1, 1 KiB blocks,
+  128-byte inodes, filetype-only features, basic geometry and capacity checks.
+  Unsupported devices are rejected before reading; probing reads only the
+  superblock and performs no writes. This is a profile check, not fsck or a
+  guarantee of consistency for arbitrary images.
+- The QEMU harness creates a second disposable disk with an MBR Linux partition,
+  formats it independently with host `mke2fs`, and seeds a host-created file.
+  Guest checks cover rejecting FAT as ext2, reading host content, file/directory
+  creation, case-sensitive names, rename/delete, a 20 KiB file using indirect
+  blocks, remount persistence and final unmount. After QEMU exits, check-only
+  host `e2fsck -f -n` and `debugfs` verify consistency and persisted file content.
+  CI installs e2fsprogs; `--keep` retains the ext2 disk and check log.
+- Validation: **265/265** C# tests (25 new cases), **3/3** Python harness
+  tests, ISO build and pristine host-fixture e2fsck pass. Existing xUnit1031,
+  Cosmos build and cached NU1900 vulnerability-endpoint warnings remain.
+  The first QEMU attempts exposed automatic IDE port conflicts and then a
+  changed disk enumeration order. Both disks now have explicit free SATA
+  ports and units. Startup stderr is reported, and failed boots count skipped
+  command checks as failures instead of reporting them as passes.
+- The initial complete guest run passed all guest assertions but failed host
+  e2fsck (**55/56**): the first new file reused the host seed's block, with
+  multiply-claimed blocks and a bitmap mismatch. The allocator omitted
+  `FirstDataBlock` when translating group bitmap bits. The local adaptation
+  corrects allocation/free offsets, last-group bounds and group counting.
+  Regression tests preserve an existing block, verify allocate/free/reuse,
+  exclude the pre-data block from group counts, and reject allocation beyond
+  the final block. Host verification also checks the seed remains unchanged.
+- The fresh full QEMU run with the allocator correction passed **56/56**
+  checks, including independent e2fsck (exit 0), persisted content and unchanged
+  host seed. The final ISO build also includes the bundled license manual page.
+  Local evidence: `/tmp/zenith-ext2-tests.log`, `/tmp/zenith-ext2-build.log`,
+  `/tmp/zenith-ext2-fixed-smoke.log`, and
+  `/tmp/zenith-ext2-fixed-smoke/ext2-check.log` / `ext2-disk.img` (not committed).
+- Root discovery and installation remain FAT32. Next ext2 work: validate broader
+  inode semantics (symlinks, ownership/mode changes and timestamps), multiple
+  block groups, allocation limits and formatter interoperability before moving
+  the installer/root. Users/permissions, check-only guest fsck and entropy remain
+  pending; M2 stays open.

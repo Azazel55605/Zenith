@@ -9,9 +9,10 @@ results (commands report back with `logger`, which writes to the kernel log). En
   tools/smoke-test.py [--iso PATH] [--timeout SECONDS] [--step-timeout SECONDS] [--keep DIR]
 
 Exit status 0 when every check passes. Uses KVM when available, TCG otherwise (slower, so the
-timeouts are generous). Needs only qemu-system-x86_64 (or $QEMU) and Python 3.
+timeouts are generous). Needs qemu-system-x86_64 (or $QEMU), Python 3 and e2fsprogs (mke2fs/e2fsck/debugfs).
 """
 import argparse
+import ext2_fixture
 import os
 import re
 import shutil
@@ -76,6 +77,15 @@ STEPS = [
     ("localectl set-keymap de\nlogger y", "user: z"),
     ("loadkezs us\ncat /etc/vconsole.conf | logger", "user: KEYMAP=de"),
     ("timedatectl set-timezone Europe/Berlin && timedatectl | grep zone | logger", "Time zone: Europe/Berlin"),
+    ("mkdir /mnt/ext; mount -t ext2 sata0p1 /mnt/ext; echo ext2-reject-fat=$? | logger", "user: ext2-reject-fat=1"),
+    ("mount -t ext2 sata1p0 /mnt/ext && cat /mnt/ext/host.txt | logger", "user: host-ext2"),
+    ("echo persisted-ext2 > /mnt/ext/persist.txt && mkdir /mnt/ext/dir && logger ext2-write-ok", "user: ext2-write-ok"),
+    ("echo lower > /mnt/ext/dir/a; echo upper > /mnt/ext/dir/A; logger ext2-case-$(cat /mnt/ext/dir/a)-$(cat /mnt/ext/dir/A)", "user: ext2-case-lower-upper"),
+    ("mv /mnt/ext/dir/a /mnt/ext/dir/renamed && rm /mnt/ext/dir/A && logger ext2-rename-$(cat /mnt/ext/dir/renamed)", "user: ext2-rename-lower"),
+    ("dd if=/dev/zero of=/mnt/ext/indirect bs=1024 count=20 && logger ext2-indirect-ok", "user: ext2-indirect-ok"),
+    ("umount /mnt/ext && mount -t ext2 sata1p0 /mnt/ext && logger ext2-remount-$(cat /mnt/ext/persist.txt)", "user: ext2-remount-persisted-ext2"),
+    ("stat /mnt/ext/indirect | grep Size | logger", "user:   Size: 20480 bytes"),
+    ("umount /mnt/ext && logger ext2-unmounted", "user: ext2-unmounted"),
     ("crash", "panic: InvalidOperationException: panic requested: crash command"),
 ]
 
@@ -101,6 +111,7 @@ class Machine:
         self.disk = workdir / "disk.img"
         with open(self.disk, "wb") as f:
             f.truncate(256 * 1024 * 1024)   # sparse raw image; no qemu-img needed
+        self.ext2_disk = ext2_fixture.create(workdir)
         self.process = subprocess.Popen([
             os.environ.get("QEMU", "qemu-system-x86_64"), "-M", "q35", "-m", "512M",
             "-accel", "kvm", "-accel", "tcg", "-cpu", "max",
@@ -110,7 +121,8 @@ class Machine:
             "-vga", "none", "-device", "virtio-gpu-pci",
             "-device", "virtio-keyboard-pci", "-device", "virtio-mouse-pci",
             "-cdrom", str(iso), "-boot", "order=d",
-            "-drive", f"file={self.disk},format=raw,if=none,id=disk0", "-device", "ide-hd,drive=disk0",
+            "-drive", f"file={self.disk},format=raw,if=none,id=disk0", "-device", "ide-hd,drive=disk0,bus=ide.0,unit=0",
+            "-drive", f"file={self.ext2_disk},format=raw,if=none,id=disk1", "-device", "ide-hd,drive=disk1,bus=ide.1,unit=0",
         ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
     def raw_log(self) -> str:
@@ -208,6 +220,8 @@ def boot(iso: Path, timeout: float, label: str):
                 break
             time.sleep(0.25)
 
+        if machine.process.poll() is not None:
+            print("QEMU exited: " + machine.process.stderr.read().decode(errors="replace").strip())
         fatal = [l for l in machine.log().splitlines() if "[INT]" in l or "FATAL" in l]
         print(f"warn {label}: boot attempt {attempt} failed" + (": " + " | ".join(fatal[:3]) if fatal else " (timeout)"))
         machine.stop()
@@ -221,12 +235,17 @@ def main() -> int:
     parser.add_argument("--iso", type=Path, default=ROOT / "output-x64" / "Zenith.iso")
     parser.add_argument("--timeout", type=float, default=180, help="seconds to wait for boot")
     parser.add_argument("--step-timeout", type=float, default=60, help="seconds to wait for each command")
-    parser.add_argument("--keep", type=Path, help="copy the serial log and screenshots here")
+    parser.add_argument("--keep", type=Path, help="copy logs, screenshots and the ext2 scratch disk here")
     args = parser.parse_args()
 
     if not args.iso.exists():
         print(f"missing {args.iso}; build first", file=sys.stderr)
         return 2
+
+    for tool in ("mke2fs", "e2fsck", "debugfs"):
+        if shutil.which(tool) is None:
+            print(f"missing {tool}; install e2fsprogs", file=sys.stderr)
+            return 2
 
     failures = 0
     retried = 0
@@ -235,7 +254,7 @@ def main() -> int:
     retried += attempts - 1
     if machine is None:
         print("FAIL boot: desktop never came up")
-        failures += 1
+        failures += len(STEPS) + 2
     else:
         try:
             print(f"ok   boot ({time.time() - start:.1f}s)")
@@ -250,9 +269,15 @@ def main() -> int:
             machine.screenshot(machine.workdir / "final.ppm")
         finally:
             machine.stop()
+            report = machine.workdir / "ext2-check.log"
+            if ext2_fixture.verify(machine.ext2_disk, report):
+                print("ok   ext2 host e2fsck and persisted content")
+            else:
+                print("FAIL ext2 host check\n" + report.read_text())
+                failures += 1
             if args.keep:
                 args.keep.mkdir(parents=True, exist_ok=True)
-                for name in ("serial.log", "final.ppm"):
+                for name in ("serial.log", "final.ppm", "ext2-check.log", "ext2-disk.img"):
                     if (machine.workdir / name).exists():
                         shutil.copy(machine.workdir / name, args.keep / name)
             if failures:
@@ -283,7 +308,7 @@ def main() -> int:
     if retried:
         print(f"\nnote: {retried} boot(s) had to be retried after an early kernel fault")
 
-    total = len(STEPS) + 2
+    total = len(STEPS) + 3
     print(f"\n{total - failures}/{total} checks passed")
     return 1 if failures else 0
 

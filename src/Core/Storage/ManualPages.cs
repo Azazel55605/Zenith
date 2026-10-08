@@ -38,6 +38,36 @@ internal static class ManualPages
                 /var/log/boot.log   the kernel log of this boot (boot.log.1: the previous one)
             """),
 
+        ("licenses", Zenith.Core.Storage.Ext2.Ext2License.Text),
+
+        ("mount", """
+            NAME
+                mount - list mounts or attach a filesystem
+
+            SYNOPSIS
+                mount
+                mount [-t fat|ext2] PARTITION DIRECTORY
+
+            DESCRIPTION
+                With no arguments, show the mount table. Otherwise mount the named
+                partition (see lsblk) at an existing directory. FAT is the default.
+                Use -t ext2 explicitly for experimental secondary ext2 volumes.
+                Already-mounted partitions and occupied mount points are rejected.
+                umount DIRECTORY flushes and detaches a volume; / stays mounted.
+
+            EXT2
+                Requires clean revision 1, 1 KiB blocks, 128-byte inodes and only
+                the filetype feature. This profile check is not a consistency check.
+                Check disposable images with host e2fsck before mounting. Root and
+                installer still use FAT32. Users/permission enforcement is pending.
+
+            EXAMPLE
+                mkdir /mnt/ext
+                mount -t ext2 sata1p0 /mnt/ext
+                cat /mnt/ext/host.txt
+                umount /mnt/ext
+            """),
+
         ("dd", """
             NAME
                 dd - copy a bounded number of binary blocks

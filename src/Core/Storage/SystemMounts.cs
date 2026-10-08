@@ -4,6 +4,7 @@ using System.IO;
 using Cosmos.Kernel.HAL.Interfaces.Devices;
 using Cosmos.Kernel.HAL.Vfs;
 using Cosmos.Kernel.System.Filesystems.Fat;
+using Zenith.Core.Storage.Ext2;
 using Cosmos.Kernel.System.Storage;
 using Cosmos.Kernel.System.Vfs;
 using Zenith.Core.Storage.Proc;
@@ -28,6 +29,7 @@ internal static class SystemMounts
 {
     /// <summary>Driver name for on-disk FAT volumes, as used by <c>mount</c>.</summary>
     public const string Fat = "fat";
+    public const string Ext2 = "ext2";
 
     private const ulong SectorSize = 512;
 
@@ -39,6 +41,7 @@ internal static class SystemMounts
     public static void Initialize()
     {
         VfsManager.RegisterFilesystem(Fat, new FatFilesystemType());
+        VfsManager.RegisterFilesystem(Ext2, new Ext2FilesystemType());
 
         RootPartition = FindInstalledRoot();
         if (RootPartition is not null)
@@ -76,11 +79,15 @@ internal static class SystemMounts
     }
 
     /// <summary>
-    /// Mounts a FAT partition (by name, e.g. <c>sata0p1</c>) on an existing directory.
+    /// Mounts a FAT or explicitly selected ext2 partition (by name, e.g. <c>sata0p1</c>) on an existing directory.
     /// Returns an error message, or null on success.
     /// </summary>
-    public static string? Mount(string partitionName, string mountPoint)
+    public static string? Mount(string partitionName, string mountPoint, string filesystem = Fat)
     {
+        if (filesystem != Fat && filesystem != Ext2)
+        {
+            return filesystem + ": unsupported filesystem (use fat or ext2)";
+        }
         Partition? partition = null;
         foreach (Partition candidate in StorageManager.Partitions)
         {
@@ -113,7 +120,12 @@ internal static class SystemMounts
             return mountPoint + ": mount point does not exist";
         }
 
-        return VfsManager.TryMount(Fat, partition, MountFlags.None, mountPoint, out _) ? null : partitionName + ": not a FAT filesystem";
+        if (filesystem == Ext2 && Ext2VolumePolicy.Check(partition) is string error)
+        {
+            return partitionName + ": " + error;
+        }
+        return VfsManager.TryMount(filesystem, partition, MountFlags.None, mountPoint, out _)
+            ? null : partitionName + ": could not mount " + filesystem + " filesystem";
     }
 
     /// <summary>Unmounts one mount point (never the root). Returns an error message, or null on success.</summary>

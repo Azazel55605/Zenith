@@ -76,7 +76,7 @@ terminal mode with cursor addressing (enables `less`, `top`, a TUI editor), edit
 |---|---|---|
 | `/proc` virtual filesystem: `meminfo`, `mounts`, `uptime`, `cmdline`, later per-process entries | M | Initial read-only driver implemented; validation and remaining work in [PROGRESS.md](PROGRESS.md) |
 | `/dev` virtual filesystem: `null`, `zero`, `random`, block devices (`sda`, `sda1`) | M | Null/zero and read-only live disk/partition nodes implemented with bounded `dd`; entropy and raw writes pending. See [PROGRESS.md](PROGRESS.md) |
-| **ext2 driver, read-write** | L | The native root filesystem: owners, permissions, symlinks, case-sensitive names, timestamps |
+| **ext2 driver, read-write** | L | Experimental secondary-volume integration using Cosmos 3.0.89; profile gate and host-tool validation. Root, owners, permissions and symlinks remain pending; see [PROGRESS.md](PROGRESS.md) |
 | Installer formats the root as ext2 (the ESP stays FAT32) | S | Depends on ext2 |
 | Users: login screen, `/etc/shadow` with salted hashes, `passwd`, `su`, `useradd` | M | |
 | Permission checks in the VFS path for file operations | M | |

@@ -6,7 +6,7 @@
 |---|---|
 | .NET SDK 10 (system `dotnet`) | Building Zenith and running the unit tests |
 | `Cosmos.Tools` + `Cosmos.Patcher` global tools, `cosmos install -y --tools` | The Cosmos build pipeline (ILC, patcher, clang/lld, xorriso) |
-| `qemu-system-x86_64`, OVMF (`edk2-ovmf`), mtools, parted | Running, installing, smoke testing |
+| `qemu-system-x86_64`, OVMF (`edk2-ovmf`), mtools, parted, e2fsprogs | Running, installing, smoke testing |
 | Python 3 | `tools/smoke-test.py`, `tools/gen-fonts.py` (needs `fonttools`) |
 
 ## Everyday loop
@@ -27,13 +27,41 @@ If the build says `cosmos.patcher: command not found`, add `~/.dotnet/tools` to 
   Cosmos types for this to work; Cosmos-dependent commands live in `SystemCommands.cs`, which
   the kernel registers at boot.
 - **Filesystem contract tests** link the proc/dev drivers, including the block
-  byte-stream adapter, and download only the Cosmos HAL contract assemblies via `PackageDownload`. This exercises the actual driver
+  byte-stream adapter and ext2 superblock profile gate, and download only the Cosmos HAL contract assemblies via `PackageDownload`. This exercises the actual driver
   interfaces on the host without importing Cosmos build targets or calling hardware.
 - **The smoke test** boots the real ISO headless, types into the Terminal through the QEMU
   monitor, and checks the kernel log on the serial port. Commands report back with `logger`.
   Add a `(command, expected log text)` pair to `STEPS` in `tools/smoke-test.py` for new
   end-to-end behavior. The serial port is ASCII-only, so avoid box-drawing characters in
   expected text.
+
+## Ext2 secondary volumes
+
+`mount -t ext2 PARTITION DIRECTORY` explicitly selects Zenith's adaptation of the experimental Cosmos
+ext2 driver. The local source and BSD license are recorded in
+[src/Core/Storage/Ext2/SOURCE.md](../src/Core/Storage/Ext2/SOURCE.md).
+The bitmap allocator fixes account for the first data block; `man licenses`
+also carries the upstream notice in live and installed systems. `mount PARTITION DIRECTORY` still selects FAT. The mount
+point must exist; already-mounted partitions and unsupported filesystem types
+are rejected. Root discovery and installation still use FAT32.
+
+The first supported profile is deliberately narrow: revision 1, 1 KiB blocks,
+128-byte inodes, filetype-only features, and a clean superblock. The gate checks
+these fields plus basic geometry before invoking the driver. It is **not fsck**
+and does not establish consistency of arbitrary images. Field definitions follow
+the [Linux filesystem superblock documentation](https://docs.kernel.org/filesystems/ext4/super.html).
+Symlinks, ownership/mode changes, permission enforcement, large/multiple block
+groups and crash recovery still require validation before root migration.
+
+The smoke harness creates a second disposable SATA disk with an MBR Linux
+partition. `tools/ext2_fixture.py` formats only that scratch image using
+`mke2fs -t ext2 -b 1024 -I 128 -O none,filetype`, with a host-created seed file.
+Guest checks cover reads, writes, case-sensitive names, rename/delete, indirect
+blocks and unmount/remount. After QEMU exits, the harness extracts the partition,
+runs **check-only** `e2fsck -f -n`, and uses `debugfs` to verify persisted content.
+Both guest checks and the independent host check must pass. `--keep DIR` retains
+`ext2-check.log` and `ext2-disk.img` along with the serial log and screenshot.
+The fixture requires `mke2fs`, `e2fsck` and `debugfs` from e2fsprogs; CI installs it.
 
 ## Debugging a crash
 

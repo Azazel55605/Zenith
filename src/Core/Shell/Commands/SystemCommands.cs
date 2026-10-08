@@ -30,7 +30,7 @@ internal static class SystemCommands
         add(new Command("uptime", "uptime", "Time since boot", Uptime));
         add(new Command("free", "free", "Show memory usage", Free));
         add(new Command("df", "df", "Show filesystem space usage", Df));
-        add(new Command("mount", "mount [partition mountpoint]", "Show the mount table, or mount a FAT partition", Mount));
+        add(new Command("mount", "mount [[-t fat|ext2] partition mountpoint]", "Show mounts, or mount a FAT/ext2 partition", Mount));
         add(new Command("lsblk", "lsblk", "List disks and partitions", Lsblk));
         add(new Command("loadkeys", "loadkeys [layout]", "Switch the keyboard layout for this session", LoadKeys));
         add(new Command("localectl", "localectl [status | list-keymaps | set-keymap layout]", "Show or set the saved keyboard layout", Localectl));
@@ -131,6 +131,11 @@ internal static class SystemCommands
 
     private static int Mount(CommandContext c)
     {
+        if (c.Args.Length == 4 && c.Args[0] == "-t")
+        {
+            string? error = SystemMounts.Mount(c.Args[2], c.Resolve(c.Args[3]), c.Args[1]);
+            return error is null ? 0 : c.Fail(error);
+        }
         if (c.Args.Length == 2)
         {
             string? error = SystemMounts.Mount(c.Args[0], c.Resolve(c.Args[1]));
@@ -139,12 +144,12 @@ internal static class SystemCommands
 
         if (c.Args.Length != 0)
         {
-            return c.Fail("usage: mount [partition mountpoint]");
+            return c.Fail("usage: mount [[-t fat|ext2] partition mountpoint]");
         }
 
         foreach (VfsManager.VfsMount m in VfsManager.Mounts)
         {
-            c.WriteLine(Source(m) + " on " + m.MountPoint + " type " + (m.Name == SystemMounts.Fat ? "vfat" : "tmpfs (" + m.Name + ")"));
+            c.WriteLine(Source(m) + " on " + m.MountPoint + " type " + (m.Name == SystemMounts.Fat ? "vfat" : m.Name == "rootfs" || m.Name == "tmpfs" ? "tmpfs (" + m.Name + ")" : m.Name));
         }
 
         return 0;
