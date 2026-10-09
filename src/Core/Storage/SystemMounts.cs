@@ -32,6 +32,7 @@ internal static class SystemMounts
     public const string Ext2 = "ext2";
 
     private const ulong SectorSize = 512;
+    private static readonly object s_mountGate = new();
 
     public static BootMode Mode { get; private set; }
 
@@ -84,6 +85,14 @@ internal static class SystemMounts
     /// </summary>
     public static string? Mount(string partitionName, string mountPoint, string filesystem = Fat)
     {
+        lock (s_mountGate)
+        {
+            return MountCore(partitionName, mountPoint, filesystem);
+        }
+    }
+
+    private static string? MountCore(string partitionName, string mountPoint, string filesystem)
+    {
         if (filesystem != Fat && filesystem != Ext2)
         {
             return filesystem + ": unsupported filesystem (use fat or ext2)";
@@ -128,8 +137,61 @@ internal static class SystemMounts
             ? null : partitionName + ": could not mount " + filesystem + " filesystem";
     }
 
+    /// <summary>Formats an explicitly selected, unmounted secondary partition.</summary>
+    public static string? FormatExt2(string name, string label, bool confirmed)
+    {
+        lock (s_mountGate)
+        {
+            Partition? target = null;
+            foreach (Partition partition in StorageManager.Partitions)
+            {
+                if (partition.Name == name)
+                {
+                    target = partition;
+                }
+            }
+            if (target is null)
+            {
+                return name + ": no such partition (whole disks cannot be formatted here)";
+            }
+            if (ReferenceEquals(target.Host, RootPartition?.Host))
+            {
+                return "refusing to format a partition on the running root disk";
+            }
+            foreach (VfsManager.VfsMount mount in VfsManager.Mounts)
+            {
+                Partition? used = mount.Partition;
+                if (used is not null && ReferenceEquals(used.Host, target.Host)
+                    && used.StartSector < target.StartSector + target.BlockCount
+                    && target.StartSector < used.StartSector + used.BlockCount)
+                {
+                    return name + " overlaps a partition mounted on " + mount.MountPoint;
+                }
+            }
+            if (Ext2Formatter.Check(target, label) is string error)
+            {
+                return error;
+            }
+            if (!confirmed)
+            {
+                return "formatting erases " + name + "; pass --yes to confirm";
+            }
+            Ext2Formatter.Format(target, label);
+            Log.Write("mkfs", "formatted " + name + " as ext2");
+            return null;
+        }
+    }
+
     /// <summary>Unmounts one mount point (never the root). Returns an error message, or null on success.</summary>
     public static string? Unmount(string mountPoint)
+    {
+        lock (s_mountGate)
+        {
+            return UnmountCore(mountPoint);
+        }
+    }
+
+    private static string? UnmountCore(string mountPoint)
     {
         if (mountPoint == "/")
         {

@@ -103,6 +103,18 @@ STEPS = [
     ("{backspace}{ctrl-d}\n", "files: deleted /mnt/ext/fm/dest"),
     ("{snapshot}{ctrl-q}cat /mnt/ext/fm/notes.txt | logger", "user: file-manager-data"),
     ("umount /mnt/ext && logger ext2-unmounted", "user: ext2-unmounted"),
+    ("mkfs.ext2 sata2 --yes; echo mkfs-disk=$? | logger", "user: mkfs-disk=1"),
+    ("mkfs.ext2 sata2p0; echo mkfs-confirm=$? | logger", "user: mkfs-confirm=1"),
+    ("mkfs.ext2 sata2p0 --yes -L seventeenletters!; echo mkfs-label=$? | logger", "user: mkfs-label=1"),
+    ("mount sata0p1 /mnt/inst && logger mkfs-target-mounted", "user: mkfs-target-mounted"),
+    ("mkfs.ext2 sata0p1 --yes; echo mkfs-mounted=$? | logger; umount /mnt/inst", "user: mkfs-mounted=1"),
+    ("mkdir /mnt/new && mkfs.ext2 sata2p0 --yes -L SCRATCH && mount -t ext2 sata2p0 /mnt/new && logger mkfs-mount-ok", "user: mkfs-mount-ok"),
+    ("echo format-data > /mnt/new/persist.txt && mkdir /mnt/new/nested && echo child-data > /mnt/new/nested/child.txt && logger mkfs-write-ok", "user: mkfs-write-ok"),
+    ("mkfs.ext2 sata2p0 --yes; echo mkfs-busy=$? | logger", "user: mkfs-busy=1"),
+    ("{ext2-stress}echo second-group > /mnt/new/second.txt && logger mkfs-io-ok", "user: mkfs-io-ok"),
+    ("umount /mnt/new && mount -t ext2 sata2p0 /mnt/new && cat /mnt/new/persist.txt | logger", "user: format-data"),
+    ("cat /mnt/new/nested/child.txt | logger", "user: child-data"),
+    ("umount /mnt/new && logger mkfs-unmounted", "user: mkfs-unmounted"),
     ("crash", "panic: InvalidOperationException: panic requested: crash command"),
 ]
 
@@ -121,16 +133,20 @@ SHIFTED = {"|": "backslash", ">": "dot", "<": "comma", "_": "minus", "+": "equal
 
 
 class Machine:
-    def __init__(self, iso: Path, workdir: Path):
+    def __init__(self, iso: Path, workdir: Path, initial_disk: Path | None = None, memory: int = 512):
         self.workdir = workdir
         self.serial = workdir / "serial.log"
         self.monitor = workdir / "monitor.sock"
         self.disk = workdir / "disk.img"
-        with open(self.disk, "wb") as f:
-            f.truncate(256 * 1024 * 1024)   # sparse raw image; no qemu-img needed
+        if initial_disk is not None:
+            shutil.copyfile(initial_disk, self.disk)
+        else:
+            with open(self.disk, "wb") as f:
+                f.truncate(256 * 1024 * 1024)   # sparse raw image; no qemu-img needed
         self.ext2_disk = ext2_fixture.create(workdir)
+        self.format_disk = ext2_fixture.create_format_disk(workdir)
         self.process = subprocess.Popen([
-            os.environ.get("QEMU", "qemu-system-x86_64"), "-M", "q35", "-m", "512M",
+            os.environ.get("QEMU", "qemu-system-x86_64"), "-M", "q35", "-m", str(memory) + "M",
             "-accel", "kvm", "-accel", "tcg", "-cpu", "max",
             "-display", "none", "-no-reboot",
             "-serial", f"file:{self.serial}",
@@ -140,6 +156,7 @@ class Machine:
             "-cdrom", str(iso), "-boot", "order=d",
             "-drive", f"file={self.disk},format=raw,if=none,id=disk0", "-device", "ide-hd,drive=disk0,bus=ide.0,unit=0",
             "-drive", f"file={self.ext2_disk},format=raw,if=none,id=disk1", "-device", "ide-hd,drive=disk1,bus=ide.1,unit=0",
+            "-drive", f"file={self.format_disk},format=raw,if=none,id=disk2", "-device", "ide-hd,drive=disk2,bus=ide.3,unit=0",
         ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
     def raw_log(self) -> str:
@@ -229,7 +246,7 @@ class Machine:
 BOOT_ATTEMPTS = 3
 
 
-def boot(iso: Path, timeout: float, label: str):
+def boot(iso: Path, timeout: float, label: str, initial_disk: Path | None = None, memory: int = 512):
     """
     Boots a fresh VM until the desktop is up, retrying when the kernel faults during early
     init. Cosmos 3.0.89 occasionally takes a general-protection fault while setting up the
@@ -238,7 +255,7 @@ def boot(iso: Path, timeout: float, label: str):
     """
     for attempt in range(1, BOOT_ATTEMPTS + 1):
         workdir = Path(tempfile.mkdtemp(prefix="zenith-smoke-"))
-        machine = Machine(iso, workdir)
+        machine = Machine(iso, workdir, initial_disk, memory)
         start = time.time()
         while time.time() - start < timeout:
             log = machine.log()
@@ -264,30 +281,40 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=180, help="seconds to wait for boot")
     parser.add_argument("--step-timeout", type=float, default=60, help="seconds to wait for each command")
     parser.add_argument("--keep", type=Path, help="copy logs, screenshots and the ext2 scratch disk here")
+    parser.add_argument("--memory", type=int, default=512, help="QEMU RAM in MiB (default: 512)")
+    parser.add_argument("--large-ext2-stress", action="store_true", help="also allocate/delete 9 MiB across groups (requires 1024 MiB RAM)")
     args = parser.parse_args()
 
     if not args.iso.exists():
         print(f"missing {args.iso}; build first", file=sys.stderr)
         return 2
 
-    for tool in ("mke2fs", "e2fsck", "debugfs"):
+    for tool in ("mke2fs", "e2fsck", "debugfs", "dumpe2fs"):
         if shutil.which(tool) is None:
             print(f"missing {tool}; install e2fsprogs", file=sys.stderr)
             return 2
 
+    installed_scratch = tempfile.TemporaryDirectory(prefix="zenith-installed-check-")
+    installed_disk = Path(installed_scratch.name) / "disk.img"
+    if args.memory < 512:
+        parser.error("--memory must be at least 512 MiB")
+    if args.large_ext2_stress and args.memory < 1024:
+        parser.error("--large-ext2-stress requires --memory 1024 or higher")
     failures = 0
     retried = 0
     start = time.time()
-    machine, attempts = boot(args.iso, args.timeout, "main boot")
+    machine, attempts = boot(args.iso, args.timeout, "main boot", memory=args.memory)
     retried += attempts - 1
     if machine is None:
         print("FAIL boot: desktop never came up")
-        failures += len(STEPS) + 2
+        failures += len(STEPS) + 3
     else:
         try:
             print(f"ok   boot ({time.time() - start:.1f}s)")
             time.sleep(2)   # let the first frames settle before typing
             for line, expected in STEPS:
+                if "{ext2-stress}" in line:
+                    line = ("dd if=/dev/zero of=/mnt/new/bulk bs=1024 count=9216 && echo second-group > /mnt/new/second.txt && rm /mnt/new/bulk" if args.large_ext2_stress else "echo second-group > /mnt/new/second.txt") + " && logger mkfs-io-ok"
                 machine.type(line if line.endswith("\n") else line + "\n")
                 if machine.wait_for(expected, args.step_timeout):
                     print(f"ok   {line}")
@@ -297,15 +324,22 @@ def main() -> int:
             machine.screenshot(machine.workdir / "final.ppm")
         finally:
             machine.stop()
+            shutil.copyfile(machine.disk, installed_disk)
             report = machine.workdir / "ext2-check.log"
             if ext2_fixture.verify(machine.ext2_disk, report):
                 print("ok   ext2 host e2fsck and persisted content")
             else:
                 print("FAIL ext2 host check\n" + report.read_text())
                 failures += 1
+            formatted_report = machine.workdir / "format-check.log"
+            if ext2_fixture.verify_format_disk(machine.format_disk, formatted_report, args.large_ext2_stress):
+                print("ok   guest-formatted ext2 host e2fsck, partition guards and saved data" + (" in second group" if args.large_ext2_stress else ""))
+            else:
+                print("FAIL guest-formatted ext2 host check\n" + formatted_report.read_text())
+                failures += 1
             if args.keep:
                 args.keep.mkdir(parents=True, exist_ok=True)
-                for name in ("serial.log", "final.ppm", "files.ppm", "ext2-check.log", "ext2-disk.img"):
+                for name in ("serial.log", "final.ppm", "files.ppm", "ext2-check.log", "ext2-disk.img", "format-check.log", "format-disk.img"):
                     if (machine.workdir / name).exists():
                         shutil.copy(machine.workdir / name, args.keep / name)
             if failures:
@@ -315,14 +349,25 @@ def main() -> int:
             shutil.rmtree(machine.workdir, ignore_errors=True)
 
     # Second, short boot: a clean power-off unmounts everything and the VM actually turns off.
-    machine2, attempts = boot(args.iso, args.timeout, "poweroff boot")
+    machine2, attempts = boot(args.iso, args.timeout, "installed poweroff boot", installed_disk if installed_disk.exists() else None, memory=args.memory)
     retried += attempts - 1
     if machine2 is None:
-        print("FAIL poweroff: second boot never came up")
-        failures += 1
+        print("FAIL installed boot, root protection and poweroff: second boot never came up")
+        failures += 3
     else:
         try:
             time.sleep(2)
+            if machine2.wait_for("mounts: root: sata0p1 (installed)", args.step_timeout):
+                print("ok   boot from installed scratch root")
+            else:
+                print("FAIL installed root was not selected")
+                failures += 1
+            machine2.type("mkfs.ext2 sata0p0 --yes; echo mkfs-root=$? | logger\n")
+            if machine2.wait_for("user: mkfs-root=1", args.step_timeout):
+                print("ok   refuse formatting unmounted ESP on running root disk")
+            else:
+                print("FAIL running root disk protection")
+                failures += 1
             machine2.type("poweroff\n")
             if machine2.wait_for("mounts: all filesystems unmounted", args.step_timeout) and machine2.wait_exit(args.step_timeout):
                 print("ok   poweroff (filesystems unmounted, VM turned off)")
@@ -331,12 +376,15 @@ def main() -> int:
                 failures += 1
         finally:
             machine2.stop()
+            if args.keep:
+                shutil.copy(machine2.serial, args.keep / "installed-serial.log")
             shutil.rmtree(machine2.workdir, ignore_errors=True)
 
     if retried:
         print(f"\nnote: {retried} boot(s) had to be retried after an early kernel fault")
 
-    total = len(STEPS) + 3
+    installed_scratch.cleanup()
+    total = len(STEPS) + 6
     print(f"\n{total - failures}/{total} checks passed")
     return 1 if failures else 0
 

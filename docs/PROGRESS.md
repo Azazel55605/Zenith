@@ -15,6 +15,8 @@
 | `/dev`: null, zero, random, block devices | Partial: null/zero plus read-only block nodes | Dynamic disks/partitions implemented; entropy and raw writes pending |
 | Read-write ext2 | Partial: experimental secondary volumes | Explicit `mount -t ext2`, profile gate, resize/deletion reclamation, persisted allocator counters and two-group fixture; root migration pending |
 | Files desktop app | Complete for initial scope | 292 host tests; native keyboard/mouse workflow and independent persisted-file check pass |
+| ext2 formatter | Verified for bounded secondary partitions | 306 host tests; 88/88 baseline + 88/88 large-profile QEMU checks; clean independent e2fsck |
+| Runtime heap under large ext2 I/O | Open | 9 MiB stress exhausts 512 MiB runtime; 1 GiB profile passes; investigate before root migration |
 | ext2 installer root | Pending | Depends on ext2 |
 | Users/login, shadow, passwd, su, useradd | Pending | Requires persistent ownership and permission model |
 | VFS permission enforcement | Pending | Audit every file-operation entry point |
@@ -276,3 +278,69 @@ permissions and reports accurate metadata through `ls -l`.
   parent-link accounting and open-handle unlink behavior before installer/root
   migration. Installed roots still use FAT32; users/permissions and check-only
   guest fsck remain pending. M2 remains open.
+
+
+### 2026-10-09 · Seventh M2 slice · Guarded ext2 formatter
+
+- Added a local formatter for the existing profile: revision 1, 1 KiB blocks,
+  128-byte inodes, filetype-only features, 8192 blocks/1024 inodes per group.
+  Geometry is bounded to 1..512 MiB and fully preflighted, including partial final
+  groups. Labels are validated printable ASCII, at most 16 bytes. Counts include
+  reserved inodes and root/lost+found; bitmap padding is allocated, and every
+  group has a correctly numbered superblock and descriptor-table backup.
+- Added `mkfs.ext2 PARTITION [--yes] [-L LABEL]`. Formatting requires explicit
+  confirmation and a named partition, refuses mounted/overlapping partitions
+  and the running root disk, and serializes with secondary mount/unmount calls.
+  Generic VFS formatting remains disabled. The primary signature is invalidated
+  and flushed before metadata writes, and clean primary metadata is published
+  last after flushes; interrupted metadata-write coverage verifies mount refusal.
+  This is not a journal or secure erase; UUID awaits entropy support.
+- All **306/306** host tests pass, including six independent e2fsck format cases
+  from 1 MiB to 264 MiB (33 groups/two descriptor blocks), first-data-block and
+  partial-group boundaries, 512/1024-byte sectors, allocation/free across remount,
+  six no-write preflight refusals, an injected write failure and a scratch
+  allocation-budget regression. CI host tests now
+  explicitly install e2fsprogs. Harness regressions pass **3/3**. Native ISO build
+  succeeds; existing cached NU1900, xUnit and Cosmos build warnings remain.
+- Expanded QEMU with an initially blank disposable partition, formatter refusal
+  checks, guest creation/remount and 9 MiB allocation/deletion across group two.
+  Independent host checks require clean e2fsck, saved files, label, group-two data
+  and unchanged partition-exterior guards/MBR. The second boot now uses the
+  installed FAT scratch disk to exercise running-root-disk protection and clean
+  poweroff. The first refusal test incorrectly targeted the already-unmounted
+  installed scratch partition; it now explicitly remounts before testing refusal.
+- The 9 MiB stress write exceeded both the default 60-second and CI's 180-second
+  command budget. Read-only inspection showed it still advancing but slowing
+  substantially (5,951,488 bytes after about 230 seconds). A new host regression
+  measured **4,292,608 allocated bytes for 1,024 blocks**, matching four temporary
+  arrays per block. Bitmap/zero/GDT/superblock scratch storage is now reused;
+  metadata is still reread and persistence ordering unchanged. The same host
+  regression now passes a **256 KiB** allocation ceiling. The unchanged
+  9 MiB/1 KiB-block workload was rerun with CI's existing 180-second budget;
+  native results are recorded below.
+- With scratch reuse, the 9 MiB write/delete completes in about 50 seconds.
+  The next command failed after runtime exhaustion: `PageAllocator` reported two
+  free pages, then a 65-page thread-stack allocation faulted. ELF symbolication
+  points to `ThreadContext.Initialize` / `SystemNative_CreateThread` / `Thread.StartCore`.
+  A read-only snapshot still passes e2fsck and contains saved text. This is a real
+  Cosmos runtime/heap limit at 512 MiB, not a clean low-memory exit; it remains open.
+  Added an explicit `--memory 1024 --large-ext2-stress` profile for the large
+  workload, preserving baseline 512 MiB RAM/60-second timeout and CI's existing
+  180-second timeout. CI runs both profiles and retains both sets of artifacts.
+- The final native ISO passes **88/88 baseline checks at 512 MiB** and **88/88
+  large-profile checks at 1 GiB**. Both profiles verify formatting/refusals, saved
+  contents after remount, clean independent e2fsck on both ext2 volumes, unchanged
+  partition-exterior guards and MBR, actual installed FAT root selection, root-disk
+  formatting refusal and clean poweroff. The large profile additionally verifies
+  a retained data block in the second group after 9 MiB allocation/deletion.
+  Host tests pass **306/306** and harness regressions **3/3**. Evidence:
+  `/tmp/zenith-mkfs-tests.log`, `/tmp/zenith-mkfs-build.log`,
+  `/tmp/zenith-mkfs-allocation-before.log`, `/tmp/zenith-mkfs-baseline.log`,
+  `/tmp/zenith-mkfs-large.log`; retained disks/check reports and installed-boot
+  serial logs are under `/tmp/zenith-mkfs-baseline/` and `/tmp/zenith-mkfs-large/`.
+  The earlier 512 MiB large-workload failure remains evidenced in
+  `/tmp/zenith-mkfs-smoke-fixed/serial.log`; scratch artifacts are not committed.
+- Installer/root discovery remains FAT32. Next: investigate runtime heap growth
+  and low-memory failure handling, then ownership/mode/symlink semantics,
+  directory parent-link accounting and open-handle unlink behavior before root
+  migration. Users/permissions and check-only guest fsck remain pending. M2 stays open.

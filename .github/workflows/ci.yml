@@ -21,6 +21,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends e2fsprogs
       - run: dotnet test tests/Zenith.Tests --logger "console;verbosity=normal"
       - run: python3 -B tools/test_smoke_test.py
 
@@ -68,11 +69,18 @@ jobs:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 tools/smoke-test.py --timeout 600 --step-timeout 180 --keep smoke
 
+      - name: Ext2 large workload (separate 1 GiB profile)
+        env:
+          QEMU: /usr/bin/qemu-system-x86_64
+        run: python3 tools/smoke-test.py --timeout 600 --step-timeout 180 --memory 1024 --large-ext2-stress --keep smoke-large
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: smoke-test-logs
-          path: smoke/
+          path: |
+            smoke/
+            smoke-large/
 
   release:
     name: Release

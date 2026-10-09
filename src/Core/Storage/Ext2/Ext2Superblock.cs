@@ -100,6 +100,10 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// <summary>Group descriptor table (flat array).</summary>
     private readonly Ext2GroupDesc[] _groups;
 
+    // Like the inode/indirection buffers, these belong to the volume's serialized
+    // I/O path. Always reread metadata; reuse storage without caching disk state.
+    private byte[]? _allocationBitmap, _zeroBlock, _groupDescriptorBuf, _superblockBuf;
+
     /// <summary>Directory and metadata operations for this volume.</summary>
     public Ext2InodeOperations InodeOps { get; }
 
@@ -573,7 +577,7 @@ internal sealed class Ext2Superblock : IVfsSuperblock
                 continue;
             }
 
-            byte[] bmp = new byte[BlockSize];
+            byte[] bmp = _allocationBitmap ??= new byte[BlockSize];
             ReadBlocks(gd.InodeBitmap, 1, bmp);
             uint max = InodesPerGroup;
             if (gi == GroupsCount - 1)
@@ -619,7 +623,7 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         uint group = GroupOfInode(inodeNumber);
         uint index = IndexInGroup(inodeNumber);
         Ext2GroupDesc gd = _groups[group];
-        byte[] bmp = new byte[BlockSize];
+        byte[] bmp = _allocationBitmap ??= new byte[BlockSize];
         ReadBlocks(gd.InodeBitmap, 1, bmp);
         uint byteIdx = index / 8;
         uint bitIdx = index % 8;
@@ -649,7 +653,7 @@ internal sealed class Ext2Superblock : IVfsSuperblock
                 continue;
             }
 
-            byte[] bmp = new byte[BlockSize];
+            byte[] bmp = _allocationBitmap ??= new byte[BlockSize];
             ReadBlocks(gd.BlockBitmap, 1, bmp);
             uint groupStart = FirstDataBlock + gi * BlocksPerGroup;
             uint max = Math.Min(BlocksPerGroup, BlocksCount - groupStart);
@@ -666,7 +670,7 @@ internal sealed class Ext2Superblock : IVfsSuperblock
                     FreeBlocksCount--;
                     UpdateGroupDesc(gi);
                     blockNumber = groupStart + i;
-                    byte[] zero = new byte[BlockSize];
+                    byte[] zero = _zeroBlock ??= new byte[BlockSize];
                     WriteBlocks(blockNumber, 1, zero);
                     return true;
                 }
@@ -696,7 +700,7 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         }
 
         Ext2GroupDesc gd = _groups[group];
-        byte[] bmp = new byte[BlockSize];
+        byte[] bmp = _allocationBitmap ??= new byte[BlockSize];
         ReadBlocks(gd.BlockBitmap, 1, bmp);
         uint byteIdx = index / 8;
         uint bitIdx = index % 8;
@@ -716,7 +720,7 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         uint gdStartBlock = BlockSize == 1024 ? 2u : 1u;
         uint gdBytes = GroupsCount * (uint)Ext2SuperblockLayout.GroupDescSize;
         uint gdBlocks = (gdBytes + BlockSize - 1) / BlockSize;
-        byte[] gdBuf = new byte[gdBlocks * BlockSize];
+        byte[] gdBuf = _groupDescriptorBuf ??= new byte[gdBlocks * BlockSize];
         ReadBlocks(gdStartBlock, gdBlocks, gdBuf);
         int off = (int)groupIndex * Ext2SuperblockLayout.GroupDescSize;
         Ext2GroupDesc gd = _groups[groupIndex];
@@ -740,7 +744,7 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         ulong sbLba = sbByteOffset / devBlockSize;
         ulong blocksToRead = (Ext2SuperblockLayout.SuperblockSize + devBlockSize - 1) / devBlockSize;
         ulong totalBytes = blocksToRead * devBlockSize;
-        byte[] buf = new byte[totalBytes];
+        byte[] buf = _superblockBuf ??= new byte[totalBytes];
         _device.ReadBlock(sbLba, blocksToRead, buf);
         int off = (int)(sbByteOffset % devBlockSize);
         Span<byte> sb = buf.AsSpan(off, Ext2SuperblockLayout.SuperblockSize);

@@ -68,6 +68,16 @@ profile requires clean revision-1 ext2 with 1 KiB blocks, 128-byte inodes and on
 the filetype feature. See [ext2 validation](docs/DEVELOPMENT.md#ext2-secondary-volumes)
 for the disposable fixture and remaining limitations. Installed roots still use FAT32.
 
+`mkfs.ext2 PARTITION --yes [-L LABEL]` formats an **unmounted secondary partition**,
+erasing its existing filesystem. Use a partition name from `lsblk`, not a whole disk.
+It refuses mounted partitions and the running root disk; omitting `--yes` makes no
+changes. The initial formatter supports 1..512 MiB partitions in the profile above;
+a very small final block group is rejected. Labels use up to 16 printable ASCII
+characters. It creates root and `lost+found`, with backups in every group.
+For example: `mkfs.ext2 sata2p0 --yes -L SCRATCH`, then
+`mkdir /mnt/new; mount -t ext2 sata2p0 /mnt/new`. See `man mkfs.ext2`.
+This does not securely erase data; UUID assignment awaits entropy support.
+
 Settings: `localectl set-keymap de`, `timedatectl set-timezone Europe/Berlin`.
 `edit file` opens the text editor, `open system` any desktop app, `fps` shows compositor statistics.
 Windows resize from their edges; double-click a title bar to maximize.

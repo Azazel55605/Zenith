@@ -66,3 +66,49 @@ def verify(disk: Path, report: Path) -> bool:
             and shrunk.stdout == "sparse-shrunk\n"
             and managed.stdout == "file-manager-data\n"
             and any(int(block) >= 8193 for block in re.findall(r"\(0\):(\d+)", indirect.stdout)))
+
+
+def create_format_disk(workdir: Path) -> Path:
+    """Unformatted partition with guards outside its bounds; only the guest formats it."""
+    disk = workdir / "format-disk.img"
+    mbr = bytearray(512)
+    struct.pack_into("<B3sB3sII", mbr, 446, 0, b"\xfe\xff\xff", 0x83,
+                     b"\xfe\xff\xff", START // 512, SIZE // 512)
+    mbr[510:512] = b"\x55\xaa"
+    with disk.open("wb") as file:
+        file.truncate(START + SIZE + 512)
+        file.write(mbr)
+        file.seek(START - 512)
+        file.write(bytes([0xa6]) * 512)
+        file.seek(START + SIZE)
+        file.write(bytes([0xb7]) * 512)
+    return disk
+
+
+def verify_format_disk(disk: Path, report: Path, require_second_group: bool = False) -> bool:
+    volume = disk.with_name("format-checked.img")
+    with disk.open("rb") as file:
+        mbr = file.read(512)
+        file.seek(START - 512)
+        before = file.read(512)
+        data = file.read(SIZE)
+        after = file.read(512)
+    volume.write_bytes(data)
+    fsck = subprocess.run(["e2fsck", "-f", "-n", str(volume)], capture_output=True, text=True)
+    contents = []
+    for name in ("/persist.txt", "/nested/child.txt", "/second.txt"):
+        result = subprocess.run(["debugfs", "-R", "cat " + name, str(volume)], capture_output=True, text=True)
+        contents.append(result.stdout)
+    second = subprocess.run(["debugfs", "-R", "stat /second.txt", str(volume)], capture_output=True, text=True)
+    header = subprocess.run(["dumpe2fs", "-h", str(volume)], capture_output=True, text=True)
+    expected_mbr = bytearray(512)
+    struct.pack_into("<B3sB3sII", expected_mbr, 446, 0, b"\xfe\xff\xff", 0x83,
+                     b"\xfe\xff\xff", START // 512, SIZE // 512)
+    expected_mbr[510:512] = b"\x55\xaa"
+    report.write_text(fsck.stdout + fsck.stderr + "\nHeader:\n" + header.stdout + header.stderr
+                      + "\nSaved contents:\n" + repr(contents) + "\nRetained file:\n" + second.stdout + second.stderr)
+    return (len(data) == SIZE and fsck.returncode == 0
+            and mbr == expected_mbr and before == bytes([0xa6]) * 512 and after == bytes([0xb7]) * 512
+            and contents == ["format-data\n", "child-data\n", "second-group\n"]
+            and "SCRATCH" in header.stdout
+            and (not require_second_group or any(int(block) >= 8193 for block in re.findall(r"\(0\):(\d+)", second.stdout))))

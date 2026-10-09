@@ -6,8 +6,8 @@
 |---|---|
 | .NET SDK 10 (system `dotnet`) | Building Zenith and running the unit tests |
 | `Cosmos.Tools` + `Cosmos.Patcher` global tools, `cosmos install -y --tools` | The Cosmos build pipeline (ILC, patcher, clang/lld, xorriso) |
-| `qemu-system-x86_64`, OVMF (`edk2-ovmf`), mtools, parted, e2fsprogs | Running, installing, smoke testing |
-| Python 3 | `tools/smoke-test.py`, `tools/gen-fonts.py` (needs `fonttools`) |
+| `qemu-system-x86_64`, OVMF (`edk2-ovmf`), mtools, parted, e2fsprogs | Running, installing, smoke testing and host formatter validation |
+| Python 3.10+ | `tools/smoke-test.py`, `tools/gen-fonts.py` (needs `fonttools`) |
 
 ## Everyday loop
 
@@ -29,6 +29,9 @@ If the build says `cosmos.patcher: command not found`, add `~/.dotnet/tools` to 
 - **Filesystem contract tests** link the proc/dev drivers, including the block
   byte-stream adapter and ext2 superblock profile gate, and download only the Cosmos HAL contract assemblies via `PackageDownload`. This exercises the actual driver
   interfaces on the host without importing Cosmos build targets or calling hardware.
+  Formatter tests also require `e2fsck` (e2fsprogs) and check independently readable
+  sparse scratch volumes from 1 MiB through 33 groups, including partial final
+  groups, 512/1024-byte sectors and a descriptor table spanning two blocks.
 - **The smoke test** boots the real ISO headless, types into the Terminal through the QEMU
   monitor, and checks the kernel log on the serial port. Commands report back with `logger`.
   Add a `(command, expected log text)` pair to `STEPS` in `tools/smoke-test.py` for new
@@ -78,6 +81,29 @@ Both guest checks and the independent host check must pass. `--keep DIR` retains
 `ext2-check.log` and `ext2-disk.img` along with the serial log, final screenshot
 and Files window screenshot (`files.ppm`).
 The fixture requires `mke2fs`, `e2fsck` and `debugfs` from e2fsprogs; CI installs it.
+
+A third disposable disk holds an initially blank ext2-target partition. Only the
+guest formats it, via `mkfs.ext2`. The harness checks refusal without confirmation,
+invalid labels, whole disks and mounted volumes; creates nested files; allocates
+small files and checks contents after remount. The optional
+`--large-ext2-stress --memory 1024 --step-timeout 180` profile additionally
+allocates/deletes 9 MiB and requires a retained data block in group two.
+The baseline retains its 512 MiB RAM and 60-second local command timeout;
+CI uses its existing 180-second command timeout.
+Host `e2fsck -f -n`, `debugfs` and `dumpe2fs` check the new volume, its label,
+saved data (including second-group placement in the large profile) and untouched MBR/guard sectors outside the partition.
+`--keep DIR` also retains `format-check.log` and `format-disk.img`.
+The second boot uses a copy of the installed FAT scratch disk: it must select its
+installed root, refuse formatting that disk's unmounted ESP and power off cleanly.
+It retains `installed-serial.log` when requested. No real disks are formatted.
+The large workload exhausted the Cosmos runtime at 512 MiB after completing the
+write/delete cycle: only two pages remained, then a 65-page thread-stack allocation
+faulted in `ThreadContext.Initialize`. A read-only snapshot was clean in e2fsck.
+Allocator scratch reuse improves the workload but does not eliminate this runtime
+heap limitation; its cause/low-memory failure handling still need investigation.
+The formatter is currently limited to the profile above and 1..512 MiB partitions;
+preflight rejects a final group too short for metadata. UUID remains unassigned;
+this is not a secure wipe or a journal. Installer/root migration remains pending.
 
 ## Debugging a crash
 

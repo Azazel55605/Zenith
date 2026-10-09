@@ -11,6 +11,32 @@ internal static class ManualPages
 
     public static readonly (string Name, string Text)[] Pages =
     {
+        ("mkfs.ext2", """
+            NAME
+                mkfs.ext2 - format an unmounted secondary partition
+
+            SYNOPSIS
+                mkfs.ext2 PARTITION [--yes] [-L LABEL]
+
+            DESCRIPTION
+                Writes a fresh ext2 filesystem, erasing the existing filesystem.
+                PARTITION is a name from lsblk, such as sata2p0. Whole disks,
+                mounted/overlapping partitions and the running root disk are
+                refused. Without --yes, no writes occur. LABEL may contain up to
+                16 printable ASCII characters.
+                The supported profile uses 1 KiB blocks, 128-byte inodes and
+                only the filetype feature, with backups in every block group.
+                It creates / and lost+found. Partition sizes must be 1..512 MiB;
+                a final group too small for metadata is rejected before writing.
+                Data is not securely wiped. UUID remains unassigned until an
+                entropy source is available. Installation/root discovery still
+                use FAT32; this command does not change the running root.
+
+            EXAMPLE
+                mkfs.ext2 sata2p0 --yes -L SCRATCH
+                mkdir /mnt/new
+                mount -t ext2 sata2p0 /mnt/new
+            """),
         ("files", """
             NAME
                 files - simple graphical file manager

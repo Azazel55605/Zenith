@@ -27,7 +27,9 @@ guidance here so the two entry points stay consistent.
 - Storage currently uses FAT for installed roots and RAM-backed FAT for live
   root and `/tmp`; virtual `/proc` and `/dev` are mounted at boot. Experimental
   secondary ext2 volumes require explicit `mount -t ext2` and a supported-profile
-  check. The locally adapted driver, upstream revision and allocator fix are
+  check. `mkfs.ext2 PARTITION --yes` explicitly formats an unmounted secondary
+  partition (1..512 MiB); it refuses mounted volumes and the running root disk.
+  The locally adapted driver, upstream revision and allocator fix are
   documented in `src/Core/Storage/Ext2/SOURCE.md`; its BSD notice is retained in
   LICENSE and `man licenses`. Root migration remains pending.
 - Follow existing C# conventions: file-scoped namespaces, explicit visibility,

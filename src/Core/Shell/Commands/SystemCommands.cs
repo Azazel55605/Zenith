@@ -31,6 +31,7 @@ internal static class SystemCommands
         add(new Command("free", "free", "Show memory usage", Free));
         add(new Command("df", "df", "Show filesystem space usage", Df));
         add(new Command("mount", "mount [[-t fat|ext2] partition mountpoint]", "Show mounts, or mount a FAT/ext2 partition", Mount));
+        add(new Command("mkfs.ext2", "mkfs.ext2 partition [--yes] [-L label]", "Format an unmounted secondary partition as ext2", MkfsExt2));
         add(new Command("lsblk", "lsblk", "List disks and partitions", Lsblk));
         add(new Command("loadkeys", "loadkeys [layout]", "Switch the keyboard layout for this session", LoadKeys));
         add(new Command("localectl", "localectl [status | list-keymaps | set-keymap layout]", "Show or set the saved keyboard layout", Localectl));
@@ -152,6 +153,39 @@ internal static class SystemCommands
             c.WriteLine(Source(m) + " on " + m.MountPoint + " type " + (m.Name == SystemMounts.Fat ? "vfat" : m.Name == "rootfs" || m.Name == "tmpfs" ? "tmpfs (" + m.Name + ")" : m.Name));
         }
 
+        return 0;
+    }
+
+    private static int MkfsExt2(CommandContext c)
+    {
+        if (c.Args.Length == 0)
+        {
+            return c.Fail("usage: mkfs.ext2 partition [--yes] [-L label]");
+        }
+        bool confirmed = false, labeled = false;
+        string label = "";
+        for (int i = 1; i < c.Args.Length; i++)
+        {
+            if (c.Args[i] == "--yes" && !confirmed)
+            {
+                confirmed = true;
+            }
+            else if (c.Args[i] == "-L" && !labeled && i + 1 < c.Args.Length)
+            {
+                label = c.Args[++i];
+                labeled = true;
+            }
+            else
+            {
+                return c.Fail("usage: mkfs.ext2 partition [--yes] [-L label]");
+            }
+        }
+        string? error = SystemMounts.FormatExt2(c.Args[0], label, confirmed);
+        if (error is not null)
+        {
+            return c.Fail(error);
+        }
+        c.WriteLine("Formatted " + c.Args[0] + " as ext2");
         return 0;
     }
 
