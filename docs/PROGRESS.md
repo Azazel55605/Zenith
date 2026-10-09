@@ -13,7 +13,8 @@
 |---|---|---|
 | `/proc`: meminfo, mounts, uptime, cmdline | Complete for initial scope | Read-only synthesized inodes, first-read snapshots, boot mount, six host tests and smoke coverage |
 | `/dev`: null, zero, random, block devices | Partial: null/zero plus read-only block nodes | Dynamic disks/partitions implemented; entropy and raw writes pending |
-| Read-write ext2 | Partial: experimental secondary volumes | Explicit `mount -t ext2`, profile gate, resize/deletion reclamation and independent host checks; root migration pending |
+| Read-write ext2 | Partial: experimental secondary volumes | Explicit `mount -t ext2`, profile gate, resize/deletion reclamation, persisted allocator counters and two-group fixture; root migration pending |
+| Files desktop app | Complete for initial scope | 292 host tests; native keyboard/mouse workflow and independent persisted-file check pass |
 | ext2 installer root | Pending | Depends on ext2 |
 | Users/login, shadow, passwd, su, useradd | Pending | Requires persistent ownership and permission model |
 | VFS permission enforcement | Pending | Audit every file-operation entry point |
@@ -225,3 +226,53 @@ permissions and reports accurate metadata through `ls -l`.
 - Assessment only: no Bash cross-build or guest execution, no kernel changes,
   and no roadmap/runtime architecture switch. M2's next implementation slice
   remains formatter/multiple-group validation after this review.
+
+### 2026-10-09 · Sixth M2 slice · Files desktop app and multi-group ext2
+
+- Added a small Files window in the launcher and `open files [DIRECTORY]`, with
+  folder navigation, selected-item opening in Editor, file/folder creation,
+  rename, file copy/move, paste to the chosen location, refresh and confirmed
+  deletion of files or empty folders. Errors remain visible in the status line.
+  Name validation and overwrite refusal preserve existing files; transfer state
+  belongs to each window. `man files` and README document the controls.
+- Plain .NET `FileBrowser` keeps operations host-testable. File copying is bounded
+  to 8 MiB, Editor opening to 128 KiB; known virtual/device paths and final
+  symlinks are rejected for copy/open. Folder copying and moves between parent
+  directories are intentionally unavailable while ext2 directory-move parent
+  link accounting remains unvalidated. Folder rename stays available. Operations
+  run synchronously; this app is built into the desktop, not a separate program
+  runtime or a users/permissions boundary.
+- Expanded the independently formatted scratch ext2 volume to 16 MiB/two block
+  groups, with an 8 MiB host filler exhausting the first group. Host verification
+  additionally requires the retained guest-created inode to point into group two,
+  and exact file manager text content after unmount and VM shutdown.
+- A new synthetic full-first-group/remount regression reproduced a persisted
+  counter mismatch (expected 25 free blocks, observed 26). Block and inode
+  allocate/free paths now update volume counts before persisting group descriptors
+  and superblock. Regressions cover second-group allocation/free/reuse and inode
+  counts across remount. The complete host suite passes **292/292**; harness
+  regressions pass **3/3**. The native ISO build succeeds; existing Cosmos and
+  xUnit warnings remain.
+- Initial native create/edit/rename/copy/move checks passed, but Delete was ignored
+  by the bundled Cosmos virtio keyboard driver (its Linux-keycode mapping lacks
+  KEY_DELETE). Added Ctrl+D for the same confirmation, retaining the toolbar and
+  Delete handling on supported inputs. The expanded harness checks actual toolbar
+  mouse deletion, keyboard confirmation/cancellation, overwrite refusal and the
+  saved result. All **72/72 native checks** pass, including existing install,
+  desktop, panic and poweroff. Visual inspection confirms the toolbar, selected
+  filename/size and visible result status.
+- The full run initially reported **72/73** because the new host checker expected
+  saved text without a newline; `TextDocument.Save` deliberately appends one.
+  Corrected the exact expected content to `file-manager-data\n`, then reran only
+  the independent host verification on the retained disk: **1/1** passes, with
+  check-only e2fsck exit 0, unchanged host seed, exact truncated inode counts,
+  second-group allocation (retained data block 8787) and saved Editor text.
+  All **73 checks** are now validated; no guest code changed after that run.
+  Evidence: `/tmp/zenith-files-tests.log`, `/tmp/zenith-files-build.log`,
+  `/tmp/zenith-files-smoke-final.log` (initial checker result), and
+  `/tmp/zenith-files-smoke-final/ext2-check.log`, `ext2-disk.img`, `files.ppm`
+  / `files.png` (retained scratch artifacts, not committed).
+- Next: formatter interoperability, ownership/mode/symlink semantics, directory
+  parent-link accounting and open-handle unlink behavior before installer/root
+  migration. Installed roots still use FAT32; users/permissions and check-only
+  guest fsck remain pending. M2 remains open.

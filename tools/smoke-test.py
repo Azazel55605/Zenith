@@ -92,6 +92,16 @@ STEPS = [
     ("mkdir /mnt/ext/empty && rmdir /mnt/ext/empty && logger ext2-rmdir-ok", "user: ext2-rmdir-ok"),
     ("cat /mnt/ext/sparse.bin | logger", "user: sparse-shrunk"),
     ("cat /mnt/ext/indirect | logger", "user: shrunk"),
+    ("mkdir /mnt/ext/fm && open files /mnt/ext/fm && logger files-open", "user: files-open"),
+    ("{delay}{ctrl-shift-n}dest\n", "files: created /mnt/ext/fm/dest"),
+    ("{ctrl-n}report.txt\n", "files: created /mnt/ext/fm/report.txt"),
+    ("\n{delay}file-manager-data{ctrl-s}{ctrl-q}{ctrl-d}{esc}{f2}{ctrl-a}notes.txt\n", "files: renamed /mnt/ext/fm/notes.txt"),
+    ("{ctrl-c}{ctrl-v}\n", "files: error: That name already exists. Choose another name."),
+    ("{ctrl-v}{ctrl-a}copy.txt\n", "files: copied /mnt/ext/fm/copy.txt"),
+    ("{ctrl-x}{ctrl-l}{ctrl-a}/mnt/ext/fm/dest\n{ctrl-v}\n", "files: moved /mnt/ext/fm/dest/copy.txt"),
+    ("{click-delete}\n", "files: deleted /mnt/ext/fm/dest/copy.txt"),
+    ("{backspace}{ctrl-d}\n", "files: deleted /mnt/ext/fm/dest"),
+    ("{snapshot}{ctrl-q}cat /mnt/ext/fm/notes.txt | logger", "user: file-manager-data"),
     ("umount /mnt/ext && logger ext2-unmounted", "user: ext2-unmounted"),
     ("crash", "panic: InvalidOperationException: panic requested: crash command"),
 ]
@@ -163,7 +173,18 @@ class Machine:
         # {ctrl-a}, {ctrl-shift-v}...: key chords; ^C ^S ^Q: shorthands; %%DELAY%%: let a window open.
         text = text.replace("^C", "{ctrl-c}").replace("^S", "{ctrl-s}").replace("^Q", "{ctrl-q}").replace("%%DELAY%%", "{delay}")
         for part in re.split(r"(\{[a-z0-9-]+\})", text):
-            if part == "{delay}":
+            if part == "{click-delete}":
+                # Fixed 1280x800 smoke desktop: Files opens at (372,240),
+                # Delete's center is (1037,338); the untouched pointer is (640,400).
+                self.command("mouse_move 397 -62")
+                time.sleep(0.5)
+                self.command("mouse_button 1")
+                time.sleep(0.2)
+                self.command("mouse_button 0")
+                time.sleep(0.5)
+            elif part == "{snapshot}":
+                self.screenshot(self.workdir / "files.ppm")
+            elif part == "{delay}":
                 time.sleep(1.5)
             elif part.startswith("{") and part.endswith("}"):
                 time.sleep(0.5)
@@ -267,7 +288,7 @@ def main() -> int:
             print(f"ok   boot ({time.time() - start:.1f}s)")
             time.sleep(2)   # let the first frames settle before typing
             for line, expected in STEPS:
-                machine.type(line + "\n")
+                machine.type(line if line.endswith("\n") else line + "\n")
                 if machine.wait_for(expected, args.step_timeout):
                     print(f"ok   {line}")
                 else:
@@ -284,7 +305,7 @@ def main() -> int:
                 failures += 1
             if args.keep:
                 args.keep.mkdir(parents=True, exist_ok=True)
-                for name in ("serial.log", "final.ppm", "ext2-check.log", "ext2-disk.img"):
+                for name in ("serial.log", "final.ppm", "files.ppm", "ext2-check.log", "ext2-disk.img"):
                     if (machine.workdir / name).exists():
                         shutil.copy(machine.workdir / name, args.keep / name)
             if failures:

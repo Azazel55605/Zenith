@@ -57,19 +57,26 @@ short writes clean unfinished pointer tables. Writes and size changes are limite
 to 67,383,296 bytes at the supported block size (direct, single and double indirect
 mapping); triple-indirect file I/O remains unsupported. Size changes to symlink
 inodes are rejected, and deletion treats fast symlink targets as inline bytes.
-Symlink resolution, ownership/mode changes, permission enforcement, multiple
-block groups and crash recovery still require validation before root migration.
+Symlink resolution, ownership/mode changes, permission enforcement, directory
+parent-link accounting and crash recovery still require validation before root migration.
 
 The smoke harness creates a second disposable SATA disk with an MBR Linux
 partition. `tools/ext2_fixture.py` formats only that scratch image using
-`mke2fs -t ext2 -b 1024 -I 128 -O none,filetype`, with a host-created seed file.
+`mke2fs -t ext2 -b 1024 -I 128 -O none,filetype`, with host-created seed files.
+The 16 MiB volume has two block groups;
+an 8 MiB filler exhausts the first group before guest allocation.
 Guest checks cover reads, writes, case-sensitive names, rename/delete, indirect
 blocks, truncation, sparse and double-indirect deletion, and unmount/remount.
+Files window checks create a directory and file, edit/save, cancel deletion,
+rename, reject overwrite, copy, move, and delete a file and empty folder.
 Host `debugfs` also checks that truncated files have exactly one allocated data
-block and no indirect tables. After QEMU exits, the harness extracts the partition,
+block and no indirect tables, that the retained guest-created file has a data
+block in the second group, and that the file manager's saved text persists.
+After QEMU exits, the harness extracts the partition,
 runs **check-only** `e2fsck -f -n`, and uses `debugfs` to verify persisted content.
 Both guest checks and the independent host check must pass. `--keep DIR` retains
-`ext2-check.log` and `ext2-disk.img` along with the serial log and screenshot.
+`ext2-check.log` and `ext2-disk.img` along with the serial log, final screenshot
+and Files window screenshot (`files.ppm`).
 The fixture requires `mke2fs`, `e2fsck` and `debugfs` from e2fsprogs; CI installs it.
 
 ## Debugging a crash

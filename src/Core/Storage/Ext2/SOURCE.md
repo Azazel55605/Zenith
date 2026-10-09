@@ -20,6 +20,8 @@ updates write/resize timestamps. Freed inodes persist zero links and deletion
 time; empty directory removal reclaims every data/pointer block. Writes and size changes are bounded by the
 direct + single + double indirect mapper; triple-indirect file I/O remains
 unsupported. Host regression tests and the externally formatted QEMU fixture
-cover these changes.
+cover these changes. Allocation/free now updates volume free counters before
+persisting the group descriptor and superblock; remount regressions cover both
+block and inode counters, including a full first group and second-group reuse.
 
 Keep changes narrow and reconcile with upstream before replacing this copy.

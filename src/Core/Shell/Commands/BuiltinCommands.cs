@@ -24,7 +24,7 @@ internal static class BuiltinCommands
         add(new Command("true", "true", "Do nothing, successfully", _ => 0));
         add(new Command("false", "false", "Do nothing, unsuccessfully", _ => 1));
         add(new Command("which", "which command...", "Show where a command comes from", Which));
-        add(new Command("open", "open app [file]", "Open a desktop application (welcome, editor, system, terminal)", Open));
+        add(new Command("open", "open app [file]", "Open a desktop application (welcome, files, editor, system, terminal)", Open));
         add(new Command("edit", "edit [file]", "Open a file in the text editor", Edit));
     }
 

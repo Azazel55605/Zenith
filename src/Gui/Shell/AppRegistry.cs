@@ -27,6 +27,7 @@ internal static class AppRegistry
     {
         new AppInfo("Welcome", "Getting started", _ => new WelcomeWindow()),
         new AppInfo("Terminal", "Command line shell", _ => new TerminalWindow()),
+        new AppInfo("Files", "Browse and manage files", path => new FileManagerWindow(path)),
         new AppInfo("Editor", "Edit text files", path => new EditorWindow(path)),
         new AppInfo("System", "About this machine", _ => new SystemInfoWindow()),
     };

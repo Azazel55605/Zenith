@@ -5,7 +5,7 @@ import struct
 import subprocess
 
 START = 2048 * 512
-SIZE = 8 * 1024 * 1024
+SIZE = 16 * 1024 * 1024
 
 
 def create(workdir: Path) -> Path:
@@ -16,6 +16,8 @@ def create(workdir: Path) -> Path:
     with (seed / "sparse.bin").open("wb") as file:
         file.seek(268 * 1024)  # first double-indirect data block
         file.write(bytes([0x6b]) * 1024)
+    # Occupy the first group so guest allocation must use the next group.
+    (seed / "fill.bin").write_bytes(bytes([0x37]) * (8 * 1024 * 1024))
     volume = workdir / "ext2-volume.img"
     with volume.open("wb") as file:
         file.truncate(SIZE)
@@ -51,12 +53,16 @@ def verify(disk: Path, report: Path) -> bool:
     indirect = subprocess.run(["debugfs", "-R", "stat /indirect", str(volume)], capture_output=True, text=True)
     sparse = subprocess.run(["debugfs", "-R", "stat /sparse.bin", str(volume)], capture_output=True, text=True)
     shrunk = subprocess.run(["debugfs", "-R", "cat /sparse.bin", str(volume)], capture_output=True, text=True)
+    managed = subprocess.run(["debugfs", "-R", "cat /fm/notes.txt", str(volume)], capture_output=True, text=True)
     report.write_text(fsck.stdout + fsck.stderr + "\nPersisted file:\n" + content.stdout + content.stderr
                       + "\nHost seed file:\n" + seed.stdout + seed.stderr
                       + "\nTruncated indirect inode:\n" + indirect.stdout + indirect.stderr
-                      + "\nTruncated sparse inode:\n" + sparse.stdout + sparse.stderr)
+                      + "\nTruncated sparse inode:\n" + sparse.stdout + sparse.stderr
+                      + "\nFile manager saved file:\n" + managed.stdout + managed.stderr)
     return (fsck.returncode == 0 and content.returncode == 0 and content.stdout == "persisted-ext2\n"
             and seed.returncode == 0 and seed.stdout == "host-ext2\n"
             and re.search(r"\bBlockcount:\s+2\b", indirect.stdout) is not None and "(IND)" not in indirect.stdout
             and re.search(r"\bBlockcount:\s+2\b", sparse.stdout) is not None and "(IND)" not in sparse.stdout and "(DIND)" not in sparse.stdout
-            and shrunk.stdout == "sparse-shrunk\n")
+            and shrunk.stdout == "sparse-shrunk\n"
+            and managed.stdout == "file-manager-data\n"
+            and any(int(block) >= 8193 for block in re.findall(r"\(0\):(\d+)", indirect.stdout)))

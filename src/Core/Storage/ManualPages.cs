@@ -11,6 +11,42 @@ internal static class ManualPages
 
     public static readonly (string Name, string Text)[] Pages =
     {
+        ("files", """
+            NAME
+                files - simple graphical file manager
+
+            SYNOPSIS
+                open files [DIRECTORY]
+
+            DESCRIPTION
+                Starts in /home/user unless a directory is supplied. Select a row
+                and use Open or Enter to browse folders or open text in Editor.
+                Up goes to the parent; Refresh reloads the list.
+                New file / Folder creates an empty file or directory. Rename
+                changes the selected name. Copy / Move remembers the selection in
+                this window; browse to the destination and choose Paste.
+                Existing names are never overwritten. Delete asks for confirmation
+                and removes only files or empty folders. Errors appear at the bottom.
+
+            KEYS
+                Arrows, Home/End, PageUp/Down    select items
+                Enter                          open selected item / confirm prompt
+                Backspace                      parent directory
+                Ctrl+L                         change location
+                Ctrl+N / Ctrl+Shift+N           new file / folder
+                F2 / F5                        rename / refresh
+                Ctrl+C / Ctrl+X / Ctrl+V        copy / move / paste
+                Delete or Ctrl+D / Escape      ask to delete / cancel prompt
+                Ctrl+A                         clear name/location prompt
+                Ctrl+Q                         close window
+
+            LIMITS
+                File copies are limited to 8 MiB, Editor opening to 128 KiB.
+                Folder copying/moves between parents and opening/copying device, virtual or linked files
+                are unavailable. Moving across filesystems may fail; errors are
+                shown without falling back to copy/delete. This is a built-in
+                desktop app, not a separate executable or a permission boundary.
+            """),
         ("zenith", """
             NAME
                 zenith - introduction to the Zenith operating system

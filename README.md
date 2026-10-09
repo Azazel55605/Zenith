@@ -72,6 +72,19 @@ Settings: `localectl set-keymap de`, `timedatectl set-timezone Europe/Berlin`.
 `edit file` opens the text editor, `open system` any desktop app, `fps` shows compositor statistics.
 Windows resize from their edges; double-click a title bar to maximize.
 
+**Files** in the launcher (or `open files /mnt/ext`) is a small file manager.
+Select an item and choose Open, or press Enter; text files open in Editor.
+The toolbar creates files/folders, renames, copies/moves and deletes files or
+empty folders after confirmation. Copy/Move stores a selection in that window;
+browse to the destination and choose Paste. Existing names are never overwritten.
+Errors appear in the bottom status line. Ctrl+L changes location, F5 refreshes,
+F2 renames, Ctrl+N creates a file and Ctrl+Shift+N a folder. Ctrl+C/X/V
+copies/moves/pastes; Delete (or Ctrl+D) asks for confirmation; Escape cancels; Ctrl+Q closes.
+On the bundled virtio keyboard, use Ctrl+D or the toolbar for deletion.
+In name/location prompts, Ctrl+A clears the current value. Copies are limited to
+8 MiB and opening in Editor to 128 KiB. Moving folders between parents and copying
+folders, devices, virtual files or symlinks are unavailable. See `man files`.
+
 ## Documentation
 
 - [`INSTRUCTIONS.md`](INSTRUCTIONS.md): shared contributor and agent guidance (also linked from `AGENTS.md` and `CLAUDE.md`).
@@ -115,7 +128,7 @@ src/Gui/
   Terminal/                TerminalBuffer: ANSI-colored scrollback
   Shell/                   Desktop compositor, Taskbar, LauncherMenu, AppRegistry
   Window.cs, WindowManager.cs, Input.cs, FrameStats.cs
-src/Apps/                  Terminal, Editor, Welcome, System
+src/Apps/                  Terminal, Files, Editor, Welcome, System
 Resources/Fonts/           Inter (UI) and Hack (terminal); embedded via tools/gen-fonts.py
 tests/Zenith.Tests/        xunit tests compiled against the kernel's plain-.NET sources
 tools/                     run.sh, make-bootable.sh, smoke-test.py, use-cosmos.sh, gen-fonts.py

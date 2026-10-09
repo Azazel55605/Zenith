@@ -52,6 +52,7 @@ internal sealed class Desktop
         MouseManager.SetPosition(w / 2, h / 2);
 
         TerminalWindow.OpenApp = OpenApp;
+        FileManagerWindow.OpenApp = OpenApp;
         CommandShell.Register(new Command("fps", "fps", "Show compositor statistics", c =>
         {
             c.WriteLine("frames presented: " + FrameStats.Frames + ", scene composes: " + FrameStats.SceneComposes);

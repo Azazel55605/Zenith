@@ -10,7 +10,8 @@ public class Ext2AllocationTests
     // Small synthetic one-group layout. Bitmap bit zero describes block ONE.
     internal sealed class Disk : IBlockDevice
     {
-        public readonly byte[] Data = new byte[32 * 1024];
+        public readonly byte[] Data;
+        public Disk(int blocks = 32) => Data = new byte[blocks * 1024];
         public string Name => "ext2-regression";
         public ulong BlockSize => 512;
         public ulong BlockCount => (ulong)Data.Length / BlockSize;
@@ -54,6 +55,47 @@ public class Ext2AllocationTests
         Assert.Equal(23u, sb.FreeBlocksCount);
         Assert.True(sb.TryAllocateBlock(0, out uint reused));
         Assert.Equal(block, reused);
+    }
+
+    [Fact]
+    public void FullFirstGroupAllocatesAndFreesInSecondGroupAcrossRemount()
+    {
+        var (initial, _) = Mount();
+        var disk = new Disk(65);
+        initial.Data.CopyTo(disk.Data, 0);
+        disk.Put(1024, 32); disk.Put(1028, 65); disk.Put(1036, 26);
+        disk.Put(2060, 5u << 16); // first group has no free blocks
+        disk.Data.AsSpan(3072, 4).Fill(0xff);
+        disk.Put(2080, 35); disk.Put(2084, 36); disk.Put(2088, 37);
+        disk.Put(2092, (16u << 16) | 26u);
+        disk.Data[35 * 1024] = 0x3f; // group-two metadata occupies blocks 33..38
+        Assert.True(Ext2Superblock.TryCreate(disk, out var mounted));
+        Assert.Equal(2u, mounted!.GroupsCount);
+        Assert.True(mounted.TryAllocateBlock(0, out uint block));
+        Assert.Equal(39u, block);
+        Assert.Equal(0x7f, disk.Data[35 * 1024]);
+        Assert.Equal(0xff, disk.Data[3072]);
+        Assert.True(Ext2Superblock.TryCreate(disk, out var remounted));
+        Assert.Equal(25u, remounted!.FreeBlocksCount);
+        remounted.FreeBlock(block);
+        Assert.Equal(0x3f, disk.Data[35 * 1024]);
+        Assert.Equal(26u, remounted.FreeBlocksCount);
+        Assert.True(Ext2Superblock.TryCreate(disk, out var freed));
+        Assert.Equal(26u, freed!.FreeBlocksCount);
+        Assert.True(remounted.TryAllocateBlock(0, out uint reused));
+        Assert.Equal(block, reused);
+    }
+
+    [Fact]
+    public void InodeFreeCountsArePersistedBeforeRemount()
+    {
+        var (disk, sb) = Mount();
+        Assert.True(sb.TryAllocateInode(0, out uint inode));
+        Assert.True(Ext2Superblock.TryCreate(disk, out var allocated));
+        Assert.Equal(4u, allocated!.FreeInodesCount);
+        allocated.FreeInode(inode);
+        Assert.True(Ext2Superblock.TryCreate(disk, out var freed));
+        Assert.Equal(5u, freed!.FreeInodesCount);
     }
 
     [Fact]

@@ -594,8 +594,8 @@ internal sealed class Ext2Superblock : IVfsSuperblock
                     bmp[byteIdx] |= (byte)(1u << (int)bitIdx);
                     WriteBlocks(gd.InodeBitmap, 1, bmp);
                     gd.FreeInodesCount--;
-                    UpdateGroupDesc(gi);
                     FreeInodesCount--;
+                    UpdateGroupDesc(gi);
                     inodeNumber = gi * InodesPerGroup + i + 1;
                     return true;
                 }
@@ -626,8 +626,8 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         bmp[byteIdx] &= (byte)~(1u << (int)bitIdx);
         WriteBlocks(gd.InodeBitmap, 1, bmp);
         gd.FreeInodesCount++;
-        UpdateGroupDesc(group);
         FreeInodesCount++;
+        UpdateGroupDesc(group);
         _inodeCache.Remove(inodeNumber);
     }
 
@@ -663,8 +663,8 @@ internal sealed class Ext2Superblock : IVfsSuperblock
                     bmp[byteIdx] |= (byte)(1u << (int)bitIdx);
                     WriteBlocks(gd.BlockBitmap, 1, bmp);
                     gd.FreeBlocksCount--;
-                    UpdateGroupDesc(gi);
                     FreeBlocksCount--;
+                    UpdateGroupDesc(gi);
                     blockNumber = groupStart + i;
                     byte[] zero = new byte[BlockSize];
                     WriteBlocks(blockNumber, 1, zero);
@@ -703,8 +703,8 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         bmp[byteIdx] &= (byte)~(1u << (int)bitIdx);
         WriteBlocks(gd.BlockBitmap, 1, bmp);
         gd.FreeBlocksCount++;
-        UpdateGroupDesc(group);
         FreeBlocksCount++;
+        UpdateGroupDesc(group);
     }
 
     /// <summary>
