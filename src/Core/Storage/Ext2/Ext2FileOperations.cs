@@ -3,6 +3,7 @@
 using Cosmos.Kernel.HAL.Vfs;
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 
 namespace Zenith.Core.Storage.Ext2;
@@ -46,10 +47,13 @@ internal sealed class Ext2FileOperations : IFileOperations
             return 0;
         }
 
-        // Short targets live inline in i_block, not in data blocks.
+        // Reading a link returns its stored target, regardless of storage form.
         if (inode.IsSymlink)
         {
-            string target = ReadSymlinkTarget(inode);
+            if (!TryReadSymlinkTarget(inode, out string? target))
+            {
+                return 0;
+            }
             byte[] bytes = global::System.Text.Encoding.UTF8.GetBytes(target);
             long pos = openFile.Position;
             if (pos >= bytes.Length)
@@ -280,51 +284,55 @@ internal sealed class Ext2FileOperations : IFileOperations
     /// </summary>
     /// <param name="inode">Symlink inode.</param>
     internal static string ReadSymlinkTarget(Ext2Inode inode)
-    {
-        ulong size = inode.FullSize;
-        if (size <= Ext2InodeLayout.InlineSymlinkMax)
-        {
-            // Short targets are packed into i_block itself (60 bytes).
-            Span<byte> raw = new byte[60];
-            for (int i = 0; i < 15; i++)
-            {
-                BitConverter.TryWriteBytes(raw.Slice(i * 4, 4), inode.Block[i]);
-            }
+        => TryReadSymlinkTarget(inode, out string? target) ? target! : throw new global::System.IO.IOException("Invalid ext2 symlink target");
 
-            return global::System.Text.Encoding.UTF8.GetString(raw[..(int)size]);
+    internal static bool TryReadSymlinkTarget(Ext2Inode inode, [NotNullWhen(true)] out string? target)
+    {
+        target = null;
+        ulong size = inode.FullSize;
+        if (!inode.IsSymlink || size == 0 || size >= inode.Superblock.BlockSize)
+        {
+            return false;
+        }
+
+        byte[] raw;
+        if (inode.Blocks == 0)
+        {
+            if (size > Ext2InodeLayout.InlineSymlinkMax)
+            {
+                return false;
+            }
+            raw = new byte[Ext2InodeLayout.InlineSymlinkMax];
+            for (int i = 0; i < Ext2InodeLayout.BlockCount; i++)
+            {
+                BitConverter.TryWriteBytes(raw.AsSpan(i * 4, 4), inode.Block[i]);
+            }
         }
         else
         {
-            // Blocks.
-            uint blockSize = inode.Superblock.BlockSize;
-            byte[] buf = new byte[size];
-            uint logical = 0;
-            int copied = 0;
-            while ((ulong)copied < size)
+            // i_blocks, not target length, distinguishes inline from block-backed
+            // links (imported short links may still occupy a data block).
+            if (inode.Block[0] == 0)
             {
-                uint blk = inode.Superblock.GetBlockPointer(inode, logical, false, out _);
-                if (blk == 0)
-                {
-                    break;
-                }
-
-                byte[] blkBuf = new byte[blockSize];
-                inode.Superblock.ReadBlocks(blk, 1, blkBuf);
-                int toCopy = (int)Math.Min(blockSize, size - (ulong)copied);
-                blkBuf.AsSpan(0, toCopy).CopyTo(buf.AsSpan(copied, toCopy));
-                copied += toCopy;
-                logical++;
+                return false;
             }
-
-            return global::System.Text.Encoding.UTF8.GetString(buf);
+            raw = new byte[inode.Superblock.BlockSize];
+            inode.Superblock.ReadBlocks(inode.Block[0], 1, raw);
         }
+
+        if (raw.AsSpan(0, (int)size).IndexOf((byte)0) >= 0)
+        {
+            return false;
+        }
+        target = global::System.Text.Encoding.UTF8.GetString(raw, 0, (int)size);
+        return true;
     }
 
     /// <summary>
     /// Pack a short symlink target into i_block (60 bytes, no data blocks).
     /// </summary>
     /// <param name="inode">Symlink inode to fill.</param>
-    /// <param name="target">Link target; must fit in 60 bytes.</param>
+    /// <param name="target">Link target; must use fewer than 60 UTF-8 bytes.</param>
     internal static void WriteInlineSymlink(Ext2Inode inode, string target)
     {
         byte[] bytes = global::System.Text.Encoding.UTF8.GetBytes(target);

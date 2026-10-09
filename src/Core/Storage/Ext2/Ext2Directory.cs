@@ -65,6 +65,17 @@ internal static class Ext2DirectoryHelper
     /// <summary>Upper bound on entries walked per parse: corrupt rec_len chains must terminate.</summary>
     private const int MaxParseIters = 8192;
 
+    internal static bool IsValidName(ReadOnlySpan<char> name)
+    {
+        if (name.Length == 0 || name.SequenceEqual(".") || name.SequenceEqual("..")
+            || name.IndexOf('/') >= 0 || name.IndexOf('\0') >= 0)
+        {
+            return false;
+        }
+
+        return global::System.Text.Encoding.UTF8.GetByteCount(name) <= 255;
+    }
+
     /// <summary>
     /// Parse the directory's entries. Stops on the first malformed record
     /// (zero or undersized rec_len, a name longer than its record, or a
@@ -192,7 +203,7 @@ internal static class Ext2DirectoryHelper
     /// <returns>true when the entry was inserted.</returns>
     public static bool AddEntry(Ext2Superblock sb, Ext2Inode dir, string name, uint inodeNumber, byte fileType)
     {
-        if (name.Length > 255)
+        if (!IsValidName(name))
         {
             return false;
         }

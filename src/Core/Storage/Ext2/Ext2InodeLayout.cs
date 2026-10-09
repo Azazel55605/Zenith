@@ -81,7 +81,7 @@ internal static class Ext2InodeLayout
     /// <summary>Index into i_block of the triple-indirect pointer (not resolved by this driver).</summary>
     public const int TripleIndirectIndex = 14;
 
-    /// <summary>Longest symlink target stored inline in i_block (60 bytes).</summary>
+    /// <summary>Bytes available in i_block for an inline target, including its terminating NUL.</summary>
     public const int InlineSymlinkMax = 60;
 
     // Mode file-type bits (mirrors Unix S_IFMT).

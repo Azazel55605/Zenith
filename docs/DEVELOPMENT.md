@@ -103,6 +103,17 @@ one per second. Cosmos 3.0.89 otherwise collects only when managed allocation
 fails; native thread stacks can exhaust physical pages first. The large profile
 runs at 512 MiB in CI to exercise this path. This is a headroom policy, not a
 guarantee of graceful recovery when the live working set exceeds available RAM.
+The guest symlink checks create relative, absolute, directory, dangling and
+block-backed links; reject duplicate names and unsupported FAT creation; bound
+loop resolution; remove links while preserving their target; and reread after
+remount. The host checks link type/mode, inline target text, raw block target and
+terminator, and absence of deleted links using debugfs, alongside e2fsck.
+`ln -s TARGET LINK`, `readlink LINK` and `unlink FILE` use directory handles so
+inspection/removal does not follow the final link. Target lengths use UTF-8
+bytes: 1..59 inline, 60..1023 in one block. Names reject dot components, slash,
+NUL and more than 255 UTF-8 bytes before allocation. The installed VFS rejects
+`..` inside target paths and caps resolution at eight hops. No hard links or
+permission enforcement is claimed by this slice; `ls -l` metadata remains pending.
 The formatter is currently limited to the profile above and 1..512 MiB partitions;
 preflight rejects a final group too short for metadata. UUID remains unassigned;
 this is not a secure wipe or a journal. Installer/root migration remains pending.

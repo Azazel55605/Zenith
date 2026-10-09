@@ -9,7 +9,7 @@ namespace Zenith.Tests;
 
 public sealed class Ext2FormatterTests
 {
-    private sealed class Disk : IBlockDevice, IDisposable
+    internal sealed class Disk : IBlockDevice, IDisposable
     {
         public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "zenith-mkfs-" + Guid.NewGuid());
         private readonly FileStream _file;

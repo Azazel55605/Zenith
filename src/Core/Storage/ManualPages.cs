@@ -11,6 +11,34 @@ internal static class ManualPages
 
     public static readonly (string Name, string Text)[] Pages =
     {
+        ("ln", """
+            NAME
+                ln - create a symbolic link on an ext2 volume
+
+            SYNOPSIS
+                ln -s TARGET LINK
+
+            DESCRIPTION
+                Stores TARGET verbatim at LINK. Relative targets refer to the
+                link's parent directory; absolute targets refer to the VFS root.
+                The target need not exist. Existing names are refused.
+                Only symbolic links are supported. FAT does not support them.
+                Ext2 targets must contain 1..1023 UTF-8 bytes with no NUL.
+                Targets below 60 bytes are stored inline; others use one block.
+                readlink LINK prints the stored target without following it.
+                unlink LINK removes the link, preserving the target, including
+                when the link is dangling. unlink also removes regular files;
+                directories are refused. rm does not recognize dangling links.
+                The installed VFS refuses .. components in link targets and
+                stops following links after eight hops. Ownership/permission
+                enforcement and accurate ls -l metadata remain pending.
+
+            EXAMPLE
+                ln -s persist.txt /mnt/new/alias
+                readlink /mnt/new/alias
+                cat /mnt/new/alias
+                unlink /mnt/new/alias
+            """),
         ("mkfs.ext2", """
             NAME
                 mkfs.ext2 - format an unmounted secondary partition

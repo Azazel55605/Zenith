@@ -32,6 +32,9 @@ internal static class SystemCommands
         add(new Command("df", "df", "Show filesystem space usage", Df));
         add(new Command("mount", "mount [[-t fat|ext2] partition mountpoint]", "Show mounts, or mount a FAT/ext2 partition", Mount));
         add(new Command("mkfs.ext2", "mkfs.ext2 partition [--yes] [-L label]", "Format an unmounted secondary partition as ext2", MkfsExt2));
+        add(new Command("ln", "ln -s target link", "Create a symbolic link", Symlink));
+        add(new Command("readlink", "readlink link", "Print a symbolic link target", ReadLink));
+        add(new Command("unlink", "unlink file", "Remove a file or symbolic link", Unlink));
         add(new Command("lsblk", "lsblk", "List disks and partitions", Lsblk));
         add(new Command("loadkeys", "loadkeys [layout]", "Switch the keyboard layout for this session", LoadKeys));
         add(new Command("localectl", "localectl [status | list-keymaps | set-keymap layout]", "Show or set the saved keyboard layout", Localectl));
@@ -43,6 +46,70 @@ internal static class SystemCommands
         add(new Command("umount", "umount mountpoint", "Unmount a filesystem", Umount));
         add(new Command("reboot", "reboot", "Sync, unmount and restart the machine", _ => { PowerControl.Reboot(); return 0; }));
         add(new Command("poweroff", "poweroff", "Sync, unmount and turn the machine off", _ => { PowerControl.PowerOff(); return 0; }));
+    }
+
+    private static int Symlink(CommandContext c)
+    {
+        if (c.Args.Length != 3 || c.Args[0] != "-s")
+        {
+            return c.Fail("usage: ln -s target link (hard links are not supported)");
+        }
+
+        string path = c.Resolve(c.Args[2]);
+        if (!VfsManager.TryOpenDirectory(Path.GetDirectoryName(path) ?? "/", out var parent))
+        {
+            return c.Fail("cannot open link parent directory");
+        }
+        using (parent)
+        {
+            // Keep target verbatim: relative targets are relative to the link's parent.
+            if (!parent.TrySymlink(Path.GetFileName(path), c.Args[1], out var link))
+            {
+                return c.Fail("cannot create link (existing name, unsupported filesystem or invalid target)");
+            }
+            link.Dispose();
+        }
+        return 0;
+    }
+
+    private static int ReadLink(CommandContext c)
+    {
+        if (c.Args.Length != 1)
+        {
+            return c.Fail("usage: readlink link");
+        }
+        string path = c.Resolve(c.Args[0]);
+        if (!VfsManager.TryOpenDirectory(Path.GetDirectoryName(path) ?? "/", out var parent))
+        {
+            return c.Fail("cannot open link parent directory");
+        }
+        using (parent)
+        {
+            // Lookup the final entry without following it: dangling links work too.
+            if (!parent.TryLookup(Path.GetFileName(path), out var link))
+            {
+                return c.Fail("link does not exist");
+            }
+            using (link)
+            {
+                if (!link.Inode.InodeOperations.TryReadLink(link.Inode, out string? target) || target is null)
+                {
+                    return c.Fail("not a readable symbolic link");
+                }
+                c.WriteLine(target);
+            }
+        }
+        return 0;
+    }
+
+    private static int Unlink(CommandContext c)
+    {
+        if (c.Args.Length != 1)
+        {
+            return c.Fail("usage: unlink file");
+        }
+        // VFS removes the final directory entry; it does not follow a link target.
+        return VfsManager.TryUnlink(c.Resolve(c.Args[0])) ? 0 : c.Fail("cannot unlink file");
     }
 
     private static int Uname(CommandContext c)

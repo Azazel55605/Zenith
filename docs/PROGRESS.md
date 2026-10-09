@@ -17,6 +17,7 @@
 | Files desktop app | Complete for initial scope | 292 host tests; native keyboard/mouse workflow and independent persisted-file check pass |
 | ext2 formatter | Verified for bounded secondary partitions | 306 host tests; 88/88 baseline + 88/88 large-profile QEMU checks; clean independent e2fsck |
 | Runtime heap under large ext2 I/O | Verified for current stress workload | Proactive physical-page reserve; 9 MiB write/delete and subsequent commands pass at 512 MiB; general graceful OOM remains open |
+| ext2 symbolic links | Verified for bounded targets | 332 host tests and 101/101 QEMU checks; inline/block-backed targets, dangling links, loops, remount and deletion; .. resolution remains unsupported |
 | ext2 installer root | Pending | Depends on ext2 |
 | Users/login, shadow, passwd, su, useradd | Pending | Requires persistent ownership and permission model |
 | VFS permission enforcement | Pending | Audit every file-operation entry point |
@@ -374,3 +375,47 @@ permissions and reports accurate metadata through `ls -l`.
   late-collection failure; it does not repair every possible runtime allocation
   failure or establish arbitrary live-set OOM safety. M2 remains open. Next:
   inode ownership/mode/symlink semantics, then permissions and ext2 root migration.
+
+### 2026-10-09 · Ninth M2 slice · Bounded ext2 symbolic links
+
+- Audit found symlink creation storing long-target blocks directly in all 15
+  i_block slots (including indirect slots, with a 16th out-of-range access), and
+  treating 60 bytes as an inline target without room for the terminator. Changed
+  creation to Linux ext2's one-block target limit (1..1023 UTF-8 bytes here), with
+  targets below 60 bytes inline and larger targets in one data block; mode 0777.
+- Reads use i_blocks to distinguish storage, including imported short links
+  backed by a block, and bound sizes before allocation. Empty, embedded-NUL and
+  oversized targets are refused. Creation and namespace mutation validate names
+  as non-dot components of at most 255 UTF-8 bytes, preventing inode allocation
+  before rejection. Added host regressions and independent fsck checks for
+  1/59/60/61/1023-byte targets, remount and deletion reclamation, multibyte
+  boundaries, invalid names/targets, corrupt sizes and disk-full cleanup.
+- Added guest `ln -s TARGET LINK`, `readlink LINK` and `unlink FILE` using the
+  installed 3.0.89 directory-handle API (verified via Mono.Cecil). Final-entry
+  lookup does not follow links; dangling links can be inspected and removed.
+  Existing destinations are refused; hard links/FAT symlinks remain unsupported.
+- Extended QEMU coverage and independent debugfs/raw-block verification for
+  relative, absolute, directory, dangling and block-backed targets, link loops,
+  duplicate refusal, removal preserving the target and remount behavior.
+- Ownership/mode mutation remains the next slice. The installed VFS rejects ..
+  in symlink targets and limits resolution to eight hops; ls -l still needs real
+  metadata. Documented these limits in README/man ln.
+- Initial native run passed link creation/inspection but exposed a harness
+  mistake: `cat` reports absent files yet currently returns status 0. Stopped
+  that run and changed dangling/loop assertions to `test -f`, which exercises
+  VFS target resolution without relying on cat's error status. Shell filter
+  error-status propagation remains a separate follow-up. Interrupted-run
+  evidence is retained under `/tmp/zenith-links-smoke/`.
+- Final validation: **332/332 host tests**, **3/3 Python matcher tests**, and
+  native Debug publish pass. Full **101/101 QEMU checks** pass with the 9 MiB
+  workload at 512 MiB RAM, including all link operations, remount reads, installed
+  FAT-root reboot and clean poweroff. Independent e2fsck is clean for both ext2
+  volumes. debugfs/raw-block checks confirm link type, mode 0777, exact targets,
+  terminating NUL for the slow link, and absence of deleted temporary/cyclic links;
+  retained regular data remains in group two and partition guards are untouched.
+- Evidence: `/tmp/zenith-links-tests.log`, `/tmp/zenith-links-build.log`,
+  `/tmp/zenith-links-smoke-verified.log` and `/tmp/zenith-links-smoke-verified/`.
+  CI's existing 512 MiB large profile now exercises these checks automatically.
+- M2 remains open. Next: persisted ownership/mode updates and truthful stat/ls
+  output. Directory cross-parent link accounting, open-handle unlink semantics,
+  users/enforcement and installed ext2 remain pending before root migration.

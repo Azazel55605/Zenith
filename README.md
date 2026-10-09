@@ -78,6 +78,13 @@ For example: `mkfs.ext2 sata2p0 --yes -L SCRATCH`, then
 `mkdir /mnt/new; mount -t ext2 sata2p0 /mnt/new`. See `man mkfs.ext2`.
 This does not securely erase data; UUID assignment awaits entropy support.
 
+On ext2, `ln -s TARGET LINK` creates a symbolic link and `readlink LINK` prints
+its stored target, including dangling links. `unlink LINK` removes the link
+without deleting the target. Relative targets refer to the link's parent;
+existing names are refused. Targets are limited to 1..1023 UTF-8 bytes.
+The installed VFS cannot follow `..` in targets and stops after eight link hops.
+Hard links and FAT symlinks are unsupported; see `man ln`.
+
 Settings: `localectl set-keymap de`, `timedatectl set-timezone Europe/Berlin`.
 `edit file` opens the text editor, `open system` any desktop app, `fps` shows compositor statistics.
 Windows resize from their edges; double-click a title bar to maximize.

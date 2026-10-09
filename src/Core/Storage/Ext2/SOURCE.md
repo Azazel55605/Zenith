@@ -44,3 +44,10 @@ Allocator and free paths reuse bitmap, zero-block, descriptor and superblock
 scratch buffers under the driver's existing serialized I/O contract. Metadata is
 still reread on each operation; this does not cache disk state. A host allocation
 budget regression and the guest 9 MiB group-boundary workload cover the change.
+
+Symlink creation follows Linux ext2's one-block limit (including the terminating
+NUL) and 59-byte inline limit; mode is 0777. Reads distinguish inline storage by
+`i_blocks`, bound sizes before allocation, and reject missing/NUL-filled targets.
+Names are validated as non-dot single components with at most 255 UTF-8 bytes
+before allocation. This fixes the upstream routine's treatment of indirect slots
+as direct target blocks. Reference: [Linux ext2 symlink creation](https://raw.githubusercontent.com/torvalds/linux/master/fs/ext2/namei.c).
