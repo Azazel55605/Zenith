@@ -1,5 +1,6 @@
 """Disposable, independently formatted ext2 fixture for QEMU integration tests."""
 from pathlib import Path
+import re
 import struct
 import subprocess
 
@@ -11,6 +12,10 @@ def create(workdir: Path) -> Path:
     seed = workdir / "ext2-seed"
     seed.mkdir()
     (seed / "host.txt").write_text("host-ext2\n")
+    (seed / "delete.bin").write_bytes(bytes([0x5a]) * (20 * 1024))
+    with (seed / "sparse.bin").open("wb") as file:
+        file.seek(268 * 1024)  # first double-indirect data block
+        file.write(bytes([0x6b]) * 1024)
     volume = workdir / "ext2-volume.img"
     with volume.open("wb") as file:
         file.truncate(SIZE)
@@ -43,7 +48,15 @@ def verify(disk: Path, report: Path) -> bool:
     fsck = subprocess.run(["e2fsck", "-f", "-n", str(volume)], capture_output=True, text=True)
     content = subprocess.run(["debugfs", "-R", "cat /persist.txt", str(volume)], capture_output=True, text=True)
     seed = subprocess.run(["debugfs", "-R", "cat /host.txt", str(volume)], capture_output=True, text=True)
+    indirect = subprocess.run(["debugfs", "-R", "stat /indirect", str(volume)], capture_output=True, text=True)
+    sparse = subprocess.run(["debugfs", "-R", "stat /sparse.bin", str(volume)], capture_output=True, text=True)
+    shrunk = subprocess.run(["debugfs", "-R", "cat /sparse.bin", str(volume)], capture_output=True, text=True)
     report.write_text(fsck.stdout + fsck.stderr + "\nPersisted file:\n" + content.stdout + content.stderr
-                      + "\nHost seed file:\n" + seed.stdout + seed.stderr)
+                      + "\nHost seed file:\n" + seed.stdout + seed.stderr
+                      + "\nTruncated indirect inode:\n" + indirect.stdout + indirect.stderr
+                      + "\nTruncated sparse inode:\n" + sparse.stdout + sparse.stderr)
     return (fsck.returncode == 0 and content.returncode == 0 and content.stdout == "persisted-ext2\n"
-            and seed.returncode == 0 and seed.stdout == "host-ext2\n")
+            and seed.returncode == 0 and seed.stdout == "host-ext2\n"
+            and re.search(r"\bBlockcount:\s+2\b", indirect.stdout) is not None and "(IND)" not in indirect.stdout
+            and re.search(r"\bBlockcount:\s+2\b", sparse.stdout) is not None and "(IND)" not in sparse.stdout and "(DIND)" not in sparse.stdout
+            and shrunk.stdout == "sparse-shrunk\n")

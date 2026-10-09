@@ -50,14 +50,23 @@ The first supported profile is deliberately narrow: revision 1, 1 KiB blocks,
 these fields plus basic geometry before invoking the driver. It is **not fsck**
 and does not establish consistency of arbitrary images. Field definitions follow
 the [Linux filesystem superblock documentation](https://docs.kernel.org/filesystems/ext4/super.html).
-Symlinks, ownership/mode changes, permission enforcement, large/multiple block
-groups and crash recovery still require validation before root migration.
+Resize/deletion reclaim data and empty indirect tables, including sparse files;
+freed inodes retain deletion time with zero links, and
+partial-block tails are zeroed before later growth can expose them. Failed or
+short writes clean unfinished pointer tables. Writes and size changes are limited
+to 67,383,296 bytes at the supported block size (direct, single and double indirect
+mapping); triple-indirect file I/O remains unsupported. Size changes to symlink
+inodes are rejected, and deletion treats fast symlink targets as inline bytes.
+Symlink resolution, ownership/mode changes, permission enforcement, multiple
+block groups and crash recovery still require validation before root migration.
 
 The smoke harness creates a second disposable SATA disk with an MBR Linux
 partition. `tools/ext2_fixture.py` formats only that scratch image using
 `mke2fs -t ext2 -b 1024 -I 128 -O none,filetype`, with a host-created seed file.
 Guest checks cover reads, writes, case-sensitive names, rename/delete, indirect
-blocks and unmount/remount. After QEMU exits, the harness extracts the partition,
+blocks, truncation, sparse and double-indirect deletion, and unmount/remount.
+Host `debugfs` also checks that truncated files have exactly one allocated data
+block and no indirect tables. After QEMU exits, the harness extracts the partition,
 runs **check-only** `e2fsck -f -n`, and uses `debugfs` to verify persisted content.
 Both guest checks and the independent host check must pass. `--keep DIR` retains
 `ext2-check.log` and `ext2-disk.img` along with the serial log and screenshot.

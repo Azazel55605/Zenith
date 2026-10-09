@@ -13,4 +13,13 @@ checkout. Namespace changed to Zenith.Core.Storage.Ext2; block allocation,
 release and group counts account for FirstDataBlock. A small local filesystem
 type resolves Cosmos partitions; formatting/destruction are not exposed.
 
+The lifecycle adaptation additionally prunes data and empty indirect tables on
+shrink/deletion, zeroes partial-block tails on resize, treats fast symlink targets
+as inline bytes, cleans unfinished allocations on short/failed writes, and
+updates write/resize timestamps. Freed inodes persist zero links and deletion
+time; empty directory removal reclaims every data/pointer block. Writes and size changes are bounded by the
+direct + single + double indirect mapper; triple-indirect file I/O remains
+unsupported. Host regression tests and the externally formatted QEMU fixture
+cover these changes.
+
 Keep changes narrow and reconcile with upstream before replacing this copy.

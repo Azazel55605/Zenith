@@ -612,6 +612,10 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// <param name="inodeNumber">One-based inode number to free.</param>
     internal void FreeInode(uint inodeNumber)
     {
+        Ext2Inode deleted = ReadInode(inodeNumber, "");
+        deleted.LinksCount = 0;
+        deleted.Dtime = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        WriteInode(deleted);
         uint group = GroupOfInode(inodeNumber);
         uint index = IndexInGroup(inodeNumber);
         Ext2GroupDesc gd = _groups[group];
@@ -1039,125 +1043,135 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         return result;
     }
 
-    /// <summary>
-    /// Shrink a file to <paramref name="newSize"/>, freeing blocks past the
-    /// new end. Emptied indirect blocks leak (they are not reclaimed), which
-    /// only costs space, not correctness.
-    /// </summary>
-    /// <param name="inode">File inode.</param>
-    /// <param name="newSize">New size in bytes.</param>
+    /// <summary>Resize an inode, reclaiming data and empty pointer tables on shrink.
+    /// A retained partial block is zeroed past EOF so later growth cannot expose old bytes.</summary>
     internal void Truncate(Ext2Inode inode, ulong newSize)
     {
-        uint oldBlocks = (uint)((inode.FullSize + BlockSize - 1) / BlockSize);
-        uint newBlocks = (uint)((newSize + BlockSize - 1) / BlockSize);
-        if (newSize == 0)
+        ulong oldSize = inode.FullSize;
+        if (inode.IsSymlink && inode.Blocks == 0)
         {
-            newBlocks = 0;
+            // Fast symlink targets occupy i_block itself, not allocated disk blocks.
+            Array.Clear(inode.Block);
+        }
+        else if (newSize <= inode.FullSize)
+        {
+            ulong keep = (newSize + BlockSize - 1) / BlockSize;
+            for (uint i = 0; i < Ext2InodeLayout.DirectBlockCount; i++)
+            {
+                if (i >= keep)
+                {
+                    ReleaseInodeBlock(inode, inode.Block[i]);
+                    inode.Block[i] = 0;
+                }
+            }
+
+            ulong perBlock = BlockSize / 4;
+            inode.Block[12] = PruneIndirect(inode, inode.Block[12], 1, 12, keep);
+            inode.Block[13] = PruneIndirect(inode, inode.Block[13], 2, 12 + perBlock, keep);
+            inode.Block[14] = PruneIndirect(inode, inode.Block[14], 3, 12 + perBlock + perBlock * perBlock, keep);
+            InvalidateIndirCache();
+
         }
 
-        if (newBlocks < oldBlocks)
+        ulong tailStart = Math.Min(newSize, oldSize);
+        uint tail = (uint)(tailStart % BlockSize);
+        if (tail != 0 && !inode.IsSymlink)
         {
-            for (uint i = newBlocks; i < oldBlocks; i++)
+            uint block = GetBlockPointer(inode, (uint)(tailStart / BlockSize), false, out _);
+            if (block != 0)
             {
-                uint blk = GetBlockPointer(inode, i, false, out _);
-                if (blk != 0)
-                {
-                    FreeBlock(blk);
-                    SetBlockPointer(inode, i, 0);
-                    inode.Blocks -= BlockSize / 512;
-                }
+                byte[] data = new byte[BlockSize];
+                ReadBlocks(block, 1, data);
+                data.AsSpan((int)tail).Clear();
+                WriteBlocks(block, 1, data);
             }
         }
 
-        inode.Size = (uint)(newSize & 0xFFFFFFFF);
+        inode.Size = (uint)newSize;
         inode.SizeHigh = (uint)(newSize >> 32);
+        if (newSize != oldSize)
+        {
+            inode.Mtime = inode.Ctime = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        }
         WriteInode(inode);
         InvalidateIndirCache();
     }
 
-    /// <summary>
-    /// Drops the indirect block cache. Called after any write that mutates
-    /// indirect block contents outside <see cref="GetBlockPointer"/>.
-    /// </summary>
+    /// <summary>The block mapper supports direct, single and double indirect data.</summary>
+    internal ulong MaxFileSize
+    {
+        get
+        {
+            ulong perBlock = BlockSize / 4;
+            return (12 + perBlock + perBlock * perBlock) * BlockSize;
+        }
+    }
+
+    private void ReleaseInodeBlock(Ext2Inode inode, uint block)
+    {
+        if (block < FirstDataBlock || block >= BlocksCount)
+        {
+            return;
+        }
+        FreeBlock(block);
+        uint sectors = BlockSize / 512;
+        inode.Blocks = inode.Blocks >= sectors ? inode.Blocks - sectors : 0;
+    }
+
+    // Walk allocated pointers rather than every logical block: sparse file holes
+    // must not stop reclamation, and empty indirect tables must themselves be freed.
+    private uint PruneIndirect(Ext2Inode inode, uint block, int depth, ulong first, ulong keep)
+    {
+        if (block < FirstDataBlock || block >= BlocksCount)
+        {
+            return 0;
+        }
+        ulong perBlock = BlockSize / 4;
+        ulong stride = 1;
+        for (int i = 1; i < depth; i++)
+        {
+            stride *= perBlock;
+        }
+        byte[] data = new byte[BlockSize];
+        ReadBlocks(block, 1, data);
+        bool any = false, changed = false;
+        for (int i = 0; i < (int)perBlock; i++)
+        {
+            uint old = BitConverter.ToUInt32(data.AsSpan(i * 4, 4));
+            uint next = old;
+            ulong logical = first + (ulong)i * stride;
+            if (old != 0)
+            {
+                if (depth > 1)
+                {
+                    next = PruneIndirect(inode, old, depth - 1, logical, keep);
+                }
+                else if (logical >= keep)
+                {
+                    ReleaseInodeBlock(inode, old);
+                    next = 0;
+                }
+            }
+            any |= next != 0;
+            changed |= old != next;
+            BitConverter.TryWriteBytes(data.AsSpan(i * 4, 4), next);
+        }
+        if (!any)
+        {
+            ReleaseInodeBlock(inode, block);
+            return 0;
+        }
+        if (changed)
+        {
+            WriteBlocks(block, 1, data);
+        }
+        return block;
+    }
+
+    /// <summary>Drop the indirect cache after pointer-tree changes.</summary>
     private void InvalidateIndirCache()
     {
         _indirCacheBlk = uint.MaxValue;
-    }
-
-    /// <summary>
-    /// Clear a logical block pointer (used when truncating). Indirect slots
-    /// are updated with a read-modify-write through the reusable buffers.
-    /// </summary>
-    /// <param name="inode">File inode.</param>
-    /// <param name="logicalBlock">Zero-based block index within the file.</param>
-    /// <param name="value">Pointer value to store.</param>
-    private void SetBlockPointer(Ext2Inode inode, uint logicalBlock, uint value)
-    {
-        uint perBlock = BlockSize / 4;
-        if (logicalBlock < Ext2InodeLayout.DirectBlockCount)
-        {
-            inode.Block[logicalBlock] = value;
-            return;
-        }
-
-        logicalBlock -= Ext2InodeLayout.DirectBlockCount;
-        if (logicalBlock < perBlock)
-        {
-            uint indir = inode.Block[Ext2InodeLayout.SingleIndirectIndex];
-            if (indir == 0)
-            {
-                return;
-            }
-
-            if (_indirBuf1 is null || _indirBuf1.Length != BlockSize)
-            {
-                _indirBuf1 = new byte[BlockSize];
-            }
-
-            byte[] buf = _indirBuf1;
-            ReadBlocks(indir, 1, buf);
-            BitConverter.TryWriteBytes(buf.AsSpan((int)logicalBlock * 4, 4), value);
-            WriteBlocks(indir, 1, buf);
-            InvalidateIndirCache();
-            return;
-        }
-
-        logicalBlock -= perBlock;
-        uint perSq = perBlock * perBlock;
-        if (logicalBlock < perSq)
-        {
-            uint dindir = inode.Block[Ext2InodeLayout.DoubleIndirectIndex];
-            if (dindir == 0)
-            {
-                return;
-            }
-
-            uint firstIdx = logicalBlock / perBlock;
-            uint secondIdx = logicalBlock % perBlock;
-            if (_indirBuf1 is null || _indirBuf1.Length != BlockSize)
-            {
-                _indirBuf1 = new byte[BlockSize];
-            }
-
-            byte[] firstBuf = _indirBuf1;
-            ReadBlocks(dindir, 1, firstBuf);
-            uint firstBlk = BitConverter.ToUInt32(firstBuf.AsSpan((int)firstIdx * 4, 4));
-            if (firstBlk == 0)
-            {
-                return;
-            }
-
-            if (_indirBuf2 is null || _indirBuf2.Length != BlockSize)
-            {
-                _indirBuf2 = new byte[BlockSize];
-            }
-
-            byte[] secondBuf = _indirBuf2;
-            ReadBlocks(firstBlk, 1, secondBuf);
-            BitConverter.TryWriteBytes(secondBuf.AsSpan((int)secondIdx * 4, 4), value);
-            WriteBlocks(firstBlk, 1, secondBuf);
-            InvalidateIndirCache();
-        }
     }
 }
 

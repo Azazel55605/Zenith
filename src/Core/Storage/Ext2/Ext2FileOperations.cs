@@ -144,7 +144,7 @@ internal sealed class Ext2FileOperations : IFileOperations
         }
 
         long endPos = position + buffer.Length;
-        if (endPos < 0)
+        if (endPos < 0 || (ulong)endPos > _superblock.MaxFileSize)
         {
             return 0;
         }
@@ -185,6 +185,8 @@ internal sealed class Ext2FileOperations : IFileOperations
 
         if (written == 0)
         {
+            // Allocation may have built an empty pointer table before data ran out.
+            _superblock.Truncate(inode, inode.FullSize);
             return 0;
         }
 
@@ -193,14 +195,13 @@ internal sealed class Ext2FileOperations : IFileOperations
         {
             inode.Size = (uint)(newEnd & 0xFFFFFFFF);
             inode.SizeHigh = (uint)(newEnd >> 32);
-            // Update blocks count: GetBlockPointer already updated, but need mtime.
-            inode.Mtime = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            _superblock.WriteInode(inode);
         }
-        else
+        if (written < buffer.Length)
         {
-            _superblock.WriteInode(inode);
+            _superblock.Truncate(inode, inode.FullSize);
         }
+        inode.Mtime = inode.Ctime = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        _superblock.WriteInode(inode);
 
         return written;
     }

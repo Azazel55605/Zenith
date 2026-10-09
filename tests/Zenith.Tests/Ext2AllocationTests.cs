@@ -8,7 +8,7 @@ namespace Zenith.Tests;
 public class Ext2AllocationTests
 {
     // Small synthetic one-group layout. Bitmap bit zero describes block ONE.
-    private sealed class Disk : IBlockDevice
+    internal sealed class Disk : IBlockDevice
     {
         public readonly byte[] Data = new byte[32 * 1024];
         public string Name => "ext2-regression";
@@ -20,7 +20,7 @@ public class Ext2AllocationTests
         public void Put(int offset, uint value) => BinaryPrimitives.WriteUInt32LittleEndian(Data.AsSpan(offset), value);
     }
 
-    private static (Disk, Ext2Superblock) Mount(uint blocksPerGroup = 32)
+    internal static (Disk, Ext2Superblock) Mount(uint blocksPerGroup = 32)
     {
         var disk = new Disk();
         disk.Put(1024, 16); disk.Put(1028, 32); disk.Put(1036, 23); disk.Put(1040, 5);

@@ -13,7 +13,7 @@
 |---|---|---|
 | `/proc`: meminfo, mounts, uptime, cmdline | Complete for initial scope | Read-only synthesized inodes, first-read snapshots, boot mount, six host tests and smoke coverage |
 | `/dev`: null, zero, random, block devices | Partial: null/zero plus read-only block nodes | Dynamic disks/partitions implemented; entropy and raw writes pending |
-| Read-write ext2 | Partial: experimental secondary volumes | Explicit `mount -t ext2`, profile gate and independent host checks; root migration and broader semantics pending |
+| Read-write ext2 | Partial: experimental secondary volumes | Explicit `mount -t ext2`, profile gate, resize/deletion reclamation and independent host checks; root migration pending |
 | ext2 installer root | Pending | Depends on ext2 |
 | Users/login, shadow, passwd, su, useradd | Pending | Requires persistent ownership and permission model |
 | VFS permission enforcement | Pending | Audit every file-operation entry point |
@@ -171,3 +171,44 @@ permissions and reports accurate metadata through `ls -l`.
   block groups, allocation limits and formatter interoperability before moving
   the installer/root. Users/permissions, check-only guest fsck and entropy remain
   pending; M2 stays open.
+
+### 2026-10-09 · Fifth M2 slice · Ext2 resize and deletion lifecycle
+
+- Replaced truncation's logical-block scan with bounded-depth pointer-tree
+  pruning. Shrinking/unlinking releases data and empty indirect tables, preserves
+  retained sparse branches and keeps inode sector counts accurate. Both shrink
+  and growth clear the partial-block tail so bytes beyond the old EOF cannot
+  reappear. Fast symlink deletion never interprets inline target bytes as blocks;
+  generic size changes on symlink inodes are rejected.
+- Successful overwrites now update mtime and ctime as well as extending writes;
+  actual size changes update both timestamps. Empty tables from failed/short
+  allocation are reclaimed and persisted. Writes and size changes reject sizes
+  beyond the direct/single/double mapper (67,383,296 bytes for 1 KiB blocks).
+  Triple-indirect file I/O remains unsupported; this does not implement permissions.
+- Added 13 host lifecycle cases. The initial seven cases reproduced **six
+  failures** in the previous driver: leaked single/double tables, stale tail
+  bytes across remount, unsafe fast-link block freeing and unchanged overwrite
+  timestamps. The corrected full suite passes **278/278**; **3/3** Python
+  harness regressions pass. Existing xUnit1031 and cached NU1900 warnings remain.
+- Expanded the independent host fixture with a 20 KiB file to delete and a sparse
+  file whose last block uses double indirection. Seven added guest checks cover
+  truncation, deletion, a 300 KiB double-indirect file create/delete cycle,
+  empty directory removal, and truncated contents after remount. Host verification requires clean check-only
+  e2fsck plus exact single-data-block counts and absent indirect pointers in
+  retained truncated files; it still checks persisted content and the host seed.
+- The first integration run passed guest checks but failed host e2fsck
+  (**61/62**): a freed inode had zero deletion time. Inode teardown now persists
+  zero links and dtime before freeing its bitmap bit. Directory removal uses the
+  same tree reclamation path rather than freeing only its first block. Added
+  regressions for deletion metadata after remount and expanded empty directories.
+- The final ISO build and fresh full QEMU run pass **63/63** checks, including
+  all seven new guest checks, clean independent e2fsck (exit 0), exact retained
+  inode block counts, persisted content, unchanged host seed, existing install,
+  desktop, panic and clean poweroff. Local evidence:
+  `/tmp/zenith-ext2-lifecycle-tests.log`, `/tmp/zenith-ext2-lifecycle-build.log`,
+  `/tmp/zenith-ext2-lifecycle-smoke-fixed.log`, and
+  `/tmp/zenith-ext2-lifecycle-smoke-fixed/ext2-check.log` / `ext2-disk.img`
+  (scratch artifacts, not committed). Existing Cosmos build warnings remain.
+- Next: formatter interoperability and multiple block-group allocation, then
+  ownership/mode/symlink and open-handle unlink behavior before installer and
+  root migration. Installed roots still use FAT32; M2 remains open.

@@ -486,13 +486,8 @@ internal sealed class Ext2InodeOperations : IInodeOperations
             return false;
         }
 
-        uint blk = target.Block[0];
-        if (blk != 0)
-        {
-            _superblock.FreeBlock(blk);
-        }
-
         target.LinksCount = 0;
+        _superblock.Truncate(target, 0);
         _superblock.FreeInode(target.InodeNumber);
 
         // Removing a subdirectory drops one parent link.
@@ -636,23 +631,19 @@ internal sealed class Ext2InodeOperations : IInodeOperations
 
         if ((flags & SetAttrFlags.Size) != 0)
         {
-            if (node.IsDirectory)
+            if (node.IsDirectory || node.IsSymlink)
             {
                 return false;
             }
 
             ulong newSize = attributes.Size;
-            if (newSize < node.FullSize)
+            if (newSize > _superblock.MaxFileSize)
+            {
+                return false;
+            }
+            if (newSize != node.FullSize)
             {
                 _superblock.Truncate(node, newSize);
-            }
-            else if (newSize > node.FullSize)
-            {
-                // Growing records the size; the blocks materialize on the
-                // next write, and the gap reads as zeros until then.
-                node.Size = (uint)(newSize & 0xFFFFFFFF);
-                node.SizeHigh = (uint)(newSize >> 32);
-                _superblock.WriteInode(node);
             }
         }
 
