@@ -113,10 +113,39 @@ inspection/removal does not follow the final link. Target lengths use UTF-8
 bytes: 1..59 inline, 60..1023 in one block. Names reject dot components, slash,
 NUL and more than 255 UTF-8 bytes before allocation. The installed VFS rejects
 `..` inside target paths and caps resolution at eight hops. No hard links or
-permission enforcement is claimed by this slice; `ls -l` metadata remains pending.
+permission enforcement is claimed by this slice.
 The formatter is currently limited to the profile above and 1..512 MiB partitions;
 preflight rejects a final group too short for metadata. UUID remains unassigned;
 this is not a secure wipe or a journal. Installer/root migration remains pending.
+
+## Ownership, modes and CI input pacing
+
+The shell's plain metadata contract is bridged to the installed VFS at boot and
+inherited by scripts. `ls -l`/`stat` inspect the final entry without following it,
+including dangling links; the bridge treats exact mount points as their mounted
+roots. Ext2 reports persisted 32-bit UID/GID halves, modes/special bits, link
+counts, size and inode/block data. Virtual proc/dev nodes report their defined
+attributes. FAT's Unix mode/ownership fields are unavailable and shown as `?`.
+`chmod OCTAL FILE...` accepts 0000..7777; `chown UID[:GID] FILE...` accepts numeric
+unsigned 32-bit IDs. They follow final links and reject non-ext2 nodes. This
+changes stored metadata; users, name lookup and access checks are still pending.
+The writable profile requires Linux creator layout for OS-dependent UID/GID
+fields. SetAttr preflight rejects unsupported flags/timestamp precision before
+mutating data; unselected fields and file type survive updates, and ctime changes
+with mode/ownership. Creation still uses UID/GID 0 pending credentials.
+Host tests check remount, inode reuse, independent debugfs/e2fsck, parsing and
+special-bit formatting. Guest checks update files and directories, follow links,
+refuse invalid/unsupported changes, remount and retain the original file contents;
+the host independently inspects persisted owners and modes.
+
+CI run 37935747572 lost keyboard input during a collector pause: a link target
+became `per` instead of `persist.txt` despite a clean filesystem. The installed
+virtio keyboard has 32 event buffers, which are not recycled with interrupts
+disabled. The smoke harness incrementally watches serial GC start/end messages
+and stops key injection during collection, with a bounded failure diagnostic if
+collection never finishes. Keys use explicit 20 ms holds instead of overlapping
+100 ms default releases. Assertions and CI timeout budgets stay unchanged.
+Validate Release, as CI does; Debug alone did not reproduce this input-loss race.
 
 ## Debugging a crash
 

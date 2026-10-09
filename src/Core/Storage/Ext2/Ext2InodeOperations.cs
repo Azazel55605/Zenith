@@ -614,6 +614,20 @@ internal sealed class Ext2InodeOperations : IInodeOperations
             return false;
         }
 
+        const SetAttrFlags supported = SetAttrFlags.Mode | SetAttrFlags.Uid | SetAttrFlags.Gid
+            | SetAttrFlags.Size | SetAttrFlags.Atime | SetAttrFlags.Mtime | SetAttrFlags.Ctime;
+        if ((flags & ~supported) != 0
+            || ((flags & SetAttrFlags.Atime) != 0 && !ValidTime(attributes.Atime))
+            || ((flags & SetAttrFlags.Mtime) != 0 && !ValidTime(attributes.Mtime))
+            || ((flags & SetAttrFlags.Ctime) != 0 && !ValidTime(attributes.Ctime)))
+        {
+            return false;
+        }
+        if (flags == SetAttrFlags.None)
+        {
+            return true;
+        }
+
         if ((flags & SetAttrFlags.Size) != 0)
         {
             if (node.IsDirectory || node.IsSymlink)
@@ -642,12 +656,12 @@ internal sealed class Ext2InodeOperations : IInodeOperations
 
         if ((flags & SetAttrFlags.Uid) != 0)
         {
-            node.Uid = (ushort)attributes.Uid;
+            node.Uid = attributes.Uid;
         }
 
         if ((flags & SetAttrFlags.Gid) != 0)
         {
-            node.Gid = (ushort)attributes.Gid;
+            node.Gid = attributes.Gid;
         }
 
         if ((flags & SetAttrFlags.Atime) != 0)
@@ -665,9 +679,18 @@ internal sealed class Ext2InodeOperations : IInodeOperations
             node.Ctime = (uint)attributes.Ctime.TvSec;
         }
 
+        if ((flags & (SetAttrFlags.Mode | SetAttrFlags.Uid | SetAttrFlags.Gid)) != 0
+            && (flags & SetAttrFlags.Ctime) == 0)
+        {
+            node.Ctime = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        }
+
         _superblock.WriteInode(node);
         return true;
     }
+
+    private static bool ValidTime(VfsTimespec time)
+        => time.TvSec >= 0 && time.TvSec <= uint.MaxValue && time.TvNsec == 0;
 
     /// <summary>
     /// Read the target of a symbolic link.

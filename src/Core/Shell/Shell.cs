@@ -45,9 +45,10 @@ internal sealed class Shell : IExpansionContext
     /// <param name="terminal">Where the shell and its commands print.</param>
     /// <param name="login">Read <c>/etc/hostname</c> and run <c>/etc/profile</c>, like a login shell.
     /// Off in host-side tests, which must not read the build machine's <c>/etc</c>.</param>
-    public Shell(IOutput terminal, bool login = true)
+    public Shell(IOutput terminal, bool login = true, IFileMetadata? metadata = null)
     {
         _terminal = terminal;
+        Metadata = metadata ?? (login ? DefaultMetadata : null);
 
         string home = "/home/user";
         _environment["HOME"] = home;
@@ -69,6 +70,7 @@ internal sealed class Shell : IExpansionContext
     private Shell(Shell parent)
     {
         _parent = parent;
+        Metadata = parent.Metadata;
         _terminal = parent._terminal;
         foreach (var (name, value) in parent._environment)
         {
@@ -85,6 +87,9 @@ internal sealed class Shell : IExpansionContext
 
     /// <summary>Adds a command from outside the core (e.g. the desktop registers <c>fps</c>).</summary>
     public static void Register(Command command) => s_commands[command.Name] = command;
+
+    public static IFileMetadata? DefaultMetadata { get; set; }
+    public IFileMetadata? Metadata { get; }
 
     public string WorkingDirectory { get; private set; }
     public int LastStatus { get; private set; }
@@ -877,6 +882,7 @@ internal sealed class Shell : IExpansionContext
         BuiltinCommands.Register(Add);
         ScriptCommands.Register(Add);
         FileCommands.Register(Add);
+        MetadataCommands.Register(Add);
         DeviceCommands.Register(Add);
         TextCommands.Register(Add);
         UtilityCommands.Register(Add);

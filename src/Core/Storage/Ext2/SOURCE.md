@@ -51,3 +51,10 @@ NUL) and 59-byte inline limit; mode is 0777. Reads distinguish inline storage by
 Names are validated as non-dot single components with at most 255 UTF-8 bytes
 before allocation. This fixes the upstream routine's treatment of indirect slots
 as direct target blocks. Reference: [Linux ext2 symlink creation](https://raw.githubusercontent.com/torvalds/linux/master/fs/ext2/namei.c).
+
+Linux ownership now uses both low/high UID/GID halves (inode offsets 2/120 and
+24/122); the writable profile rejects other creator layouts. Mode and ownership
+updates preserve file type and unselected attributes, validate flags/timestamps
+before changes, and update ctime. The high size field is used only for regular
+files, leaving the directory ACL slot untouched. Layout reference:
+[Linux inode fields](https://docs.kernel.org/filesystems/ext4/inodes.html).

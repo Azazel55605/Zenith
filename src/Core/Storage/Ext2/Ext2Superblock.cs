@@ -221,6 +221,10 @@ internal sealed class Ext2Superblock : IVfsSuperblock
             uint blocksPerGroup = BitConverter.ToUInt32(sb.Slice(Ext2SuperblockLayout.BlocksPerGroupOffset, 4));
             uint fragsPerGroup = BitConverter.ToUInt32(sb.Slice(Ext2SuperblockLayout.FragsPerGroupOffset, 4));
             uint inodesPerGroup = BitConverter.ToUInt32(sb.Slice(Ext2SuperblockLayout.InodesPerGroupOffset, 4));
+            if (BitConverter.ToUInt32(sb.Slice(Ext2SuperblockLayout.CreatorOsOffset, 4)) != 0)
+            {
+                return false; // Linux OS-dependent ownership fields only.
+            }
             uint revLevel = BitConverter.ToUInt32(sb.Slice(Ext2SuperblockLayout.RevLevelOffset, 4));
             uint firstIno = BitConverter.ToUInt32(sb.Slice(Ext2SuperblockLayout.FirstInoOffset, 4));
             ushort inodeSize = BitConverter.ToUInt16(sb.Slice(Ext2SuperblockLayout.InodeSizeOffset, 2));
@@ -249,6 +253,11 @@ internal sealed class Ext2Superblock : IVfsSuperblock
             if (inodeSize == 0)
             {
                 inodeSize = Ext2SuperblockLayout.DefaultInodeSize;
+            }
+
+            if (inodeSize < 128)
+            {
+                return false;
             }
 
             if (firstIno == 0)
@@ -471,18 +480,20 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         ReadOnlySpan<byte> raw = blockBuf.AsSpan((int)offsetInBlock, InodeSize);
 
         ushort mode = BitConverter.ToUInt16(raw.Slice(Ext2InodeLayout.ModeOffset, 2));
-        ushort uid = BitConverter.ToUInt16(raw.Slice(Ext2InodeLayout.UidOffset, 2));
+        uint uid = BitConverter.ToUInt16(raw.Slice(Ext2InodeLayout.UidOffset, 2))
+            | ((uint)BitConverter.ToUInt16(raw.Slice(Ext2InodeLayout.UidHighOffset, 2)) << 16);
         uint size = BitConverter.ToUInt32(raw.Slice(Ext2InodeLayout.SizeOffset, 4));
         uint atime = BitConverter.ToUInt32(raw.Slice(Ext2InodeLayout.AtimeOffset, 4));
         uint ctime = BitConverter.ToUInt32(raw.Slice(Ext2InodeLayout.CtimeOffset, 4));
         uint mtime = BitConverter.ToUInt32(raw.Slice(Ext2InodeLayout.MtimeOffset, 4));
         uint dtime = BitConverter.ToUInt32(raw.Slice(Ext2InodeLayout.DtimeOffset, 4));
-        ushort gid = BitConverter.ToUInt16(raw.Slice(Ext2InodeLayout.GidOffset, 2));
+        uint gid = BitConverter.ToUInt16(raw.Slice(Ext2InodeLayout.GidOffset, 2))
+            | ((uint)BitConverter.ToUInt16(raw.Slice(Ext2InodeLayout.GidHighOffset, 2)) << 16);
         ushort links = BitConverter.ToUInt16(raw.Slice(Ext2InodeLayout.LinksCountOffset, 2));
         uint blocks = BitConverter.ToUInt32(raw.Slice(Ext2InodeLayout.BlocksOffset, 4));
         uint flags = BitConverter.ToUInt32(raw.Slice(Ext2InodeLayout.FlagsOffset, 4));
         uint sizeHigh = 0;
-        if (InodeSize >= 108 + 4)
+        if ((mode & Ext2InodeLayout.IFMT) == Ext2InodeLayout.IFREG && InodeSize >= 112)
         {
             sizeHigh = BitConverter.ToUInt32(raw.Slice(Ext2InodeLayout.DirAclOrSizeHighOffset, 4));
         }
@@ -537,17 +548,19 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         Span<byte> raw = blockBuf.AsSpan((int)offsetInBlock, InodeSize);
 
         BitConverter.TryWriteBytes(raw.Slice(Ext2InodeLayout.ModeOffset, 2), inode.Mode);
-        BitConverter.TryWriteBytes(raw.Slice(Ext2InodeLayout.UidOffset, 2), inode.Uid);
+        BitConverter.TryWriteBytes(raw.Slice(Ext2InodeLayout.UidOffset, 2), (ushort)inode.Uid);
         BitConverter.TryWriteBytes(raw.Slice(Ext2InodeLayout.SizeOffset, 4), inode.Size);
         BitConverter.TryWriteBytes(raw.Slice(Ext2InodeLayout.AtimeOffset, 4), inode.Atime);
         BitConverter.TryWriteBytes(raw.Slice(Ext2InodeLayout.CtimeOffset, 4), inode.Ctime);
         BitConverter.TryWriteBytes(raw.Slice(Ext2InodeLayout.MtimeOffset, 4), inode.Mtime);
         BitConverter.TryWriteBytes(raw.Slice(Ext2InodeLayout.DtimeOffset, 4), inode.Dtime);
-        BitConverter.TryWriteBytes(raw.Slice(Ext2InodeLayout.GidOffset, 2), inode.Gid);
+        BitConverter.TryWriteBytes(raw.Slice(Ext2InodeLayout.GidOffset, 2), (ushort)inode.Gid);
         BitConverter.TryWriteBytes(raw.Slice(Ext2InodeLayout.LinksCountOffset, 2), inode.LinksCount);
         BitConverter.TryWriteBytes(raw.Slice(Ext2InodeLayout.BlocksOffset, 4), inode.Blocks);
         BitConverter.TryWriteBytes(raw.Slice(Ext2InodeLayout.FlagsOffset, 4), inode.Flags);
-        if (InodeSize >= 108 + 4)
+        BitConverter.TryWriteBytes(raw.Slice(Ext2InodeLayout.UidHighOffset, 2), (ushort)(inode.Uid >> 16));
+        BitConverter.TryWriteBytes(raw.Slice(Ext2InodeLayout.GidHighOffset, 2), (ushort)(inode.Gid >> 16));
+        if (inode.IsRegularFile && InodeSize >= 112)
         {
             BitConverter.TryWriteBytes(raw.Slice(Ext2InodeLayout.DirAclOrSizeHighOffset, 4), inode.SizeHigh);
         }

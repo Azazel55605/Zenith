@@ -123,13 +123,20 @@ def verify_format_disk(disk: Path, report: Path, require_second_group: bool = Fa
     for name in ("temporary", "cycle-a", "cycle-b"):
         info = subprocess.run(["debugfs", "-R", "stat /" + name, str(volume)], capture_output=True, text=True)
         links_ok = links_ok and "File not found" in info.stderr
+    attributes = []
+    for name, mode, uid, gid in (("persist.txt", "00600", 123456, 80000), ("nested", "02750", 70001, 80001)):
+        info = subprocess.run(["debugfs", "-R", "stat /" + name, str(volume)], capture_output=True, text=True)
+        attributes.append(info.stdout + info.stderr)
+        links_ok = links_ok and re.search(r"Mode:\s+0*" + mode.lstrip("0") + r"\s", info.stdout) is not None
+        links_ok = links_ok and re.search(r"User:\s+" + str(uid) + r"\s+Group:\s+" + str(gid) + r"\s", info.stdout) is not None
     expected_mbr = bytearray(512)
     struct.pack_into("<B3sB3sII", expected_mbr, 446, 0, b"\xfe\xff\xff", 0x83,
                      b"\xfe\xff\xff", START // 512, SIZE // 512)
     expected_mbr[510:512] = b"\x55\xaa"
     report.write_text(fsck.stdout + fsck.stderr + "\nHeader:\n" + header.stdout + header.stderr
                       + "\nSaved contents:\n" + repr(contents) + "\nRetained file:\n" + second.stdout + second.stderr
-                      + "\nSymlinks:\n" + "\n".join(link_reports))
+                      + "\nSymlinks:\n" + "\n".join(link_reports)
+                      + "\nAttributes:\n" + "\n".join(attributes))
     return (len(data) == SIZE and fsck.returncode == 0 and links_ok
             and mbr == expected_mbr and before == bytes([0xa6]) * 512 and after == bytes([0xb7]) * 512
             and contents == ["format-data\n", "child-data\n", "second-group\n"]

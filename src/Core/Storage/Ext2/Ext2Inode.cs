@@ -26,11 +26,11 @@ internal sealed class Ext2Inode : IVfsInode
     /// <summary>File type plus permission bits (i_mode).</summary>
     public ushort Mode { get; internal set; }
 
-    /// <summary>Owner user id (i_uid).</summary>
-    public ushort Uid { get; internal set; }
+    /// <summary>Owner user id (Linux low/high i_uid fields).</summary>
+    public uint Uid { get; internal set; }
 
-    /// <summary>Owner group id (i_gid).</summary>
-    public ushort Gid { get; internal set; }
+    /// <summary>Owner group id (Linux low/high i_gid fields).</summary>
+    public uint Gid { get; internal set; }
 
     /// <summary>File size in bytes, low 32 bits (i_size).</summary>
     public uint Size { get; internal set; }

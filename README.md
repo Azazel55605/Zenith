@@ -64,7 +64,7 @@ following a replacement with the same name. Random devices await a kernel entrop
 Experimental secondary ext2 volumes can be mounted with
 `mkdir /mnt/ext; mount -t ext2 sata1p0 /mnt/ext` (use `lsblk` for the actual partition
 name). `mount` lists volumes; `umount /mnt/ext` flushes and detaches one. The initial
-profile requires clean revision-1 ext2 with 1 KiB blocks, 128-byte inodes and only
+profile requires clean Linux-layout revision-1 ext2 with 1 KiB blocks, 128-byte inodes and only
 the filetype feature. See [ext2 validation](docs/DEVELOPMENT.md#ext2-secondary-volumes)
 for the disposable fixture and remaining limitations. Installed roots still use FAT32.
 
@@ -84,6 +84,14 @@ without deleting the target. Relative targets refer to the link's parent;
 existing names are refused. Targets are limited to 1..1023 UTF-8 bytes.
 The installed VFS cannot follow `..` in targets and stops after eight link hops.
 Hard links and FAT symlinks are unsupported; see `man ln`.
+
+On ext2, `chmod OCTAL FILE...` persists permission bits (0000..7777), and
+`chown UID[:GID] FILE...` persists numeric 32-bit ownership. Both follow final
+symlinks and reject FAT/virtual filesystems. `ls -l` and `stat` read actual VFS
+attributes, display numeric IDs and link targets, and can inspect dangling links.
+FAT uses `?` for unavailable Unix fields. Account lookup and permission enforcement
+remain pending: changing bits currently records metadata without restricting access.
+New ext2 objects still default to UID/GID 0. Installed roots still use FAT32.
 
 Settings: `localectl set-keymap de`, `timedatectl set-timezone Europe/Berlin`.
 `edit file` opens the text editor, `open system` any desktop app, `fps` shows compositor statistics.

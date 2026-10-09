@@ -29,10 +29,10 @@ internal static class Ext2VolumePolicy
             return "not an ext2 filesystem";
         }
         // Profile deliberately excludes journal, extents, checksums and unknown features.
-        if (Read(data, 76) != 1 || Read(data, 24) != 0 || BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(88)) != 128
+        if (Read(data, 72) != 0 || Read(data, 76) != 1 || Read(data, 24) != 0 || BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(88)) != 128
             || Read(data, 92) != 0 || Read(data, 96) != 2 || Read(data, 100) != 0)
         {
-            return "unsupported ext2 profile (requires revision 1, 1 KiB blocks, 128-byte inodes, filetype only)";
+            return "unsupported ext2 profile (requires Linux layout, revision 1, 1 KiB blocks, 128-byte inodes, filetype only)";
         }
         if (BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(58)) != 1)
         {

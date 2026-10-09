@@ -64,7 +64,11 @@ internal static class Ext2InodeLayout
     public const int FaddrOffset = 112;
 
     /// <summary>Byte offset of osd2: OS-dependent field (12 bytes).</summary>
-    public const int Osd2Offset = 115;
+    public const int Osd2Offset = 116;
+
+    /// <summary>Linux high 16 bits of the owner user/group ids.</summary>
+    public const int UidHighOffset = 120;
+    public const int GidHighOffset = 122;
 
     /// <summary>Block pointers per inode (12 direct + single + double + triple indirect).</summary>
     public const int BlockCount = 15;

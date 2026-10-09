@@ -11,6 +11,8 @@ namespace Zenith.Core.Storage.Proc;
 /// read (or end-relative seek) of each handle, so partial reads see a consistent snapshot.</summary>
 internal sealed class ProcFilesystemType : IVfsFilesystemType
 {
+    internal static bool Owns(IVfsInode inode) => inode is Node;
+
     private readonly Func<string>[] _contents;
     private static readonly string[] s_names = { "meminfo", "mounts", "uptime", "cmdline" };
 

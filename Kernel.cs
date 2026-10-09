@@ -33,6 +33,7 @@ public class Kernel : Sys.Kernel
                 Log.Write("clock", clockError);
             }
             SystemCommands.Register(CommandShell.Register);
+            CommandShell.DefaultMetadata = new VfsFileMetadata();
             Fonts.Load();
             _desktop = new Desktop(Canvas.GetFullScreen());
             _desktop.Windows.Open(new WelcomeWindow());

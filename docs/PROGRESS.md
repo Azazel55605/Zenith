@@ -18,6 +18,8 @@
 | ext2 formatter | Verified for bounded secondary partitions | 306 host tests; 88/88 baseline + 88/88 large-profile QEMU checks; clean independent e2fsck |
 | Runtime heap under large ext2 I/O | Verified for current stress workload | Proactive physical-page reserve; 9 MiB write/delete and subsequent commands pass at 512 MiB; general graceful OOM remains open |
 | ext2 symbolic links | Verified for bounded targets | 332 host tests and 101/101 QEMU checks; inline/block-backed targets, dangling links, loops, remount and deletion; .. resolution remains unsupported |
+| ext2 ownership/modes and metadata commands | Verified for secondary ext2 | 355 host tests; 114/114 checks in both Release QEMU profiles; persisted 32-bit IDs, chmod/chown, stat and ls -l; enforcement pending |
+| CI keyboard injection | Fixed and verified locally | GC-aware pacing and explicit key release; both CI-equivalent Release profiles pass; hosted rerun awaits push |
 | ext2 installer root | Pending | Depends on ext2 |
 | Users/login, shadow, passwd, su, useradd | Pending | Requires persistent ownership and permission model |
 | VFS permission enforcement | Pending | Audit every file-operation entry point |
@@ -419,3 +421,50 @@ permissions and reports accurate metadata through `ls -l`.
 - M2 remains open. Next: persisted ownership/mode updates and truthful stat/ls
   output. Directory cross-parent link accounting, open-handle unlink semantics,
   users/enforcement and installed ext2 remain pending before root migration.
+
+### 2026-10-09 · CI input-loss fix and tenth M2 slice · Ownership and modes
+
+- Inspected failed GitHub Actions run 37935747572 at commit 6aa5bcb. Host tests
+  and Release build passed; baseline QEMU finished 98/101. Its disk was clean,
+  but the relative link stored "per" instead of "persist.txt". The serial trace
+  places a GC pause during injection of that command. Keyboard event buffers
+  cannot be recycled while the collector disables interrupts; blind key injection
+  overflowed the finite virtio queue. The harness now tracks collection start/end
+  incrementally in serial output and pauses key injection until GC completes.
+  Explicit 20 ms key holds also avoid overlapping default 100 ms releases.
+  No filesystem assertions or timeout budgets were relaxed. Six Python tests
+  cover serial matching, split GC messages, successive collections and pacing.
+- Changed ext2 UID/GID fields to uint and persist both Linux low/high 16-bit
+  halves. The profile gate now requires Linux creator layout; the parser rejects
+  non-Linux layouts and undersized inodes before ownership-field access. Corrected
+  i_osd2 offset, and use the high size field only for regular files.
+- SetAttr validates selected fields/unknown flags before mutating storage and
+  updates ctime for mode/ownership changes. Unselected values remain untouched;
+  mode changes preserve file type. No-op flags cause no writes.
+- Added a plain shell metadata contract with the installed VFS bridge. ls -l/stat
+  inspect the final entry without following it, show real numeric ownership,
+  mode/special bits, link count, size, inode and block information, and display
+  link targets (including dangling links). FAT's unavailable Unix fields use ?
+  instead of invented user/users and fixed permission strings.
+- Added numeric chmod OCTAL FILE... (0000..7777) and chown UID[:GID] FILE...;
+  ordinary mutations follow final links and require ext2. Child scripts inherit
+  the metadata backend. User accounts/access enforcement remain pending; newly
+  created ext2 objects still default to uid/gid 0 until credentials are implemented.
+- Host suite passes 355/355, including independent debugfs/e2fsck ownership and
+  mode checks, 65535/65536 boundaries, high-ID inode reuse, attribute preflight,
+  real/dangling metadata output, special permission bits and invalid arguments.
+  Release publish passes; all 6 Python harness tests pass. Both CI-equivalent
+  Release QEMU profiles pass **114/114 checks**: baseline and 512 MiB RAM with
+  the 9 MiB large-volume workload. Independent e2fsck is clean; debugfs confirms
+  persisted file/directory modes and 32-bit UID/GID values. Relative link creation,
+  symlink-following mutations, remount reads, partition guards, installed FAT-root
+  reboot and clean poweroff all pass.
+- CI failure logs/artifacts: /tmp/zenith-ci-failure.log and
+  /tmp/zenith-ci-37935747572/. Hosted CI has not been rerun with local changes.
+- Validation evidence: `/tmp/zenith-metadata-tests.log`,
+  `/tmp/zenith-metadata-release.log`, `/tmp/zenith-metadata-baseline.log`,
+  `/tmp/zenith-metadata-baseline/`, `/tmp/zenith-metadata-large.log` and
+  `/tmp/zenith-metadata-large/`.
+- M2 remains open. Next: finish directory cross-parent link accounting and
+  open-handle unlink semantics before installer/root migration; persistent users,
+  permission enforcement and check-only fsck remain required.

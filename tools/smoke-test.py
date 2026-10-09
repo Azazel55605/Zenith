@@ -127,6 +127,19 @@ STEPS = [
     ("readlink /mnt/new/relative | logger", "user: persist.txt"),
     ("cat /mnt/new/slow | logger", "user: format-data"),
     ("cat /mnt/new/nested/child.txt | logger", "user: child-data"),
+    ("chmod 4750 /mnt/new/persist.txt && chown 70000:80000 /mnt/new/persist.txt && stat /mnt/new/persist.txt | grep Access | logger", "Uid: 70000  Gid: 80000"),
+    ("ls -l /mnt/new/persist.txt | logger", "-rwsr-x--- 1 70000 80000"),
+    ("ls -l /mnt/new/dangling | logger", "dangling -> missing.txt"),
+    ("stat /mnt/new/relative | grep Type | logger", "Type: symbolic link"),
+    ("chmod 0600 /mnt/new/absolute && chown 123456 /mnt/new/absolute && stat /mnt/new/persist.txt | grep Access | logger", "Uid: 123456  Gid: 80000"),
+    ("chmod 888 /mnt/new/persist.txt; echo bad-mode=$? | logger; chown 4294967296 /mnt/new/persist.txt; echo bad-owner=$? | logger", "user: bad-owner=1"),
+    ("chmod 0600 /tmp/t.txt; echo mode-fat=$? | logger", "user: mode-fat=1"),
+    ("ls -l /tmp/t.txt | logger", "-????????? ? ? ?"),
+    ("chmod 2750 /mnt/new/nested && chown 70001:80001 /mnt/new/nested && stat /mnt/new/nested | grep Access | logger", "Uid: 70001  Gid: 80001"),
+    ("umount /mnt/new && mount -t ext2 sata2p0 /mnt/new && stat /mnt/new/persist.txt | grep Access | logger", "Access: (0600/-rw-------)  Uid: 123456  Gid: 80000"),
+    ("ls -l /mnt/new/nested | logger", "child.txt"),
+    ("stat /mnt/new/nested | grep Links | logger", "Links: 2"),
+    ("cat /mnt/new/persist.txt | logger", "user: format-data"),
     ("umount /mnt/new && logger mkfs-unmounted", "user: mkfs-unmounted"),
     ("crash", "panic: InvalidOperationException: panic requested: crash command"),
 ]
@@ -145,10 +158,28 @@ SHIFTED = {"|": "backslash", ">": "dot", "<": "comma", "_": "minus", "+": "equal
            "}": "bracket_right"}
 
 
+class GcPauseTracker:
+    """Follow complete serial lines, retaining partial reads across polling calls."""
+    def __init__(self):
+        self.pending = False
+        self.partial = ""
+
+    def feed(self, text: str):
+        lines = (self.partial + text).split("\n")
+        self.partial = lines.pop()
+        for line in lines:
+            if "[GC] Collection #" in line:
+                self.pending = True
+            if re.search(r"\[GC\] Freed \d+ objects", line):
+                self.pending = False
+
+
 class Machine:
     def __init__(self, iso: Path, workdir: Path, initial_disk: Path | None = None, memory: int = 512):
         self.workdir = workdir
         self.serial = workdir / "serial.log"
+        self._gc_offset = 0
+        self._gc = GcPauseTracker()
         self.monitor = workdir / "monitor.sock"
         self.disk = workdir / "disk.img"
         if initial_disk is not None:
@@ -218,13 +249,33 @@ class Machine:
                 time.sleep(1.5)
             elif part.startswith("{") and part.endswith("}"):
                 time.sleep(0.5)
-                self.command("sendkey " + part[1:-1])
+                self.wait_for_gc()
+                self.command("sendkey " + part[1:-1] + " 20")
                 time.sleep(0.5)
             else:
                 self.type_plain(part)
 
+    def wait_for_gc(self):
+        # A stopped collector cannot recycle virtio keyboard event buffers. Do
+        # not fill that finite queue while interrupts are disabled. Read only new
+        # serial bytes; rescanning the full debug log per key is needlessly costly.
+        deadline = time.monotonic() + 60
+        while True:
+            if self.serial.exists():
+                with self.serial.open("rb") as file:
+                    file.seek(self._gc_offset)
+                    chunk = file.read()
+                    self._gc_offset = file.tell()
+                self._gc.feed(chunk.decode("ascii", errors="replace"))
+            if not self._gc.pending:
+                return
+            if self.process.poll() is not None or time.monotonic() >= deadline:
+                raise RuntimeError("guest did not finish garbage collection before keyboard input")
+            time.sleep(0.05)
+
     def type_plain(self, text: str):
         for ch in text:
+            self.wait_for_gc()
             if ch in KEYS:
                 key = KEYS[ch]
             elif ch in SHIFTED:
@@ -233,7 +284,7 @@ class Machine:
                 key = "shift-" + ch.lower()
             else:
                 key = ch
-            self.command("sendkey " + key)
+            self.command("sendkey " + key + " 20")
             time.sleep(0.03)
 
     def wait_exit(self, timeout: float) -> bool:

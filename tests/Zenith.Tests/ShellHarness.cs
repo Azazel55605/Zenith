@@ -9,11 +9,13 @@ public sealed class ShellHarness : IDisposable
 {
     private readonly BufferCapture _output = new();
 
-    public ShellHarness()
+    public ShellHarness() : this(null) { }
+
+    internal ShellHarness(IFileMetadata? metadata)
     {
         Root = Path.Combine(Path.GetTempPath(), "zenith-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Root);
-        Shell = new Shell(_output, login: false);
+        Shell = new Shell(_output, login: false, metadata: metadata);
         Assert.True(Shell.ChangeDirectory(Root));
     }
 

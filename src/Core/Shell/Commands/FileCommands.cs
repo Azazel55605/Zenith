@@ -43,7 +43,8 @@ internal static class FileCommands
         for (int i = 0; i < operands.Count; i++)
         {
             string path = c.Resolve(operands[i]);
-            if (File.Exists(path))
+            bool known = c.Shell.Metadata?.TryRead(path, out _) == true;
+            if (File.Exists(path) || (known && c.Shell.Metadata!.TryRead(path, out var leaf) && leaf.IsSymlink))
             {
                 PrintEntries(c, new List<string> { path }, flags, singleFile: operands[i]);
                 continue;
@@ -79,12 +80,25 @@ internal static class FileCommands
         {
             foreach (string entry in entries)
             {
-                bool isDir = Directory.Exists(entry);
                 string name = singleFile ?? Path.GetFileName(entry);
-                long size = isDir ? 0 : new FileInfo(entry).Length;
-                DateTime time = isDir ? Directory.GetLastWriteTime(entry) : File.GetLastWriteTime(entry);
-                c.WriteLine((isDir ? "drwxr-xr-x" : "-rw-r--r--") + " user users " + size.ToString().PadLeft(9) + " "
-                    + FormatTime(time) + " " + Colorize(name, isDir));
+                if (c.Shell.Metadata?.TryRead(entry, out var metadata) == true)
+                {
+                    string suffix = metadata.IsSymlink ? " -> " + (metadata.Target ?? "?") : "";
+                    c.WriteLine(metadata.Permissions + " " + (metadata.UnixAttributes ? metadata.Links.ToString() : "?")
+                        + " " + (metadata.UnixAttributes ? metadata.Uid.ToString() : "?")
+                        + " " + (metadata.UnixAttributes ? metadata.Gid.ToString() : "?")
+                        + " " + metadata.Size.ToString().PadLeft(9) + " "
+                        + FormatTime(DateTimeOffset.FromUnixTimeSeconds(metadata.Mtime).UtcDateTime) + " "
+                        + Colorize(name, metadata.IsDirectory) + suffix);
+                }
+                else
+                {
+                    bool isDir = Directory.Exists(entry);
+                    long size = isDir ? 0 : new FileInfo(entry).Length;
+                    DateTime time = isDir ? Directory.GetLastWriteTime(entry) : File.GetLastWriteTime(entry);
+                    c.WriteLine((isDir ? "d" : "-") + "????????? ? ? ? " + size.ToString().PadLeft(9) + " "
+                        + FormatTime(time) + " " + Colorize(name, isDir));
+                }
             }
 
             return;
@@ -445,7 +459,19 @@ internal static class FileCommands
         foreach (string arg in c.Args)
         {
             string path = c.Resolve(arg);
-            if (Directory.Exists(path))
+            if (c.Shell.Metadata?.TryRead(path, out var metadata) == true)
+            {
+                c.WriteLine("  File: " + path + (metadata.IsSymlink ? " -> " + (metadata.Target ?? "?") : ""));
+                c.WriteLine("  Type: " + metadata.Type);
+                c.WriteLine("  Size: " + metadata.Size + " bytes");
+                c.WriteLine(" Inode: " + metadata.Inode + "  Links: " + metadata.Links);
+                c.WriteLine("Blocks: " + metadata.Blocks + "  IO Block: " + metadata.BlockSize);
+                c.WriteLine("Access: (" + metadata.OctalMode + "/" + metadata.Permissions + ")"
+                    + "  Uid: " + (metadata.UnixAttributes ? metadata.Uid.ToString() : "unknown")
+                    + "  Gid: " + (metadata.UnixAttributes ? metadata.Gid.ToString() : "unknown"));
+                c.WriteLine("Modify: " + FormatTime(DateTimeOffset.FromUnixTimeSeconds(metadata.Mtime).UtcDateTime));
+            }
+            else if (Directory.Exists(path))
             {
                 c.WriteLine("  File: " + path);
                 c.WriteLine("  Type: directory");

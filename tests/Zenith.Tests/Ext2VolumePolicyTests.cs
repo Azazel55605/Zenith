@@ -61,7 +61,7 @@ public class Ext2VolumePolicyTests
     }
 
     [Theory]
-    [InlineData(76, 2u)] [InlineData(24, 2u)] [InlineData(88, 256u)]
+    [InlineData(72, 1u)] [InlineData(76, 2u)] [InlineData(24, 2u)] [InlineData(88, 256u)]
     [InlineData(92, 4u)] [InlineData(96, 0x42u)] [InlineData(100, 0x400u)]
     public void RejectsUnsupportedProfiles(int offset, uint value)
     {

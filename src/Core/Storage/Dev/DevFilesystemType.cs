@@ -11,6 +11,8 @@ namespace Zenith.Core.Storage.Dev;
 /// <summary>Null/zero character devices and a live read-only block-device namespace.</summary>
 internal sealed class DevFilesystemType : IVfsFilesystemType
 {
+    internal static bool Owns(IVfsInode inode) => inode is Node or BlockDeviceNode;
+
     private readonly Func<IReadOnlyList<IBlockDevice>> _devices;
 
     public DevFilesystemType(Func<IReadOnlyList<IBlockDevice>>? devices = null)

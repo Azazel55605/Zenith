@@ -80,8 +80,8 @@ public class FileCommandTests
         using var sh = new ShellHarness();
         sh.Run("echo 12345 > f; mkdir d");
         string listing = sh.Run("ls -l");
-        Assert.Contains("drwxr-xr-x", listing);
-        Assert.Matches(@"-rw-r--r-- user users\s+6 .* f", listing);
+        Assert.Contains("d?????????", listing);
+        Assert.Matches(@"-\?{9} \? \? \?\s+6 .* f", listing);
     }
 
     [Fact]
