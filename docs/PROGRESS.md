@@ -212,3 +212,16 @@ permissions and reports accurate metadata through `ls -l`.
 - Next: formatter interoperability and multiple block-group allocation, then
   ownership/mode/symlink and open-handle unlink behavior before installer and
   root migration. Installed roots still use FAT32; M2 remains open.
+
+### 2026-10-09 · Bash portability assessment (implementation paused for review)
+
+- Inspected Zenith command dispatch, buffered pipelines, terminal input and the
+  Cosmos native/PAL interfaces, and checked Bash execution sources plus GNU build
+  options and wasi-libc headers. Recorded [BASH-PORT.md](BASH-PORT.md).
+- Bash is technically feasible as a later program-runtime target, but current
+  Zenith lacks the C/POSIX execution contract. Standard WASI preview 1 does not
+  supply fork/exec or terminal job-control semantics; M5 needs an explicit design
+  extension if real Bash is a requirement.
+- Assessment only: no Bash cross-build or guest execution, no kernel changes,
+  and no roadmap/runtime architecture switch. M2's next implementation slice
+  remains formatter/multiple-group validation after this review.
