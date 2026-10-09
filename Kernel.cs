@@ -1,14 +1,17 @@
 using System;
+using System.Diagnostics;
 using Cosmos.Kernel.System.Graphics;
 using Zenith.Apps;
 using Zenith.Core;
 using Zenith.Core.Input;
+using Zenith.Core.Memory;
 using Zenith.Core.Shell.Commands;
 using Zenith.Core.Storage;
 using Zenith.Core.Time;
 using Zenith.Gui;
 using Zenith.Gui.Graphics;
 using Zenith.Gui.Shell;
+using MemoryInfo = Cosmos.Kernel.System.Diagnostics.MemoryInfo;
 using CommandShell = Zenith.Core.Shell.Shell;
 using Sys = Cosmos.Kernel.System;
 
@@ -17,6 +20,7 @@ namespace Zenith;
 public class Kernel : Sys.Kernel
 {
     private Desktop _desktop = null!;
+    private readonly MemoryPressurePolicy _memoryPressure = new();
 
     protected override void BeforeRun()
     {
@@ -48,6 +52,14 @@ public class Kernel : Sys.Kernel
             if (KernelPanic.Requested is string reason)
             {
                 throw new InvalidOperationException("panic requested: " + reason);
+            }
+
+            if (_memoryPressure.ShouldCollect(MemoryInfo.TotalPages, MemoryInfo.FreePages,
+                Stopwatch.GetTimestamp(), Stopwatch.Frequency))
+            {
+                ulong before = MemoryInfo.FreePages;
+                MemoryInfo.Collect();
+                Log.Write("memory", "pressure collection: free pages " + before + " -> " + MemoryInfo.FreePages);
             }
 
             _desktop.Tick();

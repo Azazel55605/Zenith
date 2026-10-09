@@ -32,6 +32,7 @@
 
   <ItemGroup>
     <Compile Include="../../src/Core/Shell/**/*.cs" Exclude="../../src/Core/Shell/Commands/SystemCommands.cs" LinkBase="Kernel/Shell" />
+    <Compile Include="../../src/Core/Memory/*.cs" LinkBase="Kernel/Memory" />
     <Compile Include="../../src/Core/Files/*.cs" LinkBase="Kernel/Files" />
     <Compile Include="../../src/Core/Time/*.cs" LinkBase="Kernel/Time" />
     <Compile Include="../../src/Core/Text/*.cs" LinkBase="Kernel/Text" />

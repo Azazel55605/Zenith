@@ -16,7 +16,7 @@
 | Read-write ext2 | Partial: experimental secondary volumes | Explicit `mount -t ext2`, profile gate, resize/deletion reclamation, persisted allocator counters and two-group fixture; root migration pending |
 | Files desktop app | Complete for initial scope | 292 host tests; native keyboard/mouse workflow and independent persisted-file check pass |
 | ext2 formatter | Verified for bounded secondary partitions | 306 host tests; 88/88 baseline + 88/88 large-profile QEMU checks; clean independent e2fsck |
-| Runtime heap under large ext2 I/O | Open | 9 MiB stress exhausts 512 MiB runtime; 1 GiB profile passes; investigate before root migration |
+| Runtime heap under large ext2 I/O | Verified for current stress workload | Proactive physical-page reserve; 9 MiB write/delete and subsequent commands pass at 512 MiB; general graceful OOM remains open |
 | ext2 installer root | Pending | Depends on ext2 |
 | Users/login, shadow, passwd, su, useradd | Pending | Requires persistent ownership and permission model |
 | VFS permission enforcement | Pending | Audit every file-operation entry point |
@@ -344,3 +344,33 @@ permissions and reports accurate metadata through `ls -l`.
   and low-memory failure handling, then ownership/mode/symlink semantics,
   directory parent-link accounting and open-handle unlink behavior before root
   migration. Users/permissions and check-only guest fsck remain pending. M2 stays open.
+
+### 2026-10-09 · Eighth M2 slice · Physical-memory reserve
+
+- Inspected the installed 3.0.89 Core/HAL/System assemblies with Mono.Cecil,
+  rather than assuming the sibling reference checkout matches. `AllocObjectSlow`
+  collects only after TLAB refill fails; SATA ReadBlock/WriteBlock use spans and
+  the existing reusable DMA path. The earlier serial trace had no collections
+  before physical-page exhaustion and the following native stack allocation fault.
+- Added a desktop-loop pressure check at one eighth of physical pages free,
+  throttled to one collection per second. The check allocates nothing; collection
+  logs before/after free pages. This reserves headroom for native allocations
+  during a responsive GUI workload; it is not a general graceful-OOM solution.
+- Enabled the 9 MiB ext2 smoke profile at the normal 512 MiB memory setting.
+  Host suite passes 309/309, including
+  reserve boundary, throttling/recovery and unavailable-metric cases. Python
+  serial matcher suite passes 3/3.
+- Native publish succeeds. Full **88/88** smoke checks pass with
+  `--large-ext2-stress --memory 512 --step-timeout 180`, including commands
+  after the 9 MiB allocation/deletion, remount reads, installed FAT root reboot,
+  root-disk format refusal and clean poweroff. Independent e2fsck checks pass
+  for both volumes, and retained data is in block group two with partition
+  guards intact. One pressure collection raised free pages **15,752 -> 94,302**
+  (about 307 MiB reclaimed). Lowest logged allocation-time free count: **15,752**.
+- Evidence: `/tmp/zenith-pressure-tests.log`, `/tmp/zenith-pressure-build.log`,
+  `/tmp/zenith-pressure-smoke.log` and `/tmp/zenith-pressure-smoke/` (serial,
+  installed serial, screenshots, disposable images and independent reports).
+- CI now runs the large profile at 512 MiB. This addresses the observed
+  late-collection failure; it does not repair every possible runtime allocation
+  failure or establish arbitrary live-set OOM safety. M2 remains open. Next:
+  inode ownership/mode/symlink semantics, then permissions and ext2 root migration.

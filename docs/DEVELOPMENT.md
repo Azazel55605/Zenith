@@ -86,7 +86,7 @@ A third disposable disk holds an initially blank ext2-target partition. Only the
 guest formats it, via `mkfs.ext2`. The harness checks refusal without confirmation,
 invalid labels, whole disks and mounted volumes; creates nested files; allocates
 small files and checks contents after remount. The optional
-`--large-ext2-stress --memory 1024 --step-timeout 180` profile additionally
+`--large-ext2-stress --memory 512 --step-timeout 180` profile additionally
 allocates/deletes 9 MiB and requires a retained data block in group two.
 The baseline retains its 512 MiB RAM and 60-second local command timeout;
 CI uses its existing 180-second command timeout.
@@ -96,11 +96,13 @@ saved data (including second-group placement in the large profile) and untouched
 The second boot uses a copy of the installed FAT scratch disk: it must select its
 installed root, refuse formatting that disk's unmounted ESP and power off cleanly.
 It retains `installed-serial.log` when requested. No real disks are formatted.
-The large workload exhausted the Cosmos runtime at 512 MiB after completing the
-write/delete cycle: only two pages remained, then a 65-page thread-stack allocation
-faulted in `ThreadContext.Initialize`. A read-only snapshot was clean in e2fsck.
-Allocator scratch reuse improves the workload but does not eliminate this runtime
-heap limitation; its cause/low-memory failure handling still need investigation.
+The desktop checks physical-memory pressure before each tick. When free pages
+fall to one eighth of the total, it requests a collection through the installed
+Cosmos `MemoryInfo` API and logs free pages before/after. Attempts are limited to
+one per second. Cosmos 3.0.89 otherwise collects only when managed allocation
+fails; native thread stacks can exhaust physical pages first. The large profile
+runs at 512 MiB in CI to exercise this path. This is a headroom policy, not a
+guarantee of graceful recovery when the live working set exceeds available RAM.
 The formatter is currently limited to the profile above and 1..512 MiB partitions;
 preflight rejects a final group too short for metadata. UUID remains unassigned;
 this is not a secure wipe or a journal. Installer/root migration remains pending.

@@ -282,7 +282,7 @@ def main() -> int:
     parser.add_argument("--step-timeout", type=float, default=60, help="seconds to wait for each command")
     parser.add_argument("--keep", type=Path, help="copy logs, screenshots and the ext2 scratch disk here")
     parser.add_argument("--memory", type=int, default=512, help="QEMU RAM in MiB (default: 512)")
-    parser.add_argument("--large-ext2-stress", action="store_true", help="also allocate/delete 9 MiB across groups (requires 1024 MiB RAM)")
+    parser.add_argument("--large-ext2-stress", action="store_true", help="also allocate/delete 9 MiB across groups")
     args = parser.parse_args()
 
     if not args.iso.exists():
@@ -298,8 +298,6 @@ def main() -> int:
     installed_disk = Path(installed_scratch.name) / "disk.img"
     if args.memory < 512:
         parser.error("--memory must be at least 512 MiB")
-    if args.large_ext2_stress and args.memory < 1024:
-        parser.error("--large-ext2-stress requires --memory 1024 or higher")
     failures = 0
     retried = 0
     start = time.time()

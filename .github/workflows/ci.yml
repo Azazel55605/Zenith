@@ -69,10 +69,10 @@ jobs:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 tools/smoke-test.py --timeout 600 --step-timeout 180 --keep smoke
 
-      - name: Ext2 large workload (separate 1 GiB profile)
+      - name: Ext2 large workload (512 MiB pressure regression)
         env:
           QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 tools/smoke-test.py --timeout 600 --step-timeout 180 --memory 1024 --large-ext2-stress --keep smoke-large
+        run: python3 tools/smoke-test.py --timeout 600 --step-timeout 180 --memory 512 --large-ext2-stress --keep smoke-large
 
       - uses: actions/upload-artifact@v4
         if: always()
