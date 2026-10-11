@@ -331,6 +331,13 @@ Preserve wrong-ID DNS, timeout, failed-download preservation and Ctrl+C cases: C
 3.0.89 skips unwind-finally handlers, so host-only cleanup tests miss native leaks.
 [NETWORKING](NETWORKING.md) describes application bounds versus framework queue limits.
 
+Run `python3 -B tools/dhcp-receive-smoke.py /tmp/zenith-dhcp-receive` to replay the
+observed VMware DHCP Offer/ACK profile over QEMU's raw Ethernet socket backend.
+It checks both unicast and broadcast Ethernet replies through the real E1000E
+driver, receive IRQ diagnostics, lease/route/DNS and outgoing broadcast headers.
+This is a controlled receive fixture; VMware interrupt routing remains a separate
+acceptance check. The x64 HAL build-copy adaptation runs before ILC cache hashing.
+
 
 M3 HTTPS builds offline from the checked Mbed TLS archive under `vendor/mbedtls`.
 `tools/build-tls.py` invokes clang for freestanding objects before link cache checks;

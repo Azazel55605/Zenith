@@ -183,6 +183,14 @@ Limited IPv4 broadcasts also receive the Ethernet broadcast destination; a VMwar
 capture revealed that the released Cosmos enqueue path otherwise sent DHCP to a
 zero MAC despite using 255.255.255.255 at the IP layer. The native suite checks
 actual Discover/Request Ethernet headers in both live and installed sessions.
+The E1000E receive address is explicitly activated even if firmware populated its
+MAC registers. `ip` includes receive-frame/ingress counters, initial filter validity
+and DHCP reply/rejection counts with the last rejected-reply reason. A DHCP timeout
+with no replies differs from received offers rejected by the bounded codec.
+`receive-filter-initially-valid=false` records the state before the driver activates
+the filter; it does not mean the filter remains disabled. Compare `rx-irqs`,
+`rx-frames` and `accepted` before/after a retry against a host packet capture.
+`dhcp-replies` and rejection details reset for each DHCP acquisition.
 Cosmos protocol state, retransmission/reassembly, ARP caching, connection retirement
 and shared tables still have limits; these bounds are not a whole-kernel budget or
 an Internet-facing server assurance. Native cleanup explicitly catches/disposes in

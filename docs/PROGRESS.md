@@ -1,5 +1,36 @@
 # Implementation progress
 
+## 2026-10-11 · VMware DHCP receive investigation
+
+- User confirms the fixed kernel hash and Ethernet broadcasts; VMware now returns
+  correlated offers for 172.16.43.141 with a 1800-second lease, gateway/DNS
+  172.16.43.2. Offers are unicast at Ethernet despite broadcast IPv4. Zenith still
+  reports no accepted offer. Added the exact observed BOOTP/options profile to
+  host tests and a raw-Ethernet native fixture for unicast and broadcast replies.
+- Found a separate E1000E fast-path defect: a prepopulated RAL0/RAH0 MAC returns
+  without activating RAH0.AV. Added a contract-checked adaptation of the copied
+  x64 HAL reference and read-only status counters for driver-delivered/accepted
+  frames, initial receive-filter validity, NIC/RX interrupts, DHCP replies/rejections
+  and last reason.
+  The SDK skips HAL.X64 in its plug-filtered list, so an explicit post-RunPatcher
+  target applies the adaptation before ILC cache hashing; a first integration build
+  demonstrated that applying later can incorrectly retain the old compiled driver.
+  Global packages/upstream remain untouched.
+- Release ISO and incremental builds pass. Incremental builds activate the copied
+  driver before cache hashing and retain the same ELF hash (f23d32beea9cf45b...);
+  no stale ILC artifact remains. Host tests pass 558/558, including the observed
+  VMware offer fields. The raw-Ethernet fixture passes 22/22 under TCG with real
+  NIC/RX interrupt observations and accepted Offer/ACKs for both destination types.
+  Final full network regression passes 174/174, including live/installed wire
+  captures, TLS, link loss, persistence and independent clean ext2 inspection.
+  Capture-checker tests pass 5/5; Python syntax and `git diff --check` pass.
+- Evidence: /tmp/zenith-dhcp-receive-build-final.log,
+  /tmp/zenith-dhcp-receive-incremental.log, /tmp/zenith-dhcp-receive-host.log,
+  /tmp/zenith-dhcp-receive-irqs.log and /tmp/zenith-dhcp-receive-network-final.log.
+  CI includes the replay fixture; hosted CI awaits push. The initial address-valid
+  bit and receive counters have not yet been observed on VMware; this filter
+  defect remains a possible cause, not a confirmed explanation of the user failure.
+
 ## 2026-10-11 · VMware DHCP broadcast regression
 
 - User's host capture shows valid DHCP Discover IP/UDP payloads sent to Ethernet

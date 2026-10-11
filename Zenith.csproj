@@ -25,6 +25,12 @@
     <Exec Command="python3 &quot;$(MSBuildProjectDirectory)/tools/build-tls.py&quot; &quot;$(IntermediateOutputPath)/cosmos/cobj&quot; --arch $(CosmosArch)" />
   </Target>
 
+  <!-- HAL.X64 has no plug targets, so the SDK's filtered patch list skips it.
+       Adapt only its copied ILC reference after SDK patching, never the package. -->
+  <Target Name="AdaptZenithE1000ReceiveFilter" BeforeTargets="CheckIlcCache" DependsOnTargets="RunPatcher" Condition="'$(CosmosArch)' == 'x64'">
+    <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.HAL.X64.dll&quot;" />
+  </Target>
+
   <ItemGroup>
     <AsmSearchPath Include="src/Native" />
   </ItemGroup>

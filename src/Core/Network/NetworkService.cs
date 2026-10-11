@@ -16,6 +16,7 @@ using Zenith.Core.Configuration;
 using Zenith.Core.Security;
 using Zenith.Core.Storage;
 using Zenith.Core.Time;
+using Zenith.Core.Network.Transport;
 using NetPoint = Cosmos.Kernel.System.Network.EndPoint;
 
 namespace Zenith.Core.Network;
@@ -102,6 +103,8 @@ internal static class NetworkService
         if (Adapter.IPConfig is null || Adapter.IPConfig.Address.ToString() == "0.0.0.0" || Expired)
         { throw new IOException("no usable address; run netcfg apply (root)"); }
     }
+    private static int s_dhcpReplies, s_dhcpRejected;
+    private static string s_dhcpRejection = "none";
     public static string Status()
     {
         var b = new StringBuilder(); b.Append("hostname=" + Hostname + " mode=" + Configuration.Mode + " state=" + s_state + "\n");
@@ -114,6 +117,13 @@ internal static class NetworkService
                 + " gateway=" + (ip?.DefaultGateway.ToString() ?? "none") + "\n");
         }
         b.Append("dns=" + string.Join(",", s_dns) + " lease=" + (Expired ? "expired" : s_expiresAt == 0 ? "none/static" : "valid") + "\n");
+        b.Append("rx-frames=" + EthernetIngress.Received + " accepted=" + EthernetIngress.Accepted + "\n");
+        if (E1000ReceiveFilter.Observed)
+        {
+            b.Append("receive-filter-initially-valid=" + E1000ReceiveFilter.InitiallyValid.ToString().ToLowerInvariant() + "\n");
+            b.Append("nic-irqs=" + E1000ReceiveFilter.Interrupts + " rx-irqs=" + E1000ReceiveFilter.ReceiveInterrupts + "\n");
+        }
+        b.Append("dhcp-replies=" + s_dhcpReplies + " rejected=" + s_dhcpRejected + " last-rejection=" + s_dhcpRejection + "\n");
         b.Append("time=" + s_time + "\n"); return b.ToString();
     }
     public static void Apply(Action cancel)
@@ -169,6 +179,7 @@ internal static class NetworkService
             }
             else
             {
+                s_dhcpReplies = 0; s_dhcpRejected = 0; s_dhcpRejection = "none";
                 Configure("0.0.0.0", "0.0.0.0", "0.0.0.0");
                 byte[] mac = new byte[6]; string[] segments = Adapter.MacAddress!.ToString().Split(':');
                 for (int i = 0; i < 6; i++) { mac[i] = Convert.ToByte(segments[i], 16); }
@@ -186,14 +197,17 @@ internal static class NetworkService
                             cancel(); if (!Adapter.LinkUp) { throw new IOException("link disconnected during DHCP"); }
                             var source = new NetPoint(Address4.Zero, 0); byte[]? reply = client.Receive(ref source, 0);
                             if (reply is null) { Thread.Sleep(10); continue; }
-                            if (source.Port != 67) { continue; }
+                            s_dhcpReplies++;
+                            if (source.Port != 67) { s_dhcpRejected++; s_dhcpRejection = "unexpected source port"; continue; }
                             try
                             {
                                 var lease = DhcpWire.Parse(reply, id, mac, phase == 0 ? (byte)2 : (byte)5);
-                                if (phase == 1 && (lease.Address != offer!.Address || lease.Server != offer.Server)) { continue; }
+                                if (phase == 1 && (lease.Address != offer!.Address || lease.Server != offer.Server))
+                                { s_dhcpRejected++; s_dhcpRejection = "ACK does not match selected offer"; continue; }
                                 offer = lease; received = true; break;
                             }
-                            catch (Exception e) { if (e is not IOException) { throw; } }
+                            catch (Exception e)
+                            { if (e is not IOException) { throw; } s_dhcpRejected++; s_dhcpRejection = e.Message; }
                         }
                     }
                     if (!received) { throw new IOException("DHCP timed out; no accepted " + (phase == 0 ? "offer" : "ACK")); }

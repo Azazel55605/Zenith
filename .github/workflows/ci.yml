@@ -123,6 +123,11 @@ jobs:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 -B tools/kernel-update-smoke.py smoke-kernel
 
+      - name: VMware-profile DHCP receive lab (Ethernet unicast and broadcast)
+        env:
+          QEMU: /usr/bin/qemu-system-x86_64
+        run: python3 -B tools/dhcp-receive-smoke.py smoke-dhcp-receive
+
       - name: IPv4 network lab (HTTP/HTTPS, certificates, DNS, NTP)
         env:
           QEMU: /usr/bin/qemu-system-x86_64
@@ -133,6 +138,7 @@ jobs:
         with:
           name: smoke-test-logs
           path: |
+            smoke-dhcp-receive/
             smoke/
             smoke-large/
             smoke-efi/

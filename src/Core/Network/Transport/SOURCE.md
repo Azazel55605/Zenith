@@ -12,6 +12,19 @@ The native network suite captures live and installed traffic and requires both
 DHCP Discover and Request to use ff:ff:ff:ff:ff:ff with matching Ethernet/BOOTP source
 MACs. Slirp previously accepted the invalid zero destination and hid the defect.
 
+The E1000E driver also returns early when RAL0/RAH0 contain a MAC, without ensuring
+RAH0 bit 31 (address valid) is set. All ReadMacAddress returns now activate that
+exact-match filter while preserving address bits. The explicit x64 build target
+adapts the copied HAL reference after RunPatcher and before CheckIlcCache: the SDK's
+plug-filtered list excludes HAL.X64, and applying after cache hashing would leave
+the old driver in the compiled ELF. No promiscuous receive mode is enabled.
+`ip` reports the initial validity bit, NIC/RX interrupts, driver-delivered/accepted
+frames and DHCP replies/rejections. IRQ instrumentation duplicates the already-read
+cause register value without clearing it again or changing dispatch. The user's remaining receive failure is not attributed
+to this flag until VMware diagnostics confirm it. The native DHCP replay fixture
+uses the observed 172.16.43.0/24, TTL/TOS and option profile with valid checksums,
+testing both unicast and broadcast Ethernet Offer/ACK delivery through E1000E.
+
 The released receive storage subtracts `_dataOffset` from `_dataLength` a second
 time while appending. Reading a snapshot of `Socket.Available` concurrently with an
 incoming segment makes a full intended read partial; the next append can lose data

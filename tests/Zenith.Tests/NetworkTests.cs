@@ -60,6 +60,21 @@ public sealed class NetworkTests
         for (int n = 0; n < 274; n++) { byte[] shortened = p.AsSpan(0, n).ToArray(); Assert.Throws<IOException>(() => DhcpWire.Parse(shortened, 123, new byte[6], 5)); }
     }
     [Fact]
+    public void VMwareOfferProfileIsAccepted()
+    {
+        byte[] mac = { 0x00, 0x0c, 0x29, 0x55, 0xc5, 0x54 };
+        var p = DhcpWire.Request(0xf4022d6f, mac); p[0] = 2;
+        NetworkWire.Put32(p, 16, 0xac102b8d); NetworkWire.Put32(p, 20, 0xac102bfe);
+        int i = 240; p[i++] = 53; p[i++] = 1; p[i++] = 2;
+        void Option(byte type, uint value) { p[i++] = type; p[i++] = 4; NetworkWire.Put32(p, i, value); i += 4; }
+        Option(54, 0xac102bfe); Option(51, 1800); Option(1, 0xffffff00);
+        Option(3, 0xac102b02); Option(6, 0xac102b02); p[i] = 255;
+        var lease = DhcpWire.Parse(p, 0xf4022d6f, mac, 2);
+        Assert.Equal(0xac102b8dU, lease.Address); Assert.Equal(0xac102bfeU, lease.Server);
+        Assert.Equal(0xac102b02U, lease.Gateway); Assert.Equal(0xac102b02U, lease.Dns);
+        Assert.Equal(1800U, lease.Seconds);
+    }
+    [Fact]
     public void DhcpDoesNotAcceptNakOrDuplicateOptions()
     {
         var p = Dhcp(); p[272] = 6; Assert.Throws<IOException>(() => DhcpWire.Parse(p, 123, new byte[6], 5));

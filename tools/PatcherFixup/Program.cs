@@ -69,6 +69,61 @@ if (assembly.Name.Name == "Cosmos.Kernel.Plugs")
         Console.WriteLine("Added PAL open permission precheck");
     }
 }
+if (assembly.Name.Name == "Cosmos.Kernel.HAL.X64")
+{
+    // Firmware can supply MAC bytes without an enabled exact-match filter. The
+    // fast ReadMacAddress return skipped setting RAH0.AV, losing unicast replies.
+    var device = module.GetType("Cosmos.Kernel.HAL.X64.Devices.Network.E1000E")
+        ?? throw new InvalidOperationException("Cosmos E1000E driver changed");
+    var readMac = device.Methods.Single(m => m.Name == "ReadMacAddress");
+    var read = device.Methods.Single(m => m.Name == "ReadMmio");
+    var write = device.Methods.Single(m => m.Name == "WriteMmio");
+    if (!readMac.HasBody || readMac.Parameters.Count != 0 || readMac.ReturnType.FullName != "System.Void"
+        || read.Parameters.Count != 1 || read.Parameters[0].ParameterType.FullName != "System.UInt32"
+        || read.ReturnType.FullName != "System.UInt32" || write.Parameters.Count != 2
+        || write.Parameters.Any(p => p.ParameterType.FullName != "System.UInt32")
+        || write.ReturnType.FullName != "System.Void"
+        || System.Convert.ToUInt32(device.Fields.Single(f => f.Name == "REG_RAH0").Constant) != 0x5404u)
+    { throw new InvalidOperationException("Cosmos E1000E receive address contract changed"); }
+    if (!readMac.Body.Instructions.Any(i => i.Operand is MethodReference m && m.DeclaringType.Name == "E1000ReceiveFilter"))
+    {
+        using var support = resolver.Resolve(new AssemblyNameReference("Zenith.Network", new Version(1, 0, 0, 0)));
+        var activate = module.ImportReference(support.MainModule.GetType("Zenith.Core.Network.Transport.E1000ReceiveFilter")
+            .Methods.Single(m => m.Name == "Activate"));
+        var il = readMac.Body.GetILProcessor();
+        foreach (var ret in readMac.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
+        {
+            // Preserve existing branch destinations by changing the original ret.
+            ret.OpCode = OpCodes.Ldarg_0; ret.Operand = null;
+            var cursor = ret;
+            foreach (var instruction in new[] {
+                il.Create(OpCodes.Ldc_I4, 0x5404), il.Create(OpCodes.Ldarg_0),
+                il.Create(OpCodes.Ldc_I4, 0x5404), il.Create(OpCodes.Call, read),
+                il.Create(OpCodes.Call, activate), il.Create(OpCodes.Call, write), il.Create(OpCodes.Ret) })
+            { il.InsertAfter(cursor, instruction); cursor = instruction; }
+        }
+        readMac.Body.MaxStackSize = Math.Max(4, readMac.Body.MaxStackSize);
+        changed = true; Console.WriteLine("Activated E1000E exact-match receive address on all MAC-read returns");
+    }
+    var irq = device.Methods.Single(m => m.Name == "HandleIRQ");
+    if (!irq.IsStatic || !irq.HasBody
+        || System.Convert.ToUInt32(device.Fields.Single(f => f.Name == "REG_ICR").Constant) != 0xc0u
+        || System.Convert.ToUInt32(device.Fields.Single(f => f.Name == "ICR_RXT0").Constant) != 0x80u
+        || System.Convert.ToUInt32(device.Fields.Single(f => f.Name == "ICR_RXDMT0").Constant) != 0x10u)
+    { throw new InvalidOperationException("Cosmos E1000E interrupt contract changed"); }
+    if (!irq.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "ObserveInterrupt"))
+    {
+        var cause = irq.Body.Instructions.Single(i => i.Operand is MethodReference m && m.Name == "ReadMmio"
+            && i.Previous.OpCode == OpCodes.Ldc_I4 && i.Previous.Operand is int value && value == 0xc0);
+        using var support = resolver.Resolve(new AssemblyNameReference("Zenith.Network", new Version(1, 0, 0, 0)));
+        var observe = module.ImportReference(support.MainModule.GetType("Zenith.Core.Network.Transport.E1000ReceiveFilter")
+            .Methods.Single(m => m.Name == "ObserveInterrupt"));
+        var il = irq.Body.GetILProcessor(); var duplicate = il.Create(OpCodes.Dup);
+        il.InsertAfter(cause, duplicate); il.InsertAfter(duplicate, il.Create(OpCodes.Call, observe));
+        irq.Body.MaxStackSize = Math.Max(2, irq.Body.MaxStackSize);
+        changed = true; Console.WriteLine("Added read-only E1000E IRQ/receive-cause counters");
+    }
+}
 if (assembly.Name.Name == "Cosmos.Kernel.System")
 {
     // 3.0.89 bypasses ARP for limited broadcasts but sends their zero-filled
@@ -109,12 +164,15 @@ if (assembly.Name.Name == "Cosmos.Kernel.System")
     }
     var transportReference = new AssemblyNameReference("Zenith.Network", new Version(1, 0, 0, 0));
     using var transportSupport = resolver.Resolve(transportReference);
-    var guardType = transportSupport.MainModule.GetType("Zenith.Core.Network.Transport.EthernetGuard");
+    var guardType = transportSupport.MainModule.GetType("Zenith.Core.Network.Transport.EthernetIngress");
     var handle = module.GetType("Cosmos.Kernel.System.Network.NetworkStack").Methods.Single(m => m.Name == "HandlePacket");
     if (handle.Parameters.Count != 2 || handle.Parameters[0].ParameterType.FullName != "System.Byte[]"
         || handle.Parameters[1].ParameterType.FullName != "System.Int32" || !handle.HasBody)
     { throw new InvalidOperationException("Cosmos Ethernet delivery contract changed"); }
-    if (!handle.Body.Instructions.Any(i => i.Operand is MethodReference m && m.DeclaringType.Name == "EthernetGuard"))
+    var existingGuard = handle.Body.Instructions.FirstOrDefault(i => i.Operand is MethodReference m && m.DeclaringType.Name == "EthernetGuard");
+    if (existingGuard is not null)
+    { existingGuard.Operand = module.ImportReference(guardType.Methods.Single(m => m.Name == "Accept")); changed = true; }
+    if (!handle.Body.Instructions.Any(i => i.Operand is MethodReference m && m.DeclaringType.Name == "EthernetIngress"))
     {
         var il = handle.Body.GetILProcessor(); var first = handle.Body.Instructions[0];
         var accept = module.ImportReference(guardType.Methods.Single(m => m.Name == "Accept"));
