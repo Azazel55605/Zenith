@@ -1,6 +1,7 @@
 # Current Zenith architecture
 
-Reviewed on 2026-10-11 at `8389113`. This document describes current code.
+Reviewed on 2026-10-11 against the current repository, including M2 and the
+S0/P0 foundation slice. This document describes current code.
 Future structure is in [SYSTEM-PLAN](SYSTEM-PLAN.md); update design is in
 [PACKAGE-MANAGER](PACKAGE-MANAGER.md).
 
@@ -23,30 +24,32 @@ of desktop/apps from the kernel. No process/loader change is implemented by that
 
 ## Boot and steady-state loop
 
-`Kernel.BeforeRun()` currently performs these steps inside a panic boundary:
+`Kernel.BeforeRun()` performs shared initialization and session startup inside a
+panic boundary:
 
-1. `SystemMounts.Initialize()` discovers storage, prepares root and mounts virtual filesystems.
-2. Load keyboard layout from `/etc/vconsole.conf` and zone from `/etc/timezone`.
-3. Register Cosmos-dependent system commands and the VFS metadata bridge.
-4. Load fonts, acquire the full-screen canvas and construct `Desktop`.
-5. Open Welcome and Terminal windows and log the selected live/installed storage mode.
+1. `SystemRuntime` prepares storage/root, virtual filesystems and M2 accounts.
+2. `SystemConfiguration` loads validated keyboard/timezone/session settings.
+3. Shared commands and the VFS metadata bridge are registered independently of UI.
+4. `SessionRuntime` selects an available host from boot arguments/saved settings.
+5. `DesktopSessionHost` loads fonts/canvas and opens Welcome/Terminal for the test DE.
 
 `Kernel.Run()` checks requested panics and physical-memory pressure, ticks the
-desktop and halts until an interrupt. Keyboard/mouse/timer interrupts wake it.
-The memory reserve policy requests collection near one-eighth free pages, at most
-once per second. It protects the tested native workload; graceful behavior for
-arbitrary workloads larger than RAM remains unproven.
+selected session host and halts until an interrupt. Keyboard/mouse/timer interrupts
+wake it. The memory reserve policy requests collection near one-eighth free pages,
+at most once per second. It protects the tested native workload; graceful behavior
+for arbitrary workloads larger than RAM remains unproven.
 
-There is no headless session selector yet. QEMU's smoke harness runs without a
-visible host window, but the guest still initializes the desktop and uses its
-Terminal. That test configuration must not be described as an implemented
-headless operating-system mode.
+The session model recognizes DE/headless/WM, but only the test DE host exists.
+Unavailable modes are reported and fall back to DE at boot; saving an unavailable
+mode through the CLI is refused. QEMU's hidden host display remains graphical guest
+testing, not a headless OS session. The graphical panic route remains. See
+[settings and sessions](SETTINGS-SESSIONS.md) for boundaries and the S1 gate.
 
 ## Code ownership and seams
 
 | Location | Responsibility |
 |---|---|
-| `Kernel.cs` | Boot composition, desktop loop, panic and collection boundaries |
+| `Kernel.cs` | Shared/session boot composition, idle loop, panic and collection boundaries |
 | `src/Core/Shell` | Parsing, interpreter, command contracts, cancellation and metadata abstraction |
 | `src/Core/Shell/Commands/SystemCommands.cs` | Cosmos-dependent shell operations |
 | `src/Core/Storage` | Root/layout/install/mount adapters, proc/dev, probes, ext2 integration |
@@ -158,3 +161,13 @@ e2fsck is clean after clean shutdown. These are dated results at `8389113`, not
 counts guaranteed for every later revision. Hosted CI rerun awaits push.
 See [PROGRESS](PROGRESS.md) for failures, corrections and artifact references,
 and [DEVELOPMENT](DEVELOPMENT.md) for reproduction commands.
+
+## Offline packaging foundation
+
+P0 shares a bounded experimental manifest reader and dry-run planner between the
+Linux host bundle builder and the guest `pkg inspect/plan` commands. It verifies
+lengths/digests, exact dependencies, architecture/runtime and existing-path conflicts.
+`pkg list` explicitly reports bundled kernel/base/test-DE components; no installed
+package database or independently loadable application is implied. No extraction,
+activation, signature verification or repository client exists. Local settings stay
+under /etc and outside data payloads. See [P0 contract](PACKAGE-PROTOTYPE.md).

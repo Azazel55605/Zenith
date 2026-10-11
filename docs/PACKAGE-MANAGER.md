@@ -1,7 +1,9 @@
 # Package manager and installed updates: design discussion
 
-**Status: proposal, 2026-10-11. No package manager, repository client or system-update
-activation is implemented.** This document makes the choices concrete for discussion.
+**Status: staged design, 2026-10-11.** The [P0 offline prototype](PACKAGE-PROTOTYPE.md)
+implements a host builder and shared host/guest inspect/dry-run core. Installation,
+repository trust/client and system-update activation remain unimplemented. This
+document records the production choices and future work; P0 is an experiment.
 Clarified direction: future desktop/apps are independent userland components;
 initial repository hosting is a dedicated home VM reachable on LAN and through existing VPN/DNS. See [USERLAND](USERLAND.md),
 [PACKAGE-SERVER](PACKAGE-SERVER.md) and [UPDATE-RECOVERY](UPDATE-RECOVERY.md).
@@ -70,7 +72,9 @@ A proposed manifest should cover:
   permitted ownership policy. Distinguish default config from replaceable program data.
 - Installed/temporary/backup space estimates, reboot requirement and artifact digest.
 
-These fields are a design checklist, not a frozen format. Signature metadata must bind
+These fields are the production design checklist, not a frozen format. The P0
+prototype implements a deliberately smaller data-only schema; it does not freeze
+the eventual signed container. Signature metadata must bind
 manifest and payload, including compatibility, sizes and paths. A payload digest without
 a trusted signature is not authentication.
 
@@ -223,7 +227,9 @@ Before implementation choose a guest-compatible maintained crypto/verifier libra
 validate standard positive/negative test vectors natively and pin algorithms/encodings.
 Signing happens on the trusted publisher; the guest only needs verification keys.
 Secure entropy is separately needed for passwords and TLS-related operations; digest
-and signature verification should not depend on the current insecure random plug.
+and signature verification should not depend on Cosmos generic random. M2 provides
+fail-closed password/device entropy; maintained signature/TLS verification still needs
+independent native feasibility and trust design.
 
 Clock/expiry policy is unresolved: bad RTC time can undermine expiration checks; unauthenticated
 NTP is not a trusted freshness source. Persist accepted metadata versions and define
@@ -271,7 +277,8 @@ later; none are assumed in this planning task.
 | P4: repository client | Signed metadata/mirror, bounded network fetching | Tampered/truncated/replayed/expired metadata rejected; key rotation and interrupted download tested |
 | P5: independent userland packages | M5 ABI/process/IPC contract, desktop/app dependencies and launcher entries | Install/run/remove app or desktop component without compiling a new kernel |
 
-P0 can begin while finishing M2 or designing sessions. P1 needs validated filesystem
+P0 builder/reader/dry-run work began with S0. Trust-library and production-container
+feasibility remain P0 gates before installation/distribution. P1 needs validated filesystem
 mutation and a stated privilege/recovery policy; P3 needs verified boot-artifact/root handling and an explicit recovery policy. P4
 depends on M3 and trust verification; P2 provisioning can happen before the guest
 client is ready. The precise P3/P4 order can change after boot/crypto research; neither is a quick side effect of a `fetch` command.
@@ -298,6 +305,7 @@ Host serialization tests alone do not establish safe installed updates.
 6. **Operations:** mirror hosting/channel policy, release retention and whether automatic
    downloads should later be optional. First apply remains user initiated with visible plan.
 
-Recommended next implementation slice after this discussion: P0 host package
-builder/reader/dry-run prototype plus guest verifier and boot-layout feasibility checks,
-without modifying an active installed system. Agree that scope before freezing a format.
+Implemented first P0 slice: host builder plus shared reader/dry-run and guest
+inspection, without changing the active installation. Next packaging gates are
+production container/signature-verifier feasibility and explicit ownership/config/
+transaction recovery, alongside S1 headless and later M3 networking.

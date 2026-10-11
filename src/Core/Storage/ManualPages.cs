@@ -11,6 +11,37 @@ internal static class ManualPages
 
     public static readonly (string Name, string Text)[] Pages =
     {
+        ("settings", """
+            SETTINGS AND SESSION FOUNDATION
+
+            settings show
+            settings set keyboard|timezone|session VALUE  (root)
+            session [status | list | set-default MODE]
+
+            Keyboard/timezone changes share validation and staged persistence with
+            localectl/timedatectl. Installed saves persist; live saves are volatile.
+            loadkeys changes the active keyboard only. Session defaults take effect
+            next boot. Only the floating test DE is available; headless/WM are planned.
+            Boot session= overrides saved defaults; unavailable hosts fall back to DE.
+            Unknown session schema versions are preserved and cannot be downgraded.
+            Config paths: /etc/vconsole.conf, /etc/timezone, /etc/zenith/session.conf.
+            Reads are bounded regular files. See the repository settings/session guide.
+            """),
+        ("pkg", """
+            P0 OFFLINE PACKAGE PROTOTYPE
+
+            pkg list               bundled image components, not an installed DB
+            pkg inspect MANIFEST   validate experimental data-package metadata
+            pkg plan MANIFEST      verify payload and print a read-only dry-run
+
+            Directory bundle: manifest.tsv and payload/usr/share/doc or zenith files.
+            Exact dependencies, runtime/architecture and path conflicts are checked.
+            Existing files are unowned conflicts; no overwrite, extraction or hooks.
+            SHA-256 hashes detect corruption, not authenticity. No signatures/network
+            or install/update/activation operations exist yet. Apps remain kernel-linked.
+            Limits: 32 KiB manifest, 64 files, 256 KiB per file, 4 MiB total payload.
+            Build host bundles with tools/Zenith.PackageTool; the format is experimental.
+            """),
         ("accounts", """
             NAME
                 accounts - installed ext2 authentication and access

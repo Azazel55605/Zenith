@@ -24,6 +24,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends e2fsprogs
       - run: dotnet test tests/Zenith.Tests --logger "console;verbosity=normal"
       - run: python3 -B tools/test_smoke_test.py
+      - run: python3 -B tools/test_package_tool.py
 
   build:
     name: Build ISO + smoke test
@@ -72,12 +73,17 @@ jobs:
       - name: Boot installed ext2 disk with UEFI (no ISO)
         env:
           QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 tools/test-installed-boot.py smoke/installed-disk.img --keep smoke-efi
+        run: python3 tools/test-installed-boot.py smoke/installed-disk.img --test-session-override --keep smoke-efi
 
       - name: Accounts and access regression
         env:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 tools/security-smoke.py smoke-security
+
+      - name: Settings, sessions and offline package dry-runs
+        env:
+          QEMU: /usr/bin/qemu-system-x86_64
+        run: python3 tools/foundation-smoke.py smoke-foundation
 
       - name: Ext2 large workload (512 MiB pressure regression)
         env:
@@ -93,6 +99,7 @@ jobs:
             smoke-large/
             smoke-efi/
             smoke-security/
+            smoke-foundation/
 
   release:
     name: Release

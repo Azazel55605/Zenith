@@ -127,6 +127,19 @@ In name/location prompts, Ctrl+A clears the current value. Copies are limited to
 8 MiB and opening in Editor to 128 KiB. Moving folders between parents and copying
 folders, devices, virtual files or symlinks are unavailable. See `man files`.
 
+## Settings, sessions and offline packages
+
+`settings show` and `settings set keyboard|timezone|session VALUE` use the same
+system-settings service as localectl/timedatectl. Changes require root; installed
+settings persist, live settings are volatile. `session status/list/set-default`
+reports available hosts and next-boot selection. The floating test DE remains the
+only available host; headless/WM are planned. See [settings/session guide](docs/SETTINGS-SESSIONS.md).
+
+P0 adds `pkg list`, `pkg inspect MANIFEST` and `pkg plan MANIFEST`, plus a Linux
+host data-bundle builder. Plans verify payload integrity and refuse unowned-path
+conflicts without changing the root. Packages cannot yet be installed or activated;
+compiled apps remain kernel-linked. See [prototype contract](docs/PACKAGE-PROTOTYPE.md).
+
 ## Documentation
 
 Start with the [documentation hub](docs/README.md). The [current architecture](docs/ARCHITECTURE.md),
@@ -136,7 +149,7 @@ from planned headless, DE/tiling WM, Settings, Files and update work. M2 is comp
 tracked in the progress log.
 
 - [`INSTRUCTIONS.md`](INSTRUCTIONS.md): shared contributor and agent guidance (also linked from `AGENTS.md` and `CLAUDE.md`).
-- [`docs/PROGRESS.md`](docs/PROGRESS.md): active M2 work, validation evidence and next steps.
+- [`docs/PROGRESS.md`](docs/PROGRESS.md): active slices, validation evidence and next steps.
 
 - [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md): toolchain, tests, CI and releases, debugging
   crashes, and working on Cosmos itself.

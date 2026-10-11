@@ -39,8 +39,8 @@ host e2fsck is clean after account updates. Hosted CI rerun awaits push; see PRO
 | Bounded ext2, no journal/guest repair | Unsupported layouts refused; crash-dirty volumes need host e2fsck |
 | Deferred unlink in Cosmos VFS | Namespace remains until final open handle closes |
 | Simple Files and no Settings app | Files remains a test client; settings use commands |
-| Guest always constructs Desktop | Hidden-window QEMU testing is not a headless OS session |
-| No integrated network/package service | Online installed updates and mirror management remain planned |
+| Only the temporary DE host is available | Session selection/seam exists; hidden-window QEMU is still graphical guest testing |
+| P0 packaging only; no network/installer/trust executor | Offline inspect/dry-run exists; installed updates and mirror management remain planned |
 | Early Cosmos boot fault observed under nested KVM | Harness retries the classified pre-Zenith fault; other failures stay failures |
 
 ## Agreed product direction
@@ -68,7 +68,7 @@ Details: [system plan](SYSTEM-PLAN.md), [userland](USERLAND.md),
 | Order | Work | Gate / dependency |
 |---|---|---|
 | Done | M2 accounts/credentials and permission policy | Native allow/deny/reboot and cryptographic-vector checks passed; trusted-kernel boundary documented |
-| Research | P0 package builder/parser/planner and userland/recovery feasibility | Host/disposable experiments only; record ABI, trust and backend decisions before dependent implementation |
+| Active P0 | Package builder/parser/planner and userland/recovery feasibility | Shared host/guest data prototype implemented; production container, signature verifier and recovery remain gates |
 | 2 | S0/S1 shared settings/session seam and serial headless | Preserve current desktop; boot without canvas/fonts; live and installed tests |
 | 3 | M3 network foundation, P1 offline data packages, P2 home repository preparation | Network faults/limits; file ownership/config policy and reboot recovery; VM access verified when provisioned |
 | 4 | M4 boot-artifact/root identity foundation; P3 staged kernel updates | Versioned ESP files, verified boot choice, retained previous entry and disk-only reboot; no snapshot prerequisite |
@@ -236,7 +236,7 @@ wired network.
 
 | Slice | Deliverable | Exit evidence |
 |---|---|---|
-| S0 | Typed/versioned config, shared CLI/GUI operations, session selector | Validate/fallback/default/migration/save errors; installed persistence; system and user scopes |
+| S0 | Typed/versioned config, shared CLI/GUI operations, session selector | System keyboard/timezone/session operations and test-DE host seam implemented; native validation in PROGRESS. Per-user preferences/Settings UI remain future work |
 | S1 | Graphics-independent serial headless | No desktop initialization; scripts/files/cancellation/services/clean shutdown on live and installed boots |
 | S2 | Shared focus/dialog/workspace/layout-policy infrastructure | Keyboard and pointer routes, small displays/minimum sizes, app behavior in both policies |
 | S3 | DE and auto-tiling WM | DE floating workflow; WM automatic layout, directional focus/move, workspaces, floating dialogs and fullscreen |
@@ -256,7 +256,7 @@ inspection in both graphical sessions. Avoid unrestricted in-kernel theme/plugin
 
 | Slice | Deliverable | Exit evidence / dependency |
 |---|---|---|
-| P0 | Format/builder/reader/dry-run, trust-library and guest feasibility | Bounded/malicious fixtures and target feasibility; record schema/version/crypto choices |
+| P0 | Format/builder/reader/dry-run, trust-library and guest feasibility | Experimental data bundle builder/shared reader/guest dry-run implemented; signature-library and production container decisions remain open |
 | P1 | Offline data/script packages and installed DB | Ownership/conflicts/config preservation; staged install/remove/verify, space/permission/cancel/reboot recovery tests |
 | P2 | Dedicated home repository VM | Own IP, user DNS and LAN/VPN routes; native static server, read-only published data; separate builder/signing; OS/address/storage details at deployment |
 | P3 | Staged versioned kernel/system artifacts | New kernel saved on disk while old runs; verify/flush/boot entry, explicit reboot-required state; retain previous kernel and rescue boot |
@@ -348,9 +348,10 @@ requests or in our local fork until they land:
 
 The product and hosting direction above is consolidated. Further design decisions are
 local implementation gates, not missing product requirements. M2 is complete. The
-next implementation choices are the S0/S1 settings/session seam and headless mode,
-or the M3 networking foundation; select the next slice explicitly.
-Package P0 and native-userland/R0 research may proceed independently once explicitly
-selected; do not deploy the VM or begin a Btrfs port implicitly. Every slice updates
+user selected shared settings/session foundations while retaining the current test DE,
+with early offline packaging. S0 system settings/session seam and the P0 prototype
+are implemented. Next is S1 graphics-independent serial headless, then M3 networking.
+Further P0 container/trust and native-userland/R0 research may advance as explicitly
+selected experiments; do not deploy the VM or begin a Btrfs port implicitly. Every slice updates
 PROGRESS with code status, exact validation and unresolved limitations. Maintain the
 architecture/history/user-facing docs alongside each delivered capability.

@@ -24,8 +24,15 @@ guidance here so the two entry points stay consistent.
 
 ## Architecture and conventions
 
-- `Kernel.cs` initializes storage, settings, commands, fonts and the desktop;
-  `Run()` ticks the desktop and halts until an interrupt.
+- `Kernel.cs` composes shared `SystemRuntime` initialization and `SessionRuntime`;
+  `DesktopSessionHost` owns fonts/canvas/windows. The current floating test DE is the
+  only available host. `Run()` ticks the host and halts until an interrupt.
+- Settings persistence belongs to `SettingsService`, shared by CLI and future GUI.
+  Keep local /etc state separate from shipped package defaults. See
+  [settings/session guide](docs/SETTINGS-SESSIONS.md).
+- P0 packages are experimental data bundles with inspect/dry-run only; use the
+  shared bounded parser/planner and [prototype guide](docs/PACKAGE-PROTOTYPE.md).
+  Do not infer installation, trust or independent app loading from bundle inventory.
 - `src/Core` holds system behavior; `src/Gui` rendering and window management;
   `src/Apps` desktop windows. Keep UI concerns out of the core layer.
 - Shell sources must remain host-testable without Cosmos. Cosmos-dependent
@@ -87,3 +94,7 @@ see [USERLAND](docs/USERLAND.md). WASM is optional, not the assumed final archit
 Customization/usability belong in proper desktop work. Home package hosting uses a dedicated VM with its own IP and existing
 VPN/DNS remote access ([server plan](docs/PACKAGE-SERVER.md)); snapshot/trial boot/restore is a
 requested investigation ([recovery plan](docs/UPDATE-RECOVERY.md)), not a Btrfs decision.
+
+User direction after M2: retain the simple DE for testing, replace it during proper
+userland/desktop work, and start packaging early. Shared settings/session and offline
+package foundations precede S1 serial headless. Keep their status accurate in PROGRESS.

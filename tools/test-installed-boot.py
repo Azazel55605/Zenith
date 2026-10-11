@@ -4,6 +4,7 @@ import argparse
 import importlib.util
 import shutil
 import subprocess
+import struct
 import tempfile
 from pathlib import Path
 import ext2_fixture
@@ -58,6 +59,7 @@ def main():
     parser.add_argument("--timeout", type=float, default=600)
     parser.add_argument("--step-timeout", type=float, default=180)
     parser.add_argument("--keep", type=Path)
+    parser.add_argument("--test-session-override", action="store_true", help="Boot with session=de in the cloned ESP configuration")
     args = parser.parse_args()
     if not args.disk.is_file():
         parser.error("disk must be a regular image file")
@@ -66,6 +68,15 @@ def main():
         prepared = Path(scratch) / "disk.img"
         shutil.copyfile(args.disk, prepared)
         subprocess.run(["bash", str(ROOT / "tools/make-bootable.sh"), str(prepared), args.configuration], check=True)
+        if args.test_session_override:
+            with prepared.open("rb") as image:
+                image.seek(512); header = image.read(512)
+                entries = struct.unpack_from("<Q", header, 72)[0]
+                image.seek(entries * 512); entry = image.read(128)
+                start = struct.unpack_from("<Q", entry, 32)[0]
+            config = Path(scratch) / "limine.conf"
+            config.write_text("timeout: 0\n\n/Zenith\n    protocol: limine\n    path: boot():/boot/Zenith.elf\n    cmdline: session=de\n")
+            subprocess.run(["mcopy", "-i", f"{prepared}@@{start * 512}", "-o", str(config), "::/limine.conf"], check=True)
         smoke.Machine = InstalledMachine
         machine, attempts = smoke.boot(Path(), args.timeout, "EFI disk-only", prepared)
         if machine is None:
@@ -78,6 +89,10 @@ def main():
             ("stat /home/user/ext2-persist | grep Access | logger", "Uid: 70000  Gid: 80000"),
             ("fsprobe /home/user | logger", "final-close deletion and reuse passed"),
         ]
+        if args.test_session_override:
+            steps.append(("session status | logger", "active=de (boot argument)"))
+            steps.append(("man settings | head -1 | logger", "SETTINGS AND SESSION FOUNDATION"))
+            steps.append(("man pkg | head -1 | logger", "P0 OFFLINE PACKAGE PROTOTYPE"))
         try:
             for line, expected in steps:
                 offset = len(machine.raw_log())
@@ -103,7 +118,8 @@ def main():
                 for source in (machine.serial, machine.disk, report):
                     shutil.copyfile(source, args.keep / source.name)
             shutil.rmtree(machine.workdir, ignore_errors=True)
-        print(str(7 - failures) + "/7 checks passed")
+        total = 3 + len(steps)
+        print(f"{total - failures}/{total} checks passed")
         return 1 if failures else 0
 
 

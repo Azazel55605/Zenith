@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 
 namespace Zenith.Core.Time;
 
@@ -9,8 +8,6 @@ namespace Zenith.Core.Time;
 /// </summary>
 internal static class SystemClock
 {
-    public const string ConfigPath = "/etc/timezone";
-
     public static TimeZoneInfoLite Zone { get; private set; } = TimeZones.Utc;
 
     /// <summary>Overridable for tests; the real clock otherwise.</summary>
@@ -33,20 +30,6 @@ internal static class SystemClock
 
         Zone = zone;
         return true;
-    }
-
-    public static void Save() => File.WriteAllText(ConfigPath, Zone.Name + "\n");
-
-    /// <summary>Applies the zone saved in /etc/timezone, if any. Returns an error message for an unknown zone.</summary>
-    public static string? LoadSaved()
-    {
-        if (!File.Exists(ConfigPath))
-        {
-            return null;
-        }
-
-        string name = File.ReadAllText(ConfigPath).Trim();
-        return name.Length == 0 || TrySetZone(name) ? null : "unknown time zone '" + name + "' in " + ConfigPath;
     }
 
     /// <summary>Formats like <c>date</c>: <c>Mon Oct  5 14:30:00 CEST 2026</c>.</summary>

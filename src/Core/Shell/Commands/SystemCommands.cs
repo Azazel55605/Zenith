@@ -10,6 +10,7 @@ using Cosmos.Kernel.System.Vfs;
 using Zenith.Core.Input;
 using Zenith.Core.Storage;
 using Zenith.Core.Security;
+using Zenith.Core.Configuration;
 using Zenith.Core.Time;
 
 namespace Zenith.Core.Shell.Commands;
@@ -36,6 +37,8 @@ internal static class SystemCommands
         add(new Command("hostname", "hostname", "Print the host name", c => { c.WriteLine(c.Shell.Get("HOSTNAME")); return 0; }));
         add(new Command("securityprobe", "securityprobe", "Check security primitives and hardware entropy", SecurityProbe));
         AccountCommands.Register(add);
+        ConfigurationCommands.Register(add);
+        PackageCommands.Register(add);
         add(new Command("accessprobe", "accessprobe directory", "Verify native VFS authorization (root, ext2)", c => { if (c.Args.Length != 1) { return c.Fail("specify an ext2 directory"); } c.WriteLine(NativeAccessProbe.Run(c.Shell.ResolvePath(c.Args[0]))); return 0; }));
         add(new Command("date", "date [-u]", "Print the date and time (-u: in UTC)", Date));
         add(new Command("timedatectl", "timedatectl [status | list-timezones | set-timezone zone]", "Show or set the time zone", Timedatectl));
@@ -218,12 +221,7 @@ internal static class SystemCommands
                 c.WriteLine(Ansi.Dim("Fixed offsets work too: UTC+2, UTC-5:30"));
                 return 0;
             case "set-timezone" when c.Args.Length == 2:
-                if (!SystemClock.TrySetZone(c.Args[1]))
-                {
-                    return c.Fail("unknown time zone '" + c.Args[1] + "' (see 'timedatectl list-timezones')");
-                }
-
-                SystemClock.Save();
+                SystemConfiguration.Settings.SetTimeZone(c.Args[1]);
                 return 0;
             default:
                 return c.Fail("usage: timedatectl [status | list-timezones | set-timezone zone]");
@@ -398,12 +396,7 @@ internal static class SystemCommands
             case "list-keymaps":
                 return ListKeymaps(c);
             case "set-keymap" when c.Args.Length == 2:
-                if (!KeyboardLayouts.Apply(c.Args[1]))
-                {
-                    return c.Fail("unknown layout '" + c.Args[1] + "'");
-                }
-
-                KeyboardLayouts.Save(KeyboardLayouts.Current);
+                SystemConfiguration.Settings.SetKeyboard(c.Args[1]);
                 return 0;
             default:
                 return c.Fail("usage: localectl [status | list-keymaps | set-keymap layout]");

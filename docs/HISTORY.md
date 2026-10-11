@@ -120,3 +120,21 @@ M2 account/authentication and filesystem access work is complete. Networking,
 self-contained installation, independent programs and real-hardware validation remain
 future milestones. No package manager/mirror, headless session, tiling WM or Settings
 app is marked implemented by this documentation work.
+
+## 2026-10-11: shared settings/session seam and early packaging
+
+Following M2, retained the floating DE for testing and extracted shared initialization
+from desktop startup. A typed system-settings service now owns keyboard/timezone
+persistence and versioned next-boot session defaults, with legacy representation,
+aliases, bounded input, fallback and future-version protection. CLI operations share
+that service. `DesktopSessionHost` owns graphics/fonts/windows; only DE is available.
+S1 serial headless, user preferences and the proper independent DE/WM remain later.
+
+Started P0 with a Linux directory-bundle builder, bounded shared manifest reader and
+host/guest dry-run planner. The current kernel/base/test-DE are explicitly identified
+as bundled components. Payload hashes, exact dependencies, runtime/architecture and
+unowned-path conflicts are checked; no installed DB, extraction, signatures, networking
+or activation exists. Local /etc and user/boot state are excluded from data payloads.
+The format is experimental; production container/verifier and P1 recovery remain gates.
+See [settings/session guide](SETTINGS-SESSIONS.md), [P0 contract](PACKAGE-PROTOTYPE.md)
+and [PROGRESS](PROGRESS.md) for the implementation and exact validation boundary.

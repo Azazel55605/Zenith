@@ -12,7 +12,7 @@ internal static class FileSystemLayout
 
     private static readonly string[] s_directories =
     {
-        "/bin", "/boot", "/dev", "/etc", "/home", "/home/user", "/mnt", "/proc", "/root",
+        "/bin", "/boot", "/dev", "/etc", "/etc/zenith", "/home", "/home/user", "/mnt", "/proc", "/root",
         "/tmp", "/usr", "/usr/share", "/usr/share/doc", "/usr/share/man", "/var", "/var/log",
     };
 
@@ -31,6 +31,7 @@ internal static class FileSystemLayout
         WriteIfMissing(root + "/etc/group", "root:x:0:\nusers:x:100:user\n");
         WriteIfMissing(root + "/etc/vconsole.conf", "KEYMAP=us\n");
         WriteIfMissing(root + "/etc/timezone", "UTC\n");
+        WriteIfMissing(root + "/etc/zenith/session.conf", "VERSION=1\nSESSION=de\n");
         WriteIfMissing(root + "/etc/motd", "Welcome to Zenith. Type 'help' to list commands.\n");
         WriteIfMissing(root + "/etc/profile", "export PATH=/bin\nexport EDITOR=edit\n");
         // System documentation is refreshed on every boot.

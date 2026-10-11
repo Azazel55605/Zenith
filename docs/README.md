@@ -1,8 +1,8 @@
 # Zenith documentation
 
 This is the project documentation entry point. Status reviewed on **2026-10-11**
-against implementation commit `8389113`. Plans below describe intended work, not
-features already available. Milestone version labels are targets, not release dates.
+against the current repository. Current S0/P0 behavior is documented separately
+from the future session/update plans. Milestone version labels are targets, not release dates.
 
 ## Reading paths
 
@@ -11,6 +11,8 @@ features already available. Milestone version labels are targets, not release da
 | What works, how to boot and use it | [Project README](../README.md) |
 | How the current system actually works | [Architecture](ARCHITECTURE.md) |
 | Account setup, authentication and access limits | [Accounts](ACCOUNTS.md) |
+| Shared settings and current session capabilities | [Settings/session foundation](SETTINGS-SESSIONS.md) |
+| Offline package builder, inspect and dry-run | [P0 package prototype](PACKAGE-PROTOTYPE.md) |
 | Desktop, headless, DE, tiling WM, settings and Files direction | [System plan](SYSTEM-PLAN.md) |
 | Updating an installation and distributing applications | [Package manager design discussion](PACKAGE-MANAGER.md) |
 | Moving desktop/apps outside the kernel | [Userland direction](USERLAND.md) |

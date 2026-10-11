@@ -697,3 +697,49 @@ permissions and reports accurate metadata through `ls -l`.
   `/tmp/zenith-m2-security-complete/` and `/tmp/zenith-security-build-final.log`.
   Documentation validation: all 96 local Markdown targets resolve; git diff --check
   passes. No generated images/disks/build output are included in the commit.
+
+## 2026-10-11 · S0 system settings/session seam and P0 offline package prototype
+
+- User selected shared configuration/session foundations with the existing floating
+  desktop retained as the test DE, then graphics-independent headless. Also requested
+  early packaging work to reduce coupling in future changes.
+- Implementing common system-settings validation/persistence for keyboard, timezone
+  and versioned session defaults; extracting shared boot and desktop host lifecycle.
+  Current build capability remains DE only; headless/WM must be reported unavailable.
+- Implementing a P0 experimental offline data manifest, shared host/guest reader and
+  dry-run planner, host bundle builder and truthful bundled-component inventory.
+  No install/update executor, production container/trust format, network client or
+  independent code loader is introduced. Future package defaults are separated from
+  mutable /etc settings; package dry-runs reject collisions rather than overwrite.
+- Implemented and runtime verified: shared settings load/validate/stage/save before
+  applying keyboard/clock state, root-only mutations, versioned session defaults,
+  boot-argument selection and truthful unavailable-host fallback. Shared boot now
+  composes the existing desktop host without changing its test windows.
+- Implemented the Linux host data-bundle builder, bounded shared manifest/planner,
+  guest `pkg list`, `pkg inspect` and read-only `pkg plan`. Regular-file/type/size
+  checks reject devices, links, FIFOs and unbounded trees; plans check digests,
+  compatibility, dependencies and destination conflicts without writing payloads.
+- Validation: 454/454 host tests, eight existing Python harness tests and nine
+  real-process package-tool tests pass. Release NativeAOT publish passes. Foundation
+  QEMU suite passes 33/33 across live and three installed boots; existing desktop/
+  filesystem regression passes 135/135 at 512 MiB. Final disk-only EFI suite passes
+  10/10, including boot-argument selection and new manual pages. Independent host
+  e2fsck reports the settings-updated and EFI roots clean.
+- Evidence: `/tmp/zenith-s0-host-final.log`, `/tmp/zenith-s0-package-tests-final.log`,
+  `/tmp/zenith-s0-build-delivery.log`, `/tmp/zenith-s0-foundation-final.log`,
+  `/tmp/zenith-s0-foundation-final/`, `/tmp/zenith-s0-baseline-final.log`,
+  `/tmp/zenith-s0-baseline-final/`, `/tmp/zenith-s0-efi.log` and `/tmp/zenith-s0-efi/`.
+  Preliminary debug runs were interrupted; the final complete suites above passed.
+  Corrected harness punctuation injection after switching to GB, restoring US before
+  subsequent pipe commands. Added foundation/package regressions to CI; hosted CI
+  has not run for this unpushed work.
+- S0 remains partial: per-user preferences and Settings GUI are later work. DE is
+  the only available host; headless/WM and graphics-independent panic handling are
+  not implemented. P0 remains experimental: no installer, installed database,
+  signatures, network client, independent code loading or update recovery.
+- Next: S1 serial headless host and serial failure reporting while keeping the test
+  DE. Packaging continues with production container/trust specification and verifier
+  gates before P1 transactional offline installation. Documentation records current
+  behavior separately from planned package/runtime/desktop work.
+- Documentation validation: all 137 local Markdown targets checked resolve;
+  `git diff --check` passes. Generated bundles, images and build output are excluded.

@@ -286,3 +286,26 @@ Run `python3 tools/security-smoke.py /tmp/zenith-security` for the disposable M2
 account/access suite. x64 RDSEED must be available (QEMU `-cpu max`); ARM64 password
 creation fails closed until an entropy backend exists. See [ACCOUNTS](ACCOUNTS.md)
 for bootstrap, record/update rules and the trusted-kernel security boundary.
+
+## Shared settings/session and package foundation
+
+`SystemRuntime` initializes shared services; `SessionRuntime` selects the available
+host; `DesktopSessionHost` retains today's test DE. Graphics-independent headless is
+not implemented by this extraction. See [settings/session guide](SETTINGS-SESSIONS.md).
+
+```sh
+python3 -B tools/test_package_tool.py
+python3 tools/foundation-smoke.py /tmp/zenith-foundation
+```
+
+The package-tool tests build the plain .NET Linux host tool, exercise deterministic
+bundles/dry-runs, corruption, conflicts, symlinks/FIFOs, output preservation and tree
+limits. The guest foundation harness uses disposable live/installed ext2 roots and
+checks shared settings, aliases, privilege denials, migration/persistence, future
+versions, capability fallback and package inspection/dry-runs. US/GB keymap tests
+restore US using common keys before injecting US pipe punctuation. The whole existing
+smoke suite must still pass: extracting startup is not permission to weaken GUI tests.
+Package format and activation boundaries are in [P0 contract](PACKAGE-PROTOTYPE.md).
+Add `--test-session-override` to the installed EFI check on a disk retained by the
+baseline smoke suite. It edits a disposable disk copy's boot arguments and verifies
+session selection and the new manual pages; it preserves the source disk.

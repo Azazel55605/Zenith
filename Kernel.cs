@@ -1,26 +1,19 @@
 using System;
 using System.Diagnostics;
-using Cosmos.Kernel.System.Graphics;
-using Zenith.Apps;
 using Zenith.Core;
+using Zenith.Core.Configuration;
+using Zenith.Core.Sessions;
 using Zenith.Core.Security;
-using Zenith.Core.Input;
 using Zenith.Core.Memory;
-using Zenith.Core.Shell.Commands;
-using Zenith.Core.Storage;
-using Zenith.Core.Time;
 using Zenith.Gui;
-using Zenith.Gui.Graphics;
 using Zenith.Gui.Shell;
 using MemoryInfo = Cosmos.Kernel.System.Diagnostics.MemoryInfo;
-using CommandShell = Zenith.Core.Shell.Shell;
 using Sys = Cosmos.Kernel.System;
 
 namespace Zenith;
 
 public class Kernel : Sys.Kernel
 {
-    private Desktop _desktop = null!;
     private readonly MemoryPressurePolicy _memoryPressure = new();
 
     protected override void BeforeRun()
@@ -28,26 +21,10 @@ public class Kernel : Sys.Kernel
         using var credentials = CredentialContext.Enter(Credentials.Root);
         try
         {
-            SystemMounts.Initialize();
-            Accounts.Initialize();
-            KeyboardLayouts.LoadSaved();
-            if (SystemClock.LoadSaved() is string clockError)
-            {
-                Log.Write("clock", clockError);
-            }
-            SystemCommands.Register(CommandShell.Register);
-            CommandShell.DefaultMetadata = new VfsFileMetadata();
-            CommandShell.DirectorySearch = path =>
-            {
-                if (Sys.Vfs.VfsManager.TryOpenDirectory(path, out var directory))
-                { using (directory) { FileAccessPolicy.Require(directory.Inode, PermissionPolicy.Search); } }
-            };
-            Fonts.Load();
-            _desktop = new Desktop(Canvas.GetFullScreen());
-            using var session = CredentialContext.Enter(Accounts.Session);
-            _desktop.Windows.Open(new WelcomeWindow());
-            _desktop.Windows.Open(new TerminalWindow());
-            Log.Write("kernel", "desktop ready (" + (SystemMounts.Mode == BootMode.Live ? "live" : "installed") + ")");
+            SystemRuntime.Initialize();
+            SessionRuntime.Start(SystemConfiguration.Settings.Current.DefaultSession,
+                mode => mode == SessionMode.Desktop ? new DesktopSessionHost()
+                    : throw new InvalidOperationException("unavailable session host"));
         }
         catch (Exception e)
         {
@@ -73,7 +50,7 @@ public class Kernel : Sys.Kernel
                 Log.Write("memory", "pressure collection: free pages " + before + " -> " + MemoryInfo.FreePages);
             }
 
-            _desktop.Tick();
+            SessionRuntime.Tick();
         }
         catch (Exception e)
         {
