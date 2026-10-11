@@ -17,6 +17,8 @@ internal sealed class PackageManifest
     public string Version { get; }
     public string Architecture { get; }
     public string RuntimeId { get; }
+    public string Repository { get; private set; } = "extra";
+    public IReadOnlyList<string> Conflicts { get; private set; } = Array.Empty<string>();
     public IReadOnlyList<PackageFile> Files { get; }
     public IReadOnlyList<PackageDependency> Dependencies { get; }
     public int PayloadBytes { get; }
@@ -30,9 +32,11 @@ internal sealed class PackageManifest
         foreach (char c in text)
         { if ((c < ' ' && c != '\t' && c != '\n') || c > '~') { throw new FormatException("manifest requires printable ASCII records"); } }
         string[] lines = text.Split('\n');
-        if (lines.Length < 2 || lines[0] != "ZENITH-PACKAGE\t1") { throw new FormatException("unsupported experimental manifest version"); }
+        if (lines.Length < 2 || !(lines[0] is "ZENITH-PACKAGE\t1" or "ZENITH-PACKAGE\t2")) { throw new FormatException("unsupported experimental manifest version"); }
         var fields = new Dictionary<string, string>(StringComparer.Ordinal);
         var files = new List<PackageFile>(); var dependencies = new List<PackageDependency>();
+        bool version2 = lines[0].EndsWith("2", StringComparison.Ordinal);
+        var conflicts = new List<string>();
         var paths = new HashSet<string>(StringComparer.Ordinal); var names = new HashSet<string>(StringComparer.Ordinal);
         int bytes = 0;
         for (int i = 1; i < lines.Length; i++)
@@ -53,26 +57,35 @@ internal sealed class PackageManifest
             }
             else if (f[0] == "requires")
             {
-                if (f.Length != 3 || dependencies.Count == 32 || !ValidName(f[1]) || !ValidVersion(f[2]) || !names.Add(f[1]))
+                if (f.Length != 3 || dependencies.Count == 32 || !ValidName(f[1]) || !(version2 ? PackageVersions.ValidConstraint(f[2]) : ValidVersion(f[2])) || !names.Add(f[1]))
                 { throw new FormatException("invalid exact dependency"); }
                 dependencies.Add(new(f[1], f[2]));
             }
+            else if (version2 && f[0] == "conflicts")
+            {
+                if (f.Length != 2 || !ValidName(f[1]) || conflicts.Count == 32 || conflicts.Contains(f[1]))
+                { throw new FormatException("invalid package conflict"); }
+                conflicts.Add(f[1]);
+            }
             else
             {
-                if (f.Length != 2 || !(f[0] is "name" or "version" or "architecture" or "kind" or "runtime") || !fields.TryAdd(f[0], f[1]))
+                if (f.Length != 2 || !(f[0] is "name" or "version" or "architecture" or "kind" or "runtime" || (version2 && f[0] == "repository")) || !fields.TryAdd(f[0], f[1]))
                 { throw new FormatException("unknown or duplicate manifest field"); }
             }
         }
-        if (fields.Count != 5 || !ValidName(fields["name"]) || !ValidVersion(fields["version"])
+        if (fields.Count != (version2 ? 6 : 5) || !ValidName(fields["name"]) || !ValidVersion(fields["version"])
             || !(fields["architecture"] is "any" or "x86_64" or "arm64") || fields["kind"] != "data"
-            || fields["runtime"].Length is < 1 or > 64 || files.Count == 0)
+            || fields["runtime"].Length is < 1 or > 64 || files.Count == 0 || (version2 && !(fields["repository"] is "core" or "extra")))
         { throw new FormatException("invalid package identity or unsupported kind"); }
         foreach (string path in paths)
         {
             for (int slash = path.IndexOf('/', 1); slash >= 0; slash = path.IndexOf('/', slash + 1))
             { if (paths.Contains(path.Substring(0, slash))) { throw new FormatException("file is also a parent path"); } }
         }
-        return new(fields["name"], fields["version"], fields["architecture"], fields["runtime"], files, dependencies, bytes);
+        var result = new PackageManifest(fields["name"], fields["version"], fields["architecture"], fields["runtime"], files, dependencies, bytes);
+        result.Repository = version2 ? fields["repository"] : "extra"; result.Conflicts = conflicts.AsReadOnly();
+        if (conflicts.Contains(result.Name)) { throw new FormatException("package conflicts with itself"); }
+        return result;
     }
     public static bool ValidName(string name)
     {

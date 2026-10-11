@@ -85,19 +85,33 @@ internal static class ManualPages
             access is an administrator-controlled console, not encrypted transport.
             """),
         ("pkg", """
-            P0 OFFLINE PACKAGE PROTOTYPE
+            SIGNED OFFLINE SCRIPT/DATA PACKAGES
 
-            pkg list               bundled image components, not an installed DB
-            pkg inspect MANIFEST   validate experimental data-package metadata
-            pkg plan MANIFEST      verify payload and print a read-only dry-run
+            pkg repos              core/extra definitions; mirrors initially unset
+            pkg list               bundled tools and independently installed data
+            pkg trust FILE SHA256  root pins exact public PEM fingerprint
+            pkg check FILE.zpk     verify RSA-PSS signature and complete payload
+            pkg install FILE...    root installs/upgrades on installed ext2
+            pkg remove NAME        root removes; dependent/modified files block
+            pkg verify             check installed owned file digests/modes
+            pkg recover            root resolves a durable pending transaction
+            pkg inspect MANIFEST   unsigned experimental metadata inspection
+            pkg plan MANIFEST      unsigned payload verification and dry-run
 
-            Directory bundle: manifest.tsv and payload/usr/share/doc or zenith files.
-            Exact dependencies, runtime/architecture and path conflicts are checked.
-            Existing files are unowned conflicts; no overwrite, extraction or hooks.
-            SHA-256 hashes detect corruption, not authenticity. No signatures/network
-            or install/update/activation operations exist yet. Apps remain kernel-linked.
-            Limits: 32 KiB manifest, 64 files, 256 KiB per file, 4 MiB total payload.
-            Build host bundles with tools/Zenith.PackageTool; the format is experimental.
+            Build/seal with tools/Zenith.PackageTool. Keep private signing keys off
+            the server and guest. TLS CA trust and package public-key trust differ.
+            Install up to 16 supplied packages atomically; dependencies may use the
+            installed set or other candidates. Numeric ranges and declared conflicts
+            apply to the full result. No forced overwrites or automatic downloads.
+            Preserve local edits; downgrades and bundled-tool replacement are refused.
+            Payload paths: /usr/share/doc and /usr/share/zenith, except inventory.
+            No /etc/boot/bin writes, links, cross-mount extraction or hooks.
+            Compile-linked tools/DE still require reboot; independent native execution
+            follows script/data packaging. Online signed indexes remain future work.
+            Recovery covers journaled package changes; ext2 power-loss repair may
+            still require host tools. This is not snapshot or boot-update recovery.
+            Limits: 32 installed packages; 32 KiB manifest; 64 files; 256 KiB/file;
+            4 MiB/package; 8 MiB transaction payload. See docs/PACKAGES.md.
             """),
         ("accounts", """
             NAME

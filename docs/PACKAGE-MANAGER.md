@@ -1,9 +1,13 @@
 # Package manager and installed updates: design discussion
 
 **Status: staged design, 2026-10-11.** The [P0 offline prototype](PACKAGE-PROTOTYPE.md)
-implements a host builder and shared host/guest inspect/dry-run core. Installation,
-repository trust/client and system-update activation remain unimplemented. This
-document records the production choices and future work; P0 is an experiment.
+implements a host builder and shared host/guest inspect/dry-run core. Signed offline script/data installation, ownership and dependency/conflict handling
+are now implemented in [PACKAGES](PACKAGES.md), with validation recorded in [PROGRESS](PROGRESS.md).
+Online signed metadata/client and system-update activation remain unimplemented. This
+document records the broader design and future work; the P0 directory bundle remains an experiment.
+Accepted first container: bounded uncompressed .zpk with RSA-PSS/SHA256 authentication;
+core/extra sections and grouped tool identities. Native tool separation follows P1 before
+independent compiled tool updates.
 Clarified direction: future desktop/apps are independent userland components;
 initial repository hosting is a dedicated home VM reachable on LAN and through existing VPN/DNS. See [USERLAND](USERLAND.md),
 [PACKAGE-SERVER](PACKAGE-SERVER.md) and [UPDATE-RECOVERY](UPDATE-RECOVERY.md).
@@ -277,9 +281,9 @@ later; none are assumed in this planning task.
 | P4: repository client | Signed metadata/mirror, bounded network fetching | Tampered/truncated/replayed/expired metadata rejected; key rotation and interrupted download tested |
 | P5: independent userland packages | M5 ABI/process/IPC contract, desktop/app dependencies and launcher entries | Install/run/remove app or desktop component without compiling a new kernel |
 
-P0 builder/reader/dry-run work began with S0. Trust-library and production-container
-feasibility remain P0 gates before installation/distribution. P1 needs validated filesystem
-mutation and a stated privilege/recovery policy; P3 needs verified boot-artifact/root handling and an explicit recovery policy. P4
+P0 builder/reader/dry-run work began with S0. P1 now implements bounded signed
+containers, native RSA-PSS verification and root-only installed script/data transactions.
+The concrete scope and recovery limits are in [PACKAGES](PACKAGES.md); P3 needs verified boot-artifact/root handling and an explicit recovery policy. P4
 depends on M3 and trust verification; P2 provisioning can happen before the guest
 client is ready. The precise P3/P4 order can change after boot/crypto research; neither is a quick side effect of a `fetch` command.
 
@@ -292,11 +296,13 @@ Host serialization tests alone do not establish safe installed updates.
 
 ## 11. Choices to settle together
 
-1. **Update priority:** recommended system/kernel plus data before independent apps.
+1. **Update priority:** accepted scripts/data first, then native ABI/process foundations
+   and compiled tool unbundling; system generations remain a separate gate.
 2. **System layout:** coordinated file generations versus read-only/A-B root images;
    choose after interrupted-update recovery experiments and space measurements.
-3. **Package scope:** recommended official packages, exact dependencies, no hooks and
-   regular-file/directory payloads first. Decide format/compression based on guest feasibility.
+3. **Package scope:** P1 uses official-key signed regular files, numeric dependency
+   ranges and declared conflicts, without hooks or compression. Broader formats,
+   providers and configuration merges remain later decisions.
 4. **Trust:** maintained TUF implementation/compatible verifier versus a deliberately
    limited protocol; choose libraries, clock policy and key management before public updates.
 5. **Userland:** independently loaded desktop/apps are the accepted target. Investigate
@@ -305,8 +311,7 @@ Host serialization tests alone do not establish safe installed updates.
 6. **Operations:** mirror hosting/channel policy, release retention and whether automatic
    downloads should later be optional. First apply remains user initiated with visible plan.
 
-Implemented first P0 slice: host builder plus shared reader/dry-run and guest
-inspection, without changing the active installation. Next packaging gates are
-production container/signature-verifier feasibility and explicit ownership/config/
-transaction recovery. S1 x64 serial headless now exercises the same inspect/plan
-commands without a desktop; M3 networking remains the next main milestone.
+Implemented: P0 unsigned inspection/dry-run and P1 signed offline scripts/data
+installation, ownership, upgrade/removal and recovery. M3 verified transport is available.
+Next: native ABI/process foundations for compiled tools, dedicated VM provisioning
+and signed online metadata. Kernel boot generations require their own validation.

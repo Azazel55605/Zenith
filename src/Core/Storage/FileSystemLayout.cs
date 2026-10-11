@@ -28,6 +28,7 @@ internal static class FileSystemLayout
         WriteIfMissing(root + "/etc/hostname", "zenith\n");
         WriteIfMissing(root + "/etc/hosts", "127.0.0.1 localhost\n");
         WriteIfMissing(root + "/etc/resolv.conf", "# nameserver IPv4 overrides DHCP DNS; up to three servers\n");
+        WriteIfMissing(root + Zenith.Core.Packages.PackageRepositories.Path, Zenith.Core.Packages.PackageRepositories.Default);
         WriteIfMissing(root + "/etc/zenith/network.conf", Zenith.Core.Network.NetworkConfiguration.Default.Serialize());
         WriteIfMissing(root + "/etc/passwd",
             "root:x:0:0:root:/root:/bin/sh\nuser:x:1000:1000:User:/home/user:/bin/sh\n");

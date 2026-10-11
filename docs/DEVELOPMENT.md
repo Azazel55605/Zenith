@@ -337,3 +337,12 @@ an import check rejects unsupported dependencies before linking. The post-patche
 so changing PatcherFixup/wrapper forces Cosmos to repatch. OpenSSL is needed for
 host/native TLS fixture certificates. See [NETWORKING](NETWORKING.md) for bridge,
 launcher and native acceptance commands, including optional home DNS testing.
+
+## Signed offline package validation
+
+See [PACKAGES](PACKAGES.md) for key generation, sealing and guest commands. Native
+package acceptance uses `python3 -B tools/package-smoke.py obj/package-smoke` and
+creates its own ext2 disk plus disposable signing keys outside the HTTP served tree.
+Host package faults are covered by PackageManagerTests; actual tool/native signatures
+by `tools/test_signed_package_tool.py /path/to/libzenith-tls.so`. Preserve journal,
+modified-file, dependency/conflict and root/user cases when changing extraction.

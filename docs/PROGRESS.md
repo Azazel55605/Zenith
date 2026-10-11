@@ -953,3 +953,67 @@ permissions and reports accurate metadata through `ls -l`.
   terminated its own launcher; completed shutdown is verified from ACPI S5 instead.
   No disk was attached or modified. VS Code button interaction itself was not automated.
   git diff --check passes. No kernel rebuild is needed for this launcher setting.
+
+## 2026-10-11 · P1 signed offline script/data packages — delivered
+
+- User selected package management with default core/extra sections, grouped base
+  tools, dependency/conflict management and delivery design. Clarified sequencing:
+  install scripts/data first, then unbundle compiled tools. Bring native userland
+  foundation forward before independent compiled-tool packages; retain the test DE.
+- Implemented RSA-PSS/SHA256 signed bounded offline containers, root-pinned public
+  keys, grouped bootstrap inventory and default repository config without an invented
+  mirror endpoint. Native verification reuses pinned Mbed TLS, requiring neither
+  private keys nor entropy/time for public verification. TLS and package trust differ.
+- Implemented installed ownership DB, multi-package dependency/range/conflict plans,
+  upgrade/remove/verify/recover, root/ext2 enforcement and durable undo/commit detection.
+  Preserve locally changed files; no maintainer hooks or overwrite force option.
+- Host suite passes 517/517, including signed-header/payload/trailer tampering,
+  dependencies/ranges/cycles, conflicts/ownership/local edits, bounds/space, cancellation
+  and persistent faults across creation, upgrade and removal. Actual signed tool/native
+  RSA-PSS checks pass 5/5, legacy unsigned tool 9/9, transcript harness 9/9 and TLS
+  bridge 35/35. Package signature verification remains usable without entropy.
+- Final Release NativeAOT ISO builds (existing Cosmos NAOT0007 layering warnings).
+  Native package acceptance passes 71/71: live-root
+  refusal, installed ext2, default repositories, public-key pinning/rejection/preservation,
+  signatures/tampering, atomic dependencies, conflict/dependent-removal denial, upgrade
+  and script execution without kernel rebuild, local-edit preservation, clean reboot
+  with prepared undo, exact recovery and persisted DB, ordinary-user denial, removal,
+  independent clean e2fsck and empty installed DB through debugfs.
+- Acceptance fixture repairs: Cosmos debug lines split labels/progress, so both raw
+  and noise-stripped transcripts are retained for command assertions; root re-login
+  uses a hidden ephemeral test password. One corrected fixture edit had an indentation
+  error caught before launch. The final signing-tool rerun initially named a nonexistent
+  shared library; rerunning with the built host bridge passes. No product timeout,
+  signature requirement or authentication check was weakened.
+- Recovery validates all backup records before writes and bounds aggregate undo data;
+  native reads allocate from one checked length and explicitly dispose on errors to
+  accommodate Cosmos unwind limitations. CI includes signing and native package checks;
+  ephemeral private fixture keys are excluded from uploaded artifacts. New standalone
+  harnesses restore the tool project so fresh CI checkouts have package assets.
+- Scope: no automatic repository refresh/dependency download, /etc merge, maintainer
+  hooks, kernel/boot update, native tool execution or snapshot/power-cut guarantee.
+  Ext2 still requires host repair after some unclean shutdowns. The VM is not provisioned.
+  Documented future delivery uses signed per-section indexes and immutable content-
+  addressed .zpk artifacts, with signing separate from serving and freshness/rotation
+  gates before an online client. Next accepted direction is native ABI/process work
+  before compiled tool unbundling, while retaining the current test DE.
+- Evidence: /tmp/zenith-p1-host-verified.log, /tmp/zenith-p1-build-verified.log,
+  /tmp/zenith-p1-native-final-checked.log, /tmp/zenith-p1-signed-verified.log,
+  /tmp/zenith-p1-legacy-verified.log, /tmp/zenith-p1-harness.log and
+  /tmp/zenith-p1-tls-host-final.log. Disposable guest artifacts are ignored under
+  obj/p1-package-final-checked. Hosted CI has not been run. Documentation local links
+  pass (131 checked); git diff --check passes.
+
+- Network regression follow-up: KVM live/installed checks passed, then the no-NIC
+  UEFI reboot stalled before Zenith output (a fresh copy stalled at Limine too).
+  Preserved logs; stopped the identified hung guest. The same disk reaches COM1
+  under TCG. Full TCG regression passes 172/172, including offline/no-entropy boots,
+  installed trust, faults/cancellation/denials and independent ext2/payload/time checks.
+  Evidence: /tmp/zenith-p1-network-tcg.log and ignored obj/p1-network-tcg; failed KVM
+  transcript: /tmp/zenith-p1-network-verified.log. This is not classified as the older
+  Cosmos APIC #GP because no such fault appears in these logs.
+- Final review found native staging replacement could delete a preexisting .pkg-new
+  file. Refuse occupied staging paths before preparing the transaction and in the
+  native writer; host and guest checks verify unowned staging content is preserved.
+  After an unclean shutdown, an occupied staging file may need root inspection/cleanup
+  before recovery; no automatic deletion of unrelated content is attempted.

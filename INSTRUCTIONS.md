@@ -32,9 +32,12 @@ guidance here so the two entry points stay consistent.
 - Settings persistence belongs to `SettingsService`, shared by CLI and future GUI.
   Keep local /etc state separate from shipped package defaults. See
   [settings/session guide](docs/SETTINGS-SESSIONS.md).
-- P0 packages are experimental data bundles with inspect/dry-run only; use the
-  shared bounded parser/planner and [prototype guide](docs/PACKAGE-PROTOTYPE.md).
-  Do not infer installation, trust or independent app loading from bundle inventory.
+- P0 directory bundles remain unsigned inspect/dry-run experiments. P1 signed .zpk
+  scripts/data packages have an ext2 installed-root transaction/ownership engine;
+  see [PACKAGES](docs/PACKAGES.md). Preserve signature, dependency/conflict, local-edit,
+  fault/cancel and installed-reboot recovery tests. /etc merges, signed online indexes,
+  native execution and boot updates are separate gates. User selected scripts/data
+  first, then unbundle compiled tools; grouped inventory is not independent executables.
 - `src/Core` holds system behavior; `src/Gui` rendering and window management;
   `src/Apps` desktop windows. Keep UI concerns out of the core layer.
 - M3 has a primary IPv4 service and diagnostic/NTP/HTTP/verified HTTPS commands; see

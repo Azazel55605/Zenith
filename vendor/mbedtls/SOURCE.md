@@ -47,3 +47,9 @@ checksum together, review configuration/ABI, rerun host and native faults/cancel
 and missing-entropy rejection. Do not disable certificate verification to make an
 incompatible mirror work. TLS 1.3/public roots/revocation/multiple concurrent TLS
 sessions require new implementation and validation.
+
+The same fixed-memory port verifies offline package RSA-PSS/SHA256 signatures
+(2048..4096-bit RSA, MGF1 SHA256, 32-byte salt). Public verification requires no
+entropy or time and is separated from TLS CA authentication. A native atomic arena
+claim prevents TLS, primitive self-tests and signature verification from overlapping
+allocator state. See [package contract](../../docs/PACKAGES.md).

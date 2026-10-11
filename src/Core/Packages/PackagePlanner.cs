@@ -18,6 +18,9 @@ internal static class BootstrapComponents
     {
         new("zenith-kernel", "0.1", "kernel-linked; reboot"),
         new("zenith-base", "0.1", "kernel-linked; reboot"),
+        new("base-tools", "0.1", "bundled shell/text tools; reboot"),
+        new("net-tools", "0.1", "bundled IPv4 diagnostics; reboot"),
+        new("fs-tools", "0.1", "bundled filesystem/account tools; reboot"),
         new("zenith-desktop-test", "0.1", "kernel-linked test DE; reboot"),
     };
 }
@@ -45,9 +48,11 @@ internal static class PackagePlanner
         {
             bool found = false;
             foreach (var component in components)
-            { if (component.Name == dependency.Name && component.Version == dependency.Version) { found = true; break; } }
+            { if (component.Name == dependency.Name && PackageVersions.Matches(component.Version, dependency.Version)) { found = true; break; } }
             if (!found) { blockers.Add("missing exact dependency " + dependency.Name + "=" + dependency.Version); }
         }
+        foreach (string conflict in manifest.Conflicts)
+        { foreach (var component in components) { if (component.Name == conflict) { blockers.Add("declared conflict: " + conflict); } } }
         foreach (var file in manifest.Files)
         {
             byte[] bytes = source.Read(file);

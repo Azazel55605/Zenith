@@ -89,7 +89,7 @@ static int verify_time(void *unused, mbedtls_x509_crt *crt, int depth, uint32_t 
 }
 void zenith_tls_close(void)
 {
-    if (!active) return;
+    if (active != 1) return;
     mbedtls_ssl_free(&ssl); mbedtls_ssl_config_free(&config);
     mbedtls_x509_crt_free(&roots); mbedtls_ctr_drbg_free(&random_state);
     mbedtls_memory_buffer_alloc_free();
@@ -101,8 +101,8 @@ void zenith_tls_close(void)
 int zenith_tls_open(const unsigned char *ca, size_t ca_length, const char *hostname,
                     int year, int month, int day, int hour, int minute, int second)
 {
-    if (active || !ca || ca_length < 1 || ca_length > 65536 || !hostname || year < 2020 || year > 2100) return -1;
-    mbedtls_memory_buffer_alloc_init(arena, sizeof(arena)); active = 1;
+    if (!ca || ca_length < 1 || ca_length > 65536 || !hostname || year < 2020 || year > 2100 || !__sync_bool_compare_and_swap(&active, 0, 1)) return -1;
+    mbedtls_memory_buffer_alloc_init(arena, sizeof(arena));
     mbedtls_ssl_init(&ssl); mbedtls_ssl_config_init(&config);
     mbedtls_x509_crt_init(&roots); mbedtls_ctr_drbg_init(&random_state);
     now = (mbedtls_x509_time){ year, month, day, hour, minute, second };
@@ -173,14 +173,35 @@ char *strstr(const char *s, const char *needle)
 int zenith_tls_printf(const char *format, ...) { (void)format; return 0; }
 int zenith_tls_selftest(void)
 {
-    if (active) return -1;
+    if (!__sync_bool_compare_and_swap(&active, 0, 3)) return -1;
     mbedtls_memory_buffer_alloc_init(arena, sizeof(arena));
     int result = mbedtls_aes_self_test(0) || mbedtls_gcm_self_test(0)
         || mbedtls_sha256_self_test(0) || mbedtls_sha512_self_test(0)
         || mbedtls_ctr_drbg_self_test(0);
     mbedtls_memory_buffer_alloc_free(); mbedtls_platform_zeroize(arena, sizeof(arena));
-    return result;
+    active = 0; return result;
 }
 #ifdef ZENITH_TLS_HOST_TEST
 void zenith_tls_test_entropy_fault(int fail) { entropy_fault = fail; }
 #endif
+
+/* Offline package verification: RSA-PSS SHA256, MGF1 SHA256, 32-byte salt.
+   No private keys, system time or entropy required for public verification. */
+int zenith_pkg_verify(const unsigned char *pem, size_t length,
+                      const unsigned char *hash, const unsigned char *signature, size_t signature_length)
+{
+    if (!pem || !hash || (!signature && signature_length != 0) || length < 1 || length > 4097
+        || !__sync_bool_compare_and_swap(&active, 0, 2)) return -1;
+    mbedtls_memory_buffer_alloc_init(arena, sizeof(arena));
+    mbedtls_pk_context key; mbedtls_pk_init(&key);
+    int result = mbedtls_pk_parse_public_key(&key, pem, length);
+    if (!result && (mbedtls_pk_get_type(&key) != MBEDTLS_PK_RSA
+        || mbedtls_pk_get_bitlen(&key) < 2048 || mbedtls_pk_get_bitlen(&key) > 4096
+        || (signature_length != 0 && signature_length != mbedtls_pk_get_len(&key)))) result = -1;
+    mbedtls_pk_rsassa_pss_options options = { MBEDTLS_MD_SHA256, 32 };
+    if (!result && signature_length != 0) result = mbedtls_pk_verify_ext(MBEDTLS_PK_RSASSA_PSS, &options, &key,
+        MBEDTLS_MD_SHA256, hash, 32, signature, signature_length);
+    mbedtls_pk_free(&key); mbedtls_memory_buffer_alloc_free();
+    mbedtls_platform_zeroize(arena, sizeof(arena)); active = 0;
+    return result;
+}

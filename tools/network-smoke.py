@@ -108,7 +108,8 @@ def main():
         checks += 1; print(("ok   " if passed else "FAIL ") + label, flush=True)
         if not passed: raise RuntimeError(label)
     def command(text, marker, timeout=90):
-        offset = len(m.log()); m.send(text + "\r"); check(m.wait(marker, offset, timeout), marker); return m.log()[offset:]
+        offset = len(m.log()); m.send(text + "\r"); check(m.wait(marker, offset, timeout), marker)
+        raw = m.log()[offset:]; return raw + "\n" + h.efi.smoke.COSMOS_NOISE.sub("", raw)
     def status(text, name, code=0, timeout=90): return command(text + "; echo " + name + "=$?", name + "=" + str(code), timeout)
     def boot(label, disk=None, network=True, entropy=True):
         machine = h.Machine(args.keep / label, disk, "session=headless" if disk else None,

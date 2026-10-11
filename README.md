@@ -139,8 +139,9 @@ falls back to headless. See [settings/session guide](docs/SETTINGS-SESSIONS.md).
 
 P0 adds `pkg list`, `pkg inspect MANIFEST` and `pkg plan MANIFEST`, plus a Linux
 host data-bundle builder. Plans verify payload integrity and refuse unowned-path
-conflicts without changing the root. Packages cannot yet be installed or activated;
-compiled apps remain kernel-linked. See [prototype contract](docs/PACKAGE-PROTOTYPE.md).
+conflicts without changing the root. P1 adds signed offline script/data installation,
+upgrades and removal on installed ext2; compiled apps remain kernel-linked. See
+[package guide](docs/PACKAGES.md) and [prototype contract](docs/PACKAGE-PROTOTYPE.md).
 
 ## IPv4 networking
 
@@ -214,3 +215,13 @@ tools/                     run.sh, make-bootable.sh, smoke-test.py, use-cosmos.s
   `CommandContext` with its args and stdin, writes to `Out`/`Err`, and returns an exit status.
 - **An app:** subclass `Window` (`DrawContent`, `OnKey`, `OnMouseDown`, `OnScroll`,
   `Update`) and add it to `AppRegistry.Apps`.
+
+### Signed offline script/data packages
+
+`pkg repos` lists default core/extra definitions; `pkg list` distinguishes bundled
+base-tools/net-tools/fs-tools from independently installed scripts/data. Root can
+pin a public signing key, check/install/upgrade/remove .zpk files on installed ext2,
+verify ownership and recover interrupted transactions. Dependencies, declared
+conflicts and local file edits can block a whole transaction. See
+[PACKAGES](docs/PACKAGES.md) for building/signing, delivery and exact limitations.
+Online indexes and independent compiled tool execution are subsequent work.

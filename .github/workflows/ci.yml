@@ -27,6 +27,7 @@ jobs:
       - run: python3 -B tools/build-tls.py /tmp/zenith-tls-native
       - run: python3 -B tools/build-tls.py /tmp/zenith-tls --host
       - run: python3 -B tools/test_tls_bridge.py /tmp/zenith-tls/libzenith-tls.so
+      - run: python3 -B tools/test_signed_package_tool.py /tmp/zenith-tls/libzenith-tls.so
       - run: python3 -B tools/test_smoke_test.py
       - run: python3 -B tools/test_package_tool.py
 
@@ -102,6 +103,11 @@ jobs:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 tools/headless-smoke.py smoke-headless
 
+      - name: Signed offline package install and recovery
+        env:
+          QEMU: /usr/bin/qemu-system-x86_64
+        run: python3 -B tools/package-smoke.py smoke-packages
+
       - name: IPv4 network lab (HTTP/HTTPS, certificates, DNS, NTP)
         env:
           QEMU: /usr/bin/qemu-system-x86_64
@@ -119,6 +125,8 @@ jobs:
             smoke-foundation/
             smoke-headless/
             smoke-network/
+            smoke-packages/
+            !smoke-packages/keys/**
 
   release:
     name: Release

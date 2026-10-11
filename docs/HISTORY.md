@@ -179,3 +179,13 @@ BCL and filesystem time. Build adapters guard packet parsing and bound UDP/ICMP
 queues; configuration reload/DNS saves and user/TAP/off launch profiles support
 home testing. Home DNS supplied as 10.0.10.3; no package VM exists yet. Detailed
 validation and any remaining acceptance gates are tracked in [PROGRESS](PROGRESS.md).
+
+## 2026-10-11: signed offline packages and migration sequencing
+
+User requested default core/extra repositories, grouped base tools, dependency/conflict
+handling and delivery. Chose script/data installation first, then native tool unbundling.
+Added RSA-PSS signed containers, pinned public-key import, an installed ownership DB,
+range/conflict checks and multi-package undo/commit transactions. Grouped base-tools,
+net-tools and fs-tools remain image inventory until the native execution boundary exists.
+Online signed indexes and dedicated VM publication follow separately. See
+[PACKAGES](PACKAGES.md) and [PROGRESS](PROGRESS.md) for actual scope and acceptance.

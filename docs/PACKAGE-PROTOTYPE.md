@@ -2,8 +2,9 @@
 
 Experimental implementation, 2026-10-11. The shared host/guest reader and planner
 establish bounded input, integrity, compatibility and conflict checks before an
-installer is built. **No package is installed, removed or activated.** Production
-container/signatures, persistent ownership DB and transaction/recovery remain gates
+installer is built. These unsigned directory commands do not install or activate packages.
+Signed offline containers, ownership DB and transactions are now a separate
+[P1 implementation](PACKAGES.md). Online trust and system activation remain gates
 in [PACKAGE-MANAGER](PACKAGE-MANAGER.md). Networking is not needed for these tests.
 
 ## Build and inspect

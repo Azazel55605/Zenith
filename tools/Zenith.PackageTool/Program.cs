@@ -3,7 +3,8 @@ using Zenith.Core.Packages;
 
 try
 {
-    if (args.Length == 5 && args[0] == "build")
+    int? signedResult = SignedCommands.Run(args); if (signedResult.HasValue) { return signedResult.Value; }
+    if ((args.Length == 5 || (args.Length == 7 && args[5] == "--repo" && (args[6] is "core" or "extra"))) && args[0] == "build")
     {
         string name = args[1], version = args[2], source = Path.GetFullPath(args[3]), output = Path.GetFullPath(args[4]);
         if (!PackageManifest.ValidName(name) || !Directory.Exists(source) || Directory.Exists(output) || File.Exists(output))
@@ -33,7 +34,9 @@ try
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!); File.WriteAllBytes(target, data);
                 manifest.Append("file\t").Append(path).Append("\t0644\t").Append(data.Length).Append('\t').Append(PackagePlanner.Digest(data)).Append('\n');
             }
-            string text = manifest.ToString(); _ = PackageManifest.Parse(text);
+            string text = manifest.ToString();
+            if (args.Length == 7) { text = text.Replace("ZENITH-PACKAGE\t1\n", "ZENITH-PACKAGE\t2\nrepository\t" + args[6] + "\n"); }
+            _ = PackageManifest.Parse(text);
             File.WriteAllText(temporary + "/manifest.tsv", text, new UTF8Encoding(false));
             Directory.Move(temporary, output);
         }
@@ -56,7 +59,7 @@ try
         Console.WriteLine("dry-run only; hashes are not signatures; no target files changed");
         return plan.Applicable ? 0 : 1;
     }
-    else { Console.Error.WriteLine("usage: build NAME VERSION SOURCE OUTPUT | inspect MANIFEST | plan MANIFEST TEST_ROOT"); return 2; }
+    else { Console.Error.WriteLine("usage: keygen KEY_DIR | seal BUNDLE PRIVATE_PEM OUTPUT.zpk | check ARCHIVE PUBLIC_PEM | build NAME VERSION SOURCE OUTPUT [--repo core|extra] | inspect MANIFEST | plan MANIFEST TEST_ROOT"); return 2; }
     return 0;
 }
 catch (Exception e) { Console.Error.WriteLine(e.Message); return 1; }

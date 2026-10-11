@@ -41,7 +41,7 @@ host e2fsck is clean after account updates. Hosted CI rerun awaits push; see PRO
 | Deferred unlink in Cosmos VFS | Namespace remains until final open handle closes |
 | Simple Files and no Settings app | Files remains a test client; settings use commands |
 | Temporary DE and x64 serial headless; WM unavailable | Independent userland, automatic tiling, proper Settings and Files remain future work |
-| P0 packaging only; no install/trust executor | Verified HTTPS transport exists; authenticated installed updates remain planned |
+| Offline signed scripts/data only | Compiled apps remain bundled; signed online indexes and boot generations remain planned |
 | Early Cosmos boot fault observed under nested KVM | Harness retries the classified pre-Zenith fault; other failures stay failures |
 
 ## Agreed product direction
@@ -69,12 +69,14 @@ Details: [system plan](SYSTEM-PLAN.md), [userland](USERLAND.md),
 | Order | Work | Gate / dependency |
 |---|---|---|
 | Done | M2 accounts/credentials and permission policy | Native allow/deny/reboot and cryptographic-vector checks passed; trusted-kernel boundary documented |
-| Active P0 | Package builder/parser/planner and userland/recovery feasibility | Shared host/guest data prototype implemented; production container, signature verifier and recovery remain gates |
+| Implemented P0/P1 | Package builder/parser/planner and signed offline scripts/data | Native signature/ownership/transaction implementation; validation in PROGRESS; native userland and boot recovery remain separate gates |
 | Done foundations | S0 shared settings/session seam and S1 serial headless | Native DE/no-GPU live and installed tests; Settings GUI/per-user preferences remain later work |
-| 3 | M3 LAN networking, P1 offline data packages, P2 home repository preparation | Network faults/limits; file ownership/config policy and reboot recovery; VM access verified when provisioned |
+| Done M3/P1 | LAN networking and offline scripts/data | Native transport and signed install/upgrade/remove/reboot checks passed; exact evidence in PROGRESS |
+| Next | M5 native executable/process/ABI foundation, then compiled tool unbundling | Loader, protected process/credential/resource boundaries and separately installable base-tools/net-tools/fs-tools |
+| In parallel when provisioned | P2 home repository preparation | Dedicated VM endpoint, signed publishing, LAN/VPN/DNS access |
 | 4 | M4 boot-artifact/root identity foundation; P3 staged kernel updates | Versioned ESP files, verified boot choice, retained previous entry and disk-only reboot; no snapshot prerequisite |
 | 5 | P4 signed online repository client | Native trust/expiry/rollback checks, bounded download and LAN/VPN/DNS route tests |
-| 6 | M5 protected userland foundation then app/desktop migration; P5 independent packages | ABI/IPC/credentials/resource/fault boundaries and app updates without relinking kernel |
+| 6 | M5 app/desktop migration; P5 independent packages | Extends the earlier native tool foundation with IPC/UI and app updates without relinking kernel |
 | 7 | M6 proper DE/WM, Settings, customization and Files rework | Toolkit/core operations can start earlier; final independent desktop requires M5 migration |
 | 8 | R1/R2 saved roots, trial boot and restore | R0 backend/scope decision, explicit root selector, matched kernel/root/package inventory and interruption tests |
 | When ready | M7 physical hardware and optional R3 efficient CoW snapshots | Dedicated device matrix; measured backend feasibility; neither blocks basic QEMU kernel updates |
@@ -265,8 +267,8 @@ inspection in both graphical sessions. Avoid unrestricted in-kernel theme/plugin
 
 | Slice | Deliverable | Exit evidence / dependency |
 |---|---|---|
-| P0 | Format/builder/reader/dry-run, trust-library and guest feasibility | Experimental data bundle builder/shared reader/guest dry-run implemented; signature-library and production container decisions remain open |
-| P1 | Offline data/script packages and installed DB | Ownership/conflicts/config preservation; staged install/remove/verify, space/permission/cancel/reboot recovery tests |
+| P0 | Format/builder/reader/dry-run, trust-library and guest feasibility | Experimental data bundle builder/shared reader/guest dry-run implemented; RSA-PSS/SHA256 bounded .zpk and native verification implemented; online metadata/trust roles remain open |
+| P1 | Offline data/script packages and installed DB | Implemented and native verified; exact evidence in PROGRESS. Ownership/ranges/conflicts/local-edit preservation and undo/DB commit recovery; /etc config merges remain later |
 | P2 | Dedicated home repository VM | Own IP, user DNS and LAN/VPN routes; native static server, read-only published data; separate builder/signing; OS/address/storage details at deployment |
 | P3 | Staged versioned kernel/system artifacts | New kernel saved on disk while old runs; verify/flush/boot entry, explicit reboot-required state; retain previous kernel and rescue boot |
 | P4 | Signed online package refresh/download/apply | M3 transport; pinned trust, metadata/artifact verification, expiry/rollback/key rotation; never install partial/untrusted payload |
@@ -360,9 +362,10 @@ local implementation gates, not missing product requirements. M2 is complete. Th
 user selected shared settings/session foundations while retaining the current test DE,
 with early offline packaging. S0 system settings/session seam, S1 x64 serial headless
 and the P0 prototype are implemented. M3 provides bounded LAN networking and verified
-HTTPS. The next packaging gate is the production container/trust specification before
-installation.
-Further P0 container/trust and native-userland/R0 research may advance as explicitly
+HTTPS. P1 signed offline script/data installation is native verified; see [PACKAGES](PACKAGES.md).
+The user selected scripts/data first, then unbundle compiled tools. Bring the M5 native
+program/ABI foundation forward before independent base-tools/net-tools/fs-tools delivery.
+Further online metadata/trust and native-userland/R0 research may advance as explicitly
 selected experiments; do not deploy the VM or begin a Btrfs port implicitly. Every slice updates
 PROGRESS with code status, exact validation and unresolved limitations. Maintain the
 architecture/history/user-facing docs alongside each delivered capability.

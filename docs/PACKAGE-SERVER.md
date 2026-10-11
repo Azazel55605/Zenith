@@ -99,3 +99,17 @@ server VM has not been provisioned and no repository address/name is assigned.
 M3's host user/TAP network profiles and DNS configuration permit acceptance once
 it exists; no server has been deployed as part of networking implementation.
 See [NETWORKING](NETWORKING.md) for the current LAN/CA bootstrap test procedure.
+
+## Offline delivery foundation now implemented
+
+[P1 packages](PACKAGES.md) define signed .zpk files, core/extra section identities
+and a reusable offline transaction engine. Ship artifacts under content-addressed
+paths; host tooling signs with RSA-PSS/SHA256 outside the served tree. The current
+client pins an exact public PEM fingerprint explicitly and accepts signed files
+from local storage or manual fetch. TLS CA trust is configured separately.
+
+A signed core/extra index protocol, generation/expiry checks, persisted rollback
+floors, key rotation and automatic dependency download remain P4 implementation.
+Setting the HTTPS base URLs in repos.conf does not implement that client. The VM
+can initially serve immutable .zpk files and the public PEM while that work proceeds;
+convey its key fingerprint through a trusted channel. Never serve the private key.

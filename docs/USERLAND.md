@@ -6,6 +6,11 @@ The separation is an accepted requirement; executable format, ABI and runtime re
 open. Current code is still kernel-linked. Moving source into separate projects alone
 would not satisfy this requirement.
 
+User sequencing clarification: implement signed offline scripts/data installation first,
+then bring the native text-program/process/ABI foundation forward before independent
+compiled tool packages. Source-only splitting is insufficient. The current test DE
+stays available throughout migration; proper desktop migration remains later.
+
 ## Target boundary
 
 | Layer | Intended responsibility |

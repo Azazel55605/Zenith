@@ -44,3 +44,5 @@ M0/M1/M2 are complete within their documented scope. Bounded ext2, installed roo
 real accounts/authentication and filesystem access enforcement are verified;
 [ACCOUNTS](ACCOUNTS.md) describes setup and the trusted-kernel boundary. The next
 implementation slice must be selected explicitly from the expanded roadmap.
+
+- [Signed offline packages](PACKAGES.md): core/extra, authenticated scripts/data installation, dependencies/conflicts and recovery.
