@@ -12,6 +12,9 @@ features already available. Milestone version labels are targets, not release da
 | How the current system actually works | [Architecture](ARCHITECTURE.md) |
 | Desktop, headless, DE, tiling WM, settings and Files direction | [System plan](SYSTEM-PLAN.md) |
 | Updating an installation and distributing applications | [Package manager design discussion](PACKAGE-MANAGER.md) |
+| Moving desktop/apps outside the kernel | [Userland direction](USERLAND.md) |
+| Serving packages from home | [LAN repository plan](PACKAGE-SERVER.md) |
+| Saved-system boot, snapshot trials and restore | [Upgrade recovery](UPDATE-RECOVERY.md) |
 | What happened and why | [Project history](HISTORY.md), then [slice evidence](PROGRESS.md) |
 | What comes next and when a milestone is complete | [Roadmap](ROADMAP.md) |
 | Building, testing, debugging and working with Cosmos | [Development guide](DEVELOPMENT.md) |

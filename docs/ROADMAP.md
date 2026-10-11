@@ -40,7 +40,8 @@ UEFI disk-only assertions. Hosted CI rerun awaits push.
 ## Expanded product workstreams
 
 The user-requested product scope is detailed in [SYSTEM-PLAN](SYSTEM-PLAN.md):
-headless plus desktop DE/automatic-tiling WM, shared configuration/services,
+headless plus desktop DE/automatic-tiling WM, future independently loaded desktop/apps,
+customization/usability and shared configuration/services,
 proper Settings and a future Files rework. Package architecture is a
 [design discussion](PACKAGE-MANAGER.md), not a settled implementation.
 
@@ -134,23 +135,28 @@ the truth.
 **Exit:** boot the ISO, click through the installer, reboot into the installed system. No
 host tools involved.
 
-## M5 · Running programs (v0.6)
+## M5 · Independent userland and programs (v0.6 target)
 
-The biggest architectural step: from "commands compiled into the kernel" to independent programs.
-WASM/WASI is a proposed direction, not an agreed or implemented runtime. See
-[Bash feasibility](BASH-PORT.md) before choosing its compatibility scope.
+The accepted long-term direction is Linux-like separation: desktop and apps outside
+of the main kernel, independently installable/updatable and isolated. This does not
+commit Zenith to Linux binary compatibility. [USERLAND](USERLAND.md) defines migration
+and acceptance. Native ABI/process feasibility is the primary investigation; WASM/WASI
+remains optional rather than an assumed final desktop runtime.
 
 | Item | Size | Notes |
 |---|---|---|
-| WebAssembly interpreter in the kernel | XL | Proposed; sandbox guarantees depend on the selected interpreter, host API and resource limits |
-| WASI preview 1 subset over our VFS: files, dirs, args, env, clocks, stdout/stderr | L | |
-| Process table: `ps`, `kill`, exit codes, background jobs (`&`, `jobs`, `fg`) | L | Proposed threading; isolation, cancellation and resource contracts need design |
-| `/bin` holds `.wasm` programs; the shell looks up `PATH` before built-ins | S | |
-| Toolchain doc + sample: build a program for the chosen WASI target, copy into the image | S | |
-| Runtime application package integration | L | Local data-package foundation can precede M5; network distribution needs M3; see [PACKAGE-MANAGER](PACKAGE-MANAGER.md) |
+| Kernel/userland ABI and loader design | XL | Executable/startup/runtime choice; protected native processes require Cosmos work |
+| Process isolation/lifecycle and credentials | XL | Memory, descriptors, args/env/cwd, wait/exit, cancellation, bounded resources |
+| IPC, byte pipes and terminal contract | L | Versioned controlled APIs; Bash dependencies in [assessment](BASH-PORT.md) |
+| First independent text and graphical apps | L | Application faults must not panic kernel; controlled display/input interface |
+| Desktop/compositor/DE/WM migration | XL | Separate packages/processes behind shared graphics/toolkit protocols |
+| Toolchain/sample documentation | M | Build for chosen ABI; kernel ELF is not an application ABI |
+| Independent service/desktop/app packages | L | API compatibility, restart requirements, dependencies and recovery |
+| Optional WASM runtime | XL | Evaluate after core ABI choice; host APIs and sandbox behavior need proof |
 
-**Exit:** a C program compiled with wasi-sdk on the host runs from `/bin` in Zenith, reads and
-writes files, and shows up in `ps`.
+**Exit:** a standalone app installs/runs/updates without relinking the kernel, with
+observable process identity, controlled file access and fault isolation. Desktop
+migration is an explicit subsequent gate; a text executable alone does not complete it.
 
 ## M6 · Desktop sessions and applications (v0.7 target)
 
@@ -163,6 +169,7 @@ writes files, and shows up in `ps`.
 | ↑ virtio-gpu hardware cursor and partial flush | M | Pointer moves cost nothing |
 | ↑ virtio-tablet (absolute pointer) | S | Host and guest cursors stay in sync with no grab |
 | DE session: notifications, Alt+Tab, keyboard shortcuts, workspaces | L | Shared focus/dialog/workspace infrastructure |
+| Customization and usability | L | Per-user themes, wallpaper, sizing/fonts, panel, shortcuts and WM preferences; preview/reset, accessible workflows and upgrade preservation |
 | Automatic-tiling WM session | L | Shared compositor/apps; proposed master-and-stack policy, keyboard controls and floating dialogs |
 | Headless/shared session startup | L | Can begin earlier: graphics-independent serial shell and shared service/configuration seam |
 
@@ -201,9 +208,18 @@ requests or in our local fork until they land:
 
 | Decision | Recommendation | Why it matters |
 |---|---|---|
-| How programs run | WASM + WASI | The alternative (native ELF, ring 3, syscalls) means months inside Cosmos internals |
+| Kernel/userland boundary | Independent desktop/apps accepted; investigate protected native ABI/process model | WASM optional; ABI/runtime and Linux compatibility level remain open |
 | Native root filesystem | Bounded ext2 implemented; ext4 read-only remains optional | Retain host interoperability and explicit crash/feature limits |
 | Installed updates and packages | Offline-first data packages, coordinated kernel/data releases, signed mirror later | Format, trust, recovery and runtime choices remain open; [design](PACKAGE-MANAGER.md) |
 | Sessions | DE default, serial-first headless, shared DE/WM compositor | User requirements accepted; policy/keybindings and delivery slices are proposals |
 | Target hardware | QEMU first; one or two real UEFI machines from M7 | Decides which NIC and input drivers come first |
 | Contributing upstream vs. forking Cosmos | Fork locally, upstream as we go | Some fixes are needed before Cosmos would release them |
+
+## Update hosting and snapshot direction
+
+Initial official repository: user's home infrastructure, LAN-only; deployment details
+pending. [PACKAGE-SERVER](PACKAGE-SERVER.md) records the plan. Requested recovery
+experience includes saved-system boot/trial/restore. [UPDATE-RECOVERY](UPDATE-RECOVERY.md)
+compares root generations/A-B, block CoW and Btrfs. Ext2 snapshots are not implemented,
+and keeping an old kernel is not a full root rollback. Kernel-only staged updates do
+not require a snapshot backend; complete rollback does require a defined root/data scope.

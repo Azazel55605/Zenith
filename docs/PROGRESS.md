@@ -587,3 +587,25 @@ permissions and reports accurate metadata through `ls -l`.
   package container/trust choices and initial WM/headless scope. Recommended next
   package slice is a builder/reader/dry-run plus guest verification feasibility,
   before writing an active installation.
+
+## 2026-10-11 · Userland, customization, home repository and recovery clarification
+
+- Accepted future architectural requirement: desktop/apps outside the kernel,
+  independently packaged and isolated. Added USERLAND migration/API/IPC/process
+  gates; revised M5 from assumed WASM direction to explicit userland investigation.
+  Current kernel linkage remains accurately documented; no loader was implemented.
+- Added desktop customization scope (themes, sizing, panels, shortcuts and WM
+  preferences), config/upgrade preservation and concrete usability gates.
+- User confirmed home-hosted repository starts LAN-only; host details pending.
+  Added static-server/publishing/trust/operational plan; nothing deployed.
+- Investigated upgrade saved states, trial boot and restore: ext2 has no snapshots;
+  versioned kernels alone do not restore roots. Added comparison of root generations/
+  A-B copies, persistent block CoW and Btrfs, with consistency and mutable-data scope.
+- Inspected boot layout and local EFI binary (Limine 10.8.5); researched upstream
+  menu/cmdline and filesystem-reader docs. Proposed kernels on ESP plus explicit
+  root/generation selection and OS recovery tools, avoiding assumptions of native
+  bootloader snapshot restore. No root selector/trial/restore code exists yet.
+- Documentation-only follow-up: 81 local Markdown link targets across eleven
+  changed documents resolve; git diff --check passes. No runtime code or
+  infrastructure change; native tests were not rerun for documentation changes. Next: discuss ABI/isolation research,
+  home host details, and desired saved-state/root/user-data rollback semantics.

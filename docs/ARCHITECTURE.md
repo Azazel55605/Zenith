@@ -18,6 +18,8 @@ an isolated OS process. Shell worker threads keep the desktop responsive, but do
 not create a userspace ABI, process isolation, an ELF application loader or a DLL
 plugin mechanism. Scripts in `/bin` are interpreted by the built-in shell.
 Changing a compiled command or GUI app requires a new kernel build today.
+This is transitional: [USERLAND](USERLAND.md) records the accepted future separation
+of desktop/apps from the kernel. No process/loader change is implemented by that plan.
 
 ## Boot and steady-state loop
 

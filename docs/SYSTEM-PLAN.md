@@ -4,7 +4,12 @@ Product requirements and proposed delivery plan, 2026-10-11. Current behavior is
 in [ARCHITECTURE](ARCHITECTURE.md). This document records the requested direction:
 **desktop and headless operation; desktop DE and automatic-tiling WM sessions;
 a proper Settings app; a future Files rework; installed-system updates**.
+Later clarification: **desktop and applications must ultimately move outside the kernel**;
+customization is required alongside the proper desktop implementation. Home package
+hosting starts LAN-only. Snapshot/trial-boot/restore behavior is a requested investigation.
 Implementation mechanisms below are proposals unless explicitly marked current.
+See [userland separation](USERLAND.md), [home repository](PACKAGE-SERVER.md) and
+[upgrade recovery](UPDATE-RECOVERY.md).
 
 ## 1. System shape
 
@@ -35,8 +40,11 @@ windows is a later feature, not an initial requirement.
 
 Refactor the current unconditional Desktop startup into shared initialization followed
 by a session host. Keep the existing shell interpreter and core models reusable.
-A service here initially means a bounded in-kernel component with explicit lifecycle,
-not a Linux daemon/process or a proposed systemd clone.
+A service initially means a bounded in-kernel component with explicit lifecycle.
+This is a transitional implementation. The accepted long-term direction is independently
+loaded desktop/apps and appropriate userspace services behind controlled kernel APIs,
+with process isolation. Shared compositor means shared functionality/protocols across
+DE/WM; it does not require permanent linkage into the kernel.
 
 Proposed boot phases:
 
@@ -92,8 +100,18 @@ Use explicit redraw invalidation; expand damage tracking only with measured bene
 Initial DE completeness means opening applications, editing settings, managing files
 and inspecting update/network state without entering shell commands. Display controls
 must show supported capabilities: a fixed-resolution GOP display cannot offer an
-unimplemented resolution switch. Multi-monitor, advanced effects and customization
-beyond basic theme/wallpaper are later work.
+unimplemented resolution switch. Customization is a required part of the proper desktop phase. Add per-user theme/colors,
+wallpapers, fonts/UI sizing, cursor preferences, panel/launcher layout, shortcut editing,
+and WM gaps/borders/master ratio/workspace preferences through the same settings service.
+Use declarative, versioned theme/config data with safe defaults, previews/reset and
+bounded resource loading. Imported themes must not execute arbitrary kernel code.
+Preserve customized settings across package upgrades. Desktop extensions, if added,
+need the userland/runtime trust model rather than unrestricted in-kernel plugins.
+
+Usability gates: discoverable actions/shortcut help, consistent focus and dialogs,
+keyboard-complete operation, readable contrast/scaling, visible progress/cancellation,
+clear error recovery and restore-default controls. Test first-run workflows and small
+windows in DE and WM. Multi-monitor and advanced effects remain later work.
 
 Acceptance: a keyboard-only and pointer-only workflow across launcher, Settings,
 Files, Editor and dialogs; correct focus after close/minimize; stable resize/maximize;
@@ -208,8 +226,9 @@ random support from host .NET APIs. A public mirror needs an agreed trust design
 Installed updates and application packages are related but distinct. Kernel plus
 matched system data can be published and applied without generating a new ISO;
 compiled code still requires a build and reboot. Independent application packages
-need the M5 runtime/API contract. WASM/WASI remains a proposal, and Bash needs more
-than a basic WASI subset; see [Bash assessment](BASH-PORT.md). Package plans are
+need the M5 runtime/API contract. The userland split is the accepted target; protected native ABI/process research takes
+priority over assuming a WASM-only design. WASM remains an optional candidate runtime,
+and Bash needs more than a basic WASI subset; see [Bash assessment](BASH-PORT.md). Package plans are
 in [the separate design discussion](PACKAGE-MANAGER.md).
 
 ## 9. Delivery slices and gates
@@ -230,7 +249,7 @@ No dates or new release tags are promised by this plan.
 | P2: installed system update | Matched kernel/data generation and boot recovery | ESP update/recovery proof including interrupted activation; M4 boot plumbing |
 | P3: signed mirror integration | Publisher/index/trust and bounded downloads | Guest signature verification, expiry/rollback policy and recovery proven |
 | F: Files rework | New browser and chunked operations | Data integrity/error/cancellation tests in DE and WM |
-| R: M5 program runtime | Chosen runtime, API/resource/process contract | Independent binary runs and accesses files within defined policy |
+| R: M5 userland foundation | Loader, isolation, kernel/API/IPC contract and independent desktop/app migration | App install/update without rebuilding kernel; failures/access boundaries tested |
 | P4: app packages | Runtime compatibility and launcher registration | Install/run/remove independently of kernel rebuild |
 
 P0 does not need networking. P1 cannot claim safe system upgrades. D can begin with
@@ -258,12 +277,16 @@ with rationale and acceptance criteria before implementing their dependent slice
 | REQ-03 | Proper Settings application | Requested by user, 2026-10-11 |
 | REQ-04 | Future full Files rework | Requested by user, 2026-10-11 |
 | REQ-05 | Update existing installs; package/network/mirror direction | Requested by user; implementation design still to discuss |
+| REQ-06 | Desktop/apps outside the kernel in the future | User clarified Linux-like architectural direction; ABI/runtime open |
+| REQ-07 | Desktop customization and usability | Required; customization scheduled with proper desktop work |
+| REQ-08 | Home-hosted repository, LAN-only initially | User confirmed LAN-only; host details pending |
+| REQ-09 | Snapshot upgrades, trial boot and restore | Requested investigation; backend and semantics open |
 | DES-01 | Shared compositor/apps, DE default, boot/login session selection | Proposed; live switching deferred |
 | DES-02 | Serial-first headless | Proposed; local-console requirements open |
 | DES-03 | Master-and-stack initial WM | Proposed; layout/shortcuts open |
 | DES-04 | Offline package foundation before online distribution | Proposed; exact next slice open |
 | DES-05 | Coordinated kernel/data releases before runtime apps | Proposed; priority and recovery layout open |
-| DES-06 | Package trust/container and M5 runtime | Open; see package and Bash documents |
+| DES-06 | Package trust/container and userland ABI/runtime | Open; userland split accepted, WASM-only direction not assumed |
 
 Update this register after discussion with the choice and rationale. Record completed
 implementation and its evidence in PROGRESS, then reconcile ARCHITECTURE and ROADMAP.

@@ -59,7 +59,7 @@ experimental ext2 status and incomplete installed-root statements are superseded
 symlinks, directory moves and check-only fsck are verified. Users/enforcement are pending.
 
 There are still no independent application processes: all built-ins and GUI applications
-are kernel-linked. WASM/WASI is a candidate runtime, not a settled decision. Native
+are kernel-linked. The future userland split is accepted; WASM/WASI is optional, not the presumed desktop runtime. Native
 ELF/POSIX userland requires much deeper framework work. The [Bash assessment](BASH-PORT.md)
 explains why a basic WASI filesystem API alone does not provide Bash compatibility.
 Avoid treating the initial effort estimates as schedules or framework guarantees.
@@ -74,7 +74,9 @@ support or guest repair is implied. Mounted filesystems remain unclean until cle
 Ext4 read-only remains an optional follow-up requiring explicit extent/feature/checksum
 coverage and native fixtures. Safe ext4 writes need a journaling/recovery design. Btrfs
 would introduce a substantially different allocation/tree/transaction implementation and
-is deferred. These are architectural assessments, not implemented capabilities.
+remains a candidate long-term research backend for the requested snapshot experience.
+[UPDATE-RECOVERY](UPDATE-RECOVERY.md) compares alternatives; Btrfs is not an immediate
+prerequisite for kernel updates. These are assessments, not implemented capabilities.
 
 ## 4. Installer and update implications
 

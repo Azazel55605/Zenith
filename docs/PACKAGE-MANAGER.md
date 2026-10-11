@@ -2,6 +2,9 @@
 
 **Status: proposal, 2026-10-11. No package manager, repository client or system-update
 activation is implemented.** This document makes the choices concrete for discussion.
+Clarified direction: future desktop/apps are independent userland components;
+initial repository hosting is at home, LAN-only. See [USERLAND](USERLAND.md),
+[PACKAGE-SERVER](PACKAGE-SERVER.md) and [UPDATE-RECOVERY](UPDATE-RECOVERY.md).
 Networking, secure guest signature verification, application loading and boot recovery
 must not be inferred from examples below. Command names and paths are illustrative.
 
@@ -22,11 +25,14 @@ package classes before choosing a format:
 |---|---|---|
 | Data/script | Shell scripts, documentation, wallpapers, default configuration | File/service refresh; no new compiled code |
 | System release | Kernel ELF, built-in apps/drivers, matched system data | Coordinated release generation plus reboot |
-| Runtime application | Proposed WASM program and resources | Requires M5 runtime, API version and launcher/process integration |
+| Userland/service/application | Future compositor, DE/WM, apps, optional WASM programs and resources | Requires M5 loader/ABI/runtime, API version and launcher/process integration |
 
 Recommended first implemented package operations are offline data/script installation
-and removal on disposable ext2 installations. The first user-facing update objective
-is a **matched system release**, followed by independent apps once a runtime exists.
+and removal on disposable ext2 installations. The first user-facing update objective is kernel/system updating using versioned boot
+artifacts, while the loaded kernel continues until reboot. Coordinated releases are
+needed where files/config are coupled. In the accepted future architecture, kernel,
+base services, desktop and apps have independent packages and explicit API dependencies;
+a whole-kernel rebuild for every desktop change is a temporary limitation.
 Do not distribute untrusted scripts as though they were sandboxed: scripts execute
 built-ins with the session's effective privileges.
 
@@ -167,7 +173,10 @@ Potential recovery strategies to evaluate:
 - Verified read-only release images with writable data kept separate, or A/B roots:
   larger install-layout changes but stronger generation separation.
 
-Choose and prove the recovery model before advertising system updates as reliable.
+Choose and prove the recovery model before advertising crash-safe system updates.
+Versioned kernel-only installation can precede complete root rollback. The requested
+snapshot/trial-boot/restore experience and backend alternatives are detailed in
+[UPDATE-RECOVERY](UPDATE-RECOVERY.md).
 
 ## 7. Kernel, ESP and boot activation
 
@@ -227,7 +236,9 @@ This design does not provide secure boot against a physically replaced kernel/ro
 
 Recommended first mirror is a static repository served by a conventional host/web
 server, separate from Zenith. The guest does not need to run the package mirror.
-Public hosting/domain/operator are still decisions; no mirror is provisioned here.
+Initial operator/location is the user's home infrastructure, LAN-only; host/storage/
+container details are pending. Public exposure/domain remain later decisions; no mirror
+is provisioned here. The [home repository plan](PACKAGE-SERVER.md) gives the staged setup.
 
 Proposed published layout:
 
@@ -257,7 +268,7 @@ later; none are assumed in this planning task.
 | P1: local data packages | Offline CLI, ownership DB, staging/config policy, removal | Native installed-root install/upgrade/remove; reboot persistence; interrupted/out-of-space recovery |
 | P2: system generations | Kernel plus matched data, inactive boot artifacts, confirmation/fallback | Disk-only UEFI upgrades and failed-boot fallback; fault injection at activation boundaries |
 | P3: repository client | Signed metadata/mirror, bounded network fetching | Tampered/truncated/replayed/expired metadata rejected; key rotation and interrupted download tested |
-| P4: independent applications | M5 runtime contract, dependencies and launcher entries | Install/run/remove app without compiling a new kernel |
+| P4: independent userland packages | M5 ABI/process/IPC contract, desktop/app dependencies and launcher entries | Install/run/remove app or desktop component without compiling a new kernel |
 
 P0 can begin while finishing M2 or designing sessions. P1 needs validated filesystem
 mutation and a stated privilege/recovery policy; P2 needs the chosen boot/root recovery
@@ -280,8 +291,9 @@ Host serialization tests alone do not establish safe installed updates.
    regular-file/directory payloads first. Decide format/compression based on guest feasibility.
 4. **Trust:** maintained TUF implementation/compatible verifier versus a deliberately
    limited protocol; choose libraries, clock policy and key management before public updates.
-5. **Runtime:** retain WASM/WASI as a candidate; native POSIX compatibility changes scope
-   substantially. Bash requirements should influence this decision explicitly.
+5. **Userland:** independently loaded desktop/apps are the accepted target. Investigate
+   protected native processes/ABI and Bash requirements; WASM is optional, not the
+   assumed final desktop architecture.
 6. **Operations:** mirror hosting/channel policy, release retention and whether automatic
    downloads should later be optional. First apply remains user initiated with visible plan.
 
