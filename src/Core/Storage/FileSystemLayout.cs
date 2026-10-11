@@ -26,6 +26,9 @@ internal static class FileSystemLayout
         WriteIfMissing(root + OsReleasePath,
             "NAME=\"Zenith\"\nID=zenith\nPRETTY_NAME=\"Zenith OS 0.1 (Cosmos Gen 3)\"\nVERSION_ID=0.1\nHOME_URL=\"https://github.com/Azazel55605/Zenith\"\n");
         WriteIfMissing(root + "/etc/hostname", "zenith\n");
+        WriteIfMissing(root + "/etc/hosts", "127.0.0.1 localhost\n");
+        WriteIfMissing(root + "/etc/resolv.conf", "# nameserver IPv4 overrides DHCP DNS; up to three servers\n");
+        WriteIfMissing(root + "/etc/zenith/network.conf", Zenith.Core.Network.NetworkConfiguration.Default.Serialize());
         WriteIfMissing(root + "/etc/passwd",
             "root:x:0:0:root:/root:/bin/sh\nuser:x:1000:1000:User:/home/user:/bin/sh\n");
         WriteIfMissing(root + "/etc/group", "root:x:0:\nusers:x:100:user\n");

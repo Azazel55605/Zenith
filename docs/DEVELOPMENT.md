@@ -318,3 +318,12 @@ disk-only UEFI saved/invalid/override selection, hidden authentication, permissi
 scripts/read/cancellation, persistence, clean shutdown and serial panic restart.
 It checks transcripts for randomly generated test passwords and runs independent
 host e2fsck. These test credentials are not printed or committed.
+
+## M3 network lab
+
+Run `python3 -B tools/network-smoke.py /tmp/zenith-network` after Release publish.
+It serves HTTP/DNS/NTP on ephemeral loopback ports and uses disposable QEMU/slirp
+e1000e guests. No public network server is needed. Socket access must be permitted.
+Preserve wrong-ID DNS, timeout, failed-download preservation and Ctrl+C cases: Cosmos
+3.0.89 skips unwind-finally handlers, so host-only cleanup tests miss native leaks.
+[NETWORKING](NETWORKING.md) describes application bounds versus framework queue limits.

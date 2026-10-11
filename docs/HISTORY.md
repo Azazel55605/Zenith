@@ -1,6 +1,6 @@
 # Zenith project history
 
-History through `8389113` (2026-10-11). This is a narrative and change map, not a claim
+History through the M3 IPv4 lab foundation (2026-10-11). This is a narrative and change map, not a claim
 that every planned feature shipped. Exact commits are available through `git log`;
 [PROGRESS](PROGRESS.md) contains detailed M2 validation, failures and corrections.
 
@@ -155,3 +155,16 @@ independent ext2 checks are recorded in [PROGRESS](PROGRESS.md). ARM64 receive, 
 UART hardware, local text consoles, SSH, service supervision and independent userland
 remain later work. Packaging remains the P0 data prototype; production container/trust
 and transactional installation are still explicit gates.
+
+## 2026-10-11: M3 IPv4 lab foundation
+
+Added shared boot DHCP, static/off persistent configuration, interface/route/DNS
+diagnostics, correlated ICMP/DNS, TCP connection probes, optional NTP software UTC
+and staged bounded HTTP transfers. Native faults exposed skipped unwind-finally,
+typed catch selection and a TCP partial-read/append race in Cosmos 3.0.89. Explicit
+owning-frame cleanup and a signature-checked local immutable bounded receive buffer
+address those paths without changing upstream source or dependency versions. Local
+QEMU/server fixtures cover malformed/disconnected/cancelled transfers and installed
+persistence. TLS/hardened Internet transport and actual home DNS/VPN routing remain
+open; HTTP does not authenticate packages. See [NETWORKING](NETWORKING.md) and
+[PROGRESS](PROGRESS.md) for current bounds and validation evidence.

@@ -13,7 +13,11 @@ internal static class SystemClock
     /// <summary>Overridable for tests; the real clock otherwise.</summary>
     public static Func<DateTime> UtcSource { get; set; } = () => DateTime.UtcNow;
 
-    public static DateTime UtcNow => DateTime.SpecifyKind(UtcSource(), DateTimeKind.Utc);
+    private static readonly object s_gate = new();
+    private static TimeSpan s_correction;
+    public static DateTime UtcNow { get { lock (s_gate) { return DateTime.SpecifyKind(UtcSource(), DateTimeKind.Utc) + s_correction; } } }
+    public static void Synchronize(DateTime utc)
+    { lock (s_gate) { s_correction = DateTime.SpecifyKind(utc, DateTimeKind.Utc) - DateTime.SpecifyKind(UtcSource(), DateTimeKind.Utc); } }
 
     public static DateTime Now => ToLocal(UtcNow);
 

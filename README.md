@@ -142,6 +142,13 @@ host data-bundle builder. Plans verify payload integrity and refuse unowned-path
 conflicts without changing the root. Packages cannot yet be installed or activated;
 compiled apps remain kernel-linked. See [prototype contract](docs/PACKAGE-PROTOTYPE.md).
 
+## IPv4 network lab
+
+M3 now has shared DHCP/static/off configuration, `ip`, `ifconfig`, `ping`,
+`nslookup`, TCP probes (`nc -z`), optional boot/manual NTP and staged bounded HTTP
+`fetch`. See [networking](docs/NETWORKING.md) for commands, saved settings and limits.
+TLS and real home DNS/VPN verification remain open; HTTP downloads carry no package trust.
+
 ## Documentation
 
 Start with the [documentation hub](docs/README.md). The [current architecture](docs/ARCHITECTURE.md),

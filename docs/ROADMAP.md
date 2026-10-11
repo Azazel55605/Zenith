@@ -18,7 +18,8 @@ See [ARCHITECTURE](ARCHITECTURE.md) for current behavior and [PROGRESS](PROGRESS
 for exact evidence. Version labels below are milestone targets, not release claims.
 
 **Working:** floating desktop, terminal/scripting, editor, simple Files test app,
-manual pages, persisted keyboard/timezone configuration; proc/dev virtual files;
+manual pages, persisted keyboard/timezone configuration; x64 COM1 no-GPU headless;
+shared IPv4 DHCP/static diagnostics, NTP and bounded HTTP lab fetching; proc/dev virtual files;
 new installed ext2 roots up to 512 MiB with FAT32 ESP (legacy FAT roots recognized);
 guarded ext2 formatting, symlinks, numeric ownership/modes, directory moves and
 check-only consistency auditing. Live root remains RAM-backed FAT; `/tmp` uses
@@ -39,8 +40,8 @@ host e2fsck is clean after account updates. Hosted CI rerun awaits push; see PRO
 | Bounded ext2, no journal/guest repair | Unsupported layouts refused; crash-dirty volumes need host e2fsck |
 | Deferred unlink in Cosmos VFS | Namespace remains until final open handle closes |
 | Simple Files and no Settings app | Files remains a test client; settings use commands |
-| Only the temporary DE host is available | Session selection/seam exists; hidden-window QEMU is still graphical guest testing |
-| P0 packaging only; no network/installer/trust executor | Offline inspect/dry-run exists; installed updates and mirror management remain planned |
+| Temporary DE and x64 serial headless; WM unavailable | Independent userland, automatic tiling, proper Settings and Files remain future work |
+| P0 packaging only; no install/trust executor or TLS | HTTP lab transport exists; authenticated installed updates remain planned |
 | Early Cosmos boot fault observed under nested KVM | Harness retries the classified pre-Zenith fault; other failures stay failures |
 
 ## Agreed product direction
@@ -69,7 +70,7 @@ Details: [system plan](SYSTEM-PLAN.md), [userland](USERLAND.md),
 |---|---|---|
 | Done | M2 accounts/credentials and permission policy | Native allow/deny/reboot and cryptographic-vector checks passed; trusted-kernel boundary documented |
 | Active P0 | Package builder/parser/planner and userland/recovery feasibility | Shared host/guest data prototype implemented; production container, signature verifier and recovery remain gates |
-| 2 | S0/S1 shared settings/session seam and serial headless | Preserve current desktop; boot without canvas/fonts; live and installed tests |
+| Done foundations | S0 shared settings/session seam and S1 serial headless | Native DE/no-GPU live and installed tests; Settings GUI/per-user preferences remain later work |
 | 3 | M3 network foundation, P1 offline data packages, P2 home repository preparation | Network faults/limits; file ownership/config policy and reboot recovery; VM access verified when provisioned |
 | 4 | M4 boot-artifact/root identity foundation; P3 staged kernel updates | Versioned ESP files, verified boot choice, retained previous entry and disk-only reboot; no snapshot prerequisite |
 | 5 | P4 signed online repository client | Native trust/expiry/rollback checks, bounded download and LAN/VPN/DNS route tests |
@@ -143,17 +144,22 @@ terminal mode with cursor addressing (enables `less`, `top`, a TUI editor), edit
 **Exit:** an installed system runs on ext2 with real users and permissions, and `ls -l` shows
 the truth.
 
-## M3 · Networking (v0.4)
+## M3 · Networking (v0.4) — active
+
+IPv4 lab foundation is implemented; [NETWORKING](NETWORKING.md) records its bounded
+profile and Cosmos adaptations. M3 remains open for production TLS/transport hardening
+and actual home DNS/VPN route verification. Do not equate HTTP fetching with authenticated
+package updates. Final validation evidence is tracked in [PROGRESS](PROGRESS.md).
 
 | Item | Size | Notes |
 |---|---|---|
-| Network service: DHCP at boot, `/etc/hostname`, `/etc/hosts`, `/etc/resolv.conf` | S | Framework networking is documented; validate installed APIs and native Zenith integration before relying on them |
-| `ip`/`ifconfig`, `ping`, `nslookup`, `nc` | M | Interface/link/address/routes/DNS status and actionable errors |
-| Network lifecycle/configuration | M | DHCP/static settings, disconnected NIC, config persistence and cancellation |
-| NTP client: set the clock at boot | S | Fixes wrong time in VMs |
-| Bounded streaming fetch and host test server | M | Limits, timeout/retry/cancel, progress; truncated/oversized/disconnected responses; HTTP lab transport is not package authentication |
+| Network service: DHCP at boot, `/etc/hostname`, `/etc/hosts`, `/etc/resolv.conf` | S | Implemented on pinned Cosmos: asynchronous primary-NIC DHCP, bounded local files and resolver overrides |
+| `ip`/`ifconfig`, `ping`, `nslookup`, `nc` | M | Implemented diagnostics, correlated ICMP/DNS and TCP probes; nc interactive streams remain later work |
+| Network lifecycle/configuration | M | Implemented DHCP/static/off saves, bounded reacquisition, cancellation; QEMU link-loss/missing-NIC tests; real hardware remains unverified |
+| NTP client: set the clock at boot | S | Optional configured boot/manual software UTC correction; no default public server, no RTC write or authenticated time |
+| Bounded streaming fetch and host test server | M | Implemented 8 MiB staged HTTP lab transfer and local fault/cancel server; native TCP storage adaptation caps pending data at 128 KiB |
 | Home DNS/VPN route integration | M | Use dedicated repository VM address/name; verify host/VPN routing; a guest VPN implementation is not implicitly required |
-| TLS | XL | Evaluate guest-compatible maintained libraries and upstream support; validate crypto and entropy natively |
+| TLS | XL | Open: no framework TLS plug; Mbed TLS port evaluated as a candidate; dependency/ABI/crypto/entropy/certificate validation gates in NETWORKING |
 
 **Exit:** a fresh boot obtains usable address/DNS, supports clock synchronization and
 bounded file fetching with fault/cancellation tests. Report clock trust limits explicitly;

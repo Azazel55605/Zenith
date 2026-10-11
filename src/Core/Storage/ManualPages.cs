@@ -11,6 +11,37 @@ internal static class ManualPages
 
     public static readonly (string Name, string Text)[] Pages =
     {
+        ("network", """
+            IPV4 NETWORK LAB
+
+            ip | ifconfig | netcfg status
+            netcfg apply | dhcp | off  (root)
+            netcfg static IP MASK GATEWAY DNS  (root)
+            nslookup HOST [SERVER [PORT]]
+            ping HOST
+            nc -z HOST PORT
+            ntp HOST [PORT]  (root)
+            netcfg ntp HOST [PORT] | ntp off  (root; saved boot target)
+            fetch [--replace] http://HOST[:PORT]/PATH FILE
+
+            Single primary IPv4 uplink; DHCP configures asynchronously at boot.
+            Configuration: /etc/zenith/network.conf; hostname, hosts and resolv.conf
+            under /etc. Resolver nameserver lines override DHCP DNS. Installed saves
+            persist; live changes are volatile. Missing NIC does not block the shell.
+            apply uses loaded settings and rereads resolver overrides; reboot reloads
+            edited network.conf. Failed DHCP retries after thirty seconds.
+
+            NTP adjusts software UTC only and is unauthenticated. No default server.
+            fetch accepts status 200 with Content-Length; max 8 MiB, headers 8 KiB,
+            two attempts, idle 3s/body 30s per attempt plus DNS/connect time. Ctrl+C
+            cancels polling; Cosmos TCP connect observes cancellation after up to 5s.
+            Downloads stage privately beside FILE and commit only when complete.
+            Existing names require --replace and must be regular files. Errors and
+            cancellation preserve the prior destination and remove staging.
+            No TLS, redirects, compression or chunking. HTTP is for the lab and
+            provides no package authentication. nc supports connection probes only.
+            Framework receive queues/TCP still need hardening for untrusted traffic.
+            """),
         ("settings", """
             SETTINGS AND SESSION FOUNDATION
 

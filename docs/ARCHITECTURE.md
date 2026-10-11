@@ -178,3 +178,14 @@ lengths/digests, exact dependencies, architecture/runtime and existing-path conf
 package database or independently loadable application is implied. No extraction,
 activation, signature verification or repository client exists. Local settings stay
 under /etc and outside data payloads. See [P0 contract](PACKAGE-PROTOTYPE.md).
+
+## Shared IPv4 service
+
+`SystemRuntime` starts `NetworkService` after mounts/accounts/settings. It configures the
+primary NIC on a root service worker; `Kernel.Run` schedules bounded DHCP reacquisition.
+Both session hosts use the same diagnostic/configuration commands. Pure configuration,
+DHCP/DNS/NTP and incremental HTTP codecs have host tests; native adapters and staged
+downloads require QEMU fault/cancellation tests. Native cleanup catches in the resource
+owner frame because Cosmos 3.0.89 skips unwind-finally handlers. Optional boot NTP
+corrects shared software UTC. See [NETWORKING](NETWORKING.md) for bounds, framework
+limitations and the open TLS/home-route gates. Current apps remain kernel-linked.

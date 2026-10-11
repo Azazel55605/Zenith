@@ -12,6 +12,7 @@ from the future session/update plans. Milestone version labels are targets, not 
 | How the current system actually works | [Architecture](ARCHITECTURE.md) |
 | Account setup, authentication and access limits | [Accounts](ACCOUNTS.md) |
 | Shared settings and current session capabilities | [Settings/session foundation](SETTINGS-SESSIONS.md) |
+| IPv4 configuration, diagnostics, time and HTTP lab downloads | [Networking](NETWORKING.md) |
 | Offline package builder, inspect and dry-run | [P0 package prototype](PACKAGE-PROTOTYPE.md) |
 | Desktop, headless, DE, tiling WM, settings and Files direction | [System plan](SYSTEM-PLAN.md) |
 | Updating an installation and distributing applications | [Package manager design discussion](PACKAGE-MANAGER.md) |

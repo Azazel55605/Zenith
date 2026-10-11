@@ -61,6 +61,7 @@ public class Kernel : Sys.Kernel
                 Log.Write("memory", "pressure collection: free pages " + before + " -> " + MemoryInfo.FreePages);
             }
 
+            Zenith.Core.Network.NetworkService.Tick();
             SessionRuntime.Tick();
         }
         catch (Exception e)

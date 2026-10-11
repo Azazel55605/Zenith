@@ -794,3 +794,56 @@ permissions and reports accurate metadata through `ls -l`.
   specification and verifier feasibility before P1 transactional offline installation.
 - Documentation validation: all 140 local Markdown targets resolve; `git diff --check`
   passes. Generated images, transcripts, test credentials and build output are excluded.
+
+## 2026-10-11 · M3 IPv4 lab foundation delivered
+
+- Selected M3 next. Implement shared IPv4 configuration/diagnostics, DHCP boot, bounded DNS/NTP codecs and HTTP lab fetching; retain the test DE and no-GPU session.
+- Validate against disposable QEMU/slirp and local host servers; home VM/VPN details are still absent. Production TLS/package trust remain explicit gates.
+- Implemented asynchronous primary-uplink DHCP, strict versioned static/off saves,
+  hostname/hosts/resolver integration, half-lease bounded reacquisition, interface/route
+  status, correlated ICMP/DNS, nc TCP probes, optional configured boot/manual NTP software
+  UTC and staged bounded HTTP lab downloads with progress and at most one retry.
+- Native DNS faults exposed Cosmos 3.0.89 skipping unwind-finally cleanup. Native
+  Ctrl+C exposed unreliable typed catch selection; callbacks inside a misselected
+  handler repeatedly threw until failfast. Owning-frame explicit disposal and one
+  catch-all with classification/callbacks outside handlers fix those paths.
+- Native streaming retry exposed upstream TCP partial-read/append accounting and IRQ
+  races, culminating in a negative Buffer.BlockCopy count in a receive callback.
+  Added a separate pure Zenith.Network support assembly and signature-checked build
+  adaptation to immutable/CAS receive snapshots, capped at 128 KiB per connection;
+  overflow closes the connection. No NuGet cache or sibling Cosmos checkout changed.
+- Host validation: 498/498 tests pass, including strict settings, malformed/truncated
+  DHCP/DNS/NTP, incremental HTTP boundaries/limits/cancellation and concurrent ordered
+  TCP producer/consumer/snapshot/overflow tests. Eight Python harness tests pass.
+  Release NativeAOT publish succeeds with the transport adaptation.
+- Native lab passes 100/100 assertions: live DHCP route/DNS, wrong-ID reply rejection,
+  ping/TCP, corrected software clock, streamed progress, retry, oversize/header/encoding/
+  truncation/stall faults, status-130 Ctrl+C, staging cleanup, QMP link drop/restore,
+  static/off state, invalid-save preservation, clean installed reboot with saved static
+  settings/boot NTP, root/user allow/deny and recovery, persisted exact payloads,
+  disk-only no-NIC authentication/shutdown and independent clean e2fsck/debugfs checks.
+  Fixed two harness mistakes: disk name is sata0, and sync plus forced process stop
+  leaves an intentionally dirty ext2 root. Reboot persistence now uses clean poweroff;
+  the earlier dirty-volume fallback was expected profile enforcement, not data loss.
+  Disposable credentials are absent from serial transcripts.
+- Existing DE/filesystem regression passes 135/135 at 512 MiB and existing no-GPU
+  live/installed/auth/panic regression passes 73/73. The final native clock transcript
+  is Sat Oct 3 07:06:40 UTC 2026 from the known lab NTP timestamp, rather than host RTC.
+  Tightened the harness assertion to require that date/time prefix.
+- Evidence: /tmp/zenith-m3-host-final.log, /tmp/zenith-m3-harness.log,
+  /tmp/zenith-m3-build-final.log, /tmp/zenith-m3-verified.log and
+  /tmp/zenith-m3-verified/, /tmp/zenith-m3-baseline.log and
+  /tmp/zenith-m3-baseline/, /tmp/zenith-m3-headless.log and
+  /tmp/zenith-m3-headless/. Earlier m3-native/cleanup/bounded/delivery logs contain
+  diagnostic failures and corrected fixture runs; they are not passing evidence.
+- Added the loopback network suite and artifacts to CI. Updated commands/manual,
+  instructions, architecture/history/development/README and roadmap. Hosted CI has
+  not run for this unpushed work.
+- M3 remains active: no TLS/SslStream support; documented Mbed TLS as an evaluated
+  candidate with native ABI/crypto/RDSEED/certificate/time gates. Actual home VM/DNS/
+  VPN details are absent. Framework packet/UDP queues, TCP protocol/table concurrency,
+  seamless renewal, multi-NIC/IPv6, interactive nc and real hardware need further work.
+  Software time is unauthenticated and currently feeds date/timezone only; BCL/FS clocks
+  still use RTC. Plain HTTP is a lab transport and does not authorize package updates.
+- Next M3 slice: harden transport/clock integration and prototype a pinned TLS bridge
+  with certificate and missing-entropy tests; home routing follows supplied VM details.

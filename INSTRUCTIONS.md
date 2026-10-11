@@ -37,6 +37,11 @@ guidance here so the two entry points stay consistent.
   Do not infer installation, trust or independent app loading from bundle inventory.
 - `src/Core` holds system behavior; `src/Gui` rendering and window management;
   `src/Apps` desktop windows. Keep UI concerns out of the core layer.
+- M3 has a primary IPv4 lab service and diagnostic/NTP/HTTP commands; see
+  [NETWORKING](docs/NETWORKING.md). `Zenith.Network` contains the pure bounded TCP
+  buffer injected into build copies of Cosmos by the signature-checked PatcherFixup.
+  Keep native fault/cancel/link-loss tests: Cosmos 3.0.89 skips unwind-finally and
+  misclassifies typed catches. TLS and home VM/VPN validation remain open.
 - Shell sources must remain host-testable without Cosmos. Cosmos-dependent
   commands belong in `src/Core/Shell/Commands/SystemCommands.cs` and register at boot.
 - Storage uses ext2 for new installed roots (up to 512 MiB), recognizes older FAT

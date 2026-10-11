@@ -18,6 +18,7 @@ internal sealed class HeadlessSessionHost : ISessionHost
             var shell = new CommandShell(output, login: false, metadata: CommandShell.DefaultMetadata);
             string name = Accounts.Service?.Name(Accounts.Session.Uid) ?? (Accounts.Session.IsRoot ? "root" : "nobody");
             shell.SetIdentity(Accounts.Session, name, Accounts.Session.IsRoot ? "/root" : name == "nobody" ? "/" : "/home/" + name);
+            shell.Set("HOSTNAME", Zenith.Core.Network.NetworkService.Hostname);
             shell.Set("TERM", "vt100"); shell.Set("COLUMNS", "80");
             // These bootstrap messages contain no secrets and fit the bounded startup output.
             if (Accounts.Error is string error) { output.Write("Accounts unavailable: " + error + "\n"); }

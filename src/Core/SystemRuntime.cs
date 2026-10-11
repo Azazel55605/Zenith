@@ -15,6 +15,7 @@ internal static class SystemRuntime
         SystemMounts.Initialize();
         Accounts.Initialize();
         SystemConfiguration.Initialize();
+        Network.NetworkService.Initialize();
         SystemCommands.Register(CommandShell.Register);
         CommandShell.DefaultMetadata = new VfsFileMetadata();
         CommandShell.DirectorySearch = path =>

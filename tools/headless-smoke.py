@@ -16,7 +16,7 @@ spec = importlib.util.spec_from_file_location("efi", ROOT / "tools/test-installe
 efi = importlib.util.module_from_spec(spec); spec.loader.exec_module(efi)
 
 class Machine:
-    def __init__(self, directory, disk=None, argument=None):
+    def __init__(self, directory, disk=None, argument=None, network=None):
         directory.mkdir(parents=True, exist_ok=True)
         self.directory = directory
         self.disk = directory / "disk.img"
@@ -38,6 +38,7 @@ class Machine:
                 "-accel", "kvm", "-accel", "tcg", "-cpu", "max", "-display", "none", "-vga", "none", "-no-reboot",
                 "-chardev", f"socket,id=console,path={directory / 'serial.sock'},server=on,wait=off", "-serial", "chardev:console",
                 "-monitor", "none", "-drive", f"file={self.disk},format=raw,if=none,id=disk0", "-device", "ide-hd,drive=disk0,bus=ide.0,unit=0"]
+        if network is not None: args += ["-nic", "none"] + network
         if disk:
             code, variables = efi.firmware(); private = directory / "OVMF_VARS.fd"; shutil.copyfile(variables, private)
             args += ["-drive", f"if=pflash,format=raw,readonly=on,file={code}", "-drive", f"if=pflash,format=raw,file={private}"]

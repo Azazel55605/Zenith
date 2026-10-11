@@ -12,6 +12,7 @@
     <Compile Remove="tests/**" />
     <Compile Remove="tools/**" />
     <Compile Remove="src/Core/Security/Credentials.cs;src/Core/Security/PermissionPolicy.cs;src/Core/Security/FileAccessPolicy.cs;src/Core/Security/obj/**;src/Core/Security/bin/**" />
+    <Compile Remove="src/Core/Network/Transport/*.cs;src/Core/Network/Transport/obj/**;src/Core/Network/Transport/bin/**" />
     <None Remove="tests/**" />
   </ItemGroup>
 
@@ -28,6 +29,7 @@
     <PackageReference Include="Cosmos.Kernel" Version="$(CosmosVersion)" />
     <PackageReference Include="Cosmos.Kernel.System" Version="$(CosmosVersion)" />
     <ProjectReference Include="src/Core/Security/Zenith.Security.csproj" />
+    <ProjectReference Include="src/Core/Network/Transport/Zenith.Network.csproj" />
   </ItemGroup>
 
 </Project>
