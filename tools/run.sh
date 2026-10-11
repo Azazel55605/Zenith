@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Boots Zenith in QEMU.
 #
-#   tools/run.sh live        boot the ISO (live system, RAM root) with disk.img attached as a target
-#   tools/run.sh installed   boot disk.img itself with UEFI firmware (after `install` + make-bootable.sh)
+#   tools/run.sh live        boot the ISO (auto root; select live rescue for RAM root) with disk.img attached as a target
+#   tools/run.sh installed   boot disk.img itself with UEFI firmware (after `install`)
 #
 # Environment: DISK (default disk.img, created at 512 MiB if missing), MEM (default 512M),
 #              OVMF_CODE / OVMF_VARS (UEFI firmware, defaults for Arch's edk2-ovmf),

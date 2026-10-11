@@ -21,6 +21,9 @@
       <HintPath>$(NuGetPackageRoot)cosmos.kernel.hal/$(CosmosVersion)/runtimes/linux-x64/lib/net10.0/Cosmos.Kernel.HAL.dll</HintPath>
       <Private>true</Private>
     </Reference>
+    <Compile Include="../../src/Core/Boot/BootLayout.cs" LinkBase="Kernel/Boot" />
+    <Compile Include="../../src/Core/Storage/GptChecksums.cs" LinkBase="Kernel/Storage" />
+    <Compile Include="../../src/Core/Storage/GptIdentity.cs" LinkBase="Kernel/Storage" />
     <Compile Include="../../src/Core/Storage/FileSystemProbe.cs" LinkBase="Kernel/Storage" />
     <Compile Include="../../src/Core/Storage/Dev/*.cs" Exclude="../../src/Core/Storage/Dev/DevMount.cs" LinkBase="Kernel/Storage/Dev" />
     <Compile Include="../../src/Core/Storage/Ext2/*.cs" Exclude="../../src/Core/Storage/Ext2/Ext2FilesystemType.cs;../../src/Core/Storage/Ext2/RamExt2FilesystemType.cs" LinkBase="Kernel/Storage/Ext2" />

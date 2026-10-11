@@ -73,7 +73,7 @@ STEPS = [
     # Regex (System.Text.RegularExpressions) on Cosmos: sed and grep -E; xargs re-enters the shell.
     ("echo hello world | sed 's/o/0/g' | logger", "user: hell0 w0rld"),
     ("seq 12 | grep -E '^1[0-9]$' | xargs | logger", "user: 10 11 12"),
-    ("lsblk | grep sata0p1 | logger", "sata0p1       190M  part"),   # serial is ASCII-only: no box glyphs
+    ("lsblk | grep sata0p1 | logger", "sata0p1       126M  part"),   # serial is ASCII-only: no box glyphs
     # German layout: the key QEMU calls "y" types "z". Switch back by typing "loadkezs us".
     ("localectl set-keymap de\nlogger y", "user: z"),
     ("loadkezs us\ncat /etc/vconsole.conf | logger", "user: KEYMAP=de"),

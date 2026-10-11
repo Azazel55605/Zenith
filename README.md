@@ -23,14 +23,17 @@ virtio-gpu, and virtio mouse/keyboard. The pointer is grabbed on hover; **Ctrl+A
 
 ## Installing to a disk
 
-1. **Run QEMU x64**. In the Terminal: `install` lists target disks, and `install sata0 --yes`
-   partitions (GPT: ESP + root), formats (FAT32 ESP + ext2 root up to 512 MiB), and copies the system.
-2. **Make Disk Bootable** (the kernel can't copy itself or the bootloader yet; see roadmap M4).
-3. **Run QEMU x64 (installed disk)**. Zenith finds its root partition and changes now persist.
+1. **Run QEMU x64**. In the Terminal: `install` lists targets. `install sata0 --yes`
+   erases the selected disk (minimum 256 MiB), creates GPT, a 128 MiB FAT32 ESP and
+   an ext2 root up to 512 MiB, and copies the system, kernel and EFI bootloader.
+2. `sync; poweroff`, eject the ISO and **Run QEMU x64 (installed disk)**.
+   The disk boots independently; the verification task only checks the guest-written files.
 
-Without an installed disk, Zenith boots **live**: the root is a 64 MiB RAM disk that is lost on reboot.
-If the attached `disk.img` already holds Zenith, even an ISO boot uses it as the root (and `install`
-refuses to overwrite it). Delete `disk.img` to start over.
+Without an installed disk, Zenith uses a 64 MiB RAM root, lost on reboot. The ISO's
+normal entry automatically discovers an installed root. Select **Zenith live rescue
+(RAM root)** to use RAM even with an installation attached. Installed boot entries bind
+an exact root PARTUUID to a versioned kernel. See [installation layout](docs/INSTALLATION.md).
+Kernel package activation is planned; current signed packages contain scripts/data only.
 
 ## Using it
 
@@ -205,7 +208,7 @@ src/Gui/
 src/Apps/                  Terminal, Files, Editor, Welcome, System
 Resources/Fonts/           Inter (UI) and Hack (terminal); embedded via tools/gen-fonts.py
 tests/Zenith.Tests/        xunit tests compiled against the kernel's plain-.NET sources
-tools/                     run.sh, make-bootable.sh, smoke-test.py, use-cosmos.sh, gen-fonts.py
+tools/                     run.sh, boot_image.py, install-smoke.py, smoke-test.py, use-cosmos.sh
 .github/workflows/ci.yml   Unit tests, ISO build, QEMU smoke test, releases
 ```
 

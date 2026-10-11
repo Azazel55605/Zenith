@@ -12,7 +12,7 @@ internal static class FileSystemLayout
 
     private static readonly string[] s_directories =
     {
-        "/bin", "/boot", "/dev", "/etc", "/etc/zenith", "/home", "/home/user", "/mnt", "/proc", "/root",
+        "/bin", "/boot", "/boot/efi", "/dev", "/etc", "/etc/zenith", "/home", "/home/user", "/mnt", "/proc", "/root",
         "/tmp", "/usr", "/usr/share", "/usr/share/doc", "/usr/share/man", "/var", "/var/log",
     };
 

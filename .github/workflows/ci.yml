@@ -98,6 +98,9 @@ jobs:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 tools/smoke-test.py --timeout 600 --step-timeout 180 --memory 512 --large-ext2-stress --keep smoke-large
 
+      - name: Self-contained install and RAM rescue
+        timeout-minutes: 15
+        run: python3 -B tools/install-smoke.py smoke-install
       - name: Serial headless (no GPU, live and installed UEFI)
         env:
           QEMU: /usr/bin/qemu-system-x86_64
@@ -124,6 +127,7 @@ jobs:
             smoke-security/
             smoke-foundation/
             smoke-headless/
+            smoke-install/
             smoke-network/
             smoke-packages/
             !smoke-packages/keys/**

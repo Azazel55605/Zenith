@@ -201,11 +201,14 @@ fallback through a boot menu and, if supported, attempt accounting. Limine autom
 rollback/attempt counting is **not verified or implemented**; manual fallback may be
 first. ESP FAT updates also need interruption tests; rename cannot be assumed durable.
 
-Current installations have a 64 MiB ESP and at most 512 MiB ext2 root. Check actual
+New installations have a 128 MiB ESP and at most 512 MiB ext2 root (older ESPs may be 64 MiB).
+The installed versioned layout is documented in [INSTALLATION](INSTALLATION.md);
+P1 still rejects kernel/boot packages. Check actual
 artifact/backup/staging sizes before choosing retention. Separate `/boot` files on root
 from the ESP paths firmware/Limine use; updating the former alone may change nothing
-at boot. M4 boot-artifact access and robust root selection are dependencies for a
-self-contained installer/updater. Bootloader updates should initially be separate,
+at boot. M4 boot-artifact access and exact root selection now support the CLI installer.
+Signed activation, retained-version ownership and interruption recovery still gate
+the updater. Bootloader updates should initially be separate,
 rare and explicit; avoid replacing firmware entry plumbing for every kernel update.
 An old ISO/root rescue route must remain usable when activation fails.
 

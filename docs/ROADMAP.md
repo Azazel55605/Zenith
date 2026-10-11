@@ -25,9 +25,15 @@ guarded ext2 formatting, symlinks, numeric ownership/modes, directory moves and
 check-only consistency auditing. Live root remains RAM-backed FAT; `/tmp` uses
 RAM-backed ext2 (1777). Installed ext2 accounts support hidden login/password prompts, explicit worker/window
 credentials and enforced owner/group/other access; see [ACCOUNTS](ACCOUNTS.md).
-Installer boot files still require a host helper.
+The CLI installer supplies its own boot files; installed entries use exact root UUIDs
+and versioned kernels. Graphical installation and signed kernel activation remain planned.
 
-**Latest local M2 validation:** 414 host tests, eight Python tests, Release publish,
+**Latest local installation validation:** 524 host tests, 28 install/reboot/rescue
+checks plus two duplicate-root refusal checks, 135 desktop/filesystem checks,
+10 disk-only desktop UEFI checks and 71 signed-package checks. See PROGRESS for
+exact evidence and environment limits. Hosted CI awaits push.
+
+**Historical M2 validation:** 414 host tests, eight Python tests, Release publish,
 135 filesystem/installed-root assertions at 512 MiB with the large workload,
 32 account/access/reboot assertions and seven UEFI disk-only assertions. Independent
 host e2fsck is clean after account updates. Hosted CI rerun awaits push; see PROGRESS.
@@ -72,7 +78,7 @@ Details: [system plan](SYSTEM-PLAN.md), [userland](USERLAND.md),
 | Implemented P0/P1 | Package builder/parser/planner and signed offline scripts/data | Native signature/ownership/transaction implementation; validation in PROGRESS; native userland and boot recovery remain separate gates |
 | Done foundations | S0 shared settings/session seam and S1 serial headless | Native DE/no-GPU live and installed tests; Settings GUI/per-user preferences remain later work |
 | Done M3/P1 | LAN networking and offline scripts/data | Native transport and signed install/upgrade/remove/reboot checks passed; exact evidence in PROGRESS |
-| Next: 1 | M4 self-contained live ISO/system installer | Copies kernel/bootloader itself; install and disk-only UEFI boot without host make-bootable helper; explicit live/rescue root behavior |
+| In progress: 1 | M4 live ISO/system installer | Self-contained CLI x64 UEFI install, exact root UUID and RAM rescue verified; graphical install remains |
 | 2 | Package recipes and builder workflow | Declarative metadata/files/modes; reproducible validation and separate signing using the existing .zpk foundation |
 | 3, parallel preparation | P2 package-server deployment kit and user-provisioned VM | Static service/configuration, staged publication, HTTPS/public-key bootstrap and actual LAN/VPN/DNS access |
 | 4 | Useful initial scripts/data packages | Install, upgrade, remove and reboot on a persistent Zenith VM against the user's server |
@@ -177,11 +183,11 @@ unauthenticated time synchronization alone does not prove metadata freshness.
 
 | Item | Size | Notes |
 |---|---|---|
-| ↑ Limine module request in `Cosmos.Kernel.Boot.Limine` | S | Lets the ISO hand `BOOTX64.EFI` and the kernel to the running system |
-| Installer copies the boot files itself; `make-bootable.sh` retires | S | Depends on the above |
-| Explicit stable root selection from Limine command line | M | UUID/identifier creation and exact selector contract; required when multiple saved roots exist |
-| Versioned kernel boot entries and rescue route | M | Current/previous kernels, accessible menu; package service owns staged updates |
-| Recovery-aware install layout | L | Measure ESP/root/staging/retention capacity; preserve basic ext2 path until R0 design is chosen |
+| Limine executable/module access | Done | Repository-local native bridge supplies original ELF and EFI bytes; no upstream edits |
+| Installer copies the boot files itself | Done | CLI x64 UEFI install; former host helper is read-only verification |
+| Explicit stable root selection from Limine command line | Done | GPT PARTUUID; missing/ambiguous selected roots fail closed; explicit RAM rescue |
+| Versioned kernel boot entries and rescue route | Partial | Current generation and rescue implemented; current/previous menu builder tested; signed activation/retention executor remains P3 |
+| Recovery-aware install layout | Partial | 128 MiB ESP reserves current/previous/staged bounded kernels; root snapshots, interruption-safe activation and R0 still planned |
 | Graphical installer window: disk picker, summary, confirmation, progress | M | Built on `Installer.Install` (already reports progress) |
 | Install to a USB stick (Cosmos supports USB mass storage) | S | First step toward real hardware |
 | ↑ GPT writer computes CRCs and the backup header | S | Then drop `GptChecksums` |

@@ -16,28 +16,27 @@ spec = importlib.util.spec_from_file_location("efi", ROOT / "tools/test-installe
 efi = importlib.util.module_from_spec(spec); spec.loader.exec_module(efi)
 
 class Machine:
-    def __init__(self, directory, disk=None, argument=None, network=None):
+    def __init__(self, directory, disk=None, argument=None, network=None, extra_disks=()):
         directory.mkdir(parents=True, exist_ok=True)
         self.directory = directory
         self.disk = directory / "disk.img"
         self.serial = directory / "serial.log"
         if disk:
             shutil.copyfile(disk, self.disk)
-            subprocess.run(["bash", str(ROOT / "tools/make-bootable.sh"), str(self.disk), "Release"], check=True)
+            import boot_image
+            boot_image.verify(self.disk)
             if argument is not None:
-                with self.disk.open("rb") as file:
-                    file.seek(512); header = file.read(512)
-                    file.seek(struct.unpack_from("<Q", header, 72)[0] * 512)
-                    start = struct.unpack_from("<Q", file.read(128), 32)[0]
-                cfg = directory / "limine.conf"
-                cfg.write_text("timeout: 0\n\n/Zenith\n    protocol: limine\n    path: boot():/boot/Zenith.elf\n    cmdline: " + argument + "\n")
-                subprocess.run(["mcopy", "-i", f"{self.disk}@@{start * 512}", "-o", str(cfg), "::/limine.conf"], check=True)
+                boot_image.override(self.disk, argument, directory)
         else:
             with self.disk.open("wb") as file: file.truncate(256 * 1024 * 1024)
         args = [os.environ.get("QEMU", "qemu-system-x86_64"), "-M", "q35", "-m", "512M",
                 "-accel", "kvm", "-accel", "tcg", "-cpu", "max", "-display", "none", "-vga", "none", "-no-reboot",
                 "-chardev", f"socket,id=console,path={directory / 'serial.sock'},server=on,wait=off", "-serial", "chardev:console",
                 "-monitor", "none", "-drive", f"file={self.disk},format=raw,if=none,id=disk0", "-device", "ide-hd,drive=disk0,bus=ide.0,unit=0"]
+        for index, image in enumerate(extra_disks):
+            if index > 0: raise ValueError("only one secondary test disk supported")
+            other = directory / "secondary.img"; shutil.copyfile(image, other)
+            args += ["-drive", f"file={other},format=raw,if=none,id=secondary", "-device", "ide-hd,drive=secondary,bus=ide.1,unit=0"]
         if network is not None: args += ["-nic", "none"] + network
         if disk:
             code, variables = efi.firmware(); private = directory / "OVMF_VARS.fd"; shutil.copyfile(variables, private)
@@ -125,7 +124,7 @@ def main():
         step(machine, "open files; echo gui=$? | logger", "user: gui=1")
         step(machine, "pkg list | grep zenith-base | logger", "user: zenith-base")
         step(machine, "session set-default wm; echo wm=$? | logger", "user: wm=1")
-        step(machine, "settings set timezone Europe/Berlin; session set-default headless; install sata0 --yes", "Root filesystem installed.")
+        step(machine, "settings set timezone Europe/Berlin; session set-default headless; install sata0 --yes", "Zenith installed and UEFI bootable.")
         step(machine, "sync; poweroff", "all filesystems unmounted")
         assert_(machine.process.wait(timeout=30) == 0, "live clean poweroff")
     finally: machine.stop()

@@ -198,3 +198,14 @@ native tool unbundling. Server preparation can overlap installation work. Added
 future GUI Editor overhaul, Zenith-specific celestial naming and GCC-preferred,
 Python, Vim/nano research goals. Names and additional app ideas remain proposals;
 no third-party port or naming availability is claimed. See [APPLICATIONS](APPLICATIONS.md).
+
+## 2026-10-11: self-contained UEFI installation foundation
+
+The CLI installer now copies its own original ELF and Limine UEFI bootloader through
+local boot protocol requests. New installations have a 128 MiB ESP, versioned kernel
+paths, root/ESP inventory and exact root PARTUUID selection. Explicit RAM rescue
+works with an installed disk attached. Host boot-file repair was removed from acceptance
+harnesses and replaced with independent read-only artifact checks. The layout anticipates
+signed kernel packages that stage a new version while the old kernel runs until reboot;
+the activation executor and graphical installer remain future slices. See
+[INSTALLATION](INSTALLATION.md) and [PROGRESS](PROGRESS.md).

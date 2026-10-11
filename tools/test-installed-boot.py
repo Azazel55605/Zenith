@@ -4,7 +4,6 @@ import argparse
 import importlib.util
 import shutil
 import subprocess
-import struct
 import tempfile
 from pathlib import Path
 import ext2_fixture
@@ -67,16 +66,10 @@ def main():
     with tempfile.TemporaryDirectory(prefix="zenith-efi-") as scratch:
         prepared = Path(scratch) / "disk.img"
         shutil.copyfile(args.disk, prepared)
-        subprocess.run(["bash", str(ROOT / "tools/make-bootable.sh"), str(prepared), args.configuration], check=True)
+        import boot_image
+        boot_image.verify(prepared)
         if args.test_session_override:
-            with prepared.open("rb") as image:
-                image.seek(512); header = image.read(512)
-                entries = struct.unpack_from("<Q", header, 72)[0]
-                image.seek(entries * 512); entry = image.read(128)
-                start = struct.unpack_from("<Q", entry, 32)[0]
-            config = Path(scratch) / "limine.conf"
-            config.write_text("timeout: 0\n\n/Zenith\n    protocol: limine\n    path: boot():/boot/Zenith.elf\n    cmdline: session=de\n")
-            subprocess.run(["mcopy", "-i", f"{prepared}@@{start * 512}", "-o", str(config), "::/limine.conf"], check=True)
+            boot_image.override(prepared, "session=de", Path(scratch))
         smoke.Machine = InstalledMachine
         machine, attempts = smoke.boot(Path(), args.timeout, "EFI disk-only", prepared)
         if machine is None:
@@ -92,7 +85,7 @@ def main():
         if args.test_session_override:
             steps.append(("session status | logger", "active=de (boot argument)"))
             steps.append(("man settings | head -1 | logger", "SETTINGS AND SESSION FOUNDATION"))
-            steps.append(("man pkg | head -1 | logger", "P0 OFFLINE PACKAGE PROTOTYPE"))
+            steps.append(("man pkg | head -1 | logger", "SIGNED OFFLINE SCRIPT/DATA PACKAGES"))
         try:
             for line, expected in steps:
                 offset = len(machine.raw_log())

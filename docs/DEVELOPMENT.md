@@ -235,10 +235,10 @@ is validated. Open-file deletion uses Cosmos deferred namespace removal; install
 
 ## Ext2 installation and consistency checks
 
-New installations create a FAT32 ESP (64 MiB) and a Linux-type GPT ext2 root
+New installations create a FAT32 ESP (128 MiB) and a Linux-type GPT ext2 root
 (up to 512 MiB); extra disk space remains unallocated. Old FAT roots remain
 recognized. Installer refuses disks with mounted partitions before writing GPT.
-The host helper still supplies the kernel and Limine to the ESP. To validate
+The guest supplies its own kernel and Limine to the ESP. To validate
 actual disk-only UEFI boot, run `python3 tools/test-installed-boot.py
 smoke/installed-disk.img --keep smoke-efi` after a Release smoke run. This uses a
 clone, private OVMF variables, no ISO, and independently checks the disk afterward.

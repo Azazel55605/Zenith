@@ -61,7 +61,7 @@ internal static class GptChecksums
         BitConverter.TryWriteBytes(header.AsSpan(16, 4), Crc32(header, headerSize));
     }
 
-    private static uint Crc32(byte[] data, int length)
+    internal static uint Crc32(byte[] data, int length)
     {
         uint crc = 0xFFFFFFFF;
         for (int i = 0; i < length; i++)

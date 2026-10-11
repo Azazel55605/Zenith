@@ -50,6 +50,10 @@ guidance here so the two entry points stay consistent.
   remains separate from local test proof.
 - Shell sources must remain host-testable without Cosmos. Cosmos-dependent
   commands belong in `src/Core/Shell/Commands/SystemCommands.cs` and register at boot.
+- The CLI x64 UEFI installer supplies its own boot artifacts through local Limine
+  requests. Preserve pre-erase asset validation, exact GPT root identity, versioned
+  kernel layout and RAM rescue ([INSTALLATION](docs/INSTALLATION.md)). P1 scripts/data
+  packages must not gain boot-file writes; kernel activation belongs to P3.
 - Storage uses ext2 for new installed roots (up to 512 MiB), recognizes older FAT
   installations, and uses RAM-backed FAT for live
   root and RAM-backed ext2 (1777) for `/tmp`; virtual `/proc` and `/dev` are mounted at boot. Experimental

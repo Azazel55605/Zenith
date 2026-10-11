@@ -1,4 +1,7 @@
 using Zenith.Core.Security;
+using Zenith.Core.Boot;
+using System.Runtime.InteropServices;
+using Cosmos.Kernel.Boot.Limine;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -40,12 +43,21 @@ internal static class SystemMounts
     /// <summary>The partition mounted at <c>/</c> when <see cref="Mode"/> is <see cref="BootMode.Installed"/>.</summary>
     public static Partition? RootPartition { get; private set; }
 
-    public static void Initialize()
+    public static Partition? BootPartition { get; private set; }
+    public static Guid? RootId { get; private set; }
+    public static BootRootSelection Selection { get; private set; } = new(false, null, null);
+
+    public static unsafe void Initialize()
     {
         VfsManager.RegisterFilesystem(Fat, new GuardedFilesystem(new FatFilesystemType()));
         VfsManager.RegisterFilesystem(Ext2, new GuardedFilesystem(new Ext2FilesystemType()));
 
-        RootPartition = FindInstalledRoot();
+        Selection = BootRootSelection.Parse(Marshal.PtrToStringUTF8((IntPtr)Limine.Cmdline) ?? "");
+        if (Selection.KernelId is not null && NativeBootAssets.RunningKernelId() != Selection.KernelId)
+        { throw new IOException("selected kernel generation does not match loaded bytes"); }
+        RootPartition = Selection.Live ? null : FindInstalledRoot(Selection.PartitionId);
+        if (Selection.PartitionId is not null && RootPartition is null)
+        { throw new IOException("requested root UUID is unavailable or invalid; automatic fallback refused"); }
         if (RootPartition is not null)
         {
             Mode = BootMode.Installed;
@@ -59,6 +71,7 @@ internal static class SystemMounts
         }
 
         FileSystemLayout.Create();
+        if (RootPartition is not null) { MountBootPartition(); }
         Log.PersistTo("/var/log/boot.log");
         MountRamDisk("tmpfs", 16, "/tmp");
         ProcMount.Initialize();
@@ -262,10 +275,32 @@ internal static class SystemMounts
     }
 
     /// <summary>Mounts every partition in turn at <c>/</c> and keeps the first one carrying a Zenith installation.</summary>
-    private static Partition? FindInstalledRoot()
+    private static Partition? FindInstalledRoot(Guid? selected)
     {
+        Partition? exact = null;
+        if (selected is not null)
+        {
+            foreach (Partition candidate in StorageManager.Partitions)
+            {
+                IReadOnlyList<GptIdentity> identities;
+                try { identities = GptIdentity.Read(candidate.Host); }
+                catch (IOException) { continue; /* Invalid GPT cannot satisfy an explicit selector. */ }
+                // Keep ambiguity rejection outside a typed catch: Cosmos NativeAOT
+                // currently misclassifies some typed exception handlers.
+                foreach (var identity in identities)
+                {
+                    if (identity.Id == selected && identity.Start == candidate.StartSector && identity.Count == candidate.BlockCount)
+                    {
+                        if (exact is not null) { throw new InvalidOperationException("ambiguous root UUID"); }
+                        exact = candidate;
+                    }
+                }
+            }
+            if (exact is null) { return null; }
+        }
         foreach (Partition partition in StorageManager.Partitions)
         {
+            if (selected is not null && !ReferenceEquals(partition, exact)) { continue; }
             bool mounted = Ext2VolumePolicy.Check(partition) is null
                 && VfsManager.TryMount(Ext2, partition, MountFlags.None, "/", out _);
             if (!mounted && !VfsManager.TryMount(Fat, partition, MountFlags.None, "/", out _))
@@ -289,6 +324,36 @@ internal static class SystemMounts
         }
 
         return null;
+    }
+
+    private static void MountBootPartition()
+    {
+        try
+        {
+            var identities = GptIdentity.Read(RootPartition!.Host);
+            foreach (var identity in identities)
+            {
+                if (identity.Start == RootPartition.StartSector && identity.Count == RootPartition.BlockCount) { RootId = identity.Id; }
+                if (identity.Type != GptIdentity.EspType) { continue; }
+                foreach (var partition in StorageManager.Partitions)
+                {
+                    if (ReferenceEquals(partition.Host, RootPartition.Host) && partition.StartSector == identity.Start && partition.BlockCount == identity.Count)
+                    {
+                        if (BootPartition is not null) { throw new IOException("multiple EFI partitions on root disk"); }
+                        BootPartition = partition;
+                    }
+                }
+            }
+            if (BootPartition is not null && !VfsManager.TryMount(Fat, BootPartition, MountFlags.None, "/boot/efi", out _))
+            { throw new IOException("could not mount installed EFI partition"); }
+            Log.Write("mounts", BootPartition is null ? "EFI partition unavailable (legacy root)" : "EFI partition: " + BootPartition.Name + " at /boot/efi");
+        }
+        catch (IOException)
+        {
+            if (Selection.PartitionId is not null) { throw; }
+            BootPartition = null; RootId = null;
+            Log.Write("mounts", "legacy root has no validated boot partition identity");
+        }
     }
 
     private static void MountRamDisk(string name, ulong megabytes, string mountPoint)

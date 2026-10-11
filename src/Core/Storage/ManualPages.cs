@@ -441,15 +441,18 @@ internal static class ManualPages
                 install DISK --yes      erase DISK and install
 
             DESCRIPTION
-                Creates GPT with a 64 MiB FAT32 EFI system partition and an ext2
-                root partition up to 512 MiB, then copies /etc, /home, /root, /usr
-                and /var. Extra space remains unallocated. Mounted disks and the
-                running root disk are refused. The kernel and
-                the bootloader still have to be added from the host with
-                tools/make-bootable.sh before the disk boots on its own.
+                Requires a disk of at least 256 MiB with 512-byte sectors. Creates
+                GPT with a 128 MiB FAT32 EFI partition and an ext2 root up to
+                512 MiB. Copies /etc, /home, /root, /usr and /var plus its own
+                original kernel ELF and Limine UEFI bootloader. No host copying
+                step is required. Mounted disks and the running root are refused.
 
-                On the next boot Zenith finds the installed root partition by its
-                /etc/os-release and mounts it at /.
+                After success: sync; poweroff, eject the ISO, boot the disk with
+                x64 UEFI firmware. Installed boot binds the root PARTUUID and a
+                versioned kernel hash. The menu offers a RAM rescue entry.
+                boot status reports the running kernel and installed boot identity.
+                Signed kernel package activation is planned; pkg currently installs
+                scripts/data only. Graphical installation and BIOS boot are future work.
             """),
     };
 }

@@ -192,4 +192,4 @@ def verify_installed(disk: Path, report: Path) -> bool:
             and re.search(r"Mode:\s+0*640\s", outputs[2].stdout) is not None
             and re.search(r"User:\s+70000\s+Group:\s+80000\s", outputs[2].stdout) is not None
             and 'Fast link dest: "ext2-persist"' in outputs[3].stdout
-            and "LABEL=ZENITH /              ext2" in outputs[4].stdout)
+            and "PARTUUID=" + str(uuid.UUID(bytes_le=entry[16:32])) + " / ext2 defaults" in outputs[4].stdout)

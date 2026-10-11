@@ -59,6 +59,15 @@ internal static class SystemCommands
         add(new Command("dmesg", "dmesg", "Print the kernel log", Dmesg));
         add(new Command("logger", "logger [message...]", "Write a message (or stdin) to the kernel log", Logger));
         add(new Command("crash", "crash", "Trigger a kernel panic (for testing)", _ => { KernelPanic.Request("crash command"); return 0; }));
+        add(new Command("boot", "boot status", "Show loaded kernel and installed boot identity", c =>
+        {
+            if (c.Args.Length != 1 || c.Args[0] != "status") { return c.Fail("boot status"); }
+            c.WriteLine("running-kernel=" + Zenith.Core.Boot.NativeBootAssets.RunningKernelId());
+            c.WriteLine("root=" + (SystemMounts.RootId?.ToString("D") ?? "live/legacy"));
+            c.WriteLine("efi=" + (SystemMounts.BootPartition?.Name ?? "unavailable"));
+            c.WriteLine("kernel updates: planned signed boot-generation packages; current pkg installer is scripts/data only");
+            return 0;
+        }));
         add(new Command("install", "install [disk] [--yes]", "Install Zenith onto a disk", Install));
         add(new Command("sync", "sync", "Write all cached filesystem data to disk", c => { SystemMounts.SyncAll(); return 0; }));
         add(new Command("umount", "umount mountpoint", "Unmount a filesystem", Umount));
@@ -471,8 +480,8 @@ internal static class SystemCommands
         // Progress goes straight to Out, skipping the cancellation check in WriteLine: stopping
         // between partitioning and copying would leave a half-written disk.
         Installer.Install(target, step => c.Out.Write(Ansi.Cyan("==> ") + step + "\n"));
-        c.WriteLine("Root filesystem installed. To make the disk bootable, run on the host:");
-        c.WriteLine("  tools/make-bootable.sh <disk image>");
+        c.WriteLine("Zenith installed and UEFI bootable. Power off, eject the ISO and boot the disk.");
+        c.WriteLine("Kernel generations are retained on the EFI partition; package-managed kernel activation follows separately.");
         return 0;
     }
 

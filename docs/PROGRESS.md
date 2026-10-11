@@ -1033,3 +1033,59 @@ permissions and reports accurate metadata through `ls -l`.
   was implemented or runtime feasibility proven. No server was deployed.
 - Documentation-only slice; local links pass (80 checked) and git diff --check passes. No runtime
   code changed, so prior runtime counts remain historical package-slice evidence.
+
+## 2026-10-11 · M4 self-contained installation and kernel-generation foundation
+
+- Implementing guest-side x64 UEFI boot-file delivery through Limine executable/module
+  responses, a 128 MiB ESP with content-addressed kernel directories, boot inventory,
+  stable root PARTUUID selection, mounted /boot/efi and explicit RAM rescue entry.
+  Source payload validation precedes disk erasure; boot menu is written after artifact
+  flush/read-back. Package kernel updates remain a separate signed activation gate.
+- Release ISO builds; host tests pass 524/524. Native validation results follow below.
+  Removed host boot-file repair from installed test harnesses; independent read-only
+  GPT/checksum/artifact verification now checks what the guest actually installed.
+
+- Native source-path correction: the first prototype used a boot URI for Limine's
+  internal module, which requires a filesystem path. Installation rejected it before
+  GPT writes; an independent scan confirms the entire 256 MiB target stayed zero.
+  Corrected to /EFI/BOOT/BOOTX64.EFI on the executable's volume. A first TCG serial
+  regression attempt dropped two interactive-read characters; dedicated acceptance
+  uses paced input. No product timeout or input handler was relaxed.
+- Test fixture updates retain versioned kernel/root arguments when changing session;
+  remove implicit host repairs; check the new 126 MiB root on a 256 MiB target and
+  PARTUUID fstab. Fixed a stale manual-heading expectation in the UEFI session test.
+  Initial acceptance fixture also needed new installer/status output assertions.
+- Final review moved duplicate root rejection outside typed catches to avoid Cosmos
+  native exception misclassification; added a two-clone negative boot test. Source
+  validates architecture/size before erasure and explicitly releases owned handles
+  on faults because native unwind-finally is unreliable.
+- The CLI path is this slice's scope. Graphical installer/account wizard, USB/hardware,
+  BIOS installation, root snapshots and signed boot-package activation are still
+  planned. P1 restrictions remain scripts/data; ext2 crash recovery limits remain.
+- Final Release ISO builds; host tests pass 524/524 and Python transcript tests 9/9.
+  Native install/reboot/rescue passes 28 checks on the final kernel, with exact ELF
+  hash, mounted ESP, persistent file across a second disk-only UEFI boot, independent
+  clean e2fsck and matching root/ESP inventory. Duplicate UUID refusal passes 2/2 on
+  two disk clones. The first negative fixture used an unsupported AHCI slave unit;
+  corrected to a second port and reran only that check. Final signed package regression
+  passes 71/71, including installed recovery and independent clean e2fsck/DB inspection.
+- Evidence: /tmp/zenith-m4-build-final.log, /tmp/zenith-m4-host-final.log,
+  /tmp/zenith-m4-install-checked.log, /tmp/zenith-m4-duplicate-checked.log and
+  /tmp/zenith-m4-packages-checked.log. Disposable images/logs are ignored under
+  obj/m4-install-checked, obj/m4-duplicate-checked and obj/m4-packages-checked.
+  First complete acceptance (before the duplicate-catch refinement):
+  /tmp/zenith-m4-install-final.log, 28/28. Final positive checks were rerun; the
+  two-disk negative check then passed separately after its attachment fix.
+- Desktop/filesystem regression passes 135/135 at 512 MiB, including installed-root
+  persistence, user/group/mode/symlink attributes and independent ext2 checks. Evidence:
+  /tmp/zenith-m4-de-final.log and ignored obj/m4-de-final. Read-only VS Code verification
+  is a separate task, so it does not prevent booting legacy disks without inventory.
+
+- Disk-only desktop UEFI/session override passes 10/10 with no ISO or host boot-file
+  repair, including manual pages and independent ext2/attribute checks. Evidence:
+  /tmp/zenith-m4-de-efi.log and ignored obj/m4-de-efi. Install/rescue/ambiguity and
+  disk-only desktop acceptance used TCG; package and baseline desktop regressions
+  used KVM. This does not establish that the historical no-NIC KVM stall is fixed.
+- Local documentation links pass (187 checked), Python compilation/shell syntax and
+  git diff --check pass. CI includes the new installation/rescue/ambiguity check;
+  hosted CI awaits push. No real disk, home package VM or upstream checkout was modified.

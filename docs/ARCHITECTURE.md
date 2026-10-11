@@ -83,16 +83,18 @@ part of a Zenith change. The vendored [reference docs](cosmos/SOURCE.md) are pin
 | `/tmp` | Separate 16 MiB RAM-backed ext2, mode 1777, including installed boots |
 | `/proc` | Read-only `meminfo`, `mounts`, `uptime`, `cmdline`; per-open first-read snapshots |
 | `/dev` | Null/zero, hardware random and root-readable disk/partition streams using Cosmos device names |
-| ESP | 64 MiB FAT32, Limine configuration and boot artifacts |
+| ESP | 128 MiB FAT32, versioned kernels, inventory and EFI bootloader |
 | Secondary ext2 | Explicit supported-profile mounting and guarded partition formatting |
 
-Root discovery probes for `/etc/os-release` identifying Zenith. Multiple matching
-roots have no documented user-controlled UUID selection yet. Installed ext2 uses
-validated passwd/group/shadow records and authenticated worker/window credentials.
-`Installer` writes GPT, formats root/ESP and lays out/copies system files.
-`GptChecksums` completes GPT checksums/backup structures missing from the framework
-path. `tools/make-bootable.sh` still copies the kernel ELF and EFI bootloader from
-host artifacts: installation is not self-contained. Disk-only OVMF boot is verified.
+ISO automatic root discovery probes `/etc/os-release`. Installed boot entries select
+an exact GPT PARTUUID and verify the loaded kernel hash; missing/ambiguous roots fail
+closed. `root=live` forces RAM rescue. Installed ext2 uses validated account records.
+`Installer` validates Limine-provided ELF/EFI bytes before erasing, writes GPT and
+filesystems, copies/read-verifies boot artifacts, then publishes the menu. The running
+root disk and mounted targets are refused. `/boot/efi` exposes the ESP on installed
+boots. `GptChecksums` completes framework GPT checksums and backup structures.
+Host helpers no longer supply boot files. See [INSTALLATION](INSTALLATION.md) for
+layout, capacity and future kernel-package boundaries.
 
 ### Ext2 contract and recovery boundaries
 

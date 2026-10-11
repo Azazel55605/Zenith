@@ -1,4 +1,6 @@
 using System;
+using Zenith.Core.Boot;
+using Zenith.Core.Security;
 using System.Collections.Generic;
 using System.IO;
 using Cosmos.Kernel.HAL.Interfaces.Devices;
@@ -10,22 +12,12 @@ using Zenith.Core.Storage.Ext2;
 
 namespace Zenith.Core.Storage;
 
-/// <summary>
-/// Installs Zenith onto a disk:
-/// <list type="number">
-/// <item>a fresh GPT with an EFI System Partition (64 MiB, FAT32) and a root partition (up to 512 MiB, ext2);</item>
-/// <item>the Unix layout plus the current <c>/etc</c>, <c>/home</c>, <c>/root</c>, <c>/usr</c>, <c>/var</c> copied onto the root;</item>
-/// <item><c>limine.conf</c> written to the ESP.</item>
-/// </list>
-/// The bootloader binary and the kernel ELF cannot be copied from here yet (the kernel has no
-/// way to read its own boot medium), so <c>tools/make-bootable.sh</c> adds them from the host.
-/// On the next boot <see cref="SystemMounts"/> finds the root partition by its <c>/etc/os-release</c>.
-/// </summary>
+/// <summary>Self-contained x64 UEFI installation with versioned kernel artifacts.</summary>
 internal static class Installer
 {
-    public const ulong MinimumBytes = 128UL * 1024 * 1024;
+    public const ulong MinimumBytes = BootLayout.MinimumDiskBytes;
 
-    private const ulong EspBytes = 64UL * 1024 * 1024;
+    private const ulong EspBytes = BootLayout.EspBytes;
     private const ulong Alignment = 2048;   // 1 MiB in 512-byte sectors
     private const string TargetMount = "/mnt/target";
     private const string EspMount = "/mnt/esp";
@@ -56,9 +48,10 @@ internal static class Installer
     /// <summary>Erases <paramref name="disk"/> and installs onto it. Throws on failure.</summary>
     public static void Install(IBlockDevice disk, Action<string> progress)
     {
+        GuardedFilesystem.RequireRoot();
         if (disk.BlockSize != 512 || disk.BlockCount < MinimumBytes / 512)
         {
-            throw new IOException("installation requires a disk of at least 128 MiB with 512-byte sectors");
+            throw new IOException("installation requires a disk of at least 256 MiB with 512-byte sectors");
         }
 
         if (ReferenceEquals(disk, SystemMounts.RootPartition?.Host))
@@ -74,6 +67,9 @@ internal static class Installer
             }
         }
 
+        // Validate source payloads before any destructive operation. No host filesystem
+        // dependency: Limine supplies the original ELF and the bundled EFI module.
+        NativeBootAssets assets = NativeBootAssets.Open();
         ulong espSectors = EspBytes / disk.BlockSize;
         ulong rootStart = Alignment + espSectors;
         ulong rootSectors = Math.Min((disk.BlockCount - 34 - rootStart) / Alignment * Alignment, Ext2Formatter.MaximumBytes / 512);   // keep clear of the backup GPT
@@ -96,8 +92,11 @@ internal static class Installer
         }
 
         Partition esp = partitions[0], root = partitions[1];
+        var identities = GptIdentity.Read(disk);
+        Guid espId = identities[0].Id, rootId = identities[1].Id;
+        string inventory = BootLayout.Inventory(rootId, espId, assets.KernelId, assets.EfiId, assets.Kernel.Length, assets.Efi.Length);
 
-        progress("Formatting EFI system partition (FAT32, 64 MiB)");
+        progress("Formatting EFI system partition (FAT32, 128 MiB)");
         Format(esp, "EFI        ");
         progress("Formatting root partition (ext2, " + (rootSectors * disk.BlockSize / (1024 * 1024)) + " MiB)");
         Ext2Formatter.Format(root, "ZENITH");
@@ -119,33 +118,79 @@ internal static class Installer
                 }
             }
 
+            Directory.CreateDirectory(TargetMount + "/var/lib/zenith/boot");
+            File.WriteAllText(TargetMount + "/var/lib/zenith/boot/installed.tsv", inventory);
             File.WriteAllText(TargetMount + "/etc/fstab",
                 "# <device>  <mount point>  <type>  <options>\n" +
-                "LABEL=ZENITH /              ext2     defaults\n" +
-                "LABEL=EFI   /boot/efi      fat     defaults\n" +
-                "tmpfs       /tmp           tmpfs   defaults\n");
+                "PARTUUID=" + rootId.ToString("D") + " / ext2 defaults\n" +
+                "PARTUUID=" + espId.ToString("D") + " /boot/efi fat defaults\n" +
+                "tmpfs /tmp tmpfs defaults\n");
+            SystemMounts.SyncAll();
         }
-        finally
+        catch
         {
             VfsManager.TryUnmount(TargetMount);
+            throw;
         }
+        if (!VfsManager.TryUnmount(TargetMount)) { throw new IOException("cannot unmount installed root"); }
 
         Mount(esp, EspMount);
         try
         {
-            progress("Writing bootloader configuration");
+            progress("Copying UEFI bootloader and versioned kernel");
             Directory.CreateDirectory(EspMount + "/EFI/BOOT");
-            Directory.CreateDirectory(EspMount + "/boot");
-            File.WriteAllText(EspMount + "/limine.conf",
-                "timeout: 0\n\n/Zenith\n    protocol: limine\n    path: boot():/boot/Zenith.elf\n");
+            string kernelPath = BootLayout.KernelPath(assets.KernelId);
+            Directory.CreateDirectory(EspMount + "/boot/zenith/" + assets.KernelId);
+            CopyBootFile(EspMount + "/EFI/BOOT/BOOTX64.EFI", assets.Efi);
+            CopyBootFile(EspMount + kernelPath, assets.Kernel);
+            File.WriteAllText(EspMount + "/boot/zenith/manifest.tsv", inventory);
+            File.WriteAllText(EspMount + "/boot/zenith/" + assets.KernelId + "/manifest.tsv", inventory);
+            SystemMounts.SyncAll(); disk.Flush();
+            progress("Activating installed boot menu");
+            // Boot configuration is written only after verified artifacts are flushed.
+            File.WriteAllText(EspMount + "/limine.conf", BootLayout.Configuration(rootId, assets.KernelId));
+            SystemMounts.SyncAll();
         }
-        finally
+        catch
         {
             VfsManager.TryUnmount(EspMount);
+            throw;
         }
+        if (!VfsManager.TryUnmount(EspMount)) { throw new IOException("cannot unmount installed EFI partition"); }
 
         disk.Flush();
         progress("Done");
+    }
+
+    private static void CopyBootFile(string path, ReadOnlySpan<byte> bytes)
+    {
+        if (!VfsManager.TryCreateFile(path, (VfsMode)0x1a4) || !VfsManager.TryOpenFile(path, out var file))
+        { throw new IOException("cannot create installed boot file"); }
+        try
+        {
+            for (int offset = 0; offset < bytes.Length;)
+            {
+                int count = Math.Min(65536, bytes.Length - offset);
+                if (file.Write(bytes.Slice(offset, count)) != count) { throw new IOException("short boot file write"); }
+                offset += count;
+            }
+            if (!file.TryFlush()) { throw new IOException("cannot flush boot file"); }
+            file.Dispose();
+        }
+        catch { file.Dispose(); throw; }
+        using var stream = File.OpenRead(path);
+        try
+        {
+            byte[] buffer = new byte[65536]; int offset = 0;
+            while (offset < bytes.Length)
+            {
+                int n = stream.Read(buffer, 0, Math.Min(buffer.Length, bytes.Length - offset));
+                if (n == 0 || !bytes.Slice(offset, n).SequenceEqual(buffer.AsSpan(0, n))) { throw new IOException("installed boot file verification failed"); }
+                offset += n;
+            }
+            if (stream.ReadByte() != -1) { throw new IOException("installed boot file length mismatch"); }
+        }
+        catch { stream.Dispose(); throw; }
     }
 
     private static void Format(Partition partition, string label)
