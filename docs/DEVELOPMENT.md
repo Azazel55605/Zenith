@@ -5,6 +5,7 @@
 | Tool | Used for |
 |---|---|
 | .NET SDK 10 (system `dotnet`) | Building Zenith and running the unit tests |
+| System Clang and `nm` (binutils), OpenSSL for tests | Freestanding TLS compilation/import checks and host certificate fixtures |
 | `Cosmos.Tools` + `Cosmos.Patcher` global tools, `cosmos install -y --tools` | The Cosmos build pipeline (ILC, patcher, clang/lld, xorriso) |
 | `qemu-system-x86_64`, OVMF (`edk2-ovmf`), mtools, parted, e2fsprogs | Running, installing, smoke testing and host formatter validation |
 | Python 3.10+ | `tools/smoke-test.py`, `tools/gen-fonts.py` (needs `fonttools`) |
@@ -331,7 +332,8 @@ Preserve wrong-ID DNS, timeout, failed-download preservation and Ctrl+C cases: C
 
 M3 HTTPS builds offline from the checked Mbed TLS archive under `vendor/mbedtls`.
 `tools/build-tls.py` invokes clang for freestanding objects before link cache checks;
-use a clang executable on PATH. The post-patcher has its own cache invalidation,
+use clang and nm (binutils) on PATH. Native headers are isolated from host libc and
+an import check rejects unsupported dependencies before linking. The post-patcher has its own cache invalidation,
 so changing PatcherFixup/wrapper forces Cosmos to repatch. OpenSSL is needed for
 host/native TLS fixture certificates. See [NETWORKING](NETWORKING.md) for bridge,
 launcher and native acceptance commands, including optional home DNS testing.

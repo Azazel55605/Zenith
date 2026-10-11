@@ -1,6 +1,8 @@
 #ifndef ZENITH_TLS_CONFIG_H
 #define ZENITH_TLS_CONFIG_H
 #include <stddef.h>
+/* Always use Mbed TLS's IP parser; the kernel has no libc inet_pton. */
+#define MBEDTLS_TEST_SW_INET_PTON
 int zenith_tls_snprintf(char *, size_t, const char *, ...);
 #define MBEDTLS_PLATFORM_SNPRINTF_MACRO zenith_tls_snprintf
 /* Client-only TLS 1.2, forward-secret AES-GCM suites; no OS, files, tickets or PSA. */

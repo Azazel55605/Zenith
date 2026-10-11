@@ -33,6 +33,21 @@ class SerialMatchingTests(unittest.TestCase):
         self.assertFalse(self.matches("user: proc-write=0\n", "user: proc-write=1"))
 
 
+class HeadlessSerialMatchingTests(unittest.TestCase):
+    def test_captured_shutdown_message_interleaving(self):
+        spec = importlib.util.spec_from_file_location("headless_test", Path(__file__).with_name("headless-smoke.py"))
+        headless = importlib.util.module_from_spec(spec); spec.loader.exec_module(headless)
+        machine = headless.Machine.__new__(headless.Machine)
+        raw = ("[zenith] [    8.674] mounts: all filesystems [LowLevelMonitor] Acquire BEGIN\n"
+               "[LowLevelMonitor] Acquire END\n[LowLevelMonitor] Wait BEGIN\n"
+               "[CV] Wait BEGIN thread=0\n[SCHED] BlockThread id=0\nunmounted\n")
+        machine.log = lambda: raw
+        machine.process = Mock(); machine.process.poll.return_value = 0
+        self.assertTrue(machine.wait("all filesystems unmounted", timeout=1))
+        self.assertFalse(machine.wait("all filesystems unmounted", offset=len(raw), timeout=1))
+        self.assertFalse(machine.wait("all filesystems failed", timeout=1))
+
+
 class FreshMarkerTests(unittest.TestCase):
     def test_old_marker_cannot_satisfy_new_command(self):
         from types import SimpleNamespace

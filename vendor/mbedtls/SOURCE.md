@@ -11,6 +11,11 @@
 No upstream file is modified. `tools/build-tls.py` verifies the archive before
 extracting into ignored build output. Clang compiles portable C with Zenith's
 configuration and minimal private byte/string/format/zeroize platform functions.
+Native compilation uses `-nostdinc`, compiler builtin headers and Zenith's shim,
+so host socket headers cannot introduce libc dependencies. Both host and native
+profiles explicitly select Mbed TLS's software IP parser (`MBEDTLS_TEST_SW_INET_PTON`)
+for certificate IP SAN matching. Every native build checks object imports with
+`nm`; only kernel-provided memcpy, memset and zenith_rdseed_word may remain external.
 The source archive permits offline builds, contains the original license notices,
 and keeps dependency changes independently reviewable from our bridge/configuration.
 

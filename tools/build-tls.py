@@ -10,6 +10,22 @@ import tarfile
 ROOT = Path(__file__).resolve().parents[1]
 SHA256 = '807f0a1cc7c63b571180e9efeb6236b677e550869eb0442ace33aa9c69055fcc'
 
+def check_native_imports(objects):
+    # Catch accidental host libc dependencies before the kernel link, including
+    # Mbed TLS's header-detected inet_pton path. The kernel supplies only these.
+    symbols = subprocess.check_output(['nm', '-g', '--format=posix', *map(str, objects)],
+                                      text=True, stderr=subprocess.PIPE)
+    defined, undefined = set(), set()
+    for line in symbols.splitlines():
+        parts = line.split()
+        if len(parts) > 1:
+            (undefined if parts[1] == 'U' else defined).add(parts[0])
+    external = undefined - defined
+    unexpected = external - {'memcpy', 'memset', 'zenith_rdseed_word'}
+    if unexpected:
+        raise RuntimeError('Unsupported native TLS imports: ' + ', '.join(sorted(unexpected)))
+    print('Native TLS imports verified: ' + ', '.join(sorted(external)))
+
 def build(out, arch, host=False):
     archive = ROOT / 'vendor/mbedtls/source-3.6.7.tar.gz'
     if hashlib.sha256(archive.read_bytes()).hexdigest() != SHA256:
@@ -25,7 +41,11 @@ def build(out, arch, host=False):
     if host:
         flags += ['-fPIC', '-DZENITH_TLS_HOST_TEST']
     else:
-        flags += ['-I' + str(ROOT / 'src/Native/Tls/libc')]
+        # Some distro clang builds expose host socket headers even with an ELF
+        # target. Only allow compiler builtin headers and our freestanding shim.
+        resource = subprocess.check_output(['clang', '-print-resource-dir'], text=True).strip()
+        flags += ['-nostdinc', '-isystem', str(Path(resource) / 'include'),
+                  '-I' + str(ROOT / 'src/Native/Tls/libc')]
         flags += ['--target=' + ('x86_64-none-elf' if arch == 'x64' else 'aarch64-none-elf')]
         if arch == 'x64': flags += ['-mno-red-zone', '-mcmodel=kernel', '-fno-pic']
     stamp = out / '.tls-mode'
@@ -45,6 +65,8 @@ def build(out, arch, host=False):
         objects = list(pool.map(compile_one, sources))
     if host:
         subprocess.run(['clang', '-shared', *map(str, objects), '-o', str(out / 'libzenith-tls.so')], check=True)
+    else:
+        check_native_imports(objects)
     print('Built checksum-pinned Mbed TLS 3.6.7 (' + arch + ')')
 
 if __name__ == '__main__':

@@ -61,7 +61,8 @@ class Machine:
     def wait(self, marker, offset=0, timeout=180):
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            if marker in self.log()[offset:]: return True
+            raw = self.log()[offset:]
+            if marker in raw or marker in efi.smoke.COSMOS_NOISE.sub('', raw): return True
             if self.process.poll() is not None: break
             time.sleep(0.05)
         return False

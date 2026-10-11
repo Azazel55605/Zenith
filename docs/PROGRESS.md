@@ -906,3 +906,33 @@ permissions and reports accurate metadata through `ls -l`.
   git diff --check passes. M3 is complete within the documented client
   profile; transport success does not authorize package installation. Next packaging
   work defines the production container/trust contract and prepares the dedicated VM.
+
+## 2026-10-11 · Native TLS build portability fix — delivered
+
+- User's Cosmos Release build fails with undefined inet_pton from tls-x509_crt.o.
+  The local Clang 23 ELF target still discovers host socket headers through
+  __has_include; Mbed TLS consequently selects libc IP parsing in a kernel link.
+- Isolate native C includes with -nostdinc plus compiler builtin headers and Zenith's
+  freestanding shim. Explicitly select upstream's software IP parser in both native
+  and host TLS profiles; preserve certificate/IP SAN verification.
+- Every native build now checks all TLS object imports with nm; only kernel-provided
+  memcpy, memset and zenith_rdseed_word are accepted. A compiled object importing
+  inet_pton is rejected by this gate. CI builds the native profile independently and
+  installs Clang/binutils explicitly; host OpenSSL fixtures use the same IP parser.
+- The exact reported cosmos build -p /home/azazel/cosmos-test/MyOS -a x64 -c Release -v
+  now succeeds (zero warnings/errors), produces output-x64/Zenith.iso and reports only
+  the three expected native TLS imports. Host TLS checks pass 35/35.
+- The first guest acceptance run passed live HTTPS/IP/name/date/cancel/fault checks,
+  then failed a shutdown marker assertion. The serial transcript shows Cosmos debug
+  lines inserted between "all filesystems " and "unmounted", followed by ACPI S5.
+  Headless marker matching now reuses the existing raw-or-noise-stripped matcher;
+  a captured-transcript test also checks stale offsets and incorrect markers. Python
+  harness tests pass 9/9. No kernel shutdown behavior or timeout was changed.
+- Final native acceptance passes 172/172 checks, including installed trust/reboot,
+  permissions, fail-closed missing entropy and independent clean ext2/payload/time
+  checks. This run uses local fixtures without the optional home DNS checks.
+  Evidence: /tmp/zenith-inet-pton-release.log,
+  /tmp/zenith-inet-pton-host-checks.log, /tmp/zenith-inet-pton-harness.log and
+  /tmp/zenith-inet-pton-network-final.log; artifacts in ignored obj/inet-pton-network-final.
+  The first failed run remains in /tmp/zenith-inet-pton-network.log and ignored
+  obj/inet-pton-network. Hosted CI is not verified by this local run.

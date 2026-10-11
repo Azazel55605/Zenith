@@ -21,9 +21,10 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends e2fsprogs clang openssl
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends e2fsprogs clang binutils openssl
       - run: dotnet test tests/Zenith.Tests --logger "console;verbosity=normal"
       - run: python3 -B tools/test_run_network.py
+      - run: python3 -B tools/build-tls.py /tmp/zenith-tls-native
       - run: python3 -B tools/build-tls.py /tmp/zenith-tls --host
       - run: python3 -B tools/test_tls_bridge.py /tmp/zenith-tls/libzenith-tls.so
       - run: python3 -B tools/test_smoke_test.py
@@ -44,6 +45,9 @@ jobs:
           dotnet tool install -g Cosmos.Patcher --version "$COSMOS_VERSION"
           echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
           "$HOME/.dotnet/tools/cosmos" install -y --tools
+
+      - name: Install native TLS build dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends clang binutils
 
       - name: Build kernel ISO
         run: dotnet publish -c Release -r linux-x64 -o output-x64 --verbosity minimal
