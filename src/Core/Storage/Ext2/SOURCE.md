@@ -58,3 +58,9 @@ updates preserve file type and unselected attributes, validate flags/timestamps
 before changes, and update ctime. The high size field is used only for regular
 files, leaving the directory ACL slot untouched. Layout reference:
 [Linux inode fields](https://docs.kernel.org/filesystems/ext4/inodes.html).
+
+Directory rename now checks volume identity, parent type and on-disk ancestry,
+refreshes parent snapshots, maintains cross-parent link counts, locates the real
+`..` entry, and updates change/modification times. Same-parent identity uses inode
+numbers; same-entry rename is a no-op. Destination replacement remains refused.
+Ancestry traversal is bounded to 1024 levels and rejects malformed cycles.

@@ -318,10 +318,13 @@ internal static class FileCommands
                     continue;
                 }
 
-                CopyDirectory(source, target);
                 if (move)
                 {
-                    Directory.Delete(source, recursive: true);
+                    Directory.Move(source, target);
+                }
+                else
+                {
+                    CopyDirectory(source, target);
                 }
             }
             else

@@ -511,62 +511,84 @@ internal sealed class Ext2InodeOperations : IInodeOperations
     /// <returns>true when the entry was moved.</returns>
     public bool Rename(IVfsInode oldParent, ReadOnlySpan<char> oldName, IVfsInode newParent, ReadOnlySpan<char> newName)
     {
-        if (oldParent is not Ext2Inode op || newParent is not Ext2Inode np
+        if (oldParent is not Ext2Inode oldDir || newParent is not Ext2Inode newDir
+            || oldDir.Superblock != _superblock || newDir.Superblock != _superblock
+            || !oldDir.IsDirectory || !newDir.IsDirectory
             || !Ext2DirectoryHelper.IsValidName(oldName) || !Ext2DirectoryHelper.IsValidName(newName))
         {
             return false;
         }
 
+        // Lookup handles can be distinct snapshots of the same on-disk inode.
+        Ext2Inode op = _superblock.ReadInode(oldDir.InodeNumber, oldDir.Name);
+        bool sameParent = op.InodeNumber == newDir.InodeNumber;
+        Ext2Inode np = sameParent ? op : _superblock.ReadInode(newDir.InodeNumber, newDir.Name);
         string sOld = oldName.ToString();
         string sNew = newName.ToString();
+        if (!Ext2DirectoryHelper.TryFind(_superblock, op, oldName, out Ext2DirEntry oldEntry)) { return false; }
+        if (sameParent && sOld == sNew) { return true; }
+        // Replacement remains unsupported; never remove the destination first.
+        if (Ext2DirectoryHelper.TryFind(_superblock, np, newName, out _)) { return false; }
 
-        if (!Ext2DirectoryHelper.TryFind(_superblock, op, oldName, out Ext2DirEntry oldEntry))
+        Ext2Inode moved = _superblock.ReadInode(oldEntry.Inode, sOld);
+        uint parentBlock = 0;
+        int parentOffset = 0;
+        byte[]? parentData = null;
+        if (moved.IsDirectory && !sameParent)
         {
-            return false;
+            if (op.LinksCount <= 2 || np.LinksCount == ushort.MaxValue
+                || !SafeDestination(moved.InodeNumber, np)) { return false; }
+            // Locate '..' by its actual record, rather than assuming a fixed layout.
+            if (!Ext2DirectoryHelper.TryFind(_superblock, moved, "..", out var dotdot)
+                || dotdot.Inode != op.InodeNumber) { return false; }
+            parentBlock = _superblock.GetBlockPointer(moved, (uint)dotdot.Offset / _superblock.BlockSize, false, out _);
+            if (parentBlock == 0) { return false; }
+            parentOffset = dotdot.Offset % (int)_superblock.BlockSize;
+            parentData = new byte[_superblock.BlockSize];
+            _superblock.ReadBlocks(parentBlock, 1, parentData);
         }
 
-        if (Ext2DirectoryHelper.TryFind(_superblock, np, newName, out Ext2DirEntry existing))
-        {
-            // Replace semantics are not implemented: refuse an existing
-            // destination instead of writing a duplicate name.
-            return false;
-        }
-
-        byte ft = oldEntry.FileType;
-        if (ft == 0)
-        {
-            Ext2Inode node = _superblock.ReadInode(oldEntry.Inode, sOld);
-            ft = Ext2DirectoryHelper.FileTypeFromMode(node.Mode);
-        }
-
-        if (!Ext2DirectoryHelper.AddEntry(_superblock, np, sNew, oldEntry.Inode, ft))
-        {
-            return false;
-        }
-
+        byte ft = Ext2DirectoryHelper.FileTypeFromMode(moved.Mode);
+        if (!Ext2DirectoryHelper.AddEntry(_superblock, np, sNew, moved.InodeNumber, ft)) { return false; }
         if (!Ext2DirectoryHelper.RemoveEntry(_superblock, op, sOld))
         {
             Ext2DirectoryHelper.RemoveEntry(_superblock, np, sNew);
             return false;
         }
-
-        // A directory moved across parents keeps a ".." pointing at the
-        // old parent; rewrite it.
-        if (ft == Ext2InodeLayout.FileTypeDir && !ReferenceEquals(op, np))
+        if (parentData is not null)
         {
-            Ext2Inode moved = _superblock.ReadInode(oldEntry.Inode, sNew);
-            uint blk = moved.Block[0];
-            if (blk != 0)
-            {
-                byte[] dirBlock = new byte[_superblock.BlockSize];
-                _superblock.ReadBlocks(blk, 1, dirBlock);
-                int dotDotPos = (Ext2InodeLayout.DirEntryNameOffset + 1 + 3) & ~3;
-                BitConverter.TryWriteBytes(dirBlock.AsSpan(dotDotPos + Ext2InodeLayout.DirEntryInodeOffset, 4), np.InodeNumber);
-                _superblock.WriteBlocks(blk, 1, dirBlock);
-            }
+            BitConverter.TryWriteBytes(parentData.AsSpan(parentOffset + Ext2InodeLayout.DirEntryInodeOffset, 4), np.InodeNumber);
+            _superblock.WriteBlocks(parentBlock, 1, parentData);
+            op.LinksCount--;
+            np.LinksCount++;
         }
+        uint now = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        op.Mtime = op.Ctime = np.Mtime = np.Ctime = now;
+        moved.Ctime = now;
+        _superblock.WriteInode(op);
+        if (!sameParent) { _superblock.WriteInode(np); }
+        _superblock.WriteInode(moved);
 
         return true;
+    }
+
+    // Follow on-disk ancestry, rejecting cycles, missing parents and excessive depth.
+    private bool SafeDestination(uint moved, Ext2Inode destination)
+    {
+        var visited = new HashSet<uint>();
+        Ext2Inode current = destination;
+        for (int depth = 0; depth < 1024; depth++)
+        {
+            if (!current.IsDirectory || current.InodeNumber == moved || !visited.Add(current.InodeNumber)) { return false; }
+            if (!Ext2DirectoryHelper.TryFind(_superblock, current, "..", out var parent)
+                || parent.Inode == 0 || parent.Inode > _superblock.InodesCount) { return false; }
+            if (current.InodeNumber == Ext2SuperblockLayout.RootInodeNumber)
+            {
+                return parent.Inode == current.InodeNumber;
+            }
+            current = _superblock.ReadInode(parent.Inode, "..");
+        }
+        return false;
     }
 
     /// <summary>

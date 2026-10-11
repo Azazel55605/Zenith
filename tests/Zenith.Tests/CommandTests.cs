@@ -45,6 +45,20 @@ public class FileCommandTests
     }
 
     [Fact]
+    public void Mv_DirectoryPreservesContentAndRefusesExistingTarget()
+    {
+        using var sh = new ShellHarness();
+        sh.Run("mkdir -p left/tree/sub right; echo data > left/tree/sub/file");
+        sh.Run("mv left/tree right");
+        Assert.False(Directory.Exists(sh.PathOf("left/tree")));
+        Assert.Equal("data\n", File.ReadAllText(sh.PathOf("right/tree/sub/file")));
+        sh.Run("mkdir -p left/tree; echo original > left/tree/keep");
+        sh.Run("mv left/tree right");
+        Assert.True(File.Exists(sh.PathOf("left/tree/keep")));
+        Assert.Equal("data\n", File.ReadAllText(sh.PathOf("right/tree/sub/file")));
+    }
+
+    [Fact]
     public void Rm_NeedsRForDirectoriesAndFIgnoresMissing()
     {
         using var sh = new ShellHarness();

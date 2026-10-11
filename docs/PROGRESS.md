@@ -20,6 +20,7 @@
 | ext2 symbolic links | Verified for bounded targets | 332 host tests and 101/101 QEMU checks; inline/block-backed targets, dangling links, loops, remount and deletion; .. resolution remains unsupported |
 | ext2 ownership/modes and metadata commands | Verified for secondary ext2 | 355 host tests; 114/114 checks in both Release QEMU profiles; persisted 32-bit IDs, chmod/chown, stat and ls -l; enforcement pending |
 | CI keyboard injection | Fixed and verified locally | GC-aware pacing and explicit key release; both CI-equivalent Release profiles pass; hosted rerun awaits push |
+| ext2 directory moves | Verified for secondary ext2 | 361 host tests; 122/122 Release large-profile QEMU checks; parent links, actual .. record, inode preservation and cycle refusal |
 | ext2 installer root | Pending | Depends on ext2 |
 | Users/login, shadow, passwd, su, useradd | Pending | Requires persistent ownership and permission model |
 | VFS permission enforcement | Pending | Audit every file-operation entry point |
@@ -468,3 +469,33 @@ permissions and reports accurate metadata through `ls -l`.
 - M2 remains open. Next: finish directory cross-parent link accounting and
   open-handle unlink semantics before installer/root migration; persistent users,
   permission enforcement and check-only fsck remain required.
+
+### 2026-10-11 · Eleventh M2 slice · Safe directory moves
+
+- Clean starting checkout at 50f2d17. Fixed ext2 cross-parent rename to maintain
+  both parent link counts and rewrite the actual `..` record. Parent inode
+  snapshots are refreshed and same-parent aliases compare inode numbers.
+- Validate both handles belong to this volume and are directories. Reject moves
+  into self/descendants, corrupt ancestry, more than 1024 ancestry levels, link
+  underflow/overflow and existing destinations before writing. Existing-source
+  same-entry rename succeeds without writes. Update parent mtime/ctime and moved
+  inode ctime, preserving inode identity, permissions, ownership and contents.
+- Directory `mv` uses filesystem rename instead of copy/delete. Cross-filesystem
+  directory moves and destination replacement are refused. The Files app's
+  separate folder-transfer restriction is retained until its UI path is tested.
+- Host suite passes **361/361**, including remount identity/modes/high ownership,
+  correct `..`/parent links, same-parent handles, rejected cycles/corrupt ancestry,
+  link overflow, foreign volumes and destination conflicts. Independent e2fsck
+  is clean after successful moves. **6/6** Python tests and Release publish pass.
+- Added eight native checks for populated directory moves, retained ownership and
+  special bits, parent link counts, cycle rejection, remount and moving back.
+  Release QEMU passes **122/122 checks** at 512 MiB RAM with the 9 MiB workload.
+  Cross-parent move/back, retained high ownership and special bits, correct parent
+  link counts across remount, child contents and cycle refusal all pass. Both
+  ext2 volumes pass independent e2fsck; saved data, second-group allocation and
+  partition guards are intact. Installed FAT-root reboot and poweroff also pass.
+- Evidence: `/tmp/zenith-rename-tests.log`, `/tmp/zenith-rename-release.log`,
+  `/tmp/zenith-rename-large.log` and `/tmp/zenith-rename-large/`.
+- M2 remains open. Next: open-handle unlink lifetime before installer/root
+  migration, then persistent users, permission enforcement and check-only fsck.
+  Rename is not crash-atomic; ext2 has no journal.

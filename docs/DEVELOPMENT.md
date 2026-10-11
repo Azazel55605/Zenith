@@ -209,3 +209,24 @@ tools/use-cosmos.sh release   # back to nuget.org; CI always uses the release
 **Contributing back:** fork `CosmosOS/Cosmos` on GitHub, add it as a remote in `../Cosmos`,
 and open pull requests from topic branches. The roadmap's "Upstream work" section lists the
 planned changes.
+
+## Ext2 directory moves
+
+Directory `mv` now uses `Directory.Move`, rather than copying a tree and deleting
+its source. The ext2 rename path refreshes parent inode snapshots and identifies
+same-parent handles by inode number. It preserves the moved inode, adjusts both
+parent link counts for cross-parent directory moves, finds the actual `..`
+record, and updates directory modification/change times and moved inode change
+time. Destination ancestry is checked on disk before writes; missing or cyclic
+parents, traversal beyond 1024 levels, and link-count overflow are refused.
+Existing destinations and foreign filesystem handles are refused. Same-entry
+rename is a successful no-op when the source exists. This is not crash-atomic:
+ext2 has no journal and interruption between writes can require repair.
+
+Host regressions check remount metadata, parent links, descendant/corrupt-cycle
+refusal, overflow refusal, same-parent aliases, existing destinations, and foreign
+volumes. Independent e2fsck validates the resulting directory structure. Native
+smoke checks move the populated, owned directory across parents and back, verify
+metadata and parent links across remount, reject a cycle, then inspect the disk.
+The Files app folder-move restriction remains until its own cross-parent UI path
+is validated. Open-handle unlink and installed ext2 roots remain pending.

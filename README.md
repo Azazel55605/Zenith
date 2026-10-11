@@ -93,6 +93,12 @@ FAT uses `?` for unavailable Unix fields. Account lookup and permission enforcem
 remain pending: changing bits currently records metadata without restricting access.
 New ext2 objects still default to UID/GID 0. Installed roots still use FAT32.
 
+Directory `mv` uses a filesystem rename, preserving the inode and its ownership,
+permissions and contents. On ext2, moves across parents update `..` and both
+parent link counts; moves into the directory's own descendants are refused.
+Existing directory destinations and moves between filesystems are refused.
+The Files app currently keeps its folder moves within the current directory.
+
 Settings: `localectl set-keymap de`, `timedatectl set-timezone Europe/Berlin`.
 `edit file` opens the text editor, `open system` any desktop app, `fps` shows compositor statistics.
 Windows resize from their edges; double-click a title bar to maximize.
