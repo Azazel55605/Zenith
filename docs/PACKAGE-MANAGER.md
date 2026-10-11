@@ -308,4 +308,5 @@ Host serialization tests alone do not establish safe installed updates.
 Implemented first P0 slice: host builder plus shared reader/dry-run and guest
 inspection, without changing the active installation. Next packaging gates are
 production container/signature-verifier feasibility and explicit ownership/config/
-transaction recovery, alongside S1 headless and later M3 networking.
+transaction recovery. S1 x64 serial headless now exercises the same inspect/plan
+commands without a desktop; M3 networking remains the next main milestone.

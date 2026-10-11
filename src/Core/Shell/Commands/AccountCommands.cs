@@ -10,9 +10,9 @@ internal static class AccountCommands
     {
         add(new Command("whoami", "whoami", "Print the authenticated user", c => { c.WriteLine(Accounts.Service?.Name(c.Shell.Identity.Uid) ?? (c.Shell.Identity.IsRoot ? "root" : "nobody")); return 0; }));
         add(new Command("id", "id", "Print authenticated IDs", c => { var id = c.Shell.Identity; c.WriteLine("uid=" + id.Uid + "(" + (Accounts.Service?.Name(id.Uid) ?? (id.IsRoot ? "root" : id.Uid == 65534 ? "nobody" : id.Uid.ToString())) + ") gid=" + id.Gid); return 0; }));
-        add(new Command("login", "login user", "Authenticate and start a desktop session", c => Switch(c, true)));
+        add(new Command("login", "login user", "Authenticate the current session", c => Switch(c, true)));
         add(new Command("su", "su [user]", "Switch this terminal's identity", c => Switch(c, false)));
-        add(new Command("logout", "logout", "End the desktop session", c => { if (Accounts.Service is null) { return c.Fail("accounts require an ext2 installation"); } Accounts.Logout(); c.Shell.SetIdentity(Credentials.Nobody, "nobody", "/"); return 0; }));
+        add(new Command("logout", "logout", "End the authenticated session", c => { if (Accounts.Service is null) { return c.Fail("accounts require an ext2 installation"); } Accounts.Logout(); c.Shell.SetIdentity(Credentials.Nobody, "nobody", "/"); return 0; }));
         add(new Command("passwd", "passwd [user]", "Set a password using hidden prompts", Password));
         add(new Command("useradd", "useradd user", "Create a locked account and private home", c => { if (c.Args.Length != 1) { return c.Fail("invalid arguments; see help " + c.Name); } var service = Require(); uint id = service.Add(c.Args[0]); c.WriteLine("created " + c.Args[0] + " uid=" + id + "; use passwd " + c.Args[0] + " to unlock"); return 0; }));
     }

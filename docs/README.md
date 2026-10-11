@@ -1,7 +1,7 @@
 # Zenith documentation
 
 This is the project documentation entry point. Status reviewed on **2026-10-11**
-against the current repository. Current S0/P0 behavior is documented separately
+against the current repository. Current S0/S1/P0 behavior is documented separately
 from the future session/update plans. Milestone version labels are targets, not release dates.
 
 ## Reading paths

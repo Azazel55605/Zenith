@@ -34,8 +34,9 @@ internal static class SessionModes
         }
         if (!available(requested))
         {
-            diagnostic = "session '" + Name(requested) + "' is unavailable in this build; using de";
-            requested = SessionMode.Desktop; source = "capability fallback";
+            SessionMode fallback = available(SessionMode.Desktop) ? SessionMode.Desktop : SessionMode.Headless;
+            diagnostic = "session '" + Name(requested) + "' is unavailable on this boot; using " + Name(fallback);
+            requested = fallback; source = "capability fallback";
         }
         if (!available(requested)) { throw new InvalidOperationException("no usable session host"); }
         return new(requested, source, diagnostic);

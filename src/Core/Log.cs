@@ -24,6 +24,12 @@ internal static class Log
     private static extern void SerialWriteString(
         [UnsafeAccessorType("Cosmos.Kernel.Core.IO.Serial, Cosmos.Kernel.Core")] object? serial, string text);
 
+    /// <summary>Console output shares the UART lock but never enters persistent logs.</summary>
+    public static void WriteSerial(string text)
+    {
+        lock (s_lock) { SerialWriteString(null, text); }
+    }
+
     /// <summary>A snapshot of the ring buffer.</summary>
     public static string[] Lines
     {

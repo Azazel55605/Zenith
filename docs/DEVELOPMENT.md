@@ -290,12 +290,14 @@ for bootstrap, record/update rules and the trusted-kernel security boundary.
 ## Shared settings/session and package foundation
 
 `SystemRuntime` initializes shared services; `SessionRuntime` selects the available
-host; `DesktopSessionHost` retains today's test DE. Graphics-independent headless is
-not implemented by this extraction. See [settings/session guide](SETTINGS-SESSIONS.md).
+host; `DesktopSessionHost` retains today's test DE. The x64 COM1 headless host bypasses
+Cosmos's graphical console bootstrap and works without a GPU. See
+[settings/session guide](SETTINGS-SESSIONS.md).
 
 ```sh
 python3 -B tools/test_package_tool.py
 python3 tools/foundation-smoke.py /tmp/zenith-foundation
+QEMU=/usr/bin/qemu-system-x86_64 python3 tools/headless-smoke.py /tmp/zenith-headless
 ```
 
 The package-tool tests build the plain .NET Linux host tool, exercise deterministic
@@ -309,3 +311,10 @@ Package format and activation boundaries are in [P0 contract](PACKAGE-PROTOTYPE.
 Add `--test-session-override` to the installed EFI check on a disk retained by the
 baseline smoke suite. It edits a disposable disk copy's boot arguments and verifies
 session selection and the new manual pages; it preserves the source disk.
+
+The headless suite creates disposable disks and uses a paced serial socket instead
+of keyboard injection. It omits VGA/GPU/input devices, covers live fallback and
+disk-only UEFI saved/invalid/override selection, hidden authentication, permissions,
+scripts/read/cancellation, persistence, clean shutdown and serial panic restart.
+It checks transcripts for randomly generated test passwords and runs independent
+host e2fsck. These test credentials are not printed or committed.

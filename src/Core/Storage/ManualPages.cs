@@ -21,11 +21,30 @@ internal static class ManualPages
             Keyboard/timezone changes share validation and staged persistence with
             localectl/timedatectl. Installed saves persist; live saves are volatile.
             loadkeys changes the active keyboard only. Session defaults take effect
-            next boot. Only the floating test DE is available; headless/WM are planned.
-            Boot session= overrides saved defaults; unavailable hosts fall back to DE.
+            next boot. The test DE and x64 COM1 headless are available; WM is planned.
+            Boot session= overrides saved defaults; no display falls back to headless.
             Unknown session schema versions are preserved and cannot be downgraded.
             Config paths: /etc/vconsole.conf, /etc/timezone, /etc/zenith/session.conf.
             Reads are bounded regular files. See the repository settings/session guide.
+            """),
+        ("headless", """
+            SERIAL HEADLESS SESSION
+
+            Select with session=headless at boot or session set-default headless (root).
+            x64 COM1, 115200 8N1; ASCII input. No canvas/fonts/windows are initialized.
+            Missing supported display selects headless with a capability diagnostic.
+            Ctrl+C cancels; Ctrl+D ends read or resets an idle shell; Ctrl+U clears.
+            Backspace/DEL edit; CR, LF and CRLF submit; multiline shell syntax works.
+            Limits: line 4096, script 16384, queued lines 8, output 65536, history 64.
+            Commands run on one worker; output waits for bounded draining.
+            passwd/login/su hide passwords. Wait for each prompt before entering them.
+            Installed configured systems start as nobody; exit/logout revoke identity.
+            Live and unconfigured ext2 bootstrap as root; live mode is maintenance only.
+            No SSH, local text console, profile auto-run, ANSI editing or job control.
+            open explains unavailable desktop capability. Panic uses serial R to restart.
+            Console text is separate from persistent kernel logs; serial still contains
+            boot diagnostics and explicitly logged command output. Physical/VPN UART
+            access is an administrator-controlled console, not encrypted transport.
             """),
         ("pkg", """
             P0 OFFLINE PACKAGE PROTOTYPE

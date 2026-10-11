@@ -43,7 +43,7 @@ machine = boot("settings/package live")
 try:
     check(machine, "settings show | logger", "scope: system; storage: live (volatile)")
     check(machine, "session status | logger", "active=de (saved default)")
-    check(machine, "session set-default headless; echo unavailable=$? | logger", "user: unavailable=1")
+    check(machine, "session set-default wm; echo unavailable=$? | logger", "user: unavailable=1")
     check(machine, "settings set keyboard uk; settings show | logger", "keyboard=gb (active gb)")
     # Restore with letters/punctuation shared by US/GB before injecting a US pipe key.
     check(machine, "settings set keyboard us; logger keymap-restored", "user: keymap-restored")
@@ -81,14 +81,14 @@ try:
     check(machine, "session status | logger", "active=de (saved default)")
     check(machine, "session set-default de; echo future=$? | logger", "user: future=1")
     check(machine, "cat /etc/zenith/session.conf | grep VERSION | logger", "user: VERSION=2")
-    check(machine, "printf 'VERSION=1\\nSESSION=headless\\n' > /etc/zenith/session.conf; poweroff", "all filesystems unmounted")
+    check(machine, "printf 'VERSION=1\\nSESSION=wm\\n' > /etc/zenith/session.conf; poweroff", "all filesystems unmounted")
     machine.wait_exit(15)
 finally: finish(machine, "future-schema")
 
 machine = boot("unavailable saved session", disk)
 try:
     check(machine, "session status | logger", "active=de (capability fallback)")
-    check(machine, "session status | logger", "default=headless")
+    check(machine, "session status | logger", "default=wm")
     check(machine, "printf 'VERSION=1\\nSESSION=de\\n' > /etc/zenith/session.conf; poweroff", "all filesystems unmounted")
     machine.wait_exit(15)
 finally: finish(machine, "unavailable")

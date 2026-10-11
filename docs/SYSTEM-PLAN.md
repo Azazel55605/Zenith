@@ -286,9 +286,9 @@ with rationale and acceptance criteria before implementing their dependent slice
 | REQ-08 | Dedicated home repository VM, own IP, LAN and existing VPN/DNS access | User confirmed topology; OS/address/storage choices at deployment |
 | REQ-09 | Snapshot upgrades, trial boot and restore | Requested investigation; backend and semantics open |
 | DES-01 | Shared compositor/apps, DE default, boot/login session selection | Proposed; live switching deferred |
-| DES-02 | Serial-first headless | Proposed; local-console requirements open |
+| DES-02 | Serial-first headless | Initial x64 COM1 host implemented and QEMU no-GPU verified; local-console requirements open |
 | DES-03 | Master-and-stack initial WM | Proposed; layout/shortcuts open |
-| DES-04 | Offline package foundation before online distribution | Proposed; exact next slice open |
+| DES-04 | Offline package foundation before online distribution | Experimental P0 data builder/inspect/plan implemented; production trust/container gates open |
 | DES-05 | Coordinated kernel/data releases before runtime apps | Proposed; priority and recovery layout open |
 | DES-06 | Package trust/container and userland ABI/runtime | Open; userland split accepted, WASM-only direction not assumed |
 

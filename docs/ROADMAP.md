@@ -237,7 +237,7 @@ wired network.
 | Slice | Deliverable | Exit evidence |
 |---|---|---|
 | S0 | Typed/versioned config, shared CLI/GUI operations, session selector | System keyboard/timezone/session operations and test-DE host seam implemented; native validation in PROGRESS. Per-user preferences/Settings UI remain future work |
-| S1 | Graphics-independent serial headless | No desktop initialization; scripts/files/cancellation/services/clean shutdown on live and installed boots |
+| S1 | Graphics-independent serial headless | Implemented on x64 COM1: no-GPU live/installed EFI, scripts/files/read/cancellation, hidden authentication, permissions, clean shutdown and panic/restart; exact evidence in PROGRESS |
 | S2 | Shared focus/dialog/workspace/layout-policy infrastructure | Keyboard and pointer routes, small displays/minimum sizes, app behavior in both policies |
 | S3 | DE and auto-tiling WM | DE floating workflow; WM automatic layout, directional focus/move, workspaces, floating dialogs and fullscreen |
 | S4 | Proper Settings and customization | Supported capabilities only; themes/wallpaper/fonts/sizing/panel/keybindings/WM preferences; preview/reset and upgrade preservation |
@@ -349,8 +349,9 @@ requests or in our local fork until they land:
 The product and hosting direction above is consolidated. Further design decisions are
 local implementation gates, not missing product requirements. M2 is complete. The
 user selected shared settings/session foundations while retaining the current test DE,
-with early offline packaging. S0 system settings/session seam and the P0 prototype
-are implemented. Next is S1 graphics-independent serial headless, then M3 networking.
+with early offline packaging. S0 system settings/session seam, S1 x64 serial headless
+and the P0 prototype are implemented. Next is M3 networking, with production
+package container/trust specification as the next P0 gate before installation.
 Further P0 container/trust and native-userland/R0 research may advance as explicitly
 selected experiments; do not deploy the VM or begin a Btrfs port implicitly. Every slice updates
 PROGRESS with code status, exact validation and unresolved limitations. Maintain the

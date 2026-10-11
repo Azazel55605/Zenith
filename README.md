@@ -132,8 +132,10 @@ folders, devices, virtual files or symlinks are unavailable. See `man files`.
 `settings show` and `settings set keyboard|timezone|session VALUE` use the same
 system-settings service as localectl/timedatectl. Changes require root; installed
 settings persist, live settings are volatile. `session status/list/set-default`
-reports available hosts and next-boot selection. The floating test DE remains the
-only available host; headless/WM are planned. See [settings/session guide](docs/SETTINGS-SESSIONS.md).
+reports available hosts and next-boot selection. The floating test DE and x64 COM1
+headless are available; WM is planned. `session=headless` selects serial at boot;
+`session set-default headless` saves it for the next boot. No supported display
+falls back to headless. See [settings/session guide](docs/SETTINGS-SESSIONS.md).
 
 P0 adds `pkg list`, `pkg inspect MANIFEST` and `pkg plan MANIFEST`, plus a Linux
 host data-bundle builder. Plans verify payload integrity and refuse unowned-path

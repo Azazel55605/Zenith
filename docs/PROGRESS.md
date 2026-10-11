@@ -743,3 +743,54 @@ permissions and reports accurate metadata through `ls -l`.
   behavior separately from planned package/runtime/desktop work.
 - Documentation validation: all 137 local Markdown targets checked resolve;
   `git diff --check` passes. Generated bundles, images and build output are excluded.
+
+## 2026-10-11 · S1 serial headless session delivered
+
+- Delivered the next selected slice: reuse shared services/shell/accounts on serial,
+  bypass graphical console/desktop initialization, and provide serial panic reporting.
+- Keep the existing test DE available. Bound line/script input, queued commands and
+  pending output; validate cancellation, hidden authentication, filesystem/scripts,
+  session persistence and clean shutdown on disposable live/installed guests with no GPU.
+- P0 remains inspect/plan only; this slice does not freeze a production package
+  format or add network transport/installation.
+- Implemented x64 COM1 host with bounded ASCII editing/multiline/read input, one
+  credential-scoped worker, cooperative cancellation, bounded queues/history and
+  output backpressure. Kernel bypasses Cosmos's graphical console initializer;
+  supported display presence is checked without constructing a canvas. No display
+  selects headless with a capability diagnostic. WM and ARM64 input remain unavailable.
+- Shared passwd/login/su/logout work with hidden secret callbacks. Configured installed
+  roots start as nobody; serial exit resets the shell and revokes identity. Successful
+  login/logout renew the shell and clear previous variables/functions/history and
+  queued commands; su retains the current shell. Console
+  output bypasses persistent logs. Fatal headless/early errors and failed graphical
+  panic rendering report on serial and accept R to restart.
+- Initial native validation passed 66/66, then 70/70 with manual/failed-login checks.
+  Review corrected idle Ctrl+C so it clears input without cancelling the next command,
+  synchronized queue access and bounded history. The 71-check build passed; final
+  delivery adds session-generation renewal and passes 73/73 across
+  live and three disk-only UEFI boots without VGA/GPU/input devices. Checks cover
+  scripts/read/cancellation, missing/invalid/saved/override selection, passwords absent
+  from transcripts, authentication/permissions, persisted data/settings, future schema
+  protection, clean shutdown, independent e2fsck and serial panic/restart.
+- Final host suite passes 467/467, eight Python harness tests pass, and Release NativeAOT
+  publish passes. Settings/package desktop foundation passes 33/33 after changing its
+  unavailable-session fixture from headless to WM. Full desktop/filesystem baseline
+  passes 135/135 at 512 MiB, including persistent attributes/symlinks and independent
+  host checks. Delivery disk-only graphical EFI suite passes 10/10 with session override
+  and manual pages. No hosted CI run is claimed.
+- Evidence: `/tmp/zenith-s1-build-final.log`, `/tmp/zenith-s1-host-final.log`,
+  `/tmp/zenith-s1-harness-tests.log`, `/tmp/zenith-s1-session-delivery.log`,
+  `/tmp/zenith-s1-session-delivery/`, `/tmp/zenith-s1-foundation.log`,
+  `/tmp/zenith-s1-foundation/`, `/tmp/zenith-s1-baseline.log`, `/tmp/zenith-s1-baseline/`,
+  `/tmp/zenith-s1-efi.log` and `/tmp/zenith-s1-efi/`. A preliminary session check was
+  interrupted to replace unsupported shell parameter-default syntax with `test -z`;
+  the corrected complete suite above passed. Added the no-GPU suite to CI and updated architecture,
+  settings/accounts/development guides, README, roadmap and manual pages.
+- Limits: x64 QEMU COM1 verified; real UARTs/ARM64 receive/local text consoles/SSH,
+  full ANSI editing/job control, automatic profile execution and service supervision
+  remain future work. Input/output adapter bounds do not bound arbitrary existing
+  command internals or create process isolation. Current DE/apps remain kernel-linked.
+- Next main milestone: M3 networking. Next packaging gate: production container/trust
+  specification and verifier feasibility before P1 transactional offline installation.
+- Documentation validation: all 140 local Markdown targets resolve; `git diff --check`
+  passes. Generated images, transcripts, test credentials and build output are excluded.

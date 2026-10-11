@@ -36,6 +36,7 @@
     <Compile Include="../../src/Core/Security/*.cs" Exclude="../../src/Core/Security/HardwareEntropy.cs;../../src/Core/Security/VfsSecurityPlug.cs;../../src/Core/Security/Accounts.cs;../../src/Core/Security/NativeAccessProbe.cs" LinkBase="Kernel/Security" />
     <Compile Include="../../src/Core/Configuration/*.cs" Exclude="../../src/Core/Configuration/NativeSettingsStore.cs;../../src/Core/Configuration/SystemConfiguration.cs" LinkBase="Kernel/Configuration" />
     <Compile Include="../../src/Core/Sessions/SessionSelection.cs" LinkBase="Kernel/Sessions" />
+    <Compile Include="../../src/Core/Console/SerialTerminal.cs" LinkBase="Kernel/Console" />
     <Compile Include="../../src/Core/Packages/*.cs" Exclude="../../src/Core/Packages/NativePackageSource.cs" LinkBase="Kernel/Packages" />
     <Compile Include="../../src/Core/Memory/*.cs" LinkBase="Kernel/Memory" />
     <Compile Include="../../src/Core/Files/*.cs" LinkBase="Kernel/Files" />

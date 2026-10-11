@@ -1,7 +1,7 @@
 # Current Zenith architecture
 
 Reviewed on 2026-10-11 against the current repository, including M2 and the
-S0/P0 foundation slice. This document describes current code.
+S0/S1/P0 foundation slices. This document describes current code.
 Future structure is in [SYSTEM-PLAN](SYSTEM-PLAN.md); update design is in
 [PACKAGE-MANAGER](PACKAGE-MANAGER.md).
 
@@ -31,7 +31,11 @@ panic boundary:
 2. `SystemConfiguration` loads validated keyboard/timezone/session settings.
 3. Shared commands and the VFS metadata bridge are registered independently of UI.
 4. `SessionRuntime` selects an available host from boot arguments/saved settings.
-5. `DesktopSessionHost` loads fonts/canvas and opens Welcome/Terminal for the test DE.
+5. `DesktopSessionHost` loads fonts/canvas and opens Welcome/Terminal for the test DE,
+   or `HeadlessSessionHost` starts the bounded COM1 shell without graphical allocation.
+
+`OnBoot` bypasses Cosmos's optional graphical `KernelConsole` initializer; HAL and
+system managers are initialized earlier by Cosmos. The DE owns its later canvas.
 
 `Kernel.Run()` checks requested panics and physical-memory pressure, ticks the
 selected session host and halts until an interrupt. Keyboard/mouse/timer interrupts
@@ -39,11 +43,14 @@ wake it. The memory reserve policy requests collection near one-eighth free page
 at most once per second. It protects the tested native workload; graceful behavior
 for arbitrary workloads larger than RAM remains unproven.
 
-The session model recognizes DE/headless/WM, but only the test DE host exists.
-Unavailable modes are reported and fall back to DE at boot; saving an unavailable
-mode through the CLI is refused. QEMU's hidden host display remains graphical guest
-testing, not a headless OS session. The graphical panic route remains. See
-[settings and sessions](SETTINGS-SESSIONS.md) for boundaries and the S1 gate.
+The test DE and x64 serial headless hosts exist; WM remains unavailable. Selection
+prefers DE as fallback when supported display hardware is present, then headless.
+Saving an unavailable mode through the CLI is refused. Supported display detection
+checks the boot framebuffer and known virtio GPU/VMware SVGA PCI IDs without a canvas.
+COM1 input is polled on the main loop; one worker runs shell commands with explicit
+credentials. Console output is bounded and bypasses persistent logs. Fatal headless
+and early boot errors use serial diagnostics and R-to-restart; a failed graphical
+panic renderer also falls back to serial. See [settings and sessions](SETTINGS-SESSIONS.md).
 
 ## Code ownership and seams
 

@@ -1,8 +1,8 @@
 # Shared settings and session foundation
 
-S0 system-settings/session seam, 2026-10-11. The current floating desktop remains
-the test DE. Headless, tiling WM, user preferences and a graphical Settings app are
-later slices; `session list` reports their actual availability.
+S0 system-settings/session seam and S1 x64 serial headless, 2026-10-11. The current
+floating desktop remains the test DE. Tiling WM, user preferences and a graphical
+Settings app are later slices; `session list` reports availability on this boot.
 
 ## Current operations
 
@@ -13,7 +13,7 @@ settings set timezone Europe/Berlin
 settings set session de
 session status
 session list
-session set-default de
+session set-default headless
 ```
 
 System changes require root. `localectl set-keymap` and `timedatectl set-timezone`
@@ -53,15 +53,79 @@ DE. The shared idle/memory-pressure loop calls the selected host's `Tick`.
 Selection precedence is a single `session=de|headless|wm` boot argument, then the
 saved default. Malformed/duplicate arguments use the saved default and log a
 diagnostic. A requested host absent from the build falls back to DE with a clear
-message. Saving an unavailable mode through the CLI is refused. Only DE is currently
-available; manually saving headless does not create a headless session. No active
-session switching is implemented. The model separates session choice from live/
-installed storage and is independent of graphical types.
+message. If DE also lacks a supported display, it falls back to x64 COM1 headless.
+Saving an unavailable mode through the CLI is refused. The test DE and x64 headless
+are available; WM remains planned. No active session switching is implemented. The
+model separates session choice from live/installed storage.
 
-The next S1 slice adds a serial host, graphics-independent panic/diagnostics, bounded
-input/output, cancellation and authentication using the existing shell/accounts.
-It must prove operation without a graphical device before headless is marked done.
-The current graphical panic path and Cosmos hardware discovery remain in place.
+`Kernel.OnBoot` skips Cosmos's graphical KernelConsole setup; upstream HAL/managers
+are initialized earlier. Display capability checks inspect the Limine framebuffer
+and PCI IDs for Cosmos's supported virtio GPU/VMware SVGA paths, without constructing
+a canvas. The x64 PCI probe scans configuration functions using mechanism 1, before
+shell workers start. Hardware presence is not a guarantee a driver will start:
+fatal early/startup errors use serial diagnostics; graphical panic drawing failures
+fall back to serial. Normal DE panics retain their graphical R-to-restart behavior.
+
+## Serial headless operation
+
+Boot with `session=headless`, or save `session set-default headless` as root. The
+initial serial console targets x64 COM1 at 115200 baud, 8N1, using the UART already
+initialized by Cosmos. Receive is polled by the timer-woken main loop, at most 64
+bytes per tick. ARM64 receive remains unavailable; its transport must be implemented
+and tested before the mode is advertised there. There is no SSH or local text console.
+
+To try a live console without a GPU (add your normal disposable disk options to
+exercise installation):
+
+```sh
+qemu-system-x86_64 -M q35 -m 512M -cpu max -accel kvm -accel tcg \
+  -display none -vga none -serial stdio -monitor none \
+  -cdrom output-x64/Zenith.iso -boot order=d
+```
+
+Input is ASCII. CR/LF/CRLF submit; Backspace/DEL erase; Ctrl+U clears the line;
+Ctrl+C clears pending input and cooperatively cancels the worker. Ctrl+D ends a
+pending `read`, or resets an idle shell. Multiline shell constructs use continuation
+prompts. ANSI input sequences are ignored; cursor navigation/history recall, raw
+TTY programs and full job control are not implemented. EOF/`exit` creates a fresh
+shell and discards queued commands. Installed accounts are logged out; this cannot
+restore the initial bootstrap root privilege after password setup.
+
+The line limit is 4096 characters; accumulated scripts are at most 16384; eight
+submitted lines can wait for the single shell worker; history retains 64 entries.
+Oversized lines/scripts are discarded rather than executing a valid prefix. Pending
+output is at most 64 KiB, with worker backpressure and main-loop draining of 1024
+characters per tick. This bounds the console adapter, not every existing command's
+internal buffers or arbitrary shell variables. Cancellation remains cooperative.
+
+The same `passwd`, `login`, `su`, `logout`, filesystem/settings and script commands
+work on serial. Password prompts suppress echo and history; queued commands and
+partial input are discarded before secret reads. **Wait for each password prompt**:
+pasting a command and password together can expose it before a secret prompt exists.
+Configured installed accounts start as nobody and require authentication. Live mode
+and initially unconfigured ext2 remain root maintenance/bootstrap as described in
+[ACCOUNTS](ACCOUNTS.md). Malformed account records fail closed. `exit` resets the
+shell. Successful `login` and `logout` also create a fresh shell, clearing prior
+variables/functions/history and queued commands; `su` retains the current shell.
+
+The serial shell uses shared metadata/access checks and starts without automatically
+running `/etc/profile`; explicitly source permitted scripts if needed. Desktop-only
+`open` reports that no desktop is running. No graphical command is registered by a
+headless startup. Settings/services remain kernel-linked and do not create protected
+userland or independent daemons.
+
+`[console]` prefixes identify host prompts/diagnostics; `[zenith]` identifies kernel
+logs. Cosmos boot/scheduler diagnostics share the UART and may interleave with
+interactive output. Console echo/output is not mirrored into `/var/log/boot.log` or
+the kernel ring, while explicit `logger` output is. Serial is an administrator-controlled
+physical/hypervisor console; it provides no encryption. A fatal panic prints a trace
+and waits for serial R to restart without allocating fonts/canvas/windows.
+
+S1 is verified on QEMU live and disk-only UEFI installed systems with no VGA/GPU
+attached, including invalid/missing defaults, boot override, authentication, permission
+denials, persistence, cancellation, clean shutdown and panic/restart. See PROGRESS
+for exact results. Real UARTs, ARM64 input, local consoles and service supervision
+remain future work.
 
 ## Packaging and later migration
 

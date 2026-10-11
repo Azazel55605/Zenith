@@ -138,3 +138,20 @@ or activation exists. Local /etc and user/boot state are excluded from data payl
 The format is experimental; production container/verifier and P1 recovery remain gates.
 See [settings/session guide](SETTINGS-SESSIONS.md), [P0 contract](PACKAGE-PROTOTYPE.md)
 and [PROGRESS](PROGRESS.md) for the implementation and exact validation boundary.
+
+## 2026-10-11: x64 COM1 headless and serial recovery
+
+Added the S1 host behind the shared session seam, retaining the test DE. Kernel boot
+bypasses Cosmos's graphical console initializer; missing supported display hardware
+selects headless with a diagnostic. Serial input uses bounded line/script/queue state,
+one cancellable credential-scoped worker and bounded output with backpressure.
+Existing scripts, read, system/filesystem/settings and accounts run without Desktop.
+Password callbacks hide input; configured installed roots start as nobody; exit resets
+the console and revokes identity. Console output bypasses persistent kernel logs.
+
+Fatal early/headless errors print serial diagnostics and accept R to restart; graphical
+panic failures use the same fallback. No-GPU QEMU live/disk-only UEFI acceptance and
+independent ext2 checks are recorded in [PROGRESS](PROGRESS.md). ARM64 receive, real
+UART hardware, local text consoles, SSH, service supervision and independent userland
+remain later work. Packaging remains the P0 data prototype; production container/trust
+and transactional installation are still explicit gates.

@@ -25,8 +25,10 @@ guidance here so the two entry points stay consistent.
 ## Architecture and conventions
 
 - `Kernel.cs` composes shared `SystemRuntime` initialization and `SessionRuntime`;
-  `DesktopSessionHost` owns fonts/canvas/windows. The current floating test DE is the
-  only available host. `Run()` ticks the host and halts until an interrupt.
+  `DesktopSessionHost` owns fonts/canvas/windows; x64 `HeadlessSessionHost` owns a
+  bounded COM1 shell. `OnBoot` bypasses Cosmos's graphical KernelConsole bootstrap.
+  A missing supported display falls back to serial; WM remains unavailable.
+  `Run()` ticks the selected host and halts until an interrupt.
 - Settings persistence belongs to `SettingsService`, shared by CLI and future GUI.
   Keep local /etc state separate from shipped package defaults. See
   [settings/session guide](docs/SETTINGS-SESSIONS.md).
@@ -97,4 +99,6 @@ requested investigation ([recovery plan](docs/UPDATE-RECOVERY.md)), not a Btrfs 
 
 User direction after M2: retain the simple DE for testing, replace it during proper
 userland/desktop work, and start packaging early. Shared settings/session and offline
-package foundations precede S1 serial headless. Keep their status accurate in PROGRESS.
+package foundations and S1 serial headless are implemented. Keep status accurate in
+PROGRESS. Preserve no-GPU live/installed validation when changing boot or shell I/O;
+the test DE remains the default when supported display hardware is present.

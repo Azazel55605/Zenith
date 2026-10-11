@@ -46,7 +46,9 @@ internal static class ConfigurationCommands
         if (c.Args.Length == 1 && c.Args[0] == "list")
         {
             foreach (SessionMode mode in new[] { SessionMode.Desktop, SessionMode.Headless, SessionMode.WindowManager })
-            { c.WriteLine(SessionModes.Name(mode) + ": " + (SessionRuntime.Available(mode) ? "available (test desktop)" : "planned, unavailable")); }
+            { c.WriteLine(SessionModes.Name(mode) + ": " + (SessionRuntime.Available(mode)
+                ? mode == SessionMode.Desktop ? "available (test desktop)" : "available (serial COM1)"
+                : "planned, unavailable")); }
             return 0;
         }
         if (c.Args.Length == 2 && c.Args[0] == "set-default") { return SaveSession(c, c.Args[1]); }

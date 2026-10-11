@@ -23,10 +23,14 @@ the password. Up/down history, completion and clipboard input are disabled durin
 password entry; buffered typeahead is discarded. Keep the root password: after
 setting it, later boots start as `nobody` (65534) and require `login NAME`.
 
-`login` replaces the desktop session, closes its windows, cancels terminal jobs
-cooperatively and clears the clipboard. `su [NAME]` changes only the current
+In the DE, `login` replaces the desktop session, closes its windows, cancels terminal
+jobs cooperatively and clears the clipboard. In headless it creates a fresh serial
+shell, clearing prior variables/functions/history and queued commands; no windows
+or clipboard are allocated. `su [NAME]` changes only the current
 terminal; root can switch without a password, other users must authenticate.
-`logout` ends the desktop session. `whoami` and `id` report credentials, even if
+`logout` ends the authenticated session. Serial `exit`/idle Ctrl+D starts a fresh
+unauthenticated shell on installed ext2; it cannot regain bootstrap root.
+`whoami` and `id` report credentials, even if
 someone changes `USER` or `HOME`. Launcher power controls are available only to
 root. Applications opened from a terminal inherit that operation's identity;
 launcher applications inherit the desktop session. System-log mirroring uses a
@@ -46,6 +50,13 @@ require ext2. Upgrade to an ext2 installation to use authentication. Corrupt acc
 databases fail closed to `nobody` and an error; they do not reopen root setup. Repair
 requires a trusted live boot and offline disk access. Locked initial root setup is
 for trusted physical access, not an unattended remotely exposed installation.
+
+The x64 serial console uses the same hidden-password callbacks and policies. Wait
+for each password prompt before entering input: pasting commands and passwords
+together can expose text before the hidden read begins. Queued lines and partial
+input are cleared for secret reads. Serial echo/output is not written to kernel
+logs, but the attached physical/hypervisor terminal can record its transcript.
+See [serial operation and limits](SETTINGS-SESSIONS.md).
 
 ## Access rules
 
