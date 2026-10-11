@@ -936,3 +936,20 @@ permissions and reports accurate metadata through `ls -l`.
   /tmp/zenith-inet-pton-network-final.log; artifacts in ignored obj/inet-pton-network-final.
   The first failed run remains in /tmp/zenith-inet-pton-network.log and ignored
   obj/inet-pton-network. Hosted CI is not verified by this local run.
+
+## 2026-10-11 · Cosmos Run NIC configuration — delivered
+
+- User confirms tools/run.sh networking works but the default Cosmos run does not.
+  Installed Cosmos VS Code 1.8.1 defaults networkCard to none and forwards --nic none;
+  Zenith had no .cosmos/config.json. The CLI's unset NIC instead leaves QEMU defaults.
+- Add portable project config selecting e1000e for the extension Run path. Document
+  cosmos run -a x64 --nic e1000e for the CLI, which does not load extension config.
+- Actual installed extension property parser/argument builder selects --nic e1000e
+  from the committed project config. A live boot through the installed Cosmos CLI
+  confirms e1000e arguments, headless readiness, DHCP 10.0.2.15, ip/DNS status zero
+  and ACPI S5. Evidence: /tmp/zenith-cosmos-run-nic.log; transcript checks pass.
+- The test initially expected Cosmos to exit after guest poweroff; Cosmos intentionally
+  launches QEMU with -no-shutdown, so that process-exit assertion timed out. The test
+  terminated its own launcher; completed shutdown is verified from ACPI S5 instead.
+  No disk was attached or modified. VS Code button interaction itself was not automated.
+  git diff --check passes. No kernel rebuild is needed for this launcher setting.

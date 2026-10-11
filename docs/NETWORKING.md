@@ -19,6 +19,14 @@ UI=headless NETWORK=user tools/run.sh live
 NETWORK=user tools/run.sh installed
 ```
 
+The Cosmos VS Code Run button reads `.cosmos/config.json`, which selects `e1000e`
+for this project. Without that setting the extension defaults to no NIC. For the
+bare Cosmos CLI, select the model explicitly (the CLI does not read this file):
+
+```sh
+cosmos run -a x64 --nic e1000e
+```
+
 The default user network gives the guest a private QEMU address, typically
 10.0.2.15, gateway 10.0.2.2 and DNS proxy 10.0.2.3. It can make outbound connections
 to your LAN through the host. It does not give Zenith its own address on your
