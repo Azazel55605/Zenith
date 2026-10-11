@@ -1,5 +1,27 @@
 # Implementation progress
 
+## 2026-10-11 · VMware DHCP broadcast regression
+
+- User's host capture shows valid DHCP Discover IP/UDP payloads sent to Ethernet
+  destination 00:00:00:00:00:00; no offers returned in VMware NAT or bridged mode.
+  Cosmos 3.0.89's limited-broadcast enqueue path bypasses ARP without assigning
+  the destination MAC. QEMU/slirp acceptance masked this invalid Ethernet header.
+- Added a contract-checked build-copy adaptation assigning MACAddress.Broadcast
+  only to limited IPv4 broadcasts, preserving unicast/ARP behavior. No upstream
+  checkout or dependency cache edits. Added native live/installed wire captures
+  checking DHCP Discover and Request broadcast destinations and source MACs.
+- Release ISO build passes; packet-capture checker tests pass 5/5, including rejection
+  of the user-observed zero MAC and truncated/mismatched frames. The rebuilt live
+  guest obtains a lease and its captured Discover/Request both use the correct
+  broadcast MAC. Full native networking regression passes 174/174 under TCG,
+  including live/installed wire checks, DNS/HTTP/TLS, cancellation/link loss,
+  reboot persistence and independent clean ext2 inspection. Python syntax and
+  `git diff --check` pass. CI includes the capture-checker tests and native assertions;
+  hosted CI and the user's VMware retest remain pending. The new ISO can test the
+  fixed kernel with the existing disk attached; it does not update the disk's
+  selected kernel. Permanent activation still uses a signed kernel package.
+  Evidence: /tmp/zenith-dhcp-broadcast-build.log and /tmp/zenith-dhcp-broadcast-network.log.
+
 ## 2026-10-11 · Sunrise blocked-launch message
 
 - User reports a VMware Workstation installation booted successfully; independent

@@ -3,6 +3,15 @@
 `tools/PatcherFixup/Program.cs` adapts intermediate build copies from NuGet 3.0.89. It does not change the
 NuGet cache, dependency version, or sibling Cosmos source checkout.
 
+VMware testing exposed zero destination MACs in DHCP broadcasts. The released
+OutgoingBuffer bypasses ARP for limited IPv4 broadcasts without setting their
+Ethernet destination. The enqueue adaptation now sets MACAddress.Broadcast only
+when DestinationIP.IsBroadcastAddress is true; unicast routing/ARP is unchanged.
+Method signatures and broadcast accessor contracts are checked before injection.
+The native network suite captures live and installed traffic and requires both
+DHCP Discover and Request to use ff:ff:ff:ff:ff:ff with matching Ethernet/BOOTP source
+MACs. Slirp previously accepted the invalid zero destination and hid the defect.
+
 The released receive storage subtracts `_dataOffset` from `_dataLength` a second
 time while appending. Reading a snapshot of `Socket.Available` concurrently with an
 incoming segment makes a full intended read partial; the next append can lose data

@@ -179,6 +179,10 @@ require RDSEED. No timer, framework insecure RNG or predictable fallback is used
 Ethernet/IPv4 lengths/options/checksums before framework parsing, reject fragments/
 IPv6/unsupported frames, cap each UDP/ICMP queue at 32 packets, and cap pending TCP
 at 128 KiB. They bypass unsafe legacy DHCP parsing and unused TCP option allocation.
+Limited IPv4 broadcasts also receive the Ethernet broadcast destination; a VMware
+capture revealed that the released Cosmos enqueue path otherwise sent DHCP to a
+zero MAC despite using 255.255.255.255 at the IP layer. The native suite checks
+actual Discover/Request Ethernet headers in both live and installed sessions.
 Cosmos protocol state, retransmission/reassembly, ARP caching, connection retirement
 and shared tables still have limits; these bounds are not a whole-kernel budget or
 an Internet-facing server assurance. Native cleanup explicitly catches/disposes in

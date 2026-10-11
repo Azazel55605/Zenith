@@ -12,6 +12,7 @@ import struct
 import threading
 import time
 from tls_fixture import certificates, context
+from dhcp_capture import broadcast_requests
 
 spec = importlib.util.spec_from_file_location("headless", Path(__file__).with_name("headless-smoke.py"))
 h = importlib.util.module_from_spec(spec); spec.loader.exec_module(h)
@@ -114,6 +115,7 @@ def main():
     def boot(label, disk=None, network=True, entropy=True):
         machine = h.Machine(args.keep / label, disk, "session=headless" if disk else None,
             network=["-netdev", "user,id=net0", "-device", "e1000e,netdev=net0,id=nic0",
+                     "-object", f"filter-dump,id=dhcpwire,netdev=net0,file={args.keep / label / 'network.pcap'}",
                      "-qmp", f"unix:{args.keep / label / 'qmp.sock'},server=on,wait=off"] if network else (["-cpu", "max,-rdseed"] if not entropy else []))
         if not machine.wait("headless ready", timeout=600): machine.stop(); raise RuntimeError(label + " boot failed")
         check(True, label + " boot without GPU"); return machine
@@ -218,11 +220,15 @@ def main():
             check(args.lan_name + " address=" in output, "guest resolves through supplied home DNS " + args.lan_dns)
             status("netcfg dns auto", "M3_LAN_DNS_RESET")
         status("install sata0 --yes", "M3_INSTALL", timeout=300)
-        live_disk = shutdown("live"); m = boot("installed", live_disk)
+        live_disk = shutdown("live")
+        check(bool(broadcast_requests(args.keep / "live" / "network.pcap")), "live DHCP Discover/Request use Ethernet broadcast and matching MAC")
+        m = boot("installed", live_disk)
         check(m.wait("network: online address=10.0.2.15", timeout=60), "installed DHCP boot")
         status("netcfg static 10.0.2.16 255.255.255.0 10.0.2.2 10.0.2.3", "M3_SAVE_STATIC")
         status(f"netcfg ntp 10.0.2.2 {ntp}", "M3_SAVE_NTP")
-        installed = shutdown("configured"); m = boot("saved", installed)
+        installed = shutdown("configured")
+        check(bool(broadcast_requests(args.keep / "installed" / "network.pcap")), "installed DHCP Discover/Request use Ethernet broadcast and matching MAC")
+        m = boot("saved", installed)
         check(m.wait("network: synchronized via 10.0.2.2", timeout=60), "configured boot NTP")
         output = status("ip", "M3_SAVED"); check("mode=static" in output and "address=10.0.2.16" in output, "installed configuration survives reboot")
         status(f"fetch {url}/ok /home/user/network-file", "M3_INSTALLED_FETCH")

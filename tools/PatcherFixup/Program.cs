@@ -71,6 +71,42 @@ if (assembly.Name.Name == "Cosmos.Kernel.Plugs")
 }
 if (assembly.Name.Name == "Cosmos.Kernel.System")
 {
+    // 3.0.89 bypasses ARP for limited broadcasts but sends their zero-filled
+    // Ethernet destination unchanged. Slirp accepts this; VMware did not answer.
+    // Set the L2 broadcast address before enqueueing, retaining the unicast path.
+    var outgoing = module.GetType("Cosmos.Kernel.System.Network.IPv4.OutgoingBuffer")
+        ?? throw new InvalidOperationException("Cosmos outgoing IPv4 buffer changed");
+    var enqueue = outgoing.Methods.Single(m => m.Name == "AddPacket" && m.Parameters.Count == 2);
+    if (!enqueue.IsStatic || !enqueue.HasBody
+        || enqueue.Parameters[0].ParameterType.FullName != "Cosmos.Kernel.System.Network.IPv4.IPPacket"
+        || enqueue.Parameters[1].ParameterType.FullName != "Cosmos.Kernel.HAL.Interfaces.Devices.INetworkDevice"
+        || !enqueue.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "set_SourceMac"))
+    { throw new InvalidOperationException("Cosmos outgoing IPv4 enqueue contract changed"); }
+    if (!enqueue.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "set_DestinationMac"))
+    {
+        var entry = outgoing.NestedTypes.Single(t => t.Name == "BufferEntry");
+        var constructor = entry.Methods.Single(m => m.IsConstructor);
+        var send = outgoing.Methods.Single(m => m.Name == "Send");
+        MethodReference Call(MethodDefinition method, string name) =>
+            method.Body.Instructions.Select(i => i.Operand).OfType<MethodReference>().First(m => m.Name == name);
+        var destination = Call(constructor, "get_DestinationIP");
+        var isBroadcast = Call(constructor, "get_IsBroadcastAddress");
+        var broadcastMac = Call(send, "get_Broadcast");
+        var setDestination = Call(send, "set_DestinationMac");
+        if (broadcastMac.ReturnType.FullName != "Cosmos.Kernel.HAL.Interfaces.Devices.MACAddress"
+            || isBroadcast.ReturnType.FullName != "System.Boolean")
+        { throw new InvalidOperationException("Cosmos broadcast address contract changed"); }
+        var il = enqueue.Body.GetILProcessor(); var first = enqueue.Body.Instructions[0];
+        il.InsertBefore(first, il.Create(OpCodes.Ldarg_0));
+        il.InsertBefore(first, il.Create(OpCodes.Callvirt, destination));
+        il.InsertBefore(first, il.Create(OpCodes.Callvirt, isBroadcast));
+        il.InsertBefore(first, il.Create(OpCodes.Brfalse, first));
+        il.InsertBefore(first, il.Create(OpCodes.Ldarg_0));
+        il.InsertBefore(first, il.Create(OpCodes.Call, broadcastMac));
+        il.InsertBefore(first, il.Create(OpCodes.Callvirt, setDestination));
+        enqueue.Body.MaxStackSize = Math.Max(2, enqueue.Body.MaxStackSize);
+        changed = true; Console.WriteLine("Fixed IPv4 limited-broadcast Ethernet destination");
+    }
     var transportReference = new AssemblyNameReference("Zenith.Network", new Version(1, 0, 0, 0));
     using var transportSupport = resolver.Resolve(transportReference);
     var guardType = transportSupport.MainModule.GetType("Zenith.Core.Network.Transport.EthernetGuard");
