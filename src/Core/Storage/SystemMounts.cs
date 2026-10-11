@@ -137,6 +137,28 @@ internal static class SystemMounts
             ? null : partitionName + ": could not mount " + filesystem + " filesystem";
     }
 
+    public static bool CheckExt2(string name, out string report)
+    {
+        lock (s_mountGate)
+        {
+            foreach (Partition partition in StorageManager.Partitions)
+            {
+                if (partition.Name != name) { continue; }
+                foreach (var mount in VfsManager.Mounts)
+                {
+                    if (mount.Partition is Partition used && ReferenceEquals(used.Host, partition.Host)
+                        && used.StartSector < partition.StartSector + partition.BlockCount
+                        && partition.StartSector < used.StartSector + used.BlockCount)
+                    {
+                        report = "refusing to check a mounted partition; unmount it first"; return false;
+                    }
+                }
+                return Ext2Checker.Check(partition, out report);
+            }
+            report = "no such partition (see lsblk)"; return false;
+        }
+    }
+
     /// <summary>Formats an explicitly selected, unmounted secondary partition.</summary>
     public static string? FormatExt2(string name, string label, bool confirmed)
     {
@@ -238,9 +260,11 @@ internal static class SystemMounts
     {
         foreach (Partition partition in StorageManager.Partitions)
         {
-            if (!VfsManager.TryMount(Fat, partition, MountFlags.None, "/", out _))
+            bool mounted = Ext2VolumePolicy.Check(partition) is null
+                && VfsManager.TryMount(Ext2, partition, MountFlags.None, "/", out _);
+            if (!mounted && !VfsManager.TryMount(Fat, partition, MountFlags.None, "/", out _))
             {
-                continue;   // not FAT, or unreadable
+                continue;
             }
 
             try

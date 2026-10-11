@@ -52,7 +52,7 @@ jobs:
             output-x64/Zenith.elf
 
       - name: Install QEMU
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends qemu-system-x86 e2fsprogs
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends qemu-system-x86 e2fsprogs ovmf mtools parted
 
       - name: Enable KVM
         run: |
@@ -69,6 +69,11 @@ jobs:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 tools/smoke-test.py --timeout 600 --step-timeout 180 --keep smoke
 
+      - name: Boot installed ext2 disk with UEFI (no ISO)
+        env:
+          QEMU: /usr/bin/qemu-system-x86_64
+        run: python3 tools/test-installed-boot.py smoke/installed-disk.img --keep smoke-efi
+
       - name: Ext2 large workload (512 MiB pressure regression)
         env:
           QEMU: /usr/bin/qemu-system-x86_64
@@ -81,6 +86,7 @@ jobs:
           path: |
             smoke/
             smoke-large/
+            smoke-efi/
 
   release:
     name: Release

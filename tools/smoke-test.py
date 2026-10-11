@@ -58,11 +58,12 @@ STEPS = [
     ("echo denied > /dev/sata0; echo raw-write=$? | logger", "user: raw-write=1"),
     ("dd if=/tmp/zeros of=/dev/sata0 count=1; echo raw-dd=$? | logger", "user: raw-dd=1"),
     ("install sata0 --yes && logger INSTALL-OK", "user: INSTALL-OK"),
-    ("mkdir /mnt/inst && mount sata0p1 /mnt/inst && cat /mnt/inst/etc/hostname | logger", "user: zenith"),
+    ("mkdir /mnt/inst && mount -t ext2 sata0p1 /mnt/inst && cat /mnt/inst/etc/hostname | logger", "user: zenith"),
     ("ls /dev | grep sata0p1 | logger", "user: sata0p1"),
     ("dd if=/dev/sata0p1 of=/tmp/sector count=1 && stat /tmp/sector | grep Size | logger", "user:   Size: 512 bytes"),
     ("echo denied > /dev/sata0p1; echo partition-write=$? | logger", "user: partition-write=1"),
     ("umount /mnt/inst && sync && logger unmounted", "user: unmounted"),
+    ("fsck.ext2 sata0p1 | logger", "user: clean:"),
     # Editor: open a new file, type, save (Ctrl+S), close (Ctrl+Q); focus returns to the terminal.
     ("edit /tmp/ed.txt\n%%DELAY%%written in editor^S^Qcat /tmp/ed.txt | logger", "user: written in editor"),
     ("man sh | grep COMPOUND | logger", "user: COMPOUND COMMANDS"),
@@ -77,8 +78,9 @@ STEPS = [
     ("localectl set-keymap de\nlogger y", "user: z"),
     ("loadkezs us\ncat /etc/vconsole.conf | logger", "user: KEYMAP=de"),
     ("timedatectl set-timezone Europe/Berlin && timedatectl | grep zone | logger", "Time zone: Europe/Berlin"),
-    ("mkdir /mnt/ext; mount -t ext2 sata0p1 /mnt/ext; echo ext2-reject-fat=$? | logger", "user: ext2-reject-fat=1"),
+    ("mkdir /mnt/ext; mount -t ext2 sata0p0 /mnt/ext; echo ext2-reject-fat=$? | logger", "user: ext2-reject-fat=1"),
     ("mount -t ext2 sata1p0 /mnt/ext && cat /mnt/ext/host.txt | logger", "user: host-ext2"),
+    ("fsprobe /mnt/ext | logger", "final-close deletion and reuse passed"),
     ("echo persisted-ext2 > /mnt/ext/persist.txt && mkdir /mnt/ext/dir && logger ext2-write-ok", "user: ext2-write-ok"),
     ("echo lower > /mnt/ext/dir/a; echo upper > /mnt/ext/dir/A; logger ext2-case-$(cat /mnt/ext/dir/a)-$(cat /mnt/ext/dir/A)", "user: ext2-case-lower-upper"),
     ("mv /mnt/ext/dir/a /mnt/ext/dir/renamed && rm /mnt/ext/dir/A && logger ext2-rename-$(cat /mnt/ext/dir/renamed)", "user: ext2-rename-lower"),
@@ -106,7 +108,7 @@ STEPS = [
     ("mkfs.ext2 sata2 --yes; echo mkfs-disk=$? | logger", "user: mkfs-disk=1"),
     ("mkfs.ext2 sata2p0; echo mkfs-confirm=$? | logger", "user: mkfs-confirm=1"),
     ("mkfs.ext2 sata2p0 --yes -L seventeenletters!; echo mkfs-label=$? | logger", "user: mkfs-label=1"),
-    ("mount sata0p1 /mnt/inst && logger mkfs-target-mounted", "user: mkfs-target-mounted"),
+    ("mount -t ext2 sata0p1 /mnt/inst && logger mkfs-target-mounted", "user: mkfs-target-mounted"),
     ("mkfs.ext2 sata0p1 --yes; echo mkfs-mounted=$? | logger; umount /mnt/inst", "user: mkfs-mounted=1"),
     ("mkdir /mnt/new && mkfs.ext2 sata2p0 --yes -L SCRATCH && mount -t ext2 sata2p0 /mnt/new && logger mkfs-mount-ok", "user: mkfs-mount-ok"),
     ("echo format-data > /mnt/new/persist.txt && mkdir /mnt/new/nested && echo child-data > /mnt/new/nested/child.txt && logger mkfs-write-ok", "user: mkfs-write-ok"),
@@ -148,7 +150,9 @@ STEPS = [
     ("umount /mnt/new && mount -t ext2 sata2p0 /mnt/new && stat /mnt/new/move-parent | grep Links | logger", "Links: 3"),
     ("mv /mnt/new/move-parent/moved /mnt/new/nested && stat /mnt/new/move-parent | grep Links | logger", "Links: 2"),
     ("rmdir /mnt/new/move-parent && cat /mnt/new/nested/child.txt | logger", "user: child-data"),
+    ("fsck.ext2 sata2p0; echo fsck-mounted=$? | logger", "user: fsck-mounted=1"),
     ("umount /mnt/new && logger mkfs-unmounted", "user: mkfs-unmounted"),
+    ("fsck.ext2 sata2p0 | logger", "user: clean:"),
     ("crash", "panic: InvalidOperationException: panic requested: crash command"),
 ]
 
@@ -217,10 +221,10 @@ class Machine:
     def log(self) -> str:
         return COSMOS_NOISE.sub("", self.raw_log())
 
-    def wait_for(self, text: str, timeout: float) -> bool:
+    def wait_for(self, text: str, timeout: float, offset: int = 0) -> bool:
         deadline = time.time() + timeout
         while time.time() < deadline:
-            raw = self.raw_log()
+            raw = self.raw_log()[offset:]
             # A Cosmos tag can precede an otherwise intact marker on the same
             # line. Noise stripping then discards that marker; check both forms.
             if text in raw or text in COSMOS_NOISE.sub("", raw):
@@ -385,8 +389,9 @@ def main() -> int:
             for line, expected in STEPS:
                 if "{ext2-stress}" in line:
                     line = ("dd if=/dev/zero of=/mnt/new/bulk bs=1024 count=9216 && echo second-group > /mnt/new/second.txt && rm /mnt/new/bulk" if args.large_ext2_stress else "echo second-group > /mnt/new/second.txt") + " && logger mkfs-io-ok"
+                offset = len(machine.raw_log())
                 machine.type(line if line.endswith("\n") else line + "\n")
-                if machine.wait_for(expected, args.step_timeout):
+                if machine.wait_for(expected, args.step_timeout, offset=offset):
                     print(f"ok   {line}")
                 else:
                     print(f"FAIL {line}\n     expected in log: {expected}")
@@ -418,43 +423,73 @@ def main() -> int:
                 print("\n".join(lines[-40:]))
             shutil.rmtree(machine.workdir, ignore_errors=True)
 
-    # Second, short boot: a clean power-off unmounts everything and the VM actually turns off.
-    machine2, attempts = boot(args.iso, args.timeout, "installed poweroff boot", installed_disk if installed_disk.exists() else None, memory=args.memory)
-    retried += attempts - 1
-    if machine2 is None:
-        print("FAIL installed boot, root protection and poweroff: second boot never came up")
-        failures += 3
-    else:
+    # Reboot the installed ext2 root twice, writing then rereading persistent data.
+    phases = [
+        [
+            ("cat /proc/mounts | grep ' / ext2 ' | logger", " / ext2 "),
+            ("fsprobe /home/user | logger", "final-close deletion and reuse passed"),
+            ("echo installed-ext2 > /home/user/ext2-persist && chmod 0640 /home/user/ext2-persist && chown 70000:80000 /home/user/ext2-persist && ln -s ext2-persist /home/user/ext2-link && logger root-write-ok", "user: root-write-ok"),
+            ("mkfs.ext2 sata0p0 --yes; echo mkfs-root=$? | logger", "user: mkfs-root=1"),
+        ],
+        [
+            ("cat /home/user/ext2-link | logger", "user: installed-ext2"),
+            ("stat /home/user/ext2-persist | grep Access | logger", "Access: (0640/-rw-r-----)  Uid: 70000  Gid: 80000"),
+            ("fsck.ext2 sata0p1; echo root-check=$? | logger", "user: root-check=1"),
+        ],
+    ]
+    for phase, steps in enumerate(phases, 1):
+        if installed_disk.exists():
+            machine2, attempts = boot(args.iso, args.timeout, "installed ext2 boot " + str(phase), installed_disk, memory=args.memory)
+        else:
+            machine2, attempts = None, 1
+        retried += attempts - 1
+        if machine2 is None:
+            print("FAIL installed ext2 boot " + str(phase))
+            failures += len(steps) + 2
+            continue
         try:
             time.sleep(2)
             if machine2.wait_for("mounts: root: sata0p1 (installed)", args.step_timeout):
-                print("ok   boot from installed scratch root")
+                print("ok   installed ext2 boot " + str(phase))
             else:
                 print("FAIL installed root was not selected")
                 failures += 1
-            machine2.type("mkfs.ext2 sata0p0 --yes; echo mkfs-root=$? | logger\n")
-            if machine2.wait_for("user: mkfs-root=1", args.step_timeout):
-                print("ok   refuse formatting unmounted ESP on running root disk")
-            else:
-                print("FAIL running root disk protection")
-                failures += 1
+            for line, expected in steps:
+                offset = len(machine2.raw_log())
+                machine2.type(line + "\n")
+                if machine2.wait_for(expected, args.step_timeout, offset=offset):
+                    print("ok   " + line)
+                else:
+                    print("FAIL " + line + " expected: " + expected)
+                    failures += 1
             machine2.type("poweroff\n")
             if machine2.wait_for("mounts: all filesystems unmounted", args.step_timeout) and machine2.wait_exit(args.step_timeout):
-                print("ok   poweroff (filesystems unmounted, VM turned off)")
+                print("ok   installed ext2 clean poweroff " + str(phase))
             else:
-                print("FAIL poweroff: no clean unmount, or the VM did not turn off")
+                print("FAIL installed ext2 poweroff")
                 failures += 1
         finally:
             machine2.stop()
+            shutil.copyfile(machine2.disk, installed_disk)
             if args.keep:
-                shutil.copy(machine2.serial, args.keep / "installed-serial.log")
+                shutil.copy(machine2.serial, args.keep / ("installed-" + str(phase) + "-serial.log"))
             shutil.rmtree(machine2.workdir, ignore_errors=True)
+    installed_report = installed_disk.with_name("installed-check.log")
+    if ext2_fixture.verify_installed(installed_disk, installed_report):
+        print("ok   installed ext2 independent e2fsck, persisted ownership and symlink")
+    else:
+        print("FAIL installed ext2 disk inspection\n" + installed_report.read_text())
+        failures += 1
+    if args.keep:
+        shutil.copy(installed_report, args.keep / "installed-check.log")
+        if installed_disk.exists():
+            shutil.copyfile(installed_disk, args.keep / "installed-disk.img")
 
     if retried:
         print(f"\nnote: {retried} boot(s) had to be retried after an early kernel fault")
 
     installed_scratch.cleanup()
-    total = len(STEPS) + 6
+    total = len(STEPS) + 15
     print(f"\n{total - failures}/{total} checks passed")
     return 1 if failures else 0
 

@@ -5,7 +5,7 @@ using Cosmos.Kernel.System.Storage;
 
 namespace Zenith.Core.Storage.Ext2;
 
-/// <summary>Explicit secondary-volume ext2 mount; formatting and destruction are not exposed.</summary>
+/// <summary>Supported-profile ext2 mount for installed roots and explicit secondary volumes.</summary>
 internal sealed class Ext2FilesystemType : IVfsFilesystemType
 {
     public bool TryMount(ReadOnlySpan<char> source, MountFlags flags, [NotNullWhen(true)] out IVfsSuperblock? superblock)
@@ -21,6 +21,7 @@ internal sealed class Ext2FilesystemType : IVfsFilesystemType
         {
             return false;
         }
+        mounted.MarkMounted();
         superblock = mounted;
         return true;
     }

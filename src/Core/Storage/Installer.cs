@@ -6,13 +6,14 @@ using Cosmos.Kernel.HAL.Vfs;
 using Cosmos.Kernel.System.Filesystems.Fat;
 using Cosmos.Kernel.System.Storage;
 using Cosmos.Kernel.System.Vfs;
+using Zenith.Core.Storage.Ext2;
 
 namespace Zenith.Core.Storage;
 
 /// <summary>
 /// Installs Zenith onto a disk:
 /// <list type="number">
-/// <item>a fresh GPT with an EFI System Partition (64 MiB, FAT32) and a root partition (the rest, FAT32);</item>
+/// <item>a fresh GPT with an EFI System Partition (64 MiB, FAT32) and a root partition (up to 512 MiB, ext2);</item>
 /// <item>the Unix layout plus the current <c>/etc</c>, <c>/home</c>, <c>/root</c>, <c>/usr</c>, <c>/var</c> copied onto the root;</item>
 /// <item><c>limine.conf</c> written to the ESP.</item>
 /// </list>
@@ -32,6 +33,8 @@ internal static class Installer
     /// <summary>GPT type of an EFI System Partition: C12A7328-F81F-11D2-BA4B-00A0C93EC93B.</summary>
     private static readonly Guid EfiSystemPartitionType =
         new(0xC12A7328, 0xF81F, 0x11D2, 0xBA, 0x4B, 0x00, 0xA0, 0xC9, 0x3E, 0xC9, 0x3B);
+
+    private static readonly Guid LinuxFilesystemType = new("0FC63DAF-8483-4772-8E79-3D69D8477DE4");
 
     private static readonly string[] s_copiedTrees = { "/etc", "/home", "/root", "/usr", "/var" };
 
@@ -53,9 +56,9 @@ internal static class Installer
     /// <summary>Erases <paramref name="disk"/> and installs onto it. Throws on failure.</summary>
     public static void Install(IBlockDevice disk, Action<string> progress)
     {
-        if (disk.BlockSize != 512)
+        if (disk.BlockSize != 512 || disk.BlockCount < MinimumBytes / 512)
         {
-            throw new IOException("only 512-byte sector disks are supported");
+            throw new IOException("installation requires a disk of at least 128 MiB with 512-byte sectors");
         }
 
         if (ReferenceEquals(disk, SystemMounts.RootPartition?.Host))
@@ -63,14 +66,22 @@ internal static class Installer
             throw new IOException("refusing to install over the running system's disk");
         }
 
+        foreach (var mount in VfsManager.Mounts)
+        {
+            if (mount.Partition is Partition mounted && ReferenceEquals(mounted.Host, disk))
+            {
+                throw new IOException("refusing to install over a disk with mounted partitions");
+            }
+        }
+
         ulong espSectors = EspBytes / disk.BlockSize;
         ulong rootStart = Alignment + espSectors;
-        ulong rootSectors = (disk.BlockCount - 34 - rootStart) / Alignment * Alignment;   // keep clear of the backup GPT
+        ulong rootSectors = Math.Min((disk.BlockCount - 34 - rootStart) / Alignment * Alignment, Ext2Formatter.MaximumBytes / 512);   // keep clear of the backup GPT
 
         progress("Writing partition table (GPT)");
         Gpt.Create(disk);
         if (!Gpt.AddPartition(disk, Alignment, espSectors, EfiSystemPartitionType)
-            || !Gpt.AddPartition(disk, rootStart, rootSectors, Gpt.BasicDataPartitionType))
+            || !Gpt.AddPartition(disk, rootStart, rootSectors, LinuxFilesystemType))
         {
             throw new IOException("could not create partitions");
         }
@@ -88,12 +99,12 @@ internal static class Installer
 
         progress("Formatting EFI system partition (FAT32, 64 MiB)");
         Format(esp, "EFI        ");
-        progress("Formatting root partition (FAT32, " + (rootSectors * disk.BlockSize / (1024 * 1024)) + " MiB)");
-        Format(root, "ZENITH     ");
+        progress("Formatting root partition (ext2, " + (rootSectors * disk.BlockSize / (1024 * 1024)) + " MiB)");
+        Ext2Formatter.Format(root, "ZENITH");
 
         Directory.CreateDirectory(TargetMount);
         Directory.CreateDirectory(EspMount);
-        Mount(root, TargetMount);
+        Mount(root, TargetMount, SystemMounts.Ext2);
         try
         {
             progress("Creating directory layout");
@@ -110,7 +121,7 @@ internal static class Installer
 
             File.WriteAllText(TargetMount + "/etc/fstab",
                 "# <device>  <mount point>  <type>  <options>\n" +
-                "LABEL=ZENITH /              fat     defaults\n" +
+                "LABEL=ZENITH /              ext2     defaults\n" +
                 "LABEL=EFI   /boot/efi      fat     defaults\n" +
                 "tmpfs       /tmp           tmpfs   defaults\n");
         }
@@ -146,9 +157,9 @@ internal static class Installer
         }
     }
 
-    private static void Mount(Partition partition, string mountPoint)
+    private static void Mount(Partition partition, string mountPoint, string filesystem = SystemMounts.Fat)
     {
-        if (!VfsManager.TryMount(SystemMounts.Fat, partition, MountFlags.None, mountPoint, out _))
+        if (!VfsManager.TryMount(filesystem, partition, MountFlags.None, mountPoint, out _))
         {
             throw new IOException("could not mount " + partition.Name + " at " + mountPoint);
         }

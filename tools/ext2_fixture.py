@@ -142,3 +142,54 @@ def verify_format_disk(disk: Path, report: Path, require_second_group: bool = Fa
             and contents == ["format-data\n", "child-data\n", "second-group\n"]
             and "SCRATCH" in header.stdout
             and (not require_second_group or any(int(block) >= 8193 for block in re.findall(r"\(0\):(\d+)", second.stdout))))
+
+
+def verify_installed(disk: Path, report: Path) -> bool:
+    """Inspect the actual GPT root partition without using the guest driver."""
+    import uuid
+    if not disk.exists():
+        report.write_text("missing installed disk\n")
+        return False
+    volume = disk.with_name("installed-root.img")
+    with disk.open("rb") as file:
+        file.seek(512)
+        header = file.read(512)
+        if header[:8] != b"EFI PART":
+            report.write_text("invalid installed GPT header\n")
+            return False
+        entries, count, stride = struct.unpack_from("<QII", header, 72)
+        if count < 2 or stride != 128:
+            report.write_text("invalid installed GPT entries\n")
+            return False
+        file.seek(entries * 512 + stride)
+        entry = file.read(stride)
+        start, end = struct.unpack_from("<QQ", entry, 32)
+        if (entry[:16] != uuid.UUID("0fc63daf-8483-4772-8e79-3d69d8477de4").bytes_le
+                or end < start or end - start + 1 > 512 * 1024 * 1024 // 512):
+            report.write_text("invalid ext2 root partition\n")
+            return False
+        file.seek(start * 512)
+        with volume.open("wb") as target:
+            remaining = (end - start + 1) * 512
+            while remaining:
+                chunk = file.read(min(remaining, 1024 * 1024))
+                if not chunk:
+                    report.write_text("truncated installed disk\n")
+                    return False
+                target.write(chunk)
+                remaining -= len(chunk)
+    with volume.open("rb") as file:
+        file.seek(1024 + 58)
+        clean_state = struct.unpack("<H", file.read(2))[0]
+    checks = [("e2fsck", "-f", "-n", str(volume)),
+              ("debugfs", "-R", "cat /home/user/ext2-persist", str(volume)),
+              ("debugfs", "-R", "stat /home/user/ext2-persist", str(volume)),
+              ("debugfs", "-R", "stat /home/user/ext2-link", str(volume)),
+              ("debugfs", "-R", "cat /etc/fstab", str(volume))]
+    outputs = [subprocess.run(cmd, capture_output=True, text=True) for cmd in checks]
+    report.write_text("\n".join(output.stdout + output.stderr for output in outputs))
+    return (clean_state == 1 and outputs[0].returncode == 0 and outputs[1].stdout == "installed-ext2\n"
+            and re.search(r"Mode:\s+0*640\s", outputs[2].stdout) is not None
+            and re.search(r"User:\s+70000\s+Group:\s+80000\s", outputs[2].stdout) is not None
+            and 'Fast link dest: "ext2-persist"' in outputs[3].stdout
+            and "LABEL=ZENITH /              ext2" in outputs[4].stdout)

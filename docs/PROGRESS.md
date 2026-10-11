@@ -13,7 +13,7 @@
 |---|---|---|
 | `/proc`: meminfo, mounts, uptime, cmdline | Complete for initial scope | Read-only synthesized inodes, first-read snapshots, boot mount, six host tests and smoke coverage |
 | `/dev`: null, zero, random, block devices | Partial: null/zero plus read-only block nodes | Dynamic disks/partitions implemented; entropy and raw writes pending |
-| Read-write ext2 | Partial: experimental secondary volumes | Explicit `mount -t ext2`, profile gate, resize/deletion reclamation, persisted allocator counters and two-group fixture; root migration pending |
+| Read-write ext2 | Verified for supported bounded profile | Secondary and installed roots, allocation/reclamation, symlinks, ownership/modes and directory moves; 512 MiB volumes, double-indirect I/O; platform unlink behavior documented |
 | Files desktop app | Complete for initial scope | 292 host tests; native keyboard/mouse workflow and independent persisted-file check pass |
 | ext2 formatter | Verified for bounded secondary partitions | 306 host tests; 88/88 baseline + 88/88 large-profile QEMU checks; clean independent e2fsck |
 | Runtime heap under large ext2 I/O | Verified for current stress workload | Proactive physical-page reserve; 9 MiB write/delete and subsequent commands pass at 512 MiB; general graceful OOM remains open |
@@ -21,10 +21,10 @@
 | ext2 ownership/modes and metadata commands | Verified for secondary ext2 | 355 host tests; 114/114 checks in both Release QEMU profiles; persisted 32-bit IDs, chmod/chown, stat and ls -l; enforcement pending |
 | CI keyboard injection | Fixed and verified locally | GC-aware pacing and explicit key release; both CI-equivalent Release profiles pass; hosted rerun awaits push |
 | ext2 directory moves | Verified for secondary ext2 | 361 host tests; 122/122 Release large-profile QEMU checks; parent links, actual .. record, inode preservation and cycle refusal |
-| ext2 installer root | Pending | Depends on ext2 |
-| Users/login, shadow, passwd, su, useradd | Pending | Requires persistent ownership and permission model |
+| ext2 installer root | Verified | FAT32 ESP + bounded ext2 root; both Release profiles 135/135, disk-only UEFI 7/7, reboot persistence and clean host e2fsck |
+| Users/login, shadow, passwd, su, useradd | Pending | Persistent numeric ownership implemented; credentials/login/authentication pending |
 | VFS permission enforcement | Pending | Audit every file-operation entry point |
-| check-only fsck.ext2 | Pending | Depends on ext2 layout |
+| check-only fsck.ext2 | Verified for supported profile | Read-only consistency audit; corruption/no-write host regressions and native checks pass; repairs require host e2fsck |
 | Optional ext4 read-only | Deferred | After required M2 scope |
 
 M2 is not complete until an installed ext2 system enforces real users and
@@ -499,3 +499,66 @@ permissions and reports accurate metadata through `ls -l`.
 - M2 remains open. Next: open-handle unlink lifetime before installer/root
   migration, then persistent users, permission enforcement and check-only fsck.
   Rename is not crash-atomic; ext2 has no journal.
+
+### 2026-10-11 · Ext2 installation and check-only consistency audit
+
+- Continuing through the remaining ext2 scope from clean commit 0b4ff64. New
+  installations use a Linux-filesystem GPT root partition with Zenith's supported
+  ext2 profile; ESP remains FAT32. Root size is capped at 512 MiB; larger disks
+  retain unused space. Installer refuses undersized disks and disks with mounted
+  partitions before changing GPT. Existing FAT installations remain bootable.
+- Boot discovery recognizes supported ext2 roots through /etc/os-release. fstab
+  records ext2. Fixed sync to write superblock counters before device Flush.
+- Added check-only fsck.ext2 for unmounted partitions: validates supported bounded
+  geometry, bitmap padding/free counters, reserved metadata allocation, block
+  ownership including indirect trees, inode sector counts, directory records,
+  entry types/names, dot/parent relationships, link counts, reachability and group
+  directory counts. Reports at most 32 diagnostics, total errors, and never repairs
+  or writes. Mounted volumes are refused. This is not a full e2fsck replacement.
+- Inspected installed Cosmos 3.0.89: VFS tracks open handles and defers unlink to
+  final close. Added fsprobe DIRECTORY, using a unique scratch directory, to test
+  shared open handles, writes after deletion, reads after one close, final-close
+  deletion, inode reuse and cleanup. Unix immediate namespace removal remains a
+  Cosmos API limitation, not claimed as implemented. Raw driver Unlink callers
+  must go through VFS lifetime management.
+- Host suite passes 374/374; eight Python harness tests and Release publish pass.
+  Corruption fixtures cover link/free counters, bitmap allocation, malformed
+  records/parents and duplicate block references, with zero checker writes.
+- Native baseline and 512 MiB large profile are running. Both install ext2,
+  execute guest fsck/probe, reboot installed roots twice, verify retained data,
+  numeric ownership/modes/symlinks, and independently inspect the installed disk.
+  Added a disk-only EFI boot test and CI dependencies for OVMF/mtools/parted.
+- Harness assertions now start at each command's serial offset so an earlier
+  identical marker cannot hide a later failure. Regression tests cover both stale
+  and fresh markers. Logs/artifacts use /tmp/zenith-root-{baseline,large} and
+  /tmp/zenith-root-{tests,release}.log.
+- M2 remains open for users/login and permission enforcement. Features and broader
+  documentation discussion follows verified completion of this ext2 scope.
+- Additional review: mounted ext2 volumes are now durably marked unclean; sync
+  preserves that state and only completed unmount restores clean state. Crash-dirty
+  volumes require host e2fsck before writable mounting. Volatile-device tests verify
+  both metadata-before-flush durability and dirty/clean transitions.
+- First baseline/large runs passed every guest assertion and clean independent
+  e2fsck, but the installed-image assertion expected debugfs mode 00640 while the
+  tool prints 0640. Corrected only the leading-zero matcher and rechecked both
+  retained images successfully. Final full-profile runs validate the mount-state
+  change; no timeout or filesystem behavior assertions were weakened.
+- Disk-only EFI validation passes 7/7 with the final kernel: no ISO, ext2 root,
+  retained content/ownership/link, lifetime probe, clean poweroff and independent
+  e2fsck. Evidence: /tmp/zenith-root-efi.log and /tmp/zenith-root-efi/.
+- Final verification: **374/374 host tests**, **8/8 Python harness tests**, final
+  Release publish, **135/135 baseline QEMU checks**, **135/135 large-profile
+  checks** at 512 MiB RAM, and **7/7 disk-only EFI checks**. Both installed-root
+  reboots preserve file data, mode 0640, UID 70000/GID 80000 and relative symlink;
+  root-disk formatting and mounted-root checking are refused. Independent e2fsck
+  is clean for both secondary volumes and installed roots; partition guards and
+  second-group retained data remain intact. Saved roots also have clean state 1.
+- Final evidence: /tmp/zenith-root-tests.log, /tmp/zenith-root-release-final.log,
+  /tmp/zenith-root-final-baseline.log and directory, /tmp/zenith-root-final-large.log
+  and directory, /tmp/zenith-root-efi.log and directory. CI now includes the same
+  root persistence tests plus disk-only EFI boot; hosted rerun awaits push.
+- Supported ext2 implementation is complete for this scope. Remaining boundaries:
+  supported Linux feature/layout profile only, volumes up to 512 MiB, direct/single/
+  double-indirect file I/O, no journal or guest repairs, Cosmos deferred namespace
+  removal while open. M2 is still open for real users and permission enforcement.
+  Pause implementation here for the requested features/documentation discussion.

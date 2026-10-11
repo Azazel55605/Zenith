@@ -32,6 +32,8 @@ internal static class SystemCommands
         add(new Command("df", "df", "Show filesystem space usage", Df));
         add(new Command("mount", "mount [[-t fat|ext2] partition mountpoint]", "Show mounts, or mount a FAT/ext2 partition", Mount));
         add(new Command("mkfs.ext2", "mkfs.ext2 partition [--yes] [-L label]", "Format an unmounted secondary partition as ext2", MkfsExt2));
+        add(new Command("fsprobe", "fsprobe directory", "Test file I/O and open-file deletion in a temporary directory", FileProbe));
+        add(new Command("fsck.ext2", "fsck.ext2 partition", "Check an unmounted ext2 partition without repairs", FsckExt2));
         add(new Command("ln", "ln -s target link", "Create a symbolic link", Symlink));
         add(new Command("readlink", "readlink link", "Print a symbolic link target", ReadLink));
         add(new Command("unlink", "unlink file", "Remove a file or symbolic link", Unlink));
@@ -100,6 +102,21 @@ internal static class SystemCommands
             }
         }
         return 0;
+    }
+
+    private static int FileProbe(CommandContext c)
+    {
+        if (c.Args.Length != 1) { return c.Fail("usage: fsprobe directory"); }
+        c.WriteLine(FileSystemProbe.Run(c.Resolve(c.Args[0])));
+        return 0;
+    }
+
+    private static int FsckExt2(CommandContext c)
+    {
+        if (c.Args.Length != 1) { return c.Fail("usage: fsck.ext2 partition (check-only)"); }
+        bool clean = SystemMounts.CheckExt2(c.Args[0], out string report);
+        c.WriteLine(report);
+        return clean ? 0 : 1;
     }
 
     private static int Unlink(CommandContext c)

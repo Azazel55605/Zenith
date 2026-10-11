@@ -76,11 +76,11 @@ terminal mode with cursor addressing (enables `less`, `top`, a TUI editor), edit
 |---|---|---|
 | `/proc` virtual filesystem: `meminfo`, `mounts`, `uptime`, `cmdline`, later per-process entries | M | Initial read-only driver implemented; validation and remaining work in [PROGRESS.md](PROGRESS.md) |
 | `/dev` virtual filesystem: `null`, `zero`, `random`, block devices (`sda`, `sda1`) | M | Null/zero and read-only live disk/partition nodes implemented with bounded `dd`; entropy and raw writes pending. See [PROGRESS.md](PROGRESS.md) |
-| **ext2 driver, read-write** | L | Experimental secondary volumes with an adapted Cosmos 3.0.89 driver and guarded formatter; profile gate and host-tool validation. Root, owners, permissions and symlinks remain pending; see [PROGRESS.md](PROGRESS.md) |
-| Installer formats the root as ext2 (the ESP stays FAT32) | S | Depends on ext2 |
+| **ext2 driver, read-write** | L | Supported bounded ext2 profile: secondary and installed roots, guarded formatter, ownership/modes, symlinks and directory moves. Native root/UEFI persistence verified; permission enforcement remains pending; see [PROGRESS.md](PROGRESS.md) |
+| Installer formats the root as ext2 (the ESP stays FAT32) | S | Verified: ext2-root reboot/persistence and disk-only EFI boot; ESP remains FAT32 |
 | Users: login screen, `/etc/shadow` with salted hashes, `passwd`, `su`, `useradd` | M | |
 | Permission checks in the VFS path for file operations | M | |
-| `fsck.ext2` (check-only first) | M | |
+| `fsck.ext2` (check-only first) | M | Read-only supported-profile consistency audit verified with corruption fixtures and native checks; repairs remain host-side |
 | ext4 read-only (extents, 64-bit), to read Linux disks | L | Optional, after ext2 |
 
 **Exit:** an installed system runs on ext2 with real users and permissions, and `ls -l` shows

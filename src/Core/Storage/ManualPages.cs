@@ -30,14 +30,46 @@ internal static class ManualPages
                 when the link is dangling. unlink also removes regular files;
                 directories are refused. rm does not recognize dangling links.
                 The installed VFS refuses .. components in link targets and
-                stops following links after eight hops. Ownership/permission
-                enforcement and accurate ls -l metadata remain pending.
+                stops following links after eight hops. Ownership and modes are
+                persisted and ls -l shows real metadata; enforcement is pending.
 
             EXAMPLE
                 ln -s persist.txt /mnt/new/alias
                 readlink /mnt/new/alias
                 cat /mnt/new/alias
                 unlink /mnt/new/alias
+            """),
+        ("fsck.ext2", """
+            NAME
+                fsck.ext2 - check an unmounted supported ext2 partition
+
+            SYNOPSIS
+                fsck.ext2 PARTITION
+
+            DESCRIPTION
+                Check-only; never writes or repairs. Requires Zenith's supported
+                Linux ext2 profile, a partition up to 512 MiB, and at most 65536
+                inodes. Mounted partitions are refused. Checks bitmaps/counters,
+                block ownership, inode sectors, directory records, dot/parent
+                structure, reachability and link counts. Shows up to 32 errors
+                and a total count. Exit status 0 means checks passed, 1 indicates
+                errors or an unsupported/unavailable volume. This is not a full
+                replacement for host e2fsck; use that for repairs/crash recovery.
+            """),
+        ("fsprobe", """
+            NAME
+                fsprobe - test file I/O and open-file deletion
+
+            SYNOPSIS
+                fsprobe DIRECTORY
+
+            DESCRIPTION
+                Creates a unique temporary directory, exercises two open handles,
+                writes and reads after deletion, closes one then the other, and
+                checks final deletion and inode reuse. Cleans up afterward.
+                Cosmos currently retains an open file's name until final close;
+                this is reported as deferred deletion, not Unix immediate unlink.
+                Exit status 0 means the probe passed.
             """),
         ("mkfs.ext2", """
             NAME
@@ -141,15 +173,16 @@ internal static class ManualPages
             DESCRIPTION
                 With no arguments, show the mount table. Otherwise mount the named
                 partition (see lsblk) at an existing directory. FAT is the default.
-                Use -t ext2 explicitly for experimental secondary ext2 volumes.
+                Use -t ext2 explicitly for supported secondary ext2 volumes.
                 Already-mounted partitions and occupied mount points are rejected.
                 umount DIRECTORY flushes and detaches a volume; / stays mounted.
 
             EXT2
                 Requires clean revision 1, 1 KiB blocks, 128-byte inodes and only
                 the filetype feature. This profile check is not a consistency check.
-                Check disposable images with host e2fsck before mounting. Root and
-                installer still use FAT32. Users/permission enforcement is pending.
+                Use fsck.ext2 on unmounted supported volumes; use host e2fsck for
+                repairs. New installed roots use ext2; old FAT roots remain
+                recognized. Users/permission enforcement is pending.
 
             EXAMPLE
                 mkdir /mnt/ext
@@ -273,8 +306,10 @@ internal static class ManualPages
                 install DISK --yes      erase DISK and install
 
             DESCRIPTION
-                Creates a GPT partition table with a 64 MiB EFI system partition and a FAT32
-                root partition, then copies /etc, /home, /root, /usr and /var. The kernel and
+                Creates GPT with a 64 MiB FAT32 EFI system partition and an ext2
+                root partition up to 512 MiB, then copies /etc, /home, /root, /usr
+                and /var. Extra space remains unallocated. Mounted disks and the
+                running root disk are refused. The kernel and
                 the bootloader still have to be added from the host with
                 tools/make-bootable.sh before the disk boots on its own.
 

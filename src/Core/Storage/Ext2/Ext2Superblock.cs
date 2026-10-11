@@ -18,6 +18,7 @@ namespace Zenith.Core.Storage.Ext2;
 internal sealed class Ext2Superblock : IVfsSuperblock
 {
     private readonly IBlockDevice _device;
+    private bool _mounted;
 
     /// <summary>Live inodes by number; keeps open handles coherent with metadata writes.</summary>
     private readonly Dictionary<uint, Ext2Inode> _inodeCache = [];
@@ -120,6 +121,7 @@ internal sealed class Ext2Superblock : IVfsSuperblock
 
     long IVfsSuperblock.BlockSize => BlockSize;
     public ulong MaxNameLength => 255;
+    internal Ext2GroupDesc Group(uint number) => _groups[number];
 
     /// <summary>The block device holding the volume.</summary>
     public IBlockDevice Device => _device;
@@ -766,11 +768,30 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         _device.WriteBlock(sbLba, blocksToRead, buf);
     }
 
-    /// <summary>
-    /// Tear down this mount: drop cached inodes and flush.
-    /// </summary>
+    /// <summary>Durably mark an active writable mount unclean.</summary>
+    internal void MarkMounted()
+    {
+        SetCleanState(false);
+        _mounted = true;
+        Flush();
+    }
+
+    private void SetCleanState(bool clean)
+    {
+        byte[] data = new byte[BlockSize];
+        ReadBlocks(1, 1, data);
+        BitConverter.TryWriteBytes(data.AsSpan(58, 2), (ushort)(clean ? 1 : 0));
+        WriteBlocks(1, 1, data);
+    }
+
+    /// <summary>Mark a completed unmount clean, drop caches and flush.</summary>
     public void Drop()
     {
+        if (_mounted)
+        {
+            SetCleanState(true);
+            _mounted = false;
+        }
         _inodeCache.Clear();
         InvalidateIndirCache();
         Flush();
@@ -781,8 +802,8 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// </summary>
     public void Flush()
     {
-        _device.Flush();
         UpdateSuperblock();
+        _device.Flush();
     }
 
     /// <summary>

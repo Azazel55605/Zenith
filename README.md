@@ -24,7 +24,7 @@ virtio-gpu, and virtio mouse/keyboard. The pointer is grabbed on hover; **Ctrl+A
 ## Installing to a disk
 
 1. **Run QEMU x64**. In the Terminal: `install` lists target disks, and `install sata0 --yes`
-   partitions (GPT: ESP + root), formats (FAT32), and copies the system.
+   partitions (GPT: ESP + root), formats (FAT32 ESP + ext2 root up to 512 MiB), and copies the system.
 2. **Make Disk Bootable** (the kernel can't copy itself or the bootloader yet; see roadmap M4).
 3. **Run QEMU x64 (installed disk)**. Zenith finds its root partition and changes now persist.
 
@@ -66,7 +66,7 @@ Experimental secondary ext2 volumes can be mounted with
 name). `mount` lists volumes; `umount /mnt/ext` flushes and detaches one. The initial
 profile requires clean Linux-layout revision-1 ext2 with 1 KiB blocks, 128-byte inodes and only
 the filetype feature. See [ext2 validation](docs/DEVELOPMENT.md#ext2-secondary-volumes)
-for the disposable fixture and remaining limitations. Installed roots still use FAT32.
+for the disposable fixture and remaining limitations. New installed roots use ext2; older FAT installations remain recognized.
 
 `mkfs.ext2 PARTITION --yes [-L LABEL]` formats an **unmounted secondary partition**,
 erasing its existing filesystem. Use a partition name from `lsblk`, not a whole disk.
@@ -91,7 +91,16 @@ symlinks and reject FAT/virtual filesystems. `ls -l` and `stat` read actual VFS
 attributes, display numeric IDs and link targets, and can inspect dangling links.
 FAT uses `?` for unavailable Unix fields. Account lookup and permission enforcement
 remain pending: changing bits currently records metadata without restricting access.
-New ext2 objects still default to UID/GID 0. Installed roots still use FAT32.
+New ext2 objects still default to UID/GID 0. New installed roots use ext2; older FAT installations remain recognized.
+
+`fsck.ext2 PARTITION` performs a read-only consistency check of an unmounted
+supported ext2 partition (up to 512 MiB); it reports errors and never repairs.
+Use host `e2fsck` for repairs and crash-dirty volumes; mounted volumes stay
+marked unclean until unmount. Files use direct/single/double-indirect blocks
+(up to about 64 MiB per file); triple-indirect I/O is unsupported. `fsprobe DIRECTORY` tests shared file I/O and
+open-file deletion in a unique temporary directory, then cleans it up. Cosmos
+currently defers namespace removal until the final handle closes; it retains
+open-file data but does not provide Unix immediate unlink semantics.
 
 Directory `mv` uses a filesystem rename, preserving the inode and its ownership,
 permissions and contents. On ext2, moves across parents update `..` and both

@@ -64,3 +64,9 @@ refreshes parent snapshots, maintains cross-parent link counts, locates the real
 `..` entry, and updates change/modification times. Same-parent identity uses inode
 numbers; same-entry rename is a no-op. Destination replacement remains refused.
 Ancestry traversal is bounded to 1024 levels and rejects malformed cycles.
+
+Installed roots now use this driver/profile. Writable mounts durably mark the
+primary superblock unclean until Drop; sync writes metadata before device Flush.
+The new check-only Ext2Checker is Zenith code, not imported from Cosmos, and audits
+supported bounded layouts without repairs. Triple-indirect byte I/O remains
+unsupported; the checker reports files beyond the double-indirect size range.

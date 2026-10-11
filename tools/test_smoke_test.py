@@ -33,6 +33,24 @@ class SerialMatchingTests(unittest.TestCase):
         self.assertFalse(self.matches("user: proc-write=0\n", "user: proc-write=1"))
 
 
+class FreshMarkerTests(unittest.TestCase):
+    def test_old_marker_cannot_satisfy_new_command(self):
+        from types import SimpleNamespace
+        machine = smoke.Machine.__new__(smoke.Machine)
+        raw = "user: clean: old command\n"
+        machine.raw_log = lambda: raw
+        machine.process = SimpleNamespace(poll=lambda: 0)
+        self.assertFalse(machine.wait_for("user: clean:", 1, offset=len(raw)))
+
+    def test_fresh_marker_still_matches(self):
+        from types import SimpleNamespace
+        machine = smoke.Machine.__new__(smoke.Machine)
+        old = "user: clean: old command\n"
+        machine.raw_log = lambda: old + "user: clean: new command\n"
+        machine.process = SimpleNamespace(poll=lambda: 0)
+        self.assertTrue(machine.wait_for("user: clean:", 1, offset=len(old)))
+
+
 class KeyboardPacingTests(unittest.TestCase):
     def test_gc_pause_spanning_serial_reads(self):
         tracker = smoke.GcPauseTracker()
