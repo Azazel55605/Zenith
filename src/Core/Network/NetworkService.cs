@@ -1,4 +1,5 @@
 #pragma warning disable COSMOS0002 // Pin experimental ICMP packet seam to Cosmos 3.0.89; validate in QEMU.
+#pragma warning disable COSMOS0001 // Pin restoring interrupt-mask scope for serialized E1000E polling.
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -64,6 +65,11 @@ internal static class NetworkService
     }
     public static void Tick()
     {
+        // Cosmos exposes a restoring scope. Dispose explicitly on failure too:
+        // NativeAOT 3.0.89 does not reliably execute unwind-finally handlers.
+        var interrupts = Cosmos.Kernel.Core.Scheduler.SchedulerManager.MaskInterrupts();
+        try { E1000ReceiveFilter.Poll(); interrupts.Dispose(); }
+        catch { interrupts.Dispose(); throw; }
         if (!s_invalidConfiguration && Configuration.Mode == "dhcp" && s_renewAt != 0 && Stopwatch.GetTimestamp() >= s_renewAt)
         { StartBackground(); }
     }
@@ -122,6 +128,7 @@ internal static class NetworkService
         {
             b.Append("receive-filter-initially-valid=" + E1000ReceiveFilter.InitiallyValid.ToString().ToLowerInvariant() + "\n");
             b.Append("nic-irqs=" + E1000ReceiveFilter.Interrupts + " rx-irqs=" + E1000ReceiveFilter.ReceiveInterrupts + "\n");
+            b.Append("rx-polls=" + E1000ReceiveFilter.Polls + " polled-frames=" + E1000ReceiveFilter.PolledFrames + "\n");
         }
         b.Append("dhcp-replies=" + s_dhcpReplies + " rejected=" + s_dhcpRejected + " last-rejection=" + s_dhcpRejection + "\n");
         b.Append("time=" + s_time + "\n"); return b.ToString();

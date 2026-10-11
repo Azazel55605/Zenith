@@ -123,6 +123,49 @@ if (assembly.Name.Name == "Cosmos.Kernel.HAL.X64")
         irq.Body.MaxStackSize = Math.Max(2, irq.Body.MaxStackSize);
         changed = true; Console.WriteLine("Added read-only E1000E IRQ/receive-cause counters");
     }
+    var drain = device.Methods.Single(m => m.Name == "ProcessReceivedPackets");
+    var initialize = device.Methods.Single(m => m.Name == "InitializeNetwork");
+    int ringSize = Convert.ToInt32(device.Fields.Single(f => f.Name == "RxDescCount").Constant);
+    if (!drain.HasBody || drain.IsStatic || drain.Parameters.Count != 0
+        || drain.ReturnType.FullName != "System.Void" || !initialize.HasBody || initialize.IsStatic
+        || initialize.Parameters.Count != 0 || initialize.ReturnType.FullName != "System.Void" || ringSize != 32)
+    { throw new InvalidOperationException("Cosmos E1000E receive polling contract changed"); }
+    if (!initialize.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "RegisterPoll"))
+    {
+        // Both IRQ and poll draining are bounded to one ring per invocation.
+        var il = drain.Body.GetILProcessor();
+        var back = drain.Body.Instructions.Single(i => (i.OpCode == OpCodes.Br || i.OpCode == OpCodes.Br_S)
+            && i.Operand is Instruction target && target.Offset < i.Offset);
+        var loop = (Instruction)back.Operand;
+        var exit = drain.Body.Instructions.Last(i => i.OpCode == OpCodes.Ret);
+        var budget = new VariableDefinition(module.TypeSystem.Int32);
+        drain.Body.Variables.Add(budget); drain.Body.InitLocals = true;
+        var start = il.Create(OpCodes.Ldloc, budget);
+        foreach (var instruction in new[] { start, il.Create(OpCodes.Ldc_I4, ringSize),
+            il.Create(OpCodes.Bge, exit), il.Create(OpCodes.Ldloc, budget), il.Create(OpCodes.Ldc_I4_1),
+            il.Create(OpCodes.Add), il.Create(OpCodes.Stloc, budget) })
+        { il.InsertBefore(loop, instruction); }
+        foreach (var instruction in drain.Body.Instructions)
+        { if (instruction.Operand == loop) { instruction.Operand = start; } }
+        drain.Body.MaxStackSize = Math.Max(2, drain.Body.MaxStackSize);
+
+        using var support = resolver.Resolve(new AssemblyNameReference("Zenith.Network", new Version(1, 0, 0, 0)));
+        var register = module.ImportReference(support.MainModule.GetType("Zenith.Core.Network.Transport.E1000ReceiveFilter")
+            .Methods.Single(m => m.Name == "RegisterPoll"));
+        var action = register.Parameters[0].ParameterType.Resolve();
+        var constructor = module.ImportReference(action.Methods.Single(m => m.IsConstructor && m.Parameters.Count == 2));
+        il = initialize.Body.GetILProcessor();
+        foreach (var ret in initialize.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
+        {
+            ret.OpCode = OpCodes.Ldarg_0; ret.Operand = null;
+            var cursor = ret;
+            foreach (var instruction in new[] { il.Create(OpCodes.Ldftn, drain),
+                il.Create(OpCodes.Newobj, constructor), il.Create(OpCodes.Call, register), il.Create(OpCodes.Ret) })
+            { il.InsertAfter(cursor, instruction); cursor = instruction; }
+        }
+        initialize.Body.MaxStackSize = Math.Max(2, initialize.Body.MaxStackSize);
+        changed = true; Console.WriteLine("Registered bounded E1000E receive polling independent of NIC interrupts");
+    }
 }
 if (assembly.Name.Name == "Cosmos.Kernel.System")
 {

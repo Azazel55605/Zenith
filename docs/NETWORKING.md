@@ -191,6 +191,13 @@ with no replies differs from received offers rejected by the bounded codec.
 the filter; it does not mean the filter remains disabled. Compare `rx-irqs`,
 `rx-frames` and `accepted` before/after a retry against a host packet capture.
 `dhcp-replies` and rejection details reset for each DHCP acquisition.
+The timer-driven kernel loop also polls the E1000E receive ring with interrupts
+masked, restoring the previous mask explicitly on success or failure. Both IRQ
+and poll drains process at most one 32-descriptor ring per call. This supplies a
+receive path when platform NIC interrupts are not delivered. `rx-polls` counts
+poll calls; `polled-frames` counts frames delivered by that path. The VMware
+screenshot showed a valid filter, zero NIC interrupts and zero received frames;
+the precise platform interrupt-routing cause remains unverified.
 Cosmos protocol state, retransmission/reassembly, ARP caching, connection retirement
 and shared tables still have limits; these bounds are not a whole-kernel budget or
 an Internet-facing server assurance. Native cleanup explicitly catches/disposes in

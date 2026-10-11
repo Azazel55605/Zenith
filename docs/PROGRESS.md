@@ -1,5 +1,38 @@
 # Implementation progress
 
+## 2026-10-11 · Receive polling when NIC interrupts are absent
+
+- User's VMware status screenshot shows initial receive-filter validity true,
+  NIC/RX interrupts zero, received/accepted frames zero and DHCP replies zero.
+  With the earlier correlated host offers this isolates failure before guest
+  DHCP parsing; it rules out the missing address-valid flag for this VM. Exact
+  PCI/platform interrupt-routing or hardware receive cause remains unconfirmed.
+- Registered the E1000E receive drain with the timer-driven kernel loop. Polling
+  masks interrupts with a restoring scope and explicitly disposes on success or
+  failure, serializing IRQ/poll consumption under the current single-CPU guest
+  profile. Both paths drain at most one 32-descriptor ring per invocation.
+  Polling leaves ICR and normal interrupt configuration untouched. `ip` adds
+  poll-call and poll-delivered-frame counts. Adaptations affect build copies only.
+- Release ISO builds; host regression passes 558/558. Native replay passes 38/38
+  under TCG: normal unicast/broadcast offers, then a separate guest with PCI INTx
+  deliberately disabled through qtest before DHCP reacquisition. That guest's
+  NIC interrupts stay at 2 while polling delivers two new frames and the real
+  Offer/ACK is accepted. No production fault switch was added. Kernel ELF hash
+  for that run is e80e0300993504fee1aff6d33ac5b5434f2e299a7d67d0c6a521d29c29ed927d.
+- Full native network regression passes 174/174 under TCG, including live/installed
+  DHCP, wire captures, HTTP/TLS, fault/cancel/link loss, reboot persistence and
+  independent clean ext2 checks. Evidence: /tmp/zenith-rx-poll-build.log,
+  /tmp/zenith-rx-poll-host.log, /tmp/zenith-rx-poll-receive.log and
+  /tmp/zenith-rx-poll-network.log. Actual VMware retest remains pending; the new
+  ISO tests the updated kernel without changing the installed disk's active kernel.
+  Final source cleanup strengthens patch contract checks and updates a source
+  comment; the Release rebuild passes with ELF hash
+  88c80ae4d800f512fc8c7e450ab93bb605eed9520aaa1cd11a66c15ed9a800f9.
+  Final-artifact DHCP replay passes 38/38, including interrupt-disabled acquisition;
+  evidence is /tmp/zenith-rx-poll-incremental.log and
+  /tmp/zenith-rx-poll-final-receive.log. Python syntax and `git diff --check` pass.
+  CI already runs this replay fixture; hosted CI awaits push.
+
 ## 2026-10-11 · VMware DHCP receive investigation
 
 - User confirms the fixed kernel hash and Ethernet broadcasts; VMware now returns
@@ -27,9 +60,9 @@
 - Evidence: /tmp/zenith-dhcp-receive-build-final.log,
   /tmp/zenith-dhcp-receive-incremental.log, /tmp/zenith-dhcp-receive-host.log,
   /tmp/zenith-dhcp-receive-irqs.log and /tmp/zenith-dhcp-receive-network-final.log.
-  CI includes the replay fixture; hosted CI awaits push. The initial address-valid
-  bit and receive counters have not yet been observed on VMware; this filter
-  defect remains a possible cause, not a confirmed explanation of the user failure.
+  CI includes the replay fixture; hosted CI awaits push. Subsequent VMware status
+  confirms initial address-valid true and no receive interrupts or frames; see
+  the polling investigation above. The filter defect did not explain this VM.
 
 ## 2026-10-11 · VMware DHCP broadcast regression
 

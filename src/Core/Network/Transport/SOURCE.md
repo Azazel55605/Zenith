@@ -20,10 +20,18 @@ plug-filtered list excludes HAL.X64, and applying after cache hashing would leav
 the old driver in the compiled ELF. No promiscuous receive mode is enabled.
 `ip` reports the initial validity bit, NIC/RX interrupts, driver-delivered/accepted
 frames and DHCP replies/rejections. IRQ instrumentation duplicates the already-read
-cause register value without clearing it again or changing dispatch. The user's remaining receive failure is not attributed
-to this flag until VMware diagnostics confirm it. The native DHCP replay fixture
+cause register value without clearing it again or changing dispatch. The user's
+VMware screenshot confirms the filter was already valid, with zero NIC interrupts
+and zero frames; the filter flag does not explain that failure. The driver now
+registers its receive drain as a delegate for the timer-driven kernel loop, which
+masks interrupts through the restoring scheduler scope to serialize poll/IRQ ring
+consumption. Explicit catch/dispose also restores the mask on native exceptions.
+Both drains are bounded to 32 descriptors per call; polling does not clear ICR or
+disable normal interrupts. The precise VMware interrupt-routing cause is pending.
+The native DHCP replay fixture
 uses the observed 172.16.43.0/24, TTL/TOS and option profile with valid checksums,
-testing both unicast and broadcast Ethernet Offer/ACK delivery through E1000E.
+testing both unicast and broadcast Ethernet Offer/ACK delivery through E1000E,
+plus deliberate PCI INTx disable and successful DHCP reacquisition by polling.
 
 The released receive storage subtracts `_dataOffset` from `_dataLength` a second
 time while appending. Reading a snapshot of `Socket.Available` concurrently with an

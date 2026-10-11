@@ -335,6 +335,9 @@ Run `python3 -B tools/dhcp-receive-smoke.py /tmp/zenith-dhcp-receive` to replay 
 observed VMware DHCP Offer/ACK profile over QEMU's raw Ethernet socket backend.
 It checks both unicast and broadcast Ethernet replies through the real E1000E
 driver, receive IRQ diagnostics, lease/route/DNS and outgoing broadcast headers.
+An additional guest sets the E1000E PCI Interrupt Disable bit through QEMU qtest after
+boot, then reacquires DHCP. It requires unchanged NIC interrupt counts and real
+Offer/ACK delivery through polling; production builds contain no fault switch.
 This is a controlled receive fixture; VMware interrupt routing remains a separate
 acceptance check. The x64 HAL build-copy adaptation runs before ILC cache hashing.
 

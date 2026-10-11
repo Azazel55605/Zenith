@@ -49,8 +49,9 @@ def main():
         nonlocal checks
         checks += 1; print(("ok   " if passed else "FAIL ") + label, flush=True)
         if not passed: raise RuntimeError(label)
-    for unicast in (True, False):
-        label = "unicast" if unicast else "broadcast"; directory = args.keep / label
+    for unicast, disable_irq in ((True, False), (False, False), (True, True)):
+        label = "no-irq" if disable_irq else "unicast" if unicast else "broadcast"
+        directory = args.keep / label
         stop = threading.Event(); errors = []; replies = []; connection = []; machine = None
         listener = socket.socket(); listener.bind(("127.0.0.1", 0)); listener.listen(1); listener.settimeout(1)
         def serve():
@@ -81,7 +82,8 @@ def main():
         thread = threading.Thread(target=serve, daemon=True); thread.start()
         try:
             machine = h.Machine(directory, network=["-netdev", f"socket,id=net0,connect=127.0.0.1:{listener.getsockname()[1]}",
-                "-device", "e1000e,netdev=net0", "-object", f"filter-dump,id=wire,netdev=net0,file={directory / 'network.pcap'}"])
+                "-device", "e1000e,netdev=net0", "-object", f"filter-dump,id=wire,netdev=net0,file={directory / 'network.pcap'}",
+                "-qtest", f"unix:{directory / 'qtest.sock'},server=on,wait=off"])
             check(machine.wait("headless ready", timeout=600), label + " guest boot")
             check(machine.wait("network: online address=172.16.43.141", timeout=60), label + " VMware-profile DHCP lease")
             offset = len(machine.log()); machine.send("ip; echo DHCP_RECEIVE_STATUS=$?\r")
@@ -91,12 +93,39 @@ def main():
             interrupts = re.search(r"nic-irqs=(\d+) rx-irqs=(\d+)", output)
             check(interrupts is not None and int(interrupts[1]) > 0 and int(interrupts[2]) > 0,
                   label + " receive IRQ diagnostics observe real driver delivery")
+            if disable_irq:
+                initial_irqs = int(interrupts[1])
+                with socket.socket(socket.AF_UNIX) as qtest:
+                    qtest.settimeout(5); qtest.connect(str(directory / "qtest.sock"))
+                    stream = qtest.makefile("rwb", buffering=0)
+                    def command(value):
+                        stream.write((value + "\n").encode())
+                        response = stream.readline().decode().strip().split()
+                        if not response or response[0] != "OK": raise RuntimeError("qtest: " + str(response))
+                        return int(response[1], 0) if len(response) > 1 else None
+                    slots = []
+                    for slot in range(32):
+                        command(f"outl 0xcf8 {0x80000000 | slot << 11:#x}")
+                        if command("inl 0xcfc") == 0x10d38086: slots.append(slot)
+                    check(len(slots) == 1, label + " located actual E1000E PCI function")
+                    command(f"outl 0xcf8 {0x80000004 | slots[0] << 11:#x}")
+                    pci_command = command("inw 0xcfc")
+                    command(f"outw 0xcfc {pci_command | 0x400:#x}")
+                    check(command("inw 0xcfc") == pci_command | 0x400, label + " PCI INTx disabled without changing bus mastering")
+                    stream.close()
+                offset = len(machine.log()); machine.send("netcfg apply; ip; echo POLL_STATUS=$?\r")
+                check(machine.wait("POLL_STATUS=0", offset, timeout=60), label + " DHCP reacquired with INTx disabled")
+                output = h.efi.smoke.COSMOS_NOISE.sub("", machine.log()[offset:])
+                current = re.search(r"nic-irqs=(\d+) rx-irqs=(\d+)", output)
+                polled = re.search(r"rx-polls=(\d+) polled-frames=(\d+)", output)
+                check(current is not None and int(current[1]) == initial_irqs, label + " no NIC interrupt delivered during acquisition")
+                check(polled is not None and int(polled[2]) >= 2, label + " polling delivered real Offer and ACK")
             check("dhcp-replies=2 rejected=0" in output, label + " Offer and ACK accepted")
             check("gateway=172.16.43.2" in output and "dns=172.16.43.2" in output, label + " VMware route and DNS")
-            check(len(replies) == 2 and not errors, label + " fixture exchanged exactly Offer and ACK")
+            check(len(replies) == (4 if disable_irq else 2) and not errors, label + " fixture exchanged exactly Offer and ACK")
             machine.send("poweroff\r"); check(machine.wait("all filesystems unmounted"), label + " clean shutdown")
             check(machine.process.wait(timeout=60) == 0, label + " poweroff exit")
-            check(broadcast_requests(directory / "network.pcap") == [1, 3], label + " outgoing broadcast Discover and Request")
+            check(broadcast_requests(directory / "network.pcap") == ([1, 3, 1, 3] if disable_irq else [1, 3]), label + " outgoing broadcast Discover and Request")
         finally:
             stop.set()
             if machine: machine.stop()
