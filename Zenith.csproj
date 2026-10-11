@@ -3,18 +3,31 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <!-- Cecil resolves enum constants relative to cwd when patching Cosmos.System. -->
+    <_CosmosPatcherCommand>python3 &quot;$(MSBuildProjectDirectory)/tools/cosmos-patcher.py&quot;</_CosmosPatcherCommand>
   </PropertyGroup>
 
   <!-- Host-side test projects are built separately (dotnet test tests/Zenith.Tests). -->
   <ItemGroup>
     <Compile Remove="tests/**" />
+    <Compile Remove="tools/**" />
+    <Compile Remove="src/Core/Security/Credentials.cs;src/Core/Security/PermissionPolicy.cs;src/Core/Security/FileAccessPolicy.cs;src/Core/Security/obj/**;src/Core/Security/bin/**" />
     <None Remove="tests/**" />
+  </ItemGroup>
+
+  <Target Name="BuildPatcherFixup" BeforeTargets="SetupPatcher">
+    <Exec Command="dotnet build &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/PatcherFixup.csproj&quot; -c Release --nologo" />
+  </Target>
+
+  <ItemGroup>
+    <AsmSearchPath Include="src/Native" />
   </ItemGroup>
 
   <!-- Core kernel packages -->
   <ItemGroup>
     <PackageReference Include="Cosmos.Kernel" Version="$(CosmosVersion)" />
     <PackageReference Include="Cosmos.Kernel.System" Version="$(CosmosVersion)" />
+    <ProjectReference Include="src/Core/Security/Zenith.Security.csproj" />
   </ItemGroup>
 
 </Project>

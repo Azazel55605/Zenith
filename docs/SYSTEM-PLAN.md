@@ -50,7 +50,7 @@ Proposed boot phases:
 
 1. Hardware discovery, storage/root selection, recovery checks and logs.
 2. Configuration loading and validation; invalid settings fall back with a diagnostic.
-3. Accounts/credentials and mount access policy once M2 enforcement is available.
+3. Accounts/credentials and mount access policy using M2 enforcement.
 4. Shared clock, networking and package state/recovery initialization as implemented.
 5. Session selection, authentication and console/desktop startup.
 6. Idle loop with shared memory-pressure policy and service work scheduling.
@@ -206,14 +206,15 @@ must cover both DE and WM; shell rename coverage is not proof of GUI workflow.
 
 ## 8. Accounts, network, programs and updates
 
-Finish M2 account/access design before calling the system multi-user. Need real
-credentials, salted password hashing using validated crypto/entropy, ownership on
-creation and access checks across all operation entry points. Shell identity alone
+M2 implements installed ext2 credentials, salted password hashing with host/native
+crypto vectors and hardware entropy checks, creation ownership and filesystem
+operation access checks. See [ACCOUNTS](ACCOUNTS.md) for setup and scope. Shell identity alone
 is insufficient if raw VFS/GUI calls bypass it. Carry credentials per operation/worker,
 not through a shared mutable global user. Audit read/write/create/traverse/delete/rename,
 chmod/chown, mount boundaries and privileged device/installer paths; test owner/group/other
-allow/deny and directory search/write rules. Special mode bits are stored today; their
-execution semantics must be deliberately defined rather than implied by display. Until process isolation exists,
+allow/deny and directory search/write rules as new services are added. Sticky removal
+and setgid creation inheritance are enforced; setuid/setgid executable privilege
+is deferred until a userland loader exists. Until process isolation exists,
 in-kernel code remains trusted and cannot be safely treated as third-party userland.
 
 M3 should establish wired-QEMU network operation first: device/link lifecycle,
@@ -238,7 +239,7 @@ No dates or new release tags are promised by this plan.
 
 | Slice | Deliverable | Gate before moving on |
 |---|---|---|
-| A: M2 completion design/implementation | Credentials, creation ownership, enforced operation policy | Positive/negative access tests and native login/reboot; secure entropy/password design |
+| A: M2 completion (verified) | Credentials, creation ownership, enforced operation policy | Positive/negative access tests and native login/reboot; secure entropy/password design |
 | B: shared configuration/session seam | Typed config service, session selector, graphics-independent startup | Existing desktop regression and installed setting persistence |
 | C: headless console | Serial shell/session and shared diagnostics | Boot without graphics; files/scripts/cancellation/shutdown tested |
 | P0: package research, can start now | Host package builder, schema, verifier feasibility, dry-run plan | Discussion decisions recorded; no guest activation |

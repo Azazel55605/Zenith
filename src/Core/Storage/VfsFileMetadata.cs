@@ -3,6 +3,7 @@ using System.IO;
 using Cosmos.Kernel.HAL.Vfs;
 using Cosmos.Kernel.System.Vfs;
 using Zenith.Core.Shell;
+using Zenith.Core.Security;
 using Zenith.Core.Storage.Ext2;
 
 namespace Zenith.Core.Storage;
@@ -33,7 +34,7 @@ internal sealed class VfsFileMetadata : IFileMetadata
         string? target = null;
         if (stat.IsSymbolicLink) { inode.InodeOperations.TryReadLink(inode, out target); }
         // FAT's synthesized Unix bits are not persisted ownership or permissions.
-        bool unix = inode is Ext2Inode || Proc.ProcFilesystemType.Owns(inode) || Dev.DevFilesystemType.Owns(inode);
+        bool unix = GuardedFilesystem.IsUnix(inode);
         metadata = new((ushort)stat.Mode, stat.Uid, stat.Gid, stat.NLink, stat.Size,
             stat.Mtime.TvSec, stat.Ino, stat.Blocks, stat.BlkSize, unix, target);
         return true;
@@ -48,6 +49,20 @@ internal sealed class VfsFileMetadata : IFileMetadata
 
     private static bool Set(string path, SetAttrFlags flags, VfsStat attributes)
     {
+        // Authorize before allocating a tracked metadata handle. In particular,
+        // denied chmod/chown must never retain an open-file lifetime reference.
+        var caller = CredentialContext.Current;
+        if (!caller.IsRoot)
+        {
+            if ((flags & (SetAttrFlags.Uid | SetAttrFlags.Gid)) != 0)
+            { throw new UnauthorizedAccessException("permission denied changing ownership"); }
+            if ((flags & SetAttrFlags.Mode) != 0)
+            {
+                if (!VfsManager.TryStat(path, out var stat)) { return false; }
+                if (!PermissionPolicy.CanChmod(caller, stat.Uid))
+                { throw new UnauthorizedAccessException("permission denied changing mode"); }
+            }
+        }
         if (VfsManager.TryOpenDirectory(path, out var directory))
         {
             using (directory) { return Apply(directory.Inode, flags, attributes); }
@@ -60,5 +75,5 @@ internal sealed class VfsFileMetadata : IFileMetadata
     }
 
     private static bool Apply(IVfsInode inode, SetAttrFlags flags, VfsStat attributes)
-        => inode is Ext2Inode && inode.InodeOperations.SetAttr(inode, flags, attributes);
+        => GuardedFilesystem.Unwrap(inode) is Ext2Inode && inode.InodeOperations.SetAttr(inode, flags, attributes);
 }

@@ -112,6 +112,7 @@ internal sealed class WindowManager
         for (int i = _windows.Count - 1; i >= 0; i--)
         {
             Window w = _windows[i];
+            using var identity = Zenith.Core.Security.CredentialContext.Enter(w.Identity);
             if (w.IsClosed)
             {
                 _windows.RemoveAt(i);
@@ -153,6 +154,7 @@ internal sealed class WindowManager
         if (_contentDrag is not null)
         {
             Window target = _contentDrag;
+            using var identity = Zenith.Core.Security.CredentialContext.Enter(target.Identity);
             if (input.Left)
             {
                 if (input.Moved)
@@ -209,6 +211,7 @@ internal sealed class WindowManager
             }
             else if (hit.Content.Contains(input.X, input.Y))
             {
+                using var identity = Zenith.Core.Security.CredentialContext.Enter(hit.Identity);
                 hit.OnMouseDown(input.X - hit.Content.X, input.Y - hit.Content.Y);
                 _contentDrag = hit;
             }
@@ -216,6 +219,7 @@ internal sealed class WindowManager
 
         if (input.Scroll != 0 && hit is not null)
         {
+            using var identity = Zenith.Core.Security.CredentialContext.Enter(hit.Identity);
             // Wheel down reports positive deltas; windows take positive as "scroll back".
             hit.OnScroll(-input.Scroll);
         }
@@ -225,6 +229,7 @@ internal sealed class WindowManager
         {
             foreach (var key in input.Keys)
             {
+                using var identity = Zenith.Core.Security.CredentialContext.Enter(focused.Identity);
                 focused.OnKey(key);
             }
         }
@@ -365,6 +370,7 @@ internal sealed class WindowManager
         DrawTitleButton(surface, w.CloseButton, TitleIcon.Close, mouseX, mouseY, Theme.Danger, w.IsFocused);
 
         surface.Clip = w.Content.Inflate(-1);
+        using var identity = Zenith.Core.Security.CredentialContext.Enter(w.Identity);
         w.DrawContent(surface, w.Content);
         surface.ResetClip();
 

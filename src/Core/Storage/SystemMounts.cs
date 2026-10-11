@@ -1,3 +1,4 @@
+using Zenith.Core.Security;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -41,8 +42,8 @@ internal static class SystemMounts
 
     public static void Initialize()
     {
-        VfsManager.RegisterFilesystem(Fat, new FatFilesystemType());
-        VfsManager.RegisterFilesystem(Ext2, new Ext2FilesystemType());
+        VfsManager.RegisterFilesystem(Fat, new GuardedFilesystem(new FatFilesystemType()));
+        VfsManager.RegisterFilesystem(Ext2, new GuardedFilesystem(new Ext2FilesystemType()));
 
         RootPartition = FindInstalledRoot();
         if (RootPartition is not null)
@@ -93,6 +94,7 @@ internal static class SystemMounts
 
     private static string? MountCore(string partitionName, string mountPoint, string filesystem)
     {
+        GuardedFilesystem.RequireRoot();
         if (filesystem != Fat && filesystem != Ext2)
         {
             return filesystem + ": unsupported filesystem (use fat or ext2)";
@@ -139,6 +141,7 @@ internal static class SystemMounts
 
     public static bool CheckExt2(string name, out string report)
     {
+        GuardedFilesystem.RequireRoot();
         lock (s_mountGate)
         {
             foreach (Partition partition in StorageManager.Partitions)
@@ -162,6 +165,7 @@ internal static class SystemMounts
     /// <summary>Formats an explicitly selected, unmounted secondary partition.</summary>
     public static string? FormatExt2(string name, string label, bool confirmed)
     {
+        GuardedFilesystem.RequireRoot();
         lock (s_mountGate)
         {
             Partition? target = null;
@@ -215,6 +219,7 @@ internal static class SystemMounts
 
     private static string? UnmountCore(string mountPoint)
     {
+        GuardedFilesystem.RequireRoot();
         if (mountPoint == "/")
         {
             return "/: the root filesystem stays mounted while the system runs";
@@ -237,6 +242,7 @@ internal static class SystemMounts
     /// </summary>
     public static void Shutdown()
     {
+        GuardedFilesystem.RequireRoot();
         Log.StopPersisting();
         SyncAll();
 
@@ -288,7 +294,16 @@ internal static class SystemMounts
     private static void MountRamDisk(string name, ulong megabytes, string mountPoint)
     {
         var device = new MemoryBlockDevice(name, SectorSize, megabytes * 1024 * 1024 / SectorSize);
-        if (!VfsManager.RegisterFilesystem(name, new FatFilesystemType(device))
+        if (mountPoint == "/tmp")
+        {
+            if (!VfsManager.RegisterFilesystem(name, new GuardedFilesystem(new RamExt2FilesystemType(device)))
+                || !VfsManager.TryFormat(name, "", null)
+                || !VfsManager.TryMount(name, "", MountFlags.None, mountPoint, out _)
+                || !new VfsFileMetadata().SetMode(mountPoint, 0x3ff))
+            { throw new IOException("could not mount private RAM tmp filesystem"); }
+            return;
+        }
+        if (!VfsManager.RegisterFilesystem(name, new GuardedFilesystem(new FatFilesystemType(device)))
             || !VfsManager.TryFormat(name, "", new FatFormatOptions { Type = FatType.Fat16 })
             || !VfsManager.TryMount(name, "", MountFlags.None, mountPoint, out _))
         {

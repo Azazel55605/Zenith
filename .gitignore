@@ -15,3 +15,6 @@ output-arm64/
 
 # Local Cosmos package override (tools/use-cosmos.sh)
 cosmos.local.props
+
+# Python harness caches
+__pycache__/

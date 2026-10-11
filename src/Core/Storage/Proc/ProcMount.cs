@@ -1,3 +1,4 @@
+using Zenith.Core.Security;
 using System;
 using System.Diagnostics;
 using System.Globalization;
@@ -15,7 +16,7 @@ internal static class ProcMount
     public static void Initialize()
     {
         var filesystem = new ProcFilesystemType(Memory, Mounts, Uptime, CommandLine);
-        if (!VfsManager.RegisterFilesystem("proc", filesystem)
+        if (!VfsManager.RegisterFilesystem("proc", new GuardedFilesystem(filesystem))
             || !VfsManager.TryMount("proc", "", MountFlags.ReadOnly | MountFlags.NoExec | MountFlags.NoDev, "/proc", out _))
         {
             throw new InvalidOperationException("Failed to mount /proc");

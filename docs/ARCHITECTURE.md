@@ -70,15 +70,15 @@ part of a Zenith change. The vendored [reference docs](cosmos/SOURCE.md) are pin
 |---|---|
 | Installed `/` | New installs: supported ext2 root up to 512 MiB; older FAT roots recognized |
 | Live `/` | 64 MiB RAM-backed FAT; lost on reboot |
-| `/tmp` | Separate 16 MiB RAM-backed FAT, including installed boots |
+| `/tmp` | Separate 16 MiB RAM-backed ext2, mode 1777, including installed boots |
 | `/proc` | Read-only `meminfo`, `mounts`, `uptime`, `cmdline`; per-open first-read snapshots |
-| `/dev` | Null/zero and read-only disk/partition byte streams using Cosmos device names |
+| `/dev` | Null/zero, hardware random and root-readable disk/partition streams using Cosmos device names |
 | ESP | 64 MiB FAT32, Limine configuration and boot artifacts |
 | Secondary ext2 | Explicit supported-profile mounting and guarded partition formatting |
 
 Root discovery probes for `/etc/os-release` identifying Zenith. Multiple matching
-roots have no documented user-controlled UUID selection yet. `/etc/passwd` and
-`/etc/group` layout files do not constitute real accounts or authentication.
+roots have no documented user-controlled UUID selection yet. Installed ext2 uses
+validated passwd/group/shadow records and authenticated worker/window credentials.
 `Installer` writes GPT, formats root/ESP and lays out/copies system files.
 `GptChecksums` completes GPT checksums/backup structures missing from the framework
 path. `tools/make-bootable.sh` still copies the kernel ELF and EFI bootloader from
@@ -112,11 +112,18 @@ verifies shared I/O and retained data after deletion, then final-close removal.
 This differs from Unix immediate unlink. Calling raw driver Unlink while handles
 are held bypasses the required VFS lifetime management.
 
-Modes and IDs are metadata today. `chmod`, `chown`, `stat` and `ls -l` expose them,
-but operations do not enforce caller credentials. New ext2 objects default to
-UID/GID 0. FAT has no corresponding Unix metadata; unknown fields display `?`.
-Random devices and secure entropy are pending. The installed random plug examined
-during M2 used timer-mixed XorShift and must not be used for password salts.
+Installed ext2 accounts use immutable worker/window credentials. Mounted adapters
+check read/write, directory traversal, creation ownership, sticky removal and
+metadata changes; VFS plugs authorize deferred unlink and traversal across mounts.
+Only root can install/format/mount or read raw disks. Held I/O rechecks permissions.
+FAT has no corresponding persisted metadata; unknown fields display `?` and only
+root may mutate it. Login closes old windows and clears the clipboard; su changes
+one terminal. Kernel code remains trusted, with no process isolation.
+
+Passwords use bounded versioned PBKDF2-SHA256 records and fail-closed x64 RDSEED
+entropy; `/dev/random` reads the same hardware source. Cosmos's timer-mixed
+XorShift random plug is not used for passwords. ARM64 entropy is unavailable.
+See [ACCOUNTS](ACCOUNTS.md) for setup, access rules and recovery limits.
 
 ## Shell, terminal and application behavior
 

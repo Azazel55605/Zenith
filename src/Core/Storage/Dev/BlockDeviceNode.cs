@@ -48,7 +48,7 @@ internal sealed class BlockDeviceNode : IVfsInode, IFileOperations
         stat = new VfsStat
         {
             Ino = _number,
-            Mode = VfsMode.BlockDevice | (VfsMode)0x124, // 0444
+            Mode = VfsMode.BlockDevice | (VfsMode)0x100, // 0400
             NLink = 1,
             Size = (ulong)_length,
             BlkSize = _sectorSize,

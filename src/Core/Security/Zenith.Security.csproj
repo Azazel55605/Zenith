@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Credentials.cs;PermissionPolicy.cs;FileAccessPolicy.cs" />
+    <PackageReference Include="Cosmos.Kernel.HAL" Version="$(CosmosVersion)" />
+  </ItemGroup>
+</Project>

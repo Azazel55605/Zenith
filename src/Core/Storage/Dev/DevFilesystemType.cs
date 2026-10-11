@@ -5,6 +5,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using Cosmos.Kernel.HAL.Vfs;
 using Cosmos.Kernel.HAL.Interfaces.Devices;
+using Zenith.Core.Security;
 
 namespace Zenith.Core.Storage.Dev;
 
@@ -14,15 +15,17 @@ internal sealed class DevFilesystemType : IVfsFilesystemType
     internal static bool Owns(IVfsInode inode) => inode is Node or BlockDeviceNode;
 
     private readonly Func<IReadOnlyList<IBlockDevice>> _devices;
+    private readonly IEntropySource? _entropy;
 
-    public DevFilesystemType(Func<IReadOnlyList<IBlockDevice>>? devices = null)
+    public DevFilesystemType(Func<IReadOnlyList<IBlockDevice>>? devices = null, IEntropySource? entropy = null)
     {
         _devices = devices ?? (() => Array.Empty<IBlockDevice>());
+        _entropy = entropy;
     }
 
     public bool TryMount(ReadOnlySpan<char> source, MountFlags flags, [NotNullWhen(true)] out IVfsSuperblock? superblock)
     {
-        superblock = source.IsEmpty ? new Superblock((flags & MountFlags.ReadOnly) != 0, _devices) : null;
+        superblock = source.IsEmpty ? new Superblock((flags & MountFlags.ReadOnly) != 0, _devices, _entropy) : null;
         return superblock is not null;
     }
 
@@ -48,9 +51,9 @@ internal sealed class DevFilesystemType : IVfsFilesystemType
 
     private sealed class Superblock : IVfsSuperblock
     {
-        public Superblock(bool readOnly, Func<IReadOnlyList<IBlockDevice>> devices)
+        public Superblock(bool readOnly, Func<IReadOnlyList<IBlockDevice>> devices, IEntropySource? entropy)
         {
-            var operations = new Operations(readOnly, devices);
+            var operations = new Operations(readOnly, devices, entropy);
             Root = new Node("", 1, operations);
             operations.Root = Root;
             operations.Children = new IVfsInode[]
@@ -58,6 +61,8 @@ internal sealed class DevFilesystemType : IVfsFilesystemType
                 new Node("null", 2, operations),
                 new Node("zero", 3, operations, zero: true),
             };
+            if (entropy is not null)
+            { operations.Children = new IVfsInode[] { operations.Children[0], operations.Children[1], new Node("random", 4, operations) }; }
             SuperOperations = operations;
         }
 
@@ -80,17 +85,19 @@ internal sealed class DevFilesystemType : IVfsFilesystemType
         public IVfsInode Root = null!;
         public IReadOnlyList<IVfsInode> Children = Array.Empty<IVfsInode>();
         private readonly bool _readOnly;
+        private readonly IEntropySource? _entropy;
 
         private static readonly DeviceIdentityComparer s_deviceComparer = new();
         private readonly Func<IReadOnlyList<IBlockDevice>> _devices;
         private readonly object _gate = new();
         private Dictionary<IBlockDevice, BlockDeviceNode> _blocks = new(s_deviceComparer);
-        private ulong _nextNumber = 4;
+        private ulong _nextNumber = 5;
 
-        public Operations(bool readOnly, Func<IReadOnlyList<IBlockDevice>> devices)
+        public Operations(bool readOnly, Func<IReadOnlyList<IBlockDevice>> devices, IEntropySource? entropy)
         {
             _readOnly = readOnly;
             _devices = devices;
+            _entropy = entropy;
         }
 
         private bool IsPresent(IBlockDevice device)
@@ -110,7 +117,7 @@ internal sealed class DevFilesystemType : IVfsFilesystemType
             lock (_gate)
             {
                 var entries = new List<IVfsInode>(Children);
-                var names = new HashSet<string>(StringComparer.Ordinal) { "null", "zero" };
+                var names = new HashSet<string>(StringComparer.Ordinal) { "null", "zero", "random" };
                 var current = new Dictionary<IBlockDevice, BlockDeviceNode>(s_deviceComparer);
                 foreach (IBlockDevice device in _devices())
                 {
@@ -171,10 +178,10 @@ internal sealed class DevFilesystemType : IVfsFilesystemType
             bool directory = ReferenceEquals(node, Root);
             stat.Ino = node.Number;
             stat.Mode = directory ? VfsMode.Directory | (VfsMode)0x16D
-                : VfsMode.CharacterDevice | (_readOnly ? (VfsMode)0x124 : (VfsMode)0x1B6); // 0555 / 0444 / 0666
+                : VfsMode.CharacterDevice | (_readOnly || node.Name == "random" ? (VfsMode)0x124 : (VfsMode)0x1B6); // 0555 / 0444 / 0666
             stat.NLink = directory ? 2u : 1u;
             // Conventional major 1, minor 3 (null) and 5 (zero); neither stores data.
-            stat.Rdev = directory ? 0ul : node.Zero ? 0x105ul : 0x103ul;
+            stat.Rdev = directory ? 0ul : node.Name == "random" ? 0x108ul : node.Zero ? 0x105ul : 0x103ul;
             stat.BlkSize = 4096;
             return true;
         }
@@ -208,6 +215,12 @@ internal sealed class DevFilesystemType : IVfsFilesystemType
 
         public long Read(IVfsOpenFile openFile, Span<byte> buffer)
         {
+            if (openFile.Inode.Name == "random")
+            {
+                int count = Math.Min(buffer.Length, 4096);
+                if (_entropy is null || !_entropy.TryFill(buffer.Slice(0, count))) { buffer.Clear(); throw new IOException("secure entropy unavailable"); }
+                return count;
+            }
             if (!((Node)openFile.Inode).Zero)
             {
                 return 0;
@@ -218,6 +231,7 @@ internal sealed class DevFilesystemType : IVfsFilesystemType
 
         public long Write(IVfsOpenFile openFile, ReadOnlySpan<byte> buffer)
         {
+            if (openFile.Inode.Name == "random") { throw new IOException("random device is read-only"); }
             if (_readOnly)
             {
                 throw new IOException("/dev is mounted read-only");

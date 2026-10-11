@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using Cosmos.Kernel.System.Keyboard;
 using Zenith.Core.Shell;
+using Zenith.Core.Security;
 using Zenith.Gui;
 using Zenith.Gui.Graphics;
 using Zenith.Gui.Shell;
@@ -34,6 +35,8 @@ internal sealed class TerminalWindow : Window, IOutput
 
     private readonly TerminalBuffer _buffer;
     private readonly Shell _shell;
+    private volatile bool _secretRead;
+    private volatile bool _secretPrepared;
     private readonly int _cellWidth;
     private readonly int _cellHeight;
     private int _rows;
@@ -48,7 +51,7 @@ internal sealed class TerminalWindow : Window, IOutput
     // Shared with the worker thread; guarded by _sync.
     private readonly object _sync = new();
     private readonly StringBuilder _pendingOutput = new();
-    private readonly Queue<(string Name, string? Argument)> _pendingApps = new();
+    private readonly Queue<(string Name, string? Argument, Credentials Identity)> _pendingApps = new();
     private bool _exitRequested;
 
     private Thread? _job;
@@ -79,10 +82,13 @@ internal sealed class TerminalWindow : Window, IOutput
 
         _buffer = new TerminalBuffer();
         _shell = new Shell(this);
+        string user = Accounts.Service?.Name(Identity.Uid) ?? (Identity.IsRoot ? "root" : "nobody");
+        _shell.SetIdentity(Identity, user, Identity.IsRoot ? "/root" : "/home/" + user);
         _shell.Set("COLUMNS", _columns.ToString());
         _shell.ExitRequested += () => { lock (_sync) { _exitRequested = true; } };
         _shell.OpenApp = QueueOpenApp;
         _shell.ReadInputLine = ReadLineForShell;
+        _shell.ReadSecret = ReadSecretForShell;
         _prompt = _shell.Prompt;
 
         if (File.Exists("/etc/motd"))
@@ -91,6 +97,10 @@ internal sealed class TerminalWindow : Window, IOutput
         }
 
         _buffer.Write("\n");
+        if (Accounts.Error is string error) { _buffer.Write("Accounts unavailable: " + error + "\n"); }
+        else if (Accounts.Service is not null && Identity.IsRoot && !Accounts.Service.RootConfigured)
+        { _buffer.Write("Initial root setup: run passwd root, then passwd user and login user.\n"); }
+        else if (Identity.Uid == 65534) { _buffer.Write("Use login USER to authenticate.\n"); }
     }
 
     /// <summary>Opens a desktop app by name; set once by the desktop.</summary>
@@ -98,6 +108,12 @@ internal sealed class TerminalWindow : Window, IOutput
 
     /// <summary>Whether a command line is running.</summary>
     public bool IsBusy => _jobRunning;
+    public override void EndSession()
+    {
+        _shell.Cancel();
+        lock (_sync) { _pendingApps.Clear(); }
+        Close();
+    }
 
     // IOutput: everything the shell and its commands print lands here, from the worker thread.
     public void Write(string text)
@@ -129,7 +145,15 @@ internal sealed class TerminalWindow : Window, IOutput
         }
 
         string output;
-        (string Name, string? Argument)[] apps;
+        if (_secretRead && !_secretPrepared)
+        {
+            ResetInput(); _typeAhead.Clear(); _selectionAnchor = null; _secretPrepared = true;
+        }
+        else if (!_secretRead && _secretPrepared)
+        {
+            ResetInput(); _typeAhead.Clear(); _secretPrepared = false;
+        }
+        (string Name, string? Argument, Credentials Identity)[] apps;
         bool exit;
         lock (_sync)
         {
@@ -146,8 +170,9 @@ internal sealed class TerminalWindow : Window, IOutput
             _selectionAnchor = null;   // the rows it referred to have moved
         }
 
-        foreach (var (name, argument) in apps)
+        foreach (var (name, argument, caller) in apps)
         {
+            using var identity = CredentialContext.Enter(caller);
             OpenApp?.Invoke(name, argument);
         }
 
@@ -168,6 +193,7 @@ internal sealed class TerminalWindow : Window, IOutput
             }
 
             _prompt = _shell.Prompt;
+            Identity = _shell.Identity;
             _historyIndex = _shell.History.Count;
             Title = "Terminal — " + _shell.WorkingDirectory;
             _buffer.Changed = true;
@@ -177,7 +203,7 @@ internal sealed class TerminalWindow : Window, IOutput
                 Accept(_typeAhead.Dequeue());
             }
         }
-        else if (_job is not null && _typeAhead.Count > 0 && IsReadPending())
+        else if (_job is not null && !_secretRead && _typeAhead.Count > 0 && IsReadPending())
         {
             AnswerRead(_typeAhead.Dequeue());   // a line typed ahead answers `read`
         }
@@ -229,6 +255,17 @@ internal sealed class TerminalWindow : Window, IOutput
 
             Thread.Sleep(20);
         }
+    }
+
+    private string? ReadSecretForShell(string prompt)
+    {
+        _secretRead = true;
+        try
+        {
+            while (!_secretPrepared && !_shell.IsCancelled) { Thread.Sleep(20); }
+            return _shell.IsCancelled ? null : ReadLineForShell(prompt);
+        }
+        finally { _secretRead = false; }
     }
 
     private bool IsReadPending()
@@ -372,6 +409,8 @@ internal sealed class TerminalWindow : Window, IOutput
 
     public override void OnKey(KeyEvent key)
     {
+        using var identity = CredentialContext.Enter(_shell.Identity);
+        if (_secretRead && key.Key is ConsoleKeyEx.Tab or ConsoleKeyEx.UpArrow or ConsoleKeyEx.DownArrow) { return; }
         bool control = (key.Modifiers & ConsoleModifiers.Control) != 0;
         if (key.Key != ConsoleKeyEx.PageUp && key.Key != ConsoleKeyEx.PageDown)
         {
@@ -380,6 +419,7 @@ internal sealed class TerminalWindow : Window, IOutput
 
         if (control && (key.Modifiers & ConsoleModifiers.Shift) != 0 && key.Key is ConsoleKeyEx.C or ConsoleKeyEx.V)
         {
+            if (_secretRead) { return; }
             // Ctrl+Shift+C/V: the terminal clipboard keys (plain Ctrl+C interrupts).
             if (key.Key == ConsoleKeyEx.C)
             {
@@ -519,7 +559,7 @@ internal sealed class TerminalWindow : Window, IOutput
 
         if (IsBusy)
         {
-            Write(line + "\n");   // echoed like a terminal in cooked mode
+            Write((_secretRead ? string.Empty : line) + "\n");
             if (!AnswerRead(line))
             {
                 _typeAhead.Enqueue(line);
@@ -559,6 +599,7 @@ internal sealed class TerminalWindow : Window, IOutput
         _jobRunning = true;
         _job = new Thread(() =>
         {
+            using var credentials = CredentialContext.Enter(_shell.Identity);
             try
             {
                 _shell.Execute(line);
@@ -636,7 +677,7 @@ internal sealed class TerminalWindow : Window, IOutput
 
         lock (_sync)
         {
-            _pendingApps.Enqueue((name, argument));
+            _pendingApps.Enqueue((name, argument, CredentialContext.Current));
         }
 
         return true;
@@ -654,7 +695,7 @@ internal sealed class TerminalWindow : Window, IOutput
         List<Cell> tail = _buffer.Line(_buffer.LineCount - 1);
         var inputLine = new TerminalBuffer();
         inputLine.AppendCells(tail);
-        inputLine.Write(prompt + _input);
+        inputLine.Write(prompt + (_secretRead ? new string('*', _input.Length) : _input.ToString()));
         List<Cell> input = inputLine.Line(0);
 
         int caretIndex = tail.Count + Ansi.Strip(prompt).Length + _cursor;

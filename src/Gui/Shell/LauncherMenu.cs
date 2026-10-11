@@ -96,6 +96,12 @@ internal sealed class LauncherMenu
 
     private void AddPowerItem(Surface surface, Rect item, string label, Action run, int mouseX, int mouseY)
     {
+        if (!Zenith.Core.Security.CredentialContext.Current.IsRoot)
+        {
+            surface.DrawTextCentered(label + " (root)", Fonts.Regular, Theme.TextTitle, Theme.TextSecondary,
+                new Rect(item.X + 14, item.Y, item.W - 14, item.H), false);
+            return;
+        }
         DrawHover(surface, item, mouseX, mouseY);
         surface.DrawTextCentered(label, Fonts.Regular, Theme.TextTitle, Theme.TextSecondary,
             new Rect(item.X + 14, item.Y, item.W - 14, item.H), false);

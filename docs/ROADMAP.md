@@ -12,8 +12,8 @@ choices. See [SYSTEM-PLAN](SYSTEM-PLAN.md) for detailed acceptance and
 
 ## Where we are (reviewed 2026-10-11)
 
-M0/M1 are complete. Supported bounded ext2 is implemented and verified;
-**M2 is still open for real users/authentication and permission enforcement**.
+M0/M1/M2 are complete within their documented scope. Supported bounded ext2,
+installed accounts/authentication and filesystem permission enforcement are verified.
 See [ARCHITECTURE](ARCHITECTURE.md) for current behavior and [PROGRESS](PROGRESS.md)
 for exact evidence. Version labels below are milestone targets, not release claims.
 
@@ -21,18 +21,21 @@ for exact evidence. Version labels below are milestone targets, not release clai
 manual pages, persisted keyboard/timezone configuration; proc/dev virtual files;
 new installed ext2 roots up to 512 MiB with FAT32 ESP (legacy FAT roots recognized);
 guarded ext2 formatting, symlinks, numeric ownership/modes, directory moves and
-check-only consistency auditing. Live root and `/tmp` remain RAM-backed FAT.
+check-only consistency auditing. Live root remains RAM-backed FAT; `/tmp` uses
+RAM-backed ext2 (1777). Installed ext2 accounts support hidden login/password prompts, explicit worker/window
+credentials and enforced owner/group/other access; see [ACCOUNTS](ACCOUNTS.md).
 Installer boot files still require a host helper.
 
-**Latest local validation at `8389113`:** 374 host tests, eight Python tests,
-Release publish, 135 baseline + 135 large-profile QEMU assertions and seven
-UEFI disk-only assertions. Hosted CI rerun awaits push.
+**Latest local M2 validation:** 414 host tests, eight Python tests, Release publish,
+135 filesystem/installed-root assertions at 512 MiB with the large workload,
+32 account/access/reboot assertions and seven UEFI disk-only assertions. Independent
+host e2fsck is clean after account updates. Hosted CI rerun awaits push; see PROGRESS.
 
 | Current gap | Consequence |
 |---|---|
 | Buffered pipelines; no raw terminal mode | Unbounded producers do not terminate through a later head; no general full-screen TUIs |
 | Kernel-linked apps/commands; no process loader/isolation | New compiled apps require a kernel build; no general jobs/ps/kill |
-| Ownership/modes without credentials/enforcement | Metadata is truthful but cannot restrict access yet |
+| Trusted in-kernel apps and no process isolation | Credential/access checks cannot contain arbitrary kernel code |
 | Bounded ext2, no journal/guest repair | Unsupported layouts refused; crash-dirty volumes need host e2fsck |
 | Deferred unlink in Cosmos VFS | Namespace remains until final open handle closes |
 | Simple Files and no Settings app | Files remains a test client; settings use commands |
@@ -64,8 +67,8 @@ Details: [system plan](SYSTEM-PLAN.md), [userland](USERLAND.md),
 
 | Order | Work | Gate / dependency |
 |---|---|---|
-| 1 | Finish M2 accounts/credentials and permission policy | Entropy/hash primitives and complete operation-entry audit; native allow/deny/reboot tests |
-| Alongside 1 | P0 package builder/parser/planner and userland/recovery feasibility | Host/disposable experiments only; record ABI, trust and backend decisions before dependent implementation |
+| Done | M2 accounts/credentials and permission policy | Native allow/deny/reboot and cryptographic-vector checks passed; trusted-kernel boundary documented |
+| Research | P0 package builder/parser/planner and userland/recovery feasibility | Host/disposable experiments only; record ABI, trust and backend decisions before dependent implementation |
 | 2 | S0/S1 shared settings/session seam and serial headless | Preserve current desktop; boot without canvas/fonts; live and installed tests |
 | 3 | M3 network foundation, P1 offline data packages, P2 home repository preparation | Network faults/limits; file ownership/config policy and reboot recovery; VM access verified when provisioned |
 | 4 | M4 boot-artifact/root identity foundation; P3 staged kernel updates | Versioned ESP files, verified boot choice, retained previous entry and disk-only reboot; no snapshot prerequisite |
@@ -122,18 +125,18 @@ without hitting a missing basic. ✅
 Possible follow-ups, not blocking M2: streaming pipes (one thread per pipeline stage), a raw
 terminal mode with cursor addressing (enables `less`, `top`, a TUI editor), editor undo/search.
 
-## M2 · Unix filesystem semantics (v0.3) (in progress)
+## M2 · Unix filesystem semantics (v0.3) (done)
 
 | Item | Size | Notes |
 |---|---|---|
 | `/proc` virtual filesystem: `meminfo`, `mounts`, `uptime`, `cmdline`, later per-process entries | M | Initial read-only driver implemented; validation and remaining work in [PROGRESS.md](PROGRESS.md) |
-| `/dev` virtual filesystem: `null`, `zero`, `random`, block devices (Cosmos names such as `sata0`, `sata0p1`) | M | Null/zero and read-only live disk/partition nodes implemented with bounded `dd`; entropy and raw writes pending. See [PROGRESS.md](PROGRESS.md) |
-| **ext2 driver, read-write** | L | Supported bounded ext2 profile: secondary and installed roots, guarded formatter, ownership/modes, symlinks and directory moves. Native root/UEFI persistence verified; permission enforcement remains pending; see [PROGRESS.md](PROGRESS.md) |
+| `/dev` virtual filesystem: `null`, `zero`, `random`, block devices (Cosmos names such as `sata0`, `sata0p1`) | M | Null/zero, fail-closed hardware random and root-readable disk/partition nodes implemented; raw writes remain intentionally refused. See [PROGRESS.md](PROGRESS.md) |
+| **ext2 driver, read-write** | L | Supported bounded ext2 profile: secondary and installed roots, guarded formatter, ownership/modes, symlinks and directory moves. Native root/UEFI persistence verified; mounted permission adapter and native held-handle/path/access probes verified; see [PROGRESS.md](PROGRESS.md) |
 | Installer formats the root as ext2 (the ESP stays FAT32) | S | Verified: ext2-root reboot/persistence and disk-only EFI boot; ESP remains FAT32 |
-| Secure entropy and password hash verification | L | Required before salts/password authentication; timer-mixed random plug is unsuitable |
-| Users: console/graphical login, `/etc/shadow` with salted hashes, `passwd`, `su`, `useradd` | L | Pending: validated entropy/hash primitives, credential context and operation policy first |
-| Permission checks for file operations | L | Pending: GUI, shell, System.IO and direct-VFS entry points; per-operation credentials, ownership on creation and privileged operations |
-| Recovery and access diagnostics | M | Read-only/dirty-root errors, authentication failures and permission denials; never log secrets |
+| Secure entropy and password hash verification | L | Implemented x64 RDSEED and PBKDF2-SHA256; host vectors and native self-check verified, ARM64 fails closed |
+| Users: console/graphical login, `/etc/shadow` with salted hashes, `passwd`, `su`, `useradd` | L | Implemented ext2 shadow, hidden terminal login in the desktop, passwd/su/useradd and explicit worker/window credentials; reboot authentication verified |
+| Permission checks for file operations | L | Mounted driver guards cover GUI/shell/System.IO/inodes, ownership, sticky/setgid and privileged operations; native access audit and denied-operation handle cleanup verified |
+| Recovery and access diagnostics | M | Implemented read-only/dirty-root errors, authentication failures and permission denials; hidden input and serial secret-leak checks verified |
 | `fsck.ext2` (check-only first) | M | Read-only supported-profile consistency audit verified with corruption fixtures and native checks; repairs remain host-side |
 | ext4 read-only (extents, 64-bit), to read Linux disks | L | Optional, after ext2 |
 
@@ -344,8 +347,9 @@ requests or in our local fork until they land:
 ## Planning baseline and next implementation
 
 The product and hosting direction above is consolidated. Further design decisions are
-local implementation gates, not missing product requirements. Resume with M2 entropy/
-credentials/access-policy feasibility and a small reviewable account/enforcement slice.
+local implementation gates, not missing product requirements. M2 is complete. The
+next implementation choices are the S0/S1 settings/session seam and headless mode,
+or the M3 networking foundation; select the next slice explicitly.
 Package P0 and native-userland/R0 research may proceed independently once explicitly
 selected; do not deploy the VM or begin a Btrfs port implicitly. Every slice updates
 PROGRESS with code status, exact validation and unresolved limitations. Maintain the

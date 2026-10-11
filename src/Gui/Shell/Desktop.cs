@@ -3,6 +3,7 @@ using Cosmos.Kernel.System.Keyboard;
 using Cosmos.Kernel.System.Mouse;
 using Zenith.Apps;
 using Zenith.Core.Shell;
+using Zenith.Core.Security;
 using Zenith.Gui.Graphics;
 using CommandShell = Zenith.Core.Shell.Shell;
 
@@ -33,6 +34,7 @@ internal sealed class Desktop
     private long _hoverKey;
     private int _cursorX;
     private int _cursorY;
+    private int _generation;
 
     public Desktop(Canvas screen)
     {
@@ -81,6 +83,16 @@ internal sealed class Desktop
 
     public void Tick()
     {
+        if (_generation != Accounts.Generation)
+        {
+            _generation = Accounts.Generation;
+            foreach (var window in Windows.Windows) { window.EndSession(); }
+            Zenith.Gui.Clipboard.Text = string.Empty;
+            Windows.Update();
+            using var identity = CredentialContext.Enter(Accounts.Session);
+            Windows.Open(new TerminalWindow());
+            _sceneDirty = true;
+        }
         _input.Poll();
 
         if (_input.LeftPressed || _input.LeftReleased || _input.RightPressed || _input.Scroll != 0 || _input.Keys.Count > 0)

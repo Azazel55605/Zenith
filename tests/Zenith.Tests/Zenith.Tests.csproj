@@ -23,7 +23,7 @@
     </Reference>
     <Compile Include="../../src/Core/Storage/FileSystemProbe.cs" LinkBase="Kernel/Storage" />
     <Compile Include="../../src/Core/Storage/Dev/*.cs" Exclude="../../src/Core/Storage/Dev/DevMount.cs" LinkBase="Kernel/Storage/Dev" />
-    <Compile Include="../../src/Core/Storage/Ext2/*.cs" Exclude="../../src/Core/Storage/Ext2/Ext2FilesystemType.cs" LinkBase="Kernel/Storage/Ext2" />
+    <Compile Include="../../src/Core/Storage/Ext2/*.cs" Exclude="../../src/Core/Storage/Ext2/Ext2FilesystemType.cs;../../src/Core/Storage/Ext2/RamExt2FilesystemType.cs" LinkBase="Kernel/Storage/Ext2" />
     <Compile Include="../../src/Core/Storage/Proc/ProcFilesystemType.cs" LinkBase="Kernel/Storage/Proc" />
   </ItemGroup>
 
@@ -32,7 +32,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="../../src/Core/Shell/**/*.cs" Exclude="../../src/Core/Shell/Commands/SystemCommands.cs" LinkBase="Kernel/Shell" />
+    <Compile Include="../../src/Core/Shell/**/*.cs" Exclude="../../src/Core/Shell/Commands/SystemCommands.cs;../../src/Core/Shell/Commands/AccountCommands.cs" LinkBase="Kernel/Shell" />
+    <Compile Include="../../src/Core/Security/*.cs" Exclude="../../src/Core/Security/HardwareEntropy.cs;../../src/Core/Security/VfsSecurityPlug.cs;../../src/Core/Security/Accounts.cs;../../src/Core/Security/NativeAccessProbe.cs" LinkBase="Kernel/Security" />
     <Compile Include="../../src/Core/Memory/*.cs" LinkBase="Kernel/Memory" />
     <Compile Include="../../src/Core/Files/*.cs" LinkBase="Kernel/Files" />
     <Compile Include="../../src/Core/Time/*.cs" LinkBase="Kernel/Time" />

@@ -133,4 +133,33 @@ public class DevFilesystemTests
         Assert.True(file.Inode.InodeOperations.GetAttr(file.Inode, out var stat));
         Assert.Equal((VfsMode)0x124, stat.Mode & VfsMode.PermissionMask);
     }
+
+    private sealed class Entropy(bool available) : Zenith.Core.Security.IEntropySource
+    {
+        public bool TryFill(Span<byte> bytes) { bytes.Fill(0x42); return available; }
+    }
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void RandomReadsAreBoundedAndFailClosed(bool available)
+    {
+        Assert.True(new DevFilesystemType(entropy: new Entropy(available)).TryMount("",MountFlags.None,out var sb));
+        var file = Open(sb,"random");
+        Assert.True(file.Inode.InodeOperations.GetAttr(file.Inode,out var stat));
+        Assert.Equal(0x108ul,stat.Rdev);
+        Assert.Equal((VfsMode)0x124,stat.Mode & VfsMode.PermissionMask);
+        byte[] bytes = new byte[8192];
+        if (available)
+        {
+            Assert.Equal(4096,file.Operations.Read(file,bytes));
+            Assert.Equal(0x42,bytes[4095]); Assert.Equal(0,bytes[4096]);
+        }
+        else
+        {
+            bytes.AsSpan().Fill(7);
+            Assert.Throws<IOException>(() => file.Operations.Read(file,bytes));
+            Assert.All(bytes,b => Assert.Equal(0,b));
+        }
+        Assert.Throws<IOException>(() => file.Operations.Write(file,new byte[1]));
+    }
 }

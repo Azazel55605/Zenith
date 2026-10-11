@@ -629,3 +629,71 @@ permissions and reports accurate metadata through `ls -l`.
 - Documentation validation: all 49 local Markdown link targets in six changed
   files resolve, and git diff --check passes. Previous runtime results remain
   unchanged; no kernel tests rerun or infrastructure changes performed.
+
+## 2026-10-11 · M2 users and access enforcement (active)
+
+- Added immutable thread-scoped credentials, Unix permission/sticky/setgid policy,
+  bounded account parsing, fail-closed hardware entropy and PBKDF2-SHA256 passwords.
+- Added mounted-driver guards and VFS path/deferred-unlink authorization plugs.
+  Host security coverage passes 30 tests; native integration is under validation.
+- Active: resolve released patcher dependency lookup, then integrate persistent
+  accounts, hidden password input, session/app identities and guest regression tests.
+  M2 remains open; authentication and native permission behavior are not yet verified.
+
+- Integration evidence: HAL-only policy library and a local released-patcher wrapper
+  avoid dependency lookup and redundant self-reference failures without editing
+  Cosmos/global tools. Release ISO builds; all 413 host tests and eight Python
+  harness tests pass. Initial native security run passed account setup, wrong/right
+  authentication, filesystem/raw-device denials, sticky removal and reboot login.
+- Expanded native run confirms ordinary-user Editor/Files creation and random-device
+  reads. Its held-handle access probe exposed an unresolved deferred-deletion case;
+  investigating cleanup versus handles retained after a denied operation. M2 stays open.
+
+- Resolved denied-operation handle retention: metadata authorization runs before
+  allocation, and the local patcher prepends a requested-access check to Cosmos's
+  PAL `Open` before truncation/handle allocation. Native accessprobe now verifies
+  held-handle denials, denied unlink/chmod/truncation cleanup, unchanged data,
+  authorized deletion across identity changes, caller ownership and mount ancestry.
+  An attempted private-enum UnsafeAccessor wrapper failed at native boot and was
+  replaced with the signature-checked PAL precheck; the replacement probe passes.
+- Protected account/log ancestors, reserved the nobody UID/GID, and restricted
+  persistent logging to its root-configured destination with a narrow service scope.
+  Added native thread-isolation checks alongside RDSEED/PBKDF2 vectors.
+- Final account validation: 414/414 host tests, eight Python harness tests and
+  Release publish pass; 32/32 account/access QEMU assertions pass across live,
+  installation and authenticated reboot. No test password appears in serial logs.
+  Independent e2fsck of the account-updated root is clean. Final UEFI disk-only
+  boot passes 7/7. Evidence: `/tmp/zenith-security-host-final.log`,
+  `/tmp/zenith-security-build.log`, `/tmp/zenith-m2-security-complete/` and
+  `/tmp/zenith-m2-efi-complete/`.
+- Corrected three baseline assertions that still treated `/tmp` as FAT; FAT
+  unsupported-metadata/link checks now target the live FAT home instead. Corrected
+  large-profile run passed 135/135 at 1024 MiB; final CI-equivalent 512 MiB pressure
+  regression is running before milestone closure. Added account regression to CI;
+  hosted CI has not run for these unpushed changes.
+
+## 2026-10-11 · M2 completion
+
+- Final CI-equivalent large workload at 512 MiB passed 135/135 checks, including
+  live operations, GUI/shell regressions, formatter/checker guards, two installed
+  ext2 boots, truthful persistent ownership/modes/symlinks and independent e2fsck.
+  Memory-pressure collection ran successfully during the workload. Evidence:
+  `/tmp/zenith-m2-complete.log` and `/tmp/zenith-m2-complete/`.
+- M2 exit criteria are met: installed ext2 with real accounts and permissions,
+  truthful metadata, proc/dev and check-only fsck. Roadmap, shared instructions,
+  architecture, history, manual pages and account/development guides are reconciled.
+- Scope retained: bounded non-journaled ext2 with host crash repair, trusted
+  kernel-linked applications, root-maintenance FAT live/legacy mode, terminal login
+  within the desktop and x64 hardware entropy. ARM64 entropy fails closed. ext4 is
+  optional; independent userland, headless/DE/WM, Settings, Files rework, networking,
+  package VM/client and saved-system recovery remain later workstreams.
+- Next: review features/documentation and explicitly select S0/S1 or M3. No network,
+  package infrastructure deployment or userland migration started. Hosted CI is
+  configured with account regression but has not run for this unpushed work.
+- Final rebuild includes the corrected `id` fallback label. A disposable ext2
+  fixture with malformed `/etc/passwd` passes 3/3 native fail-closed assertions:
+  UID/GID 65534 reported as nobody, shadow read denied, login refused. Evidence:
+  `/tmp/zenith-bad-account-probe.log`, retained corrupt-account serial log in
+  `/tmp/zenith-m2-security-complete/` and `/tmp/zenith-security-build-final.log`.
+  Documentation validation: all 96 local Markdown targets resolve; git diff --check
+  passes. No generated images/disks/build output are included in the commit.

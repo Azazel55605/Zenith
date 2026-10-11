@@ -32,14 +32,14 @@ guidance here so the two entry points stay consistent.
   commands belong in `src/Core/Shell/Commands/SystemCommands.cs` and register at boot.
 - Storage uses ext2 for new installed roots (up to 512 MiB), recognizes older FAT
   installations, and uses RAM-backed FAT for live
-  root and `/tmp`; virtual `/proc` and `/dev` are mounted at boot. Experimental
+  root and RAM-backed ext2 (1777) for `/tmp`; virtual `/proc` and `/dev` are mounted at boot. Experimental
   secondary ext2 volumes require explicit `mount -t ext2` and a supported-profile
   check. `mkfs.ext2 PARTITION --yes` explicitly formats an unmounted secondary
   partition (1..512 MiB); it refuses mounted volumes and the running root disk.
   The locally adapted driver, upstream revision and allocator fix are
   documented in `src/Core/Storage/Ext2/SOURCE.md`; its BSD notice is retained in
-  LICENSE and `man licenses`. `fsck.ext2` checks unmounted supported volumes without repairs. User credentials
-  and permission enforcement remain pending.
+  LICENSE and `man licenses`. `fsck.ext2` checks unmounted supported volumes without repairs. Installed ext2 accounts and permission enforcement are documented in
+  [ACCOUNTS.md](docs/ACCOUNTS.md); kernel code remains trusted.
 - Follow existing C# conventions: file-scoped namespaces, explicit visibility,
   four-space indentation, and braces on separate lines.
 - Cosmos packages default to 3.0.89 (`global.json`, `Directory.Build.props`).
@@ -68,11 +68,12 @@ Record exact failures and validation limits in the progress log.
 
 ## Current direction
 
-M0 and M1 are complete per the roadmap. M2 (v0.3) adds Unix filesystem semantics:
+M0, M1 and M2 are complete per the roadmap. M2 (v0.3) provides Unix filesystem semantics:
 virtual `/proc` and `/dev`, read-write ext2, an ext2 installer root, users and
 permission enforcement, and check-only `fsck.ext2`. ext4 read-only is optional.
-Implement reviewable slices in dependency order. Keep M2 open until its full
-exit criterion is met: installed ext2, real users/permissions and truthful `ls -l`.
+Its exit criterion is verified: installed ext2, real users/permissions and truthful
+`ls -l`, within the bounded ext2 and trusted-kernel limits in ACCOUNTS. Continue
+with explicitly selected roadmap slices and record implementation/validation evidence.
 
 The expanded product requirements include headless, DE and automatic-tiling WM
 sessions, shared Settings, future Files rework and installed updates. Their designs

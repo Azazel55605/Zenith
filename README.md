@@ -76,7 +76,7 @@ a very small final block group is rejected. Labels use up to 16 printable ASCII
 characters. It creates root and `lost+found`, with backups in every group.
 For example: `mkfs.ext2 sata2p0 --yes -L SCRATCH`, then
 `mkdir /mnt/new; mount -t ext2 sata2p0 /mnt/new`. See `man mkfs.ext2`.
-This does not securely erase data; UUID assignment awaits entropy support.
+This does not securely erase data; UUID assignment remains a separate formatter follow-up.
 
 On ext2, `ln -s TARGET LINK` creates a symbolic link and `readlink LINK` prints
 its stored target, including dangling links. `unlink LINK` removes the link
@@ -89,9 +89,11 @@ On ext2, `chmod OCTAL FILE...` persists permission bits (0000..7777), and
 `chown UID[:GID] FILE...` persists numeric 32-bit ownership. Both follow final
 symlinks and reject FAT/virtual filesystems. `ls -l` and `stat` read actual VFS
 attributes, display numeric IDs and link targets, and can inspect dangling links.
-FAT uses `?` for unavailable Unix fields. Account lookup and permission enforcement
-remain pending: changing bits currently records metadata without restricting access.
-New ext2 objects still default to UID/GID 0. New installed roots use ext2; older FAT installations remain recognized.
+FAT uses `?` for unavailable Unix fields. Owner/group/other permissions now restrict access. New objects use caller UID/GID
+and umask 022; chmod requires owner/root, chown requires root. Installed accounts
+use hidden password prompts: initial setup runs `passwd root`, `passwd user`, then
+`login user`. Later boots require login. See [accounts and access](docs/ACCOUNTS.md)
+and `man accounts` for commands, setup, recovery and security limits. New installed roots use ext2; older FAT installations remain recognized.
 
 `fsck.ext2 PARTITION` performs a read-only consistency check of an unmounted
 supported ext2 partition (up to 512 MiB); it reports errors and never repairs.
@@ -130,8 +132,8 @@ folders, devices, virtual files or symlinks are unavailable. See `man files`.
 Start with the [documentation hub](docs/README.md). The [current architecture](docs/ARCHITECTURE.md),
 [project history](docs/HISTORY.md), [detailed system plan](docs/SYSTEM-PLAN.md) and
 [package/update design discussion](docs/PACKAGE-MANAGER.md) separate verified behavior
-from planned headless, DE/tiling WM, Settings, Files and update work. M2 remains open
-for real users and permission enforcement.
+from planned headless, DE/tiling WM, Settings, Files and update work. M2 is complete within its documented ext2 and trusted-kernel scope; validation is
+tracked in the progress log.
 
 - [`INSTRUCTIONS.md`](INSTRUCTIONS.md): shared contributor and agent guidance (also linked from `AGENTS.md` and `CLAUDE.md`).
 - [`docs/PROGRESS.md`](docs/PROGRESS.md): active M2 work, validation evidence and next steps.

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Zenith.Core.Shell.Commands;
+using Zenith.Core.Security;
 
 namespace Zenith.Core.Shell;
 
@@ -23,6 +24,16 @@ internal sealed class Shell : IExpansionContext
     private readonly Dictionary<string, Node> _functions = new();
     private readonly IOutput _terminal;
     private readonly Shell? _parent;
+    public Credentials Identity { get; private set; } = CredentialContext.Current;
+    public Func<string, string?>? ReadSecret { get; set; }
+    public void SetIdentity(Credentials identity, string name, string home)
+    {
+        Identity = identity;
+        _environment["USER"] = name; _environment["HOME"] = home;
+        using var scope = CredentialContext.Enter(identity);
+        WorkingDirectory = Directory.Exists(home) ? home : "/";
+        _environment["PWD"] = WorkingDirectory;
+    }
     private List<string> _positional = new();
     private string _scriptName = "sh";
     private volatile bool _cancelRequested;
@@ -70,6 +81,8 @@ internal sealed class Shell : IExpansionContext
     private Shell(Shell parent)
     {
         _parent = parent;
+        Identity = parent.Identity;
+        ReadSecret = parent.ReadSecret;
         Metadata = parent.Metadata;
         _terminal = parent._terminal;
         foreach (var (name, value) in parent._environment)
@@ -89,6 +102,7 @@ internal sealed class Shell : IExpansionContext
     public static void Register(Command command) => s_commands[command.Name] = command;
 
     public static IFileMetadata? DefaultMetadata { get; set; }
+    public static Action<string>? DirectorySearch { get; set; }
     public IFileMetadata? Metadata { get; }
 
     public string WorkingDirectory { get; private set; }
@@ -178,6 +192,7 @@ internal sealed class Shell : IExpansionContext
         {
             return false;
         }
+        DirectorySearch?.Invoke(full);
 
         WorkingDirectory = full;
         _environment["PWD"] = full;
@@ -203,6 +218,7 @@ internal sealed class Shell : IExpansionContext
     /// <summary>Runs text typed at the prompt (one or more lines) and records it in the history.</summary>
     public void Execute(string text)
     {
+        using var identity = CredentialContext.Enter(Identity);
         if (text.Trim().Length == 0)
         {
             return;
@@ -356,6 +372,7 @@ internal sealed class Shell : IExpansionContext
     /// <summary>Runs one node with the given input and output, applying its redirections first.</summary>
     private int Exec(Node node, ShellInput? input, IOutput output)
     {
+        using var identity = CredentialContext.Enter(Identity);
         if (node.Redirects.Count == 0)
         {
             return ExecCore(node, input, output);
@@ -392,6 +409,7 @@ internal sealed class Shell : IExpansionContext
         int status = ExecCore(node, input, buffer);
         try
         {
+            using var writerIdentity = CredentialContext.Enter(Identity);
             string text = Ansi.Strip(buffer.ToString());
             if (append)
             {
@@ -666,6 +684,7 @@ internal sealed class Shell : IExpansionContext
 
     private int RunCommand(Command command, string name, List<string> args, ShellInput? input, IOutput output)
     {
+        using var identity = CredentialContext.Enter(Identity);
         var context = new CommandContext(this, name, args.ToArray(), input, output, _terminal, isTerminal: output == _terminal);
         try
         {

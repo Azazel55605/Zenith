@@ -56,6 +56,9 @@ internal static class Log
             {
                 try
                 {
+                    // Logging is a trusted service writing its fixed boot-time path;
+                    // a caller's uid must not disable system log persistence.
+                    using var credentials = Security.CredentialContext.Enter(Security.Credentials.Root);
                     File.AppendAllText(s_file, line + "\n");
                 }
                 catch (Exception)
@@ -78,6 +81,7 @@ internal static class Log
     /// <summary>Starts mirroring the log to <paramref name="path"/>, rotating the previous file to <c>.1</c>.</summary>
     public static void PersistTo(string path)
     {
+        Security.GuardedFilesystem.RequireRoot();
         try
         {
             if (File.Exists(path))

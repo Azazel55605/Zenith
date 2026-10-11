@@ -1,3 +1,4 @@
+using Zenith.Core.Security;
 using System;
 using System.Collections.Generic;
 using Cosmos.Kernel.HAL.Interfaces.Devices;
@@ -32,7 +33,7 @@ internal static class DevMount
 
     public static void Initialize()
     {
-        if (!VfsManager.RegisterFilesystem("dev", new DevFilesystemType(Devices))
+        if (!VfsManager.RegisterFilesystem("dev", new GuardedFilesystem(new DevFilesystemType(Devices, HardwareEntropy.Source)))
             || !VfsManager.TryMount("dev", "", MountFlags.NoExec | MountFlags.NoSuid, "/dev", out _))
         {
             throw new InvalidOperationException("Failed to mount /dev");

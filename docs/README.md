@@ -10,6 +10,7 @@ features already available. Milestone version labels are targets, not release da
 |---|---|
 | What works, how to boot and use it | [Project README](../README.md) |
 | How the current system actually works | [Architecture](ARCHITECTURE.md) |
+| Account setup, authentication and access limits | [Accounts](ACCOUNTS.md) |
 | Desktop, headless, DE, tiling WM, settings and Files direction | [System plan](SYSTEM-PLAN.md) |
 | Updating an installation and distributing applications | [Package manager design discussion](PACKAGE-MANAGER.md) |
 | Moving desktop/apps outside the kernel | [Userland direction](USERLAND.md) |
@@ -36,7 +37,7 @@ PROGRESS records dated execution and evidence. Keep these roles separate so a pr
 cannot become a shipped claim through repetition. Historical test counts are snapshots.
 Local validation does not establish that hosted CI passed after an unpushed commit.
 
-M0/M1 are complete. The bounded ext2 implementation and installed-root validation are
-complete; **M2 remains open for users/authentication and permission enforcement**.
-The next implementation slice should follow the decisions recorded during this planning
-discussion, rather than beginning networking or package installation implicitly.
+M0/M1/M2 are complete within their documented scope. Bounded ext2, installed roots,
+real accounts/authentication and filesystem access enforcement are verified;
+[ACCOUNTS](ACCOUNTS.md) describes setup and the trusted-kernel boundary. The next
+implementation slice must be selected explicitly from the expanded roadmap.

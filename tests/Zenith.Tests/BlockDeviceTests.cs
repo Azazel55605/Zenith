@@ -153,7 +153,7 @@ public class BlockDeviceTests
         Assert.Equal(VfsMode.BlockDevice, stat.Mode & VfsMode.FileTypeMask);
         Assert.False(stat.IsDirectory);
         Assert.False(stat.IsRegularFile);
-        Assert.Equal((VfsMode)0x124, stat.Mode & VfsMode.PermissionMask);
+        Assert.Equal((VfsMode)0x100, stat.Mode & VfsMode.PermissionMask);
         Assert.Equal(64ul, stat.Size);
         Assert.Equal(16, stat.BlkSize);
         Assert.NotEqual(0ul, stat.Rdev);

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Cosmos.Kernel.System.Graphics;
 using Zenith.Apps;
 using Zenith.Core;
+using Zenith.Core.Security;
 using Zenith.Core.Input;
 using Zenith.Core.Memory;
 using Zenith.Core.Shell.Commands;
@@ -24,9 +25,11 @@ public class Kernel : Sys.Kernel
 
     protected override void BeforeRun()
     {
+        using var credentials = CredentialContext.Enter(Credentials.Root);
         try
         {
             SystemMounts.Initialize();
+            Accounts.Initialize();
             KeyboardLayouts.LoadSaved();
             if (SystemClock.LoadSaved() is string clockError)
             {
@@ -34,8 +37,14 @@ public class Kernel : Sys.Kernel
             }
             SystemCommands.Register(CommandShell.Register);
             CommandShell.DefaultMetadata = new VfsFileMetadata();
+            CommandShell.DirectorySearch = path =>
+            {
+                if (Sys.Vfs.VfsManager.TryOpenDirectory(path, out var directory))
+                { using (directory) { FileAccessPolicy.Require(directory.Inode, PermissionPolicy.Search); } }
+            };
             Fonts.Load();
             _desktop = new Desktop(Canvas.GetFullScreen());
+            using var session = CredentialContext.Enter(Accounts.Session);
             _desktop.Windows.Open(new WelcomeWindow());
             _desktop.Windows.Open(new TerminalWindow());
             Log.Write("kernel", "desktop ready (" + (SystemMounts.Mode == BootMode.Live ? "live" : "installed") + ")");
@@ -48,6 +57,7 @@ public class Kernel : Sys.Kernel
 
     protected override void Run()
     {
+        using var credentials = CredentialContext.Enter(Accounts.Session);
         try
         {
             if (KernelPanic.Requested is string reason)

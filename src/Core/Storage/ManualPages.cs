@@ -11,6 +11,38 @@ internal static class ManualPages
 
     public static readonly (string Name, string Text)[] Pages =
     {
+        ("accounts", """
+            NAME
+                accounts - installed ext2 authentication and access
+
+            FIRST SETUP
+                No default passwords. Initial root console: passwd root, then
+                passwd user, then login user. Later boots require login NAME.
+                Live/legacy FAT boots remain root-only maintenance sessions.
+
+            COMMANDS
+                login NAME switches the desktop, closes old windows and clears
+                the clipboard. su [NAME] switches only this terminal.
+                logout ends the desktop session. whoami/id use credentials.
+                passwd [NAME] uses hidden prompts; passwords never go in argv.
+                useradd NAME (root) creates a locked account and private home.
+                passwd NAME unlocks it. Non-root passwd verifies the old password.
+
+            ACCESS
+                Owner/group/other read, write and directory search are enforced.
+                Creation uses caller UID/GID and umask 022. /tmp is RAM ext2 1777.
+                Sticky deletion and setgid directory inheritance are supported.
+                chmod requires owner/root; chown requires root. Setuid/setgid do
+                not grant execution privilege; apps still run inside the kernel.
+                Held file I/O rechecks modes on every operation. Raw disk reads,
+                installation, mounts, formatting, saved settings and power need root.
+
+            LIMITS
+                Passwords use PBKDF2-SHA256 and CPU/hypervisor RDSEED entropy.
+                Missing entropy refuses password creation. Accounts require ext2.
+                Malformed account files fail closed; repair from a trusted live boot.
+                No process isolation, ACLs, aging or crash-atomic account updates.
+            """),
         ("ln", """
             NAME
                 ln - create a symbolic link on an ext2 volume
@@ -31,7 +63,7 @@ internal static class ManualPages
                 directories are refused. rm does not recognize dangling links.
                 The installed VFS refuses .. components in link targets and
                 stops following links after eight hops. Ownership and modes are
-                persisted and ls -l shows real metadata; enforcement is pending.
+                persisted and enforced; ls -l shows real metadata. See man accounts.
 
             EXAMPLE
                 ln -s persist.txt /mnt/new/alias
@@ -182,7 +214,7 @@ internal static class ManualPages
                 the filetype feature. This profile check is not a consistency check.
                 Use fsck.ext2 on unmounted supported volumes; use host e2fsck for
                 repairs. New installed roots use ext2; old FAT roots remain
-                recognized. Users/permission enforcement is pending.
+                recognized. Installed users/access checks require ext2; see accounts.
 
             EXAMPLE
                 mkdir /mnt/ext
@@ -220,7 +252,8 @@ internal static class ManualPages
                 their capacity as file size, support bounded byte reads and seeks,
                 and reject writes/truncation even on unmounted disks. Reopen after
                 removal or a partition rescan; old handles do not follow replacements.
-                /dev/random is pending a suitable kernel entropy source.
+                /dev/random is read-only hardware entropy (up to 4096 bytes per read).
+                Missing RDSEED fails closed. Raw disks are root-readable 0400.
                 Use bounded reads
                 for /dev/zero. Text filters currently read entire inputs before
                 filtering, so head /dev/zero does not stop at a fixed number of lines.

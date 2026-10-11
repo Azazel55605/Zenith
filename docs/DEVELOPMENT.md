@@ -117,7 +117,7 @@ NUL and more than 255 UTF-8 bytes before allocation. The installed VFS rejects
 permission enforcement is claimed by this slice.
 The formatter is currently limited to the profile above and 1..512 MiB partitions;
 preflight rejects a final group too short for metadata. UUID remains unassigned;
-this is not a secure wipe or a journal. Installer/root migration uses the bounded supported profile; users/enforcement remain pending.
+this is not a secure wipe or a journal. Installer/root migration uses the bounded supported profile; installed account/access behavior is described in [ACCOUNTS](ACCOUNTS.md).
 
 ## Ownership, modes and CI input pacing
 
@@ -129,11 +129,11 @@ counts, size and inode/block data. Virtual proc/dev nodes report their defined
 attributes. FAT's Unix mode/ownership fields are unavailable and shown as `?`.
 `chmod OCTAL FILE...` accepts 0000..7777; `chown UID[:GID] FILE...` accepts numeric
 unsigned 32-bit IDs. They follow final links and reject non-ext2 nodes. This
-changes stored metadata; users, name lookup and access checks are still pending.
+checks caller credentials and changes stored metadata; ls/stat display numeric ownership.
 The writable profile requires Linux creator layout for OS-dependent UID/GID
 fields. SetAttr preflight rejects unsupported flags/timestamp precision before
 mutating data; unselected fields and file type survive updates, and ctime changes
-with mode/ownership. Creation still uses UID/GID 0 pending credentials.
+with mode/ownership. Creation uses caller UID/GID and umask 022; see [ACCOUNTS](ACCOUNTS.md).
 Host tests check remount, inode reuse, independent debugfs/e2fsck, parsing and
 special-bit formatting. Guest checks update files and directories, follow links,
 refuse invalid/unsupported changes, remount and retain the original file contents;
@@ -254,8 +254,8 @@ use host e2fsck for repairs, unsupported layouts and crash recovery.
 closing one handle, final-close deletion, inode reuse and scratch cleanup.
 Installed Cosmos 3.0.89 retains the directory entry until final close; this is
 verified compatibility behavior, not Unix immediate namespace removal. All
-normal deletion callers must use VFS lifetime management. Permission enforcement
-and real credentials remain M2 work. Superblock writes now precede device Flush
+normal deletion callers must use VFS lifetime management. Mounted adapters enforce credentials and VFS plugs authorize deletion before
+marking handles pending; final close completes already-authorized deletion. Superblock writes now precede device Flush
 at the sync durability point; a volatile-device regression checks this ordering.
 
 Writable mounts durably mark the primary ext2 superblock unclean. Sync leaves it
@@ -263,3 +263,26 @@ unclean; successful unmount restores clean state and flushes. Volumes left dirty
 by a crash are refused for writable mounting and need host e2fsck first. The
 checker also reports files exceeding the driver's double-indirect size range;
 triple-indirect file I/O remains unsupported. This profile is deliberately bounded.
+
+
+## Security integration and released patcher compatibility
+
+The HAL-only `Zenith.Security` assembly contains credential/access policy without
+referencing Cosmos.System or the kernel executable. VFS plug bodies call it;
+placing these helpers in Zenith itself would create initializer dependencies.
+The released 3.0.89 patcher resolves enum references relative to its working
+directory and imports a redundant AssemblyRef to the target itself. The local
+`tools/cosmos-patcher.py` wrapper runs it beside copied kernel dependencies and
+`tools/PatcherFixup` removes/rebinds redundant self references, preserving real edges
+and matching PDB output. It also prepends the HAL-only policy's permission check to
+the released PAL descriptor `Open` method, before handle allocation: a denied
+truncation must not leak a tracked handle. The fixup checks the expected method
+signature and fails the build if it changes. Global tools and the sibling Cosmos
+checkout are unchanged.
+The fixup uses pinned Mono.Cecil 0.11.6; its host sources are excluded from the kernel.
+Native builds and QEMU tests are required to validate patched code.
+
+Run `python3 tools/security-smoke.py /tmp/zenith-security` for the disposable M2
+account/access suite. x64 RDSEED must be available (QEMU `-cpu max`); ARM64 password
+creation fails closed until an entropy backend exists. See [ACCOUNTS](ACCOUNTS.md)
+for bootstrap, record/update rules and the trusted-kernel security boundary.

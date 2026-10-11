@@ -9,6 +9,7 @@ using Cosmos.Kernel.System.Storage;
 using Cosmos.Kernel.System.Vfs;
 using Zenith.Core.Input;
 using Zenith.Core.Storage;
+using Zenith.Core.Security;
 using Zenith.Core.Time;
 
 namespace Zenith.Core.Shell.Commands;
@@ -21,10 +22,21 @@ internal static class SystemCommands
 
     public static void Register(Action<Command> add)
     {
+        var register = add;
+        add = command => register(new Command(command.Name, command.Usage, command.Summary, c =>
+        {
+            if (command.Name is "install" or "mkfs.ext2" or "fsck.ext2" or "umount" or "reboot" or "poweroff" or "crash"
+                || (command.Name == "mount" && c.Args.Length > 0)
+                || (command.Name == "localectl" && c.Args.Length > 0 && c.Args[0] == "set-keymap")
+                || (command.Name == "timedatectl" && c.Args.Length > 0 && c.Args[0] == "set-timezone"))
+            { GuardedFilesystem.RequireRoot(); }
+            return command.Run(c);
+        }));
         add(new Command("uname", "uname [-a]", "Print system information", Uname));
         add(new Command("hostname", "hostname", "Print the host name", c => { c.WriteLine(c.Shell.Get("HOSTNAME")); return 0; }));
-        add(new Command("whoami", "whoami", "Print the current user", c => { c.WriteLine(c.Shell.Get("USER")); return 0; }));
-        add(new Command("id", "id", "Print user and group ids", c => { c.WriteLine("uid=1000(user) gid=100(users) groups=100(users)"); return 0; }));
+        add(new Command("securityprobe", "securityprobe", "Check security primitives and hardware entropy", SecurityProbe));
+        AccountCommands.Register(add);
+        add(new Command("accessprobe", "accessprobe directory", "Verify native VFS authorization (root, ext2)", c => { if (c.Args.Length != 1) { return c.Fail("specify an ext2 directory"); } c.WriteLine(NativeAccessProbe.Run(c.Shell.ResolvePath(c.Args[0]))); return 0; }));
         add(new Command("date", "date [-u]", "Print the date and time (-u: in UTC)", Date));
         add(new Command("timedatectl", "timedatectl [status | list-timezones | set-timezone zone]", "Show or set the time zone", Timedatectl));
         add(new Command("uptime", "uptime", "Time since boot", Uptime));
@@ -48,6 +60,46 @@ internal static class SystemCommands
         add(new Command("umount", "umount mountpoint", "Unmount a filesystem", Umount));
         add(new Command("reboot", "reboot", "Sync, unmount and restart the machine", _ => { PowerControl.Reboot(); return 0; }));
         add(new Command("poweroff", "poweroff", "Sync, unmount and turn the machine off", _ => { PowerControl.PowerOff(); return 0; }));
+    }
+
+    private static int SecurityProbe(CommandContext c)
+    {
+        byte[] first = new byte[16], second = new byte[16];
+        if (!Zenith.Core.Security.HardwareEntropy.Source.TryFill(first)
+            || !Zenith.Core.Security.HardwareEntropy.Source.TryFill(second))
+        {
+            return c.Fail("RDSEED unavailable; password creation disabled");
+        }
+        int different = 0;
+        for (int i = 0; i < 16; i++) { different |= first[i] ^ second[i]; }
+        if (different == 0 || !Zenith.Core.Security.PasswordHash.Verify("native test", "$zenith-pbkdf2-sha256$600000$AAECAwQFBgcICQoLDA0ODw==$3Ap115woogot/jebBfe+V/e+qHiHi5OWobQCImUZ+kE="))
+        {
+            return c.Fail("security primitive self-test failed");
+        }
+        var identity = new Zenith.Core.Security.Credentials(1000, 100);
+        using (Zenith.Core.Security.CredentialContext.Enter(identity))
+        {
+            using (Zenith.Core.Security.CredentialContext.Enter(Zenith.Core.Security.Credentials.Root))
+            {
+                if (!Zenith.Core.Security.CredentialContext.Current.IsRoot) { return c.Fail("credential scope failed"); }
+            }
+            if (Zenith.Core.Security.CredentialContext.Current.Uid != 1000) { return c.Fail("credential restore failed"); }
+        }
+        uint parent = CredentialContext.Current.Uid;
+        uint[] observed = new uint[3];
+        var worker = new System.Threading.Thread(() =>
+        {
+            observed[0] = CredentialContext.Current.Uid;
+            using (CredentialContext.Enter(new Credentials(2222,2222)))
+            { System.Threading.Thread.Sleep(40); observed[1] = CredentialContext.Current.Uid; }
+            System.Threading.Volatile.Write(ref observed[2], 1);
+        });
+        worker.Start();
+        while (System.Threading.Volatile.Read(ref observed[2]) == 0) { System.Threading.Thread.Sleep(20); }
+        if (observed[0] != 65534 || observed[1] != 2222 || CredentialContext.Current.Uid != parent)
+        { return c.Fail("credential thread isolation failed"); }
+        c.WriteLine("security primitives ok (RDSEED, PBKDF2-SHA256, credential scopes)");
+        return 0;
     }
 
     private static int Symlink(CommandContext c)
@@ -373,7 +425,7 @@ internal static class SystemCommands
         string text = c.Args.Length > 0 ? string.Join(" ", c.Args) : c.Stdin ?? string.Empty;
         foreach (string line in CommandContext.Lines(text))
         {
-            Log.Write(c.Shell.Get("USER"), line);
+            Log.Write("user", line);
         }
 
         return 0;

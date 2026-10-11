@@ -90,6 +90,24 @@ orderly shutdown. One host assertion initially expected debugfs's mode string wi
 extra zero; the matcher was corrected and complete profiles rerun. Hosted CI awaits
 push; local validation is not a hosted-run result.
 
+## 2026-10-11: M2 accounts and access completion
+
+Added installed ext2 account state, locked-account bootstrap, hardware entropy,
+PBKDF2-SHA256 passwords and hidden login/passwd/su prompts. Identity now follows
+shell workers and GUI windows rather than mutable environment variables. Mounted
+filesystem guards enforce owner/group/other access, creation ownership, sticky
+removal, setgid inheritance and privileged system/device operations. `/tmp` is a
+1777 RAM ext2 volume. Live/legacy FAT remains root maintenance mode.
+
+Native auditing found and fixed handle retention after denied metadata/truncation
+operations, authorization before deferred unlink, mount traversal gaps and ordinary
+user logging context. Local evidence: 414 host tests, eight Python tests, 135
+filesystem/installed-root checks at 512 MiB with the large workload, 32 account/access
+checks, seven disk-only EFI checks and clean independent host e2fsck. M2's exit
+criterion is met within the documented supported ext2 profile. Kernel code remains
+trusted; process isolation and separate desktop/apps belong to future userland work.
+See [ACCOUNTS](ACCOUNTS.md) and [PROGRESS](PROGRESS.md); hosted CI awaits push.
+
 ## The next chapter: planned system and distribution
 
 The requested direction expands Zenith to real headless and graphical DE/auto-tiling
@@ -98,7 +116,7 @@ allow existing installations to receive built artifacts rather than reinstalling
 from an ISO. [SYSTEM-PLAN](SYSTEM-PLAN.md) records delivery slices and acceptance gates;
 [PACKAGE-MANAGER](PACKAGE-MANAGER.md) records proposed design and unresolved choices.
 
-M2 still requires authentication/users and actual permission enforcement. Networking,
+M2 account/authentication and filesystem access work is complete. Networking,
 self-contained installation, independent programs and real-hardware validation remain
 future milestones. No package manager/mirror, headless session, tiling WM or Settings
 app is marked implemented by this documentation work.

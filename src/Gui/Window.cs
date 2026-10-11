@@ -1,4 +1,5 @@
 using Cosmos.Kernel.System.Keyboard;
+using Zenith.Core.Security;
 using Zenith.Gui.Graphics;
 
 namespace Zenith.Gui;
@@ -19,6 +20,7 @@ internal abstract class Window
     }
 
     public string Title { get; protected set; }
+    public Credentials Identity { get; protected set; } = CredentialContext.Current;
     public Rect Bounds { get; private set; }
     public bool IsFocused { get; internal set; }
     public bool IsMinimized { get; internal set; }
@@ -41,10 +43,12 @@ internal abstract class Window
     public Rect MinimizeButton => CloseButton.Offset(-(ButtonSize + 2) * (CanResize ? 2 : 1), 0);
 
     public void Close() => IsClosed = true;
+    public virtual void EndSession() => Close();
 
     /// <summary>Moves or resizes the window; <see cref="OnResized"/> runs when the size changed.</summary>
     internal void SetBounds(Rect bounds)
     {
+        using var identity = CredentialContext.Enter(Identity);
         bool resized = bounds.W != Bounds.W || bounds.H != Bounds.H;
         Bounds = bounds;
         if (resized)

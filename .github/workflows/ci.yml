@@ -74,6 +74,11 @@ jobs:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 tools/test-installed-boot.py smoke/installed-disk.img --keep smoke-efi
 
+      - name: Accounts and access regression
+        env:
+          QEMU: /usr/bin/qemu-system-x86_64
+        run: python3 tools/security-smoke.py smoke-security
+
       - name: Ext2 large workload (512 MiB pressure regression)
         env:
           QEMU: /usr/bin/qemu-system-x86_64
@@ -87,6 +92,7 @@ jobs:
             smoke/
             smoke-large/
             smoke-efi/
+            smoke-security/
 
   release:
     name: Release
