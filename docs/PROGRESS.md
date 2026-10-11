@@ -23,7 +23,7 @@
   DHCP, wire captures, HTTP/TLS, fault/cancel/link loss, reboot persistence and
   independent clean ext2 checks. Evidence: /tmp/zenith-rx-poll-build.log,
   /tmp/zenith-rx-poll-host.log, /tmp/zenith-rx-poll-receive.log and
-  /tmp/zenith-rx-poll-network.log. Actual VMware retest remains pending; the new
+  /tmp/zenith-rx-poll-network.log. The new
   ISO tests the updated kernel without changing the installed disk's active kernel.
   Final source cleanup strengthens patch contract checks and updates a source
   comment; the Release rebuild passes with ELF hash
@@ -32,6 +32,12 @@
   evidence is /tmp/zenith-rx-poll-incremental.log and
   /tmp/zenith-rx-poll-final-receive.log. Python syntax and `git diff --check` pass.
   CI already runs this replay fixture; hosted CI awaits push.
+- User reports networking now works in VMware after the polling fix. This is
+  user-confirmed recovery of the reported DHCP/networking failure; no new guest
+  status, DNS/HTTPS results or disk-kernel update/reboot proof were supplied.
+  The precise interrupt-routing cause remains unresolved. Booting this ISO does
+  not permanently activate the fixed kernel on the installed disk; that remains
+  a signed kernel package upgrade followed by disk boot and confirmation.
 
 ## 2026-10-11 · VMware DHCP receive investigation
 
