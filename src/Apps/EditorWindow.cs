@@ -20,7 +20,7 @@ internal sealed class EditorWindow : Window
     private const int FontSize = 14;
     private const int Padding = 8;
     private const int StatusHeight = 26;
-    private const string HomeDirectory = "/home/user";
+    private string HomeDirectory => Zenith.Core.Security.Accounts.Home(Identity);
 
     private const uint Background = 0xFF161A26;
     private const uint GutterText = 0xFF4D556B;
@@ -364,7 +364,7 @@ internal sealed class EditorWindow : Window
         UpdateTitle();
     }
 
-    private static string ResolvePath(string input)
+    private string ResolvePath(string input)
     {
         if (input.Length == 0)
         {

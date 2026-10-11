@@ -29,6 +29,7 @@ internal static class AppRegistry
         new AppInfo("Terminal", "Command line shell", _ => new TerminalWindow()),
         new AppInfo("Files", "Browse and manage files", path => new FileManagerWindow(path)),
         new AppInfo("Editor", "Edit text files", path => new EditorWindow(path)),
+        new AppInfo("Sunrise", "Install Zenith", _ => new InstallerWindow()),
         new AppInfo("System", "About this machine", _ => new SystemInfoWindow()),
     };
 

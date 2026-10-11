@@ -1089,3 +1089,43 @@ permissions and reports accurate metadata through `ls -l`.
 - Local documentation links pass (187 checked), Python compilation/shell syntax and
   git diff --check pass. CI includes the new installation/rescue/ambiguity check;
   hosted CI awaits push. No real disk, home package VM or upstream checkout was modified.
+
+## 2026-10-11 · Guided installer completion
+
+- User requested finishing the installer, with verified kernel package updates required
+  before their actual installation. Kernel activation is now the next deployment gate,
+  ahead of real installation; no kernel updater is claimed by this installer work.
+- Implemented Sunrise disk selection, account form, explicit erase confirmation,
+  worker progress/error handling and completion, sharing the target setup backend with
+  interactive headless install --setup. Initial password records are prepared before
+  target erasure; custom first-user homes and reboot account behavior are included.
+- Sunrise runs hashing/copying on a worker, reports kernel-copy percentages, masks
+  password fields and releases password references on completion/close. Closing and
+  normal shutdown are blocked while installation is active; overlapping installs
+  are refused. This does not provide power-loss recovery or secure erasure of managed
+  password strings. Existing plain install --yes and P1 script/data restrictions stay.
+- Custom first-user homes are secured on install/boot; Files and Editor select the
+  account home, and boot no longer creates a phantom /home/user after custom setup.
+- Release ISO build and 532/532 host tests pass. Python transcript tests pass 9/9.
+  Guided native GUI checks pass 38/38 and serial setup 47/47, including empty-input
+  or declined-erasure refusal with untouched GPT, secret-free transcripts, configured
+  logins/private home/shadow and persistent user data across two disk-only UEFI boots.
+  Independent boot-artifact checks and e2fsck pass. Final GUI screenshots inspected.
+- Desktop/filesystem regression passes 135/135; disk-only UEFI desktop passes 10/10
+  with independent clean ext2/attribute checks. GUI used KVM; serial setup and UEFI
+  desktop used TCG. Help/manual-only changes were rebuilt and final GUI acceptance
+  rerun (38/38). No actual disk, home server VM or upstream checkout was modified.
+- Signed package regression passes 71/71 under TCG, including installed transactions,
+  reboot undo recovery, user access checks, secret-free transcripts and independent
+  clean e2fsck/ownership DB inspection. KVM acceptance is not universally established:
+  one installed boot panicked with denied /etc/passwd access during headless startup;
+  an isolated retry of that verified image failed earlier at exact root UUID selection.
+  Neither failure is claimed fixed or explained; TCG passed the full workflow.
+- Evidence: /tmp/zenith-guided-build-documented.log, /tmp/zenith-guided-host-final.log,
+  /tmp/zenith-guided-gui-documented.log (38/38), /tmp/zenith-guided-headless-final.log
+  (47/47), /tmp/zenith-guided-de.log (135/135), /tmp/zenith-guided-de-efi.log (10/10),
+  /tmp/zenith-guided-packages-tcg.log (71/71); failed KVM transcripts are in ignored
+  obj/guided-packages/installed and obj/guided-package-kvm-retry. Initial build retry
+  required adding ~/.dotnet/tools to PATH; host VSTest needed sandbox socket access.
+  Documentation local links pass (187), and git diff --check passes. CI adds both
+  guided paths; hosted CI awaits push.

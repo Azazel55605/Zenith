@@ -98,6 +98,11 @@ jobs:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 tools/smoke-test.py --timeout 600 --step-timeout 180 --memory 512 --large-ext2-stress --keep smoke-large
 
+      - name: Guided GUI and headless installation
+        timeout-minutes: 30
+        run: |
+          python3 -B tools/guided-install-smoke.py gui smoke-guided-gui
+          python3 -B tools/guided-install-smoke.py headless smoke-guided-headless
       - name: Self-contained install and RAM rescue
         timeout-minutes: 15
         run: python3 -B tools/install-smoke.py smoke-install
@@ -128,6 +133,8 @@ jobs:
             smoke-foundation/
             smoke-headless/
             smoke-install/
+            smoke-guided-gui/
+            smoke-guided-headless/
             smoke-network/
             smoke-packages/
             !smoke-packages/keys/**

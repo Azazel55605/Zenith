@@ -3,8 +3,9 @@
 Direction accepted on 2026-10-11: Zenith-specific applications/packages should share
 an astronomical/daylight identity; overhaul both Files and the graphical Editor.
 Investigate a developer environment with GCC preferred, Python, Vim and nano.
-These are future requirements/research goals, not implemented ports. Names below
-are proposals, not final assignments or a claim that any name is globally unique.
+These ports are future research goals. Sunrise is the working name of the implemented
+bundled installer; other names and separate package identities remain proposals,
+with no claim that any name is globally unique.
 
 ## Naming policy proposal
 
@@ -16,7 +17,7 @@ package: small session controls may belong to the desktop/session package initia
 
 | Proposed name | Purpose | Example package identity |
 |---|---|---|
-| Sunrise | Installer and first-run welcome/setup | zenith-sunrise |
+| Sunrise (implemented installer) | Guided disk/account installation; first-run welcome remains proposed | zenith-sunrise (future separate package) |
 | Sunset | Logout, shutdown and restart controls | Part of the session suite initially |
 | Horizon | File manager | zenith-horizon |
 | Aurora | Graphical text/code editor | zenith-aurora |

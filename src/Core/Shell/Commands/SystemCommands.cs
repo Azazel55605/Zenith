@@ -68,7 +68,7 @@ internal static class SystemCommands
             c.WriteLine("kernel updates: planned signed boot-generation packages; current pkg installer is scripts/data only");
             return 0;
         }));
-        add(new Command("install", "install [disk] [--yes]", "Install Zenith onto a disk", Install));
+        add(new Command("install", "install [disk] [--yes | --setup]", "Install Zenith onto a disk", Install));
         add(new Command("sync", "sync", "Write all cached filesystem data to disk", c => { SystemMounts.SyncAll(); return 0; }));
         add(new Command("umount", "umount mountpoint", "Unmount a filesystem", Umount));
         add(new Command("reboot", "reboot", "Sync, unmount and restart the machine", _ => { PowerControl.Reboot(); return 0; }));
@@ -438,10 +438,11 @@ internal static class SystemCommands
     {
         var candidates = Installer.Candidates();
         bool confirmed = Array.IndexOf(c.Args, "--yes") >= 0;
+        bool setup = Array.IndexOf(c.Args, "--setup") >= 0;
         string? selected = null;
         foreach (string arg in c.Args)
         {
-            if (arg != "--yes")
+            if (arg != "--yes" && arg != "--setup")
             {
                 selected = arg;
             }
@@ -472,14 +473,33 @@ internal static class SystemCommands
             return c.Fail(selected + ": not a suitable disk (see 'install')");
         }
 
-        if (!confirmed)
+        InstallationProfile? profile = null;
+        if (setup)
         {
-            return c.Fail("this erases " + selected + "; add --yes to confirm");
+            GuardedFilesystem.RequireRoot();
+            if (SystemMounts.Mode != BootMode.Live) { return c.Fail("use the ISO live rescue session for initial setup"); }
+            if (!c.IsTerminal || c.Input is not null || c.Shell.ReadInputLine is null || c.Shell.ReadSecret is null)
+            { return c.Fail("--setup requires an interactive terminal"); }
+            string? hostname = c.Shell.ReadInputLine("Hostname: ");
+            string? user = c.Shell.ReadInputLine("User name: ");
+            if (hostname is null || user is null) { return 130; }
+            InstallationProfile.ValidateNames(hostname, user);
+            string? password = c.Shell.ReadSecret("User password: ");
+            string? repeat = c.Shell.ReadSecret("Repeat user password: ");
+            string? root = c.Shell.ReadSecret("Root password: ");
+            string? rootRepeat = c.Shell.ReadSecret("Repeat root password: ");
+            if (password is null || repeat is null || root is null || rootRepeat is null) { return 130; }
+            c.WriteLine("Kernel updates are not ready yet. Use a disposable VM for now.");
+            string? erase = c.Shell.ReadInputLine("Type ERASE " + selected + " to confirm: ");
+            if (erase != "ERASE " + selected) { return c.Fail("installation cancelled; target unchanged"); }
+            profile = InstallationProfile.Create(hostname, user, root, rootRepeat, password, repeat, HardwareEntropy.Source);
+            password = repeat = root = rootRepeat = null;
         }
+        else if (!confirmed) { return c.Fail("this erases " + selected + "; add --yes or use --setup"); }
 
         // Progress goes straight to Out, skipping the cancellation check in WriteLine: stopping
         // between partitioning and copying would leave a half-written disk.
-        Installer.Install(target, step => c.Out.Write(Ansi.Cyan("==> ") + step + "\n"));
+        Installer.Install(target, step => c.Out.Write(Ansi.Cyan("==> ") + step + "\n"), profile);
         c.WriteLine("Zenith installed and UEFI bootable. Power off, eject the ISO and boot the disk.");
         c.WriteLine("Kernel generations are retained on the EFI partition; package-managed kernel activation follows separately.");
         return 0;

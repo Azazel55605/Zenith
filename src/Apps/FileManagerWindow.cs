@@ -27,7 +27,7 @@ internal sealed class FileManagerWindow : Window
 
     public FileManagerWindow(string? path = null) : base("Files", 760, 480)
     {
-        Run(() => _browser.Navigate(path ?? "/home/user"));
+        Run(() => _browser.Navigate(path ?? Zenith.Core.Security.Accounts.Home(Identity)));
     }
 
     public override (int Width, int Height) MinimumSize => (720, 320);

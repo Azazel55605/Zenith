@@ -23,9 +23,12 @@ virtio-gpu, and virtio mouse/keyboard. The pointer is grabbed on hover; **Ctrl+A
 
 ## Installing to a disk
 
-1. **Run QEMU x64**. In the Terminal: `install` lists targets. `install sata0 --yes`
-   erases the selected disk (minimum 256 MiB), creates GPT, a 128 MiB FAT32 ESP and
-   an ext2 root up to 512 MiB, and copies the system, kernel and EFI bootloader.
+1. **Run QEMU x64**, then open **Sunrise** from the launcher (`open Sunrise`). Choose
+   a disk, configure hostname/user/passwords, review and explicitly confirm erasure.
+   Headless: `install sata0 --setup` provides the same prompts with hidden passwords.
+   Minimum target: 256 MiB; layout: GPT, 128 MiB FAT32 ESP and ext2 root up to 512 MiB.
+   Zenith copies the system, kernel and EFI loader itself. The old `install DISK --yes`
+   copy workflow remains available for tests.
 2. `sync; poweroff`, eject the ISO and **Run QEMU x64 (installed disk)**.
    The disk boots independently; the verification task only checks the guest-written files.
 
@@ -33,7 +36,8 @@ Without an installed disk, Zenith uses a 64 MiB RAM root, lost on reboot. The IS
 normal entry automatically discovers an installed root. Select **Zenith live rescue
 (RAM root)** to use RAM even with an installation attached. Installed boot entries bind
 an exact root PARTUUID to a versioned kernel. See [installation layout](docs/INSTALLATION.md).
-Kernel package activation is planned; current signed packages contain scripts/data only.
+Kernel package activation is the next required gate before actual installation; use
+disposable VMs until it is verified. Current signed packages contain scripts/data only.
 
 ## Using it
 

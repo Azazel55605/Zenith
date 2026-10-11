@@ -117,3 +117,8 @@ userland/desktop work, and start packaging early. Shared settings/session and of
 package foundations and S1 serial headless are implemented. Keep status accurate in
 PROGRESS. Preserve no-GPU live/installed validation when changing boot or shell I/O;
 the test DE remains the default when supported display hardware is present.
+
+User deployment prerequisite (2026-10-11): finish guided installation, then implement
+and verify signed kernel package upgrades before the user actually installs Zenith.
+Offline P3 staging/previous-kernel retention/reboot activation/recovery now takes
+priority over actual installation; do not relax P1 script/data paths to write boot files.

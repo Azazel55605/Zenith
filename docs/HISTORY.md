@@ -209,3 +209,15 @@ harnesses and replaced with independent read-only artifact checks. The layout an
 signed kernel packages that stage a new version while the old kernel runs until reboot;
 the activation executor and graphical installer remain future slices. See
 [INSTALLATION](INSTALLATION.md) and [PROGRESS](PROGRESS.md).
+
+## 2026-10-11: Sunrise and guided initial account setup
+
+Added a bundled Sunrise installer with disk selection, hostname/account fields,
+explicit erase confirmation and worker progress. Serial `install DISK --setup` uses
+the same target configuration. Both prepare password hashes before erasure, create
+private password records and homes, and preserve the live session. Files and Editor
+now use the installed account's home. Native acceptance covers rejected setup,
+secret-free transcripts, two disk-only UEFI boots and independent ext2 permissions.
+The user requires working kernel package updates before actual installation; offline
+signed staging, previous-kernel retention and reboot activation are now the next
+deployment gate. This slice does not implement that updater.

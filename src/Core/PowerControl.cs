@@ -8,6 +8,7 @@ internal static class PowerControl
 {
     public static void Reboot()
     {
+        if (Installer.IsRunning) { throw new System.InvalidOperationException("wait for installation to finish before shutting down"); }
         Log.Write("power", "rebooting");
         SystemMounts.Shutdown();
         Power.Reboot();
@@ -15,6 +16,7 @@ internal static class PowerControl
 
     public static void PowerOff()
     {
+        if (Installer.IsRunning) { throw new System.InvalidOperationException("wait for installation to finish before shutting down"); }
         Log.Write("power", "powering off");
         SystemMounts.Shutdown();
         Power.Shutdown();

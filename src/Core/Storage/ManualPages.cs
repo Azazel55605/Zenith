@@ -438,6 +438,7 @@ internal static class ManualPages
 
             SYNOPSIS
                 install                 list disks Zenith can be installed on
+                install DISK --setup    guided account setup and erase confirmation
                 install DISK --yes      erase DISK and install
 
             DESCRIPTION
@@ -451,8 +452,13 @@ internal static class ManualPages
                 x64 UEFI firmware. Installed boot binds the root PARTUUID and a
                 versioned kernel hash. The menu offers a RAM rescue entry.
                 boot status reports the running kernel and installed boot identity.
-                Signed kernel package activation is planned; pkg currently installs
-                scripts/data only. Graphical installation and BIOS boot are future work.
+                From the live ISO, use Sunrise in the app menu or 'open sunrise',
+                or use --setup in an interactive terminal. Choose a hostname, user
+                and passwords; explicit confirmation precedes erasure. --yes keeps
+                the low-level live-tree copy behavior without an account wizard.
+                Signed kernel updates are the next gate before actual deployment;
+                use disposable VMs for now. pkg installs scripts/data only.
+                BIOS boot and physical hardware acceptance remain future work.
             """),
     };
 }

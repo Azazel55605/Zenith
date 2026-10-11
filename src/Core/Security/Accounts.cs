@@ -33,12 +33,16 @@ internal static class Accounts
             Secure("/etc/passwd", 0, 0, 0x1a4);
             Secure("/etc/group", 0, 0, 0x1a4);
             Secure("/root", 0, 0, 0x1c0);
-            Secure("/home/user", 1000, 1000, 0x1c0);
+            var database = new AccountDatabase(store.Read("passwd"), store.Read("group"), store.Read("shadow"));
+            foreach (var user in database.Users)
+            { if (user.Uid == 1000) { Secure(user.Home, user.Uid, user.Gid, 0x1c0); } }
             Service = new AccountService(store, HardwareEntropy.Source);
             Session = Service.RootConfigured ? Credentials.Nobody : Credentials.Root;
         }
         catch (Exception e) { Error = e.Message; Service = null; Session = Credentials.Nobody; }
     }
+    public static string Home(Credentials identity)
+        => Service is null ? "/home/user" : Service.Find(Service.Name(identity.Uid))?.Home ?? "/";
     public static void Login(Credentials identity) { Session = identity; Generation++; }
     public static void Logout() { Session = Credentials.Nobody; Generation++; }
     private static void Secure(string path, uint uid, uint gid, ushort mode)

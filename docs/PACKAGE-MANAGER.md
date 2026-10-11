@@ -288,7 +288,10 @@ P0 builder/reader/dry-run work began with S0. P1 now implements bounded signed
 containers, native RSA-PSS verification and root-only installed script/data transactions.
 The concrete scope and recovery limits are in [PACKAGES](PACKAGES.md); P3 needs verified boot-artifact/root handling and an explicit recovery policy. P4
 depends on M3 and trust verification; P2 provisioning can happen before the guest
-client is ready. The precise P3/P4 order can change after boot/crypto research; neither is a quick side effect of a `fetch` command.
+client is ready. User direction on 2026-10-11 puts offline P3 kernel upgrades before
+actual installation: implement signed staging, retain the previous kernel and verify
+reboot activation and failure recovery before deployment. P4 online delivery follows
+separately; neither is a quick side effect of a `fetch` command.
 
 Test dimensions: malformed metadata/container, extraction escapes, hash/signature failure,
 wrong architecture/runtime/release, dependency cycles/conflicts, insufficient root/ESP

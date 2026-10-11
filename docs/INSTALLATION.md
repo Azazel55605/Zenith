@@ -1,6 +1,6 @@
 # Installation and boot generations
 
-The x64 CLI installer is self-contained: Limine supplies the original kernel ELF
+The x64 installer is self-contained: Limine supplies the original kernel ELF
 and the ISO's `BOOTX64.EFI` as read-only boot memory. Zenith validates architecture
 and size before writing GPT, then copies and read-verifies those bytes itself.
 The install target must have 512-byte sectors and at least 256 MiB capacity.
@@ -11,16 +11,31 @@ refused. Use disposable VM disks while hardware acceptance remains pending.
 
 1. Boot the ISO. The normal menu entry uses an existing Zenith root when found;
    select the live rescue entry to force a RAM root.
-2. `install` lists eligible disks. Inspect `lsblk` and select the intended disk.
-3. Run `install sata0 --yes` (substitute the actual device), then `sync; poweroff`.
-4. Remove the ISO and boot the disk with x64 UEFI firmware. QEMU uses OVMF.
+2. Open **Sunrise** from the launcher (or `open Sunrise`). Choose a disk, enter
+   hostname, user name, user password and root password with confirmations, then
+   review the target and explicitly confirm erasure. Tab/Shift+Tab move through
+   fields; Enter advances, Space toggles the erase checkbox, Escape goes back.
+3. In headless mode use `install sata0 --setup` (substitute the actual device).
+   It prompts for the same details with hidden passwords and requires typing
+   `ERASE sata0`. Cancellation or invalid setup leaves the target untouched.
+4. After completion run `sync; poweroff`, remove the ISO and boot the disk with
+   x64 UEFI firmware. QEMU uses OVMF. Log in as your chosen user or root.
+
+Sunrise and `--setup` require root in a live RAM session; choose live rescue if an
+installation is already attached. Passwords are salted/hashed before disk erasure.
+Target passwd/group/shadow records are generated together; shadow is created with
+mode 0600 and the initial user gets uid/gid 1000 and a private 0700 home. The live
+session's identity remains unchanged. Configuring root disables automatic root login
+on the installed system. `install DISK --yes` remains the low-level copy workflow
+for existing tests; it does not prompt for new credentials. GUI copy progress runs
+on a worker, overlapping installations are refused, and normal shutdown/window
+closing is blocked during writes. No interruption-safe update transaction is implied.
 
 No host copying step is required. `tools/boot_image.py disk.img` independently
 checks both GPT copies, partition identity, boot artifact hashes and menu binding
 without modifying the image. The old `make-bootable.sh` name delegates to this
-read-only check; it does not upgrade or repair old installations. The graphical
-Sunrise installer, account setup wizard, BIOS installation and hardware/USB
-acceptance remain future work. Existing filesystem/account behavior is retained.
+read-only check; it does not upgrade or repair old installations. BIOS installation and hardware/USB
+acceptance remain future work.
 
 ## Installed structure
 
@@ -66,6 +81,10 @@ one EFI loader and metadata with headroom. This is capacity planning, not an upd
 space allocator. Future packages must still check actual free space and bounds.
 The ext2 root size limit must grow before substantial SDK/runtime packages.
 
+User deployment gate: working, verified kernel package updates are required before
+the user actually installs Zenith. Guided installation is for disposable VM tests
+until that gate passes; it does not make kernel updates available.
+
 P1 packages remain signed scripts/data only. Kernel package type/metadata, versioned
 ABI dependencies, conflict policy, signed artifact binding, ownership/protected
 paths, activation/retention executor and interruption tests belong to P3. Bootloader
@@ -91,3 +110,8 @@ The test also attaches a duplicate installation and checks that root UUID ambigu
 stops startup rather than selecting a different root. The broader desktop, headless
 and package suites also boot guest-written images.
 Exact local results and environment limits are recorded in [PROGRESS](PROGRESS.md).
+
+`python3 tools/guided-install-smoke.py gui obj/guided-gui` and the equivalent
+`headless` mode verify rejected input/erasure, secret-free transcripts, account setup,
+private shadow/home attributes, actual logins and persistent data across two disk-only
+UEFI boots. The GUI run captures disk/review/progress/completion screenshots.

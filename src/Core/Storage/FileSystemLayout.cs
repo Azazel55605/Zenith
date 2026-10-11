@@ -12,7 +12,7 @@ internal static class FileSystemLayout
 
     private static readonly string[] s_directories =
     {
-        "/bin", "/boot", "/boot/efi", "/dev", "/etc", "/etc/zenith", "/home", "/home/user", "/mnt", "/proc", "/root",
+        "/bin", "/boot", "/boot/efi", "/dev", "/etc", "/etc/zenith", "/home", "/mnt", "/proc", "/root",
         "/tmp", "/usr", "/usr/share", "/usr/share/doc", "/usr/share/man", "/var", "/var/log",
     };
 
@@ -44,8 +44,12 @@ internal static class FileSystemLayout
             File.WriteAllText(root + ManualPages.Directory + "/" + name + ".txt", text + "\n");
         }
 
-        WriteIfMissing(root + "/home/user/readme.txt",
-            "This is your home directory.\nFiles here persist when Zenith runs from an installed disk.\n");
+        if (File.ReadAllText(root + "/etc/passwd").Contains("\nuser:x:") || File.ReadAllText(root + "/etc/passwd").StartsWith("user:x:"))
+        {
+            Directory.CreateDirectory(root + "/home/user");
+            WriteIfMissing(root + "/home/user/readme.txt",
+                "This is your home directory.\nFiles here persist when Zenith runs from an installed disk.\n");
+        }
     }
 
     /// <summary>Whether the filesystem mounted at <paramref name="root"/> carries a Zenith installation.</summary>

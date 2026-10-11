@@ -213,8 +213,9 @@ Tabs/highlighting and optional recovery copies follow the core document model.
 Compiler/IDE integrations require native program execution and IPC.
 
 Zenith-owned packages/apps should share a celestial/daylight naming identity.
-Sunrise/Sunset, Horizon (Files) and Aurora (Editor) are proposed names, not final
-renames. Keep descriptive labels and familiar upstream gcc/python3/vim/nano names.
+Sunrise is the working name of the bundled guided installer. Sunset, Horizon (Files)
+and Aurora (Editor) remain proposed names. Keep descriptive labels and familiar
+upstream gcc/python3/vim/nano names.
 See [APPLICATIONS](APPLICATIONS.md) for proposals and toolchain feasibility gates.
 
 ## 8. Accounts, network, programs and updates
