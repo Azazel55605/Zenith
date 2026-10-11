@@ -72,12 +72,15 @@ Details: [system plan](SYSTEM-PLAN.md), [userland](USERLAND.md),
 | Implemented P0/P1 | Package builder/parser/planner and signed offline scripts/data | Native signature/ownership/transaction implementation; validation in PROGRESS; native userland and boot recovery remain separate gates |
 | Done foundations | S0 shared settings/session seam and S1 serial headless | Native DE/no-GPU live and installed tests; Settings GUI/per-user preferences remain later work |
 | Done M3/P1 | LAN networking and offline scripts/data | Native transport and signed install/upgrade/remove/reboot checks passed; exact evidence in PROGRESS |
-| Next | M5 native executable/process/ABI foundation, then compiled tool unbundling | Loader, protected process/credential/resource boundaries and separately installable base-tools/net-tools/fs-tools |
-| In parallel when provisioned | P2 home repository preparation | Dedicated VM endpoint, signed publishing, LAN/VPN/DNS access |
-| 4 | M4 boot-artifact/root identity foundation; P3 staged kernel updates | Versioned ESP files, verified boot choice, retained previous entry and disk-only reboot; no snapshot prerequisite |
-| 5 | P4 signed online repository client | Native trust/expiry/rollback checks, bounded download and LAN/VPN/DNS route tests |
-| 6 | M5 app/desktop migration; P5 independent packages | Extends the earlier native tool foundation with IPC/UI and app updates without relinking kernel |
-| 7 | M6 proper DE/WM, Settings, customization and Files rework | Toolkit/core operations can start earlier; final independent desktop requires M5 migration |
+| Next: 1 | M4 self-contained live ISO/system installer | Copies kernel/bootloader itself; install and disk-only UEFI boot without host make-bootable helper; explicit live/rescue root behavior |
+| 2 | Package recipes and builder workflow | Declarative metadata/files/modes; reproducible validation and separate signing using the existing .zpk foundation |
+| 3, parallel preparation | P2 package-server deployment kit and user-provisioned VM | Static service/configuration, staged publication, HTTPS/public-key bootstrap and actual LAN/VPN/DNS access |
+| 4 | Useful initial scripts/data packages | Install, upgrade, remove and reboot on a persistent Zenith VM against the user's server |
+| 5 | P4 signed online repository client | Signed index freshness/rollback checks, search, deterministic dependency resolution and bounded download/install by name |
+| 6 | M5 native loader/process/ABI then compiled tool unbundling; P5 | Protected execution, libc/toolchain foundation and independent base-tools/net-tools/fs-tools updates |
+| Later M4/P3 | Versioned kernel boot entries and staged kernel updates | Matched inactive artifacts, retained previous boot choice and failed-boot recovery; separate from first self-contained installation |
+| 7 | M6 proper DE/WM, Settings, customization, Files and GUI Editor overhaul | Shared toolkit/operations can start earlier; independent desktop/apps require M5 |
+| Later developer tools | Host GCC cross-SDK, terminal editor/Python feasibility, then on-system GCC | [Application/toolchain plan](APPLICATIONS.md); native ABI/libc/TTY and measured storage/resource gates |
 | 8 | R1/R2 saved roots, trial boot and restore | R0 backend/scope decision, explicit root selector, matched kernel/root/package inventory and interruption tests |
 | When ready | M7 physical hardware and optional R3 efficient CoW snapshots | Dedicated device matrix; measured backend feasibility; neither blocks basic QEMU kernel updates |
 
@@ -202,7 +205,8 @@ remains optional rather than an assumed final desktop runtime.
 | IPC, byte pipes and terminal contract | L | Versioned controlled APIs; Bash dependencies in [assessment](BASH-PORT.md) |
 | First independent text and graphical apps | L | Application faults must not panic kernel; controlled display/input interface |
 | Desktop/compositor/DE/WM migration | XL | Separate packages/processes behind shared graphics/toolkit protocols |
-| Toolchain/sample documentation | M | Build for chosen ABI; kernel ELF is not an application ABI |
+| Toolchain/sample documentation | M | Host GCC cross-SDK preferred, startup/syscall/libc contracts; kernel ELF is not an application ABI |
+| Future developer environment | XL | GCC running on Zenith, CPython, nano/Vim after libc/process/terminal and storage feasibility; [scope](APPLICATIONS.md) |
 | Independent service/desktop/app packages | L | API compatibility, restart requirements, dependencies and recovery |
 | Optional WASM runtime | XL | Evaluate after core ABI choice; host APIs and sandbox behavior need proof |
 
@@ -218,6 +222,7 @@ fallback. A text executable alone completes neither desktop migration nor full M
 |---|---|---|
 | Widget toolkit: button, text box, list, scroll view, checkbox, layout | L | Every app afterwards gets cheaper |
 | Files rework | L | Basic test app exists; full workflow/transfer rework needs toolkit and shared operation service |
+| GUI Editor overhaul | L | Document model, safe saves, undo/redo, search, UTF-8, keyboard workflows; tabs/highlighting follow; [scope](APPLICATIONS.md) |
 | Settings app: shared configuration, keyboard/timezone/system, later users/network/updates | L | Implement pages only as supporting capabilities become available |
 | Damage tracking: recompose only changed regions | M | Smooth window drags without KVM |
 | ↑ virtio-gpu hardware cursor and partial flush | M | Pointer moves cost nothing |
@@ -227,7 +232,7 @@ fallback. A text executable alone completes neither desktop migration nor full M
 | Automatic-tiling WM session | L | Shared compositor/apps; proposed master-and-stack policy, keyboard controls and floating dialogs |
 | Headless/shared session startup | L | Defined in S workstream below; implement before full desktop migration |
 
-**Exit:** DE and auto-tiling WM support basic file/settings tasks with keyboard and pointer;
+**Exit:** DE and auto-tiling WM support basic file/edit/settings tasks with keyboard and pointer;
 headless boots without graphical initialization and exposes the shared shell/services.
 See [SYSTEM-PLAN](SYSTEM-PLAN.md) for detailed acceptance gates.
 
@@ -363,8 +368,12 @@ user selected shared settings/session foundations while retaining the current te
 with early offline packaging. S0 system settings/session seam, S1 x64 serial headless
 and the P0 prototype are implemented. M3 provides bounded LAN networking and verified
 HTTPS. P1 signed offline script/data installation is native verified; see [PACKAGES](PACKAGES.md).
-The user selected scripts/data first, then unbundle compiled tools. Bring the M5 native
-program/ABI foundation forward before independent base-tools/net-tools/fs-tools delivery.
+The user selected scripts/data first, then unbundle compiled tools. The now-approved
+next order is self-contained ISO/installation, recipes/builder, server deployment kit,
+useful packages on a persistent install, signed online client, then M5 native ABI and
+compiled tool unbundling. Server preparation can run in parallel. The test DE remains.
+Future Files/GUI Editor overhauls and GCC-preferred/Python/nano/Vim investigation are
+recorded in [APPLICATIONS](APPLICATIONS.md); celestial names remain proposals.
 Further online metadata/trust and native-userland/R0 research may advance as explicitly
 selected experiments; do not deploy the VM or begin a Btrfs port implicitly. Every slice updates
 PROGRESS with code status, exact validation and unresolved limitations. Maintain the

@@ -3,7 +3,7 @@
 Product requirements and proposed delivery plan, 2026-10-11. Current behavior is
 in [ARCHITECTURE](ARCHITECTURE.md). This document records the requested direction:
 **desktop and headless operation; desktop DE and automatic-tiling WM sessions;
-a proper Settings app; a future Files rework; installed-system updates**.
+a proper Settings app; future Files and GUI Editor reworks; installed-system updates**.
 Later clarification: **desktop and applications must ultimately move outside the kernel**;
 customization is required alongside the proper desktop implementation. Home package
 hosting uses a dedicated VM with its own IP, LAN access and existing VPN/DNS remote access. Snapshot/trial-boot/restore behavior is a requested investigation.
@@ -203,6 +203,19 @@ Acceptance: nested and large files, conflicting names, symlinks/dangling links,
 read-only mounts, permission failure, out-of-space, cancelled transfers and reboot
 persistence. Independent e2fsck remains required for new mutation paths. GUI tests
 must cover both DE and WM; shell rename coverage is not proof of GUI workflow.
+
+## 7a. Graphical Editor overhaul and application identity
+
+User requested a future GUI Editor overhaul alongside Files: reliable open/save,
+UTF-8/newline handling, selection/clipboard, undo/redo, find/replace, modified-state
+and external-change handling, keyboard operation and clear permission/save errors.
+Tabs/highlighting and optional recovery copies follow the core document model.
+Compiler/IDE integrations require native program execution and IPC.
+
+Zenith-owned packages/apps should share a celestial/daylight naming identity.
+Sunrise/Sunset, Horizon (Files) and Aurora (Editor) are proposed names, not final
+renames. Keep descriptive labels and familiar upstream gcc/python3/vim/nano names.
+See [APPLICATIONS](APPLICATIONS.md) for proposals and toolchain feasibility gates.
 
 ## 8. Accounts, network, programs and updates
 

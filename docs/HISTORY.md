@@ -189,3 +189,12 @@ range/conflict checks and multi-package undo/commit transactions. Grouped base-t
 net-tools and fs-tools remain image inventory until the native execution boundary exists.
 Online signed indexes and dedicated VM publication follow separately. See
 [PACKAGES](PACKAGES.md) and [PROGRESS](PROGRESS.md) for actual scope and acceptance.
+
+## 2026-10-11: installed-system delivery order and future applications
+
+User accepted self-contained ISO/install first, then package recipes/builder, a
+server deployment kit for their VM, useful packages, online repository client, and
+native tool unbundling. Server preparation can overlap installation work. Added
+future GUI Editor overhaul, Zenith-specific celestial naming and GCC-preferred,
+Python, Vim/nano research goals. Names and additional app ideas remain proposals;
+no third-party port or naming availability is claimed. See [APPLICATIONS](APPLICATIONS.md).

@@ -1017,3 +1017,19 @@ permissions and reports accurate metadata through `ls -l`.
   native writer; host and guest checks verify unowned staging content is preserved.
   After an unclean shutdown, an occupied staging file may need root inspection/cleanup
   before recovery; no automatic deletion of unrelated content is attempted.
+
+## 2026-10-11 · Delivery sequencing and future application planning
+
+- User accepted the persistent installed-system workflow and order: self-contained
+  ISO/system installer, declarative package recipes/builder, server deployment kit,
+  useful scripts/data packages on their installed VM, signed online client, then
+  native ABI/process support and compiled tool unbundling. Server setup can overlap.
+- Recorded Files and GUI Editor overhaul requirements plus Zenith-specific celestial
+  naming direction. Sunrise/Sunset and other suggested names are proposals, not
+  selected renames or independent packages. Additional applications remain ideas.
+- Added GCC-preferred host cross-SDK and eventual on-Zenith compiler goals, CPython
+  and nano/Vim feasibility stages with libc/process/terminal/dependency and 512 MiB
+  root-capacity gates. Checked upstream GCC/Python/nano/Vim documentation; no port
+  was implemented or runtime feasibility proven. No server was deployed.
+- Documentation-only slice; local links pass (80 checked) and git diff --check passes. No runtime
+  code changed, so prior runtime counts remain historical package-slice evidence.

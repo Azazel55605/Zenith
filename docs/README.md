@@ -1,7 +1,7 @@
 # Zenith documentation
 
 This is the project documentation entry point. Status reviewed on **2026-10-11**
-against the current repository. Current S0/S1/P0 behavior is documented separately
+against the current repository. Current S0/S1/P0/P1 and M3 behavior is documented separately
 from the future session/update plans. Milestone version labels are targets, not release dates.
 
 ## Reading paths
@@ -22,6 +22,7 @@ from the future session/update plans. Milestone version labels are targets, not 
 | What happened and why | [Project history](HISTORY.md), then [slice evidence](PROGRESS.md) |
 | What comes next and when a milestone is complete | [Roadmap](ROADMAP.md) |
 | Building, testing, debugging and working with Cosmos | [Development guide](DEVELOPMENT.md) |
+| Zenith app names, Files/Editor overhauls and GCC/Python/editor ports | [Application and developer-tool plan](APPLICATIONS.md) |
 | Whether Bash can run here | [Bash portability assessment](BASH-PORT.md) |
 | Earlier measurements and engineering background | [Technical notes](TECHNICAL-NOTES.md) |
 | What the upstream framework documents | [Cosmos reference](cosmos/index.md), [pinned source](cosmos/SOURCE.md) |

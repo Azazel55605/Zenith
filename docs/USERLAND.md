@@ -10,6 +10,10 @@ User sequencing clarification: implement signed offline scripts/data installatio
 then bring the native text-program/process/ABI foundation forward before independent
 compiled tool packages. Source-only splitting is insufficient. The current test DE
 stays available throughout migration; proper desktop migration remains later.
+The subsequently accepted delivery order completes self-contained installation,
+recipe tooling/server delivery and the online package client before native tool
+unbundling; see [ROADMAP](ROADMAP.md). GCC-preferred cross-development and later
+on-system GCC/Python/nano/Vim research are scoped in [APPLICATIONS](APPLICATIONS.md).
 
 ## Target boundary
 
