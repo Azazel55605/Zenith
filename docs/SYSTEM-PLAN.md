@@ -6,7 +6,7 @@ in [ARCHITECTURE](ARCHITECTURE.md). This document records the requested directio
 a proper Settings app; a future Files rework; installed-system updates**.
 Later clarification: **desktop and applications must ultimately move outside the kernel**;
 customization is required alongside the proper desktop implementation. Home package
-hosting starts LAN-only. Snapshot/trial-boot/restore behavior is a requested investigation.
+hosting uses a dedicated VM with its own IP, LAN access and existing VPN/DNS remote access. Snapshot/trial-boot/restore behavior is a requested investigation.
 Implementation mechanisms below are proposals unless explicitly marked current.
 See [userland separation](USERLAND.md), [home repository](PACKAGE-SERVER.md) and
 [upgrade recovery](UPDATE-RECOVERY.md).
@@ -246,13 +246,16 @@ No dates or new release tags are promised by this plan.
 | D: toolkit and Settings foundation | Basic widgets and existing keyboard/timezone/system pages | CLI/GUI consistency, errors and reboot persistence |
 | E: DE/WM session policies | Workspaces, auto tiling, focus and shortcuts | Layout tests plus native interaction in both sessions |
 | N: M3 network foundation | Wired config/DNS/TCP and bounded fetch | Native network faults and cancellation, not host-only fetch |
-| P2: installed system update | Matched kernel/data generation and boot recovery | ESP update/recovery proof including interrupted activation; M4 boot plumbing |
-| P3: signed mirror integration | Publisher/index/trust and bounded downloads | Guest signature verification, expiry/rollback policy and recovery proven |
+| P2: home repository VM | Native static service, own IP, LAN/VPN/DNS routes and separate publishing/signing | Provisioned endpoint and host/client route tests |
+| P3: installed system update | Matched kernel/data generation and boot recovery | ESP update/recovery proof including interrupted activation; M4 boot plumbing |
+| P4: signed mirror integration | Publisher/index/trust and bounded downloads | Guest signature verification, expiry/rollback policy and recovery proven |
 | F: Files rework | New browser and chunked operations | Data integrity/error/cancellation tests in DE and WM |
 | R: M5 userland foundation | Loader, isolation, kernel/API/IPC contract and independent desktop/app migration | App install/update without rebuilding kernel; failures/access boundaries tested |
-| P4: app packages | Runtime compatibility and launcher registration | Install/run/remove independently of kernel rebuild |
+| P5: app packages | Runtime compatibility and launcher registration | Install/run/remove independently of kernel rebuild |
 
-P0 does not need networking. P1 cannot claim safe system upgrades. D can begin with
+P0 does not need networking. P1 cannot claim safe system upgrades. P2 is server preparation; P3 stages versioned
+kernels and P4 adds signed online client integration. Snapshot recovery is tracked
+separately as R0–R3 in ROADMAP and UPDATE-RECOVERY. D can begin with
 existing settings while advanced pages await their services. Runtime and hardware
 remain substantial work; advancing docs does not complete these gates.
 
@@ -265,7 +268,7 @@ system releases before independent apps; no third-party maintainer scripts initi
 Still to settle: headless local-console requirements, session switching expectations,
 preferred tiling interaction/keybindings, user vs global settings, runtime choice,
 package metadata/container/trust libraries, version/dependency policy, system rollback
-layout and where the official mirror/signing process will live. Record chosen decisions
+layout and the repository VM deployment and separate signing process. Record chosen decisions
 with rationale and acceptance criteria before implementing their dependent slices.
 
 ## 11. Decision tracking
@@ -279,7 +282,7 @@ with rationale and acceptance criteria before implementing their dependent slice
 | REQ-05 | Update existing installs; package/network/mirror direction | Requested by user; implementation design still to discuss |
 | REQ-06 | Desktop/apps outside the kernel in the future | User clarified Linux-like architectural direction; ABI/runtime open |
 | REQ-07 | Desktop customization and usability | Required; customization scheduled with proper desktop work |
-| REQ-08 | Home-hosted repository, LAN-only initially | User confirmed LAN-only; host details pending |
+| REQ-08 | Dedicated home repository VM, own IP, LAN and existing VPN/DNS access | User confirmed topology; OS/address/storage choices at deployment |
 | REQ-09 | Snapshot upgrades, trial boot and restore | Requested investigation; backend and semantics open |
 | DES-01 | Shared compositor/apps, DE default, boot/login session selection | Proposed; live switching deferred |
 | DES-02 | Serial-first headless | Proposed; local-console requirements open |

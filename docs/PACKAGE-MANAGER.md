@@ -3,7 +3,7 @@
 **Status: proposal, 2026-10-11. No package manager, repository client or system-update
 activation is implemented.** This document makes the choices concrete for discussion.
 Clarified direction: future desktop/apps are independent userland components;
-initial repository hosting is at home, LAN-only. See [USERLAND](USERLAND.md),
+initial repository hosting is a dedicated home VM reachable on LAN and through existing VPN/DNS. See [USERLAND](USERLAND.md),
 [PACKAGE-SERVER](PACKAGE-SERVER.md) and [UPDATE-RECOVERY](UPDATE-RECOVERY.md).
 Networking, secure guest signature verification, application loading and boot recovery
 must not be inferred from examples below. Command names and paths are illustrative.
@@ -236,8 +236,8 @@ This design does not provide secure boot against a physically replaced kernel/ro
 
 Recommended first mirror is a static repository served by a conventional host/web
 server, separate from Zenith. The guest does not need to run the package mirror.
-Initial operator/location is the user's home infrastructure, LAN-only; host/storage/
-container details are pending. Public exposure/domain remain later decisions; no mirror
+Initial hosting is a dedicated VM on the user's home infrastructure with its own IP,
+LAN access and existing VPN/DNS remote access; VM OS/address/storage details are pending. Public exposure/domain remain later decisions; no mirror
 is provisioned here. The [home repository plan](PACKAGE-SERVER.md) gives the staged setup.
 
 Proposed published layout:
@@ -266,14 +266,15 @@ later; none are assumed in this planning task.
 |---|---|---|
 | P0: format/recovery experiments | Host builder, parser, plan; candidate guest verifier; boot-layout design | Round-trip fixture, malicious archive/manifest corpus; decisions recorded |
 | P1: local data packages | Offline CLI, ownership DB, staging/config policy, removal | Native installed-root install/upgrade/remove; reboot persistence; interrupted/out-of-space recovery |
-| P2: system generations | Kernel plus matched data, inactive boot artifacts, confirmation/fallback | Disk-only UEFI upgrades and failed-boot fallback; fault injection at activation boundaries |
-| P3: repository client | Signed metadata/mirror, bounded network fetching | Tampered/truncated/replayed/expired metadata rejected; key rotation and interrupted download tested |
-| P4: independent userland packages | M5 ABI/process/IPC contract, desktop/app dependencies and launcher entries | Install/run/remove app or desktop component without compiling a new kernel |
+| P2: dedicated home VM | Native static repository, own IP, LAN and existing VPN/DNS access | Provisioned endpoint and publish/fetch checks; signing separated from hosting |
+| P3: system generations | Kernel plus matched data, inactive boot artifacts, confirmation/fallback | Disk-only UEFI upgrades and failed-boot fallback; fault injection at activation boundaries |
+| P4: repository client | Signed metadata/mirror, bounded network fetching | Tampered/truncated/replayed/expired metadata rejected; key rotation and interrupted download tested |
+| P5: independent userland packages | M5 ABI/process/IPC contract, desktop/app dependencies and launcher entries | Install/run/remove app or desktop component without compiling a new kernel |
 
 P0 can begin while finishing M2 or designing sessions. P1 needs validated filesystem
-mutation and a stated privilege/recovery policy; P2 needs the chosen boot/root recovery
-model. P3 depends on M3 and trust verification. The precise P2/P3 order can change after
-boot/crypto research; neither is a quick side effect of a `fetch` command.
+mutation and a stated privilege/recovery policy; P3 needs verified boot-artifact/root handling and an explicit recovery policy. P4
+depends on M3 and trust verification; P2 provisioning can happen before the guest
+client is ready. The precise P3/P4 order can change after boot/crypto research; neither is a quick side effect of a `fetch` command.
 
 Test dimensions: malformed metadata/container, extraction escapes, hash/signature failure,
 wrong architecture/runtime/release, dependency cycles/conflicts, insufficient root/ESP

@@ -1,8 +1,11 @@
 # Zenith roadmap
 
-Milestones in recommended order. Each has a goal, its work items, and an exit criterion that
-says when it's done. Background and effort estimates for the big items are in
-[TECHNICAL-NOTES.md](TECHNICAL-NOTES.md).
+Consolidated implementation roadmap, planning baseline **2026-10-11**. Historical
+M0–M7 identities are retained; package (P), session (S) and recovery (R) workstreams
+have explicit dependencies and can advance alongside them. Requirements are agreed
+product direction; specific ABI, package format and snapshot backend remain design
+choices. See [SYSTEM-PLAN](SYSTEM-PLAN.md) for detailed acceptance and
+[PROGRESS](PROGRESS.md) for implementation evidence.
 
 **Sizes:** S = a day or two · M = about a week · L = several weeks · XL = months.
 **↑ upstream** = a change to Cosmos itself (its HAL is internal; see "Upstream work" below).
@@ -37,19 +40,46 @@ UEFI disk-only assertions. Hosted CI rerun awaits push.
 | No integrated network/package service | Online installed updates and mirror management remain planned |
 | Early Cosmos boot fault observed under nested KVM | Harness retries the classified pre-Zenith fault; other failures stay failures |
 
-## Expanded product workstreams
+## Agreed product direction
 
-The user-requested product scope is detailed in [SYSTEM-PLAN](SYSTEM-PLAN.md):
-headless plus desktop DE/automatic-tiling WM, future independently loaded desktop/apps,
-customization/usability and shared configuration/services,
-proper Settings and a future Files rework. Package architecture is a
-[design discussion](PACKAGE-MANAGER.md), not a settled implementation.
+- One system supporting headless operation and graphical DE/automatic-tiling WM sessions.
+- Desktop, apps and appropriate system services ultimately outside the main kernel,
+  independently packaged/updatable with controlled APIs and failure isolation.
+- Proper shared Settings, a full future Files rework, desktop customization and
+  explicit usability/accessibility checks.
+- Package-managed installed updates: install a new kernel alongside retained versions;
+  the loaded kernel keeps running until reboot. Future desktop/app updates require
+  their own restart rather than a kernel rebuild where compatible.
+- Official package repository on a dedicated home VM with its own IP; direct VM services
+  avoid existing container/port constraints. Reach it on LAN and remotely through the
+  user's existing VPN and DNS. Direct public internet exposure is outside the initial scope.
+- Saved-system boot selection, non-destructive trial boot and restoration as recovery
+  goals. Investigate backend feasibility; Btrfs itself is not yet selected.
 
-Keep milestone identities stable. Add offline package research/foundation alongside
-M2/M3; coordinate installed-system activation with M4 and independent apps with M5.
-Expand M6 to include both desktop session policies. Shared session/configuration
-seams and serial headless can start earlier once dependencies are defined. Each
-workstream has acceptance gates; documentation does not complete them.
+Details: [system plan](SYSTEM-PLAN.md), [userland](USERLAND.md),
+[package design](PACKAGE-MANAGER.md), [server](PACKAGE-SERVER.md),
+[recovery](UPDATE-RECOVERY.md). Current in-kernel services/UI are transitional.
+
+## Delivery order and dependency gates
+
+| Order | Work | Gate / dependency |
+|---|---|---|
+| 1 | Finish M2 accounts/credentials and permission policy | Entropy/hash primitives and complete operation-entry audit; native allow/deny/reboot tests |
+| Alongside 1 | P0 package builder/parser/planner and userland/recovery feasibility | Host/disposable experiments only; record ABI, trust and backend decisions before dependent implementation |
+| 2 | S0/S1 shared settings/session seam and serial headless | Preserve current desktop; boot without canvas/fonts; live and installed tests |
+| 3 | M3 network foundation, P1 offline data packages, P2 home repository preparation | Network faults/limits; file ownership/config policy and reboot recovery; VM access verified when provisioned |
+| 4 | M4 boot-artifact/root identity foundation; P3 staged kernel updates | Versioned ESP files, verified boot choice, retained previous entry and disk-only reboot; no snapshot prerequisite |
+| 5 | P4 signed online repository client | Native trust/expiry/rollback checks, bounded download and LAN/VPN/DNS route tests |
+| 6 | M5 protected userland foundation then app/desktop migration; P5 independent packages | ABI/IPC/credentials/resource/fault boundaries and app updates without relinking kernel |
+| 7 | M6 proper DE/WM, Settings, customization and Files rework | Toolkit/core operations can start earlier; final independent desktop requires M5 migration |
+| 8 | R1/R2 saved roots, trial boot and restore | R0 backend/scope decision, explicit root selector, matched kernel/root/package inventory and interruption tests |
+| When ready | M7 physical hardware and optional R3 efficient CoW snapshots | Dedicated device matrix; measured backend feasibility; neither blocks basic QEMU kernel updates |
+
+The order is a dependency guide, not a release calendar. Network/GUI/server research
+can overlap; app/desktop independence must not be declared complete through a shared
+address-space plugin demo. Basic kernel updates can ship before full-root snapshots.
+Initial server OS/web server, package schema/crypto and root-generation format are
+implementation decisions, not reasons to reopen the agreed product direction.
 
 ---
 
@@ -61,7 +91,7 @@ Infrastructure that every later milestone leans on.
 |---|---|---|
 | ✅ GitHub Actions: unit tests, ISO build, QEMU smoke test on every push; ISO release on `v*` tags | S | `.github/workflows/ci.yml`; GitHub's runners have KVM |
 | ✅ Host unit tests for the parser, shell and commands, plus the terminal's ANSI buffer | M | `tests/Zenith.Tests`; 64 tests at the original M0 checkpoint |
-| ✅ QEMU smoke test: boot headless, type commands over the monitor, assert on serial output | M | `tools/smoke-test.py`; covers pipes, `/tmp`, exit status, install and panic |
+| ✅ QEMU smoke test: run with hidden host display, type commands over the monitor, assert on serial output | M | `tools/smoke-test.py`; covers pipes, `/tmp`, exit status, install and panic |
 | ✅ Panic screen: exceptions from boot or `Run()` show the message and stack trace, are logged, and R restarts | S | `crash` triggers it |
 | ✅ Kernel log mirrored to `/var/log/boot.log`, previous boot kept as `boot.log.1` | S | `logger` writes to it |
 | ✅ Local Cosmos source build + switch between local and released packages | M | `../Cosmos`, `tools/use-cosmos.sh`; see [DEVELOPMENT.md](DEVELOPMENT.md) |
@@ -97,11 +127,13 @@ terminal mode with cursor addressing (enables `less`, `top`, a TUI editor), edit
 | Item | Size | Notes |
 |---|---|---|
 | `/proc` virtual filesystem: `meminfo`, `mounts`, `uptime`, `cmdline`, later per-process entries | M | Initial read-only driver implemented; validation and remaining work in [PROGRESS.md](PROGRESS.md) |
-| `/dev` virtual filesystem: `null`, `zero`, `random`, block devices (`sda`, `sda1`) | M | Null/zero and read-only live disk/partition nodes implemented with bounded `dd`; entropy and raw writes pending. See [PROGRESS.md](PROGRESS.md) |
+| `/dev` virtual filesystem: `null`, `zero`, `random`, block devices (Cosmos names such as `sata0`, `sata0p1`) | M | Null/zero and read-only live disk/partition nodes implemented with bounded `dd`; entropy and raw writes pending. See [PROGRESS.md](PROGRESS.md) |
 | **ext2 driver, read-write** | L | Supported bounded ext2 profile: secondary and installed roots, guarded formatter, ownership/modes, symlinks and directory moves. Native root/UEFI persistence verified; permission enforcement remains pending; see [PROGRESS.md](PROGRESS.md) |
 | Installer formats the root as ext2 (the ESP stays FAT32) | S | Verified: ext2-root reboot/persistence and disk-only EFI boot; ESP remains FAT32 |
+| Secure entropy and password hash verification | L | Required before salts/password authentication; timer-mixed random plug is unsuitable |
 | Users: console/graphical login, `/etc/shadow` with salted hashes, `passwd`, `su`, `useradd` | L | Pending: validated entropy/hash primitives, credential context and operation policy first |
-| Permission checks for file operations | L | Pending: GUI, shell, System.IO and direct-VFS entry points; ownership on creation |
+| Permission checks for file operations | L | Pending: GUI, shell, System.IO and direct-VFS entry points; per-operation credentials, ownership on creation and privileged operations |
+| Recovery and access diagnostics | M | Read-only/dirty-root errors, authentication failures and permission denials; never log secrets |
 | `fsck.ext2` (check-only first) | M | Read-only supported-profile consistency audit verified with corruption fixtures and native checks; repairs remain host-side |
 | ext4 read-only (extents, 64-bit), to read Linux disks | L | Optional, after ext2 |
 
@@ -113,12 +145,16 @@ the truth.
 | Item | Size | Notes |
 |---|---|---|
 | Network service: DHCP at boot, `/etc/hostname`, `/etc/hosts`, `/etc/resolv.conf` | S | Framework networking is documented; validate installed APIs and native Zenith integration before relying on them |
-| `ip`/`ifconfig`, `ping`, `nslookup`, `nc` | M | |
+| `ip`/`ifconfig`, `ping`, `nslookup`, `nc` | M | Interface/link/address/routes/DNS status and actionable errors |
+| Network lifecycle/configuration | M | DHCP/static settings, disconnected NIC, config persistence and cancellation |
 | NTP client: set the clock at boot | S | Fixes wrong time in VMs |
-| Plain-HTTP `fetch` (curl-like) and a tiny HTTP server for testing | M | TLS is not integrated/verified in Zenith; public update transport requires a separate design |
+| Bounded streaming fetch and host test server | M | Limits, timeout/retry/cancel, progress; truncated/oversized/disconnected responses; HTTP lab transport is not package authentication |
+| Home DNS/VPN route integration | M | Use dedicated repository VM address/name; verify host/VPN routing; a guest VPN implementation is not implicitly required |
 | TLS | XL | Evaluate guest-compatible maintained libraries and upstream support; validate crypto and entropy natively |
 
-**Exit:** a fresh boot gets an address and the right time, and can fetch a file over HTTP.
+**Exit:** a fresh boot obtains usable address/DNS, supports clock synchronization and
+bounded file fetching with fault/cancellation tests. Report clock trust limits explicitly;
+unauthenticated time synchronization alone does not prove metadata freshness.
 
 ## M4 · Self-contained installer (v0.5)
 
@@ -126,7 +162,9 @@ the truth.
 |---|---|---|
 | ↑ Limine module request in `Cosmos.Kernel.Boot.Limine` | S | Lets the ISO hand `BOOTX64.EFI` and the kernel to the running system |
 | Installer copies the boot files itself; `make-bootable.sh` retires | S | Depends on the above |
-| Root selection via `root=UUID=…` on the Limine command line | S | |
+| Explicit stable root selection from Limine command line | M | UUID/identifier creation and exact selector contract; required when multiple saved roots exist |
+| Versioned kernel boot entries and rescue route | M | Current/previous kernels, accessible menu; package service owns staged updates |
+| Recovery-aware install layout | L | Measure ESP/root/staging/retention capacity; preserve basic ext2 path until R0 design is chosen |
 | Graphical installer window: disk picker, summary, confirmation, progress | M | Built on `Installer.Install` (already reports progress) |
 | Install to a USB stick (Cosmos supports USB mass storage) | S | First step toward real hardware |
 | ↑ GPT writer computes CRCs and the backup header | S | Then drop `GptChecksums` |
@@ -154,9 +192,11 @@ remains optional rather than an assumed final desktop runtime.
 | Independent service/desktop/app packages | L | API compatibility, restart requirements, dependencies and recovery |
 | Optional WASM runtime | XL | Evaluate after core ABI choice; host APIs and sandbox behavior need proof |
 
-**Exit:** a standalone app installs/runs/updates without relinking the kernel, with
-observable process identity, controlled file access and fault isolation. Desktop
-migration is an explicit subsequent gate; a text executable alone does not complete it.
+**Foundation exit:** a standalone app installs/runs/updates without relinking the kernel,
+with observable process identity, controlled file access and fault isolation.
+**Migration exit:** desktop/apps run independently behind a versioned graphics/IPC
+contract; app failure does not panic the OS and desktop restart has a diagnostic
+fallback. A text executable alone completes neither desktop migration nor full M5.
 
 ## M6 · Desktop sessions and applications (v0.7 target)
 
@@ -171,7 +211,7 @@ migration is an explicit subsequent gate; a text executable alone does not compl
 | DE session: notifications, Alt+Tab, keyboard shortcuts, workspaces | L | Shared focus/dialog/workspace infrastructure |
 | Customization and usability | L | Per-user themes, wallpaper, sizing/fonts, panel, shortcuts and WM preferences; preview/reset, accessible workflows and upgrade preservation |
 | Automatic-tiling WM session | L | Shared compositor/apps; proposed master-and-stack policy, keyboard controls and floating dialogs |
-| Headless/shared session startup | L | Can begin earlier: graphics-independent serial shell and shared service/configuration seam |
+| Headless/shared session startup | L | Defined in S workstream below; implement before full desktop migration |
 
 **Exit:** DE and auto-tiling WM support basic file/settings tasks with keyboard and pointer;
 headless boots without graphical initialization and exposes the shared shell/services.
@@ -189,6 +229,87 @@ See [SYSTEM-PLAN](SYSTEM-PLAN.md) for detailed acceptance gates.
 **Exit:** Zenith boots from a USB stick on a real PC with working keyboard, mouse, storage and
 wired network.
 
+## S · Shared configuration and sessions
+
+| Slice | Deliverable | Exit evidence |
+|---|---|---|
+| S0 | Typed/versioned config, shared CLI/GUI operations, session selector | Validate/fallback/default/migration/save errors; installed persistence; system and user scopes |
+| S1 | Graphics-independent serial headless | No desktop initialization; scripts/files/cancellation/services/clean shutdown on live and installed boots |
+| S2 | Shared focus/dialog/workspace/layout-policy infrastructure | Keyboard and pointer routes, small displays/minimum sizes, app behavior in both policies |
+| S3 | DE and auto-tiling WM | DE floating workflow; WM automatic layout, directional focus/move, workspaces, floating dialogs and fullscreen |
+| S4 | Proper Settings and customization | Supported capabilities only; themes/wallpaper/fonts/sizing/panel/keybindings/WM preferences; preview/reset and upgrade preservation |
+| S5 | Full Files rework | Breadcrumbs/places/detail metadata/multi-select, chunked recursive operations, conflict/cancel/error policy and symlink/mount safety |
+
+Proposed defaults: DE, serial-first headless and master-and-stack WM; exact shortcuts/
+layout policy remain adjustable. Session choice and live/installed storage choice are
+independent. Start with boot/login selection; live DE/WM switching is a later option.
+Settings pages expand with account, network and update services rather than simulating
+unavailable capabilities. Test keyboard-only first-run and routine workflows, readable
+contrast/scaling, predictable focus, progress/error recovery and config persistence.
+Files tests cover large/nested/cancelled/conflicting operations and independent integrity
+inspection in both graphical sessions. Avoid unrestricted in-kernel theme/plugins.
+
+## P · Packages, home repository and installed updates
+
+| Slice | Deliverable | Exit evidence / dependency |
+|---|---|---|
+| P0 | Format/builder/reader/dry-run, trust-library and guest feasibility | Bounded/malicious fixtures and target feasibility; record schema/version/crypto choices |
+| P1 | Offline data/script packages and installed DB | Ownership/conflicts/config preservation; staged install/remove/verify, space/permission/cancel/reboot recovery tests |
+| P2 | Dedicated home repository VM | Own IP, user DNS and LAN/VPN routes; native static server, read-only published data; separate builder/signing; OS/address/storage details at deployment |
+| P3 | Staged versioned kernel/system artifacts | New kernel saved on disk while old runs; verify/flush/boot entry, explicit reboot-required state; retain previous kernel and rescue boot |
+| P4 | Signed online package refresh/download/apply | M3 transport; pinned trust, metadata/artifact verification, expiry/rollback/key rotation; never install partial/untrusted payload |
+| P5 | Independent service/desktop/app packages | M5 ABI compatibility and dependencies; explicit restart needs; kernel rebuild not needed for a compatible app update |
+
+Package classes: data/scripts now, kernel/system artifacts for reboot activation, then
+independent userspace services/desktop/apps. Start with bounded parsing, exact/simple
+dependencies, streamed files and no arbitrary maintainer hooks. Protect user data and
+modified config; distinguish current/staged/pending-boot versions. Signature verification
+is required even on LAN/VPN. Container format, compression, algorithms/libraries and
+trusted clock policy remain design gates. Kernel reboot and program/session restart
+are different activation operations.
+
+The server is a dedicated home VM running a maintained server OS and native static
+web service, with its own IP. Existing VPN/DNS provide remote reachability; no new
+public router port or container integration is planned. VM provisioning and signed
+publication are not performed by this roadmap. Publish immutable artifacts first,
+then a complete metadata generation; retain supported releases, isolate signing keys,
+back up and test server outage/stale/corrupted responses. Exact deployment is in
+[PACKAGE-SERVER](PACKAGE-SERVER.md); client design is in [PACKAGE-MANAGER](PACKAGE-MANAGER.md).
+
+**Exit:** a provisioned VM serves verified packages on the intended LAN/VPN routes;
+an existing Zenith install upgrades without rebuilding an ISO, remains usable until
+requested restart/reboot and can select a retained bootable kernel. Crash-safe root
+rollback is a separate R gate, not implied by keeping an old kernel.
+
+## R · Saved-system boot, trial and restore
+
+| Slice | Deliverable | Exit evidence / dependency |
+|---|---|---|
+| R0 | Snapshot scope/backend feasibility and capacity model | Decide system/config/package DB vs persistent user/service data; compare full copies/A-B, block CoW and Btrfs |
+| R1 | Consistent retained root generations with matching boot artifacts | Explicit root identity, coherent package inventory, quiesced/correct capture and protected retention; M4 boot selector |
+| R2 | Boot-menu saved-state selection, non-destructive trial and restore | Trial uses read-only plus ephemeral writes or disposable clone; restore activates writable state; disk-only tests and interrupted activation/restore |
+| R3 | Efficient persistent CoW snapshot backend, if selected | Native mapping/filesystem transaction/recovery implementation and corruption/space/fault tests; optional Btrfs port is substantial work |
+
+Desired menu: Current, Previous, Saved systems and Recovery. The bootloader selects
+matching kernel and root/generation arguments; Zenith/recovery tools mount and restore.
+Keep kernels on the ESP so this design need not assume Limine can read the chosen
+snapshot filesystem. Retain the matching ESP artifacts separately from root states.
+Manual fallback comes first; automatic attempt accounting/boot confirmation requires
+its own verified mechanism.
+
+Default proposal: preserve personal files through system rollback; define account,
+configuration and service-schema compatibility explicitly. Trial must leave the saved
+copy and shared mutable data unchanged unless a clearly selected operation permits it.
+Snapshot retention protects active/pending/known-good roots and kernels. A snapshot is
+not an external backup. Current ext2 has no snapshots/journal/guest repair; host/QEMU
+snapshots are test tools, not native functionality. Full copies/A-B can demonstrate the
+experience before efficient CoW; backend choice is open, and does not block P3.
+
+**Exit:** boot and inspect a saved complete system, restore it as the default writable
+system and verify matching kernel/package/config state. Inject failed boot, power loss,
+short writes and out-of-space across creation/upgrade/activation/restore; show a usable
+retained state/recovery route. Details: [UPDATE-RECOVERY](UPDATE-RECOVERY.md).
+
 ---
 
 ## Upstream work (Cosmos)
@@ -202,24 +323,30 @@ requests or in our local fork until they land:
 4. virtio-gpu cursor queue and partial `TransferToHost2D` (M6)
 5. FAT timestamps (M1/M2; currently not persisted)
 6. USB HID mouse, RTL8168, I219 (M7)
-7. Intermittent #GP during `LegacyPic.RemapAndDisable`/APIC init under nested KVM (seen in CI): reproduce and report
+7. Protected process address spaces, privilege transitions and executable/runtime support as required by M5
+8. Controlled userspace display/input, IPC and descriptor interfaces where framework APIs are insufficient
+9. Read-only root/recovery primitives and persistent snapshot backend support if selected (R)
+10. Intermittent #GP during `LegacyPic.RemapAndDisable`/APIC init under nested KVM (seen in CI): reproduce and report
 
-## Decisions to make
+## Remaining implementation decisions
 
 | Decision | Recommendation | Why it matters |
 |---|---|---|
 | Kernel/userland boundary | Independent desktop/apps accepted; investigate protected native ABI/process model | WASM optional; ABI/runtime and Linux compatibility level remain open |
 | Native root filesystem | Bounded ext2 implemented; ext4 read-only remains optional | Retain host interoperability and explicit crash/feature limits |
-| Installed updates and packages | Offline-first data packages, coordinated kernel/data releases, signed mirror later | Format, trust, recovery and runtime choices remain open; [design](PACKAGE-MANAGER.md) |
+| Package format/trust | Bounded offline-first foundation, staged versioned kernels, signed online client | Schema/container/crypto/clock and transaction details need feasibility evidence |
+| Repository deployment | Dedicated home VM, own IP, native services, existing VPN/DNS | Agreed topology; choose OS/web server, address/name, disks/backup and publish credentials at deployment |
+| Saved-system backend | Prototype bootable root generations; evaluate CoW/Btrfs later | Snapshot scope, root identity, trial write layer and service-data compatibility still open |
 | Sessions | DE default, serial-first headless, shared DE/WM compositor | User requirements accepted; policy/keybindings and delivery slices are proposals |
 | Target hardware | QEMU first; one or two real UEFI machines from M7 | Decides which NIC and input drivers come first |
 | Contributing upstream vs. forking Cosmos | Fork locally, upstream as we go | Some fixes are needed before Cosmos would release them |
 
-## Update hosting and snapshot direction
+## Planning baseline and next implementation
 
-Initial official repository: user's home infrastructure, LAN-only; deployment details
-pending. [PACKAGE-SERVER](PACKAGE-SERVER.md) records the plan. Requested recovery
-experience includes saved-system boot/trial/restore. [UPDATE-RECOVERY](UPDATE-RECOVERY.md)
-compares root generations/A-B, block CoW and Btrfs. Ext2 snapshots are not implemented,
-and keeping an old kernel is not a full root rollback. Kernel-only staged updates do
-not require a snapshot backend; complete rollback does require a defined root/data scope.
+The product and hosting direction above is consolidated. Further design decisions are
+local implementation gates, not missing product requirements. Resume with M2 entropy/
+credentials/access-policy feasibility and a small reviewable account/enforcement slice.
+Package P0 and native-userland/R0 research may proceed independently once explicitly
+selected; do not deploy the VM or begin a Btrfs port implicitly. Every slice updates
+PROGRESS with code status, exact validation and unresolved limitations. Maintain the
+architecture/history/user-facing docs alongside each delivered capability.

@@ -1,13 +1,15 @@
 # Home-hosted package repository
 
 User direction, 2026-10-11: host the initial repository on the user's home
-infrastructure, **LAN-only first**. Host OS/NAS, container support and storage details
-are pending. No server has been provisioned and no ports/DNS/firewall rules changed.
+infrastructure using a **dedicated VM with its own IP**, with direct LAN access and
+remote access through the user's existing VPN and DNS. Native services remove the
+dependency on Docker restrictions and ports already mapped on another host. VM OS,
+address/name and storage details are deployment choices still to record. No server has been provisioned and no ports/DNS/firewall rules changed.
 See [PACKAGE-MANAGER](PACKAGE-MANAGER.md) for the guest client and trust model.
 
 ## Initial shape
 
-Use a static repository on a conventional home server. A package server initially
+Use a static repository with a native web service inside the dedicated home VM. A package server initially
 needs to distribute immutable files and metadata; it does not need a package-specific
 API, authentication database or a Zenith HTTP-server implementation.
 
@@ -31,16 +33,20 @@ repository/
 
 Use a maintained static web server such as Caddy or nginx according to the installed
 host. Caddy documents [static file serving](https://caddyserver.com/docs/caddyfile/directives/file_server).
-A container, if supported, should mount published data read-only; direct installation
-on the host is also viable. Choose deployment files only after host details are known.
+Install the chosen server directly in the VM and serve a read-only published tree.
+No container is required. Select a maintained minimal server OS with normal service,
+update and backup tooling; exact distribution/version and service configuration are
+chosen when the VM is provisioned. Choose deployment files after recording VM details.
 Directory browsing is optional and not required by the client protocol.
 
-## LAN deployment steps
+## VM, LAN and VPN deployment steps
 
-1. Identify host, repository storage and backup location. Assign a stable LAN address
-   or local DNS name that the guest can resolve.
-2. Run the static server on a LAN-restricted listener/firewall policy. Do not publish
-   router ports for this first stage.
+1. Provision a VM with its own reachable IP (appropriate bridged/routed network),
+   repository disk and backup location. Record OS/version and resource/retention budget.
+2. Add its stable address/name to the user's DNS and allow the intended LAN/VPN routes
+   and web port. Run the native static service; verify DNS/routing/firewall access from
+   both LAN and a VPN-connected external client. No direct public router port is needed
+   for this agreed access model.
 3. Build and verify immutable artifacts into staging outside the served metadata.
 4. Copy artifacts into the published tree, then publish a complete signed metadata
    generation referring to those files. Define index activation semantics on the
@@ -50,10 +56,12 @@ Directory browsing is optional and not required by the client protocol.
 6. Keep previous release generations and back up repository data/key recovery material
    according to their separate policies. Retention follows supported clients/rollbacks.
 
-QEMU user-mode networking may reach the host through its special host address or a
-LAN endpoint depending on server placement. Test the actual route; do not hardcode the
-same mirror address for physical machines. The client needs usable TCP/DNS before
-online integration is claimed.
+QEMU and physical Zenith clients must resolve and reach the VM endpoint through their
+actual network routes. An external VM client may use host/VPN routing; do not assume
+QEMU automatically inherits VPN routes or that Zenith already has a VPN client. Native
+Zenith VPN functionality is not implied by the server being VPN-accessible. Test the
+intended client path and report an unavailable route clearly. TCP/DNS integration
+remains required before online package operation is claimed.
 
 Lab HTTP may be useful before guest TLS works, but authenticated package verification
 is still a release gate. If the first transport experiment lacks verification it is
@@ -70,14 +78,17 @@ No login/password needs to be embedded in a publicly distributable client for a
 read-only public repository. Private repository access, if wanted later, needs a
 separate credential/transport design.
 
-Before exposing beyond the LAN, decide domain/DNS, public reachability (including
-possible CGNAT), TLS, bandwidth, firewall/reverse-proxy arrangement and external
-availability. These are later decisions, not reasons to delay the LAN prototype.
+Remote private access uses the existing VPN and DNS; it does not require a publicly
+exposed repository. Record the VPN subnet/routes, DNS resolver/name and certificate
+policy at deployment. Guest HTTPS/trust behavior must be verified; VPN transport does
+not replace package signatures. Direct public access, if requested later, would need
+its own reachability/TLS/bandwidth/availability plan.
 Do not expose signing/build management endpoints with the file server.
 
 ## Information still needed
 
-Host OS or NAS platform, Docker/Podman availability, existing web/reverse proxy,
-repository storage/backup, intended local address/name and package/release size budget.
+Hypervisor/network attachment, VM OS choice, IP/DNS name, permitted LAN/VPN subnets,
+repository storage/backup, package/release size budget, chosen web service and publisher
+access. Docker/Podman availability and existing host port mappings are not dependencies.
 With those details, create a concrete minimal deployment plus publish/verify checklist.
 The current planning task does not assume SSH access or authorization to deploy.

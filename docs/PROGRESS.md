@@ -609,3 +609,23 @@ permissions and reports accurate metadata through `ls -l`.
   changed documents resolve; git diff --check passes. No runtime code or
   infrastructure change; native tests were not rerun for documentation changes. Next: discuss ABI/isolation research,
   home host details, and desired saved-state/root/user-data rollback semantics.
+
+## 2026-10-11 · Consolidated roadmap and dedicated repository VM
+
+- Finished consolidating the discussed product requirements into ROADMAP: retained
+  M0–M7 history and added explicit S session/configuration, P package/distribution
+  and R saved-state/recovery workstreams with dependencies and exit evidence.
+- Recorded future kernel/userland separation, headless plus DE/auto-tiling WM,
+  Settings, Files rework, customization/usability, versioned kernel installation
+  while the old kernel runs, independent app packages and saved-system trial/restore.
+- User selected a dedicated home VM with its own IP; native web services avoid
+  Docker/port-mapping constraints. LAN plus existing VPN/DNS provide private remote
+  access. Revised server/client/system/shared guidance consistently. No VM deployed.
+- Package/container/crypto/ABI and snapshot backend remain implementation gates;
+  Btrfs is not selected or a prerequisite for staged kernel updates. Explicitly
+  distinguished a host/VPN route from an unimplemented Zenith VPN client.
+- Next implementation returns to M2 entropy/credentials/access-policy groundwork;
+  offline package and userland/recovery research are separately selectable slices.
+- Documentation validation: all 49 local Markdown link targets in six changed
+  files resolve, and git diff --check passes. Previous runtime results remain
+  unchanged; no kernel tests rerun or infrastructure changes performed.

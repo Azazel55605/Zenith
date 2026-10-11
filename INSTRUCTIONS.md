@@ -83,6 +83,6 @@ public mirror updates need verified trust and recovery, not just HTTP fetching.
 
 User clarification (2026-10-11): the future desktop/apps must be outside the kernel;
 see [USERLAND](docs/USERLAND.md). WASM is optional, not the assumed final architecture.
-Customization/usability belong in proper desktop work. Home package hosting starts
-LAN-only ([server plan](docs/PACKAGE-SERVER.md)); snapshot/trial boot/restore is a
+Customization/usability belong in proper desktop work. Home package hosting uses a dedicated VM with its own IP and existing
+VPN/DNS remote access ([server plan](docs/PACKAGE-SERVER.md)); snapshot/trial boot/restore is a
 requested investigation ([recovery plan](docs/UPDATE-RECOVERY.md)), not a Btrfs decision.
