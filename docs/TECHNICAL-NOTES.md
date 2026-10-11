@@ -1,5 +1,9 @@
 # Zenith technical notes
 
+Historical display measurements retained; architecture sections reconciled on 2026-10-11.
+Use [ARCHITECTURE](ARCHITECTURE.md) for current facts and [SYSTEM-PLAN](SYSTEM-PLAN.md)
+for future design. Upstream availability must be verified against installed APIs.
+
 Findings behind the [roadmap](ROADMAP.md): what Cosmos Gen 3 (3.0.89) gives us, what we measured,
 and what each larger step costs.
 Paths like `articles/user/filesystem.md` refer to the vendored Cosmos docs in `docs/cosmos/`.
@@ -47,113 +51,56 @@ What is left in this area:
   compile time. That makes the loop faster, but it also silences `dmesg`'s serial copy and
   the boot log, so it's best kept for release builds.
 
-## 2. The Unix model: what exists and what doesn't
+## 2. Current architecture and earlier conclusions
 
-**Working now:**
+The initial analysis predated M2. Its FAT-only root, generic `/proc`/`/dev` wishlist,
+experimental ext2 status and incomplete installed-root statements are superseded by
+[ARCHITECTURE](ARCHITECTURE.md). New roots are bounded ext2; proc/dev, metadata,
+symlinks, directory moves and check-only fsck are verified. Users/enforcement are pending.
 
-- One root filesystem at `/` with mounts on top: an installed FAT32 partition, or a RAM disk
-  in live mode. `/tmp` is always a RAM disk.
-- FHS-style layout (`/bin /boot /dev /etc /home /mnt /proc /root /tmp /usr /var`), with
-  `/etc/os-release`, `hostname`, `passwd`, `group`, `motd`, `profile` and `fstab`.
-- A POSIX-flavored shell: quoting, `$VAR`/`${VAR}`/`$?`, `~`, globs, `|`, `>`, `>>`, `<`,
-  `;`, `&&`, `||`, history, tab completion and `/etc/profile`.
-- About 45 commands: coreutils-style tools plus `mount`, `df`, `lsblk`, `dmesg`, `free` and
-  `install`.
+There are still no independent application processes: all built-ins and GUI applications
+are kernel-linked. WASM/WASI is a candidate runtime, not a settled decision. Native
+ELF/POSIX userland requires much deeper framework work. The [Bash assessment](BASH-PORT.md)
+explains why a basic WASI filesystem API alone does not provide Bash compatibility.
+Avoid treating the initial effort estimates as schedules or framework guarantees.
 
-**The big gap: there are no processes.** Every command is C# compiled into the kernel and
-runs in kernel mode, in one address space. Cosmos has no program loader and no ring-3
-userland. Its own roadmap lists "Userland WASM VM" as future work. Two ways forward:
+## 3. Filesystem direction
 
-| Option | What it takes | Verdict |
-|---|---|---|
-| **WASM + WASI runtime** in the kernel | An interpreter (or later a JIT), plus WASI's POSIX-like file/clock/args API mapped onto our VFS. Programs are compiled from C/Rust/Zig/C# to `.wasm` and live in `/bin`. | Recommended. It's sandboxed by design, follows Cosmos's own direction, and WASI maps directly to what we have. |
-| Native ELF processes | Per-process page tables, ring-3 transitions, a syscall interface, an ELF loader, and a libc port. All of it lives below what Cosmos exposes; most of it is in Cosmos internals. | Months of work against internals; not worth it before WASM. |
+Bounded ext2 read/write is the implemented foundation, with Linux tooling interoperability
+and independent e2fsck verification. The [driver source record](../src/Core/Storage/Ext2/SOURCE.md)
+explains upstream adaptation, licensing and local fixes. No journal, broad ext4 feature
+support or guest repair is implied. Mounted filesystems remain unclean until clean unmount.
 
-**Other Unix pieces, roughly in order:**
+Ext4 read-only remains an optional follow-up requiring explicit extent/feature/checksum
+coverage and native fixtures. Safe ext4 writes need a journaling/recovery design. Btrfs
+would introduce a substantially different allocation/tree/transaction implementation and
+is deferred. These are architectural assessments, not implemented capabilities.
 
-- **`/proc` and `/dev`** as virtual filesystems: implement `IVfsFilesystemType` with
-  synthesized inodes (`/proc/meminfo`, `/proc/mounts`, `/dev/null`, `/dev/sda`). Moderate
-  work; the interface is public.
-- **Users and permissions:** FAT stores no owner or mode bits, so real permissions need a
-  Unix filesystem (section 3). `login`/`su` can come once permissions exist.
-- **Background jobs, signals, `Ctrl+C` of a running command:** these need processes or at
-  least threads per command. Cosmos has a preemptive scheduler and threads, so threads come
-  first.
-- **A text editor** (`nano`-like) inside the terminal, and file open/save in Notes.
+## 4. Installer and update implications
 
-## 3. How hard is ext4 or btrfs?
+The verified installation path is live boot → guest install (GPT, FAT32 ESP, ext2 root)
+→ host `make-bootable.sh` → disk-only UEFI boot. Root discovery uses os-release;
+UUID selection and copying boot artifacts without host assistance remain M4 work.
+GPT completion is still a local adapter. See [DEVELOPMENT](DEVELOPMENT.md) for reproduction.
 
-Cosmos has a clean seam for this. A filesystem driver implements `IVfsFilesystemType`,
-`IVfsSuperblock`, `IVfsInode` and `IVfsOpenFile` over an `IBlockDevice`
-(`articles/user/filesystem.md`, "How it works"). Mount it with `VfsManager` and every
-`System.IO` call (and every shell command) works on it unchanged. The FAT driver in the
-Cosmos source is the reference implementation. Development can happen on a
-`MemoryBlockDevice` loaded from an image you build on the host with `mkfs.ext4`, and checked
-with `e2fsck`/`debugfs`.
+Package updates need additional boot activation and recovery semantics. Ext2 file rename
+and FAT ESP replacement are not assumptions of crash-safe system activation. The
+[package design](PACKAGE-MANAGER.md) evaluates coordinated release generations versus
+image/A-B roots before committing to one layout.
 
-| Filesystem | Read-only | Read-write | Notes |
-|---|---|---|---|
-| **ext2** | Experimental driver already ships in Cosmos 3.0.89 | Integrate and validate the existing driver | Initial secondary-volume integration in Zenith; see [PROGRESS.md](PROGRESS.md). Root migration, ownership and permission enforcement remain pending. |
-| **ext4** | ext2 + extent trees + 64-bit + flex_bg: about 2–3 more weeks | Hard. You need metadata checksums (crc32c on almost everything), htree directories, and a **journal** (jbd2). The alternative is mounting only clean, journal-less filesystems, which works but is fragile. | Read-only ext4 is very doable. Safe read-write ext4 is a multi-month project. |
-| **btrfs** | Months: copy-on-write B-trees, chunk-tree logical→physical mapping, checksums, often zstd/lzo/zlib compression | A team-scale project (CoW allocation, transactions, multi-device) | Not recommended. |
+## 5. Framework and driver work
 
-**Recommendation:** ext2 read-write first, which is enough for a native Unix root
-filesystem. Then ext4 read-only, so Zenith can read Linux disks. Revisit ext4 writes only
-after a journal design.
+Cosmos device plumbing is often internal. Implementing device drivers or boot protocol
+extensions may need an explicit upstream/local-framework change; inspect the installed
+3.0.89 APIs rather than assuming host .NET APIs work. Use [local package switching](DEVELOPMENT.md)
+without casually running the sibling checkout's bootstrap.
 
-## 4. What a self-contained installer needs
+The [vendored networking reference](cosmos/articles/user/network.md) describes framework
+interfaces; Zenith network configuration/fetch/TLS integration remains future M3 work.
+Likewise QEMU graphics/storage/input validation does not establish physical hardware
+support. M7 requires a documented UEFI hardware matrix and measured input/storage/network
+behavior. Audio, Wi-Fi, suspend, multi-monitor and advanced GPU acceleration are not
+promised by the current product plan.
 
-**What works today** (tested end to end in QEMU):
-
-```
-boot ISO (live, RAM root) → `install sata0 --yes` → tools/make-bootable.sh disk.img
-→ boot disk.img with UEFI (no ISO) → root found on sata0p1 → files persist
-```
-
-`install` writes a GPT with a 64 MiB EFI System Partition and a FAT32 root. It lays out the
-Unix tree, copies `/etc /home /root /usr /var`, writes `fstab`, and puts `limine.conf` on the
-ESP. Cosmos's GPT writer leaves the CRCs at zero and writes no backup header; that's
-documented as intended for test images, but firmware rejects such a disk.
-`GptChecksums.Complete` fixes it up, after which `parted` and OVMF accept the disk.
-
-**Gaps before it's a real installer:**
-
-1. **The kernel can't copy itself or the bootloader.** That's the only reason the host step
-   (`make-bootable.sh`) exists. Two fixes:
-   - **Limine modules (preferred):** add `module_path: boot():/boot/Zenith.elf` and the EFI
-     binary to the ISO's `limine.conf`, and Limine hands them to the kernel in memory. Cosmos
-     doesn't expose Limine's *module request* yet; `Cosmos.Kernel.Boot.Limine` has
-     framebuffer, memory map, cmdline and others, but not modules. That's a small upstream
-     addition.
-   - Or read the CD itself: ATAPI support plus an ISO9660 driver. More work.
-2. **Root selection:** scanning partitions for `/etc/os-release` works. Passing `root=UUID=…`
-   on the Limine `cmdline:` is the robust version (`Environment.GetCommandLineArgs()` already
-   works).
-3. **BIOS boot:** needs a BIOS-boot partition plus Limine's `bios-install` logic. UEFI-only
-   is reasonable for modern machines.
-4. **UX:** a graphical installer window (disk picker, confirmation, progress) on top of
-   `Installer.Install`, which already reports progress through a callback.
-5. **A Unix root filesystem:** ext2 from section 3, once validated for installed roots.
-
-## 5. Drivers
-
-The rule that matters most: **Cosmos drivers live in its internal HAL.** `VirtioTransport`,
-`Virtqueue`, device registration and the rest are `internal`. A kernel project can reach
-single members through `[UnsafeAccessor]` (as `Log.cs` does), but it can't sensibly write a
-whole driver that way. Real driver work means either contributing to Cosmos upstream, or
-building Cosmos from source (`articles/dev/install-dev.md`) and consuming it from a local
-NuGet feed. Set that up before starting driver work.
-
-| Area | Cosmos has | Missing, in priority order |
-|---|---|---|
-| **Display** | UEFI GOP framebuffer (any UEFI PC), virtio-gpu, VMware SVGA II (+3D) | virtio-gpu hardware cursor and partial flush (VM smoothness). Native Intel/AMD/NVIDIA drivers are enormous; on real hardware GOP is the practical path (fixed resolution, CPU rendering). |
-| **Keyboard** | PS/2, virtio, USB HID (boot protocol) via xHCI | Fine for now |
-| **Mouse** | PS/2 (with wheel), virtio (relative) | **USB HID mouse**, which almost every real PC needs. **Absolute pointer** (tablet) for VMs. I2C-HID touchpads for laptops (hard). |
-| **Storage** | AHCI (SATA), NVMe, USB mass storage; MBR/GPT; FAT; experimental ext2 | virtio-blk (faster VM disks), ATAPI + ISO9660 (installer), ext2 root integration |
-| **Network** | Intel E1000E, virtio-net; ARP/IPv4/IPv6-link/UDP/TCP/DHCP/DNS | Realtek RTL8111/8168 (most desktop boards), Intel I219/I225. TLS is not implemented yet. **Wi-Fi is the hardest item on this list** (firmware blobs, 802.11 MAC, WPA2/3); skip it for a long time. |
-| **Audio** | none | Intel HDA (real hardware), virtio-sound (VMs) |
-| **Platform** | ACPI (LAI), APIC/GIC, timers, RTC, reboot/shutdown | SMP (not started in Cosmos), suspend, battery and thermal |
-
-**Minimum set for running on a real PC:** UEFI GOP, xHCI with USB HID keyboard and **mouse**,
-AHCI or NVMe, and one common NIC (RTL8168 or Intel I219). Only the USB mouse and the NIC are
-missing.
+The historical display measurements above are useful context, not fresh benchmarks.
+Re-measure on named hardware/configuration before making new performance claims.

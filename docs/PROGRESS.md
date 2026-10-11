@@ -562,3 +562,28 @@ permissions and reports accurate metadata through `ls -l`.
   double-indirect file I/O, no journal or guest repairs, Cosmos deferred namespace
   removal while open. M2 is still open for real users and permission enforcement.
   Pause implementation here for the requested features/documentation discussion.
+
+## 2026-10-11 · System planning and documentation
+
+- Paused implementation at the agreed feature/documentation boundary after bounded
+  ext2 completion. M2 remains open for users/authentication and access enforcement.
+- Added a documentation hub, current architecture, chronological history, detailed
+  system plan and package/update design discussion. Current implementation is
+  distinguished from requirements, proposed mechanisms and deferred capabilities.
+- Recorded requested headless and DE/auto-tiling WM sessions, shared services/config,
+  proper Settings pages, future Files workflow/transfer rework and acceptance gates.
+- Proposed offline-first package foundation, separate data/system/runtime package
+  classes, ownership/config handling, bounded parsing, transactions/recovery, kernel
+  activation, trust/mirror publishing and staged validation. No package/runtime/trust
+  format or system rollback layout is agreed by this documentation change.
+- Corrected roadmap's stale FAT-only root and test totals; expanded M6/session and
+  package workstream mapping without renumbering milestones. Reconciled obsolete
+  technical-note architecture sections and linked README/shared instructions.
+- No kernel code or deployment changed; mirror hosting, session modes, package
+  operations and Settings remain unimplemented. Documentation validation: all 77 local Markdown link targets in the ten changed
+  documents resolve, and git diff --check passes. Existing native results remain
+  dated at 8389113; kernel/tests were not rerun for this documentation-only change.
+- Next discussion: system-release versus app priority, recovery/layout strategy,
+  package container/trust choices and initial WM/headless scope. Recommended next
+  package slice is a builder/reader/dry-run plus guest verification feasibility,
+  before writing an active installation.

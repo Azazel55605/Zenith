@@ -7,10 +7,16 @@ guidance here so the two entry points stay consistent.
 
 ## Source of truth
 
+- [docs/README.md](docs/README.md): documentation hub and status vocabulary.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): current architecture and limits.
+- [docs/SYSTEM-PLAN.md](docs/SYSTEM-PLAN.md): requested system/session/app direction and proposed slices.
+- [docs/PACKAGE-MANAGER.md](docs/PACKAGE-MANAGER.md): update design proposals and unresolved decisions.
+- [docs/HISTORY.md](docs/HISTORY.md): chronological change map; detailed evidence stays in PROGRESS.
+
 - [README.md](README.md): current behavior, commands, layout and installation.
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): toolchain, validation and Cosmos builds.
 - [docs/ROADMAP.md](docs/ROADMAP.md): milestone scope and exit criteria.
-- [docs/TECHNICAL-NOTES.md](docs/TECHNICAL-NOTES.md): architecture and design background.
+- [docs/TECHNICAL-NOTES.md](docs/TECHNICAL-NOTES.md): historical measurements and engineering background.
 - [docs/PROGRESS.md](docs/PROGRESS.md): active work, evidence and next steps. Update
   it with each implementation slice; distinguish implemented from runtime verified.
 - [docs/cosmos/index.md](docs/cosmos/index.md): vendored upstream documentation;
@@ -67,3 +73,10 @@ virtual `/proc` and `/dev`, read-write ext2, an ext2 installer root, users and
 permission enforcement, and check-only `fsck.ext2`. ext4 read-only is optional.
 Implement reviewable slices in dependency order. Keep M2 open until its full
 exit criterion is met: installed ext2, real users/permissions and truthful `ls -l`.
+
+The expanded product requirements include headless, DE and automatic-tiling WM
+sessions, shared Settings, future Files rework and installed updates. Their designs
+are proposals until discussed; do not treat them as implemented or freeze package
+format/runtime/boot-recovery choices without recording a decision. All current
+compiled apps are kernel-linked. Offline package research can precede networking;
+public mirror updates need verified trust and recovery, not just HTTP fetching.

@@ -1,0 +1,290 @@
+# Package manager and installed updates: design discussion
+
+**Status: proposal, 2026-10-11. No package manager, repository client or system-update
+activation is implemented.** This document makes the choices concrete for discussion.
+Networking, secure guest signature verification, application loading and boot recovery
+must not be inferred from examples below. Command names and paths are illustrative.
+
+## 1. The problem and achievable first outcome
+
+Today a changed built-in command, desktop app or driver requires compiling Zenith.
+An ISO is a delivery/installation medium, not an inherent requirement for updating
+an already installed disk. We can eventually publish a compiled kernel ELF and
+matched system files, download or copy them to the installed system, activate them
+through the boot layout and reboot. The build still happens on the release builder;
+the installed machine would not need to compile an ISO or have the .NET toolchain.
+
+Current compiled applications cannot be updated by dropping a C# DLL into `/bin`.
+There is no dynamic executable loader or stable userspace ABI. Distinguish three
+package classes before choosing a format:
+
+| Class | Examples | Activation |
+|---|---|---|
+| Data/script | Shell scripts, documentation, wallpapers, default configuration | File/service refresh; no new compiled code |
+| System release | Kernel ELF, built-in apps/drivers, matched system data | Coordinated release generation plus reboot |
+| Runtime application | Proposed WASM program and resources | Requires M5 runtime, API version and launcher/process integration |
+
+Recommended first implemented package operations are offline data/script installation
+and removal on disposable ext2 installations. The first user-facing update objective
+is a **matched system release**, followed by independent apps once a runtime exists.
+Do not distribute untrusted scripts as though they were sandboxed: scripts execute
+built-ins with the session's effective privileges.
+
+## 2. Implementation choices
+
+| Approach | Benefit | Cost/boundary | Recommendation |
+|---|---|---|---|
+| File packages plus coordinated system generations | Suits scripts/data now and runtime apps later; inspectable file ownership | Must design transactions, config handling and separate boot activation | Preferred working direction |
+| Whole-root image/A-B updates | Simple matched release and fallback concept | Needs partition/space redesign; preserving writable data and migration; current 512 MiB root limit | Evaluate for system releases, not ruled out |
+| Port an existing Linux package manager | Familiar ecosystems and dependency metadata | Needs compatible runtime/libc, processes, scripts, tools and policy unavailable today | Defer; importing packages is not just parsing archives |
+| Ad hoc download-and-overwrite | Small prototype | Cannot provide coherent ownership, trust or recovery | Only a disposable experiment, not the update design |
+
+The recommended approach may be hybrid: file packages for mutable data/apps, immutable
+release generations or A/B roots for core system files. The recovery experiment must
+choose the system layout before ordinary package transactions can write kernel paths.
+Do not settle the choice simply because one archive library compiles on the host.
+
+## 3. Package and compatibility model
+
+Proposed package identity: name, version, architecture, kind, format version and
+release/runtime compatibility. Start with exact dependencies or dependencies within
+one release set rather than a general constraint solver. Validate names and normalized
+version syntax; explicitly decide version ordering and downgrade policy. Record
+conflicts and file ownership; never allow one package to silently replace another's
+file. Initially use one official repository/channel, adding third-party trust later.
+
+A proposed manifest should cover:
+
+- Identity, description, license and build/source provenance.
+- Minimum package-reader schema and target `x86_64`/architecture-independent identity.
+- Required Zenith system generation or runtime API version, where applicable.
+- Exact dependencies/conflicts and package class; essential packages cannot be removed
+  without a defined recovery operation.
+- File records: normalized path, type, length, digest, executable/mode metadata and
+  permitted ownership policy. Distinguish default config from replaceable program data.
+- Installed/temporary/backup space estimates, reboot requirement and artifact digest.
+
+These fields are a design checklist, not a frozen format. Signature metadata must bind
+manifest and payload, including compatibility, sizes and paths. A payload digest without
+a trusted signature is not authentication.
+
+### Container decision
+
+Compare a small versioned container against a restricted standard archive plus manifest.
+A custom container reduces parser scope but creates tooling maintenance. Restricted tar
+has familiar host tooling but needs strict validation of types, headers, extensions,
+lengths and extraction behavior. ZIP brings central-directory/compression complexity.
+Select only after testing candidate guest parsers under Cosmos NativeAOT.
+
+Recommended first payload: bounded, uncompressed regular files/directories, streamed in
+chunks, with no links, device nodes or arbitrary scripts/hooks. Compression can follow
+once decompression limits and dependencies are verified. The current ext2 file/volume
+limits constrain payloads and caches; desktop transfer limits are not package limits.
+Define concrete limits for index size, files per package, pathname bytes/depth, per-file
+and total expanded bytes, dependencies, transfer duration and simultaneous staging.
+
+Reject absolute payload paths, `..`, malformed encodings, duplicate/case-alias entries,
+NUL, unknown required fields/types and inconsistent lengths. Destination resolution
+must resist symlink ancestors and mount escapes; string normalization alone is not
+sufficient. Metadata-controlled output cannot target `/dev`, `/proc`, other mounts,
+package state or boot files except through authorized class-specific operations.
+First tests must prove no writes occur outside the selected install root.
+
+## 4. Client layers and proposed CLI
+
+Keep the core host-testable and separate from transport and GUI:
+
+1. Manifest/index/container parser and bounded readers.
+2. Trust verifier and trusted metadata state.
+3. Installed database and file ownership/configuration policy.
+4. Planner for dependencies, conflicts, compatibility and disk space.
+5. Staging/verification and transaction/recovery executor.
+6. Transport adapters for local files and later network mirrors.
+7. CLI and Settings/Updates presentation over the same service.
+
+Proposed commands: `pkg list`, `pkg info NAME`, `pkg install FILE`, `pkg remove NAME`,
+`pkg verify`, `pkg refresh`, `pkg upgrade --plan` and an explicit apply operation.
+Initial install is local; refresh/network upgrade remain unavailable until implemented.
+Planning should print changed files/packages, download/staging space, config conflicts
+and reboot requirement without mutating the installation. Status must separate installed,
+staged and pending-boot generations. No background auto-apply in the first version.
+
+Proposed state locations: `/var/lib/zenith/pkg` for installed/trusted/transaction state,
+`/var/cache/zenith/pkg` for bounded downloads, `/etc/zenith/pkg` for policy/repository
+configuration. These paths are not created yet. Cache eviction must preserve active
+transactions and recovery artifacts. Updates in a RAM-root live boot should initially
+be refused with an explanation; disposable testing can use an explicit test root.
+
+## 5. File ownership and configuration
+
+Program/resource files are package-owned; mutable user data is never package-owned.
+Preserve `/home`, account databases and local settings on upgrade. For `/etc` defaults,
+record the last shipped digest: replace an unchanged default, retain a modified file
+and offer a new-default companion/conflict decision. Do not merge account/password
+files as generic text configuration.
+
+Remove only files still owned by the package and covered by the removal plan; retain
+changed configuration according to documented policy. Refuse collisions with unowned
+files until the user chooses a safe conflict action. Keep an exclusive transaction
+lock; concurrent GUI/CLI installs must not race. Run privileged mutations through one
+access-controlled service when M2 credentials exist. A lock within pkg does not stop
+other in-kernel code from modifying files, so define concurrent-editor handling too.
+
+Do not run maintainer shell scripts in the first format. Needed actions should initially
+be declarative and narrowly implemented (for example a launcher entry after M5), with
+bounded inputs and tested rollback. Full dependency solving, delta updates and third-party
+repositories are later features.
+
+## 6. Transactions and ext2 recovery
+
+Staging and rename are useful but **do not make ext2 multi-file updates crash-atomic**.
+Rename itself has no journal, and current mount behavior refuses crash-dirty ext2 until
+host repair. A transaction log on that root cannot alone guarantee recovery before a
+writable mount. That is an explicit blocker for claiming unattended crash-safe upgrades.
+
+Proposed executor state machine:
+
+`planned → fetched → verified → staged → applying → committed → cleanup`
+
+Recovery must also recognize failure at every transition. The plan includes a durable
+transaction identity, expected old/new hashes, backups, per-step progress and intended
+installed DB generation. All payloads are verified and space checked before mutation.
+Preserve the previous state until new data and installed database are durably committed.
+Cancellation before applying removes staging; cancellation during applying follows the
+transaction recovery policy rather than stopping between arbitrary writes.
+
+Experiment with immutable version directories and a small activation record, but test
+torn records, directory durability, interrupted renames and out-of-space. A fallback
+kernel using the same partially changed root is not a full-system rollback. Shared
+state/schema migration may prevent an older release from booting safely.
+
+Potential recovery strategies to evaluate:
+
+- Initial manual recovery from a trusted live medium plus host e2fsck: acceptable for
+  a clearly labeled developer preview, not an unattended production updater.
+- Guest recovery environment and bounded repair/journal support: substantial new work;
+  check-only fsck does not provide repair.
+- Verified read-only release images with writable data kept separate, or A/B roots:
+  larger install-layout changes but stronger generation separation.
+
+Choose and prove the recovery model before advertising system updates as reliable.
+
+## 7. Kernel, ESP and boot activation
+
+System updates need a separate coordinator; ordinary payload extraction must not overwrite
+the active kernel, Limine binary or boot configuration. Kernel and system data carry a
+shared release identity. Keep at least one known-good compatible generation if space
+allows. Validate ELF/build identity and expected platform before staging.
+
+Proposed flow: fetch matched artifacts, verify them, stage an inactive boot/system
+generation, flush, publish activation state, reboot, then confirm successful startup.
+What constitutes successful startup must include root/config compatibility and update
+service recovery, not merely a serial banner. If confirmation never arrives, expose a
+fallback through a boot menu and, if supported, attempt accounting. Limine automatic
+rollback/attempt counting is **not verified or implemented**; manual fallback may be
+first. ESP FAT updates also need interruption tests; rename cannot be assumed durable.
+
+Current installations have a 64 MiB ESP and at most 512 MiB ext2 root. Check actual
+artifact/backup/staging sizes before choosing retention. Separate `/boot` files on root
+from the ESP paths firmware/Limine use; updating the former alone may change nothing
+at boot. M4 boot-artifact access and robust root selection are dependencies for a
+self-contained installer/updater. Bootloader updates should initially be separate,
+rare and explicit; avoid replacing firmware entry plumbing for every kernel update.
+An old ISO/root rescue route must remain usable when activation fails.
+
+## 8. Networking and trust
+
+Networking is needed for online updates, **not for implementing the local package core**.
+M3 should provide DHCP/static address, DNS, bounded TCP transfer, timeout/retry/cancel,
+progress and diagnostics. Begin integration against a disposable local test mirror.
+Do not assume host HTTP or crypto classes are fully plugged in Cosmos.
+
+Transport security and package authenticity are separate. HTTPS is desirable; signed
+metadata/artifacts are still needed to avoid trusting a mirror or cache with release
+identity. Trusted keys should arrive through the trusted installation image or an
+explicit authenticated bootstrap, never from the same untrusted index being verified.
+
+Use [The Update Framework specification](https://theupdateframework.github.io/specification/latest/)
+as a reference for signed target metadata, key rotation, expiry, rollback protection
+and consistent repository snapshots. TUF addresses obtaining trusted artifacts; it
+does not define our package extraction or disk-activation transaction. A simplified
+custom protocol must document its weaker guarantees and must not be called TUF-compliant.
+
+Before implementation choose a guest-compatible maintained crypto/verifier library,
+validate standard positive/negative test vectors natively and pin algorithms/encodings.
+Signing happens on the trusted publisher; the guest only needs verification keys.
+Secure entropy is separately needed for passwords and TLS-related operations; digest
+and signature verification should not depend on the current insecure random plug.
+
+Clock/expiry policy is unresolved: bad RTC time can undermine expiration checks; unauthenticated
+NTP is not a trusted freshness source. Persist accepted metadata versions and define
+behavior for untrusted time, replayed indexes, key rotation and explicit recovery/downgrade.
+Do not silently disable verification to make a lab mirror work. HTTP-only testing must
+be explicitly scoped; public deployment awaits agreed verification and transport policy.
+This design does not provide secure boot against a physically replaced kernel/root.
+
+## 9. Mirror and publishing pipeline
+
+Recommended first mirror is a static repository served by a conventional host/web
+server, separate from Zenith. The guest does not need to run the package mirror.
+Public hosting/domain/operator are still decisions; no mirror is provisioned here.
+
+Proposed published layout:
+
+- Versioned signed metadata/indexes per channel and architecture.
+- Immutable artifacts addressed by digest or immutable release/version identity.
+- Kernel/system release manifests tying matching artifacts together.
+- Package manifests, license/source information and build provenance.
+
+Publishing workflow: build pinned sources/toolchain, run host and native tests, assemble
+packages/releases, validate generated metadata, sign in a protected release step, upload
+immutable artifacts, then publish their new signed metadata snapshot. Mirrors copy signed
+bytes, not regenerate them. Protect signing keys separately from ordinary mirror hosting;
+use offline root trust and documented rotation/revocation. Decide exact trust roles after
+verifier feasibility and TUF evaluation. Keep previous releases until supported clients
+can migrate/recover, and test fetching through stale or incompletely replicated mirrors.
+
+Existing CI publishes ISO/ELF on `v*` tags. It must eventually produce package artifacts
+and a coordinated release manifest, but changing GitHub release output alone is not a
+package repository. Signing/publication requires explicit credentials and deployment work
+later; none are assumed in this planning task.
+
+## 10. Implementation stages and required tests
+
+| Stage | Scope | Completion evidence |
+|---|---|---|
+| P0: format/recovery experiments | Host builder, parser, plan; candidate guest verifier; boot-layout design | Round-trip fixture, malicious archive/manifest corpus; decisions recorded |
+| P1: local data packages | Offline CLI, ownership DB, staging/config policy, removal | Native installed-root install/upgrade/remove; reboot persistence; interrupted/out-of-space recovery |
+| P2: system generations | Kernel plus matched data, inactive boot artifacts, confirmation/fallback | Disk-only UEFI upgrades and failed-boot fallback; fault injection at activation boundaries |
+| P3: repository client | Signed metadata/mirror, bounded network fetching | Tampered/truncated/replayed/expired metadata rejected; key rotation and interrupted download tested |
+| P4: independent applications | M5 runtime contract, dependencies and launcher entries | Install/run/remove app without compiling a new kernel |
+
+P0 can begin while finishing M2 or designing sessions. P1 needs validated filesystem
+mutation and a stated privilege/recovery policy; P2 needs the chosen boot/root recovery
+model. P3 depends on M3 and trust verification. The precise P2/P3 order can change after
+boot/crypto research; neither is a quick side effect of a `fetch` command.
+
+Test dimensions: malformed metadata/container, extraction escapes, hash/signature failure,
+wrong architecture/runtime/release, dependency cycles/conflicts, insufficient root/ESP
+space, concurrent operations, config preservation, permission denial, cancellation,
+short writes, device errors, reboot at each persistent phase and failed new kernel boot.
+Independent e2fsck and content/ownership inspection accompany native disk mutation tests.
+Host serialization tests alone do not establish safe installed updates.
+
+## 11. Choices to settle together
+
+1. **Update priority:** recommended system/kernel plus data before independent apps.
+2. **System layout:** coordinated file generations versus read-only/A-B root images;
+   choose after interrupted-update recovery experiments and space measurements.
+3. **Package scope:** recommended official packages, exact dependencies, no hooks and
+   regular-file/directory payloads first. Decide format/compression based on guest feasibility.
+4. **Trust:** maintained TUF implementation/compatible verifier versus a deliberately
+   limited protocol; choose libraries, clock policy and key management before public updates.
+5. **Runtime:** retain WASM/WASI as a candidate; native POSIX compatibility changes scope
+   substantially. Bash requirements should influence this decision explicitly.
+6. **Operations:** mirror hosting/channel policy, release retention and whether automatic
+   downloads should later be optional. First apply remains user initiated with visible plan.
+
+Recommended next implementation slice after this discussion: P0 host package
+builder/reader/dry-run prototype plus guest verifier and boot-layout feasibility checks,
+without modifying an active installed system. Agree that scope before freezing a format.

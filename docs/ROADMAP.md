@@ -7,27 +7,48 @@ says when it's done. Background and effort estimates for the big items are in
 **Sizes:** S = a day or two · M = about a week · L = several weeks · XL = months.
 **↑ upstream** = a change to Cosmos itself (its HAL is internal; see "Upstream work" below).
 
-## Where we are (v0.2)
+## Where we are (reviewed 2026-10-11)
 
-**Working:**
-- Desktop: compositor, resizable/maximizable windows, taskbar, launcher, clipboard.
-- Terminal: a POSIX-flavoured shell with scripting (if/for/while, functions, `$(...)`,
-  `$((...))`, `test`, `read`), ~70 commands, text selection, reflow on resize.
-- Text editor (`edit file`), manual pages (`man`), keyboard layouts, time zones.
-- FAT32 root (installed disk) or RAM root (live), `/tmp` in RAM, clean shutdown.
-- Installer (GPT + ESP + root), finished by a host-side bootable step.
-- CI: 240 unit tests and a 46-check QEMU smoke test on every push.
+M0/M1 are complete. Supported bounded ext2 is implemented and verified;
+**M2 is still open for real users/authentication and permission enforcement**.
+See [ARCHITECTURE](ARCHITECTURE.md) for current behavior and [PROGRESS](PROGRESS.md)
+for exact evidence. Version labels below are milestone targets, not release claims.
 
-**Known gaps in what exists:**
+**Working:** floating desktop, terminal/scripting, editor, simple Files test app,
+manual pages, persisted keyboard/timezone configuration; proc/dev virtual files;
+new installed ext2 roots up to 512 MiB with FAT32 ESP (legacy FAT roots recognized);
+guarded ext2 formatting, symlinks, numeric ownership/modes, directory moves and
+check-only consistency auditing. Live root and `/tmp` remain RAM-backed FAT.
+Installer boot files still require a host helper.
 
-| Gap | Effect today |
+**Latest local validation at `8389113`:** 374 host tests, eight Python tests,
+Release publish, 135 baseline + 135 large-profile QEMU assertions and seven
+UEFI disk-only assertions. Hosted CI rerun awaits push.
+
+| Current gap | Consequence |
 |---|---|
-| Pipes are buffered, not streamed | Each stage runs to completion before the next starts: `yes \| head` never ends (Ctrl+C stops it) |
-| No processes | Every command is built into the kernel; no background jobs (`&`), no `ps`/`kill` (M5) |
-| Terminal has no raw mode | No full-screen terminal programs (`less`, `top`, a nano-style editor); the editor is a window |
-| FAT | No permissions, owners or symlinks; names are case-insensitive; Cosmos doesn't store timestamps (`ls -l` shows 1970) |
-| Editor | No undo, no search |
-| Cosmos boot fault under nested KVM | On GitHub's runners about one boot in seven stops with a general-protection fault (exception 13) inside Cosmos' APIC/PIC setup, before Zenith code runs. Never seen locally. The smoke test retries such boots and reports it. |
+| Buffered pipelines; no raw terminal mode | Unbounded producers do not terminate through a later head; no general full-screen TUIs |
+| Kernel-linked apps/commands; no process loader/isolation | New compiled apps require a kernel build; no general jobs/ps/kill |
+| Ownership/modes without credentials/enforcement | Metadata is truthful but cannot restrict access yet |
+| Bounded ext2, no journal/guest repair | Unsupported layouts refused; crash-dirty volumes need host e2fsck |
+| Deferred unlink in Cosmos VFS | Namespace remains until final open handle closes |
+| Simple Files and no Settings app | Files remains a test client; settings use commands |
+| Guest always constructs Desktop | Hidden-window QEMU testing is not a headless OS session |
+| No integrated network/package service | Online installed updates and mirror management remain planned |
+| Early Cosmos boot fault observed under nested KVM | Harness retries the classified pre-Zenith fault; other failures stay failures |
+
+## Expanded product workstreams
+
+The user-requested product scope is detailed in [SYSTEM-PLAN](SYSTEM-PLAN.md):
+headless plus desktop DE/automatic-tiling WM, shared configuration/services,
+proper Settings and a future Files rework. Package architecture is a
+[design discussion](PACKAGE-MANAGER.md), not a settled implementation.
+
+Keep milestone identities stable. Add offline package research/foundation alongside
+M2/M3; coordinate installed-system activation with M4 and independent apps with M5.
+Expand M6 to include both desktop session policies. Shared session/configuration
+seams and serial headless can start earlier once dependencies are defined. Each
+workstream has acceptance gates; documentation does not complete them.
 
 ---
 
@@ -38,7 +59,7 @@ Infrastructure that every later milestone leans on.
 | Item | Size | Notes |
 |---|---|---|
 | ✅ GitHub Actions: unit tests, ISO build, QEMU smoke test on every push; ISO release on `v*` tags | S | `.github/workflows/ci.yml`; GitHub's runners have KVM |
-| ✅ Host unit tests for the parser, shell and commands, plus the terminal's ANSI buffer | M | `tests/Zenith.Tests`, 64 tests |
+| ✅ Host unit tests for the parser, shell and commands, plus the terminal's ANSI buffer | M | `tests/Zenith.Tests`; 64 tests at the original M0 checkpoint |
 | ✅ QEMU smoke test: boot headless, type commands over the monitor, assert on serial output | M | `tools/smoke-test.py`; covers pipes, `/tmp`, exit status, install and panic |
 | ✅ Panic screen: exceptions from boot or `Run()` show the message and stack trace, are logged, and R restarts | S | `crash` triggers it |
 | ✅ Kernel log mirrored to `/var/log/boot.log`, previous boot kept as `boot.log.1` | S | `logger` writes to it |
@@ -78,8 +99,8 @@ terminal mode with cursor addressing (enables `less`, `top`, a TUI editor), edit
 | `/dev` virtual filesystem: `null`, `zero`, `random`, block devices (`sda`, `sda1`) | M | Null/zero and read-only live disk/partition nodes implemented with bounded `dd`; entropy and raw writes pending. See [PROGRESS.md](PROGRESS.md) |
 | **ext2 driver, read-write** | L | Supported bounded ext2 profile: secondary and installed roots, guarded formatter, ownership/modes, symlinks and directory moves. Native root/UEFI persistence verified; permission enforcement remains pending; see [PROGRESS.md](PROGRESS.md) |
 | Installer formats the root as ext2 (the ESP stays FAT32) | S | Verified: ext2-root reboot/persistence and disk-only EFI boot; ESP remains FAT32 |
-| Users: login screen, `/etc/shadow` with salted hashes, `passwd`, `su`, `useradd` | M | |
-| Permission checks in the VFS path for file operations | M | |
+| Users: console/graphical login, `/etc/shadow` with salted hashes, `passwd`, `su`, `useradd` | L | Pending: validated entropy/hash primitives, credential context and operation policy first |
+| Permission checks for file operations | L | Pending: GUI, shell, System.IO and direct-VFS entry points; ownership on creation |
 | `fsck.ext2` (check-only first) | M | Read-only supported-profile consistency audit verified with corruption fixtures and native checks; repairs remain host-side |
 | ext4 read-only (extents, 64-bit), to read Linux disks | L | Optional, after ext2 |
 
@@ -90,11 +111,11 @@ the truth.
 
 | Item | Size | Notes |
 |---|---|---|
-| Network service: DHCP at boot, `/etc/hostname`, `/etc/hosts`, `/etc/resolv.conf` | S | The Cosmos stack already has DHCP, DNS, UDP and TCP |
+| Network service: DHCP at boot, `/etc/hostname`, `/etc/hosts`, `/etc/resolv.conf` | S | Framework networking is documented; validate installed APIs and native Zenith integration before relying on them |
 | `ip`/`ifconfig`, `ping`, `nslookup`, `nc` | M | |
 | NTP client: set the clock at boot | S | Fixes wrong time in VMs |
-| Plain-HTTP `fetch` (curl-like) and a tiny HTTP server for testing | M | No TLS in Cosmos yet |
-| TLS | XL | Track Cosmos's plans (it's on their "Future" list) before writing our own |
+| Plain-HTTP `fetch` (curl-like) and a tiny HTTP server for testing | M | TLS is not integrated/verified in Zenith; public update transport requires a separate design |
+| TLS | XL | Evaluate guest-compatible maintained libraries and upstream support; validate crypto and entropy natively |
 
 **Exit:** a fresh boot gets an address and the right time, and can fetch a file over HTTP.
 
@@ -115,33 +136,39 @@ host tools involved.
 
 ## M5 · Running programs (v0.6)
 
-The biggest architectural step: from "commands compiled into the kernel" to real programs.
+The biggest architectural step: from "commands compiled into the kernel" to independent programs.
+WASM/WASI is a proposed direction, not an agreed or implemented runtime. See
+[Bash feasibility](BASH-PORT.md) before choosing its compatibility scope.
 
 | Item | Size | Notes |
 |---|---|---|
-| WebAssembly interpreter in the kernel | XL | Sandboxed by design; matches Cosmos's planned "userland WASM VM" |
+| WebAssembly interpreter in the kernel | XL | Proposed; sandbox guarantees depend on the selected interpreter, host API and resource limits |
 | WASI preview 1 subset over our VFS: files, dirs, args, env, clocks, stdout/stderr | L | |
-| Process table: `ps`, `kill`, exit codes, background jobs (`&`, `jobs`, `fg`) | L | Each program runs on its own thread |
+| Process table: `ps`, `kill`, exit codes, background jobs (`&`, `jobs`, `fg`) | L | Proposed threading; isolation, cancellation and resource contracts need design |
 | `/bin` holds `.wasm` programs; the shell looks up `PATH` before built-ins | S | |
-| Toolchain doc + sample: build C/Rust/Zig to `wasm32-wasi`, copy into the image | S | |
-| Package format and `pkg install` from a local directory or HTTP (needs M3) | L | |
+| Toolchain doc + sample: build a program for the chosen WASI target, copy into the image | S | |
+| Runtime application package integration | L | Local data-package foundation can precede M5; network distribution needs M3; see [PACKAGE-MANAGER](PACKAGE-MANAGER.md) |
 
 **Exit:** a C program compiled with wasi-sdk on the host runs from `/bin` in Zenith, reads and
 writes files, and shows up in `ps`.
 
-## M6 · Desktop polish (v0.7)
+## M6 · Desktop sessions and applications (v0.7 target)
 
 | Item | Size | Notes |
 |---|---|---|
 | Widget toolkit: button, text box, list, scroll view, checkbox, layout | L | Every app afterwards gets cheaper |
-| File manager | M | Needs the toolkit |
-| Settings app: keyboard layout, time zone, wallpaper, display info | M | |
+| Files rework | L | Basic test app exists; full workflow/transfer rework needs toolkit and shared operation service |
+| Settings app: shared configuration, keyboard/timezone/system, later users/network/updates | L | Implement pages only as supporting capabilities become available |
 | Damage tracking: recompose only changed regions | M | Smooth window drags without KVM |
 | ↑ virtio-gpu hardware cursor and partial flush | M | Pointer moves cost nothing |
 | ↑ virtio-tablet (absolute pointer) | S | Host and guest cursors stay in sync with no grab |
-| Notifications, Alt+Tab, keyboard shortcuts | M | |
+| DE session: notifications, Alt+Tab, keyboard shortcuts, workspaces | L | Shared focus/dialog/workspace infrastructure |
+| Automatic-tiling WM session | L | Shared compositor/apps; proposed master-and-stack policy, keyboard controls and floating dialogs |
+| Headless/shared session startup | L | Can begin earlier: graphics-independent serial shell and shared service/configuration seam |
 
-**Exit:** the desktop is usable without the terminal for basic file and settings tasks.
+**Exit:** DE and auto-tiling WM support basic file/settings tasks with keyboard and pointer;
+headless boots without graphical initialization and exposes the shared shell/services.
+See [SYSTEM-PLAN](SYSTEM-PLAN.md) for detailed acceptance gates.
 
 ## M7 · Real hardware (v0.8)
 
@@ -175,6 +202,8 @@ requests or in our local fork until they land:
 | Decision | Recommendation | Why it matters |
 |---|---|---|
 | How programs run | WASM + WASI | The alternative (native ELF, ring 3, syscalls) means months inside Cosmos internals |
-| Native root filesystem | ext2, then ext4 read-only | Our own format would save time now but lose host tooling (`mkfs`, `e2fsck`, `debugfs`) |
+| Native root filesystem | Bounded ext2 implemented; ext4 read-only remains optional | Retain host interoperability and explicit crash/feature limits |
+| Installed updates and packages | Offline-first data packages, coordinated kernel/data releases, signed mirror later | Format, trust, recovery and runtime choices remain open; [design](PACKAGE-MANAGER.md) |
+| Sessions | DE default, serial-first headless, shared DE/WM compositor | User requirements accepted; policy/keybindings and delivery slices are proposals |
 | Target hardware | QEMU first; one or two real UEFI machines from M7 | Decides which NIC and input drivers come first |
 | Contributing upstream vs. forking Cosmos | Fork locally, upstream as we go | Some fixes are needed before Cosmos would release them |

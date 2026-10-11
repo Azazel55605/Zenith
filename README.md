@@ -127,6 +127,12 @@ folders, devices, virtual files or symlinks are unavailable. See `man files`.
 
 ## Documentation
 
+Start with the [documentation hub](docs/README.md). The [current architecture](docs/ARCHITECTURE.md),
+[project history](docs/HISTORY.md), [detailed system plan](docs/SYSTEM-PLAN.md) and
+[package/update design discussion](docs/PACKAGE-MANAGER.md) separate verified behavior
+from planned headless, DE/tiling WM, Settings, Files and update work. M2 remains open
+for real users and permission enforcement.
+
 - [`INSTRUCTIONS.md`](INSTRUCTIONS.md): shared contributor and agent guidance (also linked from `AGENTS.md` and `CLAUDE.md`).
 - [`docs/PROGRESS.md`](docs/PROGRESS.md): active M2 work, validation evidence and next steps.
 
