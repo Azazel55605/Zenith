@@ -40,8 +40,8 @@
     <Compile Include="../../src/Core/Packages/*.cs" Exclude="../../src/Core/Packages/NativePackageSource.cs" LinkBase="Kernel/Packages" />
     <Compile Include="../../src/Core/Memory/*.cs" LinkBase="Kernel/Memory" />
     <Compile Include="../../src/Core/Files/*.cs" LinkBase="Kernel/Files" />
-    <Compile Include="../../src/Core/Network/*.cs" Exclude="../../src/Core/Network/NetworkService.cs" LinkBase="Kernel/Network" />
-    <Compile Include="../../src/Core/Network/Transport/BoundedTcpBuffer.cs" LinkBase="Kernel/Network/Transport" />
+    <Compile Include="../../src/Core/Network/*.cs" Exclude="../../src/Core/Network/NetworkService.cs;../../src/Core/Network/TlsConnection.cs" LinkBase="Kernel/Network" />
+    <Compile Include="../../src/Core/Network/Transport/*.cs" LinkBase="Kernel/Network/Transport" />
     <Compile Include="../../src/Core/Time/*.cs" LinkBase="Kernel/Time" />
     <Compile Include="../../src/Core/Text/*.cs" LinkBase="Kernel/Text" />
     <Compile Include="../../src/Gui/Terminal/TerminalBuffer.cs;../../src/Gui/Graphics/Theme.cs" LinkBase="Kernel/Gui" />

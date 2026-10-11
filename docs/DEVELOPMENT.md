@@ -327,3 +327,11 @@ e1000e guests. No public network server is needed. Socket access must be permitt
 Preserve wrong-ID DNS, timeout, failed-download preservation and Ctrl+C cases: Cosmos
 3.0.89 skips unwind-finally handlers, so host-only cleanup tests miss native leaks.
 [NETWORKING](NETWORKING.md) describes application bounds versus framework queue limits.
+
+
+M3 HTTPS builds offline from the checked Mbed TLS archive under `vendor/mbedtls`.
+`tools/build-tls.py` invokes clang for freestanding objects before link cache checks;
+use a clang executable on PATH. The post-patcher has its own cache invalidation,
+so changing PatcherFixup/wrapper forces Cosmos to repatch. OpenSSL is needed for
+host/native TLS fixture certificates. See [NETWORKING](NETWORKING.md) for bridge,
+launcher and native acceptance commands, including optional home DNS testing.

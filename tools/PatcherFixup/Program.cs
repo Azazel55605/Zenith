@@ -21,6 +21,27 @@ foreach (var type in module.GetTypeReferences())
 foreach (var reference in self) { module.AssemblyReferences.Remove(reference); }
 if (assembly.Name.Name == "Cosmos.Kernel.Plugs")
 {
+    // DateTime and DateTimeOffset (including filesystem timestamps) share this clock.
+    // Apply at the raw RTC seam so SystemClock never recursively calls its own source.
+    var clock = module.GetType("Cosmos.Kernel.Plugs.System.DateTimePlug")
+        ?? throw new InvalidOperationException("Cosmos DateTime plug changed");
+    var ticks = clock.Methods.Single(m => m.Name == "GetCurrentTicks" && m.Parameters.Count == 0);
+    if (ticks.ReturnType.FullName != "System.Int64" || !ticks.HasBody)
+    { throw new InvalidOperationException("Cosmos clock signature changed"); }
+    if (!ticks.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "Adjust"))
+    {
+        using var support = resolver.Resolve(new AssemblyNameReference("Zenith.Network", new Version(1, 0, 0, 0)));
+        var correction = support.MainModule.GetType("Zenith.Core.Network.Transport.ClockCorrection");
+        var adjust = module.ImportReference(correction.Methods.Single(m => m.Name == "Adjust"));
+        var il = ticks.Body.GetILProcessor();
+        foreach (var instruction in ticks.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
+        {
+            // Turn each original return into the call, preserving branch destinations.
+            instruction.OpCode = OpCodes.Call; instruction.Operand = adjust;
+            il.InsertAfter(instruction, il.Create(OpCodes.Ret));
+        }
+        changed = true; Console.WriteLine("Adapted Cosmos UTC clock: shared NTP correction");
+    }
     // Keep the released descriptor implementation; add authorization before its
     // handle allocation. A denied O_TRUNC otherwise throws while owning a handle
     // that has not yet been wrapped in a SafeFileHandle and cannot be disposed.
@@ -50,6 +71,73 @@ if (assembly.Name.Name == "Cosmos.Kernel.Plugs")
 }
 if (assembly.Name.Name == "Cosmos.Kernel.System")
 {
+    var transportReference = new AssemblyNameReference("Zenith.Network", new Version(1, 0, 0, 0));
+    using var transportSupport = resolver.Resolve(transportReference);
+    var guardType = transportSupport.MainModule.GetType("Zenith.Core.Network.Transport.EthernetGuard");
+    var handle = module.GetType("Cosmos.Kernel.System.Network.NetworkStack").Methods.Single(m => m.Name == "HandlePacket");
+    if (handle.Parameters.Count != 2 || handle.Parameters[0].ParameterType.FullName != "System.Byte[]"
+        || handle.Parameters[1].ParameterType.FullName != "System.Int32" || !handle.HasBody)
+    { throw new InvalidOperationException("Cosmos Ethernet delivery contract changed"); }
+    if (!handle.Body.Instructions.Any(i => i.Operand is MethodReference m && m.DeclaringType.Name == "EthernetGuard"))
+    {
+        var il = handle.Body.GetILProcessor(); var first = handle.Body.Instructions[0];
+        var accept = module.ImportReference(guardType.Methods.Single(m => m.Name == "Accept"));
+        il.InsertBefore(first, il.Create(OpCodes.Ldarg_0)); il.InsertBefore(first, il.Create(OpCodes.Ldarg_1));
+        il.InsertBefore(first, il.Create(OpCodes.Call, accept)); il.InsertBefore(first, il.Create(OpCodes.Brtrue, first));
+        il.InsertBefore(first, il.Create(OpCodes.Ret)); handle.Body.MaxStackSize = Math.Max(2, handle.Body.MaxStackSize);
+        changed = true; Console.WriteLine("Added bounded Ethernet/IPv4 ingress guard");
+    }
+    // The legacy DHCP constructor parses unchecked fixed offsets before Zenith's codec.
+    // Deliver the checked UDP envelope directly; Zenith parses BOOTP/options afterward.
+    var dhcpHandler = module.GetType("Cosmos.Kernel.System.Network.IPv4.DHCP.DhcpPacket").Methods.Single(m => m.Name == "DHCPHandler");
+    var udpPacket = module.GetType("Cosmos.Kernel.System.Network.UDP.UdpPacket");
+    var dhcpCtor = dhcpHandler.Body.Instructions.Single(i => i.OpCode == OpCodes.Newobj);
+    if (dhcpCtor.Operand is MethodReference originalCtor && originalCtor.DeclaringType.Name == "DhcpPacket")
+    {
+        if (!dhcpHandler.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "ReceiveData" && m.DeclaringType.Name == "UdpClient"))
+        { throw new InvalidOperationException("Cosmos DHCP delivery body changed"); }
+        dhcpCtor.Operand = udpPacket.Methods.Single(m => m.IsConstructor && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.FullName == "System.Byte[]");
+        foreach (var variable in dhcpHandler.Body.Variables.Where(v => v.VariableType.Name == "DhcpPacket")) { variable.VariableType = udpPacket; } changed = true;
+        Console.WriteLine("Adapted DHCP delivery to bounded Zenith codec");
+    }
+    // Upstream TCP option parsing incorrectly walks payload length, and treats EOL
+    // as a length-bearing option. The FSM never reads Options. Guard their lengths
+    // at ingress; retain all header/flag fields and omit this unused unsafe parsing.
+    var tcpPacket = module.GetType("Cosmos.Kernel.System.Network.TCP.TcpPacket");
+    var fields = tcpPacket.Methods.Single(m => m.Name == "InitializeFields");
+    var urgent = fields.Body.Instructions.Single(i => i.OpCode == OpCodes.Stfld && i.Operand is FieldReference f && f.Name == "_urg");
+    if (urgent.Next.OpCode != OpCodes.Ret)
+    {
+        if (fields.Body.ExceptionHandlers.Count != 0 || !fields.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "get_TcpDataLength"))
+        { throw new InvalidOperationException("Cosmos TCP option parser changed"); }
+        var il = fields.Body.GetILProcessor();
+        while (urgent.Next is not null) { il.Remove(urgent.Next); }
+        il.Append(il.Create(OpCodes.Ret)); fields.DebugInformation.SequencePoints.Clear(); changed = true;
+        Console.WriteLine("Removed unused unsafe TCP option materialization (ingress validated)");
+    }
+    var queue = module.ImportReference(transportSupport.MainModule.GetType("Zenith.Core.Network.Transport.BoundedPacketQueue`1"));
+    foreach (string clientName in new[] { "Cosmos.Kernel.System.Network.UDP.UdpClient", "Cosmos.Kernel.System.Network.IPv4.IcmpClient" })
+    {
+        var client = module.GetType(clientName); var field = client.Fields.Single(f => f.Name == "_rxBuffer");
+        if (field.FieldType.Name.StartsWith("BoundedPacketQueue", StringComparison.Ordinal)) { continue; }
+        if (field.FieldType is not GenericInstanceType old || old.ElementType.FullName != "System.Collections.Generic.Queue`1")
+        { throw new InvalidOperationException("Cosmos receive queue changed"); }
+        var bounded = new GenericInstanceType(queue); bounded.GenericArguments.Add(old.GenericArguments[0]);
+        string oldName = old.FullName; field.FieldType = bounded;
+        foreach (var type in module.Types)
+        foreach (var method in type.Methods.Where(m => m.HasBody))
+        foreach (var instruction in method.Body.Instructions)
+        {
+            if (instruction.Operand is FieldReference f && f.Name == "_rxBuffer" && f.DeclaringType.FullName == clientName) { instruction.Operand = field; }
+            if (instruction.Operand is not MethodReference call || call.DeclaringType.FullName != oldName) { continue; }
+            if (call.Name is not (".ctor" or "get_Count" or "Enqueue" or "Dequeue" or "Clear"))
+            { throw new InvalidOperationException("Cosmos receive queue operation changed: " + call.Name); }
+            var replacement = new MethodReference(call.Name, call.ReturnType, bounded) { HasThis = call.HasThis };
+            foreach (var parameter in call.Parameters) { replacement.Parameters.Add(new ParameterDefinition(parameter.ParameterType)); }
+            instruction.Operand = replacement;
+        }
+        changed = true; Console.WriteLine("Bounded IRQ-safe receive queue (32 packets): " + clientName);
+    }
     // Adapt only the released TCP receive storage; leave protocol state machinery in Cosmos.
     // Its AppendToData subtracts the consumed offset twice and races partial reads with IRQ
     // appends. Bounded immutable snapshots/CAS remove that race without private UnsafeAccessor.
@@ -98,6 +186,15 @@ if (assembly.Name.Name == "Cosmos.Kernel.System")
         changed = true; Console.WriteLine("Adapted Cosmos TCP receive buffer: bounded CAS snapshots (128 KiB)");
     }
 }
+// Imports above can reintroduce the released patcher's redundant self edge.
+// Rebind again after all adaptations, immediately before writing the assembly.
+foreach (var type in module.GetTypeReferences())
+{
+    if (type.Scope is AssemblyNameReference reference && reference.Name == assembly.Name.Name)
+    { type.Scope = module; }
+}
+foreach (var reference in module.AssemblyReferences.Where(r => r.Name == assembly.Name.Name).ToArray())
+{ module.AssemblyReferences.Remove(reference); changed = true; }
 if (!changed) { return; }
 string temporary = Path.Combine(Path.GetDirectoryName(path)!, "fixed-" + Path.GetFileName(path));
 assembly.Write(temporary, new WriterParameters { WriteSymbols = symbols });

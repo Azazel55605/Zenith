@@ -86,7 +86,7 @@ internal static class NetworkText
             string[] fields = raw.Split('#')[0].Split(new[] { ' ', '\t', '\r' }, StringSplitOptions.RemoveEmptyEntries);
             if (fields.Length < 2) { continue; }
             for (int i = 1; i < fields.Length; i++)
-            { if (fields[i].Equals(name, StringComparison.OrdinalIgnoreCase)) { Ip(fields[0]); return fields[0]; } }
+            { if (fields[i].Equals(name, StringComparison.OrdinalIgnoreCase)) { return Format(Ip(fields[0])); } }
         }
         return null;
     }
@@ -101,7 +101,7 @@ internal static class NetworkText
             {
                 if (fields.Length != 2 || !Unicast(Ip(fields[1]))) { throw new IOException("invalid nameserver"); }
                 if (result.Count >= 3) { throw new IOException("at most three nameservers supported"); }
-                result.Add(fields[1]);
+                result.Add(Format(Ip(fields[1])));
             }
         }
         return result.ToArray();

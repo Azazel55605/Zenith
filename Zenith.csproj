@@ -18,6 +18,11 @@
 
   <Target Name="BuildPatcherFixup" BeforeTargets="SetupPatcher">
     <Exec Command="dotnet build &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/PatcherFixup.csproj&quot; -c Release --nologo" />
+    <Exec Command="python3 &quot;$(MSBuildProjectDirectory)/tools/patcher-cache.py&quot; &quot;$(IntermediateOutputPath)/cosmos&quot;" />
+  </Target>
+
+  <Target Name="BuildZenithTls" BeforeTargets="CheckLinkCache">
+    <Exec Command="python3 &quot;$(MSBuildProjectDirectory)/tools/build-tls.py&quot; &quot;$(IntermediateOutputPath)/cosmos/cobj&quot; --arch $(CosmosArch)" />
   </Target>
 
   <ItemGroup>

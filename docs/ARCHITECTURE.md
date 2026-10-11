@@ -188,4 +188,6 @@ DHCP/DNS/NTP and incremental HTTP codecs have host tests; native adapters and st
 downloads require QEMU fault/cancellation tests. Native cleanup catches in the resource
 owner frame because Cosmos 3.0.89 skips unwind-finally handlers. Optional boot NTP
 corrects shared software UTC. See [NETWORKING](NETWORKING.md) for bounds, framework
-limitations and the open TLS/home-route gates. Current apps remain kernel-linked.
+limitations, fixed-memory verified TLS and home acceptance. Signature-checked build
+adapters guard IPv4 ingress, bound UDP/ICMP/TCP storage and share NTP corrections
+with BCL/filesystem timestamps. Current apps remain kernel-linked.

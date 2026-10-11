@@ -1,6 +1,6 @@
 # Zenith project history
 
-History through the M3 IPv4 lab foundation (2026-10-11). This is a narrative and change map, not a claim
+History through M3 LAN client completion (2026-10-11). This is a narrative and change map, not a claim
 that every planned feature shipped. Exact commits are available through `git log`;
 [PROGRESS](PROGRESS.md) contains detailed M2 validation, failures and corrections.
 
@@ -168,3 +168,14 @@ QEMU/server fixtures cover malformed/disconnected/cancelled transfers and instal
 persistence. TLS/hardened Internet transport and actual home DNS/VPN routing remain
 open; HTTP does not authenticate packages. See [NETWORKING](NETWORKING.md) and
 [PROGRESS](PROGRESS.md) for current bounds and validation evidence.
+
+
+### M3 completion for LAN testing
+
+Added verified HTTPS with a pinned offline Mbed TLS 3.6.7 source archive and a
+fixed-memory native bridge, fingerprint-checked CA import, crypto known-answer
+tests and fail-closed entropy/date/name/chain/record checks. Shared NTP now feeds
+BCL and filesystem time. Build adapters guard packet parsing and bound UDP/ICMP
+queues; configuration reload/DNS saves and user/TAP/off launch profiles support
+home testing. Home DNS supplied as 10.0.10.3; no package VM exists yet. Detailed
+validation and any remaining acceptance gates are tracked in [PROGRESS](PROGRESS.md).

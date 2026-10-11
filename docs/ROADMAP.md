@@ -19,7 +19,7 @@ for exact evidence. Version labels below are milestone targets, not release clai
 
 **Working:** floating desktop, terminal/scripting, editor, simple Files test app,
 manual pages, persisted keyboard/timezone configuration; x64 COM1 no-GPU headless;
-shared IPv4 DHCP/static diagnostics, NTP and bounded HTTP lab fetching; proc/dev virtual files;
+shared IPv4 DHCP/static diagnostics, NTP and bounded HTTP/verified HTTPS fetching; proc/dev virtual files;
 new installed ext2 roots up to 512 MiB with FAT32 ESP (legacy FAT roots recognized);
 guarded ext2 formatting, symlinks, numeric ownership/modes, directory moves and
 check-only consistency auditing. Live root remains RAM-backed FAT; `/tmp` uses
@@ -41,7 +41,7 @@ host e2fsck is clean after account updates. Hosted CI rerun awaits push; see PRO
 | Deferred unlink in Cosmos VFS | Namespace remains until final open handle closes |
 | Simple Files and no Settings app | Files remains a test client; settings use commands |
 | Temporary DE and x64 serial headless; WM unavailable | Independent userland, automatic tiling, proper Settings and Files remain future work |
-| P0 packaging only; no install/trust executor or TLS | HTTP lab transport exists; authenticated installed updates remain planned |
+| P0 packaging only; no install/trust executor | Verified HTTPS transport exists; authenticated installed updates remain planned |
 | Early Cosmos boot fault observed under nested KVM | Harness retries the classified pre-Zenith fault; other failures stay failures |
 
 ## Agreed product direction
@@ -71,7 +71,7 @@ Details: [system plan](SYSTEM-PLAN.md), [userland](USERLAND.md),
 | Done | M2 accounts/credentials and permission policy | Native allow/deny/reboot and cryptographic-vector checks passed; trusted-kernel boundary documented |
 | Active P0 | Package builder/parser/planner and userland/recovery feasibility | Shared host/guest data prototype implemented; production container, signature verifier and recovery remain gates |
 | Done foundations | S0 shared settings/session seam and S1 serial headless | Native DE/no-GPU live and installed tests; Settings GUI/per-user preferences remain later work |
-| 3 | M3 network foundation, P1 offline data packages, P2 home repository preparation | Network faults/limits; file ownership/config policy and reboot recovery; VM access verified when provisioned |
+| 3 | M3 LAN networking, P1 offline data packages, P2 home repository preparation | Network faults/limits; file ownership/config policy and reboot recovery; VM access verified when provisioned |
 | 4 | M4 boot-artifact/root identity foundation; P3 staged kernel updates | Versioned ESP files, verified boot choice, retained previous entry and disk-only reboot; no snapshot prerequisite |
 | 5 | P4 signed online repository client | Native trust/expiry/rollback checks, bounded download and LAN/VPN/DNS route tests |
 | 6 | M5 protected userland foundation then app/desktop migration; P5 independent packages | ABI/IPC/credentials/resource/fault boundaries and app updates without relinking kernel |
@@ -144,22 +144,25 @@ terminal mode with cursor addressing (enables `less`, `top`, a TUI editor), edit
 **Exit:** an installed system runs on ext2 with real users and permissions, and `ls -l` shows
 the truth.
 
-## M3 · Networking (v0.4) — active
+## M3 · Networking (v0.4) — complete for the bounded LAN client profile
 
-IPv4 lab foundation is implemented; [NETWORKING](NETWORKING.md) records its bounded
-profile and Cosmos adaptations. M3 remains open for production TLS/transport hardening
-and actual home DNS/VPN route verification. Do not equate HTTP fetching with authenticated
-package updates. Final validation evidence is tracked in [PROGRESS](PROGRESS.md).
+The bounded IPv4 LAN client profile is implemented; [NETWORKING](NETWORKING.md)
+records launch profiles, home DNS configuration, verified HTTPS and version-pinned
+Cosmos adaptations. Native acceptance passes 176/176 checks, including queries through
+home DNS 10.0.10.3; exact validation is tracked in [PROGRESS](PROGRESS.md).
+Actual package VM/VPN acceptance follows provisioning in P2; the VM does not exist
+yet. Internet/server protocol hardening remains future work. Fetching over HTTPS
+does not authorize package installation.
 
 | Item | Size | Notes |
 |---|---|---|
 | Network service: DHCP at boot, `/etc/hostname`, `/etc/hosts`, `/etc/resolv.conf` | S | Implemented on pinned Cosmos: asynchronous primary-NIC DHCP, bounded local files and resolver overrides |
 | `ip`/`ifconfig`, `ping`, `nslookup`, `nc` | M | Implemented diagnostics, correlated ICMP/DNS and TCP probes; nc interactive streams remain later work |
 | Network lifecycle/configuration | M | Implemented DHCP/static/off saves, bounded reacquisition, cancellation; QEMU link-loss/missing-NIC tests; real hardware remains unverified |
-| NTP client: set the clock at boot | S | Optional configured boot/manual software UTC correction; no default public server, no RTC write or authenticated time |
-| Bounded streaming fetch and host test server | M | Implemented 8 MiB staged HTTP lab transfer and local fault/cancel server; native TCP storage adaptation caps pending data at 128 KiB |
-| Home DNS/VPN route integration | M | Use dedicated repository VM address/name; verify host/VPN routing; a guest VPN implementation is not implicitly required |
-| TLS | XL | Open: no framework TLS plug; Mbed TLS port evaluated as a candidate; dependency/ABI/crypto/entropy/certificate validation gates in NETWORKING |
+| NTP client: set the clock at boot | S | Implemented boot/manual software UTC shared by BCL/filesystems; no default public server, RTC write or authenticated time |
+| Bounded streaming fetch and host test server | M | Implemented 8 MiB staged HTTP/verified HTTPS transfer and local fault/cancel server; native TCP storage adaptation caps pending data at 128 KiB |
+| Home DNS/VPN route integration | M | Implemented user/TAP/off launcher and saved DNS overrides; home DNS 10.0.10.3 verified from the guest; actual VM/VPN acceptance waits for P2 provisioning |
+| TLS | XL | Implemented pinned Mbed TLS 3.6.7 freestanding client, TLS 1.2 ECDHE AES-GCM, CA/hash import, required chain/name/date verification, bounded arena/queues and fail-closed RDSEED; no insecure bypass |
 
 **Exit:** a fresh boot obtains usable address/DNS, supports clock synchronization and
 bounded file fetching with fault/cancellation tests. Report clock trust limits explicitly;
@@ -356,8 +359,9 @@ The product and hosting direction above is consolidated. Further design decision
 local implementation gates, not missing product requirements. M2 is complete. The
 user selected shared settings/session foundations while retaining the current test DE,
 with early offline packaging. S0 system settings/session seam, S1 x64 serial headless
-and the P0 prototype are implemented. Next is M3 networking, with production
-package container/trust specification as the next P0 gate before installation.
+and the P0 prototype are implemented. M3 provides bounded LAN networking and verified
+HTTPS. The next packaging gate is the production container/trust specification before
+installation.
 Further P0 container/trust and native-userland/R0 research may advance as explicitly
 selected experiments; do not deploy the VM or begin a Btrfs port implicitly. Every slice updates
 PROGRESS with code status, exact validation and unresolved limitations. Maintain the

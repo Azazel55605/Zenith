@@ -847,3 +847,62 @@ permissions and reports accurate metadata through `ls -l`.
   still use RTC. Plain HTTP is a lab transport and does not authorize package updates.
 - Next M3 slice: harden transport/clock integration and prototype a pinned TLS bridge
   with certificate and missing-entropy tests; home routing follows supplied VM details.
+
+## 2026-10-11 · M3 completion and LAN usability — delivered
+
+- Completed the bounded IPv4 LAN client profile requested for home-network testing.
+  The user supplied DNS 10.0.10.3; the package VM is not provisioned. Host and guest
+  both resolve example.com through that DNS server. VM/VPN acceptance follows P2
+  provisioning; real hardware, IPv6 and Internet/server hardening remain unverified.
+- Added checksum-pinned offline Mbed TLS 3.6.7 source and retained its Apache license,
+  attribution and guest man licenses text. The freestanding client uses a 1 MiB arena,
+  two 32 KiB ciphertext queues and RDSEED entropy with fail-closed initialization.
+  Verified HTTPS uses TLS 1.2 ECDHE RSA/ECDSA AES-GCM; chain/name/IP SAN/key strength
+  and every chain certificate's dates are checked. Root-only exact-PEM SHA256 trust
+  import preserves existing trust on rejection; no default trust or insecure bypass.
+- Added signature-checked Ethernet/ARP/IPv4/ICMP/UDP/TCP bounds/checksum/option guards,
+  removed unused unsafe upstream TCP option materialization and replaced UDP/ICMP
+  receive queues with 32-packet immutable/CAS queues. Existing 128 KiB TCP receive
+  bounds remain. Shared-table concurrency, ARP/outgoing queue limits, connection
+  retirement and TCP retransmission/reassembly still require future hardening.
+- Shared correction at the Cosmos RTC seam now feeds BCL DateTime/DateTimeOffset
+  and filesystem timestamps. NTP remains unauthenticated software time; no RTC write
+  or persisted trustworthy time floor is implied. Independent debugfs confirms the
+  downloaded file's ext2 timestamp follows the known NTP fixture, rather than RTC.
+- netcfg apply validates/reloads disk configuration, hostname, hosts and resolvers.
+  Root netcfg dns saves canonical IPv4 overrides or restores DHCP DNS. Endpoint
+  normalization fixes leading-zero address correlation. Launcher supports explicit
+  user/TAP/off networking and desktop/headless; TAP consumes a preconfigured interface
+  without changing host bridges or addresses. Corrected patcher cache invalidation
+  so changes to PatcherFixup cannot silently leave stale transport/clock adaptations.
+- Final Release NativeAOT publish succeeds. Host tests pass 504/504; the exact TLS
+  bridge passes 35/35 OpenSSL checks, including leaf/root expiration/future dates,
+  wrong identity/CA, tampered ciphertext, entropy failure, limits and reuse. Launcher
+  tests pass 4/4 and Python smoke-harness tests pass 8/8.
+- Final native acceptance passes 176/176: live DHCP/DNS/ping/TCP/NTP, actual malformed
+  ingress calls, native crypto KATs, HTTP/HTTPS fault/cancel/retry/staging cleanup,
+  correct IP/name trust and rejection cases, saved DNS 10.0.10.3 resolution, clean
+  install/reboot with persisted trust/config/payloads, root/user permissions, no-NIC
+  boot, missing RDSEED rejection, independent clean e2fsck and exact file bytes/time.
+- Existing DE/filesystem regression passes 135/135 and no-GPU live/installed/auth/panic
+  regression passes 73/73. These ran after TLS, clock and transport hardening; final
+  DNS-save/manual changes were subsequently covered by the final network suite/build.
+- Corrected validation issues: full tmpfs from prior disposable disks required moving
+  six retained validation directories to ignored obj/prior-validation with symlinks
+  preserving their /tmp paths. An intermediate no-RDSEED EFI fixture failed in Limine
+  before the kernel (cause not established); the final missing-entropy case boots the
+  live ISO, imports the disposable public CA and verifies native fail-closed behavior.
+  That intermediate run is not passing evidence. No test evidence was discarded.
+- Evidence: /tmp/zenith-m3-delivery-build.log, /tmp/zenith-m3-delivery-host.log,
+  /tmp/zenith-tls-host-checks.log, /tmp/zenith-m3-launcher.log,
+  /tmp/zenith-m3-harness.log, /tmp/zenith-m3-lan-delivery.log and
+  /tmp/zenith-m3-lan-delivery/ (symlink to ignored obj/m3-lan-delivery),
+  /tmp/zenith-m3-complete-desktop.log and /tmp/zenith-m3-complete-headless.log.
+  Earlier completion/network/entropy probe logs are diagnostic history.
+- CI now builds/tests the offline TLS bridge and runs native HTTPS acceptance without
+  private LAN dependencies. Hosted CI has not run for this unpushed work. Updated
+  networking/manual, source provenance, development, architecture, history, roadmap,
+  instructions and package-server notes; 152 local documentation links resolve and
+  git diff --check passes. M3 is complete within the documented client
+  profile; transport success does not authorize package installation. Next packaging
+  work defines the production container/trust contract and prepares the dedicated VM.

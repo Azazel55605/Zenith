@@ -1,164 +1,204 @@
-# M3 IPv4 network lab
+# M3 IPv4 networking
 
-Zenith now owns a shared network service used by both the test DE and COM1 headless
-shell. This is a single IPv4 uplink over Cosmos 3.0.89, not a production network security
-boundary. See [PROGRESS](PROGRESS.md) for actual native validation and remaining gates.
+Zenith provides one primary IPv4 uplink, DHCP/static/off configuration, DNS/hosts
+lookup, ICMP and TCP diagnostics, optional NTP, and bounded HTTP/verified HTTPS
+file downloads. Both the test DE and headless shell use this service. This is a
+bounded LAN client profile; Internet-wide protocol hardening and package installation
+are separate work. Home DNS is **10.0.10.3**; the package VM is not provisioned yet.
 
-## Using it
+## Test on your network
 
-Boot with a supported NIC. The service configures the primary adapter asynchronously;
-the desktop/serial session starts even when DHCP fails. `ip`/`ifconfig` report adapter,
-MAC, physical link indication, address, mask, gateway, DNS, operation state and clock
-status. `ip addr` and `ip route` currently print the same combined diagnostic report.
+Build the ISO, then boot with explicit e1000e networking:
+
+```sh
+dotnet publish -c Release -r linux-x64 -o output-x64
+NETWORK=user tools/run.sh live
+# COM1 shell, without a graphical window:
+UI=headless NETWORK=user tools/run.sh live
+# After installing and adding EFI files:
+NETWORK=user tools/run.sh installed
+```
+
+The default user network gives the guest a private QEMU address, typically
+10.0.2.15, gateway 10.0.2.2 and DNS proxy 10.0.2.3. It can make outbound connections
+to your LAN through the host. It does not give Zenith its own address on your
+10.0.10.0 network or expose inbound services. The host must be able to reach the
+LAN; for remote testing, connect the **host** to your existing VPN first.
+
+In Zenith, wait for `ip` to show `state=online`, then run as root:
 
 ```sh
 ip
-nslookup mirror.home
-nslookup mirror.home 10.0.2.2 5353
-ping 10.0.2.2
-nc -z 10.0.2.2 8080
-fetch http://10.0.2.2:8080/test.bin /tmp/test.bin
+netcfg dns 10.0.10.3
+nslookup example.com
+ping 10.0.10.3
+# Restore DHCP-provided DNS later:
+netcfg dns auto
 ```
 
-`ping` sends one identifier/sequence-correlated echo with a three-second deadline.
-`nc` currently probes a TCP connection; interactive streams/listeners are later work.
-`nslookup` resolves one IPv4 A answer, following up to sixteen in-message CNAME links.
-An explicit server bypasses hosts-file lookup; its optional port is for lab servers.
-Names are ASCII DNS names, not internationalized names. IPv6/search domains/TCP DNS/
-DNSSEC are not implemented. NXDOMAIN, malformed, truncated and unmatched DNS replies
-produce an error; there is no fallback public DNS server.
+A DNS answer verifies the DNS/UDP routing path. A ping timeout can also mean ICMP
+is filtered; test the relevant TCP service with `nc -z HOST PORT`. If a local name
+fails, confirm that exact name resolves on your host through 10.0.10.3. Resolver
+search suffixes are not implemented: use the complete DNS name. No package-server
+address or service is assumed while the VM is absent.
 
-## Configuration and lifecycle
-
-Root controls the uplink through the same service:
+For a guest with its own LAN address, create/authorize a TAP interface and attach
+it to your host's existing bridge using your normal network configuration. The
+launcher consumes it without configuring bridges, changing host addresses or
+running network scripts:
 
 ```sh
+NETWORK=tap TAP_IFACE=zenith0 tools/run.sh live
+```
+
+DHCP then comes from your LAN. Alternatively set a **reserved, unused** address,
+its mask and gateway with `netcfg static IP MASK GATEWAY 10.0.10.3`; do not reuse
+the QEMU NAT example address on your LAN. `NETWORK=off` removes the adapter.
+`UI=desktop` is the default; `UI=headless` uses the no-GPU serial fallback.
+`DISK`, `MEM`, `QEMU`, `OVMF_CODE` and `OVMF_VARS` select local launcher resources.
+No host-network privileges are needed for user networking.
+
+## Commands and saved configuration
+
+```sh
+ip [addr|route]
+ifconfig
+netcfg status
 netcfg dhcp
 netcfg static 10.0.2.15 255.255.255.0 10.0.2.2 10.0.2.3
 netcfg off
 netcfg apply
-netcfg ntp time.home
+netcfg dns auto
+netcfg dns IP [IP [IP]]
+nslookup HOST [SERVER [PORT]]
+ping HOST
+nc -z HOST PORT
+netcfg ntp HOST [PORT]
 netcfg ntp off
-ntp time.home
+ntp HOST [PORT]
+tls selftest
+tls trust FILE SHA256
+fetch [--replace] http://HOST[:PORT]/PATH FILE
+fetch [--replace] https://HOST[:PORT]/PATH FILE
 ```
 
-The versioned `/etc/zenith/network.conf` stores mode, IPv4 address/mask/gateway/DNS
-and optional boot NTP host/port. Invalid values are rejected before saving. Unknown
-schema/keys are preserved and disable automatic network initialization; a deliberate
-root `netcfg dhcp/static/off` save replaces that file. `netcfg apply` applies the loaded
-configuration and rereads resolver overrides; reboot reloads edited network.conf.
-Live changes are volatile; installed ext2 saves survive reboot. Settings are staged,
-flushed, renamed and synced through the existing settings store.
+Configuration writes, NTP and trust import require root; diagnostics and downloads
+respect the caller's filesystem permissions. `nc` supports bounded connection probes.
+Interactive streams, listeners and remote login are later work.
 
-`/etc/hostname` supplies the service and new shell hostname; `/etc/hosts` is read on
-lookup; `/etc/resolv.conf` supports up to three `nameserver IPv4` overrides. An empty
-resolver file selects DHCP/static DNS. DHCP nameservers remain runtime state and do
-not overwrite local administrator files. These reads require bounded regular UTF-8
-files (hostname 256, configuration 4096, hosts/resolver 16384 bytes).
+`/etc/zenith/network.conf` stores version 1 mode/address/mask/gateway/DNS and optional
+boot NTP host/port. Invalid and future files are preserved and stop automatic setup.
+A deliberate root `netcfg dhcp/static/off` save replaces the configuration.
+`netcfg apply` validates and reloads hostname/configuration/hosts/resolvers from disk
+before changing active settings. `/etc/hostname` supplies the service and new shells;
+existing shell environment variables are not rewritten. `/etc/hosts` is read on lookup.
+`netcfg dns` atomically saves `/etc/resolv.conf` and reapplies the uplink. Up to three
+unicast IPv4 `nameserver` lines override DHCP/static DNS; `dns auto` clears overrides.
+Reads require bounded regular UTF-8 files: hostname 256, configuration 4096,
+hosts/resolver 16384 bytes. Installed saves survive clean reboot; live saves are volatile.
 
-DHCP checks BOOTP type, transaction, MAC, cookie, bounded TLVs, ACK type, selected
-server/address, mask, gateway and lease duration. It does two two-second attempts per
-phase, then reports offline; failed DHCP is retried after thirty seconds. Halfway through
-the lease (capped at a day), the service reacquires with discovery; it does not implement
-seamless unicast T1/T2 renewal, multiple uplinks or DHCP option overload. Reacquisition
-briefly clears the old address. Expired leases and down/missing adapters reject traffic.
-Operations serialize the framework's shared client registrations; a concurrent command
-gets a busy error. Cooperative cancellation checks run during UDP/transfer polling.
-QEMU link changes are tested through QMP; physical unplug/replug and multi-NIC behavior
-still require hardware validation.
+DHCP validates BOOTP type, MAC, transaction, cookie, TLVs, selected server/address,
+mask/gateway and lease. Two two-second attempts per phase precede an offline result;
+failed DHCP retries after thirty seconds. At half lease (capped at a day), discovery
+reacquires and briefly clears the address. Expired leases and absent/down adapters
+reject traffic. Operations serialize client registrations and report busy to a second
+caller. Seamless unicast T1/T2 renewal, multiple NICs, IPv6, DHCP option overload and
+physical link-loss validation are outside this profile.
 
-## Time
+Names are ASCII DNS names. One A answer is returned, following up to sixteen
+in-message CNAME links. Explicit DNS server queries bypass hosts. Replies must match
+endpoint, transaction, question and record shape. No public resolver fallback, IDN,
+search domains, TCP DNS or DNSSEC exists. Three configured resolvers are tried in order;
+there are two two-second attempts per server. Use `netcfg apply` to retry a failed boot.
 
-There is deliberately no default public time server. A configured `netcfg ntp HOST
-[PORT]` target is used on subsequent boot; `ntp HOST [PORT]` synchronizes immediately.
-Replies must match endpoint and a hardware-random originate token, have server mode,
-supported version, synchronized leap state/stratum, and a time in 2020..2100. The
-software UTC correction feeds `date` and shared timezone conversion. Existing BCL/
-Cosmos and ext2 filesystem timestamp sources still use the RTC; unifying those clock
-consumers remains work before production TLS/updates. It does not write the RTC,
-persist a trusted time floor or implement NTP discipline.
-The response transmit time is used without a four-timestamp offset calculation.
+## Clock and certificate trust
 
-Status explicitly calls NTP **unauthenticated**. Origin matching resists unrelated
-replies; it does not authenticate a time server, establish certificate validity or prove
-package metadata freshness. This is not NTS.
+There is no default public NTP server. `netcfg ntp HOST [PORT]` saves a subsequent
+boot target; `ntp HOST [PORT]` synchronizes immediately. Replies match endpoint and
+a hardware-random originate token, synchronized server mode/stratum and 2020..2100.
+Transmit time is used without four-timestamp discipline. A shared adjustment at the
+Cosmos raw clock seam feeds DateTime, DateTimeOffset, filesystem timestamps, date
+and timezone conversion. It does not write the RTC or persist across reboot.
 
-## HTTP lab downloads and bounds
+**NTP is unauthenticated.** It does not establish a trusted time floor, provide NTS,
+or prove package metadata freshness. TLS checks certificate dates against current
+system UTC. Ensure the boot RTC or your chosen time service supplies a reasonable
+time; an invalid clock causes TLS initialization/date verification to fail.
 
-`fetch [--replace] http://HOST[:PORT]/PATH FILE` requests HTTP/1.0 with identity encoding
-and close semantics. Only status 200 and exactly one numeric Content-Length are accepted.
-Redirects, chunking, compression, credentials, fragments and HTTPS are rejected. URLs
-are printable ASCII and at most 350 characters; headers at most 8192 bytes; payloads
-at most 8 MiB. The decoder streams to a same-directory private temporary file, emits
-progress per 64 KiB and flushes/renames/syncs only after receiving the declared bytes.
-The default refuses existing names; `--replace` permits regular files. New downloads
-retain private mode 0600. VFS caller permissions apply, including parent-directory and
-sticky-directory checks. Failed/cancelled transfers clean staging and preserve the
-previous destination. As with ordinary rename, this is not an exclusive namespace
-transaction against other trusted kernel threads concurrently editing that directory.
+No public or private CA is trusted by default. To use your future VM's HTTPS service,
+export its issuing CA's ASCII PEM file and obtain the **SHA256 of the exact PEM file**
+through a trusted channel. This hash is not the DER certificate fingerprint reported
+by `openssl x509 -fingerprint`. On the host/VM use `sha256sum ca.pem`.
+Copy the file through a local volume or download it over HTTP, then:
 
-There are at most two attempts, a three-second idle and thirty-second body deadline
-per attempt, plus DNS/connect time. DNS has two two-second attempts per server; TCP
-connect uses Cosmos's five-second blocking connect and observes cancellation on return.
-Transfer loops check cancellation every ten milliseconds of idle polling. Socket close
-requests zero wait. A local version-pinned [TCP receive adaptation](../src/Core/Network/Transport/SOURCE.md)
-uses immutable snapshots/CAS and caps pending TCP data at 128 KiB per connection.
-Overflow closes the connection and rejects the transfer. The application also caps
-its receive staging and drains currently available data.
+```sh
+tls trust /tmp/ca.pem EXPECTED_64_HEX_DIGIT_PEM_FILE_HASH
+fetch https://YOUR_FULL_VM_DNS_NAME/test.txt /tmp/test.txt
+```
 
-These bounds constrain Zenith's decoder/file output and adapted TCP storage, not all
-allocations made earlier by Cosmos's packet/UDP queues. Upstream TCP sequence/window
-handling, reassembly and packet/client table concurrency need hardening before untrusted
-Internet use.
-Cosmos's native exception dispatcher skips unwind `finally` handlers: the service
-explicitly catches/disposes resources in their owning frame before propagating errors.
-Typed catch selection also misclassified cancellation in native tests; the adapter uses
-one catch-all with explicit classification and invokes retry callbacks outside handlers.
-Native rejection/cancellation tests must stay in CI; host tests cannot reproduce this.
+Import validates the hash and complete PEM bundle before staged replacement of
+`/etc/zenith/tls-ca.pem` (maximum 4096 bytes). Malformed files and wrong hashes preserve
+old trust. HTTPS verifies CA chain, DNS name or IPv4 SAN, key/algorithm policy and
+**every certificate's validity dates**. There is no insecure bypass. The server must
+support TLS 1.2 ECDHE-RSA or ECDHE-ECDSA with AES-128/256-GCM and P-256; RSA keys
+must meet the library's 2048-bit minimum. TLS 1.3, client certificates, revocation
+retrieval, public CA bundles, tickets/resumption and certificate pin rotation are
+not implemented. IP URLs require a matching IP SAN, not just a DNS certificate.
 
-Plain HTTP, DHCP and DNS have no authentication. Downloads are **not installable
-packages**, and fetching bytes does not authorize `pkg install/update`. P0 remains
-inspect/plan only. See [package trust design](PACKAGE-MANAGER.md).
+## Transfer and transport bounds
 
-## Native validation and home infrastructure
+Fetch sends HTTP/1.0 with identity encoding and close semantics. Only status 200
+with exactly one numeric Content-Length is accepted. Redirects, chunking,
+compression, credentials and fragments are rejected. URLs are printable ASCII
+and at most 350 characters, headers 8192 bytes, payloads 8 MiB. It streams into a
+same-directory private 0600 temporary file, reports progress per 64 KiB, and
+flushes/renames/syncs after all declared bytes. Existing files require `--replace`
+and must be regular files. Errors and cancellation remove staging and preserve the
+old destination. This is not an exclusive namespace transaction against concurrent
+trusted kernel writers.
 
-`python3 -B tools/network-smoke.py /tmp/zenith-network` starts ephemeral loopback
-HTTP/DNS/NTP servers and disposable no-GPU QEMU/slirp guests with an explicit e1000e.
-It exercises boot address/routes/DNS, correlated replies, clock correction, TCP probes,
-streaming/progress, retry, oversize/header/encoding/truncation/stall faults, Ctrl+C,
-staging cleanup, static/off configuration, installed saves/boot NTP, persistent downloads
-QMP unplug/replug, account denial/recovery, and a disk-only boot without a NIC.
-Installed reboots use clean shutdown; independent e2fsck and debugfs check the final
-root and exact payload bytes. It needs QEMU, OVMF, mtools and local socket access;
-it does not depend on public DNS/NTP/HTTP servers. Existing DE/headless suites remain
-regressions. No real disk or upstream Cosmos checkout is modified.
+Two attempts maximum; each has a three-second idle and thirty-second body deadline,
+plus DNS/connect/handshake time. Cosmos TCP connect blocks up to five seconds and
+observes cancellation on return. TLS handshake/write have fifteen-second deadlines;
+TLS reads have a three-second deadline. Idle polling checks cancellation at 10 ms.
+There is a fixed 1 MiB TLS arena and two 32 KiB encrypted queues. CPU/hypervisor
+RDSEED, retried at most 256 times per word, seeds Mbed TLS CTR-DRBG; its reseeds also
+require RDSEED. No timer, framework insecure RNG or predictable fallback is used.
 
-The user's package VM has its own IP and will use existing home DNS/VPN reachability.
-No address, hostname, subnet or VPN route has been supplied, so those routes cannot be
-verified yet. Provisioning/guest access tests belong in [PACKAGE-SERVER](PACKAGE-SERVER.md).
-A guest VPN client is not implied. Replace the lab URL with that VM only after transport
-and package authentication gates are met.
+[Version-pinned build adapters](../src/Core/Network/Transport/SOURCE.md) validate
+Ethernet/IPv4 lengths/options/checksums before framework parsing, reject fragments/
+IPv6/unsupported frames, cap each UDP/ICMP queue at 32 packets, and cap pending TCP
+at 128 KiB. They bypass unsafe legacy DHCP parsing and unused TCP option allocation.
+Cosmos protocol state, retransmission/reassembly, ARP caching, connection retirement
+and shared tables still have limits; these bounds are not a whole-kernel budget or
+an Internet-facing server assurance. Native cleanup explicitly catches/disposes in
+owning frames because Cosmos 3.0.89 skips unwind-finally and misselects typed catches.
 
-## TLS feasibility gate
+HTTPS authenticates the transport to a trusted server. It does **not** authorize
+package installation: signed metadata/artifacts, rollback/expiry policy and the
+transaction executor remain package milestones. P0 is still inspect/plan only.
 
-The pinned Cosmos source has no SslStream/TLS plug and documents raw TCP without HTTPS.
-Its `InteropSysPlug.GetCryptographicallySecureRandomBytes` currently calls the same
-non-cryptographic generator as its nonsecure counterpart. Zenith's RDSEED source is
-used for protocol correlation; it must be wired explicitly into any future TLS port,
-with no timer/PRNG fallback. Existing security KATs do not certify a TLS implementation.
+## Build and validation
 
-[Mbed TLS](https://github.com/Mbed-TLS/mbedtls) is a candidate, not a selected dependency.
-Its [official porting guide](https://mbed-tls.readthedocs.io/en/latest/kb/how-to/how-do-i-port-mbed-tls-to-a-new-environment-OS/)
-describes replaceable network, timing and entropy callbacks and bare-metal builds.
-Inference for Zenith: a freestanding native bridge could use bounded send/receive,
-allocator and RDSEED callbacks, but needs toolchain/C-library integration and managed/
-native ABI validation. The guide warns that disabling absolute time skips certificate
-validity checks; we must retain and test chain, hostname and validity checks with a
-trustworthy clock policy. No library was downloaded, linked, or advertised as working.
+[Mbed TLS 3.6.7](https://github.com/Mbed-TLS/mbedtls/releases/tag/mbedtls-3.6.7) is
+pinned as an offline source archive with a checked SHA256 and Apache-2.0 attribution.
+The [port record](../vendor/mbedtls/SOURCE.md) documents source, configuration and ABI.
+No SslStream/framework crypto plug is used. `tls selftest` runs native AES/GCM/SHA/
+CTR-DRBG known-answer tests and exercises malformed ingress at the patched entry.
 
-Before HTTPS: select/pin a maintained dependency and license, establish bounded TCP
-and safe unwind cleanup, build the freestanding bridge, run native crypto/entropy KATs
-including missing-RDSEED failure, verify good/bad chains, hostname, expiry and boot clock,
-and test handshake/record bounds, cancellation and cleanup. Then add a private lab CA
-and authenticated mirror test. TLS implementation and actual home DNS/VPN verification
-remain open M3 work; the networking lab is not the production update transport.
+```sh
+python3 -B tools/build-tls.py /tmp/zenith-tls-host --host
+python3 -B tools/test_tls_bridge.py /tmp/zenith-tls-host/libzenith-tls.so
+python3 -B tools/test_run_network.py
+python3 -B tools/network-smoke.py /tmp/zenith-network
+# Explicit real home DNS acceptance; CI never uses private LAN addresses:
+python3 -B tools/network-smoke.py /tmp/zenith-network-lan --lan-dns 10.0.10.3
+```
+
+The native suite uses disposable loopback HTTP/HTTPS/DNS/NTP servers and e1000e
+QEMU/slirp guests. It covers faults, certificate/entropy rejection, cancellation,
+link loss, saved configuration/trust, users, clean disk-only boots, exact downloaded
+bytes and independently checked ext2 timestamps/fsck. Existing DE/headless suites
+remain regressions. No real disk or upstream Cosmos checkout is modified.
+Home VM/VPN acceptance waits for the VM and its name/address; see
+[PACKAGE-SERVER](PACKAGE-SERVER.md). A guest VPN client is not implied.

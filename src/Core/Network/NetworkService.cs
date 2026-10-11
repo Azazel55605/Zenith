@@ -117,7 +117,32 @@ internal static class NetworkService
         b.Append("time=" + s_time + "\n"); return b.ToString();
     }
     public static void Apply(Action cancel)
-    { GuardedFilesystem.RequireRoot(); Run(() => ApplyCore(cancel)); }
+    {
+        GuardedFilesystem.RequireRoot(); Run(() =>
+        {
+            // Validate every file before changing the active service or address.
+            cancel();
+            var next = NetworkConfiguration.Parse(BoundedFile.ReadText(NetworkConfiguration.Path, 4096) ?? Configuration.Serialize());
+            string hostname = NetworkText.Host((BoundedFile.ReadText("/etc/hostname", 256) ?? Hostname).Trim());
+            NetworkText.Resolvers(BoundedFile.ReadText("/etc/resolv.conf", 16384) ?? "");
+            NetworkText.LookupHosts(BoundedFile.ReadText("/etc/hosts", 16384) ?? "", "localhost");
+            Configuration = next; Hostname = hostname; DnsConfig.HostName = hostname;
+            s_invalidConfiguration = false; ApplyCore(cancel);
+        });
+    }
+    public static void SaveResolvers(string[] servers, Action cancel)
+    {
+        GuardedFilesystem.RequireRoot(); Run(() =>
+        {
+            cancel();
+            var next = NetworkConfiguration.Parse(BoundedFile.ReadText(NetworkConfiguration.Path, 4096) ?? Configuration.Serialize());
+            string text = "";
+            foreach (string server in servers) { text += "nameserver " + NetworkText.Format(NetworkText.Ip(server)) + "\n"; }
+            NetworkText.Resolvers(text);
+            new NativeSettingsStore().Replace("/etc/resolv.conf", text);
+            Configuration = next; s_invalidConfiguration = false; ApplyCore(cancel);
+        });
+    }
     public static void Save(NetworkConfiguration configuration, Action cancel)
     {
         GuardedFilesystem.RequireRoot(); Run(() => { cancel(); configuration.Validate();
@@ -209,7 +234,7 @@ internal static class NetworkService
             {
                 cancel(); Ready(); var source = new NetPoint(Address4.Zero, 0); byte[]? reply = client.Receive(ref source, 0);
                 if (reply is null) { Thread.Sleep(10); continue; }
-                if (source.Port == port && source.Address.ToString() == address && accept(reply)) { return reply; }
+                if (source.Port == port && source.Address.ToString() == NetworkText.Format(NetworkText.Ip(address)) && accept(reply)) { return reply; }
             }
         }
         throw new IOException("UDP request timed out (server, route or firewall)");
@@ -217,7 +242,7 @@ internal static class NetworkService
     }
     private static string ResolveCore(string host, Action cancel, string? server = null, int port = 53)
     {
-        cancel(); try { NetworkText.Ip(host); return host; } catch (Exception e) { if (e is not IOException) { throw; } }
+        cancel(); try { return NetworkText.Format(NetworkText.Ip(host)); } catch (Exception e) { if (e is not IOException) { throw; } }
         host = NetworkText.Host(host);
         if (server is null)
         {
@@ -276,6 +301,30 @@ internal static class NetworkService
     }
     public static void Probe(string host, int port, Action cancel)
     { Run(() => { Socket socket = ConnectCore(host, port, cancel); Close(socket); }); }
+    public static void TlsSelfTest() => Run(() =>
+    {
+        TlsConnection.SelfTest();
+        // Exercise the patched ingress entry, not just the host-tested validator.
+        NetworkStack.HandlePacket(new byte[1], 14);
+        NetworkStack.HandlePacket(new byte[42], 1515);
+        byte[] broken = new byte[42]; broken[12] = 8; broken[14] = 0x45;
+        broken[16] = 255; broken[17] = 255;
+        NetworkStack.HandlePacket(broken, broken.Length);
+    });
+    public static void Trust(string path, string fingerprint, Action cancel)
+    {
+        GuardedFilesystem.RequireRoot(); Run(() =>
+        {
+            cancel(); string ca = BoundedFile.ReadText(path, 4096) ?? throw new IOException("trust source does not exist");
+            foreach (char c in ca) { if (c > 127 || c == 0) { throw new IOException("trust bundle must be ASCII PEM"); } }
+            if (fingerprint.Length != 64) { throw new IOException("expected SHA256 of the exact PEM file (64 hex digits)"); }
+            byte[] hash = new byte[32]; Sha256.Hash(Encoding.ASCII.GetBytes(ca), hash);
+            if (!Convert.ToHexString(hash).Equals(fingerprint, StringComparison.OrdinalIgnoreCase))
+            { throw new IOException("trust bundle SHA256 mismatch; existing trust preserved"); }
+            TlsConnection.ValidateTrust(ca); cancel();
+            new NativeSettingsStore().Replace(TlsConnection.TrustPath, ca);
+        });
+    }
     public static int Fetch(string url, string destination, bool replace, Action cancel, Action<string> report)
     {
         return Run(() => { var target = HttpTarget.Parse(url); var metadata = new VfsFileMetadata();
@@ -286,7 +335,7 @@ internal static class NetworkService
         {
             for (int attempt = 0; attempt < 2; attempt++)
             {
-                cancel(); Socket? socket = null; IVfsFileHandle? staged = null; bool retry = false;
+                cancel(); Socket? socket = null; TlsConnection? tls = null; IVfsFileHandle? staged = null; bool retry = false;
                 try
                 {
                     if (File.Exists(temporary)) { File.Delete(temporary); }
@@ -299,12 +348,24 @@ internal static class NetworkService
                         { if (file.Write(bytes.AsSpan(offset, count)) != count) { throw new IOException("download write failed"); } }, cancel);
                         socket = ConnectCore(target.Host, target.Port, cancel);
                         byte[] request = target.Request;
-                        if (socket.Send(request, 0, request.Length, SocketFlags.None) != request.Length) { throw new IOException("short HTTP request write"); }
+                        if (target.Secure)
+                        {
+                            string ca = BoundedFile.ReadText(TlsConnection.TrustPath, 4096) ?? throw new IOException("no TLS trust bundle; root must run tls trust FILE SHA256");
+                            tls = new TlsConnection(socket, target.Host, ca, cancel, Ready); tls.Write(request);
+                        }
+                        else if (socket.Send(request, 0, request.Length, SocketFlags.None) != request.Length) { throw new IOException("short HTTP request write"); }
                         var total = Stopwatch.StartNew(); var idle = Stopwatch.StartNew(); int nextProgress = 65536;
                         while (!decoder.Done)
                         {
                             cancel(); Ready(); int available = socket.Available;
-                            if (available > 0)
+                            if (tls is not null)
+                            {
+                                byte[] data = new byte[16384]; int count = tls.Read(data);
+                                if (count > 0) { decoder.Feed(data, count); idle.Restart(); }
+                                else { decoder.Complete(); }
+                                if (decoder.Received >= nextProgress) { report("fetch progress " + decoder.Received + "/" + decoder.Length); nextProgress = decoder.Received + 65536; }
+                            }
+                            else if (available > 0)
                             {
                                 // Transport adaptation caps pending data and preserves snapshots across IRQ appends.
                                 // Drain currently available data; file size never determines receive allocation.
@@ -328,11 +389,11 @@ internal static class NetworkService
                 // Do not invoke cancellation/output callbacks from inside its catch funclet.
                 catch (Exception e)
                 {
-                    staged?.Dispose(); Close(socket);
+                    staged?.Dispose(); tls?.Dispose(); Close(socket);
                     if (e is not IOException || attempt != 0) { throw; }
                     retry = true;
                 }
-                finally { Close(socket); }
+                finally { tls?.Dispose(); Close(socket); }
                 if (retry) { cancel(); report("fetch retry 2/2"); }
             }
             throw new IOException("HTTP download failed");

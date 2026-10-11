@@ -1,4 +1,5 @@
 using System;
+using Zenith.Core.Network.Transport;
 
 namespace Zenith.Core.Time;
 
@@ -13,11 +14,11 @@ internal static class SystemClock
     /// <summary>Overridable for tests; the real clock otherwise.</summary>
     public static Func<DateTime> UtcSource { get; set; } = () => DateTime.UtcNow;
 
-    private static readonly object s_gate = new();
-    private static TimeSpan s_correction;
-    public static DateTime UtcNow { get { lock (s_gate) { return DateTime.SpecifyKind(UtcSource(), DateTimeKind.Utc) + s_correction; } } }
+    public static DateTime UtcNow => DateTime.SpecifyKind(UtcSource(), DateTimeKind.Utc);
     public static void Synchronize(DateTime utc)
-    { lock (s_gate) { s_correction = DateTime.SpecifyKind(utc, DateTimeKind.Utc) - DateTime.SpecifyKind(UtcSource(), DateTimeKind.Utc); } }
+    {
+        ClockCorrection.Synchronize(utc.Ticks, UtcSource().Ticks);
+    }
 
     public static DateTime Now => ToLocal(UtcNow);
 

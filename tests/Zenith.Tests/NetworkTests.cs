@@ -34,6 +34,8 @@ public sealed class NetworkTests
     public void LocalNameFilesBoundedAndCommentsAliasesHandled()
     {
         Assert.Equal("10.0.2.2", NetworkText.LookupHosts("# comment\n10.0.2.2 mirror.home Mirror # aliases\n", "MIRROR"));
+        Assert.Equal("10.0.2.2", NetworkText.LookupHosts("010.000.002.002 mirror", "mirror"));
+        Assert.Equal(new[] { "10.0.2.2" }, NetworkText.Resolvers("nameserver 010.000.002.002"));
         Assert.Null(NetworkText.LookupHosts("10.0.2.2 other", "missing"));
         Assert.Equal(new[] { "10.0.2.3" }, NetworkText.Resolvers("# dynamic default\nnameserver 10.0.2.3 # local\n"));
         Assert.Throws<IOException>(() => NetworkText.Resolvers("nameserver invalid"));
@@ -127,8 +129,16 @@ public sealed class NetworkTests
         parser = new HttpDownload((_, _, _) => { }, () => throw new OperationCanceledException());
         Assert.Throws<OperationCanceledException>(() => parser.Feed(p, p.Length));
     }
+    [Fact]
+    public void HttpsUsesVerifiedTransportAndDefaultPort()
+    {
+        var target = HttpTarget.Parse("https://mirror.home/file");
+        Assert.True(target.Secure); Assert.Equal(443, target.Port);
+        Assert.False(HttpTarget.Parse("http://mirror.home/file").Secure);
+        Assert.Equal(8443, HttpTarget.Parse("https://mirror.home:8443/file").Port);
+    }
     [Theory]
-    [InlineData("https://host/file")][InlineData("http://host:0/file")][InlineData("http://host/file\r\nInjected")]
+    [InlineData("ftp://host/file")][InlineData("http://host:0/file")][InlineData("http://host/file\r\nInjected")]
     [InlineData("http://user@host/file")][InlineData("http://host/file#fragment")]
     public void HttpTargetRejectsUnsupportedAndInjectedUrls(string url) => Assert.ThrowsAny<Exception>(() => HttpTarget.Parse(url));
 }

@@ -142,12 +142,15 @@ host data-bundle builder. Plans verify payload integrity and refuse unowned-path
 conflicts without changing the root. Packages cannot yet be installed or activated;
 compiled apps remain kernel-linked. See [prototype contract](docs/PACKAGE-PROTOTYPE.md).
 
-## IPv4 network lab
+## IPv4 networking
 
 M3 now has shared DHCP/static/off configuration, `ip`, `ifconfig`, `ping`,
-`nslookup`, TCP probes (`nc -z`), optional boot/manual NTP and staged bounded HTTP
+`nslookup`, TCP probes (`nc -z`), optional boot/manual NTP and staged bounded HTTP/verified HTTPS
 `fetch`. See [networking](docs/NETWORKING.md) for commands, saved settings and limits.
-TLS and real home DNS/VPN verification remain open; HTTP downloads carry no package trust.
+Use `NETWORK=user tools/run.sh live` for outbound LAN access, or `UI=headless` for
+serial testing. Root can select your home DNS with `netcfg dns 10.0.10.3`.
+HTTPS uses an explicitly imported CA (`tls trust FILE SHA256`); no roots are trusted
+by default. The package VM is not provisioned yet. Downloads carry no package-install trust.
 
 ## Documentation
 

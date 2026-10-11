@@ -10,7 +10,7 @@ internal static class NetworkCommands
     {
         add(new Command("ip", "ip [addr | route]", "Show IPv4 interfaces, routes and service status", Status));
         add(new Command("ifconfig", "ifconfig", "Show IPv4 interfaces and service status", Status));
-        add(new Command("netcfg", "netcfg [status | apply | dhcp | off | static IP MASK GATEWAY DNS | ntp HOST [PORT]]", "Configure and save the single IPv4 uplink (root)", Configure));
+        add(new Command("netcfg", "netcfg [status | apply | dhcp | off | static IP MASK GATEWAY DNS | dns auto/IP... | ntp HOST [PORT]]", "Configure and save the single IPv4 uplink (root)", Configure));
         add(new Command("nslookup", "nslookup HOST [SERVER [PORT]]", "Resolve hosts or query a specified DNS server", c =>
         {
             if (c.Args.Length is < 1 or > 3) { return c.Fail("specify HOST [SERVER [PORT]]"); }
@@ -32,12 +32,20 @@ internal static class NetworkCommands
             if (c.Args.Length is < 1 or > 2) { return c.Fail("specify HOST [PORT]"); }
             NetworkService.Synchronize(c.Args[0], Port(c.Args, 1, 123), c.Shell.ThrowIfCancelled); c.Write(NetworkService.Status()); return 0;
         }));
-        add(new Command("fetch", "fetch [--replace] HTTP_URL FILE", "Bounded staged HTTP lab download; no package trust", c =>
+        add(new Command("tls", "tls [selftest | trust FILE SHA256]", "Install a fingerprint-checked PEM CA bundle (root)", c =>
+        {
+            if (c.Args.Length == 1 && c.Args[0] == "selftest")
+            { NetworkService.TlsSelfTest(); c.WriteLine("TLS AES/GCM/SHA/CTR-DRBG known-answer tests passed"); return 0; }
+            if (c.Args.Length != 3 || c.Args[0] != "trust") { return c.Fail("use tls trust FILE SHA256 (hash of exact PEM file from a trusted channel)"); }
+            NetworkService.Trust(c.Resolve(c.Args[1]), c.Args[2], c.Shell.ThrowIfCancelled);
+            c.WriteLine("TLS trust saved to /etc/zenith/tls-ca.pem"); return 0;
+        }));
+        add(new Command("fetch", "fetch [--replace] URL FILE", "Bounded staged HTTP/verified HTTPS download; no package trust", c =>
         {
             bool replace = c.Args.Length == 3 && c.Args[0] == "--replace"; int p = replace ? 1 : 0;
-            if (c.Args.Length != p + 2) { return c.Fail("specify [--replace] HTTP_URL FILE"); }
+            if (c.Args.Length != p + 2) { return c.Fail("specify [--replace] URL FILE"); }
             int bytes = NetworkService.Fetch(c.Args[p], c.Resolve(c.Args[p + 1]), replace, c.Shell.ThrowIfCancelled, c.WriteLine);
-            c.WriteLine("fetch complete bytes=" + bytes + " (plain HTTP; unauthenticated)"); return 0;
+            c.WriteLine("fetch complete bytes=" + bytes + (c.Args[p].StartsWith("https://", StringComparison.Ordinal) ? " (verified TLS 1.2)" : " (plain HTTP; unauthenticated)")); return 0;
         }));
     }
     private static int Port(string[] args, int index, int fallback)
@@ -53,6 +61,12 @@ internal static class NetworkCommands
     private static int Configure(CommandContext c)
     {
         if (c.Args.Length == 0 || (c.Args.Length == 1 && c.Args[0] == "status")) { c.Write(NetworkService.Status()); return 0; }
+        if (c.Args[0] == "dns")
+        {
+            if (c.Args.Length is < 2 or > 4) { return c.Fail("use dns auto or dns IP [IP [IP]]"); }
+            string[] servers = c.Args.Length == 2 && c.Args[1] == "auto" ? Array.Empty<string>() : c.Args[1..];
+            NetworkService.SaveResolvers(servers, c.Shell.ThrowIfCancelled); c.Write(NetworkService.Status()); return 0;
+        }
         if (c.Args.Length == 1 && c.Args[0] == "apply") { NetworkService.Apply(c.Shell.ThrowIfCancelled); }
         else
         {

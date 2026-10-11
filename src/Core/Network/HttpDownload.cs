@@ -4,20 +4,21 @@ using System.Text;
 
 namespace Zenith.Core.Network;
 
-internal sealed record HttpTarget(string Host, int Port, string Path)
+internal sealed record HttpTarget(string Host, int Port, string Path, bool Secure = false)
 {
     public static HttpTarget Parse(string url)
     {
-        if (!url.StartsWith("http://", StringComparison.Ordinal) || url.Length > 350)
-        { throw new IOException("only bounded plain HTTP lab URLs supported; HTTPS needs verified TLS"); }
-        string remainder = url.Substring(7); int slash = remainder.IndexOf('/');
+        bool secure = url.StartsWith("https://", StringComparison.Ordinal);
+        if ((!secure && !url.StartsWith("http://", StringComparison.Ordinal)) || url.Length > 350)
+        { throw new IOException("only bounded http:// or https:// URLs supported"); }
+        string remainder = url.Substring(secure ? 8 : 7); int slash = remainder.IndexOf('/');
         string authority = slash < 0 ? remainder : remainder.Substring(0, slash);
         string path = slash < 0 ? "/" : remainder.Substring(slash);
         int colon = authority.IndexOf(':'); string host = colon < 0 ? authority : authority.Substring(0, colon);
-        int port = colon < 0 ? 80 : int.Parse(authority.Substring(colon + 1)); NetworkText.Host(host);
+        int port = colon < 0 ? (secure ? 443 : 80) : int.Parse(authority.Substring(colon + 1)); host = NetworkText.Host(host);
         if (port is < 1 or > 65535 || path.Contains('#') || path.Contains('\\')) { throw new IOException("invalid HTTP URL"); }
         foreach (char c in url) { if (c < 33 || c > 126) { throw new IOException("HTTP URL must be printable ASCII without spaces"); } }
-        return new HttpTarget(host, port, path);
+        return new HttpTarget(host, port, path, secure);
     }
     public byte[] Request => Encoding.ASCII.GetBytes("GET " + Path + " HTTP/1.0\r\nHost: " + Host + ":" + Port
         + "\r\nConnection: close\r\nAccept-Encoding: identity\r\n\r\n");

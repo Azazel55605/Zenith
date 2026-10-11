@@ -12,7 +12,7 @@ internal static class ManualPages
     public static readonly (string Name, string Text)[] Pages =
     {
         ("network", """
-            IPV4 NETWORK LAB
+            IPV4 NETWORKING
 
             ip | ifconfig | netcfg status
             netcfg apply | dhcp | off  (root)
@@ -22,14 +22,16 @@ internal static class ManualPages
             nc -z HOST PORT
             ntp HOST [PORT]  (root)
             netcfg ntp HOST [PORT] | ntp off  (root; saved boot target)
-            fetch [--replace] http://HOST[:PORT]/PATH FILE
+            netcfg dns auto | dns IP [IP [IP]]  (root)
+            tls selftest | trust FILE SHA256  (trust import: root)
+            fetch [--replace] http(s)://HOST[:PORT]/PATH FILE
 
             Single primary IPv4 uplink; DHCP configures asynchronously at boot.
             Configuration: /etc/zenith/network.conf; hostname, hosts and resolv.conf
             under /etc. Resolver nameserver lines override DHCP DNS. Installed saves
             persist; live changes are volatile. Missing NIC does not block the shell.
-            apply uses loaded settings and rereads resolver overrides; reboot reloads
-            edited network.conf. Failed DHCP retries after thirty seconds.
+            apply validates and reloads hostname/config/hosts/resolvers from disk.
+            dns auto clears local overrides; dns IP saves up to three IPv4 servers. Failed DHCP retries after thirty seconds.
 
             NTP adjusts software UTC only and is unauthenticated. No default server.
             fetch accepts status 200 with Content-Length; max 8 MiB, headers 8 KiB,
@@ -38,9 +40,14 @@ internal static class ManualPages
             Downloads stage privately beside FILE and commit only when complete.
             Existing names require --replace and must be regular files. Errors and
             cancellation preserve the prior destination and remove staging.
-            No TLS, redirects, compression or chunking. HTTP is for the lab and
-            provides no package authentication. nc supports connection probes only.
-            Framework receive queues/TCP still need hardening for untrusted traffic.
+            HTTPS verifies CA chain, DNS/IP identity and certificate validity dates
+            with Mbed TLS 3.6.7, TLS 1.2 ECDHE AES-GCM. tls trust checks the SHA256
+            of the exact ASCII PEM file against a hash from a trusted channel.
+            No trust is installed by default. No insecure bypass, redirects,
+            compression or chunking. NTP/BCL/filesystem time remains unauthenticated.
+            TCP pending data 128 KiB; UDP/ICMP queues 32 packets; IPv4 frames bounded.
+            nc supports probes only. Package authentication and Internet-wide
+            protocol hardening remain future work.
             """),
         ("settings", """
             SETTINGS AND SESSION FOUNDATION
@@ -273,7 +280,7 @@ internal static class ManualPages
                 /var/log/boot.log   the kernel log of this boot (boot.log.1: the previous one)
             """),
 
-        ("licenses", Zenith.Core.Storage.Ext2.Ext2License.Text),
+        ("licenses", Zenith.Core.Storage.Ext2.Ext2License.Text + "\n\n" + Zenith.Core.Network.MbedTlsLicense.Text),
 
         ("mount", """
             NAME

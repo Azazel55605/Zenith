@@ -11,6 +11,7 @@ import socketserver
 import struct
 import threading
 import time
+from tls_fixture import certificates, context
 
 spec = importlib.util.spec_from_file_location("headless", Path(__file__).with_name("headless-smoke.py"))
 h = importlib.util.module_from_spec(spec); spec.loader.exec_module(h)
@@ -27,6 +28,9 @@ class Http(socketserver.BaseRequestHandler):
                 request += data
             if not request: return  # nc -z
             path = request.split(b" ")[1]
+            if path == b"/ca.pem":
+                data = self.server.ca
+                self.request.sendall(b"HTTP/1.0 200 OK\r\nContent-Length: " + str(len(data)).encode() + b"\r\n\r\n" + data); return
             if path == b"/retry":
                 with self.server.count_lock:
                     self.server.retry_count += 1
@@ -75,13 +79,29 @@ class TcpServer(socketserver.ThreadingTCPServer):
 class UdpServer(socketserver.ThreadingUDPServer):
     daemon_threads = True
 
+class Https(Http):
+    def setup(self):
+        self.request.settimeout(5)
+        self.request = self.server.tls.wrap_socket(self.request, server_side=True)
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__); parser.add_argument("keep", type=Path, nargs="?", default=Path("/tmp/zenith-network"))
+    parser.add_argument("--lan-dns", help="Optional real LAN IPv4 DNS server; never used by CI's loopback default")
+    parser.add_argument("--lan-name", default="example.com", help="A name to resolve through the LAN server")
     args = parser.parse_args(); args.keep.mkdir(parents=True, exist_ok=True)
+    ca, fingerprint = certificates(args.keep / "certificates")
     servers = [TcpServer(("127.0.0.1", 0), Http), UdpServer(("127.0.0.1", 0), Dns), UdpServer(("127.0.0.1", 0), Ntp)]
     http, dns, ntp = [s.server_address[1] for s in servers]
     servers[0].slow = threading.Event(); servers[0].stop = threading.Event(); servers[0].count_lock = threading.Lock(); servers[0].retry_count = 0
     for server in servers: threading.Thread(target=server.serve_forever, daemon=True).start()
+    servers[0].ca = ca
+    certificates(args.keep / "alien-certificates")
+    secure = []
+    for name in ("server", "expired", "future", "alien"):
+        server = TcpServer(("127.0.0.1", 0), Https); server.tls = context(args.keep / ("alien-certificates" if name == "alien" else "certificates"), "server" if name == "alien" else name)
+        server.ca = ca; server.slow = threading.Event(); server.stop = servers[0].stop
+        server.handle_error = lambda *args: None  # rejected peer alerts are expected faults
+        threading.Thread(target=server.serve_forever, daemon=True).start(); secure.append(server)
     checks = 0; m = None
     def check(passed, label):
         nonlocal checks
@@ -90,10 +110,10 @@ def main():
     def command(text, marker, timeout=90):
         offset = len(m.log()); m.send(text + "\r"); check(m.wait(marker, offset, timeout), marker); return m.log()[offset:]
     def status(text, name, code=0, timeout=90): return command(text + "; echo " + name + "=$?", name + "=" + str(code), timeout)
-    def boot(label, disk=None, network=True):
+    def boot(label, disk=None, network=True, entropy=True):
         machine = h.Machine(args.keep / label, disk, "session=headless" if disk else None,
             network=["-netdev", "user,id=net0", "-device", "e1000e,netdev=net0,id=nic0",
-                     "-qmp", f"unix:{args.keep / label / 'qmp.sock'},server=on,wait=off"] if network else [])
+                     "-qmp", f"unix:{args.keep / label / 'qmp.sock'},server=on,wait=off"] if network else (["-cpu", "max,-rdseed"] if not entropy else []))
         if not machine.wait("headless ready", timeout=600): machine.stop(); raise RuntimeError(label + " boot failed")
         check(True, label + " boot without GPU"); return machine
     def link(up):
@@ -124,6 +144,7 @@ def main():
         check("mirror.home address=10.0.2.2" in output, "DNS ignores wrong transaction and accepts correlated answer")
         status(f"nslookup reject.home 10.0.2.2 {dns}", "M3_BAD_DNS", 1)
         status("ping 10.0.2.2", "M3_PING")
+        status("tls selftest", "M3_TLS_KAT")
         status(f"nc -z 10.0.2.2 {http}", "M3_TCP")
         status(f"ntp 10.0.2.2 {ntp}", "M3_NTP")
         output = status("date -u", "M3_DATE")
@@ -131,6 +152,38 @@ def main():
         url = f"http://10.0.2.2:{http}"
         output = status(f"fetch {url}/ok /tmp/download", "M3_FETCH")
         check("fetch complete bytes=" + str(len(PAYLOAD)) in output and "fetch progress" in output, "streaming payload and progress")
+        https = f"https://10.0.2.2:{secure[0].server_address[1]}"
+        status(f"fetch {https}/ok /tmp/secure", "M3_TLS_NO_TRUST", 1)
+        status(f"fetch {url}/ca.pem /tmp/ca.pem", "M3_CA_FETCH")
+        status("tls trust /tmp/ca.pem " + "0" * 64, "M3_CA_BAD_HASH", 1)
+        status(f"tls trust /tmp/ca.pem {fingerprint}", "M3_CA_TRUST")
+        output = status(f"fetch {https}/ok /tmp/secure", "M3_TLS_FETCH")
+        check("verified TLS 1.2" in output and "bytes=" + str(len(PAYLOAD)) in output, "native HTTPS verifies chain/IP SAN/date and streams payload")
+        status("echo 10.0.2.2 mirror.home wrong.home > /etc/hosts", "M3_TLS_HOSTS")
+        status("echo lan-zenith > /etc/hostname", "M3_HOSTNAME_SAVE")
+        status("netcfg apply", "M3_CONFIG_RELOAD")
+        output = status("netcfg dns 010.000.002.002", "M3_DNS_SAVE")
+        check("dns=10.0.2.2" in output, "DNS override saves canonical address")
+        status("netcfg dns 127.0.0.1", "M3_DNS_INVALID", 1)
+        output = status("cat /etc/resolv.conf", "M3_DNS_PRESERVED"); check("nameserver 10.0.2.2" in output, "invalid DNS preserves resolver file")
+        status("netcfg dns auto", "M3_DNS_AUTO")
+        output = status("ip", "M3_RELOADED_HOSTNAME"); check("hostname=lan-zenith" in output, "apply reloads hostname from disk")
+        status(f"fetch https://mirror.home:{secure[0].server_address[1]}/ok /tmp/secure-dns", "M3_TLS_DNS")
+        for name, endpoint in [("NAME", f"https://wrong.home:{secure[0].server_address[1]}"),
+                               ("EXPIRED", f"https://mirror.home:{secure[1].server_address[1]}"),
+                               ("FUTURE", f"https://mirror.home:{secure[2].server_address[1]}"),
+                               ("UNTRUSTED", f"https://mirror.home:{secure[3].server_address[1]}")]:
+            status(f"fetch --replace {endpoint}/ok /tmp/secure", "M3_TLS_REJECT_" + name, 1)
+            output = status("wc -c /tmp/secure", "M3_TLS_KEEP_" + name)
+            check(str(len(PAYLOAD)) in output, "rejected TLS " + name + " preserves destination")
+        status(f"fetch --replace {https}/oversized /tmp/secure", "M3_TLS_OVERSIZED", 1)
+        secure[0].slow.clear(); offset = len(m.log()); m.send(f"fetch --replace {https}/slow /tmp/secure\r")
+        check(secure[0].slow.wait(30), "TLS cancellation reached encrypted response")
+        m.socket.sendall(b"\x03"); check(m.wait("[console] ", offset, timeout=30), "TLS cancellation returns prompt")
+        output = status("echo tls_cancel=$?", "M3_TLS_CANCEL_STATUS"); check("tls_cancel=130" in output, "TLS Ctrl+C returns 130")
+        output = status("wc -c /tmp/secure", "M3_TLS_CANCEL_KEEP"); check(str(len(PAYLOAD)) in output, "TLS cancellation preserves destination")
+        status(f"fetch {https}/ok /tmp/secure-after-cancel", "M3_TLS_AFTER_CANCEL")
+        output = status("ls -a /tmp", "M3_TLS_CLEANUP"); check(".fetch-" not in output, "TLS failures clean staging and release native state")
         output = status("wc -c /tmp/download", "M3_SIZE"); check(str(len(PAYLOAD)) in output, "guest downloaded byte count")
         status(f"fetch {url}/ok /tmp/download", "M3_EXISTS", 1)
         status("echo preserved > /tmp/original", "M3_SEED")
@@ -158,6 +211,11 @@ def main():
         status("netcfg static 10.0.2.15 255.0.255.0 10.0.2.2 10.0.2.3", "M3_BAD_CONFIG", 1)
         output = status("cat /etc/zenith/network.conf", "M3_CONFIG_KEPT"); check("MASK=255.255.255.0" in output, "invalid config leaves saved state intact")
         status("netcfg dhcp", "M3_DHCP_REAPPLY")
+        if args.lan_dns:
+            status(f"netcfg dns {args.lan_dns}", "M3_LAN_DNS_SAVE")
+            output = status(f"nslookup {args.lan_name}", "M3_LAN_DNS_RESOLVE")
+            check(args.lan_name + " address=" in output, "guest resolves through supplied home DNS " + args.lan_dns)
+            status("netcfg dns auto", "M3_LAN_DNS_RESET")
         status("install sata0 --yes", "M3_INSTALL", timeout=300)
         live_disk = shutdown("live"); m = boot("installed", live_disk)
         check(m.wait("network: online address=10.0.2.15", timeout=60), "installed DHCP boot")
@@ -167,10 +225,14 @@ def main():
         check(m.wait("network: synchronized via 10.0.2.2", timeout=60), "configured boot NTP")
         output = status("ip", "M3_SAVED"); check("mode=static" in output and "address=10.0.2.16" in output, "installed configuration survives reboot")
         status(f"fetch {url}/ok /home/user/network-file", "M3_INSTALLED_FETCH")
+        output = status(f"fetch {https}/ok /home/user/secure-file", "M3_PERSISTENT_TLS")
+        check("verified TLS 1.2" in output, "installed CA trust survives clean reboot")
         offset = len(m.log()); m.send("passwd root\r"); check(m.wait("New password: ", offset), "hidden root setup prompt")
         offset = len(m.log()); m.send(secret + "\r"); check(m.wait("Repeat password: ", offset), "hidden root confirmation")
         offset = len(m.log()); m.send(secret + "\r"); check(m.wait("password updated for root", offset), "root test credential set")
         status("su user", "M3_SU")
+        status("tls trust /etc/zenith/tls-ca.pem " + fingerprint, "M3_USER_TLS_DENIED", 1)
+        status("netcfg dns 10.0.2.2", "M3_USER_DNS_DENIED", 1)
         status("netcfg off", "M3_USER_CONFIG_DENIED", 1)
         status(f"ntp 10.0.2.2 {ntp}", "M3_USER_NTP_DENIED", 1)
         status(f"fetch {url}/ok /etc/forbidden-download", "M3_USER_PATH_DENIED", 1)
@@ -181,7 +243,16 @@ def main():
         output = status("ip", "M3_NO_NIC"); check("state=offline" in output and "eth0" not in output, "missing NIC remains usable headless")
         status(f"nc -z 10.0.2.2 {http}", "M3_NO_NIC_ERROR", 1)
         status("wc -c /home/user/network-file", "M3_PERSISTENT_FILE")
-        disk = shutdown("offline"); m = None
+        disk = shutdown("offline")
+        m = boot("no-entropy", network=False, entropy=False)
+        # A live boot avoids the firmware/bootloader CPU-feature dependency of the
+        # installed EFI path. Import the exact disposable public CA through COM1.
+        for index, line in enumerate(ca.decode("ascii").splitlines()):
+            status("echo '" + line + "' " + (">" if index == 0 else ">>") + " /tmp/entropy-ca.pem", "M3_ENTROPY_CA_" + str(index))
+        output = status(f"tls trust /tmp/entropy-ca.pem {fingerprint}", "M3_TLS_NO_ENTROPY", 1)
+        check("TLS initialization rejected trust/clock/entropy" in output, "native RDSEED absence rejects TLS initialization")
+        status("tls selftest", "M3_TLS_KAT_NO_ENTROPY")
+        shutdown("no entropy"); m = None
         check(all(secret not in log.read_text(errors="replace") for log in args.keep.glob("*/serial.log")), "credentials absent from transcripts")
         # Inspect the final ext2 partition independently of the guest VFS.
         volume = args.keep / "checked-root.img"
@@ -198,13 +269,18 @@ def main():
                     target.write(data); remaining -= len(data)
         fsck = subprocess.run(["e2fsck", "-f", "-n", str(volume)], capture_output=True)
         (args.keep / "e2fsck.log").write_bytes(fsck.stdout + fsck.stderr); check(fsck.returncode == 0, "independent e2fsck clean")
-        for path in ("network-file", "user-download"):
+        for path in ("network-file", "user-download", "secure-file"):
             content = subprocess.run(["debugfs", "-R", "cat /home/user/" + path, str(volume)], capture_output=True)
             check(content.returncode == 0 and content.stdout == PAYLOAD, "independent payload bytes " + path)
+        stamp = subprocess.run(["debugfs", "-R", "stat /home/user/secure-file", str(volume)], capture_output=True, text=True)
+        import re
+        match = re.search(r"mtime:\s+0x([0-9a-fA-F]+)", stamp.stdout)
+        check(match is not None and abs(int(match.group(1), 16) - (4000000000 - 2208988800)) < 300,
+              "independent ext2 timestamp uses NTP-corrected BCL clock")
         print(f"RESULT: {checks}/{checks} network checks passed", flush=True)
     finally:
         if m: m.stop()
         servers[0].stop.set()
-        for server in servers: server.shutdown(); server.server_close()
+        for server in servers + secure: server.shutdown(); server.server_close()
 
 if __name__ == "__main__": main()

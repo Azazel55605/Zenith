@@ -92,3 +92,10 @@ repository storage/backup, package/release size budget, chosen web service and p
 access. Docker/Podman availability and existing host port mappings are not dependencies.
 With those details, create a concrete minimal deployment plus publish/verify checklist.
 The current planning task does not assume SSH access or authorization to deploy.
+
+
+Current home information (2026-10-11): DNS is 10.0.10.3. The dedicated package
+server VM has not been provisioned and no repository address/name is assigned.
+M3's host user/TAP network profiles and DNS configuration permit acceptance once
+it exists; no server has been deployed as part of networking implementation.
+See [NETWORKING](NETWORKING.md) for the current LAN/CA bootstrap test procedure.
