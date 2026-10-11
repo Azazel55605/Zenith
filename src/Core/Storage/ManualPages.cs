@@ -24,7 +24,7 @@ internal static class ManualPages
             netcfg ntp HOST [PORT] | ntp off  (root; saved boot target)
             netcfg dns auto | dns IP [IP [IP]]  (root)
             tls selftest | trust FILE SHA256  (trust import: root)
-            fetch [--replace] http(s)://HOST[:PORT]/PATH FILE
+            fetch [--replace] [--kernel] http(s)://HOST[:PORT]/PATH FILE
 
             Single primary IPv4 uplink; DHCP configures asynchronously at boot.
             Configuration: /etc/zenith/network.conf; hostname, hosts and resolv.conf
@@ -34,7 +34,8 @@ internal static class ManualPages
             dns auto clears local overrides; dns IP saves up to three IPv4 servers. Failed DHCP retries after thirty seconds.
 
             NTP adjusts software UTC only and is unauthenticated. No default server.
-            fetch accepts status 200 with Content-Length; max 8 MiB, headers 8 KiB,
+            fetch accepts status 200 with Content-Length; default max 8 MiB, headers 8 KiB,
+            --kernel allows 32 MiB + 4096 bytes, total timeout 180 seconds;
             two attempts, idle 3s/body 30s per attempt plus DNS/connect time. Ctrl+C
             cancels polling; Cosmos TCP connect observes cancellation after up to 5s.
             Downloads stage privately beside FILE and commit only when complete.
@@ -90,6 +91,8 @@ internal static class ManualPages
             pkg repos              core/extra definitions; mirrors initially unset
             pkg list               bundled tools and independently installed data
             pkg trust FILE SHA256  root pins exact public PEM fingerprint
+            pkg kernel check|install FILE.zpk  signed x64 kernel, active after reboot
+            boot status|confirm|rollback|recover  kernel generations
             pkg check FILE.zpk     verify RSA-PSS signature and complete payload
             pkg install FILE...    root installs/upgrades on installed ext2
             pkg remove NAME        root removes; dependent/modified files block
@@ -105,11 +108,13 @@ internal static class ManualPages
             apply to the full result. No forced overwrites or automatic downloads.
             Preserve local edits; downgrades and bundled-tool replacement are refused.
             Payload paths: /usr/share/doc and /usr/share/zenith, except inventory.
-            No /etc/boot/bin writes, links, cross-mount extraction or hooks.
+            P1: no /etc/boot/bin writes, links, cross-mount extraction or hooks.
+            Kernel containers use a separate signed type/coordinator and retain the
+            previous kernel. No bootloader updates, root snapshots or automatic fallback.
             Compile-linked tools/DE still require reboot; independent native execution
             follows script/data packaging. Online signed indexes remain future work.
             Recovery covers journaled package changes; ext2 power-loss repair may
-            still require host tools. This is not snapshot or boot-update recovery.
+            still require host tools. Kernel update undo is separate: boot recover. No root snapshot recovery.
             Limits: 32 installed packages; 32 KiB manifest; 64 files; 256 KiB/file;
             4 MiB/package; 8 MiB transaction payload. See docs/PACKAGES.md.
             """),
@@ -456,8 +461,9 @@ internal static class ManualPages
                 or use --setup in an interactive terminal. Choose a hostname, user
                 and passwords; explicit confirmation precedes erasure. --yes keeps
                 the low-level live-tree copy behavior without an account wizard.
-                Signed kernel updates are the next gate before actual deployment;
-                use disposable VMs for now. pkg installs scripts/data only.
+                Signed kernel updates: pkg kernel install FILE, then reboot and
+                boot confirm after testing. boot rollback selects the previous kernel.
+                Keep the external ISO; no automatic failed-boot rollback or snapshots.
                 BIOS boot and physical hardware acceptance remain future work.
             """),
     };

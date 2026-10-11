@@ -59,6 +59,13 @@ public class Ext2VolumePolicyTests
     {
         Assert.Null(Ext2VolumePolicy.CheckSuperblock(Valid(), 8 * 1024 * 1024));
     }
+    [Theory]
+    [InlineData(0, true)] [InlineData(1, true)] [InlineData(2, false)] [InlineData(3, false)]
+    public void AuditModeAllowsMountedStateButNeverErrorMarkedState(ushort state, bool accepted)
+    {
+        byte[] data = Valid(); BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(58), state);
+        Assert.Equal(accepted, Ext2VolumePolicy.CheckSuperblock(data, 8 * 1024 * 1024, allowUnclean: true) is null);
+    }
 
     [Theory]
     [InlineData(72, 1u)] [InlineData(76, 2u)] [InlineData(24, 2u)] [InlineData(88, 256u)]

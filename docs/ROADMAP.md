@@ -27,7 +27,7 @@ RAM-backed ext2 (1777). Installed ext2 accounts support hidden login/password pr
 credentials and enforced owner/group/other access; see [ACCOUNTS](ACCOUNTS.md).
 The CLI installer supplies its own boot files; installed entries use exact root UUIDs
 and versioned kernels. Sunrise and serial account setup are implemented; signed kernel
-activation remains the next deployment gate.
+activation/confirmation/undo are implemented; native acceptance is tracked in PROGRESS.
 
 **Latest local installation validation:** 532 host tests, 38 guided GUI and 47 guided
 serial checks, 135 desktop/filesystem checks, 10 disk-only desktop UEFI checks and
@@ -82,13 +82,13 @@ Details: [system plan](SYSTEM-PLAN.md), [userland](USERLAND.md),
 | Done foundations | S0 shared settings/session seam and S1 serial headless | Native DE/no-GPU live and installed tests; Settings GUI/per-user preferences remain later work |
 | Done M3/P1 | LAN networking and offline scripts/data | Native transport and signed install/upgrade/remove/reboot checks passed; exact evidence in PROGRESS |
 | Implemented: 1 | M4 x64 VM installer | Sunrise and serial guided account setup, self-contained UEFI install, UUID selection and RAM rescue; native validation in PROGRESS |
-| Next, before actual installation | P3 signed kernel package upgrade executor | Offline signed staging, retained previous kernel, reboot activation and failure/interruption tests; P1 remains scripts/data |
+| Done: kernel deployment gate | P3 offline kernel upgrades | Dedicated signed container/builder, full-sized delivery, disk-only activation/rollback, explicit confirmation, interruption/ISO recovery and real failed-boot menu fallback; 169 native checks in PROGRESS |
 | 2 | Package recipes and builder workflow | Declarative metadata/files/modes; reproducible validation and separate signing using the existing .zpk foundation |
 | 3, parallel preparation | P2 package-server deployment kit and user-provisioned VM | Static service/configuration, staged publication, HTTPS/public-key bootstrap and actual LAN/VPN/DNS access |
 | 4 | Useful initial scripts/data packages | Install, upgrade, remove and reboot on a persistent Zenith VM against the user's server |
 | 5 | P4 signed online repository client | Signed index freshness/rollback checks, search, deterministic dependency resolution and bounded download/install by name |
 | 6 | M5 native loader/process/ABI then compiled tool unbundling; P5 | Protected execution, libc/toolchain foundation and independent base-tools/net-tools/fs-tools updates |
-| P3 deployment gate | Verified kernel package upgrades before the user actually installs | Move ahead of actual installation; no public mirror or native app ABI required for offline proof |
+| Next acceptance | User’s persistent VM/LAN installation and kernel upgrade test | Follow KERNEL-UPDATES with the new ISO; hosted mirror, physical hardware and native app ABI follow separately |
 | 7 | M6 proper DE/WM, Settings, customization, Files and GUI Editor overhaul | Shared toolkit/operations can start earlier; independent desktop/apps require M5 |
 | Later developer tools | Host GCC cross-SDK, terminal editor/Python feasibility, then on-system GCC | [Application/toolchain plan](APPLICATIONS.md); native ABI/libc/TTY and measured storage/resource gates |
 | 8 | R1/R2 saved roots, trial boot and restore | R0 backend/scope decision, explicit root selector, matched kernel/root/package inventory and interruption tests |
@@ -190,8 +190,8 @@ unauthenticated time synchronization alone does not prove metadata freshness.
 | Limine executable/module access | Done | Repository-local native bridge supplies original ELF and EFI bytes; no upstream edits |
 | Installer copies the boot files itself | Done | CLI x64 UEFI install; former host helper is read-only verification |
 | Explicit stable root selection from Limine command line | Done | GPT PARTUUID; missing/ambiguous selected roots fail closed; explicit RAM rescue |
-| Versioned kernel boot entries and rescue route | Partial | Current generation and rescue implemented; current/previous menu builder tested; signed activation/retention executor remains P3 |
-| Recovery-aware install layout | Partial | 128 MiB ESP reserves current/previous/staged bounded kernels; root snapshots, interruption-safe activation and R0 still planned |
+| Versioned kernel boot entries and rescue route | Implemented | Signed kernel coordinator, retained previous entry, explicit confirmation/rollback/recovery; native acceptance in PROGRESS |
+| Recovery-aware install layout | Partial | 128 MiB ESP reserves current/previous/staged bounded kernels; explicit undo and secondary boot menu; general power-loss/root snapshots and R0 remain planned |
 | Graphical installer window and initial account setup | Done | Sunrise and interactive serial setup share target configuration; password/erase validation and worker progress |
 | Install to a USB stick (Cosmos supports USB mass storage) | S | First step toward real hardware |
 | ↑ GPT writer computes CRCs and the backup header | S | Then drop `GptChecksums` |

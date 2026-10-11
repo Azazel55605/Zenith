@@ -143,6 +143,63 @@ if (assembly.Name.Name == "Cosmos.Kernel.System")
     // appends. Bounded immutable snapshots/CAS remove that race without private UnsafeAccessor.
     var tcp = module.GetType("Cosmos.Kernel.System.Network.TCP.Tcp")
         ?? throw new InvalidOperationException("Cosmos TCP type changed");
+    // 3.0.89 appends ACK-only payload but does not ACK it, exhausting the peer's
+    // window on large responses. Route all nonempty payload through the ACK path.
+    var established = tcp.Methods.Single(m => m.Name == "ProcessEstablished" && m.Parameters.Count == 1);
+    var receive = tcp.Methods.Single(m => m.Name == "ReceiveDataInternal" && m.Parameters.Count == 1);
+    var packetType = module.GetType("Cosmos.Kernel.System.Network.TCP.TcpPacket");
+    var payloadLength = packetType.Methods.Single(m => m.Name == "get_TcpDataLength");
+    var push = established.Body.Instructions.Where(i => i.OpCode == OpCodes.Ldfld && i.Operand is FieldReference f && f.Name == "_psh").ToArray();
+    if (push.Length == 1)
+    {
+        if (push[0].Next.OpCode != OpCodes.Brfalse) { throw new InvalidOperationException("Cosmos TCP payload branch changed"); }
+        var il = established.Body.GetILProcessor(); push[0].OpCode = OpCodes.Callvirt; push[0].Operand = payloadLength;
+        var zero = il.Create(OpCodes.Ldc_I4_0); il.InsertAfter(push[0], zero); il.InsertAfter(zero, il.Create(OpCodes.Cgt_Un));
+        foreach (var instruction in established.Body.Instructions.Where(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == "[TCP] PSH received, data length: "))
+        { instruction.Operand = "[TCP] Payload received, data length: "; }
+        changed = true;
+    }
+    else if (push.Length != 0 || !established.Body.Instructions.Any(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == "[TCP] Payload received, data length: "))
+    { throw new InvalidOperationException("Cosmos TCP payload ACK contract changed"); }
+    if (!receive.Body.Instructions.Any(i => i.Operand is MethodReference m && m.DeclaringType.Name == "TcpSegmentPolicy"))
+    {
+        var instructions = receive.Body.Instructions;
+        var firstRead = instructions.First(i => i.Operand is MethodReference m && m.Name == "get_RcvNxt");
+        var lastRead = instructions.First(i => i.Operand is MethodReference m && m.Name == "get_RcvWnd");
+        var first = firstRead.Previous.Previous;
+        var end = lastRead.Next.Next.Next;
+        var range = instructions.Skip(instructions.IndexOf(first)).Take(instructions.IndexOf(end) - instructions.IndexOf(first)).ToArray();
+        var lower = range.Single(i => i.OpCode == OpCodes.Bgt_Un); var upper = range.Single(i => i.OpCode == OpCodes.Bge_Un);
+        if (!ReferenceEquals(lower.Operand, upper.Operand) || range.Count(i => i.Operand is MethodReference m && m.Name == "get_RcvNxt") != 2
+            || range.Count(i => i.Operand is MethodReference m && m.Name == "get_SequenceNumber") != 2 || first.OpCode != OpCodes.Ldarg_0)
+        { throw new InvalidOperationException("Cosmos TCP sequence/window contract changed"); }
+        var tcb = tcp.Methods.Single(m => m.Name == "get_TCB");
+        var next = (MethodReference)firstRead.Operand; var window = (MethodReference)lastRead.Operand;
+        var sequence = packetType.Methods.Single(m => m.Name == "get_SequenceNumber");
+        var policy = transportSupport.MainModule.GetType("Zenith.Core.Network.Transport.TcpSegmentPolicy");
+        var accept = module.ImportReference(policy.Methods.Single(m => m.Name == "Accept"));
+        var il = receive.Body.GetILProcessor(); first.OpCode = OpCodes.Nop; first.Operand = null;
+        foreach (var instruction in range.Skip(1)) { il.Remove(instruction); }
+        var replacement = new[] { il.Create(OpCodes.Ldarg_0), il.Create(OpCodes.Call, tcb), il.Create(OpCodes.Callvirt, next),
+            il.Create(OpCodes.Ldarg_0), il.Create(OpCodes.Call, tcb), il.Create(OpCodes.Callvirt, window),
+            il.Create(OpCodes.Ldarg_1), il.Create(OpCodes.Callvirt, sequence), il.Create(OpCodes.Ldarg_1), il.Create(OpCodes.Callvirt, payloadLength),
+            il.Create(OpCodes.Call, accept), il.Create(OpCodes.Brfalse, (Instruction)lower.Operand) };
+        var previous = first; foreach (var instruction in replacement) { il.InsertAfter(previous, instruction); previous = instruction; }
+        receive.Body.MaxStackSize = System.Math.Max(receive.Body.MaxStackSize, 4); changed = true;
+        Console.WriteLine("Adapted TCP contiguous sequence/window validation and ACK-only payload delivery");
+    }
+    var tcbType = module.GetType("Cosmos.Kernel.System.Network.TCP.TransmissionControlBlock");
+    var receiveWindow = tcbType.Methods.Single(m => m.Name == "get_RcvWnd");
+    foreach (var method in tcp.Methods.Where(m => m.Name == "SendEmptyPacket"))
+    {
+        var original = method.Body.Instructions.Where(i => i.Operand is MethodReference m && m.Name == "get_SndWnd").ToArray();
+        if (original.Length == 1)
+        {
+            original[0].Operand = receiveWindow; method.Body.GetILProcessor().InsertAfter(original[0], Instruction.Create(OpCodes.Conv_U2)); changed = true;
+        }
+        else if (original.Length != 0 || !method.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "get_RcvWnd"))
+        { throw new InvalidOperationException("Cosmos TCP advertised-window contract changed"); }
+    }
     var append = tcp.Methods.Single(m => m.Name == "AppendToData" && m.Parameters.Count == 1);
     var data = tcp.Methods.Single(m => m.Name == "get_Data" && m.Parameters.Count == 0);
     var advance = tcp.Methods.Single(m => m.Name == "AdvanceDataOffset" && m.Parameters.Count == 1);
@@ -163,22 +220,37 @@ if (assembly.Name.Name == "Cosmos.Kernel.System")
         var bridge = support.MainModule.GetType("Zenith.Core.Network.Transport.TcpReceiveBridge");
         var field = new FieldDefinition("_zenithReceive", FieldAttributes.Private, module.ImportReference(buffer)); tcp.Fields.Add(field);
         MethodReference Bridge(string name) => module.ImportReference(bridge.Methods.Single(m => m.Name == name));
-        void Replace(MethodDefinition method, string helper, bool argument, bool closeOnOverflow = false)
+        var control = tcp.Methods.Single(m => m.Name == "get_TCB");
+        var setWindow = tcbType.Methods.Single(m => m.Name == "set_RcvWnd");
+        int ackFlag = System.Convert.ToInt32(module.GetType("Cosmos.Kernel.System.Network.TCP.TcpFlags").Fields.Single(f => f.Name == "ACK").Constant);
+        if (ackFlag != 16) { throw new InvalidOperationException("Cosmos TCP ACK flag changed"); }
+        var sendAck = tcp.Methods.Single(m => m.Name == "SendEmptyPacket" && m.Parameters.Count == 1);
+        void Replace(MethodDefinition method, string helper, bool argument, bool closeOnOverflow = false, bool acknowledge = false)
         {
             method.Body = new MethodBody(method) { MaxStackSize = 3 };
             var il = method.Body.GetILProcessor();
             il.Append(il.Create(OpCodes.Ldarg_0)); il.Append(il.Create(OpCodes.Ldflda, field));
             if (argument) { il.Append(il.Create(OpCodes.Ldarg_1)); }
             il.Append(il.Create(OpCodes.Call, Bridge(helper)));
-            var end = il.Create(OpCodes.Ret);
             if (closeOnOverflow)
             {
-                il.Append(il.Create(OpCodes.Brtrue, end)); il.Append(il.Create(OpCodes.Ldarg_0));
-                il.Append(il.Create(OpCodes.Ldc_I4, closed)); il.Append(il.Create(OpCodes.Call, status));
+                var success = il.Create(OpCodes.Ldarg_0); il.Append(il.Create(OpCodes.Brtrue, success));
+                il.Append(il.Create(OpCodes.Ldarg_0)); il.Append(il.Create(OpCodes.Ldc_I4, closed)); il.Append(il.Create(OpCodes.Call, status)); il.Append(il.Create(OpCodes.Ret));
+                il.Append(success); il.Append(il.Create(OpCodes.Call, control));
+                il.Append(il.Create(OpCodes.Ldarg_0)); il.Append(il.Create(OpCodes.Ldflda, field)); il.Append(il.Create(OpCodes.Call, Bridge("Window"))); il.Append(il.Create(OpCodes.Callvirt, setWindow));
             }
-            il.Append(end); method.DebugInformation.SequencePoints.Clear();
+            if (acknowledge)
+            {
+                il.Append(il.Create(OpCodes.Ldarg_0)); il.Append(il.Create(OpCodes.Call, control));
+                il.Append(il.Create(OpCodes.Ldarg_0)); il.Append(il.Create(OpCodes.Ldflda, field)); il.Append(il.Create(OpCodes.Call, Bridge("Window"))); il.Append(il.Create(OpCodes.Callvirt, setWindow));
+                var end = il.Create(OpCodes.Ret);
+                il.Append(il.Create(OpCodes.Ldarg_0)); il.Append(il.Create(OpCodes.Call, tcp.Methods.Single(m => m.Name == "get_Status")));
+                il.Append(il.Create(OpCodes.Ldc_I4_3)); il.Append(il.Create(OpCodes.Bne_Un, end));
+                il.Append(il.Create(OpCodes.Ldarg_0)); il.Append(il.Create(OpCodes.Ldc_I4, ackFlag)); il.Append(il.Create(OpCodes.Call, sendAck)); il.Append(end);
+            }
+            il.Append(il.Create(OpCodes.Ret)); method.DebugInformation.SequencePoints.Clear();
         }
-        Replace(data, "Data", false); Replace(advance, "Advance", true); Replace(append, "Append", true, true);
+        Replace(data, "Data", false); Replace(advance, "Advance", true, acknowledge: true); Replace(append, "Append", true, true);
         var release = dispose.Body.GetILProcessor(); var first = dispose.Body.Instructions[0];
         release.InsertBefore(first, release.Create(OpCodes.Ldarg_0)); release.InsertBefore(first, release.Create(OpCodes.Ldflda, field));
         release.InsertBefore(first, release.Create(OpCodes.Call, Bridge("Release")));

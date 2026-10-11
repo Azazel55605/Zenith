@@ -16,6 +16,7 @@ internal static class SignedCommands
     public static int? Run(string[] args)
     {
         if (!OperatingSystem.IsLinux()) { throw new PlatformNotSupportedException("package tooling currently requires Linux"); }
+        int? kernel = KernelCommands.Run(args); if (kernel.HasValue) { return kernel; }
         if (args.Length == 2 && args[0] == "keygen")
         {
             string output = Path.GetFullPath(args[1]);
@@ -60,12 +61,12 @@ internal static class SignedCommands
         }
         return null;
     }
-    private static void Parents(string path)
+    internal static void Parents(string path)
     {
         for (string? parent = Path.GetDirectoryName(path); parent is not null; parent = Path.GetDirectoryName(parent))
         { if (Directory.Exists(parent) && LinuxFileType.Read(parent) != 0x4000) { throw new IOException("linked parent refused"); } }
     }
-    private static byte[] Read(string path, int maximum)
+    internal static byte[] Read(string path, int maximum)
     {
         Parents(path); if (LinuxFileType.Read(path) != 0x8000) { throw new IOException("expected regular source/key"); }
         using var file = File.OpenRead(path); if (file.Length > maximum) { throw new IOException("source/key exceeds bound"); }

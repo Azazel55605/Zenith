@@ -221,3 +221,19 @@ secret-free transcripts, two disk-only UEFI boots and independent ext2 permissio
 The user requires working kernel package updates before actual installation; offline
 signed staging, previous-kernel retention and reboot activation are now the next
 deployment gate. This slice does not implement that updater.
+
+## 2026-10-11: signed kernel package activation and recovery
+
+Added a dedicated signed kernel container, host sealing/checking commands and an
+installed-root coordinator. The new ELF is staged while the loaded kernel keeps
+running; versioned paths and both Limine menu search paths select it after reboot.
+Explicit confirmation retains the previous kernel, rollback preserves the version
+floor, and a durable journal supports interrupted-update undo. P1 remains scripts/data.
+
+Real ELF-sized delivery required TCP payload acknowledgements and receive-window
+backpressure in signature-checked build copies of Cosmos. Forced-termination tests
+also required a read-only consistency audit before booting a dirty ext2 root; corrupt
+or error-marked roots remain refused. This is a shared-root kernel update foundation,
+with manual failed-boot fallback and external ISO recovery, rather than snapshots or
+automatic trial-boot rollback. See [KERNEL-UPDATES](KERNEL-UPDATES.md) and exact native
+acceptance evidence in [PROGRESS](PROGRESS.md).

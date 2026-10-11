@@ -59,7 +59,7 @@ try
         Console.WriteLine("dry-run only; hashes are not signatures; no target files changed");
         return plan.Applicable ? 0 : 1;
     }
-    else { Console.Error.WriteLine("usage: keygen KEY_DIR | seal BUNDLE PRIVATE_PEM OUTPUT.zpk | check ARCHIVE PUBLIC_PEM | build NAME VERSION SOURCE OUTPUT [--repo core|extra] | inspect MANIFEST | plan MANIFEST TEST_ROOT"); return 2; }
+    else { Console.Error.WriteLine("usage: kernel-seal VERSION ELF PRIVATE_PEM OUTPUT.zpk | kernel-check ARCHIVE PUBLIC_PEM | keygen KEY_DIR | seal BUNDLE PRIVATE_PEM OUTPUT.zpk | check ARCHIVE PUBLIC_PEM | build NAME VERSION SOURCE OUTPUT [--repo core|extra] | inspect MANIFEST | plan MANIFEST TEST_ROOT"); return 2; }
     return 0;
 }
 catch (Exception e) { Console.Error.WriteLine(e.Message); return 1; }

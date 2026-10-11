@@ -24,7 +24,7 @@ internal sealed class Ext2Checker
         _parents = new uint[sb.InodesCount + 1]; _dotParents = new uint[sb.InodesCount + 1];
     }
 
-    public static bool Check(IBlockDevice device, out string report)
+    public static bool Check(IBlockDevice device, out string report, bool allowUnclean = false)
     {
         try
         {
@@ -32,7 +32,7 @@ internal sealed class Ext2Checker
             {
                 report = "check supports partitions up to 512 MiB"; return false;
             }
-            if (Ext2VolumePolicy.Check(device) is string profile)
+            if (Ext2VolumePolicy.Check(device, allowUnclean) is string profile)
             {
                 report = profile; return false;
             }

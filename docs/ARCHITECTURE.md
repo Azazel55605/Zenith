@@ -1,7 +1,7 @@
 # Current Zenith architecture
 
-Reviewed on 2026-10-11 against the current repository, including M2 and the
-S0/S1/P0 foundation slices. This document describes current code.
+Reviewed on 2026-10-11 against the current repository, including M3, guided
+installation and P1/P3 offline packaging. This document describes current code.
 Future structure is in [SYSTEM-PLAN](SYSTEM-PLAN.md); update design is in
 [PACKAGE-MANAGER](PACKAGE-MANAGER.md).
 
@@ -61,10 +61,12 @@ panic renderer also falls back to serial. See [settings and sessions](SETTINGS-S
 | `src/Core/Shell/Commands/SystemCommands.cs` | Cosmos-dependent shell operations |
 | `src/Core/Storage` | Root/layout/install/mount adapters, proc/dev, probes, ext2 integration |
 | `src/Core/Storage/Ext2` | Locally adapted ext2 driver, formatter, profile and consistency checker |
+| `src/Core/Boot` | Limine artifacts, root selection and dedicated signed kernel generations/recovery |
+| `src/Core/Packages` | Signed scripts/data, dependencies/conflicts, ownership and undo transactions |
 | `src/Core/Input`, `src/Core/Time` | Layout/clock configuration and persistence |
 | `src/Core/Files`, `src/Core/Text` | File-browser and editor behavior without graphical presentation |
 | `src/Gui` | Input, windows, terminal buffer, graphics, clipboard and shell composition |
-| `src/Apps` | Welcome, Terminal, Files, Editor and System windows |
+| `src/Apps` | Welcome, Terminal, Files, Editor, System and Sunrise windows |
 | `tests/Zenith.Tests` | Host-linked core sources and filesystem-contract regressions |
 | `tools` | Build/run switching, disposable disk fixtures and native smoke/UEFI tests |
 
@@ -94,7 +96,11 @@ filesystems, copies/read-verifies boot artifacts, then publishes the menu. The r
 root disk and mounted targets are refused. `/boot/efi` exposes the ESP on installed
 boots. `GptChecksums` completes framework GPT checksums and backup structures.
 Host helpers no longer supply boot files. See [INSTALLATION](INSTALLATION.md) for
-layout, capacity and future kernel-package boundaries.
+layout and capacity. [KERNEL-UPDATES](KERNEL-UPDATES.md) describes the dedicated
+signed coordinator: stage a new hash path, retain the previous kernel, publish a
+next-boot menu and require explicit confirmation after reboot. A durable undo journal
+and secondary Limine menu support the tested interrupted-activation boundaries.
+Kernel rollback shares the root; it does not restore root data or replace the EFI loader.
 
 ### Ext2 contract and recovery boundaries
 
@@ -114,7 +120,10 @@ crash-atomic. Symlink targets are 1..1023 UTF-8 bytes; the installed VFS rejects
 
 Writable mounts durably mark the primary superblock unclean. `sync` flushes
 metadata but leaves it unclean; completed unmount restores clean state. A crash
-can require **host e2fsck repair** before writable mounting. There is no journal.
+can require **host e2fsck repair** before writable mounting. Automatic root boot
+audits a dirty supported volume with the bounded read-only checker first and mounts
+it only if consistency passes. It does not clear the flag or repair metadata to
+bypass refusal. Error-marked or inconsistent roots remain refused. There is no journal.
 `fsck.ext2` is a read-only audit of supported unmounted volumes, bounded to
 512 MiB/65536 inodes; it reports at most 32 detailed diagnostics, never repairs,
 and is not a general replacement for e2fsck.
@@ -173,13 +182,17 @@ and [DEVELOPMENT](DEVELOPMENT.md) for reproduction commands.
 
 ## Offline packaging foundation
 
-P0 shares a bounded experimental manifest reader and dry-run planner between the
-Linux host bundle builder and the guest `pkg inspect/plan` commands. It verifies
-lengths/digests, exact dependencies, architecture/runtime and existing-path conflicts.
-`pkg list` explicitly reports bundled kernel/base/test-DE components; no installed
-package database or independently loadable application is implied. No extraction,
-activation, signature verification or repository client exists. Local settings stay
-under /etc and outside data payloads. See [P0 contract](PACKAGE-PROTOTYPE.md).
+P0 remains a bounded unsigned bundle inspection/dry-run experiment. P1 adds RSA-PSS
+signed scripts/data containers, dependency/conflict planning, a protected ownership
+database and installed ext2 staging/undo transactions. The host tool builds/seals
+packages; the root-only guest executor checks a fingerprint-pinned public key and
+preserves local edits. Boot/account files are excluded from P1. Local settings stay
+under /etc and outside data payloads. See [PACKAGES](PACKAGES.md).
+
+P3 uses a separate signed kernel container and activation state. Installer, package
+and kernel mutations share a maintenance gate; normal shutdown refuses active work.
+Compiled tools/desktop remain kernel-linked. Signed online indexes, installation by
+repository name and matched kernel/root generations remain future work.
 
 ## Shared IPv4 service
 
@@ -192,4 +205,8 @@ owner frame because Cosmos 3.0.89 skips unwind-finally handlers. Optional boot N
 corrects shared software UTC. See [NETWORKING](NETWORKING.md) for bounds, framework
 limitations, fixed-memory verified TLS and home acceptance. Signature-checked build
 adapters guard IPv4 ingress, bound UDP/ICMP/TCP storage and share NTP corrections
-with BCL/filesystem timestamps. Current apps remain kernel-linked.
+with BCL/filesystem timestamps. TCP payload ACKs and contiguous sequence checks use
+signature-checked adapters; unread data shrinks the advertised receive window and
+application reads reopen it. Explicit fetch --kernel permits bounded ELF-sized
+transfers while ordinary downloads keep their smaller limit. Current apps remain
+kernel-linked.

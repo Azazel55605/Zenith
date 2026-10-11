@@ -36,7 +36,7 @@ guidance here so the two entry points stay consistent.
   scripts/data packages have an ext2 installed-root transaction/ownership engine;
   see [PACKAGES](docs/PACKAGES.md). Preserve signature, dependency/conflict, local-edit,
   fault/cancel and installed-reboot recovery tests. /etc merges, signed online indexes,
-  native execution and boot updates are separate gates. User selected scripts/data
+  native execution and matched root-data updates remain separate gates. User selected scripts/data
   first, then unbundle compiled tools; grouped inventory is not independent executables.
 - `src/Core` holds system behavior; `src/Gui` rendering and window management;
   `src/Apps` desktop windows. Keep UI concerns out of the core layer.
@@ -120,5 +120,8 @@ the test DE remains the default when supported display hardware is present.
 
 User deployment prerequisite (2026-10-11): finish guided installation, then implement
 and verify signed kernel package upgrades before the user actually installs Zenith.
-Offline P3 staging/previous-kernel retention/reboot activation/recovery now takes
-priority over actual installation; do not relax P1 script/data paths to write boot files.
+P3 has a dedicated signed kernel coordinator ([kernel guide](docs/KERNEL-UPDATES.md));
+preserve signature, UUID/artifact binding, previous retention, monotonic versions,
+confirmation and crash/fallback tests. P1 remains scripts/data without boot-file writes.
+Manual fallback and external ISO recovery are required; no automatic rollback or
+arbitrary FAT/ext2 power-loss guarantee is provided. Native validation stays in PROGRESS.

@@ -8,7 +8,7 @@ namespace Zenith.Core.Storage.Ext2;
 /// This checks the supported profile, not filesystem consistency (fsck is separate).</summary>
 internal static class Ext2VolumePolicy
 {
-    public static string? Check(IBlockDevice device)
+    public static string? Check(IBlockDevice device, bool allowUnclean = false)
     {
         if ((device.BlockSize != 512 && device.BlockSize != 1024) || device.BlockCount > ulong.MaxValue / device.BlockSize
             || device.BlockCount < 2048 / device.BlockSize)
@@ -17,12 +17,24 @@ internal static class Ext2VolumePolicy
         }
         byte[] data = new byte[1024];
         device.ReadBlock(1024 / device.BlockSize, 1024 / device.BlockSize, data);
-        return CheckSuperblock(data, device.BlockCount * device.BlockSize);
+        return CheckSuperblock(data, device.BlockCount * device.BlockSize, allowUnclean);
+    }
+
+    internal static bool CanMount(IBlockDevice device, out string report)
+    {
+        report = Check(device) ?? "";
+        if (report == "") { return true; }
+        if (Check(device, allowUnclean: true) is string invalid) { report = invalid; return false; }
+        // A crash leaves the mounted-state bit unset even after a complete flush.
+        // Never clear it or mount writable merely because the geometry is supported.
+        if (!Ext2Checker.Check(device, out report, allowUnclean: true)) { return false; }
+        report = "unclean ext2 passed read-only consistency check; no repairs made";
+        return true;
     }
 
     private static uint Read(ReadOnlySpan<byte> data, int offset) => BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(offset));
 
-    internal static string? CheckSuperblock(ReadOnlySpan<byte> data, ulong deviceBytes)
+    internal static string? CheckSuperblock(ReadOnlySpan<byte> data, ulong deviceBytes, bool allowUnclean = false)
     {
         if (data.Length < 1024 || BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(56)) != 0xEF53)
         {
@@ -34,7 +46,8 @@ internal static class Ext2VolumePolicy
         {
             return "unsupported ext2 profile (requires Linux layout, revision 1, 1 KiB blocks, 128-byte inodes, filetype only)";
         }
-        if (BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(58)) != 1)
+        ushort state = BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(58));
+        if (state != 1 && (!allowUnclean || state != 0))
         {
             return "ext2 volume is not clean; check it with host e2fsck before mounting";
         }

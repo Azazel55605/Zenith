@@ -99,9 +99,10 @@ internal static class SystemMounts
     /// </summary>
     public static string? Mount(string partitionName, string mountPoint, string filesystem = Fat)
     {
-        lock (s_mountGate)
+        lock (Installer.MaintenanceGate)
         {
-            return MountCore(partitionName, mountPoint, filesystem);
+            if (Installer.IsRunning || NativeKernelUpdates.IsRunning || Shell.Commands.PackageCommands.IsRunning) { return "installation/update busy; mount changes refused"; }
+            lock (s_mountGate) { return MountCore(partitionName, mountPoint, filesystem); }
         }
     }
 
@@ -224,9 +225,10 @@ internal static class SystemMounts
     /// <summary>Unmounts one mount point (never the root). Returns an error message, or null on success.</summary>
     public static string? Unmount(string mountPoint)
     {
-        lock (s_mountGate)
+        lock (Installer.MaintenanceGate)
         {
-            return UnmountCore(mountPoint);
+            if (Installer.IsRunning || NativeKernelUpdates.IsRunning || Shell.Commands.PackageCommands.IsRunning) { return "installation/update busy; mount changes refused"; }
+            lock (s_mountGate) { return UnmountCore(mountPoint); }
         }
     }
 
@@ -301,7 +303,7 @@ internal static class SystemMounts
         foreach (Partition partition in StorageManager.Partitions)
         {
             if (selected is not null && !ReferenceEquals(partition, exact)) { continue; }
-            bool mounted = Ext2VolumePolicy.Check(partition) is null
+            bool mounted = Ext2VolumePolicy.Check(partition, allowUnclean: true) is null
                 && VfsManager.TryMount(Ext2, partition, MountFlags.None, "/", out _);
             if (!mounted && !VfsManager.TryMount(Fat, partition, MountFlags.None, "/", out _))
             {

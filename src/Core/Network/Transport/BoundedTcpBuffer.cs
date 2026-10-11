@@ -14,6 +14,10 @@ public sealed class BoundedTcpBuffer
         public readonly bool Overflow;
     }
     private State _state = new(Array.Empty<byte>());
+    public ushort Window
+    {
+        get { var state = Volatile.Read(ref _state); return state.Overflow ? (ushort)0 : (ushort)Math.Max(0, 8192 - state.Bytes.Length); }
+    }
     public ReadOnlySpan<byte> Data => Volatile.Read(ref _state).Bytes;
     public bool Append(ReadOnlySpan<byte> bytes)
     {
@@ -57,6 +61,7 @@ public static class TcpReceiveBridge
     }
     public static ReadOnlySpan<byte> Data(ref BoundedTcpBuffer? buffer) => Get(ref buffer).Data;
     public static bool Append(ref BoundedTcpBuffer? buffer, ReadOnlySpan<byte> bytes) => Get(ref buffer).Append(bytes);
+    public static ushort Window(ref BoundedTcpBuffer? buffer) => Get(ref buffer).Window;
     public static void Advance(ref BoundedTcpBuffer? buffer, int count) => Get(ref buffer).Advance(count);
     public static void Release(ref BoundedTcpBuffer? buffer) => Interlocked.Exchange(ref buffer, null);
 }

@@ -16,6 +16,7 @@ namespace Zenith.Core.Storage;
 /// <summary>Self-contained x64 UEFI installation with versioned kernel artifacts.</summary>
 internal static class Installer
 {
+    internal static readonly object MaintenanceGate = new();
     private static int s_running;
     public static bool IsRunning => Volatile.Read(ref s_running) != 0;
 
@@ -61,7 +62,11 @@ internal static class Installer
     private static void RunJob(IBlockDevice disk, Action<string> progress, Func<InstallationProfile?> prepare)
     {
         GuardedFilesystem.RequireRoot();
-        if (Interlocked.CompareExchange(ref s_running, 1, 0) != 0) { throw new IOException("another installation is running"); }
+        lock (MaintenanceGate)
+        {
+            if (Zenith.Core.Boot.NativeKernelUpdates.IsRunning || Zenith.Core.Shell.Commands.PackageCommands.IsRunning || Interlocked.CompareExchange(ref s_running, 1, 0) != 0)
+            { throw new IOException("installation or package update already running"); }
+        }
         try { InstallCore(disk, progress, prepare()); }
         catch { Interlocked.Exchange(ref s_running, 0); throw; }
         Interlocked.Exchange(ref s_running, 0);

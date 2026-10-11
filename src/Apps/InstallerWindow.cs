@@ -45,7 +45,7 @@ internal sealed class InstallerWindow : Window
         {
             int x = content.X + 24, y = content.Y + 18;
             Text(surface, "Install Zenith", x, y, Theme.TextHeading);
-            Text(surface, "Kernel updates are not ready yet. Use a disposable VM for now.", x, y + 34, 12, Theme.TextSecondary);
+            Text(surface, "Test in a VM first. Keep the live ISO for recovery.", x, y + 34, 12, Theme.TextSecondary);
             y = content.Y + 86;
             switch (_step)
             {
@@ -182,7 +182,7 @@ internal sealed class InstallerWindow : Window
                             Array.Clear(values, 2, 4);
                             return profile;
                         });
-                        lock (_gate) { _step = Step.Done; _message = "Use this VM to test. Kernel updates remain the next gate."; _dirty = true; }
+                        lock (_gate) { _step = Step.Done; _message = "After boot, test a signed kernel update before using this system."; _dirty = true; }
                         Log.Write("installer", "guided installation complete");
                     }
                     catch (Exception e)

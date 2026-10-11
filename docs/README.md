@@ -1,6 +1,9 @@
 # Zenith documentation
 
-[Installation and boot generations](INSTALLATION.md): Sunrise/serial guided installation, self-contained UEFI boot and future kernel update layout.
+[Installation and boot generations](INSTALLATION.md): Sunrise/serial guided installation, self-contained UEFI boot and versioned boot layout.
+
+[Signed kernel updates](KERNEL-UPDATES.md): offline signing/delivery, reboot activation,
+confirmation, previous-kernel fallback and undo recovery.
 
 This is the project documentation entry point. Status reviewed on **2026-10-11**
 against the current repository. Current S0/S1/P0/P1 and M3 behavior is documented separately

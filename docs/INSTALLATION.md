@@ -49,7 +49,7 @@ acceptance remain future work.
 | ESP `/limine.conf` | Current kernel/root and RAM rescue menu |
 | Root `/var/lib/zenith/boot/installed.tsv` | Matching initial installation inventory |
 | Root `/etc/fstab` | Root/ESP PARTUUID records and volatile `/tmp` |
-| Installed `/boot/efi` | Mounted ESP for future update service |
+| Installed `/boot/efi` | Mounted ESP for signed kernel updates |
 | Root ext2 | `/etc`, `/home`, `/root`, `/usr`, `/var`; maximum 512 MiB |
 
 Root begins after the ESP and uses remaining aligned space up to the current ext2
@@ -68,31 +68,22 @@ Legacy roots remain discoverable, but are not automatically migrated to this lay
 
 ## Kernel packages and reboot activation
 
-Kernel updates are a required future package capability. This layout makes them
-possible without replacing the running kernel's bytes: stage a new independently
-addressed ELF, verify/flush it, retain the current generation, then publish a new
-menu for the next boot. The running kernel remains active until reboot. A menu
-builder already supports current, previous and RAM rescue entries; initial install
-has no previous generation to retain.
+Signed kernel updates are implemented through a dedicated container and coordinator:
+`pkg kernel check|install FILE`, `boot status`, and `boot confirm|rollback|recover`.
+The loaded kernel stays unchanged until reboot; the previous generation and RAM
+rescue remain available. See [kernel update guide](KERNEL-UPDATES.md) for signing,
+delivery, explicit confirmation, recovery and a real-test procedure.
+
+P1 remains signed scripts/data only. Kernel packages cannot replace the EFI loader,
+change root/account files or install arbitrary payload paths. Root snapshots,
+automatic boot-attempt rollback and general FAT/ext2 power-loss recovery remain
+separate work. Offline VM acceptance does not establish physical hardware readiness;
+retain the external live ISO and verify an upgrade on a disposable installation first.
 
 The installer accepts ELF files up to 32 MiB and EFI files up to 2 MiB. Its 128 MiB
-ESP budget accommodates three maximum-size ELF copies (current, previous, staging),
-one EFI loader and metadata with headroom. This is capacity planning, not an update
-space allocator. Future packages must still check actual free space and bounds.
-The ext2 root size limit must grow before substantial SDK/runtime packages.
-
-User deployment gate: working, verified kernel package updates are required before
-the user actually installs Zenith. Guided installation is for disposable VM tests
-until that gate passes; it does not make kernel updates available.
-
-P1 packages remain signed scripts/data only. Kernel package type/metadata, versioned
-ABI dependencies, conflict policy, signed artifact binding, ownership/protected
-paths, activation/retention executor and interruption tests belong to P3. Bootloader
-replacement should be a separate explicit operation. Do not implement kernel updates
-by loosening script/data path restrictions or overwriting the current kernel path.
-A failed new kernel must leave a manually selectable previous kernel and rescue
-route. Automatic attempt counting/rollback, matching root snapshots and restoration
-are not implemented; see [UPDATE-RECOVERY](UPDATE-RECOVERY.md).
+ESP accommodates current, previous and staging kernels with metadata headroom;
+the updater still checks actual free space. Larger SDK/runtime packages need a
+larger supported ext2 root profile.
 
 The local boot bridge follows the upstream [Limine protocol](https://github.com/Limine-Bootloader/limine-protocol/blob/trunk/PROTOCOL.md).
 Its internal module uses `/EFI/BOOT/BOOTX64.EFI` on the executable's boot volume;

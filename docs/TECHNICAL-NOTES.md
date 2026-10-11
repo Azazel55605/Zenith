@@ -81,14 +81,16 @@ prerequisite for kernel updates. These are assessments, not implemented capabili
 ## 4. Installer and update implications
 
 The verified installation path is live boot → guest install (GPT, FAT32 ESP, ext2 root)
-→ host `make-bootable.sh` → disk-only UEFI boot. Root discovery uses os-release;
-UUID selection and copying boot artifacts without host assistance remain M4 work.
-GPT completion is still a local adapter. See [DEVELOPMENT](DEVELOPMENT.md) for reproduction.
+→ disk-only UEFI boot. The installer copies its original ELF and EFI bytes through
+local Limine requests; installed entries select exact root PARTUUIDs and loaded hashes.
+Host make-bootable repair is no longer part of acceptance. GPT completion is still a
+local adapter. See [INSTALLATION](INSTALLATION.md) for guided setup and current bounds.
 
-Package updates need additional boot activation and recovery semantics. Ext2 file rename
-and FAT ESP replacement are not assumptions of crash-safe system activation. The
-[package design](PACKAGE-MANAGER.md) evaluates coordinated release generations versus
-image/A-B roots before committing to one layout.
+The separate [kernel coordinator](KERNEL-UPDATES.md) stages signed ELF files while
+the old kernel runs, retains a previous entry and uses explicit confirmation/undo.
+Ext2 and FAT are not transactional: selected flushed crash boundaries are tested,
+without an arbitrary physical power-loss guarantee. Matched root generations and
+image/A-B snapshots remain later recovery work in the [package design](PACKAGE-MANAGER.md).
 
 ## 5. Framework and driver work
 
@@ -98,7 +100,8 @@ extensions may need an explicit upstream/local-framework change; inspect the ins
 without casually running the sibling checkout's bootstrap.
 
 The [vendored networking reference](cosmos/articles/user/network.md) describes framework
-interfaces; Zenith network configuration/fetch/TLS integration remains future M3 work.
+interfaces; Zenith's implemented IPv4 configuration/fetch/TLS and local transport
+adaptations are documented in [NETWORKING](NETWORKING.md).
 Likewise QEMU graphics/storage/input validation does not establish physical hardware
 support. M7 requires a documented UEFI hardware matrix and measured input/storage/network
 behavior. Audio, Wi-Fi, suspend, multi-monitor and advanced GPU acceleration are not

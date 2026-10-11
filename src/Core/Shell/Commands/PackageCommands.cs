@@ -14,11 +14,16 @@ internal static class PackageCommands
 {
     public const string KeyPath = "/etc/zenith/package-key.pem";
     private static int s_busy;
+    internal static bool IsRunning => Volatile.Read(ref s_busy) != 0;
     public static void Register(Action<Command> add)
-    { add(new Command("pkg", "pkg repos | list | trust FILE SHA256 | install FILE... | remove NAME | verify | recover | inspect/plan MANIFEST", "Signed offline script/data package management", Run)); }
+    { add(new Command("pkg", "pkg kernel check/install FILE | repos | list | trust FILE SHA256 | install FILE... | remove NAME | verify | recover | inspect/plan MANIFEST", "Signed offline data and kernel package management", Run)); }
     private static int Run(CommandContext c)
     {
-        if (Interlocked.CompareExchange(ref s_busy, 1, 0) != 0) { return c.Fail("package service busy"); }
+        lock (Installer.MaintenanceGate)
+        {
+            if (Installer.IsRunning || Zenith.Core.Boot.NativeKernelUpdates.IsRunning || Interlocked.CompareExchange(ref s_busy, 1, 0) != 0)
+            { return c.Fail("package/system update service busy"); }
+        }
         try { int result = Execute(c); Interlocked.Exchange(ref s_busy, 0); return result; }
         catch { Interlocked.Exchange(ref s_busy, 0); throw; }
     }
@@ -30,6 +35,7 @@ internal static class PackageCommands
     }
     private static int Execute(CommandContext c)
     {
+        if (c.Args.Length > 0 && c.Args[0] == "kernel") { return Zenith.Core.Boot.NativeKernelUpdates.Package(c); }
         var store = new NativePackageStore(); var manager = new PackageManager(store);
         if (c.Args.Length == 1 && c.Args[0] == "repos")
         {

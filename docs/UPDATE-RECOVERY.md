@@ -124,3 +124,11 @@ What is included in system rollback; number/retention of saved states; full-copy
 block-CoW or Btrfs backend; read-only/trial write layer; stable root identifiers;
 manual versus automatic fallback; and compatibility policy for mutable user/service
 data. First prove the boot-generation contract before investing in a full Btrfs port.
+
+## Kernel-only recovery foundation
+
+The dedicated P3 kernel coordinator now provides signed staging, versioned boot
+paths, manual previous-kernel selection, explicit confirmation/rollback and a durable
+undo record. See [KERNEL-UPDATES](KERNEL-UPDATES.md) and PROGRESS for exact acceptance.
+It shares the installed root and does not implement the snapshot/trial-root model
+described above, automatic failed-boot rollback or arbitrary physical power-loss repair.

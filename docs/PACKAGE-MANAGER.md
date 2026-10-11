@@ -193,8 +193,9 @@ the active kernel, Limine binary or boot configuration. Kernel and system data c
 shared release identity. Keep at least one known-good compatible generation if space
 allows. Validate ELF/build identity and expected platform before staging.
 
-Proposed flow: fetch matched artifacts, verify them, stage an inactive boot/system
-generation, flush, publish activation state, reboot, then confirm successful startup.
+Implemented kernel-only flow: verify a dedicated signed ELF container, stage a new
+hash path, flush, publish a pending menu, reboot and explicitly confirm. The original
+loaded kernel keeps running until reboot. Matched root-data generations remain proposed.
 What constitutes successful startup must include root/config compatibility and update
 service recovery, not merely a serial banner. If confirmation never arrives, expose a
 fallback through a boot menu and, if supported, attempt accounting. Limine automatic
@@ -207,8 +208,9 @@ P1 still rejects kernel/boot packages. Check actual
 artifact/backup/staging sizes before choosing retention. Separate `/boot` files on root
 from the ESP paths firmware/Limine use; updating the former alone may change nothing
 at boot. M4 boot-artifact access and exact root selection now support the CLI installer.
-Signed activation, retained-version ownership and interruption recovery still gate
-the updater. Bootloader updates should initially be separate,
+Signed offline staging, previous-kernel retention, explicit confirmation/rollback and
+undo recovery are implemented; exact native acceptance is tracked in PROGRESS. See
+[KERNEL-UPDATES](KERNEL-UPDATES.md) for delivery, ownership and tested interruption bounds. Bootloader updates should initially be separate,
 rare and explicit; avoid replacing firmware entry plumbing for every kernel update.
 An old ISO/root rescue route must remain usable when activation fails.
 
@@ -280,17 +282,20 @@ later; none are assumed in this planning task.
 | P0: format/recovery experiments | Host builder, parser, plan; candidate guest verifier; boot-layout design | Round-trip fixture, malicious archive/manifest corpus; decisions recorded |
 | P1: local data packages | Offline CLI, ownership DB, staging/config policy, removal | Native installed-root install/upgrade/remove; reboot persistence; interrupted/out-of-space recovery |
 | P2: dedicated home VM | Native static repository, own IP, LAN and existing VPN/DNS access | Provisioned endpoint and publish/fetch checks; signing separated from hosting |
-| P3: system generations | Kernel plus matched data, inactive boot artifacts, confirmation/fallback | Disk-only UEFI upgrades and failed-boot fallback; fault injection at activation boundaries |
+| P3: system generations | Offline kernel-only coordinator implemented; matched root/data remains future | Kernel: 169 native activation/rollback/interruption/ISO/manual-fallback checks; root generations require a separate recovery gate |
 | P4: repository client | Signed metadata/mirror, bounded network fetching | Tampered/truncated/replayed/expired metadata rejected; key rotation and interrupted download tested |
 | P5: independent userland packages | M5 ABI/process/IPC contract, desktop/app dependencies and launcher entries | Install/run/remove app or desktop component without compiling a new kernel |
 
 P0 builder/reader/dry-run work began with S0. P1 now implements bounded signed
 containers, native RSA-PSS verification and root-only installed script/data transactions.
-The concrete scope and recovery limits are in [PACKAGES](PACKAGES.md); P3 needs verified boot-artifact/root handling and an explicit recovery policy. P4
+The concrete scope and recovery limits are in [PACKAGES](PACKAGES.md); P3 now has a
+verified offline kernel-only coordinator ([KERNEL-UPDATES](KERNEL-UPDATES.md)). Matched
+data/root generations and automatic failed-boot recovery remain future work. P4
 depends on M3 and trust verification; P2 provisioning can happen before the guest
 client is ready. User direction on 2026-10-11 puts offline P3 kernel upgrades before
-actual installation: implement signed staging, retain the previous kernel and verify
-reboot activation and failure recovery before deployment. P4 online delivery follows
+actual installation. Local VM acceptance now verifies signed staging, retained previous
+selection, reboot activation and failure recovery; the user's VM/LAN test is next.
+P4 online delivery follows
 separately; neither is a quick side effect of a `fetch` command.
 
 Test dimensions: malformed metadata/container, extraction escapes, hash/signature failure,

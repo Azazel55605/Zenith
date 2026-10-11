@@ -36,8 +36,10 @@ Without an installed disk, Zenith uses a 64 MiB RAM root, lost on reboot. The IS
 normal entry automatically discovers an installed root. Select **Zenith live rescue
 (RAM root)** to use RAM even with an installation attached. Installed boot entries bind
 an exact root PARTUUID to a versioned kernel. See [installation layout](docs/INSTALLATION.md).
-Kernel package activation is the next required gate before actual installation; use
-disposable VMs until it is verified. Current signed packages contain scripts/data only.
+Signed kernel upgrades use `pkg kernel install FILE.zpk`, followed by a reboot,
+testing and `boot confirm`. The previous kernel is retained; `boot rollback` and
+`boot recover` provide explicit recovery. Follow the [kernel update/test guide](docs/KERNEL-UPDATES.md)
+and keep an external live ISO. Physical hardware acceptance remains separate.
 
 ## Using it
 

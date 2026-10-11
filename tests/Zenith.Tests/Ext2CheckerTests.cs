@@ -7,6 +7,21 @@ namespace Zenith.Tests;
 public class Ext2CheckerTests
 {
     [Theory]
+    [InlineData(false)] [InlineData(true)]
+    public void DirtyMountRequiresReadOnlyConsistencyAndDoesNotRepair(bool corrupt)
+    {
+        using var disk = new Ext2FormatterTests.Disk(1024 * 1024);
+        Ext2Formatter.Format(disk, "CRASH"); Assert.True(Ext2Superblock.TryCreate(disk, out var sb));
+        sb!.MarkMounted();
+        if (corrupt) { sb.FreeBlocksCount++; sb.UpdateSuperblock(); }
+        int writes = disk.Writes;
+        Assert.Contains("not clean", Ext2VolumePolicy.Check(disk));
+        Assert.Equal(!corrupt, Ext2VolumePolicy.CanMount(disk, out var report));
+        Assert.Contains(corrupt ? "mismatch" : "read-only consistency", report);
+        Assert.Equal(writes, disk.Writes);
+        Assert.Contains("not clean", Ext2VolumePolicy.Check(disk));
+    }
+    [Theory]
     [InlineData(1024 * 1024)]
     [InlineData(16 * 1024 * 1024)]
     public void CleanFormattedVolumeIsReadOnlyAndValid(int bytes)

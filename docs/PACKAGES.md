@@ -199,3 +199,10 @@ executes/upgrades a script without rebuilding, reboots with an interrupted journ
 recovers, checks user permissions, removes packages and runs independent e2fsck/debugfs.
 No signing private key is served or sent to the guest. Exact results and remaining
 limits are recorded in [PROGRESS](PROGRESS.md).
+
+## Signed kernel containers
+
+P3 uses a distinct signed header and dedicated boot coordinator; ordinary `pkg install`
+still accepts scripts/data only. See [KERNEL-UPDATES](KERNEL-UPDATES.md) for the builder,
+`pkg kernel check|install`, confirmation, retention and recovery. This does not add
+native userland execution, arbitrary boot-file payloads or root snapshots.

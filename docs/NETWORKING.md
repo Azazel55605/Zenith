@@ -158,7 +158,9 @@ not implemented. IP URLs require a matching IP SAN, not just a DNS certificate.
 Fetch sends HTTP/1.0 with identity encoding and close semantics. Only status 200
 with exactly one numeric Content-Length is accepted. Redirects, chunking,
 compression, credentials and fragments are rejected. URLs are printable ASCII
-and at most 350 characters, headers 8192 bytes, payloads 8 MiB. It streams into a
+and at most 350 characters, headers 8192 bytes, payloads 8 MiB by default. Explicit `fetch --kernel` permits 32 MiB + 4096 bytes
+and a 180-second total deadline for signed kernel containers (normal total deadline:
+30 seconds). Both retain the 3-second idle deadline. It streams into a
 same-directory private 0600 temporary file, reports progress per 64 KiB, and
 flushes/renames/syncs after all declared bytes. Existing files require `--replace`
 and must be regular files. Errors and cancellation remove staging and preserve the

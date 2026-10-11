@@ -28,13 +28,14 @@ internal sealed record HttpTarget(string Host, int Port, string Path, bool Secur
 internal sealed class HttpDownload
 {
     public const int MaximumHeader = 8192;
-    public const int MaximumBytes = 8 * 1024 * 1024;
+    public const int DefaultMaximumBytes = 8 * 1024 * 1024;
+    public const int MaximumBytes = 32 * 1024 * 1024 + 4096;
     private readonly byte[] _header = new byte[MaximumHeader];
     private readonly Action<byte[], int, int> _write;
     private readonly Action _cancel;
     private int _headerLength;
     private readonly int _maximum;
-    public HttpDownload(Action<byte[], int, int> write, Action cancel, int maximum = MaximumBytes)
+    public HttpDownload(Action<byte[], int, int> write, Action cancel, int maximum = DefaultMaximumBytes)
     {
         if (maximum < 0 || maximum > MaximumBytes) { throw new ArgumentOutOfRangeException(nameof(maximum)); }
         _write = write; _cancel = cancel; _maximum = maximum;

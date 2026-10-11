@@ -261,7 +261,9 @@ at the sync durability point; a volatile-device regression checks this ordering.
 
 Writable mounts durably mark the primary ext2 superblock unclean. Sync leaves it
 unclean; successful unmount restores clean state and flushes. Volumes left dirty
-by a crash are refused for writable mounting and need host e2fsck first. The
+by a crash require a full read-only consistency pass before automatic root mounting.
+Inconsistent/error-marked volumes and dirty secondary CLI mounts remain refused and
+need external e2fsck; the boot path does not repair or override the clean flag. The
 checker also reports files exceeding the driver's double-indirect size range;
 triple-indirect file I/O remains unsupported. This profile is deliberately bounded.
 

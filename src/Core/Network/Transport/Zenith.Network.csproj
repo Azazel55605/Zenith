@@ -4,5 +4,5 @@
     <Nullable>enable</Nullable>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
-  <ItemGroup><Compile Include="BoundedTcpBuffer.cs" /><Compile Include="ClockCorrection.cs" /><Compile Include="BoundedPacketQueue.cs" /><Compile Include="EthernetGuard.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="BoundedTcpBuffer.cs" /><Compile Include="TcpSegmentPolicy.cs" /><Compile Include="ClockCorrection.cs" /><Compile Include="BoundedPacketQueue.cs" /><Compile Include="EthernetGuard.cs" /></ItemGroup>
 </Project>

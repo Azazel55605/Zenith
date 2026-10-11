@@ -22,7 +22,7 @@
       <Private>true</Private>
     </Reference>
     <Compile Include="../../src/Core/Storage/InstallationProfile.cs" LinkBase="Kernel/Storage" />
-    <Compile Include="../../src/Core/Boot/BootLayout.cs" LinkBase="Kernel/Boot" />
+    <Compile Include="../../src/Core/Boot/*.cs" Exclude="../../src/Core/Boot/Native*.cs" LinkBase="Kernel/Boot" />
     <Compile Include="../../src/Core/Storage/GptChecksums.cs" LinkBase="Kernel/Storage" />
     <Compile Include="../../src/Core/Storage/GptIdentity.cs" LinkBase="Kernel/Storage" />
     <Compile Include="../../src/Core/Storage/FileSystemProbe.cs" LinkBase="Kernel/Storage" />

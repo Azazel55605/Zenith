@@ -64,13 +64,21 @@ def verify(image, kernel=None):
     if len(efi) != int(values['efi-bytes']) or hashlib.sha256(efi).hexdigest() != values['efi-sha256']: raise ValueError('EFI integrity')
     config = read(image, '/limine.conf').decode('ascii')
     if 'path: boot():/boot/zenith/' + generation + '/kernel.elf' not in config or 'root=PARTUUID=' + values['root'] + ' kernel=' + generation not in config: raise ValueError('boot menu binding')
+    previous = values['previous']
+    if previous != '-':
+        if not re.fullmatch('[a-f0-9]{64}', previous) or previous == generation: raise ValueError('previous generation')
+        old = read(image, '/boot/zenith/' + previous + '/kernel.elf')
+        if hashlib.sha256(old).hexdigest() != previous: raise ValueError('previous kernel integrity')
+        if '/Zenith previous kernel' not in config or 'root=PARTUUID=' + values['root'] + ' kernel=' + previous not in config: raise ValueError('previous menu binding')
+        secondary = read(image, '/boot/limine/limine.conf').decode('ascii')
+        if 'root=PARTUUID=' + values['root'] not in secondary or 'root=live session=headless' not in secondary: raise ValueError('secondary menu binding')
     if 'root=live session=headless' not in config: raise ValueError('rescue entry missing')
     print('ok   guest-written GPT, EFI, kernel SHA256, root UUID and rescue menu', flush=True)
     return values
 
 def override(image, argument, directory):
     # Test harness only: preserve the selected kernel and root identity.
-    if argument not in ('session=de', 'session=headless', 'root=live session=headless'):
+    if argument not in ('session=de', 'session=headless', 'root=live session=headless', 'session=headless kernel-test-stop=staged', 'session=headless kernel-test-stop=menu-gap'):
         raise ValueError('unsupported test override')
     text = read(image, '/limine.conf').decode('ascii')
     def change(match):
@@ -78,7 +86,7 @@ def override(image, argument, directory):
         tokens = [t for t in tokens if not t.startswith('session=')]
         if argument.startswith('root=live'): tokens = [t for t in tokens if not t.startswith(('root=', 'kernel='))]
         return '    cmdline: ' + ' '.join(tokens + argument.split())
-    text = re.sub(r'    cmdline: ([^\n]*)', change, text, count=1).replace('timeout: 5', 'timeout: 0')
+    text = re.sub(r'    cmdline: ([^\n]*)', change, text, count=1).replace('timeout: 5', 'timeout: 5' if 'kernel-test-stop' in argument else 'timeout: 0')
     target = Path(directory) / 'limine.conf'; target.write_text(text)
     subprocess.run(['mcopy', '-i', f'{image}@@{esp(image)[2] * 512}', '-o', str(target), '::/limine.conf'], check=True)
 

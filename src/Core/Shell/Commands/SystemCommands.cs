@@ -59,15 +59,7 @@ internal static class SystemCommands
         add(new Command("dmesg", "dmesg", "Print the kernel log", Dmesg));
         add(new Command("logger", "logger [message...]", "Write a message (or stdin) to the kernel log", Logger));
         add(new Command("crash", "crash", "Trigger a kernel panic (for testing)", _ => { KernelPanic.Request("crash command"); return 0; }));
-        add(new Command("boot", "boot status", "Show loaded kernel and installed boot identity", c =>
-        {
-            if (c.Args.Length != 1 || c.Args[0] != "status") { return c.Fail("boot status"); }
-            c.WriteLine("running-kernel=" + Zenith.Core.Boot.NativeBootAssets.RunningKernelId());
-            c.WriteLine("root=" + (SystemMounts.RootId?.ToString("D") ?? "live/legacy"));
-            c.WriteLine("efi=" + (SystemMounts.BootPartition?.Name ?? "unavailable"));
-            c.WriteLine("kernel updates: planned signed boot-generation packages; current pkg installer is scripts/data only");
-            return 0;
-        }));
+        add(new Command("boot", "boot status|confirm|rollback|recover", "Manage kernel boot generations", Zenith.Core.Boot.NativeKernelUpdates.Boot));
         add(new Command("install", "install [disk] [--yes | --setup]", "Install Zenith onto a disk", Install));
         add(new Command("sync", "sync", "Write all cached filesystem data to disk", c => { SystemMounts.SyncAll(); return 0; }));
         add(new Command("umount", "umount mountpoint", "Unmount a filesystem", Umount));
@@ -489,7 +481,7 @@ internal static class SystemCommands
             string? root = c.Shell.ReadSecret("Root password: ");
             string? rootRepeat = c.Shell.ReadSecret("Repeat root password: ");
             if (password is null || repeat is null || root is null || rootRepeat is null) { return 130; }
-            c.WriteLine("Kernel updates are not ready yet. Use a disposable VM for now.");
+            c.WriteLine("Test in a VM first. Keep the live ISO for recovery.");
             string? erase = c.Shell.ReadInputLine("Type ERASE " + selected + " to confirm: ");
             if (erase != "ERASE " + selected) { return c.Fail("installation cancelled; target unchanged"); }
             profile = InstallationProfile.Create(hostname, user, root, rootRepeat, password, repeat, HardwareEntropy.Source);
@@ -501,7 +493,7 @@ internal static class SystemCommands
         // between partitioning and copying would leave a half-written disk.
         Installer.Install(target, step => c.Out.Write(Ansi.Cyan("==> ") + step + "\n"), profile);
         c.WriteLine("Zenith installed and UEFI bootable. Power off, eject the ISO and boot the disk.");
-        c.WriteLine("Kernel generations are retained on the EFI partition; package-managed kernel activation follows separately.");
+        c.WriteLine("Signed kernel updates: pkg kernel install FILE; reboot and test, then boot confirm.");
         return 0;
     }
 

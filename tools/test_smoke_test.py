@@ -2,8 +2,9 @@
 """Host regressions for smoke-test serial marker matching (no QEMU required)."""
 import importlib.util
 from pathlib import Path
+import tempfile
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 spec = importlib.util.spec_from_file_location("smoke_test", Path(__file__).with_name("smoke-test.py"))
 smoke = importlib.util.module_from_spec(spec)
@@ -41,11 +42,27 @@ class HeadlessSerialMatchingTests(unittest.TestCase):
         raw = ("[zenith] [    8.674] mounts: all filesystems [LowLevelMonitor] Acquire BEGIN\n"
                "[LowLevelMonitor] Acquire END\n[LowLevelMonitor] Wait BEGIN\n"
                "[CV] Wait BEGIN thread=0\n[SCHED] BlockThread id=0\nunmounted\n")
-        machine.log = lambda: raw
         machine.process = Mock(); machine.process.poll.return_value = 0
-        self.assertTrue(machine.wait("all filesystems unmounted", timeout=1))
-        self.assertFalse(machine.wait("all filesystems unmounted", offset=len(raw), timeout=1))
-        self.assertFalse(machine.wait("all filesystems failed", timeout=1))
+        with tempfile.TemporaryDirectory() as directory:
+            machine.serial = Path(directory)/'serial.log'; machine.serial.write_text(raw)
+            self.assertTrue(machine.wait("all filesystems unmounted", timeout=1))
+            self.assertFalse(machine.wait("all filesystems unmounted", offset=len(raw), timeout=1))
+            self.assertFalse(machine.wait("all filesystems failed", timeout=1))
+
+    def test_large_old_log_and_split_new_marker(self):
+        spec = importlib.util.spec_from_file_location("headless_test", Path(__file__).with_name("headless-smoke.py"))
+        headless = importlib.util.module_from_spec(spec); spec.loader.exec_module(headless)
+        machine = headless.Machine.__new__(headless.Machine)
+        machine.process = Mock(); machine.process.poll.return_value = None
+        machine.log = Mock(side_effect=AssertionError('must scan incremental bytes'))
+        with tempfile.TemporaryDirectory() as directory:
+            machine.serial = Path(directory)/'serial.log'
+            old='marker\n'+'[TCP] debug\n'*100000; machine.serial.write_text(old)
+            chunks=iter(['mar[TCP] partial debug','\nker\n'])
+            def append(_):
+                with machine.serial.open('a') as stream: stream.write(next(chunks))
+            with patch.object(headless.time,'sleep',side_effect=append):
+                self.assertTrue(machine.wait('marker',offset=len(old),timeout=1))
 
 
 class FreshMarkerTests(unittest.TestCase):

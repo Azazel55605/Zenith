@@ -1129,3 +1129,84 @@ permissions and reports accurate metadata through `ls -l`.
   required adding ~/.dotnet/tools to PATH; host VSTest needed sandbox socket access.
   Documentation local links pass (187), and git diff --check passes. CI adds both
   guided paths; hosted CI awaits push.
+
+## 2026-10-11 · P3 signed kernel upgrades
+
+- Implementing a dedicated signed kernel container and offline builder, leaving P1
+  payload paths unchanged. The executor binds root/ESP UUIDs, verifies the retained
+  kernel/EFI loader, checks free space and version monotonicity, stages a new hash
+  path and publishes a pending next-boot menu with the previous kernel retained.
+- Confirmation, rollback and durable undo recovery are explicit operations. Manual
+  boot-menu fallback and ISO repair remain necessary; automatic boot-attempt rollback
+  and arbitrary FAT/ext2 power-loss guarantees are not assumed.
+- Host fault/cancel/signature tests and native upgrade/reboot/recovery acceptance are
+  in progress. All disks/signing keys used in validation are disposable fixtures.
+- Implemented kernel-seal/kernel-check in the host tool and pkg kernel check/install,
+  boot status/confirm/rollback/recover in the guest. Update records bind root/ESP,
+  immutable EFI and hash-addressed kernels; explicit high-water versions prevent
+  downgrade after rollback. Confirmation retains the last working kernel and removes
+  only the recorded retired generation. A secondary Limine menu covers the tested
+  root-menu rename gap; recovery leaves root accounts/data/packages unchanged.
+- Full-sized ELF delivery required a separate fetch --kernel bound (32 MiB + 4096,
+  180-second total; ordinary fetch stays 8 MiB/30 seconds). Actual Cosmos 3.0.89 source
+  revealed missing ACKs for ACK-only payload, an incorrect receive-range test and
+  advertising the peer's window. Signature-checked build-copy adaptations acknowledge
+  payload, require contiguous in-window bytes and apply receive-window backpressure
+  with reopening ACKs. No upstream checkout or dependency cache was changed.
+- Native networking regression passes 172/172 under TCG after these adaptations;
+  signed script/data package regression passes 71/71, including reboot undo,
+  permission checks, secret-free transcripts and independent clean ext2 inspection.
+  Evidence: /tmp/zenith-kernel-network.log and /tmp/zenith-kernel-packages.log.
+- Actual forced termination exposed the prior clean-only root gate: the flushed
+  ext2 root was refused because mounts deliberately leave it marked unclean. Boot
+  now runs the existing bounded read-only checker before admitting a supported dirty
+  root. Inconsistent/error-marked volumes remain refused; no repair/clean-bit override
+  occurs. Host read-only dirty/corruption checks pass (553/553 full suite). Native
+  crash acceptance is being rerun with a deliberately corrupt dirty-root negative.
+- Crash checkpoints stop persistent logging and flush before emitting a serial-only
+  marker, so the fixture does not introduce an unflushed log write after its boundary.
+  The serial harness now scans incremental bytes (10/10 transcript regressions) rather
+  than repeatedly rescanning full debug logs. A concurrent TCG transfer hit the fixed
+  180-second guest deadline near completion; isolated transfers passed without
+  increasing it. P0 tool tests pass 9/9 and signed tool/native RSA tests pass 5/5.
+- Native crash checks now prove both disk-only and external-ISO recovery and reject
+  an intentionally corrupt dirty-root copy. A subsequent actual-ELF reboot exposed
+  Limine choosing the retained secondary configuration ahead of the updated primary;
+  publication now keeps the old secondary through the primary rename gap and commits
+  both menus to the same active generation before ending the journal. Confirmation
+  also preserves that agreement. Final activation/fallback acceptance is being rerun.
+- The native coordinator now requires the ESP mount to exist and rejects other mounts
+  at/above/below boot metadata. CLI mount/unmount shares the maintenance gate so the
+  namespace cannot change while an install/package/kernel mutation is active.
+- Independent ext2 checks pass on both recovered crash images and the ISO-recovered
+  image. Read-only fsck.fat finds no allocation/chain/directory errors; its two existing
+  Cosmos formatter warnings (EFI label without directory label, unknown optional
+  free-cluster hint) are explicitly recorded/whitelisted. No host image repair is
+  performed; FAT errors outside those exact messages remain failures.
+- Final Release ISO build and 557/557 host tests pass, including each coordinator
+  mutation/flush fault boundary, cancellation, signatures, retained artifacts,
+  generation cleanup, dirty-root read-only audit and error-marked-state refusal.
+  Final native kernel acceptance passes 169/169 under TCG: full real ELF-sized HTTP
+  delivery, tampered/P1 separation, root/user rules, absent-ESP refusal/remount,
+  real guest termination at flushed staging and primary-menu rename gaps, disk-only
+  and external-ISO undo, deliberately corrupt dirty-root refusal, actual new/previous
+  ELF hashes after reboot, persistent user data, confirmation/version floor, signed
+  entry-loop failure and real keyboard selection of the previous Limine menu entry.
+- Final installed ext2 e2fsck is clean; FAT allocation/directory audit passes with
+  only the two recorded formatter warnings. Credentials are absent from transcripts.
+  The captured actual Limine current/previous/RAM-rescue menu was visually inspected.
+  Evidence: /tmp/zenith-kernel-build-complete.log,
+  /tmp/zenith-kernel-host-activation.log (557),
+  /tmp/zenith-kernel-native-complete.log (169), ignored obj/kernel-updates-complete.
+  Supporting regressions: /tmp/zenith-kernel-network.log (172),
+  /tmp/zenith-kernel-guided.log (47), /tmp/zenith-kernel-transcript-complete.log (10),
+  /tmp/zenith-kernel-p0-tool-final.log (9), /tmp/zenith-kernel-signed-tool.log (5).
+- The final ISO also passes 71/71 signed script/data package checks under TCG,
+  including native transactions, reboot undo, permissions, secret-free transcripts
+  and independent clean ext2/ownership DB checks. Evidence:
+  /tmp/zenith-kernel-packages-complete.log and ignored obj/kernel-packages-complete.
+- The kernel-only deployment prerequisite passes local disposable-VM acceptance.
+  Next is the user's persistent VM/LAN test using KERNEL-UPDATES. No actual disk,
+  home server VM or upstream checkout was changed. Existing KVM startup failures,
+  physical/USB acceptance, hosted CI (awaits push), arbitrary FAT/ext2 power loss,
+  automatic boot-attempt rollback and matched root snapshots remain separate limits.

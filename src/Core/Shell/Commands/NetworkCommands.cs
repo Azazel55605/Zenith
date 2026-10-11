@@ -40,11 +40,18 @@ internal static class NetworkCommands
             NetworkService.Trust(c.Resolve(c.Args[1]), c.Args[2], c.Shell.ThrowIfCancelled);
             c.WriteLine("TLS trust saved to /etc/zenith/tls-ca.pem"); return 0;
         }));
-        add(new Command("fetch", "fetch [--replace] URL FILE", "Bounded staged HTTP/verified HTTPS download; no package trust", c =>
+        add(new Command("fetch", "fetch [--replace] [--kernel] URL FILE", "Bounded staged HTTP/verified HTTPS download; no package trust", c =>
         {
-            bool replace = c.Args.Length == 3 && c.Args[0] == "--replace"; int p = replace ? 1 : 0;
-            if (c.Args.Length != p + 2) { return c.Fail("specify [--replace] URL FILE"); }
-            int bytes = NetworkService.Fetch(c.Args[p], c.Resolve(c.Args[p + 1]), replace, c.Shell.ThrowIfCancelled, c.WriteLine);
+            bool replace = false, kernel = false; int p = 0;
+            while (p < c.Args.Length && c.Args[p].StartsWith("--", StringComparison.Ordinal))
+            {
+                if (c.Args[p] == "--replace" && !replace) { replace = true; }
+                else if (c.Args[p] == "--kernel" && !kernel) { kernel = true; }
+                else { return c.Fail("unknown or repeated fetch option"); }
+                p++;
+            }
+            if (c.Args.Length != p + 2) { return c.Fail("specify [--replace] [--kernel] URL FILE"); }
+            int bytes = NetworkService.Fetch(c.Args[p], c.Resolve(c.Args[p + 1]), replace, c.Shell.ThrowIfCancelled, c.WriteLine, kernel ? Zenith.Core.Boot.KernelPackage.MaximumBytes : HttpDownload.DefaultMaximumBytes);
             c.WriteLine("fetch complete bytes=" + bytes + (c.Args[p].StartsWith("https://", StringComparison.Ordinal) ? " (verified TLS 1.2)" : " (plain HTTP; unauthenticated)")); return 0;
         }));
     }

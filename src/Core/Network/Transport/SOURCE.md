@@ -21,7 +21,7 @@ consumer can advance while NIC appends without losing unread bytes or invalidati
 the span being copied. Pending data is capped at 128 KiB per connection. Overflow
 retires data and sets the owning connection closed, so HTTP completion fails rather
 than allocating without limit. Temporary snapshot copies are managed allocations;
-this is not a whole-kernel memory budget. TCP protocol/connection table behavior remains upstream. Concurrent multiple readers of one socket are not supported.
+this is not a whole-kernel memory budget. TCP connection table behavior remains upstream. Concurrent multiple readers of one socket are not supported.
 
 Host tests cover partial reads, snapshots, overflow and concurrent ordered transfer.
 The local network QEMU suite covers stream/retry/cancel/fault cleanup on the actual
@@ -57,3 +57,17 @@ The post-patcher/wrapper have explicit cache invalidation: changing them removes
 Cosmos's patch cache stamp before SetupPatcher. All imports are rebound again before
 write to remove the patcher's redundant self-reference. A contract mismatch fails
 rather than applying a guess. No dependency cache or sibling checkout is edited.
+
+P3 kernel delivery exposed an additional Cosmos 3.0.89 TCP issue: ACK-only payload
+is appended without acknowledging it, so a large ordinary HTTP response exhausts
+the peer's receive window. The signature-checked build copy now routes all nonempty
+ESTABLISHED payload through the existing acknowledge path. Its receive-range check
+uses TcpSegmentPolicy: exact next sequence and payload length within the window,
+including sequence wrap, rejecting gaps/duplicates without assembling corrupt data.
+ACK packets advertise Zenith's receive window rather than the peer's send window.
+The advertised 8 KiB window shrinks with unread bytes and reopens with an ACK when
+the application drains data. This prevents a response from filling the buffer while
+the download loop writes to disk. The patch checks the upstream ACK flag value and
+the original branch structure before replacing them; it does not add TCP reassembly.
+Upstream source remains unchanged. Host policy tests and native real ELF-sized HTTP
+transfers cover this adaptation; the network lab remains a regression gate.

@@ -16,7 +16,7 @@ spec = importlib.util.spec_from_file_location("efi", ROOT / "tools/test-installe
 efi = importlib.util.module_from_spec(spec); spec.loader.exec_module(efi)
 
 class Machine:
-    def __init__(self, directory, disk=None, argument=None, network=None, extra_disks=()):
+    def __init__(self, directory, disk=None, argument=None, network=None, extra_disks=(), monitor=None, vga="none", verify=True):
         directory.mkdir(parents=True, exist_ok=True)
         self.directory = directory
         self.disk = directory / "disk.img"
@@ -24,15 +24,16 @@ class Machine:
         if disk:
             shutil.copyfile(disk, self.disk)
             import boot_image
-            boot_image.verify(self.disk)
+            if verify: boot_image.verify(self.disk)
+            else: boot_image.partitions(self.disk)
             if argument is not None:
                 boot_image.override(self.disk, argument, directory)
         else:
             with self.disk.open("wb") as file: file.truncate(256 * 1024 * 1024)
         args = [os.environ.get("QEMU", "qemu-system-x86_64"), "-M", "q35", "-m", "512M",
-                "-accel", "kvm", "-accel", "tcg", "-cpu", "max", "-display", "none", "-vga", "none", "-no-reboot",
+                "-accel", "kvm", "-accel", "tcg", "-cpu", "max", "-display", "none", "-vga", vga, "-no-reboot",
                 "-chardev", f"socket,id=console,path={directory / 'serial.sock'},server=on,wait=off", "-serial", "chardev:console",
-                "-monitor", "none", "-drive", f"file={self.disk},format=raw,if=none,id=disk0", "-device", "ide-hd,drive=disk0,bus=ide.0,unit=0"]
+                "-monitor", "unix:" + str(monitor) + ",server,nowait" if monitor else "none", "-drive", f"file={self.disk},format=raw,if=none,id=disk0", "-device", "ide-hd,drive=disk0,bus=ide.0,unit=0"]
         for index, image in enumerate(extra_disks):
             if index > 0: raise ValueError("only one secondary test disk supported")
             other = directory / "secondary.img"; shutil.copyfile(image, other)
@@ -59,9 +60,18 @@ class Machine:
     def log(self): return self.serial.read_text(errors="replace") if self.serial.exists() else ""
     def wait(self, marker, offset=0, timeout=180):
         deadline = time.monotonic() + timeout
+        position = 0; pending = ''; first = True
         while time.monotonic() < deadline:
-            raw = self.log()[offset:]
-            if marker in raw or marker in efi.smoke.COSMOS_NOISE.sub('', raw): return True
+            # Large downloads produce megabytes of upstream debug output. Scan new
+            # bytes instead of decoding and stripping the entire log every 50 ms.
+            if self.serial.exists():
+                with self.serial.open('rb') as stream:
+                    stream.seek(position); data=stream.read(); position=stream.tell()
+                raw=data.decode(errors='replace')
+                if first: raw=raw[offset:]; first=False
+                pending+=raw
+                if marker in pending or marker in efi.smoke.COSMOS_NOISE.sub('', pending): return True
+                pending=pending[-65536:]
             if self.process.poll() is not None: break
             time.sleep(0.05)
         return False

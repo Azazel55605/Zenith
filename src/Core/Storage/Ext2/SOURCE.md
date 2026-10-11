@@ -70,3 +70,9 @@ primary superblock unclean until Drop; sync writes metadata before device Flush.
 The new check-only Ext2Checker is Zenith code, not imported from Cosmos, and audits
 supported bounded layouts without repairs. Triple-indirect byte I/O remains
 unsupported; the checker reports files beyond the double-indirect size range.
+P3 crash acceptance required booting a flushed but still mounted-state-dirty root.
+Automatic root discovery permits the supported dirty state only after a complete
+read-only Ext2Checker pass. Error-marked/unsupported/inconsistent roots are refused;
+no clean-bit rewrite or repair precedes mounting. Secondary CLI mounts retain their
+clean-volume gate. Host tests prove dirty checks make no writes and reject corruption;
+native power-cut acceptance exercises the same boot path.

@@ -17,7 +17,12 @@ internal sealed class Ext2FilesystemType : IVfsFilesystemType
             return false;
         }
         var device = StorageManager.Partitions[index];
-        if (Ext2VolumePolicy.Check(device) is not null || !Ext2Superblock.TryCreate(device, out var mounted))
+        if (!Ext2VolumePolicy.CanMount(device, out string report))
+        {
+            Log.Write("mounts", "refusing " + device.Name + ": " + report); return false;
+        }
+        if (report != "") { Log.Write("mounts", report); }
+        if (!Ext2Superblock.TryCreate(device, out var mounted))
         {
             return false;
         }

@@ -325,7 +325,7 @@ internal static class NetworkService
             new NativeSettingsStore().Replace(TlsConnection.TrustPath, ca);
         });
     }
-    public static int Fetch(string url, string destination, bool replace, Action cancel, Action<string> report)
+    public static int Fetch(string url, string destination, bool replace, Action cancel, Action<string> report, int maximum = HttpDownload.DefaultMaximumBytes)
     {
         return Run(() => { var target = HttpTarget.Parse(url); var metadata = new VfsFileMetadata();
         if (metadata.TryRead(destination, out var existing) && (!replace || existing.Type != "regular file"))
@@ -345,7 +345,7 @@ internal static class NetworkService
                     using (file)
                     {
                         var decoder = new HttpDownload((bytes, offset, count) =>
-                        { if (file.Write(bytes.AsSpan(offset, count)) != count) { throw new IOException("download write failed"); } }, cancel);
+                        { if (file.Write(bytes.AsSpan(offset, count)) != count) { throw new IOException("download write failed"); } }, cancel, maximum);
                         socket = ConnectCore(target.Host, target.Port, cancel);
                         byte[] request = target.Request;
                         if (target.Secure)
@@ -375,7 +375,7 @@ internal static class NetworkService
                                 if (decoder.Received >= nextProgress) { report("fetch progress " + decoder.Received + "/" + decoder.Length); nextProgress = decoder.Received + 65536; }
                             }
                             else if (!socket.Connected) { decoder.Complete(); }
-                            if (idle.ElapsedMilliseconds > 3000 || total.ElapsedMilliseconds > 30000) { throw new IOException("HTTP transfer timed out"); }
+                            if (idle.ElapsedMilliseconds > 3000 || total.ElapsedMilliseconds > (maximum > HttpDownload.DefaultMaximumBytes ? 180000 : 30000)) { throw new IOException("HTTP transfer timed out"); }
                             if (!decoder.Done) { Thread.Sleep(10); }
                         }
                         decoder.Complete(); cancel(); if (!file.TryFlush()) { throw new IOException("download flush failed"); } received = decoder.Received;
