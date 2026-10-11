@@ -1,5 +1,18 @@
 # Implementation progress
 
+## 2026-10-11 · Sunrise blocked-launch message
+
+- User reports a VMware Workstation installation booted successfully; independent
+  VMware persistence, networking and kernel-upgrade acceptance remain pending.
+- Found that opening Sunrise outside a root live session reused the failed-write
+  screen, falsely claiming installation did not complete without attempting a write.
+  Added a separate unavailable screen with neutral live-session guidance and a
+  `boot status` hint. Actual worker failures retain the failure screen.
+- Release ISO build passes after adding the documented `~/.dotnet/tools` path;
+  first attempt could not locate `cosmos.patcher`. `git diff --check` passes.
+  Evidence: /tmp/zenith-sunrise-status-build.log. The changed screen has not yet
+  been visually verified in VMware; no installer write logic changed.
+
 ## 2026-10-08 · Repository initialization
 
 - Inspected the clean checkout, boot/storage architecture, host tests, smoke

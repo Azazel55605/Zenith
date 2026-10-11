@@ -15,7 +15,7 @@ namespace Zenith.Apps;
 /// <summary>Small guided installer. The worker never touches graphics or logs secrets.</summary>
 internal sealed class InstallerWindow : Window
 {
-    private enum Step { Disk, Accounts, Confirm, Installing, Done, Error }
+    private enum Step { Disk, Accounts, Confirm, Installing, Done, Unavailable, Error }
     private readonly object _gate = new();
     private readonly List<IBlockDevice> _disks;
     private readonly string[] _values = { "zenith", "user", "", "", "", "" };
@@ -29,8 +29,10 @@ internal sealed class InstallerWindow : Window
     {
         _disks = Installer.Candidates();
         Log.Write("installer", "Sunrise ready");
-        if (!Identity.IsRoot || SystemMounts.Mode != BootMode.Live)
-        { _step = Step.Error; _message = "Start Sunrise as root from the ISO live rescue session."; }
+        if (SystemMounts.Mode != BootMode.Live)
+        { _step = Step.Unavailable; _message = "Zenith is running from an installed root. To install onto another disk, boot the ISO live rescue session as root."; }
+        else if (!Identity.IsRoot)
+        { _step = Step.Unavailable; _message = "Start Sunrise as root from the ISO live rescue session."; }
     }
     public override bool CanResize => false;
     public override bool CanClose { get { lock (_gate) { return _step != Step.Installing; } } }
@@ -87,6 +89,11 @@ internal sealed class InstallerWindow : Window
                     Text(surface, "Power off, remove the ISO and boot the installed disk.", x, y + 40, 14);
                     Text(surface, "Log in with the account and password you selected.", x, y + 72, 14);
                     break;
+                case Step.Unavailable:
+                    Text(surface, "Installer requires a live session", x, y, 18);
+                    Text(surface, "No installation was attempted in this window.", x, y + 38, 14);
+                    Text(surface, "Use boot status in Terminal to inspect the current boot.", x, y + 70, 14);
+                    break;
                 case Step.Error:
                     Text(surface, "Installation did not complete", x, y, 18);
                     Text(surface, "Inspect the error. A failed write may require reinstalling.", x, y + 38, 14);
@@ -100,7 +107,7 @@ internal sealed class InstallerWindow : Window
                 Button(surface, content, 24, _step == Step.Disk ? "Cancel" : "Back");
                 Button(surface, content, content.W - 154, _step == Step.Confirm ? "Erase and install" : "Next");
             }
-            else if (_step is Step.Done or Step.Error) { Button(surface, content, 24, "Close"); }
+            else if (_step is Step.Done or Step.Unavailable or Step.Error) { Button(surface, content, 24, "Close"); }
         }
     }
     private static void Text(Surface s, string text, int x, int y, int size, uint color = Theme.TextPrimary)

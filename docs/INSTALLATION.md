@@ -23,6 +23,10 @@ refused. Use disposable VM disks while hardware acceptance remains pending.
 
 Sunrise and `--setup` require root in a live RAM session; choose live rescue if an
 installation is already attached. Passwords are salted/hashed before disk erasure.
+Opening Sunrise on an installed root displays a live-session requirement, not an
+installation health assessment. Older builds incorrectly label this blocked launch
+"Installation did not complete"; that message alone does not mean installation failed.
+Use `boot status` and a disk-only reboot/persistence check to inspect your installation.
 Target passwd/group/shadow records are generated together; shadow is created with
 mode 0600 and the initial user gets uid/gid 1000 and a private 0700 home. The live
 session's identity remains unchanged. Configuring root disables automatic root login
