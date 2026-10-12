@@ -7,6 +7,15 @@ dependency on Docker restrictions and ports already mapped on another host. VM O
 address/name and storage details are deployment choices still to record. No server has been provisioned and no ports/DNS/firewall rules changed.
 See [PACKAGE-MANAGER](PACKAGE-MANAGER.md) for the guest client and trust model.
 
+Update, 2026-10-12: the user will create the VM from a **Debian template** and
+provide version/IP/hostname/SSH details afterward. The VM should both build and
+distribute releases. The [Debian deployment kit](../deploy/distributor/README.md)
+now contains a manual kernel build/test/sign/publish workflow, a signature-checking
+immutable publisher for core kernels and core/extra data packages, and an nginx
+static-service configuration. Reuse the signing key already trusted for the user's
+successful installed kernel upgrade. Provisioning and actual VM/LAN/VPN/HTTPS
+acceptance remain pending; the kit does not implement P4 signed online indexes.
+
 ## Initial shape
 
 Use a static repository with a native web service inside the dedicated home VM. A package server initially
@@ -17,7 +26,10 @@ Proposed flow:
 
 `release builder → verifier/signing step → staging repository → read-only HTTP server → Zenith client`
 
-The builder may initially be the developer machine. Signing keys do not belong in
+The agreed builder is now the same dedicated Debian VM as the distributor,
+with native web workers unable to write release files or access the signing key.
+Its trusted release account can build/sign/publish; this is not isolated execution
+of untrusted build inputs. Signing keys do not belong in
 the served directory; hosting and signing have different access needs. Trusted public
 keys arrive with Zenith's installation/recovery medium. LAN operation does not make
 unsigned artifacts authentic.
@@ -94,7 +106,7 @@ With those details, create a concrete minimal deployment plus publish/verify che
 The current planning task does not assume SSH access or authorization to deploy.
 
 
-Current home information (2026-10-11): DNS is 10.0.10.3. The dedicated package
+Current home information (updated 2026-10-12): DNS is 10.0.10.3. The dedicated Debian package
 server VM has not been provisioned and no repository address/name is assigned.
 M3's host user/TAP network profiles and DNS configuration permit acceptance once
 it exists; no server has been deployed as part of networking implementation.

@@ -84,11 +84,11 @@ Details: [system plan](SYSTEM-PLAN.md), [userland](USERLAND.md),
 | Implemented: 1 | M4 x64 VM installer | Sunrise and serial guided account setup, self-contained UEFI install, UUID selection and RAM rescue; native validation in PROGRESS |
 | Done: kernel deployment gate | P3 offline kernel upgrades | Dedicated signed container/builder, full-sized delivery, disk-only activation/rollback, explicit confirmation, interruption/ISO recovery and real failed-boot menu fallback; 169 native checks in PROGRESS |
 | 2 | Package recipes and builder workflow | Declarative metadata/files/modes; reproducible validation and separate signing using the existing .zpk foundation |
-| 3, parallel preparation | P2 package-server deployment kit and user-provisioned VM | Static service/configuration, staged publication, HTTPS/public-key bootstrap and actual LAN/VPN/DNS access |
+| P2 kit implemented; deployment pending | Debian VM builds and distributes packages | Manual build/sign/verified immutable publication and nginx config; actual VM/LAN/VPN/DNS and HTTPS bootstrap remain pending |
 | 4 | Useful initial scripts/data packages | Install, upgrade, remove and reboot on a persistent Zenith VM against the user's server |
 | 5 | P4 signed online repository client | Signed index freshness/rollback checks, search, deterministic dependency resolution and bounded download/install by name |
 | 6 | M5 native loader/process/ABI then compiled tool unbundling; P5 | Protected execution, libc/toolchain foundation and independent base-tools/net-tools/fs-tools updates |
-| Next acceptance | User’s persistent VM/LAN installation and kernel upgrade test | Follow KERNEL-UPDATES with the new ISO; hosted mirror, physical hardware and native app ABI follow separately |
+| User reports success; confirmation details pending | VMware installed kernel package upgrade | User reports successful manual upgrade; boot-confirm status not supplied. Dedicated mirror deployment follows; physical hardware and native app ABI remain separate |
 | 7 | M6 proper DE/WM, Settings, customization, Files and GUI Editor overhaul | Shared toolkit/operations can start earlier; independent desktop/apps require M5 |
 | Later developer tools | Host GCC cross-SDK, terminal editor/Python feasibility, then on-system GCC | [Application/toolchain plan](APPLICATIONS.md); native ABI/libc/TTY and measured storage/resource gates |
 | 8 | R1/R2 saved roots, trial boot and restore | R0 backend/scope decision, explicit root selector, matched kernel/root/package inventory and interruption tests |
@@ -284,7 +284,7 @@ inspection in both graphical sessions. Avoid unrestricted in-kernel theme/plugin
 |---|---|---|
 | P0 | Format/builder/reader/dry-run, trust-library and guest feasibility | Experimental data bundle builder/shared reader/guest dry-run implemented; RSA-PSS/SHA256 bounded .zpk and native verification implemented; online metadata/trust roles remain open |
 | P1 | Offline data/script packages and installed DB | Implemented and native verified; exact evidence in PROGRESS. Ownership/ranges/conflicts/local-edit preservation and undo/DB commit recovery; /etc config merges remain later |
-| P2 | Dedicated home repository VM | Own IP, user DNS and LAN/VPN routes; native static server, read-only published data; separate builder/signing; OS/address/storage details at deployment |
+| P2 | Dedicated Debian build/distribution VM | Kit implemented: build/test/sign workflow, verified atomic publication and nginx; user-provisioned VM/IP/SSH, LAN/VPN/DNS and HTTPS acceptance pending |
 | P3 | Staged versioned kernel/system artifacts | New kernel saved on disk while old runs; verify/flush/boot entry, explicit reboot-required state; retain previous kernel and rescue boot |
 | P4 | Signed online package refresh/download/apply | M3 transport; pinned trust, metadata/artifact verification, expiry/rollback/key rotation; never install partial/untrusted payload |
 | P5 | Independent service/desktop/app packages | M5 ABI compatibility and dependencies; explicit restart needs; kernel rebuild not needed for a compatible app update |

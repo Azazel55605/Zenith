@@ -3,7 +3,9 @@
 **Status: staged design, 2026-10-11.** The [P0 offline prototype](PACKAGE-PROTOTYPE.md)
 implements a host builder and shared host/guest inspect/dry-run core. Signed offline script/data installation, ownership and dependency/conflict handling
 are now implemented in [PACKAGES](PACKAGES.md), with validation recorded in [PROGRESS](PROGRESS.md).
-Online signed metadata/client and system-update activation remain unimplemented. This
+Online signed metadata/client remains unimplemented. Dedicated signed kernel update
+activation/rollback is implemented in [KERNEL-UPDATES](KERNEL-UPDATES.md); coordinated
+kernel/root-data release activation remains future work. This
 document records the broader design and future work; the P0 directory bundle remains an experiment.
 Accepted first container: bounded uncompressed .zpk with RSA-PSS/SHA256 authentication;
 core/extra sections and grouped tool identities. Native tool separation follows P1 before

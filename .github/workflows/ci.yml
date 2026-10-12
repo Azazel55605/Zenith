@@ -31,6 +31,7 @@ jobs:
       - run: python3 -B tools/test_signed_package_tool.py /tmp/zenith-tls/libzenith-tls.so
       - run: python3 -B tools/test_smoke_test.py
       - run: python3 -B tools/test_package_tool.py
+      - run: python3 -B tools/test_publish_package.py
 
   build:
     name: Build ISO + smoke test

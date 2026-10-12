@@ -1,5 +1,35 @@
 # Implementation progress
 
+## 2026-10-12 · Debian package build/distribution kit (P2)
+
+- User reports the signed kernel update worked in the installed VMware system;
+  explicit boot-confirm status was not supplied. User requests a dedicated VM
+  that both builds and distributes packages, and will provision it from a Debian
+  template. Version, IP/name, SSH access, LAN/VPN subnets and backups are pending.
+- Added a manual clean-commit kernel build/host-test/sign/publish workflow pinned
+  to released Cosmos dependencies. It reuses the existing signing key, retains
+  logs/source commit, serializes builds and does not pull arbitrary branches or
+  activate guest updates. The trusted release account handles build/sign/publish;
+  there is no isolated worker for untrusted source.
+- Added a verifier/publisher for core kernels and core/extra signed data packages:
+  bounded input, signed identity checks, private-key/symlink/path rejection,
+  external staging, file/directory flushes and atomic directory activation.
+  Versions are immutable, concurrent publication fails clearly and private keys
+  stay outside the served tree. release.json is an unsigned operator receipt,
+  not a signed repository index or automatic guest update channel.
+- Added Debian instructions and nginx static config (GET/HEAD, no browsing or
+  symlinks), existing-key/source transfer, manual guest workflow and backup scope.
+  Initial transport is LAN HTTP with mandatory package signatures; HTTPS depends
+  on the supplied hostname/CA policy. No remote service, DNS/firewall or VM was
+  changed. P4 indexes/recipes/native tool unbundling remain separate milestones.
+- Publisher integration tests pass 10/10 using real signed kernel/data fixtures,
+  byte-exact HTTP fetch/reverification, tamper/wrong-key/identity rejection,
+  immutable versions, invisible/failed staging and concurrent publisher refusal.
+  Shell/Python syntax and `git diff --check` pass. CI includes the publisher suite;
+  hosted CI awaits push. Full build-workflow validation is next. Actual Debian
+  provisioning/nginx syntax and VM/LAN/VPN/Zenith acceptance remain pending.
+  Evidence: /tmp/zenith-distributor-tests.log.
+
 ## 2026-10-11 · Receive polling when NIC interrupts are absent
 
 - User's VMware status screenshot shows initial receive-filter validity true,
