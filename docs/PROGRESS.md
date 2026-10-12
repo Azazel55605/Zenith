@@ -1,5 +1,19 @@
 # Implementation progress
 
+## 2026-10-12 · Debian distributor filesystem-tool lookup
+
+- User's Debian 13 build reaches host tests: 541 pass, 17 fail because e2fsck or
+  debugfs cannot be found. These are external filesystem inspection tools, not
+  demonstrated filesystem assertion failures. Package installation/PATH still
+  needs confirming on that VM; ordinary Debian users may lack /usr/sbin in PATH.
+- Builder now adds standard sbin paths and checks host/native build prerequisites
+  before testing, with an actionable missing-tools message. No tests are skipped.
+  Documented the immediate e2fsprogs/PATH repair for the user's older checkout.
+  Validation: shell syntax and controlled dependency/PATH preflight checks pass:
+  starting with both filesystem tools absent from PATH, the script finds them
+  under /usr/sbin; an unavailable prerequisite fails clearly before testing.
+  Actual VM retest remains pending; no SSH endpoint/access has been supplied.
+
 ## 2026-10-12 · Debian package build/distribution kit (P2)
 
 - User reports the signed kernel update worked in the installed VMware system;

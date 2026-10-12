@@ -44,6 +44,13 @@ The dependency list follows Zenith's actual CI/toolchain; QEMU/OVMF/filesystem
 tools support native release validation. CPU virtualization/nested KVM is optional
 for TCG validation; do not assume the template exposes usable `/dev/kvm`.
 
+Debian places `e2fsck` and `debugfs` in `/usr/sbin`, which may be absent from an
+ordinary user's PATH even when e2fsprogs is installed. The build script adds the
+standard sbin paths and checks required tools before running tests. If an older
+checkout reports process-not-found failures for these tools, install e2fsprogs as
+the administrator, then export `PATH="$PATH:/usr/sbin:/sbin"` as `zenith-release`
+before retrying. The test gate remains required.
+
 ## Transfer the exact source and existing signing key
 
 Local commits may not be pushed to GitHub yet. To deliver the same source without

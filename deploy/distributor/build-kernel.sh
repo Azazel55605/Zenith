@@ -11,7 +11,16 @@ keys=$(realpath -e -- "$2")
 published=$(realpath -e -- "$3")
 repo=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 cd -- "$repo"
-export PATH="$HOME/.dotnet/tools:$PATH"
+export PATH="$HOME/.dotnet/tools:$PATH:/usr/local/sbin:/usr/sbin:/sbin"
+missing=()
+for command in dotnet git python3 flock e2fsck debugfs clang nm cosmos.patcher; do
+    command -v "$command" >/dev/null 2>&1 || missing+=("$command")
+done
+if (( ${#missing[@]} )); then
+    printf 'Missing distributor tools: %s\n' "${missing[*]}" >&2
+    echo 'Install the documented dependencies (e2fsprogs supplies e2fsck/debugfs) and Cosmos.Patcher as the release user.' >&2
+    exit 1
+fi
 if [[ -f cosmos.local.props ]]; then
     echo 'Local Cosmos override refused; distributor uses released dependencies.' >&2
     exit 1

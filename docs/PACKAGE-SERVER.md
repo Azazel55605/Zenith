@@ -4,16 +4,19 @@ User direction, 2026-10-11: host the initial repository on the user's home
 infrastructure using a **dedicated VM with its own IP**, with direct LAN access and
 remote access through the user's existing VPN and DNS. Native services remove the
 dependency on Docker restrictions and ports already mapped on another host. VM OS,
-address/name and storage details are deployment choices still to record. No server has been provisioned and no ports/DNS/firewall rules changed.
+address and storage details are deployment choices still to record. The user has
+created Debian 13.7 VM Zenith-Package-Server and is provisioning the builder as
+zenith-release. IP/SSH and nginx/LAN/VPN acceptance remain unreported; no remote
+ports/DNS/firewall rules have been changed by the agent.
 See [PACKAGE-MANAGER](PACKAGE-MANAGER.md) for the guest client and trust model.
 
-Update, 2026-10-12: the user will create the VM from a **Debian template** and
-provide version/IP/hostname/SSH details afterward. The VM should both build and
+Update, 2026-10-12: the user created the VM from a **Debian 13 template** and
+will provide IP/SSH details afterward. The VM should both build and
 distribute releases. The [Debian deployment kit](../deploy/distributor/README.md)
 now contains a manual kernel build/test/sign/publish workflow, a signature-checking
 immutable publisher for core kernels and core/extra data packages, and an nginx
 static-service configuration. Reuse the signing key already trusted for the user's
-successful installed kernel upgrade. Provisioning and actual VM/LAN/VPN/HTTPS
+successful installed kernel upgrade. Provisioning completion and actual VM/LAN/VPN/HTTPS
 acceptance remain pending; the kit does not implement P4 signed online indexes.
 
 ## Initial shape
@@ -107,7 +110,8 @@ The current planning task does not assume SSH access or authorization to deploy.
 
 
 Current home information (updated 2026-10-12): DNS is 10.0.10.3. The dedicated Debian package
-server VM has not been provisioned and no repository address/name is assigned.
+server VM exists as Zenith-Package-Server, with builder setup in progress;
+no repository address/DNS name or completed web service acceptance is recorded.
 M3's host user/TAP network profiles and DNS configuration permit acceptance once
 it exists; no server has been deployed as part of networking implementation.
 See [NETWORKING](NETWORKING.md) for the current LAN/CA bootstrap test procedure.
