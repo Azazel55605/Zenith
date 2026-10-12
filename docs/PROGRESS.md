@@ -88,6 +88,12 @@
   changed only sata0:0.fileName to the relative recovered filename. The scratch
   source is removed; original Zenith-0.vmdk still matches the pre-repair checksum.
   Workstation must reload the VM configuration before its next start.
+- User confirms boot works after permanent disk relocation and chooses the local
+  relay as the temporary delivery workaround. Rechecked 172.16.43.1:8081 HTTP 200,
+  byte-exact archive delivery and valid signed 0.0.2 kernel identity
+  b0b4285568ccf4cd95b6569d25c6ad4b25815edccf688a3b189f6765e55f875b.
+  Guest relay download/install/reboot confirmation remains pending; direct VPN
+  guest throughput/stall investigation is not considered resolved by this relay.
 
 ## 2026-10-12 · Distributor guest reachability investigation
 
