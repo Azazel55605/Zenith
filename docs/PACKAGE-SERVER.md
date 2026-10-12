@@ -4,14 +4,15 @@ User direction, 2026-10-11: host the initial repository on the user's home
 infrastructure using a **dedicated VM with its own IP**, with direct LAN access and
 remote access through the user's existing VPN and DNS. Native services remove the
 dependency on Docker restrictions and ports already mapped on another host. VM OS,
-address and storage details are deployment choices still to record. The user has
+storage details are deployment choices still to record. The user has
 created Debian 13.7 VM Zenith-Package-Server and is provisioning the builder as
-zenith-release. IP/SSH and nginx/LAN/VPN acceptance remain unreported; no remote
+zenith-release at 10.0.20.7, without an assigned DNS name. SSH and nginx/LAN/VPN
+acceptance remain unreported; no remote
 ports/DNS/firewall rules have been changed by the agent.
 See [PACKAGE-MANAGER](PACKAGE-MANAGER.md) for the guest client and trust model.
 
 Update, 2026-10-12: the user created the VM from a **Debian 13 template** and
-will provide IP/SSH details afterward. The VM should both build and
+has supplied IP 10.0.20.7; SSH details remain pending. The VM should both build and
 distribute releases. The [Debian deployment kit](../deploy/distributor/README.md)
 now contains a manual kernel build/test/sign/publish workflow, a signature-checking
 immutable publisher for core kernels and core/extra data packages, and an nginx
@@ -111,7 +112,10 @@ The current planning task does not assume SSH access or authorization to deploy.
 
 Current home information (updated 2026-10-12): DNS is 10.0.10.3. The dedicated Debian package
 server VM exists as Zenith-Package-Server, with builder setup in progress;
-no repository address/DNS name or completed web service acceptance is recorded.
+its IP is 10.0.20.7, without a DNS name or completed web service acceptance.
+The laptop can ping it, but the Zenith VM cannot; the Zenith VM can reach DNS
+10.0.10.3. Guest address/mask/gateway, VMware attachment and actual TCP port 80
+reachability need checking before attributing the difference to routing/firewalls.
 M3's host user/TAP network profiles and DNS configuration permit acceptance once
 it exists; no server has been deployed as part of networking implementation.
 See [NETWORKING](NETWORKING.md) for the current LAN/CA bootstrap test procedure.

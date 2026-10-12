@@ -1,5 +1,15 @@
 # Implementation progress
 
+## 2026-10-12 · Distributor guest reachability investigation
+
+- Package server address is 10.0.20.7, with no DNS name assigned. User reports
+  laptop ping succeeds but Zenith VM ping fails; DNS server 10.0.10.3 is reachable
+  from the VM. This does not yet distinguish ICMP filtering, guest route/mask,
+  inter-subnet policy or a guest stack issue. TCP/HTTP delivery is unverified.
+- Next evidence: current guest ip status, VMware NAT/bridged attachment, TCP port
+  80 test from guest/laptop and, if needed, packet capture on the distributor.
+  No network configuration or firewall changes have been made.
+
 ## 2026-10-12 · Debian distributor filesystem-tool lookup
 
 - User's Debian 13 build reaches host tests: 541 pass, 17 fail because e2fsck or
