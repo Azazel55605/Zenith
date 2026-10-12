@@ -12,7 +12,10 @@
   Validation: shell syntax and controlled dependency/PATH preflight checks pass:
   starting with both filesystem tools absent from PATH, the script finds them
   under /usr/sbin; an unavailable prerequisite fails clearly before testing.
-  Actual VM retest remains pending; no SSH endpoint/access has been supplied.
+  User reports the new release worked after the repair, confirming the distributor
+  build retry succeeded. No fresh logs, nginx/LAN fetch or installed 0.0.2 boot/
+  confirmation evidence was supplied; those remain separate acceptance checks.
+  No SSH endpoint/access has been supplied.
 
 ## 2026-10-12 · Debian package build/distribution kit (P2)
 
