@@ -65,12 +65,12 @@ internal sealed unsafe class TlsConnection : IDisposable
             Retry(result); Pump();
         }
     }
-    public int Read(byte[] bytes)
+    public int Read(byte[] bytes, int maximum = 3000)
     {
         var timer = Stopwatch.StartNew();
         while (true)
         {
-            Check(timer, 3000); int result;
+            Check(timer, maximum); int result;
             fixed (byte* p = bytes) { result = NativeRead(p, (nuint)bytes.Length); }
             Drain(); if (result > 0) { return result; }
             if (result == 0 || result == PeerClosed) { return 0; }

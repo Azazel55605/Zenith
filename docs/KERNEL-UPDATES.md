@@ -49,8 +49,9 @@ sync; poweroff
 
 Use an installed-root destination: `/tmp` is a small RAM filesystem. `fetch --replace
 --kernel` can replace an existing regular download. Normal fetch remains limited to
-8 MiB/30 seconds; explicit kernel transfers allow 32 MiB + 4096 bytes/180 seconds,
-with the same 3-second idle timeout and streaming/staged delivery.
+8 MiB/30 seconds with a 3-second idle timeout; explicit kernel transfers allow
+32 MiB + 4096 bytes/15 minutes with a 30-second idle timeout per attempt, including
+HTTPS body reads. Streaming/staged delivery and two attempts remain bounded.
 
 The updater verifies RSA-PSS/SHA256, exact signed metadata, x64 executable ELF bounds
 and a versioned `zenith-x64-boot-1` contract. It checks mounted root/ESP UUIDs,

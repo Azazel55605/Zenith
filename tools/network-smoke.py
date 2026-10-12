@@ -36,6 +36,10 @@ class Http(socketserver.BaseRequestHandler):
                 with self.server.count_lock:
                     self.server.retry_count += 1
                     path = b"/truncated" if self.server.retry_count == 1 else b"/ok"
+            if path == b"/vpn-pause":
+                self.request.sendall(b"HTTP/1.0 200 OK\r\nContent-Length: 10\r\n\r\nstart")
+                time.sleep(4)
+                self.request.sendall(b"done!"); return
             if path == b"/oversized":
                 self.request.sendall(b"HTTP/1.0 200 OK\r\nContent-Length: 8388609\r\n\r\n"); return
             if path == b"/headers":
@@ -155,6 +159,10 @@ def main():
         url = f"http://10.0.2.2:{http}"
         output = status(f"fetch {url}/ok /tmp/download", "M3_FETCH")
         check("fetch complete bytes=" + str(len(PAYLOAD)) in output and "fetch progress" in output, "streaming payload and progress")
+        output = status(f"fetch --kernel {url}/vpn-pause /tmp/vpn-download", "M3_VPN_PAUSE")
+        check("fetch complete bytes=10" in output and "retry" not in output, "kernel HTTP transfer survives four-second VPN pause")
+        output = status("cat /tmp/vpn-download", "M3_VPN_BYTES")
+        check("startdone!" in output, "paused transfer commits exact bytes")
         https = f"https://10.0.2.2:{secure[0].server_address[1]}"
         status(f"fetch {https}/ok /tmp/secure", "M3_TLS_NO_TRUST", 1)
         status(f"fetch {url}/ca.pem /tmp/ca.pem", "M3_CA_FETCH")
@@ -162,6 +170,8 @@ def main():
         status(f"tls trust /tmp/ca.pem {fingerprint}", "M3_CA_TRUST")
         output = status(f"fetch {https}/ok /tmp/secure", "M3_TLS_FETCH")
         check("verified TLS 1.2" in output and "bytes=" + str(len(PAYLOAD)) in output, "native HTTPS verifies chain/IP SAN/date and streams payload")
+        output = status(f"fetch --kernel {https}/vpn-pause /tmp/vpn-secure", "M3_TLS_VPN_PAUSE")
+        check("fetch complete bytes=10" in output and "retry" not in output, "kernel HTTPS transfer survives four-second VPN pause")
         status("echo 10.0.2.2 mirror.home wrong.home > /etc/hosts", "M3_TLS_HOSTS")
         status("echo lan-zenith > /etc/hostname", "M3_HOSTNAME_SAVE")
         status("netcfg apply", "M3_CONFIG_RELOAD")

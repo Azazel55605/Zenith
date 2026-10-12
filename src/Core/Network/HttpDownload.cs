@@ -30,6 +30,15 @@ internal sealed class HttpDownload
     public const int MaximumHeader = 8192;
     public const int DefaultMaximumBytes = 8 * 1024 * 1024;
     public const int MaximumBytes = 32 * 1024 * 1024 + 4096;
+    public static int IdleMilliseconds(int maximum) => maximum > DefaultMaximumBytes ? 30000 : 3000;
+    public static int TransferMilliseconds(int maximum) => maximum > DefaultMaximumBytes ? 900000 : 30000;
+    public static void CheckTimeout(long idle, long total, int received, int expected, int maximum)
+    {
+        if (idle > IdleMilliseconds(maximum))
+        { throw new IOException("HTTP idle timeout after " + IdleMilliseconds(maximum) / 1000 + "s; received=" + received + "/" + expected); }
+        if (total > TransferMilliseconds(maximum))
+        { throw new IOException("HTTP transfer limit reached after " + TransferMilliseconds(maximum) / 1000 + "s; received=" + received + "/" + expected); }
+    }
     private readonly byte[] _header = new byte[MaximumHeader];
     private readonly Action<byte[], int, int> _write;
     private readonly Action _cancel;

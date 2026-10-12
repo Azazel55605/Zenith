@@ -8,6 +8,17 @@ namespace Zenith.Tests;
 
 public sealed class NetworkTests
 {
+    [Fact]
+    public void KernelTransferContinuesPastOldLimitsButRemainsBounded()
+    {
+        HttpDownload.CheckTimeout(10000, 300000, 10000000, 16000000, HttpDownload.MaximumBytes);
+        var idle = Assert.Throws<IOException>(() => HttpDownload.CheckTimeout(30001, 300000, 10000000, 16000000, HttpDownload.MaximumBytes));
+        Assert.Contains("idle timeout", idle.Message); Assert.Contains("received=10000000/16000000", idle.Message);
+        var total = Assert.Throws<IOException>(() => HttpDownload.CheckTimeout(0, 900001, 10000000, 16000000, HttpDownload.MaximumBytes));
+        Assert.Contains("transfer limit", total.Message);
+        Assert.Throws<IOException>(() => HttpDownload.CheckTimeout(3001, 10000, 1, 2, HttpDownload.DefaultMaximumBytes));
+        Assert.Throws<IOException>(() => HttpDownload.CheckTimeout(0, 30001, 1, 2, HttpDownload.DefaultMaximumBytes));
+    }
     [Theory]
     [InlineData("10.0.2.15", 0x0a00020fU)]
     [InlineData("0.0.0.0", 0U)]

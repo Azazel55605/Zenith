@@ -1,5 +1,48 @@
 # Implementation progress
 
+## 2026-10-12 · Slow VPN kernel fetch and stalled transfer investigation
+
+- User confirms nc reaches distributor 10.0.20.7:80, then reports direct VPN
+  kernel fetch advancing to about 10/16 MB before retry and stalling near 6 MB
+  on the second attempt. Exact final error/time and guest TCP capture are pending.
+  The previous --kernel limit was 180 seconds total with 3 seconds idle.
+- Kernel transfers now allow 15 minutes total and 30 seconds idle per attempt;
+  ordinary downloads retain 30/3 seconds. HTTPS body reads honor the same bounded
+  deadline and remaining total budget. HTTP timeout errors distinguish idle/total
+  expiry and report received/expected bytes. Staging, two attempts, cancellation,
+  payload bounds and destination preservation remain unchanged.
+- Host comparison uses the actual WireGuard route (MTU 1420): the same signed
+  0.0.2 archive downloads in 9 seconds (16,082,678 bytes, HTTP 200) and verifies
+  against the user's existing local public key. This demonstrates available host
+  VPN throughput; a guest TCP/latency/loss issue remains possible. The timing
+  change alone does not establish resolution of a sustained stall. Header capture
+  requires user sudo access; sudo -n refused without credentials, no capture made.
+- Started a temporary local relay on VMware NAT host 172.16.43.1:8081 serving only
+  the verified archive, allowing the old installed guest to bypass the VPN segment
+  for this download. This is not the permanent mirror or a guest networking fix.
+- Release ISO builds; host tests pass 559/559, including old/new timeout budgets
+  and diagnostic boundaries. Native regression passes 180/180 under TCG,
+  including HTTP/HTTPS kernel fetch across a four-second pause, ordinary stall
+  rejection, destination preservation, cancellation, link loss, installed reboot
+  and independent clean ext2 inspection. Evidence: /tmp/zenith-vpn-fetch-host.log,
+  /tmp/zenith-vpn-fetch-build.log, /tmp/zenith-vpn-fetch-network.log,
+  /tmp/zenith-vpn-host-download.log. Actual user retry/relay acceptance is pending.
+
+## 2026-10-12 · Installed VMware startup hang during fetch investigation
+
+- User reports installed disk boot hanging at "Enabling interrupts", confirms
+  no new kernel was installed, and reports the disk RAM rescue entry also hangs
+  while ISO boot works. Disk rescue loads the retained disk kernel; it does not
+  substitute the ISO kernel. Filesystem corruption is a user hypothesis, not
+  established by these observations.
+- Current source emits that line in Cosmos Kernel.Start before BeforeRun;
+  Zenith's OnBoot is empty and mounts/accounts/network initialization run in
+  BeforeRun. A hang there does not demonstrate failure in root mounting.
+  Next evidence is boot status/mount output from the working ISO normal entry,
+  which can establish whether the installed root is actually mounted and readable.
+  No disk repair, format, boot metadata rewrite or forced update was performed.
+  Boot recovery takes priority over packet capture/direct VPN acceptance.
+
 ## 2026-10-12 · Distributor guest reachability investigation
 
 - Package server address is 10.0.20.7, with no DNS name assigned. User reports

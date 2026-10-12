@@ -159,18 +159,21 @@ Fetch sends HTTP/1.0 with identity encoding and close semantics. Only status 200
 with exactly one numeric Content-Length is accepted. Redirects, chunking,
 compression, credentials and fragments are rejected. URLs are printable ASCII
 and at most 350 characters, headers 8192 bytes, payloads 8 MiB by default. Explicit `fetch --kernel` permits 32 MiB + 4096 bytes
-and a 180-second total deadline for signed kernel containers (normal total deadline:
-30 seconds). Both retain the 3-second idle deadline. It streams into a
+and a 15-minute total deadline for signed kernel containers (normal total deadline:
+30 seconds). Kernel downloads use a 30-second idle deadline; ordinary downloads
+retain 3 seconds. HTTP timeout diagnostics identify idle versus total expiry and
+include received/expected byte counts. It streams into a
 same-directory private 0600 temporary file, reports progress per 64 KiB, and
 flushes/renames/syncs after all declared bytes. Existing files require `--replace`
 and must be regular files. Errors and cancellation remove staging and preserve the
 old destination. This is not an exclusive namespace transaction against concurrent
 trusted kernel writers.
 
-Two attempts maximum; each has a three-second idle and thirty-second body deadline,
+Two attempts maximum; each uses the above idle/body deadlines,
 plus DNS/connect/handshake time. Cosmos TCP connect blocks up to five seconds and
 observes cancellation on return. TLS handshake/write have fifteen-second deadlines;
-TLS reads have a three-second deadline. Idle polling checks cancellation at 10 ms.
+TLS body reads honor the selected idle deadline, capped by the remaining transfer
+budget. Ordinary TLS reads default to three seconds. Idle polling checks cancellation at 10 ms.
 There is a fixed 1 MiB TLS arena and two 32 KiB encrypted queues. CPU/hypervisor
 RDSEED, retried at most 256 times per word, seeds Mbed TLS CTR-DRBG; its reseeds also
 require RDSEED. No timer, framework insecure RNG or predictable fallback is used.
