@@ -92,8 +92,12 @@
   relay as the temporary delivery workaround. Rechecked 172.16.43.1:8081 HTTP 200,
   byte-exact archive delivery and valid signed 0.0.2 kernel identity
   b0b4285568ccf4cd95b6569d25c6ad4b25815edccf688a3b189f6765e55f875b.
-  Guest relay download/install/reboot confirmation remains pending; direct VPN
-  guest throughput/stall investigation is not considered resolved by this relay.
+  User subsequently reports 0.0.2 installed and loaded, then confirms completing
+  pkg verify, boot confirm and boot status. This is user-confirmed installed
+  upgrade/activation acceptance through the local relay; no fresh status transcript
+  was supplied. The previous pending generation correctly blocked another upgrade
+  until confirmed. Direct VPN guest throughput/stall investigation remains open;
+  the relay bypasses it rather than resolving it.
 
 ## 2026-10-12 · Distributor guest reachability investigation
 
