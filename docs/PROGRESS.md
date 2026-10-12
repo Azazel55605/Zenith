@@ -54,6 +54,28 @@
   error-marked state and actual consistency require independent inspection.
   Requested the VMX/folder path and full power-off before copying/auditing VMDK;
   e2fsck, qemu-img and losetup are available locally. Original disk remains untouched.
+- User supplied /home/azazel/VMs/Zenith. Confirmed no vmware-vmx process and active
+  SATA image Zenith-0.vmdk (1 GiB monolithicSparse, no backing image). Made a raw
+  diagnostic copy and verified the original SHA256 stayed
+  c486467054e784f88bbfa23927aa767ecbb6ccb7844b4943fe92e59c0aa4e6ab.
+- Independent e2fsck -f -n finds real errors: inode 68 size/block accounting and
+  one leaked block bitmap entry (6148). ncheck identifies only the incomplete
+  /root/zenith-kernel-0.0.2.zpk.fetch-80E7EA206BF3780E at about 6 MB. GPT and
+  retained kernel/EFI hashes/menu bindings verify. No completed package activation
+  occurred; exact interruption cause is not established.
+- Tested e2fsck repair on a second copy, then read-only audit passes (exit 0).
+  passwd/shadow, pinned package key and boot-generation state retain exact bytes.
+  The unmodified-copy TCG boot passes interrupt enable and reports requested-root
+  mount failure; the repaired-copy boot loads the same retained kernel, mounts
+  sata0p1 and reaches installed headless login. Cosmos disables early graphical
+  logging before BeforeRun, so the last visible interrupt message did not locate
+  the actual failure. Earlier interrupt-path suspicion was not a confirmed cause.
+- Prepared separate Zenith-recovered.vmdk under ignored obj/vmware-recovery-3o35_wr3,
+  with private recovery-directory/file permissions. Raw→VMDK→raw round trip is
+  byte-exact, and original VMDK/VMX remain unchanged. Actual VMware boot of the
+  recovered image is pending; no original-disk repair or configuration switch made.
+  Evidence: that directory's e2fsck logs and copied serial boot transcripts;
+  /tmp/zenith-vmware-original-boot.log and /tmp/zenith-vmware-repaired-boot.log.
 
 ## 2026-10-12 · Distributor guest reachability investigation
 
