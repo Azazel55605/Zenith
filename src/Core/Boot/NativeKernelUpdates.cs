@@ -171,6 +171,9 @@ internal static class NativeKernelUpdates
                     progress.Report(text);
                     if (text == "Publishing next-boot generation") { TestCheckpoint("staged"); }
                 });
+                // Also flush every other mounted volume before reporting success.
+                // Normal power commands sync again and durably unmount the root.
+                SystemMounts.SyncAll();
             }
             return 0;
         }

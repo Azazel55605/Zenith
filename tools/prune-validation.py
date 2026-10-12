@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / "obj"
-PREFIXES = ("prior-validation", "transfer-", "progress-ui-", "kernel-", "p1-", "m3-", "m4-", "guided-", "dhcp-", "rx-poll-", "inet-pton-", "vpn-fetch-")
+PREFIXES = ("prior-validation", "transfer-", "progress-ui-", "auto-sync-", "kernel-", "p1-", "m3-", "m4-", "guided-", "dhcp-", "rx-poll-", "inet-pton-", "vpn-fetch-")
 
 
 def main():

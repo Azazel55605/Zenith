@@ -85,8 +85,8 @@ def main():
         raw=m.log()[off:];return raw+'\n'+h.efi.smoke.COSMOS_NOISE.sub('',raw)
     def status(text,name,code=0):
         raw=command(text+'; echo '+name+'=$? | logger','user: '+name+'=');check('user: '+name+'='+str(code) in raw,name+' expected status '+str(code));return raw
-    def shutdown():
-        command('sync; poweroff','all filesystems unmounted');check(m.process.wait(timeout=60)==0,'clean poweroff');disk=m.disk;m.stop();return disk
+    def shutdown(reboot=False):
+        command('reboot' if reboot else 'poweroff','all filesystems unmounted');check(m.process.wait(timeout=60)==0,'clean '+('reboot' if reboot else 'poweroff')+' without manual sync');disk=m.disk;m.stop();return disk
     def monitor_command(path,text):
         with socket.socket(socket.AF_UNIX) as sock:
             sock.connect(str(path));sock.recv(4096);sock.sendall((text+'\n').encode());time.sleep(.1)
@@ -142,7 +142,7 @@ def main():
         m=boot('upgrade',prepared);status('pkg kernel install /root/one.zpk','K_UPDATE')
         result=status('boot status','K_PENDING');check('running-kernel='+original_id in result and 'next-kernel='+good_id in result,'loaded old kernel remains after install')
         check('pending-confirmation=true' in result and 'reboot-required=true' in result,'activation awaits reboot and confirmation')
-        status('boot confirm','K_EARLY_CONFIRM',1);disk=shutdown();boot_image.verify(disk)
+        status('boot confirm','K_EARLY_CONFIRM',1);disk=shutdown(reboot=True);boot_image.verify(disk)
         m=boot('new-kernel',disk);result=status('boot status','K_NEW');check('running-kernel='+good_id in result,'new signed ELF actually loaded')
         result=status('cat /root/kernel-proof | logger','K_PERSIST');check('user: persistent' in result,'user data survives kernel activation')
         status('boot confirm','K_CONFIRM');status('pkg kernel install /root/one.zpk','K_REPEAT_REFUSED',1)

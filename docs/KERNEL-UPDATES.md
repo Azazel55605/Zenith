@@ -44,7 +44,7 @@ fetch --kernel http://10.0.2.2:8080/zenith-kernel-1.0.0.zpk /root/zenith-kernel.
 pkg kernel check /root/zenith-kernel.zpk
 pkg kernel install /root/zenith-kernel.zpk
 boot status
-sync; poweroff
+poweroff
 ```
 
 Use an installed-root destination: `/tmp` is a small RAM filesystem. `fetch --replace
@@ -138,3 +138,10 @@ Fixture release markers change the original ELF hash without changing its loaded
 a separate signed fixture deliberately loops at the entry point to exercise fallback.
 Opt-in `kernel-test-stop=staged|menu-gap` boot flags pause the worker at precise crash
 checkpoints; they are never enabled during normal updates.
+
+Kernel installation automatically flushes all mounted filesystems before successful
+return. Zenith's `reboot`, `poweroff` and desktop power actions perform checked sync,
+unmount and device-cache flush before the hardware action. A separate `sync` is
+not required. A reported sync/unmount/flush failure prevents the hardware action;
+inspect the error rather than assuming shutdown succeeded. These checks do not
+establish arbitrary power-loss safety or explain a previous corruption incident.

@@ -1,5 +1,32 @@
 # Implementation progress
 
+## 2026-10-12 · Checked automatic sync after kernel updates and before power changes
+
+- User reports losing the system after forgetting explicit sync, and confirms using
+  Zenith reboot/poweroff commands. Those commands already called sync/unmount/device
+  flush; missing a separate sync is not an established explanation of corruption.
+- Kernel install now additionally syncs all mounted filesystems before returning.
+  SyncAll rejects a false filesystem sync result; Shutdown rejects failed unmounts.
+  Device-flush exceptions already propagate. Hardware reset/poweroff is reached only
+  after successful shutdown. Explicit maintenance-gate cleanup handles failures
+  without relying on Cosmos unwind-finally, preserving retry/inspection access.
+- Kernel-update native harness no longer runs manual sync before any poweroff;
+  activation uses a plain reboot as well. It checks the next kernel loads, installed
+  data survives and independent root/EFI audits remain clean. Host checks pass
+  567/567, including both power actions refusing a flush error and another thread
+  reacquiring the maintenance gate afterward. Release ISO builds. Native validation
+  passes 169/169, including plain reboot into the new signed ELF and plain poweroff,
+  independent clean ext2/EFI audits and interrupted-update/fallback recovery.
+  Evidence: obj/auto-sync-{build,host,kernel}.log. No guarantee about arbitrary power loss or prior incident root cause is asserted.
+- Signed kernel 0.0.5 is prepared with the existing trusted key, including the
+  preceding progress UI. Kernel SHA256 2563d0027a676887a7fb9fbd2ee00b8175575a74c59368f1a5a581ed0fb220d4;
+  archive SHA256 1bad237c67528cf0187dd7d19adb6ed352a319f872745f0fae55eeaa00407996.
+  Local relay serves it separately from 0.0.3/0.0.4. For the currently running older
+  kernel, chain `pkg kernel install FILE && sync && reboot` as a one-time bootstrap;
+  after booting 0.0.5 the normal power commands handle checked flushing themselves.
+  Native tests established the no-manual-sync path; actual VMware acceptance remains
+  pending and the previous corruption cause is unconfirmed.
+
 ## 2026-10-12 · VMware kernel 0.0.3 confirmed
 
 - User confirms 0.0.3 is installed and boot-confirmed. This closes its actual

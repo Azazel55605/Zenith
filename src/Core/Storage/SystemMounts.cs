@@ -84,10 +84,9 @@ internal static class SystemMounts
         int synced = 0;
         foreach (VfsManager.VfsMount mount in VfsManager.Mounts)
         {
-            if (mount.Superblock.SuperOperations.Sync(mount.Superblock))
-            {
-                synced++;
-            }
+            if (!mount.Superblock.SuperOperations.Sync(mount.Superblock))
+            { throw new IOException("filesystem sync failed: " + mount.MountPoint); }
+            synced++;
         }
 
         return synced;
@@ -265,7 +264,8 @@ internal static class SystemMounts
         mounts.Sort((a, b) => b.MountPoint.Length.CompareTo(a.MountPoint.Length));
         foreach (VfsManager.VfsMount mount in mounts)
         {
-            VfsManager.TryUnmount(mount.MountPoint);
+            if (!VfsManager.TryUnmount(mount.MountPoint))
+            { throw new IOException("filesystem unmount failed: " + mount.MountPoint); }
         }
 
         foreach (IBlockDevice device in StorageManager.Devices)

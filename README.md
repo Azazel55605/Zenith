@@ -29,7 +29,7 @@ virtio-gpu, and virtio mouse/keyboard. The pointer is grabbed on hover; **Ctrl+A
    Minimum target: 256 MiB; layout: GPT, 128 MiB FAT32 ESP and ext2 root up to 512 MiB.
    Zenith copies the system, kernel and EFI loader itself. The old `install DISK --yes`
    copy workflow remains available for tests.
-2. `sync; poweroff`, eject the ISO and **Run QEMU x64 (installed disk)**.
+2. `poweroff` (automatically syncs and unmounts), eject the ISO and **Run QEMU x64 (installed disk)**.
    The disk boots independently; the verification task only checks the guest-written files.
 
 Without an installed disk, Zenith uses a 64 MiB RAM root, lost on reboot. The ISO's

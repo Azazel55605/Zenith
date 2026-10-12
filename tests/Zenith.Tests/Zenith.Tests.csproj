@@ -33,6 +33,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Compile Include="../../src/Core/PowerControl.cs" Link="Kernel/PowerControl.cs" />
   </ItemGroup>
 
   <ItemGroup>
