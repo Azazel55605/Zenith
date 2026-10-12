@@ -30,6 +30,17 @@ public class PackageManagerTests
     }
     private static SignedPackage Package(string name, string version = "1.0.0", string data = "hello", string records = "", string? path = null)
     { var pair = Seal(Manifest(name, version, data, records, path), data); return SignedPackage.Read(pair.Archive, pair.Key, new Verifier()); }
+    [Fact]
+    public void ProgressFailureDuringApplyRestoresOriginalTransaction()
+    {
+        var store = new Store(); var manager = new PackageManager(store);
+        manager.Install(new[] { Package("hello-tools", data: "old") }, () => { });
+        Assert.Throws<OperationCanceledException>(() => manager.Install(new[] { Package("hello-tools", "2.0.0", "new") }, () => { },
+            text => { if (text == "Applying files 1/1") { throw new OperationCanceledException(); } }));
+        Assert.Equal("1.0.0", manager.List().Single().Manifest.Version);
+        Assert.Empty(manager.Verify());
+    }
+
     private sealed class Store : IPackageStore
     {
         public readonly Dictionary<string, (byte[] Bytes, ushort Mode)> Files = new(StringComparer.Ordinal);

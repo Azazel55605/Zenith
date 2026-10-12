@@ -84,11 +84,11 @@ Details: [system plan](SYSTEM-PLAN.md), [userland](USERLAND.md),
 | Implemented: 1 | M4 x64 VM installer | Sunrise and serial guided account setup, self-contained UEFI install, UUID selection and RAM rescue; native validation in PROGRESS |
 | Done: kernel deployment gate | P3 offline kernel upgrades | Dedicated signed container/builder, full-sized delivery, disk-only activation/rollback, explicit confirmation, interruption/ISO recovery and real failed-boot menu fallback; 169 native checks in PROGRESS |
 | 2 | Package recipes and builder workflow | Declarative metadata/files/modes; reproducible validation and separate signing using the existing .zpk foundation |
-| P2 kit implemented; deployment pending | Debian VM builds and distributes packages | Manual build/sign/verified immutable publication and nginx config; actual VM/LAN/VPN/DNS and HTTPS bootstrap remain pending |
+| Manual P2 user-confirmed; HTTPS pending | Debian VM builds and distributes packages | Manual release build/publication and local-relay installed upgrade work; direct guest VPN performance and hostname-valid proxy TLS remain pending |
 | 4 | Useful initial scripts/data packages | Install, upgrade, remove and reboot on a persistent Zenith VM against the user's server |
-| 5 | P4 signed online repository client | Signed index freshness/rollback checks, search, deterministic dependency resolution and bounded download/install by name |
+| Next package priority | P4 signed online repository client | Signed index freshness/rollback checks, search, deterministic dependency resolution and bounded download/install by name |
 | 6 | M5 native loader/process/ABI then compiled tool unbundling; P5 | Protected execution, libc/toolchain foundation and independent base-tools/net-tools/fs-tools updates |
-| User reports success; confirmation details pending | VMware installed kernel package upgrade | User reports successful manual upgrade; boot-confirm status not supplied. Dedicated mirror deployment follows; physical hardware and native app ABI remain separate |
+| 0.0.2 user-confirmed; 0.0.3 updating | VMware installed kernel package upgrade | User confirmed 0.0.2 loaded and boot-confirmed; 0.0.3 speed update is in progress. Proxy TLS and direct VPN acceptance are separate; physical hardware and native app ABI remain separate |
 | 7 | M6 proper DE/WM, Settings, customization, Files and GUI Editor overhaul | Shared toolkit/operations can start earlier; independent desktop/apps require M5 |
 | Later developer tools | Host GCC cross-SDK, terminal editor/Python feasibility, then on-system GCC | [Application/toolchain plan](APPLICATIONS.md); native ABI/libc/TTY and measured storage/resource gates |
 | 8 | R1/R2 saved roots, trial boot and restore | R0 backend/scope decision, explicit root selector, matched kernel/root/package inventory and interruption tests |
@@ -388,3 +388,9 @@ Further online metadata/trust and native-userland/R0 research may advance as exp
 selected experiments; do not deploy the VM or begin a Btrfs port implicitly. Every slice updates
 PROGRESS with code status, exact validation and unresolved limitations. Maintain the
 architecture/history/user-facing docs alongside each delivered capability.
+
+2026-10-12 priority clarification: complete installed package usability and signed
+online refresh/search/resolve/download/install/upgrade before an automatic builder
+pipeline. Manual server publishing remains sufficient for client validation. The
+user supplied zenith-stable.net.local; its current default Zoraxy certificate needs
+a matching DNS name before verified HTTPS use. See PACKAGE-SERVER and PROGRESS.

@@ -67,7 +67,10 @@ internal static class PackageCommands
             if (c.Args.Length > 17) { throw new IOException("at most 16 packages per transaction"); }
             foreach (string path in c.Args.AsSpan(1))
             { c.Shell.ThrowIfCancelled(); packages.Add(SignedPackage.Read(store.Read(c.Resolve(path), SignedPackage.MaximumBytes), key, new NativePackageVerifier())); }
-            manager.Install(packages, c.Shell.ThrowIfCancelled); c.WriteLine("package transaction committed: " + packages.Count); return 0;
+            var progress = new CommandProgress(c.Out, c.IsTerminal);
+            try { manager.Install(packages, c.Shell.ThrowIfCancelled, progress.Report); }
+            catch { progress.Finish(); throw; }
+            progress.Finish(); c.WriteLine("package transaction committed: " + packages.Count); return 0;
         }
         if (c.Args.Length >= 2 && c.Args[0] == "remove")
         { Mutable(); manager.Remove(c.Args.AsSpan(1).ToArray(), c.Shell.ThrowIfCancelled); c.WriteLine("packages removed=" + (c.Args.Length - 1)); return 0; }

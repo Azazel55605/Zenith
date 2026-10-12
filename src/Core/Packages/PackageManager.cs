@@ -133,7 +133,7 @@ internal sealed class PackageManager
         { throw new IOException("locally modified owned file; preserve it before changing package: " + file.Path); }
         return bytes;
     }
-    public void Install(IReadOnlyList<SignedPackage> incoming, Action cancel)
+    public void Install(IReadOnlyList<SignedPackage> incoming, Action cancel, Action<string>? progress = null)
     {
         if (incoming.Count is < 1 or > 16) { throw new IOException("install expects 1..16 signed packages"); }
         Recover(); var old = new List<InstalledPackage>(List()); var next = new List<InstalledPackage>(old);
@@ -159,7 +159,7 @@ internal sealed class PackageManager
                 changes[file.Path] = (package.Read(file), file.Mode);
             }
         }
-        ValidateSet(next); Commit(old, next, changes, cancel);
+        ValidateSet(next); Commit(old, next, changes, cancel, progress);
     }
     private static bool Contains(IReadOnlyList<PackageFile> files, string path)
     { foreach (var file in files) { if (file.Path == path) { return true; } } return false; }
@@ -180,7 +180,7 @@ internal sealed class PackageManager
         ValidateSet(next); Commit(old, next, changes, cancel);
     }
     private void Commit(List<InstalledPackage> old, List<InstalledPackage> next,
-        Dictionary<string, (byte[]? Data, ushort Mode)> changes, Action cancel)
+        Dictionary<string, (byte[]? Data, ushort Mode)> changes, Action cancel, Action<string>? progress = null)
     {
         if (changes.Count > 1024) { throw new IOException("transaction file limit"); }
         byte[] before = Serialize(old), after = Serialize(next); int bytes = 0;
@@ -198,6 +198,7 @@ internal sealed class PackageManager
         EnsureParents(Journal); var journal = new StringBuilder("ZENITH-UNDO\t1\t" + PackagePlanner.Digest(after) + "\n");
         try
         {
+            progress?.Invoke("Preparing transaction backups");
             _store.Write(Root + "/old-db", before, 0x180);
             for (int i = 0; i < backups.Count; i++)
             {
@@ -207,6 +208,7 @@ internal sealed class PackageManager
                     .Append('\t').Append(backup.Data is null ? "-" : PackagePlanner.Digest(backup.Data)).Append('\n');
             }
             _store.Sync(); _store.Write(Journal, Text(journal.ToString()), 0x180); _store.Sync();
+            int applied = 0; progress?.Invoke("Applying files 0/" + changes.Count);
             foreach (var change in changes)
             {
                 cancel(); Parents(change.Key);
@@ -217,7 +219,9 @@ internal sealed class PackageManager
                 { throw new IOException("target changed during transaction: " + change.Key); }
                 if (change.Value.Data is null) { _store.Delete(change.Key); }
                 else { EnsureParents(change.Key); _store.Write(change.Key, change.Value.Data, change.Value.Mode); }
+                progress?.Invoke("Applying files " + (++applied) + "/" + changes.Count);
             }
+            progress?.Invoke("Committing package database");
             _store.Sync(); _store.Write(Database, after, 0x1a4); _store.Sync();
             Cleanup(backups.Count);
         }

@@ -1,5 +1,26 @@
 # Developing Zenith
 
+For a desktop progress screenshot and a completed local transfer, run
+`python3 -B tools/terminal-progress-smoke.py obj/progress-ui-visual` (requires
+Pillow). It serves a deliberately paced 2 MiB fixture and retains `progress.png`
+for visual inspection; its guest byte-count check tolerates wc's padded output.
+
+## Validation disk cleanup
+
+Smoke runs retain disposable disk/partition images under `obj/`; sparse images can
+appear much larger than their allocated space. Compare `du -sh obj` and
+`du -sh --apparent-size obj`. After all validation processes have stopped, run:
+
+```sh
+python3 -B tools/prune-validation.py          # preview generated images
+python3 -B tools/prune-validation.py --apply  # remove only listed validation images
+```
+
+This retains logs, screenshots, PCAPs, build caches, package archives, the local
+update relay and `vmware-recovery-*` directories. Old retained images are no longer
+available for rerunning offline audits; rerun the harness to recreate them. Do not
+remove all of `obj/` during an update: the local relay and recovery copies live there.
+
 ## Toolchain
 
 For local download performance, run `python3 -B tools/transfer-bench.py obj/transfer-bench`.

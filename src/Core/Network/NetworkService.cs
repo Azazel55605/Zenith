@@ -406,7 +406,7 @@ internal static class NetworkService
                             // read throttles local transfers to one small window per tick.
                             if (!decoder.Done && !progressed) { Thread.Sleep(1); }
                         }
-                        decoder.Complete(); cancel(); if (!file.TryFlush()) { throw new IOException("download flush failed"); } received = decoder.Received;
+                        decoder.Complete(); report("fetch progress " + decoder.Received + "/" + decoder.Length); cancel(); if (!file.TryFlush()) { throw new IOException("download flush failed"); } received = decoder.Received;
                     }
                     cancel();
                     if (metadata.TryRead(destination, out existing) && (!replace || existing.Type != "regular file")) { throw new IOException("destination changed during download"); }

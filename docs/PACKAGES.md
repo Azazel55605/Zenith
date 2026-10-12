@@ -10,7 +10,7 @@ before unbundling compiled tools. Do not treat dropping a DLL into /bin as execu
 `pkg repos` reads `/etc/zenith/repos.conf`; defaults are **core** (priority 10) and
 **extra** (20). Core is the essential system/base collection; extra is optional tools
 and applications. Repository section and release channel are distinct concepts.
-Mirrors are initially unset because the home VM is not provisioned. Optional base
+Mirrors default to unset because deployment URLs and TLS trust belong to the installation. The home VM is now 10.0.20.7 with proposed HTTPS endpoint zenith-stable.net.local; certificate hostname setup remains pending. Optional base
 URLs must use HTTPS without credentials, query or fragment. No online index client
 or automatic dependency download is implemented by this offline slice.
 
@@ -206,3 +206,9 @@ P3 uses a distinct signed header and dedicated boot coordinator; ordinary `pkg i
 still accepts scripts/data only. See [KERNEL-UPDATES](KERNEL-UPDATES.md) for the builder,
 `pkg kernel check|install`, confirmation, retention and recovery. This does not add
 native userland execution, arbitrary boot-file payloads or root snapshots.
+
+Interactive `fetch`, `pkg install` and `pkg kernel` operations use one updating
+status line; fetch shows a byte percentage/bar, data installation shows file progress
+and commit phases, and kernel updates show the current phase. Progress is omitted
+from redirected stdout; final results/errors remain. File application reaching 100%
+is not a committed transaction until the final success message.

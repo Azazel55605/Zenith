@@ -127,3 +127,11 @@ preserve signature, UUID/artifact binding, previous retention, monotonic version
 confirmation and crash/fallback tests. P1 remains scripts/data without boot-file writes.
 Manual fallback and external ISO recovery are required; no automatic rollback or
 arbitrary FAT/ext2 power-loss guarantee is provided. Native validation stays in PROGRESS.
+
+User priority (2026-10-12): proper installed package delivery and progress usability
+come before automatic distributor builds. The user named the HTTPS proxy
+`https://zenith-stable.net.local`; it is a deployment setting, not a universal mirror
+default. Its currently served Zoraxy default certificate lacks that hostname. Keep
+certificate/hostname checks and separate package-signing trust. See PACKAGE-SERVER.
+Validation disks may be pruned with tools/prune-validation.py after tests stop;
+preserve VMware recovery copies and the in-use local update relay.

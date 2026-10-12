@@ -1,5 +1,60 @@
 # Implementation progress
 
+## 2026-10-12 · Public signing key on local relay
+
+- Copied the existing signing public key to obj/vpn-relay/public.pem; the running
+  VMware NAT relay serves it at http://172.16.43.1:8081/public.pem.
+- Package-tool kernel-check verifies relay kernel 0.0.3 against this key. HTTP
+  download matches the source byte-for-byte; key PEM SHA256 is
+  87a2af412ce0f90024dd17ae801912d31dd360c5c1b1e23cbbb59662a06fa25a.
+- Only the public key was published; VM fetch/trust acceptance remains pending.
+
+## 2026-10-12 · Package usability, named proxy and validation disk cleanup
+
+- User is updating to 0.0.3; preserve that signed archive and the running local
+  relay. Automatic build pipelines are deferred in favor of proper installed
+  package discovery/download/install/upgrade and progress usability.
+- User assigned https://zenith-stable.net.local through Zoraxy. Host resolves it
+  to 10.0.10.3; SNI inspection returns the default self-signed Zoraxy Self-host
+  certificate with no SAN, valid 2023–2038. Even trusting that PEM, independent
+  OpenSSL hostname verification fails. A certificate with this DNS SAN is needed
+  before importing the public trust PEM using tls trust. No trust was installed,
+  certificate checks bypassed or proxy/server configuration changed. Package
+  signing trust remains separate. Current deployment notes are in PACKAGE-SERVER.
+- Interactive fetch uses one byte-percentage/bar line, throttled to at most five
+  numeric updates per second with the final byte count forced. Data installs show
+  file-application progress and backup/database phases; kernel updates show copy
+  percentages and activation phases on one line. Completion/errors still print;
+  progress is omitted from redirected stdout. No unsupported overall commit
+  percentage is inferred from file progress.
+- GUI terminal now handles carriage-return overwrite and ANSI erase-line, preserving
+  CRLF, colors and normal append/wrap behavior. Explicit success/failure cleanup
+  closes the progress line without relying on Cosmos unwind-finally. Host regression
+  covers same-line replacement, redirection, final newline and transaction recovery
+  if an observer cancels after file application.
+- Removed 311 inventoried generated validation images: 21.42 GiB allocated and
+  70.91 GiB apparent. obj shrank to 3.8 GiB physical/7.6 GiB apparent immediately
+  afterward. Logs, screenshots, PCAPs, latest checked ext2 root, build caches,
+  recovery originals and signed update/relay files are retained. Old removed disk
+  evidence requires rerunning its harness to audit again. tools/prune-validation.py
+  defaults to preview; --apply removes only named validation image families after
+  all tests stop. Never prune a live test or remove the whole obj during updates.
+- Host tests pass 565/565; Release ISO builds; native signed scripts/data package
+  checks pass 71/71. Native network checks pass 180/180, desktop checks 135/135 and kernel
+  activation/recovery checks 169/169.
+  Evidence stays in obj/progress-ui-{host,build,network,packages,de,kernel}.log.
+  The focused desktop screenshot shows one percentage/bar line and a completed
+  2 MiB transfer in the guest; its first harness run missed wc's extra padding, and the
+  repeatable terminal-progress-smoke.py now checks count/path with that whitespace
+  accounted for. Final rerun passes. Real VMware progress/TLS acceptance is pending; P4 install-by-name is next work,
+  not implemented by the progress/cleanup slice.
+- Final cleanup removed 30 newly generated validation images (1.76 GiB allocated),
+  retaining all new logs/screenshots/audits. obj is now about 4.0 GiB physical and
+  7.7 GiB apparent. Signed 0.0.4 contains these UI changes, without replacing 0.0.3;
+  its kernel SHA256 is 555ef16604659298e621b245be48a55706331c825ec7324e4ab60ba628643b13,
+  archive SHA256 40e5441b769f7f67798c95b7e815f2dbe64acb03a00cd7eaa913f3615de43f88.
+  User should complete/confirm 0.0.3 before another activation. No server deployment.
+
 ## 2026-10-12 · Local transfer throughput first
 
 - User prioritizes transfer speed; repository-driven package downloads/upgrades and

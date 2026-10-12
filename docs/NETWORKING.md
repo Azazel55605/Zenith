@@ -240,3 +240,10 @@ bytes and independently checked ext2 timestamps/fsck. Existing DE/headless suite
 remain regressions. No real disk or upstream Cosmos checkout is modified.
 Home VM/VPN acceptance waits for the VM and its name/address; see
 [PACKAGE-SERVER](PACKAGE-SERVER.md). A guest VPN client is not implied.
+
+Interactive fetch progress updates one terminal line with a byte percentage/bar
+and MiB counts, capped at five numeric updates per second. Redirected stdout omits
+progress and retains the final result. Errors/cancellation end the progress line.
+The home proxy now has hostname zenith-stable.net.local; its inspected Zoraxy default
+certificate has no matching DNS name. See [PACKAGE-SERVER](PACKAGE-SERVER.md) for
+private certificate trust setup. Trusting a certificate does not disable name checks.

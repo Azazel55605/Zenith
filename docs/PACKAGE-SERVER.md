@@ -6,8 +6,10 @@ remote access through the user's existing VPN and DNS. Native services remove th
 dependency on Docker restrictions and ports already mapped on another host. VM OS,
 storage details are deployment choices still to record. The user has
 created Debian 13.7 VM Zenith-Package-Server and is provisioning the builder as
-zenith-release at 10.0.20.7, without an assigned DNS name. SSH and nginx/LAN/VPN
-acceptance remain unreported; no remote
+zenith-release at 10.0.20.7. The user has since assigned the proxy name
+`https://zenith-stable.net.local`. Manual release build/distribution and a local-relay
+installed kernel update are user-confirmed; SSH administration details and direct
+guest VPN/HTTPS acceptance remain pending; no remote
 ports/DNS/firewall rules have been changed by the agent.
 See [PACKAGE-MANAGER](PACKAGE-MANAGER.md) for the guest client and trust model.
 
@@ -17,8 +19,34 @@ distribute releases. The [Debian deployment kit](../deploy/distributor/README.md
 now contains a manual kernel build/test/sign/publish workflow, a signature-checking
 immutable publisher for core kernels and core/extra data packages, and an nginx
 static-service configuration. Reuse the signing key already trusted for the user's
-successful installed kernel upgrade. Provisioning completion and actual VM/LAN/VPN/HTTPS
-acceptance remain pending; the kit does not implement P4 signed online indexes.
+successful installed kernel upgrade. Manual kernel release building/publication is
+user-confirmed; direct guest VPN performance and verified proxy HTTPS remain pending.
+The kit does not implement P4 signed online indexes.
+
+## Current HTTPS proxy and next priority (2026-10-12)
+
+The package VM remains 10.0.20.7; the named Zoraxy proxy resolves to 10.0.10.3 on
+the development host. Host SNI inspection currently returns a self-signed certificate
+with CN `Zoraxy Self-host`, no Subject Alternative Name, valid May 2023–May 2038.
+`openssl verify -CAfile ... -verify_hostname zenith-stable.net.local ...` rejects it
+with hostname mismatch even when that certificate is trusted. This observation is
+not an independently authenticated certificate fingerprint or guest acceptance.
+
+Serve a private-CA certificate (or a purpose-made self-signed certificate) containing
+`DNS:zenith-stable.net.local`. Install it in Zoraxy using its
+[certificate import guidance](https://github.com/tobychui/zoraxy/wiki/Move-Certificates-to-Zoraxy).
+Transfer the public trust PEM through the existing trusted bootstrap path; verify
+its exact file SHA256 from the locally generated/exported copy, then root runs
+`tls trust FILE SHA256` in Zenith. Package signatures still use the separate
+`pkg trust` public key. Certificate hostname/time validation remains enabled.
+Do not install the inspected default certificate as a workaround for the wrong name.
+
+Automatic build/release pipeline work is deferred. Next package work is the signed
+online index contract and manually published client slice: refresh/search, deterministic
+core/extra dependency/conflict planning, download/install/upgrade by name using the
+existing installed transaction engine. Validate useful scripts/data packages on the
+persistent VM before automating releases. Kernel activation keeps its separate
+confirmation/rollback boundary; compiled tool unbundling still requires M5.
 
 ## Initial shape
 

@@ -158,22 +158,24 @@ internal static class NativeKernelUpdates
     public static int Package(CommandContext c)
     {
         if (c.Args.Length != 3 || c.Args[1] is not ("check" or "install")) { return c.Fail("pkg kernel check|install FILE.zpk"); }
+        var progress = new CommandProgress(c.Out, c.IsTerminal);
         int Execute()
         {
-            var store = new NativeKernelUpdateStore { Cancel = c.Shell.ThrowIfCancelled, Progress = text => c.Out.Write(text + "\n") };
+            var store = new NativeKernelUpdateStore { Cancel = c.Shell.ThrowIfCancelled, Progress = progress.Report };
             var package = KernelPackage.Read(store.Read(c.Resolve(c.Args[2]), KernelPackage.MaximumBytes), store.Read(Zenith.Core.Shell.Commands.PackageCommands.KeyPath, 4096), new NativePackageVerifier());
-            c.WriteLine("verified signed zenith-kernel " + package.Version + " sha256=" + package.Id);
+            progress.Finish(); c.WriteLine("verified signed zenith-kernel " + package.Version + " sha256=" + package.Id);
             if (c.Args[1] == "install")
             {
                 Open(store).Install(package, NativeBootAssets.RunningKernelId(), c.Shell.ThrowIfCancelled, text =>
                 {
-                    c.Out.Write(text + "\n");
+                    progress.Report(text);
                     if (text == "Publishing next-boot generation") { TestCheckpoint("staged"); }
                 });
             }
             return 0;
         }
-        return c.Args[1] == "check" ? Execute() : Mutation(Execute, true);
+        try { int result = c.Args[1] == "check" ? Execute() : Mutation(Execute, true); progress.Finish(); return result; }
+        catch { progress.Finish(); throw; }
     }
     public static int Boot(CommandContext c)
     {

@@ -22,7 +22,7 @@ internal readonly struct Cell
 /// <see cref="Wrap"/> splits them into rows for whatever width the window has right now, so
 /// the text reflows when the window is resized.
 /// Understands the escape sequences the shell emits: SGR colors (30-37, 90-97, 1 bold, 0 reset),
-/// <c>ESC[2J</c> clear and <c>ESC[H</c> home.
+/// <c>ESC[2J</c> clear, carriage-return overwrite and <c>ESC[2K</c> erase-line.
 /// </summary>
 internal sealed class TerminalBuffer
 {
@@ -38,6 +38,7 @@ internal sealed class TerminalBuffer
     private readonly List<List<Cell>> _lines = new() { new List<Cell>() };
     private uint _color = Theme.TextPrimary;
     private bool _bold;
+    private int _cursor;
     private int _baseColor = -1;
 
     public int LineCount => _lines.Count;
@@ -47,13 +48,14 @@ internal sealed class TerminalBuffer
 
     public List<Cell> Line(int index) => _lines[index];
 
-    /// <summary>Length of the last (current) line, i.e. the column the next character lands in.</summary>
-    public int CursorColumn => _lines[^1].Count;
+    /// <summary>The write column in the last logical line.</summary>
+    public int CursorColumn => _cursor;
 
     public void Clear()
     {
         _lines.Clear();
         _lines.Add(new List<Cell>());
+        _cursor = 0;
         Changed = true;
     }
 
@@ -74,6 +76,7 @@ internal sealed class TerminalBuffer
                     NewLine();
                     break;
                 case '\r':
+                    _cursor = 0;
                     break;
                 case '\t':
                     do
@@ -104,7 +107,13 @@ internal sealed class TerminalBuffer
 
     private void Put(char c) => Put(new Cell(c, _color));
 
-    private void Put(Cell cell) => _lines[^1].Add(cell);
+    private void Put(Cell cell)
+    {
+        var line = _lines[^1];
+        while (line.Count < _cursor) { line.Add(new Cell(' ', _color)); }
+        if (_cursor < line.Count) { line[_cursor] = cell; } else { line.Add(cell); }
+        _cursor++;
+    }
 
     /// <summary>Splits a logical line into rows of at most <paramref name="columns"/> cells (an empty line is one empty row).</summary>
     public static List<List<Cell>> Wrap(List<Cell> line, int columns)
@@ -128,6 +137,7 @@ internal sealed class TerminalBuffer
 
     private void NewLine()
     {
+        _cursor = 0;
         _lines.Add(new List<Cell>());
         if (_lines.Count > MaxLines)
         {
@@ -158,6 +168,11 @@ internal sealed class TerminalBuffer
                     ApplySgr(int.TryParse(part, out int code) ? code : 0);
                 }
 
+                break;
+            case 'K':
+                if (args == "2") { _lines[^1].Clear(); }
+                else if (args is "" or "0" && _cursor < _lines[^1].Count)
+                { _lines[^1].RemoveRange(_cursor, _lines[^1].Count - _cursor); }
                 break;
             case 'J':
                 if (args == "2")

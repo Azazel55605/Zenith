@@ -11,6 +11,16 @@ public class TerminalBufferTests
         => new string(buffer.Line(index).Select(c => c.Char).ToArray());
 
     [Fact]
+    public void CarriageReturnOverwritesAndEraseRemovesPreviousLongStatus()
+    {
+        var buffer = new TerminalBuffer(); buffer.Write("long progress status");
+        buffer.Write("\rshort"); Assert.Equal("shortprogress status", LineText(buffer, 0));
+        buffer.Write("\r\u001b[2Kdone\nnext\r\nlast");
+        Assert.Equal("done", LineText(buffer, 0)); Assert.Equal("next", LineText(buffer, 1));
+        Assert.Equal("last", LineText(buffer, 2)); Assert.Equal(4, buffer.CursorColumn);
+    }
+
+    [Fact]
     public void Write_SplitsLinesAndKeepsCurrentLineOpen()
     {
         var buffer = new TerminalBuffer();
