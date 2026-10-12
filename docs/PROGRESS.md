@@ -73,7 +73,11 @@
 - Prepared separate Zenith-recovered.vmdk under ignored obj/vmware-recovery-3o35_wr3,
   with private recovery-directory/file permissions. Raw→VMDK→raw round trip is
   byte-exact, and original VMDK/VMX remain unchanged. Actual VMware boot of the
-  recovered image is pending; no original-disk repair or configuration switch made.
+  recovered image was initially pending; no original-disk repair or configuration
+  switch was made by the agent. User now reports the repaired disk boots again
+  in VMware, confirming recovery acceptance. Cleanly shut down before relocating
+  the active recovered VMDK from build scratch into the permanent VM folder and
+  updating the VM's disk reference. The original VMDK remains the pre-repair backup.
   Evidence: that directory's e2fsck logs and copied serial boot transcripts;
   /tmp/zenith-vmware-original-boot.log and /tmp/zenith-vmware-repaired-boot.log.
 
