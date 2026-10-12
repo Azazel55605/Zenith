@@ -42,6 +42,11 @@
   which can establish whether the installed root is actually mounted and readable.
   No disk repair, format, boot metadata rewrite or forced update was performed.
   Boot recovery takes priority over packet capture/direct VPN acceptance.
+- ISO screenshot shows running kernel 88c80ae4d800f512..., root=live/legacy,
+  EFI unavailable, RAM root/tmp and the default user home. It therefore does not
+  establish installed-root readability. Forced RAM selection, missing disk or
+  rejected filesystem/root discovery remain possibilities. Next checks are the
+  selected ISO entry, lsblk and check-only fsck.ext2 of the unmounted root.
 
 ## 2026-10-12 · Distributor guest reachability investigation
 
