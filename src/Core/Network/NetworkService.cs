@@ -376,16 +376,18 @@ internal static class NetworkService
                         }
                         else if (socket.Send(request, 0, request.Length, SocketFlags.None) != request.Length) { throw new IOException("short HTTP request write"); }
                         var total = Stopwatch.StartNew(); var idle = Stopwatch.StartNew(); int nextProgress = 65536;
+                        // Reuse bounded read storage throughout the transfer instead
+                        // of allocating another bulk array for every socket read.
+                        byte[] data = new byte[tls is null ? 131072 : 16384];
                         while (!decoder.Done)
                         {
-                            cancel(); Ready(); int available = socket.Available;
+                            cancel(); Ready(); int available = socket.Available; bool progressed = false;
                             if (tls is not null)
                             {
-                                byte[] data = new byte[16384];
                                 int remaining = HttpDownload.TransferMilliseconds(maximum) - (int)total.ElapsedMilliseconds;
                                 if (remaining <= 0) { HttpDownload.CheckTimeout(idle.ElapsedMilliseconds, total.ElapsedMilliseconds + 1, decoder.Received, decoder.Length, maximum); }
                                 int count = tls.Read(data, Math.Max(1, Math.Min(HttpDownload.IdleMilliseconds(maximum), remaining)));
-                                if (count > 0) { decoder.Feed(data, count); idle.Restart(); }
+                                if (count > 0) { decoder.Feed(data, count); idle.Restart(); progressed = true; }
                                 else { decoder.Complete(); }
                                 if (decoder.Received >= nextProgress) { report("fetch progress " + decoder.Received + "/" + decoder.Length); nextProgress = decoder.Received + 65536; }
                             }
@@ -394,13 +396,15 @@ internal static class NetworkService
                                 // Transport adaptation caps pending data and preserves snapshots across IRQ appends.
                                 // Drain currently available data; file size never determines receive allocation.
                                 if (available > 131072) { throw new IOException("TCP receive staging exceeds 128 KiB"); }
-                                byte[] data = new byte[available]; int count = socket.Receive(data, 0, data.Length, SocketFlags.None);
-                                if (count > 0) { decoder.Feed(data, count); idle.Restart(); }
+                                int count = socket.Receive(data, 0, available, SocketFlags.None);
+                                if (count > 0) { decoder.Feed(data, count); idle.Restart(); progressed = true; }
                                 if (decoder.Received >= nextProgress) { report("fetch progress " + decoder.Received + "/" + decoder.Length); nextProgress = decoder.Received + 65536; }
                             }
                             else if (!socket.Connected) { decoder.Complete(); }
                             HttpDownload.CheckTimeout(idle.ElapsedMilliseconds, total.ElapsedMilliseconds, decoder.Received, decoder.Length, maximum);
-                            if (!decoder.Done) { Thread.Sleep(10); }
+                            // Drain queued bytes immediately. Sleeping after each productive
+                            // read throttles local transfers to one small window per tick.
+                            if (!decoder.Done && !progressed) { Thread.Sleep(1); }
                         }
                         decoder.Complete(); cancel(); if (!file.TryFlush()) { throw new IOException("download flush failed"); } received = decoder.Received;
                     }

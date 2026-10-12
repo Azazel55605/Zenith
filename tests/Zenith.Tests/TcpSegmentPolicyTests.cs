@@ -5,9 +5,9 @@ public sealed class TcpSegmentPolicyTests
     [Fact]
     public void AdvertisedWindowClosesAndReopensWhenApplicationDrains()
     {
-        var buffer = new BoundedTcpBuffer(); Assert.Equal(8192, buffer.Window);
-        Assert.True(buffer.Append(new byte[8192])); Assert.Equal(0, buffer.Window);
-        buffer.Advance(4096); Assert.Equal(4096, buffer.Window); buffer.Advance(4096); Assert.Equal(8192, buffer.Window);
+        var buffer = new BoundedTcpBuffer(); Assert.Equal(32768, buffer.Window);
+        Assert.True(buffer.Append(new byte[32768])); Assert.Equal(0, buffer.Window);
+        buffer.Advance(16384); Assert.Equal(16384, buffer.Window); buffer.Advance(16384); Assert.Equal(32768, buffer.Window);
     }
     [Fact]
     public void OverflowCannotAdvertiseFreshReceiveSpace()

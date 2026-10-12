@@ -173,7 +173,9 @@ Two attempts maximum; each uses the above idle/body deadlines,
 plus DNS/connect/handshake time. Cosmos TCP connect blocks up to five seconds and
 observes cancellation on return. TLS handshake/write have fifteen-second deadlines;
 TLS body reads honor the selected idle deadline, capped by the remaining transfer
-budget. Ordinary TLS reads default to three seconds. Idle polling checks cancellation at 10 ms.
+budget. Ordinary TLS reads default to three seconds. Fetch drains productive reads
+without a sleep, then uses a one-millisecond wait when no data progresses; effective
+wakeup granularity depends on the scheduler.
 There is a fixed 1 MiB TLS arena and two 32 KiB encrypted queues. CPU/hypervisor
 RDSEED, retried at most 256 times per word, seeds Mbed TLS CTR-DRBG; its reseeds also
 require RDSEED. No timer, framework insecure RNG or predictable fallback is used.
@@ -182,6 +184,10 @@ require RDSEED. No timer, framework insecure RNG or predictable fallback is used
 Ethernet/IPv4 lengths/options/checksums before framework parsing, reject fragments/
 IPv6/unsupported frames, cap each UDP/ICMP queue at 32 packets, and cap pending TCP
 at 128 KiB. They bypass unsafe legacy DHCP parsing and unused TCP option allocation.
+The receive window advertises up to 32,768 bytes without scale negotiation and
+shrinks/reopens with unread data. Immutable 4 KiB chunks reduce per-packet copies;
+held read snapshots remain stable. High-volume successful IPv4/TCP serial tracing
+is disabled in adapted build copies; errors and service counters remain available.
 Limited IPv4 broadcasts also receive the Ethernet broadcast destination; a VMware
 capture revealed that the released Cosmos enqueue path otherwise sent DHCP to a
 zero MAC despite using 255.255.255.255 at the IP layer. The native suite checks

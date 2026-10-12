@@ -21,6 +21,32 @@ foreach (var type in module.GetTypeReferences())
 foreach (var reference in self) { module.AssemblyReferences.Remove(reference); }
 if (assembly.Name.Name == "Cosmos.Kernel.Plugs")
 {
+    // Packet headers advertise our receive capacity, never the peer's send window.
+    var socketPlug = module.GetType("Cosmos.Kernel.Plugs.System.Net.Sockets.SocketPlug")
+        ?? throw new InvalidOperationException("Cosmos socket plug changed");
+    var sendTcp = socketPlug.Methods.Single(m => m.Name == "SendTcp" && m.Parameters.Count == 4);
+    if (!sendTcp.HasBody || sendTcp.ReturnType.FullName != "System.Int32")
+    { throw new InvalidOperationException("Cosmos SendTcp signature changed"); }
+    var sendWindows = sendTcp.Body.Instructions.Where(i => i.Operand is MethodReference m
+        && m.Name == "get_SndWnd").ToArray();
+    if (sendWindows.Length == 2)
+    {
+        var il = sendTcp.Body.GetILProcessor();
+        foreach (var instruction in sendWindows)
+        {
+            var original = (MethodReference)instruction.Operand;
+            var receive = original.DeclaringType.Resolve().Methods.Single(m => m.Name == "get_RcvWnd");
+            if (original.ReturnType.FullName != "System.UInt16" || receive.ReturnType.FullName != "System.UInt32"
+                || instruction.Next.OpCode != OpCodes.Ldc_I4_0)
+            { throw new InvalidOperationException("Cosmos SendTcp window contract changed"); }
+            instruction.Operand = module.ImportReference(receive);
+            il.InsertAfter(instruction, il.Create(OpCodes.Conv_U2));
+        }
+        changed = true; Console.WriteLine("Adapted TCP payload headers: local receive window");
+    }
+    else if (sendWindows.Length != 0 || sendTcp.Body.Instructions.Count(i => i.Operand is MethodReference m
+        && m.Name == "get_RcvWnd" && i.Next.OpCode == OpCodes.Conv_U2) != 2)
+    { throw new InvalidOperationException("Cosmos SendTcp window sites changed"); }
     // DateTime and DateTimeOffset (including filesystem timestamps) share this clock.
     // Apply at the raw RTC seam so SystemClock never recursively calls its own source.
     var clock = module.GetType("Cosmos.Kernel.Plugs.System.DateTimePlug")
@@ -394,6 +420,64 @@ if (assembly.Name.Name == "Cosmos.Kernel.System")
         dispose.Body.MaxStackSize = Math.Max(dispose.Body.MaxStackSize, 1);
         changed = true; Console.WriteLine("Adapted Cosmos TCP receive buffer: bounded CAS snapshots (128 KiB)");
     }
+    // Successful-packet tracing performs hundreds of port writes in the RX path.
+    // Remove only pinned informational statements; preserve rejection/error logs.
+    void QuietTrace(MethodDefinition method, string firstText, string lastText)
+    {
+        var code = method.Body.Instructions;
+        var first = code.Single(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == firstText);
+        if (first.Next.OpCode == OpCodes.Pop) { return; }
+        var last = code.Skip(code.IndexOf(first)).First(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == lastText);
+        var end = last.Next;
+        while (end is not null && !(end.Operand is MethodReference m && m.DeclaringType.Name == "Serial" && m.Name == "WriteString"))
+        { end = end.Next; }
+        if (end is null || end.OpCode != OpCodes.Call) { throw new InvalidOperationException("Cosmos trace contract changed"); }
+        var range = code.Skip(code.IndexOf(first)).Take(code.IndexOf(end) - code.IndexOf(first) + 1).ToArray();
+        if (range.Any(i => i.OpCode.FlowControl is FlowControl.Return or FlowControl.Throw
+            || i.OpCode == OpCodes.Stfld || i.OpCode == OpCodes.Stsfld)
+            || code.Except(range).Any(i => i.Operand is Instruction target && range.Contains(target) && target != first))
+        { throw new InvalidOperationException("Cosmos trace has unexpected effects/control flow"); }
+        // Retain the first literal for idempotent adaptation checks, consuming it
+        // immediately; branch destinations remain valid instruction objects.
+        range[1].OpCode = OpCodes.Pop; range[1].Operand = null;
+        foreach (var instruction in range.Skip(2)) { instruction.OpCode = OpCodes.Nop; instruction.Operand = null; }
+        changed = true;
+    }
+    QuietTrace(handle, "[NetworkStack] HandlePacket called, len=", "\n");
+    QuietTrace(handle, "[NetworkStack] EtherType: 0x", "\n");
+    QuietTrace(handle, "[NetworkStack] -> IPv4\n", "[NetworkStack] -> IPv4\n");
+    var ipv4 = module.GetType("Cosmos.Kernel.System.Network.IPv4.IPPacket").Methods.Single(m => m.Name == "IPv4Handler");
+    QuietTrace(ipv4, "[IP] IPv4Handler called\n", "[IP] IPv4Handler called\n");
+    QuietTrace(ipv4, "[IP] From ", "\n");
+    QuietTrace(established, "[TCP] Payload received, data length: ", ", storing data\n");
+    QuietTrace(established, "[TCP] Data buffer now has ", " bytes\n");
+    QuietTrace(outgoing.Methods.Single(m => m.Name == "Send"), "[OutgoingBuffer] Sent via ARP cache\n", "[OutgoingBuffer] Sent via ARP cache\n");
+    if (!tcp.Fields.Any(f => f.Name == "_zenithQuietPacketTrace"))
+    {
+        var packetTrace = receive.Body.Instructions.First(i => i.Operand is MethodReference m
+            && m.DeclaringType.Name == "Serial" && m.Name == "WriteString");
+        if (packetTrace.OpCode != OpCodes.Call || ((MethodReference)packetTrace.Operand).Parameters.Count != 1)
+        { throw new InvalidOperationException("Cosmos TCP packet trace contract changed"); }
+        packetTrace.OpCode = OpCodes.Pop; packetTrace.Operand = null; changed = true;
+        tcp.Fields.Add(new FieldDefinition("_zenithQuietPacketTrace", FieldAttributes.Private | FieldAttributes.Static
+            | FieldAttributes.Literal | FieldAttributes.HasDefault, module.TypeSystem.Boolean) { Constant = true });
+    }
+    // Skipping only WriteString still formats TcpPacket.ToString for every frame.
+    // Remove the pinned first, side-effect-free interpolated trace expression too.
+    if (!tcp.Fields.Any(f => f.Name == "_zenithQuietPacketFormatting"))
+    {
+        var traceEnd = receive.Body.Instructions.First(i => i.OpCode == OpCodes.Pop);
+        var trace = receive.Body.Instructions.Take(receive.Body.Instructions.IndexOf(traceEnd) + 1).ToArray();
+        if (!trace.Any(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == "] ")
+            || trace.Any(i => i.OpCode.FlowControl is FlowControl.Branch or FlowControl.Cond_Branch or FlowControl.Return or FlowControl.Throw
+                || i.OpCode == OpCodes.Stfld || i.OpCode == OpCodes.Stsfld))
+        { throw new InvalidOperationException("Cosmos TCP packet formatting contract changed"); }
+        foreach (var instruction in trace) { instruction.OpCode = OpCodes.Nop; instruction.Operand = null; }
+        tcp.Fields.Add(new FieldDefinition("_zenithQuietPacketFormatting", FieldAttributes.Private | FieldAttributes.Static
+            | FieldAttributes.Literal | FieldAttributes.HasDefault, module.TypeSystem.Boolean) { Constant = true });
+        changed = true;
+    }
+    Console.WriteLine("Quieted pinned successful IPv4/TCP packet traces; errors remain enabled");
 }
 // Imports above can reintroduce the released patcher's redundant self edge.
 // Rebind again after all adaptations, immediately before writing the assembly.

@@ -104,6 +104,7 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     // Like the inode/indirection buffers, these belong to the volume's serialized
     // I/O path. Always reread metadata; reuse storage without caching disk state.
     private byte[]? _allocationBitmap, _zeroBlock, _groupDescriptorBuf, _superblockBuf;
+    private uint[]? _blockAllocationHints;
 
     /// <summary>Directory and metadata operations for this volume.</summary>
     public Ext2InodeOperations InodeOps { get; }
@@ -673,7 +674,12 @@ internal sealed class Ext2Superblock : IVfsSuperblock
             uint groupStart = FirstDataBlock + gi * BlocksPerGroup;
             uint max = Math.Min(BlocksPerGroup, BlocksCount - groupStart);
 
-            for (uint i = 0; i < max; i++)
+            // Continue sequential allocation near the previous result instead of
+            // rescanning all earlier allocated bits. Always wrap once so holes
+            // remain discoverable, including on a newly mounted volume.
+            uint[] hints = _blockAllocationHints ??= new uint[GroupsCount];
+            uint i = hints[gi] < max ? hints[gi] : 0;
+            for (uint examined = 0; examined < max; examined++)
             {
                 uint byteIdx = i / 8;
                 uint bitIdx = i % 8;
@@ -687,8 +693,10 @@ internal sealed class Ext2Superblock : IVfsSuperblock
                     blockNumber = groupStart + i;
                     byte[] zero = _zeroBlock ??= new byte[BlockSize];
                     WriteBlocks(blockNumber, 1, zero);
+                    hints[gi] = i + 1 < max ? i + 1 : 0;
                     return true;
                 }
+                if (++i == max) { i = 0; }
             }
         }
 
@@ -722,6 +730,8 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         bmp[byteIdx] &= (byte)~(1u << (int)bitIdx);
         WriteBlocks(gd.BlockBitmap, 1, bmp);
         gd.FreeBlocksCount++;
+        if (_blockAllocationHints is not null)
+        { _blockAllocationHints[group] = Math.Min(_blockAllocationHints[group], index); }
         FreeBlocksCount++;
         UpdateGroupDesc(group);
     }

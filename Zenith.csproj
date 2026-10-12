@@ -26,8 +26,10 @@
   </Target>
 
   <!-- HAL.X64 has no plug targets, so the SDK's filtered patch list skips it.
-       Adapt only its copied ILC reference after SDK patching, never the package. -->
+       Adapt its copied ILC reference and verify socket-header adaptation in Plugs
+       after SDK patching, before ILC caching; never modify installed packages. -->
   <Target Name="AdaptZenithE1000ReceiveFilter" BeforeTargets="CheckIlcCache" DependsOnTargets="RunPatcher" Condition="'$(CosmosArch)' == 'x64'">
+    <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.Plugs.dll&quot;" />
     <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.HAL.X64.dll&quot;" />
   </Target>
 

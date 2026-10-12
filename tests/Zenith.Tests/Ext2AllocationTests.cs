@@ -7,6 +7,23 @@ namespace Zenith.Tests;
 
 public class Ext2AllocationTests
 {
+    [Fact]
+    public void ExhaustedAllocatorReusesFreedHolesAcrossWrapAndRemount()
+    {
+        var (disk, sb) = Mount();
+        var allocated = new System.Collections.Generic.HashSet<uint>();
+        while (sb.TryAllocateBlock(0, out uint block)) { Assert.True(allocated.Add(block)); }
+        Assert.Equal(23, allocated.Count); Assert.Equal(0u, sb.FreeBlocksCount);
+        sb.FreeBlock(9); sb.FreeBlock(31);
+        var reused = new System.Collections.Generic.HashSet<uint>();
+        Assert.True(sb.TryAllocateBlock(0, out uint first)); reused.Add(first);
+        Assert.True(sb.TryAllocateBlock(0, out uint second)); reused.Add(second);
+        Assert.True(reused.SetEquals(new uint[] { 9, 31 }));
+        Assert.False(sb.TryAllocateBlock(0, out _));
+        Assert.True(Ext2Superblock.TryCreate(disk, out var remounted));
+        Assert.Equal(0u, remounted!.FreeBlocksCount);
+        Assert.Equal(0xa5, disk.Data[8 * 1024]);
+    }
     // Small synthetic one-group layout. Bitmap bit zero describes block ONE.
     internal sealed class Disk : IBlockDevice
     {

@@ -2,6 +2,14 @@
 
 ## Toolchain
 
+For local download performance, run `python3 -B tools/transfer-bench.py obj/transfer-bench`.
+It compares a burst HTTP payload to RAM ext2 and a disposable installed disk,
+records timings/throughput and Ethernet PCAPs, verifies local TCP windows and exact stored bytes, and independently audits
+ext2 after shutdown. `--disk-mib 16` exercises kernel-sized transfers while keeping
+the RAM test at 4 MiB. Timings include guest shell completion and are diagnostic,
+not a portable hardware performance guarantee. Set `QEMU` to the selected emulator
+or an explicit TCG wrapper for like-for-like measurements.
+
 | Tool | Used for |
 |---|---|
 | .NET SDK 10 (system `dotnet`) | Building Zenith and running the unit tests |

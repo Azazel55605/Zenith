@@ -94,10 +94,21 @@ the peer's receive window. The signature-checked build copy now routes all nonem
 ESTABLISHED payload through the existing acknowledge path. Its receive-range check
 uses TcpSegmentPolicy: exact next sequence and payload length within the window,
 including sequence wrap, rejecting gaps/duplicates without assembling corrupt data.
-ACK packets advertise Zenith's receive window rather than the peer's send window.
-The advertised 8 KiB window shrinks with unread bytes and reopens with an ACK when
+ACK and outgoing payload packets advertise Zenith's receive window rather than the peer's send window. The two SocketPlug.SendTcp constructor sites are checked explicitly in copied Plugs before ILC cache evaluation.
+The advertised 32,768-byte unscaled window shrinks with unread bytes and reopens with an ACK when
 the application drains data. This prevents a response from filling the buffer while
 the download loop writes to disk. The patch checks the upstream ACK flag value and
 the original branch structure before replacing them; it does not add TCP reassembly.
 Upstream source remains unchanged. Host policy tests and native real ELF-sized HTTP
 transfers cover this adaptation; the network lab remains a regression gate.
+
+Local transfer measurements exposed a sleep after every productive fetch read and
+high-volume successful-packet serial tracing. Fetch now drains ready data immediately
+and sleeps only when no data progressed. PatcherFixup removes only pinned informational
+IPv4/TCP trace statements and per-packet string formatting from build copies, retaining errors and status counters;
+repeat adaptation is byte-idempotent. Incoming data is stored in immutable 4 KiB
+chunks, copying at most a partial tail on append, and flattening a stable read snapshot
+on demand. Advance drops consumed references rather than copying the unread window.
+Unread bytes remain capped at 128 KiB; chunk storage may retain at most an additional
+4 KiB consumed prefix, plus a lazily cached snapshot of the unread bytes. There is no
+new TCP window-scale negotiation, reassembly or global whole-kernel memory guarantee.

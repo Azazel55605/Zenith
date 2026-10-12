@@ -7,6 +7,19 @@ namespace Zenith.Tests;
 public sealed class TcpBufferTests
 {
     [Fact]
+    public void PartialChunkDrainAppendAndHeldSnapshotsPreserveAllBytes()
+    {
+        var buffer = new BoundedTcpBuffer(); var first = new byte[10000];
+        for (int i = 0; i < first.Length; i++) { first[i] = (byte)i; }
+        Assert.True(buffer.Append(first)); var held = buffer.Data;
+        buffer.Advance(4500); Assert.True(buffer.Append(new byte[] { 7, 8, 9 }));
+        Assert.Equal(first, held.ToArray());
+        Assert.Equal(first.AsSpan(4500).ToArray(), buffer.Data.Slice(0, 5500).ToArray());
+        Assert.Equal(new byte[] { 7, 8, 9 }, buffer.Data.Slice(5500).ToArray());
+        buffer.Advance(5503); Assert.Empty(buffer.Data.ToArray());
+        Assert.True(buffer.Append(new byte[] { 1 })); Assert.Equal(new byte[] { 1 }, buffer.Data.ToArray());
+    }
+    [Fact]
     public void PartialConsumptionThenAppendPreservesUnreadBytesAndSnapshot()
     {
         var buffer = new BoundedTcpBuffer(); Assert.True(buffer.Append(new byte[] { 1, 2, 3, 4 }));

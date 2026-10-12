@@ -1,5 +1,47 @@
 # Implementation progress
 
+## 2026-10-12 · Local transfer throughput first
+
+- User prioritizes transfer speed; repository-driven package downloads/upgrades and
+  automatic build-pipeline discussion are deferred. Boot UI is outside this slice.
+- Added a burst HTTP benchmark on RAM ext2 and a disposable installed disk, with
+  Ethernet PCAP window checks, exact disk payload comparison and independent clean
+  e2fsck after shutdown. Original 4 MiB TCG timings: RAM 24.42 s (172 kB/s),
+  disk 24.76 s (169 kB/s). This points to substantial receive-path overhead.
+- Fetch drains productive reads immediately, sleeps only without progress, and
+  reuses one bounded read array per attempt. Existing timeout, retry, cancellation,
+  staging and destination-preservation policies remain unchanged.
+- TCP advertises at most 32,768 bytes, shrinking/reopening with unread data while
+  retaining the 128 KiB unread cap. Immutable 4 KiB chunks avoid copying the whole
+  unread window on every append/advance; held read snapshots stay stable.
+- PCAP exposed a separate outgoing-payload bug: SocketPlug.SendTcp used the peer's
+  send window in request headers. Both payload constructor sites now use the local
+  receive window, through a signature-checked build-copy adaptation. The old PCAP
+  fails the new guard; final live/installed captures pass (maximum window 32,768).
+  Plugs adaptation runs explicitly before the native compiler's cache check.
+- Removed pinned successful IPv4/TCP packet traces and their initial per-packet
+  formatting expression; error logs/counters remain. Repeat adaptation of copied
+  System/Plugs DLLs is byte-idempotent. Upstream/global packages are unchanged.
+  Ext2 uses rotating block-allocation hints, preserving freed-hole/wrap coverage;
+  metadata writes and flush guarantees are not deferred.
+- Final TCG measurement: RAM 4 MiB in 6.11 s (686 kB/s, 4.00x original RAM
+  baseline); installed 16 MiB in 87.94 s (191 kB/s). Disk bytes match exactly and
+  e2fsck is clean. An intermediate 4 MiB disk run measured 10.68 s (2.32x baseline).
+  Larger installed writes still slow progressively: this is a remaining storage/
+  allocation performance concern, not a demonstrated fully resolved throughput
+  ceiling. These emulator timings do not establish VMware or direct VPN performance.
+- Host suite passes 561/561; targeted filesystem tests pass 109/109. Release ISO
+  builds. Final native regression passes 180/180 (HTTP/HTTPS, faults, cancellation,
+  destination preservation, installed reboot and independent ext2 audit). CI adds the 16 MiB installed benchmark and retained PCAP/audit evidence;
+  hosted CI awaits push. Final evidence is retained under ignored obj/transfer-*
+  (build/host logs, transfer-bench-reuse/results.json and transfer-network-reuse.log).
+- Prepared signed kernel package 0.0.3 with the existing production key and verified
+  its signature. Kernel SHA256 a8410a0d1f91d843fd42019f953defeb8feff7d28f0728a90c5bcaebc47d6346;
+  archive SHA256 dca517a2461b0fc529fd0b83b903f95b025613940e4845b7de06921869716fa8
+  (16,089,406 bytes). Local VMware NAT relay 172.16.43.1:8081 serves exact verified
+  bytes from obj/vpn-relay. Nothing was deployed to 10.0.20.7. Real VMware retry is pending. Version
+  0.0.3 identifies this local update; a different subsequent kernel must use a newer version.
+
 ## 2026-10-12 · Slow VPN kernel fetch and stalled transfer investigation
 
 - User confirms nc reaches distributor 10.0.20.7:80, then reports direct VPN

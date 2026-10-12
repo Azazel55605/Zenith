@@ -129,6 +129,11 @@ jobs:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 -B tools/dhcp-receive-smoke.py smoke-dhcp-receive
 
+      - name: Local transfer integrity and throughput benchmark
+        env:
+          QEMU: /usr/bin/qemu-system-x86_64
+        run: python3 -B tools/transfer-bench.py smoke-transfer --disk-mib 16
+
       - name: IPv4 network lab (HTTP/HTTPS, certificates, DNS, NTP)
         env:
           QEMU: /usr/bin/qemu-system-x86_64
@@ -140,6 +145,7 @@ jobs:
           name: smoke-test-logs
           path: |
             smoke-dhcp-receive/
+            smoke-transfer/
             smoke/
             smoke-large/
             smoke-efi/

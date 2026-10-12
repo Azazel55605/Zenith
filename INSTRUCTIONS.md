@@ -46,7 +46,9 @@ guidance here so the two entry points stay consistent.
   Keep native fault/cancel/link-loss tests: Cosmos 3.0.89 skips unwind-finally and
   misclassifies typed catches. TLS uses the checksum-pinned offline Mbed TLS source archive and a fixed-memory
   freestanding bridge. Keep certificate/record/cancel/missing-entropy guest checks.
-  Home DNS is 10.0.10.3; the package VM is not provisioned. Actual VM/VPN acceptance
+  Home DNS is 10.0.10.3; the Debian package VM is 10.0.20.7. Manual builds/distribution
+  and a local-relay installed upgrade are user-confirmed; guest direct VPN stalls
+  remain under investigation. Actual VM/VPN acceptance
   remains separate from local test proof.
 - Shell sources must remain host-testable without Cosmos. Cosmos-dependent
   commands belong in `src/Core/Shell/Commands/SystemCommands.cs` and register at boot.
