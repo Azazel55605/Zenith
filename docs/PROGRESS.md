@@ -47,6 +47,13 @@
   establish installed-root readability. Forced RAM selection, missing disk or
   rejected filesystem/root discovery remain possibilities. Next checks are the
   selected ISO entry, lsblk and check-only fsck.ext2 of the unmounted root.
+- User's manual mount screenshot used the default FAT driver, so its error did
+  not identify the root as FAT. Subsequent fsck.ext2 sata0p1 reports "ext2 volume
+  is not clean" at the profile/state gate; no inode/block consistency audit has
+  yet run. The partition is recognized as supported-profile ext2, but dirty versus
+  error-marked state and actual consistency require independent inspection.
+  Requested the VMX/folder path and full power-off before copying/auditing VMDK;
+  e2fsck, qemu-img and losetup are available locally. Original disk remains untouched.
 
 ## 2026-10-12 · Distributor guest reachability investigation
 
