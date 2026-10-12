@@ -88,7 +88,7 @@ Details: [system plan](SYSTEM-PLAN.md), [userland](USERLAND.md),
 | 4 | Useful initial scripts/data packages | Install, upgrade, remove and reboot on a persistent Zenith VM against the user's server |
 | Next package priority | P4 signed online repository client | Signed index freshness/rollback checks, search, deterministic dependency resolution and bounded download/install by name |
 | 6 | M5 native loader/process/ABI then compiled tool unbundling; P5 | Protected execution, libc/toolchain foundation and independent base-tools/net-tools/fs-tools updates |
-| 0.0.2 user-confirmed; 0.0.3 updating | VMware installed kernel package upgrade | User confirmed 0.0.2 loaded and boot-confirmed; 0.0.3 speed update is in progress. Proxy TLS and direct VPN acceptance are separate; physical hardware and native app ABI remain separate |
+| 0.0.3 user-confirmed | VMware installed kernel package upgrade | User confirmed 0.0.3 installed and boot-confirmed. Proxy TLS and direct VPN acceptance are separate; physical hardware and native app ABI remain separate |
 | 7 | M6 proper DE/WM, Settings, customization, Files and GUI Editor overhaul | Shared toolkit/operations can start earlier; independent desktop/apps require M5 |
 | Later developer tools | Host GCC cross-SDK, terminal editor/Python feasibility, then on-system GCC | [Application/toolchain plan](APPLICATIONS.md); native ABI/libc/TTY and measured storage/resource gates |
 | 8 | R1/R2 saved roots, trial boot and restore | R0 backend/scope decision, explicit root selector, matched kernel/root/package inventory and interruption tests |

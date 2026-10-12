@@ -1,5 +1,20 @@
 # Implementation progress
 
+## 2026-10-12 · VMware kernel 0.0.3 confirmed
+
+- User confirms 0.0.3 is installed and boot-confirmed. This closes its actual
+  installed activation/confirmation gate; no independent VMware throughput result
+  or named HTTPS proxy acceptance was reported.
+- Next implementation priority is P4 signed online package discovery and delivery:
+  signed core/extra indexes and manual publisher support, refresh/search/planning,
+  bounded verified download and installed script/data transactions by name, followed
+  by upgrade planning/apply and installed-reboot checks. Preserve P3's separate
+  kernel confirmation/rollback boundary. Automatic builds remain deferred.
+- Signed 0.0.4 already contains the progress UI; it is a separate optional update
+  before testing that UI, not a prerequisite for developing the online client.
+  Proxy certificate hostname setup remains a parallel deployment prerequisite for
+  using zenith-stable.net.local through verified HTTPS.
+
 ## 2026-10-12 · Public signing key on local relay
 
 - Copied the existing signing public key to obj/vpn-relay/public.pem; the running
