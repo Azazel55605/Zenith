@@ -115,8 +115,10 @@ See [NETWORKING](NETWORKING.md) for the current LAN/CA bootstrap test procedure.
 ## Offline delivery foundation now implemented
 
 [P1 packages](PACKAGES.md) define signed .zpk files, core/extra section identities
-and a reusable offline transaction engine. Ship artifacts under content-addressed
-paths; host tooling signs with RSA-PSS/SHA256 outside the served tree. The current
+and a reusable offline transaction engine. The manual kit publishes immutable
+name/version directories with signed payloads and archive digest receipts;
+content-addressed index paths remain a P4 design. Host tooling signs with
+RSA-PSS/SHA256 outside the served tree. The current
 client pins an exact public PEM fingerprint explicitly and accepts signed files
 from local storage or manual fetch. TLS CA trust is configured separately.
 

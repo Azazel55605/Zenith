@@ -1,8 +1,20 @@
 # Zenith project history
 
-History through M3 LAN client completion (2026-10-11). This is a narrative and change map, not a claim
+History through Debian distributor kit preparation (2026-10-12). This is a narrative and change map, not a claim
 that every planned feature shipped. Exact commits are available through `git log`;
 [PROGRESS](PROGRESS.md) contains detailed M2 validation, failures and corrections.
+
+## 2026-10-12: real VM kernel update and Debian distributor preparation
+
+The user reports successful VMware networking after E1000E broadcast/receive fixes
+and a successful manual signed installed-kernel upgrade. Explicit boot-confirm
+status remains unreported. The next dedicated home VM will use a Debian template
+and perform both trusted release builds and distribution. `d24a4ae` introduces the
+[deployment kit](../deploy/distributor/README.md): clean-commit build/test/sign,
+signature-checked immutable core/extra publication and read-only nginx hosting.
+Publisher tests and a full local build workflow pass. Actual VM provisioning,
+LAN/VPN/DNS, nginx and HTTPS acceptance await the user's VM details. Signed online
+indexes and installation by name remain P4, rather than claims made by the static kit.
 
 ## 2026-10-05: initial system and project identity
 

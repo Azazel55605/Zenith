@@ -26,9 +26,14 @@
   byte-exact HTTP fetch/reverification, tamper/wrong-key/identity rejection,
   immutable versions, invisible/failed staging and concurrent publisher refusal.
   Shell/Python syntax and `git diff --check` pass. CI includes the publisher suite;
-  hosted CI awaits push. Full build-workflow validation is next. Actual Debian
+  hosted CI awaits push. The full workflow also passes against committed source
+  d24a4ae: 558/558 host tests, Release ISO/ELF build, real ELF-sized signing,
+  signature verification and complete atomic publication. It used a disposable
+  test key and temporary root; it did not alter the user's signing key or guest.
+  Actual Debian
   provisioning/nginx syntax and VM/LAN/VPN/Zenith acceptance remain pending.
-  Evidence: /tmp/zenith-distributor-tests.log.
+  Evidence: /tmp/zenith-distributor-tests.log, /tmp/zenith-distributor-workflow.log
+  and obj/distributor/release-Zkjx62rf/{tests,build,package-tool}.log.
 
 ## 2026-10-11 · Receive polling when NIC interrupts are absent
 
