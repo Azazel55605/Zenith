@@ -80,6 +80,14 @@
   updating the VM's disk reference. The original VMDK remains the pre-repair backup.
   Evidence: that directory's e2fsck logs and copied serial boot transcripts;
   /tmp/zenith-vmware-original-boot.log and /tmp/zenith-vmware-repaired-boot.log.
+- User confirmed the VM is off and authorized permanent relocation/configuration.
+  With no vmware-vmx process, moved the active recovered VMDK into
+  /home/azazel/VMs/Zenith/Zenith-recovered.vmdk and verified identical bytes
+  (SHA256 515ab9c501d194c6f30f36bf44bc1a58af1c7daf3e77af0982392512a375f864).
+  Backed up Zenith.vmx as Zenith.vmx.before-disk-move-20261012-8481420e and atomically
+  changed only sata0:0.fileName to the relative recovered filename. The scratch
+  source is removed; original Zenith-0.vmdk still matches the pre-repair checksum.
+  Workstation must reload the VM configuration before its next start.
 
 ## 2026-10-12 · Distributor guest reachability investigation
 
