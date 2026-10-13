@@ -84,8 +84,12 @@ def main():
         ]
         if args.test_session_override:
             steps.append(("session status | logger", "active=de (boot argument)"))
-            steps.append(("man settings | head -1 | logger", "SETTINGS AND SESSION FOUNDATION"))
-            steps.append(("man pkg | head -1 | logger", "SIGNED OFFLINE SCRIPT/DATA PACKAGES"))
+            # Full manuals now belong to zenith-man-pages, whose installation is
+            # covered by native-process-smoke. Check actual persisted settings and
+            # recovery help here rather than pinning an obsolete editorial title.
+            steps.append(("settings show | logger", "scope: system; storage: installed"))
+            steps.append(("man headless | head -1 | logger", "SERIAL HEADLESS SESSION"))
+            steps.append(("man pkg | grep update | logger", "update [--yes]"))
         try:
             for line, expected in steps:
                 offset = len(machine.raw_log())

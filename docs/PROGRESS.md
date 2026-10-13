@@ -1,5 +1,25 @@
 # Implementation progress
 
+## 2026-10-13 · Release refs and installed-boot CI follow-up
+
+- Commit 764fb12 and independent kernel/v0.0.8, zenith-docs/v0.1.1,
+  zenith-man-pages/v0.1.0, zenith-fonts/v0.1.0 and sunbeam-tools/v0.1.0 tags are
+  pushed to the verified owner repository. Working tree was clean afterward.
+  Server 0.0.7 receipt is reachable and identifies the expected immutable source
+  and signing key; new 0.0.8 receipt still returns 404. Operator must pull controller
+  recipes, install GCC and redeploy dashboard before consuming new data tags.
+- Inspecting preceding hosted CI run 38435516631 identifies 9/10 installed EFI
+  checks passing; boot, persistent ownership and independent ext2 audit succeeded.
+  The failure is an obsolete assertion for the old offline-only `man pkg` title,
+  not a boot hang. Current full manuals now ship independently, so the installed
+  boot harness checks persisted settings, headless recovery documentation and pkg
+  update help; full package-manual installation stays in native-process-smoke.
+  Local disposable installed-UEFI regression passes 11/11 with session override,
+  persisted settings/recovery help, clean poweroff and independent ext2 audit:
+  /tmp/zenith-efi-008.log, /tmp/zn-efi-008. Base installed-boot checks also pass 7/7.
+  Existing release tags remain immutable. Hosted unit tests for 764fb12 passed;
+  hosted build/native jobs remain in progress.
+
 ## 2026-10-13 · Storage maintenance, system update and native userland (locally verified; distributor deployment next)
 
 - Implemented bounded distributor storage reporting and cleanup under shared worker/publication locks: preserve active work, latest failed checkout and two diagnostic attempts, expire other inactive failures after seven days, cap inactive logs at 1 MiB. Registered orphan validation workspaces require matching ownership records before deletion. Dashboard shows disk space, build allocation and cleanup policy. Nine maintenance tests and 16 dashboard API tests pass. Chromium/Firefox desktop and mobile-width browser checks pass; rendered storage values, policy and warnings are verified.
