@@ -1,6 +1,6 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
-let snapshot = null, selectedTag = null, repository = "all", refreshing = false, submitting = false, warningNotice = false;
+let snapshot = null, selectedTag = null, repository = "all", refreshing = false, submitting = false, warningNotice = false, logView = "auto";
 const date = (value) => {
   if (!value) return "—";
   const d = typeof value === "number" ? new Date(value * 1000) : new Date(value);
@@ -35,20 +35,31 @@ function builds() {
     const tr=document.createElement("tr"); tr.classList.toggle("selected-row",item.tag===selectedTag);
     const status=cell(""); const label=document.createElement("span"); label.textContent=item.status.charAt(0).toUpperCase()+item.status.slice(1); label.className=`status ${["building","complete","failed","interrupted"].includes(item.status)?item.status:""}`; status.append(label); status.title=item.error;
     const action=cell(""); const button=document.createElement("button"); button.textContent="View log"; button.setAttribute("aria-label",`View log for ${item.tag}`);
-    button.addEventListener("click",()=>{selectedTag=item.tag; builds(); updateLog();}); action.append(button);
+    button.addEventListener("click",()=>{selectedTag=item.tag; logView="auto"; builds(); updateLog();}); action.append(button);
     tr.append(cell(item.tag),cell(item.commit.slice(0,7),"commit"),status,cell(date(item.started)),action); body.append(tr);
   }
   if (!snapshot.builds.length) empty(body,"No tagged builds recorded yet. Run now checks for release tags.");
 }
 async function updateLog() {
   $("log-title").textContent=selectedTag ? `Build log · ${selectedTag}` : "Build log";
-  $("log-hint").textContent=selectedTag ? "Latest 64 KiB · refreshes automatically" : "Select a build to view its log";
+  $("log-hint").textContent=selectedTag ? "Live phase output · refreshes every 5 seconds" : "Select a build to view its log";
   $("log-open").hidden=!selectedTag;
-  if (!selectedTag) { $("log").textContent="No build selected."; return; }
-  const tag=selectedTag;
-  const path=`build-output?build=${encodeURIComponent(tag.replace("/","-"))}`;
+  if (!selectedTag) { $("log").textContent="No build selected."; $("phase-summary").textContent=""; $("phase-diagnostic").hidden=true; return; }
+  const tag=selectedTag, view=logView;
+  const path=`build-output?build=${encodeURIComponent(tag.replace("/","-"))}&view=${encodeURIComponent(logView)}`;
   $("log-open").href=`./api/${path}`;
-  try { const data=await request(path); if(tag!==selectedTag)return;
+  try { const data=await request(path); if(tag!==selectedTag || view!==logView)return;
+    const select=$("log-view"); select.replaceChildren();
+    for(const [value,label] of [["auto","Current phase"],["controller","Controller history"],...(data.phases || []).map((phase,index)=>[String(index),`${phase.name} · ${phase.status}`])]) {
+      const option=document.createElement("option"); option.value=value; option.textContent=label; select.append(option);
+    }
+    select.value=logView;
+    const phase=(data.phases || [])[data.selected], build=snapshot?.builds.find(item=>item.tag===tag);
+    const elapsed=phase ? `${Math.floor(phase.elapsed/60)}m ${Math.floor(phase.elapsed%60)}s` : "";
+    const age=phase?.updated ? Math.max(0,Math.floor(Date.now()/1000-phase.updated)) : null;
+    $("phase-summary").textContent=phase ? `Build ${build?.status || "unknown"} · ${phase.name} · ${phase.status} · ${elapsed} · ${age===null?"waiting for output":`last output ${age}s ago`}` : "Detailed phase output is available for builds started with the updated controller.";
+    $("phase-diagnostic").hidden=!data.diagnostic;
+    $("phase-diagnostic").textContent=data.diagnostic ? `${data.diagnostic.includes("falling back to tcg")?"Software emulation: KVM unavailable in this guest.\n":"Guest diagnostics\n"}${data.diagnostic}` : "";
     const log=$("log"), atBottom=log.scrollTop+log.clientHeight>=log.scrollHeight-20;
     if (log.textContent!==data.text) { log.textContent=data.text; if(atBottom)log.scrollTop=log.scrollHeight; }
   } catch(error) { if(tag===selectedTag)$("log").textContent=error.message; }
@@ -72,6 +83,7 @@ $("run").addEventListener("click",async()=>{
   try { const data=await request("run",{method:"POST",headers:{"Content-Type":"application/json","X-Zenith-CSRF":snapshot.csrf},body:"{}"}); notice(data.message); }
   catch(error){notice(error.message,true);} finally{submitting=false; await refresh();}
 });
+$("log-view").addEventListener("change",()=>{logView=$("log-view").value; updateLog();});
 $("filter").addEventListener("input",packages);
 document.querySelectorAll("[data-repo]").forEach(button=>button.addEventListener("click",()=>{
   repository=button.dataset.repo; document.querySelectorAll("[data-repo]").forEach(item=>{const active=item===button;item.classList.toggle("selected",active);item.setAttribute("aria-pressed",String(active));}); packages();

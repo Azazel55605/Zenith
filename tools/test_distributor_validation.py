@@ -21,6 +21,7 @@ def module(name, path):
 
 runner = module('validation_runner', ROOT / 'deploy/distributor/validation-runner.py')
 release = module('release', ROOT / 'deploy/distributor/release.py')
+output = module('build_output', ROOT / 'deploy/distributor/build_output.py')
 
 class ValidationTests(unittest.TestCase):
     def setUp(self):
@@ -98,5 +99,37 @@ class ValidationTests(unittest.TestCase):
         (self.root / 'phase-times.json').write_text('{}')
         release.phase_timing(self.root / 'fail.log', 'failure', time.monotonic(), 'failed')
         self.assertEqual('{}', (self.root / 'phase-times.json').read_text())
+
+    def test_dashboard_snapshot_is_bounded_and_excludes_guest_serial(self):
+        path = self.root / 'build.details.json'; log = self.root / 'phase.log'
+        log.write_text('x' * 50000 + '\nok rollback verified\n')
+        keep = self.root / 'native/k'; guest = keep / 'previous'; guest.mkdir(parents=True)
+        (guest / 'qemu.log').write_text('KVM permission denied; falling back to tcg\n')
+        (guest / 'serial.log').write_text('private password input')
+        reporter = output.Reporter(path); reporter.start('Native kernel-update-smoke.py')
+        reporter.update(log, ['runner', str(keep)], 1600, force=True)
+        row = json.loads(path.read_text())['phases'][0]
+        self.assertLessEqual(len(row['text']), output.LIMIT)
+        self.assertIn('rollback verified', row['text']); self.assertIn('falling back', row['diagnostic'])
+        self.assertNotIn('private password', path.read_text())
+        self.assertEqual(0o640, path.stat().st_mode & 0o777)
+        reporter.update(log, ['runner', str(keep)], 1601, 'passed', force=True)
+        self.assertEqual('passed', json.loads(path.read_text())['phases'][0]['status'])
+
+    def test_snapshot_failure_does_not_fail_build(self):
+        reporter = output.Reporter(self.root / 'missing/build.details.json'); reporter.start('Build')
+        log = self.root / 'phase.log'; log.write_text('output')
+        reporter.update(log, [], 1, force=True)
+
+    def test_release_phase_exports_actual_child_output_and_failure(self):
+        path = self.root / 'build.details.json'
+        with patch.dict(os.environ, ZENITH_BUILD_OUTPUT=str(path)), \
+             patch.object(release.build_output, 'reporter', None), patch.object(release, 'REPO', self.root):
+            release.phase('Tests', [sys.executable, '-c', "print('ok real child output')"], self.root / 'tests.log')
+            with self.assertRaisesRegex(ValueError, 'Compile failed'):
+                release.phase('Compile', [sys.executable, '-c', "print('actual compiler failure'); raise SystemExit(2)"], self.root / 'build.log')
+        rows = json.loads(path.read_text())['phases']
+        self.assertEqual(['passed', 'failed'], [row['status'] for row in rows])
+        self.assertIn('real child output', rows[0]['text']); self.assertIn('compiler failure', rows[1]['text'])
 
 if __name__ == '__main__': unittest.main()

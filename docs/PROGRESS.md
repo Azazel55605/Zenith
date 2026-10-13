@@ -1,5 +1,33 @@
 # Implementation progress
 
+## 2026-10-13 · Detailed distributor phase output
+
+- User's native log has reached real kernel activation/confirmation and retained
+  rollback verification. Fresh release-account diskless probe reports KVM enabled;
+  collected QEMU logs from several attempts show permission denial/TCG fallback.
+  Current guest acceleration is not independently identified from that mixed output.
+  Supplied distributor unit has no device sandbox. Older process credentials versus
+  fresh probe credentials remain a likely explanation; let current acceptance finish.
+- New workers expose bounded phase snapshots in state BUILD-ID.details.json, mode
+  0640, independent of private build-directory permissions. Publish phase stdout
+  tails and latest QEMU stderr, not serial/password input. New retry resets the old
+  snapshot; history remains append-only. Observation failure cannot alter gates.
+- Dashboard selects current/completed phase or controller history; shows individual
+  test results, phase status/duration, output age, build status and TCG diagnostics.
+  Existing/active old-controller jobs retain history with an explanation rather
+  than pretending detailed snapshots exist. Source pull and /opt dashboard reinstall
+  are required after current worker finishes; no package tag movement needed.
+- Validation: 17 poll, 16 release, 12 disposable HTTP dashboard and 10 copy/reporting
+  regressions pass (55 total), covering bounded snapshots, permissions, no serial
+  exposure, phase selection, invalid IDs/views and symlink refusal. Browser plugin
+  not available; regular Playwright verifies Chromium 1505x1045/390x844 and Firefox
+  default viewport against http://127.0.0.1:8769/manage/. Identity, meaningful render,
+  no framework overlay, healthy console, phase/history switching, diagnostics and
+  automatic output updates pass; mobile has no page overflow. Initial string-based
+  wait predicate hit CSP unsafe-eval refusal; function predicates keep CSP intact.
+  Screenshots visually inspected: /tmp/zenith-detail-{chromium,mobile,firefox}.png.
+  Actual server UI installation and new-worker KVM behavior remain operator-run.
+
 ## 2026-10-13 · Distributor build efficiency
 
 - User's TrueNAS-hosted Debian VM exposes /dev/kvm (root:kvm, group read/write).

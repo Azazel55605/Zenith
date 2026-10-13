@@ -72,7 +72,17 @@ only to /manage/. Keep this manager on the existing LAN/VPN network.
   record with no active poll appears Interrupted. State during Git fetching/index
   renewal is shown through the busy button even when no individual tag is building.
 - The display refreshes every five seconds while visible. Logs are limited to the
-  latest 64 KiB; full logs remain on disk. Package inventory comes from unsigned
+  latest 64 KiB of controller history or 16 KiB of a selected phase; full logs
+  remain on disk. Builds launched with the updated controller expose individual
+  compiler/test results, phase status/duration, time since new output and latest
+  QEMU stderr (including KVM permission/fallback messages). Select Current phase,
+  a completed phase, or Controller history. Old builds keep their existing history
+  and show an explanatory message; detailed output is not retroactively collected.
+  New attempt snapshots replace the prior attempt's details while append-only
+  controller history retains earlier failures. Build status is displayed separately
+  from phase status, so an interrupted job does not appear healthy because its last
+  phase snapshot said Running.
+  Package inventory comes from unsigned
   release receipts and does not independently attest signatures. Published time
   is receipt modification time. It covers tagged polling releases; the legacy
   manual release command does not create tag records.
@@ -82,6 +92,12 @@ only to /manage/. Keep this manager on the existing LAN/VPN network.
   /manage/api/log?tag=... endpoint remains available for diagnostics. Updating the
   source alone does not update /opt/zenith-dashboard: rerun install-dashboard.sh
   and reload the browser after changing dashboard files.
+- The worker exports only bounded phase/QEMU-stderr snapshots to
+  BUILD-ID.details.json (0640) in the existing distributor state directory. The
+  dashboard still has no access to signing keys/private validation directories;
+  serial transcripts/password input are excluded. Snapshot failures do not bypass
+  or fail release validation. Updating the controller does not alter an already
+  running worker; let it finish before pulling source and reinstalling the UI.
 - Next run is calculated from systemd's monotonic timer deadline; while a poll is
   active it shows After current run because the timer waits for completion before
   starting its interval. Dates follow the browser's local timezone/locale.

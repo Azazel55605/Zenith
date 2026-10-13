@@ -90,9 +90,12 @@ def execute(config, checkout, version, recipe):
 
 
 def launch(checkout, version, recipe, log):
+    details = Path(log.name).with_suffix(".details.json")
+    details.unlink(missing_ok=True)
+    environment = dict(os.environ, ZENITH_BUILD_OUTPUT=str(details))
     process = subprocess.Popen([sys.executable, str(HERE / "poll.py"), "--execute", str(checkout),
                                 "--version", version, "--recipe", json.dumps(recipe)],
-                               stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+                               stdout=log, stderr=subprocess.STDOUT, start_new_session=True, env=environment)
     try: return process.wait()
     except BaseException:
         if process.poll() is None:

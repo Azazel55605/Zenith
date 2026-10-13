@@ -389,3 +389,7 @@ footer {
         transition:none
     }
 }
+.log-tools {display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:12px 0;color:var(--muted);font-size:12px}
+.log-tools select {max-width:100%;background:#0e1928;color:#dce5f2;border:1px solid var(--line);border-radius:5px;padding:7px}
+.phase-diagnostic {white-space:pre-wrap;overflow-wrap:anywhere;background:#312b20;color:#f1d5a0;border:1px solid #645438;border-radius:5px;padding:10px;margin-bottom:10px;font:12px/1.5 ui-monospace,monospace}
+.log-panel pre {height:240px}

@@ -146,6 +146,29 @@ class Dashboard:
         if build not in tags: raise ValueError("unknown build")
         return self.log(tags[build])
 
+    def detailed_output(self, build, view="auto"):
+        text = self.output(build)
+        result = dict(text=text, phases=[], selected="controller", diagnostic="", refreshed=None)
+        path = self.state / (build + ".details.json")
+        if not path.exists(): return result
+        details = json.loads(read_file(path, 1048576))
+        if not isinstance(details, dict): raise ValueError("invalid phase output")
+        rows = details.get("phases", [])
+        if not isinstance(rows, list) or len(rows) > 32: raise ValueError("invalid phase output")
+        for row in rows:
+            if not isinstance(row, dict) or row.get("status") not in ("running", "passed", "failed", "interrupted"):
+                raise ValueError("invalid phase output")
+            if not all(isinstance(row.get(key), (int, float)) for key in ("started", "elapsed")):
+                raise ValueError("invalid phase timing")
+            result["phases"].append({key: row.get(key) for key in ("name", "status", "started", "elapsed", "updated")})
+        if view != "controller" and rows:
+            index = len(rows) - 1 if view == "auto" else int(view)
+            if not 0 <= index < len(rows): raise ValueError("unknown phase")
+            row = rows[index]
+            result.update(text=str(row.get("text", ""))[-16384:], diagnostic=str(row.get("diagnostic", ""))[-16384:], selected=str(index))
+        result["refreshed"] = details.get("refreshed")
+        return result
+
     def run(self):
         with self.run_lock:
             status = self.snapshot()
@@ -177,7 +200,9 @@ class Handler(BaseHTTPRequestHandler):
             if url.path == "/manage/api/build-output":
                 builds = urllib.parse.parse_qs(url.query).get("build", [])
                 if len(builds) != 1: raise ValueError("supply one build ID")
-                return self.reply(200, {"text": self.server.dashboard.output(builds[0])})
+                views = urllib.parse.parse_qs(url.query).get("view", ["auto"])
+                if len(views) != 1: raise ValueError("supply one view")
+                return self.reply(200, self.server.dashboard.detailed_output(builds[0], views[0]))
             files = {"/manage/": ("index.html", "text/html; charset=utf-8"),
                      "/manage/style.css": ("style.css", "text/css; charset=utf-8"),
                      "/manage/app.js": ("app.js", "text/javascript; charset=utf-8"),

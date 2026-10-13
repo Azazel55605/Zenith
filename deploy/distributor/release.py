@@ -26,6 +26,8 @@ TOOL = REPO / "tools/Zenith.PackageTool/bin/Release/net10.0/Zenith.PackageTool.d
 spec = importlib.util.spec_from_file_location("publisher", REPO / "tools/publish-package.py")
 publisher = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(publisher)
+spec = importlib.util.spec_from_file_location("build_output", Path(__file__).parent / "build_output.py")
+build_output = importlib.util.module_from_spec(spec); spec.loader.exec_module(build_output)
 
 
 def version(value):
@@ -109,12 +111,14 @@ def phase(label, command, log):
     print(label + " — " + str(log), flush=True)
     started = time.monotonic()
     last_update = started
+    observer = build_output.start(label)
     with log.open("wb") as output:
         process = subprocess.Popen(command, cwd=REPO, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
         try:
             while process.poll() is None:
                 time.sleep(0.2)
                 now = time.monotonic()
+                if observer: observer.update(log, command, now - started)
                 if now - last_update >= (5 if sys.stdout.isatty() else 60):
                     if sys.stdout.isatty(): print("\r" + label + " running; see " + str(log), end="", flush=True)
                     else: print(label + " still running after " + str(int(now - started)) + "s; see " + str(log), flush=True)
@@ -125,9 +129,11 @@ def phase(label, command, log):
             try: process.wait(timeout=10)
             except subprocess.TimeoutExpired: os.killpg(process.pid, signal.SIGKILL); process.wait()
             phase_timing(log, label, started, "interrupted")
+            if observer: observer.update(log, command, time.monotonic() - started, "interrupted", force=True)
             raise
     if sys.stdout.isatty(): print()
     phase_timing(log, label, started, "failed" if process.returncode else "passed")
+    if observer: observer.update(log, command, time.monotonic() - started, "failed" if process.returncode else "passed", force=True)
     if process.returncode:
         tail = log.read_text(errors="replace").splitlines()[-20:]
         raise ValueError(label + " failed; full log: " + str(log) + "\n" + "\n".join(tail))

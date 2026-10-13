@@ -97,6 +97,23 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(200, code); self.assertIn("Host tests", json.loads(body)["text"])
         self.assertEqual(400, self.request("/manage/api/build-output?build=../../private.pem")[0])
 
+    def test_detailed_phase_selection_fallback_and_symlink_refusal(self):
+        path = self.state / 'kernel-v0.0.7.details.json'
+        path.write_text(json.dumps(dict(refreshed=123, phases=[
+            dict(name='Host tests', status='passed', started=100, elapsed=4, updated=104, text='tests passed'),
+            dict(name='Native kernel', status='running', started=105, elapsed=1600, updated=1705,
+                 text='ok rollback verified', diagnostic='falling back to tcg')])) )
+        route='/manage/api/build-output?build=kernel-v0.0.7'
+        code, body, _ = self.request(route); data=json.loads(body)
+        self.assertEqual(200, code); self.assertEqual('ok rollback verified', data['text'])
+        self.assertEqual('falling back to tcg', data['diagnostic'])
+        self.assertEqual('tests passed', json.loads(self.request(route+'&view=0')[1])['text'])
+        self.assertIn('Host tests passed', json.loads(self.request(route+'&view=controller')[1])['text'])
+        self.assertEqual(400, self.request(route+'&view=100')[0])
+        self.assertEqual(400, self.request(route+'&view=../../private.pem')[0])
+        path.unlink(); path.symlink_to(self.root / 'secret'); (self.root / 'secret').write_text('private')
+        self.assertNotIn(b'private', self.request(route)[1])
+
     def test_inventory_groups_and_rejects_malformed_or_symlink_receipts(self):
         path = self.packages / "extra/zenith-docs/0.1.0"; path.mkdir(parents=True)
         receipt = path / "release.json"
