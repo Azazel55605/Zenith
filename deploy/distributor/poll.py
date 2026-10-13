@@ -82,8 +82,18 @@ def execute(config, checkout, version, recipe):
     elif kind == "kernel":
         release.build(config, version, native=True)
     else:
-        subprocess.run(["dotnet", "test", "tests/Zenith.Tests", "-c", "Release"], cwd=checkout, check=True)
-        release.data(config, name, version, checkout / recipe["payload"], repository)
+        preparation = checkout / "obj/distributor/preparation"
+        preparation.mkdir(parents=True, exist_ok=True)
+        release.phase("Host tests", ["dotnet", "test", "tests/Zenith.Tests", "-c", "Release"], preparation / "tests.log")
+        payload = checkout / recipe["payload"]
+        if recipe.get("generate") == "manuals":
+            release.phase("Generate manuals", ["dotnet", "run", "--project", "tools/Zenith.ManualBuilder", "--", str(payload)], preparation / "generate.log")
+        elif recipe.get("generate") == "fonts":
+            release.phase("Generate fonts", [sys.executable, "-B", str(checkout / "tools/build-font-package.py"), str(payload)], preparation / "generate.log")
+        elif recipe.get("generate") == "native":
+            release.phase("Build native tool", [sys.executable, "-B", str(checkout / "tools/build-userland.py"), str(payload), "--version", version], preparation / "generate.log")
+        elif recipe.get("generate") is not None: raise ValueError("unknown package generator")
+        release.data(config, name, version, payload, repository, native=recipe.get("generate") == "native")
     release.verify(config, version, name, repository, kind)
     # Also renew indexes when recovering an already-published release.
     if existing: release.indexes(config)
@@ -162,6 +172,7 @@ def poll(remote, state, recipes, retry=None):
         if queued:
             if queued not in records: raise ValueError("unknown queued retry tag")
             retry = queued
+        storage_maintenance(state, records, config)
         failures = []
         for tag, commit, version, recipe in found:
             entry = records[tag]
@@ -194,12 +205,23 @@ def poll(remote, state, recipes, retry=None):
                     output.write("Controller " + entry["status"] + ": " + entry["error"] + "\n")
                 print(tag + ": " + str(error), file=sys.stderr, flush=True)
                 if not isinstance(error, Exception): raise
+        storage_maintenance(state, records, config)
         if failures: raise ValueError("failed releases: " + ", ".join(failures))
         renewal = state / "index-renewal.json"
         previous = json.loads(renewal.read_text())["finished"] if renewal.exists() else 0
         if time.time() - previous >= 86400:
             release.indexes(config)
             save(renewal, dict(finished=int(time.time())))
+
+
+def storage_maintenance(state, records, config):
+    if not config.get("root"): return
+    try:
+        report = release.maintenance.run(state, records, config)
+        for warning in report.get("warnings", []): print("Storage: " + warning, file=sys.stderr, flush=True)
+        if report.get("removed"): print("Storage cleanup removed " + str(len(report["removed"])) + " obsolete artifacts", flush=True)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print("Storage maintenance deferred: " + str(error), file=sys.stderr, flush=True)
 
 
 def main():

@@ -38,10 +38,10 @@ internal static class FileSystemLayout
         WriteIfMissing(root + "/etc/zenith/session.conf", "VERSION=1\nSESSION=de\n");
         WriteIfMissing(root + "/etc/motd", "Welcome to Zenith. Type 'help' to list commands.\n");
         WriteIfMissing(root + "/etc/profile", "export PATH=/bin\nexport EDITOR=edit\n");
-        // System documentation is refreshed on every boot.
+        // Keep small recovery manuals; independently packaged manuals are never overwritten.
         foreach (var (name, text) in ManualPages.Pages)
         {
-            File.WriteAllText(root + ManualPages.Directory + "/" + name + ".txt", text + "\n");
+            WriteIfMissing(root + ManualPages.Directory + "/" + name + ".txt", text + "\n");
         }
 
         if (File.ReadAllText(root + "/etc/passwd").Contains("\nuser:x:") || File.ReadAllText(root + "/etc/passwd").StartsWith("user:x:"))

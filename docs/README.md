@@ -56,3 +56,6 @@ real accounts/authentication and filesystem access enforcement are verified;
 implementation slice must be selected explicitly from the expanded roadmap.
 
 - [Signed offline packages](PACKAGES.md): core/extra, authenticated scripts/data installation, dependencies/conflicts and recovery.
+
+- [Native programs](NATIVE-PROGRAMS.md): first protected x86_64 ELF ABI, signed
+  executable installation, limits and remaining process/app migration.

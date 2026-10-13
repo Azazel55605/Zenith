@@ -143,3 +143,6 @@ Local acceptance uses disposable state/receipts and stubbed systemd start calls;
 real Debian service/sudo/nginx/Zoraxy activation remains operator-run. To inspect
 the direct backend over SSH without nginx, forward local port 8090 to the VM's
 127.0.0.1:8090; do not expose the unauthenticated backend directly on the LAN.
+
+Build storage reports now display free/total space, controller-state allocation and
+automatic retention results. See [storage policy](../../docs/PACKAGE-SERVER.md#build-storage-maintenance-and-new-package-recipes-008-source).

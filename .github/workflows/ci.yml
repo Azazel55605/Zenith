@@ -35,6 +35,7 @@ jobs:
       - run: python3 -B tools/test_distributor_release.py
       - run: python3 -B tools/test_distributor_poll.py
       - run: python3 -B tools/test_distributor_validation.py
+      - run: python3 -B tools/test_distributor_maintenance.py
       - run: python3 -B tools/test_distributor_dashboard.py
       - run: python3 -B tools/test_dashboard_setup.py
 
@@ -129,6 +130,12 @@ jobs:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 -B tools/kernel-update-smoke.py smoke-kernel
 
+      - name: Protected native executable packages
+        timeout-minutes: 20
+        env:
+          QEMU: /usr/bin/qemu-system-x86_64
+        run: python3 -B tools/native-process-smoke.py smoke-native
+
       - name: VMware-profile DHCP receive lab (Ethernet unicast and broadcast)
         env:
           QEMU: /usr/bin/qemu-system-x86_64
@@ -175,6 +182,8 @@ jobs:
             smoke-network/
             smoke-packages/
             smoke-kernel/
+            smoke-native/
+            !smoke-native/keys/**
             !smoke-kernel/keys/**
             !smoke-packages/keys/**
 

@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Zenith.Core.Packages;
 
 namespace Zenith.Gui.Graphics;
 
-/// <summary>The shell's fonts, decoded once from <see cref="EmbeddedFonts"/>.</summary>
+/// <summary>The shell's fonts, loaded from signed installed data with embedded recovery fallbacks.</summary>
 internal static class Fonts
 {
     private static FontFace? s_regular;
@@ -18,9 +21,28 @@ internal static class Fonts
 
     public static void Load()
     {
-        s_regular ??= new FontFace(Convert.FromBase64String(EmbeddedFonts.InterRegular));
-        s_semiBold ??= new FontFace(Convert.FromBase64String(EmbeddedFonts.InterSemiBold));
-        s_mono ??= new FontFace(Convert.FromBase64String(EmbeddedFonts.HackRegular));
+        s_regular ??= LoadFont("Inter-Regular.ttf", EmbeddedFonts.InterRegular);
+        s_semiBold ??= LoadFont("Inter-SemiBold.ttf", EmbeddedFonts.InterSemiBold);
+        s_mono ??= LoadFont("Hack-Regular.ttf", EmbeddedFonts.HackRegular);
+    }
+
+    private static FontFace LoadFont(string name, string fallback)
+    {
+        string path = "/usr/share/zenith/fonts/" + name;
+        if (File.Exists(path))
+        {
+            try
+            {
+                var store = new NativePackageStore();
+                var owned = new PackageManager(store).List().SelectMany(package => package.Manifest.Files).FirstOrDefault(file => file.Path == path);
+                byte[] bytes = store.Read(path, PackageManifest.MaximumFileBytes);
+                if (owned is null || owned.Length != bytes.Length || PackagePlanner.Digest(bytes) != owned.Digest || store.Mode(path) != owned.Mode)
+                { throw new IOException("font differs from installed package"); }
+                var face = new FontFace(bytes); Zenith.Core.Log.Write("fonts", "loaded packaged " + name); return face;
+            }
+            catch { Zenith.Core.Log.Write("fonts", "packaged font unavailable; using recovery " + name); }
+        }
+        return new FontFace(Convert.FromBase64String(fallback));
     }
 
     /// <summary>Splits <paramref name="text"/> into lines no wider than <paramref name="maxWidth"/>, breaking at spaces where possible.</summary>

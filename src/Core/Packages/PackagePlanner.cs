@@ -22,6 +22,9 @@ internal static class BootstrapComponents
         new("net-tools", "0.1", "bundled IPv4 diagnostics; reboot"),
         new("fs-tools", "0.1", "bundled filesystem/account tools; reboot"),
         new("zenith-desktop-test", "0.1", "kernel-linked test DE; reboot"),
+#if !ARCH_ARM64
+        new("zenith-native-abi", "1.0", "x86_64 foreground process ABI; kernel capability"),
+#endif
     };
 }
 internal sealed record PackagePlan(IReadOnlyList<string> Actions, IReadOnlyList<string> Blockers, int PayloadBytes)

@@ -39,8 +39,11 @@ guidance here so the two entry points stay consistent.
   core/extra indexes and named plan/install/upgrade (docs/ONLINE-PACKAGES.md).
   Preserve freshness, persisted generation floors and native installed HTTPS checks.
   /etc merges, public trust-role/key-rotation hardening,
-  native execution and matched root-data updates remain separate gates. User selected scripts/data
-  first, then unbundle compiled tools; grouped inventory is not independent executables.
+  matched root-data updates remain separate gates. 0.0.8 adds unified pkg update,
+  independent manuals/fonts and the first signed protected x64 native text tool.
+  See docs/NATIVE-PROGRAMS.md for foreground ABI limits; preserve fault/NX/W^X,
+  credentials and same-kernel executable-upgrade acceptance. Compiled base/net/fs
+  and GUI migration still need additional controlled APIs.
 - `src/Core` holds system behavior; `src/Gui` rendering and window management;
   `src/Apps` desktop windows. Keep UI concerns out of the core layer.
 - M3 has a primary IPv4 service and diagnostic/NTP/HTTP/verified HTTPS commands; see
@@ -107,8 +110,8 @@ with explicitly selected roadmap slices and record implementation/validation evi
 The expanded product requirements include headless, DE and automatic-tiling WM
 sessions, shared Settings, future Files rework and installed updates. Their designs
 are proposals until discussed; do not treat them as implemented or freeze package
-format/runtime/boot-recovery choices without recording a decision. All current
-compiled apps are kernel-linked. Offline package research can precede networking;
+format/runtime/boot-recovery choices without recording a decision. The existing compiled base/net/fs tools and test DE are kernel-linked; Sunbeam
+starts separately packaged protected native execution. Offline package research can precede networking;
 public mirror updates need verified trust and recovery, not just HTTP fetching.
 
 User clarification (2026-10-11): the future desktop/apps must be outside the kernel;

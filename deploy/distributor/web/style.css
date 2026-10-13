@@ -399,3 +399,8 @@ footer {
 .version-count {display:block;color:var(--muted);font-size:11px;margin:3px 0 0 15px}
 .package-version {background:#132033;color:var(--muted)}
 .package-version td:nth-child(2) {padding-left:32px;font-size:12px}
+.storage-values {display:flex;gap:32px;flex-wrap:wrap}
+.storage-values div {flex:1;min-width:180px}
+.storage-values span {display:block;color:var(--muted);font-size:12px;margin-bottom:6px}
+.storage-values strong {font-size:15px;font-weight:500}
+.storage-panel p {font-size:12px;color:var(--muted);line-height:1.6;margin:14px 0 0}

@@ -17,12 +17,12 @@ internal static class PackageCommands
     private static int s_busy;
     internal static bool IsRunning => Volatile.Read(ref s_busy) != 0;
     public static void Register(Action<Command> add)
-    { add(new Command("pkg", "pkg mirror HTTPS_URL | refresh | search [TEXT] | plan NAME... | install [--yes] NAME... | upgrade [--yes] | kernel update [--yes] | repos/list/trust/check/remove/verify/recover", "Signed online and offline package management", Run)); }
+    { add(new Command("pkg", "pkg mirror HTTPS_URL | refresh | update [--yes] | search [TEXT] | plan NAME... | install [--yes] NAME... | upgrade [--yes] | kernel update [--yes] | repos/list/trust/check/remove/verify/recover", "Signed online and offline package management", Run)); }
     private static int Run(CommandContext c)
     {
         lock (Installer.MaintenanceGate)
         {
-            if (Installer.IsRunning || Zenith.Core.Boot.NativeKernelUpdates.IsRunning || Interlocked.CompareExchange(ref s_busy, 1, 0) != 0)
+            if (Installer.IsRunning || Zenith.Core.Boot.NativeKernelUpdates.IsRunning || Zenith.Core.Processes.NativeProcess.IsRunning || Interlocked.CompareExchange(ref s_busy, 1, 0) != 0)
             { return c.Fail("package/system update service busy"); }
         }
         try { int result = Execute(c); Interlocked.Exchange(ref s_busy, 0); return result; }
@@ -39,6 +39,7 @@ internal static class PackageCommands
         if (c.Args.Length >= 2 && c.Args[0] == "kernel" && c.Args[1] == "update") { Mutable(); return KernelUpdate(c); }
         if (c.Args.Length > 0 && c.Args[0] == "kernel") { return Zenith.Core.Boot.NativeKernelUpdates.Package(c); }
         var store = new NativePackageStore(); var manager = new PackageManager(store);
+        if (c.Args.Length > 0 && c.Args[0] == "update") { Mutable(); return UpdateAll(c, manager); }
         if (c.Args.Length == 2 && c.Args[0] == "mirror")
         { Mutable(); NativeRepositories.Mirror(c.Args[1]); c.WriteLine("core/extra mirror saved; run pkg refresh"); return 0; }
         if (c.Args.Length == 1 && c.Args[0] == "refresh")
@@ -176,5 +177,56 @@ internal static class PackageCommands
         int result = Zenith.Core.Boot.NativeKernelUpdates.Package(new CommandContext(c.Shell, c.Name,
             new[] { "kernel", "install", path }, c.Input, c.Out, c.Err, c.IsTerminal));
         c.WriteLine("Kernel staged. Run reboot, then boot confirm after testing."); return result;
+    }
+
+    private static int UpdateAll(CommandContext c, PackageManager manager)
+    {
+        bool yes = c.Args.Length == 2 && c.Args[1] == "--yes";
+        if (c.Args.Length != (yes ? 2 : 1)) { return c.Fail("pkg update [--yes]"); }
+        var current = Zenith.Core.Boot.NativeKernelUpdates.ReadyForUpdate();
+        var installed = manager.List();
+        NativeRepositories.Refresh(c);
+        var plan = SystemUpdatePlan.Create(NativeRepositories.Catalog(), NativeRepositories.Repositories,
+            installed, current.HighWater, c.Shell.ThrowIfCancelled);
+        if (plan.Empty) { c.WriteLine("system packages are up to date"); return 0; }
+        foreach (var entry in plan.Data) { c.WriteLine("Update " + entry.Name + " " + entry.Version + " [" + entry.Repository + "] bytes=" + entry.Bytes); }
+        if (plan.Kernel is not null) { c.WriteLine("Stage zenith-kernel " + plan.Kernel.Version + "; reboot and boot confirm required"); }
+        if (!Confirm(c, yes)) { c.WriteLine("system update cancelled"); return 0; }
+        var packages = new List<SignedPackage>();
+        foreach (var entry in plan.Data) { c.Shell.ThrowIfCancelled(); packages.Add(NativeRepositories.Data(entry, c)); }
+        string? kernelPath = plan.Kernel is null ? null : NativeRepositories.Download(plan.Kernel, c);
+        if (kernelPath is not null)
+        {
+            int checkedKernel = Zenith.Core.Boot.NativeKernelUpdates.Package(new CommandContext(c.Shell, c.Name,
+                new[] { "kernel", "check", kernelPath }, c.Input, c.Out, c.Err, c.IsTerminal));
+            if (checkedKernel != 0) { return checkedKernel; }
+            Zenith.Core.Boot.NativeKernelUpdates.CheckCandidate(kernelPath);
+        }
+        _ = NativeRepositories.Catalog();
+        if (packages.Count > 0)
+        {
+            var progress = new CommandProgress(c.Out, c.IsTerminal);
+            try { manager.Install(packages, c.Shell.ThrowIfCancelled, progress.Report); }
+            catch { progress.Finish(); throw; }
+            progress.Finish(); c.WriteLine("data package updates committed: " + packages.Count);
+        }
+        if (kernelPath is not null)
+        {
+            try
+            {
+                _ = NativeRepositories.Catalog();
+                int result = Zenith.Core.Boot.NativeKernelUpdates.Package(new CommandContext(c.Shell, c.Name,
+                    new[] { "kernel", "install", kernelPath }, c.Input, c.Out, c.Err, c.IsTerminal));
+                if (result != 0) { return result; }
+            }
+            catch
+            {
+                c.WriteLine("Kernel staging did not complete; inspect boot status before rebooting. Completed data updates are retained.");
+                throw;
+            }
+            c.WriteLine("System updated; new kernel activates after reboot. Run boot confirm after testing.");
+        }
+        else { c.WriteLine("system package updates complete; running kernel unchanged"); }
+        return 0;
     }
 }

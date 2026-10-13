@@ -210,3 +210,18 @@ signature-checked adapters; unread data shrinks the advertised receive window an
 application reads reopen it. Explicit fetch --kernel permits bounded ELF-sized
 transfers while ordinary downloads keep their smaller limit. Current apps remain
 kernel-linked.
+
+
+## First independent executable (0.0.8)
+
+`Core/Processes` validates bounded static x86_64 ELF ABI 1 and prepares private user
+page tables/stack. `Native/x64/Process.s` enters ring 3 and provides a bounded raw
+write/exit/identity/fault/watchdog boundary. Signed package ownership and executable
+modes gate entry. This foreground prototype suspends normal managed IRQ/scheduler
+processing during its bounded window; it is not the general process/service layer.
+See [NATIVE-PROGRAMS](NATIVE-PROGRAMS.md) for memory layout and limits. Sunbeam's C/ASM
+source builds into an independent package, while kernel-linked system/GUI tools
+remain recovery implementations awaiting filesystem/network/IPC/display ABIs.
+Full manuals and primary desktop fonts now have independent data recipes, with
+small embedded/live recovery fallbacks. `pkg update` refreshes and plans installed
+data plus a newer kernel; data and boot commit boundaries remain separate.

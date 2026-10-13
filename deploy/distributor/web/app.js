@@ -7,7 +7,7 @@ const date = (value) => {
   const d = typeof value === "number" ? new Date(value * 1000) : new Date(value);
   return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString(undefined, {day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
 };
-const size = (bytes) => bytes >= 1048576 ? `${(bytes/1048576).toFixed(1)} MiB` : bytes >= 1024 ? `${(bytes/1024).toFixed(1)} KiB` : `${bytes} B`;
+const size = (bytes) => bytes >= 1073741824 ? `${(bytes/1073741824).toFixed(1)} GiB` : bytes >= 1048576 ? `${(bytes/1048576).toFixed(1)} MiB` : bytes >= 1024 ? `${(bytes/1024).toFixed(1)} KiB` : `${bytes} B`;
 const interval = (value) => /^\d+min$/.test(value) ? `${parseInt(value,10)} minutes` : value;
 function cell(value, className = "") { const td = document.createElement("td"); td.textContent = value; td.className = className; return td; }
 function empty(body, message) { const tr = document.createElement("tr"), td = cell(message,"empty"); td.colSpan=5; tr.append(td); body.append(tr); }
@@ -108,6 +108,11 @@ async function refresh() {
     $("run").disabled=submitting || snapshot.busy || snapshot.service.LoadState!=="loaded"; $("run").textContent=snapshot.busy ? "Running…" : "Run now";
     if(snapshot.warnings.length){notice(snapshot.warnings.join("\n"),true);warningNotice=true;}
     else if(warningNotice){notice("");warningNotice=false;}
+    const storage=snapshot.storage || {};
+    $("storage-free").textContent=Number.isFinite(storage.free) ? `${size(storage.free)} of ${size(storage.total)}` : "Unavailable";
+    $("storage-artifacts").textContent=Number.isFinite(storage.allocated) ? `${size(storage.allocated)}${storage.partial?" (partial scan)":""}` : "Not scanned yet";
+    $("storage-cleanup").textContent=storage.refreshed ? `${(storage.removed || []).length} cleaned · ${date(storage.refreshed)}` : "Awaiting next poll";
+    $("storage-policy").textContent=(storage.warnings || []).length ? storage.warnings.join(" · ") : "Keeps 2 failed attempts and the latest failed checkout; other inactive failures expire after 7 days. Finished log history keeps its latest 1 MiB.";
     builds(); packages(); $("refreshed").textContent=`Last refreshed: ${date(snapshot.refreshed)}`;
     await updateLog();
   } catch(error) { $("connection").textContent="Disconnected"; $("connection").classList.remove("online"); $("run").disabled=true; notice(error.message,true); warningNotice=true; }

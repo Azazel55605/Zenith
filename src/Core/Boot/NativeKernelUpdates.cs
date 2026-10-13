@@ -149,7 +149,7 @@ internal static class NativeKernelUpdates
         GuardedFilesystem.RequireRoot();
         lock (Installer.MaintenanceGate)
         {
-            if (Installer.IsRunning || (!fromPackageService && Zenith.Core.Shell.Commands.PackageCommands.IsRunning) || Interlocked.CompareExchange(ref s_busy, 1, 0) != 0)
+            if (Installer.IsRunning || Zenith.Core.Processes.NativeProcess.IsRunning || (!fromPackageService && Zenith.Core.Shell.Commands.PackageCommands.IsRunning) || Interlocked.CompareExchange(ref s_busy, 1, 0) != 0)
             { throw new IOException("system installation/update busy"); }
         }
         try { int result = operation(); Interlocked.Exchange(ref s_busy, 0); return result; }
@@ -187,6 +187,13 @@ internal static class NativeKernelUpdates
         }
         try { int result = c.Args[1] == "check" ? Execute() : Mutation(Execute, true); progress.Finish(); return result; }
         catch { progress.Finish(); throw; }
+    }
+    public static void CheckCandidate(string path)
+    {
+        GuardedFilesystem.RequireRoot(); var store = new NativeKernelUpdateStore();
+        var package = KernelPackage.Read(store.Read(path, KernelPackage.MaximumBytes),
+            store.Read(Zenith.Core.Shell.Commands.PackageCommands.KeyPath, 4096), new NativePackageVerifier());
+        _ = Open(store).CheckCandidate(package, NativeBootAssets.RunningKernelId());
     }
     public static int Boot(CommandContext c)
     {

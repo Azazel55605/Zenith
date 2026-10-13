@@ -67,7 +67,8 @@ internal static class BuiltinCommands
         }
 
         string topic = c.Args[0];
-        string page = "/usr/share/man/" + topic + ".txt";
+        string page = "/usr/share/zenith/man/" + topic + ".txt";
+        if (!File.Exists(page)) { page = "/usr/share/man/" + topic + ".txt"; }
         if (topic.IndexOf('/') < 0 && File.Exists(page))
         {
             foreach (string line in File.ReadAllText(page).Split('\n'))

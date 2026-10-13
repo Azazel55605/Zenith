@@ -387,3 +387,23 @@ creates its own ext2 disk plus disposable signing keys outside the HTTP served t
 Host package faults are covered by PackageManagerTests; actual tool/native signatures
 by `tools/test_signed_package_tool.py /path/to/libzenith-tls.so`. Preserve journal,
 modified-file, dependency/conflict and root/user cases when changing extraction.
+
+
+## Native text tools and independent data generators
+
+```sh
+python3 tools/build-userland.py obj/sunbeam-payload --version 0.1.0
+# GCC preferred; ZENITH_USER_CC=clang requires LLD.
+dotnet run --project tools/Zenith.PackageTool -- native-check obj/sunbeam-payload/usr/share/zenith/native/sunbeam.elf
+dotnet run --project tools/Zenith.ManualBuilder -- obj/manual-payload
+python3 tools/build-font-package.py obj/font-payload
+python3 -B tools/test_distributor_maintenance.py
+python3 -B tools/native-process-smoke.py /var/tmp/zn-native-check
+```
+
+Build the Release package tool and current ISO before native acceptance. Use an
+actual short keep directory for QEMU Unix sockets. The harness generates disposable
+keys/disks, tests protected code and app upgrade without kernel replacement, installs
+full manuals/fonts, audits the clean main ext2 disk, and renders a disposable virtio
+GUI clone. It explicitly stops the GUI clone after capture; that clone is not a
+clean-poweroff audit. Never use a production VM image for these tests.

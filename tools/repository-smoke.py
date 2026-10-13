@@ -100,12 +100,9 @@ def main():
             target,
         )
 
-    elf = bytearray(128)
-    elf[:7] = b"\x7fELF\x02\x01\x01"
-    elf[16], elf[18], elf[20], elf[52], elf[54], elf[56] = 2, 62, 1, 64, 56, 1
-    struct.pack_into("<QQ", elf, 24, 0x1000, 64)
-    struct.pack_into("<IIQQQQQ", elf, 64, 1, 1, 120, 0x1000, 0, 8, 8)
-    (keep / "fixture.elf").write_bytes(elf)
+    original_kernel = (ROOT / "output-x64/Zenith.elf").read_bytes()
+    upgraded_kernel = original_kernel + b"\nUnified package update acceptance kernel\n"
+    (keep / "fixture.elf").write_bytes(upgraded_kernel)
     kernel = served / "core/zenith-kernel/2.0.0/zenith-kernel.zpk"
     kernel.parent.mkdir(parents=True)
     run("kernel-seal", "2.0.0", keep / "fixture.elf", keep / "keys/private.pem", kernel)
@@ -131,7 +128,7 @@ def main():
         if not passed:
             raise RuntimeError(label)
 
-    def command(text, marker, timeout=120):
+    def command(text, marker, timeout=600):
         offset = len(m.log())
         m.send(text + "\r")
         check(m.wait(marker, offset, timeout), marker)
@@ -202,13 +199,30 @@ def main():
         check("hello-online-v1" in output, "installed script runs")
         status("pkg install --yes hello-tools", "P4_NOOP")
         status("pkg install --yes conflicting-data", "P4_CONFLICT", 1)
-        status("pkg kernel update --yes", "P4_KERNEL_STAGE")
+        package("hello-tools", "1.0.1", b"echo hello-combined-update\n", script,
+                "requires\thello-data\t>=1.0,<2.0\n")
+        index("extra", 2)
+        offset = len(m.log()); m.send("pkg update\r")
+        check(m.wait("Proceed [y/N]? ", offset), "combined update confirmation")
+        offset = len(m.log()); m.send("n\r")
+        check(m.wait("system update cancelled", offset), "combined update declined")
+        output = status("sh " + script, "P4_COMBINED_DECLINE")
+        check("hello-online-v1" in output, "declined system update preserves installed data")
+        status("pkg update --yes", "P4_KERNEL_STAGE")
+        output = status("sh " + script, "P4_COMBINED_DATA")
+        check("hello-combined-update" in output, "one system update commits data and stages kernel")
         output = status("boot status", "P4_KERNEL_PENDING")
         check(
             "pending-confirmation=true" in output,
             "named kernel update retains confirmation boundary",
         )
-        status("pkg kernel update --yes", "P4_PENDING_REFUSAL", 1)
+        status("pkg update --yes", "P4_PENDING_REFUSAL", 1)
+        disk = shutdown("combined")
+        m = boot("combined-activated", disk)
+        output = status("boot status", "P4_COMBINED_BOOT")
+        check("running-kernel=" + hashlib.sha256(upgraded_kernel).hexdigest() in output,
+              "combined update boots actual new signed ELF")
+        status("boot confirm", "P4_COMBINED_CONFIRM")
         status("boot rollback", "P4_KERNEL_ROLLBACK")
         package(
             "hello-tools",
@@ -217,10 +231,11 @@ def main():
             script,
             "requires\thello-data\t>=1.0,<2.0\n",
         )
-        index("extra", 2)
+        index("extra", 3)
         status("pkg refresh", "P4_REFRESH_UPGRADE")
         v2 = (served / "extra/index.zri").read_bytes()
-        status("pkg upgrade --yes", "P4_UPGRADE")
+        status("pkg update --yes", "P4_UPGRADE")
+        status("pkg update --yes", "P4_UPDATE_NOOP")
         output = status("sh " + script, "P4_NEW_SCRIPT")
         check("hello-online-v2" in output, "named upgrade executes new script")
         (served / "extra/index.zri").write_bytes(v1)
@@ -230,7 +245,7 @@ def main():
         bad[-1] ^= 1
         (served / "extra/index.zri").write_bytes(bad)
         status("pkg refresh", "P4_TAMPER", 1)
-        index("extra", 3, now - 2 * 86400, now - 86400)
+        index("extra", 4, now - 2 * 86400, now - 86400)
         status("pkg refresh", "P4_EXPIRED", 1)
         (served / "extra/index.zri").write_bytes(v2)
         status("pkg refresh", "P4_VALID_AGAIN")
@@ -244,7 +259,7 @@ def main():
             "bad-data", "1.0.0", b"verified-later\n", "/usr/share/doc/bad-data.txt"
         )
         good_bytes = bad_archive.read_bytes()
-        index("extra", 3)
+        index("extra", 4)
         changed = bytearray(good_bytes)
         changed[-1] ^= 1
         bad_archive.write_bytes(changed)

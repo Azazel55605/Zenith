@@ -59,6 +59,26 @@ class DashboardTests(unittest.TestCase):
         for path in ("/manage/", "/manage/app.js", "/manage/style.css"):
             self.assertEqual(200, self.request(path)[0])
 
+    def test_storage_report_and_live_disk_capacity(self):
+        (self.state / "storage.json").write_text(json.dumps(dict(allocated=4096, refreshed=10,
+            removed=["old-attempt"], policy=dict(attempts=2), free=0)))
+        result = json.loads(self.request("/manage/api/status")[1])["storage"]
+        self.assertEqual(4096, result["allocated"])
+        self.assertEqual(["old-attempt"], result["removed"])
+        self.assertGreater(result["free"], 0)
+        self.assertGreaterEqual(result["total"], result["free"] + result["used"])
+
+    def test_invalid_and_symlink_storage_reports_preserve_dashboard(self):
+        path = self.state / "storage.json"; path.write_text("not-json")
+        result = json.loads(self.request("/manage/api/status")[1])
+        self.assertIn("Storage report unavailable", result["warnings"])
+        self.assertEqual(1, len(result["builds"]))
+        path.unlink(); target = self.root / "secret"; target.write_text("private-content")
+        path.symlink_to(target)
+        body = self.request("/manage/api/status")[1]
+        self.assertNotIn(b"private-content", body)
+        self.assertIn(b"Storage report unavailable", body)
+
     def test_exact_start_command_and_no_arguments(self):
         with patch.object(d.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run:
             self.assertEqual(202, self.request("/manage/api/run", b"{}", self.valid_headers())[0])

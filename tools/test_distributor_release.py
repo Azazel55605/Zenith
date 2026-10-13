@@ -145,6 +145,7 @@ class ReleaseTests(unittest.TestCase):
             release.native_checks(work)
         self.assertTrue((work / "native/k/evidence.txt").exists())
         self.assertTrue((work / "native/r/evidence.txt").exists())
+        self.assertTrue((work / "native/u/evidence.txt").exists())
         self.assertTrue(all(not path.parent.exists() for path in calls))
 
     def test_failed_native_artifacts_retained_without_masking_failure(self):

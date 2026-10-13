@@ -40,6 +40,18 @@ class PollTests(unittest.TestCase):
     def run_poll(self, retry=None):
         poll.poll(str(self.repo), self.state, self.recipes, retry)
 
+    def test_manual_font_and_native_recipe_tags_have_independent_versions(self):
+        for tag in ("kernel/v0.0.8", "zenith-docs/v0.1.1", "sunbeam-tools/v0.1.0",
+                    "zenith-man-pages/v0.1.0", "zenith-fonts/v0.1.0"):
+            poll.git(self.repo, "tag", tag)
+        self.run_poll()
+        self.assertEqual({("zenith-kernel", "0.0.8"), ("zenith-docs", "0.1.1"),
+            ("sunbeam-tools", "0.1.0"), ("zenith-man-pages", "0.1.0"), ("zenith-fonts", "0.1.0")},
+            {(name, version) for _, version, name in self.calls})
+        self.assertEqual("native", self.recipes["sunbeam-tools"]["generate"])
+        self.assertEqual("manuals", self.recipes["zenith-man-pages"]["generate"])
+        self.assertEqual("fonts", self.recipes["zenith-fonts"]["generate"])
+
     def test_independent_versions_and_idempotent_pinned_checkouts(self):
         for tag in ("kernel/v0.0.7", "zenith-docs/v0.1.0", "v0.4", "unknown/v1.0.0"):
             poll.git(self.repo, "tag", tag)

@@ -16,7 +16,7 @@ internal static class PowerControl
         Monitor.Enter(Installer.MaintenanceGate);
         try
         {
-            if (Installer.IsRunning || Zenith.Core.Boot.NativeKernelUpdates.IsRunning || Zenith.Core.Shell.Commands.PackageCommands.IsRunning)
+            if (Installer.IsRunning || Zenith.Core.Boot.NativeKernelUpdates.IsRunning || Zenith.Core.Shell.Commands.PackageCommands.IsRunning || Zenith.Core.Processes.NativeProcess.IsRunning)
             { throw new InvalidOperationException("wait for installation/update to finish before shutting down"); }
             Log.Write("power", message);
             SystemMounts.Shutdown();

@@ -37,6 +37,29 @@ class PackageToolTests(unittest.TestCase):
         result = self.run_tool("build", "hello-docs", "1.0.0", self.source, self.bundle)
         self.assertEqual(0, result.returncode, result.stderr)
 
+    def test_native_builder_requires_valid_abi_and_records_execution_capability(self):
+        subprocess.run(["python3", str(ROOT / "tools/build-userland.py"), str(self.source)],
+                       check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        result = self.run_tool("build-native", "sunbeam-tools", "0.1.0", self.source, self.bundle, "--repo", "extra")
+        self.assertEqual(0, result.returncode, result.stderr)
+        text = (self.bundle / "manifest.tsv").read_text()
+        self.assertIn("architecture\tx86_64", text)
+        self.assertIn("requires\tzenith-native-abi\t1.0", text)
+        self.assertIn("sunbeam.elf\t0755\t", text)
+        elf = self.source / "usr/share/zenith/native/sunbeam.elf"
+        self.assertEqual(0, self.run_tool("native-check", elf).returncode)
+        elf.write_bytes(b"not-a-program")
+        result = self.run_tool("build-native", "sunbeam-tools", "0.1.0", self.source, self.directory / "bad")
+        self.assertEqual(1, result.returncode)
+        self.assertFalse((self.directory / "bad").exists())
+        self.assertEqual([], list(self.directory.glob("bad.staging-*")))
+
+    def test_native_builder_refuses_data_only_payload(self):
+        result = self.run_tool("build-native", "fake-tools", "0.1.0", self.source, self.bundle)
+        self.assertEqual(1, result.returncode)
+        self.assertIn("requires a valid Zenith ABI executable", result.stderr)
+        self.assertFalse(self.bundle.exists())
+
     def test_roundtrip_deterministic_and_dry_run(self):
         self.build()
         manifest = self.bundle / "manifest.tsv"

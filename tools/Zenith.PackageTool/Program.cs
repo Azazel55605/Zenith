@@ -1,11 +1,13 @@
 using System.Text;
 using Zenith.Core.Packages;
+using Zenith.Core.Processes;
 
 try
 {
     int? signedResult = SignedCommands.Run(args); if (signedResult.HasValue) { return signedResult.Value; }
-    if ((args.Length == 5 || (args.Length == 7 && args[5] == "--repo" && (args[6] is "core" or "extra"))) && args[0] == "build")
+    if ((args.Length == 5 || (args.Length == 7 && args[5] == "--repo" && (args[6] is "core" or "extra"))) && args[0] is "build" or "build-native")
     {
+        bool native = args[0] == "build-native";
         string name = args[1], version = args[2], source = Path.GetFullPath(args[3]), output = Path.GetFullPath(args[4]);
         if (!PackageManifest.ValidName(name) || !Directory.Exists(source) || Directory.Exists(output) || File.Exists(output))
         { throw new IOException("invalid package/source or output already exists"); }
@@ -21,19 +23,22 @@ try
         {
             Directory.CreateDirectory(temporary);
             var manifest = new StringBuilder("ZENITH-PACKAGE\t1\nname\t" + name + "\nversion\t" + version
-                + "\narchitecture\tany\nkind\tdata\nruntime\t" + PackageManifest.Runtime + "\nrequires\tzenith-base\t0.1\n");
-            int total = 0;
+                + "\narchitecture\t" + (native ? "x86_64" : "any") + "\nkind\tdata\nruntime\t" + PackageManifest.Runtime + "\nrequires\tzenith-base\t0.1\n");
+            if (native) { manifest.Append("requires\tzenith-native-abi\t1.0\n"); }
+            int total = 0, executables = 0;
             foreach (string file in files)
             {
                 string path = "/" + Path.GetRelativePath(source, file).Replace(Path.DirectorySeparatorChar, '/');
                 if (!PackageManifest.ValidPath(path)) { throw new IOException("unsupported payload path: " + path); }
                 byte[] data = ReadBounded(file, PackageManifest.MaximumFileBytes);
+                if (native && path.EndsWith(".elf", StringComparison.Ordinal)) { _ = ElfImage.Read(data); executables++; }
                 total = checked(total + data.Length);
                 if (total > PackageManifest.MaximumPayloadBytes) { throw new IOException("payload exceeds limit"); }
                 string target = temporary + "/payload" + path;
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!); File.WriteAllBytes(target, data);
-                manifest.Append("file\t").Append(path).Append("\t0644\t").Append(data.Length).Append('\t').Append(PackagePlanner.Digest(data)).Append('\n');
+                manifest.Append("file\t").Append(path).Append(native && path.EndsWith(".elf", StringComparison.Ordinal) ? "\t0755\t" : "\t0644\t").Append(data.Length).Append('\t').Append(PackagePlanner.Digest(data)).Append('\n');
             }
+            if (native && executables == 0) { throw new IOException("native package requires a valid Zenith ABI executable"); }
             string text = manifest.ToString();
             if (args.Length == 7) { text = text.Replace("ZENITH-PACKAGE\t1\n", "ZENITH-PACKAGE\t2\nrepository\t" + args[6] + "\n"); }
             _ = PackageManifest.Parse(text);
@@ -43,6 +48,8 @@ try
         catch { if (Directory.Exists(temporary)) { Directory.Delete(temporary, true); } throw; }
         Console.WriteLine("built experimental bundle: " + output);
     }
+    else if (args.Length == 2 && args[0] == "native-check")
+    { var image = ElfImage.Read(ReadBounded(args[1], ElfImage.MaximumBytes)); Console.WriteLine("verified native ABI 1 entry=" + image.Entry + " segments=" + image.Segments.Count); }
     else if (args.Length == 2 && args[0] == "inspect")
     {
         var manifest = Load(args[1]); Console.WriteLine(manifest.Name + " " + manifest.Version + ": " + manifest.Files.Count + " files, " + manifest.PayloadBytes + " bytes");

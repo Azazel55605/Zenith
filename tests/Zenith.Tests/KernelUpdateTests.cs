@@ -43,6 +43,18 @@ public sealed class KernelUpdateTests
     }
     private static KernelPackage Candidate(int seed, string version) { byte[] elf = Elf(seed); return new(version, BootLayout.Digest(elf), elf); }
     [Fact]
+    public void CandidatePreflightDoesNotWriteAndRejectsKnownFailureBeforeCommit()
+    {
+        var (store, updater, before) = Fixture();
+        int operations = store.Operation;
+        _ = updater.CheckCandidate(Candidate(2, "1.0.0"), before.Current.Id);
+        Assert.Equal(operations, store.Operation);
+        Assert.False(store.Exists(KernelUpdater.Journal));
+        store.FreeEspBytes = 0;
+        Assert.Throws<IOException>(() => updater.CheckCandidate(Candidate(2, "1.0.0"), before.Current.Id));
+        Assert.Equal(operations, store.Operation);
+    }
+    [Fact]
     public void UpgradeRequiresRebootThenConfirmationAndKeepsPrevious()
     {
         var (store, updater, before) = Fixture(); var candidate = Candidate(2, "1.0.0");

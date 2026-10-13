@@ -220,3 +220,52 @@ convey its key fingerprint through a trusted channel. Never serve the private ke
 6. Implement P4 signed core/extra indexes and named package install/upgrade support
    in Zenith and the manual publisher. This is project implementation work, not
    missing Debian software. Automatic build scheduling follows that acceptance.
+
+
+## Build storage maintenance and new package recipes (0.0.8 source)
+
+The poller performs maintenance before/after its work under its poll lock and the
+shared publication/build lock. Successful checkout leftovers are removed. Failed
+or interrupted checkouts expire after seven days except the newest failed checkout;
+within retained failures keep the two newest release attempts. Compiler cache outside
+those attempts remains reusable. Inactive per-tag log history retains its last 1 MiB.
+Completion/pins and published archives, indexes, keys and backups are not deleted.
+Active/pending work is protected. Symlink checkouts/attempts are refused.
+
+New native validation workspaces have matching controller-state and private scratch
+ownership markers. Only registered, same-owner, inactive orphans older than seven
+days can be deleted; old unregistered /var/tmp directories require operator review.
+The dashboard displays live free/total disk, allocated controller-state bytes,
+last cleanup and warnings. Allocation is filesystem st_blocks, not logical sparse
+image size; reflink sharing is not deduplicated. Scanning stops at 200000 entries
+and marks a partial result. Reporting never changes publication success.
+
+```sh
+bash deploy/distributor/release.sh storage
+bash deploy/distributor/release.sh storage --clean
+```
+
+Read-only reporting refreshes storage.json; --clean applies the same policy. Both
+refuse a busy poll/build lock. New recipes generate manuals through the host C#
+manual builder, fonts with redistribution notices through Python, and Sunbeam with
+GCC (preferred) or Clang/LLD. Install `gcc` on the Debian distributor for this new
+native source build. Kernel release gates now include protected native package
+execution alongside kernel/repository acceptance; no release is signed when a gate
+fails. Recipes/tags: zenith-man-pages/vVERSION, zenith-fonts/vVERSION,
+sunbeam-tools/vVERSION, zenith-docs/vVERSION, kernel/vVERSION. Each is independent.
+
+Before consuming the new tags, pull the updated controller checkout and redeploy
+its dashboard while the distributor service is idle:
+
+```sh
+cd ~/Zenith
+git pull --ff-only
+sudo apt-get install gcc
+sudo bash deploy/distributor/install-dashboard.sh
+sudo systemctl start --no-block zenith-distributor.service
+```
+
+Existing timer/poller service configuration and signing keys remain. The controller
+uses its updated recipes; workers build immutable tagged source. Package receipts
+and dashboard Complete state, followed by client installation, establish actual
+server acceptance; merely pushing a tag does not establish publication.

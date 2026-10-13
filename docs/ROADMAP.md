@@ -210,10 +210,10 @@ remains optional rather than an assumed final desktop runtime.
 
 | Item | Size | Notes |
 |---|---|---|
-| Kernel/userland ABI and loader design | XL | Executable/startup/runtime choice; protected native processes require Cosmos work |
-| Process isolation/lifecycle and credentials | XL | Memory, descriptors, args/env/cwd, wait/exit, cancellation, bounded resources |
+| Kernel/userland ABI and loader design | XL | Initial static x64 ELF ABI 1/ring 3 foreground bridge implemented; general syscall/runtime interfaces remain |
+| Process isolation/lifecycle and credentials | XL | Initial private pages/args/identity/exit/fault/budget proof implemented; descriptors, env/cwd, scheduling/wait/signals remain |
 | IPC, byte pipes and terminal contract | L | Versioned controlled APIs; Bash dependencies in [assessment](BASH-PORT.md) |
-| First independent text and graphical apps | L | Application faults must not panic kernel; controlled display/input interface |
+| First independent text and graphical apps | L | Sunbeam text executable independently packaged/updated; graphical API and client remain |
 | Desktop/compositor/DE/WM migration | XL | Separate packages/processes behind shared graphics/toolkit protocols |
 | Toolchain/sample documentation | M | Host GCC cross-SDK preferred, startup/syscall/libc contracts; kernel ELF is not an application ABI |
 | Future developer environment | XL | GCC running on Zenith, CPython, nano/Vim after libc/process/terminal and storage feasibility; [scope](APPLICATIONS.md) |
@@ -284,10 +284,10 @@ inspection in both graphical sessions. Avoid unrestricted in-kernel theme/plugin
 |---|---|---|
 | P0 | Format/builder/reader/dry-run, trust-library and guest feasibility | Experimental data bundle builder/shared reader/guest dry-run implemented; RSA-PSS/SHA256 bounded .zpk and native verification implemented; online metadata/trust roles remain open |
 | P1 | Offline data/script packages and installed DB | Implemented and native verified; exact evidence in PROGRESS. Ownership/ranges/conflicts/local-edit preservation and undo/DB commit recovery; /etc config merges remain later |
-| P2 | Dedicated Debian build/distribution VM | Kit implemented: build/test/sign workflow, verified atomic publication and nginx; user-provisioned VM/IP/SSH, LAN/VPN/DNS and HTTPS acceptance pending |
+| P2 | Dedicated Debian build/distribution VM | Debian VM provisioned; HTTPS and automated kernel/named docs delivery user-confirmed; storage retention/reporting implemented, new recipe deployment pending |
 | P3 | Staged versioned kernel/system artifacts | New kernel saved on disk while old runs; verify/flush/boot entry, explicit reboot-required state; retain previous kernel and rescue boot |
-| P4 | Signed online package refresh/download/apply | M3 transport; pinned trust, metadata/artifact verification, expiry/rollback/key rotation; never install partial/untrusted payload |
-| P5 | Independent service/desktop/app packages | M5 ABI compatibility and dependencies; explicit restart needs; kernel rebuild not needed for a compatible app update |
+| P4 | Signed online package refresh/download/apply | Private signed catalogs, freshness/floors, named installs and unified update implemented/verified; public key rotation/trust roles and matched root recovery remain |
+| P5 | Independent service/desktop/app packages | Initial manuals/fonts/Sunbeam recipes; ABI dependency protects native execution; general service/desktop migration remains |
 
 Package classes: data/scripts now, kernel/system artifacts for reboot activation, then
 independent userspace services/desktop/apps. Start with bounded parsing, exact/simple
@@ -401,12 +401,21 @@ Git polling next. The host automation kit is implemented/tested; the user now
 confirms the first server-built automated kernel/v0.0.7 release completed.
 See deploy/distributor/AUTOMATION.md and PROGRESS for scope and validation.
 
-The first zenith-docs data release through its independent package tag is now
-user-confirmed installed by name. Next distributor operations: add storage reporting
-and automatic build-artifact retention/cleanup. Completed
-checkouts are already removed, but failed/interrupted attempts, native disks and
-orphaned short workspaces need bounded retention. Cleanup must coordinate with build
-locks, preserve active work and recent diagnostic evidence, and distinguish build
-artifacts from published package versions, Git pins/state, TLS/signing keys and
-backup/recovery material. Age/space policy, dry-run visibility and safe-path regression
-tests belong in that slice; automatic cleanup is planned, not yet implemented.
+The first zenith-docs data release through its independent package tag is
+user-confirmed installed by name. Distributor storage reporting and automatic
+bounded build-evidence retention are now implemented and tested. Cleanup coordinates
+with poll/publication locks, preserves active work and the latest failed checkout,
+keeps two diagnostic attempts, expires other inactive failures after seven days,
+and bounds inactive log tails. Published archives, durable pins and signing keys
+are outside this cleanup. Registered short-workspace orphans require matching
+ownership markers. See PACKAGE-SERVER for policy and deployment.
+
+2026-10-13 selected slice: 0.0.8 adds `pkg update` to refresh and update all installed
+signed data packages plus stage a newer kernel with explicit reboot/confirmation.
+Independent manual/font recipes and Sunbeam text ELF start actual package separation.
+The M5 foundation now has protected ring 3 execution, private page tables, arguments,
+output/exit/identity, fault containment and bounded foreground lifetime. Full process
+scheduling, file/network handles, IPC and GUI contracts remain required before
+base/net/fs and desktop migration; this does not complete M5. Distributor storage
+reporting and automatic bounded retention are implemented; see PROGRESS for evidence
+and PACKAGE-SERVER for deployment.

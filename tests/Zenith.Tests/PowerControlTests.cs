@@ -7,6 +7,14 @@ namespace Zenith.Tests
 {
     public class PowerControlTests
     {
+        [Fact]
+        public void ActiveNativeProgramPreventsPowerAction()
+        {
+            Cosmos.Kernel.System.Power.Calls = 0;
+            Zenith.Core.Processes.NativeProcess.IsRunning = true;
+            try { Assert.Throws<InvalidOperationException>(() => Zenith.Core.PowerControl.PowerOff()); Assert.Equal(0, Cosmos.Kernel.System.Power.Calls); }
+            finally { Zenith.Core.Processes.NativeProcess.IsRunning = false; }
+        }
         [Theory]
         [InlineData(false)]
         [InlineData(true)]
@@ -42,6 +50,7 @@ namespace Zenith.Core.Storage
     internal static class SystemMounts { public static Exception? Failure; public static void Shutdown() { if (Failure is not null) { throw Failure; } } }
 }
 namespace Zenith.Core.Boot { internal static class NativeKernelUpdates { public static bool IsRunning => false; } }
+namespace Zenith.Core.Processes { internal static class NativeProcess { public static bool IsRunning; } }
 namespace Zenith.Core.Shell.Commands { internal static class PackageCommands { public static bool IsRunning => false; } }
 namespace Cosmos.Kernel.System
 {

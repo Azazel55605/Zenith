@@ -2,8 +2,9 @@
 
 Direction clarified by the user on 2026-10-11: **desktop and applications should
 ultimately run outside the main kernel, following the Linux architectural model**.
-The separation is an accepted requirement; executable format, ABI and runtime remain
-open. Current code is still kernel-linked. Moving source into separate projects alone
+The separation is an accepted requirement. The first protected static x86_64 ELF
+text executable and Zenith ABI 1 are implemented; see [NATIVE-PROGRAMS](NATIVE-PROGRAMS.md).
+Base/network/filesystem builtins and the test desktop remain kernel-linked. Moving source into separate projects alone
 would not satisfy this requirement.
 
 User sequencing clarification: implement signed offline scripts/data installation first,
@@ -87,4 +88,5 @@ before the architectural compatibility decision.
   package plan, with explicit rollback/restart requirements.
 
 M5 is now a userland/runtime architectural milestone rather than an assumed WASM-only
-implementation. The exact schedule and proof-of-concept scope remain to be discussed.
+implementation. The first foreground executable foundation is now implemented; full process/service
+and desktop migration remains open.

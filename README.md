@@ -43,8 +43,9 @@ and keep an external live ISO. Physical hardware acceptance remains separate.
 
 ## Using it
 
-The Terminal opens at boot. `help` lists the commands, `man zenith` is the introduction and
-`man sh` the shell language:
+The Terminal opens at boot. `help` lists commands; `man zenith` and `man sh` include
+small recovery guides. Install `zenith-man-pages` for their full independent manuals.
+The shell supports:
 
 - quoting, `$VAR` / `${VAR}` / `$?` / `$1..$9`, `$(command)`, `$((arithmetic))`, `~`, `*`/`?` globs
 - `|`, `>`, `>>`, `<`, `;`, `&&`, `||`, `!`
@@ -242,3 +243,13 @@ verify ownership and recover interrupted transactions. Dependencies, declared
 conflicts and local file edits can block a whole transaction. See
 [PACKAGES](docs/PACKAGES.md) for building/signing, delivery and exact limitations.
 Online indexes and independent compiled tool execution are subsequent work.
+
+
+Independent package source recipes include `zenith-docs`, `zenith-man-pages`,
+`zenith-fonts` and `sunbeam-tools`. In 0.0.8, `pkg update` refreshes signed catalogs,
+updates all installed signed data packages and stages a newer kernel, followed by
+explicit reboot and `boot confirm`. [Online package workflow](docs/ONLINE-PACKAGES.md).
+Sunbeam is the first protected freestanding x64 text executable; run it with
+`native run sunbeam echo hello`. Existing base/net/fs builtins and the test desktop
+remain kernel-linked pending the remaining process/filesystem/network/GUI APIs.
+[Native executable contract and limits](docs/NATIVE-PROGRAMS.md).

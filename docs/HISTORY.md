@@ -249,3 +249,19 @@ or error-marked roots remain refused. This is a shared-root kernel update founda
 with manual failed-boot fallback and external ISO recovery, rather than snapshots or
 automatic trial-boot rollback. See [KERNEL-UPDATES](KERNEL-UPDATES.md) and exact native
 acceptance evidence in [PROGRESS](PROGRESS.md).
+
+
+## 2026-10-13 · All-package updates and first protected native executable
+
+Selected the combined storage/package/native slice after the first named docs
+install succeeded. Added locked, bounded automatic build-evidence retention and
+live dashboard storage reporting. Added `pkg update` with refreshed signed indexes,
+complete installed-data dependency planning, download/signature validation and
+read-only kernel preflight, followed by separate data and boot commits.
+
+Moved full manuals to a host generator and added independent font payloads/licenses
+with recovery fallbacks. GCC-built Sunbeam is the first signed, separately updated
+static x86_64 text executable: private page tables, ring 3, arguments/output/exit/
+identity, contained CPU faults and timer-budget termination. This begins M5; the
+remaining process/FS/network/GUI interfaces and compiled tool/desktop ports remain.
+See PROGRESS for exact validation boundaries and NATIVE-PROGRAMS for ABI details.

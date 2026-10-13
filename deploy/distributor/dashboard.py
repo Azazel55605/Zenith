@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import shutil
 import stat
 import subprocess
 import threading
@@ -137,9 +138,22 @@ class Dashboard:
         builds.sort(key=lambda item: item["started"] or 0, reverse=True)
         try: packages, issues = self.inventory(); warnings.extend(issues)
         except OSError: packages = []; warnings.append("Package inventory unavailable")
+        try: storage = self.storage()
+        except (OSError, ValueError): storage = {}; warnings.append("Storage report unavailable")
         return dict(csrf=self.csrf, busy=busy, service=service, timer=dict(state=timer.get("ActiveState", "unknown"),
                     interval=interval[1].strip() if interval else None, last_run=service.get("ExecMainStartTimestamp") or timer.get("LastTriggerUSec"),
-                    next_run=next_run), builds=builds, packages=packages, warnings=warnings, refreshed=time.time())
+                    next_run=next_run), builds=builds, packages=packages, storage=storage, warnings=warnings, refreshed=time.time())
+
+    def storage(self):
+        disk = shutil.disk_usage(self.state)
+        report = dict(allocated=None, refreshed=None, removed=[], warnings=[], policy={})
+        path = self.state / "storage.json"
+        if path.exists():
+            data = json.loads(read_file(path, 65536))
+            if not isinstance(data, dict): raise ValueError("invalid storage report")
+            report.update(data)
+        report.update(total=disk.total, used=disk.used, free=disk.free)
+        return report
 
     def log(self, tag):
         if not TAG.fullmatch(tag) or tag not in self.records(): raise ValueError("unknown build tag")

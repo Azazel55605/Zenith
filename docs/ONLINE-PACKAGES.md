@@ -1,10 +1,11 @@
-# Signed online packages (0.0.7)
+# Signed online packages (0.0.7, extended in 0.0.8)
 
 This is a bounded private LAN/VPN repository client, using the existing pinned
 RSA-PSS package key and verified HTTPS. It supplies discovery, planning, download
 and existing installed-root transactions. It is not TUF; key rotation/revocation,
 multiple trust roles, public-mirror hardening and matched root snapshots remain
-separate P4/recovery work. The simple DE and compiled tools remain kernel-linked.
+separate P4/recovery work. The simple DE and existing compiled recovery tools remain
+kernel-linked; Sunbeam begins independent native packaging ([native ABI](NATIVE-PROGRAMS.md)).
 
 ## Guest workflow
 
@@ -44,6 +45,47 @@ commands. Later kernels can use the shortcut after their signed index is refresh
 All mutation commands require root and an installed ext2 system. Ordinary users
 can search and plan from readable authenticated caches.
 
+## Update everything (0.0.8)
+
+```text
+pkg update
+# Or, after reviewing the update policy:
+pkg update --yes
+reboot
+boot confirm
+```
+
+`update` refreshes both signed catalogs itself, resolves upgrades to every installed
+signed data package (including native program packages), and selects a newer core
+kernel above the boot version floor. It does not install unrelated packages merely
+because they exist in the catalog. The same dependencies/conflicts/platform/ownership
+rules apply, with up to 32 selected packages. One confirmation shows the complete
+plan. No available update returns success without changing installed packages or
+boot generations; the authenticated metadata cache can still refresh.
+
+All candidate archives are downloaded and verified first. Kernel boot identity,
+retained artifacts, available ESP space and recovery/pending state are preflighted
+before changing data. Then data commits in its existing transaction and kernel
+staging uses its separate boot transaction. These are **not one atomic root/ESP
+transaction**. A staging failure can leave successfully updated data installed;
+inspect `boot status`, resolve recovery and rerun as appropriate. Catalog freshness
+is checked before data commit and again before kernel staging. Cancellation and
+known preflight failures preserve the old installed data. Interrupted data writes
+use `pkg recover`; interrupted boot writes use `boot recover`.
+
+A pending or recovery-required boot generation blocks another system update before
+refresh/download. Confirm or roll back it first. No automatic reboot or boot
+confirmation occurs. Data-only updates need no reboot; fonts apply on next desktop
+initialization and native program replacement applies on next invocation.
+
+For a guest still on 0.0.7, use `pkg refresh` and `pkg kernel update` once to get
+0.0.8, then reboot/confirm. The new command is available in that loaded kernel.
+
+Independent source recipes now provide `zenith-man-pages` and `zenith-fonts` in
+core, `sunbeam-tools` and `zenith-docs` in extra. Install wanted packages by name;
+then `pkg update` maintains them. Embedded fonts and a small recovery manuals remain
+available when the independent data packages are absent.
+
 ## Operator workflow
 
 Update the server checkout to this implementation. Publish the already-issued
@@ -61,7 +103,7 @@ publication. `publish` of an existing kernel does not access the private key: ru
 published; rerun `index` instead of trying to replace/rebuild the version.
 
 Indexes default to seven-day validity. Run `index` to renew them even without new
-packages; there is no scheduler in this slice. Keep the highest generations across
+packages; the distributor timer renews them as well as discovering independent package tags. Keep the highest generations across
 server restores: clients reject replayed or changed existing generations. The
 lower-level `index-seal` tool accepts explicit generations for operator recovery.
 Production 0.0.5/0.0.6 archives retain their original bytes and source identities.

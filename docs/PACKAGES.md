@@ -214,3 +214,27 @@ status line; fetch shows a byte percentage/bar, data installation shows file pro
 and commit phases, and kernel updates show the current phase. Progress is omitted
 from redirected stdout; final results/errors remain. File application reaching 100%
 is not a committed transaction until the final success message.
+
+
+## Independently delivered manuals, fonts and native text tools
+
+The source now defines zenith-man-pages/core and zenith-fonts/core generators,
+zenith-docs/extra static documentation, and sunbeam-tools/extra native source. Full
+manuals install in /usr/share/zenith/man and take precedence in `man`; kernel recovery
+intro/shell/headless/license pages stay under /usr/share/man. Signed owned fonts install in
+/usr/share/zenith/fonts and take precedence on the next desktop initialization;
+embedded recovery copies remain available. Font licenses ship with the payload.
+
+`build-native NAME VERSION PAYLOAD OUTPUT --repo extra` validates ELF ABI 1, emits
+x86_64 metadata, requires zenith-native-abi 1.0 and records ELF paths at 0755. Native
+containers remain signed data packages and cannot write boot files or arbitrary
+system paths. Execution is a separate protected loader operation with ownership,
+digest and mode checks ([native ABI](NATIVE-PROGRAMS.md)). Publishing base-tools,
+net-tools or desktop inventory labels as if they were independent binaries would
+be incorrect; their actual ports require additional APIs.
+
+`pkg update [--yes]` maintains all installed signed packages and stages a newer
+kernel. It permits up to 32 selected data packages within the existing total DB,
+8 MiB transaction and per-file limits. Offline supplied-file CLI remains bounded
+to 16 archives. See [ONLINE-PACKAGES](ONLINE-PACKAGES.md) for preflight, freshness,
+confirmation, separate data/boot commits and first upgrade from 0.0.7.

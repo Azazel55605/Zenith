@@ -220,3 +220,14 @@ retain releases.json, per-tag logs, signing keys and published archives. The sou
 cache retains fetched tags even if they disappear upstream. Stop the timer and
 service before maintenance. Actual VM scheduling/build/HTTPS acceptance remains
 separate from local orchestration tests.
+
+
+New source recipes also support zenith-man-pages/vVERSION (generated full manuals),
+zenith-fonts/vVERSION (font subsets plus licenses), and sunbeam-tools/vVERSION
+(freestanding native executable). Install GCC for the latter. Pull the updated
+controller before consuming these tags. The poller automatically reports/cleans
+known inactive build evidence under both worker/publication locks; the storage
+policy and manual preview/apply command are in docs/PACKAGE-SERVER.md. Immutable
+published packages and durable tag pins remain. Current kernel source adds the
+protected executable acceptance gate; older immutable tags retain their existing
+kernel/repository gates because they predate native ABI 1.

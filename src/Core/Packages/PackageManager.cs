@@ -135,7 +135,7 @@ internal sealed class PackageManager
     }
     public void Install(IReadOnlyList<SignedPackage> incoming, Action cancel, Action<string>? progress = null)
     {
-        if (incoming.Count is < 1 or > 16) { throw new IOException("install expects 1..16 signed packages"); }
+        if (incoming.Count is < 1 or > 32) { throw new IOException("install expects 1..32 signed packages"); }
         Recover(); var old = new List<InstalledPackage>(List()); var next = new List<InstalledPackage>(old);
         var seen = new HashSet<string>(StringComparer.Ordinal); var changes = new Dictionary<string, (byte[]? Data, ushort Mode)>(StringComparer.Ordinal);
         foreach (var package in incoming)

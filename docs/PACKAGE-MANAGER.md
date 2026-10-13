@@ -328,3 +328,16 @@ Implemented: P0 unsigned inspection/dry-run and P1 signed offline scripts/data
 installation, ownership, upgrade/removal and recovery. M3 verified transport is available.
 Next: native ABI/process foundations for compiled tools, dedicated VM provisioning
 and signed online metadata. Kernel boot generations require their own validation.
+
+
+## 0.0.8 implementation update
+
+The bounded private client now has `pkg update [--yes]`, covering refreshed signed
+catalogs, all installed data packages and a newer core kernel, with one reviewed
+plan and read-only kernel preflight before data commit. Data and boot are separate
+transactions, with explicit reboot/confirmation and independent recovery commands.
+See ONLINE-PACKAGES for the actual behavior; public trust-role/key rotation and
+matched root snapshots remain open. Independent manual/font data recipes and the
+first protected native Sunbeam executable are implemented, using x86_64 metadata
+and zenith-native-abi 1.0. NATIVE-PROGRAMS describes the bounded foreground ABI and
+remaining handles/scheduling/IPC/GUI interfaces before compiled system/desktop ports.

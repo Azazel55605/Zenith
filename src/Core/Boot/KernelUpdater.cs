@@ -82,7 +82,7 @@ internal sealed class KernelUpdater
         Text(FallbackMenu, before.Menu()); _store.Sync();
     }
     private void End() { _store.Delete(Journal); _store.Sync(); }
-    public void Install(KernelPackage package, string running, Action cancel, Action<string> progress)
+    public KernelUpdateState CheckCandidate(KernelPackage package, string running)
     {
         Idle(); KernelPackage.ValidatePayload(package.Kernel);
         if (package.Id != BootLayout.Digest(package.Kernel)) { throw new IOException("candidate digest mismatch"); }
@@ -97,6 +97,12 @@ internal sealed class KernelUpdater
         if (_store.Exists(path)) { throw new IOException("unowned/abandoned candidate path exists"); }
         VacantWorkFiles(path); VacantWorkFiles(EspPrefix + "/boot/zenith/" + package.Id + "/manifest.tsv");
         if (_store.Exists(EspPrefix + "/boot/zenith/" + package.Id + "/manifest.tsv")) { throw new IOException("occupied generation metadata"); }
+        return before;
+    }
+    public void Install(KernelPackage package, string running, Action cancel, Action<string> progress)
+    {
+        var before = CheckCandidate(package, running);
+        string path = EspPrefix + BootLayout.KernelPath(package.Id);
         cancel(); Begin(before, package.Id);
         progress("Staging signed kernel " + package.Version);
         _store.Directory(EspPrefix + "/boot/zenith/" + package.Id);

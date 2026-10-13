@@ -1,4 +1,7 @@
 {
   "kernel": {"kind": "kernel", "name": "zenith-kernel", "repository": "core"},
-  "zenith-docs": {"kind": "data", "name": "zenith-docs", "repository": "extra", "payload": "packaging/zenith-docs"}
+  "zenith-docs": {"kind": "data", "name": "zenith-docs", "repository": "extra", "payload": "packaging/zenith-docs"},
+  "zenith-man-pages": {"kind": "data", "name": "zenith-man-pages", "repository": "core", "payload": "obj/packages/zenith-man-pages", "generate": "manuals"},
+  "zenith-fonts": {"kind": "data", "name": "zenith-fonts", "repository": "core", "payload": "obj/packages/zenith-fonts", "generate": "fonts"},
+  "sunbeam-tools": {"kind": "data", "name": "sunbeam-tools", "repository": "extra", "payload": "obj/packages/sunbeam-tools", "generate": "native"}
 }

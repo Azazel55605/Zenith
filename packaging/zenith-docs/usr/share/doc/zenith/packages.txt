@@ -1,29 +1,33 @@
-Zenith package quick start
+Zenith package quick start (0.0.8)
 
-As root on an installed system, configure your HTTPS mirror with:
+As root on an installed system:
   pkg mirror HTTPS_BASE_URL
   pkg refresh
-
-Find and preview packages:
   pkg search
   pkg plan zenith-docs
-
-Install by name; answer y after reviewing the plan:
   pkg install zenith-docs
 
-Installed data upgrades:
-  pkg refresh
-  pkg upgrade
+Install independent manuals/fonts/native tools:
+  pkg install zenith-man-pages zenith-fonts sunbeam-tools
+  native run sunbeam echo hello Zenith
+  native run sunbeam basename /usr/share/doc/example.txt .txt
+  native run sunbeam id
 
-Kernel upgrades keep a separate boot boundary:
-  pkg kernel update
+Update all installed packages and stage a newer kernel with one reviewed plan:
+  pkg update
   reboot
   boot confirm
+Use --yes only for noninteractive updates after reviewing policy.
+No automatic reboot or confirmation occurs. Data and boot transactions are separate.
+A pending kernel must be confirmed or rolled back before another system update.
+Fonts load next desktop initialization; native programs update on next invocation.
 
-TLS trust and package signing trust are separate and persist on installed roots.
+A 0.0.7 guest must first use pkg refresh; pkg kernel update; reboot; boot confirm.
+Older kernels lack native ABI 1 and refuse sunbeam-tools' capability dependency.
+
+TLS trust and package-signing trust are separate and persist on installed roots.
 Use tls bootstrap URL SHA256 for a known public PEM, and pkg trust FILE SHA256
-for the known signing public key. Never use an unverified key from a mirror.
-
-Repository metadata expires. The operator can renew it with release.sh index.
-These are scripts/data packages. Compiled tools remain kernel-linked until
-Zenith has a native process/loader/ABI implementation.
+for the known signing public key. Repository metadata expires; the distributor
+renews indexes. Recovery commands: pkg recover for data, boot recover for boot.
+Sunbeam starts protected native userland; base/net/fs builtins and the test DE
+still require their filesystem/network/process/GUI ABI before independent ports.

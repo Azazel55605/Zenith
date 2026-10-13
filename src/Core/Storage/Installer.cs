@@ -64,7 +64,7 @@ internal static class Installer
         GuardedFilesystem.RequireRoot();
         lock (MaintenanceGate)
         {
-            if (Zenith.Core.Boot.NativeKernelUpdates.IsRunning || Zenith.Core.Shell.Commands.PackageCommands.IsRunning || Interlocked.CompareExchange(ref s_running, 1, 0) != 0)
+            if (Zenith.Core.Boot.NativeKernelUpdates.IsRunning || Zenith.Core.Shell.Commands.PackageCommands.IsRunning || Zenith.Core.Processes.NativeProcess.IsRunning || Interlocked.CompareExchange(ref s_running, 1, 0) != 0)
             { throw new IOException("installation or package update already running"); }
         }
         try { InstallCore(disk, progress, prepare()); }

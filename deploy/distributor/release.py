@@ -28,6 +28,8 @@ publisher = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(publisher)
 spec = importlib.util.spec_from_file_location("build_output", Path(__file__).parent / "build_output.py")
 build_output = importlib.util.module_from_spec(spec); spec.loader.exec_module(build_output)
+spec = importlib.util.spec_from_file_location("maintenance", Path(__file__).parent / "maintenance.py")
+maintenance = importlib.util.module_from_spec(spec); spec.loader.exec_module(maintenance)
 
 
 def version(value):
@@ -227,9 +229,14 @@ def native_checks(work):
     # alias to the deeply nested release workspace would not fix it.
     # /var/tmp avoids putting large validation disks in Debian's /tmp tmpfs.
     directory = Path(tempfile.mkdtemp(prefix="zn-", dir="/var/tmp"))
+    try: maintenance.register_native(directory, os.environ.get("ZENITH_BUILD_OUTPUT"))
+    except (OSError, ValueError): print("Native workspace registration unavailable; automatic orphan cleanup will skip it", flush=True)
     print("Native workspace: " + str(directory) + "; retained afterward at " + str(work / "native"), flush=True)
     try:
-        for name, script in (("k", "kernel-update-smoke.py"), ("r", "repository-smoke.py")):
+        checks = [("k", "kernel-update-smoke.py"), ("r", "repository-smoke.py")]
+        # Older immutable kernel tags predate this ABI and its harness.
+        if (REPO / "tools/native-process-smoke.py").exists(): checks.append(("u", "native-process-smoke.py"))
+        for name, script in checks:
             phase("Native " + script, [sys.executable, "-B", str(Path(__file__).parent / "validation-runner.py"), str(REPO / "tools" / script),
                   str(directory / name)], work / (script + ".log"))
     finally:
@@ -286,7 +293,7 @@ def verify(config, release, name="zenith-kernel", repository="core", kind="kerne
     print("Verified delivery and package signature: " + str(total) + " bytes; SHA256=" + expected)
 
 
-def data(config, name, release, source, repository):
+def data(config, name, release, source, repository, native=False):
     package_name(name)
     keys, root, _ = paths(config, signing=True)
     available(root, release, name, repository)
@@ -296,7 +303,7 @@ def data(config, name, release, source, repository):
     lock, work = locked_work(config)
     with lock:
         phase("Package tool", ["dotnet", "build", "tools/Zenith.PackageTool", "-c", "Release", "--nologo"], work / "package-tool.log")
-        phase("Build data", ["dotnet", str(TOOL), "build", name, release, str(source), str(work / "bundle"),
+        phase("Build data", ["dotnet", str(TOOL), "build-native" if native else "build", name, release, str(source), str(work / "bundle"),
                             "--repo", repository], work / "data.log")
         clean()
         if source_commit() != commit: raise ValueError("source commit changed before signing; refused")
@@ -367,11 +374,21 @@ def main():
         if name == "data": command.add_argument("source", type=Path)
     commands.add_parser("doctor", help="check configured paths, source and tools")
     commands.add_parser("index", help="sign/activate fresh core and extra repository indexes")
+    storage = commands.add_parser("storage", help="report build storage; optionally clean obsolete artifacts")
+    storage.add_argument("--clean", action="store_true")
     args = parser.parse_args()
     try:
         if args.command == "setup": configure(args); return 0
         config = configuration()
-        if args.command == "kernel": build(config, args.version)
+        if args.command == "storage":
+            state = Path.home() / ".local/state/zenith/distributor"
+            state.mkdir(parents=True, exist_ok=True, mode=0o750)
+            with (state / "poll.lock").open("a") as lock:
+                os.fchmod(lock.fileno(), 0o640)
+                fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                records = json.loads((state / "releases.json").read_text()) if (state / "releases.json").exists() else {}
+                print(json.dumps(maintenance.run(state, records, config, args.clean), indent=2))
+        elif args.command == "kernel": build(config, args.version)
         elif args.command == "publish": publish_existing(config, args.version, args.archive, args.source_commit)
         elif args.command == "verify": verify(config, args.version)
         elif args.command == "data": data(config, args.name, args.version, args.source, args.repository)

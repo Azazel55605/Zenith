@@ -11,8 +11,8 @@ internal static class RepositoryPlanner
         IReadOnlyList<PackageRepository> repositories, IReadOnlyList<InstalledPackage> installed,
         IReadOnlyList<string> requested, Action? cancel = null)
     {
-        if (requested.Count is < 1 or > 16 || requested.Distinct(StringComparer.Ordinal).Count() != requested.Count)
-        { throw new IOException("request 1..16 distinct package names"); }
+        if (requested.Count is < 1 or > 32 || requested.Distinct(StringComparer.Ordinal).Count() != requested.Count)
+        { throw new IOException("request 1..32 distinct package names"); }
         var roots = requested.OrderBy(x => x, StringComparer.Ordinal).ToArray();
         foreach (string name in roots)
         { if (!PackageManifest.ValidName(name) || name == "zenith-kernel") { throw new IOException("use data package names; kernels use pkg kernel update"); } }
@@ -24,7 +24,7 @@ internal static class RepositoryPlanner
         bool Solve()
         {
             cancel?.Invoke();
-            if (++attempts > 4096 || selected.Count > 16) { return false; }
+            if (++attempts > 4096 || selected.Count > 32) { return false; }
             string? unresolved = roots.FirstOrDefault(x => !selected.ContainsKey(x));
             var needs = new Dictionary<string, List<string>>(StringComparer.Ordinal);
             var final = installed.Where(x => !roots.Contains(x.Manifest.Name) && !selected.ContainsKey(x.Manifest.Name))
