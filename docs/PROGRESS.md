@@ -1,5 +1,22 @@
 # Implementation progress
 
+## 2026-10-13 · Relay restarted and distributor completion audit
+
+- Restarted the VMware NAT HTTP relay on 172.16.43.1:8081. A complete HTTP download
+  of 0.0.5 matches archive SHA256
+  1bad237c67528cf0187dd7d19adb6ed352a319f872745f0fae55eeaa00407996.
+  User installation/confirmation is pending; bootstrap still uses explicit sync
+  because the older kernel remains running until reboot.
+- Fresh laptop checks: 10.0.20.7:80 could not connect; the named HTTPS proxy was
+  reachable but hostname verification rejected its Zoraxy Self-host certificate.
+  No diagnosis of the VM service/firewall or guest transport success is asserted.
+- Added a read-only distributor inventory script; bash syntax validation passes.
+  Corrected outdated provisioning status and documented concrete remaining service,
+  certificate, guest delivery and backup acceptance steps. SSH login/key access was
+  requested for actual VM inspection; no server settings were changed.
+- P4 signed online discovery/named installs remain project work; automatic builds
+  remain deferred until usable package delivery/install/upgrade acceptance.
+
 ## 2026-10-12 · Checked automatic sync after kernel updates and before power changes
 
 - User reports losing the system after forgetting explicit sync, and confirms using

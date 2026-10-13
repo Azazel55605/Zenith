@@ -1,8 +1,30 @@
 # Debian build and package distributor
 
 This P2 kit runs the builder and static distributor on one dedicated x86_64
-Debian VM. The user is creating the VM from a template; version, IP, hostname,
-SSH access, LAN/VPN routes and backups are still pending. Nothing has been deployed.
+Debian VM. The user has provisioned Debian 13.7 at 10.0.20.7 and confirmed a
+manual release build/publication. Its proxy is https://zenith-stable.net.local.
+SSH access, resource/backup inventory and complete guest transport acceptance
+remain pending. See [current deployment status](../../docs/PACKAGE-SERVER.md).
+
+## Check the existing VM before provisioning again
+
+Run as `zenith-release` in the current checkout:
+
+```sh
+bash deploy/distributor/check-setup.sh
+```
+
+This read-only inventory reports tools, source commit, key permissions/public PEM
+hash, storage, nginx status/listeners and published receipts. It never prints the
+private key and does not install dependencies or change services. An administrator
+can additionally run `sudo nginx -t` and inspect relevant service/firewall logs.
+Confirm backup destination, retention and a restore test separately; filesystem
+inventory cannot establish that backups work.
+
+On 2026-10-13 the development laptop could not connect to 10.0.20.7 port 80;
+the named HTTPS proxy was reachable but failed hostname validation with its
+Zoraxy default certificate. These are transport observations, not a diagnosis of
+the VM's nginx configuration. Do not repeat completed provisioning blindly.
 
 Start with a budget of 4 vCPUs, 8 GiB RAM and 80 GiB disk, expandable for retained
 builds/releases. This is a suggested starting budget, not a measured minimum.
@@ -185,8 +207,7 @@ fetch --kernel http://VM_ADDRESS/core/zenith-kernel/0.0.2/zenith-kernel.zpk /roo
 pkg kernel check /root/zenith-kernel-0.0.2.zpk
 pkg kernel install /root/zenith-kernel-0.0.2.zpk
 boot status
-sync
-poweroff
+sync && poweroff
 ```
 
 If the key is already pinned, it does not need importing again. For a new install,
@@ -195,6 +216,8 @@ then check/install. Reboot from disk, test networking/files/package verification
 and run `boot confirm`. The first networking rescue bootstrap needed an ISO download
 followed by an offline disk-kernel install; future working installed kernels can
 download and install in one session. See [kernel updates](../../docs/KERNEL-UPDATES.md).
+The explicit sync above covers older running kernels. Once kernel 0.0.5 is loaded,
+normal Zenith reboot/poweroff performs checked sync/unmount/device flushing.
 
 ## Publish independently installable data packages
 

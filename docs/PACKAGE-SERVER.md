@@ -131,19 +131,20 @@ Do not expose signing/build management endpoints with the file server.
 
 ## Information still needed
 
-Hypervisor/network attachment, VM OS choice, IP/DNS name, permitted LAN/VPN subnets,
-repository storage/backup, package/release size budget, chosen web service and publisher
-access. Docker/Podman availability and existing host port mappings are not dependencies.
-With those details, create a concrete minimal deployment plus publish/verify checklist.
-The current planning task does not assume SSH access or authorization to deploy.
+Known: Debian 13.7 at 10.0.20.7, release account zenith-release, nginx deployment
+kit, manual release success and Zoraxy proxy https://zenith-stable.net.local.
+Still needed: SSH administrator/key access, actual service/source/tool inventory,
+VM resources/network attachment, permitted LAN/VPN subnets, repository storage,
+backup destination/retention and restore evidence. Docker is not a dependency.
 
 
 Current home information (updated 2026-10-12): DNS is 10.0.10.3. The dedicated Debian package
 server VM exists as Zenith-Package-Server, with builder setup in progress;
-its IP is 10.0.20.7, without a DNS name or completed web service acceptance.
-The laptop can ping it, but the Zenith VM cannot; the Zenith VM can reach DNS
-10.0.10.3. Guest address/mask/gateway, VMware attachment and actual TCP port 80
-reachability need checking before attributing the difference to routing/firewalls.
+its IP is 10.0.20.7 and its proxy name is zenith-stable.net.local. Earlier laptop
+ping and TCP reachability succeeded, while guest ping failed. On 2026-10-13 a fresh
+laptop HTTP check could not connect to 10.0.20.7:80; HTTPS reached the proxy but
+failed certificate hostname validation (Zoraxy Self-host). Current guest transport
+acceptance needs repeating after service and certificate setup are checked.
 M3's host user/TAP network profiles and DNS configuration permit acceptance once
 it exists; no server has been deployed as part of networking implementation.
 See [NETWORKING](NETWORKING.md) for the current LAN/CA bootstrap test procedure.
@@ -163,3 +164,22 @@ floors, key rotation and automatic dependency download remain P4 implementation.
 Setting the HTTPS base URLs in repos.conf does not implement that client. The VM
 can initially serve immutable .zpk files and the public PEM while that work proceeds;
 convey its key fingerprint through a trusted channel. Never serve the private key.
+
+## Completion checklist (2026-10-13)
+
+1. Inventory the existing VM with `bash deploy/distributor/check-setup.sh` as
+   zenith-release; compare source revision and public-key fingerprint with the
+   development/release records. Check nginx configuration as administrator.
+2. Restore/confirm direct HTTP delivery of an existing immutable release on
+   10.0.20.7:80 from the laptop. Inspect service/listeners and actual network rules
+   before changing them; a failed connection alone does not identify the cause.
+3. Point Zoraxy at the working VM HTTP service and select a certificate containing
+   DNS:zenith-stable.net.local. Bootstrap the public CA/certificate into Zenith
+   with its known PEM SHA256; verify HTTPS without disabling certificate checks.
+4. Test complete package bytes/signatures from LAN and VPN, then from installed
+   Zenith. Confirm usable progress and an installed kernel reboot/confirmation.
+5. Record resource/storage budget, release retention and separate signing-key
+   backups; perform a restore test without replacing the installed trust key.
+6. Implement P4 signed core/extra indexes and named package install/upgrade support
+   in Zenith and the manual publisher. This is project implementation work, not
+   missing Debian software. Automatic build scheduling follows that acceptance.
