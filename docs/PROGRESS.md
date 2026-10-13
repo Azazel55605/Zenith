@@ -1,5 +1,29 @@
 # Implementation progress
 
+## 2026-10-13 · Expandable package inventory and first docs release
+
+- User confirms distributor VM restarted for CPU changes and latest controller
+  fixes installed. Server-built kernel/v0.0.7 completed; no new kernel/tag rebuild.
+- Dashboard groups versions by repository/package, collapsed initially with latest
+  numeric version and count. Package-row clicks and keyboard buttons reveal ordered
+  versions. Expansion/focus survive five-second refresh and repository filtering;
+  name/version queries show matching versions with query-specific expansion state.
+- Local actual zenith-docs 0.1.0 payload builds and inspects as one 872-byte installed
+  package quick-start file, plans /usr/share/doc/zenith/packages.txt at 0644, and
+  passes signed-container verification using disposable keys. Recipe targets extra;
+  release tag zenith-docs/v0.1.0 selects this first docs package independently of the
+  kernel version. Production signing/publication remains the server's tagged worker;
+  server publication and guest installation of docs remain to be confirmed.
+- Browser plugin unavailable; regular Playwright Chromium desktop 1505x1045/mobile
+  390x844 and Firefox default viewport verify grouping, numeric 0.0.10 over 0.0.7,
+  repo separation, click/Enter/Space expansion, focus/refresh persistence, filtering,
+  meaningful render/identity, no framework overlay and healthy console. Screenshots:
+  /tmp/zenith-groups-{chromium,firefox,mobile}.png. Fixture versions are illustrative.
+- User adds storage management to the upcoming list: automatic bounded cleanup of
+  old build files/disks/logs, storage visibility, active-work locking and preservation
+  of useful failure evidence. Recorded in ROADMAP; current successful-checkout cleanup
+  exists, broader retention/automatic pruning is not implemented in this UI slice.
+
 ## 2026-10-13 · Public repository permissions and partial inventory
 
 - User's screenshot shows kernel/v0.0.7 Complete and signed core/extra indexes

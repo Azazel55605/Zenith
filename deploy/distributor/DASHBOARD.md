@@ -86,6 +86,11 @@ only to /manage/. Keep this manager on the existing LAN/VPN network.
   release receipts and does not independently attest signatures. Published time
   is receipt modification time. It covers tagged polling releases; the legacy
   manual release command does not create tag records.
+- Package inventory groups versions by repository and package name. Click the
+  package row or use its keyboard-accessible button to expand/collapse released
+  versions; newest numeric version appears in the summary. Expansion survives
+  automatic refresh and repository filtering. Name/version searches reveal matching
+  releases without combining packages from different repositories.
 - Build output uses an ID-based API without an encoded tag slash. The log heading
   provides Open output for direct JSON viewing if a browser fetch fails. HTTP,
   non-JSON/login/proxy and transport errors are distinguished. The original

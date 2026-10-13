@@ -393,3 +393,9 @@ footer {
 .log-tools select {max-width:100%;background:#0e1928;color:#dce5f2;border:1px solid var(--line);border-radius:5px;padding:7px}
 .phase-diagnostic {white-space:pre-wrap;overflow-wrap:anywhere;background:#312b20;color:#f1d5a0;border:1px solid #645438;border-radius:5px;padding:10px;margin-bottom:10px;font:12px/1.5 ui-monospace,monospace}
 .log-panel pre {height:240px}
+.package-group {cursor:pointer}
+.package-toggle {border:0;background:transparent;padding:4px 0;font-weight:600;text-align:left}
+.package-toggle:focus-visible {outline:2px solid var(--accent);outline-offset:4px}
+.version-count {display:block;color:var(--muted);font-size:11px;margin:3px 0 0 15px}
+.package-version {background:#132033;color:var(--muted)}
+.package-version td:nth-child(2) {padding-left:32px;font-size:12px}

@@ -1,6 +1,7 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
 let snapshot = null, selectedTag = null, repository = "all", refreshing = false, submitting = false, warningNotice = false, logView = "auto";
+const expandedPackages = new Map();
 const date = (value) => {
   if (!value) return "—";
   const d = typeof value === "number" ? new Date(value * 1000) : new Date(value);
@@ -21,12 +22,46 @@ async function request(path, options = {}) {
   if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
   return data;
 }
+function compareVersions(a,b) {
+  const left=a.version.split(".").map(Number), right=b.version.split(".").map(Number);
+  for(let i=0;i<Math.max(left.length,right.length);i++) { const difference=(right[i] || 0)-(left[i] || 0); if(difference)return difference; }
+  return a.version.localeCompare(b.version);
+}
 function packages() {
-  const body=$("packages"); body.replaceChildren();
-  const query=$("filter").value.trim().toLowerCase();
-  const rows=(snapshot?.packages || []).filter(item => (repository==="all" || item.repository===repository) && `${item.name} ${item.version}`.toLowerCase().includes(query));
-  for (const item of rows) { const tr=document.createElement("tr"); tr.append(cell(item.repository),cell(item.name),cell(item.version),cell(size(item.bytes)),cell(date(item.published))); body.append(tr); }
-  if (!rows.length) empty(body,"No published packages match this filter.");
+  const body=$("packages"), focusedKey=document.activeElement?.dataset.packageKey; body.replaceChildren();
+  const query=$("filter").value.trim().toLowerCase(), groups=new Map();
+  for(const item of snapshot?.packages || []) {
+    if(repository!=="all" && item.repository!==repository)continue;
+    const key=`${item.repository}/${item.name}`;
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push(item);
+  }
+  let visible=0;
+  for(const [key,versions] of groups) {
+    versions.sort(compareVersions);
+    const matches=versions.filter(item=>`${item.name} ${item.version}`.toLowerCase().includes(query));
+    if(!matches.length)continue;
+    visible++;
+    const expandedKey=`${key}\u0000${query}`;
+    const latest=versions[0], expanded=expandedPackages.has(expandedKey) ? expandedPackages.get(expandedKey) : Boolean(query), row=document.createElement("tr");
+    row.className="package-group";
+    const name=cell(""), button=document.createElement("button"), count=document.createElement("span");
+    button.dataset.packageKey=key; button.className="package-toggle"; button.textContent=`${expanded?"▾":"▸"} ${latest.name}`;
+    button.setAttribute("aria-expanded",String(expanded));
+    button.setAttribute("aria-label",`${expanded?"Hide":"Show"} versions for ${latest.name} in ${latest.repository}`);
+    count.className="version-count"; count.textContent=`${versions.length} version${versions.length===1?"":"s"}`;
+    name.append(button,count);
+    const toggle=()=>{expandedPackages.set(expandedKey,!expanded);packages();};
+    button.addEventListener("click",toggle);
+    row.addEventListener("click",event=>{if(!event.target.closest("button"))toggle();});
+    row.append(cell(latest.repository),name,cell(latest.version),cell(size(latest.bytes)),cell(date(latest.published)));body.append(row);
+    if(focusedKey===key)button.focus();
+    if(expanded)for(const item of matches) {
+      const child=document.createElement("tr"); child.className="package-version";
+      child.append(cell(""),cell("Released version"),cell(item.version),cell(size(item.bytes)),cell(date(item.published)));body.append(child);
+    }
+  }
+  if(!visible)empty(body,"No published packages match this filter.");
 }
 function builds() {
   const body=$("builds"); body.replaceChildren();

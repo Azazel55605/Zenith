@@ -397,6 +397,15 @@ a matching DNS name before verified HTTPS use. See PACKAGE-SERVER and PROGRESS.
 
 2026-10-13 update: verified HTTPS and the 0.0.7 signed online client slice are
 implemented. User selects package-specific release tags and periodic distributor
-Git polling next. The host automation kit is implemented/tested; actual server
-activation and a complete server-built automated release remain deployment gates.
+Git polling next. The host automation kit is implemented/tested; the user now
+confirms the first server-built automated kernel/v0.0.7 release completed.
 See deploy/distributor/AUTOMATION.md and PROGRESS for scope and validation.
+
+Next distributor operations: publish zenith-docs through its independent package
+tag; add storage reporting and automatic build-artifact retention/cleanup. Completed
+checkouts are already removed, but failed/interrupted attempts, native disks and
+orphaned short workspaces need bounded retention. Cleanup must coordinate with build
+locks, preserve active work and recent diagnostic evidence, and distinguish build
+artifacts from published package versions, Git pins/state, TLS/signing keys and
+backup/recovery material. Age/space policy, dry-run visibility and safe-path regression
+tests belong in that slice; automatic cleanup is planned, not yet implemented.
