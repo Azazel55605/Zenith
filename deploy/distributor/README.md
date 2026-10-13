@@ -281,6 +281,20 @@ normal Zenith reboot/poweroff performs checked sync/unmount/device flushing.
 
 ## Publish independently installable data packages
 
+For a committed payload directory inside the checkout, use the same saved settings:
+
+```sh
+bash deploy/distributor/release.sh data zenith-docs 0.0.1 path/to/payload --repository extra
+bash deploy/distributor/release.sh verify-data zenith-docs 0.0.1 --repository extra
+```
+
+The payload has the existing supported layout, such as
+`usr/share/doc/zenith/README.txt`. The command builds the existing data bundle,
+signs it with the configured key, verifies repository/name/version and publishes
+it atomically. `core` and `extra` are supported; source changes refuse publication.
+This does not add executable formats, dependency recipes or native tool unbundling.
+Use the existing package-tool commands below for lower-level experiments.
+
 Use the existing PackageTool `build`/`seal` commands for committed payload recipes,
 then publish a signed artifact with the same verifier. Example for an already built
 and signed `zenith-docs` 0.0.1 archive:

@@ -120,6 +120,28 @@ class ReleaseTests(unittest.TestCase):
                 release.phase("Fixture", ["python3", "-c", "print('actual failure reason'); raise SystemExit(1)"], log)
         self.assertIn("actual failure reason", log.read_text())
 
+    def test_data_build_sign_publish_uses_committed_payload_and_extra_identity(self):
+        payload = self.repo / "payload"; shutil.copytree(self.source / "data", payload)
+        original = release.phase
+        def phase(label, command, log):
+            if label == "Package tool": log.write_text("existing fixture tool\n")
+            else: original(label, command, log)
+        with patch.object(release, "REPO", self.repo), patch.object(release, "clean"), \
+             patch.object(release, "source_commit", return_value="a" * 40), patch.object(release, "phase", side_effect=phase):
+            release.data(self.config, "zenith-docs", "0.0.2", payload, "extra")
+        target = self.root / "extra/zenith-docs/0.0.2"
+        receipt = json.loads((target / "release.json").read_text())
+        self.assertEqual("data", receipt["kind"]); self.assertEqual("extra", receipt["repository"])
+        release.publisher.verify(release.TOOL, target / "zenith-docs.zpk", self.keys / "public.pem",
+                                 "data", "zenith-docs", "0.0.2", "extra")
+
+    def test_external_payload_and_invalid_name_are_refused(self):
+        with patch.object(release, "REPO", self.repo):
+            with self.assertRaisesRegex(ValueError, "inside the committed"):
+                release.data(self.config, "zenith-docs", "0.0.2", self.source / "data", "extra")
+            with self.assertRaisesRegex(ValueError, "invalid package name"):
+                release.data(self.config, "../escape", "0.0.2", self.repo, "extra")
+
     def test_web_delivery_must_match_locally_verified_package(self):
         self.publish()
         class Handler(http.server.SimpleHTTPRequestHandler):

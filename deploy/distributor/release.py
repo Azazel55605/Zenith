@@ -29,14 +29,22 @@ spec.loader.exec_module(publisher)
 def version(value):
     if not re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*))?", value):
         raise ValueError("expected numeric release version, e.g. 0.0.7")
+    if any(int(part) > 0xffffffff for part in value.split(".")):
+        raise ValueError("version component exceeds package format limit")
+    return value
+
+
+def package_name(value):
+    if not re.fullmatch(r"[a-z][a-z0-9-]{0,63}", value): raise ValueError("invalid package name")
     return value
 
 
 def base_url(value):
     parsed = urllib.parse.urlsplit(value)
-    if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username \
+    if not value.isascii() or any(ord(c) <= 32 for c in value) or parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username \
             or parsed.password or parsed.query or parsed.fragment:
         raise ValueError("base URL must be HTTP/HTTPS without credentials, query or fragment")
+    if parsed.port is not None and parsed.port < 1: raise ValueError("invalid delivery port")
     return value.rstrip("/")
 
 
@@ -85,12 +93,12 @@ def paths(config, signing=False):
     return keys, root, public
 
 
-def available(root, release):
+def available(root, release, name="zenith-kernel", repository="core"):
     if not os.access(root, os.W_OK) or not os.access(root.parent, os.W_OK):
         raise ValueError("release user needs write access to publication root and its staging parent")
-    if any(path.is_symlink() for path in (root / "core", root / "core/zenith-kernel")):
+    if any(path.is_symlink() for path in (root / repository, root / repository / name)):
         raise ValueError("symlink publication directory refused")
-    target = root / "core/zenith-kernel" / release
+    target = root / repository / name / release
     if target.exists() or target.is_symlink():
         raise ValueError("version already published; use verify instead of rebuilding/replacing it")
 
@@ -119,19 +127,25 @@ def phase(label, command, log):
     print(label + " passed", flush=True)
 
 
-def publish(config, release, archive, commit, work):
+def publish(config, release, archive, commit, work, name="zenith-kernel", repository="core", kind="kernel"):
     keys, root, public = paths(config)
-    target, receipt = publisher.publish(root, archive, public, TOOL, "kernel", "zenith-kernel", release, "core", commit)
+    target, receipt = publisher.publish(root, archive, public, TOOL, kind, name, release, repository, commit)
     (work / "release.json").write_text(json.dumps(receipt, indent=2) + "\n")
     print("Published immutable release: " + str(target), flush=True)
-    url = config["base_url"] + "/core/zenith-kernel/" + release + "/zenith-kernel.zpk"
+    url = config["base_url"] + "/" + repository + "/" + name + "/" + release + "/" + name + ".zpk"
     print("Download: " + url)
     print("Archive SHA256: " + receipt["archive_sha256"])
-    print("Verify distribution: bash deploy/distributor/release.sh verify " + release)
-    print("Guest: fetch --kernel " + url + " /root/kernel.zpk")
-    print("Guest: pkg kernel check /root/kernel.zpk")
-    print("Guest: pkg kernel install /root/kernel.zpk && sync && reboot")
-    print("After booting the new kernel: boot confirm")
+    verify_command = "verify " + release if kind == "kernel" else "verify-data " + name + " " + release + " --repository " + repository
+    print("Verify distribution: bash deploy/distributor/release.sh " + verify_command)
+    if kind == "kernel":
+        print("Guest: fetch --kernel " + url + " /root/kernel.zpk")
+        print("Guest: pkg kernel check /root/kernel.zpk")
+        print("Guest: pkg kernel install /root/kernel.zpk && sync && reboot")
+        print("After booting the new kernel: boot confirm")
+    else:
+        print("Guest: fetch " + url + " /root/package.zpk")
+        print("Guest: pkg check /root/package.zpk")
+        print("Guest: pkg install /root/package.zpk")
     print("Native acceptance and the real installed VM check remain required.")
     return receipt
 
@@ -179,17 +193,17 @@ def publish_existing(config, release, archive, commit):
         return publish(config, release, archive, commit, work)
 
 
-def verify(config, release):
+def verify(config, release, name="zenith-kernel", repository="core", kind="kernel"):
     _, root, public = paths(config)
-    target = publisher.real_path(root / "core/zenith-kernel" / release, directory=True)
+    target = publisher.real_path(root / repository / name / release, directory=True)
     receipt = json.loads((target / "release.json").read_text())
-    local = target / "zenith-kernel.zpk"
+    local = target / (name + ".zpk")
     # Receipts are operator records, never a substitute for the signed container.
-    publisher.verify(TOOL, local, public, "kernel", "zenith-kernel", release, "core")
+    publisher.verify(TOOL, local, public, kind, name, release, repository)
     expected = publisher.digest(local); maximum = local.stat().st_size
     if expected != receipt["archive_sha256"] or maximum != receipt["archive_bytes"]:
         raise ValueError("local archive disagrees with publication receipt")
-    url = config["base_url"] + "/core/zenith-kernel/" + release + "/zenith-kernel.zpk"
+    url = config["base_url"] + "/" + repository + "/" + name + "/" + release + "/" + name + ".zpk"
     context = ssl.create_default_context(cafile=config.get("tls_ca"))
     class NoRedirect(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, *args): raise ValueError("unexpected distributor redirect")
@@ -207,6 +221,27 @@ def verify(config, release):
     print("Verified delivery and package signature: " + str(total) + " bytes; SHA256=" + expected)
 
 
+def data(config, name, release, source, repository):
+    package_name(name)
+    keys, root, _ = paths(config, signing=True)
+    available(root, release, name, repository)
+    source = publisher.real_path(source, directory=True)
+    if not source.is_relative_to(REPO): raise ValueError("data payload must be inside the committed source checkout")
+    clean(); commit = source_commit()
+    lock, work = locked_work()
+    with lock:
+        phase("Package tool", ["dotnet", "build", "tools/Zenith.PackageTool", "-c", "Release", "--nologo"], work / "package-tool.log")
+        phase("Build data", ["dotnet", str(TOOL), "build", name, release, str(source), str(work / "bundle"),
+                            "--repo", repository], work / "data.log")
+        clean()
+        if source_commit() != commit: raise ValueError("source commit changed before signing; refused")
+        phase("Sign data", ["dotnet", str(TOOL), "seal", str(work / "bundle"), str(keys / "private.pem"),
+                           str(work / "package.zpk")], work / "sign.log")
+        clean()
+        if source_commit() != commit: raise ValueError("source commit changed before publication; refused")
+        publish(config, release, work / "package.zpk", commit, work, name, repository, "data")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -219,6 +254,11 @@ def main():
     existing = commands.add_parser("publish", help="verify/publish an existing signed kernel without rebuilding")
     existing.add_argument("version", type=version); existing.add_argument("archive", type=Path)
     existing.add_argument("--source-commit", required=True)
+    for name in ("data", "verify-data"):
+        command = commands.add_parser(name)
+        command.add_argument("name", type=package_name); command.add_argument("version", type=version)
+        command.add_argument("--repository", choices=("core", "extra"), default="extra")
+        if name == "data": command.add_argument("source", type=Path)
     commands.add_parser("doctor", help="check configured paths, source and tools")
     args = parser.parse_args()
     try:
@@ -227,6 +267,8 @@ def main():
         if args.command == "kernel": build(config, args.version)
         elif args.command == "publish": publish_existing(config, args.version, args.archive, args.source_commit)
         elif args.command == "verify": verify(config, args.version)
+        elif args.command == "data": data(config, args.name, args.version, args.source, args.repository)
+        elif args.command == "verify-data": verify(config, args.version, args.name, args.repository, "data")
         else:
             paths(config, signing=True); clean(); prerequisites()
             print("Source: " + source_commit()); print("Settings: " + str(CONFIG))

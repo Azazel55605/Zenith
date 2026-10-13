@@ -14,13 +14,18 @@
   bytes/hash through the configured proxy, with explicit public TLS trust and
   hostname validation. Published artifacts survive transport failure for verify
   retry. No automatic git pull, signing-key rotation, scheduler or guest activation.
-- Disposable workflow tests pass 10/10: saved config, invalid input, key permissions,
+- Disposable workflow tests pass 12/12: saved config, invalid input, key permissions,
   immutable existing publication, build failure/no signing, source-change refusal,
-  real signing/publication, useful failure logs, full HTTP delivery and concurrent
-  refusal. Host tests/build stages are mocked in orchestration coverage; real
+  real kernel/data signing/publication, useful failure logs, full HTTP delivery,
+  committed-payload enforcement and concurrent refusal. Host tests/build stages are mocked in orchestration coverage; real
   signing and publisher checks use disposable RSA keys/ELF, not production keys.
-  Existing publisher regression and full workflow acceptance are being checked.
-  Evidence: obj/distributor-workflow-tests.log. Actual Debian deployment remains
+  Existing publisher regression passes 10/10. A full actual Release host-test,
+  kernel-build, disposable signing/publication and 16 MB HTTP byte-verification
+  run also passes; this is not just mocked orchestration. Its disposable 0.0.999
+  fixture is not an issued production version. Added matching data/verify-data
+  commands for committed supported payloads and core/extra identities.
+  Evidence: obj/distributor-workflow-tests-complete.log, distributor-publisher-tests.log
+  and distributor-workflow-acceptance.log. Actual Debian deployment remains
   user-run; no SSH access or service/key/guest configuration changed by the agent.
 
 ## 2026-10-13 · Keyboard, terminal recall and TLS bootstrap usability
