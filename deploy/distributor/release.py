@@ -1,0 +1,243 @@
+#!/usr/bin/env python3
+"""Manual build/sign/publish and independently checked static delivery."""
+import argparse
+import fcntl
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import signal
+import ssl
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.parse
+import urllib.request
+
+REPO = Path(__file__).resolve().parents[2]
+CONFIG = Path.home() / ".config/zenith/distributor.json"
+TOOL = REPO / "tools/Zenith.PackageTool/bin/Release/net10.0/Zenith.PackageTool.dll"
+spec = importlib.util.spec_from_file_location("publisher", REPO / "tools/publish-package.py")
+publisher = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(publisher)
+
+
+def version(value):
+    if not re.fullmatch(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*))?", value):
+        raise ValueError("expected numeric release version, e.g. 0.0.7")
+    return value
+
+
+def base_url(value):
+    parsed = urllib.parse.urlsplit(value)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username \
+            or parsed.password or parsed.query or parsed.fragment:
+        raise ValueError("base URL must be HTTP/HTTPS without credentials, query or fragment")
+    return value.rstrip("/")
+
+
+def configure(args):
+    config = dict(keys=str(args.keys.expanduser().resolve()), root=str(args.root.expanduser().resolve()),
+                  base_url=base_url(args.url), tls_ca=str(args.tls_ca.expanduser().resolve()) if args.tls_ca else None)
+    CONFIG.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    descriptor, temporary = tempfile.mkstemp(prefix=".distributor-", dir=CONFIG.parent)
+    try:
+        with os.fdopen(descriptor, "w") as file:
+            json.dump(config, file, indent=2); file.write("\n"); file.flush(); os.fsync(file.fileno())
+        os.replace(temporary, CONFIG)
+    finally:
+        if os.path.exists(temporary): os.unlink(temporary)
+    print("Saved server settings: " + str(CONFIG))
+    print("Existing signing keys and web service are unchanged.")
+
+
+def configuration():
+    if not CONFIG.is_file(): raise ValueError("run release.sh setup BASE_URL first")
+    config = json.loads(CONFIG.read_text())
+    base_url(config["base_url"])
+    return config
+
+
+def source_commit():
+    return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip()
+
+
+def clean():
+    if subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=all"], cwd=REPO):
+        raise ValueError("commit or remove checkout changes before building a release")
+    if (REPO / "cosmos.local.props").exists(): raise ValueError("local Cosmos override refused")
+
+
+def paths(config, signing=False):
+    keys = publisher.real_path(config["keys"], directory=True)
+    root = publisher.real_path(config["root"], directory=True)
+    if keys == root or keys.is_relative_to(root): raise ValueError("signing keys must be outside the web root")
+    public = publisher.real_path(keys / "public.pem")
+    if signing:
+        private = publisher.real_path(keys / "private.pem")
+        if private.stat().st_mode & 0o077: raise ValueError("private.pem must be readable only by its owner (chmod 600)")
+        if keys.stat().st_mode & 0o077 or keys.stat().st_uid != os.getuid():
+            raise ValueError("signing directory must belong to the release user with mode 700")
+    return keys, root, public
+
+
+def available(root, release):
+    if not os.access(root, os.W_OK) or not os.access(root.parent, os.W_OK):
+        raise ValueError("release user needs write access to publication root and its staging parent")
+    if any(path.is_symlink() for path in (root / "core", root / "core/zenith-kernel")):
+        raise ValueError("symlink publication directory refused")
+    target = root / "core/zenith-kernel" / release
+    if target.exists() or target.is_symlink():
+        raise ValueError("version already published; use verify instead of rebuilding/replacing it")
+
+
+def phase(label, command, log):
+    print(label + " — " + str(log), flush=True)
+    started = time.monotonic()
+    with log.open("wb") as output:
+        process = subprocess.Popen(command, cwd=REPO, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
+        try:
+            while process.poll() is None:
+                time.sleep(0.2)
+                if sys.stdout.isatty() and time.monotonic() - started >= 5:
+                    print("\r" + label + " running; see " + str(log), end="", flush=True)
+                    started = time.monotonic()
+        except BaseException:
+            try: os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError: pass
+            try: process.wait(timeout=10)
+            except subprocess.TimeoutExpired: os.killpg(process.pid, signal.SIGKILL); process.wait()
+            raise
+    if sys.stdout.isatty(): print()
+    if process.returncode:
+        tail = log.read_text(errors="replace").splitlines()[-20:]
+        raise ValueError(label + " failed; full log: " + str(log) + "\n" + "\n".join(tail))
+    print(label + " passed", flush=True)
+
+
+def publish(config, release, archive, commit, work):
+    keys, root, public = paths(config)
+    target, receipt = publisher.publish(root, archive, public, TOOL, "kernel", "zenith-kernel", release, "core", commit)
+    (work / "release.json").write_text(json.dumps(receipt, indent=2) + "\n")
+    print("Published immutable release: " + str(target), flush=True)
+    url = config["base_url"] + "/core/zenith-kernel/" + release + "/zenith-kernel.zpk"
+    print("Download: " + url)
+    print("Archive SHA256: " + receipt["archive_sha256"])
+    print("Verify distribution: bash deploy/distributor/release.sh verify " + release)
+    print("Guest: fetch --kernel " + url + " /root/kernel.zpk")
+    print("Guest: pkg kernel check /root/kernel.zpk")
+    print("Guest: pkg kernel install /root/kernel.zpk && sync && reboot")
+    print("After booting the new kernel: boot confirm")
+    print("Native acceptance and the real installed VM check remain required.")
+    return receipt
+
+
+def locked_work():
+    directory = REPO / "obj/distributor"; directory.mkdir(parents=True, exist_ok=True)
+    lock = (directory / "build.lock").open("a")
+    try: fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        lock.close(); raise ValueError("another distributor operation is running")
+    return lock, Path(tempfile.mkdtemp(prefix="release-", dir=directory))
+
+
+def build(config, release):
+    keys, root, _ = paths(config, signing=True)
+    available(root, release); clean(); commit = source_commit()
+    prerequisites()
+    lock, work = locked_work()
+    with lock:
+        print("Source: " + commit + "; logs: " + str(work), flush=True)
+        phase("Host tests", ["dotnet", "test", "tests/Zenith.Tests", "-c", "Release"], work / "tests.log")
+        phase("Kernel build", ["dotnet", "publish", "-c", "Release", "-r", "linux-x64", "-o", str(work / "build")], work / "build.log")
+        clean()
+        if source_commit() != commit: raise ValueError("source commit changed during build; publication refused")
+        phase("Package tool", ["dotnet", "build", "tools/Zenith.PackageTool", "-c", "Release", "--nologo"], work / "package-tool.log")
+        phase("Sign kernel", ["dotnet", str(TOOL), "kernel-seal", release, str(work / "build/Zenith.elf"),
+                              str(keys / "private.pem"), str(work / "kernel.zpk")], work / "sign.log")
+        clean()
+        if source_commit() != commit: raise ValueError("source commit changed before publication; refused")
+        publish(config, release, work / "kernel.zpk", commit, work)
+
+
+def prerequisites():
+    missing = [command for command in ("dotnet", "git", "clang", "nm", "e2fsck", "debugfs", "cosmos.patcher")
+               if shutil.which(command) is None]
+    if missing: raise ValueError("missing build tools: " + ", ".join(missing))
+
+
+def publish_existing(config, release, archive, commit):
+    if not re.fullmatch(r"[0-9a-f]{40}", commit): raise ValueError("supply the full artifact source commit")
+    _, root, _ = paths(config); available(root, release)
+    lock, work = locked_work()
+    with lock:
+        phase("Package tool", ["dotnet", "build", "tools/Zenith.PackageTool", "-c", "Release", "--nologo"], work / "package-tool.log")
+        return publish(config, release, archive, commit, work)
+
+
+def verify(config, release):
+    _, root, public = paths(config)
+    target = publisher.real_path(root / "core/zenith-kernel" / release, directory=True)
+    receipt = json.loads((target / "release.json").read_text())
+    local = target / "zenith-kernel.zpk"
+    # Receipts are operator records, never a substitute for the signed container.
+    publisher.verify(TOOL, local, public, "kernel", "zenith-kernel", release, "core")
+    expected = publisher.digest(local); maximum = local.stat().st_size
+    if expected != receipt["archive_sha256"] or maximum != receipt["archive_bytes"]:
+        raise ValueError("local archive disagrees with publication receipt")
+    url = config["base_url"] + "/core/zenith-kernel/" + release + "/zenith-kernel.zpk"
+    context = ssl.create_default_context(cafile=config.get("tls_ca"))
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args): raise ValueError("unexpected distributor redirect")
+    opener = urllib.request.build_opener(NoRedirect(), urllib.request.HTTPSHandler(context=context))
+    digest = hashlib.sha256(); total = 0
+    print("Checking complete delivery: " + url, flush=True)
+    with opener.open(url, timeout=30) as response:
+        if response.status != 200: raise ValueError("expected HTTP 200")
+        if response.headers.get("Content-Length") != str(maximum): raise ValueError("unexpected content length")
+        for data in iter(lambda: response.read(65536), b""):
+            total += len(data)
+            if total > maximum: raise ValueError("delivery exceeds archive size")
+            digest.update(data)
+    if total != maximum or digest.hexdigest() != expected: raise ValueError("delivered archive bytes/hash mismatch")
+    print("Verified delivery and package signature: " + str(total) + " bytes; SHA256=" + expected)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    setup = commands.add_parser("setup", help="save paths and delivery URL once")
+    setup.add_argument("url"); setup.add_argument("--keys", type=Path, default=Path.home() / "signing")
+    setup.add_argument("--root", type=Path, default=Path("/srv/zenith/packages"))
+    setup.add_argument("--tls-ca", type=Path)
+    for name in ("kernel", "verify"):
+        commands.add_parser(name).add_argument("version", type=version)
+    existing = commands.add_parser("publish", help="verify/publish an existing signed kernel without rebuilding")
+    existing.add_argument("version", type=version); existing.add_argument("archive", type=Path)
+    existing.add_argument("--source-commit", required=True)
+    commands.add_parser("doctor", help="check configured paths, source and tools")
+    args = parser.parse_args()
+    try:
+        if args.command == "setup": configure(args); return 0
+        config = configuration()
+        if args.command == "kernel": build(config, args.version)
+        elif args.command == "publish": publish_existing(config, args.version, args.archive, args.source_commit)
+        elif args.command == "verify": verify(config, args.version)
+        else:
+            paths(config, signing=True); clean(); prerequisites()
+            print("Source: " + source_commit()); print("Settings: " + str(CONFIG))
+            result = subprocess.run(["bash", str(REPO / "deploy/distributor/check-setup.sh")])
+            return result.returncode
+        return 0
+    except KeyboardInterrupt:
+        print("Release operation cancelled; inspect retained logs and publication state before retrying.", file=sys.stderr)
+        return 130
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+        print("Release operation failed: " + str(error), file=sys.stderr); return 1
+
+
+if __name__ == "__main__": raise SystemExit(main())

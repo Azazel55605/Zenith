@@ -141,6 +141,66 @@ and [access/method controls](https://nginx.org/en/docs/http/ngx_http_core_module
 
 ## Build and publish the next kernel
 
+### Recommended manual workflow
+
+As `zenith-release`, save the VM-specific paths and proxy trust once:
+
+```sh
+cd ~/Zenith
+bash deploy/distributor/release.sh setup https://zenith-stable.net.local \
+  --tls-ca "$HOME/proxy-tls/zenith-stable.net.local.pem"
+bash deploy/distributor/release.sh doctor
+```
+
+Defaults are `~/signing` and `/srv/zenith/packages`; setup accepts `--keys` and
+`--root` overrides. It writes data to `~/.config/zenith/distributor.json`, never
+sources shell configuration, creates/rotates no signing key and changes no nginx
+settings. `--tls-ca` is the public HTTPS trust PEM, separate from package signing.
+An omitted TLS CA uses the host's normal trust store; certificate/hostname checks
+stay enabled. Fix any signing-directory ownership/0700 or private-key/0600 issue
+reported by doctor before signing.
+
+For a genuinely new kernel version, the whole manual operation is:
+
+```sh
+bash deploy/distributor/release.sh kernel NEW_VERSION
+bash deploy/distributor/release.sh verify NEW_VERSION
+```
+
+`kernel` checks paths, tools, source cleanliness and existing versions before
+building. It runs Release host tests, builds the kernel/tool, signs, verifies and
+atomically publishes. Each phase prints its log path and completion; failures print
+the last 20 log lines and retain the full workspace. Concurrent operations share
+the legacy build lock. A changed source commit refuses publication. No automatic
+pull or scheduled build is performed. `verify` checks the local signed container,
+then downloads the complete archive through the configured URL and requires exact
+size/hash; redirects and certificate bypass are not permitted. Delivery failure
+leaves the published release available for a later verify retry, without rebuilding.
+This operator check does not replace native/installed Zenith acceptance.
+
+### Publish the exact already-issued 0.0.5 and 0.0.6
+
+Keep the user's installation sequence 0.0.5 then 0.0.6. Do not rebuild either
+version from newer source: those exact archives are already signed on the laptop.
+Copy `obj/vpn-relay/zenith-kernel-0.0.{5,6}.zpk` to the release user's home on the
+server, then use the publisher without a kernel build or private signing-key access:
+
+```sh
+bash deploy/distributor/release.sh publish 0.0.5 "$HOME/zenith-kernel-0.0.5.zpk" \
+  --source-commit 9b1f0a8507dc855ccf9abc53667e27f95b9bd3a3
+bash deploy/distributor/release.sh verify 0.0.5
+bash deploy/distributor/release.sh publish 0.0.6 "$HOME/zenith-kernel-0.0.6.zpk" \
+  --source-commit 003eec8e01dc4bbf29ddd836e6f27dacbccc63ba
+bash deploy/distributor/release.sh verify 0.0.6
+```
+
+This checks signed version/key identity and publishes immutable directories. The
+supplied source commit is an operator provenance record, not signed metadata.
+Existing releases are refused rather than replaced. Package-install improvements
+are the next kernel slice for 0.0.7; do not issue it just to test this host workflow.
+
+### Legacy explicit-path entry point
+
 Run as `zenith-release` from a clean committed checkout:
 
 ```sh

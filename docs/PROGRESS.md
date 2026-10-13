@@ -1,5 +1,28 @@
 # Implementation progress
 
+## 2026-10-13 · Simplified manual distributor release workflow
+
+- User retains the 0.0.5 then 0.0.6 installation sequence, requests simpler server
+  building/signing now, and reserves 0.0.7 for package-install improvements afterward.
+  No new kernel version is issued by this host-only workflow slice.
+- Added release.sh setup/doctor/kernel/publish/verify: persistent JSON deployment
+  settings, phase/log feedback with useful failure tails, early tools/permissions/
+  clean-source/immutable-version checks, shared operation locking, source-commit
+  stability, actual signing and the existing atomic verifying publisher. Existing
+  issued archives can be published without rebuilding or accessing the private key.
+- Delivery verify checks the locally signed container and exact full downloaded
+  bytes/hash through the configured proxy, with explicit public TLS trust and
+  hostname validation. Published artifacts survive transport failure for verify
+  retry. No automatic git pull, signing-key rotation, scheduler or guest activation.
+- Disposable workflow tests pass 10/10: saved config, invalid input, key permissions,
+  immutable existing publication, build failure/no signing, source-change refusal,
+  real signing/publication, useful failure logs, full HTTP delivery and concurrent
+  refusal. Host tests/build stages are mocked in orchestration coverage; real
+  signing and publisher checks use disposable RSA keys/ELF, not production keys.
+  Existing publisher regression and full workflow acceptance are being checked.
+  Evidence: obj/distributor-workflow-tests.log. Actual Debian deployment remains
+  user-run; no SSH access or service/key/guest configuration changed by the agent.
+
 ## 2026-10-13 · Keyboard, terminal recall and TLS bootstrap usability
 
 - User confirms full ~16 MB package download through the named HTTPS proxy and

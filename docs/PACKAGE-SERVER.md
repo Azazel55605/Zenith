@@ -23,6 +23,12 @@ successful installed kernel upgrade. Manual kernel release building/publication 
 user-confirmed; direct guest VPN performance and verified proxy HTTPS remain pending.
 The kit does not implement P4 signed online indexes.
 
+Manual workflow update, 2026-10-13: `deploy/distributor/release.sh` saves server
+paths/URL/TLS trust once and offers doctor, kernel VERSION, publish-existing and
+full-byte delivery verification. Build/sign/publish remains manual and source-pinned;
+0.0.5/0.0.6 are published from their existing exact archives. See the deployment kit
+for commands. Automatic scheduling and P4 named package installation remain separate.
+
 ## Current HTTPS proxy and next priority (2026-10-12)
 
 Resolved on 2026-10-13: a dedicated self-signed certificate with matching DNS SAN
