@@ -1,0 +1,15 @@
+[Unit]
+Description=Build and publish Zenith package release tags
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=zenith-release
+Environment=HOME=/home/zenith-release
+Environment=PATH=/home/zenith-release/.dotnet/tools:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+WorkingDirectory=/home/zenith-release/Zenith
+ExecStart=/usr/bin/python3 -B deploy/distributor/poll.py
+TimeoutStartSec=6h
+KillMode=control-group
+UMask=0077

@@ -1,5 +1,31 @@
 # Implementation progress
 
+## 2026-10-13 · Package-tag distributor automation
+
+- User selects independent package tags and periodic Git polling on the build VM.
+  Added administrator-maintained kernel/zenith-docs recipes, a fifteen-minute
+  systemd timer, private Git cache and detached per-release checkouts. Ordinary
+  commits/unmapped tags do not publish; mapped tags must be reachable from main.
+- Recorded commit pins, status/timestamps, retained logs and failed checkouts.
+  Completed tags are skipped; moved tags refused; normal failures require explicit
+  retry. Interrupted publication resumes verification of the same immutable
+  source-bound release. Successful checkouts are pruned. Index renewal runs daily.
+- Automated kernels add actual kernel-update and online-repository QEMU gates
+  before signing. Data recipes run host tests and existing format/signature checks.
+  Manual kernel workflow remains host-gated. Current release commands share a
+  publication-root lock across detached checkouts to serialize index generations.
+- Validation passes 8/8 real-local-Git orchestration tests and 14/14 release tests,
+  including cross-checkout exclusion and native failure preventing signing.
+  systemd-analyze verifies both units outside sandbox socket restrictions.
+  HTTP fixture initially hit sandbox socket denial; rerun outside sandbox passes.
+  Native harnesses were previously verified for 0.0.7; no full automated server
+  kernel build, remote Git polling or actual VM timer activation was performed here.
+- Setup and recovery are documented in deploy/distributor/AUTOMATION.md. Signing
+  and building still share the trusted release account; no isolated worker/signer
+  claim or public-key rotation. Source delivery and operator timer activation remain
+  pending. No kernel version/artifact was issued or replaced by this host slice.
+  Unrelated Doom documentation remains outside this implementation.
+
 ## 2026-10-13 · 0.0.7 signed online repository client
 
 - User confirms the distributor published 0.0.5/0.0.6 and selects the next
@@ -34,6 +60,16 @@
   Server publication/index minting and the user's installed test remain user-run.
   Unrelated Doom documentation is preserved outside this implementation commit.
 
+## 2026-10-13 · Doom engine package feasibility
+
+- Recorded the requested independent engine package with user-supplied WADs in
+  APPLICATIONS. Reviewed doomgeneric upstream platform hooks and sound backend
+  requirements against current native C integration and application boundaries.
+- Port appears feasible, but the native loader/libc and display/input application
+  interface remain prerequisites for an independently executable package. Existing
+  scripts/data packaging cannot run the engine; kernel-linked C would only be an
+  experiment. Audio is separate work. No engine port, WAD import, package release
+  or guest gameplay validation was performed by this documentation slice.
 
 ## 2026-10-13 · Simplified manual distributor release workflow
 

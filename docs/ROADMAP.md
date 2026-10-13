@@ -394,3 +394,9 @@ online refresh/search/resolve/download/install/upgrade before an automatic build
 pipeline. Manual server publishing remains sufficient for client validation. The
 user supplied zenith-stable.net.local; its current default Zoraxy certificate needs
 a matching DNS name before verified HTTPS use. See PACKAGE-SERVER and PROGRESS.
+
+2026-10-13 update: verified HTTPS and the 0.0.7 signed online client slice are
+implemented. User selects package-specific release tags and periodic distributor
+Git polling next. The host automation kit is implemented/tested; actual server
+activation and a complete server-built automated release remain deployment gates.
+See deploy/distributor/AUTOMATION.md and PROGRESS for scope and validation.

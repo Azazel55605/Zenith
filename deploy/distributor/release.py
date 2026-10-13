@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Manual build/sign/publish and independently checked static delivery."""
 import argparse
+from contextlib import ExitStack
 import fcntl
 import hashlib
 import importlib.util
@@ -150,20 +151,27 @@ def publish(config, release, archive, commit, work, name="zenith-kernel", reposi
     return receipt
 
 
-def locked_work():
+def locked_work(config=None):
     directory = REPO / "obj/distributor"; directory.mkdir(parents=True, exist_ok=True)
-    lock = (directory / "build.lock").open("a")
-    try: fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    stack = ExitStack()
+    try:
+        locks = [directory / "build.lock"]
+        if config: locks.insert(0, Path(config["root"]).parent / ".distributor-build.lock")
+        for path in locks:
+            lock = stack.enter_context(path.open("a"))
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
-        lock.close(); raise ValueError("another distributor operation is running")
-    return lock, Path(tempfile.mkdtemp(prefix="release-", dir=directory))
+        stack.close(); raise ValueError("another distributor operation is running")
+    except BaseException:
+        stack.close(); raise
+    return stack, Path(tempfile.mkdtemp(prefix="release-", dir=directory))
 
 
-def build(config, release):
+def build(config, release, native=False):
     keys, root, _ = paths(config, signing=True)
     available(root, release); clean(); commit = source_commit()
     prerequisites()
-    lock, work = locked_work()
+    lock, work = locked_work(config)
     with lock:
         print("Source: " + commit + "; logs: " + str(work), flush=True)
         phase("Host tests", ["dotnet", "test", "tests/Zenith.Tests", "-c", "Release"], work / "tests.log")
@@ -171,6 +179,14 @@ def build(config, release):
         clean()
         if source_commit() != commit: raise ValueError("source commit changed during build; publication refused")
         phase("Package tool", ["dotnet", "build", "tools/Zenith.PackageTool", "-c", "Release", "--nologo"], work / "package-tool.log")
+        if native:
+            # Acceptance harnesses use this checkout's output-x64 artifacts.
+            shutil.copytree(work / "build", REPO / "output-x64", dirs_exist_ok=True)
+            for script in ("kernel-update-smoke.py", "repository-smoke.py"):
+                phase("Native " + script, [sys.executable, "-B", str(REPO / "tools" / script),
+                      str(work / script.removesuffix(".py"))], work / (script + ".log"))
+            clean()
+            if source_commit() != commit: raise ValueError("source changed during native acceptance; signing refused")
         phase("Sign kernel", ["dotnet", str(TOOL), "kernel-seal", release, str(work / "build/Zenith.elf"),
                               str(keys / "private.pem"), str(work / "kernel.zpk")], work / "sign.log")
         clean()
@@ -188,7 +204,7 @@ def prerequisites():
 def publish_existing(config, release, archive, commit):
     if not re.fullmatch(r"[0-9a-f]{40}", commit): raise ValueError("supply the full artifact source commit")
     _, root, _ = paths(config); available(root, release)
-    lock, work = locked_work()
+    lock, work = locked_work(config)
     with lock:
         phase("Package tool", ["dotnet", "build", "tools/Zenith.PackageTool", "-c", "Release", "--nologo"], work / "package-tool.log")
         return publish(config, release, archive, commit, work)
@@ -229,7 +245,7 @@ def data(config, name, release, source, repository):
     source = publisher.real_path(source, directory=True)
     if not source.is_relative_to(REPO): raise ValueError("data payload must be inside the committed source checkout")
     clean(); commit = source_commit()
-    lock, work = locked_work()
+    lock, work = locked_work(config)
     with lock:
         phase("Package tool", ["dotnet", "build", "tools/Zenith.PackageTool", "-c", "Release", "--nologo"], work / "package-tool.log")
         phase("Build data", ["dotnet", str(TOOL), "build", name, release, str(source), str(work / "bundle"),
@@ -248,7 +264,7 @@ def indexes(config, work=None):
     keys, root, public = paths(config, signing=True)
     clean(); commit = source_commit()
     if work is None:
-        lock, directory = locked_work()
+        lock, directory = locked_work(config)
         with lock:
             phase("Package tool", ["dotnet", "build", "tools/Zenith.PackageTool", "-c", "Release", "--nologo"], directory / "package-tool.log")
             indexes(config, directory)

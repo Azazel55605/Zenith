@@ -33,6 +33,7 @@ jobs:
       - run: python3 -B tools/test_package_tool.py
       - run: python3 -B tools/test_publish_package.py
       - run: python3 -B tools/test_distributor_release.py
+      - run: python3 -B tools/test_distributor_poll.py
 
   build:
     name: Build ISO + smoke test

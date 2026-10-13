@@ -1,0 +1,10 @@
+[Unit]
+Description=Check Zenith package release tags every fifteen minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitInactiveSec=15min
+Unit=zenith-distributor.service
+
+[Install]
+WantedBy=timers.target

@@ -141,6 +141,11 @@ and [access/method controls](https://nginx.org/en/docs/http/ngx_http_core_module
 
 ## Build and publish the next kernel
 
+Tag-driven server builds are now available; see [automation setup](AUTOMATION.md).
+The operator must install/enable the supplied timer on the VM. Manual releases
+remain supported below. Automatic kernel releases add native acceptance before
+signing; the manual kernel command retains its existing host-only test gate.
+
 ### Recommended manual workflow
 
 As `zenith-release`, save the VM-specific paths and proxy trust once:

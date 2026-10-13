@@ -97,6 +97,30 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(["Host tests", "Kernel build"], calls)
         self.assertEqual([], list(self.root.iterdir()))
 
+    def test_native_failure_blocks_signing_and_publication(self):
+        calls = []
+        def phase(label, command, log):
+            calls.append(label)
+            if label == "Kernel build":
+                output = Path(command[-1]); output.mkdir()
+                (output / "Zenith.elf").write_bytes(b"fixture")
+            if label.startswith("Native "):
+                raise ValueError("native acceptance failed")
+        with patch.object(release, "REPO", self.repo), patch.object(release, "clean"), \
+             patch.object(release, "source_commit", return_value="a" * 40), \
+             patch.object(release, "prerequisites"), patch.object(release, "phase", side_effect=phase):
+            with self.assertRaisesRegex(ValueError, "native acceptance failed"):
+                release.build(self.config, "0.0.3", native=True)
+        self.assertNotIn("Sign kernel", calls)
+        self.assertEqual([], list(self.root.iterdir()))
+
+    def test_different_checkouts_share_publication_lock(self):
+        with patch.object(release, "REPO", self.repo):
+            lock, _ = release.locked_work(self.config)
+        with lock, patch.object(release, "REPO", self.repo / "second-checkout"):
+            with self.assertRaisesRegex(ValueError, "another distributor"):
+                release.locked_work(self.config)
+
     def test_build_orchestration_uses_real_signature_and_publisher(self):
         original = release.phase; calls = []
         def phase(label, command, log):

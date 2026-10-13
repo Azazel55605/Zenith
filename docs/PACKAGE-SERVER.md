@@ -57,12 +57,18 @@ its exact file SHA256 from the locally generated/exported copy, then root runs
 `pkg trust` public key. Certificate hostname/time validation remains enabled.
 Do not install the inspected default certificate as a workaround for the wrong name.
 
-Automatic build/release pipeline work is deferred. Next package work is the signed
+Earlier priority: automatic build/release pipeline work was deferred. Next package work was the signed
 online index contract and manually published client slice: refresh/search, deterministic
 core/extra dependency/conflict planning, download/install/upgrade by name using the
 existing installed transaction engine. Validate useful scripts/data packages on the
 persistent VM before automating releases. Kernel activation keeps its separate
 confirmation/rollback boundary; compiled tool unbundling still requires M5.
+
+2026-10-13 direction: the user selects independent package release tags and Git
+polling on the distributor. The [implemented automation kit](../deploy/distributor/AUTOMATION.md)
+fetches every fifteen minutes, builds pinned main-reachable commits, gates kernel
+signing on native acceptance, records failures and renews signed indexes daily.
+Actual timer deployment/server builds remain pending operator verification.
 
 0.0.7 implementation update: release.sh index signs/activates seven-day core/extra
 snapshots. New kernel/data releases refresh them automatically; publish-existing

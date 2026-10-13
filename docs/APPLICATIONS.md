@@ -56,6 +56,33 @@ come after process/IPC/toolchain support; initial Editor is not an IDE promise.
 Both apps ultimately become independent userland programs; a GUI redesign alone
 does not establish isolation or independent compiled-package updates.
 
+## Doom engine package: requested feasibility slice
+
+User request (2026-10-13): offer a separately installed Doom engine; users supply
+their own WAD files. No commercial game data belongs in the engine package.
+This is a proposed port, not an implemented or runtime-verified application.
+
+[doomgeneric](https://github.com/ozkl/doomgeneric) is an initial candidate: its
+platform hooks cover framebuffer presentation, keyboard events and timing. A
+Zenith port also needs the C runtime/file I/O used by the engine, allocation,
+application startup/exit and save/config persistence. Sound/music are separate
+backend work; no Zenith PCM audio service is currently established.
+
+The independent package depends on the native program foundation described in
+[USERLAND](USERLAND.md). Current scripts/data packages cannot execute a native
+engine. A kernel-linked C experiment could test rendering/input earlier, but
+would require a kernel rebuild and would not meet the independent-package goal.
+Do not silently substitute that experiment for the requested application.
+
+Proposed first scope: classic Doom/Doom II IWADs, optional compatible vanilla
+PWADs, scaled software rendering and keyboard controls, per-user saves/config,
+clear missing/unsupported-WAD errors, and reliable exit back to the desktop.
+Modern GZDoom-specific mods are outside this initial compatibility target.
+Engine updates/uninstall must preserve user-owned WADs and saves. Validate real
+gameplay and save/load in the guest; a menu screenshot is insufficient. Test
+package updates without changing the running kernel before calling it independent.
+Retain upstream GPL source/license obligations with the distributed engine.
+
 ## Developer environment: staged feasibility
 
 A native loader, versioned syscall ABI and C library are prerequisites for conventional
