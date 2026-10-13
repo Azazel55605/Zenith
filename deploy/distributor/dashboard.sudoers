@@ -1,0 +1,2 @@
+# Dashboard may only queue the existing release service, with these exact arguments.
+zenith-dashboard ALL=(root) NOPASSWD: /usr/bin/systemctl start --no-block zenith-distributor.service

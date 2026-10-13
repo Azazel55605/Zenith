@@ -1,0 +1,19 @@
+[Unit]
+Description=Zenith distributor management dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=zenith-dashboard
+SupplementaryGroups=zenith-release
+ExecStart=/usr/bin/python3 -B /opt/zenith-dashboard/dashboard.py
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

@@ -95,6 +95,10 @@ version for a new build.
 
 ## Results and recovery
 
+An optional [web dashboard](DASHBOARD.md) provides timer values, Run now, build
+status/logs and repository inventory. CLI inspection and explicit retries remain
+available below.
+
 releases.json records tag, pinned commit, timestamps and pending/building/complete/
 failed status. Full per-tag logs sit beside it. Failed checkouts retain phase logs
 and validation disks; successful checkouts are removed after verification. Complete

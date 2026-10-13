@@ -1,5 +1,40 @@
 # Implementation progress
 
+## 2026-10-13 · Lightweight distributor dashboard
+
+- Added optional /manage/ interface: effective timer interval/last start/next run,
+  Run now, tag/commit/status tables, recent live logs and core/extra inventory with
+  repository/search filters. Static HTML/CSS/JS and standard-library Python require
+  no Node runtime, frontend build, database or external assets on the server.
+- Backend reads bounded state/receipts/log tails, refuses symlinks/traversal, detects
+  poll locks, marks abandoned builds Interrupted and gates the fixed service start
+  with same-origin/CSRF checks. Missing status/data and failed polls are visible.
+  A separate root-code-owned loopback service user can read public state/logs but
+  cannot read signing keys; its sudo rule only queues the existing release service.
+  nginx Basic authentication is scoped to management, preserving public packages.
+- Added Debian installer, service, sudoers and optional nginx snippet; operator
+  must add/retain the include in their existing site and check/reload nginx. Existing
+  credentials are retained. Poll state/log modes now permit read-only group access
+  without making build checkouts or signing directories readable.
+- Validation: 10/10 disposable HTTP API tests, 8/8 real-Git poll regressions; service
+  unit and sudoers parse checks pass; shell and JS syntax checks pass. Playwright
+  Chromium fallback used because Browser plugin is absent. At 1505x1045 and 390x844,
+  checked identity/nonblank/no overlay/clean console, inventory, repo/search/empty
+  filters, log selection and real API Run now -> busy/Building/log refresh behavior.
+  systemd execution is stubbed in fixtures; no actual server release was triggered.
+- Visual comparison used view_image on generated full-screen concept and final
+  browser captures. Matched header/gutters, heading/button hierarchy, navy/amber
+  palette, timer strip, table density, log frame and search icon. Corrected spacing,
+  row height and button alignment. Primary copy matches; intentional differences
+  are browser-local/live dates, actual raw logs, selected-build label, bounded-log
+  hint, newest-first versions and queued/busy/error feedback. Mobile stacks schedule
+  and filters and scrolls tables without page overflow. Concept:
+  /home/azazel/.codex/generated_images/01a11bd5-2e10-7aa0-8351-3daa1ea80f4c/exec-d9b89a26-756b-40c7-b7f6-a49d075232aa.png.
+  Browser evidence: /tmp/zenith-dashboard-desktop-idle.png, desktop.png, mobile.png.
+- Real Debian nginx/login/sudo/service/proxy acceptance remains operator-run;
+  setup and checks are in deploy/distributor/DASHBOARD.md. No new kernel package
+  or signing-key change. Temporary preview fixture/server are cleaned up after QA.
+
 ## 2026-10-13 · Package-tag distributor automation
 
 - User selects independent package tags and periodic Git polling on the build VM.

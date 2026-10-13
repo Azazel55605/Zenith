@@ -46,6 +46,9 @@ class PollTests(unittest.TestCase):
         self.assertEqual([], list(self.state.glob("build-*")))
         records = json.loads((self.state / "releases.json").read_text())
         self.assertTrue(all(item["status"] == "complete" for item in records.values()))
+        self.assertEqual(0o750, self.state.stat().st_mode & 0o777)
+        for name in ("releases.json", "poll.lock", "kernel-v0.0.7.log"):
+            self.assertEqual(0o640, (self.state / name).stat().st_mode & 0o777)
 
     def test_failure_is_retained_until_explicit_retry(self):
         poll.git(self.repo, "tag", "kernel/v0.0.7")

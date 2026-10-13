@@ -26,6 +26,7 @@ from the future session/update plans. Milestone version labels are targets, not 
 | Updating an installation and distributing applications | [Package manager design discussion](PACKAGE-MANAGER.md) |
 | Moving desktop/apps outside the kernel | [Userland direction](USERLAND.md) |
 | Serving packages from home | [LAN repository plan](PACKAGE-SERVER.md) |
+| Managing distributor builds | [Dashboard setup](../deploy/distributor/DASHBOARD.md) |
 | Saved-system boot, snapshot trials and restore | [Upgrade recovery](UPDATE-RECOVERY.md) |
 | What happened and why | [Project history](HISTORY.md), then [slice evidence](PROGRESS.md) |
 | What comes next and when a milestone is complete | [Roadmap](ROADMAP.md) |

@@ -26,6 +26,7 @@ def save(path, value):
     descriptor, temporary = tempfile.mkstemp(prefix=".state-", dir=path.parent)
     try:
         with os.fdopen(descriptor, "w") as output:
+            os.fchmod(output.fileno(), 0o640)
             json.dump(value, output, indent=2); output.write("\n")
             output.flush(); os.fsync(output.fileno())
         os.replace(temporary, path)
@@ -85,8 +86,10 @@ def launch(checkout, version, recipe, log):
 
 
 def poll(remote, state, recipes, retry=None):
-    state.mkdir(parents=True, exist_ok=True, mode=0o700)
+    state.mkdir(parents=True, exist_ok=True, mode=0o750)
+    state.chmod(0o750)
     with (state / "poll.lock").open("a") as lock:
+        os.fchmod(lock.fileno(), 0o640)
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         mirror = state / "source.git"
         if not mirror.exists():
@@ -118,6 +121,7 @@ def poll(remote, state, recipes, retry=None):
                 subprocess.run(["git", "clone", "--shared", "--no-checkout", str(mirror), str(checkout)], check=True)
                 git(checkout, "checkout", "--detach", commit)
                 with (state / (tag.replace("/", "-") + ".log")).open("a") as log:
+                    os.fchmod(log.fileno(), 0o640)
                     # Child keeps all phase output, and is bounded by systemd's runtime limit.
                     result = launch(checkout, version, recipe, log)
                 if result: raise ValueError("build/verification failed; inspect retained log and checkout")

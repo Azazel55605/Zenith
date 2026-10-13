@@ -70,6 +70,12 @@ fetches every fifteen minutes, builds pinned main-reachable commits, gates kerne
 signing on native acceptance, records failures and renews signed indexes daily.
 Actual timer deployment/server builds remain pending operator verification.
 
+The optional [distributor manager](../deploy/distributor/DASHBOARD.md) adds an
+authenticated /manage/ web interface for timer values, Run now, build records/logs
+and core/extra package inventory. It uses a separate loopback service without
+signing-key access; existing public package routes remain independent. Local API
+and browser verification are tracked in PROGRESS; VM activation remains operator-run.
+
 0.0.7 implementation update: release.sh index signs/activates seven-day core/extra
 snapshots. New kernel/data releases refresh them automatically; publish-existing
 requires an explicit index step. The guest supports mirror, refresh, search, plan,
