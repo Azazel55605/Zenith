@@ -86,7 +86,7 @@ Details: [system plan](SYSTEM-PLAN.md), [userland](USERLAND.md),
 | 2 | Package recipes and builder workflow | Declarative metadata/files/modes; reproducible validation and separate signing using the existing .zpk foundation |
 | Manual P2 user-confirmed; HTTPS pending | Debian VM builds and distributes packages | Manual release build/publication and local-relay installed upgrade work; direct guest VPN performance and hostname-valid proxy TLS remain pending |
 | 4 | Useful initial scripts/data packages | Install, upgrade, remove and reboot on a persistent Zenith VM against the user's server |
-| Next package priority | P4 signed online repository client | Signed index freshness/rollback checks, search, deterministic dependency resolution and bounded download/install by name |
+| Implementing 0.0.7 | P4 private signed online repository client | [Online contract](ONLINE-PACKAGES.md): signed freshness/rollback checks, search, dependency planning and named install/upgrade; public key rotation/revocation remains later |
 | 6 | M5 native loader/process/ABI then compiled tool unbundling; P5 | Protected execution, libc/toolchain foundation and independent base-tools/net-tools/fs-tools updates |
 | 0.0.3 user-confirmed | VMware installed kernel package upgrade | User confirmed 0.0.3 installed and boot-confirmed. Proxy TLS and direct VPN acceptance are separate; physical hardware and native app ABI remain separate |
 | 7 | M6 proper DE/WM, Settings, customization, Files and GUI Editor overhaul | Shared toolkit/operations can start earlier; independent desktop/apps require M5 |

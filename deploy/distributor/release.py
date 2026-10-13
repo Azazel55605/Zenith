@@ -176,6 +176,7 @@ def build(config, release):
         clean()
         if source_commit() != commit: raise ValueError("source commit changed before publication; refused")
         publish(config, release, work / "kernel.zpk", commit, work)
+        indexes(config, work)
 
 
 def prerequisites():
@@ -240,6 +241,46 @@ def data(config, name, release, source, repository):
         clean()
         if source_commit() != commit: raise ValueError("source commit changed before publication; refused")
         publish(config, release, work / "package.zpk", commit, work, name, repository, "data")
+        indexes(config, work)
+
+
+def indexes(config, work=None):
+    keys, root, public = paths(config, signing=True)
+    clean(); commit = source_commit()
+    if work is None:
+        lock, directory = locked_work()
+        with lock:
+            phase("Package tool", ["dotnet", "build", "tools/Zenith.PackageTool", "-c", "Release", "--nologo"], directory / "package-tool.log")
+            indexes(config, directory)
+        return
+    now = int(time.time())
+    for repository in ("core", "extra"):
+        destination = root / repository / "index.zri"
+        generation = 1
+        if destination.exists() or destination.is_symlink():
+            publisher.real_path(destination)
+            result = subprocess.run(["dotnet", str(TOOL), "index-check", str(destination), str(public), repository],
+                                    capture_output=True, text=True, check=True, timeout=180)
+            match = re.fullmatch(r"verified " + repository + r" generation=(\d+) issued=\d+ expires=\d+\n?", result.stdout)
+            if match is None: raise ValueError("unexpected signed index identity")
+            generation = int(match[1]) + 1
+        archive = work / (repository + ".zri")
+        phase("Index " + repository, ["dotnet", str(TOOL), "index-seal", repository, str(generation), str(now),
+                                     str(now + 7 * 86400), str(root), str(keys / "private.pem"), str(archive)], work / (repository + "-index.log"))
+        clean()
+        if source_commit() != commit: raise ValueError("source changed while signing index; activation refused")
+        directory = root / repository
+        if directory.is_symlink(): raise ValueError("linked metadata directory refused")
+        directory.mkdir(exist_ok=True, mode=0o755)
+        descriptor, temporary = tempfile.mkstemp(prefix=".index-", dir=root.parent)
+        try:
+            with os.fdopen(descriptor, "wb") as output:
+                output.write(archive.read_bytes()); output.flush(); os.fsync(output.fileno())
+            os.chmod(temporary, 0o644); os.replace(temporary, destination)
+            publisher.sync_directory(directory); publisher.sync_directory(root)
+        finally:
+            if os.path.exists(temporary): os.unlink(temporary)
+        print("Published signed " + repository + " index generation=" + str(generation) + " (7-day validity)", flush=True)
 
 
 def main():
@@ -260,6 +301,7 @@ def main():
         command.add_argument("--repository", choices=("core", "extra"), default="extra")
         if name == "data": command.add_argument("source", type=Path)
     commands.add_parser("doctor", help="check configured paths, source and tools")
+    commands.add_parser("index", help="sign/activate fresh core and extra repository indexes")
     args = parser.parse_args()
     try:
         if args.command == "setup": configure(args); return 0
@@ -269,6 +311,7 @@ def main():
         elif args.command == "verify": verify(config, args.version)
         elif args.command == "data": data(config, args.name, args.version, args.source, args.repository)
         elif args.command == "verify-data": verify(config, args.version, args.name, args.repository, "data")
+        elif args.command == "index": indexes(config)
         else:
             paths(config, signing=True); clean(); prerequisites()
             print("Source: " + source_commit()); print("Settings: " + str(CONFIG))

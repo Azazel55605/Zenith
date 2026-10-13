@@ -5,6 +5,9 @@
 [Signed kernel updates](KERNEL-UPDATES.md): offline signing/delivery, reboot activation,
 confirmation, previous-kernel fallback and undo recovery.
 
+[Signed online packages](ONLINE-PACKAGES.md): 0.0.7 private core/extra discovery,
+dependency planning, named install/upgrade and kernel-update convenience.
+
 This is the project documentation entry point. Status reviewed on **2026-10-11**
 against the current repository. Current S0/S1/P0/P1 and M3 behavior is documented separately
 from the future session/update plans. Milestone version labels are targets, not release dates.

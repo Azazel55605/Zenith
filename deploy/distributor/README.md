@@ -245,8 +245,14 @@ This is bounded local publication, not a general filesystem power-loss guarantee
 `release.json` is an **unsigned operator receipt**, recording archive digest/size,
 key fingerprint and caller-provided source commit. It is not signed trust metadata,
 a dependency index or a guest-consumable update channel. No `latest` pointer is
-published. P4 will add signed indexes, freshness/rollback floors and downloads by
-name; the current guest still uses explicit fetch/check/install commands.
+published. The 0.0.7 client adds signed indexes, freshness/rollback floors and
+downloads by name; older guests still use explicit fetch/check/install commands.
+
+0.0.7 adds bounded signed private indexes separately from these receipts. Run
+`bash deploy/distributor/release.sh index` after publishing existing archives;
+new `kernel`/`data` commands do this automatically. Renew seven-day validity with
+the same command. Archives remain immutable, while complete signed index files
+are atomically replaced. See [ONLINE-PACKAGES](../../docs/ONLINE-PACKAGES.md).
 
 ## Verify distribution and guest installation
 

@@ -136,7 +136,7 @@ In name/location prompts, Ctrl+A clears the current value. Copies are limited to
 8 MiB and opening in Editor to 128 KiB. Moving folders between parents and copying
 folders, devices, virtual files or symlinks are unavailable. See `man files`.
 
-## Settings, sessions and offline packages
+## Settings, sessions and packages
 
 `settings show` and `settings set keyboard|timezone|session VALUE` use the same
 system-settings service as localectl/timedatectl. Changes require root; installed
@@ -160,7 +160,8 @@ M3 now has shared DHCP/static/off configuration, `ip`, `ifconfig`, `ping`,
 Use `NETWORK=user tools/run.sh live` for outbound LAN access, or `UI=headless` for
 serial testing. Root can select your home DNS with `netcfg dns 10.0.10.3`.
 HTTPS uses an explicitly imported CA (`tls trust FILE SHA256`); no roots are trusted
-by default. The package VM is not provisioned yet. Downloads carry no package-install trust.
+by default. The Debian package VM and named HTTPS proxy are user-confirmed.
+Downloads alone carry no package-install trust.
 
 ## Documentation
 
@@ -226,6 +227,13 @@ tools/                     run.sh, boot_image.py, install-smoke.py, smoke-test.p
   `Update`) and add it to `AppRegistry.Apps`.
 
 ### Signed offline script/data packages
+
+0.0.7 adds signed online discovery and named installation on installed ext2:
+`pkg mirror HTTPS_URL`, `pkg refresh`, `pkg search`, `pkg plan NAME`,
+`pkg install NAME` and `pkg upgrade`. Interactive application asks for confirmation;
+`--yes` supports reviewed noninteractive plans. `pkg kernel update` stages a newer
+signed core kernel while retaining reboot/confirmation. See the
+[online package contract](docs/ONLINE-PACKAGES.md) for operator commands and limits.
 
 `pkg repos` lists default core/extra definitions; `pkg list` distinguishes bundled
 base-tools/net-tools/fs-tools from independently installed scripts/data. Root can

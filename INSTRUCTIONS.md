@@ -35,7 +35,10 @@ guidance here so the two entry points stay consistent.
 - P0 directory bundles remain unsigned inspect/dry-run experiments. P1 signed .zpk
   scripts/data packages have an ext2 installed-root transaction/ownership engine;
   see [PACKAGES](docs/PACKAGES.md). Preserve signature, dependency/conflict, local-edit,
-  fault/cancel and installed-reboot recovery tests. /etc merges, signed online indexes,
+  fault/cancel and installed-reboot recovery tests. 0.0.7 adds bounded signed private
+  core/extra indexes and named plan/install/upgrade (docs/ONLINE-PACKAGES.md).
+  Preserve freshness, persisted generation floors and native installed HTTPS checks.
+  /etc merges, public trust-role/key-rotation hardening,
   native execution and matched root-data updates remain separate gates. User selected scripts/data
   first, then unbundle compiled tools; grouped inventory is not independent executables.
 - `src/Core` holds system behavior; `src/Gui` rendering and window management;

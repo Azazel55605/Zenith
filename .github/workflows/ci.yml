@@ -145,6 +145,11 @@ jobs:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 -B tools/network-smoke.py smoke-network
 
+      - name: Signed online package discovery and installed upgrades
+        env:
+          QEMU: /usr/bin/qemu-system-x86_64
+        run: python3 -B tools/repository-smoke.py smoke-repositories
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -152,6 +157,7 @@ jobs:
           path: |
             smoke-dhcp-receive/
             smoke-keyboard/
+            smoke-repositories/
             smoke-transfer/
             smoke/
             smoke-large/

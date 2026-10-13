@@ -1,5 +1,40 @@
 # Implementation progress
 
+## 2026-10-13 · 0.0.7 signed online repository client
+
+- User confirms the distributor published 0.0.5/0.0.6 and selects the next
+  package-install phase. Implemented bounded signed core/extra indexes, cached
+  freshness/generation checks, deterministic dependency/conflict planning, named
+  download/install/upgrade and a separate named kernel-update convenience path.
+- The private LAN/VPN protocol reuses pinned RSA-PSS package trust and verified
+  HTTPS; it is not TUF and does not complete public key rotation/revocation gates.
+  Metadata expires, persists its generation floor as the atomically replaced signed
+  cache, and never replaces a newer/same-but-different snapshot with older bytes.
+- Server index signing verifies all indexed immutable archives. New kernel/data
+  releases refresh signed indexes; publish-existing remains a no-private-key path,
+  with explicit release.sh index afterward. Default index validity is seven days.
+- Existing installed transaction engine handles the complete verified dependency
+  set. Preview and interactive confirmation precede downloads; --yes supports
+  explicit noninteractive use. Kernel activation retains P3 confirmation/rollback.
+- Host checks pass 580/580; distributor checks pass 12/12; Release builds pass.
+  Installed HTTPS acceptance passes 70 checks, including checksum rejection/retry,
+  interactive refusal, dependency resolution, upgrade, persistent replay floors,
+  interrupted cache-stage cleanup, named kernel staging/pending refusal/rollback,
+  non-root denial and independent clean ext2 audit. Existing offline package
+  regression passes 71/71 and full kernel regression passes 169/169, including
+  actual ELF reboot/confirmation and clean independent ext2/EFI audits.
+  Initial lab setup used the TLS fixture's tuple as a dictionary; corrected before
+  guest execution. Actual VMware acceptance of 0.0.7 remains pending.
+  Evidence: obj/online-host.log, online-build-validated.log, online-server-final.log,
+  online-native-accepted.log, online-offline-regression.log and online-kernel-regression.log.
+- Signed 0.0.7 with the existing trusted key: 17,220,510 bytes. Kernel SHA256
+  b3beecea97cf5968367cc9c42e1d95098deafa63f8c098319350cc09ddee162b;
+  archive SHA256 6aac8b8c5d0b1be0834fbd5c6eabd792d7a75821b4e5a4a73528464687e02d11.
+  Relay retains previous versions. Existing signing/TLS trust is unchanged.
+  Server publication/index minting and the user's installed test remain user-run.
+  Unrelated Doom documentation is preserved outside this implementation commit.
+
+
 ## 2026-10-13 · Simplified manual distributor release workflow
 
 - User retains the 0.0.5 then 0.0.6 installation sequence, requests simpler server

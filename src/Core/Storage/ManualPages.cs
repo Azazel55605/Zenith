@@ -88,12 +88,19 @@ internal static class ManualPages
             access is an administrator-controlled console, not encrypted transport.
             """),
         ("pkg", """
-            SIGNED OFFLINE SCRIPT/DATA PACKAGES
+            SIGNED ONLINE/OFFLINE SCRIPT/DATA PACKAGES
 
             pkg repos              core/extra definitions; mirrors initially unset
             pkg list               bundled tools and independently installed data
             pkg trust FILE SHA256  root pins exact public PEM fingerprint
             pkg kernel check|install FILE.zpk  signed x64 kernel, active after reboot
+            pkg mirror HTTPS_BASE_URL   save core/extra mirror (root)
+            pkg refresh                 verify/cache signed repository indexes (root)
+            pkg search [TEXT]           search fresh authenticated cached metadata
+            pkg plan NAME...            preview dependencies/conflicts without downloads
+            pkg install [--yes] NAME...  plan, confirm, download and install atomically
+            pkg upgrade [--yes]         plan/apply installed data upgrades
+            pkg kernel update [--yes]   fetch/stage newer kernel; reboot/confirm remains
             boot status|confirm|rollback|recover  kernel generations
             pkg check FILE.zpk     verify RSA-PSS signature and complete payload
             pkg install FILE...    root installs/upgrades on installed ext2
@@ -104,10 +111,10 @@ internal static class ManualPages
             pkg plan MANIFEST      unsigned payload verification and dry-run
 
             Build/seal with tools/Zenith.PackageTool. Keep private signing keys off
-            the server and guest. TLS CA trust and package public-key trust differ.
+            the served tree and guest. TLS CA trust and package public-key trust differ.
             Install up to 16 supplied packages atomically; dependencies may use the
             installed set or other candidates. Numeric ranges and declared conflicts
-            apply to the full result. No forced overwrites or automatic downloads.
+            apply to the full result. No forced overwrites, hooks or background updates.
             Preserve local edits; downgrades and bundled-tool replacement are refused.
             Payload paths: /usr/share/doc and /usr/share/zenith, except inventory.
             P1: no /etc/boot/bin writes, links, cross-mount extraction or hooks.

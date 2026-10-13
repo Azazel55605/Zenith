@@ -1,0 +1,29 @@
+Zenith package quick start
+
+As root on an installed system, configure your HTTPS mirror with:
+  pkg mirror HTTPS_BASE_URL
+  pkg refresh
+
+Find and preview packages:
+  pkg search
+  pkg plan zenith-docs
+
+Install by name; answer y after reviewing the plan:
+  pkg install zenith-docs
+
+Installed data upgrades:
+  pkg refresh
+  pkg upgrade
+
+Kernel upgrades keep a separate boot boundary:
+  pkg kernel update
+  reboot
+  boot confirm
+
+TLS trust and package signing trust are separate and persist on installed roots.
+Use tls bootstrap URL SHA256 for a known public PEM, and pkg trust FILE SHA256
+for the known signing public key. Never use an unverified key from a mirror.
+
+Repository metadata expires. The operator can renew it with release.sh index.
+These are scripts/data packages. Compiled tools remain kernel-linked until
+Zenith has a native process/loader/ABI implementation.

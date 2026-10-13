@@ -21,7 +21,9 @@ immutable publisher for core kernels and core/extra data packages, and an nginx
 static-service configuration. Reuse the signing key already trusted for the user's
 successful installed kernel upgrade. Manual kernel release building/publication is
 user-confirmed; direct guest VPN performance and verified proxy HTTPS remain pending.
-The kit does not implement P4 signed online indexes.
+The original kit did not implement signed online indexes. The 0.0.7 slice adds
+bounded signed core/extra snapshots and a private repository client; see
+[ONLINE-PACKAGES](ONLINE-PACKAGES.md) for the protocol, limits and validation status.
 
 Manual workflow update, 2026-10-13: `deploy/distributor/release.sh` saves server
 paths/URL/TLS trust once and offers doctor, kernel VERSION, publish-existing and
@@ -61,6 +63,12 @@ core/extra dependency/conflict planning, download/install/upgrade by name using 
 existing installed transaction engine. Validate useful scripts/data packages on the
 persistent VM before automating releases. Kernel activation keeps its separate
 confirmation/rollback boundary; compiled tool unbundling still requires M5.
+
+0.0.7 implementation update: release.sh index signs/activates seven-day core/extra
+snapshots. New kernel/data releases refresh them automatically; publish-existing
+requires an explicit index step. The guest supports mirror, refresh, search, plan,
+named install/upgrade and separate kernel update. The prior public TUF/key-rotation
+and recovery limits remain separate. Native acceptance is tracked in PROGRESS.
 
 ## Initial shape
 

@@ -104,13 +104,13 @@ class ReleaseTests(unittest.TestCase):
             if label == "Kernel build":
                 output = Path(command[-1]); output.mkdir()
                 shutil.copyfile(self.source / "kernel.elf", output / "Zenith.elf")
-            if label == "Sign kernel": original(label, command, log)
+            if label == "Sign kernel" or label.startswith("Index "): original(label, command, log)
             else: log.write_text("host/build fixture stage\n")
         with patch.object(release, "REPO", self.repo), patch.object(release, "clean"), \
              patch.object(release, "source_commit", return_value="a" * 40), \
              patch.object(release, "prerequisites"), patch.object(release, "phase", side_effect=phase):
             release.build(self.config, "0.0.3")
-        self.assertEqual(["Host tests", "Kernel build", "Package tool", "Sign kernel"], calls)
+        self.assertEqual(["Host tests", "Kernel build", "Package tool", "Sign kernel", "Index core", "Index extra"], calls)
         self.assertTrue((self.root / "core/zenith-kernel/0.0.3/zenith-kernel.zpk").is_file())
 
     def test_phase_failure_reports_useful_tail_and_retains_full_log(self):

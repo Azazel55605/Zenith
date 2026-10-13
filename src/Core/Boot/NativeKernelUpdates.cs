@@ -155,6 +155,14 @@ internal static class NativeKernelUpdates
         try { int result = operation(); Interlocked.Exchange(ref s_busy, 0); return result; }
         catch { Interlocked.Exchange(ref s_busy, 0); throw; }
     }
+    public static KernelUpdateState ReadyForUpdate()
+    {
+        GuardedFilesystem.RequireRoot(); var updater = Open(new NativeKernelUpdateStore());
+        if (updater.RecoveryRequired) { throw new IOException("run boot recover before downloading another kernel"); }
+        var state = updater.Status();
+        if (state.Pending) { throw new IOException("confirm or roll back the pending kernel before another update"); }
+        return state;
+    }
     public static int Package(CommandContext c)
     {
         if (c.Args.Length != 3 || c.Args[1] is not ("check" or "install")) { return c.Fail("pkg kernel check|install FILE.zpk"); }

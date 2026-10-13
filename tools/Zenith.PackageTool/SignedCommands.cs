@@ -16,6 +16,7 @@ internal static class SignedCommands
     public static int? Run(string[] args)
     {
         if (!OperatingSystem.IsLinux()) { throw new PlatformNotSupportedException("package tooling currently requires Linux"); }
+        int? index = IndexCommands.Run(args); if (index.HasValue) { return index; }
         int? kernel = KernelCommands.Run(args); if (kernel.HasValue) { return kernel; }
         if (args.Length == 2 && args[0] == "keygen")
         {

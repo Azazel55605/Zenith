@@ -10,9 +10,11 @@ before unbundling compiled tools. Do not treat dropping a DLL into /bin as execu
 `pkg repos` reads `/etc/zenith/repos.conf`; defaults are **core** (priority 10) and
 **extra** (20). Core is the essential system/base collection; extra is optional tools
 and applications. Repository section and release channel are distinct concepts.
-Mirrors default to unset because deployment URLs and TLS trust belong to the installation. The home VM is now 10.0.20.7 with proposed HTTPS endpoint zenith-stable.net.local; certificate hostname setup remains pending. Optional base
-URLs must use HTTPS without credentials, query or fragment. No online index client
-or automatic dependency download is implemented by this offline slice.
+Mirrors default to unset because deployment URLs and TLS trust belong to the installation.
+The home VM is 10.0.20.7; verified HTTPS at zenith-stable.net.local and complete
+signed downloads are user-confirmed. Base URLs use HTTPS without credentials,
+query or fragment. P1 remains the transaction engine described here; 0.0.7 adds
+[signed online discovery and dependency download](ONLINE-PACKAGES.md).
 
 `pkg list` distinguishes bundled identities from the installed DB. Bundled identities
 include zenith-kernel, zenith-base, base-tools (shell/text), net-tools (IPv4 commands),

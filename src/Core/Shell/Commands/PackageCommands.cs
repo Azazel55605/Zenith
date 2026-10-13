@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using Zenith.Core.Configuration;
@@ -16,7 +17,7 @@ internal static class PackageCommands
     private static int s_busy;
     internal static bool IsRunning => Volatile.Read(ref s_busy) != 0;
     public static void Register(Action<Command> add)
-    { add(new Command("pkg", "pkg kernel check/install FILE | repos | list | trust FILE SHA256 | install FILE... | remove NAME | verify | recover | inspect/plan MANIFEST", "Signed offline data and kernel package management", Run)); }
+    { add(new Command("pkg", "pkg mirror HTTPS_URL | refresh | search [TEXT] | plan NAME... | install [--yes] NAME... | upgrade [--yes] | kernel update [--yes] | repos/list/trust/check/remove/verify/recover", "Signed online and offline package management", Run)); }
     private static int Run(CommandContext c)
     {
         lock (Installer.MaintenanceGate)
@@ -35,8 +36,33 @@ internal static class PackageCommands
     }
     private static int Execute(CommandContext c)
     {
+        if (c.Args.Length >= 2 && c.Args[0] == "kernel" && c.Args[1] == "update") { Mutable(); return KernelUpdate(c); }
         if (c.Args.Length > 0 && c.Args[0] == "kernel") { return Zenith.Core.Boot.NativeKernelUpdates.Package(c); }
         var store = new NativePackageStore(); var manager = new PackageManager(store);
+        if (c.Args.Length == 2 && c.Args[0] == "mirror")
+        { Mutable(); NativeRepositories.Mirror(c.Args[1]); c.WriteLine("core/extra mirror saved; run pkg refresh"); return 0; }
+        if (c.Args.Length == 1 && c.Args[0] == "refresh")
+        { Mutable(); NativeRepositories.Refresh(c); return 0; }
+        if (c.Args.Length is 1 or 2 && c.Args[0] == "search")
+        {
+            foreach (var entry in NativeRepositories.Catalog().OrderBy(x => x.Name, StringComparer.Ordinal)
+                .ThenByDescending(x => x.Version, Comparer<string>.Create(PackageVersions.Compare)))
+            {
+                if (c.Args.Length == 1 || entry.Name.Contains(c.Args[1], StringComparison.OrdinalIgnoreCase))
+                { c.WriteLine(entry.Name + " " + entry.Version + " [" + entry.Repository + "; " + entry.Kind + "]"); }
+            }
+            return 0;
+        }
+        if (c.Args.Length >= 1 && c.Args[0] == "upgrade") { Mutable(); return Online(c, manager, true); }
+        if (c.Args.Length >= 2 && c.Args[0] is "install" or "plan")
+        {
+            int offset = c.Args[1] == "--yes" ? 2 : 1;
+            if (offset < c.Args.Length && c.Args.Skip(offset).All(PackageManifest.ValidName))
+            {
+                if (c.Args[0] == "install") { Mutable(); }
+                return Online(c, manager, false);
+            }
+        }
         if (c.Args.Length == 1 && c.Args[0] == "repos")
         {
             foreach (var repo in PackageRepositories.Parse(BoundedFile.ReadText(PackageRepositories.Path, 4096) ?? PackageRepositories.Default))
@@ -98,5 +124,57 @@ internal static class PackageCommands
         foreach (string action in plan.Actions) { c.WriteLine(action); }
         foreach (string blocker in plan.Blockers) { c.WriteLine("blocked: " + blocker); }
         c.WriteLine("dry-run only; integrity hashes are not signatures; no files changed"); return plan.Applicable ? 0 : 1;
+    }
+    private static bool Confirm(CommandContext c, bool yes)
+    {
+        if (yes) { return true; }
+        if (!c.IsTerminal || c.Input is not null || c.Shell.ReadInputLine is null)
+        { throw new IOException("review pkg plan first, then supply --yes to apply non-interactively"); }
+        string? response = c.Shell.ReadInputLine("Proceed [y/N]? "); c.Shell.ThrowIfCancelled();
+        return response is "y" or "Y" or "yes";
+    }
+    private static int Online(CommandContext c, PackageManager manager, bool upgrade)
+    {
+        bool yes = c.Args.Length > 1 && c.Args[1] == "--yes";
+        var catalog = NativeRepositories.Catalog(); var installed = manager.List();
+        string[] names;
+        if (upgrade)
+        {
+            if (c.Args.Length != (yes ? 2 : 1)) { return c.Fail("pkg upgrade [--yes]"); }
+            names = installed.Where(x => catalog.Any(e => e.Kind == "data" && e.Name == x.Manifest.Name
+                && PackageVersions.Compare(e.Version, x.Manifest.Version) > 0)).Select(x => x.Manifest.Name).ToArray();
+            if (names.Length == 0) { c.WriteLine("no data package upgrades available"); return 0; }
+        }
+        else { names = c.Args.Skip(yes ? 2 : 1).ToArray(); }
+        var plan = RepositoryPlanner.Plan(catalog, NativeRepositories.Repositories, installed, names, c.Shell.ThrowIfCancelled);
+        foreach (var entry in plan) { c.WriteLine("Apply " + entry.Name + " " + entry.Version + " [" + entry.Repository + "] bytes=" + entry.Bytes); }
+        if (plan.Count == 0) { c.WriteLine("packages already installed at the selected versions"); return 0; }
+        if (c.Args[0] == "plan") { c.WriteLine("plan only; no downloads or installed changes"); return 0; }
+        if (!Confirm(c, yes)) { c.WriteLine("package operation cancelled"); return 0; }
+        _ = NativeRepositories.Catalog();
+        var packages = new List<SignedPackage>();
+        foreach (var entry in plan) { c.Shell.ThrowIfCancelled(); packages.Add(NativeRepositories.Data(entry, c)); }
+        _ = NativeRepositories.Catalog();
+        var progress = new CommandProgress(c.Out, c.IsTerminal);
+        try { manager.Install(packages, c.Shell.ThrowIfCancelled, progress.Report); }
+        catch { progress.Finish(); throw; }
+        progress.Finish(); c.WriteLine("package transaction committed: " + packages.Count); return 0;
+    }
+    private static int KernelUpdate(CommandContext c)
+    {
+        bool yes = c.Args.Length == 3 && c.Args[2] == "--yes";
+        if (c.Args.Length != (yes ? 3 : 2)) { return c.Fail("pkg kernel update [--yes]"); }
+        var current = Zenith.Core.Boot.NativeKernelUpdates.ReadyForUpdate();
+        var entry = NativeRepositories.Catalog().Where(x => x.Kind == "kernel" && PackageVersions.Compare(x.Version, current.HighWater) > 0)
+            .OrderByDescending(x => x.Version, Comparer<string>.Create(PackageVersions.Compare)).FirstOrDefault();
+        if (entry is null) { c.WriteLine("no newer kernel available"); return 0; }
+        c.WriteLine("Stage zenith-kernel " + entry.Version + "; reboot and boot confirm required");
+        if (!Confirm(c, yes)) { c.WriteLine("kernel update cancelled"); return 0; }
+        _ = NativeRepositories.Catalog();
+        string path = NativeRepositories.Download(entry, c);
+        _ = NativeRepositories.Catalog();
+        int result = Zenith.Core.Boot.NativeKernelUpdates.Package(new CommandContext(c.Shell, c.Name,
+            new[] { "kernel", "install", path }, c.Input, c.Out, c.Err, c.IsTerminal));
+        c.WriteLine("Kernel staged. Run reboot, then boot confirm after testing."); return result;
     }
 }
