@@ -2,6 +2,8 @@
 """Run an unchanged tagged acceptance harness with efficient independent image copies."""
 from pathlib import Path
 import runpy
+import importlib.machinery
+import importlib.util
 import shutil
 import subprocess
 import sys
@@ -26,13 +28,34 @@ def copyfile(source, destination, *, follow_symlinks=True):
     return original_copyfile(source, destination, follow_symlinks=follow_symlinks)
 
 
+def run_harness(script):
+    spec = importlib.util.spec_from_file_location('validation_network', Path(__file__).with_name('validation-network.py'))
+    network = importlib.util.module_from_spec(spec); spec.loader.exec_module(network)
+    original_exec = importlib.machinery.SourceFileLoader.exec_module
+    instances = []
+    headless = script.parent / 'headless-smoke.py'
+    def execute(loader, module):
+        original_exec(loader, module)
+        if Path(loader.path).resolve() == headless.resolve():
+            network.install(module.Machine, instances)
+    importlib.machinery.SourceFileLoader.exec_module = execute
+    try: runpy.run_path(str(script), run_name='__main__')
+    finally:
+        importlib.machinery.SourceFileLoader.exec_module = original_exec
+        # A failed boot can raise before its harness assigns the machine to the
+        # outer cleanup variable. Reap that VM before retaining/removing evidence.
+        for machine in instances:
+            try: machine.stop()
+            except (OSError, RuntimeError): pass
+
+
 def main():
     if len(sys.argv) != 3: raise SystemExit("usage: validation-runner.py HARNESS KEEP")
     script = Path(sys.argv[1]).resolve(); keep = sys.argv[2]
     sys.path.insert(0, str(script.parent))
     sys.argv = [str(script), keep]
     shutil.copyfile = copyfile
-    try: runpy.run_path(str(script), run_name="__main__")
+    try: run_harness(script)
     finally: shutil.copyfile = original_copyfile
 
 

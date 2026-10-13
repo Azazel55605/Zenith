@@ -1,5 +1,45 @@
 # Implementation progress
 
+## 2026-10-13 · Distributor DHCP marker recovery
+
+- Operator's 0.0.8 native gate reached the live shell, then failed waiting for its
+  DHCP success marker. Retained diagnostics contain `network: online address=10.0.2.`
+  interrupted by Cosmos monitor debug output. This establishes an online transition,
+  but the damaged line cannot establish the exact final address to the harness.
+- Controller validation adapter now keeps the original wait, then probes the same
+  live guest with read-only `ip` checks for DHCP online state and the exact expected
+  address when the boot marker is missing. A damaged online transition triggers
+  that probe after three seconds; absent online transitions retain the full original
+  startup deadline. A unique logger response excludes echoed
+  command text. Failed, dead or wrong-address guests still fail. No networking
+  reconfiguration, DHCP retry, static fallback or acceptance-gate bypass occurs.
+- Tagged harness source remains unchanged; import adaptation applies only to its
+  headless Machine. Track fully constructed machines and reap them on harness exit,
+  including failed boot checks before the harness assigns its outer cleanup variable.
+- Validation: 15 controller/wrapper tests and 10 serial matching tests pass. Real
+  disposable TCG guests prove healthy DHCP passes despite a deliberately unreadable
+  boot marker and a no-NIC guest fails the probe. Both shut down cleanly. Local KVM
+  is unavailable; actual nested-KVM retry remains operator acceptance. Evidence:
+  /tmp/zenith-dhcp-adapter-tests.log, /tmp/zenith-dhcp-marker-tests.log,
+  /tmp/zenith-dhcp-probe-smoke.log, /tmp/zenith-dhcp-probe-smoke-2.log and
+  /tmp/zn-dhcp-probe-2.
+- Current hosted CI 38453453030 independently failed the serial read/EOF host test
+  and the guest `got=serial-answer` check. Both observers accepted prompt text in
+  echoed `read -p` source before the read callback was ready. Assemble that prompt
+  from quoted fragments so only actual emitted prompt text can trigger input.
+  Focused serial host checks pass 13/13 and the full host suite passes 603/603.
+  Following that fix exposed an existing headless fixture calling session=invalid
+  while its test-only boot override whitelist rejected it; allow this exact fixture
+  argument to preserve the invalid-session/future-schema fallback checks. The full
+  installed-headless regression passes 73/73, including actual interactive read,
+  hidden credentials, future-schema/invalid-session fallback, independent ext2 audit
+  and serial panic restart. CI native kernel/repository/program
+  gates now use the same controller adapter. No production serial behavior or
+  kernel bytes changed. Evidence: /tmp/zenith-dhcp-full-host.log and
+  /tmp/zenith-headless-fixed.log.
+- Pull the updated controller, queue a service-owned retry of kernel/v0.0.8 and start
+  the service. Existing source/version pins, signed packages and release tags remain.
+
 ## 2026-10-13 · Release refs and installed-boot CI follow-up
 
 - Commit 764fb12 and independent kernel/v0.0.8, zenith-docs/v0.1.1,

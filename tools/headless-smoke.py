@@ -126,7 +126,8 @@ def main():
         step(machine, "echo headless-file > /home/user/headless-file; cat /home/user/headless-file | logger", "user: headless-file")
         step(machine, "printf 'for i in one two; do echo script-$i; done\\n' > /tmp/headless.sh; sh /tmp/headless.sh | logger", "user: script-two")
         step(machine, "if true; then\necho multiline | logger\nfi", "user: multiline")
-        offset = len(machine.log()); machine.send("read -p 'Read input: ' VALUE; echo got=$VALUE | logger\r")
+        # Keep the prompt absent from input echo; wait for the actual read callback.
+        offset = len(machine.log()); machine.send("read -p 'Read in''put: ' VALUE; echo got=$VALUE | logger\r")
         assert_(machine.wait("Read input: ", offset), "read prompt")
         step(machine, "serial-answer", "user: got=serial-answer")
         machine.send("sleep 30\r"); time.sleep(1); machine.send("\x03")

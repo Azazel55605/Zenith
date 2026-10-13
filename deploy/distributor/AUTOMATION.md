@@ -231,3 +231,11 @@ policy and manual preview/apply command are in docs/PACKAGE-SERVER.md. Immutable
 published packages and durable tag pins remain. Current kernel source adds the
 protected executable acceptance gate; older immutable tags retain their existing
 kernel/repository gates because they predate native ABI 1.
+
+If concurrent Cosmos debug output damages the exact DHCP boot message, the current
+controller's validation adapter checks the same guest's actual DHCP online state
+and expected IP through a read-only shell probe. It accepts only a unique logger
+response after the command, preserves failure for offline/wrong-address/dead guests,
+and never retries/reconfigures DHCP. It also reaps VMs after failed boot checks.
+This controller fix works with existing immutable release tags; pull controller
+updates and queue the failed tag for retry. Tagged source is not rewritten.

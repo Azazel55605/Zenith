@@ -22,6 +22,7 @@ def module(name, path):
 runner = module('validation_runner', ROOT / 'deploy/distributor/validation-runner.py')
 release = module('release', ROOT / 'deploy/distributor/release.py')
 output = module('build_output', ROOT / 'deploy/distributor/build_output.py')
+network = module('validation_network', ROOT / 'deploy/distributor/validation-network.py')
 
 class ValidationTests(unittest.TestCase):
     def setUp(self):
@@ -87,6 +88,66 @@ class ValidationTests(unittest.TestCase):
                         str(harness), str(self.destination)], check=True)
         self.assertEqual(self.source.read_bytes(), self.destination.read_bytes())
         self.assertLess(self.destination.stat().st_blocks * 512, self.destination.stat().st_size // 4)
+
+    def test_dhcp_probe_requires_actual_online_state_and_expected_address(self):
+        from unittest.mock import Mock
+        machine=Mock(); machine.process.poll.return_value=None; machine.log.return_value='boot log'
+        calls=[]
+        def original(instance,marker,offset,timeout):
+            calls.append((marker,offset,timeout));return marker=='user: DHCP_PROBE_fixture_OK'
+        with patch.object(network.secrets,'token_hex',return_value='fixture'):
+            self.assertTrue(network.wait(machine,'network: online address=10.0.2.15',0,90,original))
+        command=machine.send.call_args.args[0]
+        self.assertIn("grep 'mode=dhcp state=online'",command)
+        self.assertIn("grep '  address=10.0.2.15 '",command)
+        self.assertEqual(('user: DHCP_PROBE_fixture_OK',len('boot log'),30),calls[-1])
+        self.assertNotIn('netcfg',command)
+        self.assertNotIn('fetch',command)
+
+    def test_failed_dhcp_probe_dead_guest_other_markers_and_offsets_still_fail(self):
+        from unittest.mock import Mock
+        machine=Mock();machine.process.poll.return_value=None;machine.log.return_value='boot log'
+        self.assertFalse(network.wait(machine,'network: online address=10.0.2.15',0,90,lambda *args:False))
+        machine.send.assert_called_once();machine.send.reset_mock()
+        for marker,offset in [('headless ready',0),('network: online address=10.0.2.15',10),
+                              ('network: online address=999.0.2.15',0)]:
+            self.assertFalse(network.wait(machine,marker,offset,90,lambda *args:False))
+        machine.process.poll.return_value=1
+        self.assertFalse(network.wait(machine,'network: online address=10.0.2.15',0,90,lambda *args:False))
+        machine.send.assert_not_called()
+
+    def test_absent_online_transition_retains_full_startup_deadline(self):
+        from unittest.mock import Mock
+        machine=Mock();machine.process.poll.return_value=None;machine.log.return_value='no online transition'
+        calls=[]
+        def original(instance,marker,offset,timeout):calls.append(timeout);return False
+        with patch.object(network.time,'monotonic',side_effect=[10,13]):
+            self.assertFalse(network.wait(machine,'network: online address=10.0.2.15',0,90,original))
+        self.assertEqual([3,87,30],calls)
+
+    def test_intact_dhcp_marker_needs_no_probe(self):
+        from unittest.mock import Mock
+        machine=Mock()
+        self.assertTrue(network.wait(machine,'network: online address=10.0.2.15',0,90,lambda *args:True))
+        machine.send.assert_not_called()
+
+    def test_failed_boot_reaps_vm_without_rewriting_tagged_sources(self):
+        helper=self.root/'headless-smoke.py'
+        helper.write_text("from pathlib import Path\nclass Machine:\n"
+            " def __init__(self): pass\n"
+            " def wait(self,marker,offset=0,timeout=180): return False\n"
+            " def stop(self): Path(__file__).with_name('reaped').write_text('yes')\n")
+        harness=self.root/'harness.py'
+        harness.write_text("import importlib.util\nfrom pathlib import Path\n"
+            "spec=importlib.util.spec_from_file_location('headless',Path(__file__).with_name('headless-smoke.py'))\n"
+            "h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)\n"
+            "machine=h.Machine();assert machine.wait('headless ready')\n")
+        before=(harness.read_bytes(),helper.read_bytes())
+        result=subprocess.run([sys.executable,'-B',str(ROOT/'deploy/distributor/validation-runner.py'),
+            str(harness),str(self.destination)],capture_output=True)
+        self.assertNotEqual(0,result.returncode)
+        self.assertEqual('yes',(self.root/'reaped').read_text())
+        self.assertEqual(before,(harness.read_bytes(),helper.read_bytes()))
 
     def test_phase_metrics_record_success_and_failure_without_hiding_error(self):
         with patch.object(release, 'REPO', self.root):

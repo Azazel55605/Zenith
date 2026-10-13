@@ -59,11 +59,13 @@ public class SerialTerminalTests
     public async Task ReadAndEofUseInteractiveInput()
     {
         var terminal = Terminal(); terminal.Drain();
-        Send(terminal, "read -p 'input: ' VALUE; echo got=$VALUE\n");
+        // Assemble prompts from adjacent quoted fragments so the input echo
+        // cannot satisfy the wait before the worker actually starts reading.
+        Send(terminal, "read -p 'in''put: ' VALUE; echo got=$VALUE\n");
         await Until(terminal, x => x.Contains("input: "));
         Send(terminal, "answer\n");
         Assert.Contains("got=answer\n", await Until(terminal, x => x.Contains("got=answer\n") && !terminal.Busy));
-        Send(terminal, "read -p 'eof: ' VALUE\n"); await Until(terminal, x => x.Contains("eof: "));
+        Send(terminal, "read -p 'e''of: ' VALUE\n"); await Until(terminal, x => x.Contains("eof: "));
         terminal.Receive(4); await Until(terminal, _ => !terminal.Busy);
         Assert.Equal(1, terminal.Shell.LastStatus);
     }
