@@ -25,6 +25,14 @@ The kit does not implement P4 signed online indexes.
 
 ## Current HTTPS proxy and next priority (2026-10-12)
 
+Resolved on 2026-10-13: a dedicated self-signed certificate with matching DNS SAN
+is loaded in Zoraxy. Served public PEM SHA256 is
+d8469fd6e6476aaea598a215db683d754d9207072da0d907afd849cecac15464.
+Host explicit-trust hostname verification and HTTPS receipt retrieval pass; user
+screenshot confirms Zenith retrieves the receipt with verified TLS 1.2. The old
+default-certificate mismatch described below is historical. Full package download
+and backup/restore acceptance remain pending.
+
 The package VM remains 10.0.20.7; the named Zoraxy proxy resolves to 10.0.10.3 on
 the development host. Host SNI inspection currently returns a self-signed certificate
 with CN `Zoraxy Self-host`, no Subject Alternative Name, valid May 2023–May 2038.
@@ -145,6 +153,9 @@ ping and TCP reachability succeeded, while guest ping failed. On 2026-10-13 a fr
 laptop HTTP check could not connect to 10.0.20.7:80; HTTPS reached the proxy but
 failed certificate hostname validation (Zoraxy Self-host). Current guest transport
 acceptance needs repeating after service and certificate setup are checked.
+Follow-up after the VM finished booting: user supplied active/enabled nginx status,
+successful nginx -t and IPv4/IPv6 port 80 listeners. Laptop HTTP retrieval of the
+existing 0.0.2 release receipt succeeds. The initial connection failure is resolved.
 M3's host user/TAP network profiles and DNS configuration permit acceptance once
 it exists; no server has been deployed as part of networking implementation.
 See [NETWORKING](NETWORKING.md) for the current LAN/CA bootstrap test procedure.

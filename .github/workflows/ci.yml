@@ -134,6 +134,11 @@ jobs:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 -B tools/transfer-bench.py smoke-transfer --disk-mib 16
 
+      - name: German keyboard and history (PS2 and virtio)
+        env:
+          QEMU: /usr/bin/qemu-system-x86_64
+        run: python3 -B tools/keyboard-smoke.py smoke-keyboard
+
       - name: IPv4 network lab (HTTP/HTTPS, certificates, DNS, NTP)
         env:
           QEMU: /usr/bin/qemu-system-x86_64
@@ -145,6 +150,7 @@ jobs:
           name: smoke-test-logs
           path: |
             smoke-dhcp-receive/
+            smoke-keyboard/
             smoke-transfer/
             smoke/
             smoke-large/

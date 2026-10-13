@@ -76,6 +76,10 @@ STEPS = [
     ("lsblk | grep sata0p1 | logger", "sata0p1       126M  part"),   # serial is ASCII-only: no box glyphs
     # German layout: the key QEMU calls "y" types "z". Switch back by typing "loadkezs us".
     ("localectl set-keymap de\nlogger y", "user: z"),
+    ("{num_lock}logger {shift-7}tmp{shift-7}de", "user: /tmp/de"),
+    ("logger arrowhistorz\n{up}{end}recalled", "user: arrowhistoryrecalled"),
+    ("logger arrox{left}{delete}w", "user: arrow"),
+    ("logger {alt_r-q}{alt_r-7}{alt_r-8}{alt_r-9}{alt_r-0}", "user: @{[]}"),
     ("loadkezs us\ncat /etc/vconsole.conf | logger", "user: KEYMAP=de"),
     ("timedatectl set-timezone Europe/Berlin && timedatectl | grep zone | logger", "Time zone: Europe/Berlin"),
     ("mkdir /mnt/ext; mount -t ext2 sata0p0 /mnt/ext; echo ext2-reject-fat=$? | logger", "user: ext2-reject-fat=1"),
@@ -187,7 +191,7 @@ class GcPauseTracker:
 
 
 class Machine:
-    def __init__(self, iso: Path, workdir: Path, initial_disk: Path | None = None, memory: int = 512):
+    def __init__(self, iso: Path, workdir: Path, initial_disk: Path | None = None, memory: int = 512, keyboard: str = "virtio"):
         self.workdir = workdir
         self.serial = workdir / "serial.log"
         self._gc_offset = 0
@@ -208,7 +212,7 @@ class Machine:
             "-serial", f"file:{self.serial}",
             "-monitor", f"unix:{self.monitor},server,nowait",
             "-vga", "none", "-device", "virtio-gpu-pci",
-            "-device", "virtio-keyboard-pci", "-device", "virtio-mouse-pci",
+            *(["-device", "virtio-keyboard-pci"] if keyboard == "virtio" else []), "-device", "virtio-mouse-pci",
             "-cdrom", str(iso), "-boot", "order=d",
             "-drive", f"file={self.disk},format=raw,if=none,id=disk0", "-device", "ide-hd,drive=disk0,bus=ide.0,unit=0",
             "-drive", f"file={self.ext2_disk},format=raw,if=none,id=disk1", "-device", "ide-hd,drive=disk1,bus=ide.1,unit=0",
@@ -245,7 +249,7 @@ class Machine:
     def type(self, text: str):
         # {ctrl-a}, {ctrl-shift-v}...: key chords; ^C ^S ^Q: shorthands; %%DELAY%%: let a window open.
         text = text.replace("^C", "{ctrl-c}").replace("^S", "{ctrl-s}").replace("^Q", "{ctrl-q}").replace("%%DELAY%%", "{delay}")
-        for part in re.split(r"(\{[a-z0-9-]+\})", text):
+        for part in re.split(r"(\{[a-z0-9_-]+\})", text):
             if part == "{click-delete}":
                 # Fixed 1280x800 smoke desktop: Files opens at (372,240),
                 # Delete's center is (1037,338); the untouched pointer is (640,400).

@@ -479,6 +479,66 @@ if (assembly.Name.Name == "Cosmos.Kernel.System")
     }
     Console.WriteLine("Quieted pinned successful IPv4/TCP packet traces; errors remain enabled");
 }
+// Keyboard adaptations apply only to build copies of pinned Cosmos 3.0.89.
+if (assembly.Name.Name is "Cosmos.Kernel.System" or "Cosmos.Kernel.HAL.X64" or "Cosmos.Kernel.HAL")
+{
+    using var support = resolver.Resolve(new AssemblyNameReference("Zenith.Network", new Version(1, 0, 0, 0)));
+    var policy = support.MainModule.GetType("Zenith.Core.Input.KeyboardScanPolicy")
+        ?? throw new InvalidOperationException("Keyboard support policy missing");
+    MethodReference Policy(string name) => module.ImportReference(policy.Methods.Single(m => m.Name == name));
+    if (assembly.Name.Name == "Cosmos.Kernel.System")
+    {
+        var scan = module.GetType("Cosmos.Kernel.System.Keyboard.ScanMapBase").Methods
+            .Single(m => m.Name == "ConvertScanCode" && m.Parameters.Count == 7);
+        if (scan.Parameters[0].ParameterType.FullName != "System.Byte" || scan.Parameters[4].Name != "numLock" || !scan.HasBody)
+        { throw new InvalidOperationException("Keyboard layout signature changed"); }
+        if (!scan.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "UseNumLock"))
+        {
+            var il = scan.Body.GetILProcessor(); var first = scan.Body.Instructions[0];
+            foreach (var instruction in new[] {
+                il.Create(OpCodes.Ldarg_1), il.Create(OpCodes.Ldarg, scan.Parameters[4]),
+                il.Create(OpCodes.Call, Policy("UseNumLock")), il.Create(OpCodes.Starg, scan.Parameters[4]),
+                il.Create(OpCodes.Ldarg_1), il.Create(OpCodes.Call, Policy("LayoutScan")),
+                il.Create(OpCodes.Starg, scan.Parameters[0]) }) { il.InsertBefore(first, instruction); }
+            changed = true;
+        }
+    }
+    if (assembly.Name.Name == "Cosmos.Kernel.HAL.X64")
+    {
+        var irq = module.GetType("Cosmos.Kernel.HAL.X64.Devices.Input.PS2Keyboard").Methods.Single(m => m.Name == "StaticHandleIRQ");
+        if (!irq.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "Ps2"))
+        {
+            var old = irq.Body.Instructions.Where(i => i.Offset >= 0x49 && i.Offset < 0x53).ToArray();
+            if (old.Length != 6 || old[0].OpCode != OpCodes.Brfalse_S || old[3].OpCode != OpCodes.Bne_Un_S
+                || irq.Body.Variables.Count != 2)
+            { throw new InvalidOperationException("PS2 extended scan contract changed"); }
+            var extended = new VariableDefinition(module.TypeSystem.Boolean); irq.Body.Variables.Add(extended);
+            var il = irq.Body.GetILProcessor(); old[0].OpCode = OpCodes.Stloc; old[0].Operand = extended;
+            var cursor = old[0];
+            foreach (var instruction in new[] { il.Create(OpCodes.Ldloc_0), il.Create(OpCodes.Ldloc, extended),
+                il.Create(OpCodes.Call, Policy("Ps2")), il.Create(OpCodes.Stloc_0) })
+            { il.InsertAfter(cursor, instruction); cursor = instruction; }
+            foreach (var instruction in old.Skip(1)) { instruction.OpCode = OpCodes.Nop; instruction.Operand = null; }
+            changed = true;
+        }
+    }
+    if (assembly.Name.Name == "Cosmos.Kernel.HAL")
+    {
+        var translate = module.GetType("Cosmos.Kernel.HAL.Devices.Input.VirtioKeyboard").Methods.Single(m => m.Name == "LinuxToPS2ScanCode");
+        if (!translate.IsStatic || translate.Parameters.Count != 1 || translate.Parameters[0].ParameterType.FullName != "System.UInt16"
+            || translate.ReturnType.FullName != "System.Byte") { throw new InvalidOperationException("Virtio keyboard signature changed"); }
+        if (!translate.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "Virtio"))
+        {
+            var il = translate.Body.GetILProcessor();
+            foreach (var instruction in translate.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
+            {
+                instruction.OpCode = OpCodes.Ldarg_0;
+                var call = il.Create(OpCodes.Call, Policy("Virtio")); il.InsertAfter(instruction, call); il.InsertAfter(call, il.Create(OpCodes.Ret));
+            }
+            translate.Body.MaxStackSize = Math.Max(2, translate.Body.MaxStackSize); changed = true;
+        }
+    }
+}
 // Imports above can reintroduce the released patcher's redundant self edge.
 // Rebind again after all adaptations, immediately before writing the assembly.
 foreach (var type in module.GetTypeReferences())

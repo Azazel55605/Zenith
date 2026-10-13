@@ -144,6 +144,19 @@ tls trust /tmp/ca.pem EXPECTED_64_HEX_DIGIT_PEM_FILE_HASH
 fetch https://YOUR_FULL_VM_DNS_NAME/test.txt /tmp/test.txt
 ```
 
+For a single download-and-import operation, root can instead run:
+
+```sh
+tls bootstrap http://YOUR_VM_ADDRESS/tls.pem EXPECTED_64_HEX_DIGIT_PEM_FILE_HASH
+```
+
+Bootstrap downloads at most 4096 bytes, checks the independently supplied exact
+PEM SHA256 and validates the bundle before persistent replacement. Temporary files
+are removed on success or failure. HTTP is permitted for this fingerprint-checked
+bootstrap; HTTPS sources require existing TLS trust. Failed download, cancellation,
+bad hash or invalid PEM preserves existing trust. This replaces the current bundle;
+it does not silently accept a server certificate or change package-signing trust.
+
 Import validates the hash and complete PEM bundle before staged replacement of
 `/etc/zenith/tls-ca.pem` (maximum 4096 bytes). Malformed files and wrong hashes preserve
 old trust. HTTPS verifies CA chain, DNS name or IPv4 SAN, key/algorithm policy and

@@ -45,6 +45,7 @@ internal sealed class TerminalWindow : Window, IOutput
     private readonly StringBuilder _input = new();
     private int _cursor;
     private int _historyIndex;
+    private string _historyDraft = "";
     private int _scroll;   // lines scrolled back from the bottom
     private bool _caretVisible = true;
 
@@ -440,7 +441,7 @@ internal sealed class TerminalWindow : Window, IOutput
 
         _selectionAnchor = null;
 
-        if (control)
+        if (control && !((key.Modifiers & ConsoleModifiers.Alt) != 0 && key.KeyChar >= ' '))
         {
             HandleControl(key.Key);
             return;
@@ -630,6 +631,10 @@ internal sealed class TerminalWindow : Window, IOutput
         }
 
         List<string> history = _shell.History;
+        if (_historyIndex == history.Count && direction < 0)
+        {
+            _historyDraft = _input.ToString();
+        }
         int index = Math.Clamp(_historyIndex + direction, 0, history.Count);
         if (index == _historyIndex)
         {
@@ -642,6 +647,7 @@ internal sealed class TerminalWindow : Window, IOutput
         {
             _input.Append(history[index]);
         }
+        else { _input.Append(_historyDraft); }
 
         _cursor = _input.Length;
     }

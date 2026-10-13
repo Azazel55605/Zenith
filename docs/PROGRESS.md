@@ -1,7 +1,75 @@
 # Implementation progress
 
+## 2026-10-13 · Keyboard, terminal recall and TLS bootstrap usability
+
+- User confirms full ~16 MB package download through the named HTTPS proxy and
+  successful signature verification. Slow university Wi-Fi is reported separately
+  from transfer correctness. TrueNAS automated backups are user-confirmed; backup
+  scope and restore acceptance have not been independently verified. Newer server
+  release publication remains the last distributor walkthrough step.
+- Investigating user German Shift+7/Caps Lock workaround and absent arrows:
+  released ScanMapBase applies Num Lock to main keyboard shift columns; dedicated
+  navigation scans share keypad identity. Build-copy adaptations limit Num Lock to
+  physical keypad scans and retain dedicated PS/2/virtio navigation identity.
+  Local German map corrects #/ISO positions and logical Y/Z identity; terminal
+  printable AltGr input bypasses control-shortcut dispatch.
+- GUI terminal already implemented session history; corrected arrow translation
+  restores access, and recall now preserves the current draft. It remains
+  session-only. New tls bootstrap URL SHA256 combines bounded public PEM download
+  and hash-checked persistent import, with explicit cleanup for Cosmos exception
+  behavior. Existing TLS/hostname/package signature checks remain enabled; no
+  private mirror/certificate is hardcoded into portable defaults.
+- Release build and 573/573 host checks pass. Final native networking passes
+  184/184, including bootstrap, rejection of bad hash/oversize/non-root requests,
+  preservation of existing trust and installed trust persistence. Desktop checks
+  pass 139/139. Dedicated keyboard acceptance passes 18 checks across PS/2/virtio:
+  Shift+7 with/without Num Lock, Caps Lock, #/ISO punctuation, AltGr, arrows,
+  history and draft restoration. Second fixup pass is byte-identical on System,
+  HAL and HAL.X64. Initial focused harness failures were test construction errors:
+  Caps Lock capitalized the logger command, then unquoted # became a shell comment;
+  the corrected harness passes. CI includes both keyboard backends.
+  Evidence: obj/input-trust-host.log, input-trust-build-final.log,
+  input-trust-network-final.log, input-trust-desktop.log and
+  input-trust-keyboard-accepted.log, all under obj. Actual VMware input acceptance
+  remains pending. Existing USB keyboard mappings are not separately adapted here.
+- Signed 0.0.6 with the existing trusted key (16,107,334 bytes), verified locally
+  and byte-exact through the NAT relay. Kernel SHA256
+  ad80525257a5e5dadcf370dc8cd1830ff6bcffb6b591fbd206f592468a404842;
+  archive SHA256 7e485879c1b3699f90e6411294803918612331ac763e968913c0b2572985f742.
+  Existing 0.0.5 remains immutable; server publication of a newer release is still
+  pending the user's walkthrough. Existing guest TLS trust persists across updates.
+- After all native checks completed, pruned 15 generated validation images,
+  0.69 GiB allocated/3.03 GiB apparent; kept logs/screenshots/signatures/relay and
+  VMware recovery data. Evidence: obj/input-trust-prune.log.
+
+## 2026-10-13 · Named proxy HTTPS accepted in Zenith
+
+- User created a dedicated self-signed certificate with DNS SAN
+  zenith-stable.net.local and loaded its key/certificate into Zoraxy's Docker
+  certificate mount. Host SNI inspection confirms the matching name; explicit
+  certificate trust and hostname verification pass. HTTPS release receipt fetch
+  succeeds on the laptop. Served PEM SHA256:
+  d8469fd6e6476aaea598a215db683d754d9207072da0d907afd849cecac15464.
+- User screenshot confirms Zenith fetch of the 0.0.2 release receipt completes
+  with verified TLS 1.2 and 469 bytes; cat displays the expected receipt and
+  signing public-key fingerprint. No certificate checks were disabled. Full
+  archive transfer/signature verification remains a separate acceptance step.
+- User-supplied distributor inventory: Debian 13.7 x86_64, 4 CPUs, 7.8 GiB RAM,
+  44 GB disk free, .NET 10.0.401, Cosmos tools/patcher 3.0.89, all inventoried
+  tools present and clean source at 2c939867994705aa3056a304d838f816c02c127d.
+  Existing signing key matches trusted fingerprint. Signing directory ownership/
+  permissions correction was supplied; execution is not yet confirmed.
+- Next walkthrough step is backup destination/policy and restore verification,
+  then full guest delivery and publication of a newer immutable release.
+
 ## 2026-10-13 · Relay restarted and distributor completion audit
 
+- Follow-up: user reports the server was still booting during the initial failed
+  connection. Supplied nginx status is active/enabled, nginx -t passes and port 80
+  listens on IPv4/IPv6. After boot, laptop HTTP retrieval of
+  /core/zenith-kernel/0.0.2/release.json succeeds and reports the expected public
+  PEM fingerprint. Initial connection failure is resolved; full archive/guest
+  HTTPS acceptance and source/tool/backup inventory remain separate checks.
 - Restarted the VMware NAT HTTP relay on 172.16.43.1:8081. A complete HTTP download
   of 0.0.5 matches archive SHA256
   1bad237c67528cf0187dd7d19adb6ed352a319f872745f0fae55eeaa00407996.

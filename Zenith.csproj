@@ -11,6 +11,7 @@
   <ItemGroup>
     <Compile Remove="tests/**" />
     <Compile Remove="tools/**" />
+    <Compile Remove="src/Core/Input/KeyboardScanPolicy.cs" />
     <Compile Remove="src/Core/Security/Credentials.cs;src/Core/Security/PermissionPolicy.cs;src/Core/Security/FileAccessPolicy.cs;src/Core/Security/obj/**;src/Core/Security/bin/**" />
     <Compile Remove="src/Core/Network/Transport/*.cs;src/Core/Network/Transport/obj/**;src/Core/Network/Transport/bin/**" />
     <None Remove="tests/**" />
@@ -31,6 +32,7 @@
   <Target Name="AdaptZenithE1000ReceiveFilter" BeforeTargets="CheckIlcCache" DependsOnTargets="RunPatcher" Condition="'$(CosmosArch)' == 'x64'">
     <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.Plugs.dll&quot;" />
     <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.HAL.X64.dll&quot;" />
+    <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.HAL.dll&quot;" />
   </Target>
 
   <ItemGroup>

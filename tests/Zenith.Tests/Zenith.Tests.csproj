@@ -33,6 +33,12 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <PackageDownload Include="Cosmos.Kernel.System" Version="[$(CosmosVersion)]" />
+    <Reference Include="Cosmos.Kernel.System">
+      <HintPath>$(NuGetPackageRoot)cosmos.kernel.system/$(CosmosVersion)/runtimes/linux-x64/lib/net10.0/Cosmos.Kernel.System.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Compile Include="../../src/Core/Input/GermanKeyboardLayout.cs;../../src/Core/Input/KeyboardScanPolicy.cs" LinkBase="Kernel/Input" />
     <Compile Include="../../src/Core/PowerControl.cs" Link="Kernel/PowerControl.cs" />
   </ItemGroup>
 

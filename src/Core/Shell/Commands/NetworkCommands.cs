@@ -32,12 +32,20 @@ internal static class NetworkCommands
             if (c.Args.Length is < 1 or > 2) { return c.Fail("specify HOST [PORT]"); }
             NetworkService.Synchronize(c.Args[0], Port(c.Args, 1, 123), c.Shell.ThrowIfCancelled); c.Write(NetworkService.Status()); return 0;
         }));
-        add(new Command("tls", "tls [selftest | trust FILE SHA256]", "Install a fingerprint-checked PEM CA bundle (root)", c =>
+        add(new Command("tls", "tls [selftest | trust FILE SHA256 | bootstrap URL SHA256]", "Import a fingerprint-checked PEM CA bundle (root)", c =>
         {
             if (c.Args.Length == 1 && c.Args[0] == "selftest")
             { NetworkService.TlsSelfTest(); c.WriteLine("TLS AES/GCM/SHA/CTR-DRBG known-answer tests passed"); return 0; }
-            if (c.Args.Length != 3 || c.Args[0] != "trust") { return c.Fail("use tls trust FILE SHA256 (hash of exact PEM file from a trusted channel)"); }
-            NetworkService.Trust(c.Resolve(c.Args[1]), c.Args[2], c.Shell.ThrowIfCancelled);
+            if (c.Args.Length != 3 || c.Args[0] is not ("trust" or "bootstrap"))
+            { return c.Fail("use tls trust FILE SHA256 or tls bootstrap URL SHA256 (PEM hash from a trusted channel)"); }
+            if (c.Args[0] == "bootstrap")
+            {
+                var progress = new CommandProgress(c.Out, c.IsTerminal);
+                try { NetworkService.TrustFromUrl(c.Args[1], c.Args[2], c.Shell.ThrowIfCancelled, progress.Report); }
+                catch { progress.Finish(); throw; }
+                progress.Finish();
+            }
+            else { NetworkService.Trust(c.Resolve(c.Args[1]), c.Args[2], c.Shell.ThrowIfCancelled); }
             c.WriteLine("TLS trust saved to /etc/zenith/tls-ca.pem"); return 0;
         }));
         add(new Command("fetch", "fetch [--replace] [--kernel] URL FILE", "Bounded staged HTTP/verified HTTPS download; no package trust", c =>

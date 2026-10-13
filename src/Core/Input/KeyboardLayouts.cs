@@ -15,7 +15,7 @@ internal static class KeyboardLayouts
     private static readonly Dictionary<string, (string Description, Func<ScanMapBase> Create)> s_layouts = new()
     {
         ["us"] = ("English (US), QWERTY", () => new USStandardLayout()),
-        ["de"] = ("German, QWERTZ", () => new DEStandardLayout()),
+        ["de"] = ("German, QWERTZ", () => new GermanKeyboardLayout()),
         ["fr"] = ("French, AZERTY", () => new FRStandardLayout()),
         ["es"] = ("Spanish, QWERTY", () => new ESStandardLayout()),
         ["gb"] = ("English (UK), QWERTY", () => new GBStandardLayout()),

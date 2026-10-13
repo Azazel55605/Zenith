@@ -44,6 +44,8 @@ internal static class ManualPages
             HTTPS verifies CA chain, DNS/IP identity and certificate validity dates
             with Mbed TLS 3.6.7, TLS 1.2 ECDHE AES-GCM. tls trust checks the SHA256
             of the exact ASCII PEM file against a hash from a trusted channel.
+            tls bootstrap URL SHA256 downloads/imports that bundle in one step,
+            bounded to 4096 bytes; failed verification preserves existing trust.
             No trust is installed by default. No insecure bypass, redirects,
             compression or chunking. NTP/BCL/filesystem time remains unauthenticated.
             TCP pending data 128 KiB; UDP/ICMP queues 32 packets; IPv4 frames bounded.

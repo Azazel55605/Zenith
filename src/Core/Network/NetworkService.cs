@@ -346,6 +346,25 @@ internal static class NetworkService
             new NativeSettingsStore().Replace(TlsConnection.TrustPath, ca);
         });
     }
+    public static void TrustFromUrl(string url, string fingerprint, Action cancel, Action<string> report)
+    {
+        GuardedFilesystem.RequireRoot();
+        if (fingerprint.Length != 64 || !System.Linq.Enumerable.All(fingerprint, c =>
+            c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F'))
+        { throw new IOException("expected SHA256 of the exact PEM file (64 hex digits)"); }
+        string temporary = "/tmp/tls-bootstrap-" + Convert.ToHexString(Random(8)) + ".pem";
+        try
+        {
+            Fetch(url, temporary, false, cancel, report, 4096);
+            Trust(temporary, fingerprint, cancel);
+            File.Delete(temporary);
+        }
+        catch
+        {
+            try { if (File.Exists(temporary)) { File.Delete(temporary); } } catch { }
+            throw;
+        }
+    }
     public static int Fetch(string url, string destination, bool replace, Action cancel, Action<string> report, int maximum = HttpDownload.DefaultMaximumBytes)
     {
         return Run(() => { var target = HttpTarget.Parse(url); var metadata = new VfsFileMetadata();

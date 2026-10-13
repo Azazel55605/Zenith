@@ -50,7 +50,7 @@ The Terminal opens at boot. `help` lists the commands, `man zenith` is the intro
 - `|`, `>`, `>>`, `<`, `;`, `&&`, `||`, `!`
 - `if`/`elif`/`else`, `for`, `while`/`until`, functions, `test`/`[`, `read`
 - scripts with `sh file`, by path, or by name from `$PATH` (`/bin`); unfinished lines continue with `> `
-- history (Up/Down), Tab completion, Ctrl+C (stop), Ctrl+L, Ctrl+U, Ctrl+D
+- session history (Up/Down, restoring the current draft), Tab completion, Ctrl+C (stop), Ctrl+L, Ctrl+U, Ctrl+D
 - mouse selection, Ctrl+Shift+C/V, PageUp/PageDown or the wheel for scrollback
 
 `/proc` exposes read-only `meminfo`, `mounts`, `uptime` and `cmdline` files.

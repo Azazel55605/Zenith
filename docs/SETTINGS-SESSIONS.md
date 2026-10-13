@@ -20,6 +20,11 @@ System changes require root. `localectl set-keymap` and `timedatectl set-timezon
 call the same service as `settings set`; validation and persistence have one owner.
 `loadkeys` changes the active keyboard only. `settings show` distinguishes saved and
 active values, and identifies live settings as volatile. Installed saves persist.
+German input supports Shift+7 `/` without a Caps Lock workaround, AltGr punctuation
+and the ISO `< > |` key. Num Lock affects the keypad rather than the main keyboard.
+Dedicated PS/2 and virtio navigation keys remain arrows with Num Lock enabled.
+GUI Terminal Up/Down recalls session history and restores the current draft when
+returning past the newest command. History is not persisted across reboot.
 Saving a session default affects the next boot; it does not replace running windows.
 
 | Setting | Administrator-owned file | Representation |
