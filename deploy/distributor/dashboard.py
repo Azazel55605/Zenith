@@ -122,7 +122,7 @@ class Dashboard:
         builds = []
         for tag, item in records.items():
             status = item.get("status", "unknown")
-            if status not in ("pending", "building", "complete", "failed"): status = "unknown"
+            if status not in ("pending", "building", "complete", "failed", "interrupted"): status = "unknown"
             if status == "building" and not busy: status = "interrupted"
             timestamps = {name: value if isinstance(value, (int, float)) and 0 < value < 40000000000 else None
                           for name, value in (("started", item.get("started")), ("finished", item.get("finished")))}
@@ -140,6 +140,11 @@ class Dashboard:
         path = self.state / (tag.replace("/", "-") + ".log")
         if not path.exists(): return "No build log yet."
         return read_file(path, 65536, tail=True)
+
+    def output(self, build):
+        tags = {tag.replace("/", "-"): tag for tag in self.records()}
+        if build not in tags: raise ValueError("unknown build")
+        return self.log(tags[build])
 
     def run(self):
         with self.run_lock:
@@ -169,6 +174,10 @@ class Handler(BaseHTTPRequestHandler):
                 tags = urllib.parse.parse_qs(url.query).get("tag", [])
                 if len(tags) != 1: raise ValueError("supply one build tag")
                 return self.reply(200, {"text": self.server.dashboard.log(tags[0])})
+            if url.path == "/manage/api/build-output":
+                builds = urllib.parse.parse_qs(url.query).get("build", [])
+                if len(builds) != 1: raise ValueError("supply one build ID")
+                return self.reply(200, {"text": self.server.dashboard.output(builds[0])})
             files = {"/manage/": ("index.html", "text/html; charset=utf-8"),
                      "/manage/style.css": ("style.css", "text/css; charset=utf-8"),
                      "/manage/app.js": ("app.js", "text/javascript; charset=utf-8"),

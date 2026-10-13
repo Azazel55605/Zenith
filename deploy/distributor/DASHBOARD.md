@@ -76,6 +76,12 @@ only to /manage/. Keep this manager on the existing LAN/VPN network.
   release receipts and does not independently attest signatures. Published time
   is receipt modification time. It covers tagged polling releases; the legacy
   manual release command does not create tag records.
+- Build output uses an ID-based API without an encoded tag slash. The log heading
+  provides Open output for direct JSON viewing if a browser fetch fails. HTTP,
+  non-JSON/login/proxy and transport errors are distinguished. The original
+  /manage/api/log?tag=... endpoint remains available for diagnostics. Updating the
+  source alone does not update /opt/zenith-dashboard: rerun install-dashboard.sh
+  and reload the browser after changing dashboard files.
 - Next run is calculated from systemd's monotonic timer deadline; while a poll is
   active it shows After current run because the timer waits for completion before
   starting its interval. Dates follow the browser's local timezone/locale.

@@ -128,5 +128,30 @@ class PollTests(unittest.TestCase):
             self.assertEqual(0, poll.main())
             configure.assert_called_once(); execute.assert_called_once()
 
+    def test_queued_retry_is_consumed_by_background_poll(self):
+        poll.git(self.repo, "tag", "kernel/v0.0.7")
+        self.mock.side_effect = lambda *args: 1
+        with self.assertRaises(ValueError): self.run_poll()
+        poll.queue_retry(self.state, "kernel/v0.0.7")
+        self.mock.side_effect = self.launch; self.run_poll()
+        self.assertFalse((self.state / "retry-request.json").exists())
+        self.assertEqual("complete", json.loads((self.state / "releases.json").read_text())["kernel/v0.0.7"]["status"])
+
+    def test_cancellation_records_reason_and_waits_for_explicit_retry(self):
+        poll.git(self.repo, "tag", "kernel/v0.0.7")
+        self.mock.side_effect = KeyboardInterrupt("Received SIGHUP")
+        with self.assertRaises(KeyboardInterrupt): self.run_poll()
+        record = json.loads((self.state / "releases.json").read_text())["kernel/v0.0.7"]
+        self.assertEqual("interrupted", record["status"]); self.assertIn("SIGHUP", record["error"])
+        self.run_poll(); self.assertEqual(1, self.mock.call_count)
+
+    def test_launch_terminates_child_on_cancellation(self):
+        self.runner.stop()
+        with (self.root / "child.log").open("a") as log, patch.object(poll.subprocess, "Popen") as popen:
+            process = popen.return_value; process.poll.return_value = None
+            process.wait.side_effect = [KeyboardInterrupt(), 0]
+            with self.assertRaises(KeyboardInterrupt): poll.launch(self.repo, "0.0.7", self.recipes["kernel"], log)
+            process.terminate.assert_called_once()
+
 
 if __name__ == "__main__": unittest.main()

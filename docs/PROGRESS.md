@@ -1,5 +1,35 @@
 # Implementation progress
 
+## 2026-10-13 · Interrupted retry and browser-output diagnostics
+
+- User's retained logs confirm full kernel-update native acceptance and all 70
+  online repository checks passed. Controller log stops before recording the
+  repository worker's successful return; no poll/QEMU processes remain. The
+  inactive systemd status describes the separate service, not the foreground SSH
+  retry. Its exact termination cause remains unconfirmed; no release-complete claim.
+- VM loopback log API returns HTTP200; direct proxied navigation in the same browser
+  also loads JSON. Backend permission/proxy-route failure is not established. Added
+  ID-based build-output API, direct Open output link, explicit same-origin credentials
+  and distinct transport/HTTP/non-JSON errors; legacy log route remains supported.
+- Added durable queue-retry for the existing background service, avoiding dependence
+  on a long foreground SSH session. SIGTERM/SIGHUP/keyboard cancellation records an
+  Interrupted reason and stops the execution child; explicitly cancelled tags wait
+  for an explicit retry. Signing still requires complete successful worker exits.
+- Validation: 13 polling tests and 11 disposable HTTP dashboard checks pass,
+  including queued failure retry, consumption, cancellation persistence/child stop
+  and safe ID-based output access. Sixteen release regressions pass after adding
+  sixty-second background progress messages. Worker exit codes are retained in
+  failure reasons; cancellation exit 130 is recorded as Interrupted.
+- Playwright fallback (Browser plugin absent) passes output fetch, direct-link
+  viewing, simulated fetch blocking, actionable error and automatic recovery in
+  Chromium and Firefox. Initial console/JS checks pass. Chromium uses 1505x1045
+  desktop and 390x844 mobile; installed Firefox's older protocol requires its
+  default viewport (custom viewport calls failed before navigation). Compared
+  updated log-heading link, spacing, typography and mobile overflow via view_image.
+  Evidence: /tmp/zenith-output-chromium.png, firefox.png and chromium-mobile.png.
+  These fixtures do not reproduce the original browser's extensions/settings.
+  Server deployment and the original browser's fetch behavior remain operator-run.
+
 ## 2026-10-13 · Manual distributor retry PATH parity
 
 - User confirms controller ad9593f installed; newest retry log ends at preflight

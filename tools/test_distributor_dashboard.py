@@ -92,6 +92,11 @@ class DashboardTests(unittest.TestCase):
         (self.root / "secret").write_text("private contents")
         with self.assertRaises(OSError): self.manager.log("kernel/v0.0.7")
 
+    def test_output_api_uses_known_id_without_encoded_tag_slash(self):
+        code, body, _ = self.request("/manage/api/build-output?build=kernel-v0.0.7")
+        self.assertEqual(200, code); self.assertIn("Host tests", json.loads(body)["text"])
+        self.assertEqual(400, self.request("/manage/api/build-output?build=../../private.pem")[0])
+
     def test_inventory_groups_and_rejects_malformed_or_symlink_receipts(self):
         path = self.packages / "extra/zenith-docs/0.1.0"; path.mkdir(parents=True)
         receipt = path / "release.json"

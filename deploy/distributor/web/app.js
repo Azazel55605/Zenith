@@ -12,8 +12,12 @@ function cell(value, className = "") { const td = document.createElement("td"); 
 function empty(body, message) { const tr = document.createElement("tr"), td = cell(message,"empty"); td.colSpan=5; tr.append(td); body.append(tr); }
 function notice(message, error = false) { $("notice").textContent=message; $("notice").hidden=!message; $("notice").classList.toggle("error",error); }
 async function request(path, options = {}) {
-  const response = await fetch(`./api/${path}`, {...options, cache:"no-store", signal:AbortSignal.timeout(15000)});
-  const data = await response.json();
+  let response, text;
+  try { response = await fetch(`./api/${path}`, {...options, credentials:"same-origin", cache:"no-store", signal:AbortSignal.timeout(15000)}); text=await response.text(); }
+  catch(error) { throw new Error(`${error.name==="TimeoutError"?"Request timed out":"Browser could not fetch distributor data"}. Refresh the page or open the output link to check access.`); }
+  let data;
+  try { data=JSON.parse(text); if(!data || typeof data!=="object" || Array.isArray(data))throw new Error("invalid response"); }
+  catch(error) { throw new Error(`HTTP ${response.status}: expected JSON; check the proxy route and login.`); }
   if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
   return data;
 }
@@ -39,9 +43,12 @@ function builds() {
 async function updateLog() {
   $("log-title").textContent=selectedTag ? `Build log · ${selectedTag}` : "Build log";
   $("log-hint").textContent=selectedTag ? "Latest 64 KiB · refreshes automatically" : "Select a build to view its log";
+  $("log-open").hidden=!selectedTag;
   if (!selectedTag) { $("log").textContent="No build selected."; return; }
   const tag=selectedTag;
-  try { const data=await request(`log?tag=${encodeURIComponent(tag)}`); if(tag!==selectedTag)return;
+  const path=`build-output?build=${encodeURIComponent(tag.replace("/","-"))}`;
+  $("log-open").href=`./api/${path}`;
+  try { const data=await request(path); if(tag!==selectedTag)return;
     const log=$("log"), atBottom=log.scrollTop+log.clientHeight>=log.scrollHeight-20;
     if (log.textContent!==data.text) { log.textContent=data.text; if(atBottom)log.scrollTop=log.scrollHeight; }
   } catch(error) { if(tag===selectedTag)$("log").textContent=error.message; }

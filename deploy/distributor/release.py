@@ -108,14 +108,17 @@ def available(root, release, name="zenith-kernel", repository="core"):
 def phase(label, command, log):
     print(label + " — " + str(log), flush=True)
     started = time.monotonic()
+    last_update = started
     with log.open("wb") as output:
         process = subprocess.Popen(command, cwd=REPO, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
         try:
             while process.poll() is None:
                 time.sleep(0.2)
-                if sys.stdout.isatty() and time.monotonic() - started >= 5:
-                    print("\r" + label + " running; see " + str(log), end="", flush=True)
-                    started = time.monotonic()
+                now = time.monotonic()
+                if now - last_update >= (5 if sys.stdout.isatty() else 60):
+                    if sys.stdout.isatty(): print("\r" + label + " running; see " + str(log), end="", flush=True)
+                    else: print(label + " still running after " + str(int(now - started)) + "s; see " + str(log), flush=True)
+                    last_update = now
         except BaseException:
             try: os.killpg(process.pid, signal.SIGTERM)
             except ProcessLookupError: pass

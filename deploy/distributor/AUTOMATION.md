@@ -95,6 +95,22 @@ version for a new build.
 
 ## Results and recovery
 
+For long native runs, prefer a service-owned retry over keeping a foreground SSH
+shell open. As zenith-release, with no active poll:
+
+```sh
+python3 -B deploy/distributor/poll.py --queue-retry kernel/v0.0.7
+sudo systemctl start --no-block zenith-distributor.service
+```
+
+This queues one recorded tag for explicit retry; the service consumes the request
+and runs independently of the SSH session. Its existing six-hour limit still
+applies. Keyboard cancellation and SIGTERM/SIGHUP now record Interrupted and a
+reason instead of leaving only a Building record. Explicitly interrupted tags
+wait for another requested retry; hard-killed older Building records remain
+detectable as abandoned. A passed test count printed in a phase log does not
+replace the worker's successful exit status or imply signing/publication completed.
+
 An optional [web dashboard](DASHBOARD.md) provides timer values, Run now, build
 status/logs and repository inventory. CLI inspection and explicit retries remain
 available below.

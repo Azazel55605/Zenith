@@ -239,6 +239,11 @@ td button {
     color: var(--muted);
     font-size:12px
 }
+.log-heading a {
+    color: var(--accent);
+    margin-left: 10px;
+    font-size: 12px;
+}
 pre {
     height: 120px;
     overflow: auto;

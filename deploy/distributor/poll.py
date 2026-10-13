@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -88,9 +89,30 @@ def execute(config, checkout, version, recipe):
 
 
 def launch(checkout, version, recipe, log):
-    return subprocess.run([sys.executable, str(HERE / "poll.py"), "--execute", str(checkout),
-                           "--version", version, "--recipe", json.dumps(recipe)],
-                          stdout=log, stderr=subprocess.STDOUT).returncode
+    process = subprocess.Popen([sys.executable, str(HERE / "poll.py"), "--execute", str(checkout),
+                                "--version", version, "--recipe", json.dumps(recipe)],
+                               stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+    try: return process.wait()
+    except BaseException:
+        if process.poll() is None:
+            process.terminate()
+            try: process.wait(timeout=20)
+            except subprocess.TimeoutExpired: process.kill(); process.wait()
+        raise
+
+
+def queue_retry(state, tag):
+    state.mkdir(parents=True, exist_ok=True, mode=0o750); state.chmod(0o750)
+    with (state / "poll.lock").open("a") as lock:
+        os.fchmod(lock.fileno(), 0o640)
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        records = json.loads((state / "releases.json").read_text())
+        if tag not in records: raise ValueError("unknown release tag")
+        if records[tag]["status"] == "complete": raise ValueError("release already complete")
+        request = state / "retry-request.json"
+        if request.exists(): raise ValueError("a retry is already queued")
+        save(request, dict(tag=tag))
+    print("Retry queued. Start zenith-distributor.service or wait for its timer.", flush=True)
 
 
 def poll(remote, state, recipes, retry=None):
@@ -115,10 +137,15 @@ def poll(remote, state, recipes, retry=None):
         if retry and retry not in records:
             raise ValueError("unknown retry tag")
         config = release.configuration()
+        request_path = state / "retry-request.json"
+        queued = json.loads(request_path.read_text())["tag"] if retry is None and request_path.exists() else None
+        if queued:
+            if queued not in records: raise ValueError("unknown queued retry tag")
+            retry = queued
         failures = []
         for tag, commit, version, recipe in found:
             entry = records[tag]
-            if entry["status"] in ("complete", "failed") and retry != tag:
+            if entry["status"] in ("complete", "failed", "interrupted") and retry != tag:
                 continue
             checkout = state / ("build-" + tag.replace("/", "-"))
             # A fresh clone retains the complete failed checkout until explicit retry.
@@ -127,6 +154,7 @@ def poll(remote, state, recipes, retry=None):
             entry.pop("finished", None)
             entry.update(status="building", started=int(time.time()))
             save(path, records)
+            if queued == tag: request_path.unlink()
             try:
                 subprocess.run(["git", "clone", "--shared", "--no-checkout", str(mirror), str(checkout)], check=True)
                 git(checkout, "checkout", "--detach", commit)
@@ -134,14 +162,19 @@ def poll(remote, state, recipes, retry=None):
                     os.fchmod(log.fileno(), 0o640)
                     # Child keeps all phase output, and is bounded by systemd's runtime limit.
                     result = launch(checkout, version, recipe, log)
-                if result: raise ValueError("build/verification failed; inspect retained log and checkout")
+                if result == 130: raise KeyboardInterrupt("Execution worker cancelled (exit 130)")
+                if result: raise ValueError("build/verification failed (worker exit " + str(result) + "); inspect retained log and checkout")
                 entry.update(status="complete", finished=int(time.time()))
                 save(path, records)
                 shutil.rmtree(checkout)
-            except Exception as error:
-                entry.update(status="failed", error=str(error), finished=int(time.time()))
+            except BaseException as error:
+                cancelled = isinstance(error, KeyboardInterrupt)
+                entry.update(status="interrupted" if cancelled else "failed", error=str(error) or "Operation cancelled", finished=int(time.time()))
                 save(path, records); failures.append(tag)
+                with (state / (tag.replace("/", "-") + ".log")).open("a") as output:
+                    output.write("Controller " + entry["status"] + ": " + entry["error"] + "\n")
                 print(tag + ": " + str(error), file=sys.stderr, flush=True)
+                if not isinstance(error, Exception): raise
         if failures: raise ValueError("failed releases: " + ", ".join(failures))
         renewal = state / "index-renewal.json"
         previous = json.loads(renewal.read_text())["finished"] if renewal.exists() else 0
@@ -156,18 +189,28 @@ def main():
     parser.add_argument("--remote", default="https://github.com/Azazel55605/Zenith.git")
     parser.add_argument("--state", type=Path, default=Path.home() / ".local/state/zenith/distributor")
     parser.add_argument("--retry", help="explicitly retry a failed package tag")
+    parser.add_argument("--queue-retry", help="queue a recorded failed/interrupted tag for the background service")
     parser.add_argument("--execute", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--version", help=argparse.SUPPRESS)
     parser.add_argument("--recipe", help=argparse.SUPPRESS)
     args = parser.parse_args()
     try:
-        if args.execute:
+        if args.queue_retry:
+            if args.retry or args.execute: raise ValueError("queue-retry cannot be combined with retry/execute")
+            queue_retry(args.state.resolve(), args.queue_retry)
+        elif args.execute:
             execute(release.configuration(), args.execute, release.version(args.version), json.loads(args.recipe))
         else:
             poll(args.remote, args.state.resolve(), json.loads((HERE / "recipes.json").read_text()), args.retry)
         return 0
+    except KeyboardInterrupt as error:
+        print("Distributor operation interrupted: " + (str(error) or "keyboard cancellation"), file=sys.stderr); return 130
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
         print("Distributor polling failed: " + str(error), file=sys.stderr); return 1
 
 
-if __name__ == "__main__": raise SystemExit(main())
+if __name__ == "__main__":
+    def interrupted(signum, frame): raise KeyboardInterrupt("Received " + signal.Signals(signum).name)
+    signal.signal(signal.SIGTERM, interrupted)
+    signal.signal(signal.SIGHUP, interrupted)
+    raise SystemExit(main())
