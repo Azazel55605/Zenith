@@ -150,6 +150,16 @@ class DashboardTests(unittest.TestCase):
         self.assertAlmostEqual(87311.502615, d.duration("1d 15min 11.502615s"))
         self.assertIsNone(d.duration("not a timestamp"))
 
+    def test_hidden_completions_keep_logs_and_other_states_visible(self):
+        self.records['kernel/v0.0.7']['dashboard_hidden'] = True
+        for version, status in [('0.0.8', 'failed'), ('0.0.9', 'interrupted'), ('0.0.10', 'pending'), ('0.0.11', 'building')]:
+            self.records['kernel/v' + version] = dict(commit='a' * 40, status=status, dashboard_hidden=True)
+        (self.state / 'releases.json').write_text(json.dumps(self.records))
+        rows = self.manager.snapshot()['builds']
+        self.assertEqual(4, len(rows))
+        self.assertNotIn('kernel/v0.0.7', [row['tag'] for row in rows])
+        self.assertIn('Host tests', self.manager.output('kernel-v0.0.7'))
+
     def test_corrupt_display_fields_do_not_break_status(self):
         self.records["kernel/v0.0.7"].update(status={"bad": True}, started=["bad"])
         (self.state / "releases.json").write_text(json.dumps(self.records))

@@ -148,7 +148,11 @@ def poll(remote, state, recipes, retry=None):
         path = state / "releases.json"
         records = json.loads(path.read_text()) if path.exists() else {}
         found = discover(mirror, recipes)
+        new_tags = any(tag not in records for tag, _, _, _ in found)
         pin(records, found)
+        if new_tags:
+            for entry in records.values():
+                if entry["status"] == "complete": entry["dashboard_hidden"] = True
         save(path, records)
         if retry and retry not in records:
             raise ValueError("unknown retry tag")
@@ -166,6 +170,7 @@ def poll(remote, state, recipes, retry=None):
             checkout = state / ("build-" + tag.replace("/", "-"))
             entry.pop("error", None)
             entry.pop("finished", None)
+            entry.pop("dashboard_hidden", None)
             entry.update(status="building", started=int(time.time()))
             save(path, records)
             if queued == tag: request_path.unlink()

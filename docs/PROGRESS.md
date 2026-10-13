@@ -1,5 +1,24 @@
 # Implementation progress
 
+## 2026-10-13 · Clear old completed activity on new release discovery
+
+- On newly discovered validated package tags, the poller persists dashboard_hidden
+  on earlier Complete entries. Their durable pins/completion state and logs remain;
+  subsequent polls skip them. No new tags means no clearing. Explicitly rerunning a
+  hidden completion makes that attempt visible again. Failed/interrupted/pending/
+  active entries stay visible even if a stale hidden marker exists.
+- Dashboard omits only flagged Complete rows; published inventory and direct old
+  output access remain. Selection moves away from a removed build on refresh.
+  This does not delete build artifacts; automatic storage retention is still the
+  next planned distributor task.
+- Validation: 19 real-Git polling and 14 disposable HTTP dashboard tests pass,
+  covering no-new-tag behavior, idempotence/pins, retained errors, retry visibility
+  and hidden completion log access. Browser plugin unavailable; Playwright Chromium
+  1505x1045 at http://127.0.0.1:8772/manage/ verifies automatic row removal, failed/new
+  entries and package inventory retention, log selection recovery and healthy
+  console/render. Screenshot: /tmp/zenith-history-hidden.png. Server deployment
+  remains operator-run; no package rebuild, tag movement or file cleanup occurred.
+
 ## 2026-10-13 · Expandable package inventory and first docs release
 
 - User confirms distributor VM restarted for CPU changes and latest controller

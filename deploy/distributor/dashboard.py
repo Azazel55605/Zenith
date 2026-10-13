@@ -127,6 +127,7 @@ class Dashboard:
         builds = []
         for tag, item in records.items():
             status = item.get("status", "unknown")
+            if status == "complete" and item.get("dashboard_hidden") is True: continue
             if status not in ("pending", "building", "complete", "failed", "interrupted"): status = "unknown"
             if status == "building" and not busy: status = "interrupted"
             timestamps = {name: value if isinstance(value, (int, float)) and 0 < value < 40000000000 else None

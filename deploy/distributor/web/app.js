@@ -73,7 +73,7 @@ function builds() {
     button.addEventListener("click",()=>{selectedTag=item.tag; logView="auto"; builds(); updateLog();}); action.append(button);
     tr.append(cell(item.tag),cell(item.commit.slice(0,7),"commit"),status,cell(date(item.started)),action); body.append(tr);
   }
-  if (!snapshot.builds.length) empty(body,"No tagged builds recorded yet. Run now checks for release tags.");
+  if (!snapshot.builds.length) empty(body,"No active or recent tagged builds. Run now checks for release tags.");
 }
 async function updateLog() {
   $("log-title").textContent=selectedTag ? `Build log · ${selectedTag}` : "Build log";

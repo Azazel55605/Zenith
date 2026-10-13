@@ -103,6 +103,32 @@ class PollTests(unittest.TestCase):
         self.run_poll(); self.run_poll()
         poll.release.indexes.assert_not_called()
 
+    def test_new_tag_hides_only_old_completions_without_rebuilding_them(self):
+        poll.git(self.repo, 'tag', 'kernel/v0.0.7'); self.run_poll()
+        self.run_poll()
+        records = json.loads((self.state / 'releases.json').read_text())
+        self.assertNotIn('dashboard_hidden', records['kernel/v0.0.7'])
+        records['kernel/v0.0.8'] = dict(commit=self.commit, status='failed', error='retained error')
+        records['kernel/v0.0.9'] = dict(commit=self.commit, status='interrupted')
+        poll.save(self.state / 'releases.json', records)
+        poll.git(self.repo, 'tag', 'zenith-docs/v0.1.0'); self.run_poll()
+        records = json.loads((self.state / 'releases.json').read_text())
+        self.assertTrue(records['kernel/v0.0.7']['dashboard_hidden'])
+        self.assertEqual(self.commit, records['kernel/v0.0.7']['commit'])
+        self.assertNotIn('dashboard_hidden', records['kernel/v0.0.8'])
+        self.assertNotIn('dashboard_hidden', records['kernel/v0.0.9'])
+        self.assertNotIn('dashboard_hidden', records['zenith-docs/v0.1.0'])
+        self.run_poll(); self.assertEqual(2, len(self.calls))
+
+    def test_explicit_retry_of_hidden_completion_is_visible_again(self):
+        poll.git(self.repo, 'tag', 'kernel/v0.0.7'); self.run_poll()
+        records = json.loads((self.state / 'releases.json').read_text())
+        records['kernel/v0.0.7']['dashboard_hidden'] = True
+        poll.save(self.state / 'releases.json', records)
+        self.run_poll('kernel/v0.0.7')
+        records = json.loads((self.state / 'releases.json').read_text())
+        self.assertNotIn('dashboard_hidden', records['kernel/v0.0.7'])
+
     def test_force_moved_remote_tag_is_refused(self):
         poll.git(self.repo, "tag", "kernel/v0.0.7"); self.run_poll()
         (self.repo / "payload").write_text("two")

@@ -91,6 +91,12 @@ only to /manage/. Keep this manager on the existing LAN/VPN network.
   versions; newest numeric version appears in the summary. Expansion survives
   automatic refresh and repository filtering. Name/version searches reveal matching
   releases without combining packages from different repositories.
+- When a poll discovers previously unrecorded release tags, earlier Complete
+  entries leave the build activity list. Failed/interrupted/pending/active entries
+  remain. An empty poll does not clear the list. Durable completion pins and logs
+  remain available to automation/direct output APIs, so hidden releases are skipped
+  on later polls. Published packages stay in inventory; this is activity visibility,
+  separate from the planned build-file retention/cleanup policy.
 - Build output uses an ID-based API without an encoded tag slash. The log heading
   provides Open output for direct JSON viewing if a browser fetch fails. HTTP,
   non-JSON/login/proxy and transport errors are distinguished. The original
