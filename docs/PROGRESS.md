@@ -1,5 +1,36 @@
 # Implementation progress
 
+## 2026-10-13 · Distributor build efficiency
+
+- User's TrueNAS-hosted Debian VM exposes /dev/kvm (root:kvm, group read/write).
+  Release-account permissions and usable nested acceleration are not yet verified.
+  Doctor now reports groups/device access; AUTOMATION documents a paused diskless
+  QEMU probe and the administrator group fix. Current running build should finish
+  before controller updates. Existing native guests use one vCPU and run sequentially.
+- Explicit failed/interrupted retries retain ignored incremental compiler outputs
+  only in clean, unchanged pinned checkouts; dirty sources, mismatched commits and
+  local Cosmos overrides are refused without deleting evidence. Successful checkout
+  cleanup remains. No cross-tag cache or native acceptance skipping was added.
+- Current controller runs unchanged tagged harnesses through an image-copy adapter:
+  independent reflinks when supported, sparse copies otherwise, ordinary-copy
+  fallback. Preserve source/destination independence, same-file refusal, writable
+  clone creation, symlinks and non-image semantics. Fresh publication avoids duplicate
+  index signing and same-poll daily renewal; recovery/daily idle renewal remain.
+- Phase logs now report elapsed seconds and retain atomic phase-times.json for
+  passed/failed/interrupted phases; metric errors cannot hide a phase failure.
+- Validation: 17 Git polling, 16 signed publication/delivery and 7 copy/metrics
+  regressions pass. CI includes the new adapter regression suite. A local sparse
+  256 MiB fixture copied in ~0.002s with 8 KiB allocation, versus shutil's ~0.100s
+  and 256 MiB. This synthetic local result is not a VM end-to-end speed claim.
+- Actual TCG installed clone boot, shell execution and clean poweroff pass with
+  the new runner. GPT/EFI/kernel binding audit passes, original source SHA256 remains
+  unchanged, and independent read-only e2fsck passes on the resulting ext2 root.
+  First fixture had password-protected root and refused poweroff as nobody; reran
+  with an earlier disposable installed fixture. No VMware/production disk touched.
+  Evidence: /tmp/zenith-opt-native.log, /tmp/zn-opt-native-3, and
+  /tmp/zenith-{poll,release,validation}-optimization.log. Full native release gates
+  remain enabled; server timings/KVM probe and deployment remain operator-run.
+
 ## 2026-10-13 · Interrupted retry and browser-output diagnostics
 
 - User's retained logs confirm full kernel-update native acceptance and all 70

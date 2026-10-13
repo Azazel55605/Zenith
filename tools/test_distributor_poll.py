@@ -63,6 +63,46 @@ class PollTests(unittest.TestCase):
         self.assertEqual("complete", json.loads((self.state / "releases.json").read_text())["kernel/v0.0.7"]["status"])
         self.assertNotIn("error", json.loads((self.state / "releases.json").read_text())["kernel/v0.0.7"])
 
+    def test_retry_keeps_ignored_compiler_outputs_but_refuses_source_changes(self):
+        (self.repo / ".gitignore").write_text("obj/\n")
+        poll.git(self.repo, "add", ".gitignore"); poll.git(self.repo, "commit", "-m", "ignore outputs")
+        poll.git(self.repo, "tag", "kernel/v0.0.7")
+        self.mock.side_effect = lambda *args: 1
+        with self.assertRaises(ValueError): self.run_poll()
+        checkout = self.state / "build-kernel-v0.0.7"
+        cache = checkout / "obj/compiler-cache"; cache.parent.mkdir(); cache.write_text("cached")
+        (checkout / "payload").write_text("dirty")
+        with self.assertRaises(ValueError): self.run_poll("kernel/v0.0.7")
+        self.assertEqual(1, self.mock.call_count)
+        self.assertEqual("cached", cache.read_text())
+        poll.git(checkout, "restore", "payload")
+        def resumed(*args):
+            self.assertEqual("cached", cache.read_text()); return 0
+        self.mock.side_effect = resumed
+        self.run_poll("kernel/v0.0.7")
+        self.assertFalse(checkout.exists())
+
+    def test_retained_checkout_pin_and_local_override_are_refused(self):
+        checkout = self.root / "retained"
+        poll.prepare_checkout(self.repo, checkout, self.commit)
+        with self.assertRaisesRegex(ValueError, "pinned commit"):
+            poll.prepare_checkout(self.repo, checkout, "a" * 40)
+        (checkout / "cosmos.local.props").write_text("override")
+        with self.assertRaisesRegex(ValueError, "dirty|override"):
+            poll.prepare_checkout(self.repo, checkout, self.commit)
+        self.assertTrue(checkout.exists())
+
+    def test_fresh_publication_does_not_sign_indexes_twice(self):
+        with patch.object(poll.release, "REPO", self.repo), patch.object(poll.release, "TOOL"), \
+             patch.object(poll.release, "build") as build, patch.object(poll.release, "verify") as verify:
+            poll.execute({"root": str(self.root / "published")}, self.repo, "0.0.7", self.recipes["kernel"])
+        build.assert_called_once(); verify.assert_called_once(); poll.release.indexes.assert_not_called()
+
+    def test_successful_publication_suppresses_same_poll_daily_renewal(self):
+        poll.git(self.repo, "tag", "kernel/v0.0.7")
+        self.run_poll(); self.run_poll()
+        poll.release.indexes.assert_not_called()
+
     def test_force_moved_remote_tag_is_refused(self):
         poll.git(self.repo, "tag", "kernel/v0.0.7"); self.run_poll()
         (self.repo / "payload").write_text("two")
@@ -100,6 +140,7 @@ class PollTests(unittest.TestCase):
              patch.object(poll.subprocess, "run"):
             poll.execute({"root": str(self.root / "published")}, self.repo, "0.0.7", self.recipes["kernel"])
         build.assert_not_called(); verify.assert_called_once()
+        poll.release.indexes.assert_called_once()
 
     def test_existing_release_with_other_provenance_is_refused(self):
         target = self.root / "published/core/zenith-kernel/0.0.7"

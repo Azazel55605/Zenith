@@ -72,7 +72,8 @@ def execute(config, checkout, version, recipe):
     release.TOOL = checkout / "tools/Zenith.PackageTool/bin/Release/net10.0/Zenith.PackageTool.dll"
     name, repository, kind = recipe["name"], recipe["repository"], recipe["kind"]
     target = Path(config["root"]) / repository / name / version
-    if target.exists():
+    existing = target.exists()
+    if existing:
         # Resume after publication/index/delivery interruption, never rebuild it.
         receipt = json.loads((target / "release.json").read_text())
         if receipt["source_commit"] != release.source_commit():
@@ -85,7 +86,7 @@ def execute(config, checkout, version, recipe):
         release.data(config, name, version, checkout / recipe["payload"], repository)
     release.verify(config, version, name, repository, kind)
     # Also renew indexes when recovering an already-published release.
-    release.indexes(config)
+    if existing: release.indexes(config)
 
 
 def launch(checkout, version, recipe, log):
@@ -113,6 +114,18 @@ def queue_retry(state, tag):
         if request.exists(): raise ValueError("a retry is already queued")
         save(request, dict(tag=tag))
     print("Retry queued. Start zenith-distributor.service or wait for its timer.", flush=True)
+
+
+def prepare_checkout(mirror, checkout, commit):
+    if checkout.exists():
+        if checkout.is_symlink() or git(checkout, "rev-parse", "HEAD") != commit:
+            raise ValueError("retained checkout does not match pinned commit; inspect it before retrying")
+        if git(checkout, "status", "--porcelain", "--untracked-files=all") or (checkout / "cosmos.local.props").exists():
+            raise ValueError("retained checkout is dirty or has a local Cosmos override; inspect it before retrying")
+        print("Reusing clean pinned checkout and incremental build outputs: " + str(checkout), flush=True)
+        return
+    subprocess.run(["git", "clone", "--shared", "--no-checkout", str(mirror), str(checkout)], check=True)
+    git(checkout, "checkout", "--detach", commit)
 
 
 def poll(remote, state, recipes, retry=None):
@@ -148,16 +161,13 @@ def poll(remote, state, recipes, retry=None):
             if entry["status"] in ("complete", "failed", "interrupted") and retry != tag:
                 continue
             checkout = state / ("build-" + tag.replace("/", "-"))
-            # A fresh clone retains the complete failed checkout until explicit retry.
-            if checkout.exists(): shutil.rmtree(checkout)
             entry.pop("error", None)
             entry.pop("finished", None)
             entry.update(status="building", started=int(time.time()))
             save(path, records)
             if queued == tag: request_path.unlink()
             try:
-                subprocess.run(["git", "clone", "--shared", "--no-checkout", str(mirror), str(checkout)], check=True)
-                git(checkout, "checkout", "--detach", commit)
+                prepare_checkout(mirror, checkout, commit)
                 with (state / (tag.replace("/", "-") + ".log")).open("a") as log:
                     os.fchmod(log.fileno(), 0o640)
                     # Child keeps all phase output, and is bounded by systemd's runtime limit.
@@ -166,6 +176,7 @@ def poll(remote, state, recipes, retry=None):
                 if result: raise ValueError("build/verification failed (worker exit " + str(result) + "); inspect retained log and checkout")
                 entry.update(status="complete", finished=int(time.time()))
                 save(path, records)
+                save(state / "index-renewal.json", dict(finished=int(time.time())))
                 shutil.rmtree(checkout)
             except BaseException as error:
                 cancelled = isinstance(error, KeyboardInterrupt)

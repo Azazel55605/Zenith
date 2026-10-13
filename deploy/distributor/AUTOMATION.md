@@ -124,7 +124,11 @@ tags are skipped, moved tags refused. A normal failure waits for an explicit ret
 python3 -B deploy/distributor/poll.py --retry kernel/v0.0.7
 ```
 
-Retry deletes/rebuilds only that automation-owned checkout. If publication already
+Retry reuses that automation-owned checkout and its ignored compiler outputs only
+when HEAD still matches the pinned commit, source is clean and no local Cosmos
+override exists. Changed source/pins are refused without deleting the evidence.
+Successful checkouts are still removed; this cache does not span different tags.
+If publication already
 succeeded, it verifies the existing immutable release and renews indexes rather
 than rebuilding it. A mismatched receipt source commit is refused. No existing
 archive is overwritten. Never delete state to bypass a tag/version mismatch.
@@ -161,6 +165,54 @@ failure. /var/tmp avoids consuming a tmpfs with large disk images. Stale sockets
 are removed before moving artifacts across filesystems. A hard-killed service can
 leave the short directory; its path is printed in the per-tag log. Inspect it only
 after the service has stopped and preserve useful failure evidence before cleanup.
+
+## Build efficiency and acceleration
+
+Native acceptance runs the unchanged tagged harness through the current controller's
+validation-runner.py. Regular .img copies use independent reflinks when supported,
+otherwise sparse copies, with normal copying as a fallback. Copies are never hard
+links: guest writes cannot modify the source disk. Firmware files and symlink
+semantics keep their normal copy behavior. The local 256 MiB sparse fixture used
+8 KiB after copying versus 256 MiB with shutil.copyfile; measured times were
+0.002s versus 0.100s. Actual disks and server filesystems will differ.
+
+All native acceptance gates remain. Fresh publication already signs core/extra
+indexes, so the poller avoids signing them a second time or immediately renewing
+them again. Recovery of an existing publication still verifies delivery and renews
+indexes. Daily renewal when idle remains. Each release-work directory now contains
+phase-times.json (phase, passed/failed/interrupted status and elapsed seconds);
+successful phase messages also include seconds. Compare these timings on the VM
+before changing resource allocations.
+
+The device existing does not establish usable KVM. Run this small paused, diskless
+probe as the actual release account; it does not change the running build:
+
+```sh
+printf 'info kvm\nquit\n' | sudo -u zenith-release qemu-system-x86_64 \
+  -machine q35 -accel kvm -cpu max -m 64 -nodefaults \
+  -display none -S -monitor stdio
+```
+
+Expected: `kvm support: enabled`. If access is denied, the administrator can add
+the account to the device's kvm group:
+
+```sh
+sudo usermod -aG kvm zenith-release
+```
+
+The next systemd service invocation gets the new groups; a manual retry needs a
+fresh login. Do not interrupt the current build to apply this. If KVM still fails,
+check nested virtualization/CPU exposure in the TrueNAS VM configuration before
+adding cores. The existing harness tries KVM then falls back to TCG, using one vCPU
+per guest. Extra distributor vCPUs mainly help compilation; native gates run
+sequentially to avoid contention and retain their existing timing assumptions.
+Doctor now shows release-account groups and device accessibility, but the probe
+is needed to distinguish permissions from unusable nested acceleration.
+
+After the current build completes, pull the updated controller with `git pull
+--ff-only`. Existing package tags and source pins stay unchanged. Subsequent polls
+use the optimizations; no retagging, signing-key change or dashboard reinstall is
+needed for this slice.
 
 Monitor disk space: failed native runs retain sizeable images. After recording a
 failure, remove obsolete automation-owned failed checkouts when no poll is active;

@@ -124,12 +124,30 @@ def phase(label, command, log):
             except ProcessLookupError: pass
             try: process.wait(timeout=10)
             except subprocess.TimeoutExpired: os.killpg(process.pid, signal.SIGKILL); process.wait()
+            phase_timing(log, label, started, "interrupted")
             raise
     if sys.stdout.isatty(): print()
+    phase_timing(log, label, started, "failed" if process.returncode else "passed")
     if process.returncode:
         tail = log.read_text(errors="replace").splitlines()[-20:]
         raise ValueError(label + " failed; full log: " + str(log) + "\n" + "\n".join(tail))
-    print(label + " passed", flush=True)
+    print(label + " passed (" + str(round(time.monotonic() - started, 1)) + "s)", flush=True)
+
+
+def phase_timing(log, label, started, status):
+    path = log.parent / "phase-times.json"
+    try:
+        rows = json.loads(path.read_text()) if path.exists() else []
+        if not isinstance(rows, list): raise ValueError("invalid phase timing list")
+        rows.append(dict(phase=label, status=status, seconds=round(time.monotonic() - started, 3)))
+        descriptor, temporary = tempfile.mkstemp(prefix=".phase-times-", dir=log.parent)
+        try:
+            with os.fdopen(descriptor, "w") as output:
+                json.dump(rows, output, indent=2); output.flush(); os.fsync(output.fileno())
+            os.replace(temporary, path)
+        finally:
+            if os.path.exists(temporary): os.unlink(temporary)
+    except (OSError, ValueError): print("Could not retain phase timing: " + str(path), file=sys.stderr)
 
 
 def publish(config, release, archive, commit, work, name="zenith-kernel", repository="core", kind="kernel"):
@@ -206,7 +224,7 @@ def native_checks(work):
     print("Native workspace: " + str(directory) + "; retained afterward at " + str(work / "native"), flush=True)
     try:
         for name, script in (("k", "kernel-update-smoke.py"), ("r", "repository-smoke.py")):
-            phase("Native " + script, [sys.executable, "-B", str(REPO / "tools" / script),
+            phase("Native " + script, [sys.executable, "-B", str(Path(__file__).parent / "validation-runner.py"), str(REPO / "tools" / script),
                   str(directory / name)], work / (script + ".log"))
     finally:
         # Stale Unix sockets cannot be copied if /var/tmp is another filesystem.

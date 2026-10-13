@@ -9,6 +9,18 @@ printf '\nResources and publication storage\n'
 nproc
 free -h
 df -h / /srv/zenith 2>/dev/null
+printf '\nNative-test acceleration (current user)\n'
+id
+if [[ -e /dev/kvm ]]; then
+    ls -l /dev/kvm
+    if [[ -r /dev/kvm && -w /dev/kvm ]]; then
+        printf 'KVM device accessible; verify nested acceleration with the documented QEMU probe.\n'
+    else
+        printf 'KVM device inaccessible; native tests fall back to software emulation.\n'
+    fi
+else
+    printf 'No /dev/kvm; native tests use software emulation.\n'
+fi
 printf '\nBuild tools\n'
 for tool in dotnet git python3 nginx clang nm e2fsck debugfs qemu-system-x86_64 cosmos cosmos.patcher; do
     command -v "$tool" || printf 'MISSING: %s\n' "$tool"
