@@ -336,6 +336,7 @@ def indexes(config, work=None):
         directory = root / repository
         if directory.is_symlink(): raise ValueError("linked metadata directory refused")
         directory.mkdir(exist_ok=True, mode=0o755)
+        directory.chmod(0o755)  # Public metadata, independent of service umask.
         descriptor, temporary = tempfile.mkstemp(prefix=".index-", dir=root.parent)
         try:
             with os.fdopen(descriptor, "wb") as output:

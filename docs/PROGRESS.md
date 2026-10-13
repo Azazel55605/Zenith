@@ -1,5 +1,31 @@
 # Implementation progress
 
+## 2026-10-13 · Public repository permissions and partial inventory
+
+- User's screenshot shows kernel/v0.0.7 Complete and signed core/extra indexes
+  published, but Package inventory unavailable. Found/reproduced a service-umask
+  defect: mkdir(mode=0755) is filtered by the distributor's 0077 umask, creating
+  new public repository/package parents (including otherwise empty extra) as 0700.
+  An inaccessible repository previously discarded even readable inventory rows.
+  Actual server modes are not inspected; this matches the observed deployment path.
+- Publisher and signed-index activation explicitly chmod public repository/parent
+  directories to 0755. Public archives/receipts/indexes remain 0644, staging/key
+  directories remain private. Dashboard now retains readable repositories/packages
+  and reports the specific inaccessible path instead of dropping the entire list.
+- Operator repair for existing publication: sudo find /srv/zenith/packages -type d
+  -exec chmod 0755 {} +, then refresh. No rebuild, receipt rewrite, retag or replacement
+  of the completed immutable release. Pull controller and reinstall dashboard for
+  future publication behavior/UI API handling. Server repair remains operator-run.
+- Validation passes 11 signed publisher, 17 release and 13 dashboard tests (41),
+  including actual 0077 publication/index signing with public modes and unchanged
+  private key permissions, and a denied-extra fixture preserving core rows/warnings.
+  Concurrent fixture .NET builds collided during one startup; isolated publisher
+  rerun passes. Browser plugin unavailable; Playwright Chromium 1505x1045 at
+  http://127.0.0.1:8770/manage/ verifies identity, meaningful content, healthy console,
+  precise permission warning, retained 0.0.7 row and core/extra filtering. No overlay.
+  Screenshot inspected: /tmp/zenith-inventory-partial.png. No kernel changes or
+  production disk/server access occurred.
+
 ## 2026-10-13 · Detailed distributor phase output
 
 - User's native log has reached real kernel activation/confirmation and retained

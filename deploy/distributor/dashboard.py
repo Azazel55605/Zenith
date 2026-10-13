@@ -75,18 +75,23 @@ class Dashboard:
 
     def inventory(self):
         packages, warnings = [], []
+        def children(directory):
+            try: return sorted(directory.iterdir())
+            except FileNotFoundError: return []
+            except OSError as error:
+                warnings.append("Cannot list " + str(directory.relative_to(self.root)) + ": " + str(error.strerror or "access failed"))
+                return []
         for repository in ("core", "extra"):
             directory = self.root / repository
             if directory.is_symlink(): warnings.append(repository + ": symlink directory refused"); continue
-            if not directory.exists(): continue
-            for package in sorted(directory.iterdir()):
+            for package in children(directory):
                 if package.is_symlink() or not package.is_dir(): continue
-                for version in sorted(package.iterdir()):
+                for version in children(package):
                     if version.is_symlink() or not version.is_dir(): continue
                     receipt = version / "release.json"
-                    if not receipt.exists(): continue
                     if len(packages) >= 4096: return packages, warnings + ["Package list limited to 4096 releases"]
                     try:
+                        if not receipt.exists(): continue
                         data = json.loads(read_file(receipt, 16384))
                         if data["repository"] != repository or data["name"] != package.name or data["version"] != version.name:
                             raise ValueError("receipt/path mismatch")

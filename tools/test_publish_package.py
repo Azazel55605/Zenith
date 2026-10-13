@@ -6,6 +6,7 @@ import hashlib
 import http.server
 import importlib.util
 import json
+import os
 from pathlib import Path
 import socketserver
 import struct
@@ -84,6 +85,14 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(self.root / "extra/zenith-docs/0.0.2", target)
         run("check", target / "zenith-docs.zpk", target / "public.pem")
         self.assertEqual("data", receipt["kind"])
+
+    def test_service_umask_does_not_hide_public_repository_parents(self):
+        previous = os.umask(0o077)
+        try: target, _ = self.publish()
+        finally: os.umask(previous)
+        for path in (self.root / 'core', self.root / 'core/zenith-kernel', target):
+            self.assertEqual(0o755, path.stat().st_mode & 0o777)
+        for path in target.iterdir(): self.assertEqual(0o644, path.stat().st_mode & 0o777)
 
     def test_tampered_signature_and_wrong_key_leave_no_release(self):
         bad = self.directory / "bad.zpk"; content = bytearray((self.source / "kernel.zpk").read_bytes())

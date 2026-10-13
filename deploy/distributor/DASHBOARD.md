@@ -104,6 +104,18 @@ only to /manage/. Keep this manager on the existing LAN/VPN network.
 
 ## Check deployment
 
+If a completed release is missing and inventory reports permissions, inspect public
+directory modes. The service uses umask 0077 for private build work; older controllers
+failed to restore 0755 on new public repository directories. Repair existing public
+directories (not the signing directory) and refresh without rebuilding a release:
+
+```sh
+sudo find /srv/zenith/packages -type d -exec chmod 0755 {} +
+```
+
+Updated publication explicitly restores public directory modes; inventory preserves
+readable packages when another repository is inaccessible and names the failing path.
+
 ```sh
 curl -I https://zenith-stable.net.local/manage/
 curl -I http://10.0.20.7/core/zenith-kernel/0.0.6/zenith-kernel.zpk

@@ -78,6 +78,8 @@ def publish(root, package, key, tool, kind, name, version, repository, commit):
         for parent in (root / repository, root / repository / name):
             if parent.is_symlink(): raise ValueError("symlink publication directory refused")
             parent.mkdir(mode=0o755, exist_ok=True)
+            # The build service's 0077 umask must not hide public repositories.
+            parent.chmod(0o755)
         if target.exists() or target.is_symlink(): raise ValueError("version already published; immutable releases cannot be replaced")
         staging = Path(tempfile.mkdtemp(prefix="." + root.name + "-staging-", dir=root.parent))
         try:

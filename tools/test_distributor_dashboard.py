@@ -124,6 +124,18 @@ class DashboardTests(unittest.TestCase):
         (self.root / "secret").write_text("private contents")
         self.assertEqual([], self.manager.inventory()[0])
 
+    def test_unreadable_repository_preserves_other_packages_and_names_error(self):
+        path = self.packages / 'core/zenith-kernel/0.0.7'; path.mkdir(parents=True)
+        (path / 'release.json').write_text(json.dumps(dict(repository='core', name='zenith-kernel', version='0.0.7', archive_bytes=16000000)))
+        original = Path.iterdir
+        def listing(path):
+            if path == self.packages / 'extra': raise PermissionError(13, 'Permission denied', str(path))
+            return original(path)
+        with patch.object(Path, 'iterdir', listing):
+            snapshot = self.manager.snapshot()
+        self.assertEqual('zenith-kernel', snapshot['packages'][0]['name'])
+        self.assertIn('Cannot list extra: Permission denied', snapshot['warnings'])
+
     def test_unavailable_systemd_preserves_inventory_and_disables_action(self):
         self.properties.stop()
         with patch.object(d, "system_properties", side_effect=ValueError("unavailable")):

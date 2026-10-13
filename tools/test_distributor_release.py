@@ -204,6 +204,20 @@ class ReleaseTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "invalid package name"):
                 release.data(self.config, "../escape", "0.0.2", self.repo, "extra")
 
+    def test_index_directories_are_public_under_private_service_umask(self):
+        work = self.repo / 'indexes'; work.mkdir()
+        previous = os.umask(0o077)
+        try:
+            with patch.object(release, 'REPO', self.repo), patch.object(release, 'clean'), \
+                 patch.object(release, 'source_commit', return_value='a' * 40):
+                release.indexes(self.config, work)
+        finally: os.umask(previous)
+        for repository in ('core', 'extra'):
+            self.assertEqual(0o755, (self.root / repository).stat().st_mode & 0o777)
+            self.assertEqual(0o644, (self.root / repository / 'index.zri').stat().st_mode & 0o777)
+        self.assertEqual(0o700, self.keys.stat().st_mode & 0o777)
+        self.assertEqual(0o600, (self.keys / 'private.pem').stat().st_mode & 0o777)
+
     def test_web_delivery_must_match_locally_verified_package(self):
         self.publish()
         class Handler(http.server.SimpleHTTPRequestHandler):
