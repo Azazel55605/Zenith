@@ -29,8 +29,10 @@ are retained on subsequent installs. Change a password with:
 sudo htpasswd /etc/nginx/zenith-dashboard.htpasswd admin
 ```
 
-In /etc/nginx/sites-available/zenith-packages, **inside the existing server block**,
-add the following line if no dashboard include already exists:
+The installer now adds the nginx include to the existing single-server package
+site, keeps a backup, validates nginx and reloads it. Existing exact/wildcard
+includes are retained. If your site has multiple server blocks, the helper refuses
+to guess; **inside the intended server block**, add:
 
 ```nginx
 include /etc/nginx/snippets/zenith-dashboard.conf;

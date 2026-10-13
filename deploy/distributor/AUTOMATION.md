@@ -113,6 +113,32 @@ succeeded, it verifies the existing immutable release and renews indexes rather
 than rebuilding it. A mismatched receipt source commit is refused. No existing
 archive is overwritten. Never delete state to bypass a tag/version mismatch.
 
+For a controller/harness fix, update ~/Zenith without moving the original package
+tag. Stop the timer and wait for/stop the service before retrying as zenith-release:
+
+```sh
+sudo systemctl stop zenith-distributor.timer
+sudo systemctl stop zenith-distributor.service
+git pull --ff-only
+python3 -B deploy/distributor/poll.py --retry kernel/v0.0.7
+sudo systemctl start zenith-distributor.timer
+```
+
+Restore the timer after the attempt even if it fails. A source-code fix to the
+package itself requires a new commit/tag/version instead of moving the old tag.
+Successful retry clears the previous error/finish fields. Run now performs an
+ordinary poll and does not silently retry failed tags.
+
+Native acceptance uses an actual short /var/tmp/zn-* workspace so QEMU serial and
+monitor sockets stay within Linux AF_UNIX path limits, including when a tagged
+older harness resolves its keep path. Phase logs stay in obj/distributor/release-*;
+See the [Linux Unix-socket pathname limits](https://man7.org/linux/man-pages/man7/unix.7.html).
+native evidence moves into that release directory's native/ subtree on success or
+failure. /var/tmp avoids consuming a tmpfs with large disk images. Stale sockets
+are removed before moving artifacts across filesystems. A hard-killed service can
+leave the short directory; its path is printed in the per-tag log. Inspect it only
+after the service has stopped and preserve useful failure evidence before cleanup.
+
 Monitor disk space: failed native runs retain sizeable images. After recording a
 failure, remove obsolete automation-owned failed checkouts when no poll is active;
 retain releases.json, per-tag logs, signing keys and published archives. The source

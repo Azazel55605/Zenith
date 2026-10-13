@@ -40,8 +40,5 @@ install -m 0644 "$dashboard_source/zenith-dashboard.service" /etc/systemd/system
 systemctl daemon-reload
 systemctl enable --now zenith-dashboard.service
 systemctl restart zenith-dashboard.service
-echo 'Dashboard service installed. In the existing nginx package server block, add:'
-echo '    include /etc/nginx/snippets/zenith-dashboard.conf;'
-echo 'Skip adding it if the existing configuration already includes zenith-dashboard*.conf.'
-echo 'Then run: sudo nginx -t && sudo systemctl reload nginx'
+python3 "$dashboard_source/dashboard-setup.py"
 echo 'Open https://zenith-stable.net.local/manage/ and log in as admin.'

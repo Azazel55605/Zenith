@@ -5,9 +5,11 @@ import functools
 import http.server
 import importlib.util
 import json
+import os
 from pathlib import Path
 import shutil
 import socketserver
+import socket
 import subprocess
 import tempfile
 import threading
@@ -120,6 +122,42 @@ class ReleaseTests(unittest.TestCase):
         with lock, patch.object(release, "REPO", self.repo / "second-checkout"):
             with self.assertRaisesRegex(ValueError, "another distributor"):
                 release.locked_work(self.config)
+
+    def test_native_sockets_use_real_short_paths_and_keep_artifacts(self):
+        work = self.repo / ("long-release-workspace-" * 6) / "release"
+        work.mkdir(parents=True)
+        original = tempfile.mkdtemp
+        def allocate(**kwargs):
+            self.assertEqual("/var/tmp", kwargs["dir"])
+            return original(prefix=kwargs["prefix"], dir="/tmp")
+        calls = []
+        def phase(label, command, log):
+            keep = Path(command[-1]).resolve(); calls.append(keep)
+            directory = keep / "recover-efi-active"; directory.mkdir(parents=True)
+            for name in ("serial.sock", "monitor.sock"):
+                path = directory / name
+                self.assertLess(len(os.fsencode(path)), 108)
+                with socket.socket(socket.AF_UNIX) as server, socket.socket(socket.AF_UNIX) as client:
+                    server.bind(str(path)); server.listen(); client.connect(str(path))
+                    peer, _ = server.accept(); peer.close()
+            (keep / "evidence.txt").write_text(label)
+        with patch.object(release.tempfile, "mkdtemp", side_effect=allocate), patch.object(release, "phase", side_effect=phase):
+            release.native_checks(work)
+        self.assertTrue((work / "native/k/evidence.txt").exists())
+        self.assertTrue((work / "native/r/evidence.txt").exists())
+        self.assertTrue(all(not path.parent.exists() for path in calls))
+
+    def test_failed_native_artifacts_retained_without_masking_failure(self):
+        work = self.repo / "failed-native"; work.mkdir()
+        original = tempfile.mkdtemp
+        def phase(label, command, log):
+            keep = Path(command[-1]); keep.mkdir()
+            (keep / "failure.txt").write_text("acceptance evidence")
+            raise ValueError("fixture native failure")
+        with patch.object(release.tempfile, "mkdtemp", side_effect=lambda **kw: original(prefix="zn-", dir="/tmp")), \
+             patch.object(release, "phase", side_effect=phase):
+            with self.assertRaisesRegex(ValueError, "fixture native failure"): release.native_checks(work)
+        self.assertTrue((work / "native/k/failure.txt").exists())
 
     def test_build_orchestration_uses_real_signature_and_publisher(self):
         original = release.phase; calls = []

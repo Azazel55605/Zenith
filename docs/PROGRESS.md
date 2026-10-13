@@ -1,5 +1,30 @@
 # Implementation progress
 
+## 2026-10-13 · Distributor native-path and dashboard-route fixes
+
+- User's server built e541c2d kernel/v0.0.7 through host tests, kernel build and tool
+  build, then native acceptance failed because the deeply nested serial socket
+  exceeded Linux AF_UNIX's path limit. Signing/publication had not started.
+- Controller now gives both native gates real short /var/tmp/zn-*/k and r paths,
+  independent of checkout depth/TMPDIR and older tagged harness path resolution.
+  Native artifacts are retained under each release's native/ directory even after
+  test failure; stale sockets are pruned before cross-filesystem moves. Large disks
+  stay out of /tmp tmpfs. Retrying keeps the same pinned source/version and clears
+  stale error/finish fields. No acceptance gate or immutable-tag check was weakened.
+- User reports dashboard service healthy but HTTP404; the prior installer left
+  nginx inclusion as a manual step. Added idempotent existing-site setup with backup,
+  nginx validation/reload and restoration on validation failure. Ambiguous multiple
+  server blocks require explicit selection. User subsequently confirms access fixed;
+  direct verified-TLS probe also returns the expected nginx Basic-auth401.
+- Validation passes 16 release tests, 8 Git polling tests and 5 nginx-setup tests,
+  including real short serial/monitor socket bind/connect from a long release path,
+  failed artifact retention, retry behavior and nginx rollback. Two real disposable
+  QEMU live boots verify serial readiness and monitor commands at the new short
+  paths; evidence survives relocation into the long release directory. Evidence:
+  obj/native-short-socket.log, /tmp/zenith-short-native-tests.log and retry-tests.log.
+  Actual server rerun/full native suites remain operator-run. No new kernel archive
+  was issued, published or installed by this fix. Retry/setup guidance updated.
+
 ## 2026-10-13 · Lightweight distributor dashboard
 
 - Added optional /manage/ interface: effective timer interval/last start/next run,

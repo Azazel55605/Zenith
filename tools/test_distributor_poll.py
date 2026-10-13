@@ -59,6 +59,7 @@ class PollTests(unittest.TestCase):
         self.mock.side_effect = self.launch
         self.run_poll("kernel/v0.0.7")
         self.assertEqual("complete", json.loads((self.state / "releases.json").read_text())["kernel/v0.0.7"]["status"])
+        self.assertNotIn("error", json.loads((self.state / "releases.json").read_text())["kernel/v0.0.7"])
 
     def test_force_moved_remote_tag_is_refused(self):
         poll.git(self.repo, "tag", "kernel/v0.0.7"); self.run_poll()

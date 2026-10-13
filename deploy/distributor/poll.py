@@ -115,6 +115,8 @@ def poll(remote, state, recipes, retry=None):
             checkout = state / ("build-" + tag.replace("/", "-"))
             # A fresh clone retains the complete failed checkout until explicit retry.
             if checkout.exists(): shutil.rmtree(checkout)
+            entry.pop("error", None)
+            entry.pop("finished", None)
             entry.update(status="building", started=int(time.time()))
             save(path, records)
             try:

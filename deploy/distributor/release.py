@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 import shutil
 import signal
+import stat
 import ssl
 import subprocess
 import sys
@@ -182,9 +183,7 @@ def build(config, release, native=False):
         if native:
             # Acceptance harnesses use this checkout's output-x64 artifacts.
             shutil.copytree(work / "build", REPO / "output-x64", dirs_exist_ok=True)
-            for script in ("kernel-update-smoke.py", "repository-smoke.py"):
-                phase("Native " + script, [sys.executable, "-B", str(REPO / "tools" / script),
-                      str(work / script.removesuffix(".py"))], work / (script + ".log"))
+            native_checks(work)
             clean()
             if source_commit() != commit: raise ValueError("source changed during native acceptance; signing refused")
         phase("Sign kernel", ["dotnet", str(TOOL), "kernel-seal", release, str(work / "build/Zenith.elf"),
@@ -193,6 +192,28 @@ def build(config, release, native=False):
         if source_commit() != commit: raise ValueError("source commit changed before publication; refused")
         publish(config, release, work / "kernel.zpk", commit, work)
         indexes(config, work)
+
+
+def native_checks(work):
+    # AF_UNIX paths are limited to 107 pathname bytes on Linux. Use an actual
+    # short directory: repository-smoke resolves its keep path, so a symlink
+    # alias to the deeply nested release workspace would not fix it.
+    # /var/tmp avoids putting large validation disks in Debian's /tmp tmpfs.
+    directory = Path(tempfile.mkdtemp(prefix="zn-", dir="/var/tmp"))
+    print("Native workspace: " + str(directory) + "; retained afterward at " + str(work / "native"), flush=True)
+    try:
+        for name, script in (("k", "kernel-update-smoke.py"), ("r", "repository-smoke.py")):
+            phase("Native " + script, [sys.executable, "-B", str(REPO / "tools" / script),
+                  str(directory / name)], work / (script + ".log"))
+    finally:
+        # Stale Unix sockets cannot be copied if /var/tmp is another filesystem.
+        for parent, _, files in os.walk(directory):
+            for name in files:
+                path = Path(parent) / name
+                if stat.S_ISSOCK(path.lstat().st_mode): path.unlink()
+        # Preserve failed runs too. Same-filesystem moves are just renames; a
+        # separate /var filesystem falls back to copying the retained evidence.
+        shutil.move(str(directory), str(work / "native"))
 
 
 def prerequisites():
