@@ -1,5 +1,15 @@
 # Implementation progress
 
+## 2026-10-13 · First named data-package install confirmed
+
+- User confirms zenith-docs installed successfully by name through Zenith's package
+  manager. This completes the first operator-confirmed server-built data-package
+  delivery/install check following zenith-docs/v0.1.0 publication. The existing
+  private repository client and server release workflow now have a real installed
+  data-package acceptance result in addition to the kernel release.
+- Next distributor slice remains storage visibility and automatic retention/cleanup
+  of obsolete build artifacts, with active-work protection and diagnostic retention.
+
 ## 2026-10-13 · Clear old completed activity on new release discovery
 
 - On newly discovered validated package tags, the poller persists dashboard_hidden
@@ -31,8 +41,8 @@
   package quick-start file, plans /usr/share/doc/zenith/packages.txt at 0644, and
   passes signed-container verification using disposable keys. Recipe targets extra;
   release tag zenith-docs/v0.1.0 selects this first docs package independently of the
-  kernel version. Production signing/publication remains the server's tagged worker;
-  server publication and guest installation of docs remain to be confirmed.
+  kernel version. Production signing/publication uses the server's tagged worker;
+  user subsequently confirms successful guest installation by package name.
 - Browser plugin unavailable; regular Playwright Chromium desktop 1505x1045/mobile
   390x844 and Firefox default viewport verify grouping, numeric 0.0.10 over 0.0.7,
   repo separation, click/Enter/Space expansion, focus/refresh persistence, filtering,

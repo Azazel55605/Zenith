@@ -401,8 +401,9 @@ Git polling next. The host automation kit is implemented/tested; the user now
 confirms the first server-built automated kernel/v0.0.7 release completed.
 See deploy/distributor/AUTOMATION.md and PROGRESS for scope and validation.
 
-Next distributor operations: publish zenith-docs through its independent package
-tag; add storage reporting and automatic build-artifact retention/cleanup. Completed
+The first zenith-docs data release through its independent package tag is now
+user-confirmed installed by name. Next distributor operations: add storage reporting
+and automatic build-artifact retention/cleanup. Completed
 checkouts are already removed, but failed/interrupted attempts, native disks and
 orphaned short workspaces need bounded retention. Cleanup must coordinate with build
 locks, preserve active work and recent diagnostic evidence, and distinguish build
