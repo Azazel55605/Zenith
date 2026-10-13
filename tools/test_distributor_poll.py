@@ -2,8 +2,10 @@
 """Real local Git polling; build execution is stubbed, never uses production keys."""
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -106,6 +108,25 @@ class PollTests(unittest.TestCase):
         with patch.object(poll.release, "REPO", self.repo), patch.object(poll.release, "TOOL"):
             with self.assertRaisesRegex(ValueError, "another source commit"):
                 poll.execute({"root": str(self.root / "published")}, self.repo, "0.0.7", self.recipes["kernel"])
+
+    def test_manual_environment_finds_user_tools_in_children(self):
+        home = self.root / "home"; tools = home / ".dotnet/tools"; tools.mkdir(parents=True)
+        command = tools / "cosmos.patcher"
+        command.write_text("#!/bin/sh\nprintf 'fixture-cosmos\\n'\n"); command.chmod(0o700)
+        with patch.dict(os.environ, HOME=str(home), PATH="/usr/bin:/bin"):
+            poll.configure_environment(); first = os.environ["PATH"]
+            poll.configure_environment(); self.assertEqual(first, os.environ["PATH"])
+            self.assertIn("/usr/sbin", first.split(os.pathsep))
+            self.assertIn("/usr/bin", first.split(os.pathsep))
+            self.assertEqual("fixture-cosmos", subprocess.check_output(["cosmos.patcher"], text=True).strip())
+            child = subprocess.check_output([sys.executable, "-c", "import shutil; print(shutil.which('cosmos.patcher'))"], text=True).strip()
+            self.assertEqual(str(command), child)
+
+    def test_main_configures_path_before_execute(self):
+        with patch.object(sys, "argv", ["poll.py", "--execute", str(self.repo), "--version", "0.0.7", "--recipe", json.dumps(self.recipes["kernel"])]), \
+             patch.object(poll, "configure_environment") as configure, patch.object(poll, "execute") as execute:
+            self.assertEqual(0, poll.main())
+            configure.assert_called_once(); execute.assert_called_once()
 
 
 if __name__ == "__main__": unittest.main()

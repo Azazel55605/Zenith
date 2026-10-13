@@ -129,6 +129,13 @@ package itself requires a new commit/tag/version instead of moving the old tag.
 Successful retry clears the previous error/finish fields. Run now performs an
 ordinary poll and does not silently retry failed tags.
 
+Direct poll.py invocations now add ~/.dotnet/tools and the standard sbin paths to
+PATH before running child builds. On an older controller, export
+PATH="$HOME/.dotnet/tools:$PATH:/usr/local/sbin:/usr/sbin:/sbin" before a manual
+retry. A missing-tools error at preflight does not mean the tools need reinstalling
+if doctor/service builds already found them. Per-tag logs append across attempts;
+read the latest failure rather than an older traceback earlier in the same file.
+
 Native acceptance uses an actual short /var/tmp/zn-* workspace so QEMU serial and
 monitor sockets stay within Linux AF_UNIX path limits, including when a tagged
 older harness resolves its keep path. Phase logs stay in obj/distributor/release-*;

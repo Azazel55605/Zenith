@@ -18,6 +18,14 @@ release = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release)
 
 
+def configure_environment():
+    # Direct python invocations bypass release.sh and the systemd Environment.
+    # Children inherit this too, including --execute and native validation.
+    entries = [str(Path.home() / ".dotnet/tools"), *os.environ.get("PATH", os.defpath).split(os.pathsep),
+               "/usr/local/bin", "/usr/bin", "/bin", "/usr/local/sbin", "/usr/sbin", "/sbin"]
+    os.environ["PATH"] = os.pathsep.join(dict.fromkeys(entry for entry in entries if entry))
+
+
 def git(repo, *args):
     return subprocess.check_output(["git", "-C", str(repo), *args], text=True).strip()
 
@@ -143,6 +151,7 @@ def poll(remote, state, recipes, retry=None):
 
 
 def main():
+    configure_environment()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--remote", default="https://github.com/Azazel55605/Zenith.git")
     parser.add_argument("--state", type=Path, default=Path.home() / ".local/state/zenith/distributor")

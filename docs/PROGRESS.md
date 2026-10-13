@@ -1,5 +1,19 @@
 # Implementation progress
 
+## 2026-10-13 · Manual distributor retry PATH parity
+
+- User confirms controller ad9593f installed; newest retry log ends at preflight
+  with missing e2fsck/debugfs/cosmos.patcher. The earlier AF_UNIX traceback is from
+  the original attempt in the append-only per-tag log. Direct Python invocation
+  bypassed release.sh/systemd PATH setup; tools were already present on this VM.
+- Poll CLI now supplies the user dotnet-tool directory and standard bin/sbin paths
+  for normal polls, retries and inherited execution/native-test children. Existing
+  PATH entries are retained and repeat setup is idempotent. No gate bypass/tool
+  reinstall/tag movement. Documented immediate export workaround for old controllers.
+- Ten polling regressions pass, including actual fixture cosmos execution and
+  child-Python tool discovery from a restricted login PATH. Server retry after
+  environment correction remains operator-run; no new kernel artifact issued.
+
 ## 2026-10-13 · Distributor native-path and dashboard-route fixes
 
 - User's server built e541c2d kernel/v0.0.7 through host tests, kernel build and tool
