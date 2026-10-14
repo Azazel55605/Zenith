@@ -81,6 +81,12 @@ Details: [system plan](SYSTEM-PLAN.md), [userland](USERLAND.md),
 
 ## Delivery order and dependency gates
 
+Next user-selected priority (2026-10-14) is authenticated login/session management,
+Desktop/local-text Headless selection with serial fallback, and a styling
+metapackage. See [LOGIN-SESSIONS](LOGIN-SESSIONS.md) for lifecycle, packaging
+boundaries and acceptance. This precedes the proposed next native `cat`/`ls` slice;
+independent graphical executables still need the M5 process/graphics/input APIs.
+
 | Order | Work | Gate / dependency |
 |---|---|---|
 | Done | M2 accounts/credentials and permission policy | Native allow/deny/reboot and cryptographic-vector checks passed; trusted-kernel boundary documented |

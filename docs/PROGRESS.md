@@ -1,5 +1,22 @@
 # Implementation progress
 
+## 2026-10-14 · Next priority: login/session manager and styling packages
+
+- User selects proper login/session management and a styling metapackage before
+  the proposed native file-tool slice. They explicitly choose a local text console
+  for Headless, with serial fallback. Record the detailed implementation/acceptance
+  plan in LOGIN-SESSIONS and move this priority ahead in ROADMAP.
+- Inspection confirms existing authentication and session host seams, but no
+  host stop/switch lifecycle, local text host, independent graphical process ABI,
+  runtime theme loader or true dependency-only package support. Initial integration
+  therefore needs a trusted host/kernel change plus separately shipped resources;
+  a package label is not evidence of executable decoupling.
+- Plan greeter and authenticated lifecycle, safe logout/relogin mode switching,
+  runtime shared styling and true metapackages, then protected graphical manager
+  execution as its ABI becomes available. Package names remain working proposals.
+  These features are planned, not implemented or validated in this documentation
+  slice; installed/recovery security and existing release gates remain required.
+
 ## 2026-10-14 · Hosted release and installed package acceptance (operator confirmed)
 
 - Operator confirms the kernel build completed after the accelerator comparison
