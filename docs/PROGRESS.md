@@ -1,5 +1,32 @@
 # Implementation progress
 
+## 2026-10-14 · Nested-KVM staging slowdown (server investigation)
+
+- Operator's optimized 0.0.10 still fails repository combined staging at its
+  600-second deadline; actual accelerator is KVM and output volume is 102,703
+  bytes. Retained serial proves complete HTTPS delivery, signature checks and
+  committed data, then only 12% of the FAT kernel copy. Live installation also
+  takes 275.505 seconds and boots ~30 seconds. Quiet logging did not resolve the
+  server's runtime; local TCG acceptance is not server performance evidence.
+- Add explicit controller accelerator policy `auto|kvm|tcg`, scoped to QEMU in
+  each unchanged tagged harness. Default behavior stays unchanged. Forced modes
+  cannot silently fall back; devices/CPU and all assertions/deadlines are retained.
+  Add a focused same-ISO FAT32 comparison without building/installing a kernel or
+  using real VM disks. Each run creates fresh disposable images and validates
+  readback, clean shutdown and FAT allocation; stale optional FSInfo hints are
+  separately reported. Unknown FAT errors still fail.
+- Four accelerator, seven profiler and 15 controller regression tests pass.
+  The actual local forced-TCG storage benchmark passes in 13.697 seconds,
+  including 4 MiB write/read/sync and independent byte/audit checks. Evidence:
+  /tmp/zenith-storage-tcg-verified.log and /tmp/zn-storage-tcg-verified.
+  Local KVM is unavailable; nested KVM versus TCG remains an operator experiment,
+  not a proven diagnosis or completed server fix. Do not retry the entire lengthy
+  gate until the focused comparison identifies the faster path or further I/O
+  investigation is needed.
+- Phase metrics now record QEMU CPU time and permitted host I/O counter deltas,
+  helping separate busy execution from wall-time stalls without logging private
+  guest content. No acceptance deadlines, signatures or durability points changed.
+
 ## 2026-10-14 · Repository combined-update deadline and status observations
 
 - Operator's 0.0.9 repository gate fails waiting for `P4_KERNEL_STAGE=0`.

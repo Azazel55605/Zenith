@@ -30,6 +30,8 @@ def copyfile(source, destination, *, follow_symlinks=True):
 
 
 def run_harness(script):
+    spec = importlib.util.spec_from_file_location('validation_accelerator', Path(__file__).with_name('validation-accelerator.py'))
+    accelerator = importlib.util.module_from_spec(spec); spec.loader.exec_module(accelerator)
     spec = importlib.util.spec_from_file_location('validation_network', Path(__file__).with_name('validation-network.py'))
     network = importlib.util.module_from_spec(spec); spec.loader.exec_module(network)
     spec = importlib.util.spec_from_file_location('validation_status', Path(__file__).with_name('validation-status.py'))
@@ -42,6 +44,7 @@ def run_harness(script):
     def execute(loader, module):
         original_exec(loader, module)
         if Path(loader.path).resolve() == headless.resolve():
+            accelerator.install(module)
             network.install(module.Machine, instances)
             status.install(module.Machine)
             profile.install(module.Machine)

@@ -41,6 +41,14 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual('P4_KERNEL_STAGE',profile.label('P4_KERNEL_STAGE=0'))
         self.assertEqual('guest-check',profile.label('pkg update --yes'))
 
+    def test_resource_deltas_are_observations_only(self):
+        m=self.machine(False)
+        with patch.object(profile,'resources',side_effect=[dict(cpu_seconds=2,read_bytes=100,write_bytes=30),
+                                                          dict(cpu_seconds=3.25,read_bytes=612,write_bytes=1054)]):
+            self.assertFalse(m.wait('P4_KERNEL_STAGE=0'))
+        row=json.loads((m.directory/'wait-times.jsonl').read_text())
+        self.assertEqual((1.25,512,1024),(row['qemu_cpu_seconds'],row['host_read_bytes'],row['host_write_bytes']))
+
     def test_original_exception_is_not_masked_by_observation(self):
         m=self.machine(RuntimeError('original failure'))
         with patch.object(profile,'acceleration',return_value='unknown'):

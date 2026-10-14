@@ -470,3 +470,33 @@ actual exit code before reporting it. Recovery only rereads that invocation's
 unique temporary file; it never repeats an install or update. Repository waits
 also appear under their `P4_*` labels in timing output. A still-running download
 or kernel copy at the deadline remains a failure, even if data updates committed.
+
+### Nested KVM storage comparison
+
+An enabled KVM accelerator can still be slow for emulated SATA I/O inside another
+VM. Compare the same ISO with explicit accelerators before another full release:
+
+```sh
+comparison=$(mktemp -d /var/tmp/zenith-io.XXXXXX)
+export PATH="$PATH:/usr/sbin:/sbin"
+iso="$HOME/.local/state/zenith/distributor/build-kernel-v0.0.10/output-x64/Zenith.iso"
+python3 -B tools/storage-accelerator-bench.py --iso "$iso" --accelerator kvm --keep "$comparison/kvm"
+python3 -B tools/storage-accelerator-bench.py --iso "$iso" --accelerator tcg --keep "$comparison/tcg"
+```
+
+The tool creates new disposable disk files, mounts a separate FAT32 partition,
+writes/reads 4 MiB, syncs and powers off. It audits the FAT allocation and verifies
+the host-extracted file bytes. FAT32's stale optional FSInfo free-space hint is
+reported explicitly; other audit errors fail. It needs dosfstools/mtools and never
+uses an existing VM disk. Each I/O observation is bounded to 300 seconds. Failed
+runs retain their transcript and partial timing JSON. This is an I/O comparison,
+not a replacement for signed kernel or repository acceptance.
+
+Controller validation accepts `ZENITH_VALIDATION_ACCELERATOR=auto|kvm|tcg`.
+`auto` retains the existing KVM/TCG fallback; explicit choices have no silent
+fallback and keep the same CPU/device configuration and acceptance assertions.
+For the service, set this variable through a systemd drop-in only after comparing
+the server's measurements. Controller changes apply to unchanged tagged harnesses;
+no new kernel tag is needed. Future phase timing also includes QEMU CPU seconds
+and host read/write byte deltas when `/proc` permits observation. Host I/O counts
+are process counters, not guest disk throughput; missing counters remain absent.
