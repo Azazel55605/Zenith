@@ -22,7 +22,7 @@ else
     printf 'No /dev/kvm; native tests use software emulation.\n'
 fi
 printf '\nBuild tools\n'
-for tool in dotnet git python3 nginx gcc clang nm e2fsck debugfs qemu-system-x86_64 cosmos cosmos.patcher; do
+for tool in dotnet git python3 nginx gcc clang ld nm e2fsck debugfs qemu-system-x86_64 cosmos cosmos.patcher; do
     command -v "$tool" || printf 'MISSING: %s\n' "$tool"
 done
 if command -v dotnet >/dev/null; then

@@ -33,6 +33,7 @@
     <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.Plugs.dll&quot;" />
     <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.HAL.X64.dll&quot;" />
     <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.Core.X64.dll&quot;" />
+    <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.Core.dll&quot;" />
     <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.HAL.dll&quot;" />
   </Target>
 

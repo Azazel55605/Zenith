@@ -87,6 +87,10 @@ guidance here so the two entry points stay consistent.
 - `../Cosmos` is a separate upstream checkout. Treat it as reference unless the
   task needs an explicit upstream change. Do not run its bootstrap casually:
   it clears Cosmos NuGet caches and replaces global tools.
+- Native release diagnostics include per-VM wait-times.jsonl and actual accelerator
+  observations. Keep full-sized healthy kernel delivery/activation; the small
+  signed startup-failure fixture must prove entry before testing manual fallback.
+  Pinned per-tick/per-allocation success traces are quieted in build copies only.
 - Preserve unrelated local changes. Keep generated output, scratch disks and
   machine-specific package settings out of commits. Never format a real disk
   during validation; the smoke harness creates its own disposable disk.

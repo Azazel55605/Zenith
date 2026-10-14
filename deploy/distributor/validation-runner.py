@@ -7,6 +7,7 @@ import importlib.util
 import shutil
 import subprocess
 import sys
+import time
 
 original_copyfile = shutil.copyfile
 
@@ -33,6 +34,8 @@ def run_harness(script):
     network = importlib.util.module_from_spec(spec); spec.loader.exec_module(network)
     spec = importlib.util.spec_from_file_location('validation_status', Path(__file__).with_name('validation-status.py'))
     status = importlib.util.module_from_spec(spec); spec.loader.exec_module(status)
+    spec = importlib.util.spec_from_file_location('validation_profile', Path(__file__).with_name('validation-profile.py'))
+    profile = importlib.util.module_from_spec(spec); spec.loader.exec_module(profile)
     original_exec = importlib.machinery.SourceFileLoader.exec_module
     instances = []
     headless = script.parent / 'headless-smoke.py'
@@ -41,7 +44,9 @@ def run_harness(script):
         if Path(loader.path).resolve() == headless.resolve():
             network.install(module.Machine, instances)
             status.install(module.Machine)
+            profile.install(module.Machine)
     importlib.machinery.SourceFileLoader.exec_module = execute
+    started = time.monotonic()
     try: runpy.run_path(str(script), run_name='__main__')
     finally:
         importlib.machinery.SourceFileLoader.exec_module = original_exec
@@ -50,6 +55,7 @@ def run_harness(script):
         for machine in instances:
             try: machine.stop()
             except (OSError, RuntimeError): pass
+        print('[validation] harness wall time: '+str(round(time.monotonic()-started, 3))+'s', flush=True)
 
 
 def main():

@@ -435,3 +435,33 @@ then install onto a disposable disk and repeat UEFI boots with DHCP, mounted ext
 masked initial IDT state, runtime IF preservation and clean shutdown. Root can run
 `cpu irq-test` on a running system; ordinary users are refused. Keep this gate when
 updating Cosmos or changing early interrupt/platform initialization.
+
+## Native gate timing and serial overhead
+
+Controller validation records per-VM `wait-times.jsonl` and prints each wait's
+label, wall time, result, serial byte growth and observed accelerator. KVM is
+reported from live QEMU KVM descriptors; fallback stderr identifies TCG. Unknown
+access remains unknown. Raw serial data, passwords and command text are excluded.
+The dashboard's existing phase log displays these entries; whole-phase totals
+remain in `phase-times.json` in the release workspace.
+
+Successful main-loop and per-page allocation prints from pinned Cosmos build
+copies are quieted with instruction/control-flow checks. Startup, errors, kernel
+logs, scheduler diagnostics and actual allocator/lifecycle operations remain.
+Compare disposable workloads with:
+
+```sh
+python3 -B tools/serial-overhead-bench.py --iso /path/to/before.iso --keep /tmp/zn-before
+python3 -B tools/serial-overhead-bench.py --iso output-x64/Zenith.iso --keep /tmp/zn-after
+```
+
+The broken-startup fixture is a small signed higher-half ELF compiled by Clang/GNU
+ld. It prints an entry marker then loops. Acceptance requires that actual marker,
+checks startup never completes, then boots the retained previous generation using
+real Limine keyboard selection. The full-sized healthy kernel transfer, actual
+activation, data persistence, confirmation/rollback, crash recovery and filesystem
+audits still run. This avoids an unnecessary second full-size failed-kernel
+transfer and stage; it is not a reduced-size substitute for healthy kernel updates.
+Status observation does not queue readbacks while the exact submitted command is
+still visibly busy. A completed prompt only permits reading the saved status;
+it never counts as success. Original deadlines and exit-code assertions remain.

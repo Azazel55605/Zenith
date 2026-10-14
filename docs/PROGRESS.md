@@ -1,5 +1,55 @@
 # Implementation progress
 
+## 2026-10-14 · Native release gate efficiency (full kernel gate verified)
+
+- Operator confirms 0.0.9's full 169-check kernel gate passed in 3370 seconds
+  (56 minutes); repository acceptance then started. Their retained guests produced
+  about 13.15 MB of serial output, including hundreds of thousands of kernel-loop
+  and allocator messages. KVM group access is present and stderr contains no shown
+  fallback; selected acceleration still needs direct observation, not argv inference.
+- Quiet only pinned per-tick and per-allocation informational traces in Cosmos
+  build copies. Preserve lifecycle calls, allocations/accounting, errors and startup
+  diagnostics; no dependency cache/upstream edits. A shared trace adapter checks
+  side effects and incoming branch targets; real-release/idempotence/drift-refusal
+  allocator tests pass (3).
+- Controller records secret-free wait timing, result, output volume and observed
+  accelerator per VM and prints it into the dashboard's existing phase log. Five
+  profiler tests pass; it never substitutes success for a failed wait. Status
+  recovery waits while exact submitted input is still visibly busy instead of
+  queuing speculative readback commands; original deadline/value checks remain.
+  Nine status tests and 15 controller tests pass.
+- Same local live workload removes both targeted traces; filesystem diagnostic
+  volume falls from 15,897 to 1,449 bytes and logging from 17,066 to 3,457 bytes.
+  Whole-run volume falls from 158,584 to 59,739 bytes. These TCG runs overlapped
+  other validation work and do not establish a wall-time or nested-KVM speedup.
+  Evidence: /tmp/zenith-trace-before.log and /tmp/zenith-trace-after.log.
+- First quiet-only full-gate attempt hit its original 600-second observation
+  deadline during the second full-sized broken-kernel fetch (progress ~77%). Do
+  not hide this as successful validation. Replace that redundant negative fixture
+  with a small signed valid ELF that emits an entry marker and loops; require real
+  entry execution before startup refusal/manual previous-generation fallback.
+  Keep the real healthy 17 MB transfer/activation and all update/recovery/audit
+  checks. New failing archive is 5.6 KB; its fetch completes in 0.552 seconds in
+  the current rerun versus the prior incomplete long transfer.
+- Optimized full native acceptance passes 170/170 under TCG, including real signed
+  failing-ELF entry, no successful startup, manual previous selection, full-sized
+  healthy activation/rollback, actual power cuts/undo, corrupt-root refusal,
+  credentials and independent clean ext2/FAT audits. Combined serial volume is
+  687,767 bytes; recorded waits total 532.3 seconds (not whole-harness wall time).
+  Healthy fetch takes 86.185 seconds; real full-size staging takes about 33 seconds.
+  No speculative readbacks occur; visible busy fetch/stage use original deadlines.
+  Evidence: /tmp/zenith-fast-kernel.log and /tmp/zn-fast-k.
+- Three real allocator fixup checks, five profiler checks, nine status checks,
+  15 controller checks and 17 distributor release checks pass. Release checks
+  need disposable /var/tmp access and were rerun outside the restricted sandbox.
+  Local KVM is unavailable; these results do not promise a measured speedup on
+  the user's nested-KVM server. Its active 0.0.9 run was not interrupted or changed.
+- Kernel-byte changes require kernel/v0.0.10; existing tags stay immutable. The
+  controller profiling/busy-wait changes apply to future runs after pulling main.
+  Whole-harness wall time is now printed alongside per-VM timings. Publication
+  still requires every native gate; no checks are skipped or parallelized against
+  shared mutable build-tool outputs. Server timing remains operator acceptance.
+
 ## 2026-10-14 · Installed UEFI boot: premature interrupt enable (0.0.9)
 
 - Operator's 0.0.8 gate completed install, status 0, clean unmount/poweroff and GPT/

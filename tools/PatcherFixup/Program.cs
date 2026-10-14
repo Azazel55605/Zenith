@@ -19,6 +19,39 @@ foreach (var type in module.GetTypeReferences())
     { type.Scope = module; }
 }
 foreach (var reference in self) { module.AssemblyReferences.Remove(reference); }
+void QuietTrace(MethodDefinition method, string firstText, string lastText)
+{
+    var code = method.Body.Instructions;
+    var first = code.Single(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == firstText);
+    if (first.Next.OpCode == OpCodes.Pop) { return; }
+    var last = code.Skip(code.IndexOf(first)).First(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == lastText);
+    var end = last.Next;
+    while (end is not null && !(end.Operand is MethodReference m && m.DeclaringType.Name == "Serial" && m.Name == "WriteString"))
+    { end = end.Next; }
+    if (end is null || end.OpCode != OpCodes.Call) { throw new InvalidOperationException("Cosmos trace contract changed"); }
+    var range = code.Skip(code.IndexOf(first)).Take(code.IndexOf(end) - code.IndexOf(first) + 1).ToArray();
+    if (range.Any(i => i.OpCode.FlowControl is FlowControl.Return or FlowControl.Throw
+        || i.OpCode == OpCodes.Stfld || i.OpCode == OpCodes.Stsfld)
+        || code.Except(range).Any(i => i.Operand is Instruction target && range.Contains(target) && target != first))
+    { throw new InvalidOperationException("Cosmos trace has unexpected effects/control flow"); }
+    // Retain the first literal for idempotent adaptation checks, consuming it
+    // immediately; branch destinations remain valid instruction objects.
+    range[1].OpCode = OpCodes.Pop; range[1].Operand = null;
+    foreach (var instruction in range.Skip(2)) { instruction.OpCode = OpCodes.Nop; instruction.Operand = null; }
+    changed = true;
+}
+if (assembly.Name.Name == "Cosmos.Kernel.Core")
+{
+    var allocator = module.GetType("Cosmos.Kernel.Core.Memory.PageAllocator")
+        ?? throw new InvalidOperationException("Cosmos allocator type changed");
+    var pages = allocator.Methods.Single(m => m.Name == "AllocPages" && m.Parameters.Count == 3);
+    if (!pages.HasBody || pages.ReturnType.FullName != "System.Void*"
+        || pages.Parameters[1].ParameterType.FullName != "System.UInt64"
+        || pages.Parameters[2].ParameterType.FullName != "System.Boolean")
+    { throw new InvalidOperationException("Cosmos allocator signature changed"); }
+    QuietTrace(pages, "[PageAllocator] AllocPages - Type: ", "\n");
+    Console.WriteLine("Quieted pinned per-allocation success trace; allocator/error paths retained");
+}
 if (assembly.Name.Name == "Cosmos.Kernel.Core.X64")
 {
     // Released load_idt unconditionally STI's before PIC/APIC setup. During PIC
@@ -443,27 +476,6 @@ if (assembly.Name.Name == "Cosmos.Kernel.System")
     }
     // Successful-packet tracing performs hundreds of port writes in the RX path.
     // Remove only pinned informational statements; preserve rejection/error logs.
-    void QuietTrace(MethodDefinition method, string firstText, string lastText)
-    {
-        var code = method.Body.Instructions;
-        var first = code.Single(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == firstText);
-        if (first.Next.OpCode == OpCodes.Pop) { return; }
-        var last = code.Skip(code.IndexOf(first)).First(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == lastText);
-        var end = last.Next;
-        while (end is not null && !(end.Operand is MethodReference m && m.DeclaringType.Name == "Serial" && m.Name == "WriteString"))
-        { end = end.Next; }
-        if (end is null || end.OpCode != OpCodes.Call) { throw new InvalidOperationException("Cosmos trace contract changed"); }
-        var range = code.Skip(code.IndexOf(first)).Take(code.IndexOf(end) - code.IndexOf(first) + 1).ToArray();
-        if (range.Any(i => i.OpCode.FlowControl is FlowControl.Return or FlowControl.Throw
-            || i.OpCode == OpCodes.Stfld || i.OpCode == OpCodes.Stsfld)
-            || code.Except(range).Any(i => i.Operand is Instruction target && range.Contains(target) && target != first))
-        { throw new InvalidOperationException("Cosmos trace has unexpected effects/control flow"); }
-        // Retain the first literal for idempotent adaptation checks, consuming it
-        // immediately; branch destinations remain valid instruction objects.
-        range[1].OpCode = OpCodes.Pop; range[1].Operand = null;
-        foreach (var instruction in range.Skip(2)) { instruction.OpCode = OpCodes.Nop; instruction.Operand = null; }
-        changed = true;
-    }
     QuietTrace(handle, "[NetworkStack] HandlePacket called, len=", "\n");
     QuietTrace(handle, "[NetworkStack] EtherType: 0x", "\n");
     QuietTrace(handle, "[NetworkStack] -> IPv4\n", "[NetworkStack] -> IPv4\n");
@@ -501,6 +513,15 @@ if (assembly.Name.Name == "Cosmos.Kernel.System")
     Console.WriteLine("Quieted pinned successful IPv4/TCP packet traces; errors remain enabled");
 }
 // Keyboard adaptations apply only to build copies of pinned Cosmos 3.0.89.
+if (assembly.Name.Name == "Cosmos.Kernel.System")
+{
+    var kernel = module.GetType("Cosmos.Kernel.System.Kernel")
+        ?? throw new InvalidOperationException("Cosmos kernel lifecycle changed");
+    var lifecycle = kernel.Methods.Single(m => m.Name == "Start" && m.Parameters.Count == 0);
+    QuietTrace(lifecycle, "[Kernel] Calling Run()...\n", "[Kernel] Calling Run()...\n");
+    QuietTrace(lifecycle, "[Kernel] Run() returned\n", "[Kernel] Run() returned\n");
+    Console.WriteLine("Quieted pinned per-tick success traces; lifecycle and failures retained");
+}
 if (assembly.Name.Name is "Cosmos.Kernel.System" or "Cosmos.Kernel.HAL.X64" or "Cosmos.Kernel.HAL")
 {
     using var support = resolver.Resolve(new AssemblyNameReference("Zenith.Network", new Version(1, 0, 0, 0)));

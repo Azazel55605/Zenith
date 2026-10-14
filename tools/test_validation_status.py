@@ -58,6 +58,22 @@ class StatusTests(unittest.TestCase):
         self.assertTrue(m.sent[1].startswith('cat /tmp/validation-status-'))
         self.assertNotIn('EXACT=1',m.sent[1])
 
+    def test_busy_operation_does_not_queue_readback_commands(self):
+        m=self.machine([False,True]);m.send('pkg update --yes; echo BUSY=$? | logger\r')
+        path=m._validation_status[1]
+        m.text='boot'+path+' | logger\r\n'
+        self.assertTrue(m.wait('user: BUSY=',4,600))
+        self.assertEqual(1,len(m.sent))
+        self.assertEqual(5,m.waited[1][2])
+
+    def test_completed_prompt_allows_readback_but_never_counts_as_success(self):
+        m=self.machine([False]*5);m.send('false; echo DONE=$? | logger\r')
+        path=m._validation_status[1]
+        m.text='boot'+path+' | logger\r\n[console] root@zenith:~$ '
+        self.assertFalse(status.busy(m,path,4))
+        self.assertFalse(m.wait('user: DONE=',4,600))
+        self.assertEqual(4,len(m.sent))
+
     def test_dead_guest_does_not_read_back(self):
         m=self.machine([False]);m.send('false; echo DEAD=$? | logger\r');m.poll=lambda:1
         self.assertFalse(m.wait('user: DEAD=',4,600));self.assertEqual(1,len(m.sent))

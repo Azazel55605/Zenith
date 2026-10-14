@@ -6,6 +6,19 @@ import time
 STATUS = re.compile(r'(.+); echo ([A-Z][A-Za-z0-9_-]{0,63})=\$\? \| logger\r', re.DOTALL)
 
 
+NOISE = re.compile(r"\[(?!zenith\])[A-Za-z][A-Za-z0-9 ]*\][^\n]*\n")
+PROMPT = re.compile(r'(?:^|\r?\n)\[console\] [^\r\n]*[$#] ')
+
+
+def busy(machine, path, offset):
+    # Only postpone readback when the exact submitted suffix is visible and no
+    # subsequent completed shell prompt exists. Damaged/unknown echoes retain
+    # the old recovery path. Never treat a prompt as successful exit status.
+    raw = NOISE.sub('', machine.log()[offset:])
+    submitted = re.search(re.escape(path) + r' \| logger(?:\r\n|\n)', raw)
+    return submitted is not None and PROMPT.search(raw, submitted.end()-1) is None
+
+
 def install(machine_type):
     original_send, original_wait = machine_type.send, machine_type.wait
 
@@ -33,6 +46,15 @@ def install(machine_type):
         if original_wait(machine, marker, offset, min(timeout, 30)):
             return True
         name, path, _ = record
+        if busy(machine, path, offset):
+            print('Guest operation '+name+' is still running; postponing status readback', flush=True)
+            while busy(machine, path, offset):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0 or machine.process.poll() is not None:
+                    print('Guest operation deadline reached: '+name+'; operation was not repeated', flush=True)
+                    return False
+                if original_wait(machine, marker, offset, min(remaining, 5)):
+                    return True
         # Replay only the saved observation. An absent file, dead/hung guest or
         # unreadable response still fails; the unchanged harness checks its value.
         for attempt in range(3):

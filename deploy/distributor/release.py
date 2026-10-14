@@ -251,7 +251,7 @@ def native_checks(work):
 
 
 def prerequisites():
-    missing = [command for command in ("dotnet", "git", "clang", "nm", "e2fsck", "debugfs", "cosmos.patcher")
+    missing = [command for command in ("dotnet", "git", "clang", "ld", "nm", "e2fsck", "debugfs", "cosmos.patcher")
                if shutil.which(command) is None]
     if missing: raise ValueError("missing build tools: " + ", ".join(missing))
 

@@ -16,6 +16,9 @@ import time
 from pathlib import Path
 import boot_image
 
+spec_failure = importlib.util.spec_from_file_location('kernel_failure', Path(__file__).with_name('kernel-failure-fixture.py'))
+failure = importlib.util.module_from_spec(spec_failure); spec_failure.loader.exec_module(failure)
+
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('h', ROOT / 'tools/headless-smoke.py')
 h = importlib.util.module_from_spec(spec); spec.loader.exec_module(h)
@@ -55,13 +58,11 @@ def main():
     good=original+b'\nZenith kernel upgrade acceptance release 1\n'; (keep/'good.elf').write_bytes(good)
     good_id=hashlib.sha256(good).hexdigest(); run('kernel-seal','1.0.0',keep/'good.elf',keep/'keys/private.pem',served/'one.zpk')
     run('kernel-check',served/'one.zpk',keep/'keys/public.pem')
-    bad=bytearray(original); entry,table=struct.unpack_from('<QQ',bad,24); count=struct.unpack_from('<H',bad,56)[0]
-    for index in range(count):
-        kind,flags,offset,address,_,size=struct.unpack_from('<IIQQQQ',bad,table+index*56)
-        if kind==1 and flags&1 and address<=entry<address+size:
-            pos=offset+entry-address; bad[pos:pos+2]=b'\xeb\xfe'; break
-    else: raise RuntimeError('missing ELF executable entry')
-    (keep/'bad.elf').write_bytes(bad); run('kernel-seal','2.0.0',keep/'bad.elf',keep/'keys/private.pem',served/'bad.zpk')
+    # A real full-size healthy ELF is still delivered/activated above. The broken
+    # startup case needs only a valid signed ELF that executes its entry then loops.
+    failure.build(keep/'bad.elf')
+    run('kernel-seal','2.0.0',keep/'bad.elf',keep/'keys/private.pem',served/'bad.zpk')
+    run('kernel-check',served/'bad.zpk',keep/'keys/public.pem')
     tiny=bytearray(128);tiny[:7]=b'\x7fELF\x02\x01\x01';tiny[16]=2;tiny[18]=62;tiny[20]=1;tiny[52]=64;tiny[54]=56;tiny[56]=1
     struct.pack_into('<QQ',tiny,24,0x1000,64);struct.pack_into('<IIQQQQQ',tiny,64,1,1,120,0x1000,0,8,8)
     (keep/'tiny.elf').write_bytes(tiny);run('kernel-seal','1.0.0',keep/'tiny.elf',keep/'keys/private.pem',keep/'tiny.zpk')
@@ -154,6 +155,7 @@ def main():
         status('pkg kernel install /root/bad.zpk','K_BAD_STAGE');disk=shutdown()
         # This signed image has valid ELF bounds but loops at entry: no healthy Zenith startup.
         m=h.Machine(keep/'broken',disk,network=['-netdev','user,id=net0','-device','e1000e,netdev=net0'])
+        check(m.wait(failure.MARKER,timeout=180),'signed broken ELF entry actually executes')
         check(not m.wait('headless ready',timeout=20),'signed broken kernel cannot complete startup');m.stop()
         # Select the real second entry using firmware/bootloader keyboard input, not host file editing.
         selected=False
