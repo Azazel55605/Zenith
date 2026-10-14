@@ -28,6 +28,7 @@ public class Kernel : Sys.Kernel
         {
             bool hasDisplay = DesktopSessionHost.HasDisplay();
             SessionRuntime.DesktopAvailable = () => hasDisplay;
+            Zenith.Core.Multiprocessing.CpuWorkers.Initialize();
             SystemRuntime.Initialize();
             SessionRuntime.Start(SystemConfiguration.Settings.Current.DefaultSession,
                 mode => mode switch

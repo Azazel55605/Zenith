@@ -1,5 +1,44 @@
 # Implementation progress
 
+## 2026-10-14 · First isolated native CPU workers (opt-in, TCG verified)
+
+- Implemented x64 Limine MP discovery and `smp=native` activation for up to eight
+  legacy-APIC CPUs. Secondary CPUs own static 16 KiB stacks, native descriptors,
+  fault containment and bounded integer jobs. They never call managed code,
+  allocate/hold GC objects, touch drivers/UART or enter the existing ring-3 bridge.
+  Default boots remain BSP-only. Idle APs currently poll; this is experimental,
+  not a production managed scheduler or package/download speed improvement.
+- Root `cpu test [iterations]` uses a readiness barrier, computes independent
+  checksums on BSP/APs, verifies actual CPUID/APIC identity and reports TSC intervals.
+  Bounds are 1..10,000,000 iterations; startup/barrier/completion waits are bounded
+  and failure disables future jobs. `cpu status` separates detected/native/managed
+  CPU counts. Documented the runtime/GC, per-CPU context and IPI wakeup follow-ups
+  in MULTICORE and ROADMAP.
+- Zenith x64 UART output now uses a native bounded interrupt-masked BSP writer;
+  short log records cannot be split by scheduler/debug serial writers. A leading
+  newline separates records from unfinished upstream fragments. Long output is
+  chunked at 4096 characters with a finite UART polling budget; no AP writes UART.
+  ARM keeps the existing writer. This kernel-side fix needs a future release;
+  the already-pushed controller status recovery applies to immutable 0.0.8.
+  Recovery also supports exact-code markers and literal package-name suffixes;
+  seven focused status, 15 controller and 10 transcript tests pass.
+- Release build and 603/603 host tests pass. The new disposable CPU harness passes
+  42/42 under TCG: 1/2/4-CPU boots, repeated correct concurrent results on distinct
+  actual CPU IDs, invalid bounds, default-disabled four-CPU refusal, usable shell
+  and clean poweroff. Full serial/live/installed/panic regression passes 73/73.
+- Installed signed native executable acceptance passes with two CPUs/native APs
+  active: workers verified before and after protected memory/privilege faults and
+  watchdog termination; application CPU-state restoration, same-kernel upgrade,
+  credentials, manuals/fonts, desktop screenshot and independent clean ext2 audit
+  pass. No user VM disk, server or upstream checkout was changed. Local KVM is
+  unavailable; physical/nested-KVM and general managed SMP remain unverified.
+- Evidence: /tmp/zenith-cpu-build-final.log, /tmp/zenith-cpu-host.log,
+  /tmp/zenith-cpu-final.log and /tmp/zn-cpu-final (42),
+  /tmp/zenith-cpu-headless.log and /tmp/zn-cpu-headless (73),
+  /tmp/zenith-cpu-process.log and /tmp/zn-cpu-process.
+  CI now runs the CPU harness and protected native acceptance with active workers;
+  hosted results for this commit remain pending. Existing release tags are unchanged.
+
 ## 2026-10-14 · Recover lost acceptance statuses without replaying updates
 
 - Operator's retained 0.0.8 live transcript proves the first command ran and

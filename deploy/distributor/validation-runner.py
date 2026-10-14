@@ -53,10 +53,10 @@ def run_harness(script):
 
 
 def main():
-    if len(sys.argv) != 3: raise SystemExit("usage: validation-runner.py HARNESS KEEP")
+    if len(sys.argv) < 3: raise SystemExit("usage: validation-runner.py HARNESS KEEP [HARNESS_ARGS...]")
     script = Path(sys.argv[1]).resolve(); keep = sys.argv[2]
     sys.path.insert(0, str(script.parent))
-    sys.argv = [str(script), keep]
+    sys.argv = [str(script), keep, *sys.argv[3:]]
     shutil.copyfile = copyfile
     try: run_harness(script)
     finally: shutil.copyfile = original_copyfile

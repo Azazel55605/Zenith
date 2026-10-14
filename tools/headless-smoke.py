@@ -16,7 +16,8 @@ spec = importlib.util.spec_from_file_location("efi", ROOT / "tools/test-installe
 efi = importlib.util.module_from_spec(spec); spec.loader.exec_module(efi)
 
 class Machine:
-    def __init__(self, directory, disk=None, argument=None, network=None, extra_disks=(), monitor=None, vga="none", verify=True):
+    def __init__(self, directory, disk=None, argument=None, network=None, extra_disks=(), monitor=None, vga="none", verify=True, cpus=1, iso=None):
+        if not isinstance(cpus, int) or not 1 <= cpus <= 8: raise ValueError("test CPU count must be 1..8")
         directory.mkdir(parents=True, exist_ok=True)
         self.directory = directory
         self.disk = directory / "disk.img"
@@ -31,7 +32,7 @@ class Machine:
         else:
             with self.disk.open("wb") as file: file.truncate(256 * 1024 * 1024)
         args = [os.environ.get("QEMU", "qemu-system-x86_64"), "-M", "q35", "-m", "512M",
-                "-accel", "kvm", "-accel", "tcg", "-cpu", "max", "-display", "none", "-vga", vga, "-no-reboot",
+                "-accel", "kvm", "-accel", "tcg", "-cpu", "max", "-smp", str(cpus), "-display", "none", "-vga", vga, "-no-reboot",
                 "-chardev", f"socket,id=console,path={directory / 'serial.sock'},server=on,wait=off", "-serial", "chardev:console",
                 "-monitor", "unix:" + str(monitor) + ",server,nowait" if monitor else "none", "-drive", f"file={self.disk},format=raw,if=none,id=disk0", "-device", "ide-hd,drive=disk0,bus=ide.0,unit=0"]
         for index, image in enumerate(extra_disks):
@@ -42,7 +43,7 @@ class Machine:
         if disk:
             code, variables = efi.firmware(); private = directory / "OVMF_VARS.fd"; shutil.copyfile(variables, private)
             args += ["-drive", f"if=pflash,format=raw,readonly=on,file={code}", "-drive", f"if=pflash,format=raw,file={private}"]
-        else: args += ["-cdrom", str(ROOT / "output-x64/Zenith.iso"), "-boot", "order=d"]
+        else: args += ["-cdrom", str(iso or ROOT / "output-x64/Zenith.iso"), "-boot", "order=d"]
         self.process = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=(directory / "qemu.log").open("wb"))
         self.socket = socket.socket(socket.AF_UNIX)
         for _ in range(200):

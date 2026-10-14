@@ -51,6 +51,13 @@ class StatusTests(unittest.TestCase):
         self.assertTrue(m.wait('some other marker',4,23))
         self.assertEqual(('some other marker',4,23),m.waited[-1])
 
+    def test_exact_expected_status_recovers_without_fabricating_value(self):
+        m=self.machine([False,True]);m.send('false; echo EXACT=$? | logger\r')
+        self.assertTrue(m.wait('user: EXACT=1',4,600))
+        self.assertEqual(('user: EXACT=1',4,30),m.waited[1])
+        self.assertTrue(m.sent[1].startswith('cat /tmp/validation-status-'))
+        self.assertNotIn('EXACT=1',m.sent[1])
+
     def test_dead_guest_does_not_read_back(self):
         m=self.machine([False]);m.send('false; echo DEAD=$? | logger\r');m.poll=lambda:1
         self.assertFalse(m.wait('user: DEAD=',4,600));self.assertEqual(1,len(m.sent))

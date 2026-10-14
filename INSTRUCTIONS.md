@@ -44,6 +44,11 @@ guidance here so the two entry points stay consistent.
   See docs/NATIVE-PROGRAMS.md for foreground ABI limits; preserve fault/NX/W^X,
   credentials and same-kernel executable-upgrade acceptance. Compiled base/net/fs
   and GUI migration still need additional controlled APIs.
+- Opt-in x64 `smp=native` starts isolated native integer workers (docs/MULTICORE.md).
+  Managed scheduling/GC, drivers and the foreground process bridge stay on the BSP.
+  APs own static stacks/tables, never managed objects or UART, and currently poll
+  when idle. Preserve default-disabled boots and 1/2/4-CPU acceptance; do not enable
+  managed AP execution before per-CPU context and GC synchronization are implemented.
 - `src/Core` holds system behavior; `src/Gui` rendering and window management;
   `src/Apps` desktop windows. Keep UI concerns out of the core layer.
 - M3 has a primary IPv4 service and diagnostic/NTP/HTTP/verified HTTPS commands; see

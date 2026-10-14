@@ -4,6 +4,8 @@ import functools,hashlib,http.server,importlib.util,subprocess,sys,threading,sec
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'tools'))
 spec=importlib.util.spec_from_file_location('h',ROOT/'tools/headless-smoke.py');h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
+cpu_workers='--cpu-workers' in sys.argv[2:]
+if any(arg!='--cpu-workers' for arg in sys.argv[2:]): raise SystemExit('usage: native-process-smoke.py KEEP [--cpu-workers]')
 keep=Path(sys.argv[1]);keep.mkdir(parents=True,exist_ok=True)
 tool=ROOT/'tools/Zenith.PackageTool/bin/Release/net10.0/Zenith.PackageTool.dll'
 def run(*args):subprocess.run(['dotnet',str(tool),*map(str,args)],check=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
@@ -26,7 +28,7 @@ url='http://10.0.2.2:'+str(server.server_port);m=None
 net=['-netdev','user,id=net0','-device','e1000e,netdev=net0']
 def boot(name,disk=None):
     global m
-    m=h.Machine(keep/name,disk,network=net)
+    m=h.Machine(keep/name,disk,argument='smp=native' if disk and cpu_workers else None,network=net,cpus=2 if cpu_workers else 1)
     assert m.wait('headless ready',timeout=180),'boot '+name
     assert m.wait('network: online address=10.0.2.15',timeout=60),'DHCP '+name
     print('PASS boot '+name,flush=True)
@@ -37,6 +39,7 @@ def status(text,marker,code=0):command(text+'; echo '+marker+'=$? | logger','use
 try:
     boot('live');status('session set-default headless','N_SESSION');status('install sata0 --yes','N_INSTALL');command('poweroff','all filesystems unmounted');m.process.wait(timeout=30);disk=m.disk;m.stop()
     boot('installed',disk)
+    if cpu_workers: status('cpu test 10000000 | logger','N_CPUS_START')
     status('fetch '+url+'/key.pem /root/key.pem','N_KEY');status('pkg trust /root/key.pem '+hashlib.sha256(key).hexdigest(),'N_TRUST')
     status('fetch '+url+'/sunbeam.zpk /root/sunbeam.zpk','N_FETCH');status('pkg install /root/sunbeam.zpk','N_PACKAGE')
     for name in ('zenith-fonts','zenith-man-pages'):
@@ -62,6 +65,7 @@ try:
     status('native run sunbeam --privileged','N_PRIV',139)
     status('native run sunbeam --loop','N_TIMEOUT',124)
     status('native run sunbeam echo after-timeout','N_AFTER_TIMEOUT')
+    if cpu_workers: status('cpu test 10000000 | logger','N_CPUS_AFTER_FAULTS')
     status('fetch '+url+'/sunbeam-2.zpk /root/sunbeam-2.zpk','N_FETCH_UPGRADE')
     status('pkg install /root/sunbeam-2.zpk','N_UPGRADE')
     command('native run sunbeam | logger','user: Sunbeam native tools 0.1.1')
@@ -91,7 +95,7 @@ try:
     (keep/'e2fsck.log').write_bytes(audit.stdout+audit.stderr);assert audit.returncode==0,'ext2 audit'
     clean_disk=m.disk;m.stop()
     monitor=keep/'gui-monitor.sock'
-    m=h.Machine(keep/'desktop',clean_disk,'session=de',network=net+['-device','virtio-gpu-pci'],monitor=monitor,vga='none')
+    m=h.Machine(keep/'desktop',clean_disk,'session=de smp=native' if cpu_workers else 'session=de',network=net+['-device','virtio-gpu-pci'],monitor=monitor,vga='none',cpus=2 if cpu_workers else 1)
     for font in ('Inter-Regular.ttf','Inter-SemiBold.ttf','Hack-Regular.ttf'):
         assert m.wait('fonts: loaded packaged '+font,timeout=180),'packaged font '+font
     assert m.wait('desktop ready (installed)',timeout=180),'desktop uses installed fonts'

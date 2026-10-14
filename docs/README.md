@@ -12,6 +12,9 @@ This is the project documentation entry point. Status reviewed on **2026-10-11**
 against the current repository. Current S0/S1/P0/P1 and M3 behavior is documented separately
 from the future session/update plans. Milestone version labels are targets, not release dates.
 
+[Multicore foundation](MULTICORE.md): opt-in native CPU workers, validation and
+remaining managed scheduler/GC milestones.
+
 ## Reading paths
 
 | You want to understand… | Start here |

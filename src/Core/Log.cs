@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Zenith.Core;
 
@@ -24,10 +25,27 @@ internal static class Log
     private static extern void SerialWriteString(
         [UnsafeAccessorType("Cosmos.Kernel.Core.IO.Serial, Cosmos.Kernel.Core")] object? serial, string text);
 
+    [DllImport("*", EntryPoint = "zenith_serial_write")]
+    [SuppressGCTransition]
+    private static extern unsafe int SerialWrite(char* text, int length);
+
+    private static unsafe void Transmit(string text)
+    {
+        if (RuntimeInformation.ProcessArchitecture != Architecture.X64)
+        { SerialWriteString(null, text); return; }
+        // AP workers never write UART. Keep the BSP critical section bounded;
+        // long output yields interrupt opportunities between chunks.
+        fixed (char* pointer = text)
+        {
+            for (int offset = 0; offset < text.Length; offset += 4096)
+            { SerialWrite(pointer + offset, Math.Min(4096, text.Length - offset)); }
+        }
+    }
+
     /// <summary>Console output shares the UART lock but never enters persistent logs.</summary>
     public static void WriteSerial(string text)
     {
-        lock (s_lock) { SerialWriteString(null, text); }
+        lock (s_lock) { Transmit(text); }
     }
 
     /// <summary>A snapshot of the ring buffer.</summary>
@@ -56,7 +74,7 @@ internal static class Log
             }
 
             s_lines.Enqueue(line);
-            SerialWriteString(null, "[zenith] " + line + "\n");
+            Transmit("\n[zenith] " + line + "\n");
 
             if (s_file is not null)
             {

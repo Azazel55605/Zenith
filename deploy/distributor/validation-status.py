@@ -3,7 +3,7 @@ import re
 import secrets
 import time
 
-STATUS = re.compile(r'(.+); echo ([A-Z][A-Z0-9_]{0,63})=\$\? \| logger\r', re.DOTALL)
+STATUS = re.compile(r'(.+); echo ([A-Z][A-Za-z0-9_-]{0,63})=\$\? \| logger\r', re.DOTALL)
 
 
 def install(machine_type):
@@ -25,7 +25,9 @@ def install(machine_type):
 
     def wait(machine, marker, offset=0, timeout=180):
         record = getattr(machine, '_validation_status', None)
-        if not record or marker != 'user: ' + record[0] + '=' or offset > record[2]:
+        prefix = 'user: ' + record[0] + '=' if record else ''
+        status_marker = marker == prefix or (bool(prefix) and marker.startswith(prefix) and marker[len(prefix):].isdigit())
+        if not record or not status_marker or offset > record[2]:
             return original_wait(machine, marker, offset, timeout)
         deadline = time.monotonic() + timeout
         if original_wait(machine, marker, offset, min(timeout, 30)):

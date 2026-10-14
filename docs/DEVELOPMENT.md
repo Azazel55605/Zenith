@@ -407,3 +407,12 @@ keys/disks, tests protected code and app upgrade without kernel replacement, ins
 full manuals/fonts, audits the clean main ext2 disk, and renders a disposable virtio
 GUI clone. It explicitly stops the GUI clone after capture; that clone is not a
 clean-poweroff audit. Never use a production VM image for these tests.
+
+## Experimental CPU workers
+
+See [MULTICORE](MULTICORE.md) before adding virtual CPUs or enabling `smp=native`.
+After the Release build, run `python3 -B tools/native-cpu-smoke.py /tmp/zn-cpu`
+and `python3 -B deploy/distributor/validation-runner.py tools/native-process-smoke.py /tmp/zn-native --cpu-workers`.
+These use disposable ISO/disk clones and never modify an installed VM. Idle native
+APs currently poll; managed runtime/GC work stays on the BSP. CI covers the 1/2/4
+CPU worker boundary and native application containment with workers enabled.

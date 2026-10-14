@@ -83,9 +83,10 @@ class ValidationTests(unittest.TestCase):
         harness = self.root / 'harness.py'
         harness.write_text("import fixture_helper, shutil, sys\nfrom pathlib import Path\n"
                            "assert fixture_helper.VALUE == 7\n"
+                           "assert sys.argv[2:] == ['--fixture-argument']\n"
                            "shutil.copyfile(Path(__file__).parent / 'source.img', Path(sys.argv[1]))\n")
         subprocess.run([sys.executable, '-B', str(ROOT / 'deploy/distributor/validation-runner.py'),
-                        str(harness), str(self.destination)], check=True)
+                        str(harness), str(self.destination), '--fixture-argument'], check=True)
         self.assertEqual(self.source.read_bytes(), self.destination.read_bytes())
         self.assertLess(self.destination.stat().st_blocks * 512, self.destination.stat().st_size // 4)
 

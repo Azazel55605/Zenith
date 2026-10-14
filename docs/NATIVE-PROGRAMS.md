@@ -97,3 +97,6 @@ Acceptance deliberately tests kernel-address writes, privileged CLI, write-to-co
 execute-from-data, invalid output pointers and infinite loops, then uses the shell
 again. It upgrades the signed executable under the same kernel, checks ordinary
 user identity, verifies the package DB and independently audits the ext2 volume.
+
+The [multicore foundation](MULTICORE.md) adds opt-in kernel-owned integer workers
+without scheduling this foreground process bridge on secondary CPUs.

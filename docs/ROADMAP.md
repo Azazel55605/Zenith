@@ -212,6 +212,7 @@ remains optional rather than an assumed final desktop runtime.
 |---|---|---|
 | Kernel/userland ABI and loader design | XL | Initial static x64 ELF ABI 1/ring 3 foreground bridge implemented; general syscall/runtime interfaces remain |
 | Process isolation/lifecycle and credentials | XL | Initial private pages/args/identity/exit/fault/budget proof implemented; descriptors, env/cwd, scheduling/wait/signals remain |
+| Multicore execution and scheduling | XL | Opt-in isolated native AP workers implemented; idle wakeups, per-CPU scheduler state and managed allocation/GC barriers remain; [scope](MULTICORE.md) |
 | IPC, byte pipes and terminal contract | L | Versioned controlled APIs; Bash dependencies in [assessment](BASH-PORT.md) |
 | First independent text and graphical apps | L | Sunbeam text executable independently packaged/updated; graphical API and client remain |
 | Desktop/compositor/DE/WM migration | XL | Separate packages/processes behind shared graphics/toolkit protocols |
