@@ -1,5 +1,21 @@
 # Implementation progress
 
+## 2026-10-14 · Hosted release and installed package acceptance (operator confirmed)
+
+- Operator confirms the kernel build completed after the accelerator comparison
+  and TCG service selection. They installed the kernel update and report the
+  other packages built and installed successfully too. This closes the reported
+  server-build/install failure; exact full-release runtime was not supplied.
+  Explicit boot-confirm output and individual application exercise were not
+  supplied, so do not infer those from package installation alone.
+- Next recommended slice is M5's usable native file-tool boundary: first a
+  resumable syscall/trap bridge with controlled BSP-side service execution, then
+  bounded descriptors/read-only file access/directory listing under invoking
+  credentials. Package native `cat`/`ls` through Sunbeam and verify same-kernel
+  executable upgrades. General process scheduling, write APIs, terminal control,
+  managed SMP and desktop migration remain later gates. This is a proposal until
+  the user selects the next implementation; no such APIs are claimed implemented.
+
 ## 2026-10-14 · Server accelerator comparison (operator verified)
 
 - Operator completed the same disposable FAT32 workload with the retained 0.0.10

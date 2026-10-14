@@ -10,7 +10,7 @@ choices. See [SYSTEM-PLAN](SYSTEM-PLAN.md) for detailed acceptance and
 **Sizes:** S = a day or two · M = about a week · L = several weeks · XL = months.
 **↑ upstream** = a change to Cosmos itself (its HAL is internal; see "Upstream work" below).
 
-## Where we are (reviewed 2026-10-11)
+## Where we are (reviewed 2026-10-14)
 
 M0/M1/M2 are complete within their documented scope. Supported bounded ext2,
 installed accounts/authentication and filesystem permission enforcement are verified.
@@ -28,13 +28,19 @@ credentials and enforced owner/group/other access; see [ACCOUNTS](ACCOUNTS.md).
 The CLI installer supplies its own boot files; installed entries use exact root UUIDs
 and versioned kernels. Sunrise and serial account setup are implemented; signed kernel
 activation/confirmation/undo are implemented; native acceptance is tracked in PROGRESS.
+Signed online core/extra catalogs, named installs/upgrades and unified `pkg update`
+are implemented. The home distributor builds/signs/publishes package-specific tags;
+the operator confirms kernel and independent package installs. Static protected x64
+Sunbeam execution begins M5; experimental native CPU workers do not enable managed
+multicore scheduling. See [NATIVE-PROGRAMS](NATIVE-PROGRAMS.md) and
+[MULTICORE](MULTICORE.md) for their current boundaries.
 
-**Latest local installation validation:** 532 host tests, 38 guided GUI and 47 guided
+**Historical installation validation (2026-10-11):** 532 host tests, 38 guided GUI and 47 guided
 serial checks, 135 desktop/filesystem checks, 10 disk-only desktop UEFI checks and
 71 signed-package checks under TCG (KVM installed-boot failures recorded in PROGRESS).
 Prior foundation acceptance includes 28 install/reboot/rescue checks, two duplicate-root
 refusal checks. See PROGRESS for
-exact evidence and environment limits. Hosted CI awaits push.
+exact evidence and environment limits; these counts are not the latest release totals.
 
 **Historical M2 validation:** 414 host tests, eight Python tests, Release publish,
 135 filesystem/installed-root assertions at 512 MiB with the large workload,
@@ -44,14 +50,14 @@ host e2fsck is clean after account updates. Hosted CI rerun awaits push; see PRO
 | Current gap | Consequence |
 |---|---|
 | Buffered pipelines; no raw terminal mode | Unbounded producers do not terminate through a later head; no general full-screen TUIs |
-| Kernel-linked apps/commands; no process loader/isolation | New compiled apps require a kernel build; no general jobs/ps/kill |
-| Trusted in-kernel apps and no process isolation | Credential/access checks cannot contain arbitrary kernel code |
-| Bounded ext2, no journal/guest repair | Unsupported layouts refused; crash-dirty volumes need host e2fsck |
+| Most apps/commands kernel-linked; native foreground loader has only output/exit/identity | File/network APIs and general jobs/ps/kill are still needed for wider unbundling |
+| Existing in-kernel apps remain trusted | Native Sunbeam faults are contained; in-kernel app code is not isolated |
+| Bounded ext2, no journal/guest repair | Dirty supported roots receive a read-only consistency check; inconsistent volumes need host repair |
 | Deferred unlink in Cosmos VFS | Namespace remains until final open handle closes |
 | Simple Files and no Settings app | Files remains a test client; settings use commands |
 | Temporary DE and x64 serial headless; WM unavailable | Independent userland, automatic tiling, proper Settings and Files remain future work |
-| Offline signed scripts/data only | Compiled apps remain bundled; signed online indexes and boot generations remain planned |
-| Early Cosmos boot fault observed under nested KVM | Harness retries the classified pre-Zenith fault; other failures stay failures |
+| Initial protected native package only; most compiled tools remain bundled | Extend controlled syscall/runtime APIs before migrating file/network/desktop tools |
+| Nested-KVM validation is slower on the home distributor | Measured TCG policy selected for that server; acceptance and durability checks stay enabled |
 
 ## Agreed product direction
 
