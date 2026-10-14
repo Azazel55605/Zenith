@@ -9,6 +9,10 @@ internal sealed class HeadlessSessionHost : ISessionHost
 {
     private SerialTerminal _terminal = null!;
     private int _generation;
+    public bool CanStop => !_terminal.Busy;
+    public string? StopBlocker(CommandShell? requester) => _terminal.Busy && !ReferenceEquals(requester, _terminal.Shell) ? "A command is still running." : null;
+    public void Stop() { }
+    public void BeginStop() => _terminal.CloseInput();
     public void Start()
     {
         _terminal = new SerialTerminal(output =>
@@ -22,7 +26,7 @@ internal sealed class HeadlessSessionHost : ISessionHost
             shell.Set("TERM", "vt100"); shell.Set("COLUMNS", "80");
             // These bootstrap messages contain no secrets and fit the bounded startup output.
             if (Accounts.Error is string error) { output.Write("Accounts unavailable: " + error + "\n"); }
-            else if (Accounts.Service is not null && !Accounts.Service.RootConfigured)
+            else if (Accounts.Service is not null && !Accounts.Service.HasPasswords)
             { output.Write("Initial root setup: passwd root, passwd user, then login user.\n"); }
             else if (Accounts.Session.Uid == 65534) { output.Write("Use login USER to authenticate.\n"); }
             return shell;

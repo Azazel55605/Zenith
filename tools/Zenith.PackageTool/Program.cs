@@ -5,9 +5,10 @@ using Zenith.Core.Processes;
 try
 {
     int? signedResult = SignedCommands.Run(args); if (signedResult.HasValue) { return signedResult.Value; }
-    if ((args.Length == 5 || (args.Length == 7 && args[5] == "--repo" && (args[6] is "core" or "extra"))) && args[0] is "build" or "build-native")
+    if ((args.Length == 5 || (args.Length == 7 && args[5] == "--repo" && (args[6] is "core" or "extra"))) && args[0] is "build" or "build-native" or "build-meta")
     {
         bool native = args[0] == "build-native";
+        bool meta = args[0] == "build-meta";
         string name = args[1], version = args[2], source = Path.GetFullPath(args[3]), output = Path.GetFullPath(args[4]);
         if (!PackageManifest.ValidName(name) || !Directory.Exists(source) || Directory.Exists(output) || File.Exists(output))
         { throw new IOException("invalid package/source or output already exists"); }
@@ -15,8 +16,9 @@ try
         { throw new IOException("output must be outside the payload source"); }
         RealParents(source); RealParents(output);
         RejectLinks(source);
-        var files = new List<string>(); int visited = 0; Walk(source, files, ref visited);
-        if (files.Count == 0) { throw new IOException("empty package"); }
+        var files = new List<string>(); int visited = 0;
+        if (!meta) { Walk(source, files, ref visited); }
+        if (!meta && files.Count == 0) { throw new IOException("empty package"); }
         files.Sort(StringComparer.Ordinal);
         string temporary = output + ".staging-" + Guid.NewGuid().ToString("N");
         try
@@ -25,6 +27,16 @@ try
             var manifest = new StringBuilder("ZENITH-PACKAGE\t1\nname\t" + name + "\nversion\t" + version
                 + "\narchitecture\t" + (native ? "x86_64" : "any") + "\nkind\tdata\nruntime\t" + PackageManifest.Runtime + "\nrequires\tzenith-base\t0.1\n");
             if (native) { manifest.Append("requires\tzenith-native-abi\t1.0\n"); }
+            if (meta)
+            {
+                manifest.Replace("ZENITH-PACKAGE\t1\n", "ZENITH-PACKAGE\t3\nrepository\t" + (args.Length == 7 ? args[6] : "extra") + "\n");
+                manifest.Replace("kind\tdata", "kind\tmeta");
+                manifest.Append("requires\tzenith-package-meta-abi\t1.0\n");
+                string requirements = Encoding.UTF8.GetString(ReadBounded(Path.Combine(source, "requires.tsv"), 4096));
+                if (!requirements.EndsWith('\n') || requirements.Split('\n').Any(line => line.Length > 0 && !line.StartsWith("requires\t", StringComparison.Ordinal)))
+                { throw new IOException("meta definition requires only newline-terminated dependency records"); }
+                manifest.Append(requirements);
+            }
             int total = 0, executables = 0;
             foreach (string file in files)
             {

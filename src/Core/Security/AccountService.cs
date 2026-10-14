@@ -18,6 +18,17 @@ internal sealed class AccountService
     public AccountService(IAccountStore store, IEntropySource entropy) { _store = store; _entropy = entropy; }
     private AccountDatabase Load() => new(_store.Read("passwd"), _store.Read("group"), _store.Read("shadow"));
     public bool RootConfigured { get { lock (_gate) { return Load().Find("root")!.Password != "!"; } } }
+    public bool HasPasswords
+    {
+        get
+        {
+            lock (_gate)
+            {
+                foreach (var user in Load().Users) { if (user.Password != "!" && user.Password != "*") { return true; } }
+                return false;
+            }
+        }
+    }
     public UserAccount? Find(string name) { lock (_gate) { return Load().Find(name); } }
     public string Name(uint uid)
     {

@@ -1,8 +1,18 @@
 # Zenith project history
 
-History through Debian distributor kit preparation (2026-10-12). This is a narrative and change map, not a claim
+History includes the login/session implementation (2026-10-14). This is a narrative and change map, not a claim
 that every planned feature shipped. Exact commits are available through `git log`;
 [PROGRESS](PROGRESS.md) contains detailed M2 validation, failures and corrections.
+
+## 2026-10-14: installed login, local console and styling packages
+
+The 0.0.11 source implements graphical authentication and safe Desktop/local text
+Headless switching, preserving serial recovery. Separately signed branding, theme
+and font resources reload at login; true dependency-only metapackages group them.
+Compatible legacy and extended catalogs permit kernel migration before adopting
+new manifests. Native installed authentication, session, appearance, repository and
+protected executable checks pass locally; server publication and operator testing
+remain separate. See [LOGIN-SESSIONS](LOGIN-SESSIONS.md) and the dated progress log.
 
 ## 2026-10-12: real VM kernel update and Debian distributor preparation
 

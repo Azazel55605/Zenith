@@ -74,6 +74,8 @@ internal sealed class HttpDownload
     private void ParseHeaders()
     {
         string[] lines = Encoding.ASCII.GetString(_header, 0, _headerLength - 4).Split("\r\n");
+        if (lines[0].StartsWith("HTTP/1.0 404 ", StringComparison.Ordinal) || lines[0].StartsWith("HTTP/1.1 404 ", StringComparison.Ordinal))
+        { throw new IOException("HTTP status 404"); }
         if (!(lines[0].StartsWith("HTTP/1.0 200 ", StringComparison.Ordinal) || lines[0].StartsWith("HTTP/1.1 200 ", StringComparison.Ordinal)))
         { throw new IOException("HTTP requires status 200; redirects and error responses are rejected"); }
         int length = -1;

@@ -23,6 +23,7 @@ import urllib.request
 REPO = Path(__file__).resolve().parents[2]
 CONFIG = Path.home() / ".config/zenith/distributor.json"
 TOOL = REPO / "tools/Zenith.PackageTool/bin/Release/net10.0/Zenith.PackageTool.dll"
+INDEX_TOOL = TOOL  # Current controller reader handles newer published manifests, including when rebuilding an old tag.
 spec = importlib.util.spec_from_file_location("publisher", REPO / "tools/publish-package.py")
 publisher = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(publisher)
@@ -236,6 +237,7 @@ def native_checks(work):
         checks = [("k", "kernel-update-smoke.py"), ("r", "repository-smoke.py")]
         # Older immutable kernel tags predate this ABI and its harness.
         if (REPO / "tools/native-process-smoke.py").exists(): checks.append(("u", "native-process-smoke.py"))
+        if (REPO / "tools/login-session-smoke.py").exists(): checks.append(("s", "login-session-smoke.py"))
         for name, script in checks:
             phase("Native " + script, [sys.executable, "-B", str(Path(__file__).parent / "validation-runner.py"), str(REPO / "tools" / script),
                   str(directory / name)], work / (script + ".log"))
@@ -293,7 +295,7 @@ def verify(config, release, name="zenith-kernel", repository="core", kind="kerne
     print("Verified delivery and package signature: " + str(total) + " bytes; SHA256=" + expected)
 
 
-def data(config, name, release, source, repository, native=False):
+def data(config, name, release, source, repository, native=False, meta=False, requires=()):
     package_name(name)
     keys, root, _ = paths(config, signing=True)
     available(root, release, name, repository)
@@ -303,8 +305,16 @@ def data(config, name, release, source, repository, native=False):
     lock, work = locked_work(config)
     with lock:
         phase("Package tool", ["dotnet", "build", "tools/Zenith.PackageTool", "-c", "Release", "--nologo"], work / "package-tool.log")
-        phase("Build data", ["dotnet", str(TOOL), "build-native" if native else "build", name, release, str(source), str(work / "bundle"),
+        phase("Build data", ["dotnet", str(TOOL), "build-meta" if meta else "build-native" if native else "build", name, release, str(source), str(work / "bundle"),
                             "--repo", repository], work / "data.log")
+        if requires:
+            manifest = work / "bundle/manifest.tsv"
+            text = manifest.read_text()
+            for dependency, constraint in requires:
+                if not re.fullmatch(r"[a-z][a-z0-9-]{0,63}", dependency) or not re.fullmatch(r"[0-9.,<>=]+", constraint):
+                    raise ValueError("invalid recipe dependency")
+                text += "requires\t" + dependency + "\t" + constraint + "\n"
+            manifest.write_text(text)
         clean()
         if source_commit() != commit: raise ValueError("source commit changed before signing; refused")
         phase("Sign data", ["dotnet", str(TOOL), "seal", str(work / "bundle"), str(keys / "private.pem"),
@@ -325,18 +335,21 @@ def indexes(config, work=None):
             indexes(config, directory)
         return
     now = int(time.time())
+    index_tool = INDEX_TOOL
+    if index_tool != TOOL:
+        phase("Index tool", ["dotnet", "build", str(index_tool.parents[3] / "Zenith.PackageTool.csproj"), "-c", "Release", "--nologo"], work / "index-tool.log")
     for repository in ("core", "extra"):
         destination = root / repository / "index.zri"
         generation = 1
         if destination.exists() or destination.is_symlink():
             publisher.real_path(destination)
-            result = subprocess.run(["dotnet", str(TOOL), "index-check", str(destination), str(public), repository],
+            result = subprocess.run(["dotnet", str(index_tool), "index-check", str(destination), str(public), repository],
                                     capture_output=True, text=True, check=True, timeout=180)
             match = re.fullmatch(r"verified " + repository + r" generation=(\d+) issued=\d+ expires=\d+\n?", result.stdout)
             if match is None: raise ValueError("unexpected signed index identity")
             generation = int(match[1]) + 1
         archive = work / (repository + ".zri")
-        phase("Index " + repository, ["dotnet", str(TOOL), "index-seal", repository, str(generation), str(now),
+        phase("Index " + repository, ["dotnet", str(index_tool), "index-seal", repository, str(generation), str(now),
                                      str(now + 7 * 86400), str(root), str(keys / "private.pem"), str(archive)], work / (repository + "-index.log"))
         clean()
         if source_commit() != commit: raise ValueError("source changed while signing index; activation refused")
@@ -353,6 +366,20 @@ def indexes(config, work=None):
         finally:
             if os.path.exists(temporary): os.unlink(temporary)
         print("Published signed " + repository + " index generation=" + str(generation) + " (7-day validity)", flush=True)
+        extended = work / (repository + "-v3.zri")
+        phase("Index " + repository + " extended", ["dotnet", str(index_tool), "index-seal-v3", repository, str(generation), str(now),
+              str(now + 7 * 86400), str(root), str(keys / "private.pem"), str(extended)], work / (repository + "-index-v3.log"))
+        clean()
+        if source_commit() != commit: raise ValueError("source changed while signing extended index")
+        descriptor, temporary = tempfile.mkstemp(prefix=".index-v3-", dir=root.parent)
+        try:
+            with os.fdopen(descriptor, "wb") as output:
+                output.write(extended.read_bytes()); output.flush(); os.fsync(output.fileno())
+            os.chmod(temporary, 0o644); os.replace(temporary, directory / "index-v3.zri")
+            publisher.sync_directory(directory)
+        finally:
+            if os.path.exists(temporary): os.unlink(temporary)
+        print("Published signed " + repository + " extended index generation=" + str(generation), flush=True)
 
 
 def main():

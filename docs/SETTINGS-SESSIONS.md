@@ -4,6 +4,13 @@ S0 system-settings/session seam and S1 x64 serial headless, 2026-10-11. The curr
 floating desktop remains the test DE. Tiling WM, user preferences and a graphical
 Settings app are later slices; `session list` reports availability on this boot.
 
+0.0.11 adds [graphical login, local text Headless and logout/session selection](LOGIN-SESSIONS.md).
+Configured installed accounts start at login; Ctrl+Alt+T opens Terminal and
+Ctrl+Alt+L requests logout. `session switch de|headless` ends the old session and
+selects the next login after busy/unsaved-work checks. With a display, Headless
+uses a local text console; without one, COM1 remains recovery. The boot-only
+boundary described below is historical; current lifecycle details are in that guide.
+
 ## Current operations
 
 ```sh
@@ -60,8 +67,9 @@ saved default. Malformed/duplicate arguments use the saved default and log a
 diagnostic. A requested host absent from the build falls back to DE with a clear
 message. If DE also lacks a supported display, it falls back to x64 COM1 headless.
 Saving an unavailable mode through the CLI is refused. The test DE and x64 headless
-are available; WM remains planned. No active session switching is implemented. The
-model separates session choice from live/installed storage.
+are available; WM remains planned. Since 0.0.11, `session switch de|headless`
+returns to login after safe teardown checks. The model separates session choice
+from live/installed storage.
 
 `Kernel.OnBoot` skips Cosmos's graphical KernelConsole setup; upstream HAL/managers
 are initialized earlier. Display capability checks inspect the Limine framebuffer
@@ -77,7 +85,9 @@ Boot with `session=headless`, or save `session set-default headless` as root. Th
 initial serial console targets x64 COM1 at 115200 baud, 8N1, using the UART already
 initialized by Cosmos. Receive is polled by the timer-woken main loop, at most 64
 bytes per tick. ARM64 receive remains unavailable; its transport must be implemented
-and tested before the mode is advertised there. There is no SSH or local text console.
+and tested before the mode is advertised there. With a supported display, 0.0.11
+uses a local text console instead; this section describes the no-GPU serial fallback.
+SSH remains unavailable.
 
 To try a live console without a GPU (add your normal disposable disk options to
 exercise installation):

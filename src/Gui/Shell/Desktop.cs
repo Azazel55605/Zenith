@@ -39,6 +39,7 @@ internal sealed class Desktop
     public Desktop(Canvas screen)
     {
         _screen = screen;
+        _generation = Accounts.Generation;
         int w = screen.Width, h = screen.Height;
 
         _wallpaper = new Surface(w, h);
@@ -85,6 +86,7 @@ internal sealed class Desktop
     {
         if (_generation != Accounts.Generation)
         {
+            foreach (var window in Windows.Windows) { if (window is TerminalWindow terminal && terminal.IsBusy) { return; } }
             _generation = Accounts.Generation;
             foreach (var window in Windows.Windows) { window.EndSession(); }
             Zenith.Gui.Clipboard.Text = string.Empty;
@@ -150,6 +152,14 @@ internal sealed class Desktop
 
     private void HandleInput()
     {
+        foreach (KeyEvent key in _input.Keys)
+        {
+            if ((key.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) == (ConsoleModifiers.Control | ConsoleModifiers.Alt))
+            {
+                if (key.Key == ConsoleKeyEx.T) { OpenApp("Terminal", null); return; }
+                if (key.Key == ConsoleKeyEx.L) { Zenith.Core.Sessions.SessionRuntime.RequestLogout(); return; }
+            }
+        }
         bool menuWasOpen = _launcher.IsOpen;
         if (menuWasOpen)
         {
@@ -195,6 +205,11 @@ internal sealed class Desktop
 
         _taskbar.LauncherOpen = _launcher.IsOpen;
         _taskbar.Draw(_scene, _input.X, _input.Y);
+        if (Zenith.Core.Sessions.SessionRuntime.Message is string message)
+        {
+            _scene.FillRoundRect(new Rect(12, 12, Math.Min(WidthForMessage(), _scene.Width - 24), 40), 6, Theme.Panel);
+            _scene.DrawText(message, Fonts.Regular, 13, Theme.TextPrimary, 24, 24);
+        }
         if (_launcher.IsOpen)
         {
             _launcher.Draw(_scene, _input.X, _input.Y);
@@ -202,6 +217,7 @@ internal sealed class Desktop
 
         FrameStats.RecordCompose(start);
     }
+    private int WidthForMessage() => 520;
 
     private void DrawCursor()
     {

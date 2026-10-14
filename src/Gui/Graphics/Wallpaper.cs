@@ -15,6 +15,7 @@ internal static class Wallpaper
         float g2x = w * 0.88f, g2y = h * 0.85f, g2r = MathF.Max(w, h) * 0.50f;
 
         int[] pixels = target.Pixels;
+        uint background = Theme.WindowBackground, accent = Theme.Accent;
         for (int y = 0; y < h; y++)
         {
             for (int x = 0; x < w; x++)
@@ -22,14 +23,14 @@ internal static class Wallpaper
                 float t = (x + y) / diagonal;
 
                 // Base gradient: #0E1120 → #161B30
-                float r = 14 + 8 * t;
-                float g = 17 + 10 * t;
-                float b = 32 + 16 * t;
+                float r = ((background >> 16) & 255) * (0.65f + 0.2f * t);
+                float g = ((background >> 8) & 255) * (0.65f + 0.2f * t);
+                float b = (background & 255) * (0.65f + 0.2f * t);
 
                 float k1 = Falloff(x - g1x, y - g1y, g1r);   // indigo glow
-                r += 52 * k1;
-                g += 44 * k1;
-                b += 120 * k1;
+                r += ((accent >> 16) & 255) * k1 * 0.5f;
+                g += ((accent >> 8) & 255) * k1 * 0.5f;
+                b += (accent & 255) * k1 * 0.5f;
 
                 float k2 = Falloff(x - g2x, y - g2y, g2r);   // teal glow
                 r += 6 * k2;

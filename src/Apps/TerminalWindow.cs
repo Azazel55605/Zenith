@@ -99,7 +99,7 @@ internal sealed class TerminalWindow : Window, IOutput
 
         _buffer.Write("\n");
         if (Accounts.Error is string error) { _buffer.Write("Accounts unavailable: " + error + "\n"); }
-        else if (Accounts.Service is not null && Identity.IsRoot && !Accounts.Service.RootConfigured)
+        else if (Accounts.Service is not null && Identity.IsRoot && !Accounts.Service.HasPasswords)
         { _buffer.Write("Initial root setup: run passwd root, then passwd user and login user.\n"); }
         else if (Identity.Uid == 65534) { _buffer.Write("Use login USER to authenticate.\n"); }
     }
@@ -109,6 +109,12 @@ internal sealed class TerminalWindow : Window, IOutput
 
     /// <summary>Whether a command line is running.</summary>
     public bool IsBusy => _jobRunning;
+    public bool OwnsShell(Shell shell) => ReferenceEquals(_shell, shell);
+    public void PrepareSessionEnd()
+    {
+        _shell.Cancel();
+        lock (_sync) { _pendingApps.Clear(); }
+    }
     public override void EndSession()
     {
         _shell.Cancel();

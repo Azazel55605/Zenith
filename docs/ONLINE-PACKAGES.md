@@ -7,6 +7,16 @@ multiple trust roles, public-mirror hardening and matched root snapshots remain
 separate P4/recovery work. The simple DE and existing compiled recovery tools remain
 kernel-linked; Sunbeam begins independent native packaging ([native ABI](NATIVE-PROGRAMS.md)).
 
+## Session and styling packages (0.0.11)
+
+Install and confirm the compatible kernel before installing `zenith-session` and
+`zenith-style`. The latter is a dependency-only metapackage selecting
+`zenith-theme-default` and `zenith-fonts`. New clients adopt signed `index-v3.zri`;
+legacy `index.zri` excludes unsupported manifests so older clients can still find
+kernel upgrades. After adoption, an unavailable extended catalog cannot silently
+force a protocol downgrade. See [login/session compatibility](LOGIN-SESSIONS.md)
+for installed-database rollback limits and resource validation.
+
 ## Guest workflow
 
 After installing/confirming 0.0.7 on ext2, configure your mirror once:

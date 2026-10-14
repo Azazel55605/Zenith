@@ -30,6 +30,10 @@ guidance here so the two entry points stay consistent.
   A missing supported display falls back to serial; WM remains unavailable.
   `Run()` ticks the selected host and halts until an interrupt.
 - Settings persistence belongs to `SettingsService`, shared by CLI and future GUI.
+  Configured installed accounts use the graphical greeter and local text/DE session
+  lifecycle; no-GPU COM1 remains recovery. Preserve worker/unsaved/mutation teardown,
+  hidden authentication and package-loaded appearance/legacy catalog checks
+  (docs/LOGIN-SESSIONS.md). The GUI host remains trusted and kernel-linked.
   Keep local /etc state separate from shipped package defaults. See
   [settings/session guide](docs/SETTINGS-SESSIONS.md).
 - P0 directory bundles remain unsigned inspect/dry-run experiments. P1 signed .zpk

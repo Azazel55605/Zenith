@@ -6,6 +6,7 @@ using Zenith.Core.Security;
 using Zenith.Core.Sessions;
 using Zenith.Core.Storage;
 using Zenith.Gui.Graphics;
+using CommandShell = Zenith.Core.Shell.Shell;
 
 namespace Zenith.Gui.Shell;
 
@@ -21,13 +22,39 @@ internal sealed class DesktopSessionHost : ISessionHost
         return (response != null && response->FramebufferCount > 0) || HasPciDisplay() != 0;
     }
     private Desktop _desktop = null!;
+    public bool CanStop => StopBlocker(null) is null;
+    public string? StopBlocker(CommandShell? requester)
+    {
+        foreach (var window in _desktop.Windows.Windows)
+        {
+            if (window.IsClosed) { continue; }
+            if (window is EditorWindow editor && editor.HasUnsavedChanges) { return "Save or close the editor before logging out."; }
+            if (window is TerminalWindow terminal && terminal.IsBusy && (requester is null || !terminal.OwnsShell(requester))) { return "A terminal command is still running."; }
+        }
+        return null;
+    }
+    public void Stop()
+    {
+        foreach (var window in _desktop.Windows.Windows) { window.EndSession(); }
+        TerminalWindow.OpenApp = null; FileManagerWindow.OpenApp = null;
+        CommandShell.Register(new Zenith.Core.Shell.Command("fps", "fps", "Compositor statistics", c => c.Fail("desktop is not running")));
+        _desktop = null!;
+    }
+    public void BeginStop()
+    {
+        foreach (var window in _desktop.Windows.Windows)
+        { if (window is TerminalWindow terminal) { terminal.PrepareSessionEnd(); } }
+    }
     public void Start()
     {
-        Fonts.Load();
-        _desktop = new Desktop(Canvas.GetFullScreen());
+        NativeAppearance.Reload();
+        _desktop = new Desktop(SessionDisplay.Screen);
         using var session = CredentialContext.Enter(Accounts.Session);
-        _desktop.Windows.Open(new WelcomeWindow());
-        _desktop.Windows.Open(new TerminalWindow());
+        if (SystemMounts.Mode == BootMode.Live || Accounts.Service is null || !Accounts.Service.HasPasswords)
+        {
+            _desktop.Windows.Open(new WelcomeWindow());
+            _desktop.Windows.Open(new TerminalWindow());
+        }
         Log.Write("kernel", "desktop ready (" + (SystemMounts.Mode == BootMode.Live ? "live" : "installed") + ")");
     }
     public void Tick() => _desktop.Tick();

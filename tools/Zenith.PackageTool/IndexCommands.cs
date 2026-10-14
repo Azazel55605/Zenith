@@ -13,7 +13,7 @@ internal static class IndexCommands
                 SignedCommands.Read(Path.GetFullPath(args[2]), 4096), new HostPackageVerifier(), args[3]);
             Console.WriteLine("verified " + index.Repository + " generation=" + index.Generation + " issued=" + index.Issued + " expires=" + index.Expires); return 0;
         }
-        if (args.Length != 8 || args[0] != "index-seal") { return null; }
+        if (args.Length != 8 || args[0] is not ("index-seal" or "index-seal-v3")) { return null; }
         string repository = args[1], root = Path.GetFullPath(args[5]);
         using RSA rsa = RSA.Create(); rsa.ImportFromPem(Encoding.ASCII.GetString(SignedCommands.Read(Path.GetFullPath(args[6]), 8192)));
         if (rsa.KeySize is < 2048 or > 4096) { throw new IOException("RSA key must be 2048..4096 bits"); }
@@ -38,6 +38,7 @@ internal static class IndexCommands
                 {
                     var package = SignedPackage.Read(bytes, key, verifier);
                     if (package.Manifest.Repository != repository) { throw new IOException("signed package repository mismatch"); }
+                    if (args[0] == "index-seal" && package.ManifestText.StartsWith("ZENITH-PACKAGE\t3\n", StringComparison.Ordinal)) { continue; }
                     entry = new(repository, "data", package.Manifest.Name, package.Manifest.Version, bytes.Length, package.ArchiveDigest, package.ManifestText);
                 }
                 if (Path.GetFullPath(file) != Path.Combine(root, entry.ArchivePath)) { throw new IOException("package is not at its immutable identity path"); }

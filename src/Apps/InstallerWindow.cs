@@ -110,8 +110,8 @@ internal sealed class InstallerWindow : Window
             else if (_step is Step.Done or Step.Unavailable or Step.Error) { Button(surface, content, 24, "Close"); }
         }
     }
-    private static void Text(Surface s, string text, int x, int y, int size, uint color = Theme.TextPrimary)
-        => s.DrawText(text, Fonts.Regular, size, color, x, y);
+    private static void Text(Surface s, string text, int x, int y, int size, uint? color = null)
+        => s.DrawText(text, Fonts.Regular, size, color ?? Theme.TextPrimary, x, y);
     private static void Button(Surface s, Rect c, int x, string label)
     {
         var b = new Rect(c.X + x, c.Bottom - 55, 130, 34);

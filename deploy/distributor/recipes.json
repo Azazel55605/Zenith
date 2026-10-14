@@ -1,7 +1,65 @@
 {
-  "kernel": {"kind": "kernel", "name": "zenith-kernel", "repository": "core"},
-  "zenith-docs": {"kind": "data", "name": "zenith-docs", "repository": "extra", "payload": "packaging/zenith-docs"},
-  "zenith-man-pages": {"kind": "data", "name": "zenith-man-pages", "repository": "core", "payload": "obj/packages/zenith-man-pages", "generate": "manuals"},
-  "zenith-fonts": {"kind": "data", "name": "zenith-fonts", "repository": "core", "payload": "obj/packages/zenith-fonts", "generate": "fonts"},
-  "sunbeam-tools": {"kind": "data", "name": "sunbeam-tools", "repository": "extra", "payload": "obj/packages/sunbeam-tools", "generate": "native"}
+  "kernel": {
+    "kind": "kernel",
+    "name": "zenith-kernel",
+    "repository": "core"
+  },
+  "zenith-docs": {
+    "kind": "data",
+    "name": "zenith-docs",
+    "repository": "extra",
+    "payload": "packaging/zenith-docs"
+  },
+  "zenith-man-pages": {
+    "kind": "data",
+    "name": "zenith-man-pages",
+    "repository": "core",
+    "payload": "obj/packages/zenith-man-pages",
+    "generate": "manuals"
+  },
+  "zenith-fonts": {
+    "kind": "data",
+    "name": "zenith-fonts",
+    "repository": "core",
+    "payload": "obj/packages/zenith-fonts",
+    "generate": "fonts"
+  },
+  "sunbeam-tools": {
+    "kind": "data",
+    "name": "sunbeam-tools",
+    "repository": "extra",
+    "payload": "obj/packages/sunbeam-tools",
+    "generate": "native"
+  },
+  "zenith-theme-default": {
+    "kind": "data",
+    "name": "zenith-theme-default",
+    "repository": "core",
+    "payload": "packaging/zenith-theme-default",
+    "requires": [
+      [
+        "zenith-appearance-abi",
+        "1.0"
+      ]
+    ]
+  },
+  "zenith-session": {
+    "kind": "data",
+    "name": "zenith-session",
+    "repository": "core",
+    "payload": "packaging/zenith-session",
+    "requires": [
+      [
+        "zenith-session-host",
+        "1.0"
+      ]
+    ]
+  },
+  "zenith-style": {
+    "kind": "data",
+    "name": "zenith-style",
+    "repository": "core",
+    "payload": "packaging/zenith-style",
+    "meta": true
+  }
 }

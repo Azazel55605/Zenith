@@ -518,3 +518,19 @@ native phase logs must report `Validation accelerator policy: tcg`; all release
 gates still run. This deployment choice is specific to the measured host, not a
 universal preference for TCG. Remove the drop-in and reload systemd to restore
 the original auto policy. Full release runtime/publication still needs validation.
+
+## Installed login/session and appearance acceptance (0.0.11)
+
+After building the Release kernel and package tool, run the disposable graphical
+and local-console gate through the distributor adapter:
+
+```sh
+ZENITH_VALIDATION_ACCELERATOR=tcg python3 -B deploy/distributor/validation-runner.py tools/login-session-smoke.py /tmp/zn-login-check
+python3 -B tools/test_meta_package_tool.py
+```
+
+The native fixture creates its own disk and signing keys. It checks authentication,
+logout refusal, local input/history, DE/headless switching, signed styling reload
+without a kernel replacement, metapackage removal and independent ext2 integrity.
+Never point the fixture at an operator VM disk. Tagged kernel release validation
+includes this gate alongside kernel-update, repository and protected-program gates.

@@ -86,6 +86,10 @@ Desktop/local-text Headless selection with serial fallback, and a styling
 metapackage. See [LOGIN-SESSIONS](LOGIN-SESSIONS.md) for lifecycle, packaging
 boundaries and acceptance. This precedes the proposed next native `cat`/`ls` slice;
 independent graphical executables still need the M5 process/graphics/input APIs.
+The 0.0.11 source implements the trusted host, local text console, safe logout,
+verified appearance resources and true styling metapackages. The renderer and
+authentication broker are not separate executable processes yet; full DE/WM and
+per-user customization remain subsequent work. Exact validation is in PROGRESS.
 
 | Order | Work | Gate / dependency |
 |---|---|---|

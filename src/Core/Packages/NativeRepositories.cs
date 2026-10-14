@@ -43,15 +43,32 @@ internal static class NativeRepositories
         foreach (var repository in Repositories)
         {
             if (repository.Mirror is null) { throw new IOException("set pkg mirror HTTPS_BASE_URL first"); }
-            string cache = Cache + "/" + repository.Name + ".zri", incoming = cache + ".incoming";
+            string legacy = Cache + "/" + repository.Name + ".zri";
+            string cache = Cache + "/" + repository.Name + "-v3.zri", incoming = cache + ".incoming";
             var progress = new CommandProgress(c.Out, c.IsTerminal);
             try
             {
                 if (Store.State(incoming) != PackagePathState.Missing) { Store.Delete(incoming); }
-                NetworkService.Fetch(repository.Mirror.TrimEnd('/') + "/" + repository.Name + "/index.zri", incoming,
-                    false, c.Shell.ThrowIfCancelled, progress.Report, RepositoryIndex.MaximumBytes);
+                try
+                {
+                    NetworkService.Fetch(repository.Mirror.TrimEnd('/') + "/" + repository.Name + "/index-v3.zri", incoming,
+                        false, c.Shell.ThrowIfCancelled, progress.Report, RepositoryIndex.MaximumBytes);
+                }
+                catch (Exception error)
+                {
+                    if (error.Message != "HTTP status 404" || Store.State(cache) != PackagePathState.Missing) { throw; }
+                    cache = legacy; incoming = cache + ".incoming";
+                    if (Store.State(incoming) != PackagePathState.Missing) { Store.Delete(incoming); }
+                    NetworkService.Fetch(repository.Mirror.TrimEnd('/') + "/" + repository.Name + "/index.zri", incoming,
+                        false, c.Shell.ThrowIfCancelled, progress.Report, RepositoryIndex.MaximumBytes);
+                }
                 byte[] bytes = Store.Read(incoming, RepositoryIndex.MaximumBytes);
                 var index = RepositoryIndex.Read(bytes, key, Verifier, repository.Name); index.Fresh(Now);
+                if (cache != legacy && Store.State(cache) == PackagePathState.Missing && Store.State(legacy) != PackagePathState.Missing)
+                {
+                    var floor = RepositoryIndex.Read(Store.Read(legacy, RepositoryIndex.MaximumBytes), key, Verifier, repository.Name);
+                    if (index.Generation < floor.Generation) { throw new IOException("extended repository below legacy generation floor"); }
+                }
                 if (Store.State(cache) != PackagePathState.Missing)
                 {
                     byte[] previous = Store.Read(cache, RepositoryIndex.MaximumBytes);
@@ -77,6 +94,7 @@ internal static class NativeRepositories
         {
             if (repository.Mirror is null) { throw new IOException("set pkg mirror HTTPS_BASE_URL first"); }
             string cache = Cache + "/" + repository.Name + ".zri";
+            if (Store.State(Cache + "/" + repository.Name + "-v3.zri") != PackagePathState.Missing) { cache = Cache + "/" + repository.Name + "-v3.zri"; }
             if (Store.State(cache) == PackagePathState.Missing) { throw new IOException("run pkg refresh first"); }
             var index = RepositoryIndex.Read(Store.Read(cache, RepositoryIndex.MaximumBytes), key, Verifier, repository.Name);
             index.Fresh(Now); entries.AddRange(index.Entries);

@@ -11,7 +11,7 @@ internal static class ConfigurationCommands
     public static void Register(Action<Command> add)
     {
         add(new Command("settings", "settings [show | set keyboard|timezone|session VALUE]", "Shared system settings", Settings));
-        add(new Command("session", "session [status | list | set-default MODE]", "Show or select the next boot's session", Session));
+        add(new Command("session", "session [status | list | set-default MODE | switch MODE]", "Select a session or return to login", Session));
     }
     private static int Settings(CommandContext c)
     {
@@ -41,17 +41,25 @@ internal static class ConfigurationCommands
         {
             c.WriteLine("active=" + SessionModes.Name(SessionRuntime.Selected.Mode) + " (" + SessionRuntime.Selected.Source + ")");
             c.WriteLine("default=" + SessionModes.Name(SystemConfiguration.Settings.Current.DefaultSession));
+            c.WriteLine("login=" + SessionRuntime.IsLogin + "; " + (SessionRuntime.Message ?? "ready"));
             return 0;
         }
         if (c.Args.Length == 1 && c.Args[0] == "list")
         {
             foreach (SessionMode mode in new[] { SessionMode.Desktop, SessionMode.Headless, SessionMode.WindowManager })
             { c.WriteLine(SessionModes.Name(mode) + ": " + (SessionRuntime.Available(mode)
-                ? mode == SessionMode.Desktop ? "available (test desktop)" : "available (serial COM1)"
+                ? mode == SessionMode.Desktop ? "available (test desktop)" : SessionRuntime.DesktopAvailable() ? "available (local text console; serial fallback)" : "available (serial COM1)"
                 : "planned, unavailable")); }
             return 0;
         }
         if (c.Args.Length == 2 && c.Args[0] == "set-default") { return SaveSession(c, c.Args[1]); }
+        if (c.Args.Length == 2 && c.Args[0] == "switch")
+        {
+            if (!SessionModes.TryParse(c.Args[1], out var mode)) { return c.Fail("unknown session mode"); }
+            string? error = SessionRuntime.RequestLogout(c.Shell, mode);
+            if (error is not null) { return c.Fail(error); }
+            c.WriteLine("Ending session; sign in to " + c.Args[1] + "."); return 0;
+        }
         return c.Fail("usage: session [status | list | set-default MODE]");
     }
     private static int SaveSession(CommandContext c, string name)

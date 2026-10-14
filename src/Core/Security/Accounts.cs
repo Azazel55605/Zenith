@@ -37,7 +37,7 @@ internal static class Accounts
             foreach (var user in database.Users)
             { if (user.Uid == 1000) { Secure(user.Home, user.Uid, user.Gid, 0x1c0); } }
             Service = new AccountService(store, HardwareEntropy.Source);
-            Session = Service.RootConfigured ? Credentials.Nobody : Credentials.Root;
+            Session = Service.HasPasswords ? Credentials.Nobody : Credentials.Root;
         }
         catch (Exception e) { Error = e.Message; Service = null; Session = Credentials.Nobody; }
     }

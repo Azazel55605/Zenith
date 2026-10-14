@@ -25,6 +25,11 @@ internal static class Fonts
         s_semiBold ??= LoadFont("Inter-SemiBold.ttf", EmbeddedFonts.InterSemiBold);
         s_mono ??= LoadFont("Hack-Regular.ttf", EmbeddedFonts.HackRegular);
     }
+    public static void Reload()
+    {
+        s_regular = null; s_semiBold = null; s_mono = null;
+        Load();
+    }
 
     private static FontFace LoadFont(string name, string fallback)
     {

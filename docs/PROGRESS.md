@@ -1,5 +1,43 @@
 # Implementation progress
 
+## 2026-10-14 · Login/session and appearance implementation (locally verified)
+
+- Implement installed graphical authentication, deferred session teardown and
+  Desktop/local text Headless selection, retaining no-GPU serial recovery.
+  Busy operations and unsaved editors prevent logout; old queued input is closed.
+  Password authentication runs on a worker with bounded input and cleared secrets.
+  Configured non-root accounts still require login when root is locked.
+- Add signed session branding, package-verified runtime colors/fonts and manifest-3
+  dependency-only metapackages. New core recipes: zenith-session,
+  zenith-theme-default and zenith-style (theme plus existing zenith-fonts).
+  Appearance reloads at login and uses embedded recovery resources on invalid data.
+  Legacy catalogs omit unsupported manifest-3 records; extended catalogs preserve
+  signature/freshness/generation checks and refuse downgrade after adoption.
+- Release build and 614 host tests pass. Distributor release tests: 17; polling:
+  20; real signed metapackage/tool tests: 3, all passing. The final native installed
+  login/session/styling run passes 62 checks in 217.102 s, including wrong-password
+  rejection, ordinary-user/root identity, busy/unsaved refusal, local German slash
+  input and history, session switching, signed theme upgrade without changing the
+  kernel, visible accent changes, clean poweroff and independent ext2 audit.
+  Evidence: /tmp/zenith-login-release-native.log and /tmp/zn-login-release.
+- Repository acceptance passes 92 checks in 410.136 s, including full-sized HTTPS
+  combined kernel/data staging, reboot/confirmation, metapackage dependency/removal,
+  extended catalog adoption and downgrade refusal. Evidence:
+  /tmp/zenith-login-repository.log and /tmp/zn-login-repository. This run precedes
+  final UI-only lifecycle/appearance refinements; repository logic is unchanged.
+  The final binary's native executable regression passes in 168.673 s, including
+  protected execution, fault/timeout containment and same-kernel package upgrades
+  (/tmp/zenith-login-process.log and /tmp/zn-login-process).
+- Fixture corrections: save Headless on the no-display setup boot, wait for actual
+  asynchronous authentication rejection before retrying, and assert German slash
+  output rather than a debug-interleaved echo. No real VM disk or server changed.
+- Release target: kernel/v0.0.11 and the three new package tags at v0.1.0.
+  Server publication, its full mandatory kernel-update gate and operator VM
+  acceptance remain pending. The GUI host is trusted/kernel-linked; protected
+  graphical execution and per-user customization remain future ABI/UI work.
+  Older kernels cannot manage an installed manifest-3 package database: rollback
+  recovery requires returning to a compatible kernel, not assuming root snapshots.
+
 ## 2026-10-14 · Next priority: login/session manager and styling packages
 
 - User selects proper login/session management and a styling metapackage before

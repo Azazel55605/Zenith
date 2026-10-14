@@ -6,6 +6,16 @@ namespace Zenith.Tests;
 
 public class AccountServiceTests
 {
+    [Fact]
+    public void ConfiguredUserWithLockedRootStillRequiresLogin()
+    {
+        var service = new AccountService(new Store(), new Entropy());
+        Assert.False(service.HasPasswords);
+        using (CredentialContext.Enter(Credentials.Root)) { service.SetPassword("user", null, "User-password-1"); }
+        Assert.True(service.HasPasswords); Assert.False(service.RootConfigured);
+        Assert.Null(service.Authenticate("root", "User-password-1"));
+        Assert.Equal(1000u, service.Authenticate("user", "User-password-1")!.Uid);
+    }
     private sealed class Store : IAccountStore
     {
         public Dictionary<string,string> Files = new()

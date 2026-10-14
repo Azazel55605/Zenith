@@ -336,3 +336,14 @@ Back up the signing key separately from the published tree. Retain source commit
 release receipts and build/test logs with releases. The published tree is restorable
 without signing keys; restoring signing capability requires its private backup.
 Actual VM OS/SSH/network/certificate/backup values will be recorded when supplied.
+
+## Login/session release packages
+
+The controller recognizes `zenith-session/vVERSION`,
+`zenith-theme-default/vVERSION` and `zenith-style/vVERSION` tags. Styling is a true
+metapackage selecting the default theme and existing fonts. Pull the current
+controller before building these tags: it publishes both compatible legacy and
+extended signed catalogs. Kernel tags containing `login-session-smoke.py` also run
+installed graphical login/local-console/appearance acceptance before publication.
+Install and confirm kernel 0.0.11 before installing the new packages by name; see
+[the guest workflow](../../docs/LOGIN-SESSIONS.md).

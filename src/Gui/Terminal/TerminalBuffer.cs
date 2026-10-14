@@ -72,6 +72,9 @@ internal sealed class TerminalBuffer
 
             switch (c)
             {
+                case '\b':
+                    _cursor = Math.Max(0, _cursor - 1);
+                    break;
                 case '\n':
                     NewLine();
                     break;

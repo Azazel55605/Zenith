@@ -21,7 +21,7 @@ internal sealed class LauncherMenu
     {
         _windows = windows;
 
-        int height = 2 * Padding + AppRegistry.Apps.Count * AppItemHeight + SeparatorHeight + 2 * PowerItemHeight;
+        int height = 2 * Padding + AppRegistry.Apps.Count * AppItemHeight + SeparatorHeight + 3 * PowerItemHeight;
         Bounds = new Rect(anchor.X - 6, anchor.Y - height - 14, Width, height);
     }
 
@@ -89,9 +89,17 @@ internal sealed class LauncherMenu
         surface.FillRect(new Rect(x + 8, y + SeparatorHeight / 2, w - 16, 1), Theme.TitleDivider);
         y += SeparatorHeight;
 
+        Rect logout = new(x, y, w, PowerItemHeight);
+        DrawHover(surface, logout, mouseX, mouseY);
+        surface.DrawText("Log out / change session", Fonts.Regular, Theme.TextBody, Theme.TextPrimary, x + 12, y + 8);
+        _items.Add((logout, () => Zenith.Core.Sessions.SessionRuntime.RequestLogout()));
+        y += PowerItemHeight;
+
         AddPowerItem(surface, new Rect(x, y, w, PowerItemHeight), "Restart", PowerControl.Reboot, mouseX, mouseY);
         y += PowerItemHeight;
         AddPowerItem(surface, new Rect(x, y, w, PowerItemHeight), "Shut down", PowerControl.PowerOff, mouseX, mouseY);
+        if (Zenith.Core.Sessions.SessionRuntime.Message is string message)
+        { surface.DrawText(message, Fonts.Regular, 12, Theme.Danger, Bounds.X + 12, Math.Max(0, Bounds.Y - 20)); }
     }
 
     private void AddPowerItem(Surface surface, Rect item, string label, Action run, int mouseX, int mouseY)

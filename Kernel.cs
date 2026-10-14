@@ -28,13 +28,14 @@ public class Kernel : Sys.Kernel
         {
             bool hasDisplay = DesktopSessionHost.HasDisplay();
             SessionRuntime.DesktopAvailable = () => hasDisplay;
+            SessionRuntime.LoginFactory = mode => new LoginSessionHost(mode);
             Zenith.Core.Multiprocessing.CpuWorkers.Initialize();
             SystemRuntime.Initialize();
             SessionRuntime.Start(SystemConfiguration.Settings.Current.DefaultSession,
                 mode => mode switch
                 {
                     SessionMode.Desktop => new DesktopSessionHost(),
-                    SessionMode.Headless => new HeadlessSessionHost(),
+                    SessionMode.Headless => hasDisplay ? new LocalConsoleHost() : new HeadlessSessionHost(),
                     _ => throw new InvalidOperationException("unavailable session host")
                 });
         }

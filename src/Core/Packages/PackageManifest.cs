@@ -17,6 +17,7 @@ internal sealed class PackageManifest
     public string Version { get; }
     public string Architecture { get; }
     public string RuntimeId { get; }
+    public string Kind { get; private set; } = "data";
     public string Repository { get; private set; } = "extra";
     public IReadOnlyList<string> Conflicts { get; private set; } = Array.Empty<string>();
     public IReadOnlyList<PackageFile> Files { get; }
@@ -32,10 +33,11 @@ internal sealed class PackageManifest
         foreach (char c in text)
         { if ((c < ' ' && c != '\t' && c != '\n') || c > '~') { throw new FormatException("manifest requires printable ASCII records"); } }
         string[] lines = text.Split('\n');
-        if (lines.Length < 2 || !(lines[0] is "ZENITH-PACKAGE\t1" or "ZENITH-PACKAGE\t2")) { throw new FormatException("unsupported experimental manifest version"); }
+        if (lines.Length < 2 || !(lines[0] is "ZENITH-PACKAGE\t1" or "ZENITH-PACKAGE\t2" or "ZENITH-PACKAGE\t3")) { throw new FormatException("unsupported experimental manifest version"); }
         var fields = new Dictionary<string, string>(StringComparer.Ordinal);
         var files = new List<PackageFile>(); var dependencies = new List<PackageDependency>();
-        bool version2 = lines[0].EndsWith("2", StringComparison.Ordinal);
+        bool version3 = lines[0].EndsWith("3", StringComparison.Ordinal);
+        bool version2 = version3 || lines[0].EndsWith("2", StringComparison.Ordinal);
         var conflicts = new List<string>();
         var paths = new HashSet<string>(StringComparer.Ordinal); var names = new HashSet<string>(StringComparer.Ordinal);
         int bytes = 0;
@@ -74,8 +76,10 @@ internal sealed class PackageManifest
             }
         }
         if (fields.Count != (version2 ? 6 : 5) || !ValidName(fields["name"]) || !ValidVersion(fields["version"])
-            || !(fields["architecture"] is "any" or "x86_64" or "arm64") || fields["kind"] != "data"
-            || fields["runtime"].Length is < 1 or > 64 || files.Count == 0 || (version2 && !(fields["repository"] is "core" or "extra")))
+            || !(fields["architecture"] is "any" or "x86_64" or "arm64") || !(fields["kind"] == "data" || (version3 && fields["kind"] == "meta"))
+            || fields["runtime"].Length is < 1 or > 64
+            || (fields["kind"] == "meta" ? files.Count != 0 || dependencies.Count == 0 || fields["architecture"] != "any" : files.Count == 0)
+            || (version2 && !(fields["repository"] is "core" or "extra")))
         { throw new FormatException("invalid package identity or unsupported kind"); }
         foreach (string path in paths)
         {
@@ -84,6 +88,7 @@ internal sealed class PackageManifest
         }
         var result = new PackageManifest(fields["name"], fields["version"], fields["architecture"], fields["runtime"], files, dependencies, bytes);
         result.Repository = version2 ? fields["repository"] : "extra"; result.Conflicts = conflicts.AsReadOnly();
+        result.Kind = fields["kind"];
         if (conflicts.Contains(result.Name)) { throw new FormatException("package conflicts with itself"); }
         return result;
     }

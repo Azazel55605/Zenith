@@ -101,7 +101,11 @@ try:
     m=h.Machine(keep/'desktop',clean_disk,'session=de smp=native' if cpu_workers else 'session=de',network=net+['-device','virtio-gpu-pci'],monitor=monitor,vga='none',cpus=2 if cpu_workers else 1)
     for font in ('Inter-Regular.ttf','Inter-SemiBold.ttf','Hack-Regular.ttf'):
         assert m.wait('fonts: loaded packaged '+font,timeout=180),'packaged font '+font
-    assert m.wait('desktop ready (installed)',timeout=180),'desktop uses installed fonts'
+    assert m.wait('login ready',timeout=180),'installed login uses packaged fonts'
+    login_spec=importlib.util.spec_from_file_location('login_helper',ROOT/'tools/login-session-smoke.py')
+    login_helper=importlib.util.module_from_spec(login_spec);login_spec.loader.exec_module(login_helper)
+    login_helper.monitor_type(monitor,'root\t'+secret+'\n')
+    assert m.wait('desktop ready (installed)',timeout=180),'authenticated desktop uses installed fonts'
     time.sleep(2)
     with socket.socket(socket.AF_UNIX) as control:
         control.connect(str(monitor)); control.recv(4096)

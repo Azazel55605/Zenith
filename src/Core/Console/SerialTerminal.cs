@@ -29,14 +29,22 @@ internal sealed class SerialTerminal : IOutput
     private bool _completed, _exit, _reading, _secret, _answered;
     private string? _answer;
     private bool _overflow, _escape, _afterCr;
+    private bool _closing;
+    private int _history = -1;
+    private string _draft = "";
     public bool Busy => _busy;
     public CommandShell Shell => _shell;
+    public void CloseInput()
+    {
+        lock (_gate) { _closing = true; _queued.Clear(); _line.Clear(); _script.Clear(); _draft = ""; }
+        _shell.Cancel();
+    }
 
-    public SerialTerminal(Func<IOutput, CommandShell> factory, Func<bool>? refresh = null, Action? endSession = null)
+    public SerialTerminal(Func<IOutput, CommandShell> factory, Func<bool>? refresh = null, Action? endSession = null, string banner = "COM1 ASCII console")
     {
         _factory = factory; _refresh = refresh; _endSession = endSession;
         ResetShell();
-        Emit("\r\n[console] COM1 ASCII console; Ctrl+C cancels, Ctrl+D ends input.\r\n");
+        Emit("\r\n[console] " + banner + "; Ctrl+C cancels, Ctrl+D ends input.\r\n");
         Prompt();
     }
     private void ResetShell()
@@ -86,6 +94,7 @@ internal sealed class SerialTerminal : IOutput
         {
             if (!_completed) { return; }
             _completed = false;
+            if (_closing) { _output.Clear(); return; }
             if (_shell.History.Count > MaximumHistory)
             { _shell.History.RemoveRange(0, _shell.History.Count - MaximumHistory); }
             bool exit = _exit;
@@ -101,6 +110,23 @@ internal sealed class SerialTerminal : IOutput
     }
     public void Receive(byte value)
     {
+        if (value < 128) { ReceiveCharacter((char)value); }
+    }
+    public void Recall(bool older)
+    {
+        lock (_gate)
+        {
+            if (_busy || _reading || _completed || _script.Length > 0 || _shell.History.Count == 0) { return; }
+            if (_history < 0) { if (!older) { return; } _draft = _line.ToString(); _history = _shell.History.Count; }
+            int next = Math.Clamp(_history + (older ? -1 : 1), 0, _shell.History.Count);
+            Emit(new string('\b', _line.Length) + new string(' ', _line.Length) + new string('\b', _line.Length));
+            _line.Clear(); _line.Append(next == _shell.History.Count ? _draft : _shell.History[next]); Emit(_line.ToString());
+            _history = next;
+        }
+    }
+    public void ReceiveCharacter(char value)
+    {
+        if (_closing) { return; }
         // CRLF is one submission. Ignore ANSI escape sequences rather than execute them.
         if (value == 10 && _afterCr) { _afterCr = false; return; }
         _afterCr = value == 13;
@@ -129,6 +155,7 @@ internal sealed class SerialTerminal : IOutput
             if (value == 10 || value == 13)
             {
                 string line = _line.ToString(); _line.Clear(); Emit("\r\n");
+                _history = -1; _draft = "";
                 if (_overflow)
                 {
                     _overflow = false;
@@ -149,7 +176,7 @@ internal sealed class SerialTerminal : IOutput
                 else { Accept(line); }
                 return;
             }
-            if (value >= 32 && value <= 126)
+            if (value >= 32 && !char.IsControl(value))
             {
                 if (_line.Length == MaximumLine) { _overflow = true; return; }
                 _line.Append((char)value);

@@ -3,7 +3,65 @@
 User-selected next direction, 2026-10-14: login through a proper session manager,
 choose desktop or headless, and manage styling through a metapackage. Headless
 means a local text console with keyboard input and serial fallback, as explicitly
-confirmed by the user. This document is an implementation plan, not shipped behavior.
+confirmed by the user. The initial trusted host and packaged resources are implemented
+in the 0.0.11 source; protected graphical executables remain a later ABI slice.
+
+## Current use and acceptance
+
+Configured installed ext2 accounts reach a graphical greeter before apps open.
+Type username, Tab to the masked password, then choose Desktop or Headless by
+clicking the session selector (or Tab and Left/Right). Enter signs in. A configured
+ordinary user with locked root still requires login and cannot regain bootstrap
+root access. Live/fresh installs retain their setup/recovery workflows.
+
+Ctrl+Alt+T opens Terminal; Ctrl+Alt+L or the launcher requests logout. Busy commands,
+updates and unsaved editor documents block logout with a visible reason. Save or
+explicitly close your work first. `logout` and `session switch de|headless`
+return to login; switching closes the old session rather than retain its apps.
+`exit` closes a desktop Terminal window; in the local console it ends the session.
+Headless uses a local keyboard/text framebuffer and history with the configured
+layout, without a desktop/window manager. No supported display retains COM1 ASCII
+recovery. COM1 does not inject commands into an active local session. The greeter
+provides synced local restart/poweroff before login; desktop power actions retain
+the administrator policy.
+
+After booting and confirming the new kernel, root installs the initial resources:
+
+```text
+pkg refresh
+pkg install zenith-session zenith-style
+```
+
+`zenith-session` owns greeter branding, not an independent executable yet.
+`zenith-style` is a true zero-payload metapackage requiring `zenith-theme-default`
+and existing `zenith-fonts`. Icons/wallpaper packages remain future work; the current
+procedural wallpaper uses shared colors. Palette version 1 changes colors, not
+compiled widget layout. Appearance/fonts reload at the next login. Loaded resources
+must match installed ownership, modes and digests; corrupt/missing/incompatible or
+low-contrast resources use embedded fallbacks. Per-user preferences and Appearance
+settings UI remain future work.
+
+Manifest 3 supports dependency-only `kind=meta`; old data manifests still require
+files. Removing a meta retains dependencies; removing a required dependency fails.
+Definitions use `requires.tsv` and `build-meta`. The server signs legacy `index.zri`
+without unsupported manifests and extended `index-v3.zri` containing all packages.
+The new client falls back only on HTTP 404 before its extended cache exists.
+Signature/freshness errors never trigger fallback. Initial migration inherits the
+legacy generation floor; extended cache/snapshot checks refuse later downgrade.
+Index signing uses the current controller reader even for an older tagged build.
+
+Old kernels cannot parse installed manifest-3 records after a boot rollback, so
+their package operations can fail clearly. Account/boot recovery remains available;
+return to the retained compatible kernel before further package operations. This
+is not a matched kernel/root snapshot.
+
+`tools/login-session-smoke.py` checks installed authentication, user credentials,
+busy/unsaved logout refusal, repeated DE/local-console login, history/German input,
+visible signed styling upgrade under the same kernel, meta removal and independent
+ext2 audit. It checks that credentials are absent from serial logs. The native ELF
+gate authenticates before checking font rendering, and the server includes the
+login harness when present in the pinned tag. See PROGRESS for exact results and
+operator acceptance limits. The sections below retain the design/delivery context.
 
 ## User experience
 
@@ -35,11 +93,11 @@ confirmed by the user. This document is an implementation plan, not shipped beha
 
 ## Implementation boundary
 
-Today `SessionRuntime` starts one host at boot; `ISessionHost` has Start/Tick only.
-The desktop immediately opens Welcome/Terminal. Account authentication exists,
-and a session generation change closes old desktop windows, but that is not a
-complete manager for worker cancellation, disposal or switching hosts. Headless
-currently means COM1 only. These are the integration points for the new lifecycle.
+`SessionRuntime` now owns host start, stop readiness, cancellation and logout
+selection. Welcome/Terminal bootstrap windows remain for live/unconfigured systems;
+configured installed sessions authenticate before apps. Headless has both the local
+text host and COM1 fallback. Session generations and explicit worker identities
+continue to prevent inheriting another user's windows, input or history.
 
 Start with a trusted kernel-side lifecycle/authentication service, a graphical
 greeter and a local text host. Introduce explicit state transitions through login,
@@ -77,22 +135,17 @@ The metapackage owns dependency policy, not application/theme files. Update its
 dependency constraints when changing a styling family; the package resolver must
 produce a visible, coherent plan and retain ordinary conflict/local-edit checks.
 
-The current builder and manifest parser reject zero files, and signed repository
-entries currently support data/kernel kinds only. True dependency-only packages
-need an explicit compatible format/runtime capability, builder/index/planner/DB
-support and install/upgrade/remove/rollback validation. Preserve old signed package
-readers and fail clearly on unsupported versions. Do not disguise an empty package
-as an arbitrary dummy payload. Removing the metapackage should not silently remove
-its dependencies; automatic orphan removal remains a separate policy decision.
+Manifest 3 and the `zenith-package-meta-abi` capability support zero-file meta
+packages. The signed transport keeps data/kernel categories; embedded manifests
+distinguish meta from data. Legacy catalogs omit unsupported records. Automatic
+orphan removal remains a separate policy decision.
 
 ## Appearance contract
 
-Existing `Theme` values are compile-time constants. Merely distributing theme files
-cannot change the current UI. Introduce a shared validated resource loader and
-replace those constants with a runtime theme snapshot before claiming independent
-appearance updates. Preserve bounded dimensions, readable contrast and compiled
-fallbacks when files are malformed, missing or incompatible. Themes are declarative
-data, never arbitrary privileged code.
+`Theme` colors now use a shared validated runtime snapshot; layout dimensions remain
+compiled. Preserve bounded resources, readable contrast and compiled fallbacks for
+malformed, missing or incompatible files. Themes are declarative data, never
+arbitrary privileged code.
 
 Ship defaults under `/usr/share/zenith/appearance/`; keep administrator selection
 under `/etc/zenith/` and later per-user preferences in their homes. Package upgrades

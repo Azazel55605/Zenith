@@ -173,7 +173,7 @@ class ReleaseTests(unittest.TestCase):
              patch.object(release, "source_commit", return_value="a" * 40), \
              patch.object(release, "prerequisites"), patch.object(release, "phase", side_effect=phase):
             release.build(self.config, "0.0.3")
-        self.assertEqual(["Host tests", "Kernel build", "Package tool", "Sign kernel", "Index core", "Index extra"], calls)
+        self.assertEqual(["Host tests", "Kernel build", "Package tool", "Sign kernel", "Index core", "Index core extended", "Index extra", "Index extra extended"], calls)
         self.assertTrue((self.root / "core/zenith-kernel/0.0.3/zenith-kernel.zpk").is_file())
 
     def test_phase_failure_reports_useful_tail_and_retains_full_log(self):

@@ -93,7 +93,8 @@ def execute(config, checkout, version, recipe):
         elif recipe.get("generate") == "native":
             release.phase("Build native tool", [sys.executable, "-B", str(checkout / "tools/build-userland.py"), str(payload), "--version", version], preparation / "generate.log")
         elif recipe.get("generate") is not None: raise ValueError("unknown package generator")
-        release.data(config, name, version, payload, repository, native=recipe.get("generate") == "native")
+        release.data(config, name, version, payload, repository, native=recipe.get("generate") == "native",
+                     meta=recipe.get("meta", False), requires=recipe.get("requires", ()))
     release.verify(config, version, name, repository, kind)
     # Also renew indexes when recovering an already-published release.
     if existing: release.indexes(config)
