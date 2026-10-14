@@ -1,5 +1,26 @@
 # Implementation progress
 
+## 2026-10-14 · Recover lost acceptance statuses without replaying updates
+
+- Operator's retained 0.0.8 live transcript proves the first command ran and
+  emitted a status, but Cosmos debug output split/damaged `K_LIVE_DENIED`. A local
+  disposable guest passes this command immediately after the DHCP state probe.
+- Controller adapts only the harness's exact `; echo NAME=$? | logger` suffix:
+  save the actual exit code to a unique guest temporary file before logging it.
+  If the status marker is lost, issue up to three read-only logger reads of that
+  same file. Preserve the original operation deadline and exact harness exit-code
+  assertion. Never rerun an install/update, fabricate success, reuse an old file
+  or accept command echo. Existing immutable release sources/tags stay unchanged.
+- Six focused adapter tests and 15 controller tests pass. A disposable TCG guest
+  proves forced first-observation failure recovers the saved live refusal status 1;
+  a separate failing command remains status 1. Guest powers off cleanly. Evidence:
+  /tmp/zenith-saved-status.log and /tmp/zn-saved-status. Operator nested-KVM retry
+  remains pending; ongoing Cosmos serial interleaving needs a kernel-side remedy.
+- SMP work starts after this release-gate fix. First target is isolated native AP
+  workers with managed runtime, GC, device callbacks and existing process bridge
+  retained on the bootstrap CPU. General managed multicore scheduling remains a
+  separate runtime/GC and per-CPU interrupt-context milestone.
+
 ## 2026-10-13 · Distributor DHCP marker recovery
 
 - Operator's 0.0.8 native gate reached the live shell, then failed waiting for its

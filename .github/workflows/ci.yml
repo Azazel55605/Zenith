@@ -35,6 +35,7 @@ jobs:
       - run: python3 -B tools/test_distributor_release.py
       - run: python3 -B tools/test_distributor_poll.py
       - run: python3 -B tools/test_distributor_validation.py
+      - run: python3 -B tools/test_validation_status.py
       - run: python3 -B tools/test_distributor_maintenance.py
       - run: python3 -B tools/test_distributor_dashboard.py
       - run: python3 -B tools/test_dashboard_setup.py

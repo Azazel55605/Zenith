@@ -31,6 +31,8 @@ def copyfile(source, destination, *, follow_symlinks=True):
 def run_harness(script):
     spec = importlib.util.spec_from_file_location('validation_network', Path(__file__).with_name('validation-network.py'))
     network = importlib.util.module_from_spec(spec); spec.loader.exec_module(network)
+    spec = importlib.util.spec_from_file_location('validation_status', Path(__file__).with_name('validation-status.py'))
+    status = importlib.util.module_from_spec(spec); spec.loader.exec_module(status)
     original_exec = importlib.machinery.SourceFileLoader.exec_module
     instances = []
     headless = script.parent / 'headless-smoke.py'
@@ -38,6 +40,7 @@ def run_harness(script):
         original_exec(loader, module)
         if Path(loader.path).resolve() == headless.resolve():
             network.install(module.Machine, instances)
+            status.install(module.Machine)
     importlib.machinery.SourceFileLoader.exec_module = execute
     try: runpy.run_path(str(script), run_name='__main__')
     finally:

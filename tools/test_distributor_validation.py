@@ -136,6 +136,8 @@ class ValidationTests(unittest.TestCase):
         helper.write_text("from pathlib import Path\nclass Machine:\n"
             " def __init__(self): pass\n"
             " def wait(self,marker,offset=0,timeout=180): return False\n"
+            " def send(self,text): pass\n"
+            " def log(self): return ''\n"
             " def stop(self): Path(__file__).with_name('reaped').write_text('yes')\n")
         harness=self.root/'harness.py'
         harness.write_text("import importlib.util\nfrom pathlib import Path\n"
