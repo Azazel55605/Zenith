@@ -500,3 +500,21 @@ the server's measurements. Controller changes apply to unchanged tagged harnesse
 no new kernel tag is needed. Future phase timing also includes QEMU CPU seconds
 and host read/write byte deltas when `/proc` permits observation. Host I/O counts
 are process counters, not guest disk throughput; missing counters remain absent.
+
+The home distributor's operator comparison on 2026-10-14 measured TCG at 23.468
+seconds versus nested KVM at 95.765 seconds, with 4 MiB writes taking 11.228 versus
+56.651 seconds. For that server, persist TCG independently of the managed unit:
+
+```sh
+sudo install -d /etc/systemd/system/zenith-distributor.service.d
+printf '[Service]\nEnvironment=ZENITH_VALIDATION_ACCELERATOR=tcg\n' | sudo tee /etc/systemd/system/zenith-distributor.service.d/accelerator.conf >/dev/null
+sudo systemctl daemon-reload
+python3 -B deploy/distributor/poll.py --queue-retry kernel/v0.0.10
+sudo systemctl start --no-block zenith-distributor.service
+```
+
+Run this from the updated controller checkout while the distributor is idle. The
+native phase logs must report `Validation accelerator policy: tcg`; all release
+gates still run. This deployment choice is specific to the measured host, not a
+universal preference for TCG. Remove the drop-in and reload systemd to restore
+the original auto policy. Full release runtime/publication still needs validation.

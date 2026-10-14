@@ -1,5 +1,23 @@
 # Implementation progress
 
+## 2026-10-14 · Server accelerator comparison (operator verified)
+
+- Operator completed the same disposable FAT32 workload with the retained 0.0.10
+  ISO in both explicit modes on the TrueNAS distributor VM. Both runs pass guest
+  I/O, sync, clean shutdown and independent readback/allocation checks, with only
+  the recorded optional FSInfo hint warning.
+- KVM: boot 25.627 s, write 4 MiB 56.651 s, read 11.271 s, sync 0.485 s;
+  total 95.765 s. TCG: boot 7.531 s, write 11.228 s, read 3.225 s, sync 0.334 s;
+  total 23.468 s. TCG is 5.05 times faster for writes and 4.08 times faster overall
+  for this actual server workload. This establishes the accelerator-dependent
+  performance difference; it does not establish the exact nested-KVM exit or
+  hypervisor mechanism, nor promise the same ratio for a complete release.
+- Select TCG through a distributor-service environment drop-in on this server,
+  retaining all tagged acceptance checks, timeouts and durability barriers. Queue
+  the failed kernel/v0.0.10 for another background run after applying the drop-in.
+  Its full server kernel/repository/native-process acceptance and publication
+  remain pending operator confirmation; no new kernel tag or source change needed.
+
 ## 2026-10-14 · Nested-KVM staging slowdown (server investigation)
 
 - Operator's optimized 0.0.10 still fails repository combined staging at its
