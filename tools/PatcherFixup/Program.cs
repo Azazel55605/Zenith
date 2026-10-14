@@ -19,6 +19,27 @@ foreach (var type in module.GetTypeReferences())
     { type.Scope = module; }
 }
 foreach (var reference in self) { module.AssemblyReferences.Remove(reference); }
+if (assembly.Name.Name == "Cosmos.Kernel.Core.X64")
+{
+    // Released load_idt unconditionally STI's before PIC/APIC setup. During PIC
+    // ICW remapping a pending IRQ0 can then arrive as vector 0 and halt the boot.
+    // Preserve the caller's IF instead; the system initializer explicitly enables
+    // interrupts after platform/handler setup, before interrupt-driven disk I/O.
+    var native = module.GetType("Cosmos.Kernel.Core.X64.Bridge.IdtNative")
+        ?? throw new InvalidOperationException("Cosmos IDT native import changed");
+    var load = native.Methods.Single(m => m.Name == "LoadIdt");
+    if (!load.IsStatic || !load.HasPInvokeInfo || load.ReturnType.FullName != "System.Void"
+        || load.Parameters.Count != 1 || load.Parameters[0].ParameterType.FullName != "System.Void*"
+        || load.PInvokeInfo.Module.Name != "*"
+        || (load.PInvokeInfo.EntryPoint != "_native_x64_load_idt"
+            && load.PInvokeInfo.EntryPoint != "zenith_load_idt_preserve_irq"))
+    { throw new InvalidOperationException("Cosmos IDT loader signature changed"); }
+    if (load.PInvokeInfo.EntryPoint == "_native_x64_load_idt")
+    {
+        load.PInvokeInfo.EntryPoint = "zenith_load_idt_preserve_irq";
+        changed = true; Console.WriteLine("Adapted IDT loader: preserve interrupt state until platform setup completes");
+    }
+}
 if (assembly.Name.Name == "Cosmos.Kernel.Plugs")
 {
     // Packet headers advertise our receive capacity, never the peer's send window.

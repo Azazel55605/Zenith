@@ -45,6 +45,8 @@ guidance here so the two entry points stay consistent.
   credentials and same-kernel executable-upgrade acceptance. Compiled base/net/fs
   and GUI migration still need additional controlled APIs.
 - Opt-in x64 `smp=native` starts isolated native integer workers (docs/MULTICORE.md).
+  The x64 IDT loader must preserve IF: Cosmos 3.0.89's premature STI is redirected
+  in signature-checked build copies. Keep installed UEFI startup/IRQ-state checks.
   Managed scheduling/GC, drivers and the foreground process bridge stay on the BSP.
   APs own static stacks/tables, never managed objects or UART, and currently poll
   when idle. Preserve default-disabled boots and 1/2/4-CPU acceptance; do not enable

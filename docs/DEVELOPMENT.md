@@ -416,3 +416,22 @@ and `python3 -B deploy/distributor/validation-runner.py tools/native-process-smo
 These use disposable ISO/disk clones and never modify an installed VM. Idle native
 APs currently poll; managed runtime/GC work stays on the BSP. CI covers the 1/2/4
 CPU worker boundary and native application containment with workers enabled.
+
+## Installed boot interrupt handoff
+
+The copied Cosmos.Core.X64 IDT import is redirected by PatcherFixup to the local
+native `zenith_load_idt_preserve_irq` function. It loads the IDT with IRQs masked
+and restores the caller's IF; it does not enable interrupts early. Unknown import
+signatures fail the build. The dependency cache and upstream checkout are untouched.
+After a Release build, run:
+
+```sh
+python3 -B tools/test_idt_fixup.py
+python3 -B tools/idt-boot-smoke.py /tmp/zn-idt
+```
+
+The tests verify real released-import adaptation/idempotence/signature refusal,
+then install onto a disposable disk and repeat UEFI boots with DHCP, mounted ext2,
+masked initial IDT state, runtime IF preservation and clean shutdown. Root can run
+`cpu irq-test` on a running system; ordinary users are refused. Keep this gate when
+updating Cosmos or changing early interrupt/platform initialization.

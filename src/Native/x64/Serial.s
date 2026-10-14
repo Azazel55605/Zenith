@@ -83,3 +83,70 @@ zenith_serial_write:
     ret
 .size zenith_serial_write, .-zenith_serial_write
 .section .note.GNU-stack,"",@progbits
+
+.text
+# Loading an IDT is not permission to enable interrupts during platform setup.
+# Preserve IF for both early masked setup and any later enabled caller.
+.globl zenith_load_idt_preserve_irq
+.type zenith_load_idt_preserve_irq, @function
+zenith_load_idt_preserve_irq:
+    pushfq
+    cmpq $-1, .Linitial_idt_flags(%rip)
+    jne 1f
+    mov (%rsp), %rax
+    mov %rax, .Linitial_idt_flags(%rip)
+1:  cli
+    lidt (%rdi)
+    popfq
+    ret
+.size zenith_load_idt_preserve_irq, .-zenith_load_idt_preserve_irq
+.section .note.GNU-stack,"",@progbits
+
+.data
+.balign 8
+.Linitial_idt_flags: .quad -1
+.text
+.globl zenith_initial_idt_flags
+.type zenith_initial_idt_flags, @function
+zenith_initial_idt_flags:
+    mov .Linitial_idt_flags(%rip), %rax
+    ret
+.size zenith_initial_idt_flags, .-zenith_initial_idt_flags
+
+# Runtime diagnostic: reload the current valid IDT with IF=0 and IF=1, then
+# restore the entry flags. Return bit 0/1 if either state was not preserved.
+.globl zenith_idt_irq_test
+.type zenith_idt_irq_test, @function
+zenith_idt_irq_test:
+    push %rbx
+    push %r12
+    pushfq
+    pop %r12
+    sub $24, %rsp
+    sidt (%rsp)
+    xor %ebx, %ebx
+    cli
+    mov %rsp, %rdi
+    call zenith_load_idt_preserve_irq
+    pushfq
+    pop %rax
+    test $0x200, %rax
+    jz 1f
+    or $1, %ebx
+1:  sti
+    mov %rsp, %rdi
+    call zenith_load_idt_preserve_irq
+    pushfq
+    pop %rax
+    test $0x200, %rax
+    jnz 2f
+    or $2, %ebx
+2:  push %r12
+    popfq
+    add $24, %rsp
+    mov %ebx, %eax
+    pop %r12
+    pop %rbx
+    ret
+.size zenith_idt_irq_test, .-zenith_idt_irq_test
+.section .note.GNU-stack,"",@progbits

@@ -25,7 +25,14 @@ syscalls or hold GC references. Limine bootloader memory is not reclaimed by the
 current Cosmos usable-memory allocator. Contexts/stacks/tables remain kernel-owned
 for the whole boot; failed or timed-out workers are not restarted.
 
-`cpu status` reports detected and started CPUs and the managed CPU count.
+`cpu status` reports detected and started CPUs, the managed CPU count and whether
+interrupts were enabled at the initial IDT load. Root `cpu irq-test` reloads the
+current valid IDT under both IF states and verifies each state is preserved.
+Cosmos 3.0.89 unconditionally enabled interrupts at IDT installation; a
+signature-checked build-copy import now selects Zenith's IF-preserving loader.
+Platform/system initialization still explicitly enables interrupts before storage
+I/O. This prevents the early window during legacy PIC remapping that produced a
+reported fatal vector 0 on installed nested-KVM boot.
 Root can run `cpu test [iterations]` (default 2,000,000; range 1..10,000,000).
 A serialized native job computes the same bounded integer checksum on each AP
 and the BSP. A readiness barrier precedes release. The command checks actual

@@ -1,5 +1,41 @@
 # Implementation progress
 
+## 2026-10-14 · Installed UEFI boot: premature interrupt enable (0.0.9)
+
+- Operator's 0.0.8 gate completed install, status 0, clean unmount/poweroff and GPT/
+  EFI/artifact validation, then stalled on the first installed boot. Raw serial
+  ends at legacy PIC remapping with fatal vector 0 and saved RFLAGS 0x246 (IF=1).
+  This is an actual early fatal interrupt, not a missing readiness marker, DHCP
+  issue or demonstrated filesystem corruption.
+- Cosmos's native IDT loader executes CLI/LIDT/STI before PCI/APIC/PIC setup.
+  LegacyPic.RemapAndDisable has no division and no atomic IRQ masking. The observed
+  vector 0 during ICW remapping is consistent with a pending legacy IRQ arriving
+  through temporary PIC vector state. Redirect the pinned Core.X64 native import
+  to a local CLI/LIDT/restore-flags loader: retain the entry IF instead of enabling
+  interrupts prematurely. The existing system initializer explicitly enables IRQs
+  after hardware/handler setup, before interrupt-driven storage registration.
+- Adapt only copied build references with strict native method/import signatures;
+  original and already-adapted imports are accepted, unknown imports fail closed.
+  No Cosmos dependency cache/upstream changes and no acceptance-gate bypass.
+  `cpu status` reports initial IF; root `cpu irq-test` verifies reloading the valid
+  IDT preserves both IF states. Default native AP workers remain disabled.
+- Release build passes. Three real-release fixup tests pass (redirect, idempotence,
+  signature drift refusal). Disposable TCG install and three subsequent UEFI boots
+  pass 28/28 with initial IF=0, actual IF-state checks, DHCP, mounted ext2 and clean
+  shutdown. Updated 1/2/4-CPU/default-disabled harness passes 54/54. Evidence:
+  /tmp/zenith-idt-build-final.log, /tmp/zenith-idt-fixup.log,
+  /tmp/zenith-idt-boot.log and /tmp/zn-idt-fixed,
+  /tmp/zenith-idt-cpu.log and /tmp/zn-idt-cpu.
+- Repeat installed signed native-process/fault/upgrade acceptance with active APs
+  and the corrected IDT loader passes: actual IF-state checks before/after contained
+  faults, worker results, signed executable upgrade, credentials, manuals/fonts,
+  desktop screenshot and independent clean ext2 audit. Evidence:
+  /tmp/zenith-idt-process.log and /tmp/zn-idt-process. Final rerun also proves
+  ordinary-user IRQ-test refusal: /tmp/zenith-idt-process-final.log and
+  /tmp/zn-idt-process-final. Fifteen controller and seven status adapter tests pass. Nested-KVM/VMware acceptance and
+  hosted CI remain separate. This changes kernel bytes and requires a new immutable
+  kernel/v0.0.9 tag; do not move 0.0.8 or keep retrying its unsafe startup binary.
+
 ## 2026-10-14 · First isolated native CPU workers (opt-in, TCG verified)
 
 - Implemented x64 Limine MP discovery and `smp=native` activation for up to eight

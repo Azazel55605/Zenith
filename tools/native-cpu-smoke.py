@@ -50,6 +50,9 @@ def main():
                     raw=machine.log()[offset:]
                     return raw+'\n'+h.efi.smoke.COSMOS_NOISE.sub('',raw)
                 raw=command('cpu status | logger','managed-cpus=1')
+                check('initial-idt-interrupts-enabled=False' in raw,label+' initial IDT keeps interrupts masked')
+                command('cpu irq-test | logger; echo IRQ_TEST=$? | logger','user: IRQ_TEST=0')
+                check('IDT interrupt-state preservation failures=0' in machine.log(),label+' IDT preserves masked and enabled states')
                 check('detected='+str(cpus)+' native-workers='+str(cpus if enabled else 0) in raw,label+' detected/started CPUs')
                 if enabled and cpus > 1:
                     for run in range(2):

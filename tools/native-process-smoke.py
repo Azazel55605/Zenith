@@ -39,6 +39,7 @@ def status(text,marker,code=0):command(text+'; echo '+marker+'=$? | logger','use
 try:
     boot('live');status('session set-default headless','N_SESSION');status('install sata0 --yes','N_INSTALL');command('poweroff','all filesystems unmounted');m.process.wait(timeout=30);disk=m.disk;m.stop()
     boot('installed',disk)
+    status('cpu irq-test | logger','N_IDT_IRQ_STATE')
     if cpu_workers: status('cpu test 10000000 | logger','N_CPUS_START')
     status('fetch '+url+'/key.pem /root/key.pem','N_KEY');status('pkg trust /root/key.pem '+hashlib.sha256(key).hexdigest(),'N_TRUST')
     status('fetch '+url+'/sunbeam.zpk /root/sunbeam.zpk','N_FETCH');status('pkg install /root/sunbeam.zpk','N_PACKAGE')
@@ -65,6 +66,7 @@ try:
     status('native run sunbeam --privileged','N_PRIV',139)
     status('native run sunbeam --loop','N_TIMEOUT',124)
     status('native run sunbeam echo after-timeout','N_AFTER_TIMEOUT')
+    status('cpu irq-test | logger','N_IDT_AFTER_FAULTS')
     if cpu_workers: status('cpu test 10000000 | logger','N_CPUS_AFTER_FAULTS')
     status('fetch '+url+'/sunbeam-2.zpk /root/sunbeam-2.zpk','N_FETCH_UPGRADE')
     status('pkg install /root/sunbeam-2.zpk','N_UPGRADE')
@@ -77,6 +79,7 @@ try:
     status('su user','N_USER')
     command('native run sunbeam id | logger','user: uid=1000')
     status('native run sunbeam echo unprivileged-text-tool','N_USER_EXEC')
+    status('cpu irq-test','N_USER_IRQ_DENIED',1)
     status('native run sunbeam --privileged','N_USER_PRIV_DENIED',139)
     command('login root','Password: ')
     offset=len(m.log());m.send(secret+'\r');assert m.wait('authenticated as root',offset,timeout=30),'root authentication'

@@ -131,6 +131,14 @@ jobs:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 -B deploy/distributor/validation-runner.py tools/kernel-update-smoke.py smoke-kernel
 
+      - name: IDT import adaptation and repeated installed UEFI startup
+        timeout-minutes: 10
+        env:
+          QEMU: /usr/bin/qemu-system-x86_64
+        run: |
+          python3 -B tools/test_idt_fixup.py
+          python3 -B tools/idt-boot-smoke.py smoke-idt
+
       - name: Experimental native CPU workers (1/2/4 CPUs)
         timeout-minutes: 10
         env:
@@ -182,6 +190,7 @@ jobs:
             smoke-efi/
             smoke-security/
             smoke-foundation/
+            smoke-idt/
             smoke-cpu/
             smoke-headless/
             smoke-install/

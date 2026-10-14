@@ -25,6 +25,11 @@ internal static class CpuWorkers
     [DllImport("*", EntryPoint = "zenith_cpu_execute"), SuppressGCTransition]
     private static extern void Execute();
 
+    [DllImport("*", EntryPoint = "zenith_initial_idt_flags"), SuppressGCTransition]
+    private static extern ulong InitialIdtFlags();
+    [DllImport("*", EntryPoint = "zenith_idt_irq_test"), SuppressGCTransition]
+    private static extern int IdtIrqTest();
+
     public static unsafe void Initialize()
     {
         if (RuntimeInformation.ProcessArchitecture != Architecture.X64) { return; }
@@ -59,10 +64,18 @@ internal static class CpuWorkers
         if (c.Args.Length == 0 || (c.Args.Length == 1 && c.Args[0] == "status"))
         {
             c.WriteLine("detected=" + Detected() + " native-workers=" + s_count + " failed=" + s_failed + " managed-cpus=1");
+            c.WriteLine("initial-idt-interrupts-enabled=" + ((InitialIdtFlags() & 0x200) != 0));
             c.WriteLine("Experimental workers require boot argument smp=native; idle APs currently poll.");
             return 0;
         }
-        if (c.Args.Length > 2 || c.Args[0] != "test") { return c.Fail("cpu status | test [iterations]"); }
+        if (c.Args.Length == 1 && c.Args[0] == "irq-test")
+        {
+            GuardedFilesystem.RequireRoot();
+            int result = IdtIrqTest();
+            c.WriteLine("IDT interrupt-state preservation failures=" + result);
+            return result == 0 ? 0 : 1;
+        }
+        if (c.Args.Length > 2 || c.Args[0] != "test") { return c.Fail("cpu status | irq-test | test [iterations]"); }
         GuardedFilesystem.RequireRoot();
         ulong iterations = 2000000;
         if (c.Args.Length == 2 && !ulong.TryParse(c.Args[1], out iterations)) { return c.Fail("invalid iteration count"); }

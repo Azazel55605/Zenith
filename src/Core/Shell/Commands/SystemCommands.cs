@@ -33,7 +33,7 @@ internal static class SystemCommands
             { GuardedFilesystem.RequireRoot(); }
             return command.Run(c);
         }));
-        add(new Command("cpu", "cpu status | test [iterations]", "Inspect experimental native CPU workers", Zenith.Core.Multiprocessing.CpuWorkers.Command));
+        add(new Command("cpu", "cpu status | irq-test | test [iterations]", "Inspect experimental native CPU workers", Zenith.Core.Multiprocessing.CpuWorkers.Command));
         add(new Command("uname", "uname [-a]", "Print system information", Uname));
         add(new Command("hostname", "hostname", "Print the host name", c => { c.WriteLine(c.Shell.Get("HOSTNAME")); return 0; }));
         add(new Command("securityprobe", "securityprobe", "Check security primitives and hardware entropy", SecurityProbe));

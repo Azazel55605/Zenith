@@ -26,12 +26,13 @@
     <Exec Command="python3 &quot;$(MSBuildProjectDirectory)/tools/build-tls.py&quot; &quot;$(IntermediateOutputPath)/cosmos/cobj&quot; --arch $(CosmosArch)" />
   </Target>
 
-  <!-- HAL.X64 has no plug targets, so the SDK's filtered patch list skips it.
-       Adapt its copied ILC reference and verify socket-header adaptation in Plugs
-       after SDK patching, before ILC caching; never modify installed packages. -->
+  <!-- HAL.X64 and Core.X64 have no plug targets, so the filtered patch list skips
+       them. Adapt copied ILC references after SDK patching, before ILC caching;
+       never modify installed packages. Core.X64 preserves IF when loading IDT. -->
   <Target Name="AdaptZenithE1000ReceiveFilter" BeforeTargets="CheckIlcCache" DependsOnTargets="RunPatcher" Condition="'$(CosmosArch)' == 'x64'">
     <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.Plugs.dll&quot;" />
     <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.HAL.X64.dll&quot;" />
+    <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.Core.X64.dll&quot;" />
     <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.HAL.dll&quot;" />
   </Target>
 
