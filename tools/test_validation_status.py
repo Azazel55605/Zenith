@@ -36,6 +36,41 @@ class StatusTests(unittest.TestCase):
         self.assertEqual(4,len(m.sent))
         self.assertTrue(all(s.startswith('cat /tmp/validation-status-') for s in m.sent[1:]))
 
+    def test_plain_repository_status_recovers_without_repeating_update(self):
+        m=self.machine([False,True])
+        with patch.object(status.secrets,'token_hex',return_value='plain'):
+            m.send('pkg update --yes; echo P4_KERNEL_STAGE=$?\r')
+        self.assertTrue(m.wait('P4_KERNEL_STAGE=0',4,600))
+        self.assertEqual("pkg update --yes; printf '%s\\n' P4_KERNEL_STAGE=$? > /tmp/validation-status-plain; cat /tmp/validation-status-plain\r",m.sent[0])
+        self.assertEqual(['cat /tmp/validation-status-plain\r'],m.sent[1:])
+        self.assertNotIn('P4_KERNEL_STAGE=0',''.join(m.sent))
+
+    def test_plain_busy_update_waits_without_queueing_readback(self):
+        m=self.machine([False,True]);m.send('pkg update --yes; echo P4_STAGE=$?\r')
+        path=m._validation_status[1]
+        m.text='boot'+path+'\r\n'
+        self.assertTrue(m.wait('P4_STAGE=0',4,600))
+        self.assertEqual(1,len(m.sent));self.assertEqual(5,m.waited[1][2])
+
+    def test_plain_wrong_exit_code_remains_failure(self):
+        m=self.machine([False]*5);m.send('false; echo P4_STAGE=$?\r')
+        path=m._validation_status[1]
+        m.text='boot'+path+'\r\nP4_STAGE=1\r\n[console] root@zenith:~$ '
+        self.assertFalse(m.wait('P4_STAGE=0',4,600))
+        self.assertEqual(4,len(m.sent))
+        self.assertNotIn('P4_STAGE=0',''.join(m.sent))
+
+    def test_plain_intact_result_does_not_read_back(self):
+        m=self.machine([True]);m.send('true; echo P4_OK=$?\r')
+        self.assertTrue(m.wait('P4_OK=0',4,600));self.assertEqual(1,len(m.sent))
+
+    def test_plain_busy_deadline_fails_without_readback_or_replay(self):
+        m=self.machine([False]);m.send('pkg update --yes; echo P4_STAGE=$?\r')
+        m.text='boot'+m._validation_status[1]+'\r\n'
+        with patch.object(status.time,'monotonic',side_effect=[0,601]):
+            self.assertFalse(m.wait('P4_STAGE=0',4,600))
+        self.assertEqual(1,len(m.sent))
+
     def test_intact_status_needs_no_readback(self):
         m=self.machine([True]);m.send('false; echo WRONG=$? | logger\r')
         self.assertTrue(m.wait('user: WRONG=',4,600))

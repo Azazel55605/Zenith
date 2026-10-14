@@ -1,5 +1,32 @@
 # Implementation progress
 
+## 2026-10-14 · Repository combined-update deadline and status observations
+
+- Operator's 0.0.9 repository gate fails waiting for `P4_KERNEL_STAGE=0`.
+  Retained installed serial proves the full HTTPS archive finished and verified,
+  data updates committed, and kernel copying reached 54% before the harness
+  stopped. This is an unfinished operation at the 600-second deadline, not
+  evidence of an incorrect exit code or a completed update with a lost marker.
+  Its transcript still contains the hot-loop trace flood addressed in 0.0.10.
+  Existing release tags remain immutable; prefer the optimized 0.0.10 next.
+- Controller status recovery previously covered only `echo STATUS=$? | logger`.
+  Cover plain repository-test `echo STATUS=$?` too: save the actual exit status
+  once in a fresh temporary file, report it through the original output route,
+  and reread only that file if the observation is lost. Never replay the mutation
+  or substitute success. Busy operations keep their original deadline; an update
+  still copying at expiry fails. Per-VM timing now names plain `P4_*` phases.
+- Fourteen status, six profiler, 15 controller and 17 distributor release tests
+  pass, including plain-result recovery, wrong-code refusal, busy/deadline refusal
+  without queued readbacks and preservation of logged kernel-test behavior.
+- Full disposable native repository acceptance passes 83/83 against the optimized
+  local 0.0.10 Release ISO under TCG. The real full-size HTTPS combined update
+  completes in 185.87 seconds within the unchanged 600-second deadline; whole
+  harness wall time is 382.506 seconds. Reboot loads the exact new signed ELF;
+  confirmation/rollback, data persistence, signature/replay/expiry refusal,
+  ordinary-user restrictions and independent clean ext2 audit all pass.
+  Evidence: /tmp/zenith-repo-status-fix.log and /tmp/zn-repo-status-fix.
+  Server 0.0.10 acceptance remains separate; no publication gates changed.
+
 ## 2026-10-14 · Native release gate efficiency (full kernel gate verified)
 
 - Operator confirms 0.0.9's full 169-check kernel gate passed in 3370 seconds

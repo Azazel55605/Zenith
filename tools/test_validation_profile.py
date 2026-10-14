@@ -37,6 +37,10 @@ class ProfileTests(unittest.TestCase):
         row=json.loads((m.directory/'wait-times.jsonl').read_text())
         self.assertEqual(('K_INSTALL','failed'),(row['label'],row['outcome']))
 
+    def test_plain_repository_status_has_a_safe_phase_label(self):
+        self.assertEqual('P4_KERNEL_STAGE',profile.label('P4_KERNEL_STAGE=0'))
+        self.assertEqual('guest-check',profile.label('pkg update --yes'))
+
     def test_original_exception_is_not_masked_by_observation(self):
         m=self.machine(RuntimeError('original failure'))
         with patch.object(profile,'acceleration',return_value='unknown'):

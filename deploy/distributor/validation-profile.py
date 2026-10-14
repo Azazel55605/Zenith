@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 import time
 
-STATUS = re.compile(r'user: ([A-Z][A-Za-z0-9_-]{0,63})=')
+STATUS = re.compile(r'(?:user: )?([A-Z][A-Za-z0-9_-]{0,63})=')
 
 
 def label(marker):

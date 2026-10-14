@@ -465,3 +465,8 @@ transfer and stage; it is not a reduced-size substitute for healthy kernel updat
 Status observation does not queue readbacks while the exact submitted command is
 still visibly busy. A completed prompt only permits reading the saved status;
 it never counts as success. Original deadlines and exit-code assertions remain.
+Both logged kernel-test statuses and plain repository-test statuses save the
+actual exit code before reporting it. Recovery only rereads that invocation's
+unique temporary file; it never repeats an install or update. Repository waits
+also appear under their `P4_*` labels in timing output. A still-running download
+or kernel copy at the deadline remains a failure, even if data updates committed.

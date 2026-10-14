@@ -3,19 +3,19 @@ import re
 import secrets
 import time
 
-STATUS = re.compile(r'(.+); echo ([A-Z][A-Za-z0-9_-]{0,63})=\$\? \| logger\r', re.DOTALL)
+STATUS = re.compile(r'(.+); echo ([A-Z][A-Za-z0-9_-]{0,63})=\$\?( \| logger)?\r', re.DOTALL)
 
 
 NOISE = re.compile(r"\[(?!zenith\])[A-Za-z][A-Za-z0-9 ]*\][^\n]*\n")
 PROMPT = re.compile(r'(?:^|\r?\n)\[console\] [^\r\n]*[$#] ')
 
 
-def busy(machine, path, offset):
+def busy(machine, path, offset, output=' | logger'):
     # Only postpone readback when the exact submitted suffix is visible and no
     # subsequent completed shell prompt exists. Damaged/unknown echoes retain
     # the old recovery path. Never treat a prompt as successful exit status.
     raw = NOISE.sub('', machine.log()[offset:])
-    submitted = re.search(re.escape(path) + r' \| logger(?:\r\n|\n)', raw)
+    submitted = re.search(re.escape(path + output) + r'(?:\r\n|\n)', raw)
     return submitted is not None and PROMPT.search(raw, submitted.end()-1) is None
 
 
@@ -24,31 +24,32 @@ def install(machine_type):
 
     def send(machine, text):
         # Adapt only the harness's exact status suffix, not interactive input or
-        # arbitrary shell commands. Save $? before logger/filesystem work changes it.
+        # arbitrary shell commands. Save $? before reporting/filesystem work changes it.
         match = STATUS.fullmatch(text)
         machine._validation_status = None
         if match:
-            operation, name = match.groups()
+            operation, name, output = match.groups()
+            output = output or ''
             path = '/tmp/validation-status-' + secrets.token_hex(16)
             offset = len(machine.log())
-            machine._validation_status = (name, path, offset)
+            machine._validation_status = (name, path, offset, output)
             text = (operation + "; printf '%s\\n' " + name + '=$? > ' + path +
-                    '; cat ' + path + ' | logger\r')
+                    '; cat ' + path + output + '\r')
         return original_send(machine, text)
 
     def wait(machine, marker, offset=0, timeout=180):
         record = getattr(machine, '_validation_status', None)
-        prefix = 'user: ' + record[0] + '=' if record else ''
+        prefix = (('user: ' if record[3] else '') + record[0] + '=') if record else ''
         status_marker = marker == prefix or (bool(prefix) and marker.startswith(prefix) and marker[len(prefix):].isdigit())
         if not record or not status_marker or offset > record[2]:
             return original_wait(machine, marker, offset, timeout)
         deadline = time.monotonic() + timeout
         if original_wait(machine, marker, offset, min(timeout, 30)):
             return True
-        name, path, _ = record
-        if busy(machine, path, offset):
+        name, path, _, output = record
+        if busy(machine, path, offset, output):
             print('Guest operation '+name+' is still running; postponing status readback', flush=True)
-            while busy(machine, path, offset):
+            while busy(machine, path, offset, output):
                 remaining = deadline - time.monotonic()
                 if remaining <= 0 or machine.process.poll() is not None:
                     print('Guest operation deadline reached: '+name+'; operation was not repeated', flush=True)
@@ -62,7 +63,7 @@ def install(machine_type):
             if remaining <= 0 or machine.process.poll() is not None:
                 break
             print('Recovering saved guest status ' + name + ' (read-only attempt ' + str(attempt + 1) + ')', flush=True)
-            original_send(machine, 'cat ' + path + ' | logger\r')
+            original_send(machine, 'cat ' + path + output + '\r')
             if original_wait(machine, marker, offset, min(remaining, 30)):
                 return True
         remaining = deadline - time.monotonic()
