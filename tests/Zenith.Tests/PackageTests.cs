@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using Zenith.Core.Packages;
 
@@ -15,6 +16,15 @@ public class PackageTests
     private static PackagePlan Plan(string text, Func<string, PackagePathState>? state = null, byte[]? data = null) =>
         PackagePlanner.Plan(PackageManifest.Parse(text), new Source(data ?? Data), "x86_64", BootstrapComponents.All, state ?? (_ => PackagePathState.Missing));
 
+    [Fact]
+    public void FilesystemCapabilityBlocksInstallationOnOldKernels()
+    {
+        string text = Text().Replace("requires\tzenith-base\t0.1\n", "requires\tzenith-base\t0.1\nrequires\tzenith-native-fs-abi\t1.0\n");
+        var old = BootstrapComponents.All.Where(c => c.Name != "zenith-native-fs-abi").ToArray();
+        var plan = PackagePlanner.Plan(PackageManifest.Parse(text), new Source(Data), "x86_64", old, _ => PackagePathState.Missing);
+        Assert.False(plan.Applicable); Assert.Contains("zenith-native-fs-abi", Assert.Single(plan.Blockers));
+        Assert.True(Plan(text).Applicable);
+    }
     [Fact]
     public void RoundTripAndPlanVerifyPayloadWithoutMutating()
     {

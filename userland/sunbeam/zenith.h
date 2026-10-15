@@ -13,4 +13,10 @@ static inline __attribute__((noreturn)) void zenith_exit(int code) {
 static inline long zenith_identity(long number) {
     __asm__ volatile("int $0xfe" : "+a"(number) : : "memory", "cc"); return number;
 }
+/* Filesystem extension 1: explicit UTF-8 path length; read-only regular or directory. */
+static inline long zenith_call(long number, unsigned long a, unsigned long b, unsigned long c) {
+    __asm__ volatile("int $0xfe" : "+a"(number) : "D"(a), "S"(b), "d"(c) : "memory", "cc"); return number;
+}
+struct zenith_stat { unsigned long size; unsigned int mode, uid, gid, reserved; };
+struct zenith_dirent { struct zenith_stat stat; char name[256]; };
 #endif

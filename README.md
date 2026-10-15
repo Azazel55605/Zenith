@@ -137,6 +137,15 @@ In name/location prompts, Ctrl+A clears the current value. Copies are limited to
 8 MiB and opening in Editor to 128 KiB. Moving folders between parents and copying
 folders, devices, virtual files or symlinks are unavailable. See `man files`.
 
+## Independently packaged file tools
+
+The 0.0.13 source extends protected native execution with read-only filesystem
+calls. After installing/confirming the compatible kernel and upgrading Sunbeam
+0.2.0, use `sunbeam cat FILE`, `sunbeam ls [-a] [-l] DIR`, `sunbeam pwd` and
+`sunbeam stat FILE`. Tools inherit your identity and working directory and update
+through their own signed package. Existing builtins remain recovery commands.
+See [native programs](docs/NATIVE-PROGRAMS.md) for limits and upgrade order.
+
 ## Settings, sessions and packages
 
 The 0.0.11 source adds installed graphical login and Desktop/local text Headless

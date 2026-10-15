@@ -542,3 +542,16 @@ state/transport decisions and failed monitor responses without QEMU. The native
 login gate additionally tests an installed standard-VGA recovery console. Fallback
 selection failures retain each attempt's serial log and menu screenshot and report
 whether the broken kernel, a startup failure, QEMU exit or a deadline was observed.
+
+## Native read-only filesystem acceptance (0.0.13 source)
+
+The executable gate now covers managed service yield/resume, inherited cwd,
+regular read/directory/stat calls, full copyout validation before I/O, caller and
+ancestor/symlink permissions, stale/limited handles and exit/fault/timeout/Ctrl+C
+cleanup. It also exercises malformed user stack pointers on both syscall and timer
+entry so interrupt return cannot turn an application fault into a kernel fault.
+Run `tools/native-process-smoke.py` through validation-runner as above, adding
+`--cpu-workers` for opt-in 2-vCPU acceptance. The same signed executable upgrade
+still runs under an unchanged kernel, followed by independent ext2 auditing.
+New native bundles declare the filesystem capability; upgrade/confirm the kernel
+before upgrading Sunbeam 0.2.0. Existing release gates are retained.

@@ -26,6 +26,7 @@ internal static class BootstrapComponents
         new("zenith-appearance-abi", "1.0", "declarative appearance resources"),
         new("zenith-session-host", "1.0", "trusted login/session host; kernel-linked"),
 #if !ARCH_ARM64
+        new("zenith-native-fs-abi", "1.0", "read-only native filesystem calls"),
         new("zenith-native-abi", "1.0", "x86_64 foreground process ABI; kernel capability"),
 #endif
     };

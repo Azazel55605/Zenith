@@ -26,7 +26,7 @@ try
             Directory.CreateDirectory(temporary);
             var manifest = new StringBuilder("ZENITH-PACKAGE\t1\nname\t" + name + "\nversion\t" + version
                 + "\narchitecture\t" + (native ? "x86_64" : "any") + "\nkind\tdata\nruntime\t" + PackageManifest.Runtime + "\nrequires\tzenith-base\t0.1\n");
-            if (native) { manifest.Append("requires\tzenith-native-abi\t1.0\n"); }
+            if (native) { manifest.Append("requires\tzenith-native-abi\t1.0\nrequires\tzenith-native-fs-abi\t1.0\n"); }
             if (meta)
             {
                 manifest.Replace("ZENITH-PACKAGE\t1\n", "ZENITH-PACKAGE\t3\nrepository\t" + (args.Length == 7 ? args[6] : "extra") + "\n");

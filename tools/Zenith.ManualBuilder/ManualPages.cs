@@ -102,6 +102,8 @@ internal static class ManualPages
             pkg update [--yes]         refresh/update installed data and stage newer kernel
             pkg upgrade [--yes]        data-only upgrades from refreshed catalog
             native run NAME [ARGS...]  execute signed installed x86_64 text program
+            sunbeam cat FILE...       independently packaged read-only file tools
+            sunbeam ls [-a] [-l] DIR   directory listing; pwd/stat also available
             pkg kernel update [--yes]   fetch/stage newer kernel; reboot/confirm remains
             boot status|confirm|rollback|recover  kernel generations
             pkg check FILE.zpk     verify RSA-PSS signature and complete payload
@@ -123,7 +125,10 @@ internal static class ManualPages
             Kernel containers use a separate signed type/coordinator and retain the
             previous kernel. No bootloader updates, root snapshots or automatic fallback.
             Existing compiled recovery builtins/DE require reboot; Sunbeam executes
-            independently through native ABI 1. Online core/extra indexes are signed.
+            independently through native ABI 1. Sunbeam 0.2.0 needs the 0.0.13
+            filesystem capability: update/confirm the kernel before data upgrades.
+            Native file access uses invoking permissions and cwd; no stdin/writes
+            yet, and text output is bounded to 64 KiB. Online indexes are signed.
             System update commits data and boot staging separately, then requires
             explicit reboot/boot confirm. No global root/ESP atomicity or hot reload.
             Recovery covers journaled package changes; ext2 power-loss repair may

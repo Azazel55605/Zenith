@@ -1,5 +1,50 @@
 # Implementation progress
 
+## 2026-10-15 · Native filesystem tool unbundling (locally verified)
+
+- Operator confirms 0.0.12 and resource packages installed with working login.
+  Implement M5 managed service yield/resume from protected x64 execution, bounded
+  read-only handles, caller cwd/permissions and independent Sunbeam cat/ls/pwd/stat.
+  The `sunbeam` shortcut launches the signed package; recovery builtins remain.
+- Filesystem requests return to the managed caller's original stack/CR3/IDT before
+  VFS/driver execution. Resume preserves integer/FP state and remaining interrupt
+  budget. Validate complete owned user buffers and writable copyout before I/O.
+  Per invocation: 16 handles, 4 KiB I/O, 1 MiB file/directory readback, 4096 service
+  requests. Scheduler points between request groups allow cancellation. Handles
+  close on exit/fault/timeout/cancel; one close failure does not skip the rest.
+- Add a lower-canonical-stack check before raw interrupt returns: a malicious
+  noncanonical RSP must not turn IRET into a kernel fault. A timer exit acknowledges
+  the IRQ. Native syscall/timer probes terminate with 139 and subsequent file
+  programs continue, including with opt-in AP workers active.
+- New native bundles require zenith-native-fs-abi 1.0 as well as ABI 1.0 execution.
+  Existing signed native packages remain runnable. Upgrade/confirm kernel first,
+  then upgrade Sunbeam; host regression proves old kernels reject the dependency.
+  New releases target kernel/v0.0.13 and sunbeam-tools/v0.2.0.
+- Release build and 620 host tests pass. Package-tool tests: 11; polling: 20;
+  release controller: 18; validation controller: 15, all pass. GCC and Clang emit
+  accepted final ELFs. Manual generator emits 17 pages (NuGet audit-cache warning
+  under the sandbox's read-only host cache; generation succeeds).
+- Native initial file acceptance passes in 218.117 s; extended single-CPU
+  cancellation/permission acceptance passes in 241.096 s. A two-CPU run passes in
+  278.560 s before the final stack hardening. Final release binary with opt-in
+  2-vCPU workers passes the expanded native gate in 297.571 s:
+  /tmp/zenith-native-fs-validated.log and /tmp/zn-native-fs-validated. It checks real
+  reads/listings/cwd/stat, ordinary-user/root/symlink/ancestor enforcement, copyout
+  rejection without offset advancement, FP state across yields, stale/limited
+  handles, fault/timeout/request exhaustion, Ctrl+C status 130 and cleanup, signed
+  executable upgrades under the unchanged kernel, post-fault shell use, desktop
+  authentication/fonts, secret-free logs and independent installed ext2 integrity.
+- Initial publish failed because cosmos.patcher was absent from shell PATH; use
+  the already installed ~/.dotnet/tools without changing SDK versions. No real
+  disks, signing keys or running server were changed. Full server release gates
+  and operator installation remain pending. Local full kernel-update/repository
+  suites were not repeated in this slice; they remain mandatory distributor gates.
+- This meets the local M5 foundation's controlled-file-access acceptance, not full
+  userland migration. Output remains buffered 64 KiB UTF-8 text; no stdin, writes,
+  seek, pipes, general process scheduler, graphical executable ABI or Linux ABI.
+  VFS parent (`..`) traversal remains unsupported rather than lexically bypassing
+  permission checks. See NATIVE-PROGRAMS for the exact bounded contract.
+
 ## 2026-10-15 · Hide superseded failed dashboard activity
 
 - Dashboard activity hides failed/interrupted releases only after a strictly newer

@@ -45,6 +45,7 @@ class PackageToolTests(unittest.TestCase):
         text = (self.bundle / "manifest.tsv").read_text()
         self.assertIn("architecture\tx86_64", text)
         self.assertIn("requires\tzenith-native-abi\t1.0", text)
+        self.assertIn("requires\tzenith-native-fs-abi\t1.0", text)
         self.assertIn("sunbeam.elf\t0755\t", text)
         elf = self.source / "usr/share/zenith/native/sunbeam.elf"
         self.assertEqual(0, self.run_tool("native-check", elf).returncode)

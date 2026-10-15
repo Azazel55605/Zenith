@@ -10,7 +10,7 @@ choices. See [SYSTEM-PLAN](SYSTEM-PLAN.md) for detailed acceptance and
 **Sizes:** S = a day or two · M = about a week · L = several weeks · XL = months.
 **↑ upstream** = a change to Cosmos itself (its HAL is internal; see "Upstream work" below).
 
-## Where we are (reviewed 2026-10-14)
+## Where we are (reviewed 2026-10-15)
 
 M0/M1/M2 are complete within their documented scope. Supported bounded ext2,
 installed accounts/authentication and filesystem permission enforcement are verified.
@@ -81,11 +81,14 @@ Details: [system plan](SYSTEM-PLAN.md), [userland](USERLAND.md),
 
 ## Delivery order and dependency gates
 
-Next user-selected priority (2026-10-14) is authenticated login/session management,
+The login/session priority selected on 2026-10-14 covered authenticated login/session management,
 Desktop/local-text Headless selection with serial fallback, and a styling
 metapackage. See [LOGIN-SESSIONS](LOGIN-SESSIONS.md) for lifecycle, packaging
-boundaries and acceptance. This precedes the proposed next native `cat`/`ls` slice;
+boundaries and acceptance. This preceded the native `cat`/`ls` slice;
 independent graphical executables still need the M5 process/graphics/input APIs.
+Operator confirms 0.0.12 and the resources installed with working login.
+The current selected slice is M5 read-only native filesystem access and packaged
+Sunbeam cat/ls; local native validation is tracked in PROGRESS.
 The 0.0.11 source implements the trusted host, local text console, safe logout,
 verified appearance resources and true styling metapackages. The renderer and
 authentication broker are not separate executable processes yet; full DE/WM and
@@ -227,7 +230,7 @@ remains optional rather than an assumed final desktop runtime.
 | Item | Size | Notes |
 |---|---|---|
 | Kernel/userland ABI and loader design | XL | Initial static x64 ELF ABI 1/ring 3 foreground bridge implemented; general syscall/runtime interfaces remain |
-| Process isolation/lifecycle and credentials | XL | Initial private pages/args/identity/exit/fault/budget proof implemented; descriptors, env/cwd, scheduling/wait/signals remain |
+| Process isolation/lifecycle and credentials | XL | Initial private pages/args/identity/exit/fault/budget proof implemented; read-only descriptors/cwd added in 0.0.13 source; env, scheduling/wait/signals remain |
 | Multicore execution and scheduling | XL | Opt-in isolated native AP workers implemented; idle wakeups, per-CPU scheduler state and managed allocation/GC barriers remain; [scope](MULTICORE.md) |
 | IPC, byte pipes and terminal contract | L | Versioned controlled APIs; Bash dependencies in [assessment](BASH-PORT.md) |
 | First independent text and graphical apps | L | Sunbeam text executable independently packaged/updated; graphical API and client remain |
@@ -239,6 +242,8 @@ remains optional rather than an assumed final desktop runtime.
 
 **Foundation exit:** a standalone app installs/runs/updates without relinking the kernel,
 with observable process identity, controlled file access and fault isolation.
+Locally verified by the 0.0.13 read-only native slice; distributor and operator
+acceptance remain tracked in PROGRESS. Full M5 migration remains open.
 **Migration exit:** desktop/apps run independently behind a versioned graphics/IPC
 contract; app failure does not panic the OS and desktop restart has a diagnostic
 fallback. A text executable alone completes neither desktop migration nor full M5.
@@ -432,7 +437,7 @@ signed data packages plus stage a newer kernel with explicit reboot/confirmation
 Independent manual/font recipes and Sunbeam text ELF start actual package separation.
 The M5 foundation now has protected ring 3 execution, private page tables, arguments,
 output/exit/identity, fault containment and bounded foreground lifetime. Full process
-scheduling, file/network handles, IPC and GUI contracts remain required before
+scheduling, writable file/network handles, IPC and GUI contracts remain required before
 base/net/fs and desktop migration; this does not complete M5. Distributor storage
 reporting and automatic bounded retention are implemented; see PROGRESS for evidence
 and PACKAGE-SERVER for deployment.

@@ -204,6 +204,8 @@ z_append_user_gdt:
     mov z_context(%rip), %rbx
     mov (%rbx), %rax
     mov %rax, %cr3
+    cmpq $0, 128(%rbx)
+    jne z_resume_user
     movzwq z_user_ss(%rip), %rax
     push %rax
     pushq 16(%rbx)
@@ -227,6 +229,34 @@ z_append_user_gdt:
     xor %r14d, %r14d
     xor %r15d, %r15d
     iretq
+# Resume the exact saved interrupt frame and all registers after a managed call.
+z_resume_user:
+    mov 176(%rbx), %rsi
+    mov 168(%rbx), %rax
+    mov %rax, 112(%rsi)
+    lea z_interrupt_stack+69632-176(%rip), %rdi
+    mov %rdi, %rsp
+    mov $22, %ecx
+    rep movsq
+    mov 184(%rbx), %rax
+    fxrstor64 (%rax)
+    pop %r15
+    pop %r14
+    pop %r13
+    pop %r12
+    pop %r11
+    pop %r10
+    pop %r9
+    pop %r8
+    pop %rbp
+    pop %rdi
+    pop %rsi
+    pop %rdx
+    pop %rcx
+    pop %rbx
+    pop %rax
+    add $16, %rsp
+    iretq
 z_unsupported:
     mov z_context(%rip), %rax
     movq $95, 64(%rax)
@@ -239,6 +269,14 @@ z_bridge:
     cmp $3, %eax
     pop %rax
     jne z_forward
+    # IRET with a noncanonical user RSP would fault in ring 0. Contain it
+    # before every return/yield, including raw timer interrupts.
+    push %rax
+    mov 48(%rsp), %rax
+    shr $47, %rax
+    test %rax, %rax
+    pop %rax
+    jnz z_invalid_user_stack
     cmpq $254, (%rsp)
     je z_syscall
     cmpq $32, (%rsp)
@@ -288,6 +326,19 @@ z_eoi:
     out %al, $0xa0
     out %al, $0x20
     ret
+z_invalid_user_stack:
+    cmpq $32, (%rsp)
+    jb 13f
+    cmpq $254, (%rsp)
+    je 13f
+    cmpq $255, (%rsp)
+    je 13f
+    call z_eoi
+13:
+    mov z_context(%rip), %rax
+    movq $13, 96(%rax)
+    movq $139, 64(%rax)
+    jmp z_exit
 z_user_fault:
     mov z_context(%rip), %rax
     mov (%rsp), %rcx
@@ -305,6 +356,18 @@ z_forward:
     pop %rax
     ret
 z_syscall:
+    cmp $0, %rax
+    je z_service
+    cmp $2, %rax
+    je z_service
+    cmp $3, %rax
+    je z_service
+    cmp $4, %rax
+    je z_service
+    cmp $79, %rax
+    je z_service
+    cmp $217, %rax
+    je z_service
     cmp $39, %rax
     je z_get_pid
     cmp $102, %rax
@@ -404,6 +467,43 @@ z_syscall_return:
     pop %rbx
     add $16, %rsp
     iretq
+# Yield only to the original managed call stack/CR3/IDT. Never invoke managed
+# filesystem or driver code on a raw user interrupt frame.
+z_service:
+    push %rax
+    push %rbx
+    push %rcx
+    push %rdx
+    push %rsi
+    push %rdi
+    push %rbp
+    push %r8
+    push %r9
+    push %r10
+    push %r11
+    push %r12
+    push %r13
+    push %r14
+    push %r15
+    cld
+    mov z_context(%rip), %rbx
+    mov 112(%rsp), %rax
+    mov %rax, 136(%rbx)
+    mov 72(%rsp), %rax
+    mov %rax, 144(%rbx)
+    mov 80(%rsp), %rax
+    mov %rax, 152(%rbx)
+    mov 88(%rsp), %rax
+    mov %rax, 160(%rbx)
+    mov %rsp, %rsi
+    mov 176(%rbx), %rdi
+    mov $22, %ecx
+    rep movsq
+    mov 184(%rbx), %rax
+    fxsave64 (%rax)
+    movq $1, 128(%rbx)
+    movq $4096, 64(%rbx)
+    jmp z_exit
 z_exit:
     cli
     cld
