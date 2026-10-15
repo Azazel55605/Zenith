@@ -69,4 +69,14 @@ class ProfileTests(unittest.TestCase):
         # No /proc entry is available: still cannot assert an actual KVM VM.
         self.assertNotEqual('kvm',profile.acceleration(m))
 
+    def test_explicit_running_tcg_is_observable_without_kvm_descriptors(self):
+        m=self.machine(True)
+        from types import SimpleNamespace
+        m.process=SimpleNamespace(pid=2147483648,args=['qemu','-accel','tcg'],poll=lambda:None)
+        self.assertEqual('tcg',profile.acceleration(m))
+        m.process.args=['qemu','-accel','kvm','-accel','tcg']
+        self.assertEqual('unknown',profile.acceleration(m))
+        m.process.args=['qemu','-accel','tcg'];m.process.poll=lambda:1
+        self.assertEqual('unknown',profile.acceleration(m))
+
 if __name__=='__main__':unittest.main()

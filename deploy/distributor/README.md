@@ -347,3 +347,18 @@ extended signed catalogs. Kernel tags containing `login-session-smoke.py` also r
 installed graphical login/local-console/appearance acceptance before publication.
 Install and confirm kernel 0.0.11 before installing the new packages by name; see
 [the guest workflow](../../docs/LOGIN-SESSIONS.md).
+
+### Recovery-test transport regression in kernel/v0.0.11
+
+The 0.0.11 recovery test attached standard VGA to select the previous boot entry,
+then still expected the pre-login serial shell. Configured accounts now reach the
+graphical greeter on that display. The corrected 0.0.12 harness recognizes the
+actual startup transport, authenticates through the greeter into local Headless,
+and checks the exact retained kernel generation before rollback/confirmation.
+Pure serial recovery still authenticates over COM1. Kernel integrity, durability
+and independent filesystem checks remain mandatory. The expanded login gate runs
+first to catch this class of transport regression before lengthy kernel transfers.
+
+Pull the controller, then let the new tag run normally. Do not move the immutable
+0.0.11 tag or repeatedly queue its unchanged failing harness. Resource package tags
+already published at 0.1.0 do not need rebuilding for this validation-only fix.

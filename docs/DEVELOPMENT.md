@@ -534,3 +534,11 @@ logout refusal, local input/history, DE/headless switching, signed styling reloa
 without a kernel replacement, metapackage removal and independent ext2 integrity.
 Never point the fixture at an operator VM disk. Tagged kernel release validation
 includes this gate alongside kernel-update, repository and protected-program gates.
+
+The kernel recovery test uses `tools/recovery_console.py` to distinguish serial
+startup from the displayed greeter, perform real authentication and send commands
+through the selected input device. `tools/test_recovery_console.py` covers these
+state/transport decisions and failed monitor responses without QEMU. The native
+login gate additionally tests an installed standard-VGA recovery console. Fallback
+selection failures retain each attempt's serial log and menu screenshot and report
+whether the broken kernel, a startup failure, QEMU exit or a deadline was observed.

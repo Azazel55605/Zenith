@@ -15,6 +15,7 @@ import threading
 import time
 from pathlib import Path
 import boot_image
+from recovery_console import RecoveryConsole, monitor_command
 
 spec_failure = importlib.util.spec_from_file_location('kernel_failure', Path(__file__).with_name('kernel-failure-fixture.py'))
 failure = importlib.util.module_from_spec(spec_failure); spec_failure.loader.exec_module(failure)
@@ -68,7 +69,7 @@ def main():
     (keep/'tiny.elf').write_bytes(tiny);run('kernel-seal','1.0.0',keep/'tiny.elf',keep/'keys/private.pem',keep/'tiny.zpk')
     tampered=bytearray((keep/'tiny.zpk').read_bytes());tampered[-1]^=1;(served/'tampered.zpk').write_bytes(tampered)
     server=Server(('127.0.0.1',0),functools.partial(Handler,directory=str(served))); threading.Thread(target=server.serve_forever,daemon=True).start()
-    url=f'http://10.0.2.2:{server.server_port}'; checks=0; m=None; configured=False; secret="K!"+secrets.token_hex(8)
+    url=f'http://10.0.2.2:{server.server_port}'; checks=0; m=None; configured=False; recovery=None; secret="K!"+secrets.token_hex(8)
     def check(ok,label):
         nonlocal checks
         checks+=1; print(('ok   ' if ok else 'FAIL ')+label,flush=True)
@@ -82,15 +83,12 @@ def main():
             offset=len(machine.log());machine.send(secret+'\r');check(machine.wait('authenticated as root',offset),name+' authenticated')
         return machine
     def command(text,marker,timeout=600):
-        off=len(m.log());m.send(text+'\r');check(m.wait(marker,off,timeout),marker);time.sleep(.2)
+        off=len(m.log());(recovery.send if recovery else m.send)(text+'\r');check(m.wait(marker,off,timeout),marker);time.sleep(.2)
         raw=m.log()[off:];return raw+'\n'+h.efi.smoke.COSMOS_NOISE.sub('',raw)
     def status(text,name,code=0):
         raw=command(text+'; echo '+name+'=$? | logger','user: '+name+'=');check('user: '+name+'='+str(code) in raw,name+' expected status '+str(code));return raw
     def shutdown(reboot=False):
         command('reboot' if reboot else 'poweroff','all filesystems unmounted');check(m.process.wait(timeout=60)==0,'clean '+('reboot' if reboot else 'poweroff')+' without manual sync');disk=m.disk;m.stop();return disk
-    def monitor_command(path,text):
-        with socket.socket(socket.AF_UNIX) as sock:
-            sock.connect(str(path));sock.recv(4096);sock.sendall((text+'\n').encode());time.sleep(.1)
     try:
         m=boot('live');status('pkg kernel install /missing','K_LIVE_DENIED',1)
         status('session set-default headless','K_SESSION');status('install sata0 --yes','K_INSTALL')
@@ -162,10 +160,14 @@ def main():
         for attempt,delay in enumerate((3,5,1)):
             mon=keep/f'fallback-{attempt}'/'monitor.sock';m=h.Machine(keep/f'fallback-{attempt}',disk,network=['-netdev','user,id=net0','-device','e1000e,netdev=net0'],monitor=mon,vga='std')
             time.sleep(delay);monitor_command(mon,'screendump '+str(keep/f'fallback-menu-{attempt}.ppm'));monitor_command(mon,'sendkey down');monitor_command(mon,'sendkey ret')
-            if m.wait('headless ready',timeout=60):selected=True;break
+            candidate=RecoveryConsole(m,mon,h)
+            if candidate.wait_startup(timeout=60):
+                recovery=candidate;selected=True;break
+            print('Recovery selection attempt '+str(attempt+1)+': '+candidate.state+'; evidence='+str(m.directory),flush=True)
             m.stop()
         check(selected,'manual previous entry boots after failed new kernel')
-        command('login root','Password: ');command(secret,'authenticated as root')
+        print('Recovery console: '+recovery.state,flush=True)
+        check(recovery.login('root',secret),'retained kernel recovery authentication')
         result=status('boot status','K_FAILED_BOOT_FALLBACK');check('running-kernel='+original_id in result,'fallback uses exact previous generation')
         status('boot rollback','K_BAD_ROLLBACK');status('boot confirm','K_PREVIOUS_CONFIRM');final=shutdown();boot_image.verify(final)
         # Independent ext2 check and unchanged bootloader identity.

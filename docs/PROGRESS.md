@@ -1,5 +1,48 @@
 # Implementation progress
 
+## 2026-10-15 · Displayed kernel recovery validation (locally verified)
+
+- Operator reports new resource packages built but kernel/v0.0.11 failed after
+  successful upgrade, confirmation, rollback and broken-image startup checks.
+  All three manual previous-entry attempts waited for the serial Headless marker.
+  Local reproduction with the released ISO and a disposable installed disk proves
+  standard VGA instead reaches `session: login ready; selection=headless` and never
+  starts an unauthenticated serial console. This is a validation transport mismatch,
+  not evidence that the retained kernel or filesystem failed.
+- Add explicit recovery-console state recognition and actual graphical root login
+  into the saved local Headless session. Commands use the local keyboard after that
+  authentication; serial-only recovery retains real password login over UART.
+  Keep exact running-kernel checks, broken-entry execution, rollback/confirmation,
+  clean shutdown and independent filesystem audits. No readiness/status results
+  are synthesized and no authentication or durability check is bypassed.
+- HMP commands consume complete monitor responses and report errors. Wrong broken
+  entry, guest crash, process exit and startup deadline receive separate diagnostics.
+  Add a standard-VGA installed recovery case to the shorter login gate and run that
+  gate first, before long full-kernel transfer/recovery acceptance. Preserve all
+  mandatory gates. Forced TCG can now be reported from the running process's single
+  explicit backend; ambiguous auto-backend cases remain unknown.
+- Seven recovery transport tests, eight profiler tests, 15 validation-controller
+  tests and 20 polling tests pass. Release tests initially hit sandbox read-only
+  /var/tmp; rerun outside that restriction passes. The expanded release suite
+  passes 18 tests. Native login/session acceptance passes 69 checks in 237.380 s,
+  including the standard-VGA recovery path, clean ext2 and secret-free transcripts
+  (/tmp/zenith-recovery-display-check.log; /tmp/zn-recovery-display-check).
+  Complete native kernel recovery acceptance passes 169/169 checks in 661.814 s
+  (/tmp/zenith-kernel-recovery-fixed.log; /tmp/zn-kernel-recovery-fixed). The first
+  menu-selection attempt reaches graphical login, authenticates to local Headless,
+  proves the exact retained generation, rolls back/confirms and powers off cleanly.
+  Independent installed ext2 and EFI FAT audits pass (only the known optional
+  formatter warnings), and credentials are absent from transcripts.
+- Smoke marker tests (10) and status-recovery tests (14) also pass. Product kernel,
+  storage and package sources are unchanged; native runs use the existing released
+  0.0.11 binary with the corrected harness. Repository/native-executable gates were
+  not repeated locally for this validation-only change; all remain mandatory on
+  the distributor. The initial diagnostic probe tried passwd on a live root, was
+  stopped and corrected to use its installed clone; no real VM disk was touched.
+- The existing 0.0.11 tag stays immutable; corrected harness release targets
+  kernel/v0.0.12. Resource versions remain 0.1.0. Server build/publication and
+  operator installation remain pending; this local run is not server acceptance.
+
 ## 2026-10-14 · Login/session and appearance implementation (locally verified)
 
 - Implement installed graphical authentication, deferred session teardown and

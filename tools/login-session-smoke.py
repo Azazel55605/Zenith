@@ -2,6 +2,7 @@
 """Installed graphical login, local console, session teardown and signed styling upgrades."""
 import argparse, functools, hashlib, http.server, importlib.util, re, secrets, socket, subprocess, sys, threading, time
 from pathlib import Path
+from recovery_console import RecoveryConsole
 
 ROOT=Path(__file__).resolve().parents[1]; sys.path.insert(0,str(ROOT/'tools'))
 spec=importlib.util.spec_from_file_location('headless',ROOT/'tools/headless-smoke.py')
@@ -70,6 +71,22 @@ def main():
             path='/tmp/'+name+'.zpk';status('fetch '+url+'/'+name+'-0.1.0.zpk '+path,'LOGIN_FETCH_'+name.replace('-','_'))
             status('pkg install '+path,'LOGIN_PKG_'+name.replace('-','_'))
         status('pkg verify','LOGIN_VERIFY');disk=shutdown()
+        # Match the standard VGA recovery-menu transport before the long kernel
+        # gate. A display changes configured Headless startup into a real greeter.
+        mon=keep/'recovery-display/monitor.sock'
+        m=h.Machine(keep/'recovery-display',disk,network=net,monitor=mon,vga='std')
+        recovery=RecoveryConsole(m,mon,h)
+        check(recovery.wait_startup(180),'displayed recovery startup recognized')
+        check(recovery.graphical,'displayed recovery requires greeter authentication')
+        check(recovery.login('root',secret),'displayed recovery authenticates to local console')
+        offset=len(m.log());recovery.send('id | logger; boot status | logger\r')
+        check(m.wait('uid=0',offset,60),'displayed recovery has root identity')
+        expected=hashlib.sha256((ROOT/'output-x64/Zenith.elf').read_bytes()).hexdigest()
+        check(m.wait('running-kernel='+expected,offset,60),'displayed recovery checks exact kernel generation')
+        offset=len(m.log());recovery.send('poweroff\r')
+        check(m.wait('all filesystems unmounted',offset,60),'displayed recovery synced shutdown')
+        check(m.process.wait(timeout=30)==0,'displayed recovery clean poweroff')
+        disk=m.disk;m.stop();m=None
         m=h.Machine(keep/'gui',disk,'session=de',network=net+['-device','virtio-gpu-pci'],monitor=keep/'monitor.sock')
         check(m.wait('login ready',timeout=180),'installed starts at greeter')
         check('desktop ready (installed)' not in m.log(),'no desktop before authentication')

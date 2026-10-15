@@ -237,7 +237,9 @@ def native_checks(work):
         checks = [("k", "kernel-update-smoke.py"), ("r", "repository-smoke.py")]
         # Older immutable kernel tags predate this ABI and its harness.
         if (REPO / "tools/native-process-smoke.py").exists(): checks.append(("u", "native-process-smoke.py"))
-        if (REPO / "tools/login-session-smoke.py").exists(): checks.append(("s", "login-session-smoke.py"))
+        # Catch display/login transport regressions before the much longer
+        # full-sized kernel delivery and crash-recovery sequence. No gate omitted.
+        if (REPO / "tools/login-session-smoke.py").exists(): checks.insert(0, ("s", "login-session-smoke.py"))
         for name, script in checks:
             phase("Native " + script, [sys.executable, "-B", str(Path(__file__).parent / "validation-runner.py"), str(REPO / "tools" / script),
                   str(directory / name)], work / (script + ".log"))

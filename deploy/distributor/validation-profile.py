@@ -31,6 +31,14 @@ def acceleration(machine):
         text = (machine.directory / 'qemu.log').read_text(errors='replace')
         if 'falling back to tcg' in text: return 'tcg'
     except (OSError, AttributeError): pass
+    # A forced, single TCG backend cannot have fallen back to another backend.
+    # QEMU keeps quiet about successful TCG initialization, unlike KVM failures.
+    try:
+        args = machine.process.args
+        if isinstance(args, (list, tuple)):
+            backends = [args[i+1] for i, value in enumerate(args[:-1]) if value == '-accel']
+            if backends == ['tcg'] and machine.process.poll() is None: return 'tcg'
+    except AttributeError: pass
     return 'unknown'
 
 
