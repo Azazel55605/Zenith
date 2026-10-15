@@ -79,4 +79,17 @@ class ProfileTests(unittest.TestCase):
         m.process.args=['qemu','-accel','tcg'];m.process.poll=lambda:1
         self.assertEqual('unknown',profile.acceleration(m))
 
+    def test_failed_status_diagnostic_is_preserved_in_phase_metrics(self):
+        m=self.machine(False)
+        m._validation_failure=dict(reason='operation-deadline',observed_status=None,
+                                   expected_status=0,last_guest_phase='kernel-copy-54%',qemu_exit=None)
+        self.assertFalse(m.wait('P4_KERNEL_STAGE=0'))
+        row=json.loads((m.directory/'wait-times.jsonl').read_text())
+        self.assertEqual(m._validation_failure,row['failure'])
+
+    def test_success_never_inherits_a_stale_failure_diagnostic(self):
+        m=self.machine(True);m._validation_failure=dict(reason='old failure')
+        self.assertTrue(m.wait('P4_STAGE=0'))
+        self.assertNotIn('failure',json.loads((m.directory/'wait-times.jsonl').read_text()))
+
 if __name__=='__main__':unittest.main()

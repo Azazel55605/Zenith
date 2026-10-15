@@ -4,6 +4,10 @@ Archived material preserves decisions and test evidence. It is **not current
 status**; “pending”, “active” and “next” apply to the original recording date.
 Start with [current status](../STATUS.md) or [active work](../PROGRESS.md).
 
+## Investigation records
+
+- [2026-10-15 repository staging](2026-10-15/repository-stage-investigation.md): existing 0.0.13 passes locally; server cause pending, diagnostic/controller changes validated.
+
 ## Completed slices
 
 - [2026-10-15 documentation overhaul](2026-10-15/documentation-overhaul.md): structure, preservation and link checks.

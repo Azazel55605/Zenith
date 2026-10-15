@@ -152,6 +152,38 @@ class ValidationTests(unittest.TestCase):
         self.assertEqual('yes',(self.root/'reaped').read_text())
         self.assertEqual(before,(harness.read_bytes(),helper.read_bytes()))
 
+    def test_native_repository_failure_precedes_long_kernel_matrix_and_retains_evidence(self):
+        repo=self.root/'repo';(repo/'tools').mkdir(parents=True)
+        for name in ('native-process-smoke.py','login-session-smoke.py'):
+            (repo/'tools'/name).touch()
+        scratch=self.root/'native-scratch';scratch.mkdir()
+        work=self.root/'release';work.mkdir()
+        calls=[]
+        def phase(name,args,log):
+            calls.append(name)
+            if name == 'Native repository-smoke.py':
+                (scratch/'failure-evidence.txt').write_text('retained')
+                raise ValueError('repository failure')
+        with patch.object(release,'REPO',repo), patch.object(release.tempfile,'mkdtemp',return_value=str(scratch)), \
+             patch.object(release.maintenance,'register_native'), patch.object(release,'phase',side_effect=phase):
+            with self.assertRaisesRegex(ValueError,'repository failure'):
+                release.native_checks(work)
+        self.assertEqual(['Native login-session-smoke.py','Native repository-smoke.py'],calls)
+        self.assertEqual('retained',(work/'native/failure-evidence.txt').read_text())
+
+    def test_successful_native_release_keeps_every_gate_with_kernel_matrix_last(self):
+        repo=self.root/'repo';(repo/'tools').mkdir(parents=True)
+        for name in ('native-process-smoke.py','login-session-smoke.py'):
+            (repo/'tools'/name).touch()
+        scratch=self.root/'native-scratch';scratch.mkdir()
+        work=self.root/'release';work.mkdir()
+        with patch.object(release,'REPO',repo), patch.object(release.tempfile,'mkdtemp',return_value=str(scratch)), \
+             patch.object(release.maintenance,'register_native'), patch.object(release,'phase') as phase:
+            release.native_checks(work)
+        self.assertEqual(['Native login-session-smoke.py','Native repository-smoke.py',
+                          'Native native-process-smoke.py','Native kernel-update-smoke.py'],
+                         [call.args[0] for call in phase.call_args_list])
+
     def test_phase_metrics_record_success_and_failure_without_hiding_error(self):
         with patch.object(release, 'REPO', self.root):
             release.phase('success', [sys.executable, '-c', "print('ok')"], self.root / 'ok.log')

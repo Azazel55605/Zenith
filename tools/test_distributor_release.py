@@ -147,7 +147,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertTrue((work / "native/r/evidence.txt").exists())
         self.assertTrue((work / "native/u/evidence.txt").exists())
         self.assertTrue(all(not path.parent.exists() for path in calls))
-        self.assertEqual(['s','k','r','u'],[path.name for path in calls])
+        self.assertEqual(['s','r','u','k'],[path.name for path in calls])
 
     def test_old_tags_without_login_gate_keep_existing_acceptance(self):
         work = self.repo / "old-tag-native"; work.mkdir()
@@ -158,7 +158,7 @@ class ReleaseTests(unittest.TestCase):
              patch.object(release.tempfile, "mkdtemp", side_effect=lambda **kw: original(prefix="zn-", dir="/tmp")), \
              patch.object(release, "phase", side_effect=phase):
             release.native_checks(work)
-        self.assertEqual(['k','r'],calls)
+        self.assertEqual(['r','k'],calls)
 
     def test_failed_native_artifacts_retained_without_masking_failure(self):
         work = self.repo / "failed-native"; work.mkdir()

@@ -72,6 +72,9 @@ def install(machine_type):
             row = dict(kind='wait', label=label(marker), seconds=round(time.monotonic()-started, 3),
                        outcome=outcome, timeout=timeout, serial_bytes=max(0,size(machine)-before),
                        accelerator=acceleration(machine))
+            failure = getattr(machine, '_validation_failure', None)
+            if outcome == 'failed' and isinstance(failure, dict):
+                row['failure'] = failure
             after = resources(machine)
             if used and after:
                 row['qemu_cpu_seconds'] = round(max(0, after['cpu_seconds']-used['cpu_seconds']), 3)

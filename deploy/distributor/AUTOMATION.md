@@ -239,3 +239,37 @@ response after the command, preserves failure for offline/wrong-address/dead gue
 and never retries/reconfigures DHCP. It also reaps VMs after failed boot checks.
 This controller fix works with existing immutable release tags; pull controller
 updates and queue the failed tag for retry. Tagged source is not rewritten.
+
+## Repository kernel-staging failures
+
+`P4_KERNEL_STAGE=0` is an expected guest exit status, not a compiler diagnostic.
+It covers signed catalog refresh, full HTTPS download/verification, installed data
+updates and kernel staging. A missing success marker alone does not identify
+which operation failed. Inspect the retained `r/installed/serial.log` and
+`wait-times.jsonl` before retrying or changing timeouts.
+
+The controller reports a structured failure reason, observed/expected status,
+last recognized guest phase and QEMU exit state. These observations also appear
+in failed wait metrics and dashboard phase output. Only bounded known progress
+fields are exposed; raw guest serial, command input and credentials remain private.
+A complete unexpected exit status fails promptly without repeating the update.
+Missing output, process exit and operation deadline remain failures; progress or
+a shell prompt is never substituted for successful completion.
+
+Current gate order is login/session, repository, protected native programs, then
+the longer kernel crash/recovery matrix (optional gates only where the tagged
+source contains them). All gates remain mandatory for signing. Earlier immutable
+tags retain their product sources; updated controller adapters and ordering apply
+when explicitly retrying them.
+
+Check the actual accelerator in the failed wait metric. The service's effective
+policy can be inspected with:
+
+```sh
+systemctl show zenith-distributor.service -p Environment
+```
+
+`auto` attempts KVM then TCG; group membership or an empty QEMU stderr log does not
+prove the selected backend. The recorded home-server comparison favored forced
+TCG, but confirm the effective policy and retained metrics before attributing a
+new failure to nested acceleration. A local pass does not establish server success.

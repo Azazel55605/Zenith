@@ -57,7 +57,9 @@ class StatusTests(unittest.TestCase):
         path=m._validation_status[1]
         m.text='boot'+path+'\r\nP4_STAGE=1\r\n[console] root@zenith:~$ '
         self.assertFalse(m.wait('P4_STAGE=0',4,600))
-        self.assertEqual(4,len(m.sent))
+        self.assertEqual(1,len(m.sent))  # An actual failing exit needs no readback/replay.
+        self.assertEqual(1, m._validation_failure['observed_status'])
+        self.assertEqual('nonzero-or-unexpected-status', m._validation_failure['reason'])
         self.assertNotIn('P4_STAGE=0',''.join(m.sent))
 
     def test_plain_intact_result_does_not_read_back(self):
@@ -120,5 +122,48 @@ class StatusTests(unittest.TestCase):
         self.assertIn('status-one',m.sent[0]);self.assertIn('status-two',m.sent[1])
         m.send('echo hello\r');self.assertIsNone(m._validation_status)
         self.assertFalse(m.wait('user: A=',4,9));self.assertEqual(3,len(m.sent))
+
+    def test_progress_diagnostic_uses_last_real_stage_not_scheduler_ticks(self):
+        m=self.machine([])
+        m.text=('PRIVATE-CREDENTIAL\nfetch progress [#####-----------] 35% 5.9/16.8 MiB\r'
+                'Staging signed kernel 2.0.0\rkernel copy 12%\r'
+                '[SCHED] Tick 56000 enabled=1\n[GC] Collection #8\n')
+        result=status.observation(m,'P4_KERNEL_STAGE',0,'')
+        self.assertEqual(dict(observed_status=None,last_guest_phase='kernel-copy-12%'),result)
+        self.assertNotIn('PRIVATE',str(result))
+
+    def test_status_requires_complete_line_and_does_not_match_command_echo(self):
+        m=self.machine([])
+        for text in ('echo P4_STAGE=0\r','P4_STAGE=0', 'prefix P4_STAGE=0\n', 'P4_STAGE=0oops\n'):
+            m.text=text
+            self.assertIsNone(status.observation(m,'P4_STAGE',0,'')['observed_status'])
+        m.text='P4_STAGE=130\r\n'
+        self.assertEqual(130,status.observation(m,'P4_STAGE',0,'')['observed_status'])
+        m.text='[zenith] [ 126.132] user: K_STAGE=1\r\n'
+        self.assertEqual(1,status.observation(m,'K_STAGE',0,' | logger')['observed_status'])
+
+    def test_failure_diagnostic_distinguishes_dead_guest_from_missing_output(self):
+        m=self.machine([]);m.text='kernel copy 100%\r';m.poll=lambda:7
+        self.assertFalse(status.failed(m,'P4_STAGE','P4_STAGE=0','P4_STAGE=',0,'','status-unavailable'))
+        self.assertEqual('qemu-exited',m._validation_failure['reason'])
+        self.assertEqual(7,m._validation_failure['qemu_exit'])
+        self.assertEqual('kernel-copy-100%',m._validation_failure['last_guest_phase'])
+
+    def test_late_nonzero_result_does_not_wait_the_rest_of_the_deadline(self):
+        m=self.machine([False,False]);m.send('pkg update --yes; echo P4_STAGE=$?\r')
+        path=m._validation_status[1];m.text='boot'+path+'\r\n'
+        def replies():
+            yield False
+            m.text+='P4_STAGE=1\r\n[console] root@zenith:~$ '
+            yield False
+        m.replies=replies()
+        self.assertFalse(m.wait('P4_STAGE=0',4,600))
+        self.assertEqual(1,len(m.sent))
+        self.assertEqual(2,len(m.waited))
+        self.assertEqual(1,m._validation_failure['observed_status'])
+
+    def test_noise_only_is_not_application_progress(self):
+        m=self.machine([]);m.text='[SCHED] Tick 1\n[GC] Freed 50 objects\n'
+        self.assertEqual('unknown',status.observation(m,'P4_STAGE',0,'')['last_guest_phase'])
 
 if __name__=='__main__':unittest.main()

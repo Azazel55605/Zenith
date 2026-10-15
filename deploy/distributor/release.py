@@ -234,9 +234,12 @@ def native_checks(work):
     except (OSError, ValueError): print("Native workspace registration unavailable; automatic orphan cleanup will skip it", flush=True)
     print("Native workspace: " + str(directory) + "; retained afterward at " + str(work / "native"), flush=True)
     try:
-        checks = [("k", "kernel-update-smoke.py"), ("r", "repository-smoke.py")]
+        checks = [("r", "repository-smoke.py")]
         # Older immutable kernel tags predate this ABI and its harness.
         if (REPO / "tools/native-process-smoke.py").exists(): checks.append(("u", "native-process-smoke.py"))
+        # Run the expensive crash/recovery matrix last. A repository regression
+        # should fail before repeating that matrix; every gate remains mandatory.
+        checks.append(("k", "kernel-update-smoke.py"))
         # Catch display/login transport regressions before the much longer
         # full-sized kernel delivery and crash-recovery sequence. No gate omitted.
         if (REPO / "tools/login-session-smoke.py").exists(): checks.insert(0, ("s", "login-session-smoke.py"))
