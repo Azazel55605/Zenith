@@ -17,16 +17,28 @@ native acceptance after compilation, not a compiler error.
 - [x] Improve failure diagnostics and detect actual unexpected statuses promptly,
   without replaying updates or loosening acceptance.
 - [x] Run repository/native checks before the long kernel recovery matrix; retain all gates.
-- [ ] Identify the server-specific failure from filtered guest output and timing/backend evidence.
+- [x] Confirm server TCG policy and exact 600.034-second timeout; copy reached
+  100% before the harness terminated QEMU. No guest staging error was shown.
+- [x] Implement a scoped advancing-progress budget: 600 seconds idle, 1800 hard;
+  duplicate/regressing progress and scheduler noise cannot renew it.
+- [x] Real guest: progressing operation completes after its nominal budget; idle
+  operation still fails. Subsequent command and clean poweroff pass.
+- [x] Full repository acceptance: 92 checks pass in 424.057 s, including reboot,
+  confirmation and independent ext2 audit (combined staging: 191.696 s).
+- [x] 61 controller/budget/profile tests pass, including stalled/noisy/duplicate
+  progress, hard cutoff, wrong statuses and exact-operation scoping.
+- [x] Prepare the validated controller fix and documented same-tag background retry.
+  [Budget evidence and remaining operator action](archive/2026-10-15/repository-stage-budget.md).
 - [x] Controller/status/profile regressions: 50 tests pass; release/poller: 38 pass.
 - [x] Real guest: reject status 1, record diagnostic, accept subsequent status 0,
   then cleanly power off. [Evidence and changes](archive/2026-10-15/repository-stage-investigation.md).
 
-**Finding:** compilation succeeded. The existing binary passes the exact full
-repository scenario locally. The server tail supplied so far contains scheduler/GC
-traces only, which do not identify the update stage or exit status. Filtered server
-output is requested. The underlying server failure is not claimed fixed.
-No product binary, release tag or validation deadline changed.
+**Finding:** the server used TCG (406.81 QEMU CPU seconds in 600.034 wall
+seconds), completed download/signature checks and all kernel-copy writes, then
+hit the single aggregate deadline before the verified staging result. Local
+acceptance finishes the same operation in 216.511 seconds. A progress-aware test
+budget addresses premature termination without treating progress as success;
+the server's eventual completion still needs a retry. No kernel binary or tag changes.
 
 Previous completed work: [documentation overhaul](archive/2026-10-15/documentation-overhaul.md).
 

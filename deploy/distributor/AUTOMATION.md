@@ -273,3 +273,36 @@ systemctl show zenith-distributor.service -p Environment
 prove the selected backend. The recorded home-server comparison favored forced
 TCG, but confirm the effective policy and retained metrics before attributing a
 new failure to nested acceleration. A local pass does not establish server success.
+
+
+### Bounded progress budget for combined kernel staging
+
+The exact `pkg update --yes` / `P4_KERNEL_STAGE` status operation spans download,
+signature checks, data commit, kernel copy, readback and boot publication. The
+0.0.13 server run reached 100% copied but hit its old 600-second aggregate deadline
+under actual TCG. The controller now gives this one operation a 600-second
+**inactivity** limit and an independent **1800-second total** limit.
+
+Only advancing recognized download percentages, copy percentages or later update
+milestones refresh the inactivity deadline. Duplicate/regressing progress,
+scheduler/GC output and growing log files do not refresh it. An expired deadline
+cannot be revived. All other commands retain their fixed deadlines. Actual wrong
+exit status and QEMU exit still fail; progress never replaces the expected status,
+reboot/hash, confirmation or filesystem checks.
+
+Minute heartbeats show elapsed time, last known phase and remaining idle/total
+budgets. At 100% copied they explicitly say the verified staging result is still
+pending: copy percentage does not include all flush/readback/publication work.
+Wait metrics retain the nominal timeout plus the selected idle/hard budget policy.
+This changes test scheduling, not product storage throughput or durability barriers.
+
+After pulling the updated controller, retry the same immutable tag through the
+background service when no poll is active:
+
+```sh
+python3 -B deploy/distributor/poll.py --queue-retry kernel/v0.0.13
+sudo systemctl start --no-block zenith-distributor.service
+```
+
+No tag move, new kernel version, signing-key replacement or service reinstall is
+required. Server completion/publication remains an operator acceptance step.

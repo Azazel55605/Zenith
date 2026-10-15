@@ -92,4 +92,13 @@ class ProfileTests(unittest.TestCase):
         self.assertTrue(m.wait('P4_STAGE=0'))
         self.assertNotIn('failure',json.loads((m.directory/'wait-times.jsonl').read_text()))
 
+    def test_progress_budget_is_recorded_with_nominal_timeout(self):
+        m=self.machine(True)
+        m._validation_budget=dict(policy='advancing-kernel-stage',idle_seconds=600,hard_seconds=1800,
+                                  last_guest_phase='kernel-copy-100%')
+        self.assertTrue(m.wait('P4_KERNEL_STAGE=0',timeout=600))
+        row=json.loads((m.directory/'wait-times.jsonl').read_text())
+        self.assertEqual(600,row['timeout'])
+        self.assertEqual(m._validation_budget,row['budget'])
+
 if __name__=='__main__':unittest.main()

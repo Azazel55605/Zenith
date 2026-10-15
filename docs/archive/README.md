@@ -6,6 +6,8 @@ Start with [current status](../STATUS.md) or [active work](../PROGRESS.md).
 
 ## Investigation records
 
+- [2026-10-15 bounded staging budget](2026-10-15/repository-stage-budget.md): server TCG/deadline confirmed; scoped inactivity/overall budget and retry.
+
 - [2026-10-15 repository staging](2026-10-15/repository-stage-investigation.md): existing 0.0.13 passes locally; server cause pending, diagnostic/controller changes validated.
 
 ## Completed slices

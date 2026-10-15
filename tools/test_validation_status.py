@@ -166,4 +166,109 @@ class StatusTests(unittest.TestCase):
         m=self.machine([]);m.text='[SCHED] Tick 1\n[GC] Freed 50 objects\n'
         self.assertEqual('unknown',status.observation(m,'P4_STAGE',0,'')['last_guest_phase'])
 
+class StageBudgetTests(unittest.TestCase):
+    def setUp(self):
+        self.now=0
+        clock=patch.object(status.time,'monotonic',side_effect=lambda:self.now)
+        clock.start();self.addCleanup(clock.stop)
+
+    def test_advancing_copy_can_finish_after_original_total_deadline(self):
+        budget=status.StageBudget(600,True)
+        self.now=100;self.assertEqual(600,budget.remaining('kernel-download-20%'))
+        self.now=500;self.assertEqual(600,budget.remaining('kernel-copy-5%'))
+        self.now=650;self.assertEqual(600,budget.remaining('kernel-copy-100%'))
+        self.now=900;self.assertEqual(600,budget.remaining('boot-publication'))
+        self.assertEqual(1800,budget.metrics()['hard_seconds'])
+
+    def test_repeated_regressing_noise_and_invalid_percent_do_not_extend(self):
+        budget=status.StageBudget(600,True)
+        self.now=30;self.assertEqual(600,budget.remaining('kernel-copy-90%'))
+        for phase in ('kernel-copy-90%','kernel-copy-50%','unknown','kernel-copy-101%','kernel-download-100%'):
+            self.now=500;self.assertEqual(130,budget.remaining(phase),phase)
+        self.now=630;self.assertEqual(0,budget.remaining('kernel-copy-90%'))
+        self.now=631;self.assertEqual(0,budget.remaining('kernel-copy-100%'))
+
+    def test_overall_limit_wins_even_with_real_forward_progress(self):
+        budget=status.StageBudget(600,True)
+        for moment,phase in ((500,'kernel-download-10%'),(1000,'kernel-download-80%'),(1500,'kernel-copy-10%')):
+            self.now=moment;self.assertGreater(budget.remaining(phase),0)
+        self.now=1799;self.assertEqual(1,budget.remaining('kernel-copy-99%'))
+        self.now=1800;self.assertEqual(0,budget.remaining('kernel-copy-100%'))
+
+    def test_other_waits_keep_the_original_fixed_deadline(self):
+        budget=status.StageBudget(600,False)
+        self.now=500;self.assertEqual(100,budget.remaining('kernel-copy-100%'))
+        self.now=600;self.assertEqual(0,budget.remaining('boot-publication'))
+        self.assertEqual('fixed',budget.metrics()['policy'])
+
+    def test_small_data_download_does_not_hide_kernel_download_progress(self):
+        m=StatusTests().machine([])
+        m.text=('fetch progress [################] 100% 0.1/0.1 MiB\r'
+                'Downloading zenith-kernel 2.0.0\n'
+                'fetch progress [#---------------] 5% 0.8/16.8 MiB\r')
+        phase=status.observation(m,'P4_KERNEL_STAGE',0,'')['last_guest_phase']
+        self.assertEqual('kernel-download-5%',phase)
+        budget=status.StageBudget(600,True)
+        self.now=10;budget.remaining('download-100%')
+        self.now=500;self.assertEqual(600,budget.remaining(phase))
+
+    def test_adapter_waits_for_real_success_beyond_original_deadline_without_replay(self):
+        m=StatusTests().machine([]);m.send('pkg update --yes; echo P4_KERNEL_STAGE=$?\r')
+        m.text='boot'+m._validation_status[1]+'\r\n'
+        def replies():
+            for moment,phase in ((30,'kernel-download-10%'),(590,'kernel-copy-90%'),(650,'kernel-copy-100%')):
+                self.now=moment;m.text+=phase.replace('kernel-download-','fetch progress [] ').replace('kernel-copy-','kernel copy ')+'\r'
+                # Include the complete download representation for the observation parser.
+                if phase.startswith('kernel-download'):
+                    m.text+='Downloading zenith-kernel 2.0.0\nfetch progress [] 10% 1.6/16.8 MiB\r'
+                yield False
+            self.now=720;m.text+='P4_KERNEL_STAGE=0\r\n';yield True
+        m.replies=replies()
+        self.assertTrue(m.wait('P4_KERNEL_STAGE=0',4,600))
+        self.assertEqual(1,len(m.sent))
+        self.assertEqual('advancing-kernel-stage',m._validation_budget['policy'])
+        self.assertIn('P4_KERNEL_STAGE=0',m.text)
+
+    def test_adapter_ignores_scheduler_activity_and_repeated_copy_at_deadline(self):
+        m=StatusTests().machine([]);m.send('pkg update --yes; echo P4_KERNEL_STAGE=$?\r')
+        m.text='boot'+m._validation_status[1]+'\r\n'
+        def replies():
+            self.now=30;m.text+='kernel copy 100%\r';yield False
+            while True:
+                self.now+=5;m.text+='[SCHED] Tick 100 enabled=1\n'+'kernel copy 100%\r'
+                yield False
+        m.replies=replies()
+        self.assertFalse(m.wait('P4_KERNEL_STAGE=0',4,600))
+        self.assertEqual(630,self.now)
+        self.assertEqual(1,len(m.sent))
+        self.assertEqual('operation-deadline',m._validation_failure['reason'])
+
+    def test_lost_echo_recovery_path_also_observes_advancing_progress(self):
+        m=StatusTests().machine([]);m.send('pkg update --yes; echo P4_KERNEL_STAGE=$?\r')
+        m.text='boot'  # No intact submitted suffix, as with interleaved serial echo.
+        def replies():
+            for moment,percent in ((30,10),(200,30),(400,60),(590,90),(650,100)):
+                self.now=moment;m.text+='kernel copy '+str(percent)+'%\r';yield False
+            self.now=720;m.text+='P4_KERNEL_STAGE=0\r\n';yield True
+        m.replies=replies()
+        self.assertTrue(m.wait('P4_KERNEL_STAGE=0',4,600))
+        self.assertEqual(1,sum('pkg update' in text for text in m.sent))
+        self.assertEqual(3,sum(text.startswith('cat /tmp/validation-status-') for text in m.sent))
+
+    def test_completed_progress_never_overrides_a_real_failing_status(self):
+        m=StatusTests().machine([False]);m.send('pkg update --yes; echo P4_KERNEL_STAGE=$?\r')
+        m.text='boot\rkernel copy 100%\rKernel staged; running kernel unchanged\rP4_KERNEL_STAGE=1\r\n'
+        self.assertFalse(m.wait('P4_KERNEL_STAGE=0',4,600))
+        self.assertEqual(1,m._validation_failure['observed_status'])
+        self.assertEqual(1,len(m.sent))
+
+    def test_only_exact_combined_staging_operation_gets_progress_budget(self):
+        m=StatusTests().machine([])
+        for text in ('pkg update --yes; echo P4_OTHER=$?\r',
+                     'pkg install --yes hello; echo P4_KERNEL_STAGE=$?\r',
+                     'echo pkg update --yes; echo P4_KERNEL_STAGE=$?\r'):
+            m.send(text);self.assertFalse(m._validation_combined_stage)
+        m.send('pkg update --yes; echo P4_KERNEL_STAGE=$?\r')
+        self.assertTrue(m._validation_combined_stage)
+
 if __name__=='__main__':unittest.main()

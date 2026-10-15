@@ -72,6 +72,9 @@ def install(machine_type):
             row = dict(kind='wait', label=label(marker), seconds=round(time.monotonic()-started, 3),
                        outcome=outcome, timeout=timeout, serial_bytes=max(0,size(machine)-before),
                        accelerator=acceleration(machine))
+            budget = getattr(machine, '_validation_budget', None)
+            if isinstance(budget, dict):
+                row['budget'] = budget
             failure = getattr(machine, '_validation_failure', None)
             if outcome == 'failed' and isinstance(failure, dict):
                 row['failure'] = failure

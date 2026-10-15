@@ -8,7 +8,7 @@ summary; [component checklists](README.md#components) own detailed work.
 | Item | What is established | What remains |
 |---|---|---|
 | Kernel 0.0.12 | Operator reports installed and working login; supporting resource packages installed | No broader hardware certification implied |
-| Kernel 0.0.13 | Implemented, locally built/tested, tag pushed | Server repository gate reported failed at kernel staging; local full repository reproduction passed; publication/installed acceptance pending |
+| Kernel 0.0.13 | Implemented, locally built/tested, tag pushed | Server TCG run hit aggregate deadline after 100% copy; bounded progress-budget fix awaiting server retry; publication/installed acceptance pending |
 | Sunbeam tools 0.2.0 | Read-only file tools locally verified; independent tag pushed | Server publication and installed acceptance with kernel 0.0.13 |
 | Home repository | Operator has used verified HTTPS and installed packages by name | Backup restore test not confirmed; no live server audit in this docs review |
 

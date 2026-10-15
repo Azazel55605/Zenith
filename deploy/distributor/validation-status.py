@@ -30,10 +30,13 @@ def observation(machine, name, offset, output):
         (r'Kernel staged; running kernel unchanged', 'kernel-staged'),
     ]
     last = -1
+    kernel_download = raw.rfind('Downloading zenith-kernel ')
     for pattern, stage in milestones:
         for match in re.finditer(pattern, raw):
             if match.start() > last:
                 last = match.start()
+                if stage == 'download' and kernel_download >= 0 and match.start() > kernel_download:
+                    stage = 'kernel-download'
                 phase = stage + ('-' + match[1] + '%' if match.lastindex else '')
     return dict(observed_status=int(codes[-1]) if codes else None, last_guest_phase=phase)
 
@@ -56,6 +59,55 @@ def failed(machine, name, marker, prefix, offset, output, reason):
     return False
 
 
+class StageBudget:
+    """A bounded no-progress deadline for the one combined kernel-update gate.
+
+    Advancing guest milestones refresh an idle budget; serial bytes, timers,
+    repeated or regressing progress cannot keep a stuck operation alive.
+    A separate 3x wall limit always wins. Neither deadline implies success.
+    """
+    def __init__(self, timeout, enabled):
+        self.timeout = timeout
+        self.enabled = enabled
+        self.started = time.monotonic()
+        self.idle_deadline = self.started + timeout
+        self.hard_deadline = self.started + timeout * (3 if enabled else 1)
+        self.high_water = (-1, -1)
+        self.phase = 'unknown'
+        self.next_report = self.started + 60
+
+    def remaining(self, phase):
+        now = time.monotonic()
+        if self.enabled:
+            ranks = {'download': 0, 'kernel-download': 1, 'kernel-verified': 2, 'data-backup': 3,
+                     'data-commit': 4, 'data-committed': 5, 'kernel-staging': 6,
+                     'kernel-copy': 7, 'boot-publication': 8, 'kernel-staged': 9}
+            match = re.fullmatch(r'(download|kernel-download|kernel-copy)-([0-9]{1,3})%', phase)
+            stage, percent = (match[1], int(match[2])) if match else (phase, 0)
+            token = (ranks.get(stage, -1), percent)
+            # Deadlines cannot be revived by output first observed after expiry.
+            if token[0] >= 0 and 0 <= percent <= 100 and token > self.high_water \
+                    and now < min(self.idle_deadline, self.hard_deadline):
+                self.high_water = token
+                self.phase = phase
+                self.idle_deadline = now + self.timeout
+        return max(0, min(self.idle_deadline, self.hard_deadline) - now)
+
+    def metrics(self):
+        return dict(policy='advancing-kernel-stage' if self.enabled else 'fixed',
+                    idle_seconds=self.timeout, hard_seconds=self.timeout * (3 if self.enabled else 1),
+                    last_guest_phase=self.phase)
+
+    def report(self, name):
+        now = time.monotonic()
+        if self.enabled and now >= self.next_report:
+            self.next_report = now + 60
+            pending = '; copy complete; verified staging result still pending' if self.phase == 'kernel-copy-100%' else ''
+            print('Guest operation ' + name + ': elapsed=' + str(round(now-self.started, 1)) +
+                  's; phase=' + self.phase + '; idle_remaining=' + str(round(max(0, self.idle_deadline-now), 1)) +
+                  's; hard_remaining=' + str(round(max(0, self.hard_deadline-now), 1)) + 's' + pending, flush=True)
+
+
 def busy(machine, path, offset, output=' | logger'):
     # Only postpone readback when the exact submitted suffix is visible and no
     # subsequent completed shell prompt exists. Damaged/unknown echoes retain
@@ -74,8 +126,11 @@ def install(machine_type):
         match = STATUS.fullmatch(text)
         machine._validation_status = None
         machine._validation_failure = None
+        machine._validation_budget = None
+        machine._validation_combined_stage = False
         if match:
             operation, name, output = match.groups()
+            machine._validation_combined_stage = operation == 'pkg update --yes' and name == 'P4_KERNEL_STAGE'
             output = output or ''
             path = '/tmp/validation-status-' + secrets.token_hex(16)
             offset = len(machine.log())
@@ -90,10 +145,18 @@ def install(machine_type):
         status_marker = marker == prefix or (bool(prefix) and marker.startswith(prefix) and marker[len(prefix):].isdigit())
         if not record or not status_marker or offset > record[2]:
             return original_wait(machine, marker, offset, timeout)
-        deadline = time.monotonic() + timeout
-        if original_wait(machine, marker, offset, min(timeout, 30)):
-            return True
+        budget = StageBudget(timeout, getattr(machine, '_validation_combined_stage', False))
         name, path, _, output = record
+        def remaining():
+            phase = observation(machine, name, offset, output)['last_guest_phase'] if budget.enabled else 'unknown'
+            available = budget.remaining(phase)
+            machine._validation_budget = budget.metrics()
+            if budget.enabled: budget.report(name)
+            return available
+        machine._validation_budget = budget.metrics()
+        initial = min(timeout / 4, 30) if budget.enabled else min(timeout, 30)
+        if original_wait(machine, marker, offset, initial):
+            return True
         def wrong_status():
             observed = observation(machine, name, offset, output)['observed_status']
             expected = marker[len(prefix):]
@@ -105,29 +168,31 @@ def install(machine_type):
         if busy(machine, path, offset, output):
             print('Guest operation '+name+' is still running; postponing status readback', flush=True)
             while busy(machine, path, offset, output):
-                remaining = deadline - time.monotonic()
-                if remaining <= 0 or machine.process.poll() is not None:
+                available = remaining()
+                if available <= 0 or machine.process.poll() is not None:
                     print('Guest operation deadline reached: '+name+'; operation was not repeated', flush=True)
                     return failed(machine, name, marker, prefix, offset, output, 'operation-deadline')
-                if original_wait(machine, marker, offset, min(remaining, 5)):
+                if original_wait(machine, marker, offset, min(available, 5)):
                     return True
                 if wrong_status(): return False
         # Replay only the saved observation. An absent file, dead/hung guest or
         # unreadable response still fails; the unchanged harness checks its value.
         for attempt in range(3):
-            remaining = deadline - time.monotonic()
-            if remaining <= 0 or machine.process.poll() is not None:
+            available = remaining()
+            if available <= 0 or machine.process.poll() is not None:
                 break
             print('Recovering saved guest status ' + name + ' (read-only attempt ' + str(attempt + 1) + ')', flush=True)
             original_send(machine, 'cat ' + path + output + '\r')
-            if original_wait(machine, marker, offset, min(remaining, 30)):
+            if original_wait(machine, marker, offset, min(available, 30)):
                 return True
             if wrong_status(): return False
-        remaining = deadline - time.monotonic()
-        if remaining > 0 and machine.process.poll() is None:
-            if original_wait(machine, marker, offset, remaining):
+        available = remaining()
+        while available > 0 and machine.process.poll() is None:
+            if original_wait(machine, marker, offset, min(available, 5) if budget.enabled else available):
                 return True
             if wrong_status(): return False
+            if not budget.enabled: break
+            available = remaining()
         print('Guest status unavailable: ' + name + '; operation was not repeated', flush=True)
         return failed(machine, name, marker, prefix, offset, output, 'status-unavailable')
 

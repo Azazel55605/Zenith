@@ -42,8 +42,9 @@ after reboot and confirmation; appearance reloads at login. See the
 
 ## Remaining steps
 
-- [ ] Resolve the reported 0.0.13 server repository-staging failure; local full
-  repository reproduction passes. See [active investigation](../PROGRESS.md).
+- [ ] Retry the reported 0.0.13 server staging timeout with bounded progress
+  budgets and verify completion. Actual TCG/deadline evidence is recorded in
+  [the budget investigation](../archive/2026-10-15/repository-stage-budget.md).
 - [ ] Complete server/installed acceptance for kernel 0.0.13 and Sunbeam 0.2.0.
 - [ ] Unbundle more compiled tools as the [native ABI](USERLAND.md) grows.
 - [ ] Specify configuration-file merges and restart/compatibility handling.
