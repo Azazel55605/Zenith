@@ -92,8 +92,12 @@ only to /manage/. Keep this manager on the existing LAN/VPN network.
   automatic refresh and repository filtering. Name/version searches reveal matching
   releases without combining packages from different repositories.
 - When a poll discovers previously unrecorded release tags, earlier Complete
-  entries leave the build activity list. Failed/interrupted/pending/active entries
-  remain. An empty poll does not clear the list. Durable completion pins and logs
+  entries leave the build activity list. Failed/interrupted entries also leave
+  the list once a strictly newer version of that same package completes successfully,
+  even if its Complete row was already hidden. Numeric versions determine recency,
+  not run timestamps. Newer failures and failures of other packages remain visible;
+  pending/active builds remain visible. Durable failure records and direct logs
+  remain available; this filter does not change retry or storage-cleanup policy. An empty poll does not clear the list. Durable completion pins and logs
   remain available to automation/direct output APIs, so hidden releases are skipped
   on later polls. Published packages stay in inventory; this is activity visibility,
   separate from the planned build-file retention/cleanup policy.

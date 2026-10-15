@@ -180,6 +180,39 @@ class DashboardTests(unittest.TestCase):
         self.assertNotIn('kernel/v0.0.7', [row['tag'] for row in rows])
         self.assertIn('Host tests', self.manager.output('kernel-v0.0.7'))
 
+    def test_newer_success_hides_only_superseded_failures_without_deleting_state(self):
+        self.records = {
+            'kernel/v0.0.9': dict(status='failed', started=500),
+            'kernel/v0.0.10': dict(status='interrupted', started=600),
+            'kernel/v0.0.11': dict(status='complete', dashboard_hidden=True, started=100),
+            'kernel/v0.0.12': dict(status='failed'),
+            'kernel/v0.0.8': dict(status='pending'),
+            'kernel/v0.0.6': dict(status='building'),
+            'zenith-docs/v0.0.1': dict(status='failed'),
+        }
+        path=self.state/'releases.json';path.write_text(json.dumps(self.records));before=path.read_bytes()
+        (self.state/'kernel-v0.0.9.log').write_text('Retained failure evidence')
+        with patch.object(self.manager,'poll_busy',return_value=True):
+            code,body,_=self.request('/manage/api/status')
+        self.assertEqual(200,code)
+        self.assertEqual({'kernel/v0.0.12','kernel/v0.0.8','kernel/v0.0.6','zenith-docs/v0.0.1'},
+                         {row['tag'] for row in json.loads(body)['builds']})
+        self.assertEqual(before,path.read_bytes())
+        self.assertIn('Retained failure evidence',self.manager.output('kernel-v0.0.9'))
+
+    def test_newer_failed_or_running_version_does_not_hide_failures(self):
+        self.records = {'kernel/v0.0.9':dict(status='failed'),
+                        'kernel/v0.0.10':dict(status='failed'),
+                        'kernel/v0.0.11':dict(status='building')}
+        (self.state/'releases.json').write_text(json.dumps(self.records))
+        self.assertEqual(3,len(self.manager.snapshot()['builds']))
+
+    def test_equal_version_spellings_do_not_hide_failure(self):
+        self.records = {'zenith-docs/v1.0':dict(status='failed'),
+                        'zenith-docs/v1.0.0':dict(status='complete')}
+        (self.state/'releases.json').write_text(json.dumps(self.records))
+        self.assertEqual(2,len(self.manager.snapshot()['builds']))
+
     def test_corrupt_display_fields_do_not_break_status(self):
         self.records["kernel/v0.0.7"].update(status={"bad": True}, started=["bad"])
         (self.state / "releases.json").write_text(json.dumps(self.records))

@@ -1,5 +1,20 @@
 # Implementation progress
 
+## 2026-10-15 · Hide superseded failed dashboard activity
+
+- Dashboard activity hides failed/interrupted releases only after a strictly newer
+  version of the same package completes successfully. Compare numeric versions,
+  include hidden successful records and retain newer failures, unrelated packages
+  and pending/active builds. This is a read-only display filter; release pins,
+  retries, direct logs, published packages and storage retention are unchanged.
+- Add status-API regressions for 0.0.9 versus 0.0.11 ordering, hidden completion,
+  timestamp independence, active/pending/unrelated/newer failures, equivalent
+  two-/three-part versions, retained direct logs and unchanged state bytes.
+  All 19 dashboard tests pass, including the real HTTP status endpoint
+  (/tmp/zenith-dashboard-superseded-tests.log). No running server build changed;
+  deployment requires updating the installed dashboard Python file and restarting
+  only zenith-dashboard.service.
+
 ## 2026-10-15 · Displayed kernel recovery validation (locally verified)
 
 - Operator reports new resource packages built but kernel/v0.0.11 failed after

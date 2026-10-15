@@ -125,12 +125,26 @@ class Dashboard:
         next_run = None
         if not busy and timer.get("ActiveState") == "active" and next_seconds is not None:
             next_run = datetime.datetime.fromtimestamp(time.time() + next_seconds - time.monotonic(), datetime.timezone.utc).isoformat()
+        # Presentation only: keep durable pins/retry state and diagnostic logs.
+        # Include hidden completions, and compare numeric versions per package.
+        completed = {}
+        for tag, item in records.items():
+            if item.get("status") != "complete": continue
+            package, _, version = tag.partition("/v")
+            parts = tuple(map(int, version.split(".")))
+            number = parts + (0,) * (3 - len(parts))
+            completed[package] = max(completed.get(package, number), number)
         builds = []
         for tag, item in records.items():
             status = item.get("status", "unknown")
             if status == "complete" and item.get("dashboard_hidden") is True: continue
             if status not in ("pending", "building", "complete", "failed", "interrupted"): status = "unknown"
             if status == "building" and not busy: status = "interrupted"
+            if status in ("failed", "interrupted"):
+                package, _, version = tag.partition("/v")
+                parts = tuple(map(int, version.split(".")))
+                number = parts + (0,) * (3 - len(parts))
+                if package in completed and number < completed[package]: continue
             timestamps = {name: value if isinstance(value, (int, float)) and 0 < value < 40000000000 else None
                           for name, value in (("started", item.get("started")), ("finished", item.get("finished")))}
             builds.append(dict(tag=tag, commit=str(item.get("commit", ""))[:40], status=status,
