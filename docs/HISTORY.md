@@ -1,5 +1,29 @@
 # Zenith project history
 
+> Historical narrative, not current status. See [Status](STATUS.md) and the [detailed evidence archive](archive/README.md).
+
+## On this page
+
+- [2026-10-14: installed login, local console and styling packages](#2026-10-14-installed-login-local-console-and-styling-packages)
+- [2026-10-12: real VM kernel update and Debian distributor preparation](#2026-10-12-real-vm-kernel-update-and-debian-distributor-preparation)
+- [2026-10-05: initial system and project identity](#2026-10-05-initial-system-and-project-identity)
+- [M0: a repeatable development baseline](#m0-a-repeatable-development-baseline)
+- [M1: shell and desktop usability](#m1-shell-and-desktop-usability)
+- [2026-10-08: shared guidance and first M2 slices](#2026-10-08-shared-guidance-and-first-m2-slices)
+- [2026-10-09: lifecycle, test app and ext2 hardening](#2026-10-09-lifecycle-test-app-and-ext2-hardening)
+- [2026-10-11: directory identity and installed ext2](#2026-10-11-directory-identity-and-installed-ext2)
+- [2026-10-11: M2 accounts and access completion](#2026-10-11-m2-accounts-and-access-completion)
+- [The next chapter: planned system and distribution](#the-next-chapter-planned-system-and-distribution)
+- [2026-10-11: shared settings/session seam and early packaging](#2026-10-11-shared-settingssession-seam-and-early-packaging)
+- [2026-10-11: x64 COM1 headless and serial recovery](#2026-10-11-x64-com1-headless-and-serial-recovery)
+- [2026-10-11: M3 IPv4 lab foundation](#2026-10-11-m3-ipv4-lab-foundation)
+- [2026-10-11: signed offline packages and migration sequencing](#2026-10-11-signed-offline-packages-and-migration-sequencing)
+- [2026-10-11: installed-system delivery order and future applications](#2026-10-11-installed-system-delivery-order-and-future-applications)
+- [2026-10-11: self-contained UEFI installation foundation](#2026-10-11-self-contained-uefi-installation-foundation)
+- [2026-10-11: Sunrise and guided initial account setup](#2026-10-11-sunrise-and-guided-initial-account-setup)
+- [2026-10-11: signed kernel package activation and recovery](#2026-10-11-signed-kernel-package-activation-and-recovery)
+- [2026-10-13 · All-package updates and first protected native executable](#2026-10-13--all-package-updates-and-first-protected-native-executable)
+
 History includes the login/session implementation (2026-10-14). This is a narrative and change map, not a claim
 that every planned feature shipped. Exact commits are available through `git log`;
 [PROGRESS](PROGRESS.md) contains detailed M2 validation, failures and corrections.

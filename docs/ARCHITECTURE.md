@@ -1,7 +1,7 @@
 # Current Zenith architecture
 
-Reviewed on 2026-10-11 against the current repository, including M3, guided
-installation and P1/P3 offline packaging. This document describes current code.
+Reviewed 2026-10-15 against source through `f502085`. This document describes
+current code; release/environment acceptance is tracked in [Status](STATUS.md).
 Future structure is in [SYSTEM-PLAN](SYSTEM-PLAN.md); update design is in
 [PACKAGE-MANAGER](PACKAGE-MANAGER.md).
 
@@ -9,18 +9,21 @@ Future structure is in [SYSTEM-PLAN](SYSTEM-PLAN.md); update design is in
 
 Zenith targets .NET 10 using Cosmos Gen 3 / NativeAOT. `Zenith.csproj` references
 Cosmos.Kernel and Cosmos.Kernel.System; `Directory.Build.props` and `global.json`
-pin the default framework/SDK version to 3.0.89. The local package override is
+pin Cosmos to 3.0.89; the host .NET SDK is a separate toolchain requirement. The local package override is
 explicit and ignored by Git. Publishing produces a native kernel ELF and boot ISO.
 CI uses Release builds; developer tasks also support Debug. See [build details](DEVELOPMENT.md).
 
-All current applications and built-in commands are C# linked into the kernel.
-They run in kernel mode in a shared address space. An application window is not
-an isolated OS process. Shell worker threads keep the desktop responsive, but do
-not create a userspace ABI, process isolation, an ELF application loader or a DLL
-plugin mechanism. Scripts in `/bin` are interpreted by the built-in shell.
-Changing a compiled command or GUI app requires a new kernel build today.
-This is transitional: [USERLAND](USERLAND.md) records the accepted future separation
-of desktop/apps from the kernel. No process/loader change is implemented by that plan.
+Most built-in commands, GUI applications and privileged services are C# linked into
+the kernel, sharing its trusted address space. Shell worker threads improve
+responsiveness but do not isolate those components. Separately packaged Sunbeam
+runs as protected static x64 ELF through the Zenith native ABI, including bounded
+read-only filesystem access. Resource packages independently deliver manuals,
+fonts, branding and colors. Changing remaining linked code still requires a kernel
+build; changing a compatible native ELF or resource package does not.
+
+[USERLAND](USERLAND.md) describes the remaining migration. A window is not an
+isolated process, and resource delivery does not make the consuming renderer an
+independent executable.
 
 ## Boot and steady-state loop
 
@@ -31,8 +34,10 @@ panic boundary:
 2. `SystemConfiguration` loads validated keyboard/timezone/session settings.
 3. Shared commands and the VFS metadata bridge are registered independently of UI.
 4. `SessionRuntime` selects an available host from boot arguments/saved settings.
-5. `DesktopSessionHost` loads fonts/canvas and opens Welcome/Terminal for the test DE,
-   or `HeadlessSessionHost` starts the bounded COM1 shell without graphical allocation.
+5. Configured installed accounts reach `LoginSessionHost` before apps open.
+   Authentication selects `DesktopSessionHost` or the local text console; no
+   supported display uses `HeadlessSessionHost` COM1 fallback. Bootstrap/live
+   flows remain available. Appearance loads from verified resources or fallback.
 
 `OnBoot` bypasses Cosmos's optional graphical `KernelConsole` initializer; HAL and
 system managers are initialized earlier by Cosmos. The DE owns its later canvas.
@@ -43,7 +48,7 @@ wake it. The memory reserve policy requests collection near one-eighth free page
 at most once per second. It protects the tested native workload; graceful behavior
 for arbitrary workloads larger than RAM remains unproven.
 
-The test DE and x64 serial headless hosts exist; WM remains unavailable. Selection
+The test DE, local text and x64 serial fallback hosts exist; WM remains unavailable. Selection
 prefers DE as fallback when supported display hardware is present, then headless.
 Saving an unavailable mode through the CLI is refused. Supported display detection
 checks the boot framebuffer and known virtio GPU/VMware SVGA PCI IDs without a canvas.
@@ -139,7 +144,7 @@ metadata changes; VFS plugs authorize deferred unlink and traversal across mount
 Only root can install/format/mount or read raw disks. Held I/O rechecks permissions.
 FAT has no corresponding persisted metadata; unknown fields display `?` and only
 root may mutate it. Login closes old windows and clears the clipboard; su changes
-one terminal. Kernel code remains trusted, with no process isolation.
+one terminal. Kernel-linked code remains trusted; protected native ELF has a separate boundary.
 
 Passwords use bounded versioned PBKDF2-SHA256 records and fail-closed x64 RDSEED
 entropy; `/dev/random` reads the same hardware source. Cosmos's timer-mixed
@@ -169,16 +174,14 @@ baseline to replace later, not the intended final file manager.
 Settings currently exist as keyboard/timezone commands and persisted configuration;
 the System window reports information but is not a Settings application.
 
-## Verification baseline
+## Verification and delivery
 
-The final ext2 implementation was locally validated with 374 host tests, eight
-Python harness tests, Release publishing, 135 baseline native checks, 135 large
-native checks at 512 MiB RAM and seven disk-only UEFI checks. Installed-root data,
-mode 0640, UID 70000/GID 80000 and relative symlinks survive reboots; independent
-e2fsck is clean after clean shutdown. These are dated results at `8389113`, not
-counts guaranteed for every later revision. Hosted CI rerun awaits push.
-See [PROGRESS](PROGRESS.md) for failures, corrections and artifact references,
-and [DEVELOPMENT](DEVELOPMENT.md) for reproduction commands.
+[Status](STATUS.md) owns current release acceptance. Source through `f502085` has
+620 passing host tests and local native filesystem acceptance; 0.0.13 full server
+gates and operator installation remain pending. Operator confirms installed
+0.0.12 login/resources. [Development](DEVELOPMENT.md) owns reproduction commands;
+[archived slice evidence](archive/2026-10-15/PROGRESS.md) records earlier runs and
+limitations. Do not combine test totals from different revisions into one release claim.
 
 ## Offline packaging foundation
 
@@ -191,8 +194,10 @@ under /etc and outside data payloads. See [PACKAGES](PACKAGES.md).
 
 P3 uses a separate signed kernel container and activation state. Installer, package
 and kernel mutations share a maintenance gate; normal shutdown refuses active work.
-Compiled tools/desktop remain kernel-linked. Signed online indexes, installation by
-repository name and matched kernel/root generations remain future work.
+Most compiled tools/desktop remain kernel-linked; Sunbeam is independent. Signed
+online catalogs, named installs and all-installed updates are implemented. Matched
+kernel/root generations remain future work. Manifest-3 metapackages and extended
+catalog compatibility are documented in [ONLINE-PACKAGES](ONLINE-PACKAGES.md).
 
 ## Shared IPv4 service
 
@@ -212,16 +217,22 @@ transfers while ordinary downloads keep their smaller limit. Current apps remain
 kernel-linked.
 
 
-## First independent executable (0.0.8)
+## Protected native executables
 
 `Core/Processes` validates bounded static x86_64 ELF ABI 1 and prepares private user
-page tables/stack. `Native/x64/Process.s` enters ring 3 and provides a bounded raw
-write/exit/identity/fault/watchdog boundary. Signed package ownership and executable
-modes gate entry. This foreground prototype suspends normal managed IRQ/scheduler
-processing during its bounded window; it is not the general process/service layer.
-See [NATIVE-PROGRAMS](NATIVE-PROGRAMS.md) for memory layout and limits. Sunbeam's C/ASM
-source builds into an independent package, while kernel-linked system/GUI tools
-remain recovery implementations awaiting filesystem/network/IPC/display ABIs.
-Full manuals and primary desktop fonts now have independent data recipes, with
-small embedded/live recovery fallbacks. `pkg update` refreshes and plans installed
-data plus a newer kernel; data and boot commit boundaries remain separate.
+page tables/stack. `Native/x64/Process.s` enters ring 3 and contains faults, invalid
+memory/stack returns and watchdog expiry. Signed installed file ownership, mode
+and digest gate entry. Native resource caps and full-range copy validation bound
+services. This is a foreground BSP bridge, not a general process scheduler.
+
+Filesystem requests yield to the managed caller's original kernel context before
+VFS/driver execution and resume user registers/FP state afterward. Per-invocation
+handles carry caller credentials and cwd; reads/listings/stat recheck access and
+cleanup runs on exit/fault/timeout/cancel. Managed scheduling points between request
+groups permit cancellation. Raw user windows still suspend normal managed dispatch.
+There is no native write/stdin/socket/GUI interface yet.
+
+Sunbeam's C/ASM source builds into an independent package containing cat/ls/pwd/stat;
+remaining linked tools stay available for recovery. [Native programs](NATIVE-PROGRAMS.md)
+owns exact wire formats, limits and capability dependencies. [Multicore](MULTICORE.md)
+owns opt-in isolated integer workers; those APs do not execute managed services.

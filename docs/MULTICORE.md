@@ -1,5 +1,8 @@
 # Multicore foundation
 
+> Experimental native worker reference. Managed multicore remains planned. Work steps: [Multicore](components/MULTICORE.md).
+
+
 The first slice is **experimental native integer workers**, selected only by the
 x64 boot argument `smp=native`. Default boots still run managed work on one CPU.
 This does not enable multicore managed threads or parallel native application

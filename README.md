@@ -183,23 +183,17 @@ Downloads alone carry no package-install trust.
 
 ## Documentation
 
-Start with the [documentation hub](docs/README.md). The [current architecture](docs/ARCHITECTURE.md),
-[project history](docs/HISTORY.md), [detailed system plan](docs/SYSTEM-PLAN.md) and
-[package/update design discussion](docs/PACKAGE-MANAGER.md) separate verified behavior
-from planned headless, DE/tiling WM, Settings, Files and update work. M2 is complete within its documented ext2 and trusted-kernel scope; validation is
-tracked in the progress log.
+Start with the [documentation hub](docs/README.md).
 
-- [`INSTRUCTIONS.md`](INSTRUCTIONS.md): shared contributor and agent guidance (also linked from `AGENTS.md` and `CLAUDE.md`).
-- [`docs/PROGRESS.md`](docs/PROGRESS.md): active slices, validation evidence and next steps.
-
-- [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md): toolchain, tests, CI and releases, debugging
-  crashes, and working on Cosmos itself.
-- [`docs/ROADMAP.md`](docs/ROADMAP.md): milestones M0–M7, known gaps, upstream work and
-  open decisions.
-- [`docs/TECHNICAL-NOTES.md`](docs/TECHNICAL-NOTES.md): performance findings, the Unix model,
-  ext4/btrfs effort, the installer, and the driver landscape.
-- [`docs/cosmos/`](docs/cosmos/index.md): the vendored Cosmos Gen 3 docs (source commit in
-  `docs/cosmos/SOURCE.md`).
+- [Current status](docs/STATUS.md): what works, known limits and release/installation acceptance.
+- [Active progress](docs/PROGRESS.md): current task, concrete steps and validation.
+- [Roadmap](docs/ROADMAP.md): next slices, dependencies and milestone exits.
+- [Component guides](docs/README.md#components): implementation checklists and technical references.
+- [Architecture](docs/ARCHITECTURE.md) and [development](docs/DEVELOPMENT.md): code boundaries, building and testing.
+- [System requirements](docs/SYSTEM-PLAN.md) and [package design](docs/PACKAGE-MANAGER.md): accepted direction and open decisions.
+- [History](docs/HISTORY.md) and [archive](docs/archive/README.md): past decisions and detailed validation evidence.
+- [Shared instructions](INSTRUCTIONS.md) and [documentation rules](docs/MAINTAINING.md): contributor workflow.
+- [Cosmos reference](docs/cosmos/index.md): pinned upstream documentation.
 
 ## Layout
 

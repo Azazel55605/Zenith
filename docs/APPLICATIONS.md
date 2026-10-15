@@ -1,5 +1,15 @@
 # Zenith applications, naming and developer tools
 
+> Product requirements and feasibility: future app/tool ideas are not shipped packages. Current work: [Sessions/desktop](components/SESSIONS-DESKTOP.md) and [Userland](components/USERLAND.md).
+
+## On this page
+
+- [Naming policy proposal](#naming-policy-proposal)
+- [Files and graphical Editor requirements](#files-and-graphical-editor-requirements)
+- [Doom engine package: requested feasibility slice](#doom-engine-package-requested-feasibility-slice)
+- [Developer environment: staged feasibility](#developer-environment-staged-feasibility)
+- [Additional product ideas, proposed](#additional-product-ideas-proposed)
+
 Direction accepted on 2026-10-11: Zenith-specific applications/packages should share
 an astronomical/daylight identity; overhaul both Files and the graphical Editor.
 Investigate a developer environment with GCC preferred, Python, Vim and nano.
@@ -34,7 +44,7 @@ collisions before publishing finalized identities.
 
 ## Files and graphical Editor requirements
 
-Horizon builds on the existing [Files rework](SYSTEM-PLAN.md#7-files-rework): locations,
+Horizon builds on the existing [Files rework](SYSTEM-PLAN.md#required-experiences): locations,
 places, real metadata, sorting, multi-selection, keyboard operation and permission-aware
 copy/move/rename/delete. Add tabs and editor/application associations after the basic
 operation model is reliable. Trash, search and archives need explicit persistence,

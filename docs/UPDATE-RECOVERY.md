@@ -1,6 +1,8 @@
 # Upgrade generations, snapshots and boot recovery
 
-Research/design, 2026-10-11. Requested direction: investigate Btrfs-like snapshots
+**Future design**, reviewed 2026-10-15. Current kernel-only recovery is in
+[KERNEL-UPDATES](KERNEL-UPDATES.md); implementation steps are in
+[Boot/recovery](components/BOOT-RECOVERY.md). Requested direction: investigate Btrfs-like snapshots
 for package upgrades, boot-menu selection of saved states, trial boot and restore.
 No snapshot backend, root-generation selector or restore workflow exists in Zenith.
 The desired recovery experience is distinct from committing to Btrfs itself.
@@ -47,7 +49,8 @@ the current installer root cap and ESP size before picking retention/layout.
 
 ## Bootloader versus OS responsibilities
 
-Zenith currently loads `/boot/Zenith.elf` from the FAT32 ESP through Limine. The local
+Installed entries load a hash-addressed `/boot/zenith/<sha256>/kernel.elf`
+from the FAT32 ESP through Limine. The local
 EFI binary identifies itself as **Limine 10.8.5**. Current upstream Limine lists FAT
 and ISO9660 readers, and its configuration supports menu entries and a kernel command
 line. These are reference capabilities, not a claim that snapshot support is built in.
@@ -58,10 +61,10 @@ Pin/check the installed release's syntax in native tests before using newer opti
 A design can keep all kernels on the ESP, avoiding a requirement for Limine to read
 Btrfs/ext2 itself. A generated entry chooses a matching kernel and passes an explicit
 root/generation/snapshot selector to Zenith. The kernel/recovery environment mounts
-that selected state. Today root discovery just scans for Zenith os-release; it must
-be extended before several valid saved roots can be selected reliably. ext2 formatter
-UUID assignment is also pending; design stable identifiers rather than relying on
-partition enumeration order.
+that selected state. Installed entries already select an exact GPT PARTUUID; live discovery can scan
+for Zenith os-release. Snapshot/generation selection must additionally bind the
+selected root state and matching package/configuration data. Existing root identity
+is not a whole-system snapshot identifier; do not use partition enumeration order.
 
 Illustrative entry, **not an implemented command-line contract**:
 
@@ -72,7 +75,7 @@ Illustrative entry, **not an implemented command-line contract**:
     cmdline: root=<stable-root-id> generation=<saved-id> recovery=trial
 ```
 
-Keep a visible menu timeout for manual fallback; current installer uses `timeout: 0`.
+Keep a visible menu timeout for manual fallback; current boot layout uses `timeout: 5`.
 The package/recovery service generates entries after validating retained boot artifacts
 and root identities. Automatic fallback needs separately verified attempt accounting
 and success confirmation; merely selecting a default entry is not that mechanism.
@@ -112,8 +115,9 @@ power loss/out-of-space/short writes during snapshot creation, package staging,
 activation and restore. Verify failed activation leaves a bootable retained state.
 Test rollback after service-schema changes and garbage collection under limited space.
 
-Current crash-dirty ext2 requires host repair before writable mounting. Any design
-using writable ext2 must account for that dependency; check-only fsck cannot repair it.
+Dirty supported ext2 roots receive a read-only audit before writable mounting;
+inconsistent volumes require host repair. Any design using writable ext2 must
+account for that dependency; check-only fsck cannot repair it.
 A separate clean generation can avoid depending on the damaged active root, but shared
 partitions/state and damaged ESP metadata can still prevent recovery. Recovery media
 and external backups remain necessary for failures outside the retained-state scope.

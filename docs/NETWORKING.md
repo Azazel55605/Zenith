@@ -1,5 +1,15 @@
 # M3 IPv4 networking
 
+> Technical/operating reference for the bounded IPv4 client. Work steps: [Networking](components/NETWORKING.md).
+
+## On this page
+
+- [Test on your network](#test-on-your-network)
+- [Commands and saved configuration](#commands-and-saved-configuration)
+- [Clock and certificate trust](#clock-and-certificate-trust)
+- [Transfer and transport bounds](#transfer-and-transport-bounds)
+- [Build and validation](#build-and-validation)
+
 Zenith provides one primary IPv4 uplink, DHCP/static/off configuration, DNS/hosts
 lookup, ICMP and TCP diagnostics, optional NTP, and bounded HTTP/verified HTTPS
 file downloads. Both the test DE and headless shell use this service. This is a

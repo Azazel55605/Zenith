@@ -1,5 +1,15 @@
 # Bash port feasibility · 2026-10-09
 
+> Feasibility assessment; Bash is not implemented. Current runtime: [Native userland](components/USERLAND.md).
+
+## On this page
+
+- [Current evidence](#current-evidence)
+- [Dependencies and gaps](#dependencies-and-gaps)
+- [Runtime choices](#runtime-choices)
+- [Proposed proof of concept](#proposed-proof-of-concept)
+- [Recommendation](#recommendation)
+
 GNU Bash can be a long-term Zenith target. It cannot currently be installed as
 an ordinary executable: Zenith needs a program runtime and substantial POSIX
 services first. This assessment inspects source and architecture; no Bash cross

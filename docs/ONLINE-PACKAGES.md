@@ -1,5 +1,15 @@
 # Signed online packages (0.0.7, extended in 0.0.8)
 
+> Current guest workflow and signed catalog contract. Work steps: [Packages](components/PACKAGES.md); release acceptance: [Status](STATUS.md).
+
+## On this page
+
+- [Session and styling packages (0.0.11)](#session-and-styling-packages-0011)
+- [Guest workflow](#guest-workflow)
+- [Update everything (0.0.8)](#update-everything-008)
+- [Operator workflow](#operator-workflow)
+- [Protocol and limits](#protocol-and-limits)
+
 This is a bounded private LAN/VPN repository client, using the existing pinned
 RSA-PSS package key and verified HTTPS. It supplies discovery, planning, download
 and existing installed-root transactions. It is not TUF; key rotation/revocation,

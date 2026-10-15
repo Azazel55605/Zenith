@@ -1,5 +1,15 @@
 # Zenith technical notes
 
+> Historical measurements and engineering context. Current behavior and limits: [Architecture](ARCHITECTURE.md), [Status](STATUS.md).
+
+## On this page
+
+- [1. Display and input: what was wrong, what changed](#1-display-and-input-what-was-wrong-what-changed)
+- [2. Current architecture and earlier conclusions](#2-current-architecture-and-earlier-conclusions)
+- [3. Filesystem direction](#3-filesystem-direction)
+- [4. Installer and update implications](#4-installer-and-update-implications)
+- [5. Framework and driver work](#5-framework-and-driver-work)
+
 Historical display measurements retained; architecture sections reconciled on 2026-10-11.
 Use [ARCHITECTURE](ARCHITECTURE.md) for current facts and [SYSTEM-PLAN](SYSTEM-PLAN.md)
 for future design. Upstream availability must be verified against installed APIs.

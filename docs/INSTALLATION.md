@@ -1,5 +1,14 @@
 # Installation and boot generations
 
+> Operating guide for the implemented VM installer. Work steps: [Boot/recovery](components/BOOT-RECOVERY.md).
+
+## On this page
+
+- [Install workflow](#install-workflow)
+- [Installed structure](#installed-structure)
+- [Kernel packages and reboot activation](#kernel-packages-and-reboot-activation)
+- [Validation](#validation)
+
 The x64 installer is self-contained: Limine supplies the original kernel ELF
 and the ISO's `BOOTX64.EFI` as read-only boot memory. Zenith validates architecture
 and size before writing GPT, then copies and read-verifies those bytes itself.

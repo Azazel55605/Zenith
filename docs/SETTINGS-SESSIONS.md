@@ -1,5 +1,14 @@
 # Shared settings and session foundation
 
+> Settings and fallback console reference. Local text/login lifecycle: [Login sessions](LOGIN-SESSIONS.md). Work steps: [Sessions/desktop](components/SESSIONS-DESKTOP.md).
+
+## On this page
+
+- [Current operations](#current-operations)
+- [Session selection and lifecycle](#session-selection-and-lifecycle)
+- [Serial headless operation](#serial-headless-operation)
+- [Packaging and later migration](#packaging-and-later-migration)
+
 S0 system-settings/session seam and S1 x64 serial headless, 2026-10-11. The current
 floating desktop remains the test DE. Tiling WM, user preferences and a graphical
 Settings app are later slices; `session list` reports availability on this boot.
@@ -8,8 +17,8 @@ Settings app are later slices; `session list` reports availability on this boot.
 Configured installed accounts start at login; Ctrl+Alt+T opens Terminal and
 Ctrl+Alt+L requests logout. `session switch de|headless` ends the old session and
 selects the next login after busy/unsaved-work checks. With a display, Headless
-uses a local text console; without one, COM1 remains recovery. The boot-only
-boundary described below is historical; current lifecycle details are in that guide.
+uses a local text console; without one, COM1 remains recovery. The no-GPU COM1 section below describes the fallback transport; current local
+lifecycle details are in that guide.
 
 ## Current operations
 
@@ -139,8 +148,8 @@ and waits for serial R to restart without allocating fonts/canvas/windows.
 S1 is verified on QEMU live and disk-only UEFI installed systems with no VGA/GPU
 attached, including invalid/missing defaults, boot override, authentication, permission
 denials, persistence, cancellation, clean shutdown and panic/restart. See PROGRESS
-for exact results. Real UARTs, ARM64 input, local consoles and service supervision
-remain future work.
+for exact results. Real UARTs, ARM64 input and service supervision remain future work. Local text
+console acceptance is covered by the later login/session gate.
 
 ## Packaging and later migration
 
@@ -153,8 +162,8 @@ default loading/upgrade reconciliation is not implemented yet.
 The current DE is a replaceable test implementation behind the host seam, but remains
 kernel-linked. Component inventory does not make it independently updatable. Proper
 DE/WM and user preferences follow the planned toolkit and protected-userland work.
-Use explicit API/runtime compatibility when migrating these services to IPC; no
-binary userspace ABI has been frozen by this slice.
+Use explicit API/runtime compatibility when migrating these services to IPC; the
+existing native text ABI does not yet provide graphical/service IPC.
 
 Validation commands and exact native evidence are in [DEVELOPMENT](DEVELOPMENT.md)
 and [PROGRESS](PROGRESS.md). See [package prototype](PACKAGE-PROTOTYPE.md) for P0.

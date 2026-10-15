@@ -1,5 +1,14 @@
 # Accounts and filesystem access
 
+> Technical reference: installed account and access rules. Work steps: [Storage/security](components/STORAGE-SECURITY.md).
+
+## On this page
+
+- [First installation and login](#first-installation-and-login)
+- [Access rules](#access-rules)
+- [Passwords, entropy and storage](#passwords-entropy-and-storage)
+- [Validation](#validation)
+
 M2 adds authenticated identities and discretionary filesystem access to the
 installed ext2 system. This is an access policy for Zenith's trusted, kernel-linked
 apps. It is not process isolation: kernel code can construct root credentials or

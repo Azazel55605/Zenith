@@ -1,5 +1,18 @@
 # Signed offline packages
 
+> Signed package format/transaction reference. Online delivery is implemented; current workflow: [Online packages](ONLINE-PACKAGES.md). Work steps: [Packages](components/PACKAGES.md).
+
+## On this page
+
+- [Repositories and base packages](#repositories-and-base-packages)
+- [Build, sign and deliver](#build-sign-and-deliver)
+- [Dependencies, conflicts and ownership](#dependencies-conflicts-and-ownership)
+- [Transaction and recovery](#transaction-and-recovery)
+- [Container v1 and online delivery](#container-v1-and-online-delivery)
+- [Validation](#validation)
+- [Signed kernel containers](#signed-kernel-containers)
+- [Independently delivered manuals, fonts and native text tools](#independently-delivered-manuals-fonts-and-native-text-tools)
+
 P1 implements independently installed **scripts/data** on an installed ext2 root.
 Compiled tools, drivers and the test DE remain kernel-linked. User-selected order:
 install scripts/data first, then establish native executable/process/ABI boundaries
@@ -151,7 +164,7 @@ surviving a **clean** installed reboot. Ext2 is still journal-free: sudden power
 can leave the filesystem dirty and require host repair before Zenith can mount it.
 This installer does not supply Btrfs snapshots, trial boot or arbitrary power-cut safety.
 
-## Container v1 and planned online delivery
+## Container v1 and online delivery
 
 .zpk starts with printable ASCII, TAB-separated, LF-terminated header:
 
@@ -166,25 +179,18 @@ and payload. RSA is 2048..4096 bits; SHA256/MGF1-SHA256 with a 32-byte salt. No 
 bytes, compression, links, devices or optional unknown metadata. Host signs with
 .NET RSA; the guest verifies through the pinned Mbed TLS fixed-memory port.
 
-The dedicated home VM will serve read-only artifacts and signed metadata:
+The home VM serves immutable `REPOSITORY/NAME/VERSION/NAME.zpk` archives and
+signed `core/index.zri` / `extra/index.zri` catalogs. Extended `index-v3.zri`
+includes manifest-3 metapackages while legacy catalogs omit unsupported records.
+Archives publish before indexes. The client authenticates metadata before resolving,
+fetches missing archives, verifies their signatures/hashes and invokes the installed
+transaction engine. Persisted generation floors and expiry checks reject stale
+metadata; transport trust and package signing trust remain distinct.
 
-```text
-repo/
-  core/stable/index.signed
-  extra/stable/index.signed
-  artifacts/sha256/<PACKAGE_SHA256>.zpk
-```
-
-Publish immutable artifacts first, then a complete signed index generation. Indexes
-must bind repository/channel/architecture, package manifest/dependencies/conflicts,
-artifact hash/size and generation/expiry. The client will verify metadata before
-resolution, select candidates deterministically (core before extra), display the full
-install/remove/restart plan, fetch only missing artifacts, verify their hashes and
-signatures, and invoke the same offline transaction engine. TLS protects transport;
-package signatures authenticate bytes. Persisted rollback floors, trustworthy expiry,
-key rotation/revocation and outage/cancellation tests are gates before automatic online
-installation. These indexes/resolver/online refresh and VM deployment are **planned**,
-not implemented by setting a mirror URL. See [PACKAGE-SERVER](PACKAGE-SERVER.md).
+See [ONLINE-PACKAGES](ONLINE-PACKAGES.md) for the implemented protocol and CLI,
+[LOGIN-SESSIONS](LOGIN-SESSIONS.md) for meta/catalog compatibility and
+[PACKAGE-SERVER](PACKAGE-SERVER.md) for publication. Key rotation/revocation and
+matched root/kernel recovery remain future work; online delivery itself is implemented.
 
 ## Validation
 

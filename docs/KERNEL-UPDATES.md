@@ -1,5 +1,14 @@
 # Signed kernel updates
 
+> Technical/operating reference for kernel-only updates. Work steps: [Boot/recovery](components/BOOT-RECOVERY.md). Whole-root snapshots remain planned.
+
+## On this page
+
+- [Build and deliver a release](#build-and-deliver-a-release)
+- [Upgrade the installed system](#upgrade-the-installed-system)
+- [Failed updates and rollback](#failed-updates-and-rollback)
+- [Container and validation](#container-and-validation)
+
 The offline kernel update path is separate from P1 scripts/data. A kernel package
 contains one bounded x64 ELF and signed release metadata. It never replaces the
 Limine EFI loader, account configuration, installed user data or ordinary package DB.

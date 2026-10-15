@@ -1,65 +1,46 @@
 # Zenith documentation
 
-[Installation and boot generations](INSTALLATION.md): Sunrise/serial guided installation, self-contained UEFI boot and versioned boot layout.
+Start with [Status](STATUS.md) to see what exists, [Progress](PROGRESS.md) for the
+current task, and [Roadmap](ROADMAP.md) for the order of future work.
+Reviewed **2026-10-15**, against source through `f502085` and operator reports.
 
-[Signed kernel updates](KERNEL-UPDATES.md): offline signing/delivery, reboot activation,
-confirmation, previous-kernel fallback and undo recovery.
+## Components
 
-[Signed online packages](ONLINE-PACKAGES.md): 0.0.7 private core/extra discovery,
-dependency planning, named install/upgrade and kernel-update convenience.
+Each component page owns its implementation checklist, remaining steps, source
+locations and acceptance criteria. Detailed technical guides remain linked from it.
 
-This is the project documentation entry point. Status reviewed on **2026-10-11**
-against the current repository. Current S0/S1/P0/P1 and M3 behavior is documented separately
-from the future session/update plans. Milestone version labels are targets, not release dates.
+| Component | Start here | Technical reference / use |
+|---|---|---|
+| Shell and terminal | [Shell workflows](components/SHELL.md) | [Input/session contract](SETTINGS-SESSIONS.md), [Bash feasibility](BASH-PORT.md) |
+| Storage, accounts and access | [Storage and security](components/STORAGE-SECURITY.md) | [Accounts](ACCOUNTS.md), [architecture](ARCHITECTURE.md) |
+| Install, boot and recovery | [Installation and updates](components/BOOT-RECOVERY.md) | [Install](INSTALLATION.md), [kernel updates](KERNEL-UPDATES.md) |
+| Network and trust | [Networking](components/NETWORKING.md) | [Commands, configuration and bounds](NETWORKING.md) |
+| Packages and distribution | [Package delivery](components/PACKAGES.md) | [Client](ONLINE-PACKAGES.md), [format/transactions](PACKAGES.md), [server](PACKAGE-SERVER.md) |
+| Login, desktop and applications | [Sessions and desktop](components/SESSIONS-DESKTOP.md) | [Login](LOGIN-SESSIONS.md), [settings](SETTINGS-SESSIONS.md), [app plans](APPLICATIONS.md) |
+| Independent programs | [Native userland](components/USERLAND.md) | [ABI and limitations](NATIVE-PROGRAMS.md), [migration plan](USERLAND.md) |
+| CPU scheduling | [Multicore](components/MULTICORE.md) | [Worker contract](MULTICORE.md) |
 
-[Multicore foundation](MULTICORE.md): opt-in native CPU workers, validation and
-remaining managed scheduler/GC milestones.
+## Other reading paths
 
-## Reading paths
-
-| You want to understand… | Start here |
+| Purpose | Document |
 |---|---|
-| What works, how to boot and use it | [Project README](../README.md) |
-| How the current system actually works | [Architecture](ARCHITECTURE.md) |
-| Account setup, authentication and access limits | [Accounts](ACCOUNTS.md) |
-| Shared settings and current session capabilities | [Settings/session foundation](SETTINGS-SESSIONS.md) |
-| Login, local text console and styling packages | [Login/session implementation and limits](LOGIN-SESSIONS.md) |
-| IPv4 configuration, diagnostics, time and HTTP/HTTPS downloads | [Networking](NETWORKING.md) |
-| Offline package builder, inspect and dry-run | [P0 package prototype](PACKAGE-PROTOTYPE.md) |
-| Desktop, headless, DE, tiling WM, settings and Files direction | [System plan](SYSTEM-PLAN.md) |
-| Updating an installation and distributing applications | [Package manager design discussion](PACKAGE-MANAGER.md) |
-| Moving desktop/apps outside the kernel | [Userland direction](USERLAND.md) |
-| Serving packages from home | [LAN repository plan](PACKAGE-SERVER.md) |
-| Managing distributor builds | [Dashboard setup](../deploy/distributor/DASHBOARD.md) |
-| Saved-system boot, snapshot trials and restore | [Upgrade recovery](UPDATE-RECOVERY.md) |
-| What happened and why | [Project history](HISTORY.md), then [slice evidence](PROGRESS.md) |
-| What comes next and when a milestone is complete | [Roadmap](ROADMAP.md) |
-| Building, testing, debugging and working with Cosmos | [Development guide](DEVELOPMENT.md) |
-| Zenith app names, Files/Editor overhauls and GCC/Python/editor ports | [Application and developer-tool plan](APPLICATIONS.md) |
-| Whether Bash can run here | [Bash portability assessment](BASH-PORT.md) |
-| Earlier measurements and engineering background | [Technical notes](TECHNICAL-NOTES.md) |
-| What the upstream framework documents | [Cosmos reference](cosmos/index.md), [pinned source](cosmos/SOURCE.md) |
-| Rules for contributors and agents | [Shared instructions](../INSTRUCTIONS.md) |
+| Boot and use Zenith | [Project README](../README.md) |
+| Understand current code boundaries | [Architecture](ARCHITECTURE.md) |
+| Build, test or debug | [Development](DEVELOPMENT.md) |
+| Understand product requirements | [System plan](SYSTEM-PLAN.md) |
+| Understand package decisions and unfinished work | [Package design](PACKAGE-MANAGER.md) |
+| Research whole-system rollback | [Snapshot/recovery design](UPDATE-RECOVERY.md) |
+| Understand Bash feasibility | [Bash port assessment](BASH-PORT.md) |
+| Find past decisions and validation | [History](HISTORY.md), [archive index](archive/README.md) |
+| Read pinned upstream documentation | [Cosmos](cosmos/index.md), [source revision](cosmos/SOURCE.md) |
+| Maintain this repository | [Shared instructions](../INSTRUCTIONS.md), [documentation rules](MAINTAINING.md) |
 
-## Status vocabulary and maintenance
+## Reading status correctly
 
-- **Implemented** means code exists; **verified** means the stated scenario was tested.
-- **Planned requirement** records requested product behavior without committing its API.
-- **Proposed** means an architecture or scope recommendation awaiting discussion.
-- **Deferred** means deliberately outside the next slice, not silently completed.
-
-The architecture describes current code; the system plan describes product requirements;
-the package document owns update design questions; the roadmap owns milestone exits;
-PROGRESS records dated execution and evidence. Keep these roles separate so a proposal
-cannot become a shipped claim through repetition. Historical test counts are snapshots.
-Local validation does not establish that hosted CI passed after an unpushed commit.
-
-M0/M1/M2 are complete within their documented scope. Bounded ext2, installed roots,
-real accounts/authentication and filesystem access enforcement are verified;
-[ACCOUNTS](ACCOUNTS.md) describes setup and the trusted-kernel boundary. The next
-implementation slice must be selected explicitly from the expanded roadmap.
-
-- [Signed offline packages](PACKAGES.md): core/extra, authenticated scripts/data installation, dependencies/conflicts and recovery.
-
-- [Native programs](NATIVE-PROGRAMS.md): first protected x86_64 ELF ABI, signed
-  executable installation, limits and remaining process/app migration.
+**Implemented** means source exists. **Locally verified** names a passing local
+scenario. **Operator confirmed** records an actual installed/server observation.
+**Pending acceptance** means implementation exists but the named environment has
+not been confirmed. **Planned** means no completed implementation is claimed.
+Checkboxes on component pages track implementation; their evidence section states
+what has actually been tested. Historical test totals are snapshots, not promises
+about the current release. A pushed tag is not a published or installed package.

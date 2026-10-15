@@ -1,5 +1,16 @@
 # Login, session selection and packaged appearance
 
+> Implemented login/resource contract. Operator confirms 0.0.12 login; future graphical isolation remains open. Work steps: [Sessions/desktop](components/SESSIONS-DESKTOP.md).
+
+## On this page
+
+- [Current use and acceptance](#current-use-and-acceptance)
+- [User experience](#user-experience)
+- [Implementation boundary](#implementation-boundary)
+- [Package structure](#package-structure)
+- [Appearance contract](#appearance-contract)
+- [Delivery order and acceptance](#delivery-order-and-acceptance)
+
 User-selected next direction, 2026-10-14: login through a proper session manager,
 choose desktop or headless, and manage styling through a metapackage. Headless
 means a local text console with keyboard input and serial fallback, as explicitly
@@ -99,16 +110,16 @@ configured installed sessions authenticate before apps. Headless has both the lo
 text host and COM1 fallback. Session generations and explicit worker identities
 continue to prevent inheriting another user's windows, input or history.
 
-Start with a trusted kernel-side lifecycle/authentication service, a graphical
-greeter and a local text host. Introduce explicit state transitions through login,
-authentication, starting, running, stopping and return-to-login. Serialize transitions;
+The implemented trusted lifecycle/authentication service, graphical greeter and
+local text host use explicit transitions through login, authentication, starting,
+running, stopping and return-to-login. Transitions must remain serialized;
 do not swap hosts while a command worker is still running or while a package/boot
 mutation owns the maintenance gate. Authentication work must not freeze input or
 painting; successful activation must bind credentials before apps/workers start.
 
 An independently executable graphical manager needs controlled graphics/input/IPC
-and a resumable process interface. Native ABI 1 currently supplies only bounded
-foreground output/exit/identity. Therefore the initial trusted host integration
+and a resumable process interface. Native ABI 1 supplies bounded foreground execution and read-only file services;
+it does not provide graphical/input/IPC services. Therefore the initial trusted host integration
 requires a kernel update. Its validated resources/defaults can be independently
 packaged first. Later move greeter rendering into a protected process while the
 privileged authentication/session authority stays behind a narrow broker. A

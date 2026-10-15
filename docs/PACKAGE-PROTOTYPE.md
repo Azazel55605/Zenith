@@ -1,5 +1,8 @@
 # P0 offline package prototype
 
+> Historical unsigned P0 experiment; not the supported installation path. Use [Signed packages](PACKAGES.md) and [Online packages](ONLINE-PACKAGES.md).
+
+
 Experimental implementation, 2026-10-11. The shared host/guest reader and planner
 establish bounded input, integrity, compatibility and conflict checks before an
 installer is built. These unsigned directory commands do not install or activate packages.

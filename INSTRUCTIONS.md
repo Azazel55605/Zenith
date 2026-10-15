@@ -7,20 +7,28 @@ guidance here so the two entry points stay consistent.
 
 ## Source of truth
 
-- [docs/README.md](docs/README.md): documentation hub and status vocabulary.
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): current architecture and limits.
-- [docs/SYSTEM-PLAN.md](docs/SYSTEM-PLAN.md): requested system/session/app direction and proposed slices.
-- [docs/PACKAGE-MANAGER.md](docs/PACKAGE-MANAGER.md): update design proposals and unresolved decisions.
-- [docs/HISTORY.md](docs/HISTORY.md): chronological change map; detailed evidence stays in PROGRESS.
-
-- [README.md](README.md): current behavior, commands, layout and installation.
+- [docs/README.md](docs/README.md): documentation hub and reading paths.
+- [docs/STATUS.md](docs/STATUS.md): current component/release acceptance summary.
+- [docs/PROGRESS.md](docs/PROGRESS.md): bounded active task, steps and validation.
+- [docs/ROADMAP.md](docs/ROADMAP.md): ordered future slices and milestone exits.
+- [docs/components](docs/README.md#components): implementation checklists, source
+  owners, remaining steps and acceptance for each component.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): current technical architecture.
+- [docs/SYSTEM-PLAN.md](docs/SYSTEM-PLAN.md): accepted product requirements.
+- [docs/PACKAGE-MANAGER.md](docs/PACKAGE-MANAGER.md): current package design and open decisions.
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): toolchain, validation and Cosmos builds.
-- [docs/ROADMAP.md](docs/ROADMAP.md): milestone scope and exit criteria.
-- [docs/TECHNICAL-NOTES.md](docs/TECHNICAL-NOTES.md): historical measurements and engineering background.
-- [docs/PROGRESS.md](docs/PROGRESS.md): active work, evidence and next steps. Update
-  it with each implementation slice; distinguish implemented from runtime verified.
-- [docs/cosmos/index.md](docs/cosmos/index.md): vendored upstream documentation;
-  [SOURCE.md](docs/cosmos/SOURCE.md) records its source revision.
+- [docs/HISTORY.md](docs/HISTORY.md) and [docs/archive](docs/archive/README.md):
+  historical narrative and completed execution evidence.
+- [README.md](README.md): user commands, layout and installation overview.
+- [docs/cosmos/index.md](docs/cosmos/index.md): pinned upstream documentation;
+  [SOURCE.md](docs/cosmos/SOURCE.md) records its revision.
+
+Follow [docs/MAINTAINING.md](docs/MAINTAINING.md) when documenting a slice. Update
+PROGRESS and the component checklist as actual implementation/validation steps
+happen. Keep PROGRESS short: archive completed detailed evidence in a dated record,
+then update STATUS when delivery/acceptance changes. Separate implemented, locally
+verified, server-published and operator-installed claims. Do not prepend a permanent
+execution ledger or duplicate historical test totals into the roadmap.
 
 ## Architecture and conventions
 

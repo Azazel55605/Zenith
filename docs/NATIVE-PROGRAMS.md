@@ -1,7 +1,17 @@
-# Native text programs: first protected x86_64 slice
+# Native programs and read-only filesystem ABI
 
-Implemented in the 0.0.8 source, with disposable-guest acceptance tracked in
-[PROGRESS](PROGRESS.md). This begins M5; it does not complete the process, service
+> Current protected foreground ABI, including the 0.0.13 read-only extension. Work steps and release boundary: [Native userland](components/USERLAND.md).
+
+## On this page
+
+- [Install and run](#install-and-run)
+- [Executable contract](#executable-contract)
+- [Privilege, lifecycle and limits](#privilege-lifecycle-and-limits)
+- [Read-only filesystem extension (0.0.13 source)](#read-only-filesystem-extension-0013-source)
+
+Execution began in 0.0.8; 0.0.13 adds read-only filesystem services. Current
+release/acceptance is in [Status](STATUS.md), detailed runs in the
+[execution archive](archive/2026-10-15/PROGRESS.md). This begins M5; it does not complete the process, service
 or desktop migration. Sunbeam is a freestanding executable built separately from
 the kernel, installed through a signed package and executed in ring 3.
 
@@ -18,7 +28,8 @@ native run sunbeam dirname /usr/share/doc/example.txt
 native run sunbeam id
 ```
 
-The package lives in `extra`, requires `zenith-native-abi 1.0`, declares `x86_64`,
+The package lives in `extra`; current bundles require `zenith-native-abi 1.0`
+and `zenith-native-fs-abi 1.0`, declare `x86_64`,
 and owns `/usr/share/zenith/native/sunbeam.elf` at 0755. Older kernels cannot satisfy
 the capability dependency. Run verifies ownership, installed mode and SHA256 every
 time. `native check FILE` only inspects ELF; it cannot grant execution permission.

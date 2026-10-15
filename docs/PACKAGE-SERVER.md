@@ -1,271 +1,86 @@
-# Home-hosted package repository
+# Package server operations overview
 
-User direction, 2026-10-11: host the initial repository on the user's home
-infrastructure using a **dedicated VM with its own IP**, with direct LAN access and
-remote access through the user's existing VPN and DNS. Native services remove the
-dependency on Docker restrictions and ports already mapped on another host. VM OS,
-storage details are deployment choices still to record. The user has
-created Debian 13.7 VM Zenith-Package-Server and is provisioning the builder as
-zenith-release at 10.0.20.7. The user has since assigned the proxy name
-`https://zenith-stable.net.local`. Manual release build/distribution and a local-relay
-installed kernel update are user-confirmed; SSH administration details and direct
-guest VPN/HTTPS acceptance remain pending; no remote
-ports/DNS/firewall rules have been changed by the agent.
-See [PACKAGE-MANAGER](PACKAGE-MANAGER.md) for the guest client and trust model.
+Reviewed **2026-10-15** from repository runbooks and operator reports. This review
+did not connect to or change the VM. For exact setup/update commands use the
+[deployment runbook](../deploy/distributor/README.md),
+[automation runbook](../deploy/distributor/AUTOMATION.md) and
+[dashboard runbook](../deploy/distributor/DASHBOARD.md).
 
-Update, 2026-10-12: the user created the VM from a **Debian 13 template** and
-has supplied IP 10.0.20.7; SSH details remain pending. The VM should both build and
-distribute releases. The [Debian deployment kit](../deploy/distributor/README.md)
-now contains a manual kernel build/test/sign/publish workflow, a signature-checking
-immutable publisher for core kernels and core/extra data packages, and an nginx
-static-service configuration. Reuse the signing key already trusted for the user's
-successful installed kernel upgrade. Manual kernel release building/publication is
-user-confirmed; direct guest VPN performance and verified proxy HTTPS remain pending.
-The original kit did not implement signed online indexes. The 0.0.7 slice adds
-bounded signed core/extra snapshots and a private repository client; see
-[ONLINE-PACKAGES](ONLINE-PACKAGES.md) for the protocol, limits and validation status.
+## Deployment record
 
-Manual workflow update, 2026-10-13: `deploy/distributor/release.sh` saves server
-paths/URL/TLS trust once and offers doctor, kernel VERSION, publish-existing and
-full-byte delivery verification. Build/sign/publish remains manual and source-pinned;
-0.0.5/0.0.6 are published from their existing exact archives. See the deployment kit
-for commands. Automatic scheduling and P4 named package installation remain separate.
+| Item | Recorded deployment |
+|---|---|
+| Host | Dedicated Debian 13 VM on TrueNAS; native services |
+| Address | `10.0.20.7`; LAN and existing VPN |
+| Public-facing internal endpoint | `https://zenith-stable.net.local` through Zoraxy |
+| DNS | Home resolver `10.0.10.3` |
+| Builder account / checkout | `zenith-release`, `~/Zenith` |
+| Publication storage | `/srv/zenith/packages`, served by nginx |
+| Toolchain reported | .NET SDK 10.0.401, Cosmos tools/patcher 3.0.89; native GCC/Clang path |
+| Backups | Automated TrueNAS backups reported; restore test not confirmed |
 
-## Current HTTPS proxy and next priority (2026-10-12)
+The operator has confirmed verified guest HTTPS and named package installation.
+The server is no longer a future VM to provision. Credentials, keys, firewall
+rules and certificate changes remain operator-managed; do not infer current live
+health from these recorded values.
 
-Resolved on 2026-10-13: a dedicated self-signed certificate with matching DNS SAN
-is loaded in Zoraxy. Served public PEM SHA256 is
-d8469fd6e6476aaea598a215db683d754d9207072da0d907afd849cecac15464.
-Host explicit-trust hostname verification and HTTPS receipt retrieval pass; user
-screenshot confirms Zenith retrieves the receipt with verified TLS 1.2. The old
-default-certificate mismatch described below is historical. Full package download
-and backup/restore acceptance remain pending.
+## How a release moves
 
-The package VM remains 10.0.20.7; the named Zoraxy proxy resolves to 10.0.10.3 on
-the development host. Host SNI inspection currently returns a self-signed certificate
-with CN `Zoraxy Self-host`, no Subject Alternative Name, valid May 2023–May 2038.
-`openssl verify -CAfile ... -verify_hostname zenith-stable.net.local ...` rejects it
-with hostname mismatch even when that certificate is trusted. This observation is
-not an independently authenticated certificate fingerprint or guest acceptance.
+1. Updated controller polls trusted package-specific tags reachable from main.
+2. It pins the source and builds in a per-release checkout with separate logs.
+3. Required host/build/native gates run. Failed validation prevents signing/publication.
+4. It builds/signs immutable archives and receipts and publishes signed indexes.
+5. Dashboard shows activity and versions; installed Zenith refreshes and verifies.
+6. Client installation and reboot/confirmation, where needed, establish acceptance
+   beyond a successful server build.
 
-Serve a private-CA certificate (or a purpose-made self-signed certificate) containing
-`DNS:zenith-stable.net.local`. Install it in Zoraxy using its
-[certificate import guidance](https://github.com/tobychui/zoraxy/wiki/Move-Certificates-to-Zoraxy).
-Transfer the public trust PEM through the existing trusted bootstrap path; verify
-its exact file SHA256 from the locally generated/exported copy, then root runs
-`tls trust FILE SHA256` in Zenith. Package signatures still use the separate
-`pkg trust` public key. Certificate hostname/time validation remains enabled.
-Do not install the inspected default certificate as a workaround for the wrong name.
+The current controller and tagged product source are distinct. Pulling controller
+fixes does not move an existing immutable tag. Package version namespaces are
+independent. New kernel validation includes login, kernel-update, repository and
+native gates where present in the tag.
 
-Earlier priority: automatic build/release pipeline work was deferred. Next package work was the signed
-online index contract and manually published client slice: refresh/search, deterministic
-core/extra dependency/conflict planning, download/install/upgrade by name using the
-existing installed transaction engine. Validate useful scripts/data packages on the
-persistent VM before automating releases. Kernel activation keeps its separate
-confirmation/rollback boundary; compiled tool unbundling still requires M5.
+## Retry, logs and dashboard
 
-2026-10-13 direction: the user selects independent package release tags and Git
-polling on the distributor. The [implemented automation kit](../deploy/distributor/AUTOMATION.md)
-fetches every fifteen minutes, builds pinned main-reachable commits, gates kernel
-signing on native acceptance, records failures and renews signed indexes daily.
-Actual timer deployment/server builds remain pending operator verification.
+A recorded failed/interrupted release is not repeatedly rebuilt every timer tick.
+Use the documented explicit retry to test a correction. Prefer the systemd-backed
+trigger so closing an SSH session does not own the worker lifetime. Inspect phase
+logs and actual service/QEMU state before calling a long build stuck.
 
-The optional [distributor manager](../deploy/distributor/DASHBOARD.md) adds an
-authenticated /manage/ web interface for timer values, Run now, build records/logs
-and core/extra package inventory. It uses a separate loopback service without
-signing-key access; existing public package routes remain independent. Local API
-and browser verification are tracked in PROGRESS; VM activation remains operator-run.
+The lightweight management UI lives at `/manage/` behind nginx/proxy access policy.
+It shows timer last/next run, manual trigger, live phase output, expandable package
+versions and storage. Successful old activity can be hidden on new discovery;
+failed/interrupted activity disappears only after a strictly newer version of the
+same package completes. This is display filtering, not deletion of release pins,
+archives or direct log access. Authentication/proxy setup belongs to the runbook.
 
-0.0.7 implementation update: release.sh index signs/activates seven-day core/extra
-snapshots. New kernel/data releases refresh them automatically; publish-existing
-requires an explicit index step. The guest supports mirror, refresh, search, plan,
-named install/upgrade and separate kernel update. The prior public TUF/key-rotation
-and recovery limits remain separate. Native acceptance is tracked in PROGRESS.
+## Storage policy
 
-## Initial shape
+The controller runs bounded maintenance under its locks. It removes successful
+checkout leftovers and expires old failed/interrupted checkouts while retaining
+the newest failure and bounded attempt history. Registered same-owner inactive
+scratch orphans can expire; unregistered `/var/tmp` directories need operator review.
+Active/pending work, signing keys, published packages, indexes and backups are
+protected. Read-only reporting and `storage --clean` use the same policy.
 
-Use a static repository with a native web service inside the dedicated home VM. A package server initially
-needs to distribute immutable files and metadata; it does not need a package-specific
-API, authentication database or a Zenith HTTP-server implementation.
+Dashboard allocated-byte reporting is bounded and can be partial; sparse/reflink
+accounting is not a deduplicated physical-usage guarantee. Exact retention defaults,
+paths and safety checks live in [maintenance code](../deploy/distributor/maintenance.py)
+and the [automation runbook](../deploy/distributor/AUTOMATION.md).
 
-Proposed flow:
+## Validation performance
 
-`release builder → verifier/signing step → staging repository → read-only HTTP server → Zenith client`
+The home VM's storage comparison measured KVM at 95.765 s versus TCG at 23.468 s
+for the same benchmark. An explicit TCG policy was selected there. KVM group
+membership alone does not prove the active backend or good nested I/O performance.
+Additional guest vCPUs do not distribute managed Zenith execution; see
+[multicore](MULTICORE.md). Preserve mandatory release gates rather than skipping
+durability/authentication checks to shorten builds.
 
-The agreed builder is now the same dedicated Debian VM as the distributor,
-with native web workers unable to write release files or access the signing key.
-Its trusted release account can build/sign/publish; this is not isolated execution
-of untrusted build inputs. Signing keys do not belong in
-the served directory; hosting and signing have different access needs. Trusted public
-keys arrive with Zenith's installation/recovery medium. LAN operation does not make
-unsigned artifacts authentic.
+## Remaining operator acceptance
 
-Suggested directory shape (proposal, not a frozen protocol):
+- Kernel 0.0.13 / Sunbeam 0.2.0 build, publication and installed acceptance.
+- An actual backup restore test, retaining the existing signing identity.
+- Ongoing certificate renewal/expiry and signing-key backup/rotation procedures.
 
-```
-repository/
-  metadata/                 signed versioned indexes/trust metadata
-  artifacts/<digest>/       immutable package files and kernel/release artifacts
-  releases/<release-id>/    matching system-generation manifests
-```
-
-Use a maintained static web server such as Caddy or nginx according to the installed
-host. Caddy documents [static file serving](https://caddyserver.com/docs/caddyfile/directives/file_server).
-Install the chosen server directly in the VM and serve a read-only published tree.
-No container is required. Select a maintained minimal server OS with normal service,
-update and backup tooling; exact distribution/version and service configuration are
-chosen when the VM is provisioned. Choose deployment files after recording VM details.
-Directory browsing is optional and not required by the client protocol.
-
-## VM, LAN and VPN deployment steps
-
-1. Provision a VM with its own reachable IP (appropriate bridged/routed network),
-   repository disk and backup location. Record OS/version and resource/retention budget.
-2. Add its stable address/name to the user's DNS and allow the intended LAN/VPN routes
-   and web port. Run the native static service; verify DNS/routing/firewall access from
-   both LAN and a VPN-connected external client. No direct public router port is needed
-   for this agreed access model.
-3. Build and verify immutable artifacts into staging outside the served metadata.
-4. Copy artifacts into the published tree, then publish a complete signed metadata
-   generation referring to those files. Define index activation semantics on the
-   actual host filesystem; avoid exposing half-written indexes.
-5. Fetch from another LAN machine and then from Zenith/QEMU. Verify hashes/signatures,
-   limits, interrupted downloads and unavailable-server diagnostics.
-6. Keep previous release generations and back up repository data/key recovery material
-   according to their separate policies. Retention follows supported clients/rollbacks.
-
-QEMU and physical Zenith clients must resolve and reach the VM endpoint through their
-actual network routes. An external VM client may use host/VPN routing; do not assume
-QEMU automatically inherits VPN routes or that Zenith already has a VPN client. Native
-Zenith VPN functionality is not implied by the server being VPN-accessible. Test the
-intended client path and report an unavailable route clearly. TCP/DNS integration
-remains required before online package operation is claimed.
-
-Lab HTTP may be useful before guest TLS works, but authenticated package verification
-is still a release gate. If the first transport experiment lacks verification it is
-strictly a disposable download test, not an installation path. HTTPS and certificate/
-clock validation must be tested on the guest before changing policy for public use.
-
-## Operating behavior
-
-Mirror downtime should report failure and leave installed software usable; preserve
-verified cached files and never apply a partial download. Start with one repository,
-manual refresh/apply and visible release/channel identity. Static hosting can support
-additional replicas later because signatures and content hashes travel with artifacts.
-No login/password needs to be embedded in a publicly distributable client for a
-read-only public repository. Private repository access, if wanted later, needs a
-separate credential/transport design.
-
-Remote private access uses the existing VPN and DNS; it does not require a publicly
-exposed repository. Record the VPN subnet/routes, DNS resolver/name and certificate
-policy at deployment. Guest HTTPS/trust behavior must be verified; VPN transport does
-not replace package signatures. Direct public access, if requested later, would need
-its own reachability/TLS/bandwidth/availability plan.
-Do not expose signing/build management endpoints with the file server.
-
-## Information still needed
-
-Known: Debian 13.7 at 10.0.20.7, release account zenith-release, nginx deployment
-kit, manual release success and Zoraxy proxy https://zenith-stable.net.local.
-Still needed: SSH administrator/key access, actual service/source/tool inventory,
-VM resources/network attachment, permitted LAN/VPN subnets, repository storage,
-backup destination/retention and restore evidence. Docker is not a dependency.
-
-
-Current home information (updated 2026-10-12): DNS is 10.0.10.3. The dedicated Debian package
-server VM exists as Zenith-Package-Server, with builder setup in progress;
-its IP is 10.0.20.7 and its proxy name is zenith-stable.net.local. Earlier laptop
-ping and TCP reachability succeeded, while guest ping failed. On 2026-10-13 a fresh
-laptop HTTP check could not connect to 10.0.20.7:80; HTTPS reached the proxy but
-failed certificate hostname validation (Zoraxy Self-host). Current guest transport
-acceptance needs repeating after service and certificate setup are checked.
-Follow-up after the VM finished booting: user supplied active/enabled nginx status,
-successful nginx -t and IPv4/IPv6 port 80 listeners. Laptop HTTP retrieval of the
-existing 0.0.2 release receipt succeeds. The initial connection failure is resolved.
-M3's host user/TAP network profiles and DNS configuration permit acceptance once
-it exists; no server has been deployed as part of networking implementation.
-See [NETWORKING](NETWORKING.md) for the current LAN/CA bootstrap test procedure.
-
-## Offline delivery foundation now implemented
-
-[P1 packages](PACKAGES.md) define signed .zpk files, core/extra section identities
-and a reusable offline transaction engine. The manual kit publishes immutable
-name/version directories with signed payloads and archive digest receipts;
-content-addressed index paths remain a P4 design. Host tooling signs with
-RSA-PSS/SHA256 outside the served tree. The current
-client pins an exact public PEM fingerprint explicitly and accepts signed files
-from local storage or manual fetch. TLS CA trust is configured separately.
-
-A signed core/extra index protocol, generation/expiry checks, persisted rollback
-floors, key rotation and automatic dependency download remain P4 implementation.
-Setting the HTTPS base URLs in repos.conf does not implement that client. The VM
-can initially serve immutable .zpk files and the public PEM while that work proceeds;
-convey its key fingerprint through a trusted channel. Never serve the private key.
-
-## Completion checklist (2026-10-13)
-
-1. Inventory the existing VM with `bash deploy/distributor/check-setup.sh` as
-   zenith-release; compare source revision and public-key fingerprint with the
-   development/release records. Check nginx configuration as administrator.
-2. Restore/confirm direct HTTP delivery of an existing immutable release on
-   10.0.20.7:80 from the laptop. Inspect service/listeners and actual network rules
-   before changing them; a failed connection alone does not identify the cause.
-3. Point Zoraxy at the working VM HTTP service and select a certificate containing
-   DNS:zenith-stable.net.local. Bootstrap the public CA/certificate into Zenith
-   with its known PEM SHA256; verify HTTPS without disabling certificate checks.
-4. Test complete package bytes/signatures from LAN and VPN, then from installed
-   Zenith. Confirm usable progress and an installed kernel reboot/confirmation.
-5. Record resource/storage budget, release retention and separate signing-key
-   backups; perform a restore test without replacing the installed trust key.
-6. Implement P4 signed core/extra indexes and named package install/upgrade support
-   in Zenith and the manual publisher. This is project implementation work, not
-   missing Debian software. Automatic build scheduling follows that acceptance.
-
-
-## Build storage maintenance and new package recipes (0.0.8 source)
-
-The poller performs maintenance before/after its work under its poll lock and the
-shared publication/build lock. Successful checkout leftovers are removed. Failed
-or interrupted checkouts expire after seven days except the newest failed checkout;
-within retained failures keep the two newest release attempts. Compiler cache outside
-those attempts remains reusable. Inactive per-tag log history retains its last 1 MiB.
-Completion/pins and published archives, indexes, keys and backups are not deleted.
-Active/pending work is protected. Symlink checkouts/attempts are refused.
-
-New native validation workspaces have matching controller-state and private scratch
-ownership markers. Only registered, same-owner, inactive orphans older than seven
-days can be deleted; old unregistered /var/tmp directories require operator review.
-The dashboard displays live free/total disk, allocated controller-state bytes,
-last cleanup and warnings. Allocation is filesystem st_blocks, not logical sparse
-image size; reflink sharing is not deduplicated. Scanning stops at 200000 entries
-and marks a partial result. Reporting never changes publication success.
-
-```sh
-bash deploy/distributor/release.sh storage
-bash deploy/distributor/release.sh storage --clean
-```
-
-Read-only reporting refreshes storage.json; --clean applies the same policy. Both
-refuse a busy poll/build lock. New recipes generate manuals through the host C#
-manual builder, fonts with redistribution notices through Python, and Sunbeam with
-GCC (preferred) or Clang/LLD. Install `gcc` on the Debian distributor for this new
-native source build. Kernel release gates now include protected native package
-execution alongside kernel/repository acceptance; no release is signed when a gate
-fails. Recipes/tags: zenith-man-pages/vVERSION, zenith-fonts/vVERSION,
-sunbeam-tools/vVERSION, zenith-docs/vVERSION, kernel/vVERSION. Each is independent.
-
-Before consuming the new tags, pull the updated controller checkout and redeploy
-its dashboard while the distributor service is idle:
-
-```sh
-cd ~/Zenith
-git pull --ff-only
-sudo apt-get install gcc
-sudo bash deploy/distributor/install-dashboard.sh
-sudo systemctl start --no-block zenith-distributor.service
-```
-
-Existing timer/poller service configuration and signing keys remain. The controller
-uses its updated recipes; workers build immutable tagged source. Package receipts
-and dashboard Complete state, followed by client installation, establish actual
-server acceptance; merely pushing a tag does not establish publication.
+Historical setup commands and resolved connectivity/certificate incidents are in
+[the server archive](archive/2026-10-15/PACKAGE-SERVER.md), not a second setup checklist.

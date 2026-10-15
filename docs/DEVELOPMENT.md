@@ -1,5 +1,30 @@
 # Developing Zenith
 
+> Build/test runbook. Current release evidence belongs to [Status](STATUS.md), not historical test totals in examples.
+
+## On this page
+
+- [Validation disk cleanup](#validation-disk-cleanup)
+- [Toolchain](#toolchain)
+- [Everyday loop](#everyday-loop)
+- [Ext2 secondary volumes](#ext2-secondary-volumes)
+- [Ownership, modes and CI input pacing](#ownership-modes-and-ci-input-pacing)
+- [Debugging a crash](#debugging-a-crash)
+- [CI and releases](#ci-and-releases)
+- [Working on Cosmos itself](#working-on-cosmos-itself)
+- [Ext2 directory moves](#ext2-directory-moves)
+- [Ext2 installation and consistency checks](#ext2-installation-and-consistency-checks)
+- [Security integration and released patcher compatibility](#security-integration-and-released-patcher-compatibility)
+- [Shared settings/session and package foundation](#shared-settingssession-and-package-foundation)
+- [M3 network lab](#m3-network-lab)
+- [Signed offline package validation](#signed-offline-package-validation)
+- [Native text tools and independent data generators](#native-text-tools-and-independent-data-generators)
+- [Experimental CPU workers](#experimental-cpu-workers)
+- [Installed boot interrupt handoff](#installed-boot-interrupt-handoff)
+- [Native gate timing and serial overhead](#native-gate-timing-and-serial-overhead)
+- [Installed login/session and appearance acceptance (0.0.11)](#installed-loginsession-and-appearance-acceptance-0011)
+- [Native read-only filesystem acceptance (0.0.13 source)](#native-read-only-filesystem-acceptance-0013-source)
+
 For a desktop progress screenshot and a completed local transfer, run
 `python3 -B tools/terminal-progress-smoke.py obj/progress-ui-visual` (requires
 Pillow). It serves a deliberately paced 2 MiB fixture and retains `progress.png`
