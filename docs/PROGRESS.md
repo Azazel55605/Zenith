@@ -25,7 +25,10 @@ live-ISO builds from the Cosmos VS Code extension.
   confirmation/closed events and failure screenshots. That sequence passed.
   The faster helper then exposed truncated keyboard input in the framebuffer
   console; retained its previous 90 ms typing cadence without replaying commands
-  or passwords. Rerunning common acceptance with both transport corrections.
+  or passwords. Legacy PS/2 input still dropped a status-label character in the
+  framebuffer console. Testing the supported virtio keyboard for the long GUI
+  gate; the separate standard-VGA recovery boot retains PS/2 coverage. Legacy
+  PS/2 sustained-input loss remains an open hardware-path issue.
 
 Interactive TTY, streaming pipes, seek and general process scheduling remain later
 slices. Existing buffered text output and read-only ABI-1 binaries stay supported.

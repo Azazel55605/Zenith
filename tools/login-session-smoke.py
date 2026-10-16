@@ -92,7 +92,7 @@ def main():
         check(m.wait('all filesystems unmounted',offset,60),'displayed recovery synced shutdown')
         check(m.process.wait(timeout=30)==0,'displayed recovery clean poweroff')
         disk=m.disk;m.stop();m=None
-        m=h.Machine(keep/'gui',disk,'session=de',network=net+['-device','virtio-gpu-pci'],monitor=keep/'monitor.sock')
+        m=h.Machine(keep/'gui',disk,'session=de',network=net+['-device','virtio-gpu-pci','-device','virtio-keyboard-pci'],monitor=keep/'monitor.sock')
         check(m.wait('login ready',timeout=180),'installed starts at greeter')
         check('desktop ready (installed)' not in m.log(),'no desktop before authentication')
         monitor_command(keep/'monitor.sock','screendump '+str(keep/'login.ppm'))
