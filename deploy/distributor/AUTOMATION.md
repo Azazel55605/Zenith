@@ -379,3 +379,32 @@ fixture private key directories are excluded from CI artifacts. Do not replace
 full acceptance with blind retries, ever-growing timeouts or optional signing
 gates. Controller/local success and actual server/installed acceptance remain
 separate claims.
+
+
+### Complete status records and genuine update errors
+
+A wait for `user: K_UPDATE=` is only a record-arrival check; the tagged harness
+separately requires the expected numeric exit. The controller now drains the
+entire numeric record and terminator before returning, even if UART delivery is
+fragmented or the command echo was lost. It prints `Guest exit status: NAME=CODE`
+and records `guest_status` in timing metrics. `expected_status: null` means the
+calling harness, rather than the adapter, checks the expected value. A nonzero
+result is preserved; it is never converted into success or retried as a mutation.
+
+The reported 0.0.13 `K_UPDATE` failure is confirmed **exit 1**, with
+`pkg: linked/missing package ancestor` after signature verification. This is a
+real guest failure, independent of the prefix-reading race. Increasing its timeout
+or retrying the same install does not explain that rejection. Preserve the failed
+workspace and inspect its stopped disk first:
+
+```sh
+python3 -B tools/inspect-kernel-update-disk.py /path/to/native/k/upgrade/disk.img
+```
+
+The helper verifies GPT, EFI and retained kernel hashes, then reads boot-related
+root ancestor types with read-only debugfs on a temporary extracted copy. It does
+not boot, mount, repair or modify the input, and does not read password/signing-key
+files. Missing generations.tsv may be normal for a baseline installation;
+installed.tsv and its directory ancestors must exist. Intact disk paths do not
+rule out a live VFS lookup failure. Paste the output for diagnosis before starting
+another long release run. Exact rejected runtime ancestor remains under investigation.

@@ -4,29 +4,39 @@ Updated **2026-10-16**. This is a short handoff, not an append-only changelog.
 [Status](STATUS.md) summarizes the system; [Roadmap](ROADMAP.md) orders future work.
 Completed evidence lives in the [archive](archive/README.md).
 
-## Current handoff: common release acceptance locally verified
+## Current slice: complete guest exit-status records
 
-Release pipeline stability work is implemented. CI and pre-tag validation now use
-the distributor's native gate plan; current controller regressions and native
-prerequisites run before server kernel compilation. Default candidate validation
-requires a clean source commit and refuses source changes; existing-artifact runs
-record hashes and reject changed files. No product tag/version changed.
+The server's 0.0.13 kernel gate now fails `K_UPDATE expected status 0` after the
+status-marker wait. Unlike a timeout, this may be a real nonzero install result
+or an incomplete/interleaved serial status. Operator serial evidence now confirms
+a real `K_UPDATE=1`: `pkg: linked/missing package ancestor` after signature
+verification. Both preceding cut/recovery scenarios passed. The failing ancestor
+is not included in 0.0.13's error, so its disk/runtime cause remains unconfirmed.
 
-- [x] Audit recurring failures and CI/distributor coverage gaps.
-- [x] Add unsigned candidate validation and early controller/environment checks.
-- [x] Align CI, including login/session coverage and host/controller dependency.
-- [x] Pass 99 controller regressions, 18 release fixtures and 620 Release host tests.
-- [x] Pass the full common TCG run: 69 login checks, 92 repository checks,
-  native-program acceptance and all 169 kernel recovery checks; unchanged ISO/ELF.
-- [x] Document pre-tag use, evidence retention and source/artifact boundaries.
-- [ ] Pull the controller on the server when idle and observe the next complete
-  build; hosted CI and installed acceptance remain separate external steps.
+- [x] Inspect exact tagged harness assertion and adapter status handling.
+- [x] Find an independent race: prefix waits return on `user: K_UPDATE=` before
+  requiring the numeric status and line terminator.
+- [x] Reproduce fragmented status records and require complete real results.
+- [x] Preserve genuine nonzero results and report the observed code in metrics.
+- [x] Pass 104 controller regressions; local signed-install probe returns a complete
+  real `K_UPDATE=0` and powers off cleanly. This does not reproduce the server error.
+- [x] Add read-only retained-disk inspection; verify local healthy paths, invalid
+  image refusal and unchanged source-disk SHA256.
+- [ ] Inspect the server's failed disk and identify the rejected ancestor before
+  choosing a product fix or another release attempt.
 
-See [completed evidence](archive/2026-10-16/release-validation-stability.md) and the
-[pre-tag workflow](../deploy/distributor/AUTOMATION.md#before-the-next-kernel-tag).
-The operator is independently retrying 0.0.13 using the previous
-[authentication fix](archive/2026-10-16/authentication-validation.md) (`758d7af`);
-no server result has been reported yet. Avoid changing a running controller.
+Inspection command (from updated controller, with the failed guest stopped):
+
+```sh
+python3 -B tools/inspect-kernel-update-disk.py ~/.local/state/zenith/distributor/build-kernel-v0.0.13/obj/distributor/release-_ltpswzx/native/k/upgrade/disk.img
+```
+
+See [investigation](archive/2026-10-16/kernel-update-ancestor-investigation.md).
+The status-reader fix is independent of this confirmed real filesystem failure.
+
+Previous [common acceptance](archive/2026-10-16/release-validation-stability.md)
+passed all four local TCG gates (`e4b1d46`), but that does not establish the server
+outcome. Do not weaken signing gates, repeat the install or move its immutable tag.
 
 ## Waiting for external acceptance
 

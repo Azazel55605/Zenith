@@ -77,6 +77,8 @@ def install(machine_type):
             if isinstance(authentication, dict):
                 row['authentication'] = authentication
                 row['label'] = authentication['phase']
+            result = getattr(machine, '_validation_result', None)
+            if isinstance(result, dict): row['guest_status'] = result
             budget = getattr(machine, '_validation_budget', None)
             if isinstance(budget, dict):
                 row['budget'] = budget

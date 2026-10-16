@@ -9,7 +9,7 @@ spec = importlib.util.spec_from_file_location('status', ROOT/'deploy/distributor
 status = importlib.util.module_from_spec(spec); spec.loader.exec_module(status)
 
 class StatusTests(unittest.TestCase):
-    def machine(self, replies):
+    def machine(self, replies, supply_records=True):
         class Machine:
             def __init__(self):
                 self.sent=[]; self.waited=[]; self.process=self; self.text='boot'; self.replies=iter(replies)
@@ -17,7 +17,12 @@ class StatusTests(unittest.TestCase):
             def log(self): return self.text
             def send(self,text): self.sent.append(text)
             def wait(self,marker,offset=0,timeout=180):
-                self.waited.append((marker,offset,timeout));return next(self.replies)
+                self.waited.append((marker,offset,timeout)); reply=next(self.replies)
+                if reply and supply_records:
+                    # A successful transport fixture supplies a real complete
+                    # record, rather than only claiming a substring was seen.
+                    self.text+='\r\n'+marker+('0' if marker.endswith('=') else '')+'\r\n'
+                return reply
         status.install(Machine)
         return Machine()
 
@@ -69,7 +74,11 @@ class StatusTests(unittest.TestCase):
     def test_plain_busy_deadline_fails_without_readback_or_replay(self):
         m=self.machine([False]);m.send('pkg update --yes; echo P4_STAGE=$?\r')
         m.text='boot'+m._validation_status[1]+'\r\n'
-        with patch.object(status.time,'monotonic',side_effect=[0,601]):
+        now=[0]
+        def replies():
+            now[0]=601;yield False
+        m.replies=replies()
+        with patch.object(status.time,'monotonic',side_effect=lambda:now[0]):
             self.assertFalse(m.wait('P4_STAGE=0',4,600))
         self.assertEqual(1,len(m.sent))
 
@@ -79,6 +88,57 @@ class StatusTests(unittest.TestCase):
         self.assertEqual(1,len(m.sent))
         # Adapter observes a marker only. It never fabricates an expected exit code.
         self.assertNotIn('WRONG=0',m.sent[0]);self.assertIn('WRONG=$?',m.sent[0])
+
+    def test_prefix_wait_drains_split_status_before_returning_to_tagged_assertion(self):
+        m=self.machine([],supply_records=False);m.send('pkg kernel install /root/one.zpk; echo K_UPDATE=$? | logger\r')
+        path=m._validation_status[1]
+        m.text='boot'+path+' | logger\r\n'
+        def replies():
+            m.text+='[zenith] [ 120.000] user: K_UPDATE=';yield True
+            m.text+='0';yield True
+            m.text+='\r\n';yield True
+        m.replies=replies()
+        with patch.object(status.time,'sleep'):
+            self.assertTrue(m.wait('user: K_UPDATE=',4,600))
+        self.assertEqual(3,len(m.waited))
+        self.assertIn('user: K_UPDATE=0',m.text)
+        self.assertEqual(1,len(m.sent))  # No readback while UART finishes a record.
+
+    def test_fragmented_record_with_lost_command_echo_is_drained_before_readback(self):
+        m=self.machine([],supply_records=False);m.send('true; echo K_UPDATE=$? | logger\r')
+        m.text='boot'  # No intact echo for busy() to recognize.
+        def replies():
+            m.text+='[zenith] [ 1.000] user: K_UPDATE=';yield True
+            m.text+='0';yield True
+            m.text+='\r\n';yield True
+        m.replies=replies()
+        with patch.object(status.time,'sleep'):
+            self.assertTrue(m.wait('user: K_UPDATE=',4,600))
+        self.assertEqual(3,len(m.waited));self.assertEqual(1,len(m.sent))
+
+    def test_prefix_wait_preserves_real_nonzero_status_for_caller_and_diagnostics(self):
+        m=self.machine([],supply_records=False);m.send('false; echo K_UPDATE=$? | logger\r')
+        def replies():
+            m.text+='\r\n[zenith] [ 1.000] user: K_UPDATE=1\r\n';yield True
+        m.replies=replies()
+        self.assertTrue(m.wait('user: K_UPDATE=',4,600))
+        self.assertNotIn('K_UPDATE=0',m.text)
+        self.assertEqual(1,m._validation_result['observed_status'])
+        self.assertEqual(1,len(m.sent))
+
+    def test_prefix_without_numeric_terminator_expires_without_install_replay(self):
+        m=self.machine([],supply_records=False);m.send('pkg kernel install /root/one.zpk; echo K_UPDATE=$? | logger\r')
+        m.text='boot'+m._validation_status[1]+' | logger\r\nuser: K_UPDATE='
+        now=[0]
+        def replies():
+            while True:
+                now[0]+=5;yield True
+        m.replies=replies()
+        with patch.object(status.time,'monotonic',side_effect=lambda:now[0]), patch.object(status.time,'sleep'):
+            self.assertFalse(m.wait('user: K_UPDATE=',4,20))
+        self.assertIsNone(m._validation_result)
+        self.assertEqual(1,len(m.sent))
+        self.assertEqual('operation-deadline',m._validation_failure['reason'])
 
     def test_other_input_and_markers_keep_original_behavior(self):
         m=self.machine([False,True]);m.send('login root\r')

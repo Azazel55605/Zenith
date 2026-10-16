@@ -8,7 +8,7 @@ summary; [component checklists](README.md#components) own detailed work.
 | Item | What is established | What remains |
 |---|---|---|
 | Kernel 0.0.12 | Operator reports installed and working login; supporting resource packages installed | No broader hardware certification implied |
-| Kernel 0.0.13 | Implemented, locally built/tested, tag pushed | Latest reported server failure: native password-update completion at 30 seconds; shared authentication policy awaiting retry; publication/installed acceptance pending |
+| Kernel 0.0.13 | Implemented, locally built/tested, tag pushed | Latest server run passed recovery cases, then normal kernel install returned 1: linked/missing package ancestor; retained-disk inspection pending; publication/installed acceptance pending |
 | Sunbeam tools 0.2.0 | Read-only file tools locally verified; independent tag pushed | Server publication and installed acceptance with kernel 0.0.13 |
 | Home repository | Operator has used verified HTTPS and installed packages by name | Backup restore test not confirmed; no live server audit in this docs review |
 

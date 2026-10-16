@@ -126,6 +126,7 @@ def install(machine_type):
         match = STATUS.fullmatch(text)
         machine._validation_status = None
         machine._validation_failure = None
+        machine._validation_result = None
         machine._validation_budget = None
         machine._validation_combined_stage = False
         if match:
@@ -140,6 +141,7 @@ def install(machine_type):
         return original_send(machine, text)
 
     def wait(machine, marker, offset=0, timeout=180):
+        machine._validation_result = None
         record = getattr(machine, '_validation_status', None)
         prefix = (('user: ' if record[3] else '') + record[0] + '=') if record else ''
         status_marker = marker == prefix or (bool(prefix) and marker.startswith(prefix) and marker[len(prefix):].isdigit())
@@ -154,8 +156,30 @@ def install(machine_type):
             if budget.enabled: budget.report(name)
             return available
         machine._validation_budget = budget.metrics()
+        def complete(seconds):
+            deadline = time.monotonic() + seconds
+            available = seconds
+            while available > 0:
+                found = original_wait(machine, marker, offset, available)
+                result = observation(machine, name, offset, output)
+                code = result['observed_status']
+                if code is not None:
+                    expected = marker[len(prefix):]
+                    result['expected_status'] = int(expected) if expected.isdigit() else None
+                    machine._validation_result = result
+                    accepted = not expected or code == int(expected)
+                    if accepted:
+                        print('Guest exit status: ' + name + '=' + str(code) + '; phase=' + result['last_guest_phase'], flush=True)
+                    return accepted
+                # UART may deliver the prefix, digits and terminator separately.
+                # Drain the record within this window even when its echo was lost;
+                # do not spin on the same substring or prematurely queue readback.
+                if not found or machine.process.poll() is not None: return False
+                time.sleep(.05)
+                available = deadline - time.monotonic()
+            return False
         initial = min(timeout / 4, 30) if budget.enabled else min(timeout, 30)
-        if original_wait(machine, marker, offset, initial):
+        if complete(initial):
             return True
         def wrong_status():
             observed = observation(machine, name, offset, output)['observed_status']
@@ -172,7 +196,7 @@ def install(machine_type):
                 if available <= 0 or machine.process.poll() is not None:
                     print('Guest operation deadline reached: '+name+'; operation was not repeated', flush=True)
                     return failed(machine, name, marker, prefix, offset, output, 'operation-deadline')
-                if original_wait(machine, marker, offset, min(available, 5)):
+                if complete(min(available, 5)):
                     return True
                 if wrong_status(): return False
         # Replay only the saved observation. An absent file, dead/hung guest or
@@ -183,12 +207,12 @@ def install(machine_type):
                 break
             print('Recovering saved guest status ' + name + ' (read-only attempt ' + str(attempt + 1) + ')', flush=True)
             original_send(machine, 'cat ' + path + output + '\r')
-            if original_wait(machine, marker, offset, min(available, 30)):
+            if complete(min(available, 30)):
                 return True
             if wrong_status(): return False
         available = remaining()
         while available > 0 and machine.process.poll() is None:
-            if original_wait(machine, marker, offset, min(available, 5) if budget.enabled else available):
+            if complete(min(available, 5) if budget.enabled else available):
                 return True
             if wrong_status(): return False
             if not budget.enabled: break

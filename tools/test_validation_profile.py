@@ -111,4 +111,13 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(180,row['authentication']['effective_seconds'])
         self.assertNotIn('root',str(row))
 
+    def test_prefix_wait_records_actual_guest_exit_even_when_transport_wait_passes(self):
+        m=self.machine(True)
+        m._validation_result=dict(observed_status=1,expected_status=None,last_guest_phase='kernel-verified')
+        self.assertTrue(m.wait('user: K_UPDATE=',timeout=600))
+        row=json.loads((m.directory/'wait-times.jsonl').read_text())
+        self.assertEqual('passed',row['outcome'])  # Transport completed; caller still checks its expected code.
+        self.assertEqual(1,row['guest_status']['observed_status'])
+        self.assertIsNone(row['guest_status']['expected_status'])
+
 if __name__=='__main__':unittest.main()
