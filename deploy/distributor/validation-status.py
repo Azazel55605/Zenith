@@ -6,7 +6,7 @@ import time
 STATUS = re.compile(r'(.+); echo ([A-Z][A-Za-z0-9_-]{0,63})=\$\?( \| logger)?\r', re.DOTALL)
 
 
-NOISE = re.compile(r"\[(?!zenith\])[A-Za-z][A-Za-z0-9 ]*\][^\n]*\n")
+NOISE = re.compile(r"\[(?!zenith\]|console\])[A-Za-z][A-Za-z0-9 ]*\][^\n]*\n")
 PROMPT = re.compile(r'(?:^|\r?\n)\[console\] [^\r\n]*[$#] ')
 
 
@@ -112,9 +112,20 @@ def busy(machine, path, offset, output=' | logger'):
     # Only postpone readback when the exact submitted suffix is visible and no
     # subsequent completed shell prompt exists. Damaged/unknown echoes retain
     # the old recovery path. Never treat a prompt as successful exit status.
-    raw = NOISE.sub('', machine.log()[offset:])
-    submitted = re.search(re.escape(path + output) + r'(?:\r\n|\n)', raw)
-    return submitted is not None and PROMPT.search(raw, submitted.end()-1) is None
+    raw = machine.log()[offset:]
+    submission = re.compile(re.escape(path + output) + r'(?:\r\n|\n)')
+    if submission.search(NOISE.sub('', raw)) is None:
+        return False
+    # A scheduler fragment can finish on the prompt's line. NOISE then removes
+    # that entire console line, so inspect prompt evidence before filtering it.
+    # A prompt permits read-only status recovery; it never proves success.
+    for prompt in PROMPT.finditer(raw):
+        # Delayed output from the previous command may include its prompt before
+        # this submission. Only a prompt after this unique suffix ends the wait.
+        console = raw.index('[console]', prompt.start())
+        if submission.search(NOISE.sub('', raw[:console])) is not None:
+            return False
+    return True
 
 
 def install(machine_type):

@@ -36,16 +36,26 @@ internal sealed class Ext2SuperblockOperations : ISuperblockOperations
             return false;
         }
 
-        statFs.Type = Magic;
-        statFs.BlockSize = ext2.BlockSize;
-        statFs.Blocks = ext2.BlocksCount;
-        statFs.Bfree = ext2.FreeBlocksCount;
-        statFs.Bavail = ext2.FreeBlocksCount;
-        statFs.Files = ext2.InodesCount;
-        statFs.Ffree = ext2.FreeInodesCount;
-        statFs.NameMax = ext2.MaxNameLength;
-        statFs.Frsize = ext2.BlockSize;
-        return true;
+        var io = ext2.EnterIo();
+        try
+        {
+            statFs.Type = Magic;
+            statFs.BlockSize = ext2.BlockSize;
+            statFs.Blocks = ext2.BlocksCount;
+            statFs.Bfree = ext2.FreeBlocksCount;
+            statFs.Bavail = ext2.FreeBlocksCount;
+            statFs.Files = ext2.InodesCount;
+            statFs.Ffree = ext2.FreeInodesCount;
+            statFs.NameMax = ext2.MaxNameLength;
+            statFs.Frsize = ext2.BlockSize;
+            io.Dispose();
+            return true;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
     }
 
     public void Drop(IVfsSuperblock superblock)

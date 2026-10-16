@@ -42,6 +42,22 @@ internal sealed class Ext2FileOperations : IFileOperations
     /// <returns>Bytes read; <c>0</c> indicates end-of-file.</returns>
     public long Read(IVfsOpenFile openFile, Span<byte> buffer)
     {
+        var io = _superblock.EnterIo();
+        try
+        {
+            var result = ReadCore(openFile, buffer);
+            io.Dispose();
+            return result;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private long ReadCore(IVfsOpenFile openFile, Span<byte> buffer)
+    {
         if (openFile.Inode is not Ext2Inode inode)
         {
             return 0;
@@ -125,6 +141,22 @@ internal sealed class Ext2FileOperations : IFileOperations
     /// <param name="buffer">Bytes to write.</param>
     /// <returns>Bytes written.</returns>
     public long Write(IVfsOpenFile openFile, ReadOnlySpan<byte> buffer)
+    {
+        var io = _superblock.EnterIo();
+        try
+        {
+            var result = WriteCore(openFile, buffer);
+            io.Dispose();
+            return result;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private long WriteCore(IVfsOpenFile openFile, ReadOnlySpan<byte> buffer)
     {
         if (openFile.Inode is not Ext2Inode inode)
         {
@@ -221,6 +253,26 @@ internal sealed class Ext2FileOperations : IFileOperations
     /// <returns>true on success; false when the resulting position would be negative.</returns>
     public bool Seek(IVfsOpenFile openFile, long offset, SeekWhence whence, out long newPosition)
     {
+        var io = _superblock.EnterIo();
+        try
+        {
+            if (SeekCore(openFile, offset, whence, out newPosition))
+            {
+                io.Dispose();
+                return true;
+            }
+            io.Dispose();
+            return false;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private bool SeekCore(IVfsOpenFile openFile, long offset, SeekWhence whence, out long newPosition)
+    {
         if (openFile.Inode is not Ext2Inode inode)
         {
             newPosition = 0;
@@ -260,6 +312,26 @@ internal sealed class Ext2FileOperations : IFileOperations
     /// <returns>true on success.</returns>
     public bool Fsync(IVfsOpenFile openFile)
     {
+        var io = _superblock.EnterIo();
+        try
+        {
+            if (FsyncCore(openFile))
+            {
+                io.Dispose();
+                return true;
+            }
+            io.Dispose();
+            return false;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private bool FsyncCore(IVfsOpenFile openFile)
+    {
         if (openFile.Inode is Ext2Inode inode)
         {
             _superblock.WriteInode(inode);
@@ -274,6 +346,21 @@ internal sealed class Ext2FileOperations : IFileOperations
     /// </summary>
     /// <param name="openFile">Open file being closed.</param>
     public void Release(IVfsOpenFile openFile)
+    {
+        var io = _superblock.EnterIo();
+        try
+        {
+            ReleaseCore(openFile);
+            io.Dispose();
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private void ReleaseCore(IVfsOpenFile openFile)
     {
         Fsync(openFile);
     }

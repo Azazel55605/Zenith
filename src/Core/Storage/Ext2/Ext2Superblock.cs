@@ -6,6 +6,7 @@ using global::System.Diagnostics.CodeAnalysis;
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Zenith.Core.Storage.Ext2;
 
@@ -19,6 +20,33 @@ internal sealed class Ext2Superblock : IVfsSuperblock
 {
     private readonly IBlockDevice _device;
     private bool _mounted;
+    private readonly object _ioGate = new();
+
+    // One gate spans a complete logical operation, not only individual disk
+    // requests. It protects shared bitmaps, pointer buffers, inode cache and
+    // read-modify-write metadata from other managed filesystem workers.
+    // Callers release explicitly on success and in catch: Cosmos 3.0.89 does
+    // not reliably unwind finally/using. The monitor is reentrant for helpers.
+    internal IoLease EnterIo() => new(_ioGate);
+    internal struct IoLease : IDisposable
+    {
+        private object? _gate;
+        internal IoLease(object gate)
+        {
+            Monitor.Enter(gate);
+            _gate = gate;
+        }
+        public void Dispose()
+        {
+            object? gate = _gate;
+            if (gate is null)
+            {
+                return;
+            }
+            _gate = null;
+            Monitor.Exit(gate);
+        }
+    }
 
     /// <summary>Live inodes by number; keeps open handles coherent with metadata writes.</summary>
     private readonly Dictionary<uint, Ext2Inode> _inodeCache = [];
@@ -34,9 +62,6 @@ internal sealed class Ext2Superblock : IVfsSuperblock
 
     /// <summary>Last-read indirect block contents; sequential reads through the same indirect block skip the disk.</summary>
     private byte[]? _indirCacheData;
-
-    /// <summary>Reusable buffer for inode table reads.</summary>
-    private byte[]? _inodeBuf;
 
     /// <summary>Total inodes in the volume (s_inodes_count).</summary>
     public uint InodesCount { get; }
@@ -441,6 +466,22 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// <param name="name">Leaf name the caller resolved it under.</param>
     public Ext2Inode ReadInode(uint inodeNumber, string name)
     {
+        var io = this.EnterIo();
+        try
+        {
+            var result = ReadInodeCore(inodeNumber, name);
+            io.Dispose();
+            return result;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private Ext2Inode ReadInodeCore(uint inodeNumber, string name)
+    {
         if (inodeNumber == 0 || inodeNumber > InodesCount)
         {
             throw new ArgumentOutOfRangeException(nameof(inodeNumber));
@@ -473,12 +514,9 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         uint blockOffset = index / inodesPerBlock;
         uint offsetInBlock = (index % inodesPerBlock) * InodeSize;
 
-        if (_inodeBuf is null || _inodeBuf.Length != BlockSize)
-        {
-            _inodeBuf = new byte[BlockSize];
-        }
-
-        byte[] blockBuf = _inodeBuf;
+        // A lookup may be interrupted by another filesystem operation. Never
+        // let that operation replace a metadata RMW's in-flight table block.
+        byte[] blockBuf = new byte[BlockSize];
         ReadBlocks(inodeTableBlock + blockOffset, 1, blockBuf);
         ReadOnlySpan<byte> raw = blockBuf.AsSpan((int)offsetInBlock, InodeSize);
 
@@ -533,6 +571,21 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// <param name="inode">Inode to write back.</param>
     internal void WriteInode(Ext2Inode inode)
     {
+        var io = this.EnterIo();
+        try
+        {
+            WriteInodeCore(inode);
+            io.Dispose();
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private void WriteInodeCore(Ext2Inode inode)
+    {
         uint group = GroupOfInode(inode.InodeNumber);
         uint index = IndexInGroup(inode.InodeNumber);
         Ext2GroupDesc gd = _groups[group];
@@ -541,12 +594,7 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         uint blockOffset = index / inodesPerBlock;
         uint offsetInBlock = (index % inodesPerBlock) * InodeSize;
 
-        if (_inodeBuf is null || _inodeBuf.Length != BlockSize)
-        {
-            _inodeBuf = new byte[BlockSize];
-        }
-
-        byte[] blockBuf = _inodeBuf;
+        byte[] blockBuf = new byte[BlockSize];
         ReadBlocks(inodeTableBlock + blockOffset, 1, blockBuf);
         Span<byte> raw = blockBuf.AsSpan((int)offsetInBlock, InodeSize);
 
@@ -583,6 +631,26 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// <param name="inodeNumber">Allocated one-based inode number on success.</param>
     /// <returns>true when an inode was allocated.</returns>
     internal bool TryAllocateInode(uint groupHint, out uint inodeNumber)
+    {
+        var io = this.EnterIo();
+        try
+        {
+            if (TryAllocateInodeCore(groupHint, out inodeNumber))
+            {
+                io.Dispose();
+                return true;
+            }
+            io.Dispose();
+            return false;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private bool TryAllocateInodeCore(uint groupHint, out uint inodeNumber)
     {
         for (uint g = 0; g < GroupsCount; g++)
         {
@@ -632,6 +700,21 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// <param name="inodeNumber">One-based inode number to free.</param>
     internal void FreeInode(uint inodeNumber)
     {
+        var io = this.EnterIo();
+        try
+        {
+            FreeInodeCore(inodeNumber);
+            io.Dispose();
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private void FreeInodeCore(uint inodeNumber)
+    {
         Ext2Inode deleted = ReadInode(inodeNumber, "");
         deleted.LinksCount = 0;
         deleted.Dtime = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -659,6 +742,26 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// <param name="blockNumber">Allocated block number on success.</param>
     /// <returns>true when a block was allocated.</returns>
     internal bool TryAllocateBlock(uint groupHint, out uint blockNumber)
+    {
+        var io = this.EnterIo();
+        try
+        {
+            if (TryAllocateBlockCore(groupHint, out blockNumber))
+            {
+                io.Dispose();
+                return true;
+            }
+            io.Dispose();
+            return false;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private bool TryAllocateBlockCore(uint groupHint, out uint blockNumber)
     {
         for (uint g = 0; g < GroupsCount; g++)
         {
@@ -709,6 +812,21 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// </summary>
     /// <param name="blockNumber">Block number to free.</param>
     internal void FreeBlock(uint blockNumber)
+    {
+        var io = this.EnterIo();
+        try
+        {
+            FreeBlockCore(blockNumber);
+            io.Dispose();
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private void FreeBlockCore(uint blockNumber)
     {
         if (blockNumber < FirstDataBlock || blockNumber >= BlocksCount)
         {
@@ -764,6 +882,21 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// </summary>
     internal void UpdateSuperblock()
     {
+        var io = this.EnterIo();
+        try
+        {
+            UpdateSuperblockCore();
+            io.Dispose();
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private void UpdateSuperblockCore()
+    {
         ulong devBlockSize = _device.BlockSize;
         ulong sbByteOffset = Ext2SuperblockLayout.SuperblockOffset;
         ulong sbLba = sbByteOffset / devBlockSize;
@@ -781,6 +914,21 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// <summary>Durably mark an active writable mount unclean.</summary>
     internal void MarkMounted()
     {
+        var io = this.EnterIo();
+        try
+        {
+            MarkMountedCore();
+            io.Dispose();
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private void MarkMountedCore()
+    {
         SetCleanState(false);
         _mounted = true;
         Flush();
@@ -797,6 +945,21 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// <summary>Mark a completed unmount clean, drop caches and flush.</summary>
     public void Drop()
     {
+        var io = this.EnterIo();
+        try
+        {
+            DropCore();
+            io.Dispose();
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private void DropCore()
+    {
         if (_mounted)
         {
             SetCleanState(true);
@@ -811,6 +974,21 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// Flush the device's volatile write cache — the durability point for sync and unmount.
     /// </summary>
     public void Flush()
+    {
+        var io = this.EnterIo();
+        try
+        {
+            FlushCore();
+            io.Dispose();
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private void FlushCore()
     {
         UpdateSuperblock();
         _device.Flush();
@@ -828,6 +1006,22 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// <param name="isNew">True when the call allocated the returned block.</param>
     /// <returns>Physical block number, or 0 for a hole or on failure.</returns>
     internal uint GetBlockPointer(Ext2Inode inode, uint logicalBlock, bool allocate, out bool isNew)
+    {
+        var io = this.EnterIo();
+        try
+        {
+            var result = GetBlockPointerCore(inode, logicalBlock, allocate, out isNew);
+            io.Dispose();
+            return result;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private uint GetBlockPointerCore(Ext2Inode inode, uint logicalBlock, bool allocate, out bool isNew)
     {
         isNew = false;
         if (inode is null || inode.Block is null)
@@ -1074,6 +1268,22 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// <param name="inode">File inode.</param>
     internal List<uint> CollectBlocks(Ext2Inode inode)
     {
+        var io = this.EnterIo();
+        try
+        {
+            var result = CollectBlocksCore(inode);
+            io.Dispose();
+            return result;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private List<uint> CollectBlocksCore(Ext2Inode inode)
+    {
         List<uint> result = [];
         uint blocksNeeded = (uint)((inode.FullSize + BlockSize - 1) / BlockSize);
         uint perBlock = BlockSize / 4;
@@ -1094,6 +1304,21 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// <summary>Resize an inode, reclaiming data and empty pointer tables on shrink.
     /// A retained partial block is zeroed past EOF so later growth cannot expose old bytes.</summary>
     internal void Truncate(Ext2Inode inode, ulong newSize)
+    {
+        var io = this.EnterIo();
+        try
+        {
+            TruncateCore(inode, newSize);
+            io.Dispose();
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private void TruncateCore(Ext2Inode inode, ulong newSize)
     {
         ulong oldSize = inode.FullSize;
         if (inode.IsSymlink && inode.Blocks == 0)

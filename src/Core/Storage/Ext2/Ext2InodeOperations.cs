@@ -36,6 +36,26 @@ internal sealed class Ext2InodeOperations : IInodeOperations
     /// <returns>true when the name exists in <paramref name="dir"/>.</returns>
     public bool Lookup(IVfsInode dir, ReadOnlySpan<char> name, [NotNullWhen(true)] out IVfsInode? child)
     {
+        var io = _superblock.EnterIo();
+        try
+        {
+            if (LookupCore(dir, name, out child))
+            {
+                io.Dispose();
+                return true;
+            }
+            io.Dispose();
+            return false;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private bool LookupCore(IVfsInode dir, ReadOnlySpan<char> name, [NotNullWhen(true)] out IVfsInode? child)
+    {
         child = null;
         if (dir is not Ext2Inode parent || !parent.IsDirectory)
         {
@@ -95,6 +115,26 @@ internal sealed class Ext2InodeOperations : IInodeOperations
     /// <returns>true on success.</returns>
     public bool ReadDir(IVfsInode dir, out IReadOnlyList<IVfsInode> entries)
     {
+        var io = _superblock.EnterIo();
+        try
+        {
+            if (ReadDirCore(dir, out entries))
+            {
+                io.Dispose();
+                return true;
+            }
+            io.Dispose();
+            return false;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private bool ReadDirCore(IVfsInode dir, out IReadOnlyList<IVfsInode> entries)
+    {
         entries = Array.Empty<IVfsInode>();
         if (dir is not Ext2Inode parent || !parent.IsDirectory)
         {
@@ -128,6 +168,26 @@ internal sealed class Ext2InodeOperations : IInodeOperations
     /// <param name="inode">Created inode on success; null on failure.</param>
     /// <returns>true on success; false when the name already exists or allocation fails.</returns>
     public bool Create(IVfsInode dir, ReadOnlySpan<char> name, VfsMode mode, [NotNullWhen(true)] out IVfsInode? inode)
+    {
+        var io = _superblock.EnterIo();
+        try
+        {
+            if (CreateCore(dir, name, mode, out inode))
+            {
+                io.Dispose();
+                return true;
+            }
+            io.Dispose();
+            return false;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private bool CreateCore(IVfsInode dir, ReadOnlySpan<char> name, VfsMode mode, [NotNullWhen(true)] out IVfsInode? inode)
     {
         inode = null;
         if (dir is not Ext2Inode parent || !parent.IsDirectory || !Ext2DirectoryHelper.IsValidName(name))
@@ -191,6 +251,26 @@ internal sealed class Ext2InodeOperations : IInodeOperations
     /// <param name="inode">Created inode on success; null on failure.</param>
     /// <returns>true on success; false when the name already exists or allocation fails.</returns>
     public bool Mkdir(IVfsInode dir, ReadOnlySpan<char> name, VfsMode mode, [NotNullWhen(true)] out IVfsInode? inode)
+    {
+        var io = _superblock.EnterIo();
+        try
+        {
+            if (MkdirCore(dir, name, mode, out inode))
+            {
+                io.Dispose();
+                return true;
+            }
+            io.Dispose();
+            return false;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private bool MkdirCore(IVfsInode dir, ReadOnlySpan<char> name, VfsMode mode, [NotNullWhen(true)] out IVfsInode? inode)
     {
         inode = null;
         if (dir is not Ext2Inode parent || !parent.IsDirectory || !Ext2DirectoryHelper.IsValidName(name))
@@ -298,6 +378,26 @@ internal sealed class Ext2InodeOperations : IInodeOperations
     /// <returns>true on success; false when the name already exists or allocation fails.</returns>
     public bool Symlink(IVfsInode dir, ReadOnlySpan<char> name, ReadOnlySpan<char> target, [NotNullWhen(true)] out IVfsInode? inode)
     {
+        var io = _superblock.EnterIo();
+        try
+        {
+            if (SymlinkCore(dir, name, target, out inode))
+            {
+                io.Dispose();
+                return true;
+            }
+            io.Dispose();
+            return false;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private bool SymlinkCore(IVfsInode dir, ReadOnlySpan<char> name, ReadOnlySpan<char> target, [NotNullWhen(true)] out IVfsInode? inode)
+    {
         inode = null;
         if (dir is not Ext2Inode parent || !parent.IsDirectory || !Ext2DirectoryHelper.IsValidName(name))
         {
@@ -393,6 +493,26 @@ internal sealed class Ext2InodeOperations : IInodeOperations
     /// <returns>true on success; false when the name does not exist or names a directory.</returns>
     public bool Unlink(IVfsInode dir, ReadOnlySpan<char> name)
     {
+        var io = _superblock.EnterIo();
+        try
+        {
+            if (UnlinkCore(dir, name))
+            {
+                io.Dispose();
+                return true;
+            }
+            io.Dispose();
+            return false;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private bool UnlinkCore(IVfsInode dir, ReadOnlySpan<char> name)
+    {
         if (dir is not Ext2Inode parent || !parent.IsDirectory || !Ext2DirectoryHelper.IsValidName(name))
         {
             return false;
@@ -436,6 +556,26 @@ internal sealed class Ext2InodeOperations : IInodeOperations
     /// <param name="name">Name of the directory to remove.</param>
     /// <returns>true on success; false when the name does not exist, is not a directory, or is not empty.</returns>
     public bool Rmdir(IVfsInode dir, ReadOnlySpan<char> name)
+    {
+        var io = _superblock.EnterIo();
+        try
+        {
+            if (RmdirCore(dir, name))
+            {
+                io.Dispose();
+                return true;
+            }
+            io.Dispose();
+            return false;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private bool RmdirCore(IVfsInode dir, ReadOnlySpan<char> name)
     {
         if (dir is not Ext2Inode parent || !parent.IsDirectory || !Ext2DirectoryHelper.IsValidName(name))
         {
@@ -510,6 +650,26 @@ internal sealed class Ext2InodeOperations : IInodeOperations
     /// <param name="newName">New name for the entry.</param>
     /// <returns>true when the entry was moved.</returns>
     public bool Rename(IVfsInode oldParent, ReadOnlySpan<char> oldName, IVfsInode newParent, ReadOnlySpan<char> newName)
+    {
+        var io = _superblock.EnterIo();
+        try
+        {
+            if (RenameCore(oldParent, oldName, newParent, newName))
+            {
+                io.Dispose();
+                return true;
+            }
+            io.Dispose();
+            return false;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private bool RenameCore(IVfsInode oldParent, ReadOnlySpan<char> oldName, IVfsInode newParent, ReadOnlySpan<char> newName)
     {
         if (oldParent is not Ext2Inode oldDir || newParent is not Ext2Inode newDir
             || oldDir.Superblock != _superblock || newDir.Superblock != _superblock
@@ -599,6 +759,26 @@ internal sealed class Ext2InodeOperations : IInodeOperations
     /// <returns>true on success.</returns>
     public bool GetAttr(IVfsInode inode, out VfsStat stat)
     {
+        var io = _superblock.EnterIo();
+        try
+        {
+            if (GetAttrCore(inode, out stat))
+            {
+                io.Dispose();
+                return true;
+            }
+            io.Dispose();
+            return false;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private bool GetAttrCore(IVfsInode inode, out VfsStat stat)
+    {
         stat = default;
         if (inode is not Ext2Inode node)
         {
@@ -630,6 +810,26 @@ internal sealed class Ext2InodeOperations : IInodeOperations
     /// <param name="attributes">Source values for the selected fields.</param>
     /// <returns>true on success; false when a selected change is not supported.</returns>
     public bool SetAttr(IVfsInode inode, SetAttrFlags flags, in VfsStat attributes)
+    {
+        var io = _superblock.EnterIo();
+        try
+        {
+            if (SetAttrCore(inode, flags, in attributes))
+            {
+                io.Dispose();
+                return true;
+            }
+            io.Dispose();
+            return false;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private bool SetAttrCore(IVfsInode inode, SetAttrFlags flags, in VfsStat attributes)
     {
         if (inode is not Ext2Inode node)
         {
@@ -721,6 +921,26 @@ internal sealed class Ext2InodeOperations : IInodeOperations
     /// <param name="target">Link target on success.</param>
     /// <returns>true when <paramref name="symlink"/> is a symbolic link and the target was read.</returns>
     public bool TryReadLink(IVfsInode symlink, out string? target)
+    {
+        var io = _superblock.EnterIo();
+        try
+        {
+            if (TryReadLinkCore(symlink, out target))
+            {
+                io.Dispose();
+                return true;
+            }
+            io.Dispose();
+            return false;
+        }
+        catch
+        {
+            io.Dispose();
+            throw;
+        }
+    }
+
+    private bool TryReadLinkCore(IVfsInode symlink, out string? target)
     {
         target = null;
         if (symlink is not Ext2Inode node || !node.IsSymlink)

@@ -92,7 +92,11 @@ execution ledger or duplicate historical test totals into the roadmap.
   partition (1..512 MiB); it refuses mounted volumes and the running root disk.
   The locally adapted driver, upstream revision and allocator fix are
   documented in `src/Core/Storage/Ext2/SOURCE.md`; its BSD notice is retained in
-  LICENSE and `man licenses`. `fsck.ext2` checks unmounted supported volumes without repairs. Installed ext2 accounts and permission enforcement are documented in
+  LICENSE and `man licenses`. Keep complete ext2 operations under the per-volume
+  reentrant I/O gate, with explicit success/catch release for Cosmos; inode-table
+  RMW buffers must remain private to the operation. Preserve interrupted/concurrent
+  metadata regressions and remount audits when changing scratch-buffer reuse.
+  `fsck.ext2` checks unmounted supported volumes without repairs. Installed ext2 accounts and permission enforcement are documented in
   [ACCOUNTS.md](docs/ACCOUNTS.md); kernel code remains trusted.
 - Follow existing C# conventions: file-scoped namespaces, explicit visibility,
   four-space indentation, and braces on separate lines.

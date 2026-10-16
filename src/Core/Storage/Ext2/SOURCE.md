@@ -41,9 +41,18 @@ Layout references: [superblock](https://docs.kernel.org/filesystems/ext4/super.h
 Host formatter tests and guest-created volumes are independently checked by e2fsck.
 
 Allocator and free paths reuse bitmap, zero-block, descriptor and superblock
-scratch buffers under the driver's existing serialized I/O contract. Metadata is
-still reread on each operation; this does not cache disk state. A host allocation
-budget regression and the guest 9 MiB group-boundary workload cover the change.
+scratch buffers. A per-volume reentrant monitor now serializes complete inode,
+file, allocation and sync operations, including their metadata read-modify-write
+sequences. Earlier code assumed serialization without enforcing it: preemption
+could replace a shared inode-table buffer with another table block and overwrite
+neighbouring inodes, or lose a concurrent update to the same block. Inode reads
+and writes now also own their table buffers. Entry points release the monitor
+explicitly on success and in catch; Cosmos 3.0.89 cannot rely on unwind-finally.
+This is managed-worker serialization, not a journal or managed multicore support.
+Metadata is still reread on each operation. Deterministic interrupted/concurrent
+RMW tests, parallel creation/indirect writes with remount/checker audits, and the
+allocation-budget regression cover the change. Keep native installed update,
+permission, failure and independent e2fsck acceptance as separate gates.
 
 Symlink creation follows Linux ext2's one-block limit (including the terminating
 NUL) and 59-byte inline limit; mode is 0777. Reads distinguish inline storage by

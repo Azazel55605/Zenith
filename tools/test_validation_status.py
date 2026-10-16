@@ -171,6 +171,28 @@ class StatusTests(unittest.TestCase):
         self.assertFalse(m.wait('user: DONE=',4,600))
         self.assertEqual(4,len(m.sent))
 
+    def test_scheduler_fragment_on_console_prompt_does_not_hide_completion(self):
+        m=self.machine([False, True]);m.send('pkg search hello; echo P4_SEARCH=$?\r')
+        path=m._validation_status[1]
+        m.text=('boot'+path+'\r\nhello-tools 1.0.0\n'
+                '[SCHED] ExitThread: managed exit callback foP4_SEARCH=0\n'
+                '\r\n[console] root@zenith:~$ r thread 8\n'
+                '[SCHED] ExitThread: OnThreadExit done\n')
+        self.assertIsNone(status.observation(m,'P4_SEARCH',4,'')['observed_status'])
+        self.assertFalse(status.busy(m,path,4,''))
+        self.assertTrue(m.wait('P4_SEARCH=0',4,600))
+        self.assertEqual(2,len(m.sent))
+        self.assertEqual('cat '+path+'\r',m.sent[1])
+        self.assertEqual(1,sum('pkg search' in text for text in m.sent))
+
+    def test_delayed_previous_prompt_does_not_queue_readback_during_new_operation(self):
+        m=self.machine([False, True]);m.send('pkg update --yes; echo P4_STAGE=$?\r')
+        path=m._validation_status[1]
+        m.text='boot\r\n[console] root@zenith:~$ '+path+'\r\n'
+        self.assertTrue(status.busy(m,path,4,''))
+        self.assertTrue(m.wait('P4_STAGE=0',4,600))
+        self.assertEqual(1,len(m.sent))
+
     def test_dead_guest_does_not_read_back(self):
         m=self.machine([False]);m.send('false; echo DEAD=$? | logger\r');m.poll=lambda:1
         self.assertFalse(m.wait('user: DEAD=',4,600));self.assertEqual(1,len(m.sent))
