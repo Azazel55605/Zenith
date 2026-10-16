@@ -22,6 +22,9 @@ is not included in 0.0.13's error, so its disk/runtime cause remains unconfirmed
   real `K_UPDATE=0` and powers off cleanly. This does not reproduce the server error.
 - [x] Add read-only retained-disk inspection; verify local healthy paths, invalid
   image refusal and unchanged source-disk SHA256.
+- [x] Handle Debian shells missing sbin on PATH: inspector resolves executable
+  debugfs from PATH, /usr/sbin or /sbin; fallback verified locally. The server
+  inspection stopped before metadata checks because debugfs could not launch.
 - [ ] Inspect the server's failed disk and identify the rejected ancestor before
   choosing a product fix or another release attempt.
 

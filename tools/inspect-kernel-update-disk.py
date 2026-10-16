@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Inspect a stopped kernel-update fixture without booting or modifying its disk."""
 import argparse
+import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import tempfile
 
@@ -13,6 +15,12 @@ FILES = ('/var/lib/zenith/boot/installed.tsv', '/var/lib/zenith/boot/generations
 
 
 def inspect(image):
+    # Debian login shells may omit /usr/sbin despite e2fsprogs being installed.
+    debugfs = shutil.which('debugfs')
+    if debugfs is None:
+        debugfs = next((path for path in ('/usr/sbin/debugfs', '/sbin/debugfs')
+                        if Path(path).is_file() and os.access(path, os.X_OK)), None)
+    if debugfs is None: raise ValueError('debugfs executable unavailable (checked PATH, /usr/sbin and /sbin)')
     state = boot_image.verify(image)
     root = next(part for part in boot_image.partitions(image) if str(part[1]) == state['root'])
     # debugfs only supports filesystem images, so extract a private temporary
@@ -27,7 +35,7 @@ def inspect(image):
                 target.write(data); remaining -= len(data)
         invalid = []
         for path in (*ANCESTORS, *FILES):
-            result = subprocess.run(['debugfs', '-R', 'stat ' + path, str(volume)],
+            result = subprocess.run([debugfs, '-R', 'stat ' + path, str(volume)],
                                     capture_output=True, text=True, check=True)
             match = re.search(r'Inode:\s*(\d+)\s+Type:\s*(\w+)', result.stdout)
             kind = match[2] if match else 'unavailable'

@@ -57,6 +57,16 @@ password replay, changed package signature check, product code or tag move.
   [stability record](release-validation-stability.md); local passes do not override
   the operator's failure.
 
+## Inspector environment follow-up
+
+The operator pulled ef95c9d and boot-artifact verification passed, but root
+inspection stopped at `Permission denied: debugfs`. The server previously reported
+`/usr/sbin/debugfs`; its interactive shell may lack sbin in PATH. The inspector now
+resolves executable debugfs via PATH, /usr/sbin or /sbin before inspecting data.
+Fallback was verified against the retained local healthy disk with PATH discovery
+forced unavailable. No sudo, repair or new kernel is required. Server root metadata
+inspection is still pending; this tool-launch failure is not evidence of corruption.
+
 ## Next evidence and decision
 
 Run the inspector on the **stopped failed server disk** before another build.
