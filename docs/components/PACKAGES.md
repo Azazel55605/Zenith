@@ -17,6 +17,8 @@ tool releases still need the acceptance recorded in [Status](../STATUS.md).
 - [x] Package independent manuals, fonts, docs and protected Sunbeam executables.
 - [x] Support branding/theme resources and a true dependency-only styling metapackage.
 - [x] Build immutable package-specific tags; gate, sign and publish on the server.
+- [x] Share unsigned pre-tag/CI acceptance with the distributor gate plan, and run
+  current controller regressions before server kernel compilation.
 - [x] Expose timer/run-now/build logs, expandable package versions and storage reporting.
 - [x] Clean bounded stale build/scratch files; hide superseded finished/failed activity.
 

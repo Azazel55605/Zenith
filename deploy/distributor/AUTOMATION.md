@@ -332,3 +332,50 @@ and authentication, recording both requested and effective seconds. Heartbeats a
 failure diagnostics contain phase/timing information, never passwords or raw input.
 Retry through the service using the commands above; local acceptance does not
 establish server publication or an installed upgrade.
+
+
+## Before the next kernel tag
+
+Use one unsigned acceptance path before creating a new `kernel/v...` tag:
+
+```sh
+ZENITH_VALIDATION_ACCELERATOR=tcg python3 -B deploy/distributor/validate.py --keep /var/tmp/zenith-candidate-001
+```
+
+Choose a new evidence directory each run. The command runs controller regressions,
+checks native prerequisites, runs Release host tests, builds the Release ISO and
+package tool, then calls the distributor's actual native gate plan: login/session,
+repository, native programs and kernel crash/recovery. It neither signs nor
+publishes nor creates a tag. The default mode requires a clean committed candidate and refuses source changes
+during acceptance. Confirm CI on that candidate before tagging it.
+
+For CI or an explicitly prebuilt candidate, add `--existing` to test `output-x64`
+without rebuilding the kernel. This still runs controller/host tests, builds the
+package tool and runs every native gate. `artifacts.json` records the ISO/ELF
+SHA256 values, and any change to those files during acceptance fails the run.
+With `--existing`, the caller is responsible for the artifacts' source provenance;
+this is not a reusable signing attestation. Avoid simultaneous kernel builds in
+the same checkout. The server always rebuilds and revalidates its immutable tag.
+
+Fast checks alone are available with:
+
+```sh
+python3 -B deploy/distributor/validate.py --controller-only
+```
+
+CI and distributor kernel builds use this same controller test set, including
+shared authentication waits, transport/status recovery, accelerator policy and
+acceptance orchestration. On the distributor these run from the current controller
+checkout, before host tests or compilation even for an older pinned tag. Missing
+QEMU/filesystem/TLS tools, firmware, an invalid accelerator policy or unavailable
+forced KVM fail before compilation. Auto policy may still fall back to TCG; its
+actual selected backend remains recorded by native metrics.
+
+CI now runs the same four release gates through this entry point, retains the
+existing extra native CPU-worker coverage, and waits for host/controller jobs
+before building the ISO. Kernel tags also trigger CI. Evidence and failures stay
+under `--keep`, including retained guest disks/transcripts and phase metrics;
+fixture private key directories are excluded from CI artifacts. Do not replace
+full acceptance with blind retries, ever-growing timeouts or optional signing
+gates. Controller/local success and actual server/installed acceptance remain
+separate claims.

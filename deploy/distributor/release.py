@@ -21,6 +21,7 @@ import urllib.parse
 import urllib.request
 
 REPO = Path(__file__).resolve().parents[2]
+CONTROLLER = Path(__file__).resolve().parent
 CONFIG = Path.home() / ".config/zenith/distributor.json"
 TOOL = REPO / "tools/Zenith.PackageTool/bin/Release/net10.0/Zenith.PackageTool.dll"
 INDEX_TOOL = TOOL  # Current controller reader handles newer published manifests, including when rebuilding an old tag.
@@ -205,6 +206,8 @@ def build(config, release, native=False):
     lock, work = locked_work(config)
     with lock:
         print("Source: " + commit + "; logs: " + str(work), flush=True)
+        controller_checks(work)
+        if native: native_prerequisites()
         phase("Host tests", ["dotnet", "test", "tests/Zenith.Tests", "-c", "Release"], work / "tests.log")
         phase("Kernel build", ["dotnet", "publish", "-c", "Release", "-r", "linux-x64", "-o", str(work / "build")], work / "build.log")
         clean()
@@ -222,6 +225,38 @@ def build(config, release, native=False):
         if source_commit() != commit: raise ValueError("source commit changed before publication; refused")
         publish(config, release, work / "kernel.zpk", commit, work)
         indexes(config, work)
+
+
+def controller_checks(work):
+    # Always test the running controller, even when REPO is an older pinned tag.
+    phase("Validation controller tests", [sys.executable, "-B", str(CONTROLLER / "validate.py"),
+          "--controller-only"], work / "controller-tests.log")
+
+
+def native_prerequisites():
+    commands = (os.environ.get("QEMU", "qemu-system-x86_64"), "dotnet", "clang", "ld",
+                "e2fsck", "debugfs", "mke2fs", "mcopy", "fsck.fat", "openssl")
+    missing = [command for command in commands if shutil.which(command) is None]
+    if missing: raise ValueError("missing native validation tools: " + ", ".join(missing))
+    policy = os.environ.get("ZENITH_VALIDATION_ACCELERATOR", "auto")
+    if policy not in ("auto", "tcg", "kvm"):
+        raise ValueError("ZENITH_VALIDATION_ACCELERATOR must be auto, kvm or tcg")
+    if policy == "kvm":
+        try:
+            descriptor = os.open("/dev/kvm", os.O_RDWR)
+            os.close(descriptor)
+        except OSError as error:
+            raise ValueError("forced KVM is unavailable to the build user: " + str(error)) from error
+    # Use the harness's own firmware search, without booting a guest.
+    sys.path.insert(0, str(REPO / "tools"))
+    try:
+        spec = importlib.util.spec_from_file_location("preflight_efi", REPO / "tools/test-installed-boot.py")
+        efi = importlib.util.module_from_spec(spec); spec.loader.exec_module(efi)
+        efi.firmware()
+    except RuntimeError as error:
+        raise ValueError("native validation firmware unavailable: " + str(error)) from error
+    finally: sys.path.pop(0)
+    print("Native prerequisites ready; accelerator policy=" + policy, flush=True)
 
 
 def native_checks(work):

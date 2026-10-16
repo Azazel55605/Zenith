@@ -1,21 +1,22 @@
 # Roadmap
 
-Reviewed **2026-10-15**. This page owns order and milestone exits, not the execution
+Reviewed **2026-10-16**. This page owns order and milestone exits, not the execution
 log. Read [Status](STATUS.md) for delivery evidence and [Progress](PROGRESS.md) for
 active work. Historical milestone version targets are not release versions.
 
 ## Now
 
-1. **Documentation overhaul — complete.** Current status, component steps and
-   historical records are separated; links and preservation checked. See the
-   [completion record](archive/2026-10-15/documentation-overhaul.md).
+1. **Release validation stability — locally verified.** Common CI/pre-tag/server
+   gate plan and early controller/environment checks are implemented; full local
+   acceptance passed. Observe hosted CI and the next server run before treating
+   deployment acceptance as complete.
 2. **Accept the native file-tool release** — code is already implemented. Run the
    mandatory distributor gates for kernel 0.0.13 and Sunbeam 0.2.0; install and
    confirm the kernel before upgrading the new tools. Exit: installed reads,
    listings, permissions and cancellation work through the signed executable.
 
-Feature implementation is paused for the documentation task. No new release is
-created by reorganizing these documents.
+Release stability and server acceptance precede the next ABI slice. Controller
+changes do not require moving an existing product tag or issuing a new kernel.
 
 ## Next: continue unbundling
 

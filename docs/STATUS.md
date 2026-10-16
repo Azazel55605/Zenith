@@ -37,12 +37,13 @@ resource package does not make its consuming renderer an independent executable.
 
 | Scope | Recorded result | Source / durable record |
 |---|---|---|
+| Common release acceptance | 99 controller + 18 release tests; 620 Release host tests; all four common TCG gates (69 login, 92 repository, native programs, 169 kernel recovery) passed on unchanged 0.0.13 artifacts | [stability record](archive/2026-10-16/release-validation-stability.md); hosted CI/server acceptance pending |
 | Shared authentication validation | 85 regressions; 69 login/session checks (242.241 s); native-program gate (246.195 s); unchanged ISO, forced TCG | [authentication record](archive/2026-10-16/authentication-validation.md); server retry pending |
 | Native filesystem slice | 620 host tests; Release build; expanded native gate with opt-in two-CPU workers passed in 297.571 s | `f502085`; [slice record](archive/2026-10-15/PROGRESS.md#2026-10-15--native-filesystem-tool-unbundling-locally-verified); [harness](../tools/native-process-smoke.py) |
 | Recovery transport fix | 169/169 kernel checks; 69 login/session checks | `61618cd`; [recovery record](archive/2026-10-15/PROGRESS.md#2026-10-15--displayed-kernel-recovery-validation-locally-verified) |
 | Dashboard superseded failures | 19 dashboard tests | `d521b9c`; [record](archive/2026-10-15/PROGRESS.md#2026-10-15--hide-superseded-failed-dashboard-activity) |
 
-These are separate runs. The complete kernel-update and repository suites were
-not repeated locally for 0.0.13; they remain required distributor gates. Local
+These are separate runs. The complete kernel-update and repository suites now also passed in the common
+local acceptance run; they remain required distributor gates. Local
 `/tmp` evidence paths in the archive may expire; use the commit, harness and
 retained distributor logs to reproduce or investigate a release.

@@ -76,18 +76,18 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "already published"): self.publish()
         self.assertEqual(receipt, json.loads((self.root / "core/zenith-kernel/0.0.2/release.json").read_text()))
 
-    def test_build_failure_never_signs_or_publishes_and_keeps_log(self):
+    def test_controller_failure_never_builds_signs_or_publishes_and_keeps_log(self):
         calls = []
         def phase(label, command, log):
-            calls.append(label); log.write_text("fixture host test failure\n")
-            raise ValueError("Host tests failed")
+            calls.append(label); log.write_text("fixture controller test failure\n")
+            raise ValueError("Validation controller tests failed")
         with patch.object(release, "REPO", self.repo), patch.object(release, "clean"), \
              patch.object(release, "source_commit", return_value="a" * 40), \
              patch.object(release, "prerequisites"), patch.object(release, "phase", side_effect=phase):
-            with self.assertRaisesRegex(ValueError, "Host tests failed"): release.build(self.config, "0.0.3")
-        self.assertEqual(["Host tests"], calls)
+            with self.assertRaisesRegex(ValueError, "Validation controller tests failed"): release.build(self.config, "0.0.3")
+        self.assertEqual(["Validation controller tests"], calls)
         self.assertEqual([], list(self.root.iterdir()))
-        self.assertEqual(1, len(list((self.repo / "obj/distributor").glob("release-*/tests.log"))))
+        self.assertEqual(1, len(list((self.repo / "obj/distributor").glob("release-*/controller-tests.log"))))
 
     def test_source_change_blocks_signing_and_publication(self):
         calls = []
@@ -96,7 +96,7 @@ class ReleaseTests(unittest.TestCase):
              patch.object(release, "prerequisites"), \
              patch.object(release, "phase", side_effect=lambda label, *args: calls.append(label)):
             with self.assertRaisesRegex(ValueError, "changed during build"): release.build(self.config, "0.0.3")
-        self.assertEqual(["Host tests", "Kernel build"], calls)
+        self.assertEqual(["Validation controller tests", "Host tests", "Kernel build"], calls)
         self.assertEqual([], list(self.root.iterdir()))
 
     def test_native_failure_blocks_signing_and_publication(self):
@@ -110,7 +110,8 @@ class ReleaseTests(unittest.TestCase):
                 raise ValueError("native acceptance failed")
         with patch.object(release, "REPO", self.repo), patch.object(release, "clean"), \
              patch.object(release, "source_commit", return_value="a" * 40), \
-             patch.object(release, "prerequisites"), patch.object(release, "phase", side_effect=phase):
+             patch.object(release, "prerequisites"), patch.object(release, "native_prerequisites"), \
+             patch.object(release, "phase", side_effect=phase):
             with self.assertRaisesRegex(ValueError, "native acceptance failed"):
                 release.build(self.config, "0.0.3", native=True)
         self.assertNotIn("Sign kernel", calls)
@@ -185,7 +186,7 @@ class ReleaseTests(unittest.TestCase):
              patch.object(release, "source_commit", return_value="a" * 40), \
              patch.object(release, "prerequisites"), patch.object(release, "phase", side_effect=phase):
             release.build(self.config, "0.0.3")
-        self.assertEqual(["Host tests", "Kernel build", "Package tool", "Sign kernel", "Index core", "Index core extended", "Index extra", "Index extra extended"], calls)
+        self.assertEqual(["Validation controller tests", "Host tests", "Kernel build", "Package tool", "Sign kernel", "Index core", "Index core extended", "Index extra", "Index extra extended"], calls)
         self.assertTrue((self.root / "core/zenith-kernel/0.0.3/zenith-kernel.zpk").is_file())
 
     def test_phase_failure_reports_useful_tail_and_retains_full_log(self):

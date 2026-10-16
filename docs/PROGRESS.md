@@ -4,25 +4,29 @@ Updated **2026-10-16**. This is a short handoff, not an append-only changelog.
 [Status](STATUS.md) summarizes the system; [Roadmap](ROADMAP.md) orders future work.
 Completed evidence lives in the [archive](archive/README.md).
 
-## Current handoff: authentication validation ready for server retry
+## Current handoff: common release acceptance locally verified
 
-The shared authentication policy is implemented and locally verified. It separates
-secret prompts from hash/save completion, applies to unchanged tagged harnesses,
-and preserves real results, rejection checks and hash strength. Credentials are
-never replayed. See [completed evidence](archive/2026-10-16/authentication-validation.md)
-for diagnosis, policy, commands and limits.
+Release pipeline stability work is implemented. CI and pre-tag validation now use
+the distributor's native gate plan; current controller regressions and native
+prerequisites run before server kernel compilation. Default candidate validation
+requires a clean source commit and refuses source changes; existing-artifact runs
+record hashes and reject changed files. No product tag/version changed.
 
-- [x] Trace the server's 30-second password-update failure and input lifecycle.
-- [x] Implement shared bounded waits and secret-free phase diagnostics.
-- [x] Pass 85 policy/controller/status/profile/accelerator/recovery regressions,
-  including unchanged-tag compatibility.
-- [x] Pass final-code TCG login/session/styling acceptance: 69 checks, 242.241 s.
-- [x] Pass final-code TCG native-program acceptance: 246.195 s, unchanged ISO.
-- [ ] Pull the controller on the server and retry `kernel/v0.0.13`; confirm all
-  gates, signing and publication, then installed upgrade acceptance.
+- [x] Audit recurring failures and CI/distributor coverage gaps.
+- [x] Add unsigned candidate validation and early controller/environment checks.
+- [x] Align CI, including login/session coverage and host/controller dependency.
+- [x] Pass 99 controller regressions, 18 release fixtures and 620 Release host tests.
+- [x] Pass the full common TCG run: 69 login checks, 92 repository checks,
+  native-program acceptance and all 169 kernel recovery checks; unchanged ISO/ELF.
+- [x] Document pre-tag use, evidence retention and source/artifact boundaries.
+- [ ] Pull the controller on the server when idle and observe the next complete
+  build; hosted CI and installed acceptance remain separate external steps.
 
-Previous controller work: [bounded repository staging](archive/2026-10-15/repository-stage-budget.md)
-and [failure diagnostics](archive/2026-10-15/repository-stage-investigation.md).
+See [completed evidence](archive/2026-10-16/release-validation-stability.md) and the
+[pre-tag workflow](../deploy/distributor/AUTOMATION.md#before-the-next-kernel-tag).
+The operator is independently retrying 0.0.13 using the previous
+[authentication fix](archive/2026-10-16/authentication-validation.md) (`758d7af`);
+no server result has been reported yet. Avoid changing a running controller.
 
 ## Waiting for external acceptance
 

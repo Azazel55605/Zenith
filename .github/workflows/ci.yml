@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ["v*"]
+    tags: ["v*", "kernel/v*"]
   pull_request:
   workflow_dispatch:
 
@@ -30,22 +30,20 @@ jobs:
       - run: python3 -B tools/test_tls_bridge.py /tmp/zenith-tls/libzenith-tls.so
       - run: python3 -B tools/test_signed_package_tool.py /tmp/zenith-tls/libzenith-tls.so
       - run: python3 -B tools/test_smoke_test.py
-      - run: python3 -B tools/test_recovery_console.py
+      - name: Release controller regressions
+        run: python3 -B deploy/distributor/validate.py --controller-only
       - run: python3 -B tools/test_package_tool.py
       - run: python3 -B tools/test_meta_package_tool.py
       - run: python3 -B tools/test_publish_package.py
       - run: python3 -B tools/test_distributor_release.py
       - run: python3 -B tools/test_distributor_poll.py
-      - run: python3 -B tools/test_distributor_validation.py
-      - run: python3 -B tools/test_validation_status.py
-      - run: python3 -B tools/test_validation_profile.py
-      - run: python3 -B tools/test_validation_accelerator.py
       - run: python3 -B tools/test_distributor_maintenance.py
       - run: python3 -B tools/test_distributor_dashboard.py
       - run: python3 -B tools/test_dashboard_setup.py
 
   build:
     name: Build ISO + smoke test
+    needs: [unit-tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -129,11 +127,11 @@ jobs:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 -B tools/package-smoke.py smoke-packages
 
-      - name: Signed kernel upgrades and crash recovery
-        timeout-minutes: 30
+      - name: Distributor release acceptance (login, repository, native, recovery)
+        timeout-minutes: 90
         env:
           QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 -B deploy/distributor/validation-runner.py tools/kernel-update-smoke.py smoke-kernel
+        run: python3 -B deploy/distributor/validate.py --existing --keep smoke-release
 
       - name: IDT import adaptation and repeated installed UEFI startup
         timeout-minutes: 10
@@ -176,11 +174,6 @@ jobs:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 -B tools/network-smoke.py smoke-network
 
-      - name: Signed online package discovery and installed upgrades
-        env:
-          QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 -B deploy/distributor/validation-runner.py tools/repository-smoke.py smoke-repositories
-
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -188,7 +181,7 @@ jobs:
           path: |
             smoke-dhcp-receive/
             smoke-keyboard/
-            smoke-repositories/
+            smoke-release/
             smoke-transfer/
             smoke/
             smoke-large/
@@ -205,6 +198,7 @@ jobs:
             smoke-packages/
             smoke-kernel/
             smoke-native/
+            !smoke-release/**/keys/**
             !smoke-native/keys/**
             !smoke-kernel/keys/**
             !smoke-packages/keys/**

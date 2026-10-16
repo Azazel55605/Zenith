@@ -580,3 +580,21 @@ Run `tools/native-process-smoke.py` through validation-runner as above, adding
 still runs under an unchanged kernel, followed by independent ext2 auditing.
 New native bundles declare the filesystem capability; upgrade/confirm the kernel
 before upgrading Sunbeam 0.2.0. Existing release gates are retained.
+
+
+## Pre-tag kernel release acceptance
+
+Use the distributor's common unsigned acceptance path rather than a subset of
+smoke tests before the next kernel tag:
+
+```sh
+ZENITH_VALIDATION_ACCELERATOR=tcg python3 -B deploy/distributor/validate.py --keep /var/tmp/zenith-candidate-001
+```
+
+It builds/tests the candidate and runs login, repository, protected programs and
+kernel recovery in distributor order. `--existing` tests already-built ISO/ELF
+artifacts; `--controller-only` runs the fast harness/controller regressions.
+Use a fresh evidence directory, a clean committed candidate and the measured
+accelerator policy appropriate to the host. No package-server config or production
+signing key is used. See [the automation runbook](../deploy/distributor/AUTOMATION.md#before-the-next-kernel-tag)
+for provenance, retained evidence and server acceptance boundaries.
