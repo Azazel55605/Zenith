@@ -131,3 +131,11 @@ The distributor must build, sign, publish and verify delivery from that tag. The
 local results do not claim server publication or installed VMware acceptance.
 Repeated installed refresh/update is the remaining real-path test. Preserve TLS,
 signatures, catalog generation/freshness and explicit boot confirmation.
+
+## Operator follow-up
+
+After the 0.0.15 handoff, the operator reports: "the issue seems to be gone".
+Record this as improvement on the actual VMware path, not a claim of exhaustive
+network acceptance. The follow-up does not separately specify the installed
+version, boot confirmation or individual distributor delivery results. The source
+fix, local validation and pushed tag are confirmed independently above.

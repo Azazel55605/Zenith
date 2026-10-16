@@ -6,9 +6,9 @@ active work. Historical milestone version targets are not release versions.
 
 ## Now
 
-1. **Accept the TCP reliability release.** 0.0.15's clean-source common pre-tag
-   gate passed. Complete distributor publication and repeated installed VMware
-   refresh/update acceptance before resuming the next ABI slice.
+1. **Resume native tool unbundling.** 0.0.15 passed the full local release gate,
+   its tag was pushed, and the operator reports the TCP issue seems gone. Next is
+   the bounded native input/writable-handle slice below.
 2. **Accept the native file tools on the installed system.** Kernel 0.0.14 and
    Sunbeam 0.2.0 are operator-installed; confirm reads, listings, permissions and
    cancellation through the signed executable. Failed 0.0.13 remains immutable.
