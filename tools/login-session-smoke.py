@@ -13,7 +13,12 @@ def monitor_type(path, text, german=False):
         if german and ch in 'yz': ch={'y':'z','z':'y'}[ch]
         key=h.efi.smoke.KEYS.get(ch)
         if key is None: key='shift-'+h.efi.smoke.SHIFTED[ch] if ch in h.efi.smoke.SHIFTED else 'shift-'+ch.lower() if ch.isupper() else ch
-        monitor_command(path,'sendkey '+key+' 30');time.sleep(.05)
+        monitor_command(path,'sendkey '+key+' 30')
+        # The old monitor helper spent 40 ms reading responses before this 50 ms
+        # pause. Preserve that 90 ms input cadence with the complete-response
+        # helper: the framebuffer console can overflow PS/2 input when rendered
+        # text is injected faster. Never replay a truncated command or password.
+        time.sleep(.09)
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('keep',type=Path);a=p.parse_args()
@@ -106,6 +111,7 @@ def main():
         check(m.wait('logout refused: Save or close the editor',off,60),'unsaved editor blocks logout')
         off=len(m.log());monitor_command(keep/'monitor.sock','sendkey ctrl-q 30')
         check(m.wait('editor: close requires discard confirmation',off,30),'editor requests explicit discard')
+        time.sleep(.05)  # Let the 30 ms QEMU key hold release before confirming.
         off=len(m.log());monitor_command(keep/'monitor.sock','sendkey ctrl-q 30')
         check(m.wait('editor: closed',off,30),'confirmed discard closes editor')
         off=len(m.log());monitor_command(keep/'monitor.sock','sendkey ctrl-alt-l 30');check(m.wait('login ready',off,180),'logout returns to greeter')

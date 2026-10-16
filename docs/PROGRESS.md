@@ -22,7 +22,10 @@ live-ISO builds from the Cosmos VS Code extension.
 - [ ] Run full pre-tag acceptance before any kernel release. The first common run
   stopped in the existing graphical editor-discard/logout step. Replaced timed
   HMP response reads with the shared complete-response helper and added explicit
-  confirmation/closed events and failure screenshots; rerunning the common gate.
+  confirmation/closed events and failure screenshots. That sequence passed.
+  The faster helper then exposed truncated keyboard input in the framebuffer
+  console; retained its previous 90 ms typing cadence without replaying commands
+  or passwords. Rerunning common acceptance with both transport corrections.
 
 Interactive TTY, streaming pipes, seek and general process scheduling remain later
 slices. Existing buffered text output and read-only ABI-1 binaries stay supported.
