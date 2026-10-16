@@ -1,52 +1,40 @@
 # Active work
 
-Updated **2026-10-16**. This is a short handoff, not an append-only changelog.
-[Status](STATUS.md) summarizes the system; [Roadmap](ROADMAP.md) orders future work.
-Completed evidence lives in the [archive](archive/README.md).
+Updated **2026-10-16**. [Status](STATUS.md) summarizes delivery; [Roadmap](ROADMAP.md)
+orders future work. Detailed completed evidence belongs in the [archive](archive/README.md).
 
-## Current slice: ext2 metadata corruption — locally complete
+## Current slice: 0.0.14 delivery verification and dashboard errors
 
-The server's prepared baseline has directory `/var/lib` at inode 49. The failed
-upgrade clone has a **regular file** at that same inode, making boot metadata
-unreachable. GPT/EFI/kernel integrity still passes. This confirms on-disk root
-corruption after preparation; the guard correctly returned K_UPDATE=1.
+The operator's server log confirms 0.0.14 passed every native gate, was signed
+and published, and core/extra indexes reached generation 15. The final HTTPS
+archive verification failed with `Name or service not known`. This is a server
+hostname-resolution problem; the published package is retained.
 
-- [x] Separate the genuine failure from the independently fixed status-prefix race.
-- [x] Inspect both server disks read-only; confirm baseline directory versus failed
-  clone regular inode 49. Handle Debian sbin tool lookup without sudo.
-- [x] Reproduce neighbouring directory-to-file corruption deterministically in a
-  host test: another inode read replaces the shared inode scratch block during RMW.
-- [x] Give inode RMWs independent buffers and serialize complete ext2 operations,
-  with explicit release on exception for Cosmos's unwind limitation.
-- [x] Pass 624 Release host tests: interrupted and concurrent metadata updates,
-  cross-worker exception cleanup, parallel creation/indirect file writes and
-  remount/checker audits, plus existing permission/fault/allocation coverage.
-- [x] Build the Release ISO; pass 69 native session checks and independent ext2
-  audit. Reproduce and fix a separate observer stall when scheduler output consumes
-  a completed prompt. Fix the same filtering defect for complete authentication
-  results/rejections; 109 controller regressions pass, no mutation/credential replay.
-- [x] Complete common native acceptance on the rebuilt binary: 109 controller
-  tests, 624 host tests, 69 session checks, 92 online repository checks,
-  native-program gate and all 169 kernel recovery checks pass. Independent ext2
-  and EFI audits pass; stopped upgrade image retains directory inode 49.
+- [x] Identify the final delivery error in controller history, beyond the passed
+  extra-index phase the dashboard selected.
+- [x] Default failed/interrupted builds to controller history when their last
+  phase passed; retain an error banner while viewing individual phases.
+- [x] Pass 42 dashboard/polling tests, including immutable-archive preservation
+  after delivery failure. Verify desktop/mobile rendering and phase selection
+  with installed Playwright; no browser console errors.
+- [ ] Confirm distributor DNS-only/direct queries for zenith-stable.net.local.
+  The VM lists 10.0.10.3; NSS also lists mDNS before DNS. Do not assume the cause
+  or change resolution policy until the query results distinguish it.
+- [ ] After DNS works, verify the existing archive and queue the same 0.0.14 tag
+  for background recovery. Existing publication resumes without rebuilding.
+- [ ] Deploy the dashboard update and confirm installed Zenith acceptance.
 
-Do not repair the retained failed disk, relax ancestor checks, move kernel/v0.0.13
-or claim the exact server thread interleaving was observed. The matching corruption
-mechanism is reproduced; a fixed product binary needs its own release candidate.
-See [investigation](archive/2026-10-16/kernel-update-ancestor-investigation.md).
+See [delivery record](archive/2026-10-16/distributor-delivery-diagnostics.md)
+for exact server evidence, tests and recovery commands. No new kernel tag or
+kernel rebuild is needed for these controller/dashboard changes.
 
-## Waiting for external acceptance
+## Completed prerequisite and external acceptance
 
-The fix is committed in `c622c13`, with authentication observer follow-up
-`ce42cfd`. The operator confirms the distributor controller is updated.
-**kernel/v0.0.14** is now pushed at tested source `fe1f5a9`; the next poll or Run
-now can build it. Immutable 0.0.13 cannot acquire the product fix through a retry.
-New candidate server publication and
-installed VM acceptance remain outstanding. Sunbeam **0.2.0** publication/install
-with the fixed ABI-capable kernel is also unconfirmed. Kernel **0.0.12** and the
-login/resource packages are operator confirmed. See [Status](STATUS.md#release-and-installation-boundary).
+The ext2 metadata fix and local common acceptance are complete in c622c13/ce42cfd;
+[corruption investigation](archive/2026-10-16/kernel-update-ancestor-investigation.md).
+Tag kernel/v0.0.14 points to tested source fe1f5a9. Immutable 0.0.13 remains failed
+and unchanged. Kernel 0.0.12 and supporting login/resource packages are operator
+confirmed. Sunbeam 0.2.0 installed acceptance with the fixed kernel is unconfirmed.
 
-After fixed-candidate release acceptance, resume [native userland](components/USERLAND.md):
-first finish release acceptance, then select the next bounded input/write slice.
-Do not mark M5 complete or start unrelated desktop/multicore implementation from
-this handoff alone.
+After verified delivery and installed acceptance, resume the next bounded
+[native userland](components/USERLAND.md) slice. M5 remains incomplete.

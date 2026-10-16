@@ -182,7 +182,10 @@ class Dashboard:
 
     def detailed_output(self, build, view="auto"):
         text = self.output(build)
-        result = dict(text=text, phases=[], selected="controller", diagnostic="", refreshed=None)
+        record = next((item for tag, item in self.records().items() if tag.replace("/", "-") == build), {})
+        failed = record.get("status") in ("failed", "interrupted")
+        result = dict(text=text, phases=[], selected="controller", diagnostic="", refreshed=None,
+                      error=str(record.get("error", ""))[:1000] if failed else "")
         path = self.state / (build + ".details.json")
         if not path.exists(): return result
         details = json.loads(read_file(path, 1048576))
@@ -195,7 +198,10 @@ class Dashboard:
             if not all(isinstance(row.get(key), (int, float)) for key in ("started", "elapsed")):
                 raise ValueError("invalid phase timing")
             result["phases"].append({key: row.get(key) for key in ("name", "status", "started", "elapsed", "updated")})
-        if view != "controller" and rows:
+        # Publication/delivery can fail after the last subprocess phase passed.
+        # Its stale successful output must not hide the controller's real error.
+        controller_failure = view == "auto" and failed and rows and rows[-1]["status"] == "passed"
+        if view != "controller" and rows and not controller_failure:
             index = len(rows) - 1 if view == "auto" else int(view)
             if not 0 <= index < len(rows): raise ValueError("unknown phase")
             row = rows[index]

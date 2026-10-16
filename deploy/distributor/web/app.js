@@ -92,9 +92,12 @@ async function updateLog() {
     const phase=(data.phases || [])[data.selected], build=snapshot?.builds.find(item=>item.tag===tag);
     const elapsed=phase ? `${Math.floor(phase.elapsed/60)}m ${Math.floor(phase.elapsed%60)}s` : "";
     const age=phase?.updated ? Math.max(0,Math.floor(Date.now()/1000-phase.updated)) : null;
-    $("phase-summary").textContent=phase ? `Build ${build?.status || "unknown"} · ${phase.name} · ${phase.status} · ${elapsed} · ${age===null?"waiting for output":`last output ${age}s ago`}` : "Detailed phase output is available for builds started with the updated controller.";
-    $("phase-diagnostic").hidden=!data.diagnostic;
-    $("phase-diagnostic").textContent=data.diagnostic ? `${data.diagnostic.includes("falling back to tcg")?"Software emulation: KVM unavailable in this guest.\n":"Guest diagnostics\n"}${data.diagnostic}` : "";
+    $("phase-summary").textContent=phase ? `Build ${build?.status || "unknown"} · ${phase.name} · ${phase.status} · ${elapsed} · ${age===null?"waiting for output":`last output ${age}s ago`}` : `Build ${build?.status || "unknown"} · Controller history`;
+    const messages=[];
+    if(data.error)messages.push(`Build failure\n${data.error}`);
+    if(data.diagnostic)messages.push(`${data.diagnostic.includes("falling back to tcg")?"Software emulation: KVM unavailable in this guest.\n":"Guest diagnostics\n"}${data.diagnostic}`);
+    $("phase-diagnostic").hidden=messages.length===0;
+    $("phase-diagnostic").textContent=messages.join("\n\n");
     const log=$("log"), atBottom=log.scrollTop+log.clientHeight>=log.scrollHeight-20;
     if (log.textContent!==data.text) { log.textContent=data.text; if(atBottom)log.scrollTop=log.scrollHeight; }
   } catch(error) { if(tag===selectedTag)$("log").textContent=error.message; }

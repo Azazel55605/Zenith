@@ -113,6 +113,10 @@ only to /manage/. Keep this manager on the existing LAN/VPN network.
   serial transcripts/password input are excluded. Snapshot failures do not bypass
   or fail release validation. Updating the controller does not alter an already
   running worker; let it finish before pulling source and reinstalling the UI.
+- A failed/interrupted run whose last phase passed opens controller history by
+  default, exposing later publication/delivery errors. Its failure banner remains
+  visible when selecting individual phase logs. A passed index subprocess does
+  not imply the entire release operation completed.
 - Next run is calculated from systemd's monotonic timer deadline; while a poll is
   active it shows After current run because the timer waits for completion before
   starting its interval. Dates follow the browser's local timezone/locale.

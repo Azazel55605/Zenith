@@ -144,6 +144,42 @@ class DashboardTests(unittest.TestCase):
         (self.root / "secret").write_text("private contents")
         self.assertEqual([], self.manager.inventory()[0])
 
+    def test_delivery_failure_after_passed_index_shows_controller_error_by_default(self):
+        record=self.records['kernel/v0.0.7']
+        record.update(status='failed',error='build/verification failed (worker exit 1)')
+        (self.state/'releases.json').write_text(json.dumps(self.records))
+        (self.state/'kernel-v0.0.7.log').write_text('Checking complete delivery\nDistributor polling failed: Name or service not known\n')
+        (self.state/'kernel-v0.0.7.details.json').write_text(json.dumps(dict(phases=[
+            dict(name='Index extra extended',status='passed',started=100,elapsed=.2,updated=101,
+                 text='sealed extra generation=15 entries=4')])) )
+        route='/manage/api/build-output?build=kernel-v0.0.7'
+        data=json.loads(self.request(route)[1])
+        self.assertEqual('controller',data['selected'])
+        self.assertIn('Name or service not known',data['text'])
+        self.assertEqual(record['error'],data['error'])
+        selected=json.loads(self.request(route+'&view=0')[1])
+        self.assertIn('sealed extra',selected['text'])
+        self.assertEqual(record['error'],selected['error'])
+        record['status']='complete'
+        (self.state/'releases.json').write_text(json.dumps(self.records))
+        completed=json.loads(self.request(route)[1])
+        self.assertEqual('0',completed['selected'])
+        self.assertEqual('',completed['error'])
+
+    def test_failed_phase_remains_selected_and_interrupted_postphase_shows_controller(self):
+        self.records['kernel/v0.0.7'].update(status='failed',error='native validation failed')
+        (self.state/'releases.json').write_text(json.dumps(self.records))
+        details=self.state/'kernel-v0.0.7.details.json'
+        row=dict(name='Native kernel',status='failed',started=100,elapsed=30,text='FAIL real assertion')
+        details.write_text(json.dumps(dict(phases=[row])))
+        result=self.manager.detailed_output('kernel-v0.0.7')
+        self.assertEqual('0',result['selected'])
+        self.assertEqual('FAIL real assertion',result['text'])
+        self.records['kernel/v0.0.7'].update(status='interrupted',error='worker cancelled')
+        (self.state/'releases.json').write_text(json.dumps(self.records))
+        row['status']='passed';details.write_text(json.dumps(dict(phases=[row])))
+        self.assertEqual('controller',self.manager.detailed_output('kernel-v0.0.7')['selected'])
+
     def test_unreadable_repository_preserves_other_packages_and_names_error(self):
         path = self.packages / 'core/zenith-kernel/0.0.7'; path.mkdir(parents=True)
         (path / 'release.json').write_text(json.dumps(dict(repository='core', name='zenith-kernel', version='0.0.7', archive_bytes=16000000)))

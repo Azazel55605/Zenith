@@ -188,6 +188,21 @@ class PollTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "another source commit"):
                 poll.execute({"root": str(self.root / "published")}, self.repo, "0.0.7", self.recipes["kernel"])
 
+    def test_delivery_failure_preserves_published_archive_without_rebuild_or_index_renewal(self):
+        target = self.root / "published/core/zenith-kernel/0.0.7"
+        target.mkdir(parents=True)
+        (target / "release.json").write_text(json.dumps({"source_commit": self.commit}))
+        archive = target / "zenith-kernel.zpk"; archive.write_bytes(b'immutable published bytes')
+        with patch.object(poll.release, "REPO", self.repo), patch.object(poll.release, "TOOL"), \
+             patch.object(poll.release, "source_commit", return_value=self.commit), \
+             patch.object(poll.release, "build") as build, \
+             patch.object(poll.release, "verify", side_effect=OSError('Name or service not known')), \
+             patch.object(poll.subprocess, "run"):
+            with self.assertRaisesRegex(OSError, 'Name or service not known'):
+                poll.execute({"root": str(self.root / "published")}, self.repo, "0.0.7", self.recipes["kernel"])
+        build.assert_not_called(); poll.release.indexes.assert_not_called()
+        self.assertEqual(b'immutable published bytes', archive.read_bytes())
+
     def test_manual_environment_finds_user_tools_in_children(self):
         home = self.root / "home"; tools = home / ".dotnet/tools"; tools.mkdir(parents=True)
         command = tools / "cosmos.patcher"

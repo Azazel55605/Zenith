@@ -6,7 +6,9 @@ Start with [current status](../STATUS.md) or [active work](../PROGRESS.md).
 
 ## Investigation records
 
-- [2026-10-16 kernel update ancestor failure](2026-10-16/kernel-update-ancestor-investigation.md): confirmed real exit 1, separate prefix-status race fix and read-only diagnosis; product cause pending.
+- [2026-10-16 distributor delivery diagnostics](2026-10-16/distributor-delivery-diagnostics.md): 0.0.14 built/published; final DNS failure, dashboard visibility fix and recovery without rebuilding.
+
+- [2026-10-16 kernel update ancestor failure](2026-10-16/kernel-update-ancestor-investigation.md): confirmed ext2 inode corruption, serialized operations/private buffers, observer fixes and full local acceptance.
 
 - [2026-10-16 authentication validation](2026-10-16/authentication-validation.md): shared prompt/completion policy and immutable-tag compatibility.
 
