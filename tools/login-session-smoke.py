@@ -2,15 +2,11 @@
 """Installed graphical login, local console, session teardown and signed styling upgrades."""
 import argparse, functools, hashlib, http.server, importlib.util, re, secrets, socket, subprocess, sys, threading, time
 from pathlib import Path
-from recovery_console import RecoveryConsole
+from recovery_console import RecoveryConsole, monitor_command
 
 ROOT=Path(__file__).resolve().parents[1]; sys.path.insert(0,str(ROOT/'tools'))
 spec=importlib.util.spec_from_file_location('headless',ROOT/'tools/headless-smoke.py')
 h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
-
-def monitor_command(path, command):
-    with socket.socket(socket.AF_UNIX) as control:
-        control.connect(str(path));control.recv(4096);control.sendall((command+'\n').encode());time.sleep(.04);control.recv(4096)
 
 def monitor_type(path, text, german=False):
     for ch in text:
@@ -42,7 +38,11 @@ def main():
     net=['-netdev','user,id=n','-device','e1000e,netdev=n'];m=None;checks=0;secret='L!'+secrets.token_hex(8)
     def check(ok,label):
         nonlocal checks
-        if not ok:raise RuntimeError(label)
+        if not ok:
+            if (keep/'monitor.sock').exists():
+                try: monitor_command(keep/'monitor.sock','screendump '+str(keep/'failure.ppm'))
+                except (OSError, RuntimeError): pass
+            raise RuntimeError(label)
         checks+=1;print('ok   '+label,flush=True)
     def command(text,marker,gui=False,timeout=300,german=False):
         off=len(m.log())
@@ -104,7 +104,10 @@ def main():
         status('open Editor /home/user/unsaved.txt','LOGIN_EDITOR',True);time.sleep(1);monitor_type(keep/'monitor.sock','keep this draft')
         off=len(m.log());monitor_command(keep/'monitor.sock','sendkey ctrl-alt-l 30');time.sleep(1)
         check(m.wait('logout refused: Save or close the editor',off,60),'unsaved editor blocks logout')
-        monitor_command(keep/'monitor.sock','sendkey ctrl-q 30');time.sleep(.5);monitor_command(keep/'monitor.sock','sendkey ctrl-q 30');time.sleep(.5)
+        off=len(m.log());monitor_command(keep/'monitor.sock','sendkey ctrl-q 30')
+        check(m.wait('editor: close requires discard confirmation',off,30),'editor requests explicit discard')
+        off=len(m.log());monitor_command(keep/'monitor.sock','sendkey ctrl-q 30')
+        check(m.wait('editor: closed',off,30),'confirmed discard closes editor')
         off=len(m.log());monitor_command(keep/'monitor.sock','sendkey ctrl-alt-l 30');check(m.wait('login ready',off,180),'logout returns to greeter')
         monitor_command(keep/'monitor.sock','screendump '+str(keep/'logout.ppm'))
         login('root','headless')

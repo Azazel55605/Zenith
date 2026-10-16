@@ -249,6 +249,11 @@ internal sealed class EditorWindow : Window
                 if (GuardUnsaved("close"))
                 {
                     Close();
+                    Zenith.Core.Log.Write("editor", "closed");
+                }
+                else
+                {
+                    Zenith.Core.Log.Write("editor", "close requires discard confirmation");
                 }
 
                 break;

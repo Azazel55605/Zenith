@@ -16,8 +16,13 @@ live-ISO builds from the Cosmos VS Code extension.
 - [x] Implement managed service calls, validate full user ranges before effects,
   enforce caller permissions and preserve cleanup on every exit/fault/cancel path.
 - [x] Extend independent Sunbeam tools and explicit package capability dependency.
-- [ ] Verify host regressions and native input/write/persistence/denial/fault tests.
-- [ ] Run full pre-tag acceptance before any kernel release.
+- [x] Verify host regressions (632 Release tests plus 11 package-tool tests) and
+  expanded native input/write/persistence/denial/fault tests. The first native run
+  passed in 453.166 s, including independent ext2 contents/audit and desktop login.
+- [ ] Run full pre-tag acceptance before any kernel release. The first common run
+  stopped in the existing graphical editor-discard/logout step. Replaced timed
+  HMP response reads with the shared complete-response helper and added explicit
+  confirmation/closed events and failure screenshots; rerunning the common gate.
 
 Interactive TTY, streaming pipes, seek and general process scheduling remain later
 slices. Existing buffered text output and read-only ABI-1 binaries stay supported.
