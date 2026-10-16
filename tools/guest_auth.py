@@ -7,7 +7,7 @@ import re
 import time
 
 # Bump when policy behavior changes so newer controllers can wrap older helpers.
-REVISION = 1
+REVISION = 2
 PROMPT_SECONDS = 60
 COMPLETION_SECONDS = 180
 NOISE = re.compile(r'\[(?!zenith\])[A-Za-z][A-Za-z0-9 ]*\][^\n]*\n')
@@ -65,11 +65,16 @@ def install(machine_type):
             raw = NOISE.sub('', source)
             raw = re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', raw)
             reason = next((reason for pattern, reason in FAILURES
-                           if re.search(pattern, raw) or (reason == 'guest-fatal' and re.search(pattern, source))), None)
+                           if re.search(pattern, raw) or re.search(pattern, source)), None)
             if reason: break
             if found and RESULT.fullmatch(marker):
                 # A username prefix or partial UART line cannot prove identity.
-                found = re.search(re.escape(marker) + r'[\r\n]', raw) is not None
+                # A debug writer may begin its line before the complete result.
+                # Filtering that line would erase real completion. Accept the
+                # exact terminated result from either view, never a username
+                # prefix, an incomplete line or a prompt alone.
+                complete = re.escape(marker) + r'[\r\n]'
+                found = re.search(complete, raw) is not None or re.search(complete, source) is not None
                 if not found: time.sleep(.05)
             if found:
                 record['outcome'] = 'passed'; return True

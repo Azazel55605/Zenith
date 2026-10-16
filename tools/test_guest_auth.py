@@ -119,6 +119,26 @@ class AuthenticationTests(unittest.TestCase):
         m=self.machine([(5,'remaining debug fragment authenticated as root\r\n')])
         self.assertTrue(m.wait('authenticated as root',timeout=30))
 
+    def test_debug_line_started_before_complete_password_result_is_not_discarded(self):
+        m=self.machine([(5,'[SCHED] Tpassword updated for root\n\r\n[console] root@zenith:~$ hread entry completed\n')])
+        self.assertTrue(m.wait('password updated for root',timeout=30))
+        self.assertEqual(5,self.now)
+        self.assertEqual([],m.sent)
+
+    def test_debug_line_cannot_hide_explicit_credential_rejection(self):
+        m=self.machine([(5,'[SCHED] Tick login: authentication failed\n')])
+        self.assertFalse(m.wait('authenticated as root',timeout=30))
+        self.assertEqual(5,self.now)
+        self.assertEqual('credential-rejected',m._validation_auth['reason'])
+
+    def test_debug_line_still_requires_exact_username_and_result_terminator(self):
+        for text in ('[SCHED] Tauthenticated as rootadmin\n','[SCHED] Tauthenticated as root'):
+            with self.subTest(text=text):
+                m=self.machine([(1,text)])
+                with patch.object(auth.time,'sleep'):
+                    self.assertFalse(m.wait('authenticated as root',timeout=30))
+                self.assertEqual('deadline',m._validation_auth['reason'])
+
     def test_transport_exception_preserves_error_and_records_phase(self):
         class Machine:
             def wait(self,*args):raise OSError('original transport failure')
