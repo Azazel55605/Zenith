@@ -16,6 +16,11 @@ operator confirmed; larger disks/features and physical hardware are separate wor
 - [x] Enforce traversal/read/write, groups, sticky/setgid and privileged operations
   across shell, GUI, System.IO, direct inode and held-handle paths.
 - [x] Recheck caller access through the native read-only filesystem bridge.
+- [x] Serialize complete ext2 operations per volume and isolate inode-table RMW
+  buffers; host regressions cover interrupted metadata and concurrent file writes.
+  The rebuilt kernel passed common native acceptance and independent ext2/EFI
+  audits; [evidence](../archive/2026-10-16/kernel-update-ancestor-investigation.md).
+  Server publication and installed VM acceptance of the fix remain outstanding.
 
 ## Current boundary
 
