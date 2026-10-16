@@ -48,6 +48,7 @@ internal static class NativeRepositories
             var progress = new CommandProgress(c.Out, c.IsTerminal);
             try
             {
+                c.WriteLine("Refreshing " + repository.Name);
                 if (Store.State(incoming) != PackagePathState.Missing) { Store.Delete(incoming); }
                 try
                 {

@@ -75,9 +75,38 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core.X64")
 }
 if (assembly.Name.Name == "Cosmos.Kernel.Plugs")
 {
-    // Packet headers advertise our receive capacity, never the peer's send window.
     var socketPlug = module.GetType("Cosmos.Kernel.Plugs.System.Net.Sockets.SocketPlug")
         ?? throw new InvalidOperationException("Cosmos socket plug changed");
+    // CloseTcp does not retire SYN_SENT registrations. Mark a timed-out connect
+    // CLOSED before throwing so the owner's explicit Close removes its table
+    // entry and local port. Only adapt the pinned failure path in build copies.
+    var connectTcp = socketPlug.Methods.Single(m => m.Name == "ConnectTcp" && m.Parameters.Count == 3);
+    var connectFailure = connectTcp.Body.Instructions.Single(i => i.OpCode == OpCodes.Ldstr
+        && (string)i.Operand == "Failed to open TCP connection!");
+    var tcpLocal = connectTcp.Body.Variables.Single(v => v.VariableType.FullName == "Cosmos.Kernel.System.Network.TCP.Tcp");
+    var statusSetter = connectTcp.Body.Instructions.Select(i => i.Operand).OfType<MethodReference>()
+        .First(m => m.Name == "set_Status" && m.DeclaringType.FullName == tcpLocal.VariableType.FullName);
+    var statusType = statusSetter.Parameters.Single().ParameterType.Resolve();
+    int closedStatus = Convert.ToInt32(statusType.Fields.Single(f => f.Name == "CLOSED").Constant);
+    if (connectFailure.Previous?.Operand is not MethodReference preceding || preceding.FullName != statusSetter.FullName)
+    {
+        if (connectFailure.Next.OpCode != OpCodes.Newobj || connectFailure.Next.Next.OpCode != OpCodes.Throw
+            || !connectTcp.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "WaitStatus"))
+        { throw new InvalidOperationException("Cosmos TCP connect timeout contract changed"); }
+        var il = connectTcp.Body.GetILProcessor();
+        // Mutate the original target too, so branches cannot bypass retirement.
+        connectFailure.OpCode = OpCodes.Ldloc; connectFailure.Operand = tcpLocal;
+        var status = il.Create(OpCodes.Ldc_I4, closedStatus); il.InsertAfter(connectFailure, status);
+        var setter = il.Create(OpCodes.Callvirt, statusSetter); il.InsertAfter(status, setter);
+        il.InsertAfter(setter, il.Create(OpCodes.Ldstr, "Failed to open TCP connection!"));
+        changed = true; Console.WriteLine("Adapted TCP connect timeout: retire failed registration on close");
+    }
+    else if (connectFailure.Previous.Previous.OpCode != OpCodes.Ldc_I4
+        || (int)connectFailure.Previous.Previous.Operand != closedStatus
+        || connectFailure.Previous.Previous.Previous.OpCode != OpCodes.Ldloc
+        || connectFailure.Previous.Previous.Previous.Operand != tcpLocal)
+    { throw new InvalidOperationException("Cosmos TCP timeout retirement contract changed"); }
+    // Packet headers advertise our receive capacity, never the peer's send window.
     var sendTcp = socketPlug.Methods.Single(m => m.Name == "SendTcp" && m.Parameters.Count == 4);
     if (!sendTcp.HasBody || sendTcp.ReturnType.FullName != "System.Int32")
     { throw new InvalidOperationException("Cosmos SendTcp signature changed"); }

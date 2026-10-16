@@ -193,8 +193,12 @@ old destination. This is not an exclusive namespace transaction against concurre
 trusted kernel writers.
 
 Two attempts maximum; each uses the above idle/body deadlines,
-plus DNS/connect/handshake time. Cosmos TCP connect blocks up to five seconds and
-observes cancellation on return. TLS handshake/write have fifteen-second deadlines;
+plus DNS/connect/handshake time. Each TCP connection uses at most two fresh sockets,
+with a 250 ms pause after the first pinned connect failure. Each Cosmos connect
+blocks up to five seconds and observes cancellation on return. Failed sockets are
+closed before retry; cancellation and unrelated errors are never connection-retried.
+The final diagnostic includes hostname, port and resolved IPv4 address. A fetch may
+therefore make at most four connection attempts across its two transfer attempts. TLS handshake/write have fifteen-second deadlines;
 TLS body reads honor the selected idle deadline, capped by the remaining transfer
 budget. Ordinary TLS reads default to three seconds. Fetch drains productive reads
 without a sleep, then uses a one-millisecond wait when no data progresses; effective

@@ -316,9 +316,11 @@ internal static class NetworkService
     private static Socket ConnectCore(string host, int port, Action cancel)
     {
         string ip = ResolveCore(host, cancel); Ready(); cancel();
-        var socket = new Socket(System.Net.Sockets.AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        try { socket.Connect(new IPAddress(new Address4(NetworkText.Ip(ip)).ToBytes()), port); cancel(); return socket; }
-        catch { socket.Close(0); throw; }
+        return TcpConnector.Connect(
+            () => new Socket(System.Net.Sockets.AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp),
+            socket => socket.Connect(new IPAddress(new Address4(NetworkText.Ip(ip)).ToBytes()), port),
+            Close, cancel, () => Thread.Sleep(250),
+            text => Log.Write("network", text), host + ":" + port + " (" + ip + ")");
     }
     public static void Probe(string host, int port, Action cancel)
     { Run(() => { Socket socket = ConnectCore(host, port, cancel); Close(socket); }); }

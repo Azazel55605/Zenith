@@ -112,3 +112,12 @@ on demand. Advance drops consumed references rather than copying the unread wind
 Unread bytes remain capped at 128 KiB; chunk storage may retain at most an additional
 4 KiB consumed prefix, plus a lazily cached snapshot of the unread bytes. There is no
 new TCP window-scale negotiation, reassembly or global whole-kernel memory guarantee.
+
+The pinned SocketPlug.ConnectTcp timeout now marks the failed state machine CLOSED
+before throwing. Upstream CloseTcp has no SYN_SENT retirement branch; without this,
+Close leaves timed-out registrations and local ports in the TCP table. The adapter
+checks the failure literal, Tcp local, status setter/enum and throw shape and is
+byte-idempotent. It changes build copies only. NetworkService retries this specific
+connect error once using a fresh socket; it does not replay TLS or application writes.
+This mitigates failed handshakes; the cause of the operator's intermittent VMware
+handshake losses still needs real-path validation.

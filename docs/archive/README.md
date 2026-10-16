@@ -6,6 +6,8 @@ Start with [current status](../STATUS.md) or [active work](../PROGRESS.md).
 
 ## Investigation records
 
+- [2026-10-16 intermittent TCP connections](2026-10-16/tcp-connect-reliability.md): connect timeout retirement, bounded retry and guest HTTPS regression; VMware cause still under investigation.
+
 - [2026-10-16 distributor delivery diagnostics](2026-10-16/distributor-delivery-diagnostics.md): 0.0.14 built/published; final DNS failure, dashboard visibility fix and recovery without rebuilding.
 
 - [2026-10-16 kernel update ancestor failure](2026-10-16/kernel-update-ancestor-investigation.md): confirmed ext2 inode corruption, serialized operations/private buffers, observer fixes and full local acceptance.

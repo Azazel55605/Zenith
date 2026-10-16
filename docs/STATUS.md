@@ -10,8 +10,8 @@ summary; [component checklists](README.md#components) own detailed work.
 |---|---|---|
 | Kernel 0.0.12 | Operator reports installed and working login; supporting resource packages installed | No broader hardware certification implied |
 | Kernel 0.0.13 | Tag pushed; server validation exposed ext2 corruption: directory `/var/lib` became a regular file at inode 49 | Failed version remains immutable; a retry cannot include the driver fix |
-| Kernel 0.0.14 | Tagged at `fe1f5a9`; operator log confirms server native gates passed, signed archive published and core/extra indexes generation 15 published | Server final HTTPS delivery check failed on DNS lookup; repair resolver path and resume verification of existing archive. Installed VM acceptance pending |
-| Sunbeam tools 0.2.0 | Read-only file tools locally verified; independent tag pushed | Server publication and installed acceptance with the fixed ABI-capable kernel |
+| Kernel 0.0.14 | Tagged at `fe1f5a9`; operator log confirms server native gates passed, signed archive published and core/extra indexes generation 15 published | Gateway stale DNS cache resolved; operator reports 0.0.14 installed. Repeated package refresh/update now exposes intermittent TCP connect failures; diagnosis and remediation are active. Explicit boot confirmation is not separately reported |
+| Sunbeam tools 0.2.0 | Read-only file tools locally verified; independent tag pushed | Operator screenshot shows Sunbeam 0.2.0 installed alongside kernel 0.0.14; interactive file-tool acceptance remains |
 | Home repository | Operator has used verified HTTPS and installed packages by name | Backup restore test not confirmed; no live server audit in this docs review |
 
 **Upgrade order for the new native file tools:** update the kernel, reboot and

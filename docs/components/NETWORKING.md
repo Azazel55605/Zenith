@@ -29,6 +29,12 @@ Wi-Fi or broad real-hardware support. `nc` is a bounded probe rather than a full
 interactive stream tool. Performance depends on the VM/VPN/storage path; do not
 assume KVM or extra vCPUs improve the guest's single managed execution path.
 
+## Active reliability work
+
+Operator refresh/update shows intermittent TCP connect failures despite working
+DNS. Bounded connect retry and timed-out registration retirement are implemented
+locally; guest and VMware acceptance remain tracked in [Progress](../PROGRESS.md).
+
 ## Remaining steps
 
 - [ ] Expose permission-controlled sockets to independent native tools.
