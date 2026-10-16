@@ -21,12 +21,16 @@ pipelines remain planned.
 
 Pipeline stages buffer text before running the next stage. An infinite producer
 is not stopped just because a later `head` needs only a few lines. There is no
-native stdin/byte stream bridge, general jobs/process table or full-screen raw
-TTY. The no-GPU serial transport has its own bounded ASCII input behavior and
+streaming byte bridge, general jobs/process table or full-screen raw TTY. Native
+programs can consume a finite UTF-8 pipe/redirect snapshot; see [native I/O](../NATIVE-PROGRAMS.md#input-and-writable-descriptors). The no-GPU serial transport has its own bounded ASCII input behavior and
 is not equivalent to local keyboard history/navigation. History is session state,
 not a persistent cross-reboot database. Bash and nano/Vim are not available ports.
 
 ## Remaining steps
+
+- [ ] Investigate sustained PS/2 input loss in the QEMU virtio-GPU local console.
+  The long GUI release gate passes with virtio keyboard; standard-VGA recovery
+  still exercises PS/2. [Observed failures](../archive/2026-10-16/native-input-and-writes.md#failures-found-during-acceptance).
 
 - [ ] Define byte streams, EOF/backpressure, stdin/stdout/stderr and cancellation.
 - [ ] Add terminal modes/cursor/control contracts before full-screen CLI programs.

@@ -230,7 +230,7 @@ VFS/driver execution and resume user registers/FP state afterward. Per-invocatio
 handles carry caller credentials and cwd; reads/listings/stat recheck access and
 cleanup runs on exit/fault/timeout/cancel. Managed scheduling points between request
 groups permit cancellation. Raw user windows still suspend normal managed dispatch.
-The current candidate adds finite shell stdin and bounded regular-file write,
+The native I/O extension adds finite shell stdin and bounded regular-file write,
 create/truncate/append and flush services. Socket, interactive TTY and GUI
 interfaces remain unimplemented.
 

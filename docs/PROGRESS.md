@@ -1,37 +1,26 @@
 # Active work
 
-Updated **2026-10-16**. [Status](STATUS.md) summarizes delivery; [Roadmap](ROADMAP.md)
-orders future work. Completed evidence belongs in the [archive](archive/README.md).
+Updated **2026-10-16**. [Status](STATUS.md) owns delivery boundaries;
+[Roadmap](ROADMAP.md) orders future work.
 
-## Current slice: native input and writable file handles
+## Native input/write handoff
 
-The operator requested the next unbundling slice and repair of Debug/Release
-live-ISO builds from the Cosmos VS Code extension.
+- [x] Repair and verify normal Cosmos VS Code Debug/Release ISO builds; operator
+  confirms they work. Cosmos stays pinned at 3.0.89.
+- [x] Implement finite shell stdin, guarded regular-file write/create/truncate/
+  append/flush, resource limits and cleanup; add independent Sunbeam `tee`/stdin `cat`.
+- [x] Declare the native I/O capability and update references/manuals.
+- [x] Pass clean-source common acceptance at `2a515e8`: 109 controllers, 632 host,
+  71 login/session, 92 repository, expanded native programs and 169 kernel checks.
+- [x] Push `kernel/v0.0.16`, `sunbeam-tools/v0.3.0` and
+  `zenith-man-pages/v0.1.1` at that exact tested source.
+- [ ] Observe server builds/publication and operator installation. Confirm the
+  new kernel before upgrading Sunbeam; exercise piped input and persistent writes.
 
-- [x] Reproduce normal build failure in the system .NET SDK's stale workload-set
-  selection. Operator switched to installed manifests with administrator rights
-  and reports that the extension builds work again. Cosmos stays pinned at 3.0.89.
-- [x] Define bounded piped/redirected UTF-8 stdin, regular-file write/create/
-  truncate/append, explicit flush, per-invocation handles and I/O budgets.
-- [x] Implement managed service calls, validate full user ranges before effects,
-  enforce caller permissions and preserve cleanup on every exit/fault/cancel path.
-- [x] Extend independent Sunbeam tools and explicit package capability dependency.
-- [x] Verify host regressions (632 Release tests plus 11 package-tool tests) and
-  expanded native input/write/persistence/denial/fault tests. The first native run
-  passed in 453.166 s, including independent ext2 contents/audit and desktop login.
-- [ ] Run full pre-tag acceptance before any kernel release. The first common run
-  stopped in the existing graphical editor-discard/logout step. Replaced timed
-  HMP response reads with the shared complete-response helper and added explicit
-  confirmation/closed events and failure screenshots. That sequence passed.
-  The faster helper then exposed truncated keyboard input in the framebuffer
-  console; retained its previous 90 ms typing cadence without replaying commands
-  or passwords. Legacy PS/2 input still dropped a status-label character in the
-  framebuffer console. Testing the supported virtio keyboard for the long GUI
-  gate; the separate standard-VGA recovery boot retains PS/2 coverage. Legacy
-  PS/2 sustained-input loss remains an open hardware-path issue.
+[Detailed evidence and failed attempts](archive/2026-10-16/native-input-and-writes.md).
+The long GUI gate uses virtio keyboard; separate standard-VGA recovery retains
+PS/2 coverage. Sustained legacy PS/2 input loss in the affected QEMU graphical
+profile remains open in [Shell](components/SHELL.md).
 
-Interactive TTY, streaming pipes, seek and general process scheduling remain later
-slices. Existing buffered text output and read-only ABI-1 binaries stay supported.
-
-Previous TCP release: 0.0.15 was tagged after full local acceptance; the operator
-reports real-path improvement. [TCP record](archive/2026-10-16/tcp-connect-reliability.md).
+Interactive TTY, streaming byte pipes, seek and general process scheduling remain
+future slices. Existing recovery builtins and read-only ABI-1 binaries stay supported.

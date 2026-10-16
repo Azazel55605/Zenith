@@ -6,12 +6,12 @@ active work. Historical milestone version targets are not release versions.
 
 ## Now
 
-1. **Resume native tool unbundling.** 0.0.15 passed the full local release gate,
-   its tag was pushed, and the operator reports the TCP issue seems gone. The bounded
-   native input/writable-handle slice is implemented and being validated.
-2. **Accept the native file tools on the installed system.** Kernel 0.0.14 and
-   Sunbeam 0.2.0 are operator-installed; confirm reads, listings, permissions and
-   cancellation through the signed executable. Failed 0.0.13 remains immutable.
+1. **Accept the native input/write release.** Kernel 0.0.16 / Sunbeam 0.3.0 tags
+   are pushed after full local acceptance. Confirm server publication, then install
+   and confirm the kernel before upgrading the tools.
+2. **Investigate legacy PS/2 input loss.** The long QEMU graphical test passes
+   with virtio keyboard; sustained PS/2 typing in the affected framebuffer-console
+   profile remains open. Preserve separate PS/2 standard-VGA recovery coverage.
 
 Release stability and server acceptance precede the next ABI slice. Controller
 changes do not require moving an existing product tag or issuing a new kernel.
@@ -20,7 +20,7 @@ changes do not require moving an existing product tag or issuing a new kernel.
 
 | Order | Slice | Exit / dependency |
 |---|---|---|
-| 1 | Native input and writable file handles | Complete acceptance of the implemented descriptor contract, access/copyin/out/cancellation/cleanup and persistent writes through independently packaged tools |
+| 1 | Native input/write operator acceptance | Local common gate passed; confirm server delivery and persistent writes/permissions on the installed VM |
 | 2 | Byte streams, terminal and process lifecycle | Define stdin/stdout/stderr, pipes, wait/termination, cwd/env and terminal modes; verify backpressure, EOF, faults and cancellation before broader CLI ports |
 | 3 | More independent command packages | Move selected base/fs/network tools after their required ABI exists; update the executable without changing kernel bytes; keep recovery tools available |
 | 4 | First protected graphical client | Versioned display/input/surface and IPC contract, per-client ownership and fault cleanup; client crash leaves login/session usable |
@@ -55,7 +55,7 @@ Python and GCC are feasibility goals, not available Zenith packages. See
 | M2 filesystem | Complete for supported ext2/accounts/access profile | [Storage/security](components/STORAGE-SECURITY.md); not general ext4 or journaled recovery |
 | M3 networking | Complete for bounded IPv4 LAN client | [Networking](components/NETWORKING.md); not general network/server compatibility |
 | M4 installer | Implemented and VM exercised | [Boot/recovery](components/BOOT-RECOVERY.md); snapshots/physical hardware are separate |
-| M5 userland | In progress: protected foreground ELF plus read-only file tools | [Userland](components/USERLAND.md); complete only after selected tools/services have controlled APIs and independent update/fault acceptance |
+| M5 userland | In progress: protected foreground ELF plus bounded input/read/write file tools | [Userland](components/USERLAND.md); complete only after selected tools/services have controlled APIs and independent update/fault acceptance |
 | M6 desktop | Foundations implemented; full replacement planned | [Sessions/desktop](components/SESSIONS-DESKTOP.md) |
 | M7 hardware | Planned beyond the current VM profile | Device matrix and recovery acceptance needed |
 | S sessions | Shared settings, login/local/serial hosts implemented | Settings UI, per-user preferences and independent session processes remain |

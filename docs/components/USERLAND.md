@@ -4,8 +4,8 @@
 
 **State:** M5 in progress. Protected foreground execution and read-only tools are
 locally verified; the operator has Sunbeam 0.2.0 installed. Bounded native input and
-file writes are implemented in the current candidate, with expanded acceptance
-running. Full process/service/GUI migration is unfinished.
+file writes passed full local acceptance at `2a515e8`. Kernel 0.0.16 / Sunbeam
+0.3.0 tags are pushed; server publication and operator acceptance remain pending. Full process/service/GUI migration is unfinished.
 
 ## Implemented steps
 
@@ -21,7 +21,7 @@ running. Full process/service/GUI migration is unfinished.
 - [x] Prove same-kernel executable upgrades, permissions and post-fault shell survival.
 - [x] Implement finite shell stdin, bounded regular-file writes/create/truncate/append
   and flush, plus independent Sunbeam `tee` and stdin `cat`.
-- [ ] Complete expanded host/native and full pre-tag acceptance for native I/O.
+- [x] Complete expanded host/native and full pre-tag acceptance for native I/O.
 
 ## Current boundary
 
@@ -37,10 +37,10 @@ upgrade and confirm a compatible kernel before updating Sunbeam.
 
 ## Next implementation steps
 
-1. **Release acceptance:** all distributor gates, installed kernel confirmation and
+1. **Server/operator acceptance:** distributor publication, installed kernel confirmation and
    signed Sunbeam invocation as ordinary user and root.
-2. **Input/write acceptance:** verify caller permissions, complete range checks,
-   limits, fault/cancel cleanup and persistent changes through independent tools.
+2. **Installed input/write acceptance:** repeat representative pipe, write and
+   permission checks on the operator VM after the server publishes the packages.
 3. **Streams/TTY/process lifecycle:** define before larger CLI ports; then controlled
    networking and graphics. [Migration plan](../USERLAND.md) owns the wider stages.
 
@@ -58,7 +58,8 @@ symlink/ancestor denials, invalid copyout without offset advancement, stale hand
 FP state, timeout/fault/cancel and malicious-stack containment checks. Audit the
 installed filesystem independently after clean poweroff.
 
-`f502085`: 620 host tests, Release build and final expanded opt-in two-CPU native
-gate passed (297.571 s). [Detailed evidence](../archive/2026-10-15/PROGRESS.md#2026-10-15--native-filesystem-tool-unbundling-locally-verified).
-Full kernel-update/repository suites were not rerun locally for this slice;
-mandatory server gates and operator acceptance remain open.
+`2a515e8`: full common TCG acceptance passed, including expanded native input/writes,
+independent persistent contents/audit, repository and kernel recovery gates.
+[Current slice evidence](../archive/2026-10-16/native-input-and-writes.md).
+Earlier read-only foundation evidence remains in the
+[2026-10-15 record](../archive/2026-10-15/PROGRESS.md#2026-10-15--native-filesystem-tool-unbundling-locally-verified).

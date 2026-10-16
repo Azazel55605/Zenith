@@ -8,14 +8,14 @@ and the [native ABI contract](NATIVE-PROGRAMS.md).
 ## Current boundary
 
 Zenith implements protected static x64 ELF foreground execution, signed package
-verification and bounded filesystem services. The current candidate adds finite
+verification and bounded filesystem services. The locally verified extension adds finite
 stdin and regular-file writes. Sunbeam `cat`, `tee`, `ls`, `pwd` and `stat` are
 independent executable code. The shell, remaining builtins, GUI,
 session broker and most services still run as trusted kernel-linked code.
 
 The running bridge is single-foreground/BSP. It is not a general managed or native
 multicore process scheduler. It has no streaming byte pipes, interactive TTY/jobs,
-socket or graphical client interface. Native input/write acceptance is active;
+socket or graphical client interface. Native input/write full local acceptance passed at `2a515e8`;
 server publication and operator installation of that extension remain pending.
 
 ## Migration stages
@@ -25,7 +25,7 @@ server publication and operator installation of that extension remain pending.
 | Boundaries and signed scripts/data | Implemented | Shared Core/UI seams and installed ownership/transaction policy |
 | Protected executable foundation | Implemented, locally verified | Private mappings, identity/output/exit, faults/timeouts, independent ELF update |
 | Controlled read-only file tools | Implemented, acceptance pending | Caller permissions/cwd, safe buffers/handles, cancellation and installed tool use |
-| Input/writable descriptors | Implemented candidate, validation active | Independently packaged utility safely reads input/writes persistent files |
+| Input/writable descriptors | Implemented, locally verified; server/operator acceptance pending | Independently packaged utility safely reads input/writes persistent files |
 | Streams/TTY/process lifecycle | Planned | Byte streams/backpressure/EOF, wait/termination, cwd/env and terminal control |
 | Controlled networking and more tools | Planned | Socket ownership/limits and independently updated network/base/fs packages |
 | First graphical client | Planned | Versioned surface/input/IPC, fault isolation and lifecycle cleanup |

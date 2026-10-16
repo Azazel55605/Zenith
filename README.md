@@ -144,7 +144,7 @@ calls. After installing/confirming the compatible kernel and upgrading Sunbeam
 0.2.0, use `sunbeam cat FILE`, `sunbeam ls [-a] [-l] DIR`, `sunbeam pwd` and
 `sunbeam stat FILE`. Tools inherit your identity and working directory and update
 through their own signed package. Existing builtins remain recovery commands.
-The current input/write candidate also supports `echo hello | sunbeam tee FILE`,
+The locally verified 0.0.16 / Sunbeam 0.3.0 extension also supports `echo hello | sunbeam tee FILE`,
 `sunbeam tee -a FILE` and `sunbeam cat < FILE`, with explicit kernel capability
 dependencies. See [native programs](docs/NATIVE-PROGRAMS.md) for limits, validation
 state and upgrade order.

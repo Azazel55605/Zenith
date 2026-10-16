@@ -20,6 +20,8 @@ Start with [current status](../STATUS.md) or [active work](../PROGRESS.md).
 
 ## Completed slices
 
+- [2026-10-16 native input and writes](2026-10-16/native-input-and-writes.md): bounded stdin/file services, independent tee, ISO build repair, full acceptance and keyboard-profile limitations.
+
 - [2026-10-16 release validation stability](2026-10-16/release-validation-stability.md): common candidate/CI gate path and early controller/environment checks.
 
 - [2026-10-15 documentation overhaul](2026-10-15/documentation-overhaul.md): structure, preservation and link checks.

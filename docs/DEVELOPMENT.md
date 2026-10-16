@@ -598,7 +598,7 @@ still runs under an unchanged kernel, followed by independent ext2 auditing.
 New native bundles declare the filesystem capability; upgrade/confirm the kernel
 before upgrading Sunbeam 0.2.0. Existing release gates are retained.
 
-The current native I/O candidate extends this same gate with finite pipe/redirect
+The native I/O extension extends this same gate with finite pipe/redirect
 stdin, create/truncate/append/flush, hostile copyin/out ranges, byte limits, caller
 ownership/permission denial and cleanup after writes fault or are cancelled. It
 checks exact independently read ext2 contents after clean shutdown. New bundles
@@ -622,3 +622,8 @@ Use a fresh evidence directory, a clean committed candidate and the measured
 accelerator policy appropriate to the host. No package-server config or production
 signing key is used. See [the automation runbook](../deploy/distributor/AUTOMATION.md#before-the-next-kernel-tag)
 for provenance, retained evidence and server acceptance boundaries.
+
+The long login/session gate uses virtio GPU and virtio keyboard. A separate
+standard-VGA recovery boot retains PS/2 coverage. Legacy PS/2 lost characters
+during sustained input in the virtio-GPU local console; this remains an open
+hardware-profile issue. See [the acceptance record](archive/2026-10-16/native-input-and-writes.md).

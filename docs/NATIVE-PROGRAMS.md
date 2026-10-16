@@ -1,6 +1,6 @@
 # Native programs and filesystem ABI
 
-> Current protected foreground ABI, including read-only services and the native input/write candidate. Work steps and release boundary: [Native userland](components/USERLAND.md).
+> Current protected foreground ABI, including read-only services and the native input/write extension. Work steps and release boundary: [Native userland](components/USERLAND.md).
 
 ## On this page
 
@@ -10,10 +10,11 @@
 - [Filesystem services](#filesystem-services)
 - [Input and writable descriptors](#input-and-writable-descriptors)
 
-Execution began in 0.0.8; 0.0.13 adds read-only filesystem services. The current
-input/write candidate extends ABI 1 with an explicit package capability. Current
+Execution began in 0.0.8; 0.0.13 adds read-only filesystem services. Kernel 0.0.16
+adds finite input and file writes, used by Sunbeam 0.3.0 through an explicit package
+capability. Current
 release/acceptance is in [Status](STATUS.md), detailed runs in the
-[execution archive](archive/2026-10-15/PROGRESS.md). This begins M5; it does not complete the process, service
+[execution archive](archive/README.md). This begins M5; it does not complete the process, service
 or desktop migration. Sunbeam is a freestanding executable built separately from
 the kernel, installed through a signed package and executed in ring 3.
 
@@ -203,7 +204,7 @@ integrity. Exact results and release boundaries are recorded in PROGRESS.
 
 ## Input and writable descriptors
 
-This candidate adds independently compiled `tee [-a] FILE`, `cat` without operands
+Sunbeam 0.3.0 adds independently compiled `tee [-a] FILE`, `cat` without operands
 and `cat -`. Install and confirm the kernel providing `zenith-native-io-abi 1.0`
 before upgrading the tools. Existing ABI-1 archives remain usable; rebuilding a
 native bundle adds the new dependency automatically.

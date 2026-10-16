@@ -10,10 +10,10 @@ summary; [component checklists](README.md#components) own detailed work.
 |---|---|---|
 | Kernel 0.0.12 | Operator reports installed and working login; supporting resource packages installed | No broader hardware certification implied |
 | Kernel 0.0.13 | Tag pushed; server validation exposed ext2 corruption: directory `/var/lib` became a regular file at inode 49 | Failed version remains immutable; a retry cannot include the driver fix |
-| Kernel 0.0.14 | Tagged at `fe1f5a9`; operator log confirms server native gates passed, signed archive published and core/extra indexes generation 15 published | Gateway stale DNS cache resolved; operator reports 0.0.14 installed. Repeated package refresh/update now exposes intermittent TCP connect failures; diagnosis and remediation are active. Explicit boot confirmation is not separately reported |
-| Kernel 0.0.15 | Candidate at `f6bf893`; full clean-source pre-tag acceptance passed, including all four native gates; bounded TCP connect retry/retirement and endpoint diagnostics | Tag pushed; operator reports the TCP issue seems gone after handoff. Exact installed version, explicit boot confirmation and individual server delivery checks were not separately supplied |
+| Kernel 0.0.14 | Tagged at `fe1f5a9`; operator log confirms server native gates passed, signed archive published and core/extra indexes generation 15 published | Gateway stale DNS cache resolved; operator reports 0.0.14 installed. Intermittent TCP connect failures led to the 0.0.15 reliability release. Explicit boot confirmation is not separately reported |
+| Kernel 0.0.15 | Tagged at `f6bf893`; full clean-source pre-tag acceptance passed, including all four native gates; bounded TCP connect retry/retirement and endpoint diagnostics | Tag pushed; operator reports the TCP issue seems gone after handoff. Exact installed version, explicit boot confirmation and individual server delivery checks were not separately supplied |
 | Sunbeam tools 0.2.0 | Read-only file tools locally verified; independent tag pushed | Operator screenshot shows Sunbeam 0.2.0 installed alongside kernel 0.0.14; interactive file-tool acceptance remains |
-| Native input/write candidate | Finite stdin, guarded writable descriptors and independent Sunbeam tee implemented; validation active | Full pre-tag, server publication and operator acceptance pending |
+| Kernel 0.0.16 / Sunbeam 0.3.0 / manuals 0.1.1 | Tags pushed at fully tested `2a515e8`; finite stdin, guarded writable descriptors and independent tee | Server builds/publication and operator installation pending; confirm kernel before Sunbeam upgrade |
 | Home repository | Operator has used verified HTTPS and installed packages by name | Backup restore test not confirmed; no live server audit in this docs review |
 
 **Upgrade order for the new native file tools:** update the kernel, reboot and
@@ -31,7 +31,7 @@ older kernels must reject that dependency. See [native guide](NATIVE-PROGRAMS.md
 | [Networking](components/NETWORKING.md) | Primary IPv4 NIC, DHCP/static, DNS/NTP, bounded HTTP and verified HTTPS | General socket ABI, wider NIC/hardware support, authenticated time |
 | [Packages](components/PACKAGES.md) | Signed core/extra catalogs; dependency/conflict plans; install/remove/verify; all-package update; build/sign/publish automation and dashboard | Stronger trust lifecycle, configuration merges, matched data/boot transaction |
 | [Sessions/desktop](components/SESSIONS-DESKTOP.md) | Login, local text/DE switching, serial fallback, signed theme/fonts/branding and style meta | Proper DE, automatic-tiling WM, Settings UI, Files/Editor rework, GUI isolation |
-| [Userland](components/USERLAND.md) | Protected foreground x64 ELF; separately packaged Sunbeam; bounded filesystem ABI; input/write candidate in validation | Streaming byte pipes/TTY, general process lifecycle, network/GUI APIs |
+| [Userland](components/USERLAND.md) | Protected foreground x64 ELF; separately packaged Sunbeam; bounded filesystem ABI including finite stdin and regular-file writes | Streaming byte pipes/TTY, general process lifecycle, network/GUI APIs |
 | [Multicore](components/MULTICORE.md) | Opt-in native integer workers, default disabled | Managed multicore scheduler, GC coordination, safe parallel drivers/processes |
 
 The shell, most commands, GUI and privileged services remain kernel-linked.
@@ -42,6 +42,7 @@ resource package does not make its consuming renderer an independent executable.
 
 | Scope | Recorded result | Source / durable record |
 |---|---|---|
+| Native input/write slice | 109 controllers; 632 Release host; 71 login, 92 repository, expanded native programs and 169 kernel recovery checks | `2a515e8`; [evidence and keyboard-profile limits](archive/2026-10-16/native-input-and-writes.md) |
 | TCP reliability candidate | 109 controller and 628 Release host tests; 69 login, 92 repository, native programs and 169 kernel recovery checks; nine adapter regressions and forced TCP failure/recovery plus 12 verified HTTPS fetches | `f6bf893`; [TCP record](archive/2026-10-16/tcp-connect-reliability.md); operator reports real-path improvement after handoff |
 | Ext2 fix and common release acceptance | 109 controller tests; 624 Release host tests; all four common TCG gates (69 login, 92 repository, native programs, 169 kernel recovery); independent ext2/EFI audits; directory inode 49 preserved after upgrade | `c622c13`, `ce42cfd`; [corruption investigation and acceptance](archive/2026-10-16/kernel-update-ancestor-investigation.md); hosted CI/server/installed acceptance pending |
 | Native filesystem slice | 620 host tests; Release build; expanded native gate with opt-in two-CPU workers passed in 297.571 s | `f502085`; [slice record](archive/2026-10-15/PROGRESS.md#2026-10-15--native-filesystem-tool-unbundling-locally-verified); [harness](../tools/native-process-smoke.py) |
