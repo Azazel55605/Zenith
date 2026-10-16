@@ -1,6 +1,6 @@
 # Current system status
 
-Reviewed **2026-10-15**. Source baseline: `f502085`. This page owns the cross-component
+Reviewed **2026-10-16**. Source baseline: `f502085`. This page owns the cross-component
 summary; [component checklists](README.md#components) own detailed work.
 
 ## Release and installation boundary
@@ -8,7 +8,7 @@ summary; [component checklists](README.md#components) own detailed work.
 | Item | What is established | What remains |
 |---|---|---|
 | Kernel 0.0.12 | Operator reports installed and working login; supporting resource packages installed | No broader hardware certification implied |
-| Kernel 0.0.13 | Implemented, locally built/tested, tag pushed | Server TCG run hit aggregate deadline after 100% copy; bounded progress-budget fix awaiting server retry; publication/installed acceptance pending |
+| Kernel 0.0.13 | Implemented, locally built/tested, tag pushed | Latest reported server failure: native password-update completion at 30 seconds; shared authentication policy awaiting retry; publication/installed acceptance pending |
 | Sunbeam tools 0.2.0 | Read-only file tools locally verified; independent tag pushed | Server publication and installed acceptance with kernel 0.0.13 |
 | Home repository | Operator has used verified HTTPS and installed packages by name | Backup restore test not confirmed; no live server audit in this docs review |
 
@@ -37,6 +37,7 @@ resource package does not make its consuming renderer an independent executable.
 
 | Scope | Recorded result | Source / durable record |
 |---|---|---|
+| Shared authentication validation | 85 regressions; 69 login/session checks (242.241 s); native-program gate (246.195 s); unchanged ISO, forced TCG | [authentication record](archive/2026-10-16/authentication-validation.md); server retry pending |
 | Native filesystem slice | 620 host tests; Release build; expanded native gate with opt-in two-CPU workers passed in 297.571 s | `f502085`; [slice record](archive/2026-10-15/PROGRESS.md#2026-10-15--native-filesystem-tool-unbundling-locally-verified); [harness](../tools/native-process-smoke.py) |
 | Recovery transport fix | 169/169 kernel checks; 69 login/session checks | `61618cd`; [recovery record](archive/2026-10-15/PROGRESS.md#2026-10-15--displayed-kernel-recovery-validation-locally-verified) |
 | Dashboard superseded failures | 19 dashboard tests | `d521b9c`; [record](archive/2026-10-15/PROGRESS.md#2026-10-15--hide-superseded-failed-dashboard-activity) |

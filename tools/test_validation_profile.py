@@ -101,4 +101,14 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(600,row['timeout'])
         self.assertEqual(m._validation_budget,row['budget'])
 
+    def test_authentication_metrics_separate_prompts_from_hash_completion(self):
+        self.assertEqual('password-update',profile.label('password updated for root'))
+        m=self.machine(True)
+        m._validation_auth=dict(phase='password-update',requested_seconds=30,effective_seconds=180,outcome='passed')
+        self.assertTrue(m.wait('password updated for root',timeout=30))
+        row=json.loads((m.directory/'wait-times.jsonl').read_text())
+        self.assertEqual('password-update',row['label'])
+        self.assertEqual(180,row['authentication']['effective_seconds'])
+        self.assertNotIn('root',str(row))
+
 if __name__=='__main__':unittest.main()

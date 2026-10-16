@@ -14,6 +14,7 @@ def label(marker):
     if marker == 'headless ready': return 'boot-ready'
     if marker.startswith('network: online address='): return 'dhcp-ready'
     if marker == 'all filesystems unmounted': return 'shutdown'
+    if marker.startswith('password updated for '): return 'password-update'
     if 'password' in marker.lower(): return 'password-prompt'
     if marker.startswith('authenticated as '): return 'authentication'
     return 'guest-check'
@@ -72,6 +73,10 @@ def install(machine_type):
             row = dict(kind='wait', label=label(marker), seconds=round(time.monotonic()-started, 3),
                        outcome=outcome, timeout=timeout, serial_bytes=max(0,size(machine)-before),
                        accelerator=acceleration(machine))
+            authentication = getattr(machine, '_validation_auth', None)
+            if isinstance(authentication, dict):
+                row['authentication'] = authentication
+                row['label'] = authentication['phase']
             budget = getattr(machine, '_validation_budget', None)
             if isinstance(budget, dict):
                 row['budget'] = budget

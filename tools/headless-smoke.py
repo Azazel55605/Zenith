@@ -87,6 +87,11 @@ class Machine:
             except subprocess.TimeoutExpired: self.process.kill(); self.process.wait()
         self.socket.close(); self.reader.join(timeout=2)
 
+# One semantic policy for every direct harness importing this helper.
+auth_spec = importlib.util.spec_from_file_location('guest_auth', Path(__file__).with_name('guest_auth.py'))
+auth = importlib.util.module_from_spec(auth_spec); auth_spec.loader.exec_module(auth)
+auth.install(Machine)
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("keep", type=Path, nargs="?", default=Path("/tmp/zenith-headless"))

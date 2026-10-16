@@ -42,9 +42,10 @@ after reboot and confirmation; appearance reloads at login. See the
 
 ## Remaining steps
 
-- [ ] Retry the reported 0.0.13 server staging timeout with bounded progress
-  budgets and verify completion. Actual TCG/deadline evidence is recorded in
-  [the budget investigation](../archive/2026-10-15/repository-stage-budget.md).
+- [ ] Retry 0.0.13 with the current controller's shared authentication policy.
+  The latest reported blocker is native password-update completion at 30 seconds;
+  bounded repository staging remains enabled. See the
+  [authentication record](../archive/2026-10-16/authentication-validation.md).
 - [ ] Complete server/installed acceptance for kernel 0.0.13 and Sunbeam 0.2.0.
 - [ ] Unbundle more compiled tools as the [native ABI](USERLAND.md) grows.
 - [ ] Specify configuration-file merges and restart/compatibility handling.

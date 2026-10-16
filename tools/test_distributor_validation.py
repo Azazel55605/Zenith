@@ -184,6 +184,31 @@ class ValidationTests(unittest.TestCase):
                           'Native native-process-smoke.py','Native kernel-update-smoke.py'],
                          [call.args[0] for call in phase.call_args_list])
 
+    def test_auth_policy_applies_to_unchanged_tag_without_helper_dependency(self):
+        helper=self.root/'headless-smoke.py'
+        helper.write_text("class Machine:\n"
+            " def __init__(self): self.text=''; self.calls=0; self.process=self\n"
+            " def wait(self,marker,offset=0,timeout=180):\n"
+            "  self.calls+=1\n"
+            "  if self.calls>=8:self.text='password updated for root\\n'\n"
+            "  return marker in self.text\n"
+            " def log(self):return self.text\n"
+            " def send(self,text):raise AssertionError('credentials must not be repeated')\n"
+            " def poll(self):return None\n"
+            " def stop(self):pass\n")
+        harness=self.root/'harness.py'
+        harness.write_text("import importlib.util\nfrom pathlib import Path\n"
+            "p=Path(__file__).with_name('headless-smoke.py')\n"
+            "spec=importlib.util.spec_from_file_location('old_headless',p)\n"
+            "h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)\n"
+            "m=h.Machine()\nassert m.wait('password updated for root',timeout=30)\n"
+            "assert m.calls==8\nassert m._validation_auth['effective_seconds']==180\n"
+            "assert m._validation_auth['phase']=='password-update'\n")
+        before=(helper.read_bytes(),harness.read_bytes())
+        subprocess.run([sys.executable,'-B',str(ROOT/'deploy/distributor/validation-runner.py'),
+                        str(harness),str(self.destination)],check=True)
+        self.assertEqual(before,(helper.read_bytes(),harness.read_bytes()))
+
     def test_phase_metrics_record_success_and_failure_without_hiding_error(self):
         with patch.object(release, 'REPO', self.root):
             release.phase('success', [sys.executable, '-c', "print('ok')"], self.root / 'ok.log')

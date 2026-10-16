@@ -306,3 +306,29 @@ sudo systemctl start --no-block zenith-distributor.service
 
 No tag move, new kernel version, signing-key replacement or service reinstall is
 required. Server completion/publication remains an operator acceptance step.
+
+
+## Authentication acceptance policy
+
+Direct harnesses and the current controller share [guest_auth.py](../../tools/guest_auth.py).
+The controller also applies this policy to unchanged tagged harnesses. Pull the
+controller before queuing a retry; no new kernel tag is needed for this fix.
+
+Secret-entry prompts have a minimum 60-second budget. Password hashing/account
+save, successful authentication and authenticated session startup have a minimum
+180-second budget; larger explicit caller budgets remain intact. These are fixed
+limits: scheduler output, collection or log growth cannot extend them. The reported
+0.0.13 native failure used 30 seconds for password-update completion; both input
+prompts had already passed. PBKDF2 strength and product code are unchanged.
+
+The policy sends no input and never repeats credentials. Success requires the
+actual expected guest result; account results require a complete line and exact
+username boundary. Explicit rejection, confirmation mismatch, missing entropy,
+guest fatal errors, QEMU exit and deadline expiry remain failures with distinct
+safe reasons. Tests expecting rejection still require actual rejection output.
+
+Wait metrics distinguish password entry/confirmation, password-update completion
+and authentication, recording both requested and effective seconds. Heartbeats and
+failure diagnostics contain phase/timing information, never passwords or raw input.
+Retry through the service using the commands above; local acceptance does not
+establish server publication or an installed upgrade.

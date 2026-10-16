@@ -1,46 +1,28 @@
 # Active work
 
-Updated **2026-10-15**. This is a short handoff, not an append-only changelog.
+Updated **2026-10-16**. This is a short handoff, not an append-only changelog.
 [Status](STATUS.md) summarizes the system; [Roadmap](ROADMAP.md) orders future work.
 Completed evidence lives in the [archive](archive/README.md).
 
-## Current slice: repository kernel-staging release failure
+## Current handoff: authentication validation ready for server retry
 
-**Scope:** investigate kernel 0.0.13's `P4_KERNEL_STAGE=0` failure; preserve full
-signed delivery, actual staging and reboot checks. The reported failure is in
-native acceptance after compilation, not a compiler error.
+The shared authentication policy is implemented and locally verified. It separates
+secret prompts from hash/save completion, applies to unchanged tagged harnesses,
+and preserves real results, rejection checks and hash strength. Credentials are
+never replayed. See [completed evidence](archive/2026-10-16/authentication-validation.md)
+for diagnosis, policy, commands and limits.
 
-- [x] Inspect tagged repository harness and controller status/timing adapters.
-- [x] Request the retained guest serial/timing evidence from the failed server run.
-- [x] Run the full repository gate with the existing 0.0.13 binary: 92 checks pass
-  under TCG in 450.243 s; kernel-staging step passes in 216.511 s.
-- [x] Improve failure diagnostics and detect actual unexpected statuses promptly,
-  without replaying updates or loosening acceptance.
-- [x] Run repository/native checks before the long kernel recovery matrix; retain all gates.
-- [x] Confirm server TCG policy and exact 600.034-second timeout; copy reached
-  100% before the harness terminated QEMU. No guest staging error was shown.
-- [x] Implement a scoped advancing-progress budget: 600 seconds idle, 1800 hard;
-  duplicate/regressing progress and scheduler noise cannot renew it.
-- [x] Real guest: progressing operation completes after its nominal budget; idle
-  operation still fails. Subsequent command and clean poweroff pass.
-- [x] Full repository acceptance: 92 checks pass in 424.057 s, including reboot,
-  confirmation and independent ext2 audit (combined staging: 191.696 s).
-- [x] 61 controller/budget/profile tests pass, including stalled/noisy/duplicate
-  progress, hard cutoff, wrong statuses and exact-operation scoping.
-- [x] Prepare the validated controller fix and documented same-tag background retry.
-  [Budget evidence and remaining operator action](archive/2026-10-15/repository-stage-budget.md).
-- [x] Controller/status/profile regressions: 50 tests pass; release/poller: 38 pass.
-- [x] Real guest: reject status 1, record diagnostic, accept subsequent status 0,
-  then cleanly power off. [Evidence and changes](archive/2026-10-15/repository-stage-investigation.md).
+- [x] Trace the server's 30-second password-update failure and input lifecycle.
+- [x] Implement shared bounded waits and secret-free phase diagnostics.
+- [x] Pass 85 policy/controller/status/profile/accelerator/recovery regressions,
+  including unchanged-tag compatibility.
+- [x] Pass final-code TCG login/session/styling acceptance: 69 checks, 242.241 s.
+- [x] Pass final-code TCG native-program acceptance: 246.195 s, unchanged ISO.
+- [ ] Pull the controller on the server and retry `kernel/v0.0.13`; confirm all
+  gates, signing and publication, then installed upgrade acceptance.
 
-**Finding:** the server used TCG (406.81 QEMU CPU seconds in 600.034 wall
-seconds), completed download/signature checks and all kernel-copy writes, then
-hit the single aggregate deadline before the verified staging result. Local
-acceptance finishes the same operation in 216.511 seconds. A progress-aware test
-budget addresses premature termination without treating progress as success;
-the server's eventual completion still needs a retry. No kernel binary or tag changes.
-
-Previous completed work: [documentation overhaul](archive/2026-10-15/documentation-overhaul.md).
+Previous controller work: [bounded repository staging](archive/2026-10-15/repository-stage-budget.md)
+and [failure diagnostics](archive/2026-10-15/repository-stage-investigation.md).
 
 ## Waiting for external acceptance
 

@@ -123,6 +123,11 @@ that pattern. Use meaningful regression tests for filesystem behavior. For
 Cosmos integration, build the ISO and extend the QEMU smoke harness (ASCII log
 assertions). A successful host test or build does not establish guest behavior.
 Record exact failures and validation limits in the progress log.
+Authentication waits share `tools/guest_auth.py` in direct harnesses and the current
+distributor controller, including unchanged release tags. Keep prompt and hash/save
+completion phases distinct; never replay credentials or weaken hashing to fit a
+test deadline. Bump the policy revision when behavior changes so current controllers
+can adapt older helpers.
 
 ## Current direction
 

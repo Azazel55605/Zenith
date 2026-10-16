@@ -38,6 +38,8 @@ def run_harness(script):
     status = importlib.util.module_from_spec(spec); spec.loader.exec_module(status)
     spec = importlib.util.spec_from_file_location('validation_profile', Path(__file__).with_name('validation-profile.py'))
     profile = importlib.util.module_from_spec(spec); spec.loader.exec_module(profile)
+    spec = importlib.util.spec_from_file_location('guest_auth_controller', Path(__file__).resolve().parents[2] / 'tools/guest_auth.py')
+    authentication = importlib.util.module_from_spec(spec); spec.loader.exec_module(authentication)
     original_exec = importlib.machinery.SourceFileLoader.exec_module
     instances = []
     headless = script.parent / 'headless-smoke.py'
@@ -47,6 +49,7 @@ def run_harness(script):
             accelerator.install(module)
             network.install(module.Machine, instances)
             status.install(module.Machine)
+            authentication.install(module.Machine)
             profile.install(module.Machine)
     importlib.machinery.SourceFileLoader.exec_module = execute
     started = time.monotonic()
