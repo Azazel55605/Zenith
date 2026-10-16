@@ -6,14 +6,12 @@ active work. Historical milestone version targets are not release versions.
 
 ## Now
 
-1. **Release validation stability — locally verified.** Common CI/pre-tag/server
-   gate plan and early controller/environment checks are implemented; full local
-   acceptance passed. Observe hosted CI and the next server run before treating
-   deployment acceptance as complete.
-2. **Accept the native file-tool release** — code is already implemented. Run the
-   mandatory distributor gates for kernel 0.0.13 and Sunbeam 0.2.0; install and
-   confirm the kernel before upgrading the new tools. Exit: installed reads,
-   listings, permissions and cancellation work through the signed executable.
+1. **Accept the TCP reliability release.** 0.0.15's clean-source common pre-tag
+   gate passed. Complete distributor publication and repeated installed VMware
+   refresh/update acceptance before resuming the next ABI slice.
+2. **Accept the native file tools on the installed system.** Kernel 0.0.14 and
+   Sunbeam 0.2.0 are operator-installed; confirm reads, listings, permissions and
+   cancellation through the signed executable. Failed 0.0.13 remains immutable.
 
 Release stability and server acceptance precede the next ABI slice. Controller
 changes do not require moving an existing product tag or issuing a new kernel.

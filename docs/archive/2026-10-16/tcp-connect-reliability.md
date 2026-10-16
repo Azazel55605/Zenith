@@ -92,9 +92,42 @@ address; it is not counted as successful fault coverage.
   Generated output-x64 ISO/ELF now match the candidate; previous generated artifacts
   were preserved under /tmp/zenith-before-tcp-generated/.
 
-## Remaining acceptance
+## Full pre-tag acceptance and release handoff
 
-The full common release gate plan and repeated real installed VMware refresh/update
-are still required before tagging a release with these changes. No new kernel version/tag or server deployment is claimed here. Preserve
-TLS/signature checks, signed catalog freshness/generation floors and manual boot
-confirmation. The running 0.0.14 kernel does not yet contain this patch.
+Exact tested source: `f6bf89389904aab1249bea6ed03c36a66cf36700`.
+The common unsigned `validate.py --keep` run rebuilt the candidate from that clean
+commit (not --existing), passed all gates, checked unchanged artifact hashes and
+confirmed the source stayed clean. Evidence: /tmp/zenith-tcp-release-20261016-v2/.
+
+| Gate | Result |
+|---|---|
+| Controller regressions | 109 passed |
+| Release host tests | 628 passed; phase 9.4 s |
+| Release build | Passed; 23.5 s |
+| Package tool | Passed; 1.2 s |
+| Login/session/styling | 69 checks passed; 211.8 s |
+| Installed repositories | 92 checks passed; 350.4 s |
+| Protected native programs | Passed; 228.2 s |
+| Kernel update/recovery | 169 checks passed; 545.8 s |
+
+The nine dependency adapter regressions also passed against the rebuilt outputs.
+The targeted TCP failure/recovery plus 12 verified HTTPS fetches was repeated on
+the exact final artifact (/tmp/zn-tcp-final-20261016.log); it passed.
+
+Final candidate SHA256:
+
+```text
+ISO 70d51d43628c9e75c9e264465260bc5bcd5532674025c8f5e0f51bc4eb85f520
+ELF e08fe1eb01a54e1c8b68c7e35b5134ab18627921b11b59bb70d245350d90cd90
+```
+
+The first full-run attempt stopped during host compilation because an explicitly
+overridden NuGet package root lacked the separator required by the test project's
+reference paths. The validation environment was corrected and the entire common
+run restarted; no test was omitted and no kernel source change was needed.
+
+Release handoff: kernel/v0.0.15 targets the exact tested code commit `f6bf893`.
+The distributor must build, sign, publish and verify delivery from that tag. These
+local results do not claim server publication or installed VMware acceptance.
+Repeated installed refresh/update is the remaining real-path test. Preserve TLS,
+signatures, catalog generation/freshness and explicit boot confirmation.

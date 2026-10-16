@@ -3,31 +3,28 @@
 Updated **2026-10-16**. [Status](STATUS.md) summarizes delivery; [Roadmap](ROADMAP.md)
 orders future work. Completed evidence belongs in the [archive](archive/README.md).
 
-## Current slice: intermittent package TCP connections
+## Current slice: 0.0.15 delivery and installed TCP acceptance
 
-The operator reports 0.0.14 installed. The Cloud Gateway Max's stale negative DNS
-cache was cleared; hostname resolution works again. A new screenshot shows TCP
-connect failures across refresh/update, including core generation 17 succeeding
-before extra fails. This is not specific to the combined update command.
+0.0.14 is operator-installed, but package refresh intermittently fails TCP setup.
+The vmnet8 capture shows a SYN receiving an unrelated bare ACK, followed by the
+appropriate reset. Stale NAT/proxy flow state is a hypothesis, not a proven device
+fault. The gateway DNS-cache issue was resolved separately.
 
-- [x] Locate pinned Cosmos connect: one SYN, five-second wait, generic exception
-  bypassing fetch's IOException retry. CloseTcp also leaves SYN_SENT registrations.
-- [x] Adapt timeout retirement in signature-checked build copies; add fresh-socket
-  bounded retry, cancellation/cleanup and destination diagnostics.
-- [x] Pass four host connector tests and three real-dependency adaptation tests
-  (including byte-idempotence and changed-contract refusal). Release ISO builds.
-- [x] Pass disposable TCG guest failed-connect/recovery and 12 sequential verified
-  HTTPS fetches; full host suite 628/628. Failed endpoint diagnostic was observed.
-- [x] Pass 92/92 installed repository checks in 317.023 s on the rebuilt candidate,
-  including combined update, real kernel activation/reboot and independent ext2 audit.
-- [ ] Complete the full common release gate plan before any new kernel tag.
-- [x] Read operator vmnet8 capture: SYN receives bare ACK with an unrelated ACK
-  number, then Zenith sends the appropriate RST. Stale flow state is a hypothesis;
-  guest-side capture does not identify the replying device.
-- [ ] Verify the patched kernel over the actual VMware/proxy path. A fresh-port
-  retry addresses the observed pattern; installed acceptance is still pending.
+- [x] Implement explicit timed-out connection retirement and bounded fresh-socket
+  retry, with destination-specific errors and repository refresh labels.
+- [x] Validate exact source `f6bf893`: 109 controller tests, 628 Release host tests,
+  all four common TCG native gates (69 login, 92 repository, native programs,
+  169 kernel recovery checks), final artifact identity and clean source checks.
+- [x] Pass nine real-dependency adapter regressions and the targeted guest failed
+  connection/recovery plus 12 sequential verified HTTPS fetches on the rebuilt ISO.
+- [x] Prepare kernel/v0.0.15 at the exact tested code commit for distributor handoff.
+- [ ] Confirm server build/sign/publication and final HTTPS delivery verification.
+- [ ] Install/reboot/confirm 0.0.15, then repeat refresh/update over the actual
+  VMware/proxy path. Local QEMU proof does not establish this final acceptance.
 
-Previous delivery/dashboard evidence: [delivery record](archive/2026-10-16/distributor-delivery-diagnostics.md).
-Installed 0.0.14 is operator-confirmed; boot confirmation and dashboard deployment
-are not separately confirmed. After network reliability, resume bounded native
-input/writable file handles in [userland](components/USERLAND.md).
+[Detailed TCP evidence and release validation](archive/2026-10-16/tcp-connect-reliability.md).
+The running 0.0.14 kernel does not yet contain the patch. Dashboard deployment and
+explicit 0.0.14 boot confirmation are not separately reported.
+
+After installed networking acceptance, resume bounded native input/writable file
+handles in [userland](components/USERLAND.md).
