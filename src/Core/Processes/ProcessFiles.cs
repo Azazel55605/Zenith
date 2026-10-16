@@ -9,23 +9,35 @@ internal readonly record struct ProcessFileInfo(ulong Size, uint Mode, uint Uid,
 internal interface IProcessFile : IDisposable
 {
     int Read(byte[] buffer);
+    int Write(byte[] buffer);
+    int Flush();
     (string Name, ProcessFileInfo Info)? Next();
 }
 internal interface IProcessFiles
 {
-    IProcessFile Open(string path, bool directory);
+    IProcessFile Open(string path, ulong flags);
     ProcessFileInfo Stat(string path);
 }
 
-/// <summary>Per-invocation read-only handles. No global cwd or host descriptor leakage.</summary>
+/// <summary>Bounded per-invocation descriptors and finite stdin; no host descriptor leakage.</summary>
 internal sealed class ProcessFiles : IDisposable
 {
     public const int MaximumHandles = 16, MaximumIo = 4096, EntryBytes = 280, StatBytes = 24;
+    public const int MaximumTransfer = 1048576;
+    public const ulong WriteOnly = 2, Create = 4, Truncate = 8, Append = 16;
     private readonly IProcessFiles _files;
     private readonly Dictionary<int, IProcessFile> _handles = new();
     private readonly string _cwd;
+    private readonly byte[] _input;
+    private int _inputOffset, _written;
+    private bool _inputClosed;
     private int _next = 3;
-    public ProcessFiles(IProcessFiles files, string cwd) { _files = files; _cwd = cwd; }
+    public ProcessFiles(IProcessFiles files, string cwd, string? input = null)
+    {
+        _files = files; _cwd = cwd;
+        if (Encoding.UTF8.GetByteCount(input ?? "") > MaximumTransfer) { throw new IOException("native stdin exceeds 1 MiB"); }
+        _input = Encoding.UTF8.GetBytes(input ?? "");
+    }
     public string Cwd => _cwd;
     public string Resolve(string path)
     {
@@ -36,21 +48,43 @@ internal sealed class ProcessFiles : IDisposable
     }
     public int Open(string path, ulong flags)
     {
-        if (flags != 0 && flags != 1) { return -22; } // 0=regular read, 1=directory
+        if (!ValidFlags(flags)) { return -22; }
         if (_handles.Count == MaximumHandles) { return -24; }
-        var file = _files.Open(Resolve(path), flags == 1);
+        var file = _files.Open(Resolve(path), flags);
         int fd = _next++; _handles.Add(fd, file); return fd;
     }
     public int Close(int fd)
     {
+        if (fd == 0) { if (_inputClosed) { return -9; } _inputClosed = true; return 0; }
         if (!_handles.Remove(fd, out var file)) { return -9; }
         file.Dispose(); return 0;
     }
     public int Read(int fd, byte[] buffer)
     {
+        if (buffer.Length > MaximumIo) { return -22; }
+        if (fd == 0)
+        {
+            if (_inputClosed) { return -9; }
+            int count = Math.Min(buffer.Length, _input.Length - _inputOffset);
+            _input.AsSpan(_inputOffset, count).CopyTo(buffer); _inputOffset += count; return count;
+        }
         if (!_handles.TryGetValue(fd, out var file)) { return -9; }
         return file.Read(buffer);
     }
+    public static bool ValidFlags(ulong flags) => flags is 0 or 1
+        || ((flags & WriteOnly) != 0 && (flags & ~(WriteOnly | Create | Truncate | Append)) == 0
+            && (flags & (Truncate | Append)) != (Truncate | Append));
+    public int Write(int fd, byte[] buffer)
+    {
+        if (!_handles.TryGetValue(fd, out var file)) { return -9; }
+        if (buffer.Length > MaximumIo) { return -22; }
+        if (buffer.Length > MaximumTransfer - _written) { return -28; }
+        int result = file.Write(buffer);
+        if (result < 0) { return result; }
+        if (result > buffer.Length) { throw new IOException("invalid native write count"); }
+        _written += result; return result;
+    }
+    public int Flush(int fd) => _handles.TryGetValue(fd, out var file) ? file.Flush() : -9;
     public int Next(int fd, byte[] buffer)
     {
         if (!_handles.TryGetValue(fd, out var file)) { return -9; }
@@ -75,5 +109,6 @@ internal sealed class ProcessFiles : IDisposable
     {
         foreach (var file in _handles.Values) { try { file.Dispose(); } catch { /* Continue releasing other handles on teardown. */ } }
         _handles.Clear();
+        _inputClosed = true;
     }
 }

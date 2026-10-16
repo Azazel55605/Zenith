@@ -13,10 +13,12 @@ summary; [component checklists](README.md#components) own detailed work.
 | Kernel 0.0.14 | Tagged at `fe1f5a9`; operator log confirms server native gates passed, signed archive published and core/extra indexes generation 15 published | Gateway stale DNS cache resolved; operator reports 0.0.14 installed. Repeated package refresh/update now exposes intermittent TCP connect failures; diagnosis and remediation are active. Explicit boot confirmation is not separately reported |
 | Kernel 0.0.15 | Candidate at `f6bf893`; full clean-source pre-tag acceptance passed, including all four native gates; bounded TCP connect retry/retirement and endpoint diagnostics | Tag pushed; operator reports the TCP issue seems gone after handoff. Exact installed version, explicit boot confirmation and individual server delivery checks were not separately supplied |
 | Sunbeam tools 0.2.0 | Read-only file tools locally verified; independent tag pushed | Operator screenshot shows Sunbeam 0.2.0 installed alongside kernel 0.0.14; interactive file-tool acceptance remains |
+| Native input/write candidate | Finite stdin, guarded writable descriptors and independent Sunbeam tee implemented; validation active | Full pre-tag, server publication and operator acceptance pending |
 | Home repository | Operator has used verified HTTPS and installed packages by name | Backup restore test not confirmed; no live server audit in this docs review |
 
 **Upgrade order for the new native file tools:** update the kernel, reboot and
-confirm it, then update Sunbeam. New bundles require `zenith-native-fs-abi 1.0`;
+confirm it, then update Sunbeam. New bundles require `zenith-native-fs-abi 1.0` and, for current input/write builds,
+`zenith-native-io-abi 1.0`;
 older kernels must reject that dependency. See [native guide](NATIVE-PROGRAMS.md).
 
 ## Component summary
@@ -29,7 +31,7 @@ older kernels must reject that dependency. See [native guide](NATIVE-PROGRAMS.md
 | [Networking](components/NETWORKING.md) | Primary IPv4 NIC, DHCP/static, DNS/NTP, bounded HTTP and verified HTTPS | General socket ABI, wider NIC/hardware support, authenticated time |
 | [Packages](components/PACKAGES.md) | Signed core/extra catalogs; dependency/conflict plans; install/remove/verify; all-package update; build/sign/publish automation and dashboard | Stronger trust lifecycle, configuration merges, matched data/boot transaction |
 | [Sessions/desktop](components/SESSIONS-DESKTOP.md) | Login, local text/DE switching, serial fallback, signed theme/fonts/branding and style meta | Proper DE, automatic-tiling WM, Settings UI, Files/Editor rework, GUI isolation |
-| [Userland](components/USERLAND.md) | Protected foreground x64 ELF; separately packaged Sunbeam; bounded read-only filesystem ABI | stdin/writes, byte streams/TTY, general process lifecycle, network/GUI APIs |
+| [Userland](components/USERLAND.md) | Protected foreground x64 ELF; separately packaged Sunbeam; bounded filesystem ABI; input/write candidate in validation | Streaming byte pipes/TTY, general process lifecycle, network/GUI APIs |
 | [Multicore](components/MULTICORE.md) | Opt-in native integer workers, default disabled | Managed multicore scheduler, GC coordination, safe parallel drivers/processes |
 
 The shell, most commands, GUI and privileged services remain kernel-linked.

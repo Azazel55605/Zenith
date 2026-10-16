@@ -9,7 +9,7 @@ internal static class NativeProcessCommands
     public static void Register(Action<Command> add)
     {
         add(new Command("native", "native check FILE | run NAME [ARGS...]", "Inspect or run a packaged x86_64 native text program", Run));
-        add(new Command("sunbeam", "sunbeam [cat|ls|pwd|stat|echo|id|basename|dirname] [ARGS...]", "Run independently packaged Sunbeam tools", c => Execute(c, "sunbeam", new[] { "sunbeam" }.Concat(c.Args).ToArray())));
+        add(new Command("sunbeam", "sunbeam [cat|tee|ls|pwd|stat|echo|id|basename|dirname] [ARGS...]", "Run independently packaged Sunbeam tools", c => Execute(c, "sunbeam", new[] { "sunbeam" }.Concat(c.Args).ToArray())));
     }
     private static int Run(CommandContext c)
     {
@@ -23,7 +23,7 @@ internal static class NativeProcessCommands
     }
     private static int Execute(CommandContext c, string name, string[] arguments)
     {
-        var result = NativeProcess.Run(name, arguments, c.Shell.ThrowIfCancelled, c, c.Shell.WorkingDirectory);
+        var result = NativeProcess.Run(name, arguments, c.Shell.ThrowIfCancelled, c, c.Shell.WorkingDirectory, c.Stdin);
         c.Out.Write(result.Output);
         if (result.Fault != 0 && result.Status != 95) { c.WriteLine("native process terminated by CPU fault vector=" + result.Fault); }
         if (result.Status == 124) { c.WriteLine("native process exceeded its execution budget"); }

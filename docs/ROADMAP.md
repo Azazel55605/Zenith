@@ -7,8 +7,8 @@ active work. Historical milestone version targets are not release versions.
 ## Now
 
 1. **Resume native tool unbundling.** 0.0.15 passed the full local release gate,
-   its tag was pushed, and the operator reports the TCP issue seems gone. Next is
-   the bounded native input/writable-handle slice below.
+   its tag was pushed, and the operator reports the TCP issue seems gone. The bounded
+   native input/writable-handle slice is implemented and being validated.
 2. **Accept the native file tools on the installed system.** Kernel 0.0.14 and
    Sunbeam 0.2.0 are operator-installed; confirm reads, listings, permissions and
    cancellation through the signed executable. Failed 0.0.13 remains immutable.
@@ -20,7 +20,7 @@ changes do not require moving an existing product tag or issuing a new kernel.
 
 | Order | Slice | Exit / dependency |
 |---|---|---|
-| 1 | Native input and writable file handles | Choose the bounded descriptor contract; enforce access, copyin/out, cancellation and cleanup; independently packaged utility writes persistent data safely |
+| 1 | Native input and writable file handles | Complete acceptance of the implemented descriptor contract, access/copyin/out/cancellation/cleanup and persistent writes through independently packaged tools |
 | 2 | Byte streams, terminal and process lifecycle | Define stdin/stdout/stderr, pipes, wait/termination, cwd/env and terminal modes; verify backpressure, EOF, faults and cancellation before broader CLI ports |
 | 3 | More independent command packages | Move selected base/fs/network tools after their required ABI exists; update the executable without changing kernel bytes; keep recovery tools available |
 | 4 | First protected graphical client | Versioned display/input/surface and IPC contract, per-client ownership and fault cleanup; client crash leaves login/session usable |

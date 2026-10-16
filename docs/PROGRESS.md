@@ -3,27 +3,24 @@
 Updated **2026-10-16**. [Status](STATUS.md) summarizes delivery; [Roadmap](ROADMAP.md)
 orders future work. Completed evidence belongs in the [archive](archive/README.md).
 
-## Current position: TCP release handed off; operator improvement reported
+## Current slice: native input and writable file handles
 
-Kernel/v0.0.15 was pushed at tested source `f6bf893`. Full local release acceptance
-passed, including all four native gates and the focused TCP/HTTPS regression.
-Following the handoff, the operator reports that the intermittent connection issue
-"seems to be gone" on the VMware setup. This is operator-observed improvement;
-individual server delivery checks, exact installed version and `boot confirm`
-were not separately supplied in that report.
+The operator requested the next unbundling slice and repair of Debug/Release
+live-ISO builds from the Cosmos VS Code extension.
 
-- [x] Implement failed connection retirement, bounded fresh-socket retry and
-  destination/repository diagnostics.
-- [x] Complete clean-source release validation and push the 0.0.15 tag.
-- [x] Record the operator's real-path improvement report.
+- [x] Reproduce normal build failure in the system .NET SDK's stale workload-set
+  selection. Operator switched to installed manifests with administrator rights
+  and reports that the extension builds work again. Cosmos stays pinned at 3.0.89.
+- [x] Define bounded piped/redirected UTF-8 stdin, regular-file write/create/
+  truncate/append, explicit flush, per-invocation handles and I/O budgets.
+- [x] Implement managed service calls, validate full user ranges before effects,
+  enforce caller permissions and preserve cleanup on every exit/fault/cancel path.
+- [x] Extend independent Sunbeam tools and explicit package capability dependency.
+- [ ] Verify host regressions and native input/write/persistence/denial/fault tests.
+- [ ] Run full pre-tag acceptance before any kernel release.
 
-[Detailed TCP evidence and release validation](archive/2026-10-16/tcp-connect-reliability.md).
-The initial unrelated ACK is consistent with stale flow state; the originating
-network device remains unproven. The earlier gateway DNS-cache issue was separate.
+Interactive TTY, streaming pipes, seek and general process scheduling remain later
+slices. Existing buffered text output and read-only ABI-1 binaries stay supported.
 
-## Next agreed slice: native input and writable file handles
-
-Resume [userland](components/USERLAND.md) after this reliability interruption.
-Define the bounded descriptor/access/cancellation contract, implement controlled
-input/writes and cleanup, and package a utility that writes persistent data without
-a kernel rebuild for executable-only changes. Implementation has not started.
+Previous TCP release: 0.0.15 was tagged after full local acceptance; the operator
+reports real-path improvement. [TCP record](archive/2026-10-16/tcp-connect-reliability.md).

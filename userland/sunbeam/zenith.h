@@ -13,7 +13,13 @@ static inline __attribute__((noreturn)) void zenith_exit(int code) {
 static inline long zenith_identity(long number) {
     __asm__ volatile("int $0xfe" : "+a"(number) : : "memory", "cc"); return number;
 }
-/* Filesystem extension 1: explicit UTF-8 path length; read-only regular or directory. */
+/* FS extension 1 and IO extension 1; Zenith calls, not Linux open flags. */
+#define Z_OPEN_READ 0UL
+#define Z_OPEN_DIRECTORY 1UL
+#define Z_OPEN_WRITE 2UL
+#define Z_OPEN_CREATE 4UL
+#define Z_OPEN_TRUNCATE 8UL
+#define Z_OPEN_APPEND 16UL
 static inline long zenith_call(long number, unsigned long a, unsigned long b, unsigned long c) {
     __asm__ volatile("int $0xfe" : "+a"(number) : "D"(a), "S"(b), "d"(c) : "memory", "cc"); return number;
 }

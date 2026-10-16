@@ -2,9 +2,10 @@
 
 [Documentation](../README.md) · [Current status](../STATUS.md)
 
-**State:** M5 in progress. Protected foreground native execution and read-only
-filesystem tools are locally verified. Kernel 0.0.13 / Sunbeam 0.2.0 server and
-installed acceptance are pending. Full process/service/GUI migration is unfinished.
+**State:** M5 in progress. Protected foreground execution and read-only tools are
+locally verified; the operator has Sunbeam 0.2.0 installed. Bounded native input and
+file writes are implemented in the current candidate, with expanded acceptance
+running. Full process/service/GUI migration is unfinished.
 
 ## Implemented steps
 
@@ -18,30 +19,29 @@ installed acceptance are pending. Full process/service/GUI migration is unfinish
 - [x] Bound handles, requests, readback and CPU windows; clean up on exit/fault/cancel.
 - [x] Build/package Sunbeam `cat`, `ls`, `pwd`, `stat` independently of the kernel.
 - [x] Prove same-kernel executable upgrades, permissions and post-fault shell survival.
+- [x] Implement finite shell stdin, bounded regular-file writes/create/truncate/append
+  and flush, plus independent Sunbeam `tee` and stdin `cat`.
+- [ ] Complete expanded host/native and full pre-tag acceptance for native I/O.
 
 ## Current boundary
 
 This is a single foreground process bridge on the BSP, not a general preemptive
-process scheduler. Output is bounded buffered UTF-8 text. There is no stdin,
-writable file API, seek, byte pipeline, environment, sockets, GUI or Linux ABI.
+process scheduler. Input/output are bounded buffered UTF-8 text. There is no
+interactive TTY, seek, streaming byte pipeline, environment, sockets, GUI or Linux ABI.
 Managed/kernel code and existing builtins remain trusted. The ordinary builtins
 stay available for recovery; `sunbeam` launches the signed independent package.
 
 The exact limits/wire layout belong to [Native programs](../NATIVE-PROGRAMS.md).
-New native bundles require the filesystem capability supplied by kernel 0.0.13:
-upgrade and confirm the kernel before updating Sunbeam.
+New native bundles require the filesystem and input/write capabilities:
+upgrade and confirm a compatible kernel before updating Sunbeam.
 
 ## Next implementation steps
 
 1. **Release acceptance:** all distributor gates, installed kernel confirmation and
    signed Sunbeam invocation as ordinary user and root.
-2. **Descriptor design:** settle stdin and bounded write/create/truncate semantics,
-   caller permissions, byte counts/errors and interruption behavior.
-3. **Writable service implementation:** extend the bridge and shared file abstraction;
-   preserve permission rechecks, complete user-range validation and failure cleanup.
-4. **Independent write utility:** build it with the host SDK, install by name and
-   prove actual persistent file changes without rebuilding the kernel.
-5. **Streams/TTY/process lifecycle:** define before larger CLI ports; then controlled
+2. **Input/write acceptance:** verify caller permissions, complete range checks,
+   limits, fault/cancel cleanup and persistent changes through independent tools.
+3. **Streams/TTY/process lifecycle:** define before larger CLI ports; then controlled
    networking and graphics. [Migration plan](../USERLAND.md) owns the wider stages.
 
 Each step needs its own active checklist and validation results in PROGRESS when

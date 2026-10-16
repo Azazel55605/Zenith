@@ -64,6 +64,23 @@ or an explicit TCG wrapper for like-for-like measurements.
 | `qemu-system-x86_64`, OVMF (`edk2-ovmf`), mtools, parted, e2fsprogs | Running, installing, smoke testing and host formatter validation |
 | Python 3.10+ | `tools/smoke-test.py`, `tools/gen-fonts.py` (needs `fonttools`) |
 
+### VS Code builds after a system SDK update
+
+The Cosmos extension invokes `cosmos build -p PROJECT -a x64 -c Debug` (or
+`Release`), which uses the system `dotnet`. If the build fails with MSB4242 and a
+missing workload manifest before compiling the kernel, inspect the selected SDK
+and workload configuration first. A stale workload set can reference manifests
+removed by a system package update. Preserve the existing configuration before
+changing it; when the installed SDK uses loose manifests, select them with:
+
+```sh
+sudo dotnet workload config --update-mode manifests
+```
+
+This is a system SDK repair, not a Cosmos package upgrade. Keep Cosmos at its
+pinned version and rerun both extension build configurations. See Microsoft's
+[workload configuration reference](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-workload-config).
+
 ## Everyday loop
 
 ```sh
@@ -580,6 +597,13 @@ Run `tools/native-process-smoke.py` through validation-runner as above, adding
 still runs under an unchanged kernel, followed by independent ext2 auditing.
 New native bundles declare the filesystem capability; upgrade/confirm the kernel
 before upgrading Sunbeam 0.2.0. Existing release gates are retained.
+
+The current native I/O candidate extends this same gate with finite pipe/redirect
+stdin, create/truncate/append/flush, hostile copyin/out ranges, byte limits, caller
+ownership/permission denial and cleanup after writes fault or are cancelled. It
+checks exact independently read ext2 contents after clean shutdown. New bundles
+require `zenith-native-io-abi 1.0`; upgrade and confirm a compatible kernel first.
+See [the I/O contract](NATIVE-PROGRAMS.md#input-and-writable-descriptors).
 
 
 ## Pre-tag kernel release acceptance

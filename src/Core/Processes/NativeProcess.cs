@@ -108,6 +108,14 @@ internal sealed unsafe class NativeProcess
         try
         {
             if (c.Call == 3) { return c.Arg0 > int.MaxValue ? -9 : files.Close((int)c.Arg0); }
+            if (c.Call == 74) { return c.Arg0 > int.MaxValue ? -9 : files.Flush((int)c.Arg0); }
+            if (c.Call == 1)
+            {
+                if (c.Arg0 > int.MaxValue) { return -9; }
+                if (c.Arg2 > ProcessFiles.MaximumIo) { return -22; }
+                if (!Valid(c.Arg1, (int)c.Arg2, false)) { return -14; }
+                return files.Write((int)c.Arg0, ReadUser(c.Arg1, (int)c.Arg2));
+            }
             if (c.Call == 79)
             {
                 byte[] cwd = Encoding.UTF8.GetBytes(files.Cwd + "\0");
@@ -130,10 +138,11 @@ internal sealed unsafe class NativeProcess
                 if (c.Arg2 > ProcessFiles.MaximumIo) { return -22; }
                 int count = (int)c.Arg2;
                 if (!Valid(c.Arg1, count, true)) { return -14; }
-                if (readBytes + count > 1048576) { return -28; }
+                bool stdin = c.Call == 0 && c.Arg0 == 0;
+                if (!stdin && readBytes + count > ProcessFiles.MaximumTransfer) { return -28; }
                 byte[] buffer = new byte[count];
                 int result = c.Call == 0 ? files.Read((int)c.Arg0, buffer) : files.Next((int)c.Arg0, buffer);
-                if (result > 0) { readBytes += result; Transfer(c.Arg1, buffer.AsSpan(0, result).ToArray(), true); }
+                if (result > 0) { if (!stdin) { readBytes += result; } Transfer(c.Arg1, buffer.AsSpan(0, result).ToArray(), true); }
                 return result;
             }
             return -38;
@@ -147,7 +156,7 @@ internal sealed unsafe class NativeProcess
             return -5;
         }
     }
-    public static (int Status, string Output, ulong Fault) Run(string name, IReadOnlyList<string> arguments, Action cancel, object? lifetimeRoot = null, string cwd = "/")
+    public static (int Status, string Output, ulong Fault) Run(string name, IReadOnlyList<string> arguments, Action cancel, object? lifetimeRoot = null, string cwd = "/", string? input = null)
     {
 #if ARCH_ARM64
         throw new IOException("native ELF process execution is currently x86_64 only");
@@ -191,7 +200,7 @@ internal sealed unsafe class NativeProcess
             }
             regions[region] = new() { Start = stackBase, End = ProcessArguments.Top };
             process._ranges.Add(new(stackBase, ProcessArguments.Top, true));
-            files = new ProcessFiles(new NativeProcessFiles(), cwd);
+            files = new ProcessFiles(new NativeProcessFiles(), cwd, input);
             byte* output = process.Allocate(65536);
             // The current managed call stack is suspended while the CPU runs the
             // freestanding image. Keep its owner and allocations explicitly rooted.

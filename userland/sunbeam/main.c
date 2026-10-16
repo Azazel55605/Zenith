@@ -7,11 +7,19 @@ static unsigned long length(const char *text) { unsigned long n=0; while(text[n]
 static int same(const char *a,const char *b) { while(*a && *a==*b){a++;b++;}return *a==*b; }
 static void print(const char *text) { if(zenith_write(text,length(text))<0)zenith_exit(1); }
 static void number(unsigned long value) { char buffer[24];unsigned int n=0;do{buffer[n++]=(char)('0'+value%10);value/=10;}while(value);for(unsigned int i=0;i<n/2;i++){char c=buffer[i];buffer[i]=buffer[n-i-1];buffer[n-i-1]=c;}if(zenith_write(buffer,n)<0)zenith_exit(1); }
-static long open_path(const char *path, int directory) { return zenith_call(2,(unsigned long)path,length(path),(unsigned long)directory); }
+static long open_path(const char *path, unsigned long flags) { return zenith_call(2,(unsigned long)path,length(path),flags); }
 static int file_error(const char *path, long code) { print("sunbeam: ");print(path);print(": ");print(code==-13?"permission denied":code==-2?"not found":code==-24?"too many open files":code==-14?"invalid buffer":"filesystem operation failed");print("\n");return 1; }
 static int cat_file(const char *path) {
-    char buffer[4096];long fd=open_path(path,0);if(fd<0)return file_error(path,fd);
-    for(;;){long n=zenith_call(0,fd,(unsigned long)buffer,sizeof(buffer));if(n<=0){zenith_call(3,fd,0,0);return n<0?file_error(path,n):0;}if(zenith_write(buffer,n)<0){zenith_call(3,fd,0,0);return file_error(path,-28);}}
+    char buffer[4096];long fd=same(path,"-")?0:open_path(path,0);if(fd<0)return file_error(path,fd);
+    for(;;){long n=zenith_call(0,fd,(unsigned long)buffer,sizeof(buffer));if(n<=0){if(fd>=3)zenith_call(3,fd,0,0);return n<0?file_error(path,n):0;}if(zenith_write(buffer,n)<0){if(fd>=3)zenith_call(3,fd,0,0);return file_error(path,-28);}}
+}
+static int tee_file(const char *path,int append) {
+    char buffer[4096];long fd=zenith_call(2,(unsigned long)path,length(path),Z_OPEN_WRITE|Z_OPEN_CREATE|(append?Z_OPEN_APPEND:Z_OPEN_TRUNCATE));
+    if(fd<0)return file_error(path,fd);
+    for(;;){long n=zenith_call(0,0,(unsigned long)buffer,sizeof(buffer));if(n<0){zenith_call(3,fd,0,0);return file_error("stdin",n);}if(!n)break;
+        long off=0;while(off<n){long w=zenith_call(1,fd,(unsigned long)(buffer+off),n-off);if(w<=0){zenith_call(3,fd,0,0);return file_error(path,w?w:-5);}off+=w;}
+        if(zenith_write(buffer,n)<0){zenith_call(3,fd,0,0);return file_error("stdout",-28);}}
+    long flushed=zenith_call(74,fd,0,0),closed=zenith_call(3,fd,0,0);return flushed<0||closed<0?file_error(path,flushed<0?flushed:closed):0;
 }
 static void permissions(unsigned int mode) { char text[11];text[0]=(mode&0170000)==0040000?'d':(mode&0170000)==0120000?'l':(mode&0170000)==0020000?'c':(mode&0170000)==0060000?'b':(mode&0170000)==0010000?'p':(mode&0170000)==0140000?'s':'-';const char *bits="rwxrwxrwx";for(int i=0;i<9;i++)text[i+1]=(mode&(1U<<(8-i)))?bits[i]:'-';if(mode&04000)text[3]=text[3]=='x'?'s':'S';if(mode&02000)text[6]=text[6]=='x'?'s':'S';if(mode&01000)text[9]=text[9]=='x'?'t':'T';text[10]=0;print(text); }
 static int list_path(const char *path, int all, int details) {
@@ -23,7 +31,21 @@ int main(int argc, char **argv) {
     if(native_abi!=1)return 95;
     if(argc==1){print("Sunbeam native tools " SUNBEAM_VERSION " (Zenith ABI 1)\n");return 0;}
     if(same(argv[1],"pwd") && argc==2){char cwd[1025];long n=zenith_call(79,(unsigned long)cwd,sizeof(cwd),0);if(n<0)return file_error("cwd",n);print(cwd);print("\n");return 0;}
-    if(same(argv[1],"cat") && argc>2){int result=0;for(int i=2;i<argc;i++)result|=cat_file(argv[i]);return result;}
+    if(same(argv[1],"cat")){if(argc==2)return cat_file("-");int result=0;for(int i=2;i<argc;i++)result|=cat_file(argv[i]);return result;}
+    if(same(argv[1],"tee") && argc==3)return tee_file(argv[2],0);
+    if(same(argv[1],"tee") && argc==4 && same(argv[2],"-a"))return tee_file(argv[3],1);
+    if(same(argv[1],"--io-input-buffers")){char c=0;long a=zenith_call(0,0,(unsigned long)&main,1),b=zenith_call(0,0,0xffff800000000000UL,1),d=zenith_call(0,0,0x7ffeffffUL,4);long n=zenith_call(0,0,(unsigned long)&c,1);return a==-14&&b==-14&&d==-14&&n==1&&c=='s'?0:1;}
+    if(same(argv[1],"--io-write-buffers") && argc==3){long fd=open_path(argv[2],Z_OPEN_WRITE);if(fd<0)return 1;static const char c='Z';
+        long a=zenith_call(1,fd,0xffff800000000000UL,1),b=zenith_call(1,fd,0x7ffeffffUL,4),d=zenith_call(1,fd,~0UL-1,4),e=zenith_call(1,fd,(unsigned long)&c,4097);
+        long n=zenith_call(1,fd,(unsigned long)&c,1),f=zenith_call(74,fd,0,0),g=zenith_call(3,fd,0,0),stale=zenith_call(1,fd,(unsigned long)&c,1),stale_flush=zenith_call(74,fd,0,0);
+        return a==-14&&b==-14&&d==-14&&e==-22&&n==1&&f==0&&g==0&&stale==-9&&stale_flush==-9?0:1;}
+    if(same(argv[1],"--io-budget") && argc==3){char data[4096];for(unsigned int i=0;i<sizeof(data);i++)data[i]='A';long fd=open_path(argv[2],Z_OPEN_WRITE|Z_OPEN_CREATE|Z_OPEN_TRUNCATE);if(fd<0)return 1;
+        for(int i=0;i<256;i++){if(zenith_call(1,fd,(unsigned long)data,sizeof(data))!=4096){zenith_call(3,fd,0,0);return 1;}}
+        long extra=zenith_call(1,fd,(unsigned long)data,1);long closed=zenith_call(3,fd,0,0);return extra==-28&&closed==0?0:1;}
+    if(same(argv[1],"--io-directions") && argc==3){char data='X';long rd=open_path(argv[2],0),wr=open_path(argv[2],Z_OPEN_WRITE);if(rd<0||wr<0)return 1;
+        long a=zenith_call(1,rd,(unsigned long)&data,1),b=zenith_call(0,wr,(unsigned long)&data,1),c=zenith_call(74,rd,0,0);zenith_call(3,rd,0,0);zenith_call(3,wr,0,0);return a==-9&&b==-9&&c==-9?0:1;}
+    if((same(argv[1],"--io-fault")||same(argv[1],"--io-loop")) && argc==3){long fd=open_path(argv[2],Z_OPEN_WRITE|Z_OPEN_CREATE|Z_OPEN_TRUNCATE);if(fd<0)return 1;char c='F';if(zenith_call(1,fd,(unsigned long)&c,1)!=1)return 1;
+        if(same(argv[1],"--io-loop")){for(;;)zenith_call(74,fd,0,0);}*(volatile unsigned long *)0xffff800000000000UL=1;return 1;}
     if(same(argv[1],"ls")){int i=2,all=0,details=0,result=0;for(;i<argc;i++){if(same(argv[i],"-1")){}else if(same(argv[i],"-a"))all=1;else if(same(argv[i],"-l"))details=1;else if(same(argv[i],"-la")||same(argv[i],"-al")){all=1;details=1;}else break;}if(i==argc)return list_path(".",all,details);for(;i<argc;i++)result|=list_path(argv[i],all,details);return result;}
     if(same(argv[1],"--fs-buffers")){long fd=open_path(argc>2?argv[2]:"/etc/hostname",0);if(fd<0)return 1;
         long a=zenith_call(0,fd,(unsigned long)&main,4),b=zenith_call(0,fd,0xffff800000000000UL,4),c=zenith_call(0,fd,0x7ffeffffUL,4);char first=0,other=1;long n=zenith_call(0,fd,(unsigned long)&first,1);zenith_call(3,fd,0,0);long fresh=open_path(argc>2?argv[2]:"/etc/hostname",0);if(fresh<0)return 1;long m=zenith_call(0,fresh,(unsigned long)&other,1);zenith_call(3,fresh,0,0);return a==-14&&b==-14&&c==-14&&n==1&&m==1&&first==other?0:1;}
@@ -71,5 +93,5 @@ int main(int argc, char **argv) {
     if(same(argv[1],"--privileged")){__asm__ volatile("cli");return 1;}
     if(same(argv[1],"--loop")){for(;;)__asm__ volatile("pause");}
     if(same(argv[1],"--bad-pointer")){return zenith_write((void *)0xffff800000000000UL,4)==-14?0:1;}
-    print("Usage: native run sunbeam [echo [-n] ARGS... | basename PATH [SUFFIX] | dirname PATH | id | pwd | cat FILE... | ls [-a] [-l] [DIR...] | stat FILE]\n");return 2;
+    print("Usage: native run sunbeam [echo [-n] ARGS... | basename PATH [SUFFIX] | dirname PATH | id | pwd | cat [FILE...] | tee [-a] FILE | ls [-a] [-l] [DIR...] | stat FILE]\n");return 2;
 }

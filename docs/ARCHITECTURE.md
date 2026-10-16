@@ -230,9 +230,11 @@ VFS/driver execution and resume user registers/FP state afterward. Per-invocatio
 handles carry caller credentials and cwd; reads/listings/stat recheck access and
 cleanup runs on exit/fault/timeout/cancel. Managed scheduling points between request
 groups permit cancellation. Raw user windows still suspend normal managed dispatch.
-There is no native write/stdin/socket/GUI interface yet.
+The current candidate adds finite shell stdin and bounded regular-file write,
+create/truncate/append and flush services. Socket, interactive TTY and GUI
+interfaces remain unimplemented.
 
-Sunbeam's C/ASM source builds into an independent package containing cat/ls/pwd/stat;
+Sunbeam's C/ASM source builds into an independent package containing cat/tee/ls/pwd/stat;
 remaining linked tools stay available for recovery. [Native programs](NATIVE-PROGRAMS.md)
 owns exact wire formats, limits and capability dependencies. [Multicore](MULTICORE.md)
 owns opt-in isolated integer workers; those APs do not execute managed services.

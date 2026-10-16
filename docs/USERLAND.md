@@ -1,6 +1,6 @@
 # Kernel/userland migration plan
 
-Reviewed **2026-10-15**. The accepted goal is independently installed, updated and
+Reviewed **2026-10-16**. The accepted goal is independently installed, updated and
 fault-isolated applications/desktop outside the kernel. A source split or shared
 address-space plugin does not satisfy it. See [current implementation steps](components/USERLAND.md)
 and the [native ABI contract](NATIVE-PROGRAMS.md).
@@ -8,14 +8,15 @@ and the [native ABI contract](NATIVE-PROGRAMS.md).
 ## Current boundary
 
 Zenith implements protected static x64 ELF foreground execution, signed package
-verification and bounded read-only filesystem services. Sunbeam `cat`, `ls`, `pwd`
-and `stat` are independent executable code. The shell, remaining builtins, GUI,
+verification and bounded filesystem services. The current candidate adds finite
+stdin and regular-file writes. Sunbeam `cat`, `tee`, `ls`, `pwd` and `stat` are
+independent executable code. The shell, remaining builtins, GUI,
 session broker and most services still run as trusted kernel-linked code.
 
 The running bridge is single-foreground/BSP. It is not a general managed or native
-multicore process scheduler. It has no stdin/writable API, stream pipes, general
-TTY/jobs, socket or graphical client interface. Latest source/local acceptance is
-kernel 0.0.13 and Sunbeam 0.2.0; server/operator acceptance is pending.
+multicore process scheduler. It has no streaming byte pipes, interactive TTY/jobs,
+socket or graphical client interface. Native input/write acceptance is active;
+server publication and operator installation of that extension remain pending.
 
 ## Migration stages
 
@@ -24,7 +25,7 @@ kernel 0.0.13 and Sunbeam 0.2.0; server/operator acceptance is pending.
 | Boundaries and signed scripts/data | Implemented | Shared Core/UI seams and installed ownership/transaction policy |
 | Protected executable foundation | Implemented, locally verified | Private mappings, identity/output/exit, faults/timeouts, independent ELF update |
 | Controlled read-only file tools | Implemented, acceptance pending | Caller permissions/cwd, safe buffers/handles, cancellation and installed tool use |
-| Input/writable descriptors | Planned next slice | Independently packaged utility safely reads input/writes persistent files |
+| Input/writable descriptors | Implemented candidate, validation active | Independently packaged utility safely reads input/writes persistent files |
 | Streams/TTY/process lifecycle | Planned | Byte streams/backpressure/EOF, wait/termination, cwd/env and terminal control |
 | Controlled networking and more tools | Planned | Socket ownership/limits and independently updated network/base/fs packages |
 | First graphical client | Planned | Versioned surface/input/IPC, fault isolation and lifecycle cleanup |

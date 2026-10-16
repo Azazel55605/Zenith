@@ -54,7 +54,9 @@ execution ledger or duplicate historical test totals into the roadmap.
   matched root-data updates remain separate gates. 0.0.8 adds unified pkg update,
   independent manuals/fonts and the first signed protected x64 native text tool.
   0.0.13 adds managed filesystem service yield/resume and read-only Sunbeam
-  cat/ls/pwd/stat. Preserve full-range copyout checks, identity/cwd, handle cleanup,
+  cat/ls/pwd/stat. The current native I/O candidate adds finite shell stdin, guarded
+  file writes and Sunbeam tee; new bundles declare zenith-native-io-abi 1.0.
+  Preserve full-range copyin/copyout checks, identity/cwd, handle cleanup,
   user FP/register state, request/interrupt budgets and native permission/cancel tests.
   See docs/NATIVE-PROGRAMS.md for foreground ABI limits; preserve fault/NX/W^X,
   credentials and same-kernel executable-upgrade acceptance. Compiled base/net/fs
