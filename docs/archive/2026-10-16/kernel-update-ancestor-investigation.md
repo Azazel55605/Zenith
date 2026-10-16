@@ -210,9 +210,20 @@ absent from transcripts. The acceptance runner checked the ISO/ELF hashes were
 unchanged through the gates and exited successfully. No package was signed or
 published by this unsigned acceptance run.
 
-The next product candidate needs a new version (0.0.14); no such tag has been
-created here. Pull the current controller on the distributor before creating the
-tag, preserving immutable 0.0.13 and the original failed evidence. Server gates,
+The next product candidate needs a new version (0.0.14). At acceptance completion
+the tag was held until the distributor controller was updated, preserving
+immutable 0.0.13 and the original failed evidence. Server gates,
 publication and operator-installed acceptance remain separate. This fix prevents
 the reproduced races; it does not repair an already corrupted filesystem or
 provide general power-loss atomicity.
+
+## Distributor handoff
+
+The operator confirmed the distributor is updated and supplied another 0.0.13
+K_UPDATE failure trace. That immutable product source still predates the ext2
+fix; updating its controller cannot change the tagged driver. Created and pushed
+**kernel/v0.0.14** at fully tested source `fe1f5a9` after confirming no local or
+remote tag of that name existed and the commit was on origin/main. The normal
+timer or dashboard Run now can discover it; no retry request for 0.0.13 is needed.
+Tag delivery is confirmed; server build, package publication and guest acceptance
+are not yet confirmed.

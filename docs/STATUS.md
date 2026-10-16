@@ -10,7 +10,7 @@ summary; [component checklists](README.md#components) own detailed work.
 |---|---|---|
 | Kernel 0.0.12 | Operator reports installed and working login; supporting resource packages installed | No broader hardware certification implied |
 | Kernel 0.0.13 | Tag pushed; server validation exposed ext2 corruption: directory `/var/lib` became a regular file at inode 49 | Failed version remains immutable; a retry cannot include the driver fix |
-| Next kernel candidate (0.0.14) | Matching ext2 races fixed; rebuilt binary passed all common local gates and independent filesystem audits | Not tagged/published; update distributor controller before tagging, then require server and installed VM acceptance |
+| Kernel 0.0.14 candidate | Matching ext2 races fixed; rebuilt binary passed all common local gates and independent filesystem audits; tag pushed at `fe1f5a9`; operator confirms distributor updated | Server build/publication and installed VM acceptance pending |
 | Sunbeam tools 0.2.0 | Read-only file tools locally verified; independent tag pushed | Server publication and installed acceptance with the fixed ABI-capable kernel |
 | Home repository | Operator has used verified HTTPS and installed packages by name | Backup restore test not confirmed; no live server audit in this docs review |
 

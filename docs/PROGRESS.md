@@ -38,9 +38,10 @@ See [investigation](archive/2026-10-16/kernel-update-ancestor-investigation.md).
 ## Waiting for external acceptance
 
 The fix is committed in `c622c13`, with authentication observer follow-up
-`ce42cfd`. Pull the new controller on the distributor **before** tagging/building
-the next kernel candidate (**0.0.14**, not yet tagged). Immutable 0.0.13 cannot
-acquire the product fix through a retry. New candidate server publication and
+`ce42cfd`. The operator confirms the distributor controller is updated.
+**kernel/v0.0.14** is now pushed at tested source `fe1f5a9`; the next poll or Run
+now can build it. Immutable 0.0.13 cannot acquire the product fix through a retry.
+New candidate server publication and
 installed VM acceptance remain outstanding. Sunbeam **0.2.0** publication/install
 with the fixed ABI-capable kernel is also unconfirmed. Kernel **0.0.12** and the
 login/resource packages are operator confirmed. See [Status](STATUS.md#release-and-installation-boundary).
