@@ -13,8 +13,10 @@ general process scheduling and managed multicore remain outside this slice.
 
 Implementation commits are `fddd561`, `efa5ca6` and `cba1cbf`. Source, build/signing
 keys and package server configuration were not deployed by this local acceptance.
-Proposed releases are kernel 0.0.18, sunbeam-tools 0.4.0 and zenith-man-pages 0.1.2;
-no new stream release has been tagged or published at this handoff.
+After operator approval, main and immutable tags for kernel 0.0.18, sunbeam-tools
+0.4.0 and zenith-man-pages 0.1.2 were pushed. All three remote tags resolve to
+tested `cba1cbf1ced6e312a3074d3ef355fab490182a5f`. Distributor publication and
+installed acceptance remain unverified.
 
 ## Implementation steps
 
@@ -100,7 +102,7 @@ for evidence, rather than a small tmpfs.
 
 ## Handoff and remaining boundaries
 
-Push source and immutable package tags only after operator release approval. On the
+Source and immutable package tags were pushed with operator approval. On the
 installed VM, upgrade the kernel first, reboot and `boot confirm`, then update
 Sunbeam/manuals. Verify representative commands, permissions and repeated Ctrl+C
 through the actual VMware/local/desktop path; local QEMU success does not establish

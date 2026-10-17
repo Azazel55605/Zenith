@@ -23,8 +23,9 @@ confirm it, then update Sunbeam. New bundles require `zenith-native-fs-abi 1.0` 
 older kernels must reject that dependency. See [native guide](NATIVE-PROGRAMS.md).
 
 Native streams and independent wc/head/tail passed all clean-source test gates
-at `cba1cbf`, including serial/desktop/local input, EOF and cancellation. Publication
-and installed operator acceptance are pending; no stream release is published. See [active steps](PROGRESS.md#native-terminal-streams-release-handoff).
+at `cba1cbf`, including serial/desktop/local input, EOF and cancellation. Operator-approved
+kernel 0.0.18, Sunbeam 0.4.0 and manuals 0.1.2 tags are pushed at that exact source.
+Distributor publication and installed operator acceptance remain unverified. See [active steps](PROGRESS.md#native-terminal-streams-release-handoff).
 
 ## Component summary
 

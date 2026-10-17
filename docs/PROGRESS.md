@@ -14,8 +14,8 @@ Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
   71 login/session, 92 repository, expanded native programs and 169 kernel checks.
   Serial, desktop and local text input/EOF/cancel and binary file audits passed.
   Evidence-copy tmpfs exhaustion was recovered; final integrity checks passed.
-- [ ] Operator approval to push main and proposed kernel 0.0.18, Sunbeam 0.4.0,
-  manuals 0.1.2 tags. None are tagged/published yet.
+- [x] Operator approved release; main and immutable kernel 0.0.18, Sunbeam 0.4.0,
+  manuals 0.1.2 tags pushed. All three remote tags resolve to tested `cba1cbf`.
 - [ ] Distributor delivery and installed VMware acceptance: kernel update,
   reboot/confirm first, then tools/manuals and representative pipe/input checks.
 
