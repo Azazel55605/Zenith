@@ -37,7 +37,10 @@ Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
   the command. The logger buffers until EOF; GUI Ctrl+D could be dropped while a
   line reply was pending. Queue line/EOF delivery in order; add four regressions,
   hidden-password and immediate-EOF guest checks. All 658 host tests and the new
-  ISO build pass; fresh GUI stress and final common acceptance remain pending.
+  ISO build pass. Fresh installed GUI password entry, 20 immediate-EOF/cancel
+  cycles, local-console input and secret-free transcripts pass. The new GUI
+  password check uses the shared authentication completion budget. Final
+  clean-source common acceptance remains pending.
   Do not release the earlier candidate. The scheduler-only `f2f8a42` run still stalled on the third
   pipeline after producing its numeric output; it is not qualified. Idle/quantum
   candidates were removed. No replacement release has been pushed; 0.0.18 stays

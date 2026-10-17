@@ -4,6 +4,7 @@ import functools,hashlib,http.server,importlib.util,subprocess,sys,threading,sec
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'tools'))
 from guest_pipeline import check as check_pipeline
+from guest_auth import COMPLETION_SECONDS
 spec=importlib.util.spec_from_file_location('h',ROOT/'tools/headless-smoke.py');h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
 cpu_workers='--cpu-workers' in sys.argv[2:]
 if any(arg!='--cpu-workers' for arg in sys.argv[2:]): raise SystemExit('usage: native-process-smoke.py KEEP [--cpu-workers]')
@@ -266,7 +267,7 @@ try:
     off=len(m.log());login_helper.monitor_type(monitor,'passwd root; echo N_GUI_PASSWORD=$? | logger\n')
     time.sleep(1);login_helper.monitor_type(monitor,secret+'\n')
     time.sleep(.5);login_helper.monitor_type(monitor,secret+'\n')
-    assert m.wait('user: N_GUI_PASSWORD=0',off,120),'GUI hidden password handoff'
+    assert m.wait('user: N_GUI_PASSWORD=0',off,COMPLETION_SECONDS),'GUI hidden password handoff'
     keyboard_streams('N_GUI')
     keyboard_streams('N_GUI_EARLY',0)
     off=len(m.log());monitor_command(monitor,'sendkey ctrl-alt-l 30')

@@ -140,3 +140,12 @@ preparation/teardown clear queued input; hidden input is delivered only after th
 GUI's secret-preparation handshake. The four host regressions pass, and all 658
 host tests plus a Release build pass. A fresh GUI installation is exercising
 hidden password changes and repeated immediate EOF. Final acceptance is pending.
+
+The fresh installed queue-corrected fixture passes its graphical password change,
+20 repeated desktop line/EOF/cancel cycles with no delay before EOF, local-console
+input/EOF/cancel, and secret-free transcripts. All 658 host and 121 controller
+tests pass. The 56585f2 common run passes host/build and login/session, then is
+stopped deliberately to align the newly added graphical password-change result
+with `guest_auth.COMPLETION_SECONDS`, rather than adding another unrelated short
+hash/save timeout on slow distributor VMs. That partial run is not a full pass;
+the final clean candidate will run every common gate again.
