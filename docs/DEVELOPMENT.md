@@ -421,6 +421,13 @@ so changing PatcherFixup/wrapper forces Cosmos to repatch. OpenSSL is needed for
 host/native TLS fixture certificates. See [NETWORKING](NETWORKING.md) for bridge,
 launcher and native acceptance commands, including optional home DNS testing.
 
+Pinned scheduler wake regressions run with `python3 -B tools/test_scheduler_wake_fixup.py`
+after building the post-patcher. They execute the real wake/stride implementation
+in a host-only copy with IRQ/UART hardware stubbed; preserve timeout-then-signal
+idempotence, Created state, pass/ticket accounting and IRQ restoration. Native
+pipeline checks remain required to establish actual scheduling behavior. See
+[the late-wake investigation](archive/2026-10-17/scheduler-late-wake.md).
+
 ## Signed offline package validation
 
 See [PACKAGES](PACKAGES.md) for key generation, sealing and guest commands. Native

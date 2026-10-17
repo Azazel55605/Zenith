@@ -3,6 +3,7 @@
 import functools,hashlib,http.server,importlib.util,subprocess,sys,threading,secrets,socket,time
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'tools'))
+from guest_pipeline import check as check_pipeline
 spec=importlib.util.spec_from_file_location('h',ROOT/'tools/headless-smoke.py');h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
 cpu_workers='--cpu-workers' in sys.argv[2:]
 if any(arg!='--cpu-workers' for arg in sys.argv[2:]): raise SystemExit('usage: native-process-smoke.py KEEP [--cpu-workers]')
@@ -28,7 +29,7 @@ url='http://10.0.2.2:'+str(server.server_port);m=None
 net=['-netdev','user,id=net0','-device','e1000e,netdev=net0']
 def boot(name,disk=None):
     global m
-    m=h.Machine(keep/name,disk,argument='smp=native' if disk and cpu_workers else None,network=net,cpus=2 if cpu_workers else 1)
+    m=h.Machine(keep/name,disk,argument='smp=native' if disk and cpu_workers else None,network=net,cpus=2 if cpu_workers else 1,monitor=keep/name/'monitor.sock')
     assert m.wait('headless ready',timeout=180),'boot '+name
     assert m.wait('network: online address=10.0.2.15',timeout=60),'DHCP '+name
     print('PASS boot '+name,flush=True)
@@ -82,8 +83,10 @@ try:
     offset=len(m.log());m.send('sunbeam cat\r');time.sleep(.3);m.send('\x03')
     assert m.wait('^C',offset,30),'interactive stdin cancellation'
     command('echo N_STREAM_CANCEL=$? | logger','user: N_STREAM_CANCEL=130')
-    command('sunbeam --stream-bytes | sunbeam cat | sunbeam wc -c | logger','user: 163840')
-    command('sunbeam --stream-bytes | sunbeam --stream-fp | sunbeam tee /home/user/native-stream-binary | sunbeam wc -c | logger','user: 163840')
+    # Repeat backpressure/EOF handoff rather than accepting one lucky schedule.
+    for attempt in range(3):
+        check_pipeline(m,'sunbeam --stream-bytes | sunbeam cat | sunbeam wc -c | logger','163840','N_STREAM_BYTES_'+str(attempt))
+    check_pipeline(m,'sunbeam --stream-bytes | sunbeam --stream-fp | sunbeam tee /home/user/native-stream-binary | sunbeam wc -c | logger','163840','N_STREAM_FP_BYTES')
     status('sunbeam --stream-bytes > /home/user/native-stream-redirect','N_STREAM_REDIRECT')
     command('sunbeam --stream-utf8 | sunbeam tee /home/user/native-stream-utf8 | sunbeam wc -c | logger','user: 3')
     status('sunbeam --stream-bytes | sunbeam --stream-fault-in','N_STREAM_FAULT',139)

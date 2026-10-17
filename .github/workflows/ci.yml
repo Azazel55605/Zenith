@@ -65,7 +65,7 @@ jobs:
         run: dotnet publish -c Release -r linux-x64 -o output-x64 --verbosity minimal
 
       - name: Pinned TCP and boot dependency adapters
-        run: python3 -B -m unittest tools/test_tcp_connect_fixup.py tools/test_quiet_fixup.py tools/test_idt_fixup.py
+        run: python3 -B -m unittest tools/test_tcp_connect_fixup.py tools/test_quiet_fixup.py tools/test_idt_fixup.py tools/test_scheduler_wake_fixup.py
 
       - uses: actions/upload-artifact@v4
         with:
@@ -143,6 +143,7 @@ jobs:
         run: |
           python3 -B tools/test_idt_fixup.py
           python3 -B tools/test_quiet_fixup.py
+          python3 -B tools/test_scheduler_wake_fixup.py
           python3 -B tools/idt-boot-smoke.py smoke-idt
 
       - name: Experimental native CPU workers (1/2/4 CPUs)

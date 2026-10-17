@@ -50,7 +50,81 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
         || pages.Parameters[2].ParameterType.FullName != "System.Boolean")
     { throw new InvalidOperationException("Cosmos allocator signature changed"); }
     QuietTrace(pages, "[PageAllocator] AllocPages - Type: ", "\n");
+    var condition = module.GetType("Cosmos.Kernel.Core.Scheduler.ConditionVariable");
+    var wait = condition.Methods.Single(m => m.Name == "Wait");
+    foreach (string prefix in new[] { "[CV] Wait BEGIN thread=", "[CV] Wait WOKE thread=", "[CV] Wait END thread=" })
+    { QuietTrace(wait, prefix, "\n"); }
+    var timed = condition.Methods.Single(m => m.Name == "WaitTimeout");
+    QuietTrace(timed, "[CV] WaitTimeout BEGIN thread=", "\n");
+    QuietTrace(timed, "[CV] WaitTimeout WOKE thread=", "\n");
+    var scheduler = module.GetType("Cosmos.Kernel.Core.Scheduler.SchedulerManager");
+    QuietTrace(scheduler.Methods.Single(m => m.Name == "CheckSleepingThreads"),
+        "[SCHED] Waking sleeping thread ", " (time expired)\n");
+    QuietTrace(scheduler.Methods.Single(m => m.Name == "ReadyThread"), "[SCHED] Thread ", "\n");
+    var thread = module.GetType("Cosmos.Kernel.Core.Scheduler.SchedulerThread");
+    var states = module.GetType("Cosmos.Kernel.Core.Scheduler.SchedulerThreadState");
+    var ready = scheduler.Methods.Single(m => m.Name == "ReadyThread");
+    if (!scheduler.Fields.Any(f => f.Name == "_zenithReadyOnce"))
+    {
+        foreach (var (name, value) in new[] { ("Ready", 1), ("Running", 2), ("Dead", 5) })
+        { if (Convert.ToInt32(states.Fields.Single(f => f.Name == name).Constant) != value)
+            { throw new InvalidOperationException("Cosmos thread state contract changed"); } }
+        var getState = thread.Methods.Single(m => m.Name == "get_State");
+        var stateRead = ready.Body.Instructions.First(i => i.Operand == getState);
+        var first = stateRead.Previous;
+        var region = ready.Body.ExceptionHandlers.Single(h => h.HandlerType == ExceptionHandlerType.Finally);
+        if (first.OpCode != OpCodes.Ldarg_1
+            || ready.Body.Instructions.IndexOf(first) < ready.Body.Instructions.IndexOf(region.TryStart)
+            || ready.Body.Instructions.IndexOf(first) >= ready.Body.Instructions.IndexOf(region.TryEnd))
+        { throw new InvalidOperationException("Cosmos ready critical section changed"); }
+        var leave = ready.Body.Instructions.First(i => i.OpCode == OpCodes.Leave || i.OpCode == OpCodes.Leave_S);
+        var il = ready.Body.GetILProcessor(); var skip = il.Create(OpCodes.Leave, (Instruction)leave.Operand);
+        var guard = new[] {
+            il.Create(OpCodes.Ldarg_1), il.Create(OpCodes.Callvirt, getState), il.Create(OpCodes.Ldc_I4_1), il.Create(OpCodes.Beq, skip),
+            il.Create(OpCodes.Ldarg_1), il.Create(OpCodes.Callvirt, getState), il.Create(OpCodes.Ldc_I4_2), il.Create(OpCodes.Beq, skip),
+            il.Create(OpCodes.Ldarg_1), il.Create(OpCodes.Callvirt, getState), il.Create(OpCodes.Ldc_I4_5), il.Create(OpCodes.Beq, skip),
+            il.Create(OpCodes.Br, first), skip };
+        foreach (var instruction in guard) { il.InsertBefore(first, instruction); }
+        if (region.TryStart == first) { region.TryStart = guard[0]; }
+        scheduler.Fields.Add(new FieldDefinition("_zenithReadyOnce", FieldAttributes.Private | FieldAttributes.Static
+            | FieldAttributes.Literal | FieldAttributes.HasDefault, module.TypeSystem.Boolean) { Constant = true });
+        changed = true;
+        Console.WriteLine("Adapted scheduler wake: ignore ready/running/dead late signals inside IRQ scope");
+    }
+    var stride = module.GetType("Cosmos.Kernel.Core.Scheduler.Stride.StrideScheduler");
+    if (!stride.Fields.Any(f => f.Name == "_zenithUniqueReadyQueue"))
+    {
+        var method = stride.Methods.Single(m => m.Name == "OnThreadReady");
+        var insert = stride.Methods.Single(m => m.Name == "InsertByPass");
+        var references = insert.Body.Instructions.Select(i => i.Operand).OfType<MethodReference>().ToArray();
+        var queue = references.First(m => m.Name == "get_RunQueue");
+        var count = references.First(m => m.Name == "get_Count" && m.DeclaringType.FullName == queue.ReturnType.FullName);
+        var item = references.First(m => m.Name == "get_Item" && m.DeclaringType.FullName == queue.ReturnType.FullName);
+        var update = method.Body.Instructions.First(i => i.Operand is MethodReference m && m.Name == "UpdateGlobalPass");
+        var first = update.Previous.Previous;
+        if (first.OpCode != OpCodes.Ldarg_0 || update.Previous.OpCode != OpCodes.Ldloc_0
+            || method.Body.Variables[0].VariableType.Name != "StrideCpuData")
+        { throw new InvalidOperationException("Cosmos stride ready contract changed"); }
+        var index = new VariableDefinition(module.TypeSystem.Int32); method.Body.Variables.Add(index); method.Body.InitLocals = true;
+        var il = method.Body.GetILProcessor(); var loop = il.Create(OpCodes.Ldloc, index);
+        var increment = il.Create(OpCodes.Ldloc, index);
+        var incoming = method.Body.Instructions.Where(i => i.Operand == first).ToArray();
+        var guard = new[] {
+            il.Create(OpCodes.Ldc_I4_0), il.Create(OpCodes.Stloc, index), loop,
+            il.Create(OpCodes.Ldloc_0), il.Create(OpCodes.Callvirt, queue), il.Create(OpCodes.Callvirt, count), il.Create(OpCodes.Bge, first),
+            il.Create(OpCodes.Ldloc_0), il.Create(OpCodes.Callvirt, queue), il.Create(OpCodes.Ldloc, index), il.Create(OpCodes.Callvirt, item),
+            il.Create(OpCodes.Ldarg_2), il.Create(OpCodes.Ceq), il.Create(OpCodes.Brfalse, increment), il.Create(OpCodes.Ret),
+            increment, il.Create(OpCodes.Ldc_I4_1), il.Create(OpCodes.Add), il.Create(OpCodes.Stloc, index), il.Create(OpCodes.Br, loop) };
+        foreach (var instruction in guard)
+        { il.InsertBefore(first, instruction); }
+        foreach (var branch in incoming) { branch.Operand = guard[0]; }
+        stride.Fields.Add(new FieldDefinition("_zenithUniqueReadyQueue", FieldAttributes.Private | FieldAttributes.Static
+            | FieldAttributes.Literal | FieldAttributes.HasDefault, module.TypeSystem.Boolean) { Constant = true });
+        changed = true;
+        Console.WriteLine("Adapted stride ready queue: enqueue each thread once without changing existing pass/tickets");
+    }
     Console.WriteLine("Quieted pinned per-allocation success trace; allocator/error paths retained");
+    Console.WriteLine("Quieted pinned monitor wait/wake success traces; synchronization retained");
 }
 if (assembly.Name.Name == "Cosmos.Kernel.Core.X64")
 {
@@ -73,8 +147,55 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core.X64")
         changed = true; Console.WriteLine("Adapted IDT loader: preserve interrupt state until platform setup completes");
     }
 }
+void QuietMonitorInterop(TypeDefinition monitor)
+{
+    // Log.Write takes a stack-built ReadOnlySpan<object>. Redirect only these
+    // known success calls, preserving their argument stack and all monitor work.
+    foreach (var (name, prefix, expectedCalls) in new[] {
+        ("Acquire", "[LowLevelMonitor] Acquire BEGIN\n", 2),
+        ("Release", "[LowLevelMonitor] Release\n", 1),
+        ("Wait", "[LowLevelMonitor] Wait BEGIN\n", 2),
+        ("TimedWait", "[LowLevelMonitor] LowLevelMonitor_TimedWait: BEGIN, timeout=", 3),
+        ("Signal_Release", "[LowLevelMonitor] Signal_Release\n", 1) })
+    {
+        var method = monitor.Methods.Single(m => m.Name == "LowLevelMonitor_" + name);
+        if (!method.Body.Instructions.Any(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == prefix))
+        { throw new InvalidOperationException("Cosmos monitor trace contract changed"); }
+        var traces = method.Body.Instructions.Where(i => i.OpCode == OpCodes.Call && i.Operand is MethodReference m
+            && ((m.DeclaringType.FullName == "Cosmos.Kernel.System.Diagnostics.Log" && (m.Name is "Write" or "WriteNumber"))
+                || (m.DeclaringType == monitor && m.Name.StartsWith("_zenithQuietMonitor")))).ToArray();
+        if (traces.Length != expectedCalls) { throw new InvalidOperationException("Cosmos monitor trace count changed"); }
+        foreach (var call in traces)
+        {
+            var original = (MethodReference)call.Operand;
+            if (original.DeclaringType == monitor) { continue; }
+            string quietName = "_zenithQuietMonitor" + original.Name;
+            var quiet = monitor.Methods.SingleOrDefault(m => m.Name == quietName);
+            if (original.ReturnType.FullName != "System.Void" || original.Parameters.Count != 1
+                || (original.Name == "Write" && original.Parameters[0].ParameterType.FullName != "System.ReadOnlySpan`1<System.Object>")
+                || (original.Name == "WriteNumber" && original.Parameters[0].ParameterType.FullName != "System.Int32"))
+            { throw new InvalidOperationException("Cosmos monitor trace signature changed"); }
+            if (quiet is null)
+            {
+                quiet = new MethodDefinition(quietName, MethodAttributes.Private | MethodAttributes.Static, module.TypeSystem.Void);
+                quiet.Parameters.Add(new ParameterDefinition(module.ImportReference(original.Parameters[0].ParameterType)));
+                quiet.Body.Instructions.Add(Instruction.Create(OpCodes.Ret)); monitor.Methods.Add(quiet);
+            }
+            call.Operand = quiet; changed = true;
+        }
+    }
+    Console.WriteLine("Quieted pinned monitor interop success traces; wait/acquire/release calls retained");
+}
+if (assembly.Name.Name == "System.Private.CoreLib")
+{
+    // The SDK has already transplanted plug bodies into CoreLib by this point.
+    // Adapting only the copied plug DLL cannot change these executed methods.
+    QuietMonitorInterop(module.GetType("Interop/Sys")
+        ?? throw new InvalidOperationException("Patched CoreLib monitor type changed"));
+}
 if (assembly.Name.Name == "Cosmos.Kernel.Plugs")
 {
+    QuietMonitorInterop(module.GetType("Cosmos.Kernel.Plugs.System.InteropSysPlug"));
     var socketPlug = module.GetType("Cosmos.Kernel.Plugs.System.Net.Sockets.SocketPlug")
         ?? throw new InvalidOperationException("Cosmos socket plug changed");
     // CloseTcp does not retire SYN_SENT registrations. Mark a timed-out connect

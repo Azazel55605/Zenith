@@ -25,7 +25,11 @@ older kernels must reject that dependency. See [native guide](NATIVE-PROGRAMS.md
 Native streams and independent wc/head/tail passed all clean-source test gates
 at `cba1cbf`, including serial/desktop/local input, EOF and cancellation. Operator-approved
 kernel 0.0.18, Sunbeam 0.4.0 and manuals 0.1.2 tags are pushed at that exact source.
-Distributor publication and installed operator acceptance remain unverified. See [active steps](PROGRESS.md#native-terminal-streams-release-handoff).
+The distributor's 0.0.18 native gate timed out on the four-stage byte-count
+pipeline; publication and installed operator acceptance remain unverified.
+The initial local gate and 40 focused repetitions passed; subsequent local stalls
+exposed duplicate scheduler wake/queue entries. The correction is under acceptance.
+See [investigation](archive/2026-10-17/scheduler-late-wake.md) and [active steps](PROGRESS.md#native-terminal-streams-release-handoff).
 
 ## Component summary
 

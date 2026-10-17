@@ -116,6 +116,11 @@ execution ledger or duplicate historical test totals into the roadmap.
   observations. Keep full-sized healthy kernel delivery/activation; the small
   signed startup-failure fixture must prove entry before testing manual fallback.
   Pinned per-tick/per-allocation success traces are quieted in build copies only.
+  Preserve scheduler late-wake idempotence inside the IRQ scope: timeout followed
+  by a signal must not duplicate ready entries or change an already queued pass
+  or ticket total. Keep real-dependency wake regressions and repeated native
+  pipeline completion checks. Monitor trace adaptations must cover transplanted
+  CoreLib bodies, not only the copied source plug assembly.
 - Preserve unrelated local changes. Keep generated output, scratch disks and
   machine-specific package settings out of commits. Never format a real disk
   during validation; the smoke harness creates its own disposable disk.

@@ -5,6 +5,24 @@ Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
 
 ## Native terminal streams: release handoff
 
+- [x] Reproduce a local pipeline/completion stall. Server 0.0.18 failed at 120s
+  with 3.7 MB of monitor traces; an initial local full gate and 40 focused runs
+  passed, but repeated completion checks exposed queued-worker starvation.
+- [x] Pause a stalled disposable VM and inspect a coherent ready queue: one
+  worker appeared twice, corrupting pass ordering and starving a new worker.
+  Reproduce timeout then late-signal double enqueue/accounting against the actual
+  pinned wake/scheduler code; IRQ/UART alone are stubbed in host fixtures.
+- [x] Guard ready/running/dead late wakes inside the existing IRQ scope; deduplicate
+  created-thread admission before changing stride pass/tickets. Test legitimate
+  sleeping/blocked wakeups, late wakes, IRQ-scope restoration and drift refusal.
+- [x] Quiet pinned monitor/condition/scheduler success traces, including the
+  transplanted CoreLib bodies. Add exact output plus completion checks, failure
+  summaries, a retained native monitor socket and three repeated pipeline checks.
+- [ ] Validate final artifact with repeated guest stress and common acceptance.
+  Idle/quantum policy candidates did not resolve the stall and were removed;
+  the actual VM uses full-size ticks. A temporary heavy tracing build faulted
+  under GC and was discarded. No replacement release has been pushed; 0.0.18
+  stays immutable.
 - [x] Implement live stdout/stderr, canonical input/EOF, bounded byte pipes and
   protected pipeline contexts; preserve state, identity and cleanup.
 - [x] Add Sunbeam wc/head/tail, stream capability and updated manuals.

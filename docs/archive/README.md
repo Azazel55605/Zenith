@@ -6,6 +6,8 @@ Start with [current status](../STATUS.md) or [active work](../PROGRESS.md).
 
 ## Investigation records
 
+- [2026-10-17 scheduler late wakes](2026-10-17/scheduler-late-wake.md): duplicate ready-queue entries behind native pipeline stalls; correction and acceptance boundary.
+
 - [2026-10-17 stale TCP flow recurrence](2026-10-17/tcp-stale-flow.md): failed SYN/ACK evidence, recovery after waiting and fixed per-boot port allocation; cause and further fix remain under investigation.
 
 - [2026-10-16 intermittent TCP connections](2026-10-16/tcp-connect-reliability.md): connect timeout retirement, bounded retry and guest HTTPS regression; VMware cause still under investigation.
