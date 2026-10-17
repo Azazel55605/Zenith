@@ -71,7 +71,8 @@ fault and an interior-root GC corruption. Expanded native acceptance also expose
 a GUI EOF handoff race; ordered line/EOF delivery and hidden-input checks are
 implemented. The combined correction passes full clean-source TCG acceptance at `6544ffd`,
 including 64 pipelines across GC, hidden GUI input/EOF and kernel recovery.
-Kernel 0.0.19 publication and operator installation remain pending. See [investigation](../archive/2026-10-17/scheduler-late-wake.md).
+Source fixes and `kernel/v0.0.19` are pushed at tested `6544ffd`; distributor
+delivery and operator installation remain pending. See [investigation](../archive/2026-10-17/scheduler-late-wake.md).
 
 `2a515e8`: full common TCG acceptance passed, including expanded native input/writes,
 independent persistent contents/audit, repository and kernel recovery gates.

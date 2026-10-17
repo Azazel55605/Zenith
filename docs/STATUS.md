@@ -30,8 +30,9 @@ pipeline; publication and installed operator acceptance remain unverified.
 Subsequent investigation corrected duplicate scheduler queue entries, conservative
 GC corruption of monitor fields, and dropped GUI EOF. Full clean-source TCG
 acceptance now passes at `6544ffd`, including 64 pipeline repetitions across GC
-and 169 kernel recovery checks. Kernel 0.0.19 is the proposed replacement;
-its source/tag publication and actual installed VMware acceptance remain pending.
+and 169 kernel recovery checks. Source fixes and `kernel/v0.0.19` are pushed;
+the remote tag resolves to tested `6544ffd`. Distributor delivery and actual
+installed VMware acceptance remain pending.
 See [investigation](archive/2026-10-17/scheduler-late-wake.md) and [active steps](PROGRESS.md#native-terminal-streams-release-handoff).
 
 ## Component summary

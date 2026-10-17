@@ -1,8 +1,9 @@
 # Native pipeline scheduler, collector and EOF fixes
 
 Recorded **2026-10-17**. Full local acceptance passes at `6544ffd`.
-Source/replacement-tag publication, distributor delivery and operator installation
-remain pending. Earlier attempts below are historical and superseded.
+Source fixes and annotated `kernel/v0.0.19` are pushed with user authorization;
+the remote peeled tag matches tested `6544ffd`. Distributor delivery and operator
+installation remain pending. Earlier attempts below are historical and superseded.
 
 ## Final combined acceptance
 
@@ -45,9 +46,10 @@ passed` and confirms the artifact hashes and clean source did not change.
 Only copied dependency assemblies are adapted. Cosmos stays pinned at 3.0.89;
 upstream and installed NuGet packages are unchanged. ARM64 collector layout/scanner
 adaptation is host-tested, not a claim of ARM64 guest acceptance. Managed execution
-still stays on the BSP. The proposed kernel 0.0.19 tag must point to the tested
+still stays on the BSP. The published kernel 0.0.19 tag points to the tested
 commit above; later documentation-only commits do not change that target.
-No replacement tag is signed/pushed and no operator VM is updated by these checks.
+The source/tag push was verified remotely on 2026-10-17. Server build/sign/delivery
+and operator VM installation are separate acceptance steps, not established here.
 
 ## Failure and evidence
 

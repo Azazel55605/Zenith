@@ -21,8 +21,9 @@ Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
   658 host, 71 login/session, 92 repository, expanded native processes and 169
   kernel upgrade/recovery checks. All 35 pinned dependency regressions pass.
   Separate stress also passed 80 pipelines across GC and 20 immediate-EOF GUI cycles.
-- [ ] Proposed handoff: push the fixes and release **kernel 0.0.19 at `6544ffd`**.
-  No replacement tag has been created or pushed. Existing tags remain immutable.
+- [x] User authorized publication; fixes pushed to `origin/main` and annotated
+  **`kernel/v0.0.19`** pushed at tested `6544ffd`. Remote peeled tag verified.
+  Existing release tags remain immutable.
 - [ ] Distributor publication and installed VMware acceptance: kernel update,
   reboot/confirm first, then tools/manuals and representative pipe/input checks.
 
