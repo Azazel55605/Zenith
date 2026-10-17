@@ -55,6 +55,9 @@ internal static class ConservativeRootFixup
         var scanners = new[] { "ScanThreadStack", "ScanMemoryRange" }.Select(n => collector.Methods.Single(m => m.Name == n)).ToArray();
         var calls = scanners.Select(m => m.Body.Instructions.Where(i => i.OpCode == OpCodes.Call && i.Operand is MethodReference r && r.FullName == mark.FullName).ToArray()).ToArray();
         var freeBlock = collector.NestedTypes.Single(t => t.Name == "FreeBlock");
+        var context = module.GetType("Cosmos.Kernel.Core.Scheduler.ThreadContext");
+        int registerRoots = context.Fields.Any(f => f.Name == "Rax") ? 15
+            : context.Fields.Any(f => f.Name == "X0") ? 33 : -1;
         if (!segment.IsSequentialLayout || segment.PackingSize > 8
             || !segment.Fields.Where(f => !f.IsStatic).Take(4).Select(f => f.Name).SequenceEqual(new[] { "Next", "Start", "End", "Bump" })
             || segment.Fields.Where(f => !f.IsStatic).Take(4).Any(f => f.FieldType is not PointerType)
@@ -63,7 +66,7 @@ internal static class ConservativeRootFixup
             || mark.FullName != "System.Void Cosmos.Kernel.Core.Memory.GarbageCollector.GarbageCollector::TryMarkRoot(System.IntPtr)"
             || contains.ReturnType.FullName != "System.Boolean" || contains.Parameters.Count != 1
             || size.ReturnType.FullName != "System.UInt32" || size.IsStatic || size.Parameters.Count != 0
-            || calls[0].Length != 15 || calls[1].Length != 1)
+            || calls[0].Length != registerRoots || calls[1].Length != 1)
         { throw new InvalidOperationException("Cosmos conservative GC layout/scanner contract changed"); }
 
         using var source = AssemblyDefinition.ReadAssembly(typeof(ConservativeRootAlgorithm).Assembly.Location);

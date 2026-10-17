@@ -27,8 +27,10 @@ Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
 - [x] Add allocation-free conservative root resolution in build copies, bounded
   to actual segment/object extents; cover ordinary/pinned/array roots, unused/free
   regions, field integrity, drift refusal and repeat adaptation.
-- [ ] Validate the combined candidate with repeated guest stress across GC and
-  common acceptance. The scheduler-only `f2f8a42` run still stalled on the third
+- [x] Run 80 exact-output/completion pipelines across GC collection #1 with the
+  collector fix; all pass and poweroff is clean. Add the wake-before-switch fix
+  and preserve adaptation of the pinned ARM64 register scanner as well.
+- [ ] Validate the final combined candidate with full clean-source acceptance. The scheduler-only `f2f8a42` run still stalled on the third
   pipeline after producing its numeric output; it is not qualified. Idle/quantum
   candidates were removed. No replacement release has been pushed; 0.0.18 stays
   immutable.

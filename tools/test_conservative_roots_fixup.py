@@ -67,6 +67,12 @@ class ConservativeRootTests(unittest.TestCase):
         for mode in ('free', 'padding', 'outside'):
             self.assertEqual('ownerMarked=False;handleChanged=False', self.tick(self.copy, mode))
 
+    def test_pinned_arm64_register_scanner_also_adapts(self):
+        arm = self.source.parents[3]/'linux-arm64/lib/net10.0'/self.source.name
+        shutil.copyfile(arm, self.copy)
+        result = self.adapt(); self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual('ownerMarked=True;handleChanged=False', self.tick(self.copy, 'stack-range'))
+
     def test_repeated_adaptation_is_byte_identical(self):
         self.assertEqual(0, self.adapt().returncode)
         before = self.copy.read_bytes(); self.assertEqual(0, self.adapt().returncode)

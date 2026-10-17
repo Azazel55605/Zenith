@@ -97,3 +97,13 @@ ticket totals. The original/f2 path queues it twice; the combined adapter retain
 one entry. Eight wake regressions pass, including this case and sorted reinsertion ahead
 of an existing worker. In total 34 dependency adapters and 121 controller tests
 pass; the combined Release ISO builds. Final exact-commit acceptance is pending.
+
+The collector-corrected guest stress completed 80/80 byte pipelines with exact
+163840-byte output, status zero and clean poweroff. Collection #1 freed 1,039,997
+objects and pipelines continued afterward. This run predated the additional
+wake-before-switch/requeue correction, so final combined common acceptance is
+still required. The first combined acceptance was deliberately stopped after
+host/build success to retain ARM64 compatibility in the new collector adapter;
+that interrupted run is not a pass. The pinned ARM64 33-register scanner is
+separately adapted/tested on a host-only dependency copy as well as x64's 15
+registers. This is not a claim of ARM64 guest acceptance.
