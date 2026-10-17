@@ -42,6 +42,12 @@ waiting suggests expiring flow state, with its location unconfirmed. Pinned sour
 ports restart at 49152 each boot. See [evidence](../archive/2026-10-17/tcp-stale-flow.md)
 and [Progress](../PROGRESS.md); a manual nslookup is not a client prerequisite.
 
+Candidate `db90ebc` replaces fixed port candidates with a once-only hardware-entropy
+seeded offset/stride, retaining active-port exclusion. Full clean-source release
+acceptance and focused TCP/HTTPS wire checks passed. Proposed kernel 0.0.17 is not
+yet published or operator-tested; this mitigation does not locate external stale
+state or establish that every continuous-operation failure is resolved.
+
 ## Remaining steps
 
 - [ ] Expose permission-controlled sockets to independent native tools.

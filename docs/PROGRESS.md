@@ -20,8 +20,12 @@ Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
   pass 639 host tests, 12 real-dependency adapters and a Release ISO/ELF build.
 - [x] Targeted TCG TCP/HTTPS regression passed (100.486 s): bounded exhaustion,
   recovery, 12 verified HTTPS fetches, new source ports on wire and clean poweroff.
-- [ ] Complete clean-source release acceptance, then hand off a reviewable candidate.
-  Actual VMware/proxy repeated refresh/update remains open.
+- [x] Clean-source acceptance passed at `db90ebc`: 112 controllers, 639 host,
+  71 login/session, 92 repository, native programs and 169 kernel recovery checks.
+  Repeat exact-artifact TCP/HTTPS and all 12 adapters passed.
+- [ ] Authorize source/tag publication for proposed kernel/v0.0.17 at `db90ebc`;
+  then verify server delivery and installed VMware/proxy repeated refresh/update.
+  Stale-flow location and actual-path reliability remain open.
 
 Earlier timeout-retirement/fresh-socket retry is implemented and locally tested;
 actual-path reliability is still open. See [Networking](components/NETWORKING.md)

@@ -73,6 +73,47 @@ port randomization alone is not a guarantee of transport security.
   verified HTTPS fetches and clean poweroff. Evidence is in
   `/tmp/zn-tcp-ports-20261017`, including wire.pcap. Observed successful SYN ports
   start 59506, 52899, 62676, 56069, 49462; no change to TLS verification.
-- Full clean-source acceptance is pending; source is committed before running it.
+## Clean-source acceptance and release candidate
 
-No new kernel tag or actual VMware-path success is claimed at this stage.
+Exact tested source: `db90ebc07929da5dbae9b5c113212ca8e1b50b34`.
+`python3 -B deploy/distributor/validate.py --keep
+/tmp/zenith-tcp-ports-release-20261017` rebuilt from that clean source under TCG,
+verified unchanged source and artifact hashes at completion, and exited 0 with
+"Unsigned acceptance passed". No gate was skipped and --existing was not used.
+
+| Gate | Result |
+|---|---|
+| Common controller regressions | 112 passed |
+| Release host tests | 639 passed; 9.6 s |
+| Kernel build | Passed; 22.8 s |
+| Package tool | Passed; 1.4 s |
+| Login/session/styling | 71 checks; 205.3 s |
+| Installed repositories | 92 checks; 348.0 s |
+| Protected native programs | Passed; 291.5 s |
+| Kernel update/recovery | 169 checks; 512.3 s |
+
+Real-dependency adapter tests were repeated against the final generated outputs:
+12/12 passed, including drift refusal, unchanged NuGet bytes and byte-idempotence.
+The targeted TCP test was repeated on the exact final artifact at
+`/tmp/zn-tcp-ports-final-20261017` (102.335 s): bounded failure/exhaustion, HTTP
+recovery, trust import, 12 verified HTTPS fetches and clean poweroff all passed.
+Its wire.pcap has 13 successful-flow SYN source ports, all distinct and in range:
+54090, 59675, 65260, 54461, 60046, 49247, 54832, 60417, 49618, 55203, 60788,
+49989, 55574. The failed unreachable-address fixture exercises ARP/connect timeout;
+it does not reproduce the VMware stale-ACK generator. These temporary paths may
+expire; source/tests and this evidence summary are the durable record.
+
+Final artifact SHA256:
+
+```text
+ISO 112964c149fdc3900e004e5a4910248a52ff7139ecbd69652ce9a054ba851b38
+ELF 511f672583bd7c537b7b9579c5e4e7414f6858aacdc2f8697a1dd713e8f79f0a
+```
+
+Proposed handoff: kernel/v0.0.17 at that exact tested source. No release has been
+signed, published or tagged by this local acceptance run. Source/tag publication
+requires operator authorization; the tag will trigger the distributor pipeline.
+After server delivery, install/boot/confirm the kernel and repeat refresh/update
+without manual DNS priming. If it still fails, compare vmnet8 with host egress to
+locate the stale-flow generator. Actual VMware/proxy success remains unproven;
+continuous-operation failures are not explained solely by reboot port reuse.
