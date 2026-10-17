@@ -42,6 +42,8 @@ execution ledger or duplicate historical test totals into the roadmap.
   lifecycle; no-GPU COM1 remains recovery. Preserve worker/unsaved/mutation teardown,
   hidden authentication and package-loaded appearance/legacy catalog checks
   (docs/LOGIN-SESSIONS.md). The GUI host remains trusted and kernel-linked.
+  Preserve ordered GUI type-ahead line/EOF delivery, including EOF while a line
+  reply is pending; clear public input before and after hidden authentication.
   Keep local /etc state separate from shipped package defaults. See
   [settings/session guide](docs/SETTINGS-SESSIONS.md).
 - P0 directory bundles remain unsigned inspect/dry-run experiments. P1 signed .zpk

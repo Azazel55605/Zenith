@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using Cosmos.Kernel.System.Keyboard;
 using Zenith.Core.Shell;
+using Zenith.Core.IO;
 using Zenith.Core.Security;
 using Zenith.Gui;
 using Zenith.Gui.Graphics;
@@ -57,7 +58,7 @@ internal sealed class TerminalWindow : Window, IOutput
 
     private Thread? _job;
     private volatile bool _jobRunning;
-    private readonly Queue<string> _typeAhead = new();
+    private readonly TerminalTypeAhead _typeAhead = new();
     private string _prompt;
 
     // A multi-line command being entered (shown with the continuation prompt).
@@ -205,14 +206,14 @@ internal sealed class TerminalWindow : Window, IOutput
             Title = "Terminal — " + _shell.WorkingDirectory;
             _buffer.Changed = true;
 
-            if (_typeAhead.Count > 0)
+            if (_typeAhead.TryTakeCommand(out string command))
             {
-                Accept(_typeAhead.Dequeue());
+                Accept(command);
             }
         }
-        else if (_job is not null && !_secretRead && _typeAhead.Count > 0 && IsReadPending())
+        else if (_job is not null && (!_secretRead || _secretPrepared) && _typeAhead.HasPending)
         {
-            AnswerRead(_typeAhead.Dequeue());   // a line typed ahead answers `read`
+            _typeAhead.TryAnswer(AnswerRead);
         }
     }
 
@@ -273,14 +274,6 @@ internal sealed class TerminalWindow : Window, IOutput
             return _shell.IsCancelled ? null : ReadLineForShell(prompt);
         }
         finally { _secretRead = false; }
-    }
-
-    private bool IsReadPending()
-    {
-        lock (_sync)
-        {
-            return _readRequested && _readReply is null && !_readEof;
-        }
     }
 
     /// <summary>Hands a line (or end of input, when null) to a waiting <c>read</c>; returns false if none is waiting.</summary>
@@ -545,7 +538,7 @@ internal sealed class TerminalWindow : Window, IOutput
             case ConsoleKeyEx.D:
                 if (_input.Length == 0 && IsBusy)
                 {
-                    AnswerRead(null);   // end of input for `read`
+                    _typeAhead.EndInput();   // preserve EOF behind an unconsumed line
                 }
                 else if (_input.Length == 0 && _pendingScript.Length == 0)
                 {
@@ -567,10 +560,7 @@ internal sealed class TerminalWindow : Window, IOutput
         if (IsBusy)
         {
             Write((_secretRead ? string.Empty : line) + "\n");
-            if (!AnswerRead(line))
-            {
-                _typeAhead.Enqueue(line);
-            }
+            _typeAhead.Enqueue(line);
 
             return;
         }

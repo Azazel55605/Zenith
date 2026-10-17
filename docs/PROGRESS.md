@@ -30,7 +30,15 @@ Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
 - [x] Run 80 exact-output/completion pipelines across GC collection #1 with the
   collector fix; all pass and poweroff is clean. Add the wake-before-switch fix
   and preserve adaptation of the pinned ARM64 register scanner as well.
-- [ ] Validate the final combined candidate with full clean-source acceptance. The scheduler-only `f2f8a42` run still stalled on the third
+- [ ] Complete final combined acceptance. At `773a59c`: host/build, login/session,
+  92 repository checks and 64 exact-output/completion pipelines across GC pass;
+  separate kernel acceptance passes 169/169. The full run fails on GUI canonical
+  input. Focused repeated GUI fixtures reproduce a submitted line not reaching
+  the command. The logger buffers until EOF; GUI Ctrl+D could be dropped while a
+  line reply was pending. Queue line/EOF delivery in order; add four regressions,
+  hidden-password and immediate-EOF guest checks. All 658 host tests and the new
+  ISO build pass; fresh GUI stress and final common acceptance remain pending.
+  Do not release the earlier candidate. The scheduler-only `f2f8a42` run still stalled on the third
   pipeline after producing its numeric output; it is not qualified. Idle/quantum
   candidates were removed. No replacement release has been pushed; 0.0.18 stays
   immutable.

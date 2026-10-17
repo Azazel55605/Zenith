@@ -247,10 +247,10 @@ try:
         time.sleep(1); control.recv(4096)
     assert (keep/'desktop.ppm').stat().st_size>100000,'desktop screenshot'
     from recovery_console import monitor_command
-    def keyboard_streams(label):
+    def keyboard_streams(label,eof_delay=.3):
         off=len(m.log());login_helper.monitor_type(monitor,'logger '+label+'_READY; sunbeam cat | logger; echo '+label+'_EOF=$? | logger\n')
         assert m.wait('user: '+label+'_READY',off,30),'keyboard stream starts '+label
-        time.sleep(.3);login_helper.monitor_type(monitor,label+'_INPUT\n');time.sleep(.3)
+        time.sleep(.3);login_helper.monitor_type(monitor,label+'_INPUT\n');time.sleep(eof_delay)
         monitor_command(monitor,'sendkey ctrl-d 30')
         assert m.wait('user: '+label+'_INPUT',off,30),'keyboard canonical line '+label
         assert m.wait('user: '+label+'_EOF=0',off,30),'keyboard EOF '+label
@@ -261,7 +261,14 @@ try:
         assert m.wait('user: '+label+'_CANCEL=130',off,30),'keyboard cancellation returns shell '+label
         print('PASS native canonical input/EOF/pipeline cancellation '+label,flush=True)
     monitor_command(monitor,'sendkey ctrl-alt-t 30');time.sleep(1)
+    # Exercise the same queued handoff for hidden input after the GUI clears
+    # public type-ahead. Keep the fixture credential unchanged for later login.
+    off=len(m.log());login_helper.monitor_type(monitor,'passwd root; echo N_GUI_PASSWORD=$? | logger\n')
+    time.sleep(1);login_helper.monitor_type(monitor,secret+'\n')
+    time.sleep(.5);login_helper.monitor_type(monitor,secret+'\n')
+    assert m.wait('user: N_GUI_PASSWORD=0',off,120),'GUI hidden password handoff'
     keyboard_streams('N_GUI')
+    keyboard_streams('N_GUI_EARLY',0)
     off=len(m.log());monitor_command(monitor,'sendkey ctrl-alt-l 30')
     assert m.wait('login ready',off,180),'logout after native streams'
     login_helper.monitor_type(monitor,'root\t')
@@ -272,6 +279,7 @@ try:
     off=len(m.log());login_helper.monitor_type(monitor,'poweroff\n')
     assert m.wait('all filesystems unmounted',off,30),'keyboard stream clean poweroff'
     m.process.wait(timeout=30)
+    assert all(secret not in path.read_text(errors='replace') for path in keep.glob('*/serial.log')),'secret-free GUI/local transcripts'
     print('PASS independently installed fonts render desktop; full manuals installed',flush=True)
     print('RESULT native text ELF, arguments, bad-pointer rejection, memory/privilege fault containment, timeout and post-fault shell passed',flush=True)
 finally:

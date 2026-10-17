@@ -107,3 +107,36 @@ host/build success to retain ARM64 compatibility in the new collector adapter;
 that interrupted run is not a pass. The pinned ARM64 33-register scanner is
 separately adapted/tested on a host-only dependency copy as well as x64's 15
 registers. This is not a claim of ARM64 guest acceptance.
+
+## Final-candidate GUI blocker
+
+At `773a59c`, 35 dependency adapters, 121 controllers and 654 host tests pass.
+The clean-source common run passes login/session (197.8s) and all 92 repository
+checks (306.4s). All 64 exact-output/completion pipelines pass, including collection
+#1 freeing 1,154,782 objects, followed by FP, fault, permission and independent
+write/ext2 audits. It fails later at desktop `N_GUI_INPUT`; this is not a pass for
+the native-process gate. The separate unchanged-artifact kernel recovery gate
+passes 169/169 in 482.282s.
+
+Two isolated desktop/local cases pass. Repeated desktop fixtures reproduce the
+missing canonical-line delivery (fresh-root cycle 3 and a clone of the original
+installed root later in its run). Screenshots show the complete entered line and
+newline in the terminal, while the native pipeline remains waiting. The original
+failure evidence remains intact; the clone uses a replacement fixture-only root
+credential, retaining normal hashing and authentication. No actual VM disk or
+operator credentials are changed. Pending-read/scheduler snapshots are being
+captured to distinguish queue handoff from scheduling; no replacement release is
+qualified or pushed.
+
+The GUI failure label was misleading: `logger` consumes complete stdin before
+logging its lines, so a lost EOF also prevents the expected input marker. The
+old Ctrl+D handler called `AnswerRead(null)` once and ignored a false result.
+When the previous line reply is still pending (or the next read has not started),
+that discards EOF and leaves cat/logger waiting. Submitted type-ahead could also
+be bypassed by a directly answered EOF. An ordered GUI-owned `TerminalTypeAhead`
+now retains lines and EOF until the worker accepts each item. EOF is discarded at
+the next command prompt, never interpreted as a command. Cancel and both secret
+preparation/teardown clear queued input; hidden input is delivered only after the
+GUI's secret-preparation handshake. The four host regressions pass, and all 658
+host tests plus a Release build pass. A fresh GUI installation is exercising
+hidden password changes and repeated immediate EOF. Final acceptance is pending.

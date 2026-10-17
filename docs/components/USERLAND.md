@@ -67,7 +67,9 @@ installed filesystem independently after clean poweroff.
 `cba1cbf`: full common TCG stream acceptance passed across serial/desktop/local
 hosts. [Stream implementation and acceptance](../archive/2026-10-17/native-streams.md).
 The distributor's 0.0.18 stream gate exposed a pinned scheduler duplicate-wake
-fault and an interior-root GC corruption; the combined correction is under acceptance. See [investigation](../archive/2026-10-17/scheduler-late-wake.md).
+fault and an interior-root GC corruption. Expanded native acceptance also exposed
+a GUI EOF handoff race; ordered line/EOF delivery and hidden-input checks are
+implemented. The combined correction is under acceptance. See [investigation](../archive/2026-10-17/scheduler-late-wake.md).
 
 `2a515e8`: full common TCG acceptance passed, including expanded native input/writes,
 independent persistent contents/audit, repository and kernel recovery gates.
