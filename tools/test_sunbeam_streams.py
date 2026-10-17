@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Host algorithm checks only; native descriptor/containment proof is in the guest gate."""
 import subprocess
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -44,7 +45,9 @@ static long zenith_call(long n, unsigned long a, unsigned long b, unsigned long 
 }
 ''' + '#include "' + str(ROOT / 'userland/sunbeam/main.c') + '"\n')
         cls.binary = folder / "sunbeam"
-        compiled = subprocess.run(["gcc", "-O2", str(wrapper), "-o", str(cls.binary)], capture_output=True, text=True)
+        compiler = shutil.which("gcc") or shutil.which("clang")
+        if not compiler: raise RuntimeError("Sunbeam host tests need gcc or clang")
+        compiled = subprocess.run([compiler, "-O2", str(wrapper), "-o", str(cls.binary)], capture_output=True, text=True)
         if compiled.returncode: raise RuntimeError(compiled.stderr)
 
     @classmethod
