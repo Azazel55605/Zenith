@@ -10,7 +10,12 @@ internal sealed class PipeOutput : IOutput, IByteOutput
     private readonly BytePipe _pipe;
     public PipeOutput(BytePipe pipe) => _pipe = pipe;
     // Builtins retain their plain-text pipe contract; native writes use bytes directly.
-    public void Write(string text) => _pipe.Write(Encoding.UTF8.GetBytes(Ansi.Strip(text)));
+    public void Write(string text)
+    {
+        int count = _pipe.Write(Encoding.UTF8.GetBytes(Ansi.Strip(text)));
+        if (count == -32) { throw new BrokenPipeException(); }
+        // Cancellation is observed by the shell; do not throw on multiple workers.
+    }
     public int Write(byte[] buffer) => _pipe.Write(buffer);
 }
 
@@ -39,18 +44,18 @@ internal sealed class CommandByteOutput
 internal sealed class LineByteInput : IByteInput
 {
     private readonly Func<string?> _readLine;
-    private readonly Action _cancel;
+    private readonly Func<bool> _cancelled;
     private byte[] _line = Array.Empty<byte>();
     private int _offset;
     private bool _eof;
-    public LineByteInput(Func<string?> readLine, Action cancel) { _readLine = readLine; _cancel = cancel; }
+    public LineByteInput(Func<string?> readLine, Func<bool> cancelled) { _readLine = readLine; _cancelled = cancelled; }
     public int Read(byte[] buffer)
     {
-        _cancel();
+        if (_cancelled()) { return -125; }
         if (buffer.Length == 0) { return 0; }
         if (_offset == _line.Length && !_eof)
         {
-            string? line = _readLine(); _cancel();
+            string? line = _readLine(); if (_cancelled()) { return -125; }
             if (line is null) { _eof = true; }
             else
             {

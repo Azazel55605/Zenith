@@ -289,11 +289,15 @@ sunbeam tail -n 10 /home/user/note
   run in child shells; the last stage retains the parent's state (`read NAME`).
   The shell joins all stages, returning the last status. An early reader exit
   closes its input; the native producer receives -32 and Sunbeam exits 141 quietly.
-  Ctrl+C cancels the entire foreground pipeline and returns 130.
+  Ctrl+C cancels the entire foreground pipeline and returns 130. Native stream
+  cancellation uses internal -125/normal cleanup, avoiding simultaneous managed
+  exceptions in Cosmos; pipe/redirect text output is discarded after cancellation.
 - One shell tree admits at most eight total stage workers including the caller;
   nested pipelines share that budget. At most eight native contexts exist globally.
   Credentials, private mappings/registers/FP state, request budgets and roots belong
-  to each invocation; raw assembly entry remains serialized. This is cooperative
+  to each invocation; raw assembly entry remains serialized. Expected setup/VFS
+  errors are converted under a separate managed-service gate; standard-stream waits
+  never hold it. This is cooperative
   BSP stream scheduling, not a general process scheduler or managed multicore.
 - Each invocation allows 4 KiB requests, 1 MiB stdin and 1 MiB combined stdout/stderr,
   separate from file read/write budgets. At the exact input cap a one-byte probe

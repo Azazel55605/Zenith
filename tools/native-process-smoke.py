@@ -89,12 +89,19 @@ try:
     status('sunbeam --stream-bytes | sunbeam --stream-fault-in','N_STREAM_FAULT',139)
     status('sunbeam echo after-stream-fault','N_STREAM_FAULT_CLEANUP')
     command('echo EIGHT_STAGES | sunbeam cat | sunbeam cat | sunbeam cat | sunbeam cat | sunbeam cat | sunbeam cat | logger','user: EIGHT_STAGES')
-    offset=len(m.log());m.send('logger STREAM_CANCEL_READY; sunbeam cat | sunbeam cat\r')
-    assert m.wait('user: STREAM_CANCEL_READY',offset,30),'pipeline cancellation fixture starts'
-    time.sleep(.3);m.send('\x03');assert m.wait('^C',offset,30),'blocked native pipeline cancelled'
-    command('echo N_STREAM_PIPE_CANCEL=$? | logger','user: N_STREAM_PIPE_CANCEL=130')
+    for delay in (0, .1, .3):
+        offset=len(m.log());m.send('logger STREAM_CANCEL_READY; sunbeam cat | sunbeam cat\r')
+        assert m.wait('user: STREAM_CANCEL_READY',offset,30),'pipeline cancellation fixture starts'
+        time.sleep(delay);m.send('\x03');assert m.wait('^C',offset,30),'blocked native pipeline cancelled'
+        command('echo N_STREAM_PIPE_CANCEL=$? | logger','user: N_STREAM_PIPE_CANCEL=130')
+    offset=len(m.log());m.send('logger MANAGED_CANCEL_READY; sleep 20 | sleep 20\r')
+    assert m.wait('user: MANAGED_CANCEL_READY',offset,30),'managed cancellation fixture starts'
+    time.sleep(.1);m.send('\x03');assert m.wait('^C',offset,30),'managed pipeline cancelled'
+    command('echo N_MANAGED_PIPE_CANCEL=$? | logger','user: N_MANAGED_PIPE_CANCEL=130')
     status('sunbeam --stream-bytes | sunbeam head -n 1 > /dev/null','N_STREAM_EARLY_EXIT')
     status('sunbeam --stream-fds | logger','N_STREAM_FDS')
+    status('sunbeam cat /missing-stream-a | sunbeam cat /missing-stream-b','N_STREAM_FILE_ERRORS',1)
+    status('native run missing-stream-a | native run missing-stream-b','N_STREAM_SETUP_ERRORS',1)
     command("printf 'one two\\nthree\\nlast' | sunbeam wc | logger",'user: 2 4 18')
     command("printf 'one\\ntwo\\nthree' | sunbeam tail -n 2 | logger",'user: two')
     command("printf 'one\\ntwo\\nthree' | sunbeam head -n 1 | logger",'user: one')
@@ -206,6 +213,7 @@ try:
     state=boot_image.verify(m.disk)
     assert state['current']==hashlib.sha256((ROOT/'output-x64/Zenith.elf').read_bytes()).hexdigest(),'native package upgrade changed kernel'
     assert all(secret not in path.read_text(errors='replace') for path in keep.glob('*/serial.log')),'secret-free transcript'
+    assert all('[FAILFAST]' not in path.read_text(errors='replace') for path in keep.glob('*/serial.log')),'no runtime fail-fast during stream/fault/cancel checks'
     import struct
     part=next(p for p in boot_image.partitions(m.disk) if str(p[1])==state['root'])
     with m.disk.open('rb') as source,(keep/'root.ext2').open('wb') as destination:

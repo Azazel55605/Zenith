@@ -512,7 +512,7 @@ internal sealed class Shell : IExpansionContext
         if (!reserved) { throw new IOException("pipeline exceeds 8 stages/workers"); }
         var pipes = new BytePipe[workers]; var done = new int[count]; var results = new int[count];
         int started = 0;
-        for (int i = 0; i < workers; i++) { pipes[i] = new BytePipe(ThrowIfCancelled); }
+        for (int i = 0; i < workers; i++) { pipes[i] = new BytePipe(() => IsCancelled); }
         void Stage(int index, Shell shell)
         {
             var credentials = CredentialContext.Enter(shell.Identity);
@@ -686,7 +686,7 @@ internal sealed class Shell : IExpansionContext
 
     private int ExecSimple(SimpleCommandNode node, ShellInput? input, IOutput output)
     {
-        ThrowIfCancelled();
+        if (IsCancelled) { return 130; }
 
         // Leading NAME=value words are assignments. (Unlike POSIX they persist even when a
         // command follows, since there are no child processes to scope them to.)

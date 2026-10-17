@@ -15,7 +15,7 @@ public class StreamTests
     [Fact]
     public async Task PipeBoundsStorageAndPreservesBinaryAcrossWrapAndEof()
     {
-        var pipe = new BytePipe(() => { });
+        var pipe = new BytePipe(() => false);
         byte[] expected = Enumerable.Range(0, 160000).Select(i => (byte)i).ToArray();
         var writer = Task.Run(() => { pipe.Write(expected); pipe.CompleteWriter(); });
         Assert.True(SpinWait.SpinUntil(() => pipe.Buffered == BytePipe.Capacity, 3000));
@@ -30,8 +30,8 @@ public class StreamTests
     [Fact]
     public async Task ClosingReaderWakesBlockedWriter()
     {
-        var pipe = new BytePipe(() => { });
-        var writer = Task.Run(() => Assert.Throws<BrokenPipeException>(() => pipe.Write(new byte[20000])));
+        var pipe = new BytePipe(() => false);
+        var writer = Task.Run(() => Assert.Equal(-32, pipe.Write(new byte[20000])));
         Assert.True(SpinWait.SpinUntil(() => pipe.Buffered == BytePipe.Capacity, 3000));
         pipe.CloseReader(); await writer.WaitAsync(TimeSpan.FromSeconds(3));
     }
@@ -40,10 +40,10 @@ public class StreamTests
     public async Task CancellationWakesEmptyReaderAndFullWriter()
     {
         using var cancel = new CancellationTokenSource();
-        var empty = new BytePipe(cancel.Token.ThrowIfCancellationRequested);
-        var full = new BytePipe(cancel.Token.ThrowIfCancellationRequested);
-        var reader = Task.Run(() => Assert.Throws<OperationCanceledException>(() => empty.Read(new byte[1])));
-        var writer = Task.Run(() => Assert.Throws<OperationCanceledException>(() => full.Write(new byte[20000])));
+        var empty = new BytePipe(() => cancel.IsCancellationRequested);
+        var full = new BytePipe(() => cancel.IsCancellationRequested);
+        var reader = Task.Run(() => Assert.Equal(-125, empty.Read(new byte[1])));
+        var writer = Task.Run(() => Assert.Equal(-125, full.Write(new byte[20000])));
         Assert.True(SpinWait.SpinUntil(() => full.Buffered == BytePipe.Capacity, 3000));
         cancel.Cancel(); await Task.WhenAll(reader, writer).WaitAsync(TimeSpan.FromSeconds(3));
     }
@@ -51,7 +51,7 @@ public class StreamTests
     [Fact]
     public void CanonicalInputPreservesUtf8AcrossSmallReadsAndStickyEof()
     {
-        int calls = 0; var input = new LineByteInput(() => ++calls == 1 ? "ü" : null, () => { });
+        int calls = 0; var input = new LineByteInput(() => ++calls == 1 ? "ü" : null, () => false);
         Assert.Equal(0, input.Read(Array.Empty<byte>())); Assert.Equal(0, calls);
         byte[] one = new byte[1]; using var received = new MemoryStream();
         while (input.Read(one) != 0) { received.WriteByte(one[0]); }
@@ -63,8 +63,8 @@ public class StreamTests
     public void CanonicalInputChecksCancellationAfterHostRead()
     {
         bool cancelled = false;
-        var input = new LineByteInput(() => { cancelled = true; return null; }, () => { if (cancelled) { throw new OperationCanceledException(); } });
-        Assert.Throws<OperationCanceledException>(() => input.Read(new byte[1]));
+        var input = new LineByteInput(() => { cancelled = true; return null; }, () => cancelled);
+        Assert.Equal(-125, input.Read(new byte[1]));
     }
 
     private sealed class Capture : IOutput
@@ -79,7 +79,7 @@ public class StreamTests
         var capture = new Capture(); var terminal = new CommandByteOutput(capture);
         terminal.Write(new byte[] { 0xc3 }); Assert.Empty(capture.Text);
         terminal.Write(new byte[] { 0xbc }); terminal.Complete(); Assert.Equal("ü", capture.Text);
-        var pipe = new BytePipe(() => { }); var output = new CommandByteOutput(new PipeOutput(pipe));
+        var pipe = new BytePipe(() => false); var output = new CommandByteOutput(new PipeOutput(pipe));
         byte[] bytes = { 0, 255, 27, 91, 51, 49, 109 };
         output.Write(bytes); output.Complete(); pipe.CompleteWriter();
         byte[] read = new byte[bytes.Length]; Assert.Equal(bytes.Length, pipe.Read(read)); Assert.Equal(bytes, read);
@@ -106,6 +106,18 @@ public class StreamTests
         byte[] chunk = new byte[4096];
         for (int i = 0; i < 256; i++) { Assert.Equal(4096, streams.Read(chunk)); Assert.Equal(4096, streams.Write(i % 2 + 1, chunk)); }
         Assert.Equal(0, streams.Read(chunk)); Assert.Equal(-28, streams.Write(2, new byte[1]));
+    }
+
+    [Fact]
+    public void NativeStreamCancellationPropagatesAsErrnoWithoutConsumingBudgets()
+    {
+        bool cancelled = true;
+        var pipe = new BytePipe(() => cancelled);
+        var streams = new ProcessStreams(pipe, (_, bytes) => pipe.Write(bytes), false, false, false);
+        Assert.Equal(-125, streams.Read(new byte[1])); Assert.Equal(-125, streams.Write(1, new byte[] { 7 }));
+        cancelled = false;
+        Assert.Equal(1, streams.Write(1, new byte[] { 7 }));
+        byte[] read = new byte[1]; Assert.Equal(1, streams.Read(read)); Assert.Equal(7, read[0]);
     }
 
     [Fact]

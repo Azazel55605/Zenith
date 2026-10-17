@@ -4,6 +4,7 @@ using System.Threading;
 
 namespace Zenith.Core.IO;
 
+// Byte operations return a count, EOF (0), or a negative errno (-125 cancel, -32 pipe close).
 internal interface IByteInput { int Read(byte[] buffer); }
 internal interface IByteOutput { int Write(byte[] buffer); }
 internal sealed class BrokenPipeException : IOException
@@ -17,17 +18,18 @@ internal sealed class BytePipe : IByteInput, IByteOutput
     public const int Capacity = 8192;
     private readonly object _gate = new();
     private readonly byte[] _buffer = new byte[Capacity];
-    private readonly Action _cancel;
+    private readonly Func<bool> _cancelled;
     private int _head, _count;
     private bool _writerClosed, _readerClosed;
-    public BytePipe(Action cancel) => _cancel = cancel;
+    public BytePipe(Func<bool> cancelled) => _cancelled = cancelled;
     public int Buffered { get { lock (_gate) { return _count; } } }
     public int Read(byte[] buffer)
     {
         if (buffer.Length == 0) { return 0; }
         while (true)
         {
-            _cancel(); bool closed;
+            if (_cancelled()) { return -125; }
+            bool closed;
             lock (_gate)
             {
                 closed = _readerClosed;
@@ -41,7 +43,7 @@ internal sealed class BytePipe : IByteInput, IByteOutput
                 }
                 if (!closed && _writerClosed) { return 0; }
             }
-            if (closed) { throw new BrokenPipeException(); }
+            if (closed) { return -32; }
             Thread.Sleep(1);
         }
     }
@@ -50,7 +52,8 @@ internal sealed class BytePipe : IByteInput, IByteOutput
         int offset = 0;
         while (offset < buffer.Length)
         {
-            _cancel(); bool closed;
+            if (_cancelled()) { return -125; }
+            bool closed;
             lock (_gate)
             {
                 closed = _readerClosed || _writerClosed;
@@ -63,7 +66,7 @@ internal sealed class BytePipe : IByteInput, IByteOutput
                     _count += count; offset += count;
                 }
             }
-            if (closed) { throw new BrokenPipeException(); }
+            if (closed) { return -32; }
             if (offset < buffer.Length) { Thread.Sleep(1); }
         }
         return offset;

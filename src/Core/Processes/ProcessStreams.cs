@@ -24,12 +24,14 @@ internal sealed class ProcessStreams
         if (_readBytes == ProcessFiles.MaximumTransfer)
         {
             // A one-byte overflow probe distinguishes exact-limit EOF from truncation.
-            _inputLimit = _input.Read(new byte[1]) != 0; return _inputLimit ? -28 : 0;
+            int probe = _input.Read(new byte[1]); if (probe < 0) { return probe; }
+            _inputLimit = probe != 0; return _inputLimit ? -28 : 0;
         }
         int maximum = Math.Min(buffer.Length, ProcessFiles.MaximumTransfer - _readBytes);
         byte[] target = maximum == buffer.Length ? buffer : new byte[maximum];
         int count = _input.Read(target);
-        if (count < 0 || count > target.Length) { throw new IOException("invalid stdin read count"); }
+        if (count < 0) { return count; }
+        if (count > target.Length) { throw new IOException("invalid stdin read count"); }
         if (target != buffer) { target.AsSpan(0, count).CopyTo(buffer); }
         _readBytes += count; return count;
     }

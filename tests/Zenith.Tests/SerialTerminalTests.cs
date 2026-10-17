@@ -70,6 +70,47 @@ public class SerialTerminalTests
         Assert.Equal(1, terminal.Shell.LastStatus);
     }
     [Fact]
+    public async Task CancelledReadPreservesImmediateNextCommand()
+    {
+        Shell.Register(new Command("serial-late-read-test", "", "", c =>
+        {
+            c.Shell.ReadInputLine!("blocked: ");
+            System.Threading.Thread.Sleep(100);
+            return c.Shell.IsCancelled ? 130 : 0;
+        }));
+        var terminal = Terminal(); terminal.Drain();
+        Send(terminal, "serial-late-read-test\n"); await Until(terminal, x => x.Contains("blocked: "));
+        terminal.Receive(3); Send(terminal, "echo after-immediate-cancel\n");
+        string text = await Until(terminal, x => x.Contains("after-immediate-cancel\n") && !terminal.Busy);
+        Assert.DoesNotContain("command not found", text);
+        Assert.Contains("after-immediate-cancel\n", text);
+    }
+
+    [Fact]
+    public async Task PublicReadsPreservePartialTypeAheadAndQueuedEof()
+    {
+        Shell.Register(new Command("serial-two-read-test", "", "", c =>
+        {
+            string? first = c.Shell.ReadInputLine!("first: ");
+            System.Threading.Thread.Sleep(100);
+            string? second = c.Shell.ReadInputLine!("second: ");
+            c.WriteLine("values=" + first + "/" + (second ?? "EOF")); return 0;
+        }));
+        var terminal = Terminal(); terminal.Drain();
+        Send(terminal, "serial-two-read-test\n"); await Until(terminal, x => x.Contains("first: "));
+        Send(terminal, "one\ntwo");
+        await Until(terminal, x => x.Contains("second: "));
+        Send(terminal, "\n");
+        Assert.Contains("values=one/two\n", await Until(terminal, x => x.Contains("values=one/two\n") && !terminal.Busy));
+        Send(terminal, "serial-two-read-test\n"); await Until(terminal, x => x.Contains("first: "));
+        Send(terminal, "one\ntwo\n");
+        Assert.Contains("values=one/two\n", await Until(terminal, x => x.Contains("values=one/two\n") && !terminal.Busy));
+        Send(terminal, "serial-two-read-test\n"); await Until(terminal, x => x.Contains("first: "));
+        Send(terminal, "one\n"); terminal.Receive(4);
+        Assert.Contains("values=one/EOF\n", await Until(terminal, x => x.Contains("values=one/EOF\n") && !terminal.Busy));
+    }
+
+    [Fact]
     public async Task HiddenSecretNeverEntersEchoOrHistory()
     {
         var terminal = Terminal(); terminal.Drain();

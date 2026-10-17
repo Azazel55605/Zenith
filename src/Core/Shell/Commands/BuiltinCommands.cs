@@ -201,7 +201,7 @@ internal static class BuiltinCommands
         var watch = System.Diagnostics.Stopwatch.StartNew();
         while (watch.Elapsed.TotalSeconds < seconds)
         {
-            c.Shell.ThrowIfCancelled();
+            if (c.Shell.IsCancelled) { return 130; }
             System.Threading.Thread.Sleep(20);
         }
 

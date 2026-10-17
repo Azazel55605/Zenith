@@ -24,12 +24,13 @@ internal static class NativeProcessCommands
     }
     private static int Execute(CommandContext c, string name, string[] arguments)
     {
-        IByteInput input = c.Input ?? (IByteInput)new LineByteInput(() => c.Shell.ReadInputLine?.Invoke(""), c.Shell.ThrowIfCancelled);
+        IByteInput input = c.Input ?? (IByteInput)new LineByteInput(() => c.Shell.ReadInputLine?.Invoke(""), () => c.Shell.IsCancelled);
         var stdout = new CommandByteOutput(c.Out); var stderr = new CommandByteOutput(c.Err);
         var streams = new ProcessStreams(input, (fd, bytes) => fd == 1 ? stdout.Write(bytes) : stderr.Write(bytes),
             c.Input is null && c.Shell.ReadInputLine is not null, c.IsTerminal, c.Err == c.Shell.Terminal);
-        var result = NativeProcess.Run(name, arguments, c.Shell.ThrowIfCancelled, c, c.Shell.WorkingDirectory, streams: streams);
-        stdout.Complete(); stderr.Complete();
+        var result = NativeProcess.Run(name, arguments, () => c.Shell.IsCancelled, c, c.Shell.WorkingDirectory, streams: streams);
+        if (!c.Shell.IsCancelled) { stdout.Complete(); stderr.Complete(); }
+        if (result.Error.Length > 0) { c.Err.Write("native: " + result.Error + "\n"); }
         if (result.Fault != 0 && result.Status != 95) { c.Err.Write("native process terminated by CPU fault vector=" + result.Fault + "\n"); }
         if (result.Status == 124) { c.Err.Write("native process exceeded its execution budget\n"); }
         if (result.Status == 95) { c.Err.Write("native process unsupported by current CPU/kernel descriptor setup; check stage=" + result.Fault + "\n"); }

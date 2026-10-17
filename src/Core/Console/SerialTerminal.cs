@@ -20,7 +20,7 @@ internal sealed class SerialTerminal : IOutput
     private readonly StringBuilder _output = new();
     private readonly StringBuilder _line = new();
     private readonly StringBuilder _script = new();
-    private readonly Queue<string> _queued = new();
+    private readonly Queue<string?> _queued = new();
     private readonly Func<IOutput, CommandShell> _factory;
     private readonly Func<bool>? _refresh;
     private readonly Action? _endSession;
@@ -105,7 +105,11 @@ internal sealed class SerialTerminal : IOutput
                 ResetShell(); Emit("\r\n[console] session " + (exit ? "ended" : "changed") + "\r\n");
             }
             Prompt();
-            if (_queued.Count > 0) { Accept(_queued.Dequeue()); }
+            while (_queued.Count > 0)
+            {
+                string? line = _queued.Dequeue();
+                if (line is not null) { Accept(line); break; }
+            }
         }
     }
     public void Receive(byte value)
@@ -133,7 +137,13 @@ internal sealed class SerialTerminal : IOutput
         if (value == 3)
         {
             if (_busy) { _shell.Cancel(); }
-            lock (_gate) { _queued.Clear(); _script.Clear(); _line.Clear(); _overflow = false; _escape = false; }
+            lock (_gate)
+            {
+                _queued.Clear(); _script.Clear(); _line.Clear(); _overflow = false; _escape = false;
+                // Release input ownership immediately. A completing worker must not
+                // consume or clear the next command typed after Ctrl+C.
+                _reading = false; _secret = false; _answered = true; _answer = null;
+            }
             Emit("^C\r\n"); if (!_busy) { Prompt(); } return;
         }
         lock (_gate)
@@ -148,7 +158,8 @@ internal sealed class SerialTerminal : IOutput
             }
             if (value == 4 && _line.Length == 0)
             {
-                if (_reading) { _answered = true; _answer = null; }
+                if (_reading && !_answered) { _answered = true; _answer = null; }
+                else if (_busy && _queued.Count < MaximumQueuedLines) { _queued.Enqueue(null); }
                 else if (!_busy && !_completed && _script.Length == 0) { Accept("exit"); }
                 return;
             }
@@ -164,10 +175,11 @@ internal sealed class SerialTerminal : IOutput
                     else if (!_busy) { _script.Clear(); Prompt(); }
                     return;
                 }
-                if (_reading)
+                if (_reading && !_answered)
                 {
-                    if (!_answered) { _answer = line; _answered = true; }
+                    _answer = line; _answered = true;
                 }
+                else if (_secret) { /* Discard secret type-ahead until the next prompt. */ }
                 else if (_busy || _completed)
                 {
                     if (_queued.Count < MaximumQueuedLines) { _queued.Enqueue(line); }
@@ -204,14 +216,18 @@ internal sealed class SerialTerminal : IOutput
     {
         lock (_gate)
         {
+            if (_shell.IsCancelled) { return null; }
             _reading = true; _secret = secret; _answered = false; _answer = null;
-            _line.Clear(); _overflow = false;
-            if (secret) { _queued.Clear(); }
+            if (secret) { _line.Clear(); _overflow = false; _queued.Clear(); }
             else if (_queued.Count > 0) { _answer = _queued.Dequeue(); _answered = true; }
         }
         void ClearRead()
         {
-            lock (_gate) { _reading = false; _secret = false; _answer = null; _line.Clear(); _overflow = false; }
+            lock (_gate)
+            {
+                if (_secret) { _line.Clear(); _overflow = false; }
+                _reading = false; _secret = false; _answer = null;
+            }
         }
         try
         {

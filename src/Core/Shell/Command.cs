@@ -49,7 +49,7 @@ internal sealed class ShellInput : IByteInput
     public string? ReadLine()
     {
         using var text = new MemoryStream(); byte[] one = new byte[1];
-        while (Read(one) != 0)
+        while (Read(one) > 0)
         {
             if (one[0] == 10) { return Encoding.UTF8.GetString(text.ToArray()); }
             if (text.Length == MaximumText) { throw new IOException("shell input line exceeds 1 MiB"); }
@@ -60,7 +60,7 @@ internal sealed class ShellInput : IByteInput
     public string ReadToEnd()
     {
         using var text = new MemoryStream(); byte[] buffer = new byte[4096]; int count;
-        while ((count = Read(buffer)) != 0)
+        while ((count = Read(buffer)) > 0)
         {
             if (text.Length + count > MaximumText) { throw new IOException("buffered shell input exceeds 1 MiB; use a streaming tool"); }
             text.Write(buffer, 0, count);
@@ -139,10 +139,12 @@ internal sealed class CommandContext
     public bool IsTerminal { get; }
     public IOutput Err { get; }
 
-    // Every write is a cancellation point, so a command printing in a loop stops on Ctrl+C
-    // without checking for it explicitly.
+    // Terminal writes interrupt the command. Cancelled pipe/redirection writers
+    // discard output until the shell stops their bounded operation; this avoids
+    // simultaneous exception propagation on Cosmos managed worker stacks.
     public void Write(string text)
     {
+        if (Shell.IsCancelled && Out != Shell.Terminal) { return; }
         Shell.ThrowIfCancelled();
         Out.Write(text);
     }
