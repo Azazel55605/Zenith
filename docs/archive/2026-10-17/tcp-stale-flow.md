@@ -117,3 +117,14 @@ After server delivery, install/boot/confirm the kernel and repeat refresh/update
 without manual DNS priming. If it still fails, compare vmnet8 with host egress to
 locate the stale-flow generator. Actual VMware/proxy success remains unproven;
 continuous-operation failures are not explained solely by reboot port reuse.
+
+
+## Authorized release handoff
+
+The operator explicitly authorized pushing source/validation notes and releasing
+kernel/v0.0.17. On 2026-10-17 the atomic push advanced origin/main to `0293359`
+and created the annotated tag at `db90ebc07929da5dbae9b5c113212ca8e1b50b34`.
+Local full acceptance above remains tied to that exact code commit. This handoff
+supersedes the proposed/pending publication wording above; it establishes Git
+source/tag delivery only. The distributor must still build/sign/publish/verify,
+and actual installed VMware/proxy reliability remains to be checked.

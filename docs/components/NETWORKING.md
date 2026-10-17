@@ -44,8 +44,9 @@ and [Progress](../PROGRESS.md); a manual nslookup is not a client prerequisite.
 
 Candidate `db90ebc` replaces fixed port candidates with a once-only hardware-entropy
 seeded offset/stride, retaining active-port exclusion. Full clean-source release
-acceptance and focused TCP/HTTPS wire checks passed. Proposed kernel 0.0.17 is not
-yet published or operator-tested; this mitigation does not locate external stale
+acceptance and focused TCP/HTTPS wire checks passed. Kernel/v0.0.17 is pushed at
+that tested source; server delivery and operator testing remain pending. This
+mitigation does not locate external stale
 state or establish that every continuous-operation failure is resolved.
 
 ## Remaining steps

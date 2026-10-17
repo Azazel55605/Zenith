@@ -23,9 +23,10 @@ Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
 - [x] Clean-source acceptance passed at `db90ebc`: 112 controllers, 639 host,
   71 login/session, 92 repository, native programs and 169 kernel recovery checks.
   Repeat exact-artifact TCP/HTTPS and all 12 adapters passed.
-- [ ] Authorize source/tag publication for proposed kernel/v0.0.17 at `db90ebc`;
-  then verify server delivery and installed VMware/proxy repeated refresh/update.
-  Stale-flow location and actual-path reliability remain open.
+- [x] Operator authorized source/release publication; `kernel/v0.0.17` pushed at
+  exact tested `db90ebc` with source/validation notes on main.
+- [ ] Observe server build/delivery, then install/boot/confirm and repeat VMware
+  refresh/update. Stale-flow location and actual-path reliability remain open.
 
 Earlier timeout-retirement/fresh-socket retry is implemented and locally tested;
 actual-path reliability is still open. See [Networking](components/NETWORKING.md)
