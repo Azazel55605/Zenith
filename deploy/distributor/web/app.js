@@ -64,16 +64,33 @@ function packages() {
   if(!visible)empty(body,"No published packages match this filter.");
 }
 function builds() {
-  const body=$("builds"); body.replaceChildren();
+  const body=$("builds"), focusedTag=document.activeElement?.dataset.retryTag; body.replaceChildren();
   if (!selectedTag || !snapshot.builds.some(item=>item.tag===selectedTag)) selectedTag=snapshot.builds.find(item=>item.status==="building")?.tag || snapshot.builds[0]?.tag || null;
   for (const item of snapshot.builds) {
     const tr=document.createElement("tr"); tr.classList.toggle("selected-row",item.tag===selectedTag);
     const status=cell(""); const label=document.createElement("span"); label.textContent=item.status.charAt(0).toUpperCase()+item.status.slice(1); label.className=`status ${["building","complete","failed","interrupted"].includes(item.status)?item.status:""}`; status.append(label); status.title=item.error;
     const action=cell(""); const button=document.createElement("button"); button.textContent="View log"; button.setAttribute("aria-label",`View log for ${item.tag}`);
     button.addEventListener("click",()=>{selectedTag=item.tag; logView="auto"; builds(); updateLog();}); action.append(button);
+    action.className="build-actions";
+    if(["failed","interrupted"].includes(item.status)) {
+      const retry=document.createElement("button"); retry.textContent=snapshot.queued_retry===item.tag ? "Retry queued" : "Retry build";
+      retry.dataset.retryTag=item.tag; retry.setAttribute("aria-label",`Retry build for ${item.tag}`);
+      retry.disabled=submitting || snapshot.busy || Boolean(snapshot.queued_retry) || snapshot.service.LoadState!=="loaded";
+      retry.addEventListener("click",()=>retryBuild(item.tag)); action.append(retry);
+    }
     tr.append(cell(item.tag),cell(item.commit.slice(0,7),"commit"),status,cell(date(item.started)),action); body.append(tr);
+    if(focusedTag===item.tag)action.querySelector("[data-retry-tag]")?.focus();
   }
   if (!snapshot.builds.length) empty(body,"No active or recent tagged builds. Run now checks for release tags.");
+}
+async function retryBuild(tag) {
+  if(!snapshot || submitting || snapshot.busy || snapshot.queued_retry)return;
+  submitting=true; $("run").disabled=true; builds();
+  try {
+    const data=await request("retry",{method:"POST",headers:{"Content-Type":"application/json","X-Zenith-CSRF":snapshot.csrf},body:JSON.stringify({tag})});
+    selectedTag=tag; logView="auto"; notice(data.message);
+  } catch(error) {notice(error.message,true);}
+  finally {submitting=false; await refresh();}
 }
 async function updateLog() {
   $("log-title").textContent=selectedTag ? `Build log · ${selectedTag}` : "Build log";
@@ -108,7 +125,7 @@ async function refresh() {
     snapshot=await request("status"); $("connection").textContent="Connected"; $("connection").classList.add("online");
     $("interval").textContent=`${snapshot.timer.interval ? `Every ${interval(snapshot.timer.interval)}` : "Not configured"}${snapshot.timer.state!=="active"?" · "+snapshot.timer.state:""}`;
     $("last").textContent=date(snapshot.timer.last_run); $("next").textContent=snapshot.timer.next_run ? date(snapshot.timer.next_run) : snapshot.busy ? "After current run" : "—";
-    $("run").disabled=submitting || snapshot.busy || snapshot.service.LoadState!=="loaded"; $("run").textContent=snapshot.busy ? "Running…" : "Run now";
+    $("run").disabled=submitting || snapshot.busy || Boolean(snapshot.queued_retry) || snapshot.service.LoadState!=="loaded"; $("run").textContent=snapshot.busy ? "Running…" : "Run now";
     if(snapshot.warnings.length){notice(snapshot.warnings.join("\n"),true);warningNotice=true;}
     else if(warningNotice){notice("");warningNotice=false;}
     const storage=snapshot.storage || {};
@@ -122,7 +139,7 @@ async function refresh() {
   finally {refreshing=false;}
 }
 $("run").addEventListener("click",async()=>{
-  if(!snapshot || submitting)return; submitting=true; $("run").disabled=true;
+  if(!snapshot || submitting)return; submitting=true; $("run").disabled=true; builds();
   try { const data=await request("run",{method:"POST",headers:{"Content-Type":"application/json","X-Zenith-CSRF":snapshot.csrf},body:"{}"}); notice(data.message); }
   catch(error){notice(error.message,true);} finally{submitting=false; await refresh();}
 });

@@ -42,6 +42,10 @@ boundaries. It is not an atomic whole-system snapshot. Kernel changes activate
 after reboot and confirmation; appearance reloads at login. See the
 [client workflow](../ONLINE-PACKAGES.md) before choosing a command.
 
+- [x] Dashboard retries failed/interrupted builds through the existing background
+  controller queue, preserving pinned source and refusing busy/duplicate requests.
+  [Local validation and server update](../archive/2026-10-17/dashboard-retry.md).
+
 ## Remaining steps
 
 - [ ] Retry 0.0.13 with the current controller's shared authentication policy.

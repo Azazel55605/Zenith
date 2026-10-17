@@ -1,7 +1,17 @@
 # Active work
 
-Updated **2026-10-16**. [Status](STATUS.md) owns delivery boundaries;
+Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
 [Roadmap](ROADMAP.md) orders future work.
+
+## Dashboard retry controls
+
+- [x] Add Retry build for failed/interrupted rows, background queue/service API,
+  duplicate/busy guards and restricted installed publisher helper.
+- [x] Add helper/API regression tests; validate rendered desktop/mobile controls.
+- [ ] Update the server with `install-dashboard.sh`; operator verifies one retry
+  survives closing the browser/SSH session.
+
+[Validation and deployment boundaries](archive/2026-10-17/dashboard-retry.md).
 
 ## Native input/write handoff
 

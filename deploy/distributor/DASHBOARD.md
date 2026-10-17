@@ -7,8 +7,12 @@ no Node runtime, npm dependencies, database, CDN, or frontend build step on the 
 It displays the effective timer interval, last service start, next scheduled poll,
 tag/commit/build status, recent logs and published core/extra package versions.
 Repository tabs and search filter the inventory. Run now queues the existing
-zenith-distributor.service; completed tags remain skipped and failed tags still
-need the explicit CLI retry described in AUTOMATION.md. It does not edit timers,
+zenith-distributor.service; completed tags remain skipped. Failed and interrupted
+rows offer **Retry build**, which queues that exact pinned tag and starts the
+same background service. The browser/SSH session can close after it is queued.
+Buttons disable while the controller is busy, submitting, or a retry is queued.
+An abandoned Building record appears Interrupted when the controller lock is free.
+The CLI retry described in AUTOMATION.md remains available. It does not edit timers,
 delete packages, install updates on guests or run arbitrary shell commands.
 
 ## Install on the existing Debian VM
@@ -65,8 +69,16 @@ only to /manage/. Keep this manager on the existing LAN/VPN network.
   the named existing public state/log files and directory traversal permissions.
   Failed build directories and the signing directory are not made group-readable.
 - A root-owned sudoers rule permits exactly systemctl start --no-block
-  zenith-distributor.service. Run requests additionally require same-origin and
-  per-process CSRF token checks. The manager accepts no command arguments.
+  zenith-distributor.service. A second rule runs the root-owned, standalone
+  `/opt/zenith-dashboard/retry.py` as zenith-release with exactly one validated tag;
+  it takes the controller lock and atomically writes only retry-request.json.
+  It refuses unknown/completed/pending tags, active controllers and duplicate queues;
+  durable release records and commit pins stay unchanged. Both POST endpoints require
+  same-origin and per-process CSRF checks; arbitrary command/path arguments are refused.
+  ProtectHome stays read-only except the distributor state subtree, where Unix
+  permissions still deny writes by zenith-dashboard. This carve-out permits only
+  the publisher identity used by the sudo helper to queue the request.
+  If service startup fails after queuing, the UI reports that the timer can process it.
 - Timer and service data come from systemctl show, not a hard-coded schedule.
   Poll-lock checking also detects manually invoked poll.py. A leftover building
   record with no active poll appears Interrupted. State during Git fetching/index
@@ -154,3 +166,13 @@ the direct backend over SSH without nginx, forward local port 8090 to the VM's
 
 Build storage reports now display free/total space, controller-state allocation and
 automatic retention results. See [storage policy](../../docs/PACKAGE-SERVER.md#storage-policy).
+
+## Updating the retry controls
+
+After pulling this change on the distributor, rerun
+`sudo bash deploy/distributor/install-dashboard.sh` and refresh the browser.
+This updates the installed Python/static files, restricted helper/sudoers rule and
+systemd sandbox; a Git pull alone does not update `/opt/zenith-dashboard`.
+Existing login credentials are retained. Verify with one failed/interrupted tag;
+completed tags intentionally have no Retry build button. Retrying preserves the
+pinned source and runs all existing build/publication gates.

@@ -1,2 +1,4 @@
 # Dashboard may only queue the existing release service, with these exact arguments.
 zenith-dashboard ALL=(root) NOPASSWD: /usr/bin/systemctl start --no-block zenith-distributor.service
+# Helper validates one known failed/interrupted tag and queues it as the publisher.
+zenith-dashboard ALL=(zenith-release) NOPASSWD: /usr/bin/python3 -B /opt/zenith-dashboard/retry.py *

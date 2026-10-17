@@ -12,6 +12,8 @@ RestartSec=5s
 UMask=0077
 ProtectSystem=full
 ProtectHome=read-only
+# Unix permissions still keep the dashboard read-only; only the sudo helper can queue.
+ReadWritePaths=/home/zenith-release/.local/state/zenith/distributor
 PrivateTmp=true
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 

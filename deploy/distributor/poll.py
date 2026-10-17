@@ -117,16 +117,9 @@ def launch(checkout, version, recipe, log):
 
 
 def queue_retry(state, tag):
-    state.mkdir(parents=True, exist_ok=True, mode=0o750); state.chmod(0o750)
-    with (state / "poll.lock").open("a") as lock:
-        os.fchmod(lock.fileno(), 0o640)
-        fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        records = json.loads((state / "releases.json").read_text())
-        if tag not in records: raise ValueError("unknown release tag")
-        if records[tag]["status"] == "complete": raise ValueError("release already complete")
-        request = state / "retry-request.json"
-        if request.exists(): raise ValueError("a retry is already queued")
-        save(request, dict(tag=tag))
+    spec = importlib.util.spec_from_file_location("distributor_retry", HERE / "retry.py")
+    retry = importlib.util.module_from_spec(spec); spec.loader.exec_module(retry)
+    retry.queue_retry(state, tag)
     print("Retry queued. Start zenith-distributor.service or wait for its timer.", flush=True)
 
 

@@ -13,7 +13,7 @@ if ! id zenith-dashboard >/dev/null 2>&1; then
 fi
 usermod -aG zenith-release zenith-dashboard
 install -d -o root -g root -m 0755 /opt/zenith-dashboard /opt/zenith-dashboard/web
-install -o root -g root -m 0644 "$dashboard_source/dashboard.py" /opt/zenith-dashboard/
+install -o root -g root -m 0644 "$dashboard_source/dashboard.py" "$dashboard_source/retry.py" /opt/zenith-dashboard/
 install -o root -g root -m 0644 "$dashboard_source"/web/* /opt/zenith-dashboard/web/
 for dashboard_parent in /home/zenith-release/.local /home/zenith-release/.local/state /home/zenith-release/.local/state/zenith; do
     if [[ ! -d "$dashboard_parent" ]]; then install -d -o zenith-release -g zenith-release -m 0750 "$dashboard_parent"; fi

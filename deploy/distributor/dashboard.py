@@ -154,7 +154,13 @@ class Dashboard:
         except OSError: packages = []; warnings.append("Package inventory unavailable")
         try: storage = self.storage()
         except (OSError, ValueError): storage = {}; warnings.append("Storage report unavailable")
-        return dict(csrf=self.csrf, busy=busy, service=service, timer=dict(state=timer.get("ActiveState", "unknown"),
+        queued = None
+        try:
+            request = json.loads(read_file(self.state / "retry-request.json", 1024))
+            if isinstance(request, dict) and isinstance(request.get("tag"), str) and TAG.fullmatch(request["tag"]): queued = request["tag"]
+        except FileNotFoundError: pass
+        except (OSError, ValueError): warnings.append("Retry queue unavailable")
+        return dict(csrf=self.csrf, busy=busy, queued_retry=queued, service=service, timer=dict(state=timer.get("ActiveState", "unknown"),
                     interval=interval[1].strip() if interval else None, last_run=service.get("ExecMainStartTimestamp") or timer.get("LastTriggerUSec"),
                     next_run=next_run), builds=builds, packages=packages, storage=storage, warnings=warnings, refreshed=time.time())
 
@@ -219,6 +225,29 @@ class Dashboard:
             if result.returncode: return 503, {"error": "Could not start distributor. Check its service and dashboard sudo rule."}
             return 202, {"message": "Distributor poll queued."}
 
+    def retry(self, tag):
+        if not isinstance(tag, str) or not TAG.fullmatch(tag):
+            return 400, {"error": "Invalid release tag."}
+        with self.run_lock:
+            status = self.snapshot()
+            if status["busy"] or status["queued_retry"]:
+                return 409, {"error": "A distributor operation is running or a retry is already queued."}
+            if status["service"].get("LoadState") != "loaded":
+                return 503, {"error": "Distributor service is unavailable."}
+            if self.records().get(tag, {}).get("status") not in ("failed", "interrupted", "building"):
+                return 409, {"error": "Only failed or interrupted releases can be retried."}
+            result = subprocess.run(["/usr/bin/sudo", "-n", "-u", "zenith-release", "/usr/bin/python3", "-B",
+                                     "/opt/zenith-dashboard/retry.py", tag], capture_output=True, text=True, timeout=10)
+            if result.returncode:
+                return (409 if result.returncode == 2 else 503), {"error": "Could not queue retry; check controller activity and dashboard permissions."}
+            try:
+                result = subprocess.run(["/usr/bin/sudo", "-n", "/usr/bin/systemctl", "start", "--no-block", SERVICE],
+                                        capture_output=True, text=True, timeout=10)
+                if result.returncode: raise OSError("service start failed")
+            except (OSError, subprocess.SubprocessError):
+                return 503, {"error": "Retry queued, but service could not start. The next distributor timer run will process it."}
+            return 202, {"message": "Retry queued for " + tag + ".", "tag": tag}
+
 
 class Handler(BaseHTTPRequestHandler):
     def reply(self, code, data, kind="application/json; charset=utf-8"):
@@ -255,7 +284,7 @@ class Handler(BaseHTTPRequestHandler):
         except (OSError, subprocess.SubprocessError): self.reply(503, {"error": "Distributor data unavailable"})
 
     def do_POST(self):
-        if self.path != "/manage/api/run": return self.reply(404, {"error": "Not found"})
+        if self.path not in ("/manage/api/run", "/manage/api/retry"): return self.reply(404, {"error": "Not found"})
         try:
             origin = urllib.parse.urlsplit(self.headers.get("Origin", ""))
             valid = origin.scheme in ("http", "https") and origin.netloc == self.headers.get("Host") and \
@@ -267,9 +296,15 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
             if not 0 < length <= 1024 or self.headers.get("Content-Type", "").split(";")[0] != "application/json":
                 raise ValueError("expected a small JSON request")
-            if json.loads(self.rfile.read(length)) != {}: raise ValueError("run request takes no arguments")
-            code, result = self.server.dashboard.run(); self.reply(code, result)
-        except (ValueError, OSError, subprocess.SubprocessError): self.reply(503, {"error": "Could not queue distributor poll"})
+            body = json.loads(self.rfile.read(length))
+            if self.path == "/manage/api/retry":
+                if not isinstance(body, dict) or set(body) != {"tag"}: return self.reply(400, {"error": "Supply exactly one release tag."})
+                code, result = self.server.dashboard.retry(body["tag"])
+            else:
+                if body != {}: raise ValueError("run request takes no arguments")
+                code, result = self.server.dashboard.run()
+            self.reply(code, result)
+        except (ValueError, OSError, subprocess.SubprocessError): self.reply(503, {"error": "Could not queue distributor operation"})
 
 
 def main():

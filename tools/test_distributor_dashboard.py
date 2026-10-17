@@ -50,6 +50,49 @@ class DashboardTests(unittest.TestCase):
     def valid_headers(self):
         return {"Origin": self.url, "Content-Type": "application/json", "X-Zenith-CSRF": self.manager.csrf}
 
+    def test_retry_failed_interrupted_and_abandoned_builds(self):
+        for status in ("failed", "interrupted", "building"):
+            self.records["kernel/v0.0.7"]["status"] = status
+            (self.state / "releases.json").write_text(json.dumps(self.records))
+            before = (self.state / "releases.json").read_bytes()
+            with patch.object(d.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)) as run:
+                code, body, _ = self.request("/manage/api/retry", b'{"tag":"kernel/v0.0.7"}', self.valid_headers())
+            self.assertEqual(202, code, body)
+            self.assertEqual(["/usr/bin/sudo", "-n", "-u", "zenith-release", "/usr/bin/python3", "-B",
+                              "/opt/zenith-dashboard/retry.py", "kernel/v0.0.7"], run.call_args_list[0].args[0])
+            self.assertEqual(["/usr/bin/sudo", "-n", "/usr/bin/systemctl", "start", "--no-block", d.SERVICE], run.call_args_list[1].args[0])
+            self.assertEqual(before, (self.state / "releases.json").read_bytes())
+
+    def test_retry_rejects_invalid_complete_unknown_and_cross_site(self):
+        with patch.object(d.subprocess, "run") as run:
+            for body, code in ((b'{"tag":"kernel/v0.0.7"}', 409), (b'{"tag":"unknown/v1.0"}', 409),
+                               (b'{"tag":"--help"}', 400), (b'{"tag":[]}', 400), (b'{"tag":"kernel/v0.0.7","command":"sh"}', 400)):
+                self.assertEqual(code, self.request("/manage/api/retry", body, self.valid_headers())[0])
+            self.assertEqual(403, self.request("/manage/api/retry", b'{"tag":"kernel/v0.0.7"}')[0])
+            run.assert_not_called()
+
+    def test_retry_pending_queue_and_lock_refuse_duplicates(self):
+        self.records["kernel/v0.0.7"]["status"] = "failed"
+        (self.state / "releases.json").write_text(json.dumps(self.records))
+        request = self.state / "retry-request.json"; request.write_text('{"tag":"kernel/v0.0.7"}')
+        self.assertEqual("kernel/v0.0.7", self.manager.snapshot()["queued_retry"])
+        with patch.object(d.subprocess, "run") as run:
+            self.assertEqual(409, self.manager.retry("kernel/v0.0.7")[0]); run.assert_not_called()
+        request.unlink()
+        with (self.state / "poll.lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            with patch.object(d.subprocess, "run") as run:
+                self.assertEqual(409, self.manager.retry("kernel/v0.0.7")[0]); run.assert_not_called()
+
+    def test_retry_reports_helper_and_service_failures(self):
+        self.records["kernel/v0.0.7"]["status"] = "failed"
+        (self.state / "releases.json").write_text(json.dumps(self.records))
+        with patch.object(d.subprocess, "run", return_value=subprocess.CompletedProcess([], 2)) as run:
+            self.assertEqual(409, self.manager.retry("kernel/v0.0.7")[0]); self.assertEqual(1, run.call_count)
+        with patch.object(d.subprocess, "run", side_effect=[subprocess.CompletedProcess([], 0), subprocess.CompletedProcess([], 1)]):
+            code, result = self.manager.retry("kernel/v0.0.7")
+        self.assertEqual(503, code); self.assertIn("next distributor timer", result["error"])
+
     def test_real_status_and_static_routes(self):
         code, body, headers = self.request("/manage/api/status")
         result = json.loads(body)
