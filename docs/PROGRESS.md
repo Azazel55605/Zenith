@@ -15,14 +15,23 @@ Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
 - [x] Guard ready/running/dead late wakes inside the existing IRQ scope; deduplicate
   created-thread admission before changing stride pass/tickets. Test legitimate
   sleeping/blocked wakeups, late wakes, IRQ-scope restoration and drift refusal.
+- [x] Cover wake-before-switch followed by yield: remove existing entries before
+  sorted reinsertion, preserving unique queue membership and ticket accounting.
 - [x] Quiet pinned monitor/condition/scheduler success traces, including the
   transplanted CoreLib bodies. Add exact output plus completion checks, failure
-  summaries, a retained native monitor socket and three repeated pipeline checks.
-- [ ] Validate final artifact with repeated guest stress and common acceptance.
-  Idle/quantum policy candidates did not resolve the stall and were removed;
-  the actual VM uses full-size ticks. A temporary heavy tracing build faulted
-  under GC and was discarded. No replacement release has been pushed; 0.0.18
-  stays immutable.
+  summaries, a retained native monitor socket and 64 repeated pipeline checks.
+- [x] Reproduce an independent collector defect during extended uninstrumented
+  stress: an interior managed reference is mistaken for an object header, changing
+  the low bit of a native monitor handle. The actual pinned collector reproduces
+  the field mutation on a synthetic heap; owning-object marking prevents it.
+- [x] Add allocation-free conservative root resolution in build copies, bounded
+  to actual segment/object extents; cover ordinary/pinned/array roots, unused/free
+  regions, field integrity, drift refusal and repeat adaptation.
+- [ ] Validate the combined candidate with repeated guest stress across GC and
+  common acceptance. The scheduler-only `f2f8a42` run still stalled on the third
+  pipeline after producing its numeric output; it is not qualified. Idle/quantum
+  candidates were removed. No replacement release has been pushed; 0.0.18 stays
+  immutable.
 - [x] Implement live stdout/stderr, canonical input/EOF, bounded byte pipes and
   protected pipeline contexts; preserve state, identity and cleanup.
 - [x] Add Sunbeam wc/head/tail, stream capability and updated manuals.

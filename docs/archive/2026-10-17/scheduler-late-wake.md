@@ -45,7 +45,7 @@ not a qualified artifact.
   source plug copy: changing the latter after SDK patching alone is ineffective.
   Retain synchronization, error paths, signature checks and drift refusal.
 - Require both pipeline completion and an exact output line, repeat the byte
-  pipeline three times, and report numeric outcomes plus the retained serial path
+  pipeline 64 times, and report numeric outcomes plus the retained serial path
   on failure. Do not repeat operations or infer success from a prompt/substring.
 - Retain a local QEMU monitor socket in native fixtures for subsequent diagnosis.
 
@@ -60,3 +60,40 @@ Kernel 0.0.18 and its existing tag remain immutable.
 - Final-artifact guest stress and full clean-source acceptance remain pending.
 - No replacement kernel tag, distributor publication or operator installation
   has been established by this investigation.
+
+## Collector regression and remaining acceptance
+
+The uninstrumented `f2f8a42` sixty-pipeline stress produced exact counts through
+iteration 50, then faulted immediately after collection #1 freed 1,039,959 objects.
+The fault was in `LowLevelMonitor_Release`: its handle entry pointer had been
+incremented by one, so the dereferenced monitor pointer was shifted by eight bits.
+A saved register held an interior reference to `ThreadWaitInfo._waitMonitor`.
+The conservative scanner sent that address directly to `TryMarkRoot`, which
+accepted the opaque handle as a candidate MethodTable and set its mark bit in the
+field itself. A synthetic host heap executing the pinned collector reproduces
+`ownerMarked=False;handleChanged=True` before adaptation.
+
+The correction resolves register/stack candidates to owning object starts before
+calling the existing mark routine. It walks from a containing segment's Start to
+Bump, using sweep-compatible aligned object/free/filler strides; it does not use
+stale brick-table hints. Both ordinary and pinned heaps are covered. Precise
+roots, actual GC handles and reference enumeration retain their existing paths.
+The same synthetic case becomes `ownerMarked=True;handleChanged=False`.
+No GC disabling, handle masking, reduced fixture size or relaxed success criterion
+is used. The older pinned `GetParentObject` is not used: its signature/brick-table
+algorithm differs from the current upstream checkout.
+
+32 dependency adapter tests pass, including five actual-collector regressions.
+The scheduler-only common run passed login/session and repository gates, but
+stalled on repeated native pipeline 2 after printing 163840 without completion.
+That evidence remains a blocker; a combined-fix stress/full run is required.
+
+A second deterministic queue regression covers a short sleep expiring while the
+sleeper is still CurrentThread. The wake queues it; ScheduleFromInterrupt may
+pick another worker and then yield the already queued current thread. Guarding
+ReadyThread alone does not cover that insertion path. InsertByPass now removes
+existing identity-matching entries before sorted reinsertion, without changing
+ticket totals. The original/f2 path queues it twice; the combined adapter retains
+one entry. Eight wake regressions pass, including this case and sorted reinsertion ahead
+of an existing worker. In total 34 dependency adapters and 121 controller tests
+pass; the combined Release ISO builds. Final exact-commit acceptance is pending.

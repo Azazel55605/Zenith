@@ -42,6 +42,7 @@ void QuietTrace(MethodDefinition method, string firstText, string lastText)
 }
 if (assembly.Name.Name == "Cosmos.Kernel.Core")
 {
+    changed |= ConservativeRootFixup.Apply(module);
     var allocator = module.GetType("Cosmos.Kernel.Core.Memory.PageAllocator")
         ?? throw new InvalidOperationException("Cosmos allocator type changed");
     var pages = allocator.Methods.Single(m => m.Name == "AllocPages" && m.Parameters.Count == 3);
@@ -122,6 +123,38 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
             | FieldAttributes.Literal | FieldAttributes.HasDefault, module.TypeSystem.Boolean) { Constant = true });
         changed = true;
         Console.WriteLine("Adapted stride ready queue: enqueue each thread once without changing existing pass/tickets");
+    }
+    if (!stride.Fields.Any(f => f.Name == "_zenithRequeueOnce"))
+    {
+        // A short sleep can expire before CurrentThread has switched out. Its
+        // wake queues it; a subsequent yield must reorder that entry, not add a
+        // second reference whose pass will be mutated in place on every tick.
+        var method = stride.Methods.Single(m => m.Name == "InsertByPass");
+        var references = method.Body.Instructions.Select(i => i.Operand).OfType<MethodReference>().ToArray();
+        var queue = references.First(m => m.Name == "get_RunQueue");
+        var count = references.First(m => m.Name == "get_Count");
+        var item = references.First(m => m.Name == "get_Item");
+        var remove = stride.Methods.Single(m => m.Name == "RemoveThreadFromQueue").Body.Instructions
+            .Select(i => i.Operand).OfType<MethodReference>().Single(m => m.Name == "RemoveAt");
+        if (method.Parameters.Count != 2 || method.Parameters[0].ParameterType.Name != "StrideCpuData"
+            || method.Parameters[1].ParameterType.Name != "SchedulerThread" || method.IsStatic)
+        { throw new InvalidOperationException("Cosmos stride insertion contract changed"); }
+        var index = new VariableDefinition(module.TypeSystem.Int32); method.Body.Variables.Add(index); method.Body.InitLocals = true;
+        var il = method.Body.GetILProcessor(); var first = method.Body.Instructions[0];
+        var loop = il.Create(OpCodes.Ldloc, index); var decrement = il.Create(OpCodes.Ldloc, index);
+        var guard = new[] {
+            il.Create(OpCodes.Ldarg_1), il.Create(OpCodes.Callvirt, queue), il.Create(OpCodes.Callvirt, count),
+            il.Create(OpCodes.Ldc_I4_1), il.Create(OpCodes.Sub), il.Create(OpCodes.Stloc, index), loop,
+            il.Create(OpCodes.Ldc_I4_0), il.Create(OpCodes.Blt, first),
+            il.Create(OpCodes.Ldarg_1), il.Create(OpCodes.Callvirt, queue), il.Create(OpCodes.Ldloc, index), il.Create(OpCodes.Callvirt, item),
+            il.Create(OpCodes.Ldarg_2), il.Create(OpCodes.Ceq), il.Create(OpCodes.Brfalse, decrement),
+            il.Create(OpCodes.Ldarg_1), il.Create(OpCodes.Callvirt, queue), il.Create(OpCodes.Ldloc, index), il.Create(OpCodes.Callvirt, remove),
+            decrement, il.Create(OpCodes.Ldc_I4_1), il.Create(OpCodes.Sub), il.Create(OpCodes.Stloc, index), il.Create(OpCodes.Br, loop) };
+        foreach (var instruction in guard) { il.InsertBefore(first, instruction); }
+        stride.Fields.Add(new FieldDefinition("_zenithRequeueOnce", FieldAttributes.Private | FieldAttributes.Static
+            | FieldAttributes.Literal | FieldAttributes.HasDefault, module.TypeSystem.Boolean) { Constant = true });
+        changed = true;
+        Console.WriteLine("Adapted stride requeue: remove existing entries before sorted insertion");
     }
     Console.WriteLine("Quieted pinned per-allocation success trace; allocator/error paths retained");
     Console.WriteLine("Quieted pinned monitor wait/wake success traces; synchronization retained");

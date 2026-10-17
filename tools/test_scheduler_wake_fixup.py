@@ -56,6 +56,17 @@ class WakeTests(unittest.TestCase):
         self.assertEqual('queue=1;tickets=200;state=1;irq=3/3;irqFlags=512;passPreserved=True', self.tick(self.copy, 'late-signal'))
         self.assertEqual(original, self.source.read_bytes())
 
+    def test_wake_current_then_yield_keeps_one_sorted_queue_entry(self):
+        self.assertIn('queue=2;tickets=200;state=1', self.tick(self.copy, 'wake-current'))
+        result = self.adapt(); self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn('queue=1;tickets=200;state=1', self.tick(self.copy, 'wake-current'))
+
+    def test_reinsertion_sorts_the_changed_pass_before_existing_workers(self):
+        self.assertIn('sorted=False', self.tick(self.copy, 'wake-current-order'))
+        result = self.adapt(); self.assertEqual(0, result.returncode, result.stderr)
+        output = self.tick(self.copy, 'wake-current-order')
+        self.assertIn('queue=2;', output); self.assertIn('sorted=True', output)
+
     def test_created_thread_is_enqueued_once_without_losing_new_thread_state(self):
         self.assertIn('queue=2;tickets=300;state=0;irq=2/2;irqFlags=512', self.tick(self.copy, 'created'))
         result = self.adapt(); self.assertEqual(0, result.returncode, result.stderr)

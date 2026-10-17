@@ -424,7 +424,12 @@ launcher and native acceptance commands, including optional home DNS testing.
 Pinned scheduler wake regressions run with `python3 -B tools/test_scheduler_wake_fixup.py`
 after building the post-patcher. They execute the real wake/stride implementation
 in a host-only copy with IRQ/UART hardware stubbed; preserve timeout-then-signal
-idempotence, Created state, pass/ticket accounting and IRQ restoration. Native
+idempotence, wake-before-switch/yield requeue, Created state, sorted pass/ticket
+accounting and IRQ restoration. `python3 -B tools/test_conservative_roots_fixup.py`
+executes the pinned collector on a synthetic heap, proving interior references mark
+objects without modifying their fields. Only kernel-address floors are adapted
+for host addresses in this separate fixture copy. Include ordinary/pinned/array,
+free/unused and outside-heap roots. Native
 pipeline checks remain required to establish actual scheduling behavior. See
 [the late-wake investigation](archive/2026-10-17/scheduler-late-wake.md).
 

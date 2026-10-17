@@ -118,7 +118,11 @@ execution ledger or duplicate historical test totals into the roadmap.
   Pinned per-tick/per-allocation success traces are quieted in build copies only.
   Preserve scheduler late-wake idempotence inside the IRQ scope: timeout followed
   by a signal must not duplicate ready entries or change an already queued pass
-  or ticket total. Keep real-dependency wake regressions and repeated native
+  or ticket total. A wake before switch-out followed by yield must reorder one
+  existing entry, never duplicate it. Conservative stack/register GC candidates
+  must resolve to owning object starts before marking; preserve opaque monitor
+  fields and ordinary/pinned object boundaries. Keep real-dependency wake/GC
+  regressions and repeated native
   pipeline completion checks. Monitor trace adaptations must cover transplanted
   CoreLib bodies, not only the copied source plug assembly.
 - Preserve unrelated local changes. Keep generated output, scratch disks and

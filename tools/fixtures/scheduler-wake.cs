@@ -64,7 +64,7 @@ var queue = (System.Collections.IList)data.GetType().GetProperty("RunQueue")!.Ge
 Set(data, "TotalTickets", initial == 2 ? 200UL : 100UL);
 Set(data, "LastPassUpdate", (ulong)Stopwatch.GetTimestamp());
 if (initial == 1) { queue.Add(thread); Set(data, "TotalTickets", 200UL); }
-Set(cpu, "IdleThread", idle); Set(cpu, "CurrentThread", initial == 2 ? thread : idle); Set(cpu, "SchedulerData", data);
+Set(cpu, "IdleThread", idle); Set(cpu, "CurrentThread", initial == 2 || args[2].StartsWith("wake-current") ? thread : idle); Set(cpu, "SchedulerData", data);
 var stride = TypeOf("Stride.StrideScheduler");
 stride.GetField("s_ticksPerQuantum", BindingFlags.Static | BindingFlags.NonPublic)!.SetValue(null, 10000000UL);
 object scheduler = Activator.CreateInstance(stride, true)!;
@@ -82,7 +82,21 @@ if (args[2] == "late-signal")
 }
 wake.Invoke(null, new object[] { 0U, thread });
 long firstPass = (long)currentData.GetType().GetProperty("Pass")!.GetValue(currentData)!;
-if (condition is null) { wake.Invoke(null, new object[] { 0U, thread }); }
+if (args[2].StartsWith("wake-current"))
+{
+    // A one-tick sleep expires while this is still CurrentThread. ReadyThread
+    // queues it; switching to another worker then yields the already queued one.
+    if (args[2] == "wake-current-order")
+    {
+        object competitor = Blank("SchedulerThread");
+        var competitorData = Activator.CreateInstance(TypeOf("Stride.StrideThreadData"), true)!;
+        Set(competitorData, "Pass", firstPass + 20);
+        Set(competitor, "SchedulerData", competitorData); queue.Add(competitor);
+        Set(currentData, "Pass", firstPass + 40);
+    }
+    stride.GetMethod("OnThreadYield")!.Invoke(scheduler, new object[] { cpu, thread });
+}
+else if (condition is null) { wake.Invoke(null, new object[] { 0U, thread }); }
 else { condition.GetType().GetMethod("Signal")!.Invoke(condition, null); }
 long lastPass = (long)currentData.GetType().GetProperty("Pass")!.GetValue(currentData)!;
 Console.WriteLine("queue=" + queue.Count + ";tickets=" + data.GetType().GetProperty("TotalTickets")!.GetValue(data)
@@ -90,3 +104,9 @@ Console.WriteLine("queue=" + queue.Count + ";tickets=" + data.GetType().GetPrope
     + ";irq=" + nativeType.GetField("_hostSaveIrqAndDisable")!.GetValue(null) + "/" + nativeType.GetField("_hostRestoreIrq")!.GetValue(null)
     + ";irqFlags=" + nativeType.GetField("_hostIrqFlags")!.GetValue(null)
     + ";passPreserved=" + (firstPass == lastPass));
+
+if (args[2] == "wake-current-order")
+{
+    long[] passes = queue.Cast<object>().Select(t => (long)currentData.GetType().GetProperty("Pass")!.GetValue(t.GetType().GetProperty("SchedulerData")!.GetValue(t))!).ToArray();
+    Console.WriteLine("sorted=" + passes.SequenceEqual(passes.OrderBy(p => p)));
+}

@@ -83,8 +83,9 @@ try:
     offset=len(m.log());m.send('sunbeam cat\r');time.sleep(.3);m.send('\x03')
     assert m.wait('^C',offset,30),'interactive stdin cancellation'
     command('echo N_STREAM_CANCEL=$? | logger','user: N_STREAM_CANCEL=130')
-    # Repeat backpressure/EOF handoff rather than accepting one lucky schedule.
-    for attempt in range(3):
+    # Exercise repeated backpressure/EOF handoff beyond a single lucky schedule
+    # and across the collection pressure that exposed interior-root corruption.
+    for attempt in range(64):
         check_pipeline(m,'sunbeam --stream-bytes | sunbeam cat | sunbeam wc -c | logger','163840','N_STREAM_BYTES_'+str(attempt))
     check_pipeline(m,'sunbeam --stream-bytes | sunbeam --stream-fp | sunbeam tee /home/user/native-stream-binary | sunbeam wc -c | logger','163840','N_STREAM_FP_BYTES')
     status('sunbeam --stream-bytes > /home/user/native-stream-redirect','N_STREAM_REDIRECT')
