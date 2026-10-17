@@ -622,6 +622,11 @@ smoke tests before the next kernel tag:
 ZENITH_VALIDATION_ACCELERATOR=tcg python3 -B deploy/distributor/validate.py --keep /var/tmp/zenith-candidate-001
 ```
 
+Use a roomy regular filesystem for retained evidence. A small `/tmp` tmpfs can
+fill while cross-filesystem retention expands sparse guest disks, even after all
+test gates pass. Keep the original native workspace when recovering a retention
+failure; verify artifact hashes and clean source before accepting the result.
+
 It builds/tests the candidate and runs login, repository, protected programs and
 kernel recovery in distributor order. `--existing` tests already-built ISO/ELF
 artifacts; `--controller-only` runs the fast harness/controller regressions.

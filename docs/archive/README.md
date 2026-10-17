@@ -22,6 +22,8 @@ Start with [current status](../STATUS.md) or [active work](../PROGRESS.md).
 
 ## Completed slices
 
+- [2026-10-17 native streams](2026-10-17/native-streams.md): live standard descriptors, canonical input, bounded byte pipelines, independent wc/head/tail and full local acceptance; publication pending.
+
 - [2026-10-17 dashboard retries](2026-10-17/dashboard-retry.md): failed/interrupted build controls, restricted publisher queue helper and background service execution.
 
 - [2026-10-16 native input and writes](2026-10-16/native-input-and-writes.md): bounded stdin/file services, independent tee, ISO build repair, full acceptance and keyboard-profile limitations.

@@ -3,42 +3,24 @@
 Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
 [Roadmap](ROADMAP.md) orders future work.
 
-## Native terminal streams and pipelines
+## Native terminal streams: release handoff
 
-Selected by the operator on 2026-10-17. Scope: canonical foreground input,
-streamed stdout/stderr, bounded byte pipes, protected pipeline contexts and
-Sunbeam wc/head/tail. Raw TTY/job control/general process scheduling remain later.
+- [x] Implement live stdout/stderr, canonical input/EOF, bounded byte pipes and
+  protected pipeline contexts; preserve state, identity and cleanup.
+- [x] Add Sunbeam wc/head/tail, stream capability and updated manuals.
+- [x] Fix status inheritance, concurrent cancellation/error handling and console
+  input handoff; add regression coverage.
+- [x] All clean-source test gates at `cba1cbf`: 117 controller, 654 host,
+  71 login/session, 92 repository, expanded native programs and 169 kernel checks.
+  Serial, desktop and local text input/EOF/cancel and binary file audits passed.
+  Evidence-copy tmpfs exhaustion was recovered; final integrity checks passed.
+- [ ] Operator approval to push main and proposed kernel 0.0.18, Sunbeam 0.4.0,
+  manuals 0.1.2 tags. None are tagged/published yet.
+- [ ] Distributor delivery and installed VMware acceptance: kernel update,
+  reboot/confirm first, then tools/manuals and representative pipe/input checks.
 
-- [x] Add bounded byte channels with EOF, reader close, backpressure/cancel tests.
-- [x] Connect shell pipelines and native stdin/stdout/stderr to those streams;
-  retain current last-stage shell state and isolate producer state.
-- [x] Serialize raw BSP execution while keeping bounded pipeline contexts rooted;
-  preserve maintenance exclusion, identity, resource limits and cleanup.
-- [x] Reuse local/desktop/serial line discipline for live input, Ctrl+D and Ctrl+C.
-- [x] Add Sunbeam wc/head/tail and declare a separate native stream capability.
-- [ ] Verify host/native streaming, Unicode/binary pipes, early consumer exit,
-  stderr separation, interactive input, cancel/fault cleanup and release gates.
-
-Host stream/console suite passes (654 total host tests); freestanding Sunbeam build and
-five host utility-algorithm tests pass. Release ISO/ELF builds. The first native
-run reached live input/output successfully but its assertion expected an intact
-keyboard echo despite existing serial debug interleaving; it was corrected to
-require the tool's complete output line. The next run verified EOF/cancel, 160 KiB protected pipelines/FP state and binary
-redirection; its Unicode assertion exposed the existing ASCII-only serial logger.
-UTF-8 is now checked through native byte counts and independent persisted bytes,
-with terminal decoding covered separately. A focused test then reproduced Cosmos
-recursive exception fail-fast during simultaneous native cancellation. Stream/pipe
-cancellation now uses errno/normal cleanup rather than concurrent exceptions;
-early-cancelled stages and sleeping builtins return 130 directly. Repeated native
-and managed pipeline cancellation are regression gates. Serial read ownership now
-ends immediately on Ctrl+C and preserves public partial/queued input plus EOF;
-secret type-ahead remains discarded. Expected native setup/VFS errors are converted
-under a managed-service gate, which is never held across blocking standard streams.
-Focused fresh-install TCG acceptance passed in 69.268 s: five early/blocked native
-pipeline cancellations, managed sleep cancellation, simultaneous missing-file/setup
-errors, eight stages, early reader exit, usable shell and clean shutdown; no runtime
-fail-fast. Full clean-source/common acceptance is pending.
-No stream release is tagged, published or installed yet.
+[Implementation, failures, commands and evidence](archive/2026-10-17/native-streams.md).
+Raw TTY/jobs, seek and general process scheduling remain future work.
 
 ## Intermittent installed TCP connections
 

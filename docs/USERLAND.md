@@ -13,10 +13,10 @@ stdin and regular-file writes. Sunbeam `cat`, `tee`, `ls`, `pwd` and `stat` are
 independent executable code. The shell, remaining builtins, GUI,
 session broker and most services still run as trusted kernel-linked code.
 
-The working tree now implements live stdout/stderr, canonical host input and
+Full local acceptance at `cba1cbf` verifies live stdout/stderr, canonical host input and
 bounded byte pipelines, with independent wc/head/tail. Native contexts may wait
-on managed streams; raw user execution remains serialized on the BSP. Acceptance
-and release handoff are tracked in PROGRESS. This does not add raw TTY/jobs,
+on managed streams; raw user execution remains serialized on the BSP. Publication and operator
+acceptance remain pending in PROGRESS. This does not add raw TTY/jobs,
 managed multicore, sockets or graphical client interfaces. The previous native
 input/write extension is operator-installed; explicit installed behavior checks
 remain separate from package installation.
@@ -27,9 +27,9 @@ remain separate from package installation.
 |---|---|---|
 | Boundaries and signed scripts/data | Implemented | Shared Core/UI seams and installed ownership/transaction policy |
 | Protected executable foundation | Implemented, locally verified | Private mappings, identity/output/exit, faults/timeouts, independent ELF update |
-| Controlled read-only file tools | Implemented, acceptance pending | Caller permissions/cwd, safe buffers/handles, cancellation and installed tool use |
-| Input/writable descriptors | Implemented, locally verified; server/operator acceptance pending | Independently packaged utility safely reads input/writes persistent files |
-| Canonical streams/pipes | Implemented; acceptance in progress | Live std descriptors, bounded byte channels, EOF/cancel and protected-context cleanup |
+| Controlled read-only file tools | Locally verified; delivery operator reported | Caller permissions/cwd, safe buffers/handles, cancellation and installed tool use |
+| Input/writable descriptors | Locally verified; delivery operator reported | Independently packaged utility safely reads input/writes persistent files |
+| Canonical streams/pipes | Locally verified; release/operator acceptance pending | Live std descriptors, bounded byte channels, EOF/cancel and protected-context cleanup |
 | Raw TTY/process lifecycle | Planned | Terminal modes, jobs/wait/termination and environment |
 | Controlled networking and more tools | Planned | Socket ownership/limits and independently updated network/base/fs packages |
 | First graphical client | Planned | Versioned surface/input/IPC, fault isolation and lifecycle cleanup |

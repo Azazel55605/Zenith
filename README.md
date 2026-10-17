@@ -146,7 +146,9 @@ calls. After installing/confirming the compatible kernel and upgrading Sunbeam
 through their own signed package. Existing builtins remain recovery commands.
 The locally verified 0.0.16 / Sunbeam 0.3.0 extension also supports `echo hello | sunbeam tee FILE`,
 `sunbeam tee -a FILE` and `sunbeam cat < FILE`, with explicit kernel capability
-dependencies. See [native programs](docs/NATIVE-PROGRAMS.md) for limits, validation
+dependencies. The locally verified stream extension adds live stdout/stderr,
+canonical input/EOF/Ctrl+C, bounded byte pipes and `sunbeam wc`, `head`, `tail`;
+its new kernel/tool releases are not published yet. See [native programs](docs/NATIVE-PROGRAMS.md) for limits, validation
 state and upgrade order.
 
 ## Settings, sessions and packages

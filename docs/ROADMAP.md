@@ -6,9 +6,10 @@ active work. Historical milestone version targets are not release versions.
 
 ## Now
 
-1. **Complete native stream implementation/acceptance.** Live standard descriptors,
-   canonical input, bounded byte pipes and independent Sunbeam wc/head/tail are
-   selected and underway. Preserve the full pre-release gate.
+1. **Deliver and accept native streams.** Live standard descriptors, canonical
+   input, bounded byte pipes and independent Sunbeam wc/head/tail passed full local
+   acceptance. Publish approved releases, confirm the kernel, then accept tools on
+   the operator VM.
 2. **Finish installed native input/write acceptance.** Operator reports the
    kernel/Sunbeam 0.3.0/manuals update successful, and 0.0.17 installed with initial
    TCP improvement. Verify native invocation, persistent writes and permissions;
@@ -25,10 +26,11 @@ changes do not require moving an existing product tag or issuing a new kernel.
 | Order | Slice | Exit / dependency |
 |---|---|---|
 | 1 | Native input/write operator acceptance | Local common gate passed; delivery/update are operator reported; verify persistent writes/permissions on the installed VM |
-| 2 | Byte streams, terminal and process lifecycle | Define stdin/stdout/stderr, pipes, wait/termination, cwd/env and terminal modes; verify backpressure, EOF, faults and cancellation before broader CLI ports |
-| 3 | More independent command packages | Move selected base/fs/network tools after their required ABI exists; update the executable without changing kernel bytes; keep recovery tools available |
-| 4 | First protected graphical client | Versioned display/input/surface and IPC contract, per-client ownership and fault cleanup; client crash leaves login/session usable |
-| 5 | Desktop and privileged service migration | Separate compositor/session/app responsibilities; restart and compatibility rules proven before replacing the temporary DE |
+| 2 | Native stream delivery | Full local gate passed; publish/confirm compatible kernel before updating tools and accepting operator behavior |
+| 3 | Raw TTY/process lifecycle | Define terminal modes, wait/jobs and environment before larger CLI ports |
+| 4 | More independent command packages | Move selected base/fs/network tools after their required ABI exists; update the executable without changing kernel bytes; keep recovery tools available |
+| 5 | First protected graphical client | Versioned display/input/surface and IPC contract, per-client ownership and fault cleanup; client crash leaves login/session usable |
+| 6 | Desktop and privileged service migration | Separate compositor/session/app responsibilities; restart and compatibility rules proven before replacing the temporary DE |
 
 This is the proposed sequence within the accepted unbundling direction, not a
 claim that all APIs or package names are settled. [Userland steps](USERLAND.md)
@@ -68,7 +70,7 @@ Python and GCC are feasibility goals, not available Zenith packages. See
 
 ## Decisions before the corresponding work starts
 
-- Native descriptor/stream contract and scope of a small libc/SDK.
+- Raw TTY/job-control contract and scope of a small libc/SDK.
 - GUI transport, compositor/toolkit boundary and privilege delegation.
 - `/etc` merge policy and atomicity expectations across data and boot updates.
 - Snapshot backend, mutable-data scope, capacity and failed-trial policy.

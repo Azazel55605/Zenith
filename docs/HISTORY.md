@@ -4,6 +4,8 @@
 
 ## On this page
 
+- [2026-10-17: native streams and independent text tools](#2026-10-17-native-streams-and-independent-text-tools)
+
 - [2026-10-14: installed login, local console and styling packages](#2026-10-14-installed-login-local-console-and-styling-packages)
 - [2026-10-12: real VM kernel update and Debian distributor preparation](#2026-10-12-real-vm-kernel-update-and-debian-distributor-preparation)
 - [2026-10-05: initial system and project identity](#2026-10-05-initial-system-and-project-identity)
@@ -27,6 +29,14 @@
 History includes the login/session implementation (2026-10-14). This is a narrative and change map, not a claim
 that every planned feature shipped. Exact commits are available through `git log`;
 [PROGRESS](PROGRESS.md) contains detailed M2 validation, failures and corrections.
+
+## 2026-10-17: native streams and independent text tools
+
+Protected native execution gained live standard descriptors, canonical host input
+and bounded byte pipelines, with independent Sunbeam wc/head/tail. Full local
+acceptance passed at `cba1cbf`; publication and operator installation remain pending.
+See the [stream record](archive/2026-10-17/native-streams.md) for failures corrected
+and reproducible validation. Raw TTY/jobs and GUI process migration remain future work.
 
 ## 2026-10-14: installed login, local console and styling packages
 

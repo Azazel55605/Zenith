@@ -4,7 +4,8 @@
 
 **State:** M1's interactive shell is implemented. Terminal and local console are
 usable with the configured keyboard layout. Live native streams and bounded byte
-pipelines are implemented in the working tree, with guest acceptance in progress.
+pipelines passed full local acceptance at `cba1cbf`; publication/operator acceptance
+remain pending.
 A full raw TTY remains planned.
 
 ## Implemented steps
@@ -37,7 +38,8 @@ not a persistent cross-reboot database. Bash and nano/Vim are not available port
   still exercises PS/2. [Observed failures](../archive/2026-10-16/native-input-and-writes.md#failures-found-during-acceptance).
 
 - [x] Implement bounded byte streams, EOF/backpressure and stdin/stdout/stderr.
-- [ ] Complete guest/release acceptance for streams and cancellation.
+- [x] Complete guest/common stream and cancellation acceptance.
+- [ ] Complete distributor/installed stream acceptance.
 - [ ] Add terminal modes/cursor/control contracts before full-screen CLI programs.
 - [ ] Integrate process lifecycle/wait/termination without losing caller credentials.
 - [ ] Unbundle selected commands after their controlled runtime APIs are available.
@@ -57,4 +59,5 @@ Relevant native harnesses include [foundation](../../tools/foundation-smoke.py),
 [login/local console](../../tools/login-session-smoke.py) and
 [serial](../../tools/headless-smoke.py). Verify parsing/status/redirection,
 German keys/history, cancellation and secret handling through the actual transport.
-Historical evidence remains in the [archive](../archive/2026-10-15/PROGRESS.md).
+[Stream acceptance](../archive/2026-10-17/native-streams.md) records the current
+local result. Historical evidence remains in the [archive](../archive/2026-10-15/PROGRESS.md).

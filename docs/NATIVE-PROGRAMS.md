@@ -13,8 +13,9 @@
 
 Execution began in 0.0.8; 0.0.13 adds read-only filesystem services. Kernel 0.0.16
 adds finite input and file writes, used by Sunbeam 0.3.0 through an explicit package
-capability. The working tree adds live standard streams and canonical input through
-`zenith-native-stream-abi 1.0`; release acceptance is tracked separately. Current
+capability. The locally verified stream extension adds live standard descriptors and canonical
+input through `zenith-native-stream-abi 1.0`; publication/operator acceptance are
+tracked separately. Current
 release/acceptance is in [Status](STATUS.md), detailed runs in the
 [execution archive](archive/README.md). This begins M5; it does not complete the process, service
 or desktop migration. Sunbeam is a freestanding executable built separately from

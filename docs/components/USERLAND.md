@@ -25,13 +25,14 @@ separate from package installation. Full process/service/GUI migration is unfini
   and flush, plus independent Sunbeam `tee` and stdin `cat`.
 - [x] Complete expanded host/native and full pre-tag acceptance for native I/O.
 - [x] Implement live standard streams, bounded pipelines and Sunbeam wc/head/tail.
-- [ ] Complete guest/common acceptance and release handoff for the stream extension.
+- [x] Complete guest/common acceptance for streams at `cba1cbf`.
+- [ ] Publish releases and complete operator-installed stream acceptance.
 
 ## Current boundary
 
-The working tree adds live stdout/stderr, canonical foreground input and bounded
-byte pipelines, with up to eight waiting native contexts and serialized raw BSP
-entry. Validation/release is in progress in PROGRESS. This is not a general
+The locally verified stream extension adds live stdout/stderr, canonical foreground
+input and bounded byte pipelines with protected waiting contexts and serialized raw
+BSP entry. Publication and operator acceptance are pending in PROGRESS. This is not a general
 preemptive process scheduler. Raw TTY/jobs, seek, environment, sockets and GUI APIs
 remain unimplemented. Managed/kernel code and existing builtins remain trusted.
 The exact limits/wire layout belong to [Native programs](../NATIVE-PROGRAMS.md).
@@ -45,7 +46,7 @@ upgrade and confirm a compatible kernel before updating Sunbeam.
    ordinary user and root.
 2. **Installed input/write acceptance:** repeat representative pipe, write and
    permission checks on the operator VM after the server publishes the packages.
-3. **Stream acceptance, then raw TTY/process lifecycle:** finish the selected slice
+3. **Stream delivery, then raw TTY/process lifecycle:** finish operator acceptance
    before larger CLI ports; then controlled
    networking and graphics. [Migration plan](../USERLAND.md) owns the wider stages.
 
@@ -62,6 +63,9 @@ and the relevant package/boot/login gates for a release. Keep ordinary-user,
 symlink/ancestor denials, invalid copyout without offset advancement, stale handles,
 FP state, timeout/fault/cancel and malicious-stack containment checks. Audit the
 installed filesystem independently after clean poweroff.
+
+`cba1cbf`: full common TCG stream acceptance passed across serial/desktop/local
+hosts. [Stream implementation and acceptance](../archive/2026-10-17/native-streams.md).
 
 `2a515e8`: full common TCG acceptance passed, including expanded native input/writes,
 independent persistent contents/audit, repository and kernel recovery gates.
