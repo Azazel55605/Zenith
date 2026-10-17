@@ -128,3 +128,11 @@ Local full acceptance above remains tied to that exact code commit. This handoff
 supersedes the proposed/pending publication wording above; it establishes Git
 source/tag delivery only. The distributor must still build/sign/publish/verify,
 and actual installed VMware/proxy reliability remains to be checked.
+
+
+## Initial installed follow-up
+
+After the release handoff the operator reports: "ok in and it seems to be
+working". Record 0.0.17 as installed with initial improvement on the actual path;
+explicit boot confirmation, repeated refresh/update counts and sustained acceptance
+are not separately reported. This does not locate the stale-flow generator.

@@ -8,6 +8,7 @@ using System.Threading;
 using Zenith.Core.Packages;
 using Zenith.Core.Storage;
 using Cosmos.Kernel.Boot.Limine;
+using Zenith.Core.IO;
 
 namespace Zenith.Core.Processes;
 
@@ -40,7 +41,16 @@ internal sealed unsafe class NativeProcess
     private readonly ulong _hhdm;
     private ulong* _root;
     private static int s_busy, s_nextPid;
-    private static object[]? s_roots;
+    private const int MaximumProcesses = 8;
+    private static readonly object s_rawGate = new(), s_rootsGate = new();
+    private static readonly Dictionary<int, object[]> s_roots = new();
+    private static void Release(int pid, ref bool released)
+    {
+        if (released) { return; }
+        released = true;
+        lock (s_rootsGate) { s_roots.Remove(pid); }
+        Interlocked.Decrement(ref s_busy);
+    }
     public static bool IsRunning => Volatile.Read(ref s_busy) != 0;
     private NativeProcess()
     {
@@ -107,6 +117,7 @@ internal sealed unsafe class NativeProcess
     {
         try
         {
+            if (c.Call == 400) { return c.Arg0 > int.MaxValue ? -9 : files.IsTerminal((int)c.Arg0); }
             if (c.Call == 3) { return c.Arg0 > int.MaxValue ? -9 : files.Close((int)c.Arg0); }
             if (c.Call == 74) { return c.Arg0 > int.MaxValue ? -9 : files.Flush((int)c.Arg0); }
             if (c.Call == 1)
@@ -150,13 +161,15 @@ internal sealed unsafe class NativeProcess
         catch (Exception error)
         {
             // Cosmos NativeAOT typed catches are unreliable; classify explicitly.
+            if (error is OperationCanceledException) { throw; }
+            if (error is BrokenPipeException) { return -32; }
             if (error is UnauthorizedAccessException) { return -13; }
             if (error is FileNotFoundException || error is DirectoryNotFoundException) { return -2; }
             if (error is ArgumentException) { return -22; }
             return -5;
         }
     }
-    public static (int Status, string Output, ulong Fault) Run(string name, IReadOnlyList<string> arguments, Action cancel, object? lifetimeRoot = null, string cwd = "/", string? input = null)
+    public static (int Status, string Output, ulong Fault) Run(string name, IReadOnlyList<string> arguments, Action cancel, object? lifetimeRoot = null, string cwd = "/", string? input = null, ProcessStreams? streams = null)
     {
 #if ARCH_ARM64
         throw new IOException("native ELF process execution is currently x86_64 only");
@@ -171,11 +184,15 @@ internal sealed unsafe class NativeProcess
         if (bytes.Length != owned.Length || PackagePlanner.Digest(bytes) != owned.Digest || store.Mode(path) != owned.Mode)
         { throw new IOException("native executable differs from its installed package"); }
         var image = ElfImage.Read(bytes); var stack = ProcessArguments.Create(arguments);
+        bool admitted; int pid = 0;
         lock (Installer.MaintenanceGate)
         {
-            if (Installer.IsRunning || Zenith.Core.Shell.Commands.PackageCommands.IsRunning || Zenith.Core.Boot.NativeKernelUpdates.IsRunning
-                || Interlocked.CompareExchange(ref s_busy, 1, 0) != 0) { throw new IOException("native process/system maintenance busy"); }
+            admitted = !Installer.IsRunning && !Zenith.Core.Shell.Commands.PackageCommands.IsRunning
+                && !Zenith.Core.Boot.NativeKernelUpdates.IsRunning && Volatile.Read(ref s_busy) < MaximumProcesses;
+            if (admitted) { Interlocked.Increment(ref s_busy); pid = Interlocked.Increment(ref s_nextPid); }
         }
+        if (!admitted) { throw new IOException("native process/system maintenance busy (maximum 8 contexts)"); }
+        bool released = false;
         NativeProcess? process = null; ProcessFiles? files = null;
         var identity = Zenith.Core.Security.CredentialContext.Current;
         try
@@ -200,37 +217,40 @@ internal sealed unsafe class NativeProcess
             }
             regions[region] = new() { Start = stackBase, End = ProcessArguments.Top };
             process._ranges.Add(new(stackBase, ProcessArguments.Top, true));
-            files = new ProcessFiles(new NativeProcessFiles(), cwd, input);
-            byte* output = process.Allocate(65536);
+            files = new ProcessFiles(new NativeProcessFiles(), cwd, input, streams);
             // The current managed call stack is suspended while the CPU runs the
             // freestanding image. Keep its owner and allocations explicitly rooted.
-            s_roots = new object[] { process, regions, arguments, bytes, image, stack, lifetimeRoot ?? arguments, files };
+            lock (s_rootsGate) { s_roots.Add(pid, new object[] { process, regions, arguments, bytes, image, stack, lifetimeRoot ?? arguments, files }); }
             fixed (Region* list = regions)
             {
                 var context = new Context { Cr3 = process.Physical(process._root), Entry = image.Entry, Stack = stack.StackPointer,
-                    Regions = list, Count = (ulong)regions.Length, Output = output, Capacity = 65536, Ticks = 1000,
+                    Regions = list, Count = (ulong)regions.Length, Ticks = 1000,
                     InterruptStack = 0, Hhdm = process._hhdm, Uid = Zenith.Core.Security.CredentialContext.Current.Uid,
-                    Gid = Zenith.Core.Security.CredentialContext.Current.Gid, Pid = (ulong)Interlocked.Increment(ref s_nextPid),
+                    Gid = Zenith.Core.Security.CredentialContext.Current.Gid, Pid = (ulong)pid,
                     Frame = process.Allocate(176), UserFp = process.Page() };
                 int status; int calls = 0, readBytes = 0;
                 do
                 {
-                    cancel(); status = (int)RunNative(&context);
+                    cancel();
+                    Monitor.Enter(s_rawGate);
+                    try { status = (int)RunNative(&context); Monitor.Exit(s_rawGate); }
+                    catch { Monitor.Exit(s_rawGate); throw; }
                     if (status != 4096) { break; }
                     cancel();
                     if (++calls > 4096) { status = 124; break; }
-                    using var caller = Zenith.Core.Security.CredentialContext.Enter(identity);
-                    context.Result = process.Service(ref context, files, ref readBytes);
+                    var caller = Zenith.Core.Security.CredentialContext.Enter(identity);
+                    try { context.Result = process.Service(ref context, files, ref readBytes); caller.Dispose(); }
+                    catch { caller.Dispose(); throw; }
                     // Give console/cancellation workers a scheduling point during
                     // syscall-heavy loops; Thread.Yield is a stub in Cosmos 3.0.89.
                     if ((calls & 15) == 0) { Thread.Sleep(1); }
                 } while (true);
                 GC.KeepAlive(s_roots);
-                string text = Encoding.UTF8.GetString(new ReadOnlySpan<byte>(output, (int)context.Length)); ulong fault = context.Fault;
-                files.Dispose(); process.Dispose(); s_roots = null; Interlocked.Exchange(ref s_busy, 0); cancel(); return (status, text, fault);
+                ulong fault = context.Fault;
+                files.Dispose(); process.Dispose(); Release(pid, ref released); cancel(); return (status, "", fault);
             }
         }
-        catch { files?.Dispose(); process?.Dispose(); s_roots = null; Interlocked.Exchange(ref s_busy, 0); throw; }
+        catch { files?.Dispose(); process?.Dispose(); Release(pid, ref released); throw; }
 #endif
     }
 }

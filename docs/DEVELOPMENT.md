@@ -605,6 +605,13 @@ checks exact independently read ext2 contents after clean shutdown. New bundles
 require `zenith-native-io-abi 1.0`; upgrade and confirm a compatible kernel first.
 See [the I/O contract](NATIVE-PROGRAMS.md#input-and-writable-descriptors).
 
+The native stream gate adds live output before exit, canonical stdin/EOF/Ctrl+C
+through serial, desktop and local text hosts, binary/UTF-8 pipes, backpressure,
+early reader exit and concurrent-context FP/fault cleanup. It independently checks
+persisted binary pipe/redirection bytes. New bundles require
+`zenith-native-stream-abi 1.0`. Host `tools/test_sunbeam_streams.py` checks utility
+algorithms through a POSIX shim; it does not substitute for native ABI acceptance.
+
 
 ## Pre-tag kernel release acceptance
 

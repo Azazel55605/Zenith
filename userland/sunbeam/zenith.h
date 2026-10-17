@@ -13,6 +13,12 @@ static inline __attribute__((noreturn)) void zenith_exit(int code) {
 static inline long zenith_identity(long number) {
     __asm__ volatile("int $0xfe" : "+a"(number) : : "memory", "cc"); return number;
 }
+/* Stream extension 1: fd 0 canonical input, live byte writes on 1/2.
+ * isatty returns 1/0 or -9 for a closed/invalid standard descriptor. */
+static inline long zenith_isatty(unsigned long fd) {
+    long number=400;
+    __asm__ volatile("int $0xfe" : "+a"(number) : "D"(fd) : "memory", "cc"); return number;
+}
 /* FS extension 1 and IO extension 1; Zenith calls, not Linux open flags. */
 #define Z_OPEN_READ 0UL
 #define Z_OPEN_DIRECTORY 1UL

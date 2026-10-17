@@ -30,11 +30,12 @@ internal sealed class ProcessFiles : IDisposable
     private readonly string _cwd;
     private readonly byte[] _input;
     private int _inputOffset, _written;
+    private readonly ProcessStreams? _streams;
     private bool _inputClosed;
     private int _next = 3;
-    public ProcessFiles(IProcessFiles files, string cwd, string? input = null)
+    public ProcessFiles(IProcessFiles files, string cwd, string? input = null, ProcessStreams? streams = null)
     {
-        _files = files; _cwd = cwd;
+        _files = files; _cwd = cwd; _streams = streams;
         if (Encoding.UTF8.GetByteCount(input ?? "") > MaximumTransfer) { throw new IOException("native stdin exceeds 1 MiB"); }
         _input = Encoding.UTF8.GetBytes(input ?? "");
     }
@@ -55,6 +56,7 @@ internal sealed class ProcessFiles : IDisposable
     }
     public int Close(int fd)
     {
+        if (_streams is not null && fd is >= 0 and <= 2) { return _streams.Close(fd); }
         if (fd == 0) { if (_inputClosed) { return -9; } _inputClosed = true; return 0; }
         if (!_handles.Remove(fd, out var file)) { return -9; }
         file.Dispose(); return 0;
@@ -64,6 +66,7 @@ internal sealed class ProcessFiles : IDisposable
         if (buffer.Length > MaximumIo) { return -22; }
         if (fd == 0)
         {
+            if (_streams is not null) { return _streams.Read(buffer); }
             if (_inputClosed) { return -9; }
             int count = Math.Min(buffer.Length, _input.Length - _inputOffset);
             _input.AsSpan(_inputOffset, count).CopyTo(buffer); _inputOffset += count; return count;
@@ -76,6 +79,7 @@ internal sealed class ProcessFiles : IDisposable
             && (flags & (Truncate | Append)) != (Truncate | Append));
     public int Write(int fd, byte[] buffer)
     {
+        if (_streams is not null && fd is 1 or 2) { return _streams.Write(fd, buffer); }
         if (!_handles.TryGetValue(fd, out var file)) { return -9; }
         if (buffer.Length > MaximumIo) { return -22; }
         if (buffer.Length > MaximumTransfer - _written) { return -28; }
@@ -84,6 +88,7 @@ internal sealed class ProcessFiles : IDisposable
         if (result > buffer.Length) { throw new IOException("invalid native write count"); }
         _written += result; return result;
     }
+    public int IsTerminal(int fd) => _streams?.IsTerminal(fd) ?? (fd == 0 && !_inputClosed ? 0 : -9);
     public int Flush(int fd) => _handles.TryGetValue(fd, out var file) ? file.Flush() : -9;
     public int Next(int fd, byte[] buffer)
     {
@@ -109,6 +114,6 @@ internal sealed class ProcessFiles : IDisposable
     {
         foreach (var file in _handles.Values) { try { file.Dispose(); } catch { /* Continue releasing other handles on teardown. */ } }
         _handles.Clear();
-        _inputClosed = true;
+        _inputClosed = true; _streams?.Close();
     }
 }

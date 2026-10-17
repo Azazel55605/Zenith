@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using Zenith.Core.IO;
 
 namespace Zenith.Core.Shell;
 
@@ -11,12 +12,16 @@ internal interface IOutput
     void Write(string text);
 }
 
-/// <summary>Collects output in memory (pipes and redirections).</summary>
+/// <summary>Collects bounded text for substitutions and compatibility callers.</summary>
 internal sealed class BufferOutput : IOutput
 {
     private readonly StringBuilder _text = new();
 
-    public void Write(string text) => _text.Append(text);
+    public void Write(string text)
+    {
+        if (text.Length > ShellInput.MaximumText - _text.Length) { throw new IOException("buffered shell output exceeds 1 MiB"); }
+        _text.Append(text);
+    }
 
     public override string ToString() => _text.ToString();
 }
@@ -25,34 +30,42 @@ internal sealed class BufferOutput : IOutput
 /// A command's standard input: piped or redirected text, consumed from the front. <c>read</c>
 /// takes one line at a time, so <c>while read line; do ...; done &lt; file</c> walks the file.
 /// </summary>
-internal sealed class ShellInput
+internal sealed class ShellInput : IByteInput
 {
-    private readonly string _text;
+    public const int MaximumText = 1048576;
+    private readonly byte[]? _text;
+    private readonly IByteInput? _stream;
     private int _position;
-
-    public ShellInput(string text) => _text = text;
-
-    public bool AtEnd => _position >= _text.Length;
-
-    /// <summary>The next line without its newline, or null at the end of input.</summary>
+    public ShellInput(string text) => _text = Encoding.UTF8.GetBytes(text);
+    public ShellInput(byte[] bytes) => _text = bytes;
+    public ShellInput(IByteInput stream) => _stream = stream;
+    public bool AtEnd => _text is not null && _position >= _text.Length;
+    public int Read(byte[] buffer)
+    {
+        if (_stream is not null) { return _stream.Read(buffer); }
+        int count = Math.Min(buffer.Length, _text!.Length - _position);
+        _text.AsSpan(_position, count).CopyTo(buffer); _position += count; return count;
+    }
     public string? ReadLine()
     {
-        if (AtEnd)
+        using var text = new MemoryStream(); byte[] one = new byte[1];
+        while (Read(one) != 0)
         {
-            return null;
+            if (one[0] == 10) { return Encoding.UTF8.GetString(text.ToArray()); }
+            if (text.Length == MaximumText) { throw new IOException("shell input line exceeds 1 MiB"); }
+            text.WriteByte(one[0]);
         }
-
-        int end = _text.IndexOf('\n', _position);
-        string line = end < 0 ? _text.Substring(_position) : _text.Substring(_position, end - _position);
-        _position = end < 0 ? _text.Length : end + 1;
-        return line;
+        return text.Length == 0 ? null : Encoding.UTF8.GetString(text.ToArray());
     }
-
     public string ReadToEnd()
     {
-        string rest = _text.Substring(Math.Min(_position, _text.Length));
-        _position = _text.Length;
-        return rest;
+        using var text = new MemoryStream(); byte[] buffer = new byte[4096]; int count;
+        while ((count = Read(buffer)) != 0)
+        {
+            if (text.Length + count > MaximumText) { throw new IOException("buffered shell input exceeds 1 MiB; use a streaming tool"); }
+            text.Write(buffer, 0, count);
+        }
+        return Encoding.UTF8.GetString(text.ToArray());
     }
 }
 

@@ -70,6 +70,40 @@ try:
     status('echo stdin-probe | sunbeam --io-input-buffers','N_IO_INPUT_POINTERS')
     command('echo PIPE_INPUT | sunbeam cat | logger','user: PIPE_INPUT')
     status('sunbeam cat < /dev/null','N_IO_EMPTY_INPUT')
+    # Require observable output before stdin arrives or the process can exit.
+    offset=len(m.log());m.send('sunbeam --stream-probe; echo N_STREAM_LIVE=$? | logger\r')
+    assert m.wait('STREAM_READY',offset,30),'live stdout before input'
+    assert 'user: N_STREAM_LIVE=' not in m.log()[offset:],'process still waiting for stdin'
+    m.send('interactive-line\r');assert m.wait('STREAM_STDERR',offset,30),'separate live stderr'
+    assert m.wait('user: N_STREAM_LIVE=0',offset,30),'canonical input read'
+    offset=len(m.log());m.send('sunbeam cat; echo N_STREAM_EOF=$? | logger\r');time.sleep(.3)
+    m.send('CANONICAL_ECHO\r');assert m.wait('\nCANONICAL_ECHO\n',offset,30),'interactive cat streams complete input line'
+    m.send('\x04');assert m.wait('user: N_STREAM_EOF=0',offset,30),'Ctrl+D returns EOF'
+    offset=len(m.log());m.send('sunbeam cat\r');time.sleep(.3);m.send('\x03')
+    assert m.wait('^C',offset,30),'interactive stdin cancellation'
+    command('echo N_STREAM_CANCEL=$? | logger','user: N_STREAM_CANCEL=130')
+    command('sunbeam --stream-bytes | sunbeam cat | sunbeam wc -c | logger','user: 163840')
+    command('sunbeam --stream-bytes | sunbeam --stream-fp | sunbeam tee /home/user/native-stream-binary | sunbeam wc -c | logger','user: 163840')
+    status('sunbeam --stream-bytes > /home/user/native-stream-redirect','N_STREAM_REDIRECT')
+    command('sunbeam --stream-utf8 | sunbeam tee /home/user/native-stream-utf8 | sunbeam wc -c | logger','user: 3')
+    status('sunbeam --stream-bytes | sunbeam --stream-fault-in','N_STREAM_FAULT',139)
+    status('sunbeam echo after-stream-fault','N_STREAM_FAULT_CLEANUP')
+    command('echo EIGHT_STAGES | sunbeam cat | sunbeam cat | sunbeam cat | sunbeam cat | sunbeam cat | sunbeam cat | logger','user: EIGHT_STAGES')
+    offset=len(m.log());m.send('logger STREAM_CANCEL_READY; sunbeam cat | sunbeam cat\r')
+    assert m.wait('user: STREAM_CANCEL_READY',offset,30),'pipeline cancellation fixture starts'
+    time.sleep(.3);m.send('\x03');assert m.wait('^C',offset,30),'blocked native pipeline cancelled'
+    command('echo N_STREAM_PIPE_CANCEL=$? | logger','user: N_STREAM_PIPE_CANCEL=130')
+    status('sunbeam --stream-bytes | sunbeam head -n 1 > /dev/null','N_STREAM_EARLY_EXIT')
+    status('sunbeam --stream-fds | logger','N_STREAM_FDS')
+    command("printf 'one two\\nthree\\nlast' | sunbeam wc | logger",'user: 2 4 18')
+    command("printf 'one\\ntwo\\nthree' | sunbeam tail -n 2 | logger",'user: two')
+    command("printf 'one\\ntwo\\nthree' | sunbeam head -n 1 | logger",'user: one')
+    status('sunbeam --fs-cpu-state /etc/hostname | sunbeam cat | logger','N_STREAM_FP')
+    offset=len(m.log());m.send('sunbeam cat /missing-native-stream-file | sunbeam wc -c | logger; echo N_STREAM_ERR=$? | logger\r')
+    assert m.wait('user: N_STREAM_ERR=0',offset,30),'pipeline last status'
+    raw=m.log()[offset:];assert 'sunbeam: /missing-native-stream-file: not found' in raw and 'user: 0' in raw,'stderr bypasses pipe'
+    print('PASS live standard streams, EOF/cancel, byte pipeline, early exit, separate stderr and line tools',flush=True)
+
     status('echo FIRST | sunbeam tee /home/user/native-io','N_IO_CREATE')
     status('echo SECOND | sunbeam tee -a /home/user/native-io','N_IO_APPEND')
     command('sunbeam stat /home/user/native-io | logger','size=13')
@@ -180,13 +214,13 @@ try:
             data=source.read(min(remaining,1048576));assert data;destination.write(data);remaining-=len(data)
     audit=subprocess.run(['e2fsck','-fn',str(keep/'root.ext2')],capture_output=True)
     (keep/'e2fsck.log').write_bytes(audit.stdout+audit.stderr);assert audit.returncode==0,'ext2 audit'
-    for path,expected in (('/home/user/native-io',b'ZHIRD\n'),('/home/user/native-owned',b'USER_WRITE\nUSER_APPEND\n'),('/home/user/native-fault',b'F')):
+    for path,expected in (('/home/user/native-io',b'ZHIRD\n'),('/home/user/native-owned',b'USER_WRITE\nUSER_APPEND\n'),('/home/user/native-fault',b'F'),('/home/user/native-stream-binary',bytes(range(256))*640),('/home/user/native-stream-redirect',bytes(range(256))*640),('/home/user/native-stream-utf8',b'\xc3\xbc\n')):
         checked=subprocess.run(['debugfs','-R','cat '+path,str(keep/'root.ext2')],capture_output=True)
         assert checked.returncode==0 and checked.stdout==expected,'independent native write bytes '+path
     print('PASS independent persistent native write contents and ext2 audit',flush=True)
     clean_disk=m.disk;m.stop()
     monitor=keep/'gui-monitor.sock'
-    m=h.Machine(keep/'desktop',clean_disk,'session=de smp=native' if cpu_workers else 'session=de',network=net+['-device','virtio-gpu-pci'],monitor=monitor,vga='none',cpus=2 if cpu_workers else 1)
+    m=h.Machine(keep/'desktop',clean_disk,'session=de smp=native' if cpu_workers else 'session=de',network=net+['-device','virtio-gpu-pci','-device','virtio-keyboard-pci'],monitor=monitor,vga='none',cpus=2 if cpu_workers else 1)
     for font in ('Inter-Regular.ttf','Inter-SemiBold.ttf','Hack-Regular.ttf'):
         assert m.wait('fonts: loaded packaged '+font,timeout=180),'packaged font '+font
     assert m.wait('login ready',timeout=180),'installed login uses packaged fonts'
@@ -200,8 +234,32 @@ try:
         control.sendall(('screendump '+str(keep/'desktop.ppm')+'\n').encode())
         time.sleep(1); control.recv(4096)
     assert (keep/'desktop.ppm').stat().st_size>100000,'desktop screenshot'
-    # The clean ext2 audit covers the main acceptance disk. This final disposable
-    # GUI clone is stopped after rendering; no clean-poweroff claim for that clone.
+    from recovery_console import monitor_command
+    def keyboard_streams(label):
+        off=len(m.log());login_helper.monitor_type(monitor,'logger '+label+'_READY; sunbeam cat | logger; echo '+label+'_EOF=$? | logger\n')
+        assert m.wait('user: '+label+'_READY',off,30),'keyboard stream starts '+label
+        time.sleep(.3);login_helper.monitor_type(monitor,label+'_INPUT\n');time.sleep(.3)
+        monitor_command(monitor,'sendkey ctrl-d 30')
+        assert m.wait('user: '+label+'_INPUT',off,30),'keyboard canonical line '+label
+        assert m.wait('user: '+label+'_EOF=0',off,30),'keyboard EOF '+label
+        off=len(m.log());login_helper.monitor_type(monitor,'logger '+label+'_CANCEL_READY; sunbeam cat | sunbeam cat\n')
+        assert m.wait('user: '+label+'_CANCEL_READY',off,30),'keyboard cancellation starts '+label
+        time.sleep(.3);monitor_command(monitor,'sendkey ctrl-c 30');time.sleep(.3)
+        off=len(m.log());login_helper.monitor_type(monitor,'echo '+label+'_CANCEL=$? | logger\n')
+        assert m.wait('user: '+label+'_CANCEL=130',off,30),'keyboard cancellation returns shell '+label
+        print('PASS native canonical input/EOF/pipeline cancellation '+label,flush=True)
+    monitor_command(monitor,'sendkey ctrl-alt-t 30');time.sleep(1)
+    keyboard_streams('N_GUI')
+    off=len(m.log());monitor_command(monitor,'sendkey ctrl-alt-l 30')
+    assert m.wait('login ready',off,180),'logout after native streams'
+    login_helper.monitor_type(monitor,'root\t')
+    monitor_command(monitor,'sendkey tab 30');monitor_command(monitor,'sendkey right 30');monitor_command(monitor,'sendkey shift-tab 30')
+    off=len(m.log());login_helper.monitor_type(monitor,secret+'\n')
+    assert m.wait('headless ready (local text console)',off,180),'local text console login'
+    keyboard_streams('N_LOCAL')
+    off=len(m.log());login_helper.monitor_type(monitor,'poweroff\n')
+    assert m.wait('all filesystems unmounted',off,30),'keyboard stream clean poweroff'
+    m.process.wait(timeout=30)
     print('PASS independently installed fonts render desktop; full manuals installed',flush=True)
     print('RESULT native text ELF, arguments, bad-pointer rejection, memory/privilege fault containment, timeout and post-fault shell passed',flush=True)
 finally:

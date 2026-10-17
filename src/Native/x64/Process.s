@@ -359,10 +359,9 @@ z_syscall:
     cmp $74, %rax
     je z_service
     cmp $1, %rax
-    jne 8f
-    cmp $3, %rdi
-    jae z_service
-8:
+    je z_service
+    cmp $400, %rax
+    je z_service
     cmp $0, %rax
     je z_service
     cmp $2, %rax
@@ -388,52 +387,9 @@ z_syscall:
     mov %rdi, 64(%rax)
     jmp z_exit
 9:
-    push %rbx
-    push %r8
-    push %r9
-    push %r10
-    push %rcx
-    push %rsi
-    push %rdi
-    push %rdx
-    cmp $1, %rax
-    jne z_no_syscall
-    cmp $1, %rdi
-    jne z_bad_fd
-    test %rdx, %rdx
-    jz z_write_zero
-    cmp $4096, %rdx
-    ja z_output_full
-    mov %rsi, %r9
-    add %rdx, %r9
-    jc z_bad_address
-    mov z_context(%rip), %r10
-    mov 24(%r10), %r8
-    mov 32(%r10), %rcx
-10:
-    cmp (%r8), %rsi
-    jb 11f
-    cmp 8(%r8), %r9
-    jbe 12f
-11:
-    add $16, %r8
-    dec %rcx
-    jnz 10b
-    jmp z_bad_address
-12:
-    mov 56(%r10), %rax
-    add %rdx, %rax
-    jc z_output_full
-    cmp 48(%r10), %rax
-    ja z_output_full
-    mov 40(%r10), %rdi
-    add 56(%r10), %rdi
-    mov %rax, 56(%r10)
-    mov %rdx, %rcx
-    cld
-    rep movsb
-    mov %rdx, %rax
-    jmp z_syscall_return
+    mov $-38, %rax
+    add $16, %rsp
+    iretq
 z_get_pid:
     mov z_context(%rip), %rax
     mov 112(%rax), %rax
@@ -447,31 +403,6 @@ z_get_uid:
 z_get_gid:
     mov z_context(%rip), %rax
     mov 120(%rax), %rax
-    add $16, %rsp
-    iretq
-z_write_zero:
-    xor %eax, %eax
-    jmp z_syscall_return
-z_no_syscall:
-    mov $-38, %rax
-    jmp z_syscall_return
-z_bad_fd:
-    mov $-9, %rax
-    jmp z_syscall_return
-z_bad_address:
-    mov $-14, %rax
-    jmp z_syscall_return
-z_output_full:
-    mov $-28, %rax
-z_syscall_return:
-    pop %rdx
-    pop %rdi
-    pop %rsi
-    pop %rcx
-    pop %r10
-    pop %r9
-    pop %r8
-    pop %rbx
     add $16, %rsp
     iretq
 # Yield only to the original managed call stack/CR3/IDT. Never invoke managed

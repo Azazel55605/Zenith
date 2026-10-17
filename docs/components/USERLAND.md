@@ -3,9 +3,11 @@
 [Documentation](../README.md) · [Current status](../STATUS.md)
 
 **State:** M5 in progress. Protected foreground execution and read-only tools are
-locally verified; the operator has Sunbeam 0.2.0 installed. Bounded native input and
-file writes passed full local acceptance at `2a515e8`. Kernel 0.0.16 / Sunbeam
-0.3.0 tags are pushed; server publication and operator acceptance remain pending. Full process/service/GUI migration is unfinished.
+locally verified. Bounded native input and file writes passed full local acceptance
+at `2a515e8`; the operator reports the kernel/Sunbeam 0.3.0/manuals releases delivered
+and a full system update successful, followed by kernel 0.0.17 installed and initially
+working. Explicit native pipe/write/permission exercise on the installed VM remains
+separate from package installation. Full process/service/GUI migration is unfinished.
 
 ## Implemented steps
 
@@ -22,26 +24,29 @@ file writes passed full local acceptance at `2a515e8`. Kernel 0.0.16 / Sunbeam
 - [x] Implement finite shell stdin, bounded regular-file writes/create/truncate/append
   and flush, plus independent Sunbeam `tee` and stdin `cat`.
 - [x] Complete expanded host/native and full pre-tag acceptance for native I/O.
+- [x] Implement live standard streams, bounded pipelines and Sunbeam wc/head/tail.
+- [ ] Complete guest/common acceptance and release handoff for the stream extension.
 
 ## Current boundary
 
-This is a single foreground process bridge on the BSP, not a general preemptive
-process scheduler. Input/output are bounded buffered UTF-8 text. There is no
-interactive TTY, seek, streaming byte pipeline, environment, sockets, GUI or Linux ABI.
-Managed/kernel code and existing builtins remain trusted. The ordinary builtins
-stay available for recovery; `sunbeam` launches the signed independent package.
-
+The working tree adds live stdout/stderr, canonical foreground input and bounded
+byte pipelines, with up to eight waiting native contexts and serialized raw BSP
+entry. Validation/release is in progress in PROGRESS. This is not a general
+preemptive process scheduler. Raw TTY/jobs, seek, environment, sockets and GUI APIs
+remain unimplemented. Managed/kernel code and existing builtins remain trusted.
 The exact limits/wire layout belong to [Native programs](../NATIVE-PROGRAMS.md).
 New native bundles require the filesystem and input/write capabilities:
 upgrade and confirm a compatible kernel before updating Sunbeam.
 
 ## Next implementation steps
 
-1. **Server/operator acceptance:** distributor publication, installed kernel confirmation and
-   signed Sunbeam invocation as ordinary user and root.
+1. **Installed native acceptance:** publication and installed update are operator
+   reported; explicitly verify boot confirmation and signed Sunbeam invocation as
+   ordinary user and root.
 2. **Installed input/write acceptance:** repeat representative pipe, write and
    permission checks on the operator VM after the server publishes the packages.
-3. **Streams/TTY/process lifecycle:** define before larger CLI ports; then controlled
+3. **Stream acceptance, then raw TTY/process lifecycle:** finish the selected slice
+   before larger CLI ports; then controlled
    networking and graphics. [Migration plan](../USERLAND.md) owns the wider stages.
 
 Each step needs its own active checklist and validation results in PROGRESS when

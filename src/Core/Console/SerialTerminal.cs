@@ -209,19 +209,22 @@ internal sealed class SerialTerminal : IOutput
             if (secret) { _queued.Clear(); }
             else if (_queued.Count > 0) { _answer = _queued.Dequeue(); _answered = true; }
         }
-        try
-        {
-            Write(prompt);
-            while (!_shell.IsCancelled)
-            {
-                lock (_gate) { if (_answered) { return _answer; } }
-                Thread.Sleep(20);
-            }
-            return null;
-        }
-        finally
+        void ClearRead()
         {
             lock (_gate) { _reading = false; _secret = false; _answer = null; _line.Clear(); _overflow = false; }
         }
+        try
+        {
+            Write(prompt); string? answer = null;
+            while (!_shell.IsCancelled)
+            {
+                bool answered;
+                lock (_gate) { answered = _answered; if (answered) { answer = _answer; } }
+                if (answered) { break; }
+                Thread.Sleep(20);
+            }
+            ClearRead(); return answer;
+        }
+        catch { ClearRead(); throw; }
     }
 }

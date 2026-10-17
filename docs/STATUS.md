@@ -14,13 +14,17 @@ summary; [component checklists](README.md#components) own detailed work.
 | Kernel 0.0.15 | Tagged at `f6bf893`; full clean-source pre-tag acceptance passed, including all four native gates; bounded TCP connect retry/retirement and endpoint diagnostics | Tag pushed; operator reports the TCP issue seems gone after handoff. Exact installed version, explicit boot confirmation and individual server delivery checks were not separately supplied |
 | Sunbeam tools 0.2.0 | Read-only file tools locally verified; independent tag pushed | Operator screenshot shows Sunbeam 0.2.0 installed alongside kernel 0.0.14; interactive file-tool acceptance remains |
 | Kernel 0.0.16 / Sunbeam 0.3.0 / manuals 0.1.1 | Tags pushed at fully tested `2a515e8`; finite stdin, guarded writable descriptors and independent tee | Operator reports all three published and reconciled green on the replacement distributor, then a successful full system update; explicit boot confirmation and native I/O exercise remain unreported |
-| Kernel 0.0.17 | `db90ebc` adds entropy-seeded outgoing TCP port allocation; full clean-source acceptance, 12 dependency adapters and focused TCP/HTTPS regression passed | Operator authorized release; tag pushed at exact tested source. Server build/delivery and actual VMware reliability pending; stale-flow cause not established |
+| Kernel 0.0.17 | `db90ebc` adds entropy-seeded outgoing TCP port allocation; full clean-source acceptance, 12 dependency adapters and focused TCP/HTTPS regression passed | Tag pushed at exact tested source; operator reports 0.0.17 installed and initially working. Explicit boot confirmation and sustained VMware reliability remain separately unreported; stale-flow cause not established |
 | Home repository | Operator reports replacement VM restored, delivery verification retries successful and full guest update successful | Repeated guest refresh/update still intermittently exhausts TCP connects to correctly resolved 10.0.10.3:443; packet diagnosis pending |
 
 **Upgrade order for the new native file tools:** update the kernel, reboot and
 confirm it, then update Sunbeam. New bundles require `zenith-native-fs-abi 1.0` and, for current input/write builds,
 `zenith-native-io-abi 1.0`;
 older kernels must reject that dependency. See [native guide](NATIVE-PROGRAMS.md).
+
+The working tree adds the native stream capability and independent wc/head/tail;
+host tests/builds pass and guest/release acceptance is in progress. No new stream
+release is published. See [active steps](PROGRESS.md#native-terminal-streams-and-pipelines).
 
 ## Component summary
 

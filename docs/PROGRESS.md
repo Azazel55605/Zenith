@@ -3,6 +3,32 @@
 Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
 [Roadmap](ROADMAP.md) orders future work.
 
+## Native terminal streams and pipelines
+
+Selected by the operator on 2026-10-17. Scope: canonical foreground input,
+streamed stdout/stderr, bounded byte pipes, protected pipeline contexts and
+Sunbeam wc/head/tail. Raw TTY/job control/general process scheduling remain later.
+
+- [x] Add bounded byte channels with EOF, reader close, backpressure/cancel tests.
+- [x] Connect shell pipelines and native stdin/stdout/stderr to those streams;
+  retain current last-stage shell state and isolate producer state.
+- [x] Serialize raw BSP execution while keeping bounded pipeline contexts rooted;
+  preserve maintenance exclusion, identity, resource limits and cleanup.
+- [x] Reuse local/desktop/serial line discipline for live input, Ctrl+D and Ctrl+C.
+- [x] Add Sunbeam wc/head/tail and declare a separate native stream capability.
+- [ ] Verify host/native streaming, Unicode/binary pipes, early consumer exit,
+  stderr separation, interactive input, cancel/fault cleanup and release gates.
+
+Host stream suite passes (651 total host tests); freestanding Sunbeam build and
+five host utility-algorithm tests pass. Release ISO/ELF builds. The first native
+run reached live input/output successfully but its assertion expected an intact
+keyboard echo despite existing serial debug interleaving; it was corrected to
+require the tool's complete output line. The next run verified EOF/cancel, 160 KiB protected pipelines/FP state and binary
+redirection; its Unicode assertion exposed the existing ASCII-only serial logger.
+UTF-8 is now checked through native byte counts and independent persisted bytes,
+with terminal decoding covered separately. Updated guest/release gates are running.
+No stream release is tagged, published or installed yet.
+
 ## Intermittent installed TCP connections
 
 - [x] Trace refresh/update/fetch/nslookup: downloads resolve automatically through
@@ -25,8 +51,9 @@ Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
   Repeat exact-artifact TCP/HTTPS and all 12 adapters passed.
 - [x] Operator authorized source/release publication; `kernel/v0.0.17` pushed at
   exact tested `db90ebc` with source/validation notes on main.
-- [ ] Observe server build/delivery, then install/boot/confirm and repeat VMware
-  refresh/update. Stale-flow location and actual-path reliability remain open.
+- [x] Operator reports 0.0.17 installed and initially working after release handoff.
+- [ ] Explicit boot confirmation and sustained repeated VMware refresh/update are
+  not separately reported. Stale-flow location remains unconfirmed.
 
 Earlier timeout-retirement/fresh-socket retry is implemented and locally tested;
 actual-path reliability is still open. See [Networking](components/NETWORKING.md)
@@ -64,5 +91,5 @@ The long GUI gate uses virtio keyboard; separate standard-VGA recovery retains
 PS/2 coverage. Sustained legacy PS/2 input loss in the affected QEMU graphical
 profile remains open in [Shell](components/SHELL.md).
 
-Interactive TTY, streaming byte pipes, seek and general process scheduling remain
-future slices. Existing recovery builtins and read-only ABI-1 binaries stay supported.
+Canonical streams/byte pipes are the active slice above; raw TTY, seek and general
+process scheduling remain future slices. Existing recovery builtins and read-only ABI-1 binaries stay supported.

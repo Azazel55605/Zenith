@@ -156,9 +156,11 @@ See [ACCOUNTS](ACCOUNTS.md) for setup, access rules and recovery limits.
 The interpreter supports variables, quoting, globs, conditionals, loops,
 functions, command/arithmetic substitution, scripts, redirection and pipelines.
 Each submitted command line runs on a worker with cooperative cancellation;
-Ctrl+C produces status 130. Pipeline stages buffer output before running the next
-stage. Unbounded producers therefore do not stop when a later `head` would have
-enough data. No jobs, general process table or full-screen raw terminal mode exist.
+Ctrl+C produces status 130. Pipeline stages exchange bytes through 8 KiB channels
+with backpressure; early reader exit stops the producer. Child stages isolate
+producer state and the final stage retains parent state. Eight stages/workers are
+allowed per shell tree, including nested pipelines. Compatibility builtins and
+post-command file redirection buffers are bounded at 1 MiB. No jobs, general process table or full-screen raw terminal mode exist.
 
 Desktop owns input routing, launcher/taskbar and the window manager. Windows
 float, cascade, focus, resize, minimize and maximize. There are no workspaces or
@@ -230,11 +232,13 @@ VFS/driver execution and resume user registers/FP state afterward. Per-invocatio
 handles carry caller credentials and cwd; reads/listings/stat recheck access and
 cleanup runs on exit/fault/timeout/cancel. Managed scheduling points between request
 groups permit cancellation. Raw user windows still suspend normal managed dispatch.
-The native I/O extension adds finite shell stdin and bounded regular-file write,
-create/truncate/append and flush services. Socket, interactive TTY and GUI
-interfaces remain unimplemented.
+The stream extension adds canonical host stdin, live stdout/separate stderr and
+bounded byte pipelines. Up to eight rooted native contexts may wait on managed
+streams; a raw-entry gate serializes their user windows on the BSP. Per-invocation
+file write/create/truncate/append/flush services remain bounded. Sockets, raw TTY,
+job control and GUI interfaces remain unimplemented.
 
-Sunbeam's C/ASM source builds into an independent package containing cat/tee/ls/pwd/stat;
+Sunbeam's C/ASM source builds into an independent package containing cat/tee/wc/head/tail/ls/pwd/stat;
 remaining linked tools stay available for recovery. [Native programs](NATIVE-PROGRAMS.md)
 owns exact wire formats, limits and capability dependencies. [Multicore](MULTICORE.md)
 owns opt-in isolated integer workers; those APs do not execute managed services.

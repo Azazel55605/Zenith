@@ -1,6 +1,6 @@
 # Native programs and filesystem ABI
 
-> Current protected foreground ABI, including read-only services and the native input/write extension. Work steps and release boundary: [Native userland](components/USERLAND.md).
+> Current protected foreground ABI, including read-only services and the native stream extension. Work steps and release boundary: [Native userland](components/USERLAND.md).
 
 ## On this page
 
@@ -9,10 +9,12 @@
 - [Privilege, lifecycle and limits](#privilege-lifecycle-and-limits)
 - [Filesystem services](#filesystem-services)
 - [Input and writable descriptors](#input-and-writable-descriptors)
+- [Live streams and pipelines](#live-streams-and-pipelines)
 
 Execution began in 0.0.8; 0.0.13 adds read-only filesystem services. Kernel 0.0.16
 adds finite input and file writes, used by Sunbeam 0.3.0 through an explicit package
-capability. Current
+capability. The working tree adds live standard streams and canonical input through
+`zenith-native-stream-abi 1.0`; release acceptance is tracked separately. Current
 release/acceptance is in [Status](STATUS.md), detailed runs in the
 [execution archive](archive/README.md). This begins M5; it does not complete the process, service
 or desktop migration. Sunbeam is a freestanding executable built separately from
@@ -33,7 +35,7 @@ native run sunbeam id
 
 The package lives in `extra`; current bundles require `zenith-native-abi 1.0`
 and `zenith-native-fs-abi 1.0`; newly built bundles also require
-`zenith-native-io-abi 1.0`. They declare `x86_64`,
+`zenith-native-io-abi 1.0` and `zenith-native-stream-abi 1.0`. They declare `x86_64`,
 and owns `/usr/share/zenith/native/sunbeam.elf` at 0755. Older kernels cannot satisfy
 the capability dependency. Run verifies ownership, installed mode and SHA256 every
 time. `native check FILE` only inspects ELF; it cannot grant execution permission.
@@ -56,7 +58,7 @@ stack ending at 0x7fff0000, and supervisor-only upper-half kernel/HHDM mappings.
 No lower-half kernel mapping is inherited. At entry RSP addresses argc, argv,
 argv terminator, empty envp and an empty auxiliary vector. Up to 32 arguments
 including argv[0], each at most 1024 UTF-8 bytes and 8192 bytes in total, are allowed.
-The filesystem services below add inherited cwd, a finite stdin snapshot and private
+The filesystem services below add inherited cwd, canonical or piped stdin and private
 descriptors. Environment variables are not exposed.
 
 `int 0xfe` is the DPL3 entry. RAX selects the call; RDI/RSI/RDX carry arguments.
@@ -64,15 +66,15 @@ RAX holds the result; other general registers are preserved. Calls:
 
 | Number | Operation | Bound |
 |---|---|---|
-| 1 | write(fd, address, bytes) | fd=1 buffered output; fd>=3 writable file service; readable user region required |
+| 1 | write(fd, address, bytes) | fd=1/2 live stdout/stderr; fd>=3 writable file service; readable user region required |
 | 39 | process ID | Unique positive ID for this boot's invocations |
 | 60 | exit(status) | Low eight bits become shell status |
 | 102 | user ID | Snapshot of invoking credentials |
 | 104 | group ID | Snapshot of invoking credentials |
+| 400 | isatty(fd) | Standard descriptor: 1 terminal, 0 pipe/redirection, -9 closed/invalid |
 
 Unknown calls return -38, invalid output pointers -14, invalid descriptor -9 and
-output-limit errors -28. Output is buffered and returned to the invoking shell
-when the process exits. The freestanding startup/C wrappers are in
+output-limit errors -28. Standard output/error yield to the managed caller and become visible before exit. The freestanding startup/C wrappers are in
 [userland/sunbeam](../userland/sunbeam). GCC is preferred for cross-building;
 Clang/LLD can build the same source. No libc, .NET runtime or Linux loader is used. This ABI permits x87/SSE with a
 clean initial environment; OSXSAVE/AVX are disabled during execution until extended
@@ -89,7 +91,8 @@ Code pages are read-only, data/stack pages are NX and kernel mappings are superv
 only. CPU setup without NX, with LA57, incompatible IDT/GDT/IST layout, or migration
 to another CPU is refused with status 95. ARM64 execution is not implemented.
 
-This is one bounded foreground process on its original CPU. During its raw user
+Up to eight bounded invocation contexts can wait on managed streams on the BSP.
+A shared entry gate serializes every raw user window on its original CPU. During its raw user
 window normal managed scheduler/device handlers do not run; IRQs are acknowledged
 and the timer supplies a budget of 1000 interrupts. A loop terminates with status
 124. This is an interrupt budget, not a portable wall-clock duration. Managed
@@ -182,9 +185,8 @@ again on each entry. Metadata follows the existing VFS stat contract.
 Metadata uses little-endian size (u64), mode/uid/gid (three u32s) and reserved-zero
 u32. A directory record adds a 256-byte UTF-8/NUL name. Directory handles expose a
 bounded snapshot of at most 4096 entries; `ls` prints one entry per line in filesystem
-order, supports `-a`/`-l`, and currently expects directory operands. Output remains
-buffered UTF-8 text, capped at 64 KiB per invocation; this is not a binary stream or
-raw-terminal ABI. `cat` reads files or stdin in 4 KiB chunks and reports failures. Tools use the freestanding GCC/Clang startup/header, without libc.
+order, supports `-a`/`-l`, and currently expects directory operands. Native pipe output preserves bytes; terminal output uses incremental UTF-8 decoding.
+A raw-terminal ABI is not provided. `cat` reads files or stdin in 4 KiB chunks and reports failures. Tools use the freestanding GCC/Clang startup/header, without libc.
 
 Each invocation permits 16 live handles, 4 KiB per I/O request, 1 MiB accumulated file/directory readback,
 4096 managed requests and the existing 1000-interrupt user execution budget.
@@ -193,7 +195,7 @@ normal scheduler sleep so console/cancellation workers can run; Cosmos 3.0.89's
 `Thread.Yield` is a stub. Invalid descriptors return -9, denied operations -13,
 missing paths -2, unsupported flags/encoding -22, handle exhaustion -24, readback
 or write limit -28, cwd capacity -34 and oversized paths/names -36. Other VFS errors
-return -5. Seek, process spawning, streaming byte pipes and scheduling on managed
+return -5. Seek, process spawning/job control and scheduling on managed
 APs remain later slices. Handles close on exit, fault, timeout and cancellation.
 
 The expanded native executable gate checks real reads/listing/cwd/stat, ordinary
@@ -215,12 +217,10 @@ echo next | sunbeam tee -a /home/user/note
 sunbeam cat < /home/user/note
 ```
 
-Stdin (fd 0) is a private, finite UTF-8 snapshot of the shell's buffered pipe or
-redirected input, limited to 1 MiB. Without input, reads return EOF. Closing fd 0
-invalidates it for that invocation. This does not introduce interactive keyboard
-reads, a raw TTY or streaming binary pipes. Stdout remains buffered text with a
-64 KiB limit and 4 KiB per call; stderr is not exposed. `tee` can therefore leave a
-partially written file if its output limit or another operation fails.
+The original input/write extension consumed finite UTF-8 input. The stream
+extension below replaces it with live byte descriptors. Closing a standard
+descriptor invalidates it for that invocation. `tee` can leave a partially written
+file if its output limit or another operation fails.
 
 Open flags are Zenith-specific, not POSIX/Linux constants:
 
@@ -258,3 +258,53 @@ The native gate covers pipe/redirection EOF, create/truncate/append, invalid ran
 without offset advancement, size limits, final-symlink/device refusals, caller
 ownership/permissions, fault/cancellation cleanup and independent on-disk contents.
 Release and operator acceptance are tracked separately in PROGRESS and STATUS.
+
+## Live streams and pipelines
+
+New native bundles declare `zenith-native-stream-abi 1.0`. Install and confirm the
+compatible kernel before upgrading Sunbeam. Previous ABI-1 binaries remain usable.
+This slice adds independently compiled `wc [-lwc] [FILE]`, `head [-n N] [FILE]`
+and `tail [-n N] [FILE]`; omit FILE or use `-` for stdin. Each accepts one operand.
+`wc` counts newlines, ASCII-whitespace words and bytes (not Unicode characters).
+Head/tail default to 10 lines and accept N=0..1024. Tail retains at most 64 KiB;
+an oversized retained window fails explicitly instead of silently truncating it.
+
+```text
+sunbeam cat
+# Type a line and Enter; Ctrl+D on an empty line ends input; Ctrl+C cancels.
+printf 'one two\nthree\n' | sunbeam wc
+sunbeam cat /home/user/note | sunbeam head -n 5
+sunbeam tail -n 10 /home/user/note
+```
+
+- fd 0 reads a pipe/redirection or the invoking host's canonical line input.
+  Enter supplies UTF-8 bytes plus LF; empty-line Ctrl+D gives sticky EOF.
+  Local console, desktop terminal and serial fallback use their existing input
+  routing. The existing serial transport remains ASCII; UTF-8 byte preservation
+  is verified through pipes/files and terminal decoding separately. This does not add raw keys, termios, PTYs or terminal signals.
+- fd 1 streams live to the selected stdout; fd 2 goes directly to the terminal,
+  outside the stdout pipe/redirection. Invalid UTF-8 at a text terminal uses the
+  decoder's replacement policy; native byte pipes/redirections preserve all bytes.
+- A shell pipe holds at most 8192 bytes and applies backpressure. Producer stages
+  run in child shells; the last stage retains the parent's state (`read NAME`).
+  The shell joins all stages, returning the last status. An early reader exit
+  closes its input; the native producer receives -32 and Sunbeam exits 141 quietly.
+  Ctrl+C cancels the entire foreground pipeline and returns 130.
+- One shell tree admits at most eight total stage workers including the caller;
+  nested pipelines share that budget. At most eight native contexts exist globally.
+  Credentials, private mappings/registers/FP state, request budgets and roots belong
+  to each invocation; raw assembly entry remains serialized. This is cooperative
+  BSP stream scheduling, not a general process scheduler or managed multicore.
+- Each invocation allows 4 KiB requests, 1 MiB stdin and 1 MiB combined stdout/stderr,
+  separate from file read/write budgets. At the exact input cap a one-byte probe
+  distinguishes EOF from overflow; overflow returns -28 without exposing the extra
+  byte. A closed/invalid standard fd returns -9; zero-byte reads do not prompt.
+- Buffered shell builtins still collect text up to 1 MiB. File redirections commit
+  after the command with a 1 MiB buffer, while native `tee` writes incrementally.
+  These compatibility paths are bounded, not fully streaming file transactions.
+
+The host stream tests cover wraparound, bytes/UTF-8, backpressure, EOF, closure,
+canonical input and cancellation. The native gate checks live pre-exit output,
+interactive EOF/cancel, multiple protected pipeline stages, early reader exit,
+stderr separation, file redirection, FP/fault/permission cleanup and installed
+same-kernel upgrades. Host utility tests validate algorithms, not the guest ABI.

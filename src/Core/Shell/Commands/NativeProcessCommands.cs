@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Zenith.Core.Processes;
+using Zenith.Core.IO;
 
 namespace Zenith.Core.Shell.Commands;
 
@@ -9,7 +10,7 @@ internal static class NativeProcessCommands
     public static void Register(Action<Command> add)
     {
         add(new Command("native", "native check FILE | run NAME [ARGS...]", "Inspect or run a packaged x86_64 native text program", Run));
-        add(new Command("sunbeam", "sunbeam [cat|tee|ls|pwd|stat|echo|id|basename|dirname] [ARGS...]", "Run independently packaged Sunbeam tools", c => Execute(c, "sunbeam", new[] { "sunbeam" }.Concat(c.Args).ToArray())));
+        add(new Command("sunbeam", "sunbeam [cat|tee|wc|head|tail|ls|pwd|stat|echo|id|basename|dirname] [ARGS...]", "Run independently packaged Sunbeam tools", c => Execute(c, "sunbeam", new[] { "sunbeam" }.Concat(c.Args).ToArray())));
     }
     private static int Run(CommandContext c)
     {
@@ -23,11 +24,15 @@ internal static class NativeProcessCommands
     }
     private static int Execute(CommandContext c, string name, string[] arguments)
     {
-        var result = NativeProcess.Run(name, arguments, c.Shell.ThrowIfCancelled, c, c.Shell.WorkingDirectory, c.Stdin);
-        c.Out.Write(result.Output);
-        if (result.Fault != 0 && result.Status != 95) { c.WriteLine("native process terminated by CPU fault vector=" + result.Fault); }
-        if (result.Status == 124) { c.WriteLine("native process exceeded its execution budget"); }
-        if (result.Status == 95) { c.WriteLine("native process unsupported by current CPU/kernel descriptor setup; check stage=" + result.Fault + ""); }
+        IByteInput input = c.Input ?? (IByteInput)new LineByteInput(() => c.Shell.ReadInputLine?.Invoke(""), c.Shell.ThrowIfCancelled);
+        var stdout = new CommandByteOutput(c.Out); var stderr = new CommandByteOutput(c.Err);
+        var streams = new ProcessStreams(input, (fd, bytes) => fd == 1 ? stdout.Write(bytes) : stderr.Write(bytes),
+            c.Input is null && c.Shell.ReadInputLine is not null, c.IsTerminal, c.Err == c.Shell.Terminal);
+        var result = NativeProcess.Run(name, arguments, c.Shell.ThrowIfCancelled, c, c.Shell.WorkingDirectory, streams: streams);
+        stdout.Complete(); stderr.Complete();
+        if (result.Fault != 0 && result.Status != 95) { c.Err.Write("native process terminated by CPU fault vector=" + result.Fault + "\n"); }
+        if (result.Status == 124) { c.Err.Write("native process exceeded its execution budget\n"); }
+        if (result.Status == 95) { c.Err.Write("native process unsupported by current CPU/kernel descriptor setup; check stage=" + result.Fault + "\n"); }
         return result.Status;
     }
 }

@@ -16,6 +16,7 @@ CONTROLLER_TESTS = (
     "test_guest_auth.py", "test_validation_status.py", "test_validation_profile.py",
     "test_validation_accelerator.py", "test_distributor_validation.py",
     "test_recovery_console.py", "test_release_acceptance.py", "test_distributor_retry.py",
+    "test_sunbeam_streams.py",
 )
 
 

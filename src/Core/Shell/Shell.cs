@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using Zenith.Core.IO;
 using Zenith.Core.Shell.Commands;
 using Zenith.Core.Security;
 
@@ -24,6 +26,9 @@ internal sealed class Shell : IExpansionContext
     private readonly Dictionary<string, Node> _functions = new();
     private readonly IOutput _terminal;
     private readonly Shell? _parent;
+    private sealed class PipelineWork { public int Workers; }
+    private readonly PipelineWork _pipelineWork;
+    private const int MaximumPipelineStages = 8;
     public Credentials Identity { get; private set; } = CredentialContext.Current;
     public Func<string, string?>? ReadSecret { get; set; }
     public void SetIdentity(Credentials identity, string name, string home)
@@ -59,6 +64,7 @@ internal sealed class Shell : IExpansionContext
     public Shell(IOutput terminal, bool login = true, IFileMetadata? metadata = null)
     {
         _terminal = terminal;
+        _pipelineWork = new PipelineWork();
         Metadata = metadata ?? (login ? DefaultMetadata : null);
 
         string home = "/home/user";
@@ -81,6 +87,10 @@ internal sealed class Shell : IExpansionContext
     private Shell(Shell parent)
     {
         _parent = parent;
+        LastStatus = parent.LastStatus;
+        _pipelineWork = parent._pipelineWork;
+        foreach (var pair in parent._functions) { _functions[pair.Key] = pair.Value; }
+        _positional = new List<string>(parent._positional); _scriptName = parent._scriptName;
         Identity = parent.Identity;
         ReadSecret = parent.ReadSecret;
         Metadata = parent.Metadata;
@@ -391,7 +401,8 @@ internal sealed class Shell : IExpansionContext
                     return 1;
                 }
 
-                input = new ShellInput(File.ReadAllText(target));
+                if (new FileInfo(target).Length > ShellInput.MaximumText) { throw new IOException("redirected input exceeds 1 MiB"); }
+                input = new ShellInput(File.ReadAllBytes(target));
             }
             else
             {
@@ -405,20 +416,15 @@ internal sealed class Shell : IExpansionContext
             return ExecCore(node, input, output);
         }
 
-        var buffer = new BufferOutput();
+        var buffer = new RedirectOutput();
         int status = ExecCore(node, input, buffer);
         try
         {
             using var writerIdentity = CredentialContext.Enter(Identity);
-            string text = Ansi.Strip(buffer.ToString());
-            if (append)
-            {
-                File.AppendAllText(outputFile, text);
-            }
-            else
-            {
-                File.WriteAllText(outputFile, text);
-            }
+            byte[] bytes = buffer.Bytes;
+            var file = new FileStream(outputFile, append ? FileMode.Append : FileMode.Create, FileAccess.Write);
+            try { file.Write(bytes, 0, bytes.Length); file.Dispose(); }
+            catch { file.Dispose(); throw; }
         }
         catch (Exception e)
         {
@@ -491,19 +497,64 @@ internal sealed class Shell : IExpansionContext
 
     private int ExecPipeline(PipelineNode node, ShellInput? input, IOutput output)
     {
-        int status = 0;
-        for (int i = 0; i < node.Stages.Count && !IsCancelled; i++)
+        if (node.Stages.Count == 1)
         {
-            bool last = i == node.Stages.Count - 1;
-            BufferOutput? buffer = last ? null : new BufferOutput();
-            status = Exec(node.Stages[i], input, buffer is null ? output : buffer);
-            if (buffer is not null)
-            {
-                input = new ShellInput(Ansi.Strip(buffer.ToString()));
-            }
+            int single = Exec(node.Stages[0], input, output);
+            return node.Negate ? (single == 0 ? 1 : 0) : single;
         }
-
-        return node.Negate ? (status == 0 ? 1 : 0) : status;
+        int count = node.Stages.Count, workers = count - 1;
+        bool reserved;
+        lock (_pipelineWork)
+        {
+            reserved = count <= MaximumPipelineStages && _pipelineWork.Workers + workers < MaximumPipelineStages;
+            if (reserved) { _pipelineWork.Workers += workers; }
+        }
+        if (!reserved) { throw new IOException("pipeline exceeds 8 stages/workers"); }
+        var pipes = new BytePipe[workers]; var done = new int[count]; var results = new int[count];
+        int started = 0;
+        for (int i = 0; i < workers; i++) { pipes[i] = new BytePipe(ThrowIfCancelled); }
+        void Stage(int index, Shell shell)
+        {
+            var credentials = CredentialContext.Enter(shell.Identity);
+            try
+            {
+                results[index] = shell.Exec(node.Stages[index], index == 0 ? input : new ShellInput(pipes[index - 1]),
+                    index == count - 1 ? output : new PipeOutput(pipes[index]));
+            }
+            catch (Exception error)
+            {
+                results[index] = IsCancelled || error is OperationCanceledException ? 130 : error is BrokenPipeException ? 141 : 1;
+                if (results[index] == 1) { try { _terminal.Write("sh: " + error.Message + "\n"); } catch { } }
+            }
+            // Explicit cleanup: Cosmos does not reliably run unwind-finally blocks.
+            credentials.Dispose();
+            if (index > 0) { pipes[index - 1].CloseReader(); }
+            if (index < workers) { pipes[index].CompleteWriter(); }
+            Volatile.Write(ref done[index], 1);
+        }
+        void Join()
+        {
+            for (int i = 0; i < started; i++)
+            { while (Volatile.Read(ref done[i]) == 0) { Thread.Sleep(1); } }
+        }
+        try
+        {
+            for (int i = 0; i < workers; i++)
+            {
+                int index = i; var child = new Shell(this);
+                new Thread(() => Stage(index, child)).Start(); started++;
+            }
+            Stage(count - 1, this); Join();
+            lock (_pipelineWork) { _pipelineWork.Workers -= workers; }
+            int status = results[count - 1];
+            return node.Negate ? (status == 0 ? 1 : 0) : status;
+        }
+        catch
+        {
+            foreach (var pipe in pipes) { pipe.Abort(); }
+            Join(); lock (_pipelineWork) { _pipelineWork.Workers -= workers; }
+            throw;
+        }
     }
 
     private int ExecIf(IfNode node, ShellInput? input, IOutput output)
@@ -693,7 +744,7 @@ internal sealed class Shell : IExpansionContext
         catch (Exception e)
         {
             // A cancelled command is not an error: no message, and the caller ends the line.
-            return IsCancelled ? 130 : context.Fail(e.Message);
+            return IsCancelled || e is OperationCanceledException ? 130 : e is BrokenPipeException ? 141 : context.Fail(e.Message);
         }
     }
 

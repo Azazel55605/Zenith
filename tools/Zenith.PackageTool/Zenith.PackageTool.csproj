@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../src/Core/IO/*.cs" LinkBase="IO" />
     <Compile Include="../../src/Core/Boot/*.cs" Exclude="../../src/Core/Boot/Native*.cs" LinkBase="Boot" />
     <Compile Include="../../src/Core/Packages/*.cs" Exclude="../../src/Core/Packages/Native*.cs" LinkBase="Packages" />
     <Compile Include="../../src/Core/Processes/*.cs" Exclude="../../src/Core/Processes/Native*.cs" LinkBase="Processes" />

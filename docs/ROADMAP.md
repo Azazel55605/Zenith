@@ -1,26 +1,30 @@
 # Roadmap
 
-Reviewed **2026-10-16**. This page owns order and milestone exits, not the execution
+Reviewed **2026-10-17**. This page owns order and milestone exits, not the execution
 log. Read [Status](STATUS.md) for delivery evidence and [Progress](PROGRESS.md) for
 active work. Historical milestone version targets are not release versions.
 
 ## Now
 
-1. **Accept the native input/write release.** Kernel 0.0.16 / Sunbeam 0.3.0 tags
-   are pushed after full local acceptance. Confirm server publication, then install
-   and confirm the kernel before upgrading the tools.
-2. **Investigate legacy PS/2 input loss.** The long QEMU graphical test passes
+1. **Complete native stream implementation/acceptance.** Live standard descriptors,
+   canonical input, bounded byte pipes and independent Sunbeam wc/head/tail are
+   selected and underway. Preserve the full pre-release gate.
+2. **Finish installed native input/write acceptance.** Operator reports the
+   kernel/Sunbeam 0.3.0/manuals update successful, and 0.0.17 installed with initial
+   TCP improvement. Verify native invocation, persistent writes and permissions;
+   explicit boot confirmation and sustained TCP acceptance remain separately tracked.
+3. **Investigate legacy PS/2 input loss.** The long QEMU graphical test passes
    with virtio keyboard; sustained PS/2 typing in the affected framebuffer-console
    profile remains open. Preserve separate PS/2 standard-VGA recovery coverage.
 
-Release stability and server acceptance precede the next ABI slice. Controller
+Stream release acceptance and server/operator handoff precede broader CLI ports. Controller
 changes do not require moving an existing product tag or issuing a new kernel.
 
 ## Next: continue unbundling
 
 | Order | Slice | Exit / dependency |
 |---|---|---|
-| 1 | Native input/write operator acceptance | Local common gate passed; confirm server delivery and persistent writes/permissions on the installed VM |
+| 1 | Native input/write operator acceptance | Local common gate passed; delivery/update are operator reported; verify persistent writes/permissions on the installed VM |
 | 2 | Byte streams, terminal and process lifecycle | Define stdin/stdout/stderr, pipes, wait/termination, cwd/env and terminal modes; verify backpressure, EOF, faults and cancellation before broader CLI ports |
 | 3 | More independent command packages | Move selected base/fs/network tools after their required ABI exists; update the executable without changing kernel bytes; keep recovery tools available |
 | 4 | First protected graphical client | Versioned display/input/surface and IPC contract, per-client ownership and fault cleanup; client crash leaves login/session usable |

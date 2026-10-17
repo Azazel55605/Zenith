@@ -56,6 +56,10 @@ execution ledger or duplicate historical test totals into the roadmap.
   0.0.13 adds managed filesystem service yield/resume and read-only Sunbeam
   cat/ls/pwd/stat. The native I/O extension adds finite shell stdin, guarded
   file writes and Sunbeam tee; new bundles declare zenith-native-io-abi 1.0.
+  The stream extension adds live standard descriptors/canonical host input and
+  8 KiB byte pipes (eight shell stages/workers, eight native contexts globally).
+  Raw entry stays serialized on the BSP; managed service waits may overlap. New
+  bundles require zenith-native-stream-abi 1.0. Keep stream/cancel/early-exit tests.
   Preserve full-range copyin/copyout checks, identity/cwd, handle cleanup,
   user FP/register state, request/interrupt budgets and native permission/cancel tests.
   See docs/NATIVE-PROGRAMS.md for foreground ABI limits; preserve fault/NX/W^X,

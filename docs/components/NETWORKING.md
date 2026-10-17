@@ -38,16 +38,17 @@ connect attempts to the correctly resolved proxy 10.0.10.3:443. Bounded fresh-so
 retry and timed-out registration retirement have local guest acceptance, but do
 not establish reliable operation through the actual VMware/proxy path. A new
 capture reproduces SYN -> stale plain ACK -> appropriate RST; later success after
-waiting suggests expiring flow state, with its location unconfirmed. Pinned source
-ports restart at 49152 each boot. See [evidence](../archive/2026-10-17/tcp-stale-flow.md)
+waiting suggests expiring flow state, with its location unconfirmed. The pinned
+prior allocator restarted source ports at 49152 each boot. See [evidence](../archive/2026-10-17/tcp-stale-flow.md)
 and [Progress](../PROGRESS.md); a manual nslookup is not a client prerequisite.
 
 Candidate `db90ebc` replaces fixed port candidates with a once-only hardware-entropy
 seeded offset/stride, retaining active-port exclusion. Full clean-source release
 acceptance and focused TCP/HTTPS wire checks passed. Kernel/v0.0.17 is pushed at
-that tested source; server delivery and operator testing remain pending. This
-mitigation does not locate external stale
-state or establish that every continuous-operation failure is resolved.
+that tested source; the operator reports 0.0.17 installed and initially working.
+Sustained repeated-path acceptance and explicit boot confirmation are separately
+unreported. This mitigation does not locate external stale state or establish
+that every continuous-operation failure is resolved.
 
 ## Remaining steps
 

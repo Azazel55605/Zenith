@@ -1,6 +1,6 @@
 # Kernel/userland migration plan
 
-Reviewed **2026-10-16**. The accepted goal is independently installed, updated and
+Reviewed **2026-10-17**. The accepted goal is independently installed, updated and
 fault-isolated applications/desktop outside the kernel. A source split or shared
 address-space plugin does not satisfy it. See [current implementation steps](components/USERLAND.md)
 and the [native ABI contract](NATIVE-PROGRAMS.md).
@@ -13,10 +13,13 @@ stdin and regular-file writes. Sunbeam `cat`, `tee`, `ls`, `pwd` and `stat` are
 independent executable code. The shell, remaining builtins, GUI,
 session broker and most services still run as trusted kernel-linked code.
 
-The running bridge is single-foreground/BSP. It is not a general managed or native
-multicore process scheduler. It has no streaming byte pipes, interactive TTY/jobs,
-socket or graphical client interface. Native input/write full local acceptance passed at `2a515e8`;
-server publication and operator installation of that extension remain pending.
+The working tree now implements live stdout/stderr, canonical host input and
+bounded byte pipelines, with independent wc/head/tail. Native contexts may wait
+on managed streams; raw user execution remains serialized on the BSP. Acceptance
+and release handoff are tracked in PROGRESS. This does not add raw TTY/jobs,
+managed multicore, sockets or graphical client interfaces. The previous native
+input/write extension is operator-installed; explicit installed behavior checks
+remain separate from package installation.
 
 ## Migration stages
 
@@ -26,7 +29,8 @@ server publication and operator installation of that extension remain pending.
 | Protected executable foundation | Implemented, locally verified | Private mappings, identity/output/exit, faults/timeouts, independent ELF update |
 | Controlled read-only file tools | Implemented, acceptance pending | Caller permissions/cwd, safe buffers/handles, cancellation and installed tool use |
 | Input/writable descriptors | Implemented, locally verified; server/operator acceptance pending | Independently packaged utility safely reads input/writes persistent files |
-| Streams/TTY/process lifecycle | Planned | Byte streams/backpressure/EOF, wait/termination, cwd/env and terminal control |
+| Canonical streams/pipes | Implemented; acceptance in progress | Live std descriptors, bounded byte channels, EOF/cancel and protected-context cleanup |
+| Raw TTY/process lifecycle | Planned | Terminal modes, jobs/wait/termination and environment |
 | Controlled networking and more tools | Planned | Socket ownership/limits and independently updated network/base/fs packages |
 | First graphical client | Planned | Versioned surface/input/IPC, fault isolation and lifecycle cleanup |
 | Desktop/service migration | Planned | Independently restarted session/compositor/apps with explicit privilege and compatibility |

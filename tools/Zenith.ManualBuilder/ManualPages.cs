@@ -103,7 +103,12 @@ internal static class ManualPages
             pkg upgrade [--yes]        data-only upgrades from refreshed catalog
             native run NAME [ARGS...]  execute signed installed x86_64 text program
             sunbeam cat [FILE...]     independently packaged file/stdin reader
-            sunbeam tee [-a] FILE     write piped input; -a appends
+            sunbeam tee [-a] FILE     stream piped input; -a appends
+            sunbeam wc [-lwc] [FILE]  count newlines, ASCII words and bytes
+            sunbeam head|tail [-n N] [FILE]  default 10 lines; N 0..1024
+            Native stdin reads lines (Enter); Ctrl+D on empty input ends it.
+            Ctrl+C cancels; stdout streams live and errors use stderr.
+            Byte pipes: 8 KiB; max 8 stages; tail retains at most 64 KiB.
             sunbeam ls [-a] [-l] DIR   directory listing; pwd/stat also available
             pkg kernel update [--yes]   fetch/stage newer kernel; reboot/confirm remains
             boot status|confirm|rollback|recover  kernel generations

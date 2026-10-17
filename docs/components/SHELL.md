@@ -3,13 +3,14 @@
 [Documentation](../README.md) · [Current status](../STATUS.md)
 
 **State:** M1's interactive shell is implemented. Terminal and local console are
-usable with the configured keyboard layout; a full raw TTY and streaming process
-pipelines remain planned.
+usable with the configured keyboard layout. Live native streams and bounded byte
+pipelines are implemented in the working tree, with guest acceptance in progress.
+A full raw TTY remains planned.
 
 ## Implemented steps
 
 - [x] Parse/execute quoting, variables, globs, conditionals, loops, functions,
-  substitutions, scripts, redirections and buffered pipelines.
+  substitutions, scripts, redirections and bounded streaming pipelines.
 - [x] Run submitted commands on workers with explicit credentials and Ctrl+C cancellation.
 - [x] Support keyboard layouts, including German Shift+7 and AltGr corrections.
 - [x] Recall command history in the graphical terminal and local text console.
@@ -19,10 +20,13 @@ pipelines remain planned.
 
 ## Current boundary
 
-Pipeline stages buffer text before running the next stage. An infinite producer
-is not stopped just because a later `head` needs only a few lines. There is no
-streaming byte bridge, general jobs/process table or full-screen raw TTY. Native
-programs can consume a finite UTF-8 pipe/redirect snapshot; see [native I/O](../NATIVE-PROGRAMS.md#input-and-writable-descriptors). The no-GPU serial transport has its own bounded ASCII input behavior and
+Byte pipes have 8 KiB buffers and backpressure; at most eight stages/workers share
+a shell tree. Producers run in child shells, and the final stage retains parent
+state. Early reader exit closes the input; cancellation stops all stages. Native
+stdin uses canonical host lines, stdout streams live and stderr bypasses pipes.
+Buffered builtins/redirections remain bounded at 1 MiB. There is no general
+jobs/process table or full-screen raw TTY. See [native streams](../NATIVE-PROGRAMS.md#live-streams-and-pipelines).
+The no-GPU serial transport has its own bounded ASCII input behavior and
 is not equivalent to local keyboard history/navigation. History is session state,
 not a persistent cross-reboot database. Bash and nano/Vim are not available ports.
 
@@ -32,7 +36,8 @@ not a persistent cross-reboot database. Bash and nano/Vim are not available port
   The long GUI release gate passes with virtio keyboard; standard-VGA recovery
   still exercises PS/2. [Observed failures](../archive/2026-10-16/native-input-and-writes.md#failures-found-during-acceptance).
 
-- [ ] Define byte streams, EOF/backpressure, stdin/stdout/stderr and cancellation.
+- [x] Implement bounded byte streams, EOF/backpressure and stdin/stdout/stderr.
+- [ ] Complete guest/release acceptance for streams and cancellation.
 - [ ] Add terminal modes/cursor/control contracts before full-screen CLI programs.
 - [ ] Integrate process lifecycle/wait/termination without losing caller credentials.
 - [ ] Unbundle selected commands after their controlled runtime APIs are available.
