@@ -1,6 +1,6 @@
 # Current system status
 
-Reviewed **2026-10-16**. Stability fixes: `c622c13`, `ce42cfd`; native filesystem
+Reviewed **2026-10-17**. Stability fixes: `c622c13`, `ce42cfd`; native filesystem
 feature baseline: `f502085`; TCP reliability candidate: `f6bf893`. This page owns the cross-component
 summary; [component checklists](README.md#components) own detailed work.
 
@@ -13,8 +13,8 @@ summary; [component checklists](README.md#components) own detailed work.
 | Kernel 0.0.14 | Tagged at `fe1f5a9`; operator log confirms server native gates passed, signed archive published and core/extra indexes generation 15 published | Gateway stale DNS cache resolved; operator reports 0.0.14 installed. Intermittent TCP connect failures led to the 0.0.15 reliability release. Explicit boot confirmation is not separately reported |
 | Kernel 0.0.15 | Tagged at `f6bf893`; full clean-source pre-tag acceptance passed, including all four native gates; bounded TCP connect retry/retirement and endpoint diagnostics | Tag pushed; operator reports the TCP issue seems gone after handoff. Exact installed version, explicit boot confirmation and individual server delivery checks were not separately supplied |
 | Sunbeam tools 0.2.0 | Read-only file tools locally verified; independent tag pushed | Operator screenshot shows Sunbeam 0.2.0 installed alongside kernel 0.0.14; interactive file-tool acceptance remains |
-| Kernel 0.0.16 / Sunbeam 0.3.0 / manuals 0.1.1 | Tags pushed at fully tested `2a515e8`; finite stdin, guarded writable descriptors and independent tee | Server builds/publication and operator installation pending; confirm kernel before Sunbeam upgrade |
-| Home repository | Operator has used verified HTTPS and installed packages by name | Backup restore test not confirmed; no live server audit in this docs review |
+| Kernel 0.0.16 / Sunbeam 0.3.0 / manuals 0.1.1 | Tags pushed at fully tested `2a515e8`; finite stdin, guarded writable descriptors and independent tee | Operator reports all three published and reconciled green on the replacement distributor, then a successful full system update; explicit boot confirmation and native I/O exercise remain unreported |
+| Home repository | Operator reports replacement VM restored, delivery verification retries successful and full guest update successful | Repeated guest refresh/update still intermittently exhausts TCP connects to correctly resolved 10.0.10.3:443; packet diagnosis pending |
 
 **Upgrade order for the new native file tools:** update the kernel, reboot and
 confirm it, then update Sunbeam. New bundles require `zenith-native-fs-abi 1.0` and, for current input/write builds,

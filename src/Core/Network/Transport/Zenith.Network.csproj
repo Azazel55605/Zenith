@@ -4,6 +4,6 @@
     <Nullable>enable</Nullable>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
-  <ItemGroup><Compile Include="BoundedTcpBuffer.cs" /><Compile Include="TcpSegmentPolicy.cs" /><Compile Include="ClockCorrection.cs" /><Compile Include="BoundedPacketQueue.cs" /><Compile Include="EthernetGuard.cs" /><Compile Include="EthernetIngress.cs" /><Compile Include="E1000ReceiveFilter.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="BoundedTcpBuffer.cs" /><Compile Include="TcpSegmentPolicy.cs" /><Compile Include="TcpPortSequence.cs" /><Compile Include="ClockCorrection.cs" /><Compile Include="BoundedPacketQueue.cs" /><Compile Include="EthernetGuard.cs" /><Compile Include="EthernetIngress.cs" /><Compile Include="E1000ReceiveFilter.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../../Input/KeyboardScanPolicy.cs" /></ItemGroup>
 </Project>

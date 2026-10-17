@@ -64,6 +64,9 @@ jobs:
       - name: Build kernel ISO
         run: dotnet publish -c Release -r linux-x64 -o output-x64 --verbosity minimal
 
+      - name: Pinned TCP and boot dependency adapters
+        run: python3 -B -m unittest tools/test_tcp_connect_fixup.py tools/test_quiet_fixup.py tools/test_idt_fixup.py
+
       - uses: actions/upload-artifact@v4
         with:
           name: zenith-iso

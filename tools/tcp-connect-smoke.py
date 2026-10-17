@@ -25,7 +25,8 @@ def main():
     m = None
     try:
         m = lab.h.Machine(args.keep/'guest', iso=args.iso.resolve(),
-            network=['-netdev','user,id=net0','-device','e1000e,netdev=net0'])
+            network=['-netdev','user,id=net0','-device','e1000e,netdev=net0',
+                     '-object',f'filter-dump,id=tcp-trace,netdev=net0,file={args.keep.resolve() / "wire.pcap"}'])
         assert m.wait('headless ready', timeout=180), 'boot'
         assert m.wait('network: online address=10.0.2.15', timeout=60), 'DHCP'
         def status(command, label, code=0, timeout=90):

@@ -316,6 +316,38 @@ if (assembly.Name.Name == "Cosmos.Kernel.System")
     }
     var transportReference = new AssemblyNameReference("Zenith.Network", new Version(1, 0, 0, 0));
     using var transportSupport = resolver.Resolve(transportReference);
+    // Change only candidate generation. The pinned allocator still excludes active
+    // local ports and bounds collision probes; build copies alone are modified.
+    var portTcp = module.GetType("Cosmos.Kernel.System.Network.TCP.Tcp")
+        ?? throw new InvalidOperationException("Cosmos TCP type changed");
+    var allocate = portTcp.Methods.Single(m => m.Name == "GetDynamicPort" && m.Parameters.Count == 1);
+    var portInstructions = allocate.Body.Instructions;
+    var seeded = portInstructions.Where(i => i.Operand is MethodReference m
+        && m.DeclaringType.FullName == "Zenith.Core.Network.Transport.TcpPortAllocation" && m.Name == "Next").ToArray();
+    if (seeded.Length == 0)
+    {
+        var first = portInstructions.First(i => i.OpCode == OpCodes.Ldsfld && i.Operand is FieldReference f && f.Name == "s_nextPort");
+        var range = portInstructions.Skip(portInstructions.IndexOf(first)).Take(12).ToArray();
+        var expected = new[] { OpCodes.Ldsfld, OpCodes.Dup, OpCodes.Ldc_I4_1, OpCodes.Add, OpCodes.Conv_U2,
+            OpCodes.Stsfld, OpCodes.Stloc_1, OpCodes.Ldsfld, OpCodes.Ldc_I4, OpCodes.Blt_S, OpCodes.Ldsfld, OpCodes.Stsfld };
+        if (allocate.ReturnType.FullName != "System.UInt16" || allocate.Parameters[0].ParameterType.FullName != "System.Int32"
+            || range.Length != expected.Length || !range.Select(i => i.OpCode).SequenceEqual(expected)
+            || (int)range[8].Operand != 65535 || ((FieldReference)range[10].Operand).Name != "DynamicPortStart"
+            || new[] { 0, 5, 7, 11 }.Any(index => ((FieldReference)range[index].Operand).FullName != ((FieldReference)first.Operand).FullName)
+            || portInstructions.Except(range).Any(i => i.Operand is Instruction target && range.Skip(1).Contains(target))
+            || !portInstructions.Any(i => i.Operand is MethodReference m && m.Name == "get_Connections")
+            || !portInstructions.Any(i => i.Operand is MethodReference m && m.Name == "get_Port"))
+        { throw new InvalidOperationException("Cosmos TCP port allocation contract changed"); }
+        var support = transportSupport.MainModule.GetType("Zenith.Core.Network.Transport.TcpPortAllocation")
+            ?? throw new InvalidOperationException("Seeded TCP port allocator missing");
+        first.OpCode = OpCodes.Call; first.Operand = module.ImportReference(support.Methods.Single(m => m.Name == "Next"));
+        foreach (var instruction in range.Skip(1).Where(i => i != range[6]))
+        { instruction.OpCode = OpCodes.Nop; instruction.Operand = null; }
+        changed = true; Console.WriteLine("Adapted TCP port candidates: entropy-seeded dynamic-port sequence");
+    }
+    else if (seeded.Length != 1 || seeded[0].Next?.OpCode != OpCodes.Nop
+        || !portInstructions.Any(i => i.Operand is MethodReference m && m.Name == "get_Connections"))
+    { throw new InvalidOperationException("Seeded TCP port allocation contract changed"); }
     var guardType = transportSupport.MainModule.GetType("Zenith.Core.Network.Transport.EthernetIngress");
     var handle = module.GetType("Cosmos.Kernel.System.Network.NetworkStack").Methods.Single(m => m.Name == "HandlePacket");
     if (handle.Parameters.Count != 2 || handle.Parameters[0].ParameterType.FullName != "System.Byte[]"

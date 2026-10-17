@@ -316,6 +316,8 @@ internal static class NetworkService
     private static Socket ConnectCore(string host, int port, Action cancel)
     {
         string ip = ResolveCore(host, cancel); Ready(); cancel();
+        if (!TcpPortAllocation.Initialized)
+        { TcpPortAllocation.Initialize(NetworkWire.U32(Random(4), 0)); }
         return TcpConnector.Connect(
             () => new Socket(System.Net.Sockets.AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp),
             socket => socket.Connect(new IPAddress(new Address4(NetworkText.Ip(ip)).ToBytes()), port),

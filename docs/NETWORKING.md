@@ -197,6 +197,13 @@ plus DNS/connect/handshake time. Each TCP connection uses at most two fresh sock
 with a 250 ms pause after the first pinned connect failure. Each Cosmos connect
 blocks up to five seconds and observes cancellation on return. Failed sockets are
 closed before retry; cancellation and unrelated errors are never connection-retried.
+Outgoing TCP candidates use a hardware-entropy-seeded starting point and odd
+stride across the 16,384 dynamic ports (49152–65535), visiting each before repeating.
+The seed is initialized once, without a clock/fixed fallback or reseeding between
+connections. The pinned transport still checks locally active ports and keeps its
+bounded collision probes. This reduces predictable tuple reuse; it neither repairs
+external NAT state nor proves the intermittent VMware failure is eliminated. The
+sequence is not a cryptographic replacement for TLS or TCP validation.
 The final diagnostic includes hostname, port and resolved IPv4 address. A fetch may
 therefore make at most four connection attempts across its two transfer attempts. TLS handshake/write have fifteen-second deadlines;
 TLS body reads honor the selected idle deadline, capped by the remaining transfer

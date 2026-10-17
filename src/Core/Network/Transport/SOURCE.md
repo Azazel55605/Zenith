@@ -121,3 +121,16 @@ byte-idempotent. It changes build copies only. NetworkService retries this speci
 connect error once using a fresh socket; it does not replay TLS or application writes.
 This mitigates failed handshakes; the cause of the operator's intermittent VMware
 handshake losses still needs real-path validation.
+
+
+Outgoing TCP port candidate generation is adapted separately in the pinned
+`Tcp.GetDynamicPort`: its fixed s_nextPort increment/wrap prefix becomes a call
+to `TcpPortAllocation.Next`. Signature, original IL shape, 65535 wrap bound and
+collision-table checks are verified before modifying a build copy. Branch/local
+identity and active-port exclusion remain intact; a second adaptation is byte
+idempotent and drift is refused. `NetworkService.ConnectCore` seeds the candidate
+sequence once from four hardware entropy bytes before opening its first TCP socket;
+missing entropy fails closed. An odd stride and random offset visit all 16K dynamic
+ports before repeating. This is bounded collision avoidance, not a CSPRNG or proof
+of the stale-flow generator in the operator's VMware path. Loopback QEMU acceptance
+and actual VMware/proxy acceptance are separate observations.

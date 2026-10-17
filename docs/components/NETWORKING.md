@@ -31,9 +31,16 @@ assume KVM or extra vCPUs improve the guest's single managed execution path.
 
 ## Active reliability work
 
-Operator refresh/update shows intermittent TCP connect failures despite working
-DNS. Bounded connect retry and timed-out registration retirement are implemented
-locally; guest and VMware acceptance remain tracked in [Progress](../PROGRESS.md).
+Operator refresh/update still shows intermittent TCP connect failures despite
+working DNS after the retry/retirement release. On 2026-10-17 a full refresh
+succeeded, then update refreshed core generation 24 before extra exhausted
+connect attempts to the correctly resolved proxy 10.0.10.3:443. Bounded fresh-socket
+retry and timed-out registration retirement have local guest acceptance, but do
+not establish reliable operation through the actual VMware/proxy path. A new
+capture reproduces SYN -> stale plain ACK -> appropriate RST; later success after
+waiting suggests expiring flow state, with its location unconfirmed. Pinned source
+ports restart at 49152 each boot. See [evidence](../archive/2026-10-17/tcp-stale-flow.md)
+and [Progress](../PROGRESS.md); a manual nslookup is not a client prerequisite.
 
 ## Remaining steps
 

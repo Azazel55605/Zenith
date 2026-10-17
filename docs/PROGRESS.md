@@ -3,13 +3,38 @@
 Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
 [Roadmap](ROADMAP.md) orders future work.
 
+## Intermittent installed TCP connections
+
+- [x] Trace refresh/update/fetch/nslookup: downloads resolve automatically through
+  the same resolver; no separate manual DNS priming requirement or client DNS cache.
+- [x] Operator reproduced on 2026-10-17 after successful full refresh: subsequent
+  update refreshed core generation 24, then extra exhausted both fetch/connect
+  attempts to zenith-stable.net.local:443 (10.0.10.3).
+- [x] Operator capture reproduces SYN -> stale plain ACK -> appropriate RST;
+  later successful traffic in that capture is another VM. Waiting subsequently
+  allowed the operator's command to work. Actual pinned DLL inspection confirms
+  source ports restart at 49152 each boot; external-state collision is a hypothesis.
+- [x] Operator says failures also occur without reboot/resume. Stale external
+  state remains a working hypothesis; its exact location is not established.
+- [x] Implement entropy-seeded dynamic-port offset/stride with active-port checks;
+  pass 639 host tests, 12 real-dependency adapters and a Release ISO/ELF build.
+- [x] Targeted TCG TCP/HTTPS regression passed (100.486 s): bounded exhaustion,
+  recovery, 12 verified HTTPS fetches, new source ports on wire and clean poweroff.
+- [ ] Complete clean-source release acceptance, then hand off a reviewable candidate.
+  Actual VMware/proxy repeated refresh/update remains open.
+
+Earlier timeout-retirement/fresh-socket retry is implemented and locally tested;
+actual-path reliability is still open. See [Networking](components/NETWORKING.md)
+and [packet/dependency evidence](archive/2026-10-17/tcp-stale-flow.md).
+
 ## Dashboard retry controls
 
 - [x] Add Retry build for failed/interrupted rows, background queue/service API,
   duplicate/busy guards and restricted installed publisher helper.
 - [x] Add helper/API regression tests; validate rendered desktop/mobile controls.
-- [ ] Update the server with `install-dashboard.sh`; operator verifies one retry
-  survives closing the browser/SSH session.
+- [x] Operator reports restored dashboard running and all three failed-delivery
+  records green after retries on the replacement distributor.
+- [ ] Retry persistence across browser/SSH closure is not separately reported.
 
 [Validation and deployment boundaries](archive/2026-10-17/dashboard-retry.md).
 
@@ -24,8 +49,10 @@ Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
   71 login/session, 92 repository, expanded native programs and 169 kernel checks.
 - [x] Push `kernel/v0.0.16`, `sunbeam-tools/v0.3.0` and
   `zenith-man-pages/v0.1.1` at that exact tested source.
-- [ ] Observe server builds/publication and operator installation. Confirm the
-  new kernel before upgrading Sunbeam; exercise piped input and persistent writes.
+- [x] Operator reports replacement distributor restored, all three release records
+  green after verification retries, and a full installed-system update successful.
+- [ ] Explicit boot confirmation and piped-input/persistent-write acceptance remain
+  separately unreported; repeated repository access has the TCP blocker above.
 
 [Detailed evidence and failed attempts](archive/2026-10-16/native-input-and-writes.md).
 The long GUI gate uses virtio keyboard; separate standard-VGA recovery retains
