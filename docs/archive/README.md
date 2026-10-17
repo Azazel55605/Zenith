@@ -6,7 +6,7 @@ Start with [current status](../STATUS.md) or [active work](../PROGRESS.md).
 
 ## Investigation records
 
-- [2026-10-17 scheduler late wakes](2026-10-17/scheduler-late-wake.md): duplicate ready-queue entries behind native pipeline stalls; correction and acceptance boundary.
+- [2026-10-17 scheduler late wakes](2026-10-17/scheduler-late-wake.md): scheduler, conservative GC and GUI EOF faults behind pipeline failures; final acceptance and release boundary.
 
 - [2026-10-17 stale TCP flow recurrence](2026-10-17/tcp-stale-flow.md): failed SYN/ACK evidence, recovery after waiting and fixed per-boot port allocation; cause and further fix remain under investigation.
 

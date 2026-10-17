@@ -1,7 +1,53 @@
-# Duplicate scheduler wakes and native pipeline stalls
+# Native pipeline scheduler, collector and EOF fixes
 
-Recorded **2026-10-17**. Final guest stress and clean-source acceptance are pending;
-this record does not establish server delivery or an installed replacement kernel.
+Recorded **2026-10-17**. Full local acceptance passes at `6544ffd`.
+Source/replacement-tag publication, distributor delivery and operator installation
+remain pending. Earlier attempts below are historical and superseded.
+
+## Final combined acceptance
+
+Exact clean source: `6544ffdb54250de5f511a50f2d1f1903c37416c1`.
+Command (normal SDK/tool PATH, TCG on the local x64 host):
+
+```sh
+ZENITH_VALIDATION_ACCELERATOR=tcg python3 -B deploy/distributor/validate.py \
+  --keep /var/tmp/zn-qualified-runtime-20261017
+```
+
+| Gate | Result | Wall time |
+| --- | --- | --- |
+| Controller regressions | 121 passed | recorded in controller log |
+| Host tests | 658 passed | 8.609s |
+| Release ISO/ELF build | passed | 24.015s |
+| Package tool | passed | 1.201s |
+| Installed login/session/styling | 71 passed | 199.641s |
+| Signed online repositories | 92 passed | 321.410s |
+| Native programs and all terminal hosts | passed | 675.231s |
+| Kernel activation, cuts, rollback/fallback, audits | 169/169 passed | 473.820s |
+| Actual pinned dependency adapters | 35 passed | 18.391s |
+
+All 64 repeated pipelines produce exactly 163840 bytes and exit zero. GC
+collection #1 frees 1,155,347 objects and execution continues. Floating-point
+streaming, independent binary/file-content and ext2 audits, GUI hidden password
+change, normal/immediate GUI EOF, cancellation and local-console checks pass.
+Transcripts are secret-free. The validator finishes with `Unsigned acceptance
+passed` and confirms the artifact hashes and clean source did not change.
+
+- `Zenith.elf` SHA256: `28e58f37ce754e1357274aebf2b6cf8689a140e39c1c03f1713aefd94b181304`
+- `Zenith.iso` SHA256: `22cdb35e06452c7a1ee9a356a5adb60ab4b40acab4d12348ef7a9d63da889693`
+- Retained evidence: `/var/tmp/zn-qualified-runtime-20261017` (phase logs,
+  `artifacts.json`, `phase-times.json`, native disks/transcripts and wait metrics).
+- Additional focused evidence: 80 pipelines across GC before the requeue
+  refinement, and 20 fresh installed GUI immediate-EOF/cancel cycles plus hidden
+  password and local input after the queue correction. These supplement the full
+  exact-commit run; they do not replace it.
+
+Only copied dependency assemblies are adapted. Cosmos stays pinned at 3.0.89;
+upstream and installed NuGet packages are unchanged. ARM64 collector layout/scanner
+adaptation is host-tested, not a claim of ARM64 guest acceptance. Managed execution
+still stays on the BSP. The proposed kernel 0.0.19 tag must point to the tested
+commit above; later documentation-only commits do not change that target.
+No replacement tag is signed/pushed and no operator VM is updated by these checks.
 
 ## Failure and evidence
 
@@ -52,7 +98,7 @@ not a qualified artifact.
 No upstream checkout, installed dependency package or shared NuGet cache is edited.
 Kernel 0.0.18 and its existing tag remain immutable.
 
-## Validation and delivery boundary
+## Initial wake-only validation (superseded)
 
 - 27 pinned dependency regressions passed: wake/queue behavior, real patched
   CoreLib trace adaptation, idempotence/drift refusal, TCP and IDT adapters.
@@ -61,7 +107,7 @@ Kernel 0.0.18 and its existing tag remain immutable.
 - No replacement kernel tag, distributor publication or operator installation
   has been established by this investigation.
 
-## Collector regression and remaining acceptance
+## Collector regression before final acceptance
 
 The uninstrumented `f2f8a42` sixty-pipeline stress produced exact counts through
 iteration 50, then faulted immediately after collection #1 freed 1,039,959 objects.
@@ -108,7 +154,7 @@ that interrupted run is not a pass. The pinned ARM64 33-register scanner is
 separately adapted/tested on a host-only dependency copy as well as x64's 15
 registers. This is not a claim of ARM64 guest acceptance.
 
-## Final-candidate GUI blocker
+## GUI blocker on a superseded candidate
 
 At `773a59c`, 35 dependency adapters, 121 controllers and 654 host tests pass.
 The clean-source common run passes login/session (197.8s) and all 92 repository

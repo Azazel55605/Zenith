@@ -5,61 +5,29 @@ Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
 
 ## Native terminal streams: release handoff
 
-- [x] Reproduce a local pipeline/completion stall. Server 0.0.18 failed at 120s
-  with 3.7 MB of monitor traces; an initial local full gate and 40 focused runs
-  passed, but repeated completion checks exposed queued-worker starvation.
-- [x] Pause a stalled disposable VM and inspect a coherent ready queue: one
-  worker appeared twice, corrupting pass ordering and starving a new worker.
-  Reproduce timeout then late-signal double enqueue/accounting against the actual
-  pinned wake/scheduler code; IRQ/UART alone are stubbed in host fixtures.
-- [x] Guard ready/running/dead late wakes inside the existing IRQ scope; deduplicate
-  created-thread admission before changing stride pass/tickets. Test legitimate
-  sleeping/blocked wakeups, late wakes, IRQ-scope restoration and drift refusal.
-- [x] Cover wake-before-switch followed by yield: remove existing entries before
-  sorted reinsertion, preserving unique queue membership and ticket accounting.
-- [x] Quiet pinned monitor/condition/scheduler success traces, including the
-  transplanted CoreLib bodies. Add exact output plus completion checks, failure
-  summaries, a retained native monitor socket and 64 repeated pipeline checks.
-- [x] Reproduce an independent collector defect during extended uninstrumented
-  stress: an interior managed reference is mistaken for an object header, changing
-  the low bit of a native monitor handle. The actual pinned collector reproduces
-  the field mutation on a synthetic heap; owning-object marking prevents it.
-- [x] Add allocation-free conservative root resolution in build copies, bounded
-  to actual segment/object extents; cover ordinary/pinned/array roots, unused/free
-  regions, field integrity, drift refusal and repeat adaptation.
-- [x] Run 80 exact-output/completion pipelines across GC collection #1 with the
-  collector fix; all pass and poweroff is clean. Add the wake-before-switch fix
-  and preserve adaptation of the pinned ARM64 register scanner as well.
-- [ ] Complete final combined acceptance. At `773a59c`: host/build, login/session,
-  92 repository checks and 64 exact-output/completion pipelines across GC pass;
-  separate kernel acceptance passes 169/169. The full run fails on GUI canonical
-  input. Focused repeated GUI fixtures reproduce a submitted line not reaching
-  the command. The logger buffers until EOF; GUI Ctrl+D could be dropped while a
-  line reply was pending. Queue line/EOF delivery in order; add four regressions,
-  hidden-password and immediate-EOF guest checks. All 658 host tests and the new
-  ISO build pass. Fresh installed GUI password entry, 20 immediate-EOF/cancel
-  cycles, local-console input and secret-free transcripts pass. The new GUI
-  password check uses the shared authentication completion budget. Final
-  clean-source common acceptance remains pending.
-  Do not release the earlier candidate. The scheduler-only `f2f8a42` run still stalled on the third
-  pipeline after producing its numeric output; it is not qualified. Idle/quantum
-  candidates were removed. No replacement release has been pushed; 0.0.18 stays
-  immutable.
-- [x] Implement live stdout/stderr, canonical input/EOF, bounded byte pipes and
-  protected pipeline contexts; preserve state, identity and cleanup.
-- [x] Add Sunbeam wc/head/tail, stream capability and updated manuals.
-- [x] Fix status inheritance, concurrent cancellation/error handling and console
-  input handoff; add regression coverage.
-- [x] All clean-source test gates at `cba1cbf`: 117 controller, 654 host,
-  71 login/session, 92 repository, expanded native programs and 169 kernel checks.
-  Serial, desktop and local text input/EOF/cancel and binary file audits passed.
-  Evidence-copy tmpfs exhaustion was recovered; final integrity checks passed.
-- [x] Operator approved release; main and immutable kernel 0.0.18, Sunbeam 0.4.0,
-  manuals 0.1.2 tags pushed. All three remote tags resolve to tested `cba1cbf`.
-- [ ] Distributor delivery and installed VMware acceptance: kernel update,
+- [x] Implement native standard streams, bounded byte pipes, wc/head/tail and
+  protected pipeline contexts. Kernel 0.0.18, Sunbeam 0.4.0 and manuals 0.1.2
+  tags were published at `cba1cbf`; the distributor's kernel gate then failed.
+- [x] Reproduce duplicate scheduler entries and fix late wakes, Created admission
+  and wake-before-switch/yield requeue without changing IRQ restoration or tickets.
+- [x] Reproduce conservative GC marking inside a monitor-handle field; resolve
+  interior register/stack candidates to owning ordinary/pinned objects first.
+- [x] Preserve GUI line/EOF order across pending reads; clear type-ahead around
+  hidden authentication. Add runtime dependency and terminal regression coverage.
+- [x] Quiet pinned hot success traces, retain error paths and report exact output
+  plus completion. Expand the native gate to 64 byte pipelines across GC, GUI
+  hidden-password and immediate-EOF checks, local input and persistent file audits.
+- [x] Full clean-source TCG acceptance passes at **`6544ffd`**: 121 controller,
+  658 host, 71 login/session, 92 repository, expanded native processes and 169
+  kernel upgrade/recovery checks. All 35 pinned dependency regressions pass.
+  Separate stress also passed 80 pipelines across GC and 20 immediate-EOF GUI cycles.
+- [ ] Proposed handoff: push the fixes and release **kernel 0.0.19 at `6544ffd`**.
+  No replacement tag has been created or pushed. Existing tags remain immutable.
+- [ ] Distributor publication and installed VMware acceptance: kernel update,
   reboot/confirm first, then tools/manuals and representative pipe/input checks.
 
-[Implementation, failures, commands and evidence](archive/2026-10-17/native-streams.md).
+[Runtime faults, fixes and final acceptance](archive/2026-10-17/scheduler-late-wake.md).
+[Stream implementation](archive/2026-10-17/native-streams.md).
 Raw TTY/jobs, seek and general process scheduling remain future work.
 
 ## Intermittent installed TCP connections

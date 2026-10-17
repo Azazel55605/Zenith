@@ -69,7 +69,9 @@ hosts. [Stream implementation and acceptance](../archive/2026-10-17/native-strea
 The distributor's 0.0.18 stream gate exposed a pinned scheduler duplicate-wake
 fault and an interior-root GC corruption. Expanded native acceptance also exposed
 a GUI EOF handoff race; ordered line/EOF delivery and hidden-input checks are
-implemented. The combined correction is under acceptance. See [investigation](../archive/2026-10-17/scheduler-late-wake.md).
+implemented. The combined correction passes full clean-source TCG acceptance at `6544ffd`,
+including 64 pipelines across GC, hidden GUI input/EOF and kernel recovery.
+Kernel 0.0.19 publication and operator installation remain pending. See [investigation](../archive/2026-10-17/scheduler-late-wake.md).
 
 `2a515e8`: full common TCG acceptance passed, including expanded native input/writes,
 independent persistent contents/audit, repository and kernel recovery gates.

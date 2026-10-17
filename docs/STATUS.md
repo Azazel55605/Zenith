@@ -27,10 +27,11 @@ at `cba1cbf`, including serial/desktop/local input, EOF and cancellation. Operat
 kernel 0.0.18, Sunbeam 0.4.0 and manuals 0.1.2 tags are pushed at that exact source.
 The distributor's 0.0.18 native gate timed out on the four-stage byte-count
 pipeline; publication and installed operator acceptance remain unverified.
-The initial local gate and 40 focused repetitions passed; subsequent local stalls
-exposed duplicate scheduler wake/queue entries and, under longer GC pressure,
-interior-root marking that corrupts monitor fields. Both corrections are under
-acceptance; a scheduler-only candidate still failed and is not release-qualified.
+Subsequent investigation corrected duplicate scheduler queue entries, conservative
+GC corruption of monitor fields, and dropped GUI EOF. Full clean-source TCG
+acceptance now passes at `6544ffd`, including 64 pipeline repetitions across GC
+and 169 kernel recovery checks. Kernel 0.0.19 is the proposed replacement;
+its source/tag publication and actual installed VMware acceptance remain pending.
 See [investigation](archive/2026-10-17/scheduler-late-wake.md) and [active steps](PROGRESS.md#native-terminal-streams-release-handoff).
 
 ## Component summary
