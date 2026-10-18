@@ -1,6 +1,6 @@
 # Active work
 
-Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
+Updated **2026-10-18**. [Status](STATUS.md) owns delivery boundaries;
 [Roadmap](ROADMAP.md) orders future work.
 
 ## Native terminal streams: release handoff
@@ -24,10 +24,23 @@ Updated **2026-10-17**. [Status](STATUS.md) owns delivery boundaries;
 - [x] User authorized publication; fixes pushed to `origin/main` and annotated
   **`kernel/v0.0.19`** pushed at tested `6544ffd`. Remote peeled tag verified.
   Existing release tags remain immutable.
+- [x] Operator reports 0.0.19 distributor failure on the first four-stage byte
+  pipeline (`N_STREAM_BYTES_0`): no count/status, 120.702s wall / 13.5s QEMU CPU.
+  Local acceptance does not establish server reliability.
+- [x] Inspect server serial: all four pipeline threads start, then timer samples
+  retain current thread 78 / run queue 5. No fault or completion is reported.
+- [x] Recheck accepted ISO on QEMU 11.1.2 and Debian QEMU 10.0.13: both full
+  native gates pass. Copied server ISO also passes 64 pipelines locally, including
+  CPU throttling; the distributor stall is not reproduced.
+- [x] Add bounded failure-only instruction/symbol and numeric scheduler snapshots
+  before VM cleanup; pass 132 controllers and live read-only QEMU checks.
+- [ ] Deploy controller diagnostics and capture the actual server stall during a
+  focused native-gate retry; root cause remains unresolved. Keep tags immutable.
 - [ ] Distributor publication and installed VMware acceptance: kernel update,
   reboot/confirm first, then tools/manuals and representative pipe/input checks.
 
-[Runtime faults, fixes and final acceptance](archive/2026-10-17/scheduler-late-wake.md).
+[Server-only 0.0.19 stall investigation](archive/2026-10-18/native-pipeline-server-stall.md).
+[Prior runtime fixes and local acceptance](archive/2026-10-17/scheduler-late-wake.md).
 [Stream implementation](archive/2026-10-17/native-streams.md).
 Raw TTY/jobs, seek and general process scheduling remain future work.
 

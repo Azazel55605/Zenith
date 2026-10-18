@@ -152,6 +152,32 @@ class ValidationTests(unittest.TestCase):
         self.assertEqual('yes',(self.root/'reaped').read_text())
         self.assertEqual(before,(harness.read_bytes(),helper.read_bytes()))
 
+    def test_failed_pipeline_snapshot_uses_tagged_elf_before_cleanup(self):
+        import hashlib
+        tagged=self.root/'tagged';tools=tagged/'tools';tools.mkdir(parents=True)
+        output=tagged/'output-x64';output.mkdir();(output/'Zenith.elf').write_bytes(b'tagged fixture kernel')
+        helper=tools/'headless-smoke.py'
+        helper.write_text("from pathlib import Path\nROOT=Path(__file__).parents[1]\nclass Machine:\n"
+            " def __init__(self,directory):\n"
+            "  self.directory=Path(directory);self.directory.mkdir();self.serial=self.directory/'serial.log';self.serial.write_text('private guest data')\n"
+            " def wait(self,marker,offset=0,timeout=180): return False\n"
+            " def send(self,text):pass\n def log(self):return ''\n"
+            " def stop(self):\n"
+            "  assert (self.directory/'pipeline-stall.json').exists(), 'capture must precede cleanup'\n")
+        harness=tools/'harness.py'
+        harness.write_text("import importlib.util,sys\nfrom pathlib import Path\n"
+            "spec=importlib.util.spec_from_file_location('tagged_headless',Path(__file__).with_name('headless-smoke.py'))\n"
+            "h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)\n"
+            "machine=h.Machine(sys.argv[1]);assert not machine.wait('user: N_STREAM_BYTES_0=0',timeout=0)\n")
+        before=(helper.read_bytes(),harness.read_bytes())
+        destination=self.root/'fixture'
+        subprocess.run([sys.executable,'-B',str(ROOT/'deploy/distributor/validation-runner.py'),
+                        str(harness),str(destination)],check=True,capture_output=True)
+        report=json.loads((destination/'pipeline-stall.json').read_text())
+        self.assertEqual(hashlib.sha256(b'tagged fixture kernel').hexdigest(),report['elf_sha256'])
+        self.assertEqual(before,(helper.read_bytes(),harness.read_bytes()))
+        self.assertNotIn('private',json.dumps(report))
+
     def test_native_repository_failure_precedes_long_kernel_matrix_and_retains_evidence(self):
         repo=self.root/'repo';(repo/'tools').mkdir(parents=True)
         for name in ('native-process-smoke.py','login-session-smoke.py'):

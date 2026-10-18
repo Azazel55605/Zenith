@@ -50,3 +50,5 @@ The [project history](../HISTORY.md) is a narrative map. The
 For new completed slices, add a small dated record here instead of growing the
 active progress page. Snapshot source is the documentation at `f502085`; banners
 and relative-link rebasing are the only archival edits in this reorganization.
+
+- [2026-10-18: Server-only native pipeline stall](2026-10-18/native-pipeline-server-stall.md) — unresolved distributor failure, exact-artifact comparisons and bounded failure snapshots.

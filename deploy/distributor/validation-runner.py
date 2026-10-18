@@ -50,7 +50,7 @@ def run_harness(script):
             network.install(module.Machine, instances)
             status.install(module.Machine)
             authentication.install(module.Machine)
-            profile.install(module.Machine)
+            profile.install(module.Machine, elf=module.ROOT / 'output-x64/Zenith.elf' if hasattr(module, 'ROOT') else None)
     importlib.machinery.SourceFileLoader.exec_module = execute
     started = time.monotonic()
     try: runpy.run_path(str(script), run_name='__main__')

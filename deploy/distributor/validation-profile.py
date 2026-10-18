@@ -1,9 +1,13 @@
 """Secret-free per-VM timing and actual accelerator diagnostics for tagged harnesses."""
+import importlib.util
 import json
 import os
 from pathlib import Path
 import re
 import time
+
+spec = importlib.util.spec_from_file_location('validation_diagnostics', Path(__file__).with_name('validation-diagnostics.py'))
+diagnostics = importlib.util.module_from_spec(spec); spec.loader.exec_module(diagnostics)
 
 STATUS = re.compile(r'(?:user: )?([A-Z][A-Za-z0-9_-]{0,63})=')
 
@@ -58,7 +62,7 @@ def resources(machine):
     except (OSError, AttributeError, ValueError, KeyError, IndexError): return {}
 
 
-def install(machine_type):
+def install(machine_type, elf=None):
     original_wait = machine_type.wait
     def wait(machine, marker, offset=0, timeout=180):
         # Minimal synthetic helpers in controller tests have no VM directory.
@@ -86,6 +90,13 @@ def install(machine_type):
             if outcome == 'failed' and isinstance(failure, dict):
                 row['failure'] = failure
             after = resources(machine)
+            if outcome == 'failed' and diagnostics.PIPELINE.fullmatch(row['label']):
+                try:
+                    snapshot = diagnostics.capture(machine, row['label'], elf)
+                    if snapshot is not None: row['stall_snapshot'] = str(snapshot)
+                except Exception:
+                    # A diagnostic failure must preserve the original failed gate.
+                    row['stall_snapshot_error'] = 'capture unavailable'
             if used and after:
                 row['qemu_cpu_seconds'] = round(max(0, after['cpu_seconds']-used['cpu_seconds']), 3)
                 row['host_read_bytes'] = max(0, after['read_bytes']-used['read_bytes'])

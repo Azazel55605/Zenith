@@ -166,6 +166,33 @@ are removed before moving artifacts across filesystems. A hard-killed service ca
 leave the short directory; its path is printed in the per-tag log. Inspect it only
 after the service has stopped and preserve useful failure evidence before cleanup.
 
+## Diagnosing a stalled native byte pipeline
+
+The current controller captures failed `N_STREAM_BYTES_*` / `N_STREAM_FP_BYTES`
+waits before the tagged harness stops QEMU. `pipeline-stall.json` is retained next
+to that VM's serial log; its bounded numeric report is also printed into the phase
+log. It contains three instruction/stack address and flags samples, exact tagged
+ELF hash/symbols, and a validated Cosmos numeric scheduler snapshot when available.
+No password/general-register contents or arbitrary guest memory are copied. The
+capture is read-only and cannot turn a failed gate into a pass. An unavailable
+monitor/debug buffer does not hide the original failure.
+
+To reproduce only the native gate against the retained 0.0.19 build, from the
+updated controller checkout (no signing/publication or dashboard-state changes):
+
+```sh
+zenith_native_keep=$(mktemp -d /var/tmp/zn-XXXXXX)
+PATH="$HOME/.dotnet/tools:$PATH:/usr/sbin:/sbin" ZENITH_VALIDATION_ACCELERATOR=tcg \
+  python3 -B deploy/distributor/validation-runner.py \
+  "$HOME/.local/state/zenith/distributor/build-kernel-v0.0.19/tools/native-process-smoke.py" \
+  "$zenith_native_keep" > "$zenith_native_keep/phase.log" 2>&1
+tail -n 80 "$zenith_native_keep/phase.log"
+```
+
+Keep the original build and its binaries intact for this investigation. The short
+workspace contains fresh disposable disks. A manual gate run does not qualify an
+entire release or change its failed distributor record.
+
 ## Build efficiency and acceleration
 
 Native acceptance runs the unchanged tagged harness through the current controller's

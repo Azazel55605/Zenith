@@ -37,6 +37,21 @@ class ProfileTests(unittest.TestCase):
         row=json.loads((m.directory/'wait-times.jsonl').read_text())
         self.assertEqual(('K_INSTALL','failed'),(row['label'],row['outcome']))
 
+    def test_pipeline_snapshot_is_failure_only_and_cannot_change_acceptance(self):
+        failed=self.machine(False)
+        with patch.object(profile.diagnostics,'capture',return_value=failed.directory/'pipeline-stall.json') as capture:
+            self.assertFalse(failed.wait('user: N_STREAM_BYTES_0=0'))
+            capture.assert_called_once_with(failed,'N_STREAM_BYTES_0',None)
+        self.assertIn('stall_snapshot',json.loads((failed.directory/'wait-times.jsonl').read_text()))
+        passed=self.machine(True)
+        with patch.object(profile.diagnostics,'capture') as capture:
+            self.assertTrue(passed.wait('user: N_STREAM_BYTES_0=0'))
+            capture.assert_not_called()
+        failed=self.machine(False)
+        with patch.object(profile.diagnostics,'capture',side_effect=RuntimeError('observation failed')):
+            self.assertFalse(failed.wait('user: N_STREAM_FP_BYTES=0'))
+        self.assertEqual('failed',json.loads((failed.directory/'wait-times.jsonl').read_text())['outcome'])
+
     def test_plain_repository_status_has_a_safe_phase_label(self):
         self.assertEqual('P4_KERNEL_STAGE',profile.label('P4_KERNEL_STAGE=0'))
         self.assertEqual('guest-check',profile.label('pkg update --yes'))

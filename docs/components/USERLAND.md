@@ -72,7 +72,12 @@ a GUI EOF handoff race; ordered line/EOF delivery and hidden-input checks are
 implemented. The combined correction passes full clean-source TCG acceptance at `6544ffd`,
 including 64 pipelines across GC, hidden GUI input/EOF and kernel recovery.
 Source fixes and `kernel/v0.0.19` are pushed at tested `6544ffd`; distributor
-delivery and operator installation remain pending. See [investigation](../archive/2026-10-17/scheduler-late-wake.md).
+native acceptance failed on the first repeated byte pipeline on 2026-10-18.
+Exact server artifacts pass 64 pipeline repetitions locally; the server stall
+is not reproduced. Failure-only controller CPU/thread snapshots are implemented
+and tested; deployment and actual failure capture remain pending. Delivery and
+operator installation remain unverified.
+[Server investigation](../archive/2026-10-18/native-pipeline-server-stall.md). See [investigation](../archive/2026-10-17/scheduler-late-wake.md).
 
 `2a515e8`: full common TCG acceptance passed, including expanded native input/writes,
 independent persistent contents/audit, repository and kernel recovery gates.
