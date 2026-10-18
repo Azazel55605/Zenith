@@ -35,9 +35,9 @@ the remote tag resolves to tested `6544ffd`. On 2026-10-18 the operator reports
 the server native gate stalled on the first repeated byte pipeline, with no count
 or completion status (120.702s wall / 13.5s QEMU CPU). Server reliability remains
 unresolved despite local acceptance. The accepted ISO passes a full native recheck
-on QEMU 11.1.2 and Debian QEMU 10.0.13; the copied server binary also passes 64
-pipelines locally, including a throttled portion. Failure-only controller snapshots
-are implemented and tested; actual server capture, delivery and VMware acceptance
+on QEMU 11.1.2 and Debian QEMU 10.0.13; the copied server binary also passes the
+full native gate locally, including a CPU-throttled portion. Failure-only controller
+snapshots are tested and pushed as `384d9fc`; actual server capture, delivery and VMware acceptance
 remain pending. See [server investigation](archive/2026-10-18/native-pipeline-server-stall.md).
 See [investigation](archive/2026-10-17/scheduler-late-wake.md) and [active steps](PROGRESS.md#native-terminal-streams-release-handoff).
 

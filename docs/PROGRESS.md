@@ -30,12 +30,13 @@ Updated **2026-10-18**. [Status](STATUS.md) owns delivery boundaries;
 - [x] Inspect server serial: all four pipeline threads start, then timer samples
   retain current thread 78 / run queue 5. No fault or completion is reported.
 - [x] Recheck accepted ISO on QEMU 11.1.2 and Debian QEMU 10.0.13: both full
-  native gates pass. Copied server ISO also passes 64 pipelines locally, including
-  CPU throttling; the distributor stall is not reproduced.
+  native gates pass. The copied server ISO also passes the full native gate
+  locally (761.966s), including a CPU-throttled portion. Server stall not reproduced.
 - [x] Add bounded failure-only instruction/symbol and numeric scheduler snapshots
   before VM cleanup; pass 132 controllers and live read-only QEMU checks.
-- [ ] Deploy controller diagnostics and capture the actual server stall during a
-  focused native-gate retry; root cause remains unresolved. Keep tags immutable.
+- [x] Push controller diagnostics as `384d9fc`; remote tag remains `6544ffd`.
+- [ ] Update the distributor checkout and capture its actual stall during a focused
+  native-gate retry; root cause remains unresolved. Keep tags immutable.
 - [ ] Distributor publication and installed VMware acceptance: kernel update,
   reboot/confirm first, then tools/manuals and representative pipe/input checks.
 

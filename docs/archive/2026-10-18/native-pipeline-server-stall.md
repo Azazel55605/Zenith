@@ -35,11 +35,12 @@ The previously accepted local ISO/ELF remain unchanged:
 | --- | --- |
 | Accepted ISO / local QEMU 11.1.2 TCG | Full native gate passes in 675.571s, including all 64 byte pipelines, GC, installed audit and GUI/local input |
 | Accepted ISO / isolated Debian QEMU 10.0.13 TCG | Full native gate passes in 654.205s, including all 64 repetitions |
-| Exact copied server ISO / Debian QEMU 10.0.13 TCG on laptop | All 64 byte pipelines pass; CPU quota limited to 0.25 CPU after repetition 11 and restored after the repetitions. Remaining gate results recorded separately when complete |
+| Exact copied server ISO / Debian QEMU 10.0.13 TCG on laptop | Full native gate passes in 761.966s, including all 64 pipelines and installed/GUI/local audits. CPU quota was temporarily limited to 0.25 CPU after repetition 11, restored after the repetitions |
 
 The Docker image contains Debian's exact QEMU package. It uses the laptop's
 firmware files and host networking for the disposable fixture server. This is a
-controlled emulator comparison, not a recreation of the distributor's TrueNAS VM,
+controlled emulator comparison (Docker-client CPU accounting is not QEMU CPU
+accounting), not a recreation of the distributor's TrueNAS VM,
 host scheduling, timer calibration or firmware environment. It does not prove that
 SDK, emulator or host timing is individually responsible or excluded.
 
@@ -81,8 +82,10 @@ observation-path tests, not reproduction of the distributor failure.
 
 ## Next evidence required
 
-Deploy the tested controller change, then rerun only `native-process-smoke.py`
+Controller diagnostics were pushed as `384d9fc`; the kernel tag still points to
+`6544ffd`. Pull the updated controller checkout on the distributor, then rerun only `native-process-smoke.py`
 against the retained 0.0.19 checkout. Read the emitted instruction/thread snapshot
 from the actual server failure before deciding on a runtime correction. Do not
-move the release tag or bypass any release gate. Controller publication and actual
-server failure capture remain pending.
+move the release tag or bypass any release gate. Distributor checkout update and actual server failure capture remain pending.
+The three local native gates all passed, so no underlying runtime fix or new kernel
+release is claimed.
