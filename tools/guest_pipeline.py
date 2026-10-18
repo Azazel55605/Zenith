@@ -29,3 +29,17 @@ def check(machine, command, expected, label, timeout=120):
                   serial_path=str(machine.serial))
     print('Pipeline check failed: ' + json.dumps(report), flush=True)
     raise RuntimeError(label + ': ' + ('wrong/missing output' if completed else 'completion failed or timed out'))
+
+# Only known Cosmos debug writers may interrupt a public fixture line. Preserve
+# arbitrary bracketed application output, errors and command echoes.
+TRACE = re.compile(r'\[(?:SCHED|STRIDE|LAPIC|CV|LowLevelMonitor|Kernel|PageAllocator|SmallHeap)\][^\n]*\n')
+
+
+def check_stderr(text, expected_error, label):
+    """Require the real error line, empty downstream stdout and final status 0."""
+    if not re.fullmatch(r'N_[A-Z0-9_]+', label):
+        raise ValueError('stderr check requires a unique fixture status label')
+    cleaned = TRACE.sub('', text)
+    output = re.findall(r'(?:^|[\r\n])(?:\[zenith\] \[[^\]\r\n]*\] )?user: ([^\r\n]*)', cleaned)
+    if expected_error not in cleaned.splitlines() or '0' not in output or label + '=0' not in output:
+        raise RuntimeError(label + ': stderr line, zero downstream bytes and successful completion are all required')

@@ -380,3 +380,38 @@ No server duration, new binary hashes or full four-gate release result were
 supplied, so those are not inferred. The next release prerequisite is clean-source
 full acceptance; publication and installed VMware stream checks remain separate.
 Kernel `0.0.19` is still immutable and no replacement tag has been created.
+
+## Full release qualification: serial assertion correction
+
+The first full-suite attempt at `565a955` stopped before the installed login
+guest started: a host firmware pathname was absent inside the Debian QEMU
+container. No guest regression was inferred. Firmware selection was corrected
+for every child Python process with a temporary test-environment import hook;
+Debian code and variable-store files are mounted at the same paths on both sides.
+No repository runtime source changed for that environment correction.
+
+The next complete attempt (`/var/tmp/zn020-acceptance-final`) passed 71 login
+checks (195.509s), 92 repository checks (290.393s), all 64 byte pipelines and the
+FP pipeline, then failed the stderr substring assertion at 387.784s. The retained
+serial log contains exactly this interleaving:
+
+```text
+sunbeam: /missing-native-stream-file: [SCHED] BlockThread id=465
+not found
+...
+[zenith] [  360.535] user: 0
+...
+[zenith] [  360.625] user: N_STREAM_ERR=0
+```
+
+Thus the error and successful output/status evidence are present. The previous
+assertion required adjacent raw bytes across an upstream debug writer. The
+focused helper now strips only known Cosmos trace records before checking this
+public fixture, then requires the **exact diagnostic line**, **exact zero-byte
+logger result** and **status 0** independently. Arbitrary application brackets
+and command echoes cannot be erased into success; missing/wrong output or status
+still fails and failure messages do not expose the raw transcript. Four added
+controller regressions cover these cases, and the helper accepts the actual
+retained failing slice. All 153 controller tests pass. No scheduler/runtime change
+or timeout increase accompanies this test correction. Full acceptance must run
+again on the clean corrected source before any tag is pushed.

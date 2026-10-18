@@ -34,8 +34,15 @@ Updated **2026-10-18**. [Status](STATUS.md) owns delivery boundaries;
 - [x] Operator reports the rebuilt `b11f8f8` candidate passed the focused native
   gate on the actual distributor. This confirms the fix on the failing server
   path; no server duration or complete four-gate release result was supplied.
-- [ ] Once the server path passes, run clean-source full release acceptance before
-  a new kernel tag. No replacement release is qualified yet.
+- [x] Full pre-tag run passes login/session (71), repository (92) and 64 native
+  pipelines, then exposes a stderr assertion split by `[SCHED]` output. The real
+  error, zero downstream bytes and status 0 are retained; the kernel did not stall.
+- [x] Reconstruct known Cosmos trace interruptions for that stderr check while
+  independently requiring the exact error line, zero bytes and successful status.
+  The retained failure is accepted; missing/wrong evidence still fails. All 153
+  controller tests pass. Runtime scheduler code is unchanged.
+- [ ] Rerun clean-source full release acceptance before a new kernel tag.
+  No replacement release is qualified yet.
 - [ ] Distributor publication and installed VMware update/reboot/confirm, followed
   by representative pipe/input checks, remain separate acceptance steps.
 

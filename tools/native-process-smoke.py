@@ -3,7 +3,7 @@
 import functools,hashlib,http.server,importlib.util,subprocess,sys,threading,secrets,socket,time
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'tools'))
-from guest_pipeline import check as check_pipeline
+from guest_pipeline import check as check_pipeline, check_stderr
 from guest_auth import COMPLETION_SECONDS
 spec=importlib.util.spec_from_file_location('h',ROOT/'tools/headless-smoke.py');h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
 cpu_workers='--cpu-workers' in sys.argv[2:]
@@ -113,7 +113,8 @@ try:
     status('sunbeam --fs-cpu-state /etc/hostname | sunbeam cat | logger','N_STREAM_FP')
     offset=len(m.log());m.send('sunbeam cat /missing-native-stream-file | sunbeam wc -c | logger; echo N_STREAM_ERR=$? | logger\r')
     assert m.wait('user: N_STREAM_ERR=0',offset,30),'pipeline last status'
-    raw=m.log()[offset:];assert 'sunbeam: /missing-native-stream-file: not found' in raw and 'user: 0' in raw,'stderr bypasses pipe'
+    check_stderr(m.log()[offset:],'sunbeam: /missing-native-stream-file: not found','N_STREAM_ERR')
+    print('PASS stderr bypasses pipe with zero downstream bytes',flush=True)
     print('PASS live standard streams, EOF/cancel, byte pipeline, early exit, separate stderr and line tools',flush=True)
 
     status('echo FIRST | sunbeam tee /home/user/native-io','N_IO_CREATE')

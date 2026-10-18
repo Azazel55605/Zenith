@@ -3,7 +3,7 @@ import contextlib
 import io
 from pathlib import Path
 import unittest
-from guest_pipeline import check
+from guest_pipeline import check, check_stderr
 
 
 class Machine:
@@ -46,6 +46,32 @@ class PipelineChecks(unittest.TestCase):
         self.assertNotIn('PRIVATE_INPUT', self.output)
         self.assertIn('/fixture/serial.log', self.output); self.assertEqual(1, len(m.sent))
         self.assertEqual(120, m.waits[0][1])
+
+
+class StderrChecks(unittest.TestCase):
+    error = 'sunbeam: /missing-native-stream-file: not found'
+    status = '\n[zenith] [ 360.535] user: 0\n[zenith] [360.625] user: N_STREAM_ERR=0\n'
+
+    def test_actual_split_error_is_reconstructed_without_removing_evidence(self):
+        raw='sunbeam: /missing-native-stream-file: [SCHED] BlockThread id=465\nnot found\n'+self.status
+        self.assertNotIn(self.error,raw)
+        check_stderr(raw,self.error,'N_STREAM_ERR')
+
+    def test_error_and_zero_count_and_completion_are_independently_required(self):
+        good=self.error+'\n'+self.status
+        check_stderr(good,self.error,'N_STREAM_ERR')
+        for wrong in (good.replace(self.error,''),good.replace('user: 0','user: 48'),
+                      good.replace('N_STREAM_ERR=0','N_STREAM_ERR=1'),
+                      good.replace('user: 0','user: 10'),good.replace(self.error,'echo '+self.error)):
+            with self.assertRaises(RuntimeError):check_stderr(wrong,self.error,'N_STREAM_ERR')
+
+    def test_unknown_application_brackets_cannot_be_erased_into_success(self):
+        raw=self.error.replace('not found','[application] another error\nnot found')+'\n'+self.status
+        with self.assertRaises(RuntimeError):check_stderr(raw,self.error,'N_STREAM_ERR')
+
+    def test_stderr_failure_does_not_expose_guest_transcript(self):
+        with self.assertRaises(RuntimeError) as result:check_stderr('PRIVATE_INPUT',self.error,'N_STREAM_ERR')
+        self.assertNotIn('PRIVATE_INPUT',str(result.exception))
 
 
 if __name__ == '__main__': unittest.main()
