@@ -127,3 +127,25 @@ This correction repairs a demonstrated invariant violation consistent with the
 operator's missing Running state. It is not yet established as the complete cause
 of the server's stalled pipeline. Full candidate release acceptance and a focused
 run on the actual distributor remain required; no new kernel tag is created here.
+
+The failure observer also records a halt call-site candidate. It reads exactly one
+ABI return-address word only for `_native_cpu_halt+1`, then validates the preceding
+five bytes against a direct CALL to that symbol in the exact ELF. Unverified words,
+other stack locals and general registers are not retained. The guest is running,
+so this does not claim a frozen stack trace. Unit tests cover valid/invalid code
+addresses and rejection of non-CALL instructions. A live QEMU probe resolves the
+idle halt to `Cosmos.Kernel.System.Power.Halt`; the actual server wait-site capture
+remains pending if the candidate still fails.
+
+Candidate kernel source: `a63ce7cedc4704a5aa62c5c6b57bb7bb9eedd5c2`.
+Release build applies the signature-checked correction and succeeds; 658 host,
+40 dependency adapter and 134 current controller checks pass. Candidate hashes:
+
+- ISO: `de5040481e324675fd3e6dbe86338c523faa35ddc48ccbe47919a49c772c11bd`.
+- ELF: `2ffb2d14a0ff4f1292613e45defde76faf399be550f0a0f539392a95eb4f4255`.
+
+Focused native evidence: `/tmp/zn-self-dispatch-native`, with run output in
+`/tmp/zn-self-dispatch-native.log`; full native result is recorded after completion.
+The test uses Debian QEMU 10.0.13 and explicit TCG on the laptop. Docker-client CPU
+accounting cannot be used as QEMU CPU time. Full clean-source release acceptance
+and the actual distributor's focused candidate test remain required before a tag.

@@ -18,6 +18,8 @@ Updated **2026-10-18**. [Status](STATUS.md) owns delivery boundaries;
   preserve current stack, ticket totals and first-entry/native-switch flags. All
   13 real-dependency scheduler regressions pass, including 100 repeated cycles;
   all 40 pinned dependency adapter tests pass.
+- [x] Build the untagged candidate at `a63ce7c`; pass 658 host tests and 134
+  controllers. Native-process acceptance under Debian QEMU 10.0.13 is running.
 - [ ] Qualify the combined candidate with clean-source full release acceptance and
   the complete pinned adapter suite. No replacement release is qualified yet.
 - [ ] Test the candidate on the distributor's failing path before deciding that

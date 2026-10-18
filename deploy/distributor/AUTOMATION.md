@@ -173,6 +173,10 @@ waits before the tagged harness stops QEMU. `pipeline-stall.json` is retained ne
 to that VM's serial log; its bounded numeric report is also printed into the phase
 log. It contains three instruction/stack address and flags samples, exact tagged
 ELF hash/symbols, and a validated Cosmos numeric scheduler snapshot when available.
+For `_native_cpu_halt+1`, it also reads one ABI return-address word and keeps it
+only when the exact ELF verifies a direct `CALL _native_cpu_halt` at that site.
+The guest can move between reads, so this is an observation rather than a frozen
+backtrace; other stack words and general registers are not read.
 No password/general-register contents or arbitrary guest memory are copied. The
 capture is read-only and cannot turn a failed gate into a pass. An unavailable
 monitor/debug buffer does not hide the original failure.
@@ -188,6 +192,19 @@ PATH="$HOME/.dotnet/tools:$PATH:/usr/sbin:/sbin" ZENITH_VALIDATION_ACCELERATOR=t
   "$zenith_native_keep" > "$zenith_native_keep/phase.log" 2>&1
 tail -n 80 "$zenith_native_keep/phase.log"
 ```
+
+For an untagged runtime candidate, rebuild the updated checkout and run the
+harness from that same checkout. The retained tag path above deliberately keeps
+using the old release binary and will not test a new scheduler correction:
+
+```sh
+dotnet publish -c Release -r linux-x64 -o output-x64 &&
+ZENITH_VALIDATION_ACCELERATOR=tcg python3 -B deploy/distributor/validation-runner.py \
+  tools/native-process-smoke.py "$(mktemp -d /var/tmp/zn-XXXXXX)"
+```
+
+This is a focused candidate test, not full release qualification. Keep a new kernel
+tag gated on full clean-source acceptance and actual distributor-path evidence.
 
 Keep the original build and its binaries intact for this investigation. The short
 workspace contains fresh disposable disks. A manual gate run does not qualify an

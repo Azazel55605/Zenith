@@ -1,7 +1,8 @@
 """Bounded, read-only CPU observations after a native pipeline timeout.
 
 Capture code/stack addresses, flags and the documented numeric scheduler
-snapshot, never general registers, arbitrary memory, serial text or input.
+snapshot and validated halt return addresses, never general registers, arbitrary
+memory, serial text or input.
 These observations cannot pass a gate.
 """
 import bisect
@@ -107,6 +108,29 @@ def scheduler_snapshot(monitor, slot):
     raise ValueError('scheduler snapshot changed during read')
 
 
+def halt_caller(monitor, sample, elf, rows):
+    # At the pinned one-byte HLT followed by RET, the top stack word is a return
+    # address. Never read stack locals or a general-register-derived buffer. A
+    # running VM can move after the sample, so retain only a code address whose
+    # preceding instruction is independently verified as CALL _native_cpu_halt.
+    if sample.get('symbol') != '_native_cpu_halt' or sample.get('symbol_offset') != 1:
+        return None
+    stack = int(sample['RSP'],16)
+    if stack % 8: raise ValueError('unaligned halt call frame')
+    returned, = struct.unpack('<Q',words(monitor,stack,1))
+    addresses = [address for address,_ in rows]
+    index = bisect.bisect_right(addresses,returned)-1
+    if not 0 <= index < len(rows)-1: raise ValueError('halt return outside code')
+    target = next(address for address,name in rows if name == '_native_cpu_halt')
+    result = subprocess.run(['objdump','-d','--start-address='+hex(returned-5),
+                             '--stop-address='+hex(returned),str(elf)],
+                            capture_output=True,text=True,timeout=3,check=True)
+    pattern = (r'^\s*'+format(returned-5,'x')+r':\s+e8(?:\s+[0-9a-f]{2}){4}\s+call\s+'
+               +format(target,'x')+r'\s+<_native_cpu_halt>\s*$')
+    if not re.search(pattern,result.stdout,re.M): raise ValueError('halt call site unverified')
+    return dict(return_rip=format(returned,'016x'),symbol=rows[index][1],symbol_offset=returned-rows[index][0])
+
+
 def capture(machine, label, elf=None):
     if not PIPELINE.fullmatch(label): return None
     directory = Path(machine.directory)
@@ -134,6 +158,12 @@ def capture(machine, label, elf=None):
                 if 0 <= index < len(rows)-1:
                     sample['symbol'] = rows[index][1]
                     sample['symbol_offset'] = pc-rows[index][0]
+            for sample in report['samples']:
+                try:
+                    caller = halt_caller(monitor,sample,elf,rows)
+                    if caller is not None: sample['halt_caller'] = caller
+                except (OSError,ValueError,StopIteration,subprocess.SubprocessError,struct.error):
+                    sample['halt_caller_error'] = 'return unavailable or call site unverified'
         except (OSError, ValueError, subprocess.SubprocessError):
             report['symbol_error'] = 'ELF or symbols unavailable'
         if report['samples']:

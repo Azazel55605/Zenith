@@ -112,6 +112,32 @@ class DiagnosticTests(unittest.TestCase):
         for pointer,count in [(0,1),(address,132),(address+1,1),(address,0)]:
             with self.assertRaises(ValueError): diagnostics.words('monitor',pointer,count)
 
+    def test_halt_caller_retains_only_a_verified_direct_call_return_address(self):
+        sample=dict(symbol='_native_cpu_halt',symbol_offset=1,RSP='ffff800010001000')
+        rows=[(0xffffffff80001000,'_native_cpu_halt'),(0xffffffff80002000,'Kernel_Wait'),(0xffffffff80003000,'Kernel_Next')]
+        output=SimpleNamespace(stdout='ffffffff80002003: e8 f8 ef ff ff  call ffffffff80001000 <_native_cpu_halt>\nPRIVATE_TEXT\n')
+        with patch.object(diagnostics,'words',return_value=struct.pack('<Q',0xffffffff80002008)) as read, \
+             patch.object(diagnostics.subprocess,'run',return_value=output) as run:
+            caller=diagnostics.halt_caller('monitor',sample,Path('/kernel.elf'),rows)
+        self.assertEqual(dict(return_rip='ffffffff80002008',symbol='Kernel_Wait',symbol_offset=8),caller)
+        read.assert_called_once_with('monitor',0xffff800010001000,1)
+        self.assertEqual(3,run.call_args.kwargs['timeout'])
+        self.assertNotIn('PRIVATE',json.dumps(caller))
+
+    def test_halt_caller_does_not_read_other_frames_or_keep_unverified_values(self):
+        rows=[(0xffffffff80001000,'_native_cpu_halt'),(0xffffffff80002000,'Kernel_Wait'),(0xffffffff80003000,'Kernel_Next')]
+        with patch.object(diagnostics,'words') as read:
+            self.assertIsNone(diagnostics.halt_caller('monitor',dict(symbol='other',symbol_offset=1),Path('/kernel.elf'),rows))
+            read.assert_not_called()
+        sample=dict(symbol='_native_cpu_halt',symbol_offset=1,RSP='ffff800010001000')
+        with patch.object(diagnostics,'words',return_value=struct.pack('<Q',0x534543524554)):
+            with self.assertRaisesRegex(ValueError,'outside code'):
+                diagnostics.halt_caller('monitor',sample,Path('/kernel.elf'),rows)
+        with patch.object(diagnostics,'words',return_value=struct.pack('<Q',0xffffffff80002008)), \
+             patch.object(diagnostics.subprocess,'run',return_value=SimpleNamespace(stdout='ffffffff80002003: e9 00 00 00 00 jmp ffffffff80001000 <_native_cpu_halt>')):
+            with self.assertRaisesRegex(ValueError,'unverified'):
+                diagnostics.halt_caller('monitor',sample,Path('/kernel.elf'),rows)
+
     def test_symbol_lookup_is_bounded_and_has_no_shell(self):
         result = SimpleNamespace(stdout='ffffffff80001000 t code\nffffffff80002000 d PRIVATE_DATA\n')
         with patch.object(diagnostics.subprocess, 'run', return_value=result) as run:
