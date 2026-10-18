@@ -198,6 +198,8 @@ harness from that same checkout. The retained tag path above deliberately keeps
 using the old release binary and will not test a new scheduler correction:
 
 ```sh
+export PATH="$HOME/.dotnet/tools:$PATH:/usr/sbin:/sbin"
+git pull --ff-only &&
 dotnet publish -c Release -r linux-x64 -o output-x64 &&
 ZENITH_VALIDATION_ACCELERATOR=tcg python3 -B deploy/distributor/validation-runner.py \
   tools/native-process-smoke.py "$(mktemp -d /var/tmp/zn-XXXXXX)"

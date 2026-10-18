@@ -127,8 +127,11 @@ execution ledger or duplicate historical test totals into the roadmap.
   must resolve to owning object starts before marking; preserve opaque monitor
   fields and ordinary/pinned object boundaries. Keep real-dependency wake/GC
   regressions and repeated native
-  pipeline completion checks. Monitor trace adaptations must cover transplanted
-  CoreLib bodies, not only the copied source plug assembly.
+  pipeline completion checks. Condition waits must remain parked after unrelated
+  interrupts until a signal or timeout actually readies the thread; repeated parks
+  must preserve tickets and IRQ flags. Timed monitor interop must forward the actual
+  timeout/signal Boolean. Monitor adaptations must cover transplanted CoreLib
+  bodies, not only the copied source plug assembly.
 - Preserve unrelated local changes. Keep generated output, scratch disks and
   machine-specific package settings out of commits. Never format a real disk
   during validation; the smoke harness creates its own disposable disk.

@@ -37,8 +37,8 @@ or completion status (120.702s wall / 13.5s QEMU CPU). Server reliability remain
 unresolved despite local acceptance. The accepted ISO passes a full native recheck
 on QEMU 11.1.2 and Debian QEMU 10.0.13; the copied server binary also passes the
 full native gate locally, including a CPU-throttled portion. Failure-only controller
-snapshots are tested and pushed as `384d9fc`; actual server capture, delivery and VMware acceptance
-remain pending. See [server investigation](archive/2026-10-18/native-pipeline-server-stall.md).
+snapshots are deployed and the operator has supplied timed-condition halt captures.
+Distributor resolution, delivery and VMware acceptance remain pending. See [server investigation](archive/2026-10-18/native-pipeline-server-stall.md).
 See [investigation](archive/2026-10-17/scheduler-late-wake.md) and [active steps](PROGRESS.md#native-terminal-streams-release-handoff).
 
 The focused server retry still stalls with IF enabled on worker halt stacks and
@@ -47,8 +47,12 @@ repairs a deterministically reproduced Ready -> Running omission when dispatch
 selects the already-current woken thread. Thirteen real-dependency scheduler tests
 pass, together with 658 host, 134 controller and all 40 adapter tests. Its full
 native-process gate passes locally in 648.864s, including 64 pipelines across GC.
-Actual distributor-path acceptance and full clean-source release qualification
-remain pending; no new kernel release is claimed.
+The operator's rebuilt candidate still fails the first pipeline (120.727s), with
+verified halt return sites in `ConditionVariable.WaitTimeout`. The self-dispatch
+correction alone is insufficient. Condition-park/timeout-result fixes now pass
+658 host, 134 controller, 48 adapter checks and the full native gate locally
+(686.101s, Debian QEMU 10.0.13 / TCG). Actual distributor acceptance and full
+clean-source release qualification remain pending. No new kernel release is claimed.
 
 ## Component summary
 

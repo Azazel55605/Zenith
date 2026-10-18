@@ -46,6 +46,37 @@ using (var source = AssemblyDefinition.ReadAssembly(args[0]))
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Stsfld, value));
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
     }
+    if (args[2].StartsWith("condition-"))
+    {
+        var cpuType = module.GetType("Cosmos.Kernel.Core.CPU.InternalCpu");
+        var counter = new FieldDefinition("TestHalts", Mono.Cecil.FieldAttributes.Public | Mono.Cecil.FieldAttributes.Static, module.TypeSystem.Int32);
+        cpuType.Fields.Add(counter);
+        var testThread = new FieldDefinition("TestThread", Mono.Cecil.FieldAttributes.Public | Mono.Cecil.FieldAttributes.Static,
+            module.GetType("Cosmos.Kernel.Core.Scheduler.SchedulerThread"));
+        cpuType.Fields.Add(testThread);
+        var testCondition = new FieldDefinition("TestCondition", Mono.Cecil.FieldAttributes.Public | Mono.Cecil.FieldAttributes.Static,
+            module.GetType("Cosmos.Kernel.Core.Scheduler.ConditionVariable"));
+        cpuType.Fields.Add(testCondition);
+        var halt = cpuType.Methods.Single(m => m.Name == "Halt");
+        halt.Body = new Mono.Cecil.Cil.MethodBody(halt);
+        var il = halt.Body.GetILProcessor();
+        var done = Instruction.Create(OpCodes.Ret);
+        il.Append(Instruction.Create(OpCodes.Ldsfld,counter)); il.Append(Instruction.Create(OpCodes.Ldc_I4_1));
+        il.Append(Instruction.Create(OpCodes.Add)); il.Append(Instruction.Create(OpCodes.Stsfld,counter));
+        il.Append(Instruction.Create(OpCodes.Ldsfld,counter)); il.Append(Instruction.Create(OpCodes.Ldc_I4_2));
+        il.Append(Instruction.Create(OpCodes.Blt,done));
+        if (args[2] == "condition-signal")
+        {
+            il.Append(Instruction.Create(OpCodes.Ldsfld,testCondition));
+            il.Append(Instruction.Create(OpCodes.Callvirt,module.GetType("Cosmos.Kernel.Core.Scheduler.ConditionVariable").Methods.Single(m => m.Name == "Signal")));
+        }
+        else
+        {
+            il.Append(Instruction.Create(OpCodes.Ldc_I4_0)); il.Append(Instruction.Create(OpCodes.Ldsfld,testThread));
+            il.Append(Instruction.Create(OpCodes.Call,module.GetType("Cosmos.Kernel.Core.Scheduler.SchedulerManager").Methods.Single(m => m.Name == "ReadyThread")));
+        }
+        il.Append(done);
+    }
     foreach (var method in module.GetType("Cosmos.Kernel.Core.IO.Serial").Methods.Where(m => m.Name.StartsWith("Write") && m.ReturnType.FullName == "System.Void"))
     {
         method.Body = new Mono.Cecil.Cil.MethodBody(method);
@@ -92,6 +123,38 @@ if (args[2] == "late-signal")
     condition = Activator.CreateInstance(TypeOf("ConditionVariable"), true)!;
     var waiters = (System.Collections.IList)condition.GetType().GetField("_waitingThreads", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(condition)!;
     waiters.Add(thread);
+}
+if (args[2].StartsWith("condition-"))
+{
+    Set(cpu,"CurrentThread",thread);
+    Set(thread,"State",Enum.ToObject(TypeOf("SchedulerThreadState"),2));
+    Set(data,"TotalTickets",200UL);
+    condition = Activator.CreateInstance(TypeOf("ConditionVariable"),true)!;
+    object mutex = Activator.CreateInstance(TypeOf("Mutex"),true)!;
+    var cpuType = assembly.GetType("Cosmos.Kernel.Core.CPU.InternalCpu",true)!;
+    cpuType.GetField("TestThread")!.SetValue(null,thread);
+    cpuType.GetField("TestCondition")!.SetValue(null,condition);
+    mutex.GetType().GetMethod("Acquire")!.Invoke(mutex,null);
+    object? signaled = null;
+    int repetitions = args[2] == "condition-repeat" ? 100 : args[2] == "condition-double" ? 2 : 1;
+    for (int iteration = 0; iteration < repetitions; iteration++)
+    {
+        cpuType.GetField("TestHalts")!.SetValue(null,0);
+        signaled = condition.GetType().GetMethod(args[2] == "condition-signal" ? "Wait" : "WaitTimeout")!.Invoke(condition,
+            args[2] == "condition-signal" ? new[] {mutex} : new object[] {mutex,1U});
+        if (repetitions == 1) break;
+        if (Convert.ToInt32(thread.GetType().GetProperty("State")!.GetValue(thread)) != 1)
+        {
+            if (args[2] == "condition-double") continue;
+            Console.WriteLine("not-woken-at="+iteration); return;
+        }
+        manager.GetMethod("ScheduleFromInterrupt",BindingFlags.Static|BindingFlags.NonPublic)!.Invoke(null,new object[]{0U,(nuint)0x2000});
+    }
+    Console.WriteLine("halts="+cpuType.GetField("TestHalts")!.GetValue(null)
+        +";state="+Convert.ToInt32(thread.GetType().GetProperty("State")!.GetValue(thread))
+        +";result="+signaled+";tickets="+data.GetType().GetProperty("TotalTickets")!.GetValue(data)
+        +";irqFlags="+nativeType.GetField("_hostIrqFlags")!.GetValue(null));
+    return;
 }
 wake.Invoke(null, new object[] { 0U, thread });
 if (args[2].StartsWith("dispatch-"))

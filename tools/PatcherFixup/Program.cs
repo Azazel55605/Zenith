@@ -44,6 +44,7 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
 {
     changed |= ConservativeRootFixup.Apply(module);
     changed |= SchedulerDispatchFixup.Apply(module);
+    changed |= MonitorTimeoutFixup.ApplyCondition(module);
     var allocator = module.GetType("Cosmos.Kernel.Core.Memory.PageAllocator")
         ?? throw new InvalidOperationException("Cosmos allocator type changed");
     var pages = allocator.Methods.Single(m => m.Name == "AllocPages" && m.Parameters.Count == 3);
@@ -183,6 +184,7 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core.X64")
 }
 void QuietMonitorInterop(TypeDefinition monitor)
 {
+    changed |= MonitorTimeoutFixup.Apply(monitor);
     // Log.Write takes a stack-built ReadOnlySpan<object>. Redirect only these
     // known success calls, preserving their argument stack and all monitor work.
     foreach (var (name, prefix, expectedCalls) in new[] {

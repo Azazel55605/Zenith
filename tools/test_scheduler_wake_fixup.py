@@ -105,6 +105,28 @@ class WakeTests(unittest.TestCase):
         for state in (0,2,3,4,5):
             self.assertEqual('state='+str(state)+';queue=0;tickets=200;stack=4096;switchSp=0;new=0',self.tick(self.copy,'dispatch-preserve-'+str(state)))
 
+    def test_condition_wait_reparks_after_unrelated_interrupt_until_actual_wake(self):
+        for mode,result in [('condition-timeout','False'),('condition-signal','')]:
+            self.assertIn('halts=1;state='+('4' if mode=='condition-timeout' else '3'),self.tick(self.copy,mode))
+        self.assertEqual(0,self.adapt().returncode)
+        for mode,result in [('condition-timeout','False'),('condition-signal','')]:
+            self.assertEqual('halts=2;state=1;result='+result+';tickets=200;irqFlags=512',self.tick(self.copy,mode))
+
+    def test_repeated_condition_timeouts_with_unrelated_interrupts_preserve_accounting(self):
+        self.assertEqual('not-woken-at=0',self.tick(self.copy,'condition-repeat'))
+        self.assertEqual(0,self.adapt().returncode)
+        self.assertEqual('halts=2;state=2;result=False;tickets=200;irqFlags=512',self.tick(self.copy,'condition-repeat'))
+
+    def test_premature_return_cannot_repark_and_subtract_the_same_tickets_twice(self):
+        self.assertEqual('halts=1;state=4;result=False;tickets=0;irqFlags=512',self.tick(self.copy,'condition-double'))
+        self.assertEqual(0,self.adapt().returncode)
+        self.assertEqual('halts=2;state=2;result=False;tickets=200;irqFlags=512',self.tick(self.copy,'condition-double'))
+
+    def test_condition_contract_drift_is_refused_without_write(self):
+        before=self.copy.read_bytes();changed=before.replace(b'WaitTimeout',b'WaitXimeout')
+        self.assertNotEqual(before,changed);self.copy.write_bytes(changed)
+        self.assertNotEqual(0,self.adapt().returncode);self.assertEqual(changed,self.copy.read_bytes())
+
     def test_dispatch_signature_drift_is_refused_without_writing(self):
         before=self.copy.read_bytes()
         changed=before.replace(b'ScheduleFromInterrupt',b'ScheduleFromInterrupX')

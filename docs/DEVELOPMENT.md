@@ -654,3 +654,11 @@ The long login/session gate uses virtio GPU and virtio keyboard. A separate
 standard-VGA recovery boot retains PS/2 coverage. Legacy PS/2 lost characters
 during sustained input in the virtio-GPU local console; this remains an open
 hardware-profile issue. See [the acceptance record](archive/2026-10-16/native-input-and-writes.md).
+
+Condition-wait adaptations are tested by `tools/test_scheduler_wake_fixup.py`
+(unrelated interrupt before actual timeout/signal, repeated park/wake accounting)
+and `tools/test_monitor_timeout_fixup.py` (actual source/transplanted interop
+branch and return IL, including false/true/infinite completion). Run adapter checks
+after the ISO build has finished; they read its copied reference assemblies.
+These tests establish runtime contracts; the full native gate and actual
+operator path remain separate evidence.

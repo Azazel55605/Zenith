@@ -75,8 +75,8 @@ Source fixes and `kernel/v0.0.19` are pushed at tested `6544ffd`; distributor
 native acceptance failed on the first repeated byte pipeline on 2026-10-18.
 Exact server artifacts pass the full native gate locally; the server stall
 is not reproduced. Failure-only controller CPU/thread snapshots are tested and
-pushed as `384d9fc`; distributor checkout update and failure capture remain pending. Delivery and
-operator installation remain unverified.
+deployed; operator captures identify timed-condition halt call sites. Delivery and
+operator installation of a working stream fix remain unverified.
 [Server investigation](../archive/2026-10-18/native-pipeline-server-stall.md). See [investigation](../archive/2026-10-17/scheduler-late-wake.md).
 
 `2a515e8`: full common TCG acceptance passed, including expanded native input/writes,
@@ -90,5 +90,10 @@ entry. A real-dependency fixture reproduces self-selection retaining Ready; the
 copied dependency now restores Running without replacing its live stack. Thirteen
 scheduler regressions pass. Candidate `a63ce7c` also passes the full native gate
 locally (648.864s), 658 host, 134 controllers and all 40 adapter checks. Actual
-distributor pipeline acceptance and full release qualification remain pending;
-this is not a delivered kernel fix.
+distributor test still fails the first pipeline, with verified timed-condition
+halt call sites. The state correction alone is insufficient. Condition waits that
+resume after an unrelated interrupt and discarded timed-wait results are now
+reproduced in dependency fixtures. Their fixes pass 48 adapters, 658 host and 134
+controller checks plus the full local native gate (686.101s, Debian QEMU 10.0.13 /
+TCG). Distributor acceptance and full release qualification remain pending; this
+is not a delivered kernel fix.

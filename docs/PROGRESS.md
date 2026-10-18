@@ -21,9 +21,21 @@ Updated **2026-10-18**. [Status](STATUS.md) owns delivery boundaries;
 - [x] Build the untagged candidate at `a63ce7c`; pass 658 host tests and 134
   controllers. Full native-process gate passes under Debian QEMU 10.0.13 in
   648.864s, including 64 pipelines across GC and installed/GUI/local audits.
-- [ ] Test the untagged candidate on the distributor's failing path before deciding
-  this reproduced state defect explains its stall. Capture verified halt call sites
-  if it persists. Current-checkout build/harness instructions are in AUTOMATION.
+- [x] Operator tested the rebuilt candidate: the first pipeline still times out
+  (120.727s). Verified halt call sites are in `ConditionVariable.WaitTimeout`;
+  the self-dispatch correction alone does not resolve the actual server failure.
+- [x] Reproduce two further pinned-runtime defects: a condition wait returns after
+  an unrelated interrupt while still parked, and timed monitor interop discards
+  the timeout result. Adapt build copies to await a real wake and return the result.
+- [x] Real-dependency tests cover timed/signaled waits, an intervening unrelated
+  interrupt, 100 repeated wake cycles, IRQ/ticket preservation, and both source
+  plug and transplanted CoreLib timeout returns.
+- [x] Release build, 658 host, 134 controller and all 48 adapter checks pass.
+  Full native gate passes under Debian QEMU 10.0.13 / TCG in 686.101s: 64 exact
+  byte pipelines, FP, cancellation/fault cleanup, installed audit and GUI/local input.
+- [ ] Verify these wait corrections on the actual distributor. The reproduced
+  defects are not yet a proven cause of its stall; pipeline expectations/timeouts
+  remain unchanged. Rebuild current main, not the immutable failed tag.
 - [ ] Once the server candidate passes, run clean-source full release acceptance
   before a new kernel tag. No replacement release is qualified yet.
 - [ ] Distributor publication and installed VMware update/reboot/confirm, followed

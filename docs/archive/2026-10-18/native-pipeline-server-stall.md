@@ -153,3 +153,71 @@ secret-free assertions. ISO/ELF hashes remain unchanged after the run.
 The test uses Debian QEMU 10.0.13 and explicit TCG on the laptop. Docker-client CPU
 accounting cannot be used as QEMU CPU time. Full clean-source release acceptance
 and the actual distributor's focused candidate test remain required before a tag.
+
+
+## Rebuilt candidate still fails; condition-wait contracts
+
+The operator rebuilt current source on the distributor. ELF
+`5abf685c6ae24bf64744ab5af4f5f8fd5b4ddec4d222ec399b00e29fcb49522c`
+still fails `N_STREAM_BYTES_0` in 120.727s (12.17s QEMU CPU; 324.483s harness).
+No count or completion is observed. Two sampled halt returns independently
+validate as `ConditionVariable.WaitTimeout+270`; another sample is in
+`PageAllocator.GetPageCountsByType`. The snapshot has 78 Sleeping and
+0/79/80/81 Ready. These observations do not prove a lock owner, queue membership,
+or a frozen backtrace. The earlier self-dispatch fix is insufficient to resolve
+the real failure. This server-built candidate is distinct from the old copied
+0.0.19 ELF and from the locally passing candidate.
+
+Inspection of actual pinned and transplanted IL identifies two further defects:
+
+- `ConditionVariable.Wait` / `WaitTimeout` use one guarded HLT. An unrelated IRQ
+  can return to that stack while the thread remains Blocked/Sleeping; the methods
+  then remove waiters/reacquire the mutex and report a result without a real wake.
+- `Interop.Sys.LowLevelMonitor_TimedWait` discards `Monitor.Wait(int)`'s Boolean
+  and returns true. CoreLib's wait subsystem treats that as a signal/spurious wake,
+  instead of a timeout. The source plug and already transplanted body both do it.
+
+The candidate changes the guarded HLT into a state-checked park loop and forwards
+only the timed wait's actual Boolean. Infinite waits retain their original true
+return after completion. Signature checks fail closed on unknown IL; adaptations
+apply only to copied dependency assemblies. Kernel/interop trace suppression and
+existing IRQ/state/GC fixes are preserved. There is no command replay, relaxed
+expected output, timeout increase, or replacement tag.
+
+A real-dependency fixture injects one unrelated interrupt and then an actual wake.
+Original methods return after one halt with state still Sleeping/Blocked; adapted
+methods halt twice and return only after Ready. One hundred timed-wait/self-dispatch
+cycles preserve the 200-ticket total and restored IRQ flags. Two consecutive
+original premature waits subtract the same thread's tickets twice (200 -> 0);
+the corrected equivalent stays at 200. A second fixture
+executes the actual source and transplanted timeout branch/return IL with controlled
+monitor results: false remains false, true remains true, and the infinite branch
+still waits once and returns true. Fixtures stub hardware/opaque-handle access,
+not scheduler queue/accounting or the branch/return behavior being asserted.
+
+These are independently demonstrated runtime defects, not yet proof that they
+explain the distributor's stalled pipeline. Guest validation and actual server
+acceptance are required before a replacement release.
+
+
+Local wait-correction validation:
+
+- Release ISO/ELF build succeeds; 658 host, 134 controller and all 48 dependency
+  adapter tests pass (17 scheduler/condition cases, including ticket double debit).
+- Full native gate passes in **686.101s** under the same Debian QEMU 10.0.13
+  package and explicit TCG: 64 exact byte pipelines across collection pressure,
+  floating-point streams, fault/cancel/early exit, permission and installed data
+  audits, hidden authentication, graphical and local-console EOF/cancellation.
+- Evidence: `/tmp/zn-condition-native`, `/tmp/zn-condition-native.log`,
+  `/tmp/zn-condition-build.log`, `/tmp/zn-condition-host.log`,
+  `/tmp/zn-condition-controllers.log`, `/tmp/zn-condition-adapters-final.log`.
+- ISO SHA256: `1ab5070a1651c118b1277be7de6a4ff7c869903ea7d1cb36f2da9075d95cc280`.
+- ELF SHA256: `a952d4f6f2f665c55144e3f293ddb2884f1fbda5f842fd3d75a1f7819a69733d`.
+  Both hashes remain unchanged after the gate. Native disassembly confirms the
+  state-check/back-edge around HLT and that timed interop returns the wait result
+  without overwriting EAX with true. Docker-client CPU figures are not QEMU CPU.
+
+The actual distributor path remains unverified. Local success did not prove that
+path for prior candidates and does not do so here. This untagged correction has
+not passed a new full clean-source four-gate release qualification; no new version
+is published and 0.0.19 remains immutable.
