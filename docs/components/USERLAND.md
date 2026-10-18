@@ -88,5 +88,7 @@ Earlier read-only foundation evidence remains in the
 Current scheduler candidate: the server snapshot has Ready workers but no Running
 entry. A real-dependency fixture reproduces self-selection retaining Ready; the
 copied dependency now restores Running without replacing its live stack. Thirteen
-scheduler regressions pass. Full candidate qualification and actual distributor
-pipeline acceptance remain pending; this is not a delivered kernel fix.
+scheduler regressions pass. Candidate `a63ce7c` also passes the full native gate
+locally (648.864s), 658 host, 134 controllers and all 40 adapter checks. Actual
+distributor pipeline acceptance and full release qualification remain pending;
+this is not a delivered kernel fix.

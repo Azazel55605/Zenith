@@ -145,7 +145,11 @@ Release build applies the signature-checked correction and succeeds; 658 host,
 - ELF: `2ffb2d14a0ff4f1292613e45defde76faf399be550f0a0f539392a95eb4f4255`.
 
 Focused native evidence: `/tmp/zn-self-dispatch-native`, with run output in
-`/tmp/zn-self-dispatch-native.log`; full native result is recorded after completion.
+`/tmp/zn-self-dispatch-native.log`. The full native gate passes in **648.864s**: all
+64 byte pipelines across GC, floating-point streaming, fault/cancel/early-exit
+cleanup, permissions, independent persisted binary/ext2 audits, hidden GUI password
+input, normal/immediate EOF and local-console cancellation. Transcripts pass the
+secret-free assertions. ISO/ELF hashes remain unchanged after the run.
 The test uses Debian QEMU 10.0.13 and explicit TCG on the laptop. Docker-client CPU
 accounting cannot be used as QEMU CPU time. Full clean-source release acceptance
 and the actual distributor's focused candidate test remain required before a tag.

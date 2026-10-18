@@ -45,7 +45,10 @@ The focused server retry still stalls with IF enabled on worker halt stacks and
 Ready workers but no Running snapshot entry. A candidate copied-dependency fix
 repairs a deterministically reproduced Ready -> Running omission when dispatch
 selects the already-current woken thread. Thirteen real-dependency scheduler tests
-pass; full candidate qualification and actual server acceptance are pending.
+pass, together with 658 host, 134 controller and all 40 adapter tests. Its full
+native-process gate passes locally in 648.864s, including 64 pipelines across GC.
+Actual distributor-path acceptance and full clean-source release qualification
+remain pending; no new kernel release is claimed.
 
 ## Component summary
 

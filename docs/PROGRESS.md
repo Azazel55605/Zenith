@@ -19,11 +19,13 @@ Updated **2026-10-18**. [Status](STATUS.md) owns delivery boundaries;
   13 real-dependency scheduler regressions pass, including 100 repeated cycles;
   all 40 pinned dependency adapter tests pass.
 - [x] Build the untagged candidate at `a63ce7c`; pass 658 host tests and 134
-  controllers. Native-process acceptance under Debian QEMU 10.0.13 is running.
-- [ ] Qualify the combined candidate with clean-source full release acceptance and
-  the complete pinned adapter suite. No replacement release is qualified yet.
-- [ ] Test the candidate on the distributor's failing path before deciding that
-  this reproduced state defect explains the server stall. No timeout/gate bypass.
+  controllers. Full native-process gate passes under Debian QEMU 10.0.13 in
+  648.864s, including 64 pipelines across GC and installed/GUI/local audits.
+- [ ] Test the untagged candidate on the distributor's failing path before deciding
+  this reproduced state defect explains its stall. Capture verified halt call sites
+  if it persists. Current-checkout build/harness instructions are in AUTOMATION.
+- [ ] Once the server candidate passes, run clean-source full release acceptance
+  before a new kernel tag. No replacement release is qualified yet.
 - [ ] Distributor publication and installed VMware update/reboot/confirm, followed
   by representative pipe/input checks, remain separate acceptance steps.
 
