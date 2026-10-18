@@ -41,6 +41,12 @@ snapshots are tested and pushed as `384d9fc`; actual server capture, delivery an
 remain pending. See [server investigation](archive/2026-10-18/native-pipeline-server-stall.md).
 See [investigation](archive/2026-10-17/scheduler-late-wake.md) and [active steps](PROGRESS.md#native-terminal-streams-release-handoff).
 
+The focused server retry still stalls with IF enabled on worker halt stacks and
+Ready workers but no Running snapshot entry. A candidate copied-dependency fix
+repairs a deterministically reproduced Ready -> Running omission when dispatch
+selects the already-current woken thread. Thirteen real-dependency scheduler tests
+pass; full candidate qualification and actual server acceptance are pending.
+
 ## Component summary
 
 | Component | Implemented and verified scope | Remaining scope |

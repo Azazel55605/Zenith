@@ -5,42 +5,27 @@ Updated **2026-10-18**. [Status](STATUS.md) owns delivery boundaries;
 
 ## Native terminal streams: release handoff
 
-- [x] Implement native standard streams, bounded byte pipes, wc/head/tail and
-  protected pipeline contexts. Kernel 0.0.18, Sunbeam 0.4.0 and manuals 0.1.2
-  tags were published at `cba1cbf`; the distributor's kernel gate then failed.
-- [x] Reproduce duplicate scheduler entries and fix late wakes, Created admission
-  and wake-before-switch/yield requeue without changing IRQ restoration or tickets.
-- [x] Reproduce conservative GC marking inside a monitor-handle field; resolve
-  interior register/stack candidates to owning ordinary/pinned objects first.
-- [x] Preserve GUI line/EOF order across pending reads; clear type-ahead around
-  hidden authentication. Add runtime dependency and terminal regression coverage.
-- [x] Quiet pinned hot success traces, retain error paths and report exact output
-  plus completion. Expand the native gate to 64 byte pipelines across GC, GUI
-  hidden-password and immediate-EOF checks, local input and persistent file audits.
-- [x] Full clean-source TCG acceptance passes at **`6544ffd`**: 121 controller,
-  658 host, 71 login/session, 92 repository, expanded native processes and 169
-  kernel upgrade/recovery checks. All 35 pinned dependency regressions pass.
-  Separate stress also passed 80 pipelines across GC and 20 immediate-EOF GUI cycles.
-- [x] User authorized publication; fixes pushed to `origin/main` and annotated
-  **`kernel/v0.0.19`** pushed at tested `6544ffd`. Remote peeled tag verified.
-  Existing release tags remain immutable.
-- [x] Operator reports 0.0.19 distributor failure on the first four-stage byte
-  pipeline (`N_STREAM_BYTES_0`): no count/status, 120.702s wall / 13.5s QEMU CPU.
-  Local acceptance does not establish server reliability.
-- [x] Inspect server serial: all four pipeline threads start, then timer samples
-  retain current thread 78 / run queue 5. No fault or completion is reported.
-- [x] Recheck accepted ISO on QEMU 11.1.2 and Debian QEMU 10.0.13: both full
-  native gates pass. The copied server ISO also passes the full native gate
-  locally (761.966s), including a CPU-throttled portion. Server stall not reproduced.
-- [x] Add bounded failure-only instruction/symbol and numeric scheduler snapshots
-  before VM cleanup; pass 132 controllers and live read-only QEMU checks.
-- [x] Push controller diagnostics as `384d9fc`; remote tag remains `6544ffd`.
-- [ ] Update the distributor checkout and capture its actual stall during a focused
-  native-gate retry; root cause remains unresolved. Keep tags immutable.
-- [ ] Distributor publication and installed VMware acceptance: kernel update,
-  reboot/confirm first, then tools/manuals and representative pipe/input checks.
+- [x] Stream/runtime fixes passed full local acceptance at `6544ffd`; user-authorized
+  `kernel/v0.0.19` points there. It remains immutable and fails the server's first
+  repeated byte pipeline. Prior implementation/evidence is archived below.
+- [x] Exact server binaries pass the full native gate locally under the same Debian
+  QEMU version, including a CPU-throttled portion. Server reliability is unresolved.
+- [x] Deploy bounded diagnostics (`384d9fc`). Operator snapshot shows both sampled
+  worker stacks halted, threads 0/78/79/81 Ready and 80 Sleeping; no Running entry.
+- [x] Reproduce a same-thread dispatch defect in the actual pinned dependency:
+  wake-before-switch then self-selection removes its queue entry but leaves Ready.
+- [x] Adapt both voluntary and IRQ self-dispatch to restore only Ready -> Running;
+  preserve current stack, ticket totals and first-entry/native-switch flags. All
+  13 real-dependency scheduler regressions pass, including 100 repeated cycles;
+  all 40 pinned dependency adapter tests pass.
+- [ ] Qualify the combined candidate with clean-source full release acceptance and
+  the complete pinned adapter suite. No replacement release is qualified yet.
+- [ ] Test the candidate on the distributor's failing path before deciding that
+  this reproduced state defect explains the server stall. No timeout/gate bypass.
+- [ ] Distributor publication and installed VMware update/reboot/confirm, followed
+  by representative pipe/input checks, remain separate acceptance steps.
 
-[Server-only 0.0.19 stall investigation](archive/2026-10-18/native-pipeline-server-stall.md).
+[Server-only stall and same-thread dispatch investigation](archive/2026-10-18/native-pipeline-server-stall.md).
 [Prior runtime fixes and local acceptance](archive/2026-10-17/scheduler-late-wake.md).
 [Stream implementation](archive/2026-10-17/native-streams.md).
 Raw TTY/jobs, seek and general process scheduling remain future work.

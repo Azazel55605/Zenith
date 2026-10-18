@@ -425,7 +425,10 @@ Pinned scheduler wake regressions run with `python3 -B tools/test_scheduler_wake
 after building the post-patcher. They execute the real wake/stride implementation
 in a host-only copy with IRQ/UART hardware stubbed; preserve timeout-then-signal
 idempotence, wake-before-switch/yield requeue, Created state, sorted pass/ticket
-accounting and IRQ restoration. `python3 -B tools/test_conservative_roots_fixup.py`
+accounting and IRQ restoration. They also require a self-selected woken current
+thread to become Running without replacing its live stack or requesting a native
+switch, across repeated short sleeps and both dispatcher paths. Different-thread
+and Created entry flags must remain intact. `python3 -B tools/test_conservative_roots_fixup.py`
 executes the pinned collector on a synthetic heap, proving interior references mark
 objects without modifying their fields. Only kernel-address floors are adapted
 for host addresses in this separate fixture copy. Include ordinary/pinned/array,

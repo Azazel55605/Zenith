@@ -43,6 +43,7 @@ void QuietTrace(MethodDefinition method, string firstText, string lastText)
 if (assembly.Name.Name == "Cosmos.Kernel.Core")
 {
     changed |= ConservativeRootFixup.Apply(module);
+    changed |= SchedulerDispatchFixup.Apply(module);
     var allocator = module.GetType("Cosmos.Kernel.Core.Memory.PageAllocator")
         ?? throw new InvalidOperationException("Cosmos allocator type changed");
     var pages = allocator.Methods.Single(m => m.Name == "AllocPages" && m.Parameters.Count == 3);

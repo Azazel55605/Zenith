@@ -89,3 +89,41 @@ from the actual server failure before deciding on a runtime correction. Do not
 move the release tag or bypass any release gate. Distributor checkout update and actual server failure capture remain pending.
 The three local native gates all passed, so no underlying runtime fix or new kernel
 release is claimed.
+
+## Actual server snapshot and candidate correction
+
+The next focused operator run still fails `N_STREAM_BYTES_0` after 120.715s
+(13.22 QEMU CPU seconds), with the same ELF hash. Three observations alternate
+between two worker stack pointers in `_native_cpu_halt+1`, with IF enabled.
+The stable version-1 scheduler buffer reports 0, 78, 79 and 81 Ready (state 1),
+80 Sleeping (state 4), and no Running entry (state 2). This is a live observation
+of scheduling state, not proof that a particular lock owns the stall.
+
+A deterministic host fixture now reproduces a missing state transition in the
+actual pinned `SchedulerManager`, with only IRQ/UART/context-switch hardware
+stubbed. Let the current thread's short sleep expire before it switches away:
+`ReadyThread` enqueues it, then `ScheduleFromInterrupt` selects that same thread
+and consumes its queue entry. The original same-thread branch skips all of the
+different-thread body, including setting Running. It returns with the current
+thread Ready and absent from the queue. The voluntary `Schedule` path has the
+same omission. Both the pristine dependency and the existing 0.0.19 adapters
+reproduce `state=1;queue=0;tickets=200;stack=4096;switchSp=0`.
+
+`SchedulerDispatchFixup` signature-checks both dispatcher shapes and changes only
+the self-selection branch: Ready becomes Running, then control continues through
+the original same-thread exit. It does not save a live stack, request a context
+switch to that stack, change admission/tickets, promote Created/Blocked/Sleeping/
+Dead states, or change the different-thread entry flag. The result is
+`state=2;queue=0;tickets=200;stack=4096;switchSp=0;new=0`.
+
+All 13 real-dependency scheduler regressions pass: original failure, IRQ/voluntary
+self-selection, 100 short-sleep/wake/self-selection cycles with exact ticket and
+stack preservation, existing/deduplicated queue cases, real different-thread and
+Created entry flags, inactive-state preservation, signature drift and byte-idempotence.
+All 40 pinned dependency adapter tests pass. The installed NuGet assembly and
+upstream checkout remain unchanged.
+
+This correction repairs a demonstrated invariant violation consistent with the
+operator's missing Running state. It is not yet established as the complete cause
+of the server's stalled pipeline. Full candidate release acceptance and a focused
+run on the actual distributor remain required; no new kernel tag is created here.

@@ -83,6 +83,35 @@ class WakeTests(unittest.TestCase):
         result = self.adapt(); self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual('queue=1;tickets=200;state=1;irq=2/2;irqFlags=512;passPreserved=True', self.tick(self.copy, 'blocked'))
 
+    def test_self_dispatch_after_current_sleep_expires_restores_running_without_switch(self):
+        for mode in ('dispatch-interrupt', 'dispatch-voluntary'):
+            self.assertEqual('state=1;queue=0;tickets=200;stack=4096;switchSp=0;new=0', self.tick(self.copy, mode))
+        self.assertEqual(0, self.adapt().returncode)
+        for mode in ('dispatch-interrupt', 'dispatch-voluntary'):
+            self.assertEqual('state=2;queue=0;tickets=200;stack=4096;switchSp=0;new=0', self.tick(self.copy, mode))
+
+    def test_repeated_short_sleep_wake_self_dispatch_preserves_tickets_and_stack(self):
+        self.assertEqual('not-running-at=0', self.tick(self.copy, 'dispatch-repeat'))
+        self.assertEqual(0, self.adapt().returncode)
+        self.assertEqual('state=2;queue=0;tickets=200;stack=4096;switchSp=0;new=0',self.tick(self.copy,'dispatch-repeat'))
+
+    def test_other_thread_switch_and_created_entry_keep_the_original_context_contract(self):
+        self.assertEqual(0, self.adapt().returncode)
+        for mode,new in [('dispatch-other',0),('dispatch-new',1)]:
+            self.assertEqual('state=1;queue=1;tickets=300;stack=8192;switchSp=12288;new='+str(new),self.tick(self.copy,mode))
+
+    def test_self_dispatch_does_not_resurrect_nonready_states(self):
+        self.assertEqual(0, self.adapt().returncode)
+        for state in (0,2,3,4,5):
+            self.assertEqual('state='+str(state)+';queue=0;tickets=200;stack=4096;switchSp=0;new=0',self.tick(self.copy,'dispatch-preserve-'+str(state)))
+
+    def test_dispatch_signature_drift_is_refused_without_writing(self):
+        before=self.copy.read_bytes()
+        changed=before.replace(b'ScheduleFromInterrupt',b'ScheduleFromInterrupX')
+        self.assertNotEqual(before,changed);self.copy.write_bytes(changed)
+        self.assertNotEqual(0,self.adapt().returncode)
+        self.assertEqual(changed,self.copy.read_bytes())
+
     def test_repeated_adaptation_is_byte_identical(self):
         self.assertEqual(0, self.adapt().returncode)
         before = self.copy.read_bytes(); self.assertEqual(0, self.adapt().returncode)

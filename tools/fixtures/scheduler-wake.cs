@@ -33,6 +33,19 @@ using (var source = AssemblyDefinition.ReadAssembly(args[0]))
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Stsfld, flags));
         method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
     }
+    var context = module.GetType("Cosmos.Kernel.Core.Bridge.ContextSwitchNative");
+    foreach (string name in new[] { "SetContextSwitchSp", "SetContextSwitchNewThread" })
+    {
+        var method = context.Methods.Single(m => m.Name == name);
+        var value = new FieldDefinition("_host" + name, Mono.Cecil.FieldAttributes.Public | Mono.Cecil.FieldAttributes.Static, method.Parameters[0].ParameterType);
+        context.Fields.Add(value);
+        method.PInvokeInfo = null; method.IsPInvokeImpl = false;
+        method.ImplAttributes = Mono.Cecil.MethodImplAttributes.IL | Mono.Cecil.MethodImplAttributes.Managed;
+        method.Body = new Mono.Cecil.Cil.MethodBody(method);
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldarg_0));
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Stsfld, value));
+        method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
+    }
     foreach (var method in module.GetType("Cosmos.Kernel.Core.IO.Serial").Methods.Where(m => m.Name.StartsWith("Write") && m.ReturnType.FullName == "System.Void"))
     {
         method.Body = new Mono.Cecil.Cil.MethodBody(method);
@@ -64,7 +77,7 @@ var queue = (System.Collections.IList)data.GetType().GetProperty("RunQueue")!.Ge
 Set(data, "TotalTickets", initial == 2 ? 200UL : 100UL);
 Set(data, "LastPassUpdate", (ulong)Stopwatch.GetTimestamp());
 if (initial == 1) { queue.Add(thread); Set(data, "TotalTickets", 200UL); }
-Set(cpu, "IdleThread", idle); Set(cpu, "CurrentThread", initial == 2 || args[2].StartsWith("wake-current") ? thread : idle); Set(cpu, "SchedulerData", data);
+Set(cpu, "IdleThread", idle); Set(cpu, "CurrentThread", initial == 2 || (args[2].StartsWith("wake-current") || args[2].StartsWith("dispatch-")) ? thread : idle); Set(cpu, "SchedulerData", data);
 var stride = TypeOf("Stride.StrideScheduler");
 stride.GetField("s_ticksPerQuantum", BindingFlags.Static | BindingFlags.NonPublic)!.SetValue(null, 10000000UL);
 object scheduler = Activator.CreateInstance(stride, true)!;
@@ -81,6 +94,47 @@ if (args[2] == "late-signal")
     waiters.Add(thread);
 }
 wake.Invoke(null, new object[] { 0U, thread });
+if (args[2].StartsWith("dispatch-"))
+{
+    Set(thread, "StackPointer", (nuint)0x1000);
+    if (args[2] == "dispatch-repeat")
+    {
+        for (int iteration = 0; iteration < 100; iteration++)
+        {
+            manager.GetMethod("ScheduleFromInterrupt", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, new object[] { 0U, (nuint)0x2000 });
+            if (Convert.ToInt32(thread.GetType().GetProperty("State")!.GetValue(thread)) != 2)
+            { Console.WriteLine("not-running-at=" + iteration); return; }
+            if (iteration < 99)
+            {
+                manager.GetMethod("MarkSleeping", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, new object[] { 0U, thread, 1U });
+                wake.Invoke(null, new object[] { 0U, thread });
+            }
+        }
+    }
+    else if (args[2] is "dispatch-other" or "dispatch-new")
+    {
+        object other = Blank("SchedulerThread");
+        var otherData = Activator.CreateInstance(TypeOf("Stride.StrideThreadData"), true)!;
+        Set(otherData,"Tickets",100UL); Set(otherData,"Stride",10485UL); Set(otherData,"Pass",long.MinValue+100);
+        Set(other,"SchedulerData",otherData); Set(other,"State",Enum.ToObject(TypeOf("SchedulerThreadState"), args[2] == "dispatch-new" ? 0 : 1));
+        Set(other,"StackPointer",(nuint)0x3000); queue.Insert(0,other); Set(data,"TotalTickets",300UL);
+    }
+    else if (args[2].StartsWith("dispatch-preserve-"))
+    { Set(thread,"State",Enum.ToObject(TypeOf("SchedulerThreadState"),int.Parse(args[2].Split('-')[2]))); }
+    var name = args[2] == "dispatch-voluntary" ? "Schedule" : "ScheduleFromInterrupt";
+    if (args[2] != "dispatch-repeat")
+    {
+        manager.GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null,
+            name == "Schedule" ? new object[] { 0U } : new object[] { 0U, (nuint)0x2000 });
+    }
+    var context = assembly.GetType("Cosmos.Kernel.Core.Bridge.ContextSwitchNative", true)!;
+    Console.WriteLine("state=" + Convert.ToInt32(thread.GetType().GetProperty("State")!.GetValue(thread))
+        + ";queue=" + queue.Count + ";tickets=" + data.GetType().GetProperty("TotalTickets")!.GetValue(data)
+        + ";stack=" + thread.GetType().GetProperty("StackPointer")!.GetValue(thread)
+        + ";switchSp=" + context.GetField("_hostSetContextSwitchSp")!.GetValue(null)
+        + ";new=" + context.GetField("_hostSetContextSwitchNewThread")!.GetValue(null));
+    return;
+}
 long firstPass = (long)currentData.GetType().GetProperty("Pass")!.GetValue(currentData)!;
 if (args[2].StartsWith("wake-current"))
 {

@@ -121,7 +121,9 @@ execution ledger or duplicate historical test totals into the roadmap.
   Preserve scheduler late-wake idempotence inside the IRQ scope: timeout followed
   by a signal must not duplicate ready entries or change an already queued pass
   or ticket total. A wake before switch-out followed by yield must reorder one
-  existing entry, never duplicate it. Conservative stack/register GC candidates
+  existing entry, never duplicate it. Self-selection of a woken current thread
+  must restore Ready to Running without replacing its live stack or requesting
+  a native switch; preserve other-thread/Created entry flags. Conservative stack/register GC candidates
   must resolve to owning object starts before marking; preserve opaque monitor
   fields and ordinary/pinned object boundaries. Keep real-dependency wake/GC
   regressions and repeated native

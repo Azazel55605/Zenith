@@ -84,3 +84,9 @@ independent persistent contents/audit, repository and kernel recovery gates.
 [Current slice evidence](../archive/2026-10-16/native-input-and-writes.md).
 Earlier read-only foundation evidence remains in the
 [2026-10-15 record](../archive/2026-10-15/PROGRESS.md#2026-10-15--native-filesystem-tool-unbundling-locally-verified).
+
+Current scheduler candidate: the server snapshot has Ready workers but no Running
+entry. A real-dependency fixture reproduces self-selection retaining Ready; the
+copied dependency now restores Running without replacing its live stack. Thirteen
+scheduler regressions pass. Full candidate qualification and actual distributor
+pipeline acceptance remain pending; this is not a delivered kernel fix.
