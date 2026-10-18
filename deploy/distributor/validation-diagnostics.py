@@ -1,10 +1,13 @@
 """Bounded, read-only CPU observations after a native pipeline timeout.
 
 Capture code/stack addresses, flags and the documented numeric scheduler
-snapshot and validated halt return addresses, never general registers, arbitrary
+snapshot and validated halt return addresses, never general-register payloads, arbitrary
 memory, serial text or input.
+Typed queue fields can also be read using the exact ELF's DWARF and verified
+static getter. No object payloads or arbitrary stack locals are collected.
 These observations cannot pass a gate.
 """
+import importlib.util
 import bisect
 import hashlib
 import json
@@ -16,6 +19,9 @@ import struct
 import time
 
 PIPELINE = re.compile(r'N_STREAM_(?:BYTES_[0-9]+|FP_BYTES)')
+scheduler_spec = importlib.util.spec_from_file_location('validation_scheduler', Path(__file__).with_name('validation-scheduler.py'))
+scheduler = importlib.util.module_from_spec(scheduler_spec); scheduler_spec.loader.exec_module(scheduler)
+
 REGISTERS = re.compile(r'\b(RIP|RSP|RFL)=([0-9a-fA-F]{1,16})\b')
 
 
@@ -170,6 +176,12 @@ def capture(machine, label, elf=None):
             try: report['scheduler_snapshot'] = scheduler_snapshot(monitor,snapshot_slot(elf))
             except (OSError,ValueError,subprocess.SubprocessError,struct.error):
                 report['scheduler_snapshot_error'] = 'snapshot absent, unstable or unsupported'
+            try:
+                report['scheduler_queue'] = scheduler.observe(monitor,elf,words)
+                time.sleep(.1)
+                report['scheduler_queue_after'] = scheduler.observe(monitor,elf,words)
+            except (OSError,ValueError,KeyError,subprocess.SubprocessError,struct.error):
+                report['scheduler_queue_error'] = 'typed queue unavailable, changed during read or unsupported'
     destination = directory / 'pipeline-stall.json'
     destination.write_text(json.dumps(report, indent=2)+'\n')
     print('Native pipeline stall snapshot (read-only): '+str(destination), flush=True)

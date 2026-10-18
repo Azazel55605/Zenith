@@ -95,5 +95,8 @@ halt call sites. The state correction alone is insufficient. Condition waits tha
 resume after an unrelated interrupt and discarded timed-wait results are now
 reproduced in dependency fixtures. Their fixes pass 48 adapters, 658 host and 134
 controller checks plus the full local native gate (686.101s, Debian QEMU 10.0.13 /
-TCG). Distributor acceptance and full release qualification remain pending; this
-is not a delivered kernel fix.
+TCG). The rebuilt server candidate still fails. Exact server kernel/disk replay,
+including the earlier fault/cancel sequence, passes locally. A bounded typed-queue
+observer and no-build disposable-fixture replay are implemented for the next server
+capture. Root cause, distributor acceptance and full release qualification remain
+pending; this is not a delivered kernel fix.

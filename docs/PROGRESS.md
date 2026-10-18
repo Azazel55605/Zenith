@@ -5,39 +5,25 @@ Updated **2026-10-18**. [Status](STATUS.md) owns delivery boundaries;
 
 ## Native terminal streams: release handoff
 
-- [x] Stream/runtime fixes passed full local acceptance at `6544ffd`; user-authorized
-  `kernel/v0.0.19` points there. It remains immutable and fails the server's first
-  repeated byte pipeline. Prior implementation/evidence is archived below.
-- [x] Exact server binaries pass the full native gate locally under the same Debian
-  QEMU version, including a CPU-throttled portion. Server reliability is unresolved.
-- [x] Deploy bounded diagnostics (`384d9fc`). Operator snapshot shows both sampled
-  worker stacks halted, threads 0/78/79/81 Ready and 80 Sleeping; no Running entry.
-- [x] Reproduce a same-thread dispatch defect in the actual pinned dependency:
-  wake-before-switch then self-selection removes its queue entry but leaves Ready.
-- [x] Adapt both voluntary and IRQ self-dispatch to restore only Ready -> Running;
-  preserve current stack, ticket totals and first-entry/native-switch flags. All
-  13 real-dependency scheduler regressions pass, including 100 repeated cycles;
-  all 40 pinned dependency adapter tests pass.
-- [x] Build the untagged candidate at `a63ce7c`; pass 658 host tests and 134
-  controllers. Full native-process gate passes under Debian QEMU 10.0.13 in
-  648.864s, including 64 pipelines across GC and installed/GUI/local audits.
-- [x] Operator tested the rebuilt candidate: the first pipeline still times out
-  (120.727s). Verified halt call sites are in `ConditionVariable.WaitTimeout`;
-  the self-dispatch correction alone does not resolve the actual server failure.
-- [x] Reproduce two further pinned-runtime defects: a condition wait returns after
-  an unrelated interrupt while still parked, and timed monitor interop discards
-  the timeout result. Adapt build copies to await a real wake and return the result.
-- [x] Real-dependency tests cover timed/signaled waits, an intervening unrelated
-  interrupt, 100 repeated wake cycles, IRQ/ticket preservation, and both source
-  plug and transplanted CoreLib timeout returns.
-- [x] Release build, 658 host, 134 controller and all 48 adapter checks pass.
-  Full native gate passes under Debian QEMU 10.0.13 / TCG in 686.101s: 64 exact
-  byte pipelines, FP, cancellation/fault cleanup, installed audit and GUI/local input.
-- [ ] Verify these wait corrections on the actual distributor. The reproduced
-  defects are not yet a proven cause of its stall; pipeline expectations/timeouts
-  remain unchanged. Rebuild current main, not the immutable failed tag.
-- [ ] Once the server candidate passes, run clean-source full release acceptance
-  before a new kernel tag. No replacement release is qualified yet.
+- [x] `kernel/v0.0.19` remains immutable at locally accepted `6544ffd`; its
+  distributor native pipeline fails. Later untagged candidates also fail there.
+- [x] Real-dependency regressions reproduce and correct queue/wake accounting,
+  self-dispatch state and timed-condition contracts. Latest runtime candidate
+  `693cac9` passes 658 host, 48 adapter tests and the full local native gate
+  (686.101s), but the operator's rebuild still fails after 120.746s.
+- [x] Copy exact failed server ELF/ISO and disposable installed disk. Direct and
+  original pre-pipeline warmup replay pass locally under Debian QEMU 10.0.13 / TCG.
+  Server TSC/LAPIC calibration is normal; the actual runtime cause remains open.
+- [x] Add no-build replay using a separate disk copy and failure-only typed queue,
+  ticket/pass/runtime and bounded saved-frame observations from the exact ELF.
+  State-only snapshots also occur during healthy pipelines and do not establish
+  queue membership. Current slice changes controller tools, not the kernel.
+- [x] Pass 149 common controller tests, actual fixture replay/warmup and live
+  read-only observer checks. A synthetic failed wait remains false after capture.
+- [ ] Run warmup replay on the distributor and inspect both queue observations.
+  Commands are in AUTOMATION; reuse the retained fixture/ELF without rebuilding.
+- [ ] Once the server path passes, run clean-source full release acceptance before
+  a new kernel tag. No replacement release is qualified yet.
 - [ ] Distributor publication and installed VMware update/reboot/confirm, followed
   by representative pipe/input checks, remain separate acceptance steps.
 

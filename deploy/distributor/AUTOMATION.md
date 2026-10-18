@@ -208,6 +208,37 @@ ZENITH_VALIDATION_ACCELERATOR=tcg python3 -B deploy/distributor/validation-runne
 This is a focused candidate test, not full release qualification. Keep a new kernel
 tag gated on full clean-source acceptance and actual distributor-path evidence.
 
+When a native pipeline fixture has already failed, replay its retained installed
+disk without another build or OS installation. From the updated controller checkout:
+
+```sh
+PATH="$PATH:/usr/sbin:/sbin" ZENITH_VALIDATION_ACCELERATOR=tcg \
+  python3 -B tools/native-pipeline-replay.py \
+  --disk /var/tmp/zn-jERG7N/installed/disk.img \
+  --elf output-x64/Zenith.elf --warmup
+```
+
+Use the actual retained disposable smoke disk and its matching ELF. This creates
+fresh evidence under a printed short `/var/tmp/zn-*/replay` directory, verifies
+kernel/ELF pairing, boots a copy and leaves the original disk untouched. Omit
+`--warmup` for eight direct pipelines; `--warmup` reuses the current harness's
+preceding fault/timeout/EOF/cancel statements and replays public package downloads
+and no-op package installs on the clone. `--repeat N` controls repetitions (1..256),
+and `--keep NEW_DIRECTORY` selects a new short evidence directory. Existing output
+is refused. It needs QEMU/firmware, binutils and debugfs for warmed replay; no
+compiler or package signing key is used. It does not qualify a release, publish
+anything, or mark the original distributor failure successful.
+
+A pipeline timeout now captures actual typed queue membership, current thread,
+ticket/pass/runtime metadata and bounded saved code-frame locations in
+`pipeline-stall.json`. Layouts and method tables must match the supplied ELF;
+unknown layouts/absent tooling produce a diagnostic error without weakening the
+failed check. Two live observations help compare progress. Endpoint changes are
+marked, and saved contexts are not a frozen live backtrace. Ready/Sleeping state
+alone does not imply queue membership or a stalled scheduler. The same observer
+is used by ordinary native builds after updating the controller; a kernel rebuild
+is not required just to collect these diagnostics.
+
 Keep the original build and its binaries intact for this investigation. The short
 workspace contains fresh disposable disks. A manual gate run does not qualify an
 entire release or change its failed distributor record.

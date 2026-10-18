@@ -14,7 +14,7 @@ ROOT = HERE.parents[1]
 # Keep this list common to CI, local pre-tag validation and server pre-build tests.
 CONTROLLER_TESTS = (
     "test_guest_auth.py", "test_validation_status.py", "test_validation_profile.py",
-    "test_validation_diagnostics.py",
+    "test_validation_diagnostics.py", "test_validation_scheduler.py", "test_native_pipeline_replay.py",
     "test_validation_accelerator.py", "test_distributor_validation.py",
     "test_recovery_console.py", "test_release_acceptance.py", "test_distributor_retry.py",
     "test_sunbeam_streams.py", "test_guest_pipeline.py",

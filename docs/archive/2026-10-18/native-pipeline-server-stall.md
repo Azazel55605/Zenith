@@ -221,3 +221,71 @@ The actual distributor path remains unverified. Local success did not prove that
 path for prior candidates and does not do so here. This untagged correction has
 not passed a new full clean-source four-gate release qualification; no new version
 is published and 0.0.19 remains immutable.
+
+
+## Wait candidate also fails; exact-disk replay and typed queue observations
+
+The operator rebuilt `693cac9`; ELF SHA256 is
+`7d70146f38b9139b4f0b9e3a0285850930252b6b96b014b943971e4596c11983`.
+`N_STREAM_BYTES_0` still fails after 120.746s (12.56s QEMU CPU, 322.517s harness).
+All three PC samples halt at the timed-condition wait. Ready/Sleeping thread state
+alone does not establish runnable-queue membership or prove scheduler starvation.
+The copied wait corrections repair tested contracts but do not resolve this case.
+
+The operator supplied the exact ISO/ELF and `/var/tmp/zn-jERG7N/installed/disk.img`:
+`obj/server-wait-candidate` (ignored local evidence). ISO SHA256 is
+`4c5015cd5473e9cdb2be106c7d9ff2ffa713d7b225a4395381b1ecfbc0bcca69`.
+The fixture's installed kernel hash matches the supplied ELF. Tests boot separate
+copies and do not write the supplied disk. Under Debian QEMU 10.0.13 / TCG:
+
+- Direct installed-disk replay passes eight exact pipelines:
+  `/tmp/zn-replay-wait.log`, `/tmp/zn-replay-wait`.
+- Warmup replay reuses the original native harness statements before its repeated
+  pipeline loop, including fault, timeout, canonical EOF and cancellation. Existing
+  public test package downloads are replaced only on the clone; package commands
+  are repeated there. It skips OS installation and all compiler/key-generation
+  steps. Eight pipelines pass: `/tmp/zn-replay-warm2.log`, `/tmp/zn-replay-warm2`.
+- The reusable replay command passes the same warmup and eight pipelines:
+  `/tmp/zn-replay-tool.log`, `/tmp/zn-replay-tool-parent/replay`.
+- Operator calibration is 62400 LAPIC ticks/ms and TSC 2622966000 Hz; guest
+  `N_TIMEOUT=124` is timestamped 82.879s and cancellation 100.139s. These are not
+  evidence of a grossly stretched clock. Local TSC calibration is about 3.01 GHz.
+
+`tools/native-pipeline-replay.py` checks the fixture/ELF pairing, refuses existing
+output directories, clones the disk through the headless helper, optionally selects
+warmup statements from the actual harness AST, and preserves exact byte-count and
+completion checks. Warmup public packages are extracted read-only from an image of
+the fixture root. It does not build/sign/publish, qualify a release, repair a failed
+distributor record, or boot/write the original disk.
+
+Failure-only observation now reads actual queue membership, current thread,
+tickets/pass/runtime/wake metadata and bounded saved code-frame locations.
+Instance offsets come from the exact ELF's DWARF; the GC-static CPU-array slot
+must match its compiled getter, and each followed object must have the expected
+method table. Bounds, read/time budgets, unsigned ticket values and signed passes
+are checked. Only fixed ABI frame links and code locations inside the owned stack
+are followed, after verifying the compiled context-initialization layout. No
+argument buffers, general-register payloads, stack locals, credentials or pipe
+contents are emitted. Saved contexts are explicitly not a live unwind. Endpoint
+changes are marked; observations do not stop/step/resume the guest or turn a failed
+gate into success. Two observations permit comparing progress rather than inferring
+it from one state snapshot. Unsupported metadata/tooling leaves a diagnostic error.
+
+Live read-only validation: `/tmp/zn-queue-probe-parent/active-queues.json` captures
+working native read/write/logger stacks with their actual queue/pass/ticket values.
+A healthy pipeline can itself show Ready workers and no Running entry at a sampled
+boundary. Both instrumented pipelines still finish with exact output and zero
+status. Controller tests cover getter/type/layout validation, queue bounds, changed
+endpoints, signed passes, bounded saved frames, unknown ABI refusal, replay boundary
+drift, wrong ELF, truncated roots and preservation of old evidence. The common
+controller suite passes 149 tests. The kernel itself is not changed in this slice.
+
+A synthetic failed wait against a healthy VM also exercises the complete observer:
+`/tmp/zn-diagnostic-live-probe.log`,
+`/tmp/zn-queue-probe-parent/observer/pipeline-stall.json`. Both typed observations
+are recorded and the wait remains false. This is an integration probe, not another
+reproduced guest failure. All diagnostic test VMs are stopped after collection.
+
+The server stall remains unresolved; no additional runtime patch or release tag is
+justified by these local passes. The next necessary evidence is a warmup replay on
+the distributor using the retained disk and existing ELF, with the new queue samples.

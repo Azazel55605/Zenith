@@ -52,7 +52,11 @@ verified halt return sites in `ConditionVariable.WaitTimeout`. The self-dispatch
 correction alone is insufficient. Condition-park/timeout-result fixes now pass
 658 host, 134 controller, 48 adapter checks and the full native gate locally
 (686.101s, Debian QEMU 10.0.13 / TCG). Actual distributor acceptance and full
-clean-source release qualification remain pending. No new kernel release is claimed.
+clean-source release qualification remain pending. The operator's rebuilt wait
+candidate also fails (120.746s). Its exact kernel and installed fixture pass direct
+and warmed replay locally; normal server calibration does not identify the cause.
+A no-build fixture replay and typed queue/saved-frame observer are available;
+no further runtime fix or new kernel release is claimed.
 
 ## Component summary
 
