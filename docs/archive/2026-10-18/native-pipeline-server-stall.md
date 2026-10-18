@@ -370,3 +370,13 @@ on the actual distributor and run the focused native gate documented in AUTOMATI
 The original replay disk still embeds the old candidate. No new release tag is
 qualified by these local results; full clean-source acceptance follows actual
 server confirmation.
+
+## Actual distributor candidate passes
+
+On 2026-10-18 the operator reports that the requested focused native-process gate
+finished successfully after rebuilding candidate `b11f8f8` on the distributor.
+This is actual-path confirmation beyond the laptop reproducer and local gates.
+No server duration, new binary hashes or full four-gate release result were
+supplied, so those are not inferred. The next release prerequisite is clean-source
+full acceptance; publication and installed VMware stream checks remain separate.
+Kernel `0.0.19` is still immutable and no replacement tag has been created.

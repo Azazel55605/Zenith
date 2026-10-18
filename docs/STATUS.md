@@ -8,7 +8,9 @@ The latest distributor queue capture establishes unsigned runnable-ticket
 underflow (`2^64 - 1400`) and global-pass starvation. The pinned policy reproduces
 this through blocked-thread exit accounting. An untagged admission-tracking fix
 passes 56 adapter, 658 host, 149 controller tests and the full native-process
-gate locally (656.737s); actual distributor acceptance remains pending.
+gate locally (656.737s). The operator now reports the focused native gate also
+passes on the distributor with `b11f8f8`. Full clean-source release qualification,
+publication and installed stream acceptance remain pending.
 See [active validation](PROGRESS.md#native-terminal-streams-release-handoff).
 
 ## Release and installation boundary

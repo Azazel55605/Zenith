@@ -31,8 +31,9 @@ Updated **2026-10-18**. [Status](STATUS.md) owns delivery boundaries;
 - [x] Release ISO builds; 658 host, 149 controller and 56 actual dependency-adapter
   tests pass. The full Debian QEMU/OVMF native gate passes in 656.737s,
   including 64 pipelines, GC, fault/cancel, credentials and desktop/local input.
-- [ ] Verify the rebuilt candidate on the actual distributor. Local reproduction
-  proves the accounting defect; server timing still needs candidate acceptance.
+- [x] Operator reports the rebuilt `b11f8f8` candidate passed the focused native
+  gate on the actual distributor. This confirms the fix on the failing server
+  path; no server duration or complete four-gate release result was supplied.
 - [ ] Once the server path passes, run clean-source full release acceptance before
   a new kernel tag. No replacement release is qualified yet.
 - [ ] Distributor publication and installed VMware update/reboot/confirm, followed
