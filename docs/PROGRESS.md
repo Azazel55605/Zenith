@@ -18,9 +18,10 @@ Updated **2026-10-18**. [Status](STATUS.md) owns delivery boundaries;
   credentials, faults/cancel, desktop/local input) and 169 kernel recovery checks.
 - [x] Release target: immutable `kernel/v0.0.20` at exact tested `431dfb9`.
   `kernel/v0.0.19` remains unchanged. Qualification details/hashes are archived.
-- [ ] Distributor build/sign/publish and HTTPS delivery verification for 0.0.20.
+- [x] Operator reports the 0.0.20 distributor run completed successfully.
+  Per-step publication receipts/logs were not independently inspected.
 - [ ] Installed VMware update/reboot/confirm and representative stream/input checks.
-  Publication and installed acceptance are not established by the local gates.
+  Installed acceptance is not inferred from distributor success.
 
 [Server-only stall and same-thread dispatch investigation](archive/2026-10-18/native-pipeline-server-stall.md).
 [Prior runtime fixes and local acceptance](archive/2026-10-17/scheduler-late-wake.md).

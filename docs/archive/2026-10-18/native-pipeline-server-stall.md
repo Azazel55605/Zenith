@@ -457,3 +457,12 @@ This qualifies the source for the new release tag. It does not establish that th
 distributor has built/signed/published 0.0.20 or that the operator's installed VM
 has updated, confirmed the boot and exercised native streams. Those remain the
 next handoff checks.
+
+## Operator reports release distributor success
+
+After `kernel/v0.0.20` was pushed, the operator reported on 2026-10-18 that it
+worked, in response to the outstanding distributor-build check. Record this as
+operator-confirmed successful distributor execution. No per-phase server log,
+publication receipt or installed-VM boot confirmation was supplied, so those
+specific observations are not invented. Installed update/reboot/confirm and
+representative stream/input exercise remain the final acceptance steps.

@@ -64,49 +64,22 @@ symlink/ancestor denials, invalid copyout without offset advancement, stale hand
 FP state, timeout/fault/cancel and malicious-stack containment checks. Audit the
 installed filesystem independently after clean poweroff.
 
-`cba1cbf`: full common TCG stream acceptance passed across serial/desktop/local
-hosts. [Stream implementation and acceptance](../archive/2026-10-17/native-streams.md).
-The distributor's 0.0.18 stream gate exposed a pinned scheduler duplicate-wake
-fault and an interior-root GC corruption. Expanded native acceptance also exposed
-a GUI EOF handoff race; ordered line/EOF delivery and hidden-input checks are
-implemented. The combined correction passes full clean-source TCG acceptance at `6544ffd`,
-including 64 pipelines across GC, hidden GUI input/EOF and kernel recovery.
-Source fixes and `kernel/v0.0.19` are pushed at tested `6544ffd`; distributor
-native acceptance failed on the first repeated byte pipeline on 2026-10-18.
-Exact server artifacts pass the full native gate locally. The distributor replay
-now exposes ticket underflow and producer starvation; the real pinned policy
-reproduces the accounting mechanism. An untagged runnable-admission fix is under
-validation; its full local native gate passes in 656.737s. The operator reports
-the rebuilt `b11f8f8` candidate also passes the focused native gate on the
-distributor. Full clean-source release qualification remains pending. Failure-only controller CPU/thread snapshots are tested and
-deployed; operator captures identify timed-condition halt call sites. Delivery and
-operator installation of a working stream fix remain unverified.
-[Server investigation](../archive/2026-10-18/native-pipeline-server-stall.md). See [investigation](../archive/2026-10-17/scheduler-late-wake.md).
+`kernel/v0.0.20` at `431dfb9` passes clean-source full acceptance: 153 controller,
+658 host, 71 login/session, 92 repository, full native-process coverage with all
+64 byte pipelines plus desktop/local input, and 169 kernel-recovery checks.
+The operator reports the distributor run completed successfully. Installed VMware
+update/reboot/confirmation and representative stream/input checks remain unreported;
+publication receipts were not independently inspected.
 
-`2a515e8`: full common TCG acceptance passed, including expanded native input/writes,
-independent persistent contents/audit, repository and kernel recovery gates.
-[Current slice evidence](../archive/2026-10-16/native-input-and-writes.md).
-Earlier read-only foundation evidence remains in the
-[2026-10-15 record](../archive/2026-10-15/PROGRESS.md#2026-10-15--native-filesystem-tool-unbundling-locally-verified).
+The server failure was runnable-ticket underflow: global pass froze and queued
+producers starved. Real-dependency regressions cover admission/block/exit,
+migration and priority accounting, alongside earlier wake/queue, GC-root, timed
+condition and GUI EOF fixes. A separate stderr fixture correction tolerates known
+Cosmos trace interruptions while still requiring exact error/output/status evidence.
+Failed candidates, exact hashes and validation boundaries are archived in the
+[server investigation](../archive/2026-10-18/native-pipeline-server-stall.md) and
+[prior scheduler/GC record](../archive/2026-10-17/scheduler-late-wake.md).
 
-Current scheduler candidate: the server snapshot has Ready workers but no Running
-entry. A real-dependency fixture reproduces self-selection retaining Ready; the
-copied dependency now restores Running without replacing its live stack. Thirteen
-scheduler regressions pass. Candidate `a63ce7c` also passes the full native gate
-locally (648.864s), 658 host, 134 controllers and all 40 adapter checks. Actual
-distributor test still fails the first pipeline, with verified timed-condition
-halt call sites. The state correction alone is insufficient. Condition waits that
-resume after an unrelated interrupt and discarded timed-wait results are now
-reproduced in dependency fixtures. Their fixes pass 48 adapters, 658 host and 134
-controller checks plus the full local native gate (686.101s, Debian QEMU 10.0.13 /
-TCG). The rebuilt server candidate still fails. Exact server kernel/disk replay,
-including the earlier fault/cancel sequence, passes locally. A bounded typed-queue
-observer and no-build disposable-fixture replay are implemented for the next server
-capture. Root cause, distributor acceptance and full release qualification remain
-pending; this is not a delivered kernel fix.
-
-Release qualification on 2026-10-18: `431dfb9` passes clean-source full acceptance
-(71 login/session, 92 repository, all 64 native pipelines plus GUI/local input and
-169 kernel-recovery checks). `kernel/v0.0.20` targets that exact source and includes
-the server-confirmed runnable-ticket fix and stricter trace-tolerant stderr fixture.
-Distributor publication and installed stream acceptance remain pending.
+Earlier full input/write acceptance at `2a515e8` is preserved in the
+[input/write record](../archive/2026-10-16/native-input-and-writes.md); initial
+stream implementation is in the [stream record](../archive/2026-10-17/native-streams.md).

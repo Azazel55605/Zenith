@@ -1,28 +1,23 @@
 # Current system status
 
-Reviewed **2026-10-17**. Stability fixes: `c622c13`, `ce42cfd`; native filesystem
+Reviewed **2026-10-18**. Stability fixes: `c622c13`, `ce42cfd`; native filesystem
 feature baseline: `f502085`; TCP reliability candidate: `f6bf893`. This page owns the cross-component
 summary; [component checklists](README.md#components) own detailed work.
 
-The latest distributor queue capture establishes unsigned runnable-ticket
-underflow (`2^64 - 1400`) and global-pass starvation. The pinned policy reproduces
-this through blocked-thread exit accounting. An untagged admission-tracking fix
-passes 56 adapter, 658 host, 149 controller tests and the full native-process
-gate locally (656.737s). The operator now reports the focused native gate also
-passes on the distributor with `b11f8f8`. Full clean-source release qualification,
-publication and installed stream acceptance remain pending.
-See [active validation](PROGRESS.md#native-terminal-streams-release-handoff).
-
-Clean-source full release acceptance passes at `431dfb9` for `kernel/v0.0.20`:
-153 controller, 658 host, 71 login/session, 92 repository, full native-process
-coverage with 64 pipelines and 169 kernel recovery checks. The release tag targets
-that exact commit; distributor publication and installed VMware acceptance remain
-pending. `kernel/v0.0.19` is unchanged.
+Kernel **0.0.20** is tagged at fully tested `431dfb9`. The operator reports its
+distributor run completed successfully. The fix prevents runnable-ticket underflow
+and producer starvation; regressions reproduce the original invalid ticket total.
+Clean-source acceptance passed 153 controller, 658 host, 71 login/session,
+92 repository, full native-process coverage with 64 pipelines and 169 kernel
+recovery checks. Publication receipts were not independently inspected, and
+installed VMware update/reboot/confirmation and stream checks remain unreported.
+See [active handoff](PROGRESS.md#native-terminal-streams-release-handoff).
 
 ## Release and installation boundary
 
 | Item | What is established | What remains |
 |---|---|---|
+| Kernel 0.0.20 | Tagged at fully accepted `431dfb9`; operator reports successful distributor run | Installed update/reboot/confirm and native stream/input checks; publication receipt not independently inspected |
 | Kernel 0.0.12 | Operator reports installed and working login; supporting resource packages installed | No broader hardware certification implied |
 | Kernel 0.0.13 | Tag pushed; server validation exposed ext2 corruption: directory `/var/lib` became a regular file at inode 49 | Failed version remains immutable; a retry cannot include the driver fix |
 | Kernel 0.0.14 | Tagged at `fe1f5a9`; operator log confirms server native gates passed, signed archive published and core/extra indexes generation 15 published | Gateway stale DNS cache resolved; operator reports 0.0.14 installed. Intermittent TCP connect failures led to the 0.0.15 reliability release. Explicit boot confirmation is not separately reported |
@@ -37,41 +32,16 @@ confirm it, then update Sunbeam. New bundles require `zenith-native-fs-abi 1.0` 
 `zenith-native-io-abi 1.0`;
 older kernels must reject that dependency. See [native guide](NATIVE-PROGRAMS.md).
 
-Native streams and independent wc/head/tail passed all clean-source test gates
-at `cba1cbf`, including serial/desktop/local input, EOF and cancellation. Operator-approved
-kernel 0.0.18, Sunbeam 0.4.0 and manuals 0.1.2 tags are pushed at that exact source.
-The distributor's 0.0.18 native gate timed out on the four-stage byte-count
-pipeline; publication and installed operator acceptance remain unverified.
-Subsequent investigation corrected duplicate scheduler queue entries, conservative
-GC corruption of monitor fields, and dropped GUI EOF. Full clean-source TCG
-acceptance now passes at `6544ffd`, including 64 pipeline repetitions across GC
-and 169 kernel recovery checks. Source fixes and `kernel/v0.0.19` are pushed;
-the remote tag resolves to tested `6544ffd`. On 2026-10-18 the operator reports
-the server native gate stalled on the first repeated byte pipeline, with no count
-or completion status (120.702s wall / 13.5s QEMU CPU). Server reliability remains
-unresolved despite local acceptance. The accepted ISO passes a full native recheck
-on QEMU 11.1.2 and Debian QEMU 10.0.13; the copied server binary also passes the
-full native gate locally, including a CPU-throttled portion. Failure-only controller
-snapshots are deployed and the operator has supplied timed-condition halt captures.
-Distributor resolution, delivery and VMware acceptance remain pending. See [server investigation](archive/2026-10-18/native-pipeline-server-stall.md).
-See [investigation](archive/2026-10-17/scheduler-late-wake.md) and [active steps](PROGRESS.md#native-terminal-streams-release-handoff).
-
-The focused server retry still stalls with IF enabled on worker halt stacks and
-Ready workers but no Running snapshot entry. A candidate copied-dependency fix
-repairs a deterministically reproduced Ready -> Running omission when dispatch
-selects the already-current woken thread. Thirteen real-dependency scheduler tests
-pass, together with 658 host, 134 controller and all 40 adapter tests. Its full
-native-process gate passes locally in 648.864s, including 64 pipelines across GC.
-The operator's rebuilt candidate still fails the first pipeline (120.727s), with
-verified halt return sites in `ConditionVariable.WaitTimeout`. The self-dispatch
-correction alone is insufficient. Condition-park/timeout-result fixes now pass
-658 host, 134 controller, 48 adapter checks and the full native gate locally
-(686.101s, Debian QEMU 10.0.13 / TCG). Actual distributor acceptance and full
-clean-source release qualification remain pending. The operator's rebuilt wait
-candidate also fails (120.746s). Its exact kernel and installed fixture pass direct
-and warmed replay locally; normal server calibration does not identify the cause.
-A no-build fixture replay and typed queue/saved-frame observer are available;
-no further runtime fix or new kernel release is claimed.
+Native streams and independent wc/head/tail were released for validation in
+0.0.18, whose distributor gate failed. Locally accepted 0.0.19 also stalled on the
+server. Typed queue observations identified unsigned ticket underflow and global
+pass starvation; 0.0.20 corrects that accounting and includes the earlier queue,
+GC-root, wait and GUI EOF fixes. It also makes the stderr fixture tolerate known
+Cosmos trace interruptions while requiring exact error/output/status evidence.
+The operator confirms the 0.0.20 distributor run succeeds. Detailed failed
+candidates and acceptance evidence are preserved in the
+[server investigation](archive/2026-10-18/native-pipeline-server-stall.md) and
+[prior scheduler/GC record](archive/2026-10-17/scheduler-late-wake.md).
 
 ## Component summary
 
