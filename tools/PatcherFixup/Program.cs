@@ -44,6 +44,7 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
 {
     changed |= ConservativeRootFixup.Apply(module);
     changed |= SchedulerDispatchFixup.Apply(module);
+    changed |= SchedulerTicketsFixup.Apply(module);
     changed |= MonitorTimeoutFixup.ApplyCondition(module);
     var allocator = module.GetType("Cosmos.Kernel.Core.Memory.PageAllocator")
         ?? throw new InvalidOperationException("Cosmos allocator type changed");

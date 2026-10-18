@@ -13,15 +13,26 @@ Updated **2026-10-18**. [Status](STATUS.md) owns delivery boundaries;
   (686.101s), but the operator's rebuild still fails after 120.746s.
 - [x] Copy exact failed server ELF/ISO and disposable installed disk. Direct and
   original pre-pipeline warmup replay pass locally under Debian QEMU 10.0.13 / TCG.
-  Server TSC/LAPIC calibration is normal; the actual runtime cause remains open.
+  Server TSC/LAPIC calibration is normal; later queue observations identify the
+  ticket-underflow/global-pass starvation mechanism below.
 - [x] Add no-build replay using a separate disk copy and failure-only typed queue,
   ticket/pass/runtime and bounded saved-frame observations from the exact ELF.
   State-only snapshots also occur during healthy pipelines and do not establish
-  queue membership. Current slice changes controller tools, not the kernel.
+  queue membership. That diagnostic slice changes controller tools only.
 - [x] Pass 149 common controller tests, actual fixture replay/warmup and live
   read-only observer checks. A synthetic failed wait remains false after capture.
-- [ ] Run warmup replay on the distributor and inspect both queue observations.
-  Commands are in AUTOMATION; reuse the retained fixture/ELF without rebuilding.
+- [x] Distributor warmup replay reproduces the stall and reports total tickets
+  `2^64 - 1400`: global stride becomes zero; polling readers repeat while queued
+  producers retain unchanged pass/runtime. Exact pinned policy regression
+  reproduces that total and frozen global pass after blocked-thread exit debits.
+- [x] Track runnable admission in each copied stride record; debit once across
+  block/exit, transfer on migration and change totals for runnable priorities only.
+  Sleeping/Created exits and policy handover no longer subtract absent tickets.
+- [x] Release ISO builds; 658 host, 149 controller and 56 actual dependency-adapter
+  tests pass. The full Debian QEMU/OVMF native gate passes in 656.737s,
+  including 64 pipelines, GC, fault/cancel, credentials and desktop/local input.
+- [ ] Verify the rebuilt candidate on the actual distributor. Local reproduction
+  proves the accounting defect; server timing still needs candidate acceptance.
 - [ ] Once the server path passes, run clean-source full release acceptance before
   a new kernel tag. No replacement release is qualified yet.
 - [ ] Distributor publication and installed VMware update/reboot/confirm, followed

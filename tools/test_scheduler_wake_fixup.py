@@ -122,6 +122,47 @@ class WakeTests(unittest.TestCase):
         self.assertEqual(0,self.adapt().returncode)
         self.assertEqual('halts=2;state=2;result=False;tickets=200;irqFlags=512',self.tick(self.copy,'condition-double'))
 
+    def test_blocked_exit_does_not_subtract_admission_twice(self):
+        self.assertIn('tickets=0;queue=0',self.tick(self.copy,'tickets-block-exit'))
+        self.assertEqual(0,self.adapt().returncode)
+        self.assertIn('tickets=100;queue=0',self.tick(self.copy,'tickets-block-exit'))
+
+    def test_policy_handover_releases_only_admitted_records(self):
+        self.assertIn('tickets=18446744073709551516;queue=0',self.tick(self.copy,'tickets-policy-handover'))
+        self.assertEqual(0,self.adapt().returncode)
+        self.assertIn('tickets=100;queue=0',self.tick(self.copy,'tickets-policy-handover'))
+
+    def test_ticket_contract_drift_is_refused_without_write(self):
+        before=self.copy.read_bytes(); changed=before.replace(b'OnThreadMigrate',b'OnThreadMigratX')
+        self.assertNotEqual(before,changed);self.copy.write_bytes(changed)
+        self.assertNotEqual(0,self.adapt().returncode);self.assertEqual(changed,self.copy.read_bytes())
+
+    def test_unadmitted_and_running_exit_keep_exact_membership(self):
+        self.assertIn('tickets=0',self.tick(self.copy,'tickets-unadmitted-exit'))
+        self.assertEqual(0,self.adapt().returncode)
+        self.assertIn('tickets=100',self.tick(self.copy,'tickets-unadmitted-exit'))
+        self.assertIn('admitted=200\ntickets=100',self.tick(self.copy,'tickets-running-exit'))
+
+    def test_repeated_block_and_readmission_are_idempotent(self):
+        self.assertEqual(0,self.adapt().returncode)
+        self.assertIn('tickets=100;queue=0',self.tick(self.copy,'tickets-repeat-block'))
+
+    def test_sleeping_priority_changes_are_counted_only_after_wake(self):
+        self.assertIn('asleep=250',self.tick(self.copy,'tickets-priority-sleep'))
+        self.assertEqual(0,self.adapt().returncode)
+        self.assertIn('asleep=100\nawake=350\ntickets=100',self.tick(self.copy,'tickets-priority-sleep'))
+        self.assertIn('ready=350\ntickets=100',self.tick(self.copy,'tickets-priority-ready'))
+
+    def test_migration_transfers_admission_and_blocked_exit_keeps_zero(self):
+        self.assertEqual(0,self.adapt().returncode)
+        self.assertIn('from=100;to=100\ntoAfterExit=0',self.tick(self.copy,'tickets-migrate'))
+        self.assertIn('from=100;to=0\ntoAfterExit=0',self.tick(self.copy,'tickets-migrate-blocked'))
+
+    def test_real_policy_reproduces_server_underflow_and_frozen_global_pass(self):
+        self.assertIn('tickets=18446744073709550216;advances=False',self.tick(self.copy,'tickets-starvation'))
+        self.assertEqual(0,self.adapt().returncode)
+        self.assertIn('tickets=500;advances=True',self.tick(self.copy,'tickets-starvation'))
+
     def test_condition_contract_drift_is_refused_without_write(self):
         before=self.copy.read_bytes();changed=before.replace(b'WaitTimeout',b'WaitXimeout')
         self.assertNotEqual(before,changed);self.copy.write_bytes(changed)

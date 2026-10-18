@@ -131,7 +131,11 @@ execution ledger or duplicate historical test totals into the roadmap.
   interrupts until a signal or timeout actually readies the thread; repeated parks
   must preserve tickets and IRQ flags. Timed monitor interop must forward the actual
   timeout/signal Boolean. Monitor adaptations must cover transplanted CoreLib
-  bodies, not only the copied source plug assembly.
+  bodies, not only the copied source plug assembly. Stride ticket totals must track
+  runnable admission independently of thread state: manager callbacks may already
+  mark a thread Blocked/Dead. Block then exit, unadmitted exit, repeated park,
+  policy handover, migration and sleeping priority changes must preserve exact
+  accounting; an unsigned deficit freezes global pass and starves queued workers.
 - Preserve unrelated local changes. Keep generated output, scratch disks and
   machine-specific package settings out of commits. Never format a real disk
   during validation; the smoke harness creates its own disposable disk.

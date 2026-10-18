@@ -243,6 +243,25 @@ Keep the original build and its binaries intact for this investigation. The shor
 workspace contains fresh disposable disks. A manual gate run does not qualify an
 entire release or change its failed distributor record.
 
+### Testing a compiled runtime correction
+
+A retained replay runs the kernel embedded in that disk. To verify a new runtime
+fix, build the updated main checkout and run the focused native gate with a fresh
+disposable fixture (no publication or release record changes):
+
+```sh
+git pull --ff-only &&
+dotnet publish -c Release -r linux-x64 -o output-x64 &&
+dotnet build tools/Zenith.PackageTool -c Release &&
+PATH="$PATH:/usr/sbin:/sbin" ZENITH_VALIDATION_ACCELERATOR=tcg \
+  python3 -B deploy/distributor/validation-runner.py \
+  tools/native-process-smoke.py "/var/tmp/zn-tickets-$(date +%s)"
+```
+
+For the runnable-ticket fix, the build must print `Adapted stride tickets`.
+Keep the failed tagged artifacts for comparison. Passing this focused gate does
+not replace clean-source full release acceptance or move the existing tag.
+
 ## Build efficiency and acceleration
 
 Native acceptance runs the unchanged tagged harness through the current controller's

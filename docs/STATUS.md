@@ -4,6 +4,13 @@ Reviewed **2026-10-17**. Stability fixes: `c622c13`, `ce42cfd`; native filesyste
 feature baseline: `f502085`; TCP reliability candidate: `f6bf893`. This page owns the cross-component
 summary; [component checklists](README.md#components) own detailed work.
 
+The latest distributor queue capture establishes unsigned runnable-ticket
+underflow (`2^64 - 1400`) and global-pass starvation. The pinned policy reproduces
+this through blocked-thread exit accounting. An untagged admission-tracking fix
+passes 56 adapter, 658 host, 149 controller tests and the full native-process
+gate locally (656.737s); actual distributor acceptance remains pending.
+See [active validation](PROGRESS.md#native-terminal-streams-release-handoff).
+
 ## Release and installation boundary
 
 | Item | What is established | What remains |

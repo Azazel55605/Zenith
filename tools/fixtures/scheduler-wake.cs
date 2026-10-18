@@ -100,6 +100,7 @@ object idle = Blank("SchedulerThread"), thread = Blank("SchedulerThread"), cpu =
 var currentData = Activator.CreateInstance(TypeOf("Stride.StrideThreadData"), true)!;
 Set(currentData, "Tickets", 100UL); Set(currentData, "Stride", 10485UL);
 Set(thread, "SchedulerData", currentData);
+var countedField = currentData.GetType().GetField("_zenithRunnableCounted", BindingFlags.Instance | BindingFlags.NonPublic);
 int initial = args[2] switch { "created" => 0, "ready" => 1, "running" => 2, "blocked" => 3, "dead" => 5, _ => 4 };
 Set(thread, "State", Enum.ToObject(TypeOf("SchedulerThreadState"), initial));
 Set(idle, "State", Enum.ToObject(TypeOf("SchedulerThreadState"), 2));
@@ -108,6 +109,7 @@ var queue = (System.Collections.IList)data.GetType().GetProperty("RunQueue")!.Ge
 Set(data, "TotalTickets", initial == 2 ? 200UL : 100UL);
 Set(data, "LastPassUpdate", (ulong)Stopwatch.GetTimestamp());
 if (initial == 1) { queue.Add(thread); Set(data, "TotalTickets", 200UL); }
+if (initial is 1 or 2) countedField?.SetValue(currentData, true);
 Set(cpu, "IdleThread", idle); Set(cpu, "CurrentThread", initial == 2 || (args[2].StartsWith("wake-current") || args[2].StartsWith("dispatch-")) ? thread : idle); Set(cpu, "SchedulerData", data);
 var stride = TypeOf("Stride.StrideScheduler");
 stride.GetField("s_ticksPerQuantum", BindingFlags.Static | BindingFlags.NonPublic)!.SetValue(null, 10000000UL);
@@ -117,6 +119,80 @@ void Static(string field, object value) => manager.GetField(field, BindingFlags.
 var cpus = Array.CreateInstance(TypeOf("PerCpuState"), 1); cpus.SetValue(cpu, 0);
 Static("s_cpuStates", cpus); Static("s_cpuCount", 1U); Static("s_enabled", true); Static("s_currentScheduler", scheduler);
 var wake = manager.GetMethod("ReadyThread", BindingFlags.Static | BindingFlags.NonPublic)!;
+if (args[2].StartsWith("tickets-"))
+{
+    void Policy(string method, params object[] values) => stride.GetMethod(method)!.Invoke(scheduler, values);
+    ulong Total() => (ulong)data.GetType().GetProperty("TotalTickets")!.GetValue(data)!;
+    object New(int state)
+    {
+        object item = Blank("SchedulerThread");
+        Set(item,"State",Enum.ToObject(TypeOf("SchedulerThreadState"),state));
+        Policy("OnThreadCreate",cpu,item);
+        return item;
+    }
+    void Admit(object item)
+    {
+        Set(item,"State",Enum.ToObject(TypeOf("SchedulerThreadState"),1));
+        Policy("OnThreadReady",cpu,item);
+    }
+    void Block(object item)
+    {
+        // Real manager changes state before its policy callback.
+        Set(item,"State",Enum.ToObject(TypeOf("SchedulerThreadState"),3));
+        Policy("OnThreadBlocked",cpu,item);
+    }
+    void Exit(object item)
+    {
+        Set(item,"State",Enum.ToObject(TypeOf("SchedulerThreadState"),5));
+        Policy("OnThreadExit",cpu,item);
+    }
+    switch (args[2])
+    {
+        case "tickets-policy-handover":
+            var handoverRunning = New(2); var handoverReady = New(0); Admit(handoverReady);
+            var handoverBlocked = New(0); Admit(handoverBlocked); Block(handoverBlocked);
+            var handoverCreated = New(0);
+            foreach(var item in new[]{handoverRunning,handoverReady,handoverBlocked,handoverCreated}) Policy("OnThreadExit",cpu,item);
+            Console.WriteLine("tickets="+Total()+";queue="+queue.Count); break;
+        case "tickets-block-exit":
+            var blocked = New(0); Admit(blocked); Block(blocked); Exit(blocked); Exit(blocked);
+            Console.WriteLine("tickets="+Total()+";queue="+queue.Count); break;
+        case "tickets-unadmitted-exit":
+            Exit(New(0)); Console.WriteLine("tickets="+Total()); break;
+        case "tickets-running-exit":
+            var running = New(2); Console.WriteLine("admitted="+Total()); Exit(running); Console.WriteLine("tickets="+Total()); break;
+        case "tickets-repeat-block":
+            var repeated = New(0); Admit(repeated); Block(repeated); Block(repeated); Admit(repeated); Exit(repeated);
+            Console.WriteLine("tickets="+Total()+";queue="+queue.Count); break;
+        case "tickets-priority-sleep":
+            var sleeping = New(0); Admit(sleeping); Block(sleeping);
+            Policy("SetPriority",cpu,sleeping,250L); Console.WriteLine("asleep="+Total());
+            Admit(sleeping); Console.WriteLine("awake="+Total()); Exit(sleeping); Console.WriteLine("tickets="+Total()); break;
+        case "tickets-priority-ready":
+            var readyItem = New(0); Admit(readyItem); Policy("SetPriority",cpu,readyItem,250L);
+            Console.WriteLine("ready="+Total()); Exit(readyItem); Console.WriteLine("tickets="+Total()); break;
+        case "tickets-migrate-blocked":
+        case "tickets-migrate":
+            var migrant = New(0); Admit(migrant);
+            if (args[2] == "tickets-migrate-blocked") Block(migrant);
+            object destination = Blank("PerCpuState");
+            var destinationData = Activator.CreateInstance(TypeOf("Stride.StrideCpuData"),true)!;
+            Set(destination,"SchedulerData",destinationData);
+            Policy("OnThreadMigrate",migrant,cpu,destination);
+            Console.WriteLine("from="+Total()+";to="+destinationData.GetType().GetProperty("TotalTickets")!.GetValue(destinationData));
+            Policy("OnThreadBlocked",destination,migrant); Policy("OnThreadExit",destination,migrant);
+            Console.WriteLine("toAfterExit="+destinationData.GetType().GetProperty("TotalTickets")!.GetValue(destinationData)); break;
+        case "tickets-starvation":
+            Set(data,"TotalTickets",500UL);
+            for(int i=0;i<19;i++) { var item=New(0); Admit(item); Block(item); Exit(item); }
+            Set(data,"GlobalPass",40632122UL);
+            Set(data,"LastPassUpdate",(ulong)Stopwatch.GetTimestamp()-10000000UL);
+            stride.GetMethod("UpdateGlobalPass",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(scheduler,new[]{data});
+            Console.WriteLine("tickets="+Total()+";advances="+((ulong)data.GetType().GetProperty("GlobalPass")!.GetValue(data)!>40632122UL)); break;
+    }
+    Console.WriteLine("irqFlags="+nativeType.GetField("_hostIrqFlags")!.GetValue(null));
+    return;
+}
 object? condition = null;
 if (args[2] == "late-signal")
 {
@@ -129,6 +205,7 @@ if (args[2].StartsWith("condition-"))
     Set(cpu,"CurrentThread",thread);
     Set(thread,"State",Enum.ToObject(TypeOf("SchedulerThreadState"),2));
     Set(data,"TotalTickets",200UL);
+    countedField?.SetValue(currentData,true);
     condition = Activator.CreateInstance(TypeOf("ConditionVariable"),true)!;
     object mutex = Activator.CreateInstance(TypeOf("Mutex"),true)!;
     var cpuType = assembly.GetType("Cosmos.Kernel.Core.CPU.InternalCpu",true)!;

@@ -73,8 +73,11 @@ implemented. The combined correction passes full clean-source TCG acceptance at 
 including 64 pipelines across GC, hidden GUI input/EOF and kernel recovery.
 Source fixes and `kernel/v0.0.19` are pushed at tested `6544ffd`; distributor
 native acceptance failed on the first repeated byte pipeline on 2026-10-18.
-Exact server artifacts pass the full native gate locally; the server stall
-is not reproduced. Failure-only controller CPU/thread snapshots are tested and
+Exact server artifacts pass the full native gate locally. The distributor replay
+now exposes ticket underflow and producer starvation; the real pinned policy
+reproduces the accounting mechanism. An untagged runnable-admission fix is under
+validation; its full local native gate passes in 656.737s. Actual distributor
+acceptance remains pending. Failure-only controller CPU/thread snapshots are tested and
 deployed; operator captures identify timed-condition halt call sites. Delivery and
 operator installation of a working stream fix remain unverified.
 [Server investigation](../archive/2026-10-18/native-pipeline-server-stall.md). See [investigation](../archive/2026-10-17/scheduler-late-wake.md).

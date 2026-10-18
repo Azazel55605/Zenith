@@ -289,3 +289,84 @@ reproduced guest failure. All diagnostic test VMs are stopped after collection.
 The server stall remains unresolved; no additional runtime patch or release tag is
 justified by these local passes. The next necessary evidence is a warmup replay on
 the distributor using the retained disk and existing ELF, with the new queue samples.
+
+## Distributor replay: runnable-ticket underflow established
+
+The operator ran `98c26ce`'s no-build warmup replay against the original retained
+candidate and fixture. It failed at `N_STREAM_BYTES_0` after 120.749s, QEMU CPU
+14.42s, with neither count nor completion. Evidence is retained at
+`/var/tmp/zn-dhii5r9g/replay/installed` on the distributor. ELF SHA256 remains
+`7d70146f38b9139b4f0b9e3a0285850930252b6b96b014b943971e4596c11983`.
+
+Both queue observations report `total_tickets=18446744073709550216` (`2^64-1400`).
+The actual compiled stride policy divides `1048576` by this value, yielding zero
+for global stride. Global pass stops advancing. Readers 78/81 repeatedly wake
+at pass 40632122 and accumulate over 61 seconds of accounted runtime; producer
+79 remains at pass 40799882/runtime 170ms and producer 80 at pass
+40757942/runtime 140ms. Their `scheduled_at` values stay around 299 billion while
+reader timestamps advance beyond 620 billion. Saved contexts place readers in
+BytePipe.Read through logger/native services and producers around allocation.
+These are saved contexts, not live backtraces. Queue endpoints are explicitly
+unstable; individual state/queue membership is not claimed atomic. Repeated
+numeric underflow and stationary producer accounting establish more than the
+previous state-only snapshots.
+
+The pinned 3.0.89 policy unconditionally subtracts tickets in both OnThreadBlocked
+and OnThreadExit. An exit of a parked thread therefore debits absent membership;
+Created exits and outgoing policy callbacks on sleeping threads have the same
+problem. SetPriority also changes the CPU total for non-runnable records. Manager
+BlockThread/ExitThread set state before their policy callbacks, so checking current
+state inside OnThreadExit cannot recover whether tickets were counted. The replay
+does not identify which specific earlier lifecycle callback first incurred debt.
+
+The new real-dependency fixture starts with 500 tickets and executes nineteen
+create/admit/block/exit sequences. The original DLL produces the **exact observed
+2^64-1400** total and its real UpdateGlobalPass stops advancing. With the copied
+assembly adaptation, total stays 500 and the same method advances. No arbitrary
+clamp or timeout increase is used.
+
+The signature-checked adaptation stores a runnable-admission Boolean in each
+StrideThreadData record. Running inheritance/first ready credits once; block/exit
+debits once; migration transfers admitted tickets; priority changes update only
+admitted totals. Unadmitted migration cannot enqueue a parked record. Existing
+queue uniqueness, sorting, context/IRQ and wait corrections remain in place.
+The NuGet cache and upstream source are untouched. Regression coverage includes
+blocked/repeated exits, Created/running exit, repeated block/readmission, mixed
+policy handover, ready/sleeping priority changes, migration, exact server deficit,
+signature refusal and byte-identical repeat adaptation.
+
+A further comparison using the exact old server ELF, Debian QEMU 10.0.13 and
+Debian OVMF 2025.02-8+deb13u1 passed warmup and eight pipelines locally at
+`/tmp/zn-replay-debian-fw.log`. Matching Debian firmware does not reproduce the
+server lifecycle timing. The correction therefore needs actual distributor
+validation even after the deterministic policy regression and local native gate.
+
+Candidate validation logs: `/tmp/zn-ticket-publish.log`,
+`/tmp/zn-ticket-adapters-final.log`, `/tmp/zn-ticket-host.log`,
+`/tmp/zn-ticket-controller.log`, `/tmp/zn-ticket-native.log`. Native guest execution
+uses Debian QEMU/OVMF in a disposable container on the laptop; Docker-client CPU
+accounting is not QEMU CPU accounting. No new release tag or server-success claim
+is made by the local results.
+
+Final local candidate results: Release ISO build passed; 56 actual dependency
+adapter tests (25 scheduler/wait tests), 658 host tests and 149 common controller
+tests passed. The full native-process gate passed in **656.737s** under Debian
+QEMU 10.0.13 / TCG with Debian OVMF, including all 64 exact byte counts, FP stream,
+backpressure/early-exit/fault/cancel, persistent writes, permissions, authentication,
+executable upgrade, independent ext2 audit and desktop/local canonical input/EOF.
+A read-only live queue observation during the repetitions reported a bounded
+positive total (400); endpoints were unstable and no atomic-sum claim is made.
+The final adapter produces a byte-identical core assembly to the native-tested
+build after adding additional signature checks:
+`0afbf479990326a26cecb8efb0a39d7589683c5bc922cc62314fc005d62df1ea`.
+
+- Tested ELF SHA256: `5f79e2b7bfa649dc3194e53aa0c779965c06c74311d6d922e3b2f683a215f41e`.
+- Tested ISO SHA256: `887924be218480706984fe70b049ec326cb26fc12232aa5930532c0978791e0f`.
+- Native fixture: `/tmp/zn-ticket-native`; log: `/tmp/zn-ticket-native.log`.
+
+The existing scheduler regression file is already included in CI's real-dependency
+checks, so these new lifecycle regressions run in that gate. Rebuild the candidate
+on the actual distributor and run the focused native gate documented in AUTOMATION.
+The original replay disk still embeds the old candidate. No new release tag is
+qualified by these local results; full clean-source acceptance follows actual
+server confirmation.
