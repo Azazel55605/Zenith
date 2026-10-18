@@ -104,3 +104,9 @@ including the earlier fault/cancel sequence, passes locally. A bounded typed-que
 observer and no-build disposable-fixture replay are implemented for the next server
 capture. Root cause, distributor acceptance and full release qualification remain
 pending; this is not a delivered kernel fix.
+
+Release qualification on 2026-10-18: `431dfb9` passes clean-source full acceptance
+(71 login/session, 92 repository, all 64 native pipelines plus GUI/local input and
+169 kernel-recovery checks). `kernel/v0.0.20` targets that exact source and includes
+the server-confirmed runnable-ticket fix and stricter trace-tolerant stderr fixture.
+Distributor publication and installed stream acceptance remain pending.

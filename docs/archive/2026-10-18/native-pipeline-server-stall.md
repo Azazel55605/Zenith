@@ -415,3 +415,45 @@ controller regressions cover these cases, and the helper accepts the actual
 retained failing slice. All 153 controller tests pass. No scheduler/runtime change
 or timeout increase accompanies this test correction. Full acceptance must run
 again on the clean corrected source before any tag is pushed.
+
+## Kernel 0.0.20 full qualification
+
+Clean-source full acceptance passes at **`431dfb9e1ff9afbac8de8adb8750081e834ef329`**.
+The release tag `kernel/v0.0.20` targets this exact tested commit; the following
+notes commit does not replace that target. `kernel/v0.0.19` stays immutable.
+
+Command: the normal `deploy/distributor/validate.py --keep /var/tmp/zn020-qualified`
+without `--existing`, with user SDK 10.0.401, pinned Cosmos 3.0.89 and forced TCG.
+The QEMU wrapper uses Debian 10.0.13 in the existing disposable image with Debian
+OVMF 2025.02-8+deb13u1. A temporary `sitecustomize.py` in the test environment
+selects the same firmware code/variable-store pair in all child helpers; no
+repository runtime or test assertions are replaced by that environment hook.
+Docker-client CPU measurements are not QEMU CPU measurements.
+
+| Gate | Result | Phase seconds |
+| --- | --- | --- |
+| Common controllers | 153 passed | separate controller log |
+| Host tests | 658 passed | 8.206 |
+| Release ISO/ELF | passed | 21.815 |
+| Package tool | passed | 1.001 |
+| Login/session/styling | 71 passed | 196.301 |
+| Online repository | 92 passed | 294.723 |
+| Native processes | all checks, including 64 exact byte pipelines, FP, stderr, credentials, fault/cancel, writes and desktop/local input | 653.095 |
+| Kernel recovery | 169 passed | 446.797 |
+
+The stderr check now passes in actual guest execution, requiring the exact error,
+zero downstream bytes and completion status. Recovery includes interrupted stage
+and menu publication, ISO recovery, upgrade/reboot/confirmation, previous retention,
+rollback, signed broken-kernel entry, manual menu fallback and authentication,
+plus independent ext2/EFI audits and secret-free transcripts. The acceptance
+controller verifies clean source and unchanged commit/artifact hashes at the end.
+
+- ISO SHA256: `4ead915c591d0297231e5100f6d9711941e81b3b4973276319ca2101858883f3`.
+- ELF SHA256: `0d1bc5f902f371ff01e320d75e827fc0fd50c01d8ced9cea57b8c3923d21ea11`.
+- Evidence: `/var/tmp/zn020-qualified`, log `/tmp/zn020-qualified.log`.
+- All four guest phase statuses in `phase-times.json` are passed.
+
+This qualifies the source for the new release tag. It does not establish that the
+distributor has built/signed/published 0.0.20 or that the operator's installed VM
+has updated, confirmed the boot and exercised native streams. Those remain the
+next handoff checks.

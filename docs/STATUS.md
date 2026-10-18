@@ -13,6 +13,12 @@ passes on the distributor with `b11f8f8`. Full clean-source release qualificatio
 publication and installed stream acceptance remain pending.
 See [active validation](PROGRESS.md#native-terminal-streams-release-handoff).
 
+Clean-source full release acceptance passes at `431dfb9` for `kernel/v0.0.20`:
+153 controller, 658 host, 71 login/session, 92 repository, full native-process
+coverage with 64 pipelines and 169 kernel recovery checks. The release tag targets
+that exact commit; distributor publication and installed VMware acceptance remain
+pending. `kernel/v0.0.19` is unchanged.
+
 ## Release and installation boundary
 
 | Item | What is established | What remains |

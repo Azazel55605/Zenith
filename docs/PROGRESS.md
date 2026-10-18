@@ -5,46 +5,22 @@ Updated **2026-10-18**. [Status](STATUS.md) owns delivery boundaries;
 
 ## Native terminal streams: release handoff
 
-- [x] `kernel/v0.0.19` remains immutable at locally accepted `6544ffd`; its
-  distributor native pipeline fails. Later untagged candidates also fail there.
-- [x] Real-dependency regressions reproduce and correct queue/wake accounting,
-  self-dispatch state and timed-condition contracts. Latest runtime candidate
-  `693cac9` passes 658 host, 48 adapter tests and the full local native gate
-  (686.101s), but the operator's rebuild still fails after 120.746s.
-- [x] Copy exact failed server ELF/ISO and disposable installed disk. Direct and
-  original pre-pipeline warmup replay pass locally under Debian QEMU 10.0.13 / TCG.
-  Server TSC/LAPIC calibration is normal; later queue observations identify the
-  ticket-underflow/global-pass starvation mechanism below.
-- [x] Add no-build replay using a separate disk copy and failure-only typed queue,
-  ticket/pass/runtime and bounded saved-frame observations from the exact ELF.
-  State-only snapshots also occur during healthy pipelines and do not establish
-  queue membership. That diagnostic slice changes controller tools only.
-- [x] Pass 149 common controller tests, actual fixture replay/warmup and live
-  read-only observer checks. A synthetic failed wait remains false after capture.
-- [x] Distributor warmup replay reproduces the stall and reports total tickets
-  `2^64 - 1400`: global stride becomes zero; polling readers repeat while queued
-  producers retain unchanged pass/runtime. Exact pinned policy regression
-  reproduces that total and frozen global pass after blocked-thread exit debits.
-- [x] Track runnable admission in each copied stride record; debit once across
-  block/exit, transfer on migration and change totals for runnable priorities only.
-  Sleeping/Created exits and policy handover no longer subtract absent tickets.
-- [x] Release ISO builds; 658 host, 149 controller and 56 actual dependency-adapter
-  tests pass. The full Debian QEMU/OVMF native gate passes in 656.737s,
-  including 64 pipelines, GC, fault/cancel, credentials and desktop/local input.
-- [x] Operator reports the rebuilt `b11f8f8` candidate passed the focused native
-  gate on the actual distributor. This confirms the fix on the failing server
-  path; no server duration or complete four-gate release result was supplied.
-- [x] Full pre-tag run passes login/session (71), repository (92) and 64 native
-  pipelines, then exposes a stderr assertion split by `[SCHED]` output. The real
-  error, zero downstream bytes and status 0 are retained; the kernel did not stall.
-- [x] Reconstruct known Cosmos trace interruptions for that stderr check while
-  independently requiring the exact error line, zero bytes and successful status.
-  The retained failure is accepted; missing/wrong evidence still fails. All 153
-  controller tests pass. Runtime scheduler code is unchanged.
-- [ ] Rerun clean-source full release acceptance before a new kernel tag.
-  No replacement release is qualified yet.
-- [ ] Distributor publication and installed VMware update/reboot/confirm, followed
-  by representative pipe/input checks, remain separate acceptance steps.
+- [x] Diagnose the actual distributor stall: runnable tickets underflowed to
+  `2^64 - 1400`, freezing global pass and starving queued producers. Correct
+  admission/block/exit/migration/priority accounting in the copied Cosmos policy.
+- [x] Pass 56 real-dependency adapters, including the exact deficit regression;
+  operator confirms candidate `b11f8f8` passes the focused native gate on the server.
+- [x] Correct the stderr fixture's raw-substring assertion for known Cosmos trace
+  interruptions. Require exact error, zero downstream bytes and status 0; 153
+  controller tests pass. No further scheduler change or timeout increase.
+- [x] Pass clean-source full acceptance at `431dfb9`: 658 host tests, Release ISO,
+  71 login/session, 92 repository, full native processes (64 byte pipelines,
+  credentials, faults/cancel, desktop/local input) and 169 kernel recovery checks.
+- [x] Release target: immutable `kernel/v0.0.20` at exact tested `431dfb9`.
+  `kernel/v0.0.19` remains unchanged. Qualification details/hashes are archived.
+- [ ] Distributor build/sign/publish and HTTPS delivery verification for 0.0.20.
+- [ ] Installed VMware update/reboot/confirm and representative stream/input checks.
+  Publication and installed acceptance are not established by the local gates.
 
 [Server-only stall and same-thread dispatch investigation](archive/2026-10-18/native-pipeline-server-stall.md).
 [Prior runtime fixes and local acceptance](archive/2026-10-17/scheduler-late-wake.md).
