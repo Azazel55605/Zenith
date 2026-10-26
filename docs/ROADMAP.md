@@ -6,10 +6,11 @@ active work. Historical milestone version targets are not release versions.
 
 ## Now
 
-1. **Accept the network-client release.** The selected base/text/filesystem/network
-   CLI extraction is implemented and fully qualified. The operator accepted the
-   process/base/file and text/traversal checks; deliver kernel 0.0.23 and independent
-   net-tools, then complete the [installed network checklist](NETWORK-VM-TEST.md).
+1. **Close the selected CLI milestone.** Base/text/filesystem/network extraction
+   is implemented and fully qualified. The operator accepted the process/file/text
+   checks and confirms kernel 0.0.23 installed/boot-confirmed with net-tools 0.1.0;
+   representative home-path network/TLS checks pass. Optional remaining installed
+   replacement/cancellation exercises are listed in the [checklist](NETWORK-VM-TEST.md).
    Shell evaluation and privileged administration remain trusted services.
    [Active work](PROGRESS.md#cli-unbundling-and-application-foundations) separates
    local qualification, distributor delivery and installed acceptance.

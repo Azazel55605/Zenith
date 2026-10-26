@@ -151,3 +151,19 @@ On 2026-10-26, the operator explicitly authorized publication. Main and all thre
 annotated tags were pushed atomically; remote peeled tags were verified at
 `faecc722a746a3ef526edae4dfbe25c7c97cda36`. Distributor and installed acceptance
 remain pending; update the idle controller to recognize the new package recipe.
+
+## Operator acceptance
+
+On 2026-10-26, the operator reports the released packages installed and kernel
+boot-confirmed. The graphical-terminal screenshot shows net-tools 0.1.0, signed
+native routing for nslookup/nc, DHCP online on E1000E, ping to 10.0.20.7 (31 ms),
+hostname TCP connection to zenith-stable.net.local:443 and a verified TLS 1.2 fetch
+of core/index-v3.zri. Both fetch and wc report 26002 bytes. This establishes the
+representative installed VMware/home-path checks; no separate nslookup invocation,
+replacement/cancellation exercise or sustained reliability run was shown. Those
+paths retain local automated evidence without an installed claim.
+
+Selected CLI extraction is now operator-exercised. The next implementation slice
+is the protected graphical-client/settings service contract, independent Settings
+and shared UI foundations. Trusted shell/admin services and GUI migration remain
+explicitly separate from the completed bounded CLI client profile.

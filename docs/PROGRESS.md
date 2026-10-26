@@ -64,7 +64,11 @@ Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
   [Exact source, hashes and timings](archive/2026-10-26/native-network-clients.md#final-clean-source-qualification).
 - [x] Push kernel 0.0.23, zenith-net-tools 0.1.0 and manuals 0.1.5; all remote
   peeled tags resolve to exact qualified `faecc72`, with handoff notes on main.
-- [ ] Await distributor signing/delivery and [installed network checks](NETWORK-VM-TEST.md).
+- [x] Operator confirms the new releases installed and kernel boot-confirmed.
+  Graphical-terminal screenshot verifies net-tools 0.1.0, signed nslookup/nc
+  dispatch, DHCP/online status, ping, hostname TCP connect and verified TLS index
+  fetch (26002 bytes). Replacement/cancellation exercises were not shown.
+  [Acceptance record](archive/2026-10-26/native-network-clients.md#operator-acceptance).
   Selected base/text/filesystem/network CLI extraction is implemented and qualified.
   Shell evaluation/xargs, account/package and privileged configuration stay trusted.
 - [ ] Next: protected graphical-client/settings service contract, independently

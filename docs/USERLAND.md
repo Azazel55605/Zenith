@@ -19,8 +19,8 @@ on managed streams; raw user execution remains serialized on the BSP. Kernel 0.0
 is operator-installed and running. The operator accepted the 0.0.21 process/base/
 filesystem checklist and the 0.0.22 text/traversal exercises. Owned TCP/verified-TLS
 and atomic download services plus independent net-tools now pass full clean-source
-qualification at `faecc72`. Selected CLI extraction is implemented; distributor
-and installed network acceptance remain pending. Managed multicore, protected
+qualification at `faecc72`. Selected CLI extraction is implemented and operator-exercised; the operator confirms
+installation/boot confirmation and representative home-path network checks. Managed multicore, protected
 graphics and privileged-service migration remain separate.
 
 The [network VM handoff](NETWORK-VM-TEST.md) gives kernel-first installation and
@@ -36,7 +36,7 @@ command checks. Earlier [CLI checks](CLI-VM-TEST.md) remain useful regressions.
 | Input/writable descriptors | Locally verified; delivery operator reported | Independently packaged utility safely reads input/writes persistent files |
 | Canonical streams/pipes | Operator-installed in 0.0.20; individual exercises separately unreported | Live std descriptors, bounded byte channels, EOF/cancel and protected-context cleanup |
 | Raw TTY/process lifecycle | Operator-installed and checklist accepted in 0.0.21 | Terminal modes, jobs/wait/termination and environment |
-| Controlled networking and more tools | Fully qualified at faecc72; distributor/installed network checks pending | Socket ownership/limits and independently updated network/base/fs packages |
+| Controlled networking and more tools | Qualified at faecc72; operator confirms installation and representative network checks | Socket ownership/limits and independently updated network/base/fs packages |
 | First graphical client | Planned | Versioned surface/input/IPC, fault isolation and lifecycle cleanup |
 | Desktop/service migration | Planned | Independently restarted session/compositor/apps with explicit privilege and compatibility |
 

@@ -5,8 +5,8 @@
 **State:** M5 in progress. The operator confirms kernel 0.0.21 installed, boot-confirmed and its CLI checklist passed. The qualified 0.0.21 CLI release adds environment/process lifecycle, raw
 input, bounded jobs, namespace/seek operations and independently packaged base/
 filesystem commands. Local evidence and remaining extraction are tracked in
-[Progress](../PROGRESS.md#cli-unbundling-and-application-foundations). Selected CLI extraction is fully qualified; installed network acceptance and
-service/GUI migration remain unfinished.
+[Progress](../PROGRESS.md#cli-unbundling-and-application-foundations). Selected CLI extraction is qualified and operator-exercised; service/GUI migration
+remains unfinished.
 
 ## Implemented steps
 
@@ -47,7 +47,8 @@ This is not a general preemptive process scheduler. The qualified CLI release ad
 raw input leases, bounded shell jobs, exported environment, native PID cancellation
 and private seek/namespace operations. Owned TCP/verified-TLS handles and atomic download sinks now support independent
 net-tools clients. Full qualification at `faecc72` passes all six native gates;
-distributor delivery and installed network acceptance remain pending. Protected
+the operator confirms installation, boot confirmation and representative home-path
+network checks. Protected
 graphics remains unimplemented. [Active CLI work](../PROGRESS.md#cli-unbundling-and-application-foundations)
 owns current validation. Managed/kernel code and existing builtins remain trusted.
 The exact limits/wire layout belong to [Native programs](../NATIVE-PROGRAMS.md).

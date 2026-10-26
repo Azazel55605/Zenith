@@ -57,7 +57,11 @@ that every continuous-operation failure is resolved.
   [Contract and qualification](../archive/2026-10-26/native-network-clients.md).
 - [x] Complete clean-source full qualification at `faecc72`: 72 native network
   checks and the other five mandatory gates pass.
-- [ ] Complete distributor delivery and [installed network-client acceptance](../NETWORK-VM-TEST.md).
+- [x] Operator confirms installation and kernel boot confirmation; graphical-terminal
+  net-tools 0.1.0, signed routing, DHCP/status, ping, hostname TCP and verified TLS
+  fetch pass. [Evidence](../archive/2026-10-26/native-network-clients.md#operator-acceptance).
+- [ ] Installed replacement/cancellation checks are not separately shown; local
+  automated acceptance covers them. [Full checklist](../NETWORK-VM-TEST.md).
 - [ ] Broader socket/listener/UDP/server support remains outside this client profile.
 - [ ] Expand stream/timeout diagnostics and benchmark a repeatable transfer profile.
 - [ ] Define certificate renewal and package-key lifecycle operational procedures.
