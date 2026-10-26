@@ -22,7 +22,14 @@ internal abstract class Window
     public string Title { get; protected set; }
     public Credentials Identity { get; protected set; } = CredentialContext.Current;
     public Rect Bounds { get; private set; }
-    public bool IsFocused { get; internal set; }
+    private bool _isFocused;
+    public bool IsFocused
+    {
+        get => _isFocused;
+        internal set { if (_isFocused != value) { _isFocused = value; OnFocusChanged(value); } }
+    }
+    protected virtual void OnFocusChanged(bool focused) { }
+
     public bool IsMinimized { get; internal set; }
     public bool IsMaximized { get; internal set; }
     public bool IsClosed { get; private set; }
@@ -60,6 +67,7 @@ internal abstract class Window
 
     /// <summary>Called every frame. Return true when the content changed and needs a redraw (clocks, caret blink).</summary>
     public virtual bool Update() => false;
+    public virtual bool UpdateWhenMinimized => false;
 
     /// <summary>Paints the content area. The surface is already clipped to <paramref name="content"/>.</summary>
     public abstract void DrawContent(Surface surface, Rect content);

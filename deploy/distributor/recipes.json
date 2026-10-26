@@ -85,5 +85,13 @@
     "payload": "obj/packages/zenith-net-tools",
     "generate": "native",
     "program": "net-tools"
+  },
+  "zenith-gui-probe": {
+    "kind": "data",
+    "name": "zenith-gui-probe",
+    "repository": "extra",
+    "payload": "obj/packages/zenith-gui-probe",
+    "generate": "native",
+    "program": "gui-probe"
   }
 }

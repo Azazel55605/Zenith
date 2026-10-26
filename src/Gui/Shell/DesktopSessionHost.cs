@@ -35,6 +35,8 @@ internal sealed class DesktopSessionHost : ISessionHost
     }
     public void Stop()
     {
+        Zenith.Core.Processes.NativeProcessGraphics.Register(null);
+        _desktop.StopClients();
         foreach (var window in _desktop.Windows.Windows) { window.EndSession(); }
         TerminalWindow.OpenApp = null; FileManagerWindow.OpenApp = null;
         CommandShell.Register(new Zenith.Core.Shell.Command("fps", "fps", "Compositor statistics", c => c.Fail("desktop is not running")));

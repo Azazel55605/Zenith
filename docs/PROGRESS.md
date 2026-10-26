@@ -3,6 +3,22 @@
 Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
 [Roadmap](ROADMAP.md) orders future work.
 
+## Protected graphical-client API
+
+- [x] Inspect desktop/window input and protected-process service boundaries.
+- [x] Implement versioned fixed-size private XRGB surfaces, copied presentation,
+  bounded focus/key/pointer/close events, session/UID admission and worker-to-UI queue.
+- [x] Add owned process calls and an independently compiled graphical probe.
+- [x] Pass 716 host tests and GCC/Clang builds; initial real-compositor fixture
+  passes 25 checks, visible pixels, routed input/close, fault/cancel cleanup,
+  same-kernel package upgrade and independent ext2 audit.
+- [ ] Validate final first-frame/focus fixes and different-UID admission denial;
+  preserve all existing release gates. Session teardown revokes pending/active
+  surfaces; operator installed acceptance remains separate.
+- [x] Verify independent package upgrade under unchanged kernel and headless refusal.
+- [ ] Document the supported ABI and limits; Settings services/widgets follow this
+  API slice. No compositor replacement or Settings implementation is claimed yet.
+
 ## CLI unbundling and application foundations
 
 - [x] Operator confirms kernel 0.0.20 is installed in the VM and running. Its

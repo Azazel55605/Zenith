@@ -27,6 +27,12 @@ replacement/cancellation checks were not separately shown. [Evidence](archive/20
 Graphical-client/service migration remains unfinished; shell evaluation and
 privileged administration remain trusted.
 
+The first [protected graphical-client API](GRAPHICAL-CLIENTS.md) is implemented:
+private copied surfaces, routed events and session/UID ownership, with a separate
+probe executable. Initial real-compositor checks pass; final expanded lifecycle
+and clean-source qualification are active. Settings and compositor migration remain
+unfinished. [Execution evidence](archive/2026-10-26/protected-graphical-clients.md).
+
 ## Release and installation boundary
 
 | Item | What is established | What remains |

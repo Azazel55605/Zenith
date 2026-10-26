@@ -120,7 +120,7 @@ internal sealed class WindowManager
                 continue;
             }
 
-            if (!w.IsMinimized && w.Update())
+            if ((!w.IsMinimized || w.UpdateWhenMinimized) && w.Update())
             {
                 changed = true;
             }

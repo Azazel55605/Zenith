@@ -50,3 +50,5 @@ Current CLI release testing: [kernel-first VM handoff](CLI-VM-TEST.md).
 Text/traversal release testing: [VM handoff](CLI-TEXT-VM-TEST.md).
 
 Native network release testing: [kernel-first VM handoff](NETWORK-VM-TEST.md).
+
+Protected graphical-client API: [surfaces, events and lifecycle](GRAPHICAL-CLIENTS.md).

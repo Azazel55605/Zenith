@@ -119,10 +119,42 @@ internal sealed unsafe class NativeProcess
             address += (ulong)count; offset += count;
         }
     }
-    private long Service(ref Context c, ProcessFiles files, ProcessNetwork network, ref int readBytes)
+    private long Service(ref Context c, ProcessFiles files, ProcessNetwork network, ProcessGraphics graphics, ref int readBytes)
     {
         try
         {
+            if (c.Call == 600)
+            {
+                if (c.Arg1 != ProcessGraphicsRequest.Bytes || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, ProcessGraphicsRequest.Bytes, false)) { return -14; }
+                if (!ProcessGraphicsRequest.TryRead(ReadUser(c.Arg0, ProcessGraphicsRequest.Bytes), out var r)) { return -22; }
+                if (!Valid(r.Title, r.Length, false)) { return -14; }
+                byte[] title = ReadUser(r.Title, r.Length);
+                foreach (byte value in title) { if (value < 32 || value > 126) { return -22; } }
+                return graphics.Open(r.Width, r.Height, Encoding.ASCII.GetString(title));
+            }
+            if (c.Call == 601)
+            {
+                if (c.Arg0 > int.MaxValue) { return -9; }
+                int size = graphics.Size((int)c.Arg0);
+                if (size < 0) { return size; }
+                if (c.Arg2 != (ulong)size) { return -22; }
+                if (!Valid(c.Arg1, size, false)) { return -14; }
+                int result = graphics.Present((int)c.Arg0, ReadUser(c.Arg1, size));
+                Thread.Sleep(16); return result;
+            }
+            if (c.Call == 602)
+            {
+                if (c.Arg0 > int.MaxValue) { return -9; }
+                if (c.Arg2 != ProcessGraphicsEvent.Bytes) { return -22; }
+                if (!Valid(c.Arg1, ProcessGraphicsEvent.Bytes, true)) { return -14; }
+                var e = graphics.Poll((int)c.Arg0);
+                if (e is null) { return -9; }
+                if (e.Value.Type == 0) { Thread.Sleep(16); }
+                Transfer(c.Arg1, e.Value.Encode(), true); return e.Value.Type == 0 ? 0 : 1;
+            }
+            if (c.Call == 603)
+            { return c.Arg0 > int.MaxValue || c.Arg1 != 0 || c.Arg2 != 0 ? -22 : graphics.Close((int)c.Arg0); }
             if (c.Call == 500)
             {
                 if (c.Arg1 != ProcessNetworkRequest.Bytes || c.Arg2 != 0) { return -22; }
@@ -304,7 +336,7 @@ internal sealed unsafe class NativeProcess
         }
         if (pid < 0) { return (1, "native process/system maintenance busy (maximum 8 contexts)", 0); }
         bool released = false;
-        NativeProcess? process = null; ProcessFiles? files = null; ProcessNetwork? network = null;
+        NativeProcess? process = null; ProcessFiles? files = null; ProcessNetwork? network = null; ProcessGraphics? graphics = null;
         try
         {
             if (cancelled()) { Release(pid, ref released, 130); return (130, "", 0); }
@@ -330,9 +362,10 @@ internal sealed unsafe class NativeProcess
             process._ranges.Add(new(stackBase, ProcessArguments.Top, true));
             files = new ProcessFiles(new NativeProcessFiles(), cwd, input, streams);
             network = new ProcessNetwork(new NativeProcessNetworkSource(() => { if (cancelled()) { throw new OperationCanceledException(); } }));
+            graphics = NativeProcessGraphics.Create(identity.Uid);
             // The current managed call stack is suspended while the CPU runs the
             // freestanding image. Keep its owner and allocations explicitly rooted.
-            lock (s_rootsGate) { s_roots.Add(pid, new object[] { process, regions, arguments, bytes, image, stack, lifetimeRoot ?? arguments, files, network }); }
+            lock (s_rootsGate) { s_roots.Add(pid, new object[] { process, regions, arguments, bytes, image, stack, lifetimeRoot ?? arguments, files, network, graphics }); }
             fixed (Region* list = regions)
             {
                 var context = new Context
@@ -351,7 +384,7 @@ internal sealed unsafe class NativeProcess
                     Frame = process.Allocate(176),
                     UserFp = process.Page()
                 };
-                int status; int calls = 0, networkCalls = 0, readBytes = 0;
+                int status; int calls = 0, networkCalls = 0, graphicsCalls = 0, readBytes = 0;
                 Processes.SetState(pid, ProcessState.Running);
                 do
                 {
@@ -361,16 +394,16 @@ internal sealed unsafe class NativeProcess
                     catch { Monitor.Exit(s_rawGate); throw; }
                     if (status != 4096) { break; }
                     if (cancelled()) { status = 130; break; }
-                    if (context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
+                    if (context.Call is >= 600 and <= 603 ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
                     var caller = Zenith.Core.Security.CredentialContext.Enter(identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
                     // while waiting for a peer. Mutations and transport setup stay serialized.
-                    bool standard = context.Call is 400 or 401 or 402 or 403 or 404 or 501 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    bool standard = context.Call is 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {
                         Processes.SetState(pid, ProcessState.Waiting);
-                        context.Result = process.Service(ref context, files, network!, ref readBytes);
+                        context.Result = process.Service(ref context, files, network!, graphics!, ref readBytes);
                         Processes.SetState(pid, ProcessState.Running);
                         if (!standard) { Monitor.Exit(s_serviceGate); }
                         caller.Dispose();
@@ -386,11 +419,11 @@ internal sealed unsafe class NativeProcess
                 } while (true);
                 GC.KeepAlive(s_roots);
                 ulong fault = context.Fault;
-                network?.Dispose(); CloseFiles(files); process.Dispose(); int exit = cancelled() ? 130 : status;
+                graphics?.Dispose(); network?.Dispose(); CloseFiles(files); process.Dispose(); int exit = cancelled() ? 130 : status;
                 Release(pid, ref released, exit); return (exit, "", fault);
             }
         }
-        catch { network?.Dispose(); CloseFiles(files); process?.Dispose(); Release(pid, ref released, 1); throw; }
+        catch { graphics?.Dispose(); network?.Dispose(); CloseFiles(files); process?.Dispose(); Release(pid, ref released, 1); throw; }
 #endif
     }
 }

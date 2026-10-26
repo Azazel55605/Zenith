@@ -6,6 +6,8 @@ Start with [current status](../STATUS.md) or [active work](../PROGRESS.md).
 
 ## Investigation records
 
+- [2026-10-26 protected graphical clients](2026-10-26/protected-graphical-clients.md): owned surfaces/events, independent client, lifecycle and qualification.
+
 - [2026-10-26 native network clients](2026-10-26/native-network-clients.md): owned TCP/TLS handles, typed services, atomic sinks, independent HTTP client and validation.
 
 - [2026-10-26 native text/traversal](2026-10-26/native-text-traversal.md): signed text algorithms, bounded NFA and symlink-safe traversal, compatibility profile and qualification.

@@ -109,7 +109,7 @@ The GDT/TSS intentionally remain kernel-owned after the first invocation. This i
 needed because the firmware task descriptor is not a restorable application task.
 The unreleased CLI extension adds bounded shell jobs/wait and owned cooperative
 process cancellation. There is no fork/exec family or general preemptive process scheduler,
-network syscall, IPC, graphical surface protocol, dynamic linking,
+general network/server syscall, general IPC, dynamic linking,
 C# app runtime or on-system GCC/Python/Bash port. Before migrating net-tools,
 fs-tools or desktop clients, add those interfaces and repeat permission/resource,
 concurrency and recovery acceptance. This foreground bridge must not become a
@@ -387,3 +387,10 @@ sinks. It is absent from kernel 0.0.22. [Request layout, bounds and ownership](a
 and the [native HTTP profile](archive/2026-10-26/native-network-clients.md#native-http-profile)
 are the owning contract. Native client algorithms are independently packaged in
 zenith-net-tools; privileged configuration/trust and drivers remain kernel services.
+
+## Graphical clients
+
+Calls 600..603 add versioned owned software surfaces, copied opaque presentation
+and bounded routed events. See [the graphical ABI contract](GRAPHICAL-CLIENTS.md)
+for exact layouts, session admission, quotas and cleanup. The independent gui-probe
+client is a validation package; Settings and compositor migration remain separate.

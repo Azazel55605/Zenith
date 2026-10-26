@@ -27,6 +27,7 @@ internal sealed class Desktop
     private readonly Surface _scene;   // everything but the cursor
     private readonly Surface _frame;   // scene + cursor, what is on screen
     private readonly Input _input = new();
+    private NativeClientHost _nativeClients;
     private readonly Taskbar _taskbar;
     private readonly LauncherMenu _launcher;
     private bool _sceneDirty = true;
@@ -40,6 +41,8 @@ internal sealed class Desktop
     {
         _screen = screen;
         _generation = Accounts.Generation;
+        _nativeClients = new NativeClientHost(Accounts.Session);
+        Zenith.Core.Processes.NativeProcessGraphics.Register(_nativeClients.ForUser);
         int w = screen.Width, h = screen.Height;
 
         _wallpaper = new Surface(w, h);
@@ -82,12 +85,18 @@ internal sealed class Desktop
 
     public WindowManager Windows { get; }
 
+    public void StopClients() => _nativeClients.Stop();
+
     public void Tick()
     {
+        _nativeClients.Tick(Windows);
         if (_generation != Accounts.Generation)
         {
             foreach (var window in Windows.Windows) { if (window is TerminalWindow terminal && terminal.IsBusy) { return; } }
             _generation = Accounts.Generation;
+            _nativeClients.Stop();
+            _nativeClients = new NativeClientHost(Accounts.Session);
+            Zenith.Core.Processes.NativeProcessGraphics.Register(_nativeClients.ForUser);
             foreach (var window in Windows.Windows) { window.EndSession(); }
             Zenith.Gui.Clipboard.Text = string.Empty;
             Windows.Update();

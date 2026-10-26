@@ -49,11 +49,22 @@ and private seek/namespace operations. Owned TCP/verified-TLS handles and atomic
 net-tools clients. Full qualification at `faecc72` passes all six native gates;
 the operator confirms installation, boot confirmation and representative home-path
 network checks. Protected
-graphics remains unimplemented. [Active CLI work](../PROGRESS.md#cli-unbundling-and-application-foundations)
+a first protected surface/event protocol is implemented and in validation; full
+graphical application/runtime and compositor migration remain unfinished. [Active CLI work](../PROGRESS.md#cli-unbundling-and-application-foundations)
 owns current validation. Managed/kernel code and existing builtins remain trusted.
 The exact limits/wire layout belong to [Native programs](../NATIVE-PROGRAMS.md).
 New native bundles require the filesystem and input/write capabilities:
 upgrade and confirm a compatible kernel before updating Sunbeam.
+
+## Graphical-client API work
+
+- [x] Add invocation-owned copied surfaces and bounded input queues, with desktop
+  session/UID admission and UI-thread-only window creation.
+- [x] Add separately compiled/signed gui-probe and same-kernel package upgrade test.
+- [ ] Complete final guest and regression qualification; operator acceptance remains.
+- [ ] Build Settings service authorization and shared widgets after the surface API.
+
+[Wire contract and limits](../GRAPHICAL-CLIENTS.md).
 
 ## Next implementation steps
 

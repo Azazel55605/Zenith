@@ -78,13 +78,18 @@ execution ledger or duplicate historical test totals into the roadmap.
   Preserve full-range request/buffer validation, captured-credential cleanup, strict
   framing/hostname checks and busy/fault/cancel/upgrade tests. Peer reads must not
   hold the native filesystem service gate; setup and mutations retain serialization.
-  Native-network-smoke joins the other five mandatory pre-tag gates. Configuration,
+  Graphical clients own fixed private surfaces and bounded events. Preserve
+  session/UID admission, invocation handles, full pointer validation, opaque copies,
+  UI-thread-only window mutation and exit/fault/cancel/session cleanup. Never expose
+  framebuffer addresses or global input. Native-graphics-smoke joins all six
+  existing pre-tag gates; Settings and compositor migration remain separate.
+  Native-network-smoke remains a mandatory pre-tag gate. Configuration,
   trust import and clock changes remain trusted services, not arbitrary user calls.
   Preserve full-range copyin/copyout checks, identity/cwd, handle cleanup,
   user FP/register state, request/interrupt budgets and native permission/cancel tests.
   See docs/NATIVE-PROGRAMS.md for foreground ABI limits; preserve fault/NX/W^X,
-  credentials and same-kernel executable-upgrade acceptance. Compiled base/net/fs
-  and GUI migration still need additional controlled APIs.
+  credentials and same-kernel executable-upgrade acceptance. Selected CLI packages are independent; full GUI/service migration still needs
+  additional controlled APIs.
 - Opt-in x64 `smp=native` starts isolated native integer workers (docs/MULTICORE.md).
   The x64 IDT loader must preserve IF: Cosmos 3.0.89's premature STI is redirected
   in signature-checked build copies. Keep installed UEFI startup/IRQ-state checks.
