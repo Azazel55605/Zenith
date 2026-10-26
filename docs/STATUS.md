@@ -13,15 +13,17 @@ now dispatch to signed native filters and traversal tools. Full clean-source
 acceptance passes 206 controllers, 701 host and all five native gates. It also
 preserves definitive optional-index 404 errors instead of masking them through a
 transport retry. [Scope, limits and exact evidence](archive/2026-10-26/native-text-traversal.md).
-Kernel 0.0.22 and its package updates still need distributor delivery and installed
-acceptance; [VM handoff](CLI-TEXT-VM-TEST.md). Owned networking and graphical-client
+The operator supplies successful installed graphical-terminal text/traversal
+checks; the initial sed no-op was a confirmed typo. Exact package versions,
+0.0.22 boot confirmation and distributor receipts were not displayed in that
+screenshot. [VM handoff](CLI-TEXT-VM-TEST.md). Owned networking and graphical-client
 migration remain unfinished.
 
 ## Release and installation boundary
 
 | Item | What is established | What remains |
 |---|---|---|
-| Kernel 0.0.22 / text/traversal packages | Full clean-source acceptance at `6615ecb`; explicit native profiles and 404 preservation | Distributor delivery and installed checks pending |
+| Kernel 0.0.22 / text/traversal packages | Full clean-source acceptance at `6615ecb`; explicit native profiles and 404 preservation | Installed functional checklist matches expected output; exact versions/boot confirmation and distributor receipts not separately displayed |
 | Kernel 0.0.21 / CLI packages | Full clean-source acceptance at `5852867`; release tags target that exact commit | Operator confirms distributor builds, installation, boot confirmation and complete VM checklist; broader hardware acceptance remains separate |
 | Kernel 0.0.20 | Tagged at fully accepted `431dfb9`; operator reports successful distributor run | Operator confirms installed and running; explicit boot confirmation and individual native stream/input checks not separately reported |
 | Kernel 0.0.12 | Operator reports installed and working login; supporting resource packages installed | No broader hardware certification implied |

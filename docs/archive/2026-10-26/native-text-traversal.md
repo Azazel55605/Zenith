@@ -143,3 +143,15 @@ qualified source. Distributor publication and installed VMware acceptance remain
 pending. Follow the [VM test handoff](../../CLI-TEXT-VM-TEST.md). Network extraction
 remains the next CLI slice; the 404 correction does not establish broad TCP/TLS
 reliability on every path.
+
+## Installed operator results
+
+On 2026-10-26 the operator supplies the graphical-terminal checklist screenshot.
+It shows the expected sort/uniq output, numbered grep matches, descending seq,
+field selection, full-match sed replacement, identical-file diff/status 0,
+file traversal, logical KiB and tree totals. No-match grep exits 1 and malformed
+regex exits 2. The operator confirms the first sed no-op was a typo; the corrected
+command prints the expected [aaa]b. These functional checks pass on the installed
+VM. The screenshot does not separately display exact package versions, kernel
+boot confirmation or distributor publication receipts. Owned networking remains
+the next implementation slice.

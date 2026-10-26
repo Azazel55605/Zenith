@@ -40,8 +40,11 @@ Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
   pipelines, and 169 kernel recovery checks. [Exact evidence](archive/2026-10-26/native-text-traversal.md#final-clean-source-qualification).
 - [x] Push kernel 0.0.22, Sunbeam 0.6.0, base/fs 0.2.0 and manuals 0.1.4;
   remote peeled tags all resolve to exact tested `6615ecb`.
-- [ ] Await distributor and installed operator checks for the text/traversal batch.
-  [VM commands and expected output](CLI-TEXT-VM-TEST.md).
+- [x] Operator supplies installed graphical-terminal checklist results: sort/uniq,
+  grep, seq, cut, sed, diff/status, find, du and tree match expected behavior.
+  The initial sed no-op was an operator-confirmed typo; the corrected command
+  returns the expected result. Exact versions and boot confirmation for this
+  release were not displayed in that screenshot. [Checklist](CLI-TEXT-VM-TEST.md).
 - [x] Extract the existing text/traversal command set into native packages;
   documented bounded profiles retain explicit recovery implementations.
 - [ ] Next CLI implementation: owned network interfaces and independent network
