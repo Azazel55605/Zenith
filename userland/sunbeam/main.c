@@ -90,13 +90,20 @@ static int tee_file(const char *path, int append)
 }
 static void permissions(unsigned int mode) { char text[11];text[0]=(mode&0170000)==0040000?'d':(mode&0170000)==0120000?'l':(mode&0170000)==0020000?'c':(mode&0170000)==0060000?'b':(mode&0170000)==0010000?'p':(mode&0170000)==0140000?'s':'-';const char *bits="rwxrwxrwx";for(int i=0;i<9;i++)text[i+1]=(mode&(1U<<(8-i)))?bits[i]:'-';if(mode&04000)text[3]=text[3]=='x'?'s':'S';if(mode&02000)text[6]=text[6]=='x'?'s':'S';if(mode&01000)text[9]=text[9]=='x'?'t':'T';text[10]=0;print(text); }
 static int list_path(const char *path, int all, int details) {
+    struct zenith_stat info;
+    long metadata=zenith_call(4,(unsigned long)path,length(path),(unsigned long)&info);
+    if(metadata<0)return file_error(path,metadata);
+    if((info.mode&0170000)!=0040000) {
+        if(details){permissions(info.mode);print(" uid=");number(info.uid);print(" gid=");number(info.gid);print(" size=");number(info.size);print(" ");}
+        print(path);print("\n");return 0;
+    }
     struct zenith_dirent entry;long fd=open_path(path,1);if(fd<0)return file_error(path,fd);
     for(;;){long n=zenith_call(217,fd,(unsigned long)&entry,sizeof(entry));if(n<=0){zenith_call(3,fd,0,0);return n<0?file_error(path,n):0;}if(!all&&entry.name[0]=='.')continue;
         if(details){permissions(entry.stat.mode);print(" uid=");number(entry.stat.uid);print(" gid=");number(entry.stat.gid);print(" size=");number(entry.stat.size);print(" ");}print(entry.name);print("\n");}
 }
 /* Byte counts and ASCII whitespace words, no locale/libc dependency. */
 static int whitespace(unsigned char c) { return c == ' ' || (c >= 9 && c <= 13); }
-static int count_file(const char *path, int flags)
+static int count_file(const char *path, int flags, unsigned long totals[3])
 {
     unsigned char buffer[4096];
     unsigned long lines = 0, words = 0, bytes = 0;
@@ -128,35 +135,18 @@ static int count_file(const char *path, int flags)
     }
     if (fd >= 3)
         zenith_call(3, fd, 0, 0);
-    int printed = 0;
-    if (flags & 1)
-    {
-        number(lines);
-        printed = 1;
+    unsigned long counts[3]={lines,words,bytes};
+    if(totals) for(int i=0;i<3;i++)totals[i]+=counts[i];
+    for(int i=0,printed=0;i<3;i++)if(flags&(1<<i)) {
+        if(printed){print(" ");}number(counts[i]);printed=1;
     }
-    if (flags & 2)
-    {
-        if (printed)
-            print(" ");
-        number(words);
-        printed = 1;
-    }
-    if (flags & 4)
-    {
-        if (printed)
-            print(" ");
-        number(bytes);
-    }
-    if (!same(path, "-"))
-    {
-        print(" ");
-        print(path);
-    }
-    print("\n");
-    return 0;
+    if(!same(path,"-")){print(" ");print(path);}
+    print("\n");return 0;
 }
+static int line_partial;
 static int line_tool(const char *path, unsigned long wanted, int tail)
 {
+    line_partial=0;
     static unsigned char ring[65536];
     unsigned char buffer[4096];
     unsigned long used = 0, start = 0, complete = 0;
@@ -190,6 +180,7 @@ static int line_tool(const char *path, unsigned long wanted, int tail)
                     break;
                 }
             long w = zenith_write(buffer, take);
+            if(take>0)line_partial=buffer[take-1]!='\n';
             if (w < 0)
             {
                 if (fd >= 3)
@@ -237,6 +228,7 @@ static int line_tool(const char *path, unsigned long wanted, int tail)
         zenith_call(3, fd, 0, 0);
     if (tail)
     {
+        if(used)line_partial=ring[(start+used-1)%sizeof(ring)]!='\n';
         unsigned long lines = used && ring[(start + used - 1) % sizeof(ring)] != '\n' ? 1 : 0;
         for (unsigned long i = 0; i < used; i++)
             if (ring[(start + i) % sizeof(ring)] == '\n')
@@ -340,10 +332,61 @@ int main(int argc, char **argv, char **envp) {
             __asm__ volatile("fnstcw %0; stmxcsr %1":"=m"(other),"=m"(out)::"memory");if(other!=cw||out!=mx)return 1;}}
     if(same(argv[1],"--stream-bytes")){unsigned char b[4096];for(unsigned int i=0;i<sizeof(b);i++)b[i]=(unsigned char)i;for(int j=0;j<40;j++){long w=zenith_write(b,sizeof(b));if(w<0)return file_error("stdout",w);}return 0;}
     if(same(argv[1],"--stream-fds")){char c='X';return zenith_call(400,1,0,0)==0&&zenith_call(400,2,0,0)==1&&zenith_call(3,2,0,0)==0&&zenith_call(1,2,(unsigned long)&c,1)==-9&&zenith_call(400,2,0,0)==-9?0:1;}
-    if(same(argv[1],"wc")){int i=2,flags=0;if(i<argc&&argv[i][0]=='-'&&argv[i][1]){for(int j=1;argv[i][j];j++){if(argv[i][j]=='l')flags|=1;else if(argv[i][j]=='w')flags|=2;else if(argv[i][j]=='c')flags|=4;else return file_error("wc: use -lwc",-22);}i++;}if(!flags)flags=7;
-        if(i+1<argc){return file_error("wc: expected one file or stdin",-22);}return count_file(i<argc?argv[i]:"-",flags);}
-    if(same(argv[1],"head")||same(argv[1],"tail")){int i=2;unsigned long n=10;if(i<argc&&same(argv[i],"-n")){if(++i==argc||!argv[i][0])return file_error("missing line count",-22);n=0;for(int j=0;argv[i][j];j++){if(argv[i][j]<'0'||argv[i][j]>'9'||n>1024)return file_error("line count must be 0..1024",-22);n=n*10+(unsigned long)(argv[i][j]-'0');}i++;if(n>1024)return file_error("line count must be 0..1024",-22);}
-        if(i+1<argc){return file_error("expected one file or stdin",-22);}return line_tool(i<argc?argv[i]:"-",n,same(argv[1],"tail"));}
+    if(same(argv[1],"wc")) {
+        int i=2,flags=0;
+        while(i<argc&&argv[i][0]=='-'&&argv[i][1]) {
+            if(same(argv[i],"--")){i++;break;}
+            for(int j=1;argv[i][j];j++) {
+                if(argv[i][j]=='l')flags|=1;
+                else if(argv[i][j]=='w')flags|=2;
+                else if(argv[i][j]=='c')flags|=4;
+                else return file_error("wc: use -lwc",-22);
+            }
+            i++;
+        }
+        if(!flags)flags=7;
+        if(i==argc)return count_file("-",flags,0);
+        int status=0,inputs=argc-i;unsigned long totals[3]={0};
+        for(;i<argc;i++)status|=count_file(argv[i],flags,totals);
+        if(inputs>1) {
+            for(int j=0,printed=0;j<3;j++)if(flags&(1<<j)) {
+                if(printed){print(" ");}number(totals[j]);printed=1;
+            }
+            print(" total\n");
+        }
+        return status;
+    }
+    if(same(argv[1],"head")||same(argv[1],"tail")) {
+        unsigned long n=10;const char *files[32];int count=0,options=1;
+        for(int i=2;i<argc;i++) {
+            const char *digits=0;
+            if(options&&same(argv[i],"--")){options=0;continue;}
+            if(options&&same(argv[i],"-n")) {
+                if(++i==argc)return file_error("missing line count",-22);
+                digits=argv[i];
+            } else if(options&&argv[i][0]=='-'&&argv[i][1]>='0'&&argv[i][1]<='9')digits=argv[i]+1;
+            if(digits) {
+                if(!*digits)return file_error("missing line count",-22);
+                n=0;
+                for(int j=0;digits[j];j++) {
+                    if(digits[j]<'0'||digits[j]>'9'||n>1024)return file_error("line count must be 0..1024",-22);
+                    n=n*10+(unsigned long)(digits[j]-'0');
+                }
+                if(n>1024)return file_error("line count must be 0..1024",-22);
+            } else {
+                if(count==32)return file_error("too many input files",-22);
+                files[count++]=argv[i];
+            }
+        }
+        if(!count)return line_tool("-",n,same(argv[1],"tail"));
+        int status=0;
+        for(int i=0;i<count;i++) {
+            if(count>1){print("==> ");print(files[i]);print(" <==\n");}
+            status|=line_tool(files[i],n,same(argv[1],"tail"));
+            if(count>1&&line_partial)print("\n");
+        }
+        return status;
+    }
     if(same(argv[1],"pwd") && argc==2){char cwd[1025];long n=zenith_call(79,(unsigned long)cwd,sizeof(cwd),0);if(n<0)return file_error("cwd",n);print(cwd);print("\n");return 0;}
     if(same(argv[1],"cat")){if(argc==2)return cat_file("-");int result=0;for(int i=2;i<argc;i++)result|=cat_file(argv[i]);return result;}
     if(same(argv[1],"tee") && argc==3)return tee_file(argv[2],0);
@@ -363,7 +406,16 @@ int main(int argc, char **argv, char **envp) {
     if(same(argv[1],"ls")){int i=2,all=0,details=0,result=0;for(;i<argc;i++){if(same(argv[i],"-1")){}else if(same(argv[i],"-a"))all=1;else if(same(argv[i],"-l"))details=1;else if(same(argv[i],"-la")||same(argv[i],"-al")){all=1;details=1;}else break;}if(i==argc)return list_path(".",all,details);for(;i<argc;i++)result|=list_path(argv[i],all,details);return result;}
     if(same(argv[1],"--fs-buffers")){long fd=open_path(argc>2?argv[2]:"/etc/hostname",0);if(fd<0)return 1;
         long a=zenith_call(0,fd,(unsigned long)&main,4),b=zenith_call(0,fd,0xffff800000000000UL,4),c=zenith_call(0,fd,0x7ffeffffUL,4);char first=0,other=1;long n=zenith_call(0,fd,(unsigned long)&first,1);zenith_call(3,fd,0,0);long fresh=open_path(argc>2?argv[2]:"/etc/hostname",0);if(fresh<0)return 1;long m=zenith_call(0,fresh,(unsigned long)&other,1);zenith_call(3,fresh,0,0);return a==-14&&b==-14&&c==-14&&n==1&&m==1&&first==other?0:1;}
-    if(same(argv[1],"stat") && argc==3){struct zenith_stat info;long result=zenith_call(4,(unsigned long)argv[2],length(argv[2]),(unsigned long)&info);if(result<0)return file_error(argv[2],result);permissions(info.mode);print(" uid=");number(info.uid);print(" gid=");number(info.gid);print(" size=");number(info.size);print("\n");return 0;}
+    if(same(argv[1],"stat") && argc>=3) {
+        int status=0;
+        for(int i=2;i<argc;i++) {
+            struct zenith_stat info;long result=zenith_call(408,(unsigned long)argv[i],length(argv[i]),(unsigned long)&info);
+            if(result<0){status|=file_error(argv[i],result);continue;}
+            if(argc>3){print(argv[i]);print(": ");}
+            permissions(info.mode);print(" uid=");number(info.uid);print(" gid=");number(info.gid);print(" size=");number(info.size);print("\n");
+        }
+        return status;
+    }
     if(same(argv[1],"--bad-stack-timer")){__asm__ volatile("movabs $0x800000000000,%%rsp; 1: pause; jmp 1b":::"memory");__builtin_unreachable();}
     if(same(argv[1],"--bad-stack")){__asm__ volatile("movabs $0x800000000000,%%rsp; mov $39,%%eax; int $0xfe; ud2":::"memory");__builtin_unreachable();}
     if(same(argv[1],"--fs-requests")){char cwd[1025];for(;;)zenith_call(79,(unsigned long)cwd,sizeof(cwd),0);}
@@ -407,5 +459,5 @@ int main(int argc, char **argv, char **envp) {
     if(same(argv[1],"--privileged")){__asm__ volatile("cli");return 1;}
     if(same(argv[1],"--loop")){for(;;)__asm__ volatile("pause");}
     if(same(argv[1],"--bad-pointer")){return zenith_write((void *)0xffff800000000000UL,4)==-14?0:1;}
-    print("Usage: native run sunbeam [echo [-n] ARGS... | basename PATH [SUFFIX] | dirname PATH | id | pwd | cat [FILE...] | tee [-a] FILE | wc [-lwc] [FILE] | head|tail [-n 0..1024] [FILE] | ls [-a] [-l] [DIR...] | stat FILE]\n");return 2;
+    print("Usage: native run sunbeam [echo [-n] ARGS... | basename PATH [SUFFIX] | dirname PATH | id | pwd | cat [FILE...] | tee [-a] FILE | wc [-lwc] [FILE...] | head|tail [-n 0..1024] [FILE...] | ls [-a] [-l] [DIR...] | stat FILE...]\n");return 2;
 }

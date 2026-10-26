@@ -42,6 +42,11 @@ static long zenith_call(long n, unsigned long a, unsigned long b, unsigned long 
     else if(n==1)r=write(a,(void *)b,c);
     else if(n==3)r=close(a);
     else if(n==2){char path[1025];if(b>1024)return -36;for(unsigned long i=0;i<b;i++)path[i]=((char *)a)[i];path[b]=0;r=open(path,O_RDONLY);}
+    else if(n==4 || n==408) {
+        char path[1025];if(b>1024)return -36;for(unsigned long i=0;i<b;i++)path[i]=((char *)a)[i];path[b]=0;
+        struct stat native;r=n==4?stat(path,&native):lstat(path,&native);
+        if(r==0) { struct zenith_stat *out=(void *)c;out->size=native.st_size;out->mode=native.st_mode;out->uid=native.st_uid;out->gid=native.st_gid;out->reserved=0; }
+    }
     else return -38;
     return r<0?-errno:r;
 }
@@ -89,6 +94,33 @@ static long zenith_call(long n, unsigned long a, unsigned long b, unsigned long 
         path.write_bytes("a\nü\n終".encode())
         self.assertEqual("ü\n終".encode(), self.run_tool("tail", "-n", "2", str(path)).stdout)
         self.assertEqual(b"2", self.run_tool("wc", "-l", str(path)).stdout.split(b" ")[0])
+
+    def test_multiple_counts_total_and_separate_options(self):
+        first=Path(self.temp.name)/"count-a";second=Path(self.temp.name)/"count-b"
+        first.write_bytes(b"one two\n");second.write_bytes(b"last\n")
+        result=self.run_tool("wc","-l","-w",str(first),str(second))
+        self.assertEqual(0,result.returncode)
+        self.assertEqual(f"1 2 {first}\n1 1 {second}\n2 3 total\n".encode(),result.stdout)
+        result=self.run_tool("wc","-l",str(first)+"-missing",str(second))
+        self.assertEqual(1,result.returncode);self.assertIn(f"1 {second}\n".encode(),result.stdout)
+
+    def test_short_line_counts_multiple_files_and_headers(self):
+        first=Path(self.temp.name)/"lines-a";second=Path(self.temp.name)/"lines-b"
+        first.write_bytes(b"one\ntwo\n");second.write_bytes(b"partial")
+        result=self.run_tool("head","-1",str(first),str(second))
+        self.assertEqual(0,result.returncode)
+        self.assertEqual(f"==> {first} <==\none\n==> {second} <==\npartial\n".encode(),result.stdout)
+        self.assertEqual(b"two\n",self.run_tool("tail","-1",str(first)).stdout)
+        self.assertEqual(b"first\n",self.run_tool("head","-1",data=b"first\nlast\n").stdout)
+
+    def test_ls_file_and_stat_multiple_paths_without_following_final_link(self):
+        first=Path(self.temp.name)/"file-info";link=Path(self.temp.name)/"link-info"
+        first.write_bytes(b"data");link.symlink_to(first)
+        result=self.run_tool("ls",str(first));self.assertEqual(0,result.returncode)
+        self.assertEqual((str(first)+"\n").encode(),result.stdout)
+        result=self.run_tool("stat",str(first),str(link));self.assertEqual(0,result.returncode)
+        lines=result.stdout.decode().splitlines();self.assertEqual(2,len(lines))
+        self.assertTrue(lines[0].startswith(str(first)+": -"));self.assertTrue(lines[1].startswith(str(link)+": l"))
 
 
 if __name__ == "__main__":

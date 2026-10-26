@@ -26,12 +26,19 @@ Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
 - [ ] Finish remaining text and traversal tools; current extracted command coverage
   is listed in the [batch record](archive/2026-10-26/cli-process-foundation.md).
 - [ ] Add controlled network ownership/services needed for independent net tools.
-- [x] Pass 700 host tests and 194 common controller tests; ISO/ELF build passes.
+- [x] Pass 700 host tests and 197 common controller tests; ISO/ELF build passes.
 - [x] Complete all 64 large byte pipelines and native filesystem/fault/permission
   matrix on the initial candidate. Final focused GUI/local raw checks pass.
-- [ ] Run clean-source full release/recovery acceptance after the
-  remaining CLI work. The CLI candidate is unreleased; the operator VM remains
-  on 0.0.20.
+- [x] Continue VM-test handoff with full qualification. The first clean candidate
+  passed login/session but reproduced an in-memory kernel payload rejection.
+- [x] Verify the cached signed archive independently; reproduce zeroed ELF payload
+  bytes with a rejection-only observer. Confirm an IRQ publication gap in the
+  pinned runtime; eight real-dependency adapter regressions pass.
+- [x] Corrected runtime passes all 92 real repository checks, kernel activation/
+  reboot and independent ext2 audit without debugging. All 64 dependency-adapter
+  regressions pass, including the eight allocation-publication tests.
+- [ ] Repeat clean-source full release/recovery acceptance for VM test delivery. The CLI candidate is unreleased; the operator VM remains
+  on 0.0.20. See the [allocation record](archive/2026-10-26/allocation-publication.md).
 - [ ] Next: protected graphical-client/settings service contract, independently
   packaged Settings and shared UI tokens/widgets. Desktop/service migration is
   unfinished; a source split or a kernel-linked Settings window is not completion.

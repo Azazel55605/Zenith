@@ -119,6 +119,14 @@ def main():
         command('cat /home/user/cli/native-default/copy | logger','user: KEEP')
         status('recovery echo BUILTIN','CLI_RECOVERY')
         command('which cat | logger','user: cat: signed native base-tools')
+        command('wc -c /home/user/cli/source /home/user/cli/native-default/copy | logger','user: 10 total')
+        command('head -1 /home/user/cli/source /home/user/cli/native-default/copy | wc -l | logger','user: 4')
+        command('tail -1 /home/user/cli/source /home/user/cli/native-default/copy | wc -l | logger','user: 4')
+        command('ls /home/user/cli/source | logger','user: /home/user/cli/source')
+        command('stat /home/user/cli/source /home/user/cli/moved | wc -l | logger','user: 2')
+        status('ln -s /home/user/cli/source /home/user/cli/again','CLI_STAT_LINK_SETUP')
+        command('stat /home/user/cli/again | logger','user: lrwxrwxrwx')
+
         status('fetch '+url+'/base-tools-0.5.1.zpk /root/update.zpk; pkg install /root/update.zpk','CLI_BASE_UPGRADE')
         command('base-tools --version | logger','user: base-tools 0.5.1')
         # Native PID cancellation must target its background job, not the interactive shell.

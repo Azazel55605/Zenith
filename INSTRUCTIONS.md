@@ -135,8 +135,11 @@ execution ledger or duplicate historical test totals into the roadmap.
   must restore Ready to Running without replacing its live stack or requesting
   a native switch; preserve other-thread/Created entry flags. Conservative stack/register GC candidates
   must resolve to owning object starts before marking; preserve opaque monitor
-  fields and ordinary/pinned object boundaries. Keep real-dependency wake/GC
-  regressions and repeated native
+  fields and ordinary/pinned object boundaries. Allocation entry points must retain
+  IRQ state until their method table and array length are published; protecting
+  only heap reservation exposes invalid objects to pressure collection. Preserve
+  all six entry contracts, export ABI, exception restoration and drift rejection
+  in the copied-runtime adapter. Keep real-dependency wake/GC regressions and repeated native
   pipeline completion checks. Condition waits must remain parked after unrelated
   interrupts until a signal or timeout actually readies the thread; repeated parks
   must preserve tickets and IRQ flags. Timed monitor interop must forward the actual

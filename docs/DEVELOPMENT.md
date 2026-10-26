@@ -428,7 +428,7 @@ idempotence, wake-before-switch/yield requeue, Created state, sorted pass/ticket
 accounting and IRQ restoration. They also require a self-selected woken current
 thread to become Running without replacing its live stack or requesting a native
 switch, across repeated short sleeps and both dispatcher paths. Different-thread
-and Created entry flags must remain intact. `python3 -B tools/test_conservative_roots_fixup.py`
+and Created entry flags must remain intact. `python3 -B tools/test_conservative_roots_fixup.py tools/test_allocation_publication_fixup.py`
 executes the pinned collector on a synthetic heap, proving interior references mark
 objects without modifying their fields. Only kernel-address floors are adapted
 for host addresses in this separate fixture copy. Include ordinary/pinned/array,

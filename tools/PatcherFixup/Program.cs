@@ -42,6 +42,7 @@ void QuietTrace(MethodDefinition method, string firstText, string lastText)
 }
 if (assembly.Name.Name == "Cosmos.Kernel.Core")
 {
+    changed |= AllocationPublicationFixup.Apply(module);
     changed |= ConservativeRootFixup.Apply(module);
     changed |= SchedulerDispatchFixup.Apply(module);
     changed |= SchedulerTicketsFixup.Apply(module);
