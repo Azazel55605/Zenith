@@ -2,12 +2,12 @@
 
 [Documentation](../README.md) · [Current status](../STATUS.md)
 
-**State:** M5 in progress. Protected foreground execution and read-only tools are
-locally verified. Bounded native input and file writes passed full local acceptance
-at `2a515e8`; the operator reports the kernel/Sunbeam 0.3.0/manuals releases delivered
-and a full system update successful, followed by kernel 0.0.17 installed and initially
-working. Explicit native pipe/write/permission exercise on the installed VM remains
-separate from package installation. Full process/service/GUI migration is unfinished.
+**State:** M5 in progress. The operator confirms kernel 0.0.20 installed and
+running. The unreleased CLI candidate adds environment/process lifecycle, raw
+input, bounded jobs, namespace/seek operations and independently packaged base/
+filesystem commands. Local evidence and remaining extraction are tracked in
+[Progress](../PROGRESS.md#cli-unbundling-and-application-foundations). Full
+CLI/service/GUI migration is unfinished.
 
 ## Implemented steps
 
@@ -26,32 +26,37 @@ separate from package installation. Full process/service/GUI migration is unfini
 - [x] Complete expanded host/native and full pre-tag acceptance for native I/O.
 - [x] Implement live standard streams, bounded pipelines and Sunbeam wc/head/tail.
 - [x] Complete guest/common acceptance for streams at `cba1cbf`.
-- [ ] Publish releases and complete operator-installed stream acceptance.
+- [x] Operator confirms kernel 0.0.20 installed and running; explicit individual
+  stream/input exercises remain separate from installation.
 
 ## Current boundary
 
 The locally verified stream extension adds live stdout/stderr, canonical foreground
 input and bounded byte pipelines with protected waiting contexts and serialized raw
-BSP entry. Publication and operator acceptance are pending in PROGRESS. This is not a general
-preemptive process scheduler. Raw TTY/jobs, seek, environment, sockets and GUI APIs
-remain unimplemented. Managed/kernel code and existing builtins remain trusted.
+BSP entry. Kernel 0.0.20 is operator-installed; later CLI work is unreleased.
+This is not a general preemptive process scheduler. The unreleased CLI candidate adds raw input leases, bounded shell jobs, exported
+environment, native PID cancellation and private seek/namespace operations. Initial
+local installed tests pass; graphics and controlled network ownership remain
+unimplemented. [Active CLI work](../PROGRESS.md#cli-unbundling-and-application-foundations)
+owns current validation. Managed/kernel code and existing builtins remain trusted.
 The exact limits/wire layout belong to [Native programs](../NATIVE-PROGRAMS.md).
 New native bundles require the filesystem and input/write capabilities:
 upgrade and confirm a compatible kernel before updating Sunbeam.
 
 ## Next implementation steps
 
-1. **Installed native acceptance:** publication and installed update are operator
-   reported; explicitly verify boot confirmation and signed Sunbeam invocation as
-   ordinary user and root.
-2. **Installed input/write acceptance:** repeat representative pipe, write and
-   permission checks on the operator VM after the server publishes the packages.
-3. **Stream delivery, then raw TTY/process lifecycle:** finish operator acceptance
-   before larger CLI ports; then controlled
-   networking and graphics. [Migration plan](../USERLAND.md) owns the wider stages.
+1. **Finish remaining CLI extraction:** text/traversal utilities and controlled
+   network ownership/services. Keep shell evaluation and explicitly privileged
+   service boundaries clear; preserve complete command behavior or document a
+   bounded native profile and retain explicit recovery commands.
+2. **Qualify and deliver:** clean-source full release matrix, compatible kernel
+   first, independent tool packages afterward, then installed operator checks.
+3. **Graphical client and Settings:** only after the selected CLI milestone;
+   define ownership/lifetime/service APIs and shared UI tokens/widgets before
+   extracting the test desktop.
 
-Each step needs its own active checklist and validation results in PROGRESS when
-selected. These are planned steps, not silently started work.
+[Migration plan](../USERLAND.md) owns the wider stages. Each new slice needs its
+own validation record; local tests are separate from distributor/installed evidence.
 
 ## Source and acceptance
 

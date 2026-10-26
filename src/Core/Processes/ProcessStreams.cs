@@ -49,8 +49,15 @@ internal sealed class ProcessStreams
     public int Close(int fd)
     {
         if (fd < 0 || fd > 2 || _closed[fd]) { return -9; }
-        _closed[fd] = true; return 0;
+        _closed[fd] = true; if (fd == 0 && _input is ITerminalInput terminal) { terminal.Dispose(); }
+        return 0;
+    }
+    public int TerminalMode(int fd, int? flags = null)
+    {
+        if (fd < 0 || fd > 2 || _closed[fd]) { return -9; }
+        if (fd != 0 || !_terminal[fd] || _input is not ITerminalInput terminal) { return -25; }
+        return flags is int mode ? terminal.SetMode(mode) : terminal.GetMode();
     }
     public int IsTerminal(int fd) => fd < 0 || fd > 2 || _closed[fd] ? -9 : _terminal[fd] ? 1 : 0;
-    public void Close() { _closed[0] = _closed[1] = _closed[2] = true; }
+    public void Close() { _closed[0] = _closed[1] = _closed[2] = true; if (_input is ITerminalInput terminal) { terminal.Dispose(); } }
 }

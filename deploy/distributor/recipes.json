@@ -61,5 +61,21 @@
     "repository": "core",
     "payload": "packaging/zenith-style",
     "meta": true
+  },
+  "zenith-base-tools": {
+    "kind": "data",
+    "name": "zenith-base-tools",
+    "repository": "core",
+    "payload": "obj/packages/zenith-base-tools",
+    "generate": "native",
+    "program": "base-tools"
+  },
+  "zenith-fs-tools": {
+    "kind": "data",
+    "name": "zenith-fs-tools",
+    "repository": "core",
+    "payload": "obj/packages/zenith-fs-tools",
+    "generate": "native",
+    "program": "fs-tools"
   }
 }

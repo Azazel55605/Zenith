@@ -6,6 +6,8 @@ Start with [current status](../STATUS.md) or [active work](../PROGRESS.md).
 
 ## Investigation records
 
+- [2026-10-26 CLI process/filesystem foundation](2026-10-26/cli-process-foundation.md): environment, foreground raw input, owned processes/background jobs, namespace services and signed base/filesystem package dispatch; validation boundaries.
+
 - [2026-10-17 scheduler late wakes](2026-10-17/scheduler-late-wake.md): scheduler, conservative GC and GUI EOF faults behind pipeline failures; final acceptance and release boundary.
 
 - [2026-10-17 stale TCP flow recurrence](2026-10-17/tcp-stale-flow.md): failed SYN/ACK evidence, recovery after waiting and fixed per-boot port allocation; cause and further fix remain under investigation.

@@ -35,12 +35,19 @@ def warmup(source):
     starts=[]
     for block in tree.body:
         if not isinstance(block,ast.Try): continue
-        for i,node in enumerate(block.body):
+        # The focused terminal mode skips the ordinary matrix. Replays always
+        # select its normal branch, without running the password/setup shortcut.
+        normal=[]
+        for statement in block.body:
+            if isinstance(statement,ast.If) and isinstance(statement.test,ast.Name) and statement.test.id=='terminal_only':
+                normal.extend(statement.orelse)
+            else: normal.append(statement)
+        for i,node in enumerate(normal):
             if (isinstance(node,ast.Expr) and isinstance(node.value,ast.Call)
                 and isinstance(node.value.func,ast.Name) and node.value.func.id=='boot'
                 and len(node.value.args)==2 and isinstance(node.value.args[0],ast.Constant)
                 and node.value.args[0].value=='installed'):
-                starts.append((block.body,i))
+                starts.append((normal,i))
     if len(starts)!=1: raise ValueError('native warmup boot boundary changed')
     nodes,start=starts[0]
     ends=[i for i,node in enumerate(nodes) if i>start and isinstance(node,ast.For)

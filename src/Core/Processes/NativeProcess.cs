@@ -40,16 +40,16 @@ internal sealed unsafe class NativeProcess
     private readonly List<ProcessMemoryRange> _ranges = new();
     private readonly ulong _hhdm;
     private ulong* _root;
-    private static int s_busy, s_nextPid;
-    private const int MaximumProcesses = 8;
+    private byte[]? _processSnapshot;
+    internal static readonly ProcessTable Processes = new();
     private static readonly object s_rawGate = new(), s_rootsGate = new(), s_serviceGate = new();
     private static readonly Dictionary<int, object[]> s_roots = new();
-    private static void Release(int pid, ref bool released)
+    private static void Release(int pid, ref bool released, int status)
     {
         if (released) { return; }
         released = true;
         lock (s_rootsGate) { s_roots.Remove(pid); }
-        Interlocked.Decrement(ref s_busy);
+        Processes.Complete(pid, status);
     }
     private static void CloseFiles(ProcessFiles? files)
     {
@@ -57,7 +57,7 @@ internal sealed unsafe class NativeProcess
         try { files?.Dispose(); Monitor.Exit(s_serviceGate); }
         catch { Monitor.Exit(s_serviceGate); throw; }
     }
-    public static bool IsRunning => Volatile.Read(ref s_busy) != 0;
+    public static bool IsRunning => Processes.ActiveCount != 0;
     private NativeProcess()
     {
         _hhdm = Limine.HHDM.Response == null ? 0 : Limine.HHDM.Response->Offset;
@@ -123,6 +123,58 @@ internal sealed unsafe class NativeProcess
     {
         try
         {
+            if (c.Call == 405)
+            {
+                if (c.Arg1 != ProcessPathRequest.Bytes || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, ProcessPathRequest.Bytes, false)) { return -14; }
+                if (!ProcessPathRequest.TryRead(ReadUser(c.Arg0, ProcessPathRequest.Bytes), out var request)) { return -22; }
+                if (!Valid(request.Path, request.Length, false) || (request.TargetLength > 0 && !Valid(request.Target, request.TargetLength, false))) { return -14; }
+                var utf8 = new UTF8Encoding(false, true);
+                string path = utf8.GetString(ReadUser(request.Path, request.Length));
+                string? target = request.TargetLength == 0 ? null : utf8.GetString(ReadUser(request.Target, request.TargetLength));
+                if (path.Contains('\0') || target?.Contains('\0') == true) { return -22; }
+                return files.Mutate(request.Operation, path, target, request.Value, request.Extra);
+            }
+            if (c.Call == 407)
+            {
+                if (c.Arg0 > int.MaxValue) { return -9; }
+                if (c.Arg2 is 0 or > 1024) { return -36; }
+                if (!Valid(c.Arg1, (int)c.Arg2, false)) { return -14; }
+                string path = new UTF8Encoding(false, true).GetString(ReadUser(c.Arg1, (int)c.Arg2));
+                return files.OpenCopyDestination((int)c.Arg0, path);
+            }
+            if (c.Call == 406)
+            { return c.Arg0 > int.MaxValue ? -9 : c.Arg2 > 2 ? -22 : files.Seek((int)c.Arg0, unchecked((long)c.Arg1), (int)c.Arg2); }
+            if (c.Call == 403)
+            {
+                if (c.Arg1 > ProcessFiles.MaximumIo || c.Arg2 > 8192) { return -22; }
+                if (!Valid(c.Arg0, (int)c.Arg1, true)) { return -14; }
+                if (_processSnapshot is null)
+                {
+                    var text = new StringBuilder("PID UID STATE STATUS PROGRAM\n");
+                    foreach (var item in Processes.List(Zenith.Core.Security.CredentialContext.Current.Uid))
+                    {
+                        text.Append(item.Pid).Append(' ').Append(item.Uid).Append(' ').Append(item.State.ToString().ToLowerInvariant()).Append(' ')
+                        .Append(item.Status?.ToString() ?? "-").Append(' ').Append(item.Name).Append('\n');
+                    }
+                    _processSnapshot = Encoding.UTF8.GetBytes(text.ToString());
+                }
+                int offset = (int)c.Arg2;
+                int count = Math.Min((int)c.Arg1, Math.Max(0, _processSnapshot.Length - offset));
+                if (count > 0) { Transfer(c.Arg0, _processSnapshot.AsSpan(offset, count).ToArray(), true); }
+                return count;
+            }
+            if (c.Call == 404)
+            {
+                if (c.Arg0 == 0 || c.Arg0 > int.MaxValue || c.Arg1 != 0 || c.Arg2 != 0) { return -22; }
+                return Processes.RequestStop((int)c.Arg0, Zenith.Core.Security.CredentialContext.Current.Uid);
+            }
+            if (c.Call is 401 or 402)
+            {
+                if (c.Arg0 > int.MaxValue) { return -9; }
+                if (c.Call == 402 && c.Arg1 > int.MaxValue) { return -22; }
+                return files.TerminalMode((int)c.Arg0, c.Call == 402 ? (int)c.Arg1 : null);
+            }
             if (c.Call == 400) { return c.Arg0 > int.MaxValue ? -9 : files.IsTerminal((int)c.Arg0); }
             if (c.Call == 3) { return c.Arg0 > int.MaxValue ? -9 : files.Close((int)c.Arg0); }
             if (c.Call == 74) { return c.Arg0 > int.MaxValue ? -9 : files.Flush((int)c.Arg0); }
@@ -140,14 +192,14 @@ internal sealed unsafe class NativeProcess
                 if (!Valid(c.Arg0, cwd.Length, true)) { return -14; }
                 Transfer(c.Arg0, cwd, true); return cwd.Length;
             }
-            if (c.Call == 2 || c.Call == 4)
+            if (c.Call is 2 or 4 or 408)
             {
                 if (c.Arg1 == 0 || c.Arg1 > 1024) { return -36; }
                 if (!Valid(c.Arg0, (int)c.Arg1, false)) { return -14; }
                 string path = new UTF8Encoding(false, true).GetString(ReadUser(c.Arg0, (int)c.Arg1));
                 if (c.Call == 2) { return files.Open(path, c.Arg2); }
                 if (!Valid(c.Arg2, ProcessFiles.StatBytes, true)) { return -14; }
-                byte[] stat = new byte[ProcessFiles.StatBytes]; files.Stat(path, stat); Transfer(c.Arg2, stat, true); return 0;
+                byte[] stat = new byte[ProcessFiles.StatBytes]; files.Stat(path, stat, c.Call != 408); Transfer(c.Arg2, stat, true); return 0;
             }
             if (c.Call == 0 || c.Call == 217)
             {
@@ -175,7 +227,7 @@ internal sealed unsafe class NativeProcess
             return -5;
         }
     }
-    public static (int Status, string Error, ulong Fault) Run(string name, IReadOnlyList<string> arguments, Func<bool> cancelled, object? lifetimeRoot = null, string cwd = "/", string? input = null, ProcessStreams? streams = null)
+    public static (int Status, string Error, ulong Fault) Run(string name, IReadOnlyList<string> arguments, Func<bool> cancelled, object? lifetimeRoot = null, string cwd = "/", string? input = null, ProcessStreams? streams = null, IReadOnlyDictionary<string, string>? environment = null, Action? requestStop = null)
     {
 #if ARCH_ARM64
         throw new IOException("native ELF process execution is currently x86_64 only");
@@ -197,25 +249,25 @@ internal sealed unsafe class NativeProcess
             bytes = store.Read(path, ElfImage.MaximumBytes);
             if (bytes.Length != owned.Length || PackagePlanner.Digest(bytes) != owned.Digest || store.Mode(path) != owned.Mode)
             { throw new IOException("native executable differs from its installed package"); }
-            image = ElfImage.Read(bytes); stack = ProcessArguments.Create(arguments);
+            image = ElfImage.Read(bytes); stack = ProcessArguments.Create(arguments, environment);
         }
         catch (Exception error) { setupError = error.Message; }
         Monitor.Exit(s_serviceGate);
         if (setupError is not null) { return (1, setupError, 0); }
-        bool admitted; int pid = 0;
+        int pid = -1;
+        var identity = Zenith.Core.Security.CredentialContext.Current;
         lock (Installer.MaintenanceGate)
         {
-            admitted = !Installer.IsRunning && !Zenith.Core.Shell.Commands.PackageCommands.IsRunning
-                && !Zenith.Core.Boot.NativeKernelUpdates.IsRunning && Volatile.Read(ref s_busy) < MaximumProcesses;
-            if (admitted) { Interlocked.Increment(ref s_busy); pid = Interlocked.Increment(ref s_nextPid); }
+            if (!Installer.IsRunning && !Zenith.Core.Shell.Commands.PackageCommands.IsRunning
+                && !Zenith.Core.Boot.NativeKernelUpdates.IsRunning)
+            { pid = Processes.Start(name, identity.Uid, requestStop ?? (() => { })); }
         }
-        if (!admitted) { return (1, "native process/system maintenance busy (maximum 8 contexts)", 0); }
+        if (pid < 0) { return (1, "native process/system maintenance busy (maximum 8 contexts)", 0); }
         bool released = false;
         NativeProcess? process = null; ProcessFiles? files = null;
-        var identity = Zenith.Core.Security.CredentialContext.Current;
         try
         {
-            if (cancelled()) { Release(pid, ref released); return (130, "", 0); }
+            if (cancelled()) { Release(pid, ref released, 130); return (130, "", 0); }
             process = new NativeProcess(); process.Initialize(); var regions = new Region[image.Segments.Count + 1]; int region = 0;
             foreach (var segment in image.Segments)
             {
@@ -242,12 +294,24 @@ internal sealed unsafe class NativeProcess
             lock (s_rootsGate) { s_roots.Add(pid, new object[] { process, regions, arguments, bytes, image, stack, lifetimeRoot ?? arguments, files }); }
             fixed (Region* list = regions)
             {
-                var context = new Context { Cr3 = process.Physical(process._root), Entry = image.Entry, Stack = stack.StackPointer,
-                    Regions = list, Count = (ulong)regions.Length, Ticks = 1000,
-                    InterruptStack = 0, Hhdm = process._hhdm, Uid = Zenith.Core.Security.CredentialContext.Current.Uid,
-                    Gid = Zenith.Core.Security.CredentialContext.Current.Gid, Pid = (ulong)pid,
-                    Frame = process.Allocate(176), UserFp = process.Page() };
+                var context = new Context
+                {
+                    Cr3 = process.Physical(process._root),
+                    Entry = image.Entry,
+                    Stack = stack.StackPointer,
+                    Regions = list,
+                    Count = (ulong)regions.Length,
+                    Ticks = 1000,
+                    InterruptStack = 0,
+                    Hhdm = process._hhdm,
+                    Uid = Zenith.Core.Security.CredentialContext.Current.Uid,
+                    Gid = Zenith.Core.Security.CredentialContext.Current.Gid,
+                    Pid = (ulong)pid,
+                    Frame = process.Allocate(176),
+                    UserFp = process.Page()
+                };
                 int status; int calls = 0, readBytes = 0;
+                Processes.SetState(pid, ProcessState.Running);
                 do
                 {
                     if (cancelled()) { status = 130; break; }
@@ -258,11 +322,13 @@ internal sealed unsafe class NativeProcess
                     if (cancelled()) { status = 130; break; }
                     if (++calls > 4096) { status = 124; break; }
                     var caller = Zenith.Core.Security.CredentialContext.Enter(identity);
-                    bool standard = context.Call == 400 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    bool standard = context.Call is 400 or 401 or 402 or 403 or 404 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {
+                        Processes.SetState(pid, ProcessState.Waiting);
                         context.Result = process.Service(ref context, files, ref readBytes);
+                        Processes.SetState(pid, ProcessState.Running);
                         if (!standard) { Monitor.Exit(s_serviceGate); }
                         caller.Dispose();
                     }
@@ -277,10 +343,11 @@ internal sealed unsafe class NativeProcess
                 } while (true);
                 GC.KeepAlive(s_roots);
                 ulong fault = context.Fault;
-                CloseFiles(files); process.Dispose(); Release(pid, ref released); return (cancelled() ? 130 : status, "", fault);
+                CloseFiles(files); process.Dispose(); int exit = cancelled() ? 130 : status;
+                Release(pid, ref released, exit); return (exit, "", fault);
             }
         }
-        catch { CloseFiles(files); process?.Dispose(); Release(pid, ref released); throw; }
+        catch { CloseFiles(files); process?.Dispose(); Release(pid, ref released, 1); throw; }
 #endif
     }
 }

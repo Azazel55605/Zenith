@@ -40,6 +40,28 @@ class PollTests(unittest.TestCase):
     def run_poll(self, retry=None):
         poll.poll(str(self.repo), self.state, self.recipes, retry)
 
+    def test_program_selector_is_not_added_to_older_sunbeam_recipes(self):
+        original_repo,original_tool=poll.release.REPO,poll.release.TOOL
+        try:
+            for key in ("sunbeam-tools", "zenith-base-tools", "zenith-fs-tools"):
+                with patch.object(poll.release, "phase") as phase, patch.object(poll.release,"data"), patch.object(poll.release,"verify"):
+                    poll.execute({"root":str(self.root/"published")},self.repo,"0.5.0",self.recipes[key])
+                    command=phase.call_args_list[-1].args[1]
+                    if key=="sunbeam-tools": self.assertNotIn("--program",command)
+                    else: self.assertEqual(["--program",self.recipes[key]["program"]],command[-2:])
+        finally:
+            poll.release.REPO,poll.release.TOOL=original_repo,original_tool
+
+    def test_extracted_tool_packages_are_independently_pinned(self):
+        for tag in ("zenith-base-tools/v0.5.0", "zenith-fs-tools/v0.5.1"):
+            poll.git(self.repo, "tag", tag)
+        self.run_poll()
+        self.assertEqual({("zenith-base-tools", "0.5.0"), ("zenith-fs-tools", "0.5.1")},
+                         {(name, version) for _, version, name in self.calls})
+        self.assertEqual("base-tools", self.recipes["zenith-base-tools"]["program"])
+        self.assertEqual("fs-tools", self.recipes["zenith-fs-tools"]["program"])
+        self.assertNotIn("program", self.recipes["sunbeam-tools"])
+
     def test_manual_font_and_native_recipe_tags_have_independent_versions(self):
         for tag in ("kernel/v0.0.8", "zenith-docs/v0.1.1", "sunbeam-tools/v0.1.0",
                     "zenith-man-pages/v0.1.0", "zenith-fonts/v0.1.0"):

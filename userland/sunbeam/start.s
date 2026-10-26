@@ -4,6 +4,7 @@ _start:
     cld
     mov (%rsp), %rdi
     lea 8(%rsp), %rsi
+    lea 16(%rsp,%rdi,8), %rdx
     and $-16, %rsp
     call main
     mov %eax, %edi

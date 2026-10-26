@@ -270,6 +270,7 @@ def native_checks(work):
     print("Native workspace: " + str(directory) + "; retained afterward at " + str(work / "native"), flush=True)
     try:
         checks = [("r", "repository-smoke.py")]
+        if (REPO / "tools/native-cli-smoke.py").exists(): checks.append(("c", "native-cli-smoke.py"))
         # Older immutable kernel tags predate this ABI and its harness.
         if (REPO / "tools/native-process-smoke.py").exists(): checks.append(("u", "native-process-smoke.py"))
         # Run the expensive crash/recovery matrix last. A repository regression

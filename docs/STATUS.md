@@ -1,6 +1,6 @@
 # Current system status
 
-Reviewed **2026-10-18**. Stability fixes: `c622c13`, `ce42cfd`; native filesystem
+Reviewed **2026-10-26**. Stability fixes: `c622c13`, `ce42cfd`; native filesystem
 feature baseline: `f502085`; TCP reliability candidate: `f6bf893`. This page owns the cross-component
 summary; [component checklists](README.md#components) own detailed work.
 
@@ -10,14 +10,16 @@ and producer starvation; regressions reproduce the original invalid ticket total
 Clean-source acceptance passed 153 controller, 658 host, 71 login/session,
 92 repository, full native-process coverage with 64 pipelines and 169 kernel
 recovery checks. Publication receipts were not independently inspected, and
-installed VMware update/reboot/confirmation and stream checks remain unreported.
-See [active handoff](PROGRESS.md#native-terminal-streams-release-handoff).
+the operator now confirms 0.0.20 is installed and running in the VMware guest.
+Explicit `boot confirm` and individual stream/input checks were not separately
+reported. CLI unbundling is the selected next implementation stage.
+See [active CLI work](PROGRESS.md#cli-unbundling-and-application-foundations).
 
 ## Release and installation boundary
 
 | Item | What is established | What remains |
 |---|---|---|
-| Kernel 0.0.20 | Tagged at fully accepted `431dfb9`; operator reports successful distributor run | Installed update/reboot/confirm and native stream/input checks; publication receipt not independently inspected |
+| Kernel 0.0.20 | Tagged at fully accepted `431dfb9`; operator reports successful distributor run | Operator confirms installed and running; explicit boot confirmation and individual native stream/input checks not separately reported |
 | Kernel 0.0.12 | Operator reports installed and working login; supporting resource packages installed | No broader hardware certification implied |
 | Kernel 0.0.13 | Tag pushed; server validation exposed ext2 corruption: directory `/var/lib` became a regular file at inode 49 | Failed version remains immutable; a retry cannot include the driver fix |
 | Kernel 0.0.14 | Tagged at `fe1f5a9`; operator log confirms server native gates passed, signed archive published and core/extra indexes generation 15 published | Gateway stale DNS cache resolved; operator reports 0.0.14 installed. Intermittent TCP connect failures led to the 0.0.15 reliability release. Explicit boot confirmation is not separately reported |
@@ -47,13 +49,13 @@ candidates and acceptance evidence are preserved in the
 
 | Component | Implemented and verified scope | Remaining scope |
 |---|---|---|
-| [Shell/terminal](components/SHELL.md) | Scripting, layouts/history, live native streams and bounded byte pipes, cancellation and manuals | Raw TTY/jobs and larger CLI ports |
+| [Shell/terminal](components/SHELL.md) | Scripting, layouts/history, live native streams and bounded byte pipes, cancellation and manuals | Unreleased raw-input/jobs candidate; finish larger CLI ports |
 | [Storage/security](components/STORAGE-SECURITY.md) | Bounded ext2, virtual filesystems, users and access enforcement | Larger filesystem profile, journaling/guest repair, broader hardware |
 | [Boot/recovery](components/BOOT-RECOVERY.md) | Guided install, UEFI disk boot, signed retained kernels, explicit confirm/rollback, synced power actions | Matched root/package snapshots and automatic trial/fallback |
 | [Networking](components/NETWORKING.md) | Primary IPv4 NIC, DHCP/static, DNS/NTP, bounded HTTP and verified HTTPS | General socket ABI, wider NIC/hardware support, authenticated time |
 | [Packages](components/PACKAGES.md) | Signed core/extra catalogs; dependency/conflict plans; install/remove/verify; all-package update; build/sign/publish automation and dashboard | Stronger trust lifecycle, configuration merges, matched data/boot transaction |
 | [Sessions/desktop](components/SESSIONS-DESKTOP.md) | Login, local text/DE switching, serial fallback, signed theme/fonts/branding and style meta | Proper DE, automatic-tiling WM, Settings UI, Files/Editor rework, GUI isolation |
-| [Userland](components/USERLAND.md) | Protected foreground x64 ELF; separately packaged Sunbeam; bounded filesystem/stream ABI, canonical input and independent wc/head/tail | Raw TTY/jobs, general process lifecycle, network/GUI APIs |
+| [Userland](components/USERLAND.md) | Protected foreground x64 ELF; separately packaged Sunbeam; bounded filesystem/stream ABI, canonical input and independent wc/head/tail | Unreleased raw-input/jobs/process and base/fs candidate; remaining text/network/GUI interfaces |
 | [Multicore](components/MULTICORE.md) | Opt-in native integer workers, default disabled | Managed multicore scheduler, GC coordination, safe parallel drivers/processes |
 
 The shell, most commands, GUI and privileged services remain kernel-linked.

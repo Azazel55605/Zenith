@@ -1,32 +1,43 @@
 # Active work
 
-Updated **2026-10-18**. [Status](STATUS.md) owns delivery boundaries;
+Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
 [Roadmap](ROADMAP.md) orders future work.
 
-## Native terminal streams: release handoff
+## CLI unbundling and application foundations
 
-- [x] Diagnose the actual distributor stall: runnable tickets underflowed to
-  `2^64 - 1400`, freezing global pass and starving queued producers. Correct
-  admission/block/exit/migration/priority accounting in the copied Cosmos policy.
-- [x] Pass 56 real-dependency adapters, including the exact deficit regression;
-  operator confirms candidate `b11f8f8` passes the focused native gate on the server.
-- [x] Correct the stderr fixture's raw-substring assertion for known Cosmos trace
-  interruptions. Require exact error, zero downstream bytes and status 0; 153
-  controller tests pass. No further scheduler change or timeout increase.
-- [x] Pass clean-source full acceptance at `431dfb9`: 658 host tests, Release ISO,
-  71 login/session, 92 repository, full native processes (64 byte pipelines,
-  credentials, faults/cancel, desktop/local input) and 169 kernel recovery checks.
-- [x] Release target: immutable `kernel/v0.0.20` at exact tested `431dfb9`.
-  `kernel/v0.0.19` remains unchanged. Qualification details/hashes are archived.
-- [x] Operator reports the 0.0.20 distributor run completed successfully.
-  Per-step publication receipts/logs were not independently inspected.
-- [ ] Installed VMware update/reboot/confirm and representative stream/input checks.
-  Installed acceptance is not inferred from distributor success.
+- [x] Operator confirms kernel 0.0.20 is installed in the VM and running. Its
+  distributor success and full qualification are archived; do not reopen the
+  resolved scheduler blocker without new evidence. Explicit per-command installed
+  stream exercises and `boot confirm` were not separately reported.
+- [x] Priority confirmed: finish remaining command-line packages before GUI work.
+  Settings and a consistent GUI design language follow the CLI milestone.
+- [x] Add bounded exported environment, owner-filtered native process snapshots,
+  cooperative PID cancellation and bounded exit history. Installed local TCG
+  verifies PID cancellation, environment isolation and same-kernel tool updates.
+- [x] Implement foreground raw input leases, mode restoration and bounded shell
+  jobs/wait/cancellation. COM1, GUI and local raw keyboard, fault restoration and
+  canonical EOF/cancel checks pass locally. Full POSIX TTY/signal or fork/exec
+  support is not implied.
+- [x] Add guarded namespace/metadata/seek operations and separate signed
+  `zenith-base-tools`/`zenith-fs-tools` recipes and normal-command dispatch, with
+  explicit `recovery COMMAND`. Local installed package update/permissions and
+  independent ext2 audit pass: 68 CLI command checks, including refusal of unowned
+  and tampered executables.
+- [ ] Finish remaining text and traversal tools; current extracted command coverage
+  is listed in the [batch record](archive/2026-10-26/cli-process-foundation.md).
+- [ ] Add controlled network ownership/services needed for independent net tools.
+- [x] Pass 700 host tests and 194 common controller tests; ISO/ELF build passes.
+- [x] Complete all 64 large byte pipelines and native filesystem/fault/permission
+  matrix on the initial candidate. Final focused GUI/local raw checks pass.
+- [ ] Run clean-source full release/recovery acceptance after the
+  remaining CLI work. The CLI candidate is unreleased; the operator VM remains
+  on 0.0.20.
+- [ ] Next: protected graphical-client/settings service contract, independently
+  packaged Settings and shared UI tokens/widgets. Desktop/service migration is
+  unfinished; a source split or a kernel-linked Settings window is not completion.
 
-[Server-only stall and same-thread dispatch investigation](archive/2026-10-18/native-pipeline-server-stall.md).
-[Prior runtime fixes and local acceptance](archive/2026-10-17/scheduler-late-wake.md).
+[0.0.20 diagnosis and acceptance](archive/2026-10-18/native-pipeline-server-stall.md).
 [Stream implementation](archive/2026-10-17/native-streams.md).
-Raw TTY/jobs, seek and general process scheduling remain future work.
 
 ## Intermittent installed TCP connections
 

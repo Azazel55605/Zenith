@@ -36,6 +36,8 @@ internal sealed class TerminalWindow : Window, IOutput
 
     private readonly TerminalBuffer _buffer;
     private readonly Shell _shell;
+    private readonly TerminalInputChannel _nativeInput;
+    private int _inputGeneration;
     private volatile bool _secretRead;
     private volatile bool _secretPrepared;
     private readonly int _cellWidth;
@@ -91,6 +93,8 @@ internal sealed class TerminalWindow : Window, IOutput
         _shell.OpenApp = QueueOpenApp;
         _shell.ReadInputLine = ReadLineForShell;
         _shell.ReadSecret = ReadSecretForShell;
+        _nativeInput = new TerminalInputChannel(() => ReadLineForShell(""), Write, () => _shell.CancelForeground());
+        _shell.NativeTerminal = _nativeInput;
         _prompt = _shell.Prompt;
 
         if (File.Exists("/etc/motd"))
@@ -110,15 +114,22 @@ internal sealed class TerminalWindow : Window, IOutput
 
     /// <summary>Whether a command line is running.</summary>
     public bool IsBusy => _jobRunning;
+    public bool HasBackgroundJobs => _shell.HasBackgroundJobs;
     public bool OwnsShell(Shell shell) => ReferenceEquals(_shell, shell);
     public void PrepareSessionEnd()
     {
-        _shell.Cancel();
+        _shell.CancelSession();
         lock (_sync) { _pendingApps.Clear(); }
+    }
+    public override void Close()
+    {
+        _shell.CancelSession();
+        lock (_sync) { _pendingApps.Clear(); }
+        base.Close();
     }
     public override void EndSession()
     {
-        _shell.Cancel();
+        _shell.CancelSession();
         lock (_sync) { _pendingApps.Clear(); }
         Close();
     }
@@ -134,6 +145,7 @@ internal sealed class TerminalWindow : Window, IOutput
 
     public override bool Update()
     {
+        SyncNativeInput();
         SyncWithJob();
 
         bool visible = !IsFocused || Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 2) % 2 == 0;
@@ -407,9 +419,22 @@ internal sealed class TerminalWindow : Window, IOutput
         _buffer.Changed = true;
     }
 
+    private void SyncNativeInput()
+    {
+        int generation = _nativeInput.Generation;
+        if (_inputGeneration == generation) { return; }
+        ResetInput(); _typeAhead.Clear(); _selectionAnchor = null; _inputGeneration = generation;
+    }
+
     public override void OnKey(KeyEvent key)
     {
         using var identity = CredentialContext.Enter(_shell.Identity);
+        SyncNativeInput();
+        if (_nativeInput.RawActive)
+        {
+            _nativeInput.Receive(TerminalKeyEncoding.Encode(key.Key.ToString(), key.KeyChar, (key.Modifiers & ConsoleModifiers.Control) != 0 && !((key.Modifiers & ConsoleModifiers.Alt) != 0 && key.KeyChar >= ' ')));
+            _buffer.Changed = true; return;
+        }
         if (_secretRead && key.Key is ConsoleKeyEx.Tab or ConsoleKeyEx.UpArrow or ConsoleKeyEx.DownArrow) { return; }
         bool control = (key.Modifiers & ConsoleModifiers.Control) != 0;
         if (key.Key != ConsoleKeyEx.PageUp && key.Key != ConsoleKeyEx.PageDown)
@@ -512,7 +537,7 @@ internal sealed class TerminalWindow : Window, IOutput
                 if (IsBusy)
                 {
                     _typeAhead.Clear();
-                    _shell.Cancel();
+                    _shell.CancelForeground();
                     Write(Ansi.Dim("^C") + "\n");
                 }
                 else

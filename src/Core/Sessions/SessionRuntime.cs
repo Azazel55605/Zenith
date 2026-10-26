@@ -53,6 +53,7 @@ internal static class SessionRuntime
     {
         lock (Installer.MaintenanceGate)
         {
+            if (requester?.IsBackground == true) { return "Background jobs cannot change the session."; }
             if (IsLogin) { return "already at login"; }
             if (DesktopAvailable() && (Accounts.Service is null || !Accounts.Service.HasPasswords))
             { Message = "Configure installed accounts before logging out."; return Message; }

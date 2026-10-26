@@ -2,7 +2,7 @@ namespace Zenith.Core.Storage;
 
 /// <summary>
 /// Package-owned manual pages emitted by the host builder
-/// (they are system files, so a newer kernel brings newer pages). Commands without one get a
+/// (the manual package updates independently of the kernel). Commands without one get a
 /// page generated from their usage line by <c>man</c>.
 /// </summary>
 internal static class ManualPages
@@ -11,6 +11,37 @@ internal static class ManualPages
 
     public static readonly (string Name, string Text)[] Pages =
     {
+        ("native-cli", """
+            NATIVE CLI PACKAGES
+
+            Install a compatible kernel before new native CLI packages. The process,
+            terminal and path ABI capabilities are not present in kernel 0.0.20.
+            zenith-base-tools and zenith-fs-tools are signed independent executables.
+            Their installed command names dispatch through verified package ownership,
+            mode and digest checks. which COMMAND shows the selected implementation.
+            recovery COMMAND ARGS explicitly runs a trusted builtin.
+
+            Base: cat tee wc head tail echo id basename dirname
+            Files: mkdir [-p], touch, rm [-rf], rmdir, cp [-r], mv,
+                   chmod OCTAL, chown UID[:GID], ln -s, ls, stat, pwd
+            Numeric metadata changes preserve caller permissions. Copies are bounded
+            to 1 MiB per invocation, recursion depth 16; symlink copies are refused.
+            Shell/text/traversal/network extraction is still in progress.
+
+            COMMAND & starts a job with copied cwd/variables, EOF stdin and no TTY.
+            jobs | wait [%JOB] | kill %JOB | ps | kill PID
+            $! is the last shell job ID, not a native PID. Four background jobs per
+            session and eight total shell pipeline workers are permitted. Native PID
+            cancellation requires owner/root; history and snapshots are bounded.
+            Ctrl+C interrupts the foreground. Stop/wait for jobs before changing
+            accounts or sessions. Closing a terminal requests cancellation of its jobs.
+
+            export NAME=value passes a variable to native executables. Unexported
+            locals stay private; changing USER never changes authenticated credentials.
+            Native foreground programs may select raw input, including VT key bytes.
+            Exit, fault and cancellation restore canonical input. No PTY, fork/exec,
+            Unix signal ABI or general full-screen terminal compatibility is implied.
+            """),
         ("network", """
             IPV4 NETWORKING
 
@@ -133,9 +164,11 @@ internal static class ManualPages
             Existing compiled recovery builtins/DE require reboot; Sunbeam executes
             independently through native ABI 1. New native bundles require filesystem
             and I/O capabilities: update/confirm a compatible kernel before tools.
-            File access uses invoking permissions/cwd. Stdin is a finite UTF-8
-            pipe/redirect snapshot (1 MiB), not an interactive TTY. File writes are
-            bounded to 1 MiB; stdout to 64 KiB. Writes are not rolled back on failure.
+            File access uses invoking permissions/cwd. Live standard streams support
+            canonical terminal input, byte pipes and redirects. File writes and
+            standard stream transfers are bounded to 1 MiB per invocation. Tail
+            retains at most 64 KiB. Writes are not rolled back on failure.
+            New CLI interfaces and package coverage: man native-cli.
             Online indexes are signed.
             System update commits data and boot staging separately, then requires
             explicit reboot/boot confirm. No global root/ESP atomicity or hot reload.

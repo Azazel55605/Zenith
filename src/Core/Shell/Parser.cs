@@ -8,6 +8,7 @@ internal enum TokenKind
 {
     Word,
     Pipe,           // |
+    Background,     // &
     RedirectOut,    // >
     RedirectAppend, // >>
     RedirectIn,     // <
@@ -124,7 +125,7 @@ internal static class Parser
                 {
                     '|' => doubled ? TokenKind.Or : TokenKind.Pipe,
                     ';' => TokenKind.Sequence,
-                    '&' => doubled ? TokenKind.And : throw new FormatException("background jobs (&) are not supported"),
+                    '&' => doubled ? TokenKind.And : TokenKind.Background,
                     '>' => doubled ? TokenKind.RedirectAppend : TokenKind.RedirectOut,
                     _ => TokenKind.RedirectIn,
                 };
@@ -369,7 +370,7 @@ internal static class Parser
             return start + 1;
         }
 
-        if (next == '?' || next == '#' || char.IsDigit(next))
+        if (next == '?' || next == '#' || next == '!' || char.IsDigit(next))
         {
             Emit(context.Get(next.ToString()));
             return start + 1;

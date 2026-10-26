@@ -25,6 +25,9 @@ internal sealed class SerialTerminal : IOutput
     private readonly Func<bool>? _refresh;
     private readonly Action? _endSession;
     private CommandShell _shell = null!;
+    private TerminalInputChannel _nativeInput = null!;
+    private int _inputGeneration;
+    public bool RawInput => _nativeInput.RawActive;
     private volatile bool _busy;
     private bool _completed, _exit, _reading, _secret, _answered;
     private string? _answer;
@@ -37,7 +40,7 @@ internal sealed class SerialTerminal : IOutput
     public void CloseInput()
     {
         lock (_gate) { _closing = true; _queued.Clear(); _line.Clear(); _script.Clear(); _draft = ""; }
-        _shell.Cancel();
+        _shell.CancelSession();
     }
 
     public SerialTerminal(Func<IOutput, CommandShell> factory, Func<bool>? refresh = null, Action? endSession = null, string banner = "COM1 ASCII console")
@@ -52,6 +55,8 @@ internal sealed class SerialTerminal : IOutput
         _shell = _factory(this);
         _shell.ReadInputLine = prompt => ReadLine(prompt, false);
         _shell.ReadSecret = prompt => ReadLine(prompt, true);
+        _nativeInput = new TerminalInputChannel(() => ReadLine("", false), Emit, () => _shell.CancelForeground());
+        _shell.NativeTerminal = _nativeInput; _inputGeneration = _nativeInput.Generation;
         _shell.ExitRequested += () => { lock (_gate) { _exit = true; } };
     }
     // Worker writes wait for the main loop to drain, never retaining unbounded output.
@@ -115,6 +120,7 @@ internal sealed class SerialTerminal : IOutput
     public void Receive(byte value)
     {
         if (value < 128) { ReceiveCharacter((char)value); }
+        else if(!_closing) { SyncNativeInput();_nativeInput.ReceiveBytes(new[] {value}); }
     }
     public void Recall(bool older)
     {
@@ -128,9 +134,19 @@ internal sealed class SerialTerminal : IOutput
             _history = next;
         }
     }
+    private void SyncNativeInput()
+    {
+        int generation = _nativeInput.Generation;
+        if (generation != _inputGeneration)
+        {
+            lock (_gate) { _line.Clear(); _queued.Clear(); _overflow = false; _escape = false; _afterCr = false; _inputGeneration = generation; }
+        }
+    }
     public void ReceiveCharacter(char value)
     {
         if (_closing) { return; }
+        SyncNativeInput();
+        if (_nativeInput.Receive(value)) { return; }
         // CRLF is one submission. Ignore ANSI escape sequences rather than execute them.
         if (value == 10 && _afterCr) { _afterCr = false; return; }
         _afterCr = value == 13;
@@ -144,7 +160,8 @@ internal sealed class SerialTerminal : IOutput
                 // consume or clear the next command typed after Ctrl+C.
                 _reading = false; _secret = false; _answered = true; _answer = null;
             }
-            Emit("^C\r\n"); if (!_busy) { Prompt(); } return;
+            Emit("^C\r\n"); if (!_busy) { Prompt(); }
+            return;
         }
         lock (_gate)
         {

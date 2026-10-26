@@ -362,6 +362,22 @@ z_syscall:
     je z_service
     cmp $400, %rax
     je z_service
+    cmp $401, %rax
+    je z_service
+    cmp $402, %rax
+    je z_service
+    cmp $403, %rax
+    je z_service
+    cmp $404, %rax
+    je z_service
+    cmp $405, %rax
+    je z_service
+    cmp $406, %rax
+    je z_service
+    cmp $407, %rax
+    je z_service
+    cmp $408, %rax
+    je z_service
     cmp $0, %rax
     je z_service
     cmp $2, %rax

@@ -62,6 +62,16 @@ execution ledger or duplicate historical test totals into the roadmap.
   8 KiB byte pipes (eight shell stages/workers, eight native contexts globally).
   Raw entry stays serialized on the BSP; managed service waits may overlap. New
   bundles require zenith-native-stream-abi 1.0. Keep stream/cancel/early-exit tests.
+  The unreleased CLI extension adds exported envp, an owner-filtered process table,
+  cooperative PID cancellation, foreground raw-input leases and four bounded shell
+  jobs. Preserve per-invocation stop callbacks and terminal restoration across all
+  three hosts; background jobs own no terminal and block account/session changes.
+  Native namespace/metadata/lstat/seek/copy calls retain caller VFS authorization:
+  refuse same-inode copies before truncate, symlink recursion and mount-root removal.
+  Independent zenith-base-tools/zenith-fs-tools dispatch keeps explicit recovery
+  builtins; a present invalid executable must fail closed. Preserve native-cli-smoke
+  and GUI/local raw keyboard checks; --terminal-only is a focused check, never a
+  substitute for the default full native gate before release.
   Preserve full-range copyin/copyout checks, identity/cwd, handle cleanup,
   user FP/register state, request/interrupt budgets and native permission/cancel tests.
   See docs/NATIVE-PROGRAMS.md for foreground ABI limits; preserve fault/NX/W^X,

@@ -14,6 +14,7 @@ internal static class AccountCommands
         add(new Command("su", "su [user]", "Switch this terminal's identity", c => Switch(c, false)));
         add(new Command("logout", "logout", "Return to login and session selection", c =>
         {
+            if (c.Shell.IsBackground || c.Shell.HasBackgroundJobs) { return c.Fail("stop or wait for background jobs before changing account"); }
             if (Accounts.Service is null) { return c.Fail("accounts require an ext2 installation"); }
             if (Zenith.Core.Sessions.SessionRuntime.DesktopAvailable())
             {
@@ -34,6 +35,7 @@ internal static class AccountCommands
     private static int Switch(CommandContext c, bool login)
     {
         if (c.Args.Length > 1 || (login && c.Args.Length != 1)) { return c.Fail("invalid arguments; see help " + c.Name); }
+        if (c.Shell.IsBackground || c.Shell.HasBackgroundJobs) { return c.Fail("stop or wait for background jobs before changing account"); }
         var service = Require(); string name = c.Args.Length == 0 ? "root" : c.Args[0];
         if (login && Zenith.Core.Sessions.SessionRuntime.DesktopAvailable())
         {

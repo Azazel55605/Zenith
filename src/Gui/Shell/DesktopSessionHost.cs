@@ -29,7 +29,7 @@ internal sealed class DesktopSessionHost : ISessionHost
         {
             if (window.IsClosed) { continue; }
             if (window is EditorWindow editor && editor.HasUnsavedChanges) { return "Save or close the editor before logging out."; }
-            if (window is TerminalWindow terminal && terminal.IsBusy && (requester is null || !terminal.OwnsShell(requester))) { return "A terminal command is still running."; }
+            if (window is TerminalWindow terminal && (terminal.HasBackgroundJobs || terminal.IsBusy && (requester is null || !terminal.OwnsShell(requester)))) { return "A terminal command is still running."; }
         }
         return null;
     }

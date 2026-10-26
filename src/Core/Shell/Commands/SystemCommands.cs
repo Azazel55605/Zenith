@@ -418,10 +418,18 @@ internal static class SystemCommands
 
     private static int Logger(CommandContext c)
     {
-        string text = c.Args.Length > 0 ? string.Join(" ", c.Args) : c.Stdin ?? string.Empty;
-        foreach (string line in CommandContext.Lines(text))
+        if(c.Args.Length>0)
         {
-            Log.Write("user", line);
+            foreach(string line in CommandContext.Lines(string.Join(" ",c.Args))) { Log.Write("user",line); }
+        }
+        else if(c.Input is not null)
+        {
+            string? line;
+            while((line=c.Input.ReadLine()) is not null)
+            {
+                c.Shell.ThrowIfCancelled();
+                Log.Write("user",line);
+            }
         }
 
         return 0;

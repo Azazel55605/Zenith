@@ -265,8 +265,71 @@ static int line_tool(const char *path, unsigned long wanted, int tail)
     }
     return 0;
 }
-int main(int argc, char **argv) {
+#include "files.c"
+
+int main(int argc, char **argv, char **envp) {
+    if(argc==2 && same(argv[1],"ps"))
+    {
+        char bytes[4096];unsigned long offset=0;
+        for(;;){long n=zenith_call(403,(unsigned long)bytes,sizeof(bytes),offset);if(n<0)return file_error("ps",n);if(!n)return 0;
+            if(zenith_write(bytes,n)!=n){return 1;}offset+=(unsigned long)n;}
+    }
+    if(argc==3 && same(argv[1],"kill"))
+    {
+        unsigned long pid=0;if(!argv[2][0])return file_error("kill",-22);
+        for(int i=0;argv[2][i];i++){if(argv[2][i]<'0'||argv[2][i]>'9'||pid>214748364UL)return file_error("kill",-22);pid=pid*10+(unsigned long)(argv[2][i]-'0');}
+        if(!pid||pid>2147483647UL)return file_error("kill",-22);
+        long result=zenith_call(404,pid,0,0);return result<0?file_error("kill",result):0;
+    }
+    if(argc==2 && same(argv[1],"env")){for(char **p=envp; p && *p; p++){print(*p);print("\n");}return 0;}
     if(native_abi!=1)return 95;
+    if(argc>1){int result=native_files_command(argc,argv);if(result>=0)return result;}
+    if(argc==2 && same(argv[1],"--path-bounds"))
+    {
+        const char *path="/home/user/cli/MUST_NOT_EXIST";
+        struct zenith_path_request request={1,1,(unsigned long)path,length(path),0,0,0755,0};
+        if(zenith_call(405,(unsigned long)&request,sizeof(request),0)!=-22)return 1;
+        request.flags=0;
+        if(zenith_call(405,(unsigned long)&request,sizeof(request)-1,0)!=-22)return 1;
+        request.path=0xffff800000000000UL;
+        if(zenith_call(405,(unsigned long)&request,sizeof(request),0)!=-14)return 1;
+        request.path=(unsigned long)path;request.length=1025;
+        if(zenith_call(405,(unsigned long)&request,sizeof(request),0)!=-22)return 1;
+        request.length=length(path);request.target=1;
+        return zenith_call(405,(unsigned long)&request,sizeof(request),0)==-22?0:1;
+    }
+    if(argc==3 && same(argv[1],"--seek-probe"))
+    {
+        char before[4],after[4];long fd=open_path(argv[2],0);if(fd<0)return 1;
+        int ok=zenith_call(0,fd,(unsigned long)before,4)==4&&zenith_call(406,fd,0,0)==0
+            &&zenith_call(0,fd,(unsigned long)after,4)==4&&zenith_call(406,fd,0,3)==-22
+            &&zenith_call(406,9999,0,0)==-9&&zenith_call(406,fd,~0UL,0)==-22;
+        zenith_call(3,fd,0,0);for(int i=0;i<4;i++)if(before[i]!=after[i])ok=0;return ok?0:1;
+    }
+    if(argc==2 && same(argv[1],"--tty-binary"))
+    {
+        if(zenith_call(402,0,0,0)!=0)return 1;
+        print("TTY_BINARY_READY\n");unsigned char bytes[4]={0};unsigned long got=0;
+        while(got<sizeof(bytes)){long n=zenith_call(0,0,(unsigned long)(bytes+got),sizeof(bytes)-got);if(n<=0)return 1;got+=(unsigned long)n;}
+        return bytes[0]==0xc3&&bytes[1]==0xbc&&bytes[2]==0xff&&bytes[3]==0?0:1;
+    }
+    if(argc==2 && same(argv[1],"--tty-raw"))
+    {
+        if(zenith_call(401,0,0,0)!=7||zenith_call(402,0,0,0)!=0)return 1;
+        print("TTY_RAW_READY\n");unsigned char bytes[5];unsigned long got=0;
+        while(got<sizeof(bytes)){long n=zenith_call(0,0,(unsigned long)(bytes+got),sizeof(bytes)-got);if(n<=0)return 1;got+=(unsigned long)n;}
+        return bytes[0]==27&&bytes[1]=='['&&bytes[2]=='A'&&bytes[3]==3&&bytes[4]==4?0:1;
+    }
+    if(argc==2 && same(argv[1],"--tty-cancel"))
+    { if(zenith_call(402,0,4,0)!=0)return 1;print("TTY_CANCEL_READY\n");char c;return zenith_call(0,0,(unsigned long)&c,1)<0?130:1; }
+    if(argc==2 && same(argv[1],"--tty-fault"))
+    { if(zenith_call(402,0,0,0)!=0)return 1;*(volatile unsigned long *)0xffff800000000000UL=1;return 1; }
+    if(argc==2 && same(argv[1],"--tty-bounds"))
+    { return zenith_call(401,99,0,0)==-9&&zenith_call(401,1,0,0)==-25&&zenith_call(402,0,8,0)==-22&&zenith_call(401,0,0,0)==7?0:1; }
+    if(argc==2 && same(argv[1],"--process-bounds"))
+    { char b[64];return zenith_call(403,0xffff800000000000UL,32,0)==-14&&zenith_call(403,(unsigned long)&main,32,0)==-14
+      &&zenith_call(403,(unsigned long)b,4097,0)==-22&&zenith_call(404,0,0,0)==-22&&zenith_call(404,1,9,0)==-22?0:1; }
+    if(argc==2 && same(argv[1],"--version")){print(argv[0]);print(" " SUNBEAM_VERSION "\n");return 0;}
     if(argc==1){print("Sunbeam native tools " SUNBEAM_VERSION " (Zenith ABI 1)\n");return 0;}
     if(same(argv[1],"--stream-probe")){if(zenith_isatty(0)!=1||zenith_isatty(1)!=1||zenith_isatty(2)!=1)return 1;print("STREAM_READY\n");char c;long n=zenith_call(0,0,(unsigned long)&c,1);error_text("STREAM_STDERR\n");return n==1?0:1;}
     if(same(argv[1],"--stream-utf8")){const unsigned char bytes[]={0xc3,0xbc,10};for(unsigned int i=0;i<sizeof(bytes);i++)if(zenith_write(bytes+i,1)!=1)return 1;return 0;}

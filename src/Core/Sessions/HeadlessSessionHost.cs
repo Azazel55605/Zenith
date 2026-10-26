@@ -9,8 +9,8 @@ internal sealed class HeadlessSessionHost : ISessionHost
 {
     private SerialTerminal _terminal = null!;
     private int _generation;
-    public bool CanStop => !_terminal.Busy;
-    public string? StopBlocker(CommandShell? requester) => _terminal.Busy && !ReferenceEquals(requester, _terminal.Shell) ? "A command is still running." : null;
+    public bool CanStop => !_terminal.Busy && !_terminal.Shell.HasBackgroundJobs;
+    public string? StopBlocker(CommandShell? requester) => _terminal.Shell.HasBackgroundJobs ? "Background jobs are still running." : _terminal.Busy && !ReferenceEquals(requester, _terminal.Shell) ? "A command is still running." : null;
     public void Stop() { }
     public void BeginStop() => _terminal.CloseInput();
     public void Start()

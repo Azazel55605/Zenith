@@ -46,7 +46,6 @@ public class ParserTests
     [Theory]
     [InlineData("'unterminated")]
     [InlineData("\"unterminated")]
-    [InlineData("a & b")]
     public void Tokenize_RejectsBadSyntax(string line)
     {
         Assert.ThrowsAny<System.FormatException>(() => Parser.Tokenize(line));

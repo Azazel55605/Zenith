@@ -88,6 +88,26 @@ internal sealed class ProcessFiles : IDisposable
         if (result > buffer.Length) { throw new IOException("invalid native write count"); }
         _written += result; return result;
     }
+    public int TerminalMode(int fd, int? flags = null) => _streams?.TerminalMode(fd, flags) ?? (fd == 0 && !_inputClosed ? -25 : -9);
+    public int OpenCopyDestination(int source, string path)
+    {
+        if (!_handles.TryGetValue(source, out var file)) { return -9; }
+        if (_handles.Count == MaximumHandles) { return -24; }
+        if (_files is not IProcessCopyFiles copying) { return -38; }
+        var target = copying.OpenCopyDestination(Resolve(path), file);
+        int fd = _next++; _handles.Add(fd, target); return fd;
+    }
+    public int Mutate(ProcessPathOperation operation, string path, string? target, ulong value, ulong extra)
+    {
+        if (_files is not IProcessNamespace space) { return -38; }
+        return space.Mutate(operation, Resolve(path), target is null ? null : operation == ProcessPathOperation.Symlink ? target : Resolve(target), value, extra);
+    }
+    public long Seek(int fd, long offset, int origin)
+    {
+        if (!_handles.TryGetValue(fd, out var file)) { return -9; }
+        if (origin is < 0 or > 2) { return -22; }
+        return file is ISeekableProcessFile seekable ? seekable.Seek(offset, origin) : -29;
+    }
     public int IsTerminal(int fd) => _streams?.IsTerminal(fd) ?? (fd == 0 && !_inputClosed ? 0 : -9);
     public int Flush(int fd) => _handles.TryGetValue(fd, out var file) ? file.Flush() : -9;
     public int Next(int fd, byte[] buffer)
@@ -101,7 +121,12 @@ internal sealed class ProcessFiles : IDisposable
         buffer.AsSpan().Clear(); Encode(entry.Value.Info, buffer);
         name.CopyTo(buffer, StatBytes); return EntryBytes;
     }
-    public void Stat(string path, byte[] buffer) => Encode(_files.Stat(Resolve(path)), buffer);
+    public void Stat(string path, byte[] buffer, bool follow = true)
+    {
+        string resolved = Resolve(path);
+        var info = follow ? _files.Stat(resolved) : _files is IProcessLinkMetadata links ? links.LStat(resolved) : throw new NotSupportedException("no-follow metadata unavailable");
+        Encode(info, buffer);
+    }
     private static void Encode(ProcessFileInfo value, byte[] buffer)
     {
         System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(buffer, value.Size);

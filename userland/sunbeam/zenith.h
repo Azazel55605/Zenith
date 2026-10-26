@@ -31,4 +31,18 @@ static inline long zenith_call(long number, unsigned long a, unsigned long b, un
 }
 struct zenith_stat { unsigned long size; unsigned int mode, uid, gid, reserved; };
 struct zenith_dirent { struct zenith_stat stat; char name[256]; };
+
+/* Path extension 1: the complete fixed request and both path buffers are checked
+ * before any namespace mutation. Values are Zenith operations, not Linux flags. */
+struct zenith_path_request {
+    unsigned int operation, flags;
+    unsigned long path, length, target, target_length, value, extra;
+};
+_Static_assert(sizeof(struct zenith_path_request)==56,"path request layout");
+static inline long zenith_path(unsigned int operation,const char *path,unsigned long length,
+    const char *target,unsigned long target_length,unsigned long value,unsigned long extra) {
+    struct zenith_path_request request={operation,0,(unsigned long)path,length,(unsigned long)target,target_length,value,extra};
+    return zenith_call(405,(unsigned long)&request,sizeof(request),0);
+}
+
 #endif

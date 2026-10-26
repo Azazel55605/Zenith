@@ -57,10 +57,12 @@ name, type 1, four-byte little-endian ABI version 1. This is not the Linux ABI.
 A private four-level page table maps new user frames, a 64 KiB non-executable user
 stack ending at 0x7fff0000, and supervisor-only upper-half kernel/HHDM mappings.
 No lower-half kernel mapping is inherited. At entry RSP addresses argc, argv,
-argv terminator, empty envp and an empty auxiliary vector. Up to 32 arguments
+argv terminator, exported envp and an empty auxiliary vector. Up to 32 arguments
 including argv[0], each at most 1024 UTF-8 bytes and 8192 bytes in total, are allowed.
 The filesystem services below add inherited cwd, canonical or piped stdin and private
-descriptors. Environment variables are not exposed.
+descriptors. The unreleased process extension copies at most 64 exported `NAME=value`
+entries, at most 8192 UTF-8 bytes including terminators. Non-exported shell locals
+are excluded. Names use `[A-Za-z_][A-Za-z0-9_]*`; credentials never come from envp.
 
 `int 0xfe` is the DPL3 entry. RAX selects the call; RDI/RSI/RDX carry arguments.
 RAX holds the result; other general registers are preserved. Calls:
@@ -105,7 +107,8 @@ requests; this is cooperative cancellation, not a general signal mechanism.
 
 The GDT/TSS intentionally remain kernel-owned after the first invocation. This is
 needed because the firmware task descriptor is not a restorable application task.
-There is no fork/exec family, wait/job control, general preemptive process scheduler,
+The unreleased CLI extension adds bounded shell jobs/wait and owned cooperative
+process cancellation. There is no fork/exec family or general preemptive process scheduler,
 network syscall, IPC, graphical surface protocol, dynamic linking,
 C# app runtime or on-system GCC/Python/Bash port. Before migrating net-tools,
 fs-tools or desktop clients, add those interfaces and repeat permission/resource,
@@ -187,7 +190,7 @@ Metadata uses little-endian size (u64), mode/uid/gid (three u32s) and reserved-z
 u32. A directory record adds a 256-byte UTF-8/NUL name. Directory handles expose a
 bounded snapshot of at most 4096 entries; `ls` prints one entry per line in filesystem
 order, supports `-a`/`-l`, and currently expects directory operands. Native pipe output preserves bytes; terminal output uses incremental UTF-8 decoding.
-A raw-terminal ABI is not provided. `cat` reads files or stdin in 4 KiB chunks and reports failures. Tools use the freestanding GCC/Clang startup/header, without libc.
+The unreleased terminal extension below adds a bounded foreground raw-input ABI. `cat` reads files or stdin in 4 KiB chunks and reports failures. Tools use the freestanding GCC/Clang startup/header, without libc.
 
 Each invocation permits 16 live handles, 4 KiB per I/O request, 1 MiB accumulated file/directory readback,
 4096 managed requests and the existing 1000-interrupt user execution budget.
@@ -196,8 +199,8 @@ normal scheduler sleep so console/cancellation workers can run; Cosmos 3.0.89's
 `Thread.Yield` is a stub. Invalid descriptors return -9, denied operations -13,
 missing paths -2, unsupported flags/encoding -22, handle exhaustion -24, readback
 or write limit -28, cwd capacity -34 and oversized paths/names -36. Other VFS errors
-return -5. Seek, process spawning/job control and scheduling on managed
-APs remain later slices. Handles close on exit, fault, timeout and cancellation.
+return -5. The unreleased extension adds private regular-file seeks and bounded
+shell jobs; process spawning from user code and managed AP scheduling remain later slices. Handles close on exit, fault, timeout and cancellation.
 
 The expanded native executable gate checks real reads/listing/cwd/stat, ordinary
 user and ancestor/symlink denial, copyout faults without offset advancement, FP
@@ -282,7 +285,8 @@ sunbeam tail -n 10 /home/user/note
   Enter supplies UTF-8 bytes plus LF; empty-line Ctrl+D gives sticky EOF.
   Local console, desktop terminal and serial fallback use their existing input
   routing. The existing serial transport remains ASCII; UTF-8 byte preservation
-  is verified through pipes/files and terminal decoding separately. This does not add raw keys, termios, PTYs or terminal signals.
+  is verified through pipes/files and terminal decoding separately. The unreleased extension below adds raw keys and cooperative Ctrl+C handling;
+  POSIX termios, PTYs and Unix signal delivery remain absent.
 - fd 1 streams live to the selected stdout; fd 2 goes directly to the terminal,
   outside the stdout pipe/redirection. Invalid UTF-8 at a text terminal uses the
   decoder's replacement policy; native byte pipes/redirections preserve all bytes.
@@ -313,3 +317,55 @@ canonical input and cancellation. The native gate checks live pre-exit output,
 interactive EOF/cancel, multiple protected pipeline stages, early reader exit,
 stderr separation, file redirection, FP/fault/permission cleanup and installed
 same-kernel upgrades. Host utility tests validate algorithms, not the guest ABI.
+
+
+## Unreleased CLI process, terminal and namespace extension
+
+Kernel 0.0.20 does not provide these calls. Packages declaring
+`zenith-native-process-abi`, `zenith-native-terminal-abi` or
+`zenith-native-path-abi` 1.0 require the compatible new kernel. No release is
+implied by this implementation contract.
+
+| Call | Arguments (RDI, RSI, RDX) | Result |
+|---|---|---|
+| 401 | standard fd, unused, unused | Terminal input mode or negative error |
+| 402 | standard fd, flags, unused | Set owned foreground fd 0 mode; zero on success |
+| 403 | writable buffer, capacity 0..4096, offset 0..8192 | Chunk of per-invocation process snapshot; own UID only, root sees all |
+| 404 | positive PID, 0, 0 | Request cooperative cancellation; owner/root only |
+| 405 | request pointer, 56, 0 | Controlled namespace/metadata operation |
+| 406 | private file fd, signed offset, origin 0/1/2 | New position; invalid seek fails without advancing |
+| 407 | readable source fd, destination path pointer, path bytes | Open/create copy target after same-inode check, before truncate |
+| 408 | path pointer, path bytes, writable 24-byte stat | Metadata without following the final symlink |
+
+401/402 require an owned terminal input lease on fd 0. Pipes/redirections and
+background jobs return -25; closed/invalid descriptors return -9. Default mode 7
+is canonical+echo+Ctrl+C. Raw modes 0, 2, 4, 6 select echo bit 2 and Ctrl+C bit 4.
+Other canonical combinations are refused. In raw mode Ctrl+D is byte 4, not EOF;
+Ctrl+C is byte 3 unless signal handling is selected. Arrows/Home/End/Delete use
+VT key sequences. The 4096-byte raw queue reports overflow (-75); closing stdin,
+exit, fault, watchdog and cancellation restore mode 7 and discard raw type-ahead.
+This does not provide full VT screen rendering or a PTY.
+
+405's little-endian request has operation u32, zero flags u32, then six u64 fields:
+path pointer, path byte count, target pointer, target byte count, value, extra.
+Operations: 1 mkdir (value=mode), 2 unlink, 3 rmdir, 4 rename, 5 chmod (value=mode),
+6 chown (value=UID, extra=GID or UINT64_MAX to preserve), 7 symlink (literal target),
+8 check recursive-copy destination, 9 check recursive removal root, 10 touch mtime.
+Modes are 0..0xfff, IDs fit uint32, paths are 1..1024 non-NUL UTF-8 bytes. Only
+4/7/8 use target fields; all other unused fields must be zero. Complete ranges and
+headers are validated before side effects. Cwd/identity are captured at invocation;
+VFS search, parent/sticky-bit, ownership and readonly/mount policy remain enforced.
+
+The process table admits at most 8 active invocations and retains 32 exit records.
+PIDs do not repeat within a boot. Process snapshots contain name/UID/state/status,
+not arguments, environment or credentials. Stop is idempotent and cooperative;
+callbacks retire with the invocation, so a stale PID cannot cancel the next command.
+
+Shell `COMMAND &` copies cwd/variables, uses EOF stdin, and owns no terminal.
+At most four background jobs and eight total shell pipeline workers are admitted.
+Use `jobs`, `wait [%JOB]`, `kill %JOB` or owner-authorized `kill PID`. `$!` is the
+last job ID, not a PID. Nested background jobs are refused. Account/session changes
+and interactive exit refuse active jobs; closing a terminal cancels its jobs.
+`ps` lists protected native invocations; `jobs` also covers trusted shell workloads.
+
+[Implementation and validation record](archive/2026-10-26/cli-process-foundation.md).

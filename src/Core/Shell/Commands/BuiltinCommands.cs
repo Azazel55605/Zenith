@@ -17,6 +17,21 @@ internal static class BuiltinCommands
         add(new Command("pwd", "pwd", "Print the working directory", c => { c.WriteLine(c.Shell.WorkingDirectory); return 0; }));
         add(new Command("export", "export [NAME=value...]", "Set environment variables, or list them", Export));
         add(new Command("unset", "unset NAME...", "Remove environment variables", Unset));
+        add(new Command("jobs", "jobs", "List bounded background jobs in this session", c =>
+        {
+            if (c.Args.Length != 0) { return c.Fail("usage: jobs"); }
+            foreach (var job in c.Shell.Jobs()) { c.WriteLine("[" + job.Id + "] " + (job.Running ? "running" : "done " + job.Status)); }
+            return 0;
+        }));
+        add(new Command("wait", "wait [%JOB]", "Wait for one or all background jobs", c =>
+        {
+            if (c.Args.Length > 1) { return c.Fail("usage: wait [%JOB]"); }
+            if (c.Args.Length == 0) { return c.Shell.WaitJobs(); }
+            return int.TryParse(c.Args[0].TrimStart('%'), out int id) && id > 0 ? c.Shell.WaitJobs(id) : c.Fail("invalid job ID");
+        }));
+        add(new Command("kill", "kill %JOB", "Cancel a background job (native PID support is added at boot)", c =>
+            c.Args.Length == 1 && c.Args[0].StartsWith('%') && int.TryParse(c.Args[0][1..], out int id)
+                && c.Shell.StopJob(id) ? 0 : c.Fail("no running job")));
         add(new Command("env", "env", "Print the environment", Env));
         add(new Command("history", "history", "Show previously entered commands", History));
         add(new Command("clear", "clear", "Clear the terminal", c => { c.Write(Ansi.ClearScreen); return 0; }));
@@ -149,10 +164,9 @@ internal static class BuiltinCommands
         foreach (string arg in c.Args)
         {
             int eq = arg.IndexOf('=');
-            if (eq > 0)
-            {
-                c.Shell.Set(arg.Substring(0, eq), arg.Substring(eq + 1));
-            }
+            string name = eq < 0 ? arg : arg.Substring(0, eq);
+            if (!c.Shell.Export(name)) { return c.Fail("invalid environment name '" + name + "'"); }
+            if (eq >= 0) { c.Shell.Set(name, arg.Substring(eq + 1)); }
         }
 
         return 0;
@@ -170,11 +184,12 @@ internal static class BuiltinCommands
 
     private static int Env(CommandContext c)
     {
-        var names = new List<string>(c.Shell.Environment.Keys);
+        var environment = c.Shell.ExportedEnvironment;
+        var names = new List<string>(environment.Keys);
         names.Sort(StringComparer.Ordinal);
         foreach (string name in names)
         {
-            c.WriteLine(name + "=" + c.Shell.Environment[name]);
+            c.WriteLine(name + "=" + environment[name]);
         }
 
         return 0;
@@ -213,9 +228,9 @@ internal static class BuiltinCommands
         int status = 0;
         foreach (string name in c.Args)
         {
-            if (Shell.Commands.ContainsKey(name))
+            if (Shell.Commands.TryGetValue(name,out var command))
             {
-                c.WriteLine(name + ": shell built-in");
+                c.WriteLine(name + ": " + command.Origin);
             }
             else
             {

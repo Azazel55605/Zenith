@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Cosmos.Kernel.System.Keyboard;
 using Zenith.Core;
 using Zenith.Core.Console;
+using Zenith.Core.IO;
 using Zenith.Core.Security;
 using Zenith.Core.Sessions;
 using Zenith.Gui.Graphics;
@@ -17,8 +18,8 @@ internal sealed class LocalConsoleHost : ISessionHost
     private readonly TerminalBuffer _buffer = new();
     private Surface _surface = null!;
     private int _generation;
-    public bool CanStop => !_terminal.Busy;
-    public string? StopBlocker(CommandShell? requester) => _terminal.Busy && !ReferenceEquals(requester, _terminal.Shell) ? "A command is still running." : null;
+    public bool CanStop => !_terminal.Busy && !_terminal.Shell.HasBackgroundJobs;
+    public string? StopBlocker(CommandShell? requester) => _terminal.Shell.HasBackgroundJobs || _terminal.Busy && !ReferenceEquals(requester, _terminal.Shell) ? "A command is still running." : null;
     public void Stop() { _surface = null!; }
     public void BeginStop() => _terminal.CloseInput();
     public void Start()
@@ -45,7 +46,11 @@ internal sealed class LocalConsoleHost : ISessionHost
         while (KeyboardManager.TryReadKey(out KeyEvent? key))
         {
             bool control = (key.Modifiers & ConsoleModifiers.Control) != 0;
-            if (key.Key == ConsoleKeyEx.UpArrow) { _terminal.Recall(true); }
+            if (_terminal.RawInput)
+            {
+                foreach (char value in TerminalKeyEncoding.Encode(key.Key.ToString(), key.KeyChar, control && !((key.Modifiers & ConsoleModifiers.Alt) != 0 && key.KeyChar >= ' '))) { _terminal.ReceiveCharacter(value); }
+            }
+            else if (key.Key == ConsoleKeyEx.UpArrow) { _terminal.Recall(true); }
             else if (key.Key == ConsoleKeyEx.DownArrow) { _terminal.Recall(false); }
             else if (key.Key == ConsoleKeyEx.Enter) { _terminal.Receive(13); }
             else if (key.Key == ConsoleKeyEx.Backspace) { _terminal.Receive(8); }

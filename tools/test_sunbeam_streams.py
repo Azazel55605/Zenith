@@ -30,6 +30,8 @@ class SunbeamStreams(unittest.TestCase):
 #define Z_OPEN_APPEND 16UL
 struct zenith_stat { unsigned long size; unsigned int mode, uid, gid, reserved; };
 struct zenith_dirent { struct zenith_stat stat; char name[256]; };
+struct zenith_path_request { unsigned int operation, flags; unsigned long path, length, target, target_length, value, extra; };
+static long zenith_path(unsigned int op,const char *path,unsigned long length,const char *target,unsigned long target_length,unsigned long value,unsigned long extra) { return -38; }
 static long zenith_isatty(unsigned long fd) { return isatty(fd); }
 static long zenith_write(const void *p, unsigned long n) { return write(1,p,n); }
 static void zenith_exit(int code) { exit(code); }

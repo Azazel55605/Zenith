@@ -1,6 +1,6 @@
 # Kernel/userland migration plan
 
-Reviewed **2026-10-17**. The accepted goal is independently installed, updated and
+Reviewed **2026-10-26**. The accepted goal is independently installed, updated and
 fault-isolated applications/desktop outside the kernel. A source split or shared
 address-space plugin does not satisfy it. See [current implementation steps](components/USERLAND.md)
 and the [native ABI contract](NATIVE-PROGRAMS.md).
@@ -15,9 +15,9 @@ session broker and most services still run as trusted kernel-linked code.
 
 Full local acceptance at `cba1cbf` verifies live stdout/stderr, canonical host input and
 bounded byte pipelines, with independent wc/head/tail. Native contexts may wait
-on managed streams; raw user execution remains serialized on the BSP. Publication and operator
-acceptance remain pending in PROGRESS. This does not add raw TTY/jobs,
-managed multicore, sockets or graphical client interfaces. The previous native
+on managed streams; raw user execution remains serialized on the BSP. Kernel 0.0.20
+is operator-installed and running; subsequent CLI changes are unreleased. The current candidate adds bounded raw input/jobs/environment and namespace
+operations; managed multicore, sockets and graphical interfaces remain separate. The previous native
 input/write extension is operator-installed; explicit installed behavior checks
 remain separate from package installation.
 
@@ -30,7 +30,7 @@ remain separate from package installation.
 | Controlled read-only file tools | Locally verified; delivery operator reported | Caller permissions/cwd, safe buffers/handles, cancellation and installed tool use |
 | Input/writable descriptors | Locally verified; delivery operator reported | Independently packaged utility safely reads input/writes persistent files |
 | Canonical streams/pipes | Locally verified; release/operator acceptance pending | Live std descriptors, bounded byte channels, EOF/cancel and protected-context cleanup |
-| Raw TTY/process lifecycle | Planned | Terminal modes, jobs/wait/termination and environment |
+| Raw TTY/process lifecycle | Implemented candidate; local focused checks pass | Terminal modes, jobs/wait/termination and environment |
 | Controlled networking and more tools | Planned | Socket ownership/limits and independently updated network/base/fs packages |
 | First graphical client | Planned | Versioned surface/input/IPC, fault isolation and lifecycle cleanup |
 | Desktop/service migration | Planned | Independently restarted session/compositor/apps with explicit privilege and compatibility |

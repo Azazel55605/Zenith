@@ -105,6 +105,8 @@ class AcceptanceTests(unittest.TestCase):
         args, kwargs = run.call_args
         self.assertIn('tools/test_guest_auth.py', args[0])
         self.assertIn('tools/test_release_acceptance.py', args[0])
+        self.assertIn('tools/test_distributor_poll.py', args[0])
+        self.assertIn('tools/test_distributor_release.py', args[0])
         self.assertEqual(ROOT, kwargs['cwd'])
         self.assertTrue(kwargs['env']['PYTHONPATH'].startswith(str(ROOT / 'tools')))
 

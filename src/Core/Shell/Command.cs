@@ -71,17 +71,20 @@ internal sealed class ShellInput : IByteInput
 
 internal delegate int CommandHandler(CommandContext context);
 
-/// <summary>A built-in command. There is no program loader yet, so every command is compiled into the kernel.</summary>
+/// <summary>A shell command or a dispatcher into a separately verified native package.</summary>
 internal sealed class Command
 {
-    public Command(string name, string usage, string summary, CommandHandler run)
+    public Command(string name, string usage, string summary, CommandHandler run, Func<string>? origin = null)
     {
         Name = name;
         Usage = usage;
         Summary = summary;
         Run = run;
+        _origin = origin;
     }
 
+    private readonly Func<string>? _origin;
+    public string Origin => _origin?.Invoke() ?? "shell built-in";
     public string Name { get; }
     public string Usage { get; }
     public string Summary { get; }

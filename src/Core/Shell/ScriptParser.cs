@@ -25,6 +25,8 @@ internal abstract class Node
 }
 
 /// <summary><c>name args...</c>, or only assignments (<c>X=1 Y=2</c>).</summary>
+internal sealed class BackgroundNode(Node command) : Node { public Node Command { get; } = command; }
+
 internal sealed class SimpleCommandNode : Node
 {
     public List<string> Words { get; } = new();
@@ -206,13 +208,16 @@ internal sealed class ScriptParser
                 return list;
             }
 
-            list.Items.Add(ParseAndOr());
+            Node command = ParseAndOr();
+            bool background = !AtEnd && Current.Kind == TokenKind.Background;
+            if (background) { _pos++; command = new BackgroundNode(command); }
+            list.Items.Add(command);
             if (AtEnd || IsStopWord(stopWords))
             {
                 return list;
             }
 
-            if (!IsSeparator)
+            if (!IsSeparator && !background)
             {
                 throw new FormatException("syntax error near '" + Current.Text + "'");
             }

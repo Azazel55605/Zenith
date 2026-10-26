@@ -1,25 +1,23 @@
 # Roadmap
 
-Reviewed **2026-10-17**. This page owns order and milestone exits, not the execution
+Reviewed **2026-10-26**. This page owns order and milestone exits, not the execution
 log. Read [Status](STATUS.md) for delivery evidence and [Progress](PROGRESS.md) for
 active work. Historical milestone version targets are not release versions.
 
 ## Now
 
-1. **Deliver and accept native streams.** Live standard descriptors, canonical
-   input, bounded byte pipes and independent Sunbeam wc/head/tail passed full local
-   acceptance. Publish approved releases, confirm the kernel, then accept tools on
-   the operator VM.
-2. **Finish installed native input/write acceptance.** Operator reports the
-   kernel/Sunbeam 0.3.0/manuals update successful, and 0.0.17 installed with initial
-   TCP improvement. Verify native invocation, persistent writes and permissions;
-   explicit boot confirmation and sustained TCP acceptance remain separately tracked.
-3. **Investigate legacy PS/2 input loss.** The long QEMU graphical test passes
-   with virtio keyboard; sustained PS/2 typing in the affected framebuffer-console
-   profile remains open. Preserve separate PS/2 standard-VGA recovery coverage.
-
-Stream release acceptance and server/operator handoff precede broader CLI ports. Controller
-changes do not require moving an existing product tag or issuing a new kernel.
+1. **Finish CLI unbundling.** Kernel 0.0.20 is operator-installed and running.
+   Complete process/environment/terminal lifecycle, then independently delivered
+   base/text/filesystem/network clients with ownership, cancellation and recovery
+   validation. [Active work](PROGRESS.md#cli-unbundling-and-application-foundations)
+   distinguishes completed interfaces from remaining command extraction.
+2. **Build the graphical client and settings contract.** After the CLI milestone,
+   define protected display/input/service interfaces, then implement independently
+   packaged Settings and shared UI tokens/widgets. Preserve the current test DE
+   until its replacement has verified session/fault teardown.
+3. **Retain installed acceptance boundaries.** Operator reports installation;
+   local QEMU tests and server publication are separate evidence. Continue
+   representative installed permissions/input/update checks as features ship.
 
 ## Next: continue unbundling
 
@@ -32,7 +30,7 @@ changes do not require moving an existing product tag or issuing a new kernel.
 | 5 | First protected graphical client | Versioned display/input/surface and IPC contract, per-client ownership and fault cleanup; client crash leaves login/session usable |
 | 6 | Desktop and privileged service migration | Separate compositor/session/app responsibilities; restart and compatibility rules proven before replacing the temporary DE |
 
-This is the proposed sequence within the accepted unbundling direction, not a
+CLI packages take priority over GUI work, as confirmed on 2026-10-26. This sequence is not a
 claim that all APIs or package names are settled. [Userland steps](USERLAND.md)
 own the detailed gates. Managed multicore is a separate dependency track, not a
 prerequisite for the next bounded file utility.

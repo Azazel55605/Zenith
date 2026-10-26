@@ -91,7 +91,10 @@ def execute(config, checkout, version, recipe):
         elif recipe.get("generate") == "fonts":
             release.phase("Generate fonts", [sys.executable, "-B", str(checkout / "tools/build-font-package.py"), str(payload)], preparation / "generate.log")
         elif recipe.get("generate") == "native":
-            release.phase("Build native tool", [sys.executable, "-B", str(checkout / "tools/build-userland.py"), str(payload), "--version", version], preparation / "generate.log")
+            command = [sys.executable, "-B", str(checkout / "tools/build-userland.py"), str(payload), "--version", version]
+            # Older immutable Sunbeam tags do not support the program selector.
+            if "program" in recipe: command += ["--program", recipe["program"]]
+            release.phase("Build native tool", command, preparation / "generate.log")
         elif recipe.get("generate") is not None: raise ValueError("unknown package generator")
         release.data(config, name, version, payload, repository, native=recipe.get("generate") == "native",
                      meta=recipe.get("meta", False), requires=recipe.get("requires", ()))

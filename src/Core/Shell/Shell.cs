@@ -18,12 +18,13 @@ namespace Zenith.Core.Shell;
 /// flags checked between commands, not as exceptions.
 /// </para>
 /// </summary>
-internal sealed class Shell : IExpansionContext
+internal sealed partial class Shell : IExpansionContext
 {
     private static readonly Dictionary<string, Command> s_commands = CreateCommandTable();
 
     private readonly Dictionary<string, string> _environment = new();
     private readonly Dictionary<string, Node> _functions = new();
+    private readonly HashSet<string> _exported = new(StringComparer.Ordinal);
     private readonly IOutput _terminal;
     private readonly Shell? _parent;
     private sealed class PipelineWork { public int Workers; }
@@ -33,6 +34,12 @@ internal sealed class Shell : IExpansionContext
     public Func<string, string?>? ReadSecret { get; set; }
     public void SetIdentity(Credentials identity, string name, string home)
     {
+        if (_background) { throw new InvalidOperationException("background jobs cannot change session identity"); }
+        if (Identity.Uid != identity.Uid)
+        {
+            if (HasBackgroundJobs) { throw new InvalidOperationException("wait for or stop background jobs before changing account"); }
+            ClearCompletedJobs();
+        }
         Identity = identity;
         _environment["USER"] = name; _environment["HOME"] = home;
         using var scope = CredentialContext.Enter(identity);
@@ -74,6 +81,7 @@ internal sealed class Shell : IExpansionContext
         _environment["TERM"] = "zenith";
         _environment["PATH"] = "/bin";
         _environment["HOSTNAME"] = login ? ReadHostname() : "zenith";
+        foreach (string name in new[] { "HOME", "USER", "SHELL", "TERM", "PATH", "HOSTNAME", "PWD" }) { _exported.Add(name); }
 
         WorkingDirectory = Directory.Exists(home) ? home : "/";
         _environment["PWD"] = WorkingDirectory;
@@ -84,9 +92,11 @@ internal sealed class Shell : IExpansionContext
     }
 
     /// <summary>A child shell for a script: copies variables and the directory, shares the terminal and Ctrl+C.</summary>
-    private Shell(Shell parent)
+    private Shell(Shell parent, bool inheritCancellation = true)
     {
-        _parent = parent;
+        _parent = inheritCancellation ? parent : null;
+        _background = !inheritCancellation || parent._background;
+        _jobs = parent._jobs;
         LastStatus = parent.LastStatus;
         _pipelineWork = parent._pipelineWork;
         foreach (var pair in parent._functions) { _functions[pair.Key] = pair.Value; }
@@ -100,8 +110,10 @@ internal sealed class Shell : IExpansionContext
             _environment[name] = value;
         }
 
+        foreach (string name in parent._exported) { _exported.Add(name); }
         WorkingDirectory = parent.WorkingDirectory;
         ReadInputLine = parent.ReadInputLine;
+        NativeTerminal = parent.NativeTerminal;
         OpenApp = parent.OpenApp;
     }
 
@@ -129,6 +141,7 @@ internal sealed class Shell : IExpansionContext
 
     /// <summary>Reads a line the user types (for <c>read</c> with no redirected input); null at end of input.</summary>
     public Func<string, string?>? ReadInputLine { get; set; }
+    public TerminalInputChannel? NativeTerminal { get; set; }
 
     /// <summary>Raised by <c>exit</c> in the interactive shell.</summary>
     public event Action? ExitRequested;
@@ -153,6 +166,8 @@ internal sealed class Shell : IExpansionContext
     {
         switch (name)
         {
+            case "!":
+                return _lastJob == 0 ? "" : _lastJob.ToString();
             case "?":
                 return LastStatus.ToString();
             case "#":
@@ -172,7 +187,22 @@ internal sealed class Shell : IExpansionContext
 
     public void Set(string name, string value) => _environment[name] = value;
 
-    public void Unset(string name) => _environment.Remove(name);
+    public void Unset(string name) { _environment.Remove(name); _exported.Remove(name); }
+    public bool Export(string name)
+    {
+        if (!Zenith.Core.Processes.ProcessArguments.ValidName(name)) { return false; }
+        _exported.Add(name); return true;
+    }
+    public IReadOnlyDictionary<string, string> ExportedEnvironment
+    {
+        get
+        {
+            var result = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (string name in _exported)
+            { if (_environment.TryGetValue(name, out var value)) { result.Add(name, value); } }
+            return result;
+        }
+    }
 
     /// <summary>Asks the interactive shell's host to close (<c>exit</c> at the prompt).</summary>
     public void RequestExit() => ExitRequested?.Invoke();
@@ -183,6 +213,8 @@ internal sealed class Shell : IExpansionContext
     /// line ends with status 130, like a shell killed by SIGINT.
     /// </summary>
     public void Cancel() => _cancelRequested = true;
+
+    public void CancelForeground() { if (_parent is not null) { _parent.CancelForeground(); } else { Cancel(); } }
 
     public bool IsCancelled => _cancelRequested || (_parent?.IsCancelled ?? false);
 
@@ -345,6 +377,8 @@ internal sealed class Shell : IExpansionContext
 
     public int RequestScriptExit(int status)
     {
+        if (_parent is null && !_background && HasBackgroundJobs)
+        { _terminal.Write("exit: wait for or stop background jobs first\n"); return 1; }
         _control = Control.Exit;
         _controlStatus = status;
         return status;
@@ -439,6 +473,8 @@ internal sealed class Shell : IExpansionContext
     {
         switch (node)
         {
+            case BackgroundNode background:
+                return StartBackground(background.Command);
             case SimpleCommandNode simple:
                 return ExecSimple(simple, input, output);
             case PipelineNode pipeline:
