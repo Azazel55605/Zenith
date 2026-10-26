@@ -50,9 +50,52 @@ The fixture now fetches scripts during serial setup, launches short lowercase pa
 and permits compositor settling before the next command. It never retries a guest
 mutation or relaxes the expected output/status.
 
-## Outstanding qualification
+## Pre-qualification boundary (superseded by the result below)
 
 Final source includes the expanded minimized-cancellation, different-UID denial,
 focus-isolation and desktop-quota tests. Complete real-guest and clean-source
 regression qualification before a release tag. No new kernel/probe tag or hosted
 signing/publication/installed acceptance is claimed by this record yet.
+
+## Final clean-source qualification
+
+Exact tested source: **cea1f5ace138e001026602affb13c637a1aee7b9**. The worktree
+was clean throughout qualification. Cosmos 3.0.89, local .NET 10, QEMU 11.1.2 and
+TCG were used. A fresh unsigned Release ISO/ELF was built; no production signing
+keys or installed operator disks were used.
+
+Command: `ZENITH_VALIDATION_ACCELERATOR=tcg python3 -B deploy/distributor/validate.py --keep obj/graphics-qualified-cea1f5a`
+(with the local dotnet toolchain on PATH). Retained ignored logs/fixtures are in
+that workspace directory; the durable reproduction contract is the source and command.
+
+| Gate | Result | Seconds |
+|---|---|---:|
+| Common controller regressions | 211 passed | pre-build gate |
+| Host tests | 716 passed | 9.407 |
+| Fresh kernel build / package tool | Passed | 25.427 / 1.013 |
+| Login/session | 71 passed | 205.310 |
+| Signed repository | 94 passed | 358.491 |
+| Protected graphical clients | 48 passed; visible pixels, focused input isolation, close, minimized cancellation/retirement, four-client quota/recovery, UID denial and same-kernel upgrade | 138.185 |
+| Native network | 72 passed; TLS, cleanup and ext2 audit | 250.001 |
+| Native CLI | 100 passed; raw input/fault/cancel restoration | 222.967 |
+| Native process | Passed; all 64 pipelines plus desktop/local input | 735.415 |
+| Kernel update/recovery | 169 passed; independent ext2/EFI audits | 493.815 |
+
+```text
+Zenith.iso SHA256 bdc019ee94ada505fb53f348a9b83c0db7e6d8ea73ef816c39d7b19533edfa4d
+Zenith.elf SHA256 3e09627e7a6c518516f088e36b7eee0a40a498e6d905734e27b192bb090b0281
+```
+
+All gates completed without an edit or retry of the qualified source. The GUI
+fixture uses preloaded scripts and compositor settling; minimized-client cleanup,
+real focus filtering and different-UID/USER spoofing denial all pass. A signed
+probe upgrade from 0.1.0 to 0.1.1 leaves kernel bytes unchanged, with a clean ext2 audit.
+
+Prepared release targets: kernel **0.0.24** and zenith-gui-probe **0.1.0**, both
+at exact tested `cea1f5a`. Documentation-only follow-ups must not replace that tag
+target. Publication requires operator authorization; no new tag or distributor
+signing/delivery is claimed yet. [Installed VM checklist](../../GRAPHICAL-VM-TEST.md).
+
+Next implementation: typed Settings service authorization/restart semantics and
+shared client widgets/text/resources. This is a qualified first protected client
+API, not a completed Settings application or independent compositor.

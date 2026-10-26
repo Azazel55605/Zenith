@@ -37,7 +37,7 @@ command checks. Earlier [CLI checks](CLI-VM-TEST.md) remain useful regressions.
 | Canonical streams/pipes | Operator-installed in 0.0.20; individual exercises separately unreported | Live std descriptors, bounded byte channels, EOF/cancel and protected-context cleanup |
 | Raw TTY/process lifecycle | Operator-installed and checklist accepted in 0.0.21 | Terminal modes, jobs/wait/termination and environment |
 | Controlled networking and more tools | Qualified at faecc72; operator confirms installation and representative network checks | Socket ownership/limits and independently updated network/base/fs packages |
-| First graphical client | Planned | Versioned surface/input/IPC, fault isolation and lifecycle cleanup |
+| First graphical client | Copied surfaces/events and independent probe fully qualified at cea1f5a; delivery/installed acceptance pending | Versioned surface/input/IPC, fault isolation and lifecycle cleanup |
 | Desktop/service migration | Planned | Independently restarted session/compositor/apps with explicit privilege and compatibility |
 
 ## Target responsibility split

@@ -4,7 +4,7 @@
 
 **State:** authenticated login, local text/DE selection and packaged appearance
 are implemented. Operator confirms working login on kernel 0.0.12. Full DE/WM and
-protected graphical client surfaces/events are now in validation.
+protected graphical client surfaces/events are now fully qualified locally.
 
 ## Implemented steps
 
@@ -33,8 +33,9 @@ The desktop floats windows; there are no implemented automatic-tiling WM/workspa
 ## Remaining steps
 
 - [x] Implement the first [protected surface/event API](../GRAPHICAL-CLIENTS.md)
-  and independent probe client; real-compositor validation is in progress.
-- [ ] Complete final graphical-client qualification and installed acceptance.
+  and independent probe client; 48 real-compositor checks pass.
+- [x] Complete full graphical-client qualification at `cea1f5a`.
+- [ ] Complete distributor delivery and [installed acceptance](../GRAPHICAL-VM-TEST.md).
 - [ ] Build shared client widgets/text/resources and the Settings service contract.
 - [ ] Build the proper Settings app on the existing configuration service.
 - [ ] Replace the temporary DE and add a selectable automatic-tiling WM.

@@ -14,10 +14,11 @@ active work. Historical milestone version targets are not release versions.
    Shell evaluation and privileged administration remain trusted services.
    [Active work](PROGRESS.md#cli-unbundling-and-application-foundations) separates
    local qualification, distributor delivery and installed acceptance.
-2. **Build the graphical client and settings contract.** After the CLI milestone,
-   define protected display/input/service interfaces, then implement independently
-   packaged Settings and shared UI tokens/widgets. Preserve the current test DE
-   until its replacement has verified session/fault teardown.
+2. **Deliver the graphical API, then build Settings.** The first owned surface/
+   event API and independent probe pass full qualification. Complete its
+   [VM acceptance](GRAPHICAL-VM-TEST.md), then implement typed authorized Settings
+   services, restart semantics and shared client widgets/text/resources. Preserve
+   the trusted test DE until independent compositor/session teardown is verified.
 3. **Retain installed acceptance boundaries.** Operator reports installation;
    local QEMU tests and server publication are separate evidence. Continue
    representative installed permissions/input/update checks as features ship.

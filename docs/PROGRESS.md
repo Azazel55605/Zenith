@@ -12,12 +12,17 @@ Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
 - [x] Pass 716 host tests and GCC/Clang builds; initial real-compositor fixture
   passes 25 checks, visible pixels, routed input/close, fault/cancel cleanup,
   same-kernel package upgrade and independent ext2 audit.
-- [ ] Validate final first-frame/focus fixes and different-UID admission denial;
-  preserve all existing release gates. Session teardown revokes pending/active
-  surfaces; operator installed acceptance remains separate.
+- [x] Full clean-source qualification passes at `cea1f5a`: 211 controllers,
+  716 host, 71 login/session, 94 repository, 48 graphics, 72 network, 100 CLI,
+  full native process/64 pipelines and desktop/local input, 169 kernel recovery.
+  First-frame/focus fixes, minimized cancellation/retirement, desktop quota and
+  actual UID admission denial pass. [Exact evidence](archive/2026-10-26/protected-graphical-clients.md#final-clean-source-qualification).
+- [ ] Obtain publication authorization for kernel 0.0.24 and gui-probe 0.1.0,
+  then distributor delivery and [installed VM checks](GRAPHICAL-VM-TEST.md).
 - [x] Verify independent package upgrade under unchanged kernel and headless refusal.
-- [ ] Document the supported ABI and limits; Settings services/widgets follow this
-  API slice. No compositor replacement or Settings implementation is claimed yet.
+- [x] Document [ABI, SDK header and limits](GRAPHICAL-CLIENTS.md).
+- [ ] Next: Settings service authorization, restart behavior and shared client
+  widgets/text/resources. No Settings or compositor replacement is claimed yet.
 
 ## CLI unbundling and application foundations
 

@@ -52,3 +52,5 @@ Text/traversal release testing: [VM handoff](CLI-TEXT-VM-TEST.md).
 Native network release testing: [kernel-first VM handoff](NETWORK-VM-TEST.md).
 
 Protected graphical-client API: [surfaces, events and lifecycle](GRAPHICAL-CLIENTS.md).
+
+Graphical API release testing: [VM handoff](GRAPHICAL-VM-TEST.md).
