@@ -95,7 +95,8 @@ Artifact SHA256:
 
 Release tags target this exact qualified source: `kernel/v0.0.21`,
 `sunbeam-tools/v0.5.0`, `zenith-base-tools/v0.1.0`, `zenith-fs-tools/v0.1.0`
-and `zenith-man-pages/v0.1.3`. Later documentation commits do not change the
+and `zenith-man-pages/v0.1.3`. The atomic source/tag push succeeded and every
+remote peeled tag was verified at that commit. Later documentation commits do not change the
 qualified tag target. Local acceptance is unsigned; distributor signing/delivery
 and installed VMware acceptance remain separate. Follow the
 [VM test handoff](../../CLI-VM-TEST.md).

@@ -22,8 +22,8 @@ Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
   71 login/session, 92 repository, 75 CLI, full native processes with 64 pipelines
   and GUI/local input, and 169 kernel recovery checks. Exact hashes/times and
   failed-candidate evidence: [qualification record](archive/2026-10-26/allocation-publication.md).
-- [x] Prepare kernel 0.0.21, Sunbeam 0.5.0, base/fs tools 0.1.0 and manuals 0.1.3
-  at that exact tested source for distributor delivery.
+- [x] Push source and kernel 0.0.21, Sunbeam 0.5.0, base/fs tools 0.1.0 and
+  manuals 0.1.3 tags; remote peeled refs all resolve to exact tested `5852867`.
 - [ ] Operator: update distributor controller, await all five deliveries, install
   kernel first, reboot/confirm, then update/install tools and exercise them.
   [Commands and VM checks](CLI-VM-TEST.md). Operator VM is last confirmed on 0.0.20;
