@@ -11,34 +11,25 @@ Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
   stream exercises and `boot confirm` were not separately reported.
 - [x] Priority confirmed: finish remaining command-line packages before GUI work.
   Settings and a consistent GUI design language follow the CLI milestone.
-- [x] Add bounded exported environment, owner-filtered native process snapshots,
-  cooperative PID cancellation and bounded exit history. Installed local TCG
-  verifies PID cancellation, environment isolation and same-kernel tool updates.
-- [x] Implement foreground raw input leases, mode restoration and bounded shell
-  jobs/wait/cancellation. COM1, GUI and local raw keyboard, fault restoration and
-  canonical EOF/cancel checks pass locally. Full POSIX TTY/signal or fork/exec
-  support is not implied.
-- [x] Add guarded namespace/metadata/seek operations and separate signed
-  `zenith-base-tools`/`zenith-fs-tools` recipes and normal-command dispatch, with
-  explicit `recovery COMMAND`. Local installed package update/permissions and
-  independent ext2 audit pass: 68 CLI command checks, including refusal of unowned
-  and tampered executables.
-- [ ] Finish remaining text and traversal tools; current extracted command coverage
-  is listed in the [batch record](archive/2026-10-26/cli-process-foundation.md).
-- [ ] Add controlled network ownership/services needed for independent net tools.
-- [x] Pass 700 host tests and 197 common controller tests; ISO/ELF build passes.
-- [x] Complete all 64 large byte pipelines and native filesystem/fault/permission
-  matrix on the initial candidate. Final focused GUI/local raw checks pass.
-- [x] Continue VM-test handoff with full qualification. The first clean candidate
-  passed login/session but reproduced an in-memory kernel payload rejection.
-- [x] Verify the cached signed archive independently; reproduce zeroed ELF payload
-  bytes with a rejection-only observer. Confirm an IRQ publication gap in the
-  pinned runtime; eight real-dependency adapter regressions pass.
-- [x] Corrected runtime passes all 92 real repository checks, kernel activation/
-  reboot and independent ext2 audit without debugging. All 64 dependency-adapter
-  regressions pass, including the eight allocation-publication tests.
-- [ ] Repeat clean-source full release/recovery acceptance for VM test delivery. The CLI candidate is unreleased; the operator VM remains
-  on 0.0.20. See the [allocation record](archive/2026-10-26/allocation-publication.md).
+- [x] Implement bounded environment/process ownership, raw terminal leases,
+  jobs/wait/cancellation and guarded namespace/seek services. Add independently
+  signed base/filesystem tool recipes and normal-command dispatch with explicit
+  recovery builtins. [Implemented command coverage and limits](archive/2026-10-26/cli-process-foundation.md).
+- [x] Diagnose the clean candidate's actual payload rejection and fix the pinned
+  runtime allocation-publication IRQ gap in build copies. Eight targeted adapter
+  tests and all 64 dependency-adapter regressions pass.
+- [x] Full clean-source acceptance passes at `5852867`: 197 controllers, 700 host,
+  71 login/session, 92 repository, 75 CLI, full native processes with 64 pipelines
+  and GUI/local input, and 169 kernel recovery checks. Exact hashes/times and
+  failed-candidate evidence: [qualification record](archive/2026-10-26/allocation-publication.md).
+- [x] Prepare kernel 0.0.21, Sunbeam 0.5.0, base/fs tools 0.1.0 and manuals 0.1.3
+  at that exact tested source for distributor delivery.
+- [ ] Operator: update distributor controller, await all five deliveries, install
+  kernel first, reboot/confirm, then update/install tools and exercise them.
+  [Commands and VM checks](CLI-VM-TEST.md). Operator VM is last confirmed on 0.0.20;
+  local acceptance does not establish server publication or VMware acceptance.
+- [ ] Finish remaining text/traversal tools and owned network interfaces before
+  GUI work. This batch does not complete CLI unbundling.
 - [ ] Next: protected graphical-client/settings service contract, independently
   packaged Settings and shared UI tokens/widgets. Desktop/service migration is
   unfinished; a source split or a kernel-linked Settings window is not completion.
@@ -108,5 +99,6 @@ The long GUI gate uses virtio keyboard; separate standard-VGA recovery retains
 PS/2 coverage. Sustained legacy PS/2 input loss in the affected QEMU graphical
 profile remains open in [Shell](components/SHELL.md).
 
-Canonical streams/byte pipes are the active slice above; raw TTY, seek and general
-process scheduling remain future slices. Existing recovery builtins and read-only ABI-1 binaries stay supported.
+The CLI slice above adds bounded raw input, seek and jobs; general process spawning,
+full TTY support and managed multicore remain future work. Existing recovery
+builtins and read-only ABI-1 binaries stay supported.

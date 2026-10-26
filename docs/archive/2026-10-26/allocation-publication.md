@@ -61,7 +61,41 @@ require no additional kernel ABI.
 
 - [x] Real repository update passes without debugging: all 92 checks, actual
   combined kernel activation/reboot and independent ext2 audit (356.286 s).
-- [ ] Re-run clean-source full qualification after committing the corrected candidate.
+- [x] Clean-source full qualification passed at `58528671877cd59f1fffb68b890393041ea06b83`; see the exact evidence below.
 - Retain kernel-first installation order: old kernels lack the new CLI capability
   names. Refresh/stage the kernel, reboot/confirm it, then update/install tools.
 - Do not publish or tag the failed `c594419` candidate.
+
+## Exact release qualification
+
+`deploy/distributor/validate.py --keep /tmp/zn-cli-qualified-5852867` rebuilt
+clean source `58528671877cd59f1fffb68b890393041ea06b83` and passed on local
+QEMU 11.1.2, TCG, Cosmos 3.0.89 and the .NET 10 toolchain. Source cleanliness,
+commit identity and artifact hashes were verified again after all gates.
+
+| Gate | Result | Wall time |
+|---|---|---|
+| Common controllers | 197 passed | 9.0 s |
+| Release host | 700 passed | 9.6 s |
+| Release ISO/ELF | Built | 25.9 s |
+| Login/session | 71 passed | 199.2 s |
+| Repository | 92 passed, including real signed kernel staging/activation | 307.2 s |
+| CLI packages | 75 passed, plus raw/fault/cancel restoration | 177.5 s |
+| Native processes | Full matrix, all 64 byte pipelines and GUI/local raw input | 715.9 s |
+| Kernel upgrade/recovery | 169 passed, independent ext2 and EFI audits | 479.2 s |
+
+All 64 dependency-adapter regressions also passed before qualification, including
+the eight allocation-publication tests. No debugger or workload retry was used
+in the full acceptance run.
+
+Artifact SHA256:
+
+- ISO: `c15477631b6fbcf26f6201a3a536910c2fd9f324de20b6a61063ef5c9cc0d3b3`
+- ELF: `940150c8718216b29b40f83f404259d35b9edc237cdb669cf512005a64f680ce`
+
+Release tags target this exact qualified source: `kernel/v0.0.21`,
+`sunbeam-tools/v0.5.0`, `zenith-base-tools/v0.1.0`, `zenith-fs-tools/v0.1.0`
+and `zenith-man-pages/v0.1.3`. Later documentation commits do not change the
+qualified tag target. Local acceptance is unsigned; distributor signing/delivery
+and installed VMware acceptance remain separate. Follow the
+[VM test handoff](../../CLI-VM-TEST.md).

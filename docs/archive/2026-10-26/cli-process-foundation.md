@@ -2,7 +2,8 @@
 
 Work started **2026-10-26** after the operator confirmed kernel 0.0.20 installed
 and running. The selected order is remaining CLI packages, then GUI Settings and
-a shared UI design language. This candidate is not a released kernel.
+a shared UI design language. The final qualified source and release handoff are
+recorded in the [allocation-publication follow-up](allocation-publication.md#exact-release-qualification).
 
 ## Changes and decisions
 
@@ -75,8 +76,9 @@ PTYs, fork/exec, Unix signal delivery and full VT screen emulation are not impli
   historical `ps` entry before listing completed. It now waits for the command's
   completion marker before selecting an active PID; no workload retries added.
 
-No new tag or distributor/installed-VM success is claimed by this record. Full
-clean-source release acceptance is still mandatory before a new kernel tag.
+The initial results above precede full qualification. The corrected final candidate
+passes every common release gate; see the [exact qualification record](allocation-publication.md#exact-release-qualification).
+Distributor/installed-VM success remains unreported.
 
 
 ## Reproduce the focused checks

@@ -319,12 +319,13 @@ stderr separation, file redirection, FP/fault/permission cleanup and installed
 same-kernel upgrades. Host utility tests validate algorithms, not the guest ABI.
 
 
-## Unreleased CLI process, terminal and namespace extension
+## CLI process, terminal and namespace extension
 
 Kernel 0.0.20 does not provide these calls. Packages declaring
 `zenith-native-process-abi`, `zenith-native-terminal-abi` or
-`zenith-native-path-abi` 1.0 require the compatible new kernel. No release is
-implied by this implementation contract.
+`zenith-native-path-abi` 1.0 require kernel 0.0.21 or a later compatible kernel.
+The exact 0.0.21 candidate passes full local qualification; distributor and
+installed acceptance remain pending. See the [VM handoff](CLI-VM-TEST.md).
 
 | Call | Arguments (RDI, RSI, RDX) | Result |
 |---|---|---|

@@ -4,9 +4,9 @@
 
 **State:** M1's interactive shell is implemented. Terminal and local console are
 usable with the configured keyboard layout. Live native streams and bounded byte
-pipelines passed full local acceptance at `cba1cbf`; publication/operator acceptance
-remain pending.
-A full raw TTY remains planned.
+pipelines are operator-installed in 0.0.20. Bounded raw input, jobs and process
+ownership pass full local acceptance at `5852867`; distributor/operator checks
+for that release remain pending. A full POSIX TTY remains planned.
 
 ## Implemented steps
 
@@ -25,9 +25,10 @@ Byte pipes have 8 KiB buffers and backpressure; at most eight stages/workers sha
 a shell tree. Producers run in child shells, and the final stage retains parent
 state. Early reader exit closes the input; cancellation stops all stages. Native
 stdin uses canonical host lines, stdout streams live and stderr bypasses pipes.
-Buffered builtins/redirections remain bounded at 1 MiB. There is no general
-jobs/process table or full-screen raw TTY. See [native streams](../NATIVE-PROGRAMS.md#live-streams-and-pipelines).
-The no-GPU serial transport has its own bounded ASCII input behavior and
+Buffered builtins/redirections remain bounded at 1 MiB. The qualified CLI release
+adds four background jobs, owned process snapshots/cancellation and foreground
+raw input leases; full PTY/VT screen rendering remains unimplemented. See [native streams](../NATIVE-PROGRAMS.md#live-streams-and-pipelines).
+The no-GPU serial transport preserves raw bytes but has bounded input behavior and
 is not equivalent to local keyboard history/navigation. History is session state,
 not a persistent cross-reboot database. Bash and nano/Vim are not available ports.
 
@@ -40,9 +41,11 @@ not a persistent cross-reboot database. Bash and nano/Vim are not available port
 - [x] Implement bounded byte streams, EOF/backpressure and stdin/stdout/stderr.
 - [x] Complete guest/common stream and cancellation acceptance.
 - [ ] Complete distributor/installed stream acceptance.
-- [ ] Add terminal modes/cursor/control contracts before full-screen CLI programs.
-- [ ] Integrate process lifecycle/wait/termination without losing caller credentials.
-- [ ] Unbundle selected commands after their controlled runtime APIs are available.
+- [x] Add bounded foreground terminal modes; full cursor/PTY contracts remain future work.
+- [x] Integrate bounded process lifecycle/jobs/wait/cancellation with caller credentials.
+- [x] Extract selected base/filesystem commands; [coverage](../archive/2026-10-26/cli-process-foundation.md#native-command-coverage-in-this-batch).
+- [ ] Finish remaining text/traversal and network command extraction.
+- [ ] Complete distributor/VM acceptance of the new CLI release: [test guide](../CLI-VM-TEST.md).
 - [ ] Assess terminal editor/Bash compatibility against measured ABI gaps.
 
 ## Source and acceptance

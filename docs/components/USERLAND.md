@@ -3,7 +3,7 @@
 [Documentation](../README.md) · [Current status](../STATUS.md)
 
 **State:** M5 in progress. The operator confirms kernel 0.0.20 installed and
-running. The unreleased CLI candidate adds environment/process lifecycle, raw
+running. The qualified 0.0.21 CLI release adds environment/process lifecycle, raw
 input, bounded jobs, namespace/seek operations and independently packaged base/
 filesystem commands. Local evidence and remaining extraction are tracked in
 [Progress](../PROGRESS.md#cli-unbundling-and-application-foundations). Full
@@ -29,14 +29,22 @@ CLI/service/GUI migration is unfinished.
 - [x] Operator confirms kernel 0.0.20 installed and running; explicit individual
   stream/input exercises remain separate from installation.
 
+- [x] Add exported environment, owner-filtered native processes/cancellation,
+  raw terminal leases and bounded shell jobs/wait.
+- [x] Add guarded namespace/metadata/seek/copy and independently packaged
+  base/filesystem tools with signed normal-command dispatch and recovery builtins.
+- [x] Qualify exact `5852867` through all common gates; distributor and installed
+  operator acceptance remain pending. [VM handoff](../CLI-VM-TEST.md).
+
 ## Current boundary
 
 The locally verified stream extension adds live stdout/stderr, canonical foreground
 input and bounded byte pipelines with protected waiting contexts and serialized raw
-BSP entry. Kernel 0.0.20 is operator-installed; later CLI work is unreleased.
-This is not a general preemptive process scheduler. The unreleased CLI candidate adds raw input leases, bounded shell jobs, exported
-environment, native PID cancellation and private seek/namespace operations. Initial
-local installed tests pass; graphics and controlled network ownership remain
+BSP entry. Kernel 0.0.20 is operator-installed; 0.0.21 is locally qualified for delivery.
+This is not a general preemptive process scheduler. The qualified CLI release adds
+raw input leases, bounded shell jobs, exported environment, native PID cancellation
+and private seek/namespace operations. Full clean-source local acceptance passes;
+graphics and controlled network ownership remain
 unimplemented. [Active CLI work](../PROGRESS.md#cli-unbundling-and-application-foundations)
 owns current validation. Managed/kernel code and existing builtins remain trusted.
 The exact limits/wire layout belong to [Native programs](../NATIVE-PROGRAMS.md).
@@ -72,8 +80,9 @@ installed filesystem independently after clean poweroff.
 `kernel/v0.0.20` at `431dfb9` passes clean-source full acceptance: 153 controller,
 658 host, 71 login/session, 92 repository, full native-process coverage with all
 64 byte pipelines plus desktop/local input, and 169 kernel-recovery checks.
-The operator reports the distributor run completed successfully. Installed VMware
-update/reboot/confirmation and representative stream/input checks remain unreported;
+The operator reports the distributor run completed successfully and confirms
+0.0.20 installed and running; explicit boot confirmation and representative
+stream/input checks remain separately unreported;
 publication receipts were not independently inspected.
 
 The server failure was runnable-ticket underflow: global pass froze and queued

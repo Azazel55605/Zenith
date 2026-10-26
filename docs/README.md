@@ -44,3 +44,5 @@ not been confirmed. **Planned** means no completed implementation is claimed.
 Checkboxes on component pages track implementation; their evidence section states
 what has actually been tested. Historical test totals are snapshots, not promises
 about the current release. A pushed tag is not a published or installed package.
+
+Current CLI release testing: [kernel-first VM handoff](CLI-VM-TEST.md).
