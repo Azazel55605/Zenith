@@ -22,11 +22,26 @@ internal static class ManualPages
             recovery COMMAND ARGS explicitly runs a trusted builtin.
 
             Base: cat tee wc head tail echo id basename dirname
+                  grep sort uniq seq printf tr cut sed diff
             Files: mkdir [-p], touch, rm [-rf], rmdir, cp [-r], mv,
-                   chmod OCTAL, chown UID[:GID], ln -s, ls, stat, pwd
+                   chmod OCTAL, chown UID[:GID], ln -s, ls, stat, pwd, find, tree, du
             Numeric metadata changes preserve caller permissions. Copies are bounded
             to 1 MiB per invocation, recursion depth 16; symlink copies are refused.
-            Shell/text/traversal/network extraction is still in progress.
+            Text filters use bytes (ASCII case folding), 8 KiB lines and no NUL.
+            sort: 64 KiB/2048 lines; diff: 32 KiB/256 lines per file, status 0/1/2.
+            grep -E and sed use bounded leftmost-longest regex: . [] ^ $ () | * + ?.
+            No captures/backreferences, counted repetition or .NET regex extensions.
+            sed: up to 8 commands, numeric or /regex/ address, d, p, s/re/text/[g].
+            Replacement & is the full match; capture replacement is refused.
+            tr ranges and cut -c operate on bytes, not Unicode character positions.
+            seq: signed integers, at most 10000 values. printf: %s %d %i %% and
+            newline/tab/backslash escapes. Unsupported syntax fails explicitly.
+            find [-name GLOB] [-type f|d|l], tree and du [-s] [-h] use natural
+            directory order, never follow final symlinks, and stop at 1024 nodes,
+            depth 15 or 1024-byte paths. Glob supports * and ?. tree uses ASCII
+            branches; du reports rounded logical-file KiB (including with -h).
+            recovery COMMAND retains the earlier trusted implementation/profile.
+            xargs remains shell-owned; network extraction is still in progress.
 
             COMMAND & starts a job with copied cwd/variables, EOF stdin and no TTY.
             jobs | wait [%JOB] | kill %JOB | ps | kill PID

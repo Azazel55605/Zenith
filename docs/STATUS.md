@@ -19,14 +19,14 @@ CLI release **0.0.21** is qualified at exact `5852867`: environment/process
 ownership, raw input, bounded jobs and independently packaged base/filesystem tools.
 All five common native gates pass, including 75 CLI and 169 recovery checks.
 [Exact evidence](archive/2026-10-26/allocation-publication.md) and
-[kernel-first VM handoff](CLI-VM-TEST.md). Distributor publication and operator
-installation remain pending; remaining text/network extraction is unfinished.
+[kernel-first VM handoff](CLI-VM-TEST.md). Operator confirms all five releases built/installed, kernel boot-confirmed and
+the VM checklist passed. Remaining text/network extraction is unfinished.
 
 ## Release and installation boundary
 
 | Item | What is established | What remains |
 |---|---|---|
-| Kernel 0.0.21 / CLI packages | Full clean-source acceptance at `5852867`; release tags target that exact commit | Distributor signing/delivery and installed VMware checks pending; follow kernel-first order |
+| Kernel 0.0.21 / CLI packages | Full clean-source acceptance at `5852867`; release tags target that exact commit | Operator confirms distributor builds, installation, boot confirmation and complete VM checklist; broader hardware acceptance remains separate |
 | Kernel 0.0.20 | Tagged at fully accepted `431dfb9`; operator reports successful distributor run | Operator confirms installed and running; explicit boot confirmation and individual native stream/input checks not separately reported |
 | Kernel 0.0.12 | Operator reports installed and working login; supporting resource packages installed | No broader hardware certification implied |
 | Kernel 0.0.13 | Tag pushed; server validation exposed ext2 corruption: directory `/var/lib` became a regular file at inode 49 | Failed version remains immutable; a retry cannot include the driver fix |

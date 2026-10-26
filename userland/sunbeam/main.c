@@ -258,8 +258,11 @@ static int line_tool(const char *path, unsigned long wanted, int tail)
     return 0;
 }
 #include "files.c"
+#include "text.c"
+#include "traversal.c"
 
 int main(int argc, char **argv, char **envp) {
+    if(argc>32)return 2; /* Same argument bound as the protected ABI. */
     if(argc==2 && same(argv[1],"ps"))
     {
         char bytes[4096];unsigned long offset=0;
@@ -275,7 +278,7 @@ int main(int argc, char **argv, char **envp) {
     }
     if(argc==2 && same(argv[1],"env")){for(char **p=envp; p && *p; p++){print(*p);print("\n");}return 0;}
     if(native_abi!=1)return 95;
-    if(argc>1){int result=native_files_command(argc,argv);if(result>=0)return result;}
+    if(argc>1){int result=native_text_command(argc,argv);if(result>=0)return result;result=native_traversal_command(argc,argv);if(result>=0)return result;result=native_files_command(argc,argv);if(result>=0)return result;}
     if(argc==2 && same(argv[1],"--path-bounds"))
     {
         const char *path="/home/user/cli/MUST_NOT_EXIST";

@@ -127,6 +127,32 @@ def main():
         status('ln -s /home/user/cli/source /home/user/cli/again','CLI_STAT_LINK_SETUP')
         command('stat /home/user/cli/again | logger','user: lrwxrwxrwx')
 
+        # Text/traversal algorithms are independent signed package code. Exercise
+        # normal command dispatch plus statuses; fixtures stay under /home/user.
+        command('which grep find | logger','user: find: signed native fs-tools')
+        status("printf 'b\\na\\na\\n' > /home/user/cli/lines",'CLI_TEXT_SETUP')
+        command('sort /home/user/cli/lines | uniq | wc -l | logger','user: 2')
+        command("grep -En '^(a|b)+$' /home/user/cli/lines | wc -l | logger",'user: 3')
+        status('grep MISSING /home/user/cli/lines','CLI_GREP_ABSENT',1)
+        status("grep -E '[' /home/user/cli/lines",'CLI_REGEX_INVALID',2)
+        command("seq 3 -1 1 | tr -d '\\n' | logger",'user: 321')
+        command("printf 'a:b:c\\n' | cut -d: -f1,3 | logger",'user: a:c')
+        command("printf 'aaab\\n' | sed 's/a+/[&]/' | logger",'user: [aaa]b')
+        command("sed -n '2p' /home/user/cli/lines | logger",'user: a')
+        command("sed '/a/d' /home/user/cli/lines | logger",'user: b')
+        status("seq 1 0 3",'CLI_SEQ_INVALID',2)
+        status("printf '%%' unused > /home/user/cli/percent",'CLI_PRINTF_NO_LOOP')
+        command('wc -c /home/user/cli/percent | logger','user: 1 /home/user/cli/percent')
+        status('diff /home/user/cli/source /home/user/cli/source','CLI_DIFF_EQUAL')
+        status('diff /home/user/cli/source /home/user/cli/lines','CLI_DIFF_CHANGED',1)
+        command("find /home/user/cli/native-default -type f -name 'c*' | logger",'user: /home/user/cli/native-default/copy')
+        status('ln -s /home/user/cli /home/user/cli/native-default/cycle','CLI_WALK_LINK')
+        command('find /home/user/cli/native-default -type l | logger','user: /home/user/cli/native-default/cycle')
+        command('find /home/user/cli/native-default | wc -l | logger','user: 3')
+        command('du -s /home/user/cli/native-default | logger','user: 1')
+        command('tree /home/user/cli/native-default | logger','user: 0 directories, 2 files')
+        status('find /home/user/cli -exec echo unsafe','CLI_FIND_UNSUPPORTED',2)
+
         status('fetch '+url+'/base-tools-0.5.1.zpk /root/update.zpk; pkg install /root/update.zpk','CLI_BASE_UPGRADE')
         command('base-tools --version | logger','user: base-tools 0.5.1')
         # Native PID cancellation must target its background job, not the interactive shell.
@@ -145,6 +171,8 @@ def main():
         offset=len(m.log());m.send(secret+'\r');assert m.wait('password updated for root',offset,600),'password completion'
         status('su user','CLI_USER')
         status('mkdir /home/user/cli/user-dir; touch /home/user/cli/user-dir/file','CLI_USER_CREATE')
+        status('grep PRIVATE_ROOT /root/cli-private','CLI_TEXT_READ_DENIED',2)
+        status('find /root','CLI_WALK_READ_DENIED',1)
         status('cp /root/cli-private /home/user/cli/stolen','CLI_USER_READ_DENIED',1)
         status('chmod 0644 /root/cli-private','CLI_USER_MODE_DENIED',1)
         status('chown 0 /home/user/cli/user-dir/file','CLI_USER_OWNER_DENIED',1)

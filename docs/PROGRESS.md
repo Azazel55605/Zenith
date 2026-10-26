@@ -24,10 +24,16 @@ Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
   failed-candidate evidence: [qualification record](archive/2026-10-26/allocation-publication.md).
 - [x] Push source and kernel 0.0.21, Sunbeam 0.5.0, base/fs tools 0.1.0 and
   manuals 0.1.3 tags; remote peeled refs all resolve to exact tested `5852867`.
-- [ ] Operator: update distributor controller, await all five deliveries, install
-  kernel first, reboot/confirm, then update/install tools and exercise them.
-  [Commands and VM checks](CLI-VM-TEST.md). Operator VM is last confirmed on 0.0.20;
-  local acceptance does not establish server publication or VMware acceptance.
+- [x] Operator confirms all five releases built, installed and boot-confirmed.
+  The VM checklist passed, including routing, file commands, jobs and terminal
+  input. Screenshot corroborates multi-file cat/wc/stat and file-operand ls.
+- [x] Extract text/traversal algorithms with existing ABI and signed dispatch.
+  Pass 17 algorithm tests, 700 host tests, Release build and initial 100-check
+  installed fixture, including permissions, symlink cycles and filesystem audit.
+  [Scope, limits and evidence](archive/2026-10-26/native-text-traversal.md).
+- [x] Pass 206 common controller tests and both freestanding compiler builds.
+- [ ] Active: qualify the final clean-source text/traversal candidate through
+  every common native gate, then deliver for distributor and installed testing.
 - [ ] Finish remaining text/traversal tools and owned network interfaces before
   GUI work. This batch does not complete CLI unbundling.
 - [ ] Next: protected graphical-client/settings service contract, independently

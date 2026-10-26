@@ -100,3 +100,11 @@ remote peeled tag was verified at that commit. Later documentation commits do no
 qualified tag target. Local acceptance is unsigned; distributor signing/delivery
 and installed VMware acceptance remain separate. Follow the
 [VM test handoff](../../CLI-VM-TEST.md).
+
+## Operator acceptance
+
+On 2026-10-26 the operator reports all five builds completed, all packages installed
+and kernel boot-confirmed, then confirms the VM checklist passed. The supplied
+screenshot corroborates multi-file cat, wc totals, regular-file ls and multi-file
+stat. This is operator-installed acceptance; publication receipts were not
+independently inspected. The remaining text/network extraction is a new slice.

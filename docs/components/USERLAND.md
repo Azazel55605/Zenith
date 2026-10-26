@@ -34,7 +34,7 @@ CLI/service/GUI migration is unfinished.
 - [x] Add guarded namespace/metadata/seek/copy and independently packaged
   base/filesystem tools with signed normal-command dispatch and recovery builtins.
 - [x] Qualify exact `5852867` through all common gates; distributor and installed
-  operator acceptance remain pending. [VM handoff](../CLI-VM-TEST.md).
+  operator acceptance is now confirmed by the operator. [VM handoff](../CLI-VM-TEST.md).
 
 ## Current boundary
 
@@ -53,7 +53,8 @@ upgrade and confirm a compatible kernel before updating Sunbeam.
 
 ## Next implementation steps
 
-1. **Finish remaining CLI extraction:** text/traversal utilities and controlled
+1. **Finish remaining CLI extraction:** qualify the implemented [text/traversal
+   slice](../archive/2026-10-26/native-text-traversal.md), then controlled
    network ownership/services. Keep shell evaluation and explicitly privileged
    service boundaries clear; preserve complete command behavior or document a
    bounded native profile and retain explicit recovery commands.

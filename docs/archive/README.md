@@ -6,6 +6,8 @@ Start with [current status](../STATUS.md) or [active work](../PROGRESS.md).
 
 ## Investigation records
 
+- [2026-10-26 native text/traversal](2026-10-26/native-text-traversal.md): signed text algorithms, bounded NFA and symlink-safe traversal, compatibility profile and qualification.
+
 - [2026-10-26 allocation publication](2026-10-26/allocation-publication.md): clean-candidate kernel payload rejection, byte-identical signed cache, rejection-only memory evidence and guarded allocation publication correction.
 
 - [2026-10-26 CLI process/filesystem foundation](2026-10-26/cli-process-foundation.md): environment, foreground raw input, owned processes/background jobs, namespace services and signed base/filesystem package dispatch; validation boundaries.

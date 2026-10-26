@@ -45,8 +45,8 @@ internal static class NativeProcessCommands
             return command.Run(new CommandContext(c.Shell, c.Args[0], c.Args.Skip(1).ToArray(), c.Input, c.Out, c.Err, c.IsTerminal));
         }));
         foreach (var group in new[] {
-            (Program:"base-tools",Names:new[] {"cat","tee","wc","head","tail","echo","id","basename","dirname"}),
-            (Program:"fs-tools",Names:new[] {"mkdir","touch","rm","rmdir","cp","mv","chmod","chown","ln","ls","stat","pwd"}) })
+            (Program:"base-tools",Names:new[] {"cat","tee","wc","head","tail","echo","id","basename","dirname","grep","sort","uniq","seq","printf","tr","cut","sed","diff"}),
+            (Program:"fs-tools",Names:new[] {"mkdir","touch","rm","rmdir","cp","mv","chmod","chown","ln","ls","stat","pwd","find","tree","du"}) })
         {
             foreach (string name in group.Names)
             {
