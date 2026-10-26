@@ -441,7 +441,7 @@ internal static class NetworkService
                 catch (Exception e)
                 {
                     staged?.Dispose(); tls?.Dispose(); Close(socket);
-                    if (e is not IOException || attempt != 0) { throw; }
+                    if (!HttpDownload.RetryGet(e, attempt)) { throw; }
                     retry = true;
                 }
                 finally { tls?.Dispose(); Close(socket); }

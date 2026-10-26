@@ -85,3 +85,29 @@ process spawning are not implied.
 
 No failed workload is automatically repeated. Retained initial fixture:
 `/tmp/zn-text-guest`; build/host logs `/tmp/zn-text-{build,host}.log`.
+
+## First full qualification: optional-index error masking
+
+The first clean candidate d998bf2 passed 206 controllers, 700 host tests, its
+Release build and all 71 login/session checks. Repository refresh later received
+HTTP status 404 for the deliberately absent optional index-v3.zri. The generic
+GET retry retried this definitive missing-resource response; that second request
+failed with "TLS transport closed unexpectedly", replacing the 404 signal required
+for signed legacy-index fallback. The interactive update returned to the shell;
+the harness subsequently failed waiting for its confirmation prompt. Text packages
+were not installed in this fixture. Evidence is retained at
+/tmp/zn-text-qualified-d998bf2/native/r/installed.
+
+The correction preserves a definitive HTTP 404 without replaying it. Other bounded
+GET transport retry, certificate verification and the refusal to fall back from
+an already established extended catalog remain unchanged. A decoder/retry-policy
+regression covers 404 preservation, transport retry exhaustion and cancellation;
+the real HTTPS fixture now requires exactly one missing-index request per repo
+before the first legacy fallback. This corrects the evidenced error masking; it
+does not establish the cause of every TCP/TLS close. No failed update is replayed
+to manufacture a successful qualification.
+
+The corrected real HTTPS fixture passed all 94 repository checks, including
+combined kernel activation, protocol-downgrade refusal and independent ext2 audit
+(318.236 s). All 701 host tests and the corrected Release build pass. Full clean
+qualification of the committed correction remains required.

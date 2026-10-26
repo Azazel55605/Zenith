@@ -30,6 +30,10 @@ internal sealed class HttpDownload
     public const int MaximumHeader = 8192;
     public const int DefaultMaximumBytes = 8 * 1024 * 1024;
     public const int MaximumBytes = 32 * 1024 * 1024 + 4096;
+    // A definitive 404 is also the repository's optional-index fallback signal.
+    // Retrying it can replace that signal with an unrelated transport failure.
+    public static bool RetryGet(Exception error, int attempt)
+        => attempt == 0 && error is IOException && error.Message != "HTTP status 404";
     public static int IdleMilliseconds(int maximum) => maximum > DefaultMaximumBytes ? 30000 : 3000;
     public static int TransferMilliseconds(int maximum) => maximum > DefaultMaximumBytes ? 900000 : 30000;
     public static void CheckTimeout(long idle, long total, int received, int expected, int maximum)

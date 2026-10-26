@@ -18,6 +18,14 @@ class Server(http.server.ThreadingHTTPServer):
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
+    requests = {}
+    request_lock = threading.Lock()
+
+    def do_GET(self):
+        with self.request_lock:
+            self.requests[self.path] = self.requests.get(self.path, 0) + 1
+        super().do_GET()
+
     def log_message(self, *args):
         pass
 
@@ -176,6 +184,9 @@ def main():
         status(f"pkg mirror {http}", "P4_HTTP_MIRROR_DENIED", 1)
         status(f"pkg mirror {https}", "P4_MIRROR")
         status("pkg refresh", "P4_REFRESH")
+        for repository in ("core", "extra"):
+            check(Handler.requests.get("/" + repository + "/index-v3.zri") == 1,
+                  repository + " missing extended index is not retried before legacy fallback")
         output = status("pkg search hello", "P4_SEARCH")
         check(
             "hello-tools 1.0.0" in output and "hello-data 1.0.0" in output,

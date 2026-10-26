@@ -32,8 +32,11 @@ Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
   installed fixture, including permissions, symlink cycles and filesystem audit.
   [Scope, limits and evidence](archive/2026-10-26/native-text-traversal.md).
 - [x] Pass 206 common controller tests and both freestanding compiler builds.
-- [ ] Active: qualify the final clean-source text/traversal candidate through
-  every common native gate, then deliver for distributor and installed testing.
+- [x] Diagnose optional-index 404 masking during the first full run; preserve
+  the definitive 404 instead of retrying it. Pass 701 host and all 94 real HTTPS
+  repository checks, including one-request fallback and downgrade refusal.
+- [ ] Active: repeat clean-source full qualification with the committed correction,
+  then deliver for distributor and installed testing.
 - [ ] Finish remaining text/traversal tools and owned network interfaces before
   GUI work. This batch does not complete CLI unbundling.
 - [ ] Next: protected graphical-client/settings service contract, independently

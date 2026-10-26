@@ -9,6 +9,19 @@ namespace Zenith.Tests;
 public sealed class NetworkTests
 {
     [Fact]
+    public void MissingOptionalIndexKeepsIts404InsteadOfRetryingTransport()
+    {
+        var parser = new HttpDownload((_, _, _) => throw new Exception("error body must not commit"), () => { });
+        byte[] response = Encoding.ASCII.GetBytes("HTTP/1.0 404 Not Found\r\nContent-Length: 3\r\n\r\nbad");
+        var missing = Assert.Throws<IOException>(() => parser.Feed(response, response.Length));
+        Assert.Equal("HTTP status 404", missing.Message);
+        Assert.False(HttpDownload.RetryGet(missing, 0));
+        Assert.True(HttpDownload.RetryGet(new IOException("TLS transport closed unexpectedly"), 0));
+        Assert.False(HttpDownload.RetryGet(new IOException("TLS transport closed unexpectedly"), 1));
+        Assert.False(HttpDownload.RetryGet(new OperationCanceledException(), 0));
+        Assert.False(HttpDownload.RetryGet(new ArgumentException(), 0));
+    }
+    [Fact]
     public void KernelTransferContinuesPastOldLimitsButRemainsBounded()
     {
         HttpDownload.CheckTimeout(10000, 300000, 10000000, 16000000, HttpDownload.MaximumBytes);
