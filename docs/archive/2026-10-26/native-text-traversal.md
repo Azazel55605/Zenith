@@ -135,9 +135,10 @@ Artifact SHA256:
 - ISO: `4ac885900adfdaba7fd7fb0fd56c57d6408d60422832a61ea37157f5ccb195fe`
 - ELF: `6b728b1736d35d8e4db4a7704ea2b8e450d3a8809fed34ff33cbc6f6f0702798`
 
-Planned delivery tags at this exact qualified source: kernel/v0.0.22,
+Pushed delivery tags at this exact qualified source: kernel/v0.0.22,
 sunbeam-tools/v0.6.0, zenith-base-tools/v0.2.0, zenith-fs-tools/v0.2.0 and
-zenith-man-pages/v0.1.4. Subsequent documentation commits do not change the
+zenith-man-pages/v0.1.4. The atomic source/tag push succeeded; every remote
+peeled tag was independently verified at `6615ecb`. Subsequent documentation commits do not change the
 qualified source. Distributor publication and installed VMware acceptance remain
 pending. Follow the [VM test handoff](../../CLI-TEXT-VM-TEST.md). Network extraction
 remains the next CLI slice; the 404 correction does not establish broad TCP/TLS

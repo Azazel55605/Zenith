@@ -38,8 +38,9 @@ Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
 - [x] Full clean-source qualification passes at `6615ecb`: 206 controllers,
   701 host, 71 login/session, 94 repository, 100 CLI, full native matrix/64
   pipelines, and 169 kernel recovery checks. [Exact evidence](archive/2026-10-26/native-text-traversal.md#final-clean-source-qualification).
-- [ ] Deliver kernel 0.0.22, Sunbeam 0.6.0, base/fs 0.2.0 and manuals 0.1.4
-  at that exact tested source; await distributor and installed operator checks.
+- [x] Push kernel 0.0.22, Sunbeam 0.6.0, base/fs 0.2.0 and manuals 0.1.4;
+  remote peeled tags all resolve to exact tested `6615ecb`.
+- [ ] Await distributor and installed operator checks for the text/traversal batch.
   [VM commands and expected output](CLI-TEXT-VM-TEST.md).
 - [x] Extract the existing text/traversal command set into native packages;
   documented bounded profiles retain explicit recovery implementations.
