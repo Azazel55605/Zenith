@@ -62,8 +62,9 @@ Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
   process/64 pipelines and graphical/local input, and 169 kernel recovery checks.
   Explicit symlink-replacement and TLS hostname-mismatch refusals pass.
   [Exact source, hashes and timings](archive/2026-10-26/native-network-clients.md#final-clean-source-qualification).
-- [ ] Deliver kernel 0.0.23, zenith-net-tools 0.1.0 and manuals 0.1.5; await
-  distributor signing/delivery and [installed network checks](NETWORK-VM-TEST.md).
+- [x] Push kernel 0.0.23, zenith-net-tools 0.1.0 and manuals 0.1.5; all remote
+  peeled tags resolve to exact qualified `faecc72`, with handoff notes on main.
+- [ ] Await distributor signing/delivery and [installed network checks](NETWORK-VM-TEST.md).
   Selected base/text/filesystem/network CLI extraction is implemented and qualified.
   Shell evaluation/xargs, account/package and privileged configuration stay trusted.
 - [ ] Next: protected graphical-client/settings service contract, independently

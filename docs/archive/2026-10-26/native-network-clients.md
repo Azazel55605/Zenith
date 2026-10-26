@@ -146,3 +146,8 @@ Release targets are kernel **0.0.23**, zenith-net-tools **0.1.0** and manuals
 **0.1.5**, all pointing to that exact tested source. A later documentation commit
 must not become the kernel tag target. Distributor signing/delivery and installed
 VMware/home-path acceptance remain separate. Follow the [VM checklist](../../NETWORK-VM-TEST.md).
+
+On 2026-10-26, the operator explicitly authorized publication. Main and all three
+annotated tags were pushed atomically; remote peeled tags were verified at
+`faecc722a746a3ef526edae4dfbe25c7c97cda36`. Distributor and installed acceptance
+remain pending; update the idle controller to recognize the new package recipe.
