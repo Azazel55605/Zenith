@@ -35,10 +35,16 @@ Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
 - [x] Diagnose optional-index 404 masking during the first full run; preserve
   the definitive 404 instead of retrying it. Pass 701 host and all 94 real HTTPS
   repository checks, including one-request fallback and downgrade refusal.
-- [ ] Active: repeat clean-source full qualification with the committed correction,
-  then deliver for distributor and installed testing.
-- [ ] Finish remaining text/traversal tools and owned network interfaces before
-  GUI work. This batch does not complete CLI unbundling.
+- [x] Full clean-source qualification passes at `6615ecb`: 206 controllers,
+  701 host, 71 login/session, 94 repository, 100 CLI, full native matrix/64
+  pipelines, and 169 kernel recovery checks. [Exact evidence](archive/2026-10-26/native-text-traversal.md#final-clean-source-qualification).
+- [ ] Deliver kernel 0.0.22, Sunbeam 0.6.0, base/fs 0.2.0 and manuals 0.1.4
+  at that exact tested source; await distributor and installed operator checks.
+  [VM commands and expected output](CLI-TEXT-VM-TEST.md).
+- [x] Extract the existing text/traversal command set into native packages;
+  documented bounded profiles retain explicit recovery implementations.
+- [ ] Next CLI implementation: owned network interfaces and independent network
+  clients. Shell evaluation/xargs and privileged services remain trusted.
 - [ ] Next: protected graphical-client/settings service contract, independently
   packaged Settings and shared UI tokens/widgets. Desktop/service migration is
   unfinished; a source split or a kernel-linked Settings window is not completion.

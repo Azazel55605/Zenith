@@ -46,3 +46,5 @@ what has actually been tested. Historical test totals are snapshots, not promise
 about the current release. A pushed tag is not a published or installed package.
 
 Current CLI release testing: [kernel-first VM handoff](CLI-VM-TEST.md).
+
+Text/traversal release testing: [VM handoff](CLI-TEXT-VM-TEST.md).

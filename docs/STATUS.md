@@ -4,28 +4,24 @@ Reviewed **2026-10-26**. Stability fixes: `c622c13`, `ce42cfd`; native filesyste
 feature baseline: `f502085`; TCP reliability candidate: `f6bf893`. This page owns the cross-component
 summary; [component checklists](README.md#components) own detailed work.
 
-Kernel **0.0.20** is tagged at fully tested `431dfb9`. The operator reports its
-distributor run completed successfully. The fix prevents runnable-ticket underflow
-and producer starvation; regressions reproduce the original invalid ticket total.
-Clean-source acceptance passed 153 controller, 658 host, 71 login/session,
-92 repository, full native-process coverage with 64 pipelines and 169 kernel
-recovery checks. Publication receipts were not independently inspected, and
-the operator now confirms 0.0.20 is installed and running in the VMware guest.
-Explicit `boot confirm` and individual stream/input checks were not separately
-reported. CLI unbundling is the selected next implementation stage.
-See [active CLI work](PROGRESS.md#cli-unbundling-and-application-foundations).
+Kernel **0.0.21**, Sunbeam **0.5.0**, base/filesystem tools **0.1.0** and manuals
+**0.1.3** are operator-confirmed built, installed and boot-confirmed. The operator
+also confirms the complete VM checklist passed. [Acceptance record](archive/2026-10-26/allocation-publication.md#operator-acceptance).
 
-CLI release **0.0.21** is qualified at exact `5852867`: environment/process
-ownership, raw input, bounded jobs and independently packaged base/filesystem tools.
-All five common native gates pass, including 75 CLI and 169 recovery checks.
-[Exact evidence](archive/2026-10-26/allocation-publication.md) and
-[kernel-first VM handoff](CLI-VM-TEST.md). Operator confirms all five releases built/installed, kernel boot-confirmed and
-the VM checklist passed. Remaining text/network extraction is unfinished.
+The text/traversal release is qualified at exact **6615ecb**: ordinary commands
+now dispatch to signed native filters and traversal tools. Full clean-source
+acceptance passes 206 controllers, 701 host and all five native gates. It also
+preserves definitive optional-index 404 errors instead of masking them through a
+transport retry. [Scope, limits and exact evidence](archive/2026-10-26/native-text-traversal.md).
+Kernel 0.0.22 and its package updates still need distributor delivery and installed
+acceptance; [VM handoff](CLI-TEXT-VM-TEST.md). Owned networking and graphical-client
+migration remain unfinished.
 
 ## Release and installation boundary
 
 | Item | What is established | What remains |
 |---|---|---|
+| Kernel 0.0.22 / text/traversal packages | Full clean-source acceptance at `6615ecb`; explicit native profiles and 404 preservation | Distributor delivery and installed checks pending |
 | Kernel 0.0.21 / CLI packages | Full clean-source acceptance at `5852867`; release tags target that exact commit | Operator confirms distributor builds, installation, boot confirmation and complete VM checklist; broader hardware acceptance remains separate |
 | Kernel 0.0.20 | Tagged at fully accepted `431dfb9`; operator reports successful distributor run | Operator confirms installed and running; explicit boot confirmation and individual native stream/input checks not separately reported |
 | Kernel 0.0.12 | Operator reports installed and working login; supporting resource packages installed | No broader hardware certification implied |
@@ -57,17 +53,18 @@ candidates and acceptance evidence are preserved in the
 
 | Component | Implemented and verified scope | Remaining scope |
 |---|---|---|
-| [Shell/terminal](components/SHELL.md) | Scripting, layouts/history, live native streams and bounded byte pipes, cancellation and manuals | Qualified raw-input/jobs and base/fs release; operator acceptance and larger CLI ports remain |
+| [Shell/terminal](components/SHELL.md) | Scripting, layouts/history, live native streams and bounded byte pipes, cancellation and manuals | Qualified raw-input/jobs and base/fs release; operator acceptance and owned network clients remain |
 | [Storage/security](components/STORAGE-SECURITY.md) | Bounded ext2, virtual filesystems, users and access enforcement | Larger filesystem profile, journaling/guest repair, broader hardware |
 | [Boot/recovery](components/BOOT-RECOVERY.md) | Guided install, UEFI disk boot, signed retained kernels, explicit confirm/rollback, synced power actions | Matched root/package snapshots and automatic trial/fallback |
 | [Networking](components/NETWORKING.md) | Primary IPv4 NIC, DHCP/static, DNS/NTP, bounded HTTP and verified HTTPS | General socket ABI, wider NIC/hardware support, authenticated time |
 | [Packages](components/PACKAGES.md) | Signed core/extra catalogs; dependency/conflict plans; install/remove/verify; all-package update; build/sign/publish automation and dashboard | Stronger trust lifecycle, configuration merges, matched data/boot transaction |
 | [Sessions/desktop](components/SESSIONS-DESKTOP.md) | Login, local text/DE switching, serial fallback, signed theme/fonts/branding and style meta | Proper DE, automatic-tiling WM, Settings UI, Files/Editor rework, GUI isolation |
-| [Userland](components/USERLAND.md) | Protected foreground x64 ELF; separately packaged Sunbeam; bounded filesystem/stream ABI, canonical input and independent wc/head/tail | Qualified raw-input/jobs/process and base/fs release; operator checks and remaining text/network/GUI interfaces |
+| [Userland](components/USERLAND.md) | Protected foreground x64 ELF; separately packaged Sunbeam; bounded filesystem/stream ABI, canonical input and independent wc/head/tail | Qualified raw-input/jobs/process and base/fs release; operator checks for text/traversal and remaining network/GUI interfaces |
 | [Multicore](components/MULTICORE.md) | Opt-in native integer workers, default disabled | Managed multicore scheduler, GC coordination, safe parallel drivers/processes |
 
-The shell, most commands, GUI and privileged services remain kernel-linked.
-Native Sunbeam is isolated; the desktop is still trusted kernel code. An independent
+The shell, recovery builtins, GUI and privileged services remain kernel-linked.
+Installed base/file command names dispatch to verified native packages.
+Native executables are isolated; the desktop is still trusted kernel code. An independent
 resource package does not make its consuming renderer an independent executable.
 
 ## Latest local evidence

@@ -370,3 +370,11 @@ and interactive exit refuse active jobs; closing a terminal cancels its jobs.
 `ps` lists protected native invocations; `jobs` also covers trusted shell workloads.
 
 [Implementation and validation record](archive/2026-10-26/cli-process-foundation.md).
+
+## Native text and traversal packages
+
+The qualified text/traversal slice adds nine base filters and three filesystem
+traversal commands using the existing CLI ABI. [Supported syntax and limits](archive/2026-10-26/native-text-traversal.md#supported-utility-profile)
+and the [VM checklist](CLI-TEXT-VM-TEST.md) distinguish its native profile from
+GNU tools and the managed recovery implementations. Owned network clients remain
+a later service-interface slice.

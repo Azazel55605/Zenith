@@ -44,8 +44,11 @@ not a persistent cross-reboot database. Bash and nano/Vim are not available port
 - [x] Add bounded foreground terminal modes; full cursor/PTY contracts remain future work.
 - [x] Integrate bounded process lifecycle/jobs/wait/cancellation with caller credentials.
 - [x] Extract selected base/filesystem commands; [coverage](../archive/2026-10-26/cli-process-foundation.md#native-command-coverage-in-this-batch).
-- [ ] Finish remaining text/traversal and network command extraction.
-- [ ] Complete distributor/VM acceptance of the new CLI release: [test guide](../CLI-VM-TEST.md).
+- [x] Extract text/traversal commands and pass full qualification at `6615ecb`;
+  [native profile](../archive/2026-10-26/native-text-traversal.md).
+- [ ] Complete text/traversal distributor/VM checks: [test guide](../CLI-TEXT-VM-TEST.md).
+- [ ] Finish controlled network command extraction.
+- [x] Operator confirms 0.0.21 distributor/VM acceptance and its [CLI checklist](../CLI-VM-TEST.md).
 - [ ] Assess terminal editor/Bash compatibility against measured ABI gaps.
 
 ## Source and acceptance

@@ -14,8 +14,8 @@ remaining existing text/traversal algorithms into signed protected executables.
 
 Normal dispatch retains signed ownership/mode/digest enforcement. Missing packages
 use recovery builtins; a present invalid executable refuses. `recovery COMMAND`
-explicitly selects the trusted prior implementation. Kernel changes only extend
-the dispatch list; no new syscall or runtime adapter is introduced. New algorithms
+explicitly selects the trusted prior implementation. Kernel changes extend the dispatch list and include the narrow HTTP correction
+described below; no new syscall or runtime adapter is introduced. New algorithms
 use the existing 0.0.21 ABI. Shell evaluation and xargs stay trusted because they
 launch commands; network ownership/services and graphical clients remain separate.
 
@@ -80,7 +80,7 @@ process spawning are not implied.
   executable tamper refusal and independent ext2 audit (224.049 s). Later small
   argument-bound/unsupported-regex/trailing-root normalization changes are covered
   by host regressions and must pass the final full qualification.
-- [ ] Commit the final candidate and pass clean-source common release acceptance.
+- [x] Final clean-source common release acceptance passes at `6615ecb`; exact evidence below.
 - [ ] Distributor signing/delivery and operator-installed acceptance.
 
 No failed workload is automatically repeated. Retained initial fixture:
@@ -111,3 +111,34 @@ The corrected real HTTPS fixture passed all 94 repository checks, including
 combined kernel activation, protocol-downgrade refusal and independent ext2 audit
 (318.236 s). All 701 host tests and the corrected Release build pass. Full clean
 qualification of the committed correction remains required.
+
+## Final clean-source qualification
+
+Source: `6615ecb20a56ed9075eeb422e2b31830eb1602e2`. The common unsigned acceptance
+command rebuilt clean source and verified its commit, clean state and artifact
+hashes again after every gate. Local environment: QEMU 11.1.2, TCG, Cosmos 3.0.89,
+.NET 10. Evidence directory: `obj/text-qualified-6615ecb`.
+
+| Gate | Result | Wall time |
+|---|---|---|
+| Common controllers | 206 passed, including 17 algorithm tests | recorded in controller-tests.log |
+| Release host | 701 passed | 9.9 s |
+| Release ISO/ELF | Built | 24.1 s |
+| Login/session | 71 passed | 203.5 s |
+| Repository | 94 passed, including one-request fallback and downgrade refusal | 328.9 s |
+| CLI packages | 100 checks, mode restoration, tamper refusal and ext2 audit | 225.8 s |
+| Native processes | Full matrix, all 64 pipelines and GUI/local input | 752.0 s |
+| Kernel recovery | 169 passed, ext2/EFI audits and manual fallback | 488.0 s |
+
+Artifact SHA256:
+
+- ISO: `4ac885900adfdaba7fd7fb0fd56c57d6408d60422832a61ea37157f5ccb195fe`
+- ELF: `6b728b1736d35d8e4db4a7704ea2b8e450d3a8809fed34ff33cbc6f6f0702798`
+
+Planned delivery tags at this exact qualified source: kernel/v0.0.22,
+sunbeam-tools/v0.6.0, zenith-base-tools/v0.2.0, zenith-fs-tools/v0.2.0 and
+zenith-man-pages/v0.1.4. Subsequent documentation commits do not change the
+qualified source. Distributor publication and installed VMware acceptance remain
+pending. Follow the [VM test handoff](../../CLI-TEXT-VM-TEST.md). Network extraction
+remains the next CLI slice; the 404 correction does not establish broad TCP/TLS
+reliability on every path.
