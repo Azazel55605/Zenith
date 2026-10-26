@@ -6,6 +6,8 @@ Start with [current status](../STATUS.md) or [active work](../PROGRESS.md).
 
 ## Investigation records
 
+- [2026-10-26 native network clients](2026-10-26/native-network-clients.md): owned TCP/TLS handles, typed services, atomic sinks, independent HTTP client and validation.
+
 - [2026-10-26 native text/traversal](2026-10-26/native-text-traversal.md): signed text algorithms, bounded NFA and symlink-safe traversal, compatibility profile and qualification.
 
 - [2026-10-26 allocation publication](2026-10-26/allocation-publication.md): clean-candidate kernel payload rejection, byte-identical signed cache, rejection-only memory evidence and guarded allocation publication correction.

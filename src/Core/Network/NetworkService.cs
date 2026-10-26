@@ -324,6 +324,63 @@ internal static class NetworkService
             Close, cancel, () => Thread.Sleep(250),
             text => Log.Write("network", text), host + ":" + port + " (" + ip + ")");
     }
+    // A native transport owns the existing global network operation until close.
+    // DNS/TLS and the framework tables stay serialized with trusted clients.
+    internal static Zenith.Core.Processes.IProcessConnection OpenClient(string host, int port, bool secure, Action cancel)
+    {
+        var operation = Enter(); Socket? socket = null; TlsConnection? tls = null;
+        try
+        {
+            socket = ConnectCore(host, port, cancel);
+            if (secure)
+            {
+                string ca = BoundedFile.ReadText(TlsConnection.TrustPath, 4096)
+                    ?? throw new IOException("no TLS trust bundle; root must import a trusted CA");
+                tls = new TlsConnection(socket, host, ca, cancel, Ready);
+            }
+            return new ClientConnection(socket, tls, operation, cancel);
+        }
+        catch { tls?.Dispose(); Close(socket); operation.Dispose(); throw; }
+    }
+    private sealed class ClientConnection : Zenith.Core.Processes.IProcessConnection
+    {
+        private readonly Socket _socket;
+        private readonly TlsConnection? _tls;
+        private readonly Operation _operation;
+        private readonly Action _cancel;
+        private readonly Stopwatch _timer = Stopwatch.StartNew();
+        private bool _closed;
+        public ClientConnection(Socket socket, TlsConnection? tls, Operation operation, Action cancel)
+        { _socket = socket; _tls = tls; _operation = operation; _cancel = cancel; }
+        private void Check()
+        {
+            _cancel(); Ready();
+            if (_closed) { throw new IOException("native transport is closed"); }
+            if (_timer.ElapsedMilliseconds > 900000) { throw new IOException("native transport lifetime exceeded 900s"); }
+        }
+        public int Read(byte[] buffer)
+        {
+            Check(); if (buffer.Length == 0) { return 0; }
+            if (_tls is not null) { return _tls.Read(buffer, 30000); }
+            var idle = Stopwatch.StartNew();
+            while (true)
+            {
+                Check(); int available = _socket.Available;
+                if (available > 0) { return _socket.Receive(buffer, 0, Math.Min(buffer.Length, available), SocketFlags.None); }
+                if (!_socket.Connected) { return 0; }
+                if (idle.ElapsedMilliseconds > 30000) { throw new IOException("native TCP read timed out after 30s"); }
+                Thread.Sleep(1);
+            }
+        }
+        public int Write(byte[] buffer)
+        { Check(); if (_tls is not null) { _tls.Write(buffer); return buffer.Length; } return _socket.Send(buffer, 0, buffer.Length, SocketFlags.None); }
+        public void Dispose()
+        {
+            if (_closed) { return; } _closed = true;
+            try { _tls?.Dispose(); } catch { }
+            Close(_socket); _operation.Dispose();
+        }
+    }
     public static void Probe(string host, int port, Action cancel)
     { Run(() => { Socket socket = ConnectCore(host, port, cancel); Close(socket); }); }
     public static void TlsSelfTest() => Run(() =>

@@ -9,7 +9,7 @@ import re
 import sys
 ROOT=Path(__file__).resolve().parents[1]
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('destination',type=Path);parser.add_argument('--version',default='0.1.0');parser.add_argument('--program',choices=('sunbeam','base-tools','fs-tools'),default='sunbeam');args=parser.parse_args()
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('destination',type=Path);parser.add_argument('--version',default='0.1.0');parser.add_argument('--program',choices=('sunbeam','base-tools','fs-tools','net-tools'),default='sunbeam');args=parser.parse_args()
     if not re.fullmatch(r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*))?',args.version):raise ValueError('invalid program version')
     destination=args.destination
     output=destination/('usr/share/zenith/native/'+args.program+'.elf');output.parent.mkdir(parents=True,exist_ok=True)
@@ -19,6 +19,6 @@ def main():
     subprocess.run([compiler,*target,'-nostdlib','-static','-fno-pie','-no-pie',
         '-fcf-protection=none','-fno-stack-protector','-fno-builtin','-fno-unwind-tables','-fno-asynchronous-unwind-tables','-mno-red-zone',
         '-mno-sse','-mno-sse2','-mno-mmx','-O2','-Wall','-Wextra','-Werror',
-        '-DSUNBEAM_VERSION="'+args.version+'"','-Wl,-T,'+str(source/'link.ld'),'-Wl,--build-id=none',str(source/'start.s'),str(source/'main.c'),'-o',str(output)],check=True)
+        '-DSUNBEAM_VERSION="'+args.version+'"','-Wl,-T,'+str(source/'link.ld'),'-Wl,--build-id=none',str(source/'start.s'),str(ROOT/'userland/net-tools/main.c' if args.program=='net-tools' else source/'main.c'),'-o',str(output)],check=True)
     print('Built standalone native text tool: '+str(output))
 if __name__=='__main__':main()

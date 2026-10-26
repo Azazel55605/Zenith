@@ -378,3 +378,12 @@ traversal commands using the existing CLI ABI. [Supported syntax and limits](arc
 and the [VM checklist](CLI-TEXT-VM-TEST.md) distinguish its native profile from
 GNU tools and the managed recovery implementations. Owned network clients remain
 a later service-interface slice.
+
+## Owned network client extension
+
+The new `zenith-native-network-abi` 1.0 capability adds invocation-local bounded
+TCP/verified-TLS connections, resolver/echo/status primitives and atomic download
+sinks. It is absent from kernel 0.0.22. [Request layout, bounds and ownership](archive/2026-10-26/native-network-clients.md#ownership-and-service-contract)
+and the [native HTTP profile](archive/2026-10-26/native-network-clients.md#native-http-profile)
+are the owning contract. Native client algorithms are independently packaged in
+zenith-net-tools; privileged configuration/trust and drivers remain kernel services.

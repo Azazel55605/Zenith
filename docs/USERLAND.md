@@ -34,7 +34,7 @@ The [VM handoff](CLI-VM-TEST.md) gives kernel-first installation and command che
 | Input/writable descriptors | Locally verified; delivery operator reported | Independently packaged utility safely reads input/writes persistent files |
 | Canonical streams/pipes | Operator-installed in 0.0.20; individual exercises separately unreported | Live std descriptors, bounded byte channels, EOF/cancel and protected-context cleanup |
 | Raw TTY/process lifecycle | Full clean-source qualification passes; delivery/operator checks pending | Terminal modes, jobs/wait/termination and environment |
-| Controlled networking and more tools | Planned | Socket ownership/limits and independently updated network/base/fs packages |
+| Controlled networking and more tools | Owned TCP/TLS and native clients implemented; qualification in progress | Socket ownership/limits and independently updated network/base/fs packages |
 | First graphical client | Planned | Versioned surface/input/IPC, fault isolation and lifecycle cleanup |
 | Desktop/service migration | Planned | Independently restarted session/compositor/apps with explicit privilege and compatibility |
 
@@ -68,3 +68,5 @@ main desktop architecture. See [Bash assessment](BASH-PORT.md) and
 These gates have been exercised for the bounded Sunbeam foundation; they do not
 establish completion of the later process/GUI stages. Original runtime alternatives
 and migration discussion remain in the [archived plan](archive/2026-10-15/USERLAND.md).
+
+[Network-client implementation and remaining acceptance](archive/2026-10-26/native-network-clients.md).

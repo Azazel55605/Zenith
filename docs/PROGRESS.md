@@ -47,8 +47,19 @@ Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
   release were not displayed in that screenshot. [Checklist](CLI-TEXT-VM-TEST.md).
 - [x] Extract the existing text/traversal command set into native packages;
   documented bounded profiles retain explicit recovery implementations.
-- [ ] Next CLI implementation: owned network interfaces and independent network
-  clients. Shell evaluation/xargs and privileged services remain trusted.
+- [x] Implement owned bounded TCP/verified-TLS connections, resolver/echo/status
+  primitives and atomic download sinks; extract ip/ifconfig/nslookup/ping/nc/fetch
+  into zenith-net-tools. Native code owns CLI/HTTP decoding; trusted services retain
+  driver, DNS/TLS and commit policy. Preserve cancellation, credentials, handle
+  cleanup and existing serialized network operations; no insecure TLS mode.
+- [x] Pass 708 host tests and native client host algorithms; initial installed
+  matrix passes 58 checks, full kernel delivery, ownership/fault/cancel cleanup
+  and ext2 audit. [Contract and evidence](archive/2026-10-26/native-network-clients.md).
+- [x] Final targeted loopback DNS/hostname, package upgrade and CA-file denial
+  matrix passes 66 checks plus ext2 audit (234.326 s).
+- [ ] Active: qualify the clean committed candidate through all six native gates,
+  including explicit replacement-symlink and TLS hostname-mismatch denials.
+  Shell evaluation/xargs, account/package and privileged configuration stay trusted.
 - [ ] Next: protected graphical-client/settings service contract, independently
   packaged Settings and shared UI tokens/widgets. Desktop/service migration is
   unfinished; a source split or a kernel-linked Settings window is not completion.

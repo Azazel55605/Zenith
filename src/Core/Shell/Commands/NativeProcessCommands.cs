@@ -31,6 +31,7 @@ internal static class NativeProcessCommands
         add(new Command("sunbeam", "sunbeam [cat|tee|wc|head|tail|ls|pwd|stat|echo|id|basename|dirname] [ARGS...]", "Run independently packaged Sunbeam tools", c => Execute(c, "sunbeam", new[] { "sunbeam" }.Concat(c.Args).ToArray())));
         add(new Command("base-tools", "base-tools COMMAND [ARGS...]", "Run signed base tools", c => Execute(c, "base-tools", new[] { "base-tools" }.Concat(c.Args).ToArray())));
         add(new Command("fs-tools", "fs-tools COMMAND [ARGS...]", "Run signed filesystem tools", c => Execute(c, "fs-tools", new[] { "fs-tools" }.Concat(c.Args).ToArray())));
+        add(new Command("net-tools", "net-tools COMMAND [ARGS...]", "Run signed network clients", c => Execute(c, "net-tools", new[] { "net-tools" }.Concat(c.Args).ToArray())));
         RegisterPackagedCommands(add);
 
     }
@@ -46,7 +47,8 @@ internal static class NativeProcessCommands
         }));
         foreach (var group in new[] {
             (Program:"base-tools",Names:new[] {"cat","tee","wc","head","tail","echo","id","basename","dirname","grep","sort","uniq","seq","printf","tr","cut","sed","diff"}),
-            (Program:"fs-tools",Names:new[] {"mkdir","touch","rm","rmdir","cp","mv","chmod","chown","ln","ls","stat","pwd","find","tree","du"}) })
+            (Program:"fs-tools",Names:new[] {"mkdir","touch","rm","rmdir","cp","mv","chmod","chown","ln","ls","stat","pwd","find","tree","du"}),
+            (Program:"net-tools",Names:new[] {"ip","ifconfig","nslookup","ping","nc","fetch"}) })
         {
             foreach (string name in group.Names)
             {

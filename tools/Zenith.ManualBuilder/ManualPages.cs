@@ -41,7 +41,15 @@ internal static class ManualPages
             depth 15 or 1024-byte paths. Glob supports * and ?. tree uses ASCII
             branches; du reports rounded logical-file KiB (including with -h).
             recovery COMMAND retains the earlier trusted implementation/profile.
-            xargs remains shell-owned; network extraction is still in progress.
+            Network package: zenith-net-tools (requires zenith-native-network-abi 1.0).
+            ip/ifconfig, nslookup, ping, nc -z and fetch dispatch to the signed package.
+            Its native HTTP decoder requires exact Content-Length, refuses redirects,
+            chunking/compression/truncation and preserves destinations on failure.
+            HTTPS uses trusted certificate/hostname/date verification with no bypass.
+            A process owns its connection/sink handles; exit/fault/cancel cleans them.
+            Existing global network serialization remains; other clients report busy.
+            netcfg, ntp and tls trust remain trusted configuration/policy services.
+            xargs remains shell-owned. Broader sockets and graphical APIs are separate.
 
             COMMAND & starts a job with copied cwd/variables, EOF stdin and no TTY.
             jobs | wait [%JOB] | kill %JOB | ps | kill PID
@@ -71,6 +79,13 @@ internal static class ManualPages
             netcfg dns auto | dns IP [IP [IP]]  (root)
             tls selftest | trust FILE SHA256  (trust import: root)
             fetch [--replace] [--kernel] http(s)://HOST[:PORT]/PATH FILE
+
+            With zenith-net-tools installed, ip/ifconfig/nslookup/ping/nc/fetch run
+            as signed protected native clients. recovery COMMAND selects the trusted
+            builtin explicitly. New packages require a compatible network-ABI kernel.
+            Default fetch limit is 8 MiB; --kernel permits 32 MiB + 4096, without
+            boot-file privilege or package-signature trust. Native fetch does not
+            replay GET after response/body failure; connect retains bounded retry.
 
             Single primary IPv4 uplink; DHCP configures asynchronously at boot.
             Configuration: /etc/zenith/network.conf; hostname, hosts and resolv.conf

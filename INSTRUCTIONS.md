@@ -62,7 +62,7 @@ execution ledger or duplicate historical test totals into the roadmap.
   8 KiB byte pipes (eight shell stages/workers, eight native contexts globally).
   Raw entry stays serialized on the BSP; managed service waits may overlap. New
   bundles require zenith-native-stream-abi 1.0. Keep stream/cancel/early-exit tests.
-  The unreleased CLI extension adds exported envp, an owner-filtered process table,
+  The CLI extension adds exported envp, an owner-filtered process table,
   cooperative PID cancellation, foreground raw-input leases and four bounded shell
   jobs. Preserve per-invocation stop callbacks and terminal restoration across all
   three hosts; background jobs own no terminal and block account/session changes.
@@ -72,6 +72,14 @@ execution ledger or duplicate historical test totals into the roadmap.
   builtins; a present invalid executable must fail closed. Preserve native-cli-smoke
   and GUI/local raw keyboard checks; --terminal-only is a focused check, never a
   substitute for the default full native gate before release.
+  The network-client extension owns invocation-local TCP/verified-TLS handles and
+  atomic download sinks. Keep CLI/HTTP decoding outside the kernel and certificate,
+  DNS/driver and VFS commit policy inside typed services; no shell-command callback.
+  Preserve full-range request/buffer validation, captured-credential cleanup, strict
+  framing/hostname checks and busy/fault/cancel/upgrade tests. Peer reads must not
+  hold the native filesystem service gate; setup and mutations retain serialization.
+  Native-network-smoke joins the other five mandatory pre-tag gates. Configuration,
+  trust import and clock changes remain trusted services, not arbitrary user calls.
   Preserve full-range copyin/copyout checks, identity/cwd, handle cleanup,
   user FP/register state, request/interrupt budgets and native permission/cancel tests.
   See docs/NATIVE-PROGRAMS.md for foreground ABI limits; preserve fault/NX/W^X,

@@ -17,7 +17,7 @@ CONTROLLER_TESTS = (
     "test_validation_diagnostics.py", "test_validation_scheduler.py", "test_native_pipeline_replay.py",
     "test_validation_accelerator.py", "test_distributor_validation.py",
     "test_recovery_console.py", "test_release_acceptance.py", "test_distributor_retry.py",
-    "test_sunbeam_streams.py", "test_guest_pipeline.py",
+    "test_sunbeam_streams.py", "test_net_tools.py", "test_guest_pipeline.py",
     "test_distributor_poll.py", "test_distributor_release.py",
 )
 
