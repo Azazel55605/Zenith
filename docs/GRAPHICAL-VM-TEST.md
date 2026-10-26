@@ -1,9 +1,9 @@
 # Protected graphical-client VM test
 
-Candidate targets: kernel **0.0.24** and **zenith-gui-probe 0.1.0**. Release tags
-must identify the exact source that passed full clean-source acceptance. Until
-that release is explicitly published and distributor delivery succeeds, these
-instructions are a prepared handoff, not an availability claim.
+Release targets: kernel **0.0.24** and **zenith-gui-probe 0.1.0**. Both tags are
+pushed at exact qualified source `cea1f5a`. Distributor signing/publication/delivery
+and installed acceptance remain pending; pushed tags alone do not mean the
+packages are available from the home repository.
 
 ## Distributor and installation
 

@@ -17,8 +17,9 @@ Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
   full native process/64 pipelines and desktop/local input, 169 kernel recovery.
   First-frame/focus fixes, minimized cancellation/retirement, desktop quota and
   actual UID admission denial pass. [Exact evidence](archive/2026-10-26/protected-graphical-clients.md#final-clean-source-qualification).
-- [ ] Obtain publication authorization for kernel 0.0.24 and gui-probe 0.1.0,
-  then distributor delivery and [installed VM checks](GRAPHICAL-VM-TEST.md).
+- [x] Operator authorizes publication; main and kernel 0.0.24/gui-probe 0.1.0
+  tags pushed atomically. Both remote peeled tags resolve to exact `cea1f5a`.
+- [ ] Await distributor signing/delivery and [installed VM checks](GRAPHICAL-VM-TEST.md).
 - [x] Verify independent package upgrade under unchanged kernel and headless refusal.
 - [x] Document [ABI, SDK header and limits](GRAPHICAL-CLIENTS.md).
 - [ ] Next: Settings service authorization, restart behavior and shared client

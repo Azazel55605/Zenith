@@ -30,7 +30,7 @@ privileged administration remain trusted.
 The first [protected graphical-client API](GRAPHICAL-CLIENTS.md) is implemented:
 private copied surfaces, routed events and session/UID ownership, with a separate
 probe executable. Full clean-source qualification passes at `cea1f5a`, including 48 graphics checks
-and all six existing native gates. Publication/distributor/installed acceptance
+and all six existing native gates. Release tags are pushed at that source; distributor/installed acceptance
 remain pending. Settings and compositor migration remain
 unfinished. [Execution evidence](archive/2026-10-26/protected-graphical-clients.md).
 
@@ -38,7 +38,7 @@ unfinished. [Execution evidence](archive/2026-10-26/protected-graphical-clients.
 
 | Item | What is established | What remains |
 |---|---|---|
-| Graphical API candidate / kernel 0.0.24 | Full clean-source qualification at `cea1f5a`; private surfaces/events and independent probe, all seven native gates pass | Publication authorization, distributor delivery and installed checks; Settings remains next |
+| Graphical API candidate / kernel 0.0.24 | Full clean-source qualification at `cea1f5a`; private surfaces/events and independent probe, all seven native gates pass | Tags pushed at exact qualified source; distributor delivery and installed checks pending. Settings remains next |
 | Kernel 0.0.23 / net-tools 0.1.0 / manuals 0.1.5 | Full clean-source qualification at `faecc72`; 72 native network checks and all other gates pass | Operator confirms installation and boot confirmation; screenshot verifies net-tools 0.1.0, signed routing and home-path network/TLS checks. Replacement/cancellation not separately shown |
 | Kernel 0.0.22 / text/traversal packages | Full clean-source acceptance at `6615ecb`; explicit native profiles and 404 preservation | Installed functional checklist matches expected output; exact versions/boot confirmation and distributor receipts not separately displayed |
 | Kernel 0.0.21 / CLI packages | Full clean-source acceptance at `5852867`; release tags target that exact commit | Operator confirms distributor builds, installation, boot confirmation and complete VM checklist; broader hardware acceptance remains separate |

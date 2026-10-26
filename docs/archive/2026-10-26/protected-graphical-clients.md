@@ -99,3 +99,12 @@ signing/delivery is claimed yet. [Installed VM checklist](../../GRAPHICAL-VM-TES
 Next implementation: typed Settings service authorization/restart semantics and
 shared client widgets/text/resources. This is a qualified first protected client
 API, not a completed Settings application or independent compositor.
+
+## Release publication
+
+On 2026-10-26 the operator explicitly authorized push/release. Main and annotated
+kernel/v0.0.24 and zenith-gui-probe/v0.1.0 tags were pushed atomically. Both remote
+peeled refs were verified at exact qualified source
+`cea1f5ace138e001026602affb13c637a1aee7b9`. Distributor signing/delivery and installed
+acceptance remain pending. Pull the idle controller for the new recipe/gate,
+then follow the kernel-first [VM handoff](../../GRAPHICAL-VM-TEST.md).
