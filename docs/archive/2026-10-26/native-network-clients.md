@@ -85,7 +85,7 @@ The native client does not replay a GET after response/body failure. Connection
 establishment retains the shared bounded fresh-socket retry. An operator can retry
 a failed download; no guest mutation is replayed to manufacture validation success.
 
-## Validation in progress
+## Validation and delivery
 
 - 708 host tests pass, including invocation ownership, stale handles, provider
   counts, aggregate limits, cleanup, control budgets and request validation.
@@ -105,10 +105,44 @@ a failed download; no guest mutation is replayed to manufacture validation succe
   CLI, native-process and kernel recovery. All six remain mandatory before a tag.
 - [x] Final targeted matrix passes 66 native checks and ext2 audit (234.326 s),
   including the local DNS/hostname, executable upgrade and CA-file denials.
-- [ ] Clean-source full qualification, including added explicit symlink-replacement
-  and TLS hostname-mismatch denials.
+- [x] Clean-source full qualification passes, including explicit symlink-replacement
+  and TLS hostname-mismatch denials. See exact evidence below.
 - [ ] Distributor publication and installed VMware/home-path acceptance.
 
 Owners: src/Core/Processes/ProcessNetwork*, NativeProcessNetworkSource,
 src/Core/Network/NetworkService, src/Native/x64/Process.s,
 userland/net-tools/main.c and tools/native-network-smoke.py.
+
+## Final clean-source qualification
+
+Exact tested source: **faecc722a746a3ef526edae4dfbe25c7c97cda36**. The working tree
+was clean throughout qualification. A fresh Release build used pinned Cosmos 3.0.89,
+local .NET 10 and QEMU 11.1.2 with TCG. No signing or production keys were needed.
+
+Command: `ZENITH_VALIDATION_ACCELERATOR=tcg python3 -B deploy/distributor/validate.py --keep obj/network-qualified-faecc72`
+(with the local dotnet toolchain on PATH). Retained artifacts/logs are ignored
+workspace files; the durable reproduction contract is this commit and command.
+
+| Gate | Result | Seconds |
+|---|---|---:|
+| Common controller regressions | 211 passed | separate pre-build gate |
+| Host tests | 708 passed | 9.616 |
+| Clean kernel build / package tool | Passed | 24.906 / 1.201 |
+| Login/session | 71 passed | 197.324 |
+| Signed online repository | 94 passed | 316.254 |
+| Native network | 72 passed; TLS, same-kernel upgrade, cleanup and ext2 audit | 257.222 |
+| Native CLI | 100 passed; raw-input/fault/cancel restoration | 224.864 |
+| Native process | Passed; all 64 pipelines plus graphical/local input | 741.905 |
+| Kernel update/recovery | 169 passed; independent ext2/EFI audits | 506.115 |
+
+SHA256:
+
+```text
+Zenith.iso bfd68ca860fccb8b8cdcb6ddd99a21b5d2745904d3e71947ae8deac20335110d
+Zenith.elf e3f79d59fe0555964f8f7d430da979bd0cf580095132422b831bbcf3dbdb66e3
+```
+
+Release targets are kernel **0.0.23**, zenith-net-tools **0.1.0** and manuals
+**0.1.5**, all pointing to that exact tested source. A later documentation commit
+must not become the kernel tag target. Distributor signing/delivery and installed
+VMware/home-path acceptance remain separate. Follow the [VM checklist](../../NETWORK-VM-TEST.md).

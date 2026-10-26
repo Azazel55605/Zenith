@@ -54,8 +54,10 @@ that every continuous-operation failure is resolved.
 
 - [x] Implement invocation-owned bounded TCP/verified-TLS services and atomic
   download sinks; independent zenith-net-tools clients are implemented.
-  [Contract and pending qualification](../archive/2026-10-26/native-network-clients.md).
-- [ ] Complete full release and installed network-client acceptance.
+  [Contract and qualification](../archive/2026-10-26/native-network-clients.md).
+- [x] Complete clean-source full qualification at `faecc72`: 72 native network
+  checks and the other five mandatory gates pass.
+- [ ] Complete distributor delivery and [installed network-client acceptance](../NETWORK-VM-TEST.md).
 - [ ] Broader socket/listener/UDP/server support remains outside this client profile.
 - [ ] Expand stream/timeout diagnostics and benchmark a repeatable transfer profile.
 - [ ] Define certificate renewal and package-key lifecycle operational procedures.

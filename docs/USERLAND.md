@@ -16,13 +16,15 @@ session broker and most services still run as trusted kernel-linked code.
 Full local acceptance at `cba1cbf` verifies live stdout/stderr, canonical host input and
 bounded byte pipelines, with independent wc/head/tail. Native contexts may wait
 on managed streams; raw user execution remains serialized on the BSP. Kernel 0.0.20
-is operator-installed and running. The 0.0.21 candidate passes full clean-source
-acceptance at `5852867` and adds bounded raw input/jobs/environment and namespace
-operations; managed multicore, sockets and graphical interfaces remain separate. The previous native
-input/write extension is operator-installed; explicit installed behavior checks
-remain separate from package installation.
+is operator-installed and running. The operator accepted the 0.0.21 process/base/
+filesystem checklist and the 0.0.22 text/traversal exercises. Owned TCP/verified-TLS
+and atomic download services plus independent net-tools now pass full clean-source
+qualification at `faecc72`. Selected CLI extraction is implemented; distributor
+and installed network acceptance remain pending. Managed multicore, protected
+graphics and privileged-service migration remain separate.
 
-The [VM handoff](CLI-VM-TEST.md) gives kernel-first installation and command checks.
+The [network VM handoff](NETWORK-VM-TEST.md) gives kernel-first installation and
+command checks. Earlier [CLI checks](CLI-VM-TEST.md) remain useful regressions.
 
 ## Migration stages
 
@@ -33,8 +35,8 @@ The [VM handoff](CLI-VM-TEST.md) gives kernel-first installation and command che
 | Controlled read-only file tools | Locally verified; delivery operator reported | Caller permissions/cwd, safe buffers/handles, cancellation and installed tool use |
 | Input/writable descriptors | Locally verified; delivery operator reported | Independently packaged utility safely reads input/writes persistent files |
 | Canonical streams/pipes | Operator-installed in 0.0.20; individual exercises separately unreported | Live std descriptors, bounded byte channels, EOF/cancel and protected-context cleanup |
-| Raw TTY/process lifecycle | Full clean-source qualification passes; delivery/operator checks pending | Terminal modes, jobs/wait/termination and environment |
-| Controlled networking and more tools | Owned TCP/TLS and native clients implemented; qualification in progress | Socket ownership/limits and independently updated network/base/fs packages |
+| Raw TTY/process lifecycle | Operator-installed and checklist accepted in 0.0.21 | Terminal modes, jobs/wait/termination and environment |
+| Controlled networking and more tools | Fully qualified at faecc72; distributor/installed network checks pending | Socket ownership/limits and independently updated network/base/fs packages |
 | First graphical client | Planned | Versioned surface/input/IPC, fault isolation and lifecycle cleanup |
 | Desktop/service migration | Planned | Independently restarted session/compositor/apps with explicit privilege and compatibility |
 

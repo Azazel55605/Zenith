@@ -57,8 +57,14 @@ Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
   and ext2 audit. [Contract and evidence](archive/2026-10-26/native-network-clients.md).
 - [x] Final targeted loopback DNS/hostname, package upgrade and CA-file denial
   matrix passes 66 checks plus ext2 audit (234.326 s).
-- [ ] Active: qualify the clean committed candidate through all six native gates,
-  including explicit replacement-symlink and TLS hostname-mismatch denials.
+- [x] Full clean-source qualification passes at `faecc72`: 211 controllers,
+  708 host, 71 login/session, 94 repository, 72 network, 100 CLI, full native
+  process/64 pipelines and graphical/local input, and 169 kernel recovery checks.
+  Explicit symlink-replacement and TLS hostname-mismatch refusals pass.
+  [Exact source, hashes and timings](archive/2026-10-26/native-network-clients.md#final-clean-source-qualification).
+- [ ] Deliver kernel 0.0.23, zenith-net-tools 0.1.0 and manuals 0.1.5; await
+  distributor signing/delivery and [installed network checks](NETWORK-VM-TEST.md).
+  Selected base/text/filesystem/network CLI extraction is implemented and qualified.
   Shell evaluation/xargs, account/package and privileged configuration stay trusted.
 - [ ] Next: protected graphical-client/settings service contract, independently
   packaged Settings and shared UI tokens/widgets. Desktop/service migration is

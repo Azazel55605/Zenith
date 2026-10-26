@@ -6,11 +6,13 @@ active work. Historical milestone version targets are not release versions.
 
 ## Now
 
-1. **Finish CLI unbundling.** Kernel 0.0.21 and its process/terminal/base/file foundation
-   are operator-accepted. Deliver the qualified text/traversal package update,
-   then finish owned networking and independent network clients with cancellation
-   and recovery validation. [Active work](PROGRESS.md#cli-unbundling-and-application-foundations)
-   distinguishes completed interfaces from remaining command extraction.
+1. **Accept the network-client release.** The selected base/text/filesystem/network
+   CLI extraction is implemented and fully qualified. The operator accepted the
+   process/base/file and text/traversal checks; deliver kernel 0.0.23 and independent
+   net-tools, then complete the [installed network checklist](NETWORK-VM-TEST.md).
+   Shell evaluation and privileged administration remain trusted services.
+   [Active work](PROGRESS.md#cli-unbundling-and-application-foundations) separates
+   local qualification, distributor delivery and installed acceptance.
 2. **Build the graphical client and settings contract.** After the CLI milestone,
    define protected display/input/service interfaces, then implement independently
    packaged Settings and shared UI tokens/widgets. Preserve the current test DE

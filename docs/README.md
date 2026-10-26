@@ -48,3 +48,5 @@ about the current release. A pushed tag is not a published or installed package.
 Current CLI release testing: [kernel-first VM handoff](CLI-VM-TEST.md).
 
 Text/traversal release testing: [VM handoff](CLI-TEXT-VM-TEST.md).
+
+Native network release testing: [kernel-first VM handoff](NETWORK-VM-TEST.md).

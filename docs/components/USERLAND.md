@@ -5,8 +5,8 @@
 **State:** M5 in progress. The operator confirms kernel 0.0.21 installed, boot-confirmed and its CLI checklist passed. The qualified 0.0.21 CLI release adds environment/process lifecycle, raw
 input, bounded jobs, namespace/seek operations and independently packaged base/
 filesystem commands. Local evidence and remaining extraction are tracked in
-[Progress](../PROGRESS.md#cli-unbundling-and-application-foundations). Full
-CLI/service/GUI migration is unfinished.
+[Progress](../PROGRESS.md#cli-unbundling-and-application-foundations). Selected CLI extraction is fully qualified; installed network acceptance and
+service/GUI migration remain unfinished.
 
 ## Implemented steps
 
@@ -40,13 +40,15 @@ CLI/service/GUI migration is unfinished.
 The locally verified stream extension adds live stdout/stderr, canonical foreground
 input and bounded byte pipelines with protected waiting contexts and serialized raw
 BSP entry. Kernel 0.0.21 is operator-installed and its CLI checklist passed.
-The text/traversal slice passes full qualification at `6615ecb`; delivery and
-operator acceptance for that next release remain pending.
+The text/traversal slice passes full qualification at `6615ecb`; the operator's
+installed graphical-terminal checklist matches expected results. Exact versions
+and boot confirmation were not shown in that screenshot.
 This is not a general preemptive process scheduler. The qualified CLI release adds
 raw input leases, bounded shell jobs, exported environment, native PID cancellation
-and private seek/namespace operations. Full clean-source local acceptance passes;
-graphics and controlled network ownership remain
-unimplemented. [Active CLI work](../PROGRESS.md#cli-unbundling-and-application-foundations)
+and private seek/namespace operations. Owned TCP/verified-TLS handles and atomic download sinks now support independent
+net-tools clients. Full qualification at `faecc72` passes all six native gates;
+distributor delivery and installed network acceptance remain pending. Protected
+graphics remains unimplemented. [Active CLI work](../PROGRESS.md#cli-unbundling-and-application-foundations)
 owns current validation. Managed/kernel code and existing builtins remain trusted.
 The exact limits/wire layout belong to [Native programs](../NATIVE-PROGRAMS.md).
 New native bundles require the filesystem and input/write capabilities:
@@ -54,13 +56,12 @@ upgrade and confirm a compatible kernel before updating Sunbeam.
 
 ## Next implementation steps
 
-1. **Finish remaining CLI extraction:** deliver the qualified [text/traversal
-   slice](../archive/2026-10-26/native-text-traversal.md), then implement controlled
-   network ownership/services. Keep shell evaluation and explicitly privileged
-   service boundaries clear; preserve complete command behavior or document a
-   bounded native profile and retain explicit recovery commands.
-2. **Qualify and deliver:** clean-source full release matrix, compatible kernel
-   first, independent tool packages afterward, then installed operator checks.
+1. **Accept the network clients:** selected command extraction is implemented and
+   qualified. Run the [network VM checklist](../NETWORK-VM-TEST.md) after compatible
+   kernel-first installation; retain explicit recovery commands.
+2. **Preserve the service boundary:** shell evaluation/xargs, accounts/packages,
+   network configuration, trust import and clock changes stay trusted. This slice
+   is not POSIX compatibility or complete service migration.
 3. **Graphical client and Settings:** only after the selected CLI milestone;
    define ownership/lifetime/service APIs and shared UI tokens/widgets before
    extracting the test desktop.
