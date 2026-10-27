@@ -11,11 +11,15 @@ Updated **2026-10-27**. [Status](STATUS.md) owns delivery boundaries;
   preferences or signed native resources select the new language.
 - [x] Add owned unsaved-state/close-intent support; preserve legacy close behavior.
 - [x] Build the independent Settings Appearance page and matching CLI access.
-- [x] Pass 733 host tests plus sanitizer UI/state tests and 238 controllers; verify
+- [x] Pass 734 host tests plus sanitizer UI/state tests and 238 controllers; verify
   permissions, malformed requests, actual preview/dirty chrome confirmation, GUI
   save/live activation, independent upgrade/reboot persistence and ext2 audit.
-- [ ] Complete broader Release/native regression qualification.
-- [ ] Record qualification and package handoff before porting other applications.
+- [x] Clean-source Release qualification passes at `12ded91`: all eight native
+  gates, including 169 kernel recovery checks, plus unchanged artifact/clean-source
+  verification. [Exact evidence](archive/2026-10-27/appearance-settings.md).
+- [x] Record qualification and the [kernel-first package handoff](SETTINGS-VM-TEST.md).
+- [ ] Publish after authorization and complete operator-installed acceptance, then
+  port other applications onto the shared GUI.
 
 ## Shared native UI foundation
 

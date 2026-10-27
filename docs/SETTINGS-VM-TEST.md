@@ -1,5 +1,8 @@
 # Settings Appearance: installed-VM handoff
 
+On the distributor build VM, install Python Pillow (`sudo apt-get install python3-pil`)
+for the new atlas build and native acceptance gate.
+
 Install and boot-confirm the compatible kernel **before** installing zenith-settings;
 its settings/window-state capability requirements are new. This checklist is for
 a real installed VM, separate from local disposable validation.

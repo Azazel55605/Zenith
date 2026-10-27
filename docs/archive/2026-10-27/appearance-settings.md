@@ -59,6 +59,44 @@ Artifacts/logs remain in `/tmp/zn-settings-native-4`; preview images in
 
 ## Broader qualification
 
-Pending the clean-source common Release acceptance run. The new Settings gate is
-registered in that plan with a distinct native workspace (`a`), alongside every
-existing login, repository, graphics, network, CLI, process and recovery gate.
+Clean-source common Release acceptance **passes** at exact implementation commit
+`12ded91d993a26190f68cf1bd3be535731cf88aa`, with no gate omitted:
+
+```sh
+PATH="$PATH:/usr/sbin:/sbin:$HOME/.dotnet/tools" ZENITH_VALIDATION_ACCELERATOR=tcg \
+python3 -B deploy/distributor/validate.py --keep /tmp/zn-settings-qualified
+```
+
+| Gate | Result |
+|---|---|
+| Controller/UI regressions | 238 pass, including sanitizer/state tests |
+| Release host tests | 734 pass, including concurrent-editor revision checks |
+| Release ISO/ELF and package tool | Build passes |
+| Login/session/styling | 71 checks pass |
+| Signed online repository/update | 94 checks pass |
+| Fresh-install native Settings | Service bounds/permissions, signed resources, preview/dirty-close/save, live apply, package upgrade, reboot and ext2 audit pass |
+| Existing graphical clients | 48 checks and independent ext2 audit pass |
+| Native network | 72 checks, full kernel download, TLS/cleanup and ext2 audit pass |
+| CLI extraction | 100 checks and raw input/fault/cancel restoration pass |
+| Native processes/streams | All checks pass, including 64 exact-output large pipelines and desktop/local terminal paths |
+| Kernel update/recovery | 169/169 checks and independent filesystem audits pass |
+
+Release ELF SHA256:
+`426a074076296809afc2bace1b71c4460b1cd9721e693b8da3e2166c556b0a24`.
+Release ISO SHA256:
+`1ee15b254beefbc0f736c8f5f2dfcd4dff2cc921fa63fe91d91e71a44f63b684`.
+Settings 0.1.0 fixture ELF SHA256:
+`cd4a0ed170beaaac0cd0228ba12a2b10cc1a09a56c67a6e8a45139141380cc67`.
+The 0.1.1 fixture matches the client digest listed above. These are test fixture
+versions; no production release was signed, tagged or published.
+
+Top-level evidence remains at `/tmp/zn-settings-qualified`. Guest disks/logs are
+retained at `obj/settings-qualified-native/zn-fsjlk2wv/` through its `native` symlink,
+keeping multi-gigabyte images on disk-backed storage instead of the RAM-backed
+`/tmp`. The new Settings phase uses distinct workspace `a`; login keeps `s`.
+The final validator verifies both unchanged artifact hashes and a clean source
+revision. The following qualification-record commit changes documentation only.
+
+Remaining: publish after authorization, install/confirm the compatible kernel before
+Settings, and complete the actual installed-VM checklist. The distributor VM needs
+Python Pillow (`python3-pil` on Debian) for font atlas generation and the new gate.

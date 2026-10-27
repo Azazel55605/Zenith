@@ -43,7 +43,8 @@ The desktop floats windows; there are no implemented automatic-tiling WM/workspa
 - [x] Connect signed semantic resource palettes and the typed appearance service.
 - [x] Build the independent [Settings Appearance page](../NATIVE-SETTINGS.md) with
   preview/save, failed/stale edit retention and explicit dirty-close confirmation.
-- [ ] Finish broader Release qualification and installed Appearance acceptance.
+- [x] Pass full clean-source Release qualification at `12ded91`.
+- [ ] Publish and complete installed Appearance acceptance.
 - [ ] Extend Settings to keyboard/timezone/session and native font resource loading.
 - [ ] Replace the temporary DE and add a selectable automatic-tiling WM.
 - [ ] Rework Files: navigation, selection, transfer jobs, permission/error UX and

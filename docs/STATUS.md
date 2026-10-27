@@ -119,6 +119,7 @@ compositor effects remain pending. [Evidence](archive/2026-10-27/shared-userland
 The independent [Settings Appearance page](NATIVE-SETTINGS.md) and typed system
 service are implemented. Focused local guest checks pass preview/save, dirty-close
 confirmation, live host application, reboot persistence, native/CLI authority and
-same-kernel package upgrade with a clean independent ext2 audit. Broader Release
-qualification and [operator acceptance](SETTINGS-VM-TEST.md) remain pending.
+same-kernel package upgrade with a clean independent ext2 audit. Clean-source Release
+qualification passes at `12ded91` (734 host, 238 controllers and all eight native
+gates). Publication and [operator acceptance](SETTINGS-VM-TEST.md) remain pending.
 [Evidence](archive/2026-10-27/appearance-settings.md).
