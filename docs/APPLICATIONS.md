@@ -31,7 +31,7 @@ package: small session controls may belong to the desktop/session package initia
 | Sunset | Logout, shutdown and restart controls | Part of the session suite initially |
 | Horizon | File manager | zenith-horizon |
 | Aurora | Graphical text/code editor | zenith-aurora |
-| Meridian | Settings | zenith-meridian |
+| Meridian (chosen Settings name) | System Settings; [ordered plan](MERIDIAN-PLAN.md) | Existing zenith-settings retained initially; rename/migration separate |
 | Orbit | Graphical package/update browser | zenith-orbit |
 | Observatory | System/process/resource monitor | zenith-observatory |
 | Beacon | Network status/configuration and diagnostics | zenith-beacon |

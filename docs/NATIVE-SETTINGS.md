@@ -153,3 +153,7 @@ Host tests separately cover failed storage, malformed/future config and resource
 concurrent/stale editors, dirty close overflow/revocation, readonly controls and
 save/discard state transitions with ASan/UBSan. Local proof does not establish
 server publication or operator-installed acceptance.
+
+Meridian is the chosen application name for the next shell. Its [implementation
+plan](MERIDIAN-PLAN.md) and [full page inventory](MERIDIAN-PAGES.md) describe the
+future scope; this document continues to describe the implemented Appearance API.

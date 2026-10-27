@@ -3,6 +3,21 @@
 Updated **2026-10-27**. [Status](STATUS.md) owns delivery boundaries;
 [Roadmap](ROADMAP.md) orders future work.
 
+## Meridian scope and implementation plan
+
+- [x] Read and preserve the user's complete Settings outline; adopt Meridian as
+  the application name without silently renaming the published package.
+- [x] Compare existing source/services and check KDE references for ambiguous
+  formatting/window-management concepts.
+- [x] Define all 10 categories/43 destinations and preserve requested controls in
+  a [page inventory](MERIDIAN-PAGES.md), including later/WIP modules.
+- [x] Write the [ordered implementation plan](MERIDIAN-PLAN.md): full shell first,
+  display resolution/scaling early, then capability-backed increments. Define WIP,
+  no-device, unsupported, readonly and error states separately.
+- [x] Validate unique page IDs, category counts, coverage and document links.
+- [ ] Next implementation: M1 navigation/page registry/WIP shell and shared client
+  foundations. This planning slice does not implement the expanded menus.
+
 ## Functional Appearance settings
 
 - [x] Inspect settings authority, graphics ownership and signed resource loading.
@@ -39,7 +54,9 @@ Updated **2026-10-27**. [Status](STATUS.md) owns delivery boundaries;
   real keyboard/pointer light/Teal selection, disabled effects, shell restoration,
   unchanged kernel digest and independent ext2 audit.
   [Evidence](archive/2026-10-27/shared-userland-ui.md).
-- [ ] Implement authorized Settings state/services and resource preference loading.
+- [x] Implement typed Appearance state/services and signed semantic palettes.
+- [ ] Extend per-user preference scope and native font/resource loading per the
+  [Meridian plan](MERIDIAN-PLAN.md).
 
 [Library contract, limits and commands](USERLAND-UI.md). Fixed ASCII atlases and
 static client linkage are explicit first-slice limits; no scalable/Unicode text,

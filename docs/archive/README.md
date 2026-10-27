@@ -71,3 +71,6 @@ and relative-link rebasing are the only archival edits in this reorganization.
 
 - [2026-10-27 functional Appearance settings](2026-10-27/appearance-settings.md):
   typed service, independent GUI, dirty close and save/apply/reboot evidence.
+
+- [2026-10-27 Meridian user requirements](2026-10-27/meridian-user-requirements.md):
+  original Settings outline; execution order and coverage live in the linked plan.

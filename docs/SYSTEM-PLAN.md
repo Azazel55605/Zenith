@@ -91,7 +91,19 @@ page supersede its delivery status; do not treat historical proposals as shipped
 User direction: neutral, softly layered surfaces; light and dark modes together
 with dark initially default; six accent presets, later a custom color picker;
 optional transparency/translucency and backdrop blur with user controls and an
-opaque fallback. The [design language](DESIGN-LANGUAGE.md) owns the draft visual
-rules and separates accepted direction from proposed measurements. Shared widgets
-follow this work; effects and configurable delivery depend on compositor and
-Settings/CLI services that are not yet implemented.
+opaque fallback. The [design language](DESIGN-LANGUAGE.md) owns the accepted visual
+baseline. Shared native widgets and the first typed Appearance/CLI service are
+implemented and locally qualified; advanced effects, per-user preferences and the
+broader [Meridian scope](MERIDIAN-PLAN.md) remain planned.
+
+## Meridian Settings scope (2026-10-27)
+
+Meridian is the selected Settings application name. The user's full category/menu
+outline is preserved in the [scope record](archive/2026-10-27/meridian-user-requirements.md).
+Implement every menu even where services are not ready; show a WIP message at the
+top of pages with unimplemented features. Keep unsupported hardware and readonly
+permissions distinct from missing implementation. [Ordered plan](MERIDIAN-PLAN.md)
+and [page inventory](MERIDIAN-PAGES.md) own dependencies, proposed phases and all
+requested controls. Prioritize resolution/scaling; Bluetooth, printers and advanced
+accessibility remain later features. This is accepted scope, not evidence of those
+menus or services already working.

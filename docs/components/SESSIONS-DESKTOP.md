@@ -30,6 +30,14 @@ Files remains a simple single-selection filesystem test application. Editor is a
 small GUI editor. The System information window is not a Settings application.
 The desktop floats windows; there are no implemented automatic-tiling WM/workspaces.
 
+## Meridian planning
+
+Meridian is the chosen Settings application name. The [ordered plan](../MERIDIAN-PLAN.md)
+and [43-page inventory](../MERIDIAN-PAGES.md) own the requested expansion. All menus
+must become navigable in the first shell slice; incomplete features get top-of-page
+WIP notices. Resolution/scaling is the first major backend priority. The current
+published package name remains `zenith-settings`; no rename or expanded UI is claimed.
+
 ## Remaining steps
 
 - [x] Implement the first [protected surface/event API](../GRAPHICAL-CLIENTS.md)

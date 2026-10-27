@@ -1,6 +1,6 @@
 # Roadmap
 
-Reviewed **2026-10-26**. This page owns order and milestone exits, not the execution
+Reviewed **2026-10-27**. This page owns order and milestone exits, not the execution
 log. Read [Status](STATUS.md) for delivery evidence and [Progress](PROGRESS.md) for
 active work. Historical milestone version targets are not release versions.
 
@@ -21,9 +21,12 @@ active work. Historical milestone version targets are not release versions.
    [shared native widgets/text](USERLAND-UI.md) pass local compositor acceptance.
    The [independent Appearance page](NATIVE-SETTINGS.md) now has typed authorized
    persistence, signed palettes and saved/active state; full Release qualification
-   passes at `12ded91`. Publish and complete [installed acceptance](SETTINGS-VM-TEST.md), then port other applications to
-   the shared GUI before expanding Settings pages. Preserve
-   the trusted test DE until independent compositor/session teardown is verified.
+   passes at `12ded91`; release tags are pushed. Confirm distributor delivery and
+   [installed acceptance](SETTINGS-VM-TEST.md). Follow the [Meridian plan](MERIDIAN-PLAN.md):
+   expose every menu with honest WIP states first, prioritize display resolution/
+   scaling, and activate services incrementally. Port other apps in parallel after
+   shared UI/display/preference foundations; do not wait for every later hardware
+   feature. Preserve the test DE until independent compositor/session teardown is verified.
 3. **Retain installed acceptance boundaries.** Operator reports installation;
    local QEMU tests and server publication are separate evidence. Continue
    representative installed permissions/input/update checks as features ship.
