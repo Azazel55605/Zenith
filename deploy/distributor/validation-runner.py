@@ -40,6 +40,8 @@ def run_harness(script):
     profile = importlib.util.module_from_spec(spec); spec.loader.exec_module(profile)
     spec = importlib.util.spec_from_file_location('guest_auth_controller', Path(__file__).resolve().parents[2] / 'tools/guest_auth.py')
     authentication = importlib.util.module_from_spec(spec); spec.loader.exec_module(authentication)
+    spec = importlib.util.spec_from_file_location('validation_input', Path(__file__).with_name('validation-input.py'))
+    input_profile = importlib.util.module_from_spec(spec); spec.loader.exec_module(input_profile)
     original_exec = importlib.machinery.SourceFileLoader.exec_module
     instances = []
     headless = script.parent / 'headless-smoke.py'
@@ -50,6 +52,7 @@ def run_harness(script):
             network.install(module.Machine, instances)
             status.install(module.Machine)
             authentication.install(module.Machine)
+            if script.name == 'native-graphics-smoke.py': input_profile.install(module.Machine)
             profile.install(module.Machine, elf=module.ROOT / 'output-x64/Zenith.elf' if hasattr(module, 'ROOT') else None)
     importlib.machinery.SourceFileLoader.exec_module = execute
     started = time.monotonic()

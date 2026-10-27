@@ -8,6 +8,8 @@ spec=importlib.util.spec_from_file_location('h',ROOT/'tools/headless-smoke.py');
 spec=importlib.util.spec_from_file_location('login',ROOT/'tools/login-session-smoke.py');login=importlib.util.module_from_spec(spec);spec.loader.exec_module(login)
 
 def main():
+    spec=importlib.util.spec_from_file_location('graphics_input',ROOT/'deploy/distributor/validation-input.py')
+    input_profile=importlib.util.module_from_spec(spec);spec.loader.exec_module(input_profile);input_profile.install(h.Machine)
     keep=Path(sys.argv[1]);keep.mkdir(parents=True,exist_ok=False)
     tool=ROOT/'tools/Zenith.PackageTool/bin/Release/net10.0/Zenith.PackageTool.dll'
     subprocess.run(['dotnet','build',str(ROOT/'tools/Zenith.PackageTool'),'-c','Release'],check=True,stdout=subprocess.DEVNULL)
@@ -85,33 +87,12 @@ def main():
         status('native run gui-probe --probe | logger','G_AFTER_FAULT')
         # Actual pixels and focused input through WindowManager, not synthetic
         # event injection or a kernel-linked application.
-        time.sleep(.5)
-        off=len(m.log());login.monitor_type(monitor,'sh /root/'+scripts['native run gui-probe | logger; echo G_INTERACTIVE=$? | logger']+'\n')
-        assert m.wait('native surface opened',off,30),'surface admission';time.sleep(1)
-        monitor_command(monitor,'screendump '+str(keep/'client.ppm'))
-        ppm=(keep/'client.ppm').read_bytes();assert ppm.count(bytes.fromhex('6b8cff'))>=5000,'native pixels visible'
-        parts=ppm.split(b'\n',3);w,height=map(int,parts[1].split());rgb=parts[3]
-        locations=[i//3 for i in range(0,len(rgb),3) if rgb[i:i+3]==bytes.fromhex('6b8cff')]
-        left=min(i%w for i in locations)-20;top=min(i//w for i in locations)-20
-        cursor_x=left+160;cursor_y=top+100
-        monitor_command(monitor,'mouse_move '+str(cursor_x-w//2)+' '+str(cursor_y-height//2))
-        time.sleep(.2)
-        monitor_command(monitor,'mouse_button 1');time.sleep(.15);monitor_command(monitor,'mouse_button 0');time.sleep(.2)
-        # Focus the underlying terminal. F12 must not reach the native window.
-        tx=(w-740)//2+28+15;ty=(height-64-470)//2+28+19
-        monitor_command(monitor,'mouse_move '+str(tx-cursor_x)+' '+str(ty-cursor_y));time.sleep(.15)
-        monitor_command(monitor,'mouse_button 1');time.sleep(.15);monitor_command(monitor,'mouse_button 0');time.sleep(.15)
-        monitor_command(monitor,'sendkey f12 30');time.sleep(.2)
-        # The raised terminal covers the client. Select the second taskbar pill
-        # (Welcome, native client, terminal), rather than clicking through it.
-        cursor_x=200;cursor_y=height-32
-        monitor_command(monitor,'mouse_move '+str(cursor_x-tx)+' '+str(cursor_y-ty));time.sleep(.15)
-        monitor_command(monitor,'mouse_button 1');time.sleep(.15);monitor_command(monitor,'mouse_button 0');time.sleep(.15)
-        monitor_command(monitor,'sendkey a 30');time.sleep(.2);monitor_command(monitor,'sendkey esc 30')
-        assert m.wait('user: G_INTERACTIVE=0',off,60),'interactive completion'
-        raw=m.log()[off:];assert 'GUI_POINTER' in raw and raw.count('GUI_KEY')==2,'focus-filtered events'
-        assert 'GUI_FOCUS_OUT' in raw and 'GUI_FOCUS_IN' in raw,'focus transitions';checks+=4
-        print('PASS native pixels, pointer and focused key input',flush=True)
+        from guest_graphics import check as check_graphics
+        def start_interactive():
+            time.sleep(.5);off=len(m.log())
+            login.monitor_type(monitor,'sh /root/'+scripts['native run gui-probe | logger; echo G_INTERACTIVE=$? | logger']+'\n')
+            return off
+        cursor_x,cursor_y,passed=check_graphics(m,monitor,keep,start_interactive);checks+=passed
         # A chrome close must be delivered without exposing compositor controls.
         time.sleep(.5)
         off=len(m.log());login.monitor_type(monitor,'sh /root/'+scripts['native run gui-probe | logger; echo G_CLOSE=$? | logger']+'\n')

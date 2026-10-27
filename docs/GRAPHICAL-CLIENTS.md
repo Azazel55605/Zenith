@@ -102,3 +102,6 @@ and shared client widgets/tokens. Dynamic resizing, damage rectangles, scalable
 text/font resources, a reusable SDK, launcher lifecycle and long-lived app budgets
 need separate increments. The compositor/login/session remain trusted kernel-linked
 code; this API does not claim the desktop migration is complete.
+
+The disposable graphical gate uses an explicitly selected virtio mouse and keyboard;
+legacy PS/2 coverage is separate. [Distributor input-profile evidence and no-build replay](archive/2026-10-27/graphical-input-profile.md).

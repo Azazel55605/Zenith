@@ -1,7 +1,24 @@
 # Active work
 
-Updated **2026-10-26**. [Status](STATUS.md) owns delivery boundaries;
+Updated **2026-10-27**. [Status](STATUS.md) owns delivery boundaries;
 [Roadmap](ROADMAP.md) orders future work.
+
+## Distributor graphical-input validation
+
+- [x] Read the failed 0.0.24 event trace: no pointer/focus-loss event, three keys
+  and successful client exit. Intended mouse-driven focus changes did not occur.
+- [x] Add explicit, verified virtio-mouse selection for this disposable graphical
+  profile only, preserving the kernel/tag and other device coverage.
+- [x] Add phase acknowledgements, bounded event/geometry diagnostics and no-build
+  fixture replay on a verified independent disk copy.
+- [x] Local virtio and PS/2 replays pass; unchanged tagged graphical harness passes
+  48 checks and ext2 audit under the corrected controller profile.
+- [x] Current hardened graphical gate passes all 48 checks and ext2 audit (133.226 s);
+  all 223 controller regressions pass. Kernel/userland sources remain unchanged.
+- [ ] Complete distributor no-build replay before another expensive release retry.
+  Exact server PS/2 cause is unconfirmed.
+
+[Evidence and replay command](archive/2026-10-27/graphical-input-profile.md).
 
 ## Protected graphical-client API
 
