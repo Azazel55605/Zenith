@@ -9,8 +9,8 @@ the theme package. Existing legacy themes/clients retain their original behavior
 until explicit preferences or new verified resources select the new palette.
 [Contract](../../NATIVE-SETTINGS.md) · [Operator checklist](../../SETTINGS-VM-TEST.md).
 
-No release tags have been pushed and no distributor/operator installation is
-claimed. Other apps have not been migrated. Native font atlases remain compiled;
+Release tags are pushed as recorded below; distributor publication and operator
+installation are not yet confirmed. Other apps have not been migrated. Native font atlases remain compiled;
 blur/transparency, per-user overrides, elevation and scalable text remain pending.
 
 ## Focused proof before Release qualification
@@ -97,6 +97,23 @@ keeping multi-gigabyte images on disk-backed storage instead of the RAM-backed
 The final validator verifies both unchanged artifact hashes and a clean source
 revision. The following qualification-record commit changes documentation only.
 
-Remaining: publish after authorization, install/confirm the compatible kernel before
-Settings, and complete the actual installed-VM checklist. The distributor VM needs
+Remaining after qualification: confirm distributor publication, install/confirm the
+compatible kernel before Settings, and complete the actual installed-VM checklist. The distributor VM needs
 Python Pillow (`python3-pil` on Debian) for font atlas generation and the new gate.
+
+## Authorized release tags
+
+The operator authorizes publication on 2026-10-27. `main` and these annotated tags
+were pushed atomically to `Azazel55605/Zenith`; a remote lookup verifies every peeled
+release tag points to qualified commit `12ded91d993a26190f68cf1bd3be535731cf88aa`:
+
+- `kernel/v0.0.25`
+- `zenith-settings/v0.1.0`
+- `zenith-theme-default/v0.1.1`
+- `zenith-man-pages/v0.1.6`
+
+The build VM needs `git pull --ff-only` in its controller checkout for the new
+Settings recipe, and Python Pillow (`sudo apt-get install python3-pil`). Tags trigger
+the existing build/sign/publish workflow; this push does not prove its completion.
+Install and boot-confirm kernel 0.0.25 before the new Settings package. Actual
+server publication and installed checklist acceptance remain pending.

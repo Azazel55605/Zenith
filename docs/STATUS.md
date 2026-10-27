@@ -121,5 +121,7 @@ service are implemented. Focused local guest checks pass preview/save, dirty-clo
 confirmation, live host application, reboot persistence, native/CLI authority and
 same-kernel package upgrade with a clean independent ext2 audit. Clean-source Release
 qualification passes at `12ded91` (734 host, 238 controllers and all eight native
-gates). Publication and [operator acceptance](SETTINGS-VM-TEST.md) remain pending.
+gates). Authorized kernel 0.0.25/Settings 0.1.0/theme-default 0.1.1/manuals 0.1.6
+tags are pushed at that exact source. Distributor delivery and
+[operator acceptance](SETTINGS-VM-TEST.md) remain pending.
 [Evidence](archive/2026-10-27/appearance-settings.md).

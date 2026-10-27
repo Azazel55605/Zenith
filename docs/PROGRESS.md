@@ -18,8 +18,11 @@ Updated **2026-10-27**. [Status](STATUS.md) owns delivery boundaries;
   gates, including 169 kernel recovery checks, plus unchanged artifact/clean-source
   verification. [Exact evidence](archive/2026-10-27/appearance-settings.md).
 - [x] Record qualification and the [kernel-first package handoff](SETTINGS-VM-TEST.md).
-- [ ] Publish after authorization and complete operator-installed acceptance, then
-  port other applications onto the shared GUI.
+- [x] Operator authorizes publication; main and kernel 0.0.25/Settings 0.1.0/
+  theme-default 0.1.1/manuals 0.1.6 tags pushed atomically. Remote peeled tags
+  all match qualified `12ded91`.
+- [ ] Confirm distributor delivery and operator-installed acceptance, then port
+  other applications onto the shared GUI.
 
 ## Shared native UI foundation
 
