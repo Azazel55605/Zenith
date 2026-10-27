@@ -31,8 +31,11 @@ Updated **2026-10-27**. [Status](STATUS.md) owns delivery boundaries;
 - [x] Add --full no-build replay of every retained desktop assertion, signed probe
   upgrade and ext2 audit on a disk copy. It passes locally (21 desktop checks);
   original tagged gate passes 48 checks and all 237 controller regressions pass.
-- [ ] Run full desktop replay on the distributor before another full release retry,
-  then confirm delivery and installed acceptance. Legacy PS/2 cause is unconfirmed.
+- [x] Operator confirms full desktop replay passed on QEMU 10.0.13/TCG with
+  exact server kernel SHA256 `078261ccf5d6bf96329361a5b94ef7d9f87efc7a2096be5ef90a89ce509c1ade`:
+  21 desktop checks and independent ext2 audit; original fixture preserved.
+- [ ] Retry existing kernel 0.0.24, then confirm complete distributor delivery and
+  installed acceptance. Legacy PS/2 cause remains unconfirmed.
 
 [Evidence and replay command](archive/2026-10-27/graphical-input-profile.md).
 

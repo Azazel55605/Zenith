@@ -139,3 +139,15 @@ Local evidence (unchanged 0.0.24 kernel):
 Distributor full replay remains pending. After pulling the controller, add --full
 to the replay command above, retaining the original failed fixture and matching ELF.
 Do not start another expensive release retry until the whole desktop replay passes.
+
+## Full distributor replay confirmed
+
+On 2026-10-27 the operator reports the full no-build desktop replay passed on
+QEMU 10.0.13/TCG against unchanged server kernel SHA256
+`078261ccf5d6bf96329361a5b94ef7d9f87efc7a2096be5ef90a89ce509c1ade`.
+All 21 desktop checks and the independent ext2 audit pass: pointer/focus isolation,
+close, minimized cancellation/retirement, quota recovery, signed probe upgrade to
+0.1.1, different-UID denial and matching-session access. Evidence is retained at
+`/var/tmp/zn-gui-hbvbkxh8`; the original fixture is preserved. This supersedes the
+pending replay note above. Complete release retry/signing/delivery and actual
+operator-VM installation remain separate acceptance steps.
