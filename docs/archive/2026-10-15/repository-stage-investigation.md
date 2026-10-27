@@ -56,4 +56,4 @@ Obtain the filtered server update output and actual accelerator/timing metric
 before deciding whether to repair guest behavior, server policy or observation.
 Pulling the controller fixes preserves the existing 0.0.13 tag and signing keys.
 Do not claim the server failure is fixed from the local pass. See
-[active progress](../../PROGRESS.md) and [diagnostic runbook](../../../deploy/distributor/AUTOMATION.md#repository-kernel-staging-failures).
+[active progress](../../ROADMAP.md#current-focus-and-execution-order) and [diagnostic runbook](../../../deploy/distributor/AUTOMATION.md#repository-kernel-staging-failures).

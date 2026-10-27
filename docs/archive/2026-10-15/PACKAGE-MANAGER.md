@@ -1,11 +1,11 @@
 > **Historical snapshot, archived 2026-10-15.** Statements such as “pending” and
-> “next” refer to their original date. Use the [current status](../../STATUS.md).
+> “next” refer to their original date. Use the [current status](../../ROADMAP.md#state-and-evidence).
 
 # Package manager and installed updates: design discussion
 
-**Status: staged design, 2026-10-11.** The [P0 offline prototype](../../PACKAGE-PROTOTYPE.md)
+**Status: staged design, 2026-10-11.** The [P0 offline prototype](../2026-10-27/package-prototype.md)
 implements a host builder and shared host/guest inspect/dry-run core. Signed offline script/data installation, ownership and dependency/conflict handling
-are now implemented in [PACKAGES](../../PACKAGES.md), with validation recorded in [PROGRESS](../../PROGRESS.md).
+are now implemented in [PACKAGES](../../PACKAGES.md), with validation recorded in [Master roadmap](../../ROADMAP.md#current-focus-and-execution-order).
 Online signed metadata/client remains unimplemented. Dedicated signed kernel update
 activation/rollback is implemented in [KERNEL-UPDATES](../../KERNEL-UPDATES.md); coordinated
 kernel/root-data release activation remains future work. This
@@ -14,7 +14,7 @@ Accepted first container: bounded uncompressed .zpk with RSA-PSS/SHA256 authenti
 core/extra sections and grouped tool identities. Native tool separation follows P1 before
 independent compiled tool updates.
 Clarified direction: future desktop/apps are independent userland components;
-initial repository hosting is a dedicated home VM reachable on LAN and through existing VPN/DNS. See [USERLAND](../../USERLAND.md),
+initial repository hosting is a dedicated home VM reachable on LAN and through existing VPN/DNS. See [USERLAND](../../components/USERLAND.md),
 [PACKAGE-SERVER](../../PACKAGE-SERVER.md) and [UPDATE-RECOVERY](../../UPDATE-RECOVERY.md).
 Networking, secure guest signature verification, application loading and boot recovery
 must not be inferred from examples below. Command names and paths are illustrative.

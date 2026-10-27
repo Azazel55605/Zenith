@@ -123,7 +123,7 @@ flushed boundaries; this does not promise recovery from every physical power-los
 controller-cache failure. Keep the external ISO and backups. No snapshots, Secure Boot,
 bootloader package replacement or rollback of changes made by a broken kernel is provided.
 Physical hardware/USB acceptance and the previously observed KVM installed-boot failures
-remain separate from TCG VM acceptance. See [PROGRESS](PROGRESS.md) for exact evidence.
+remain separate from TCG VM acceptance. See [Master roadmap](ROADMAP.md#current-focus-and-execution-order) for exact evidence.
 
 ## Container and validation
 

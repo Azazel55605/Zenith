@@ -1,12 +1,16 @@
 # CLI package VM test
 
-This handoff targets kernel **0.0.21**, Sunbeam **0.5.0**, manuals **0.1.3**,
-`zenith-base-tools` **0.1.0** and `zenith-fs-tools` **0.1.0**. Publication and
-installed acceptance are separate from the local qualification record.
+> Reusable test procedure. Results and remaining acceptance are tracked only in
+> [the master roadmap](../ROADMAP.md#state-and-evidence); version-specific examples
+> are historical handoffs, not new release instructions.
+
+Check the current compatible kernel, Sunbeam, base/filesystem and manuals versions
+against distributor receipts. Do not downgrade to the original 0.0.21 examples.
+This procedure records expectations, not installed acceptance state.
 
 ## Distributor
 
-When no build is running, update the controller so it recognizes the two new
+When no build is running, update the controller so it recognizes the required
 package recipes, then start a poll:
 
 ```sh

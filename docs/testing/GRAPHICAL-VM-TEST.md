@@ -1,14 +1,17 @@
 # Protected graphical-client VM test
 
-Release targets: kernel **0.0.24** and **zenith-gui-probe 0.1.0**. Both tags are
-pushed at exact qualified source `cea1f5a`. Distributor signing/publication/delivery
-and installed acceptance remain pending; pushed tags alone do not mean the
-packages are available from the home repository.
+> Reusable test procedure. Results and remaining acceptance are tracked only in
+> [the master roadmap](../ROADMAP.md#state-and-evidence); version-specific examples
+> are historical handoffs, not new release instructions.
+
+Use a currently qualified kernel/client pair from the master roadmap. The original
+0.0.24/probe 0.1.0 handoff is historical and was operator exercised; no pending
+publication claim is maintained in this procedure.
 
 ## Distributor and installation
 
-When the distributor is idle, pull its controller to recognize the new graphical
-probe recipe and seventh native gate:
+When the distributor is idle, pull its controller to recognize the required graphical
+probe recipe and current native gates:
 
 ```sh
 cd /home/zenith-release/Zenith
@@ -77,4 +80,4 @@ This first API has fixed-size copied surfaces and finite process/request budgets
 No hardware framebuffer mapping, global input access, dynamic resizing, clipboard,
 font service or general IPC is exposed. Settings needs the next typed authorized
 service contract and shared client widgets/resources. The desktop/compositor and
-login remain trusted kernel code. See [ABI details](GRAPHICAL-CLIENTS.md).
+login remain trusted kernel code. See [ABI details](../GRAPHICAL-CLIENTS.md).

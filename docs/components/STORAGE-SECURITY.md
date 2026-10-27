@@ -1,58 +1,38 @@
-# Storage and security
+# Storage and account security
 
-[Documentation](../README.md) · [Current status](../STATUS.md)
+[Master roadmap](../ROADMAP.md) · [Documentation](../README.md)
 
-**State:** M2 complete for the supported ext2 profile. Installed VM usage is
-operator confirmed; larger disks/features and physical hardware are separate work.
+Work IDs below are detailed steps of the master tracker, not a separate schedule.
 
-## Implemented steps
+## Implemented boundary
 
-- [x] Provide RAM live root, installed ext2 root, FAT32 ESP and virtual proc/dev.
-- [x] Implement supported-profile ext2 allocation, resize/delete, rename/directory
-  moves, bounded symlinks and numeric ownership/mode metadata.
-- [x] Add guarded formatting/mounting and read-only consistency checking; refuse
-  inconsistent roots instead of mounting them writable.
-- [x] Add users, salted password records, hidden authentication and caller credentials.
-- [x] Enforce traversal/read/write, groups, sticky/setgid and privileged operations
-  across shell, GUI, System.IO, direct inode and held-handle paths.
-- [x] Recheck caller access through the native read-only filesystem bridge.
-- [x] Serialize complete ext2 operations per volume and isolate inode-table RMW
-  buffers; host regressions cover interrupted metadata and concurrent file writes.
-  The rebuilt kernel passed common native acceptance and independent ext2/EFI
-  audits; [evidence](../archive/2026-10-16/kernel-update-ancestor-investigation.md).
-  Server publication and installed VM acceptance of the fix remain outstanding.
+RAM live root, bounded installed ext2, FAT32 ESP, proc/dev and private temporary
+storage work. Accounts, hidden authentication, ownership/groups/modes, sticky/setgid,
+symlinks and held-handle authorization are enforced. Complete ext2 operations are
+serialized per volume with private metadata buffers; the old inode corruption fix
+has been followed by later operator-installed kernels, so it is not a pending
+0.0.13 deployment blocker.
 
-## Current boundary
+The root profile remains **512 MiB**; ext2 is not journaled. Dirty-root read-only
+checking can refuse writable startup; repairs remain host-side. Parent `..`
+traversal and some general filesystem semantics remain limited. FAT cannot persist
+Unix permissions. Trusted kernel code is not isolated by VFS policy.
 
-New installed roots are bounded to **512 MiB**. The formatter, checker, inode/memory
-budgets and mapping rules must change together before raising that cap. ext2 is
-not journaled. `sync` flushes data; a completed unmount marks the volume clean.
-`fsck.ext2` checks supported unmounted volumes; repair remains host-side e2fsck.
-The VFS rejects parent traversal (`..`) and uses deferred namespace deletion while
-handles remain open. These are explicit compatibility limits.
+## R1–R3 — Capacity, semantics and recovery
 
-FAT cannot supply persisted Unix permissions. Existing kernel-linked code remains
-trusted; access enforcement does not isolate arbitrary kernel code. Protected
-native processes have the separate boundary described in [userland](USERLAND.md).
-
-## Remaining steps
-
-- [ ] Design a larger supported storage profile with memory/inode/installer budgets.
-- [ ] Choose journal/repair or generation-based recovery policy before claiming
-  general crash durability.
-- [ ] Extend filesystem semantics only with traversal, symlink and held-handle tests.
-- [ ] Establish physical device compatibility and recovery procedures.
+- [ ] Measure a larger profile; change formatter/checker/inode/memory/mapping and
+  installer budgets together. A constant increase is not capacity support.
+- [ ] Define crash repair/journal versus generation policy and mutable-data scope.
+- [ ] Extend traversal/symlink/link/rename/held-handle semantics only with auth and
+  interruption/concurrent-I/O regression tests.
+- [ ] Validate trial/restore, retention, out-of-space/power-loss and damaged ESP/root
+  on disposable generations; physical-device coverage belongs to H1.
 
 ## Source and acceptance
 
-Owners: [storage](../../src/Core/Storage), [security](../../src/Core/Security),
-[native VFS adapter](../../src/Core/Processes/NativeProcessFiles.cs).
-Contracts: [architecture storage section](../ARCHITECTURE.md#storage-and-installation),
-[accounts](../ACCOUNTS.md), [installation](../INSTALLATION.md).
-
-Use [security smoke](../../tools/security-smoke.py),
-[filesystem/desktop smoke](../../tools/smoke-test.py) and
-[native process smoke](../../tools/native-process-smoke.py) for relevant changes.
-Require allow/deny checks as ordinary user and root, reboot persistence, clean
-shutdown and independent host filesystem audit on disposable images. Recorded
-runs are in the [execution archive](../archive/2026-10-15/PROGRESS.md).
+[Storage](../../src/Core/Storage), [security](../../src/Core/Security),
+[accounts](../ACCOUNTS.md), [installer](../INSTALLATION.md),
+[recovery design](../UPDATE-RECOVERY.md).
+Preserve ordinary/root denials, reboot persistence, clean shutdown and independent
+ext2 audits. [Corruption investigation](../archive/2026-10-16/kernel-update-ancestor-investigation.md)
+is historical evidence, not an open retry queue.

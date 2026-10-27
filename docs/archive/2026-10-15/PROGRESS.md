@@ -1,5 +1,5 @@
 > **Historical snapshot, archived 2026-10-15.** Statements such as “pending” and
-> “next” refer to their original date. Use the [current status](../../STATUS.md).
+> “next” refer to their original date. Use the [current status](../../ROADMAP.md#state-and-evidence).
 
 # Implementation progress
 
@@ -1519,7 +1519,7 @@ permissions and reports accurate metadata through `ls -l`.
 
 - Inspected Zenith command dispatch, buffered pipelines, terminal input and the
   Cosmos native/PAL interfaces, and checked Bash execution sources plus GNU build
-  options and wasi-libc headers. Recorded [BASH-PORT.md](../../BASH-PORT.md).
+  options and wasi-libc headers. Recorded [BASH-PORT.md](../../DEVELOPER-TOOLS.md#bash).
 - Bash is technically feasible as a later program-runtime target, but current
   Zenith lacks the C/POSIX execution contract. Standard WASI preview 1 does not
   supply fork/exec or terminal job-control semantics; M5 needs an explicit design

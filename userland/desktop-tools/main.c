@@ -28,7 +28,7 @@ int main(int argc,char **argv){
     int done=0,scroll=0,lines=0,result=0;
     while(!done){
         if(ui.dirty){
-            zui_clip(&ui,(struct zui_rect){0,0,600,440});zui_fill(&ui,ui.clip,ui.theme.surface);
+            zui_clip(&ui,(struct zui_rect){0,0,600,440});zui_surface(&ui,ui.clip,0,ZUI_SURFACE_CONTENT);
             const char *title=about?"About this system":"Welcome to Zenith";
             zui_text(&ui,24,20,title,64,&zui_heading,ui.theme.text);
             const char *body=about?information:"Your desktop, built around independent applications.\n\nUse the launcher to open Terminal, Editor and Files. Drag a window by its title bar; use the taskbar to switch between applications.\n\nMeridian is the system settings app. Colors supports Light and Dark modes and six accent presets. Planned settings are marked Work in progress.\n\nTerminal remains the command line and recovery host. Type help to explore commands.\n\nSunrise installs Zenith from the live image. Installation erases the selected disk only after explicit confirmation.";

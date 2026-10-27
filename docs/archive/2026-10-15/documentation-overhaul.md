@@ -30,5 +30,5 @@ kernel/package release or server deployment is part of this slice.
 
 Resume native-tool release acceptance before the next input/write API slice.
 Full 0.0.13 distributor gates, publication and installed acceptance remain unreported.
-Use [Status](../../STATUS.md), [Roadmap](../../ROADMAP.md) and
-[active work](../../PROGRESS.md) rather than the archived task lists.
+Use [Master roadmap](../../ROADMAP.md#state-and-evidence), [Roadmap](../../ROADMAP.md) and
+[active work](../../ROADMAP.md#current-focus-and-execution-order) rather than the archived task lists.

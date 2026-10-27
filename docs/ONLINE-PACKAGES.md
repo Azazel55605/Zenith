@@ -1,6 +1,8 @@
 # Signed online packages (0.0.7, extended in 0.0.8)
 
-> Current guest workflow and signed catalog contract. Work steps: [Packages](components/PACKAGES.md); release acceptance: [Status](STATUS.md).
+Work owners: **PK1–PK4/Q1/Q2** in the [master roadmap](ROADMAP.md). This page is a contract/procedure, not a separate work tracker.
+
+> Current guest workflow and signed catalog contract. Work steps: [Packages](components/PACKAGES.md); release acceptance: [Master roadmap](ROADMAP.md#state-and-evidence).
 
 ## On this page
 

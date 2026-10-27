@@ -61,5 +61,5 @@ All **92 repository checks pass in 424.057 seconds**, including actual reboot,
 confirmation, package recovery/permissions and independent ext2 audit. The combined
 update passes in **191.696 seconds** and records the advancing-stage budget, actual
 TCG and genuine successful exit. This local run does not establish server publication
-or installed operator acceptance. See [active progress](../../PROGRESS.md). Evidence:
+or installed operator acceptance. See [active progress](../../ROADMAP.md#current-focus-and-execution-order). Evidence:
 `/tmp/zenith-repo13-budget.log`, `/tmp/zn-repo13-budget`.

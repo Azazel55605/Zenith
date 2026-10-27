@@ -16,7 +16,7 @@ int gallery_init(struct gallery *g,unsigned int *pixels,int light){
 }
 void gallery_draw(struct gallery *g){
     struct zui *u=&g->ui;zui_clip(u,(struct zui_rect){0,0,600,440});
-    zui_fill(u,u->clip,u->theme.surface);
+    zui_surface(u,u->clip,0,ZUI_SURFACE_CONTENT);
     label(g,24,16,"Appearance",&zui_heading,u->theme.text);
     label(g,24,51,"Widget gallery - local preview, not saved Settings",&zui_body,u->theme.secondary);
     label(g,24,79,"Color mode",&zui_label,u->theme.text);

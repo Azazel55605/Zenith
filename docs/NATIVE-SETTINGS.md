@@ -1,12 +1,14 @@
 # Native Settings and Appearance
 
+Work owners: **S1/D1/D3** in the [master roadmap](ROADMAP.md). This page is a contract/procedure, not a separate work tracker.
+
 [Shared UI](USERLAND-UI.md) · [Design language](DESIGN-LANGUAGE.md) ·
 [System settings/session behavior](SETTINGS-SESSIONS.md)
 
 The independently compiled `zenith-settings` package supplies the first functional
 Appearance page. The GUI and trusted `settings` command use the same root-only
 system preference authority. This is not a kernel-linked Settings window.
-Current unshipped source extends it into the [Meridian shell and app migration](NATIVE-APP-MIGRATION.md); the published 0.0.25/Settings 0.1.0 tags still contain the qualified Appearance-only client.
+Current unshipped source extends it into the [Meridian shell and app migration](components/SESSIONS-DESKTOP.md#native-app-migration); the published 0.0.25/Settings 0.1.0 tags still contain the qualified Appearance-only client.
 
 ## Use and visible behavior
 
@@ -35,7 +37,7 @@ revision check: stale saves fail rather than overwrite. Reloading over edits nee
 an explicit discard choice. Escape, the Close button and a dirty title-bar close
 request offer **Keep editing / Discard changes**. Session logout refuses unsaved
 windows. Forced process cancellation or host revocation still terminates the client
-without saving. Current source opts into the [owned interactive profile](NATIVE-APP-MIGRATION.md#interactive-and-metadata-contracts); the published Appearance-only client retains the original lifetime budgets.
+without saving. Current source opts into the [owned interactive profile](GRAPHICAL-CLIENTS.md#interactive-and-metadata-contracts); the published Appearance-only client retains the original lifetime budgets.
 
 ## Persistence and resources
 

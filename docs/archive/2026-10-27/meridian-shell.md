@@ -2,7 +2,7 @@
 
 **Local pre-release implementation, 2026-10-27.** This is a completed foundation
 increment within the larger migration, not completion of all system apps or full
-release qualification. [Current scope and remaining ports](../../NATIVE-APP-MIGRATION.md).
+release qualification. [Current scope and remaining ports](../../components/SESSIONS-DESKTOP.md#native-app-migration).
 
 ## Changes and boundaries
 

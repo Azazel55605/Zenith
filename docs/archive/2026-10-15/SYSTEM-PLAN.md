@@ -1,5 +1,5 @@
 > **Historical snapshot, archived 2026-10-15.** Statements such as “pending” and
-> “next” refer to their original date. Use the [current status](../../STATUS.md).
+> “next” refer to their original date. Use the [current status](../../ROADMAP.md#state-and-evidence).
 
 # Zenith system plan
 
@@ -11,7 +11,7 @@ Later clarification: **desktop and applications must ultimately move outside the
 customization is required alongside the proper desktop implementation. Home package
 hosting uses a dedicated VM with its own IP, LAN access and existing VPN/DNS remote access. Snapshot/trial-boot/restore behavior is a requested investigation.
 Implementation mechanisms below are proposals unless explicitly marked current.
-See [userland separation](../../USERLAND.md), [home repository](../../PACKAGE-SERVER.md) and
+See [userland separation](../../components/USERLAND.md), [home repository](../../PACKAGE-SERVER.md) and
 [upgrade recovery](../../UPDATE-RECOVERY.md).
 
 ## 1. System shape
@@ -246,8 +246,8 @@ matched system data can be published and applied without generating a new ISO;
 compiled code still requires a build and reboot. Independent application packages
 need the M5 runtime/API contract. The userland split is the accepted target; protected native ABI/process research takes
 priority over assuming a WASM-only design. WASM remains an optional candidate runtime,
-and Bash needs more than a basic WASI subset; see [Bash assessment](../../BASH-PORT.md). Package plans are
-in [the separate design discussion](../../PACKAGE-MANAGER.md).
+and Bash needs more than a basic WASI subset; see [Bash assessment](../../DEVELOPER-TOOLS.md#bash). Package plans are
+in [the separate design discussion](../../PACKAGES.md#architecture-and-activation).
 
 ## 9. Delivery slices and gates
 

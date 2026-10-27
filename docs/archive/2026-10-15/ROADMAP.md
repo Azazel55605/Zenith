@@ -1,5 +1,5 @@
 > **Historical snapshot, archived 2026-10-15.** Statements such as “pending” and
-> “next” refer to their original date. Use the [current status](../../STATUS.md).
+> “next” refer to their original date. Use the [current status](../../ROADMAP.md#state-and-evidence).
 
 # Zenith roadmap
 
@@ -7,8 +7,8 @@ Consolidated implementation roadmap, planning baseline **2026-10-11**. Historica
 M0–M7 identities are retained; package (P), session (S) and recovery (R) workstreams
 have explicit dependencies and can advance alongside them. Requirements are agreed
 product direction; specific ABI, package format and snapshot backend remain design
-choices. See [SYSTEM-PLAN](../../SYSTEM-PLAN.md) for detailed acceptance and
-[PROGRESS](../../PROGRESS.md) for implementation evidence.
+choices. See [SYSTEM-PLAN](../../ROADMAP.md#product-definition) for detailed acceptance and
+[Master roadmap](../../ROADMAP.md#current-focus-and-execution-order) for implementation evidence.
 
 **Sizes:** S = a day or two · M = about a week · L = several weeks · XL = months.
 **↑ upstream** = a change to Cosmos itself (its HAL is internal; see "Upstream work" below).
@@ -17,7 +17,7 @@ choices. See [SYSTEM-PLAN](../../SYSTEM-PLAN.md) for detailed acceptance and
 
 M0/M1/M2 are complete within their documented scope. Supported bounded ext2,
 installed accounts/authentication and filesystem permission enforcement are verified.
-See [ARCHITECTURE](../../ARCHITECTURE.md) for current behavior and [PROGRESS](../../PROGRESS.md)
+See [ARCHITECTURE](../../ARCHITECTURE.md) for current behavior and [Master roadmap](../../ROADMAP.md#current-focus-and-execution-order)
 for exact evidence. Version labels below are milestone targets, not release claims.
 
 **Working:** floating desktop, terminal/scripting, editor, simple Files test app,
@@ -78,8 +78,8 @@ host e2fsck is clean after account updates. Hosted CI rerun awaits push; see PRO
 - Saved-system boot selection, non-destructive trial boot and restoration as recovery
   goals. Investigate backend feasibility; Btrfs itself is not yet selected.
 
-Details: [system plan](../../SYSTEM-PLAN.md), [userland](../../USERLAND.md),
-[package design](../../PACKAGE-MANAGER.md), [server](../../PACKAGE-SERVER.md),
+Details: [system plan](../../ROADMAP.md#product-definition), [userland](../../components/USERLAND.md),
+[package design](../../PACKAGES.md#architecture-and-activation), [server](../../PACKAGE-SERVER.md),
 [recovery](../../UPDATE-RECOVERY.md). Current in-kernel services/UI are transitional.
 
 ## Delivery order and dependency gates
@@ -167,9 +167,9 @@ terminal mode with cursor addressing (enables `less`, `top`, a TUI editor), edit
 
 | Item | Size | Notes |
 |---|---|---|
-| `/proc` virtual filesystem: `meminfo`, `mounts`, `uptime`, `cmdline`, later per-process entries | M | Initial read-only driver implemented; validation and remaining work in [PROGRESS.md](../../PROGRESS.md) |
-| `/dev` virtual filesystem: `null`, `zero`, `random`, block devices (Cosmos names such as `sata0`, `sata0p1`) | M | Null/zero, fail-closed hardware random and root-readable disk/partition nodes implemented; raw writes remain intentionally refused. See [PROGRESS.md](../../PROGRESS.md) |
-| **ext2 driver, read-write** | L | Supported bounded ext2 profile: secondary and installed roots, guarded formatter, ownership/modes, symlinks and directory moves. Native root/UEFI persistence verified; mounted permission adapter and native held-handle/path/access probes verified; see [PROGRESS.md](../../PROGRESS.md) |
+| `/proc` virtual filesystem: `meminfo`, `mounts`, `uptime`, `cmdline`, later per-process entries | M | Initial read-only driver implemented; validation and remaining work in [PROGRESS.md](../../ROADMAP.md#current-focus-and-execution-order) |
+| `/dev` virtual filesystem: `null`, `zero`, `random`, block devices (Cosmos names such as `sata0`, `sata0p1`) | M | Null/zero, fail-closed hardware random and root-readable disk/partition nodes implemented; raw writes remain intentionally refused. See [PROGRESS.md](../../ROADMAP.md#current-focus-and-execution-order) |
+| **ext2 driver, read-write** | L | Supported bounded ext2 profile: secondary and installed roots, guarded formatter, ownership/modes, symlinks and directory moves. Native root/UEFI persistence verified; mounted permission adapter and native held-handle/path/access probes verified; see [PROGRESS.md](../../ROADMAP.md#current-focus-and-execution-order) |
 | Installer formats the root as ext2 (the ESP stays FAT32) | S | Verified: ext2-root reboot/persistence and disk-only EFI boot; ESP remains FAT32 |
 | Secure entropy and password hash verification | L | Implemented x64 RDSEED and PBKDF2-SHA256; host vectors and native self-check verified, ARM64 fails closed |
 | Users: console/graphical login, `/etc/shadow` with salted hashes, `passwd`, `su`, `useradd` | L | Implemented ext2 shadow, hidden terminal login in the desktop, passwd/su/useradd and explicit worker/window credentials; reboot authentication verified |
@@ -186,7 +186,7 @@ the truth.
 The bounded IPv4 LAN client profile is implemented; [NETWORKING](../../NETWORKING.md)
 records launch profiles, home DNS configuration, verified HTTPS and version-pinned
 Cosmos adaptations. Native acceptance passes 176/176 checks, including queries through
-home DNS 10.0.10.3; exact validation is tracked in [PROGRESS](../../PROGRESS.md).
+home DNS 10.0.10.3; exact validation is tracked in [Master roadmap](../../ROADMAP.md#current-focus-and-execution-order).
 Actual package VM/VPN acceptance follows provisioning in P2; the VM does not exist
 yet. Internet/server protocol hardening remains future work. Fetching over HTTPS
 does not authorize package installation.
@@ -226,7 +226,7 @@ host tools involved.
 
 The accepted long-term direction is Linux-like separation: desktop and apps outside
 of the main kernel, independently installable/updatable and isolated. This does not
-commit Zenith to Linux binary compatibility. [USERLAND](../../USERLAND.md) defines migration
+commit Zenith to Linux binary compatibility. [USERLAND](../../components/USERLAND.md) defines migration
 and acceptance. Native ABI/process feasibility is the primary investigation; WASM/WASI
 remains optional rather than an assumed final desktop runtime.
 
@@ -235,7 +235,7 @@ remains optional rather than an assumed final desktop runtime.
 | Kernel/userland ABI and loader design | XL | Initial static x64 ELF ABI 1/ring 3 foreground bridge implemented; general syscall/runtime interfaces remain |
 | Process isolation/lifecycle and credentials | XL | Initial private pages/args/identity/exit/fault/budget proof implemented; read-only descriptors/cwd added in 0.0.13 source; env, scheduling/wait/signals remain |
 | Multicore execution and scheduling | XL | Opt-in isolated native AP workers implemented; idle wakeups, per-CPU scheduler state and managed allocation/GC barriers remain; [scope](../../MULTICORE.md) |
-| IPC, byte pipes and terminal contract | L | Versioned controlled APIs; Bash dependencies in [assessment](../../BASH-PORT.md) |
+| IPC, byte pipes and terminal contract | L | Versioned controlled APIs; Bash dependencies in [assessment](../../DEVELOPER-TOOLS.md#bash) |
 | First independent text and graphical apps | L | Sunbeam text executable independently packaged/updated; graphical API and client remain |
 | Desktop/compositor/DE/WM migration | XL | Separate packages/processes behind shared graphics/toolkit protocols |
 | Toolchain/sample documentation | M | Host GCC cross-SDK preferred, startup/syscall/libc contracts; kernel ELF is not an application ABI |
@@ -269,7 +269,7 @@ fallback. A text executable alone completes neither desktop migration nor full M
 
 **Exit:** DE and auto-tiling WM support basic file/edit/settings tasks with keyboard and pointer;
 headless boots without graphical initialization and exposes the shared shell/services.
-See [SYSTEM-PLAN](../../SYSTEM-PLAN.md) for detailed acceptance gates.
+See [SYSTEM-PLAN](../../ROADMAP.md#product-definition) for detailed acceptance gates.
 
 ## M7 · Real hardware (v0.8)
 
@@ -328,7 +328,7 @@ public router port or container integration is planned. VM provisioning and sign
 publication are not performed by this roadmap. Publish immutable artifacts first,
 then a complete metadata generation; retain supported releases, isolate signing keys,
 back up and test server outage/stale/corrupted responses. Exact deployment is in
-[PACKAGE-SERVER](../../PACKAGE-SERVER.md); client design is in [PACKAGE-MANAGER](../../PACKAGE-MANAGER.md).
+[PACKAGE-SERVER](../../PACKAGE-SERVER.md); client design is in [PACKAGE-MANAGER](../../PACKAGES.md#architecture-and-activation).
 
 **Exit:** a provisioned VM serves verified packages on the intended LAN/VPN routes;
 an existing Zenith install upgrades without rebuilding an ISO, remains usable until

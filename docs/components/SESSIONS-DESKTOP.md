@@ -1,84 +1,57 @@
 # Sessions, desktop and applications
 
-[Documentation](../README.md) · [Current status](../STATUS.md)
+[Master roadmap](../ROADMAP.md) · [Documentation](../README.md)
 
-**State:** authenticated login, local text/DE selection and packaged appearance
-are implemented. Operator confirms working login on kernel 0.0.12. Full DE/WM and
-protected graphical client surfaces/events are now fully qualified locally.
+Work IDs below are detailed steps of the master tracker, not a separate schedule.
 
-## Implemented steps
+## Implemented boundary
 
-- [x] Share keyboard/timezone/session settings across CLI and session hosts.
-- [x] Require installed-account authentication before opening a configured session.
-- [x] Provide a graphical greeter with masked password and Desktop/Headless choice.
-- [x] Run Headless as local text with keyboard/history when a display is available;
-  retain no-GPU serial authentication/recovery.
-- [x] Safely logout/relogin or switch sessions; refuse busy mutations/unsaved editors.
-- [x] Clear queued input, prior credential scope and clipboard on session teardown.
-- [x] Load verified fonts/theme/branding packages with embedded recovery fallbacks.
-- [x] Supply the temporary floating desktop, Terminal, Files test client and Editor.
+Authenticated greeter, Desktop/local Headless selection, no-GPU serial recovery,
+identity-scoped input and safe busy/unsaved teardown exist. The temporary floating
+DE, compositor, greeter and privileged services remain trusted/kernel-linked.
+Selected theme/font resources and typed appearance preferences are independently
+updateable. A resource package does not make the greeter an independent process.
 
-## Current behavior and limits
+## Native app migration
 
-Ctrl+Alt+T opens Terminal; Ctrl+Alt+L requests logout. `session switch de|headless`
-ends the session and returns to login; it does not preserve running apps.
-`zenith-style` installs the selected theme/fonts through dependencies. Colors and
-fonts can update without rebuilding the kernel; compiled layout and rendering cannot.
-The greeter/session/GUI remain trusted kernel code, not a separate login executable.
+| Master ID / app | Current frontend | Detailed exit |
+|---|---|---|
+| U5 Welcome/System | Native `desktop-tools` frontends, signed shell and menu dispatch locally tested | D1 parity, live preference/independent upgrade/user/teardown and Q2 release acceptance |
+| S1 Meridian | Native 43-page shell, seven groups, search/recent links, functional Colors and selected About data | U1 richer controls/lifetime tests, real page backends and Q1/Q2; WIP scope is not functionality |
+| U2 Editor | Trusted window | Shared multiline text/selection, clipboard/dialogs, UTF-8/LF/CRLF, undo/search, external changes and permission-aware staged saves |
+| U3 Terminal | Trusted shell host | Owned PTY/session byte/mode protocol, native renderer, raw/canonical/secret/type-ahead/jobs/EOF/cancel and all recovery hosts |
+| U4 Sunrise | Trusted installer | Typed root/live-only wizard with explicit erase consent, safe account secrets, progress and maintenance blockers |
+| A1 Files | Intentionally unchanged | Separate full navigation/transfer/selection overhaul after this migration batch |
 
-Files remains a simple single-selection filesystem test application. Editor is a
-small GUI editor. The System information window is not a Settings application.
-The desktop floats windows; there are no implemented automatic-tiling WM/workspaces.
+The asynchronous launcher captures credentials and owns cancellation; compositor
+input never performs executable verification/entry. Missing native Welcome/System
+packages retain recovery windows; a present invalid executable fails closed.
+Live/unconfigured startup recovery windows remain trusted. Native launch output is
+not indiscriminately journalled. Session stop revokes surfaces and invocations.
 
-## Meridian planning
+## D1–D3 / S1–S5 — Shared presentation and Settings
 
-Meridian is the chosen Settings application name. The [ordered plan](../MERIDIAN-PLAN.md)
-and [43-page inventory](../MERIDIAN-PAGES.md) own the requested expansion. All menus
-must become navigable in the first shell slice; incomplete features get top-of-page
-WIP notices. Resolution/scaling is the first major backend priority. The current
-published package name remains `zenith-settings`. Current unshipped source adds the
-[Meridian shell and first native app ports](../NATIVE-APP-MIGRATION.md); Terminal,
-Editor and Sunrise remain pending. Files is explicitly excluded from this batch.
+- [ ] D1: match accepted controls/density/typography/chrome before further app ports;
+  preserve [material roles](../DESIGN-LANGUAGE.md#materials-and-optional-effects).
+- [ ] D2: real display modes, scaling and crash-safe Keep/Revert.
+- [ ] S1: per-user/system defaults, typed existing settings and CLI/GUI parity.
+- [ ] S2–S5: activate the [43-page inventory](../MERIDIAN-PAGES.md) in backend order;
+  [Meridian contracts](../MERIDIAN-PLAN.md) specify details, not a second schedule.
+- [ ] D3: host-owned optional materials/blur with unchanged layout and opaque fallback.
 
-## Remaining steps
+## W1–W3 / U6 — Product desktop and lifecycle
 
-- [x] Implement the first [protected surface/event API](../GRAPHICAL-CLIENTS.md)
-  and independent probe client; 48 real-compositor checks pass.
-- [x] Complete full graphical-client qualification at `cea1f5a`.
-- [x] Operator reports installed and tested; self-check, visible independent
-  drawing and pointer interaction are shown. [Evidence](../archive/2026-10-26/protected-graphical-clients.md#operator-installed-acceptance).
-- [x] Record the [system design direction](../DESIGN-LANGUAGE.md) before widgets.
-- [x] User accepts its visual specimen, measurements and shared control states.
-- [x] Build the first [shared userland widget/text library](../USERLAND-UI.md).
-- [x] Connect signed semantic resource palettes and the typed appearance service.
-- [x] Build the independent [Settings Appearance page](../NATIVE-SETTINGS.md) with
-  preview/save, failed/stale edit retention and explicit dirty-close confirmation.
-- [x] Pass full clean-source Release qualification at `12ded91`.
-- [x] Publish the qualified Appearance package tags.
-- [ ] Complete operator-installed Appearance acceptance.
-- [x] Implement Meridian navigation, search and WIP scope pages in current source.
-- [x] Add native Welcome/System clients with signed asynchronous launch.
-- [ ] Port Terminal, Editor and Sunrise with their owned service contracts.
-  Files is excluded from this migration batch.
-- [ ] Extend Settings to keyboard/timezone/session and native font resource loading.
-- [ ] Replace the temporary DE and add a selectable automatic-tiling WM.
-- [ ] Rework Files: navigation, selection, transfer jobs, permission/error UX and
-  responsiveness; keep shared filesystem operations outside UI code.
-- [ ] Rework Editor: document lifecycle, search/undo and robust editing UX.
-- [ ] Add per-user preferences, richer styling/assets and accessibility checks.
-- [ ] Move GUI/session services outside the kernel through explicit privilege/IPC APIs.
+Full DE keyboard launcher/panel/window behavior, notifications, switcher/workspaces
+precede selectable automatic tiling. Owned IPC/restart boundaries support eventual
+compositor/session separation. True locking must preserve apps while denying
+input/content; administrative auto-login, autostart/restore, dimming and suspend
+need explicit trusted lifecycle/device support. Keep recovery until these exits pass.
 
-## Source and acceptance
+## Source, contracts and evidence
 
-Owners: [sessions](../../src/Core/Sessions), [configuration](../../src/Core/Configuration),
-[GUI](../../src/Gui), [apps](../../src/Apps).
-References: [login and styling](../LOGIN-SESSIONS.md),
-[settings contract](../SETTINGS-SESSIONS.md), [application requirements](../APPLICATIONS.md),
-[system requirements](../SYSTEM-PLAN.md).
-
-[Login smoke](../../tools/login-session-smoke.py) checks real authentication,
-ordinary/root identity, wrong-password rejection, busy/unsaved refusal, DE/local
-switching, German input/history and signed appearance changes under the same
-kernel. Preserve no-display [serial acceptance](../../tools/headless-smoke.py)
-and independent ext2/secret-free log checks. Source `61618cd` passed 69 login
-checks; [evidence](../archive/2026-10-15/PROGRESS.md#2026-10-15--displayed-kernel-recovery-validation-locally-verified).
+[Sessions](../../src/Core/Sessions), [configuration](../../src/Core/Configuration),
+[GUI](../../src/Gui), [trusted apps](../../src/Apps), [native apps](../../userland).
+[Login](../LOGIN-SESSIONS.md), [settings](../NATIVE-SETTINGS.md),
+[graphics/lifetime/metadata](../GRAPHICAL-CLIENTS.md), [app requirements](../APPLICATIONS.md).
+[Current local foundation](../archive/2026-10-27/meridian-shell.md); Q1/Q2 in the
+master roadmap own actual publication/installed evidence.

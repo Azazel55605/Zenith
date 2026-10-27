@@ -1,5 +1,7 @@
 # M3 IPv4 networking
 
+Work owners: **N1/N2/PK2** in the [master roadmap](ROADMAP.md). This page is a contract/procedure, not a separate work tracker.
+
 > Technical/operating reference for the bounded IPv4 client. Work steps: [Networking](components/NETWORKING.md).
 
 ## On this page

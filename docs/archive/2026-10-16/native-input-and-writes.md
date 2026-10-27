@@ -1,7 +1,7 @@
 # Native input/write slice and normal ISO builds
 
 Completed local acceptance on **2026-10-16**. This record owns execution evidence;
-[current status](../../STATUS.md) owns server/operator acceptance.
+[current status](../../ROADMAP.md#state-and-evidence) owns server/operator acceptance.
 
 ## Result and release source
 

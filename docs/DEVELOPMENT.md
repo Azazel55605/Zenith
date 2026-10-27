@@ -1,6 +1,8 @@
 # Developing Zenith
 
-> Build/test runbook. Current release evidence belongs to [Status](STATUS.md), not historical test totals in examples.
+Work owners: **Q2/Q3** in the [master roadmap](ROADMAP.md). This page is a contract/procedure, not a separate work tracker.
+
+> Build/test runbook. Current release evidence belongs to [the master roadmap](ROADMAP.md#state-and-evidence), not historical test totals in examples.
 
 ## On this page
 
@@ -22,8 +24,8 @@
 - [Experimental CPU workers](#experimental-cpu-workers)
 - [Installed boot interrupt handoff](#installed-boot-interrupt-handoff)
 - [Native gate timing and serial overhead](#native-gate-timing-and-serial-overhead)
-- [Installed login/session and appearance acceptance (0.0.11)](#installed-loginsession-and-appearance-acceptance-0011)
-- [Native read-only filesystem acceptance (0.0.13 source)](#native-read-only-filesystem-acceptance-0013-source)
+- [Installed login/session and appearance acceptance (0.0.11)](#installed-loginsession-and-appearance-regression-procedure)
+- [Native read-only filesystem acceptance (0.0.13 source)](#native-filesystem-regression-procedure)
 
 For a desktop progress screenshot and a completed local transfer, run
 `python3 -B tools/terminal-progress-smoke.py obj/progress-ui-visual` (requires
@@ -381,7 +383,7 @@ checks shared settings, aliases, privilege denials, migration/persistence, futur
 versions, capability fallback and package inspection/dry-runs. US/GB keymap tests
 restore US using common keys before injecting US pipe punctuation. The whole existing
 smoke suite must still pass: extracting startup is not permission to weaken GUI tests.
-Package format and activation boundaries are in [P0 contract](PACKAGE-PROTOTYPE.md).
+Current package format and activation are in [PACKAGES](PACKAGES.md); the [P0 contract](archive/2026-10-27/package-prototype.md) describes the retained legacy experiment.
 Add `--test-session-override` to the installed EFI check on a disk retained by the
 baseline smoke suite. It edits a disposable disk copy's boot arguments and verifies
 session selection and the new manual pages; it preserves the source disk.
@@ -576,7 +578,7 @@ gates still run. This deployment choice is specific to the measured host, not a
 universal preference for TCG. Remove the drop-in and reload systemd to restore
 the original auto policy. Full release runtime/publication still needs validation.
 
-## Installed login/session and appearance acceptance (0.0.11)
+## Installed login/session and appearance regression procedure
 
 After building the Release kernel and package tool, run the disposable graphical
 and local-console gate through the distributor adapter:
@@ -600,7 +602,7 @@ login gate additionally tests an installed standard-VGA recovery console. Fallba
 selection failures retain each attempt's serial log and menu screenshot and report
 whether the broken kernel, a startup failure, QEMU exit or a deadline was observed.
 
-## Native read-only filesystem acceptance (0.0.13 source)
+## Native filesystem regression procedure
 
 The executable gate now covers managed service yield/resume, inherited cwd,
 regular read/directory/stat calls, full copyout validation before I/O, caller and

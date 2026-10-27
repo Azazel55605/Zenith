@@ -1,5 +1,7 @@
 # Signed offline packages
 
+Work owners: **PK1–PK4** in the [master roadmap](ROADMAP.md). This page is a contract/procedure, not a separate work tracker.
+
 > Signed package format/transaction reference. Online delivery is implemented; current workflow: [Online packages](ONLINE-PACKAGES.md). Work steps: [Packages](components/PACKAGES.md).
 
 ## On this page
@@ -17,6 +19,22 @@ P1 implements independently installed **scripts/data** on an installed ext2 root
 Compiled tools, drivers and the test DE remain kernel-linked. User-selected order:
 install scripts/data first, then establish native executable/process/ABI boundaries
 before unbundling compiled tools. Do not treat dropping a DLL into /bin as execution.
+
+
+## Architecture and activation
+
+Scripts/data replace owned resources; signed native ELF replaces code on the next
+invocation; dependency-only style metas select resources; separate signed kernel
+containers activate after reboot/confirmation. Actual base/fs/net and graphical
+recipes live in deploy/distributor/recipes.json. Branding does not separate the
+trusted greeter/compositor from the kernel.
+
+Core/extra indexes and archives have separate HTTPS/signing trust, freshness and
+rollback checks. Signed ownership/mode/digest are rechecked on native entry.
+Installed data and kernel updates have separate commit boundaries. Local /etc and
+/home state are not package defaults; merges and coordinated recovery remain PK1/PK4
+and R2 in the [master roadmap](ROADMAP.md). Running-kernel capability checks must
+precede newer native bundles. Public key/certificate lifecycle is PK2.
 
 ## Repositories and base packages
 
@@ -91,7 +109,7 @@ key is currently an explicit root operation; multi-role/key rotation is future w
 
 Manifest v2 adds required `repository` core/extra, optional repeated `conflicts NAME`,
 and numeric dependency constraints. Name/version/runtime/architecture/file rules
-retain the bounded [P0 contract](PACKAGE-PROTOTYPE.md). V1 remains readable and is
+retain the bounded [P0 contract](archive/2026-10-27/package-prototype.md). V1 remains readable and is
 classified as extra for offline compatibility. A signed v1 package is authenticated
 by its outer container; an unsigned directory manifest remains inspect/dry-run only.
 
@@ -206,7 +224,7 @@ pinned public key, rejects tampering, checks dependencies/conflicts/local edits,
 executes/upgrades a script without rebuilding, reboots with an interrupted journal,
 recovers, checks user permissions, removes packages and runs independent e2fsck/debugfs.
 No signing private key is served or sent to the guest. Exact results and remaining
-limits are recorded in [PROGRESS](PROGRESS.md).
+limits are recorded in [Master roadmap](ROADMAP.md#current-focus-and-execution-order).
 
 ## Signed kernel containers
 

@@ -1,0 +1,218 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="900" viewBox="0 0 1320 900">
+<defs><filter id="blur"><feGaussianBlur stdDeviation="9"/></filter>
+<clipPath id="clip0"><rect x="0" y="0" width="400" height="326" rx="12"/></clipPath>
+<clipPath id="clip1"><rect x="0" y="0" width="400" height="326" rx="12"/></clipPath>
+<clipPath id="clip2"><rect x="0" y="0" width="400" height="326" rx="12"/></clipPath>
+<clipPath id="clip3"><rect x="0" y="0" width="400" height="326" rx="12"/></clipPath>
+<clipPath id="clip4"><rect x="0" y="0" width="400" height="326" rx="12"/></clipPath>
+<clipPath id="clip5"><rect x="0" y="0" width="400" height="326" rx="12"/></clipPath>
+</defs>
+<rect width="1320" height="900" fill="#151619"/>
+<text x="32" y="40" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="26" font-weight="600">Zenith / one layout, three material states</text>
+<text x="32" y="68" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="14" font-weight="400">Design reference only. Effects are not implemented; opacity and blur samples are illustrative.</text>
+<text x="32" y="98" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="16" font-weight="600">Dark / Solid</text>
+<g transform="translate(32,110)"><g clip-path="url(#clip0)">
+<rect width="400" height="326" fill="#778eab"/>
+<g>
+<rect x="-25" y="-25" width="450" height="380" fill="#587682"/>
+<path d="M-20 0 L180 0 L70 370 L-20 370Z" fill="#d69a85"/>
+<path d="M100 -30 L260 -30 L410 370 L250 370Z" fill="#7898c8"/>
+<circle cx="370" cy="90" r="90" fill="#c1b88c"/>
+</g>
+<rect width="400" height="326" fill="#25262b" fill-opacity="1"/>
+<rect x="118" y="44" width="282" height="282" fill="#202125"/>
+<text x="16" y="27" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="14" font-weight="600">Meridian</text>
+<g fill="none" stroke="#b4b7c0" stroke-width="1.5"><path d="M344 22h10"/><path d="M375 18l8 8m0-8l-8 8"/></g>
+<text x="14" y="79" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="12" font-weight="400">Quick Settings</text>
+<rect x="8" y="92" width="102" height="32" rx="6" fill="#2a2c31"/>
+<text x="16" y="113" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="12" font-weight="600">Appearance</text>
+<text x="16" y="150" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="12" font-weight="400">Input &amp; output</text>
+<text x="16" y="187" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="12" font-weight="400">System</text>
+<text x="138" y="79" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="24" font-weight="600">Appearance</text>
+<text x="138" y="103" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="12" font-weight="400">Color and materials</text>
+<text x="138" y="137" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="14" font-weight="600">Color mode</text>
+<rect x="138" y="149" width="242" height="36" rx="8" fill="#25262b"/><rect x="142" y="153" width="116" height="28" rx="6" fill="#2a2c31" stroke="#45474f"/>
+<text x="183" y="172" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="13" font-weight="400">Dark</text>
+<text x="302" y="172" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="13" font-weight="400">Light</text>
+<text x="138" y="216" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="14" font-weight="600">Accent color</text>
+<circle cx="154" cy="242" r="12" fill="#8baaff"/>
+<circle cx="194" cy="242" r="12" fill="#b6a0ff"/>
+<circle cx="234" cy="242" r="12" fill="#f39db8"/>
+<circle cx="274" cy="242" r="12" fill="#e7bb70"/>
+<circle cx="314" cy="242" r="12" fill="#8bcba4"/>
+<circle cx="354" cy="242" r="12" fill="#7ecac7"/>
+<path d="M149 242l4 4 7-8" fill="none" stroke="#202125" stroke-width="2"/>
+<text x="138" y="290" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="12" font-weight="400">Controls and text stay opaque.</text>
+</g><rect width="400" height="326" rx="12" fill="none" stroke="#45474f"/></g>
+<text x="460" y="98" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="16" font-weight="600">Dark / Tinted transparency</text>
+<g transform="translate(460,110)"><g clip-path="url(#clip1)">
+<rect width="400" height="326" fill="#778eab"/>
+<g>
+<rect x="-25" y="-25" width="450" height="380" fill="#587682"/>
+<path d="M-20 0 L180 0 L70 370 L-20 370Z" fill="#d69a85"/>
+<path d="M100 -30 L260 -30 L410 370 L250 370Z" fill="#7898c8"/>
+<circle cx="370" cy="90" r="90" fill="#c1b88c"/>
+</g>
+<rect width="400" height="326" fill="#25262b" fill-opacity=".88"/>
+<rect x="118" y="44" width="282" height="282" fill="#202125"/>
+<text x="16" y="27" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="14" font-weight="600">Meridian</text>
+<g fill="none" stroke="#b4b7c0" stroke-width="1.5"><path d="M344 22h10"/><path d="M375 18l8 8m0-8l-8 8"/></g>
+<text x="14" y="79" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="12" font-weight="400">Quick Settings</text>
+<rect x="8" y="92" width="102" height="32" rx="6" fill="#2a2c31"/>
+<text x="16" y="113" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="12" font-weight="600">Appearance</text>
+<text x="16" y="150" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="12" font-weight="400">Input &amp; output</text>
+<text x="16" y="187" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="12" font-weight="400">System</text>
+<text x="138" y="79" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="24" font-weight="600">Appearance</text>
+<text x="138" y="103" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="12" font-weight="400">Color and materials</text>
+<text x="138" y="137" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="14" font-weight="600">Color mode</text>
+<rect x="138" y="149" width="242" height="36" rx="8" fill="#25262b"/><rect x="142" y="153" width="116" height="28" rx="6" fill="#2a2c31" stroke="#45474f"/>
+<text x="183" y="172" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="13" font-weight="400">Dark</text>
+<text x="302" y="172" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="13" font-weight="400">Light</text>
+<text x="138" y="216" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="14" font-weight="600">Accent color</text>
+<circle cx="154" cy="242" r="12" fill="#8baaff"/>
+<circle cx="194" cy="242" r="12" fill="#b6a0ff"/>
+<circle cx="234" cy="242" r="12" fill="#f39db8"/>
+<circle cx="274" cy="242" r="12" fill="#e7bb70"/>
+<circle cx="314" cy="242" r="12" fill="#8bcba4"/>
+<circle cx="354" cy="242" r="12" fill="#7ecac7"/>
+<path d="M149 242l4 4 7-8" fill="none" stroke="#202125" stroke-width="2"/>
+<text x="138" y="290" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="12" font-weight="400">Controls and text stay opaque.</text>
+</g><rect width="400" height="326" rx="12" fill="none" stroke="#45474f"/></g>
+<text x="888" y="98" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="16" font-weight="600">Dark / Tint + backdrop blur</text>
+<g transform="translate(888,110)"><g clip-path="url(#clip2)">
+<rect width="400" height="326" fill="#778eab"/>
+<g filter="url(#blur)">
+<rect x="-25" y="-25" width="450" height="380" fill="#587682"/>
+<path d="M-20 0 L180 0 L70 370 L-20 370Z" fill="#d69a85"/>
+<path d="M100 -30 L260 -30 L410 370 L250 370Z" fill="#7898c8"/>
+<circle cx="370" cy="90" r="90" fill="#c1b88c"/>
+</g>
+<rect width="400" height="326" fill="#25262b" fill-opacity=".88"/>
+<rect x="118" y="44" width="282" height="282" fill="#202125"/>
+<text x="16" y="27" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="14" font-weight="600">Meridian</text>
+<g fill="none" stroke="#b4b7c0" stroke-width="1.5"><path d="M344 22h10"/><path d="M375 18l8 8m0-8l-8 8"/></g>
+<text x="14" y="79" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="12" font-weight="400">Quick Settings</text>
+<rect x="8" y="92" width="102" height="32" rx="6" fill="#2a2c31"/>
+<text x="16" y="113" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="12" font-weight="600">Appearance</text>
+<text x="16" y="150" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="12" font-weight="400">Input &amp; output</text>
+<text x="16" y="187" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="12" font-weight="400">System</text>
+<text x="138" y="79" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="24" font-weight="600">Appearance</text>
+<text x="138" y="103" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="12" font-weight="400">Color and materials</text>
+<text x="138" y="137" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="14" font-weight="600">Color mode</text>
+<rect x="138" y="149" width="242" height="36" rx="8" fill="#25262b"/><rect x="142" y="153" width="116" height="28" rx="6" fill="#2a2c31" stroke="#45474f"/>
+<text x="183" y="172" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="13" font-weight="400">Dark</text>
+<text x="302" y="172" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="13" font-weight="400">Light</text>
+<text x="138" y="216" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="14" font-weight="600">Accent color</text>
+<circle cx="154" cy="242" r="12" fill="#8baaff"/>
+<circle cx="194" cy="242" r="12" fill="#b6a0ff"/>
+<circle cx="234" cy="242" r="12" fill="#f39db8"/>
+<circle cx="274" cy="242" r="12" fill="#e7bb70"/>
+<circle cx="314" cy="242" r="12" fill="#8bcba4"/>
+<circle cx="354" cy="242" r="12" fill="#7ecac7"/>
+<path d="M149 242l4 4 7-8" fill="none" stroke="#202125" stroke-width="2"/>
+<text x="138" y="290" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="12" font-weight="400">Controls and text stay opaque.</text>
+</g><rect width="400" height="326" rx="12" fill="none" stroke="#45474f"/></g>
+<text x="32" y="490" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="16" font-weight="600">Light / Solid</text>
+<g transform="translate(32,502)"><g clip-path="url(#clip3)">
+<rect width="400" height="326" fill="#778eab"/>
+<g>
+<rect x="-25" y="-25" width="450" height="380" fill="#587682"/>
+<path d="M-20 0 L180 0 L70 370 L-20 370Z" fill="#d69a85"/>
+<path d="M100 -30 L260 -30 L410 370 L250 370Z" fill="#7898c8"/>
+<circle cx="370" cy="90" r="90" fill="#c1b88c"/>
+</g>
+<rect width="400" height="326" fill="#eff0f3" fill-opacity="1"/>
+<rect x="118" y="44" width="282" height="282" fill="#fafafb"/>
+<text x="16" y="27" fill="#202126" font-family="Inter,sans-serif" font-size="14" font-weight="600">Meridian</text>
+<g fill="none" stroke="#5c606b" stroke-width="1.5"><path d="M344 22h10"/><path d="M375 18l8 8m0-8l-8 8"/></g>
+<text x="14" y="79" fill="#5c606b" font-family="Inter,sans-serif" font-size="12" font-weight="400">Quick Settings</text>
+<rect x="8" y="92" width="102" height="32" rx="6" fill="#ffffff"/>
+<text x="16" y="113" fill="#202126" font-family="Inter,sans-serif" font-size="12" font-weight="600">Appearance</text>
+<text x="16" y="150" fill="#5c606b" font-family="Inter,sans-serif" font-size="12" font-weight="400">Input &amp; output</text>
+<text x="16" y="187" fill="#5c606b" font-family="Inter,sans-serif" font-size="12" font-weight="400">System</text>
+<text x="138" y="79" fill="#202126" font-family="Inter,sans-serif" font-size="24" font-weight="600">Appearance</text>
+<text x="138" y="103" fill="#5c606b" font-family="Inter,sans-serif" font-size="12" font-weight="400">Color and materials</text>
+<text x="138" y="137" fill="#202126" font-family="Inter,sans-serif" font-size="14" font-weight="600">Color mode</text>
+<rect x="138" y="149" width="242" height="36" rx="8" fill="#eff0f3"/><rect x="262" y="153" width="116" height="28" rx="6" fill="#ffffff" stroke="#cfd1d8"/>
+<text x="183" y="172" fill="#202126" font-family="Inter,sans-serif" font-size="13" font-weight="400">Dark</text>
+<text x="302" y="172" fill="#202126" font-family="Inter,sans-serif" font-size="13" font-weight="400">Light</text>
+<text x="138" y="216" fill="#202126" font-family="Inter,sans-serif" font-size="14" font-weight="600">Accent color</text>
+<circle cx="154" cy="242" r="12" fill="#3157b7"/>
+<circle cx="194" cy="242" r="12" fill="#7042be"/>
+<circle cx="234" cy="242" r="12" fill="#ae325d"/>
+<circle cx="274" cy="242" r="12" fill="#886010"/>
+<circle cx="314" cy="242" r="12" fill="#277347"/>
+<circle cx="354" cy="242" r="12" fill="#197571"/>
+<path d="M149 242l4 4 7-8" fill="none" stroke="#ffffff" stroke-width="2"/>
+<text x="138" y="290" fill="#5c606b" font-family="Inter,sans-serif" font-size="12" font-weight="400">Controls and text stay opaque.</text>
+</g><rect width="400" height="326" rx="12" fill="none" stroke="#cfd1d8"/></g>
+<text x="460" y="490" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="16" font-weight="600">Light / Tinted transparency</text>
+<g transform="translate(460,502)"><g clip-path="url(#clip4)">
+<rect width="400" height="326" fill="#778eab"/>
+<g>
+<rect x="-25" y="-25" width="450" height="380" fill="#587682"/>
+<path d="M-20 0 L180 0 L70 370 L-20 370Z" fill="#d69a85"/>
+<path d="M100 -30 L260 -30 L410 370 L250 370Z" fill="#7898c8"/>
+<circle cx="370" cy="90" r="90" fill="#c1b88c"/>
+</g>
+<rect width="400" height="326" fill="#eff0f3" fill-opacity=".88"/>
+<rect x="118" y="44" width="282" height="282" fill="#fafafb"/>
+<text x="16" y="27" fill="#202126" font-family="Inter,sans-serif" font-size="14" font-weight="600">Meridian</text>
+<g fill="none" stroke="#5c606b" stroke-width="1.5"><path d="M344 22h10"/><path d="M375 18l8 8m0-8l-8 8"/></g>
+<text x="14" y="79" fill="#5c606b" font-family="Inter,sans-serif" font-size="12" font-weight="400">Quick Settings</text>
+<rect x="8" y="92" width="102" height="32" rx="6" fill="#ffffff"/>
+<text x="16" y="113" fill="#202126" font-family="Inter,sans-serif" font-size="12" font-weight="600">Appearance</text>
+<text x="16" y="150" fill="#5c606b" font-family="Inter,sans-serif" font-size="12" font-weight="400">Input &amp; output</text>
+<text x="16" y="187" fill="#5c606b" font-family="Inter,sans-serif" font-size="12" font-weight="400">System</text>
+<text x="138" y="79" fill="#202126" font-family="Inter,sans-serif" font-size="24" font-weight="600">Appearance</text>
+<text x="138" y="103" fill="#5c606b" font-family="Inter,sans-serif" font-size="12" font-weight="400">Color and materials</text>
+<text x="138" y="137" fill="#202126" font-family="Inter,sans-serif" font-size="14" font-weight="600">Color mode</text>
+<rect x="138" y="149" width="242" height="36" rx="8" fill="#eff0f3"/><rect x="262" y="153" width="116" height="28" rx="6" fill="#ffffff" stroke="#cfd1d8"/>
+<text x="183" y="172" fill="#202126" font-family="Inter,sans-serif" font-size="13" font-weight="400">Dark</text>
+<text x="302" y="172" fill="#202126" font-family="Inter,sans-serif" font-size="13" font-weight="400">Light</text>
+<text x="138" y="216" fill="#202126" font-family="Inter,sans-serif" font-size="14" font-weight="600">Accent color</text>
+<circle cx="154" cy="242" r="12" fill="#3157b7"/>
+<circle cx="194" cy="242" r="12" fill="#7042be"/>
+<circle cx="234" cy="242" r="12" fill="#ae325d"/>
+<circle cx="274" cy="242" r="12" fill="#886010"/>
+<circle cx="314" cy="242" r="12" fill="#277347"/>
+<circle cx="354" cy="242" r="12" fill="#197571"/>
+<path d="M149 242l4 4 7-8" fill="none" stroke="#ffffff" stroke-width="2"/>
+<text x="138" y="290" fill="#5c606b" font-family="Inter,sans-serif" font-size="12" font-weight="400">Controls and text stay opaque.</text>
+</g><rect width="400" height="326" rx="12" fill="none" stroke="#cfd1d8"/></g>
+<text x="888" y="490" fill="#f1f2f4" font-family="Inter,sans-serif" font-size="16" font-weight="600">Light / Tint + backdrop blur</text>
+<g transform="translate(888,502)"><g clip-path="url(#clip5)">
+<rect width="400" height="326" fill="#778eab"/>
+<g filter="url(#blur)">
+<rect x="-25" y="-25" width="450" height="380" fill="#587682"/>
+<path d="M-20 0 L180 0 L70 370 L-20 370Z" fill="#d69a85"/>
+<path d="M100 -30 L260 -30 L410 370 L250 370Z" fill="#7898c8"/>
+<circle cx="370" cy="90" r="90" fill="#c1b88c"/>
+</g>
+<rect width="400" height="326" fill="#eff0f3" fill-opacity=".88"/>
+<rect x="118" y="44" width="282" height="282" fill="#fafafb"/>
+<text x="16" y="27" fill="#202126" font-family="Inter,sans-serif" font-size="14" font-weight="600">Meridian</text>
+<g fill="none" stroke="#5c606b" stroke-width="1.5"><path d="M344 22h10"/><path d="M375 18l8 8m0-8l-8 8"/></g>
+<text x="14" y="79" fill="#5c606b" font-family="Inter,sans-serif" font-size="12" font-weight="400">Quick Settings</text>
+<rect x="8" y="92" width="102" height="32" rx="6" fill="#ffffff"/>
+<text x="16" y="113" fill="#202126" font-family="Inter,sans-serif" font-size="12" font-weight="600">Appearance</text>
+<text x="16" y="150" fill="#5c606b" font-family="Inter,sans-serif" font-size="12" font-weight="400">Input &amp; output</text>
+<text x="16" y="187" fill="#5c606b" font-family="Inter,sans-serif" font-size="12" font-weight="400">System</text>
+<text x="138" y="79" fill="#202126" font-family="Inter,sans-serif" font-size="24" font-weight="600">Appearance</text>
+<text x="138" y="103" fill="#5c606b" font-family="Inter,sans-serif" font-size="12" font-weight="400">Color and materials</text>
+<text x="138" y="137" fill="#202126" font-family="Inter,sans-serif" font-size="14" font-weight="600">Color mode</text>
+<rect x="138" y="149" width="242" height="36" rx="8" fill="#eff0f3"/><rect x="262" y="153" width="116" height="28" rx="6" fill="#ffffff" stroke="#cfd1d8"/>
+<text x="183" y="172" fill="#202126" font-family="Inter,sans-serif" font-size="13" font-weight="400">Dark</text>
+<text x="302" y="172" fill="#202126" font-family="Inter,sans-serif" font-size="13" font-weight="400">Light</text>
+<text x="138" y="216" fill="#202126" font-family="Inter,sans-serif" font-size="14" font-weight="600">Accent color</text>
+<circle cx="154" cy="242" r="12" fill="#3157b7"/>
+<circle cx="194" cy="242" r="12" fill="#7042be"/>
+<circle cx="234" cy="242" r="12" fill="#ae325d"/>
+<circle cx="274" cy="242" r="12" fill="#886010"/>
+<circle cx="314" cy="242" r="12" fill="#277347"/>
+<circle cx="354" cy="242" r="12" fill="#197571"/>
+<path d="M149 242l4 4 7-8" fill="none" stroke="#ffffff" stroke-width="2"/>
+<text x="138" y="290" fill="#5c606b" font-family="Inter,sans-serif" font-size="12" font-weight="400">Controls and text stay opaque.</text>
+</g><rect width="400" height="326" rx="12" fill="none" stroke="#cfd1d8"/></g>
+<text x="32" y="875" fill="#b4b7c0" font-family="Inter,sans-serif" font-size="14" font-weight="400">Same bounds, typography, controls, hit targets and content. Only host-authorized secondary surfaces change material.</text>
+</svg>

@@ -20,6 +20,28 @@ static void image(const char *directory,const char *name){
 }
 int main(int argc,char **argv){
     assert(argc==2);
+    /* Material intent must preserve today's opaque pixels, geometry and clip.
+     * It is not an alpha protocol or permission to sample a backdrop. */
+    struct zui material;unsigned int actual[32*32],expected[32*32];
+    assert(zui_init(&material,actual,32,32));
+    for(int light=0;light<2;light++)for(int accent=0;accent<6;accent++){
+        zui_appearance(&material,light,accent);
+        for(int role=ZUI_SURFACE_CONTENT;role<=ZUI_SURFACE_POPOVER;role++){
+            zui_clip(&material,(struct zui_rect){0,0,32,32});zui_fill(&material,material.clip,0x123456);
+            zui_clip(&material,(struct zui_rect){3,4,20,19});
+            assert(zui_surface(&material,(struct zui_rect){1,2,28,28},8,role));
+            for(int k=0;k<32*32;k++)expected[k]=actual[k];
+            zui_clip(&material,(struct zui_rect){0,0,32,32});zui_fill(&material,material.clip,0x123456);
+            zui_clip(&material,(struct zui_rect){3,4,20,19});
+            unsigned int color=role==ZUI_SURFACE_CONTENT?material.theme.surface:role==ZUI_SURFACE_NAVIGATION?material.theme.subtle:material.theme.raised;
+            zui_round(&material,(struct zui_rect){1,2,28,28},8,color);
+            for(int k=0;k<32*32;k++)assert(expected[k]==actual[k]&&actual[k]<=0xffffff);
+        }
+    }
+    assert(!zui_backdrop_candidate(ZUI_SURFACE_CONTENT)&&!zui_backdrop_candidate(ZUI_SURFACE_CONTROL));
+    assert(zui_backdrop_candidate(ZUI_SURFACE_NAVIGATION)&&zui_backdrop_candidate(ZUI_SURFACE_POPOVER));
+    unsigned int before=actual[4*32+4];assert(!zui_surface(&material,(struct zui_rect){0,0,32,32},0,999));assert(actual[4*32+4]==before);
+
     storage[0]=0x12345678;storage[600*440+1]=0xabcdef01;
     assert(gallery_init(&g,storage+1,0));
     char palette_path[4096];assert(snprintf(palette_path,sizeof(palette_path),"%s/palette.tsv",argv[1])>0);

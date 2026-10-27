@@ -40,6 +40,21 @@ void zui_round(struct zui *u,struct zui_rect r,int radius,unsigned int c){
         if(dx*dx+dy*dy<=(long)radius*radius)u->pixels[y*u->width+x]=c&0xffffff;
     }
 }
+int zui_backdrop_candidate(int role){
+    return role==ZUI_SURFACE_NAVIGATION||role==ZUI_SURFACE_PANEL||role==ZUI_SURFACE_POPOVER;
+}
+int zui_surface(struct zui *u,struct zui_rect r,int radius,int role){
+    unsigned int color;
+    switch(role){
+        case ZUI_SURFACE_CONTENT:color=u->theme.surface;break;
+        case ZUI_SURFACE_CONTROL:case ZUI_SURFACE_PANEL:case ZUI_SURFACE_POPOVER:color=u->theme.raised;break;
+        case ZUI_SURFACE_NAVIGATION:color=u->theme.subtle;break;
+        default:return 0;
+    }
+    /* ABI 1 remains flattened opaque RGB. Geometry is supplied independently
+     * of future material capability/effective preference and never changes here. */
+    zui_round(u,r,radius,color);return 1;
+}
 static unsigned int blend(unsigned int bg,unsigned int fg,unsigned int a){
     unsigned int out=0;
     for(int s=0;s<24;s+=8)out|=((((bg>>s)&255)*(255-a)+((fg>>s)&255)*a+127)/255)<<s;

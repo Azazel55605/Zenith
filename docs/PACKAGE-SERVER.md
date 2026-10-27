@@ -1,6 +1,8 @@
 # Package server operations overview
 
-Reviewed **2026-10-15** from repository runbooks and operator reports. This review
+Work owners: **PK2/PK3** in the [master roadmap](ROADMAP.md). This page is a contract/procedure, not a separate work tracker.
+
+Profile audited **2026-10-27** from repository runbooks and operator reports. This review
 did not connect to or change the VM. For exact setup/update commands use the
 [deployment runbook](../deploy/distributor/README.md),
 [automation runbook](../deploy/distributor/AUTOMATION.md) and
@@ -16,8 +18,8 @@ did not connect to or change the VM. For exact setup/update commands use the
 | DNS | Home resolver `10.0.10.3` |
 | Builder account / checkout | `zenith-release`, `~/Zenith` |
 | Publication storage | `/srv/zenith/packages`, served by nginx |
-| Toolchain reported | .NET SDK 10.0.401, Cosmos tools/patcher 3.0.89; native GCC/Clang path |
-| Backups | Automated TrueNAS backups reported; restore test not confirmed |
+| Toolchain reported | Verify current SDK/workload state against global.json and the deployment runbook; old patch-level reports are not a live inventory |
+| Backups | Automated TrueNAS backups reported; restore acceptance is master PK3 |
 
 The operator has confirmed verified guest HTTPS and named package installation.
 The server is no longer a future VM to provision. Credentials, keys, firewall

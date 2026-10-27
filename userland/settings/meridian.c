@@ -91,7 +91,7 @@ void meridian_draw(struct meridian *a){
         text(u,30,53,"WIP: automatic switching and custom colors are planned.",&zui_caption,u->theme.secondary);
         u->controls[13].enabled=!a->colors.prompt;zui_draw_range(u,13,1);u->dirty=0;return;
     }
-    struct zui *u=&a->navigation;zui_clip(u,(struct zui_rect){0,0,600,480});zui_fill(u,u->clip,u->theme.surface);
+    struct zui *u=&a->navigation;zui_clip(u,(struct zui_rect){0,0,600,480});zui_surface(u,u->clip,0,ZUI_SURFACE_CONTENT);
     if(a->page<0){
         text(u,24,14,"Meridian",&zui_heading,u->theme.text);text(u,178,23,"System Settings",&zui_body,u->theme.secondary);
         controls(a);zui_draw_controls(u);zui_input_draw(u,(struct zui_rect){24,58,430,36},&a->search,a->search_focus&&u->window_focused);

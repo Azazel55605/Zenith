@@ -88,16 +88,30 @@ the client, **not the kernel**. This does not yet consume installed theme/font
 updates live. A versioned resource loading mechanism and shared preference service
 must connect independently updated themes/fonts before broad app migration.
 
-## Next steps
+## Extension ownership
 
-1. Extend the implemented typed Appearance service to the remaining Meridian pages.
-2. Resource/theme preference loading and reusable layout/text-field/scroll controls
-   as the first real Settings pages need them. Keep errors and unsaved edits explicit.
-3. Scale/font coverage, keyboard interaction and independent package-update tests.
-4. Compositor effects and user controls with performance-tested opaque fallback.
+D1 owns shared preview parity, U1 owns richer controls/text/resources, S1 owns
+preference scope and D3 owns host composition. Their state/order is in the
+[master roadmap](ROADMAP.md), not a separate toolkit todo list. Keep failed saves,
+unsaved state, compatibility and opaque fallback explicit as contracts expand.
 
 The development gallery has no release tags or public pipeline entry. The first
 functional consumer is the [independent Settings Appearance page](NATIVE-SETTINGS.md),
 which reads shared signed palette resources and saves preferences through typed services.
 
 [Local native acceptance and exact artifact hashes](archive/2026-10-27/shared-userland-ui.md).
+
+## Surface roles and future materials
+
+`zui_surface(ui, rect, radius, role)` separates content/control/navigation/panel/
+popover intent from geometry. Current consumers use the content role for their
+canvas; painting remains opaque and pixel-equivalent to the prior fill. The helper
+uses semantic palette colors and the same clipping/rounding. Unknown roles fail
+without painting. `zui_backdrop_candidate` identifies eligible secondary roles; it
+is neither an effect implementation nor host authorization. Content/control remain
+solid. Host chrome is outside this client API.
+
+The [material contract](DESIGN-LANGUAGE.md#materials-and-optional-effects) owns
+future foreground coverage/host composition and unchanged-layout fallback. D1/D3
+in the master roadmap own actual preview parity and effects; those are not completed
+by introducing a role name.

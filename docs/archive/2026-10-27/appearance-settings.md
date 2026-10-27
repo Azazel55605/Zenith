@@ -7,7 +7,7 @@ service, versioned native read/save requests, owned unsaved-window state and an
 independent `zenith-settings` client. It adds signed semantic palette defaults to
 the theme package. Existing legacy themes/clients retain their original behavior
 until explicit preferences or new verified resources select the new palette.
-[Contract](../../NATIVE-SETTINGS.md) · [Operator checklist](../../SETTINGS-VM-TEST.md).
+[Contract](../../NATIVE-SETTINGS.md) · [Operator checklist](../../testing/SETTINGS-VM-TEST.md).
 
 Release tags are pushed as recorded below; distributor publication and operator
 installation are not yet confirmed. Other apps have not been migrated. Native font atlases remain compiled;

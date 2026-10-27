@@ -1,10 +1,12 @@
 # Native text/traversal VM test
 
-Targets: kernel **0.0.22**, Sunbeam **0.6.0**, base/filesystem tools **0.2.0**,
-manuals **0.1.4**. These extend the installed 0.0.21 CLI foundation. The native
-algorithms use its existing ABI; the new kernel routes ordinary command names to
-the signed packages. The [implementation profile](archive/2026-10-26/native-text-traversal.md)
-records syntax and limits, which also ship in `man native-cli`.
+> Reusable test procedure. Results and remaining acceptance are tracked only in
+> [the master roadmap](../ROADMAP.md#state-and-evidence); version-specific examples
+> are historical handoffs, not new release instructions.
+
+Use currently qualified compatible versions. The original 0.0.22 examples are not
+a request to downgrade. [Text/traversal syntax and limits](../archive/2026-10-26/native-text-traversal.md)
+also ship in `man native-cli`.
 
 After all five distributor releases are green, refresh/stage the kernel, reboot
 and confirm it, then update the tools:

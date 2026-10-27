@@ -38,7 +38,7 @@ int settings_init(struct settings_app *a,unsigned int *pixels,struct settings_ba
     return 1;
 }
 void settings_draw(struct settings_app *a){
-    struct zui *u=&a->ui;zui_clip(u,(struct zui_rect){0,0,600,480});zui_fill(u,u->clip,u->theme.surface);
+    struct zui *u=&a->ui;zui_clip(u,(struct zui_rect){0,0,600,480});zui_surface(u,u->clip,0,ZUI_SURFACE_CONTENT);
     text(a,24,16,"Appearance",&zui_heading,u->theme.text);
     text(a,24,51,"System-wide settings. Preview changes before saving.",&zui_body,u->theme.secondary);
     text(a,24,79,"Color mode",&zui_label,u->theme.text);

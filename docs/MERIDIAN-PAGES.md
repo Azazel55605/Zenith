@@ -3,7 +3,7 @@
 [Ordered plan and WIP rules](MERIDIAN-PLAN.md) ·
 [Original outline](archive/2026-10-27/meridian-user-requirements.md)
 
-**Reviewed scope, 2026-10-27.** All destinations are now registered in the unshipped Meridian shell; most feature backends remain WIP. [Implementation boundaries](NATIVE-APP-MIGRATION.md). Every destination
+**Reviewed scope, 2026-10-27.** All destinations are now registered in the unshipped Meridian shell; most feature backends remain WIP. [Implementation boundaries](components/SESSIONS-DESKTOP.md#native-app-migration). Every destination
 below must be present from M1, including later-phase features. Group names become
 expandable navigation headings; nested option groups/tabs remain available inside
 their page. Page IDs are proposed stable navigation/search identities, not an ABI.
@@ -17,7 +17,9 @@ claimed. Any incomplete requested section keeps its page's top WIP banner.
 Scope goals: **U** personal/session preferences; **S** administrator/system policy;
 **U/S** separate personal choice and administrator default/device authority. These
 are targets: current Appearance writes remain system-wide/root-only until M3.
-All phase references refer to [M0–M10](MERIDIAN-PLAN.md#order-of-work).
+All phase references refer to [M0–M10](MERIDIAN-PLAN.md#feature-dependencies-and-master-ownership).
+
+Work state and delivery order live only in the [master roadmap](ROADMAP.md#meridian--every-requested-destination); this inventory is control scope, not a second tracker.
 
 ## 1. Quick Settings
 

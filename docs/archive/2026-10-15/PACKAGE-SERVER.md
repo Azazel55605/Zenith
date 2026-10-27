@@ -1,5 +1,5 @@
 > **Historical snapshot, archived 2026-10-15.** Statements such as “pending” and
-> “next” refer to their original date. Use the [current status](../../STATUS.md).
+> “next” refer to their original date. Use the [current status](../../ROADMAP.md#state-and-evidence).
 
 # Home-hosted package repository
 
@@ -14,7 +14,7 @@ zenith-release at 10.0.20.7. The user has since assigned the proxy name
 installed kernel update are user-confirmed; SSH administration details and direct
 guest VPN/HTTPS acceptance remain pending; no remote
 ports/DNS/firewall rules have been changed by the agent.
-See [PACKAGE-MANAGER](../../PACKAGE-MANAGER.md) for the guest client and trust model.
+See [PACKAGE-MANAGER](../../PACKAGES.md#architecture-and-activation) for the guest client and trust model.
 
 Update, 2026-10-12: the user created the VM from a **Debian 13 template** and
 has supplied IP 10.0.20.7; SSH details remain pending. The VM should both build and

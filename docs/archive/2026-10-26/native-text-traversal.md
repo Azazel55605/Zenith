@@ -140,7 +140,7 @@ sunbeam-tools/v0.6.0, zenith-base-tools/v0.2.0, zenith-fs-tools/v0.2.0 and
 zenith-man-pages/v0.1.4. The atomic source/tag push succeeded; every remote
 peeled tag was independently verified at `6615ecb`. Subsequent documentation commits do not change the
 qualified source. Distributor publication and installed VMware acceptance remain
-pending. Follow the [VM test handoff](../../CLI-TEXT-VM-TEST.md). Network extraction
+pending. Follow the [VM test handoff](../../testing/CLI-TEXT-VM-TEST.md). Network extraction
 remains the next CLI slice; the 404 correction does not establish broad TCP/TLS
 reliability on every path.
 

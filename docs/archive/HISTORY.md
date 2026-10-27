@@ -1,6 +1,6 @@
 # Zenith project history
 
-> Historical narrative, not current status. See [Status](STATUS.md) and the [detailed evidence archive](archive/README.md).
+> Historical narrative, not current status. See [Master roadmap](../ROADMAP.md#state-and-evidence) and the [detailed evidence archive](README.md).
 
 ## On this page
 
@@ -28,14 +28,14 @@
 
 History includes the login/session implementation (2026-10-14). This is a narrative and change map, not a claim
 that every planned feature shipped. Exact commits are available through `git log`;
-[PROGRESS](PROGRESS.md) contains detailed M2 validation, failures and corrections.
+[Master roadmap](../ROADMAP.md#current-focus-and-execution-order) contains detailed M2 validation, failures and corrections.
 
 ## 2026-10-17: native streams and independent text tools
 
 Protected native execution gained live standard descriptors, canonical host input
 and bounded byte pipelines, with independent Sunbeam wc/head/tail. Full local
 acceptance passed at `cba1cbf`; publication and operator installation remain pending.
-See the [stream record](archive/2026-10-17/native-streams.md) for failures corrected
+See the [stream record](2026-10-17/native-streams.md) for failures corrected
 and reproducible validation. Raw TTY/jobs and GUI process migration remain future work.
 
 ## 2026-10-14: installed login, local console and styling packages
@@ -46,7 +46,7 @@ and font resources reload at login; true dependency-only metapackages group them
 Compatible legacy and extended catalogs permit kernel migration before adopting
 new manifests. Native installed authentication, session, appearance, repository and
 protected executable checks pass locally; server publication and operator testing
-remain separate. See [LOGIN-SESSIONS](LOGIN-SESSIONS.md) and the dated progress log.
+remain separate. See [LOGIN-SESSIONS](../LOGIN-SESSIONS.md) and the dated progress log.
 
 ## 2026-10-12: real VM kernel update and Debian distributor preparation
 
@@ -54,7 +54,7 @@ The user reports successful VMware networking after E1000E broadcast/receive fix
 and a successful manual signed installed-kernel upgrade. Explicit boot-confirm
 status remains unreported. The next dedicated home VM will use a Debian template
 and perform both trusted release builds and distribution. `d24a4ae` introduces the
-[deployment kit](../deploy/distributor/README.md): clean-commit build/test/sign,
+[deployment kit](../../deploy/distributor/README.md): clean-commit build/test/sign,
 signature-checked immutable core/extra publication and read-only nginx hosting.
 Publisher tests and a full local build workflow pass. Actual VM provisioning,
 LAN/VPN/DNS, nginx and HTTPS acceptance await the user's VM details. Signed online
@@ -106,7 +106,7 @@ Native writes exposed an upstream allocator defect causing multiply-owned blocks
 A locally adapted driver with retained BSD notice made fixes reviewable without
 changing global Cosmos packages. Host e2fsck became a required independent oracle
 alongside guest assertions. The upstream revision and adaptation live in
-[the ext2 source record](../src/Core/Storage/Ext2/SOURCE.md).
+[the ext2 source record](../../src/Core/Storage/Ext2/SOURCE.md).
 
 ## 2026-10-09: lifecycle, test app and ext2 hardening
 
@@ -162,15 +162,15 @@ filesystem/installed-root checks at 512 MiB with the large workload, 32 account/
 checks, seven disk-only EFI checks and clean independent host e2fsck. M2's exit
 criterion is met within the documented supported ext2 profile. Kernel code remains
 trusted; process isolation and separate desktop/apps belong to future userland work.
-See [ACCOUNTS](ACCOUNTS.md) and [PROGRESS](PROGRESS.md); hosted CI awaits push.
+See [ACCOUNTS](../ACCOUNTS.md) and [Master roadmap](../ROADMAP.md#current-focus-and-execution-order); hosted CI awaits push.
 
 ## The next chapter: planned system and distribution
 
 The requested direction expands Zenith to real headless and graphical DE/auto-tiling
 WM sessions, shared settings and a future Files rework. Package management should
 allow existing installations to receive built artifacts rather than reinstalling
-from an ISO. [SYSTEM-PLAN](SYSTEM-PLAN.md) records delivery slices and acceptance gates;
-[PACKAGE-MANAGER](PACKAGE-MANAGER.md) records proposed design and unresolved choices.
+from an ISO. [SYSTEM-PLAN](../ROADMAP.md#product-definition) records delivery slices and acceptance gates;
+[PACKAGE-MANAGER](../PACKAGES.md#architecture-and-activation) records proposed design and unresolved choices.
 
 M2 account/authentication and filesystem access work is complete. Networking,
 self-contained installation, independent programs and real-hardware validation remain
@@ -192,8 +192,8 @@ as bundled components. Payload hashes, exact dependencies, runtime/architecture 
 unowned-path conflicts are checked; no installed DB, extraction, signatures, networking
 or activation exists. Local /etc and user/boot state are excluded from data payloads.
 The format is experimental; production container/verifier and P1 recovery remain gates.
-See [settings/session guide](SETTINGS-SESSIONS.md), [P0 contract](PACKAGE-PROTOTYPE.md)
-and [PROGRESS](PROGRESS.md) for the implementation and exact validation boundary.
+See [settings/session guide](../SETTINGS-SESSIONS.md), [P0 contract](2026-10-27/package-prototype.md)
+and [Master roadmap](../ROADMAP.md#current-focus-and-execution-order) for the implementation and exact validation boundary.
 
 ## 2026-10-11: x64 COM1 headless and serial recovery
 
@@ -207,7 +207,7 @@ the console and revokes identity. Console output bypasses persistent kernel logs
 
 Fatal early/headless errors print serial diagnostics and accept R to restart; graphical
 panic failures use the same fallback. No-GPU QEMU live/disk-only UEFI acceptance and
-independent ext2 checks are recorded in [PROGRESS](PROGRESS.md). ARM64 receive, real
+independent ext2 checks are recorded in [Master roadmap](../ROADMAP.md#current-focus-and-execution-order). ARM64 receive, real
 UART hardware, local text consoles, SSH, service supervision and independent userland
 remain later work. Packaging remains the P0 data prototype; production container/trust
 and transactional installation are still explicit gates.
@@ -222,8 +222,8 @@ owning-frame cleanup and a signature-checked local immutable bounded receive buf
 address those paths without changing upstream source or dependency versions. Local
 QEMU/server fixtures cover malformed/disconnected/cancelled transfers and installed
 persistence. TLS/hardened Internet transport and actual home DNS/VPN routing remain
-open; HTTP does not authenticate packages. See [NETWORKING](NETWORKING.md) and
-[PROGRESS](PROGRESS.md) for current bounds and validation evidence.
+open; HTTP does not authenticate packages. See [NETWORKING](../NETWORKING.md) and
+[Master roadmap](../ROADMAP.md#current-focus-and-execution-order) for current bounds and validation evidence.
 
 
 ### M3 completion for LAN testing
@@ -234,7 +234,7 @@ tests and fail-closed entropy/date/name/chain/record checks. Shared NTP now feed
 BCL and filesystem time. Build adapters guard packet parsing and bound UDP/ICMP
 queues; configuration reload/DNS saves and user/TAP/off launch profiles support
 home testing. Home DNS supplied as 10.0.10.3; no package VM exists yet. Detailed
-validation and any remaining acceptance gates are tracked in [PROGRESS](PROGRESS.md).
+validation and any remaining acceptance gates are tracked in [Master roadmap](../ROADMAP.md#current-focus-and-execution-order).
 
 ## 2026-10-11: signed offline packages and migration sequencing
 
@@ -244,7 +244,7 @@ Added RSA-PSS signed containers, pinned public-key import, an installed ownershi
 range/conflict checks and multi-package undo/commit transactions. Grouped base-tools,
 net-tools and fs-tools remain image inventory until the native execution boundary exists.
 Online signed indexes and dedicated VM publication follow separately. See
-[PACKAGES](PACKAGES.md) and [PROGRESS](PROGRESS.md) for actual scope and acceptance.
+[PACKAGES](../PACKAGES.md) and [Master roadmap](../ROADMAP.md#current-focus-and-execution-order) for actual scope and acceptance.
 
 ## 2026-10-11: installed-system delivery order and future applications
 
@@ -253,7 +253,7 @@ server deployment kit for their VM, useful packages, online repository client, a
 native tool unbundling. Server preparation can overlap installation work. Added
 future GUI Editor overhaul, Zenith-specific celestial naming and GCC-preferred,
 Python, Vim/nano research goals. Names and additional app ideas remain proposals;
-no third-party port or naming availability is claimed. See [APPLICATIONS](APPLICATIONS.md).
+no third-party port or naming availability is claimed. See [APPLICATIONS](../APPLICATIONS.md).
 
 ## 2026-10-11: self-contained UEFI installation foundation
 
@@ -264,7 +264,7 @@ works with an installed disk attached. Host boot-file repair was removed from ac
 harnesses and replaced with independent read-only artifact checks. The layout anticipates
 signed kernel packages that stage a new version while the old kernel runs until reboot;
 the activation executor and graphical installer remain future slices. See
-[INSTALLATION](INSTALLATION.md) and [PROGRESS](PROGRESS.md).
+[INSTALLATION](../INSTALLATION.md) and [Master roadmap](../ROADMAP.md#current-focus-and-execution-order).
 
 ## 2026-10-11: Sunrise and guided initial account setup
 
@@ -291,8 +291,8 @@ backpressure in signature-checked build copies of Cosmos. Forced-termination tes
 also required a read-only consistency audit before booting a dirty ext2 root; corrupt
 or error-marked roots remain refused. This is a shared-root kernel update foundation,
 with manual failed-boot fallback and external ISO recovery, rather than snapshots or
-automatic trial-boot rollback. See [KERNEL-UPDATES](KERNEL-UPDATES.md) and exact native
-acceptance evidence in [PROGRESS](PROGRESS.md).
+automatic trial-boot rollback. See [KERNEL-UPDATES](../KERNEL-UPDATES.md) and exact native
+acceptance evidence in [Master roadmap](../ROADMAP.md#current-focus-and-execution-order).
 
 
 ## 2026-10-13 · All-package updates and first protected native executable

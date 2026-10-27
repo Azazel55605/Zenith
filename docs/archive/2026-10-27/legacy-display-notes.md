@@ -1,6 +1,9 @@
 # Zenith technical notes
 
-> Historical measurements and engineering context. Current behavior and limits: [Architecture](ARCHITECTURE.md), [Status](STATUS.md).
+> Historical measurements and superseded architecture notes. Not current behavior
+> or an active work list. Use the [master roadmap](../../ROADMAP.md).
+
+> Historical measurements and engineering context. Current behavior and limits: [Architecture](../../ARCHITECTURE.md), [Master roadmap](../../ROADMAP.md#state-and-evidence).
 
 ## On this page
 
@@ -11,10 +14,10 @@
 - [5. Framework and driver work](#5-framework-and-driver-work)
 
 Historical display measurements retained; architecture sections reconciled on 2026-10-11.
-Use [ARCHITECTURE](ARCHITECTURE.md) for current facts and [SYSTEM-PLAN](SYSTEM-PLAN.md)
+Use [ARCHITECTURE](../../ARCHITECTURE.md) for current facts and [SYSTEM-PLAN](../../ROADMAP.md#product-definition)
 for future design. Upstream availability must be verified against installed APIs.
 
-Findings behind the [roadmap](ROADMAP.md): what Cosmos Gen 3 (3.0.89) gives us, what we measured,
+Findings behind the [roadmap](../../ROADMAP.md): what Cosmos Gen 3 (3.0.89) gives us, what we measured,
 and what each larger step costs.
 Paths like `articles/user/filesystem.md` refer to the vendored Cosmos docs in `docs/cosmos/`.
 
@@ -65,19 +68,19 @@ What is left in this area:
 
 The initial analysis predated M2. Its FAT-only root, generic `/proc`/`/dev` wishlist,
 experimental ext2 status and incomplete installed-root statements are superseded by
-[ARCHITECTURE](ARCHITECTURE.md). New roots are bounded ext2; proc/dev, metadata,
+[ARCHITECTURE](../../ARCHITECTURE.md). New roots are bounded ext2; proc/dev, metadata,
 symlinks, directory moves and check-only fsck are verified. Users/enforcement are pending.
 
 There are still no independent application processes: all built-ins and GUI applications
 are kernel-linked. The future userland split is accepted; WASM/WASI is optional, not the presumed desktop runtime. Native
-ELF/POSIX userland requires much deeper framework work. The [Bash assessment](BASH-PORT.md)
+ELF/POSIX userland requires much deeper framework work. The [Bash assessment](../../DEVELOPER-TOOLS.md#bash)
 explains why a basic WASI filesystem API alone does not provide Bash compatibility.
 Avoid treating the initial effort estimates as schedules or framework guarantees.
 
 ## 3. Filesystem direction
 
 Bounded ext2 read/write is the implemented foundation, with Linux tooling interoperability
-and independent e2fsck verification. The [driver source record](../src/Core/Storage/Ext2/SOURCE.md)
+and independent e2fsck verification. The [driver source record](../../../src/Core/Storage/Ext2/SOURCE.md)
 explains upstream adaptation, licensing and local fixes. No journal, broad ext4 feature
 support or guest repair is implied. Mounted filesystems remain unclean until clean unmount.
 
@@ -85,7 +88,7 @@ Ext4 read-only remains an optional follow-up requiring explicit extent/feature/c
 coverage and native fixtures. Safe ext4 writes need a journaling/recovery design. Btrfs
 would introduce a substantially different allocation/tree/transaction implementation and
 remains a candidate long-term research backend for the requested snapshot experience.
-[UPDATE-RECOVERY](UPDATE-RECOVERY.md) compares alternatives; Btrfs is not an immediate
+[UPDATE-RECOVERY](../../UPDATE-RECOVERY.md) compares alternatives; Btrfs is not an immediate
 prerequisite for kernel updates. These are assessments, not implemented capabilities.
 
 ## 4. Installer and update implications
@@ -94,24 +97,24 @@ The verified installation path is live boot → guest install (GPT, FAT32 ESP, e
 → disk-only UEFI boot. The installer copies its original ELF and EFI bytes through
 local Limine requests; installed entries select exact root PARTUUIDs and loaded hashes.
 Host make-bootable repair is no longer part of acceptance. GPT completion is still a
-local adapter. See [INSTALLATION](INSTALLATION.md) for guided setup and current bounds.
+local adapter. See [INSTALLATION](../../INSTALLATION.md) for guided setup and current bounds.
 
-The separate [kernel coordinator](KERNEL-UPDATES.md) stages signed ELF files while
+The separate [kernel coordinator](../../KERNEL-UPDATES.md) stages signed ELF files while
 the old kernel runs, retains a previous entry and uses explicit confirmation/undo.
 Ext2 and FAT are not transactional: selected flushed crash boundaries are tested,
 without an arbitrary physical power-loss guarantee. Matched root generations and
-image/A-B snapshots remain later recovery work in the [package design](PACKAGE-MANAGER.md).
+image/A-B snapshots remain later recovery work in the [package design](../../PACKAGES.md#architecture-and-activation).
 
 ## 5. Framework and driver work
 
 Cosmos device plumbing is often internal. Implementing device drivers or boot protocol
 extensions may need an explicit upstream/local-framework change; inspect the installed
-3.0.89 APIs rather than assuming host .NET APIs work. Use [local package switching](DEVELOPMENT.md)
+3.0.89 APIs rather than assuming host .NET APIs work. Use [local package switching](../../DEVELOPMENT.md)
 without casually running the sibling checkout's bootstrap.
 
-The [vendored networking reference](cosmos/articles/user/network.md) describes framework
+The [vendored networking reference](../../cosmos/articles/user/network.md) describes framework
 interfaces; Zenith's implemented IPv4 configuration/fetch/TLS and local transport
-adaptations are documented in [NETWORKING](NETWORKING.md).
+adaptations are documented in [NETWORKING](../../NETWORKING.md).
 Likewise QEMU graphics/storage/input validation does not establish physical hardware
 support. M7 requires a documented UEFI hardware matrix and measured input/storage/network
 behavior. Audio, Wi-Fi, suspend, multi-monitor and advanced GPU acceleration are not

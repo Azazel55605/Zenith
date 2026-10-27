@@ -1,5 +1,9 @@
 # Settings Appearance: installed-VM handoff
 
+> Reusable test procedure. Results and remaining acceptance are tracked only in
+> [the master roadmap](../ROADMAP.md#state-and-evidence); version-specific examples
+> are historical handoffs, not new release instructions.
+
 On the distributor build VM, install Python Pillow (`sudo apt-get install python3-pil`)
 for the new atlas build and native acceptance gate.
 

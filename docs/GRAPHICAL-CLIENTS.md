@@ -1,5 +1,7 @@
 # Protected graphical clients (ABI 1)
 
+Work owners: **U1/U6/D2/D3** in the [master roadmap](ROADMAP.md). This page is a contract/procedure, not a separate work tracker.
+
 This first API uses the existing trusted desktop as compositor. A separately
 packaged static x64 ELF submits private software pixels and consumes bounded
 window events. No framebuffer/device address, GUI object, kernel callback, global
@@ -119,10 +121,32 @@ focus logs alone do not establish that those pixels are visible.
 The first [shared client UI library](USERLAND-UI.md) supplies opaque software
 widgets and Inter text without changing graphics ABI 1.
 
-## Current interactive extension
+## Interactive and metadata contracts
 
-Unshipped source adds optional call 605 for owned live-window quota renewal and
-read-only call 612 for public system metadata. [Wire contract and limits](NATIVE-APP-MIGRATION.md#interactive-and-metadata-contracts).
-The original graphics ABI still uses finite lifetime quotas unless explicitly
-opted in. Ctrl+letter events now include a logical lowercase letter when Cosmos
-supplies no text; ordinary Unicode and AltGr text are preserved.
+Call **605** `(owned_surface, 1, 0)` opts into interactive ABI 1. It requires a
+live invocation-owned surface; a repeated enable is `-16`, a foreign/missing handle
+is `-9`, malformed version/reserved fields are `-22`. While the surface remains
+live, the original general/graphics request, presentation, file-transfer and raw
+CPU tick quotas renew once per monotonic minute. Network lifetime limits remain
+unchanged. Legacy clients retain lifetime quotas. Closing/revoking the surface
+prevents renewal and permits only a two-second cleanup interval at service
+boundaries. Full pointer checks, per-call byte bounds, descriptor/surface quotas,
+fault/cancellation checks and the raw CPU watchdog still apply. This is not an
+unrestricted background-process facility. Clock adjustment cannot renew quotas.
+
+Call **612** `(writable_buffer, capacity, 1)` returns UTF-8 public system metadata
+and its byte count, with capacity 1..4096. It validates the complete writable range
+before collecting data, returns `-34` if too small, and writes no partial result.
+No NUL byte is appended. It reports boot mode, kernel-generation ID when known,
+hostname, active display geometry/refresh, uptime and configured local time/zone.
+Unknown running release versions are explicitly unknown; installed package versions
+are not substituted. This API contains no account secrets or device pointers.
+
+Ctrl+letter graphical events carry a lowercase logical letter when Cosmos supplies
+no text; AltGr and ordinary Unicode text remain unchanged. This makes native
+application shortcuts usable with the existing layout maps.
+
+
+Ctrl+letter events carry the logical lowercase letter when Cosmos provides no text;
+ordinary Unicode/AltGr is preserved. Work and release acceptance: U1/Q2 in the
+[master roadmap](ROADMAP.md). [Local targeted evidence](archive/2026-10-27/meridian-shell.md).

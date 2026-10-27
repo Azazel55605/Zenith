@@ -1,5 +1,7 @@
 # Native programs and filesystem ABI
 
+Work owners: **U1–U6/N2/X1** in the [master roadmap](ROADMAP.md). This page is a contract/procedure, not a separate work tracker.
+
 > Current protected foreground ABI, including read-only services and the native stream extension. Work steps and release boundary: [Native userland](components/USERLAND.md).
 
 ## On this page
@@ -16,7 +18,7 @@ adds finite input and file writes, used by Sunbeam 0.3.0 through an explicit pac
 capability. The locally verified stream extension adds live standard descriptors and canonical
 input through `zenith-native-stream-abi 1.0`; publication/operator acceptance are
 tracked separately. Current
-release/acceptance is in [Status](STATUS.md), detailed runs in the
+release/acceptance is in [Master roadmap](ROADMAP.md#state-and-evidence), detailed runs in the
 [execution archive](archive/README.md). This begins M5; it does not complete the process, service
 or desktop migration. Sunbeam is a freestanding executable built separately from
 the kernel, installed through a signed package and executed in ring 3.
@@ -324,8 +326,7 @@ same-kernel upgrades. Host utility tests validate algorithms, not the guest ABI.
 Kernel 0.0.20 does not provide these calls. Packages declaring
 `zenith-native-process-abi`, `zenith-native-terminal-abi` or
 `zenith-native-path-abi` 1.0 require kernel 0.0.21 or a later compatible kernel.
-The exact 0.0.21 candidate passes full local qualification; distributor and
-installed acceptance remain pending. See the [VM handoff](CLI-VM-TEST.md).
+Current delivery/installed evidence belongs to [the master roadmap](ROADMAP.md#state-and-evidence); use the [VM procedure](testing/CLI-VM-TEST.md) for regressions.
 
 | Call | Arguments (RDI, RSI, RDX) | Result |
 |---|---|---|
@@ -375,9 +376,8 @@ and interactive exit refuse active jobs; closing a terminal cancels its jobs.
 
 The qualified text/traversal slice adds nine base filters and three filesystem
 traversal commands using the existing CLI ABI. [Supported syntax and limits](archive/2026-10-26/native-text-traversal.md#supported-utility-profile)
-and the [VM checklist](CLI-TEXT-VM-TEST.md) distinguish its native profile from
-GNU tools and the managed recovery implementations. Owned network clients remain
-a later service-interface slice.
+and the [VM checklist](testing/CLI-TEXT-VM-TEST.md) distinguish its native profile from
+GNU tools and the managed recovery implementations. Owned network clients use the implemented extension below.
 
 ## Owned network client extension
 
@@ -392,5 +392,4 @@ zenith-net-tools; privileged configuration/trust and drivers remain kernel servi
 
 Calls 600..603 add versioned owned software surfaces, copied opaque presentation
 and bounded routed events. See [the graphical ABI contract](GRAPHICAL-CLIENTS.md)
-for exact layouts, session admission, quotas and cleanup. The independent gui-probe
-client is a validation package; Settings and compositor migration remain separate.
+for exact layouts, session admission, quotas, unsaved/interactive extensions and cleanup. gui-probe is a validation client; independent Settings and selected app frontends now exist. Compositor/session isolation remains U6, not a completed consequence of these calls.

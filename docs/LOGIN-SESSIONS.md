@@ -1,5 +1,7 @@
 # Login, session selection and packaged appearance
 
+Work owners: **W1–W3/U6** in the [master roadmap](ROADMAP.md). This page is a contract/procedure, not a separate work tracker.
+
 > Implemented login/resource contract. Operator confirms 0.0.12 login; future graphical isolation remains open. Work steps: [Sessions/desktop](components/SESSIONS-DESKTOP.md).
 
 ## On this page
@@ -9,7 +11,7 @@
 - [Implementation boundary](#implementation-boundary)
 - [Package structure](#package-structure)
 - [Appearance contract](#appearance-contract)
-- [Delivery order and acceptance](#delivery-order-and-acceptance)
+- [Delivery order and acceptance](#validation-and-work-ownership)
 
 User-selected next direction, 2026-10-14: login through a proper session manager,
 choose desktop or headless, and manage styling through a metapackage. Headless
@@ -165,22 +167,11 @@ appearance at the next login, with that behavior visible to the user. A new layo
 widget implementation or graphics protocol may still require code/ABI updates;
 the styling metapackage does not remove that dependency.
 
-## Delivery order and acceptance
+## Validation and work ownership
 
-1. Establish authenticated session lifecycle and the greeter; retain explicit live,
-   first-account and serial recovery paths. Verify hidden/wrong/locked-account
-   authentication, credential binding and unavailable-session refusals.
-2. Add the local text console and safe logout/relogin switching. Verify keyboard
-   layout, history, repeated desktop/headless transitions, stale queued input,
-   unsaved-window handling, mutation exclusion and no-GPU serial fallback.
-3. Load shared theme data, introduce true metapackages and publish the first valid
-   `zenith-session` resources plus `zenith-style` and its existing dependencies.
-   Verify a styling package upgrade changes greeter/desktop appearance after login
-   under the same running kernel, and malformed assets retain readable defaults.
-4. Extend native process/graphics/input contracts to move the manager's renderer
-   and later desktop/apps into separate executable packages. Keep the existing
-   test DE while these interfaces mature; proper DE/WM/Files/Editor remain later work.
-
-Native acceptance must include installed users, repeated logout/relogin, serial
-fallback, package upgrades and independent filesystem auditing. Host state-machine
-tests alone cannot establish visible login, correct keyboard handling or isolation.
+Current work is W1–W3/U6 in the [master roadmap](ROADMAP.md). Authentication,
+local/serial fallback, repeated session transitions, hidden/wrong/locked accounts,
+stale input, unsaved/busy teardown and package-resource fallback remain mandatory
+regressions. Independent client/compositor migration is not established by a
+branding update. Use the native login/session harness and independent ext2 audit;
+host state-machine tests alone do not prove visible interaction or isolation.

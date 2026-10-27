@@ -1,79 +1,39 @@
 # Packages and distribution
 
-[Documentation](../README.md) · [Current status](../STATUS.md)
+[Master roadmap](../ROADMAP.md) · [Documentation](../README.md)
 
-**State:** signed installed updates, core/extra catalogs and dedicated home-server
-automation work. Operator has installed packages by name. New kernel/native file
-tool releases still need the acceptance recorded in [Status](../STATUS.md).
+Work IDs below are detailed steps of the master tracker, not a separate schedule.
 
-## Implemented steps
+## Implemented boundary
 
-- [x] Build bounded signed `.zpk` containers and separate kernel containers.
-- [x] Resolve dependencies/version constraints/conflicts and file ownership.
-- [x] Stage installed ext2 transactions, protect local edits, undo/recover and verify.
-- [x] Authenticate private catalogs, freshness and persistent generation floors.
-- [x] Support named search/plan/install, installed data upgrade, remove and verify.
-- [x] Provide `pkg update` for installed data plus kernel staging, with confirmation.
-- [x] Package independent manuals, fonts, docs and protected Sunbeam executables.
-- [x] Support branding/theme resources and a true dependency-only styling metapackage.
-- [x] Build immutable package-specific tags; gate, sign and publish on the server.
-- [x] Share unsigned pre-tag/CI acceptance with the distributor gate plan, and run
-  current controller regressions before server kernel compilation.
-- [x] Expose timer/run-now/build logs, expandable package versions and storage reporting.
-- [x] Clean bounded stale build/scratch files; hide superseded finished/failed activity.
+Signed `.zpk` and separate kernel containers, named core/extra catalogs, freshness
+floors, dependency/conflict/ownership checks, protected local edits and ext2
+staging/undo support installed updates. `pkg update` plans data plus kernel but
+commits them separately. Native code is verified again on launch.
 
-## What the package boundaries mean
+Base/fs/net tools, manuals/docs/fonts, native graphical clients and styling
+resources are actual recipes. `zenith-session` is branding; the greeter is still
+trusted. `zenith-style` is a dependency-only meta, not an executable desktop.
 
-| Package / recipe | Delivered responsibility |
-|---|---|
-| `zenith-kernel` | Kernel and remaining linked system/GUI code; reboot activation |
-| `sunbeam-tools` | Protected freestanding native text tools; new runs use updated ELF |
-| `zenith-docs`, `zenith-man-pages` | Documentation/manual data |
-| `zenith-fonts`, `zenith-theme-default` | Verified runtime appearance resources |
-| `zenith-session` | Greeter branding resources; session host still kernel-linked |
-| `zenith-style` | Zero-payload dependencies selecting the theme/fonts |
+Distributor immutable tags/build/gates/sign/publish, verification retry, useful
+logs, version grouping, storage reporting, automatic cleanup and retry controls
+already exist. Old 0.0.13 retry requests are superseded historical investigations.
 
-Current recipes live in [recipes.json](../../deploy/distributor/recipes.json).
-A future `base-tools`, `net-tools` or `fs-tools` identity is not an extracted
-executable merely because the package planner knows its name.
+## PK1–PK4 — Remaining steps
 
-`pkg update` coordinates planning but data and kernel have separate commit
-boundaries. It is not an atomic whole-system snapshot. Kernel changes activate
-after reboot and confirmation; appearance reloads at login. See the
-[client workflow](../ONLINE-PACKAGES.md) before choosing a command.
+- [ ] PK1: define `/etc` default/merge/conflict semantics and restart notices.
+- [ ] PK4: preflight running-kernel capabilities and schema/rollback compatibility;
+  coordinate activation with matched recovery generations (R2), not fake atomicity.
+- [ ] PK2: rotate/revoke signing keys and TLS certificates; define roles and rollback
+  protection, renewal and compromise recovery procedures.
+- [ ] PK3: perform a real server backup restore drill; verify bounded retention with
+  active/pinned builds and preserve diagnostics. Operator-reported backups alone
+  do not establish restore success.
 
-- [x] Dashboard retries failed/interrupted builds through the existing background
-  controller queue, preserving pinned source and refusing busy/duplicate requests.
-  [Local validation and server update](../archive/2026-10-17/dashboard-retry.md).
+## Source and operations
 
-## Remaining steps
-
-- [ ] Retry 0.0.13 with the current controller's shared authentication policy.
-  The latest reported blocker is native password-update completion at 30 seconds;
-  bounded repository staging remains enabled. See the
-  [authentication record](../archive/2026-10-16/authentication-validation.md).
-- [ ] Complete server/installed acceptance for kernel 0.0.13 and Sunbeam 0.2.0.
-- [ ] Unbundle more compiled tools as the [native ABI](USERLAND.md) grows.
-- [ ] Specify configuration-file merges and restart/compatibility handling.
-- [ ] Add trust rotation/revocation and broader public-mirror hardening.
-- [ ] Define coordinated data/kernel recovery before promising atomic system rollback.
-- [ ] Record an actual server backup restore test; automated TrueNAS backups are
-  operator reported, restore acceptance is not.
-
-## Source, operations and acceptance
-
-Owners: [guest packages](../../src/Core/Packages), [host tool](../../tools/Zenith.PackageTool),
-[distributor](../../deploy/distributor).
-References: [package design](../PACKAGE-MANAGER.md), [format/transactions](../PACKAGES.md),
-[online client](../ONLINE-PACKAGES.md), [server overview](../PACKAGE-SERVER.md).
-Operational commands belong in the [deployment runbook](../../deploy/distributor/README.md),
-[automation](../../deploy/distributor/AUTOMATION.md) and
-[dashboard setup](../../deploy/distributor/DASHBOARD.md).
-
-Preserve [package](../../tools/package-smoke.py), [repository](../../tools/repository-smoke.py),
-[kernel](../../tools/kernel-update-smoke.py), [native](../../tools/native-process-smoke.py)
-and [login](../../tools/login-session-smoke.py) gates where applicable. Require
-signature/tamper/replay/expiry/conflict/local-edit/cancel checks, reboot persistence
-and independent filesystem audit. Complete state means the controller finished;
-client acceptance is a separate observation. Historical results:
-[archive](../archive/2026-10-15/PROGRESS.md).
+[Guest](../../src/Core/Packages), [host tool](../../tools/Zenith.PackageTool),
+[recipes](../../deploy/distributor/recipes.json).
+[Format and activation](../PACKAGES.md), [online client](../ONLINE-PACKAGES.md),
+[server](../PACKAGE-SERVER.md), [deployment runbook](../../deploy/distributor/README.md).
+Use package/repository/kernel/native/session gates; Q1/Q2 own release acceptance.

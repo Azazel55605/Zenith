@@ -1,5 +1,7 @@
 # Upgrade generations, snapshots and boot recovery
 
+Work owners: **R1–R3** in the [master roadmap](ROADMAP.md). This page is a contract/procedure, not a separate work tracker.
+
 **Future design**, reviewed 2026-10-15. Current kernel-only recovery is in
 [KERNEL-UPDATES](KERNEL-UPDATES.md); implementation steps are in
 [Boot/recovery](components/BOOT-RECOVERY.md). Requested direction: investigate Btrfs-like snapshots
@@ -133,6 +135,6 @@ data. First prove the boot-generation contract before investing in a full Btrfs 
 
 The dedicated P3 kernel coordinator now provides signed staging, versioned boot
 paths, manual previous-kernel selection, explicit confirmation/rollback and a durable
-undo record. See [KERNEL-UPDATES](KERNEL-UPDATES.md) and PROGRESS for exact acceptance.
+undo record. See [KERNEL-UPDATES](KERNEL-UPDATES.md) and master Q1/Q2 for current acceptance; detailed results are archived.
 It shares the installed root and does not implement the snapshot/trial-root model
 described above, automatic failed-boot rollback or arbitrary physical power-loss repair.

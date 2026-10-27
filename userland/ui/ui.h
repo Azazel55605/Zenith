@@ -9,6 +9,13 @@ struct zui_theme { unsigned int surface,raised,subtle,border,text,secondary,acce
 struct zui_font { unsigned short width,height,ascent; const unsigned char *advance,*pixels; };
 extern const struct zui_font zui_body,zui_label,zui_heading,zui_caption;
 struct zui_rect { int x,y,w,h; };
+/* Stable surface intent; current XRGB painting is always opaque. Candidate means
+ * future host-negotiated composition is possible, never authority to sample it. */
+enum { ZUI_SURFACE_CONTENT=1,ZUI_SURFACE_CONTROL=2,ZUI_SURFACE_NAVIGATION=3,
+       ZUI_SURFACE_PANEL=4,ZUI_SURFACE_POPOVER=5 };
+struct zui;
+int zui_surface(struct zui *ui,struct zui_rect rect,int radius,int role);
+int zui_backdrop_candidate(int role);
 enum { ZUI_BUTTON=1,ZUI_TOGGLE=2,ZUI_CHOICE=3 };
 struct zui_control { int id,kind,enabled,value; struct zui_rect rect; const char *label; };
 struct zui {

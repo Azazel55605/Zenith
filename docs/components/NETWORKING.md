@@ -1,82 +1,36 @@
-# Networking and trust
+# Networking and transport trust
 
-[Documentation](../README.md) · [Current status](../STATUS.md)
+[Master roadmap](../ROADMAP.md) · [Documentation](../README.md)
 
-**State:** M3's bounded IPv4 LAN client is implemented. Operator use includes
-VMware DHCP and verified HTTPS package delivery from the home repository.
+Work IDs below are detailed steps of the master tracker, not a separate schedule.
 
-## Implemented steps
+## Implemented boundary
 
-- [x] Configure primary E1000E IPv4 with DHCP, static settings or off mode.
-- [x] Persist hostname/hosts/resolver settings and expose diagnostic commands.
-- [x] Add bounded DHCP reacquisition, cancellation and receive polling fallback.
-- [x] Implement DNS, correlated ICMP/TCP diagnostics and shared software UTC/NTP.
-- [x] Stream bounded HTTP/HTTPS downloads with backpressure and progress reporting.
-- [x] Validate TLS chain, hostname and dates through imported trust; retain separate
-  package signature verification.
-- [x] Bootstrap trusted proxy material using the configured delivery workflow.
+Primary wired E1000E IPv4, DHCP/static/off, persisted hostname/hosts/resolvers,
+DNS/ICMP diagnostics, software UTC/NTP and verified bounded HTTP/TLS clients exist.
+Owned native TCP/TLS handles and atomic download sinks back independently packaged
+net-tools. Kernel 0.0.23/net-tools 0.1.0 and representative home-path checks were
+operator confirmed. This is not IPv6/Wi-Fi, a general sockets/server API or secure NTP.
 
-## Current boundary
+## N1 — Reliability verification
 
-The private endpoint is `https://zenith-stable.net.local`, backed by
-`10.0.20.7`; home DNS is `10.0.10.3`. These are deployment settings, not universal
-network defaults. Zoraxy serves the explicitly trusted self-signed certificate;
-there is no insecure TLS bypass. NTP is unauthenticated and does not establish a
-secure time source. Fetch success alone does not authorize package installation.
+- [ ] Record sustained refresh/update/connect/transfer/cancel/replacement results
+  through VMware and the actual DNS/proxy route; add a repeatable throughput profile.
+- [ ] Retain actionable DNS/TCP/TLS phase/error counters and cleanup evidence.
+- [ ] Reproduce before assigning a new active TCP defect. The entropy-seeded port
+  mitigation is installed; the location of historic stale flow state was not proven.
+  A manual nslookup is not a package-client prerequisite.
 
-Primary-NIC client support does not provide a general sockets ABI, SSH, IPv6,
-Wi-Fi or broad real-hardware support. `nc` is a bounded probe rather than a full
-interactive stream tool. Performance depends on the VM/VPN/storage path; do not
-assume KVM or extra vCPUs improve the guest's single managed execution path.
+## N2 / PK2 / H1 — Expansion
 
-## Active reliability work
+Define listener/UDP/server and multiple-device/profile contracts before new ports;
+add NICs, IPv6 or Wi-Fi against explicit supported hardware. Certificate renewal and
+package-key lifecycle are PK2, separate from transport success. Device failure,
+reconnect, framing, cancellation and authorization need native acceptance.
 
-Operator refresh/update still shows intermittent TCP connect failures despite
-working DNS after the retry/retirement release. On 2026-10-17 a full refresh
-succeeded, then update refreshed core generation 24 before extra exhausted
-connect attempts to the correctly resolved proxy 10.0.10.3:443. Bounded fresh-socket
-retry and timed-out registration retirement have local guest acceptance, but do
-not establish reliable operation through the actual VMware/proxy path. A new
-capture reproduces SYN -> stale plain ACK -> appropriate RST; later success after
-waiting suggests expiring flow state, with its location unconfirmed. The pinned
-prior allocator restarted source ports at 49152 each boot. See [evidence](../archive/2026-10-17/tcp-stale-flow.md)
-and [Progress](../PROGRESS.md); a manual nslookup is not a client prerequisite.
+## Source and evidence
 
-Candidate `db90ebc` replaces fixed port candidates with a once-only hardware-entropy
-seeded offset/stride, retaining active-port exclusion. Full clean-source release
-acceptance and focused TCP/HTTPS wire checks passed. Kernel/v0.0.17 is pushed at
-that tested source; the operator reports 0.0.17 installed and initially working.
-Sustained repeated-path acceptance and explicit boot confirmation are separately
-unreported. This mitigation does not locate external stale state or establish
-that every continuous-operation failure is resolved.
-
-## Remaining steps
-
-- [x] Implement invocation-owned bounded TCP/verified-TLS services and atomic
-  download sinks; independent zenith-net-tools clients are implemented.
-  [Contract and qualification](../archive/2026-10-26/native-network-clients.md).
-- [x] Complete clean-source full qualification at `faecc72`: 72 native network
-  checks and the other five mandatory gates pass.
-- [x] Operator confirms installation and kernel boot confirmation; graphical-terminal
-  net-tools 0.1.0, signed routing, DHCP/status, ping, hostname TCP and verified TLS
-  fetch pass. [Evidence](../archive/2026-10-26/native-network-clients.md#operator-acceptance).
-- [ ] Installed replacement/cancellation checks are not separately shown; local
-  automated acceptance covers them. [Full checklist](../NETWORK-VM-TEST.md).
-- [ ] Broader socket/listener/UDP/server support remains outside this client profile.
-- [ ] Expand stream/timeout diagnostics and benchmark a repeatable transfer profile.
-- [ ] Define certificate renewal and package-key lifecycle operational procedures.
-- [ ] Extend NIC/protocol/hardware coverage with explicit acceptance targets.
-
-## Source and acceptance
-
-Owners: [network service](../../src/Core/Network), [network library](../../src/Core/Network/Transport),
-[TLS builder](../../tools/build-tls.py). Exact limits/commands/framework adaptations:
-[network reference](../NETWORKING.md).
-
-Use [network smoke](../../tools/network-smoke.py),
-[DHCP receive smoke](../../tools/dhcp-receive-smoke.py) and
-[repository smoke](../../tools/repository-smoke.py) as applicable. Check missing NIC,
-link loss, rejected offers, DNS correlation, cancellation, malformed/partial
-transfers, TLS failure and complete signed delivery. The
-[archive](../archive/2026-10-15/PROGRESS.md) distinguishes QEMU results from operator
-VMware/home-server observations.
+[Services](../../src/Core/Network), [transport](../../src/Core/Network/Transport),
+[native client](../../userland/net-tools), [contract](../NETWORKING.md).
+[Network extraction/installed evidence](../archive/2026-10-26/native-network-clients.md).
+Home DNS/proxy settings are deployment-specific, not public defaults.

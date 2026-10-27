@@ -1,8 +1,12 @@
 # Native network client VM test
 
-Targets: kernel **0.0.23**, **zenith-net-tools 0.1.0** and manuals **0.1.5**.
-The new package requires zenith-native-network-abi 1.0, absent from 0.0.22.
-Base/filesystem/Sunbeam packages do not need a new release for this slice.
+> Reusable test procedure. Results and remaining acceptance are tracked only in
+> [the master roadmap](../ROADMAP.md#state-and-evidence); version-specific examples
+> are historical handoffs, not new release instructions.
+
+Use the current compatible kernel/net-tools/manuals receipts. The network ABI first
+shipped in 0.0.23; compatibility is capability-based, not a request to install that
+historical version. Installed results live in the master evidence table.
 
 ## Distributor
 

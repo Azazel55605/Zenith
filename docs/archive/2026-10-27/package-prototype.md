@@ -1,14 +1,14 @@
 # P0 offline package prototype
 
-> Historical unsigned P0 experiment; not the supported installation path. Use [Signed packages](PACKAGES.md) and [Online packages](ONLINE-PACKAGES.md).
+> Historical unsigned P0 experiment; not the supported installation path. Use [Signed packages](../../PACKAGES.md) and [Online packages](../../ONLINE-PACKAGES.md).
 
 
 Experimental implementation, 2026-10-11. The shared host/guest reader and planner
 establish bounded input, integrity, compatibility and conflict checks before an
 installer is built. These unsigned directory commands do not install or activate packages.
 Signed offline containers, ownership DB and transactions are now a separate
-[P1 implementation](PACKAGES.md). Online trust and system activation remain gates
-in [PACKAGE-MANAGER](PACKAGE-MANAGER.md). Networking is not needed for these tests.
+[P1 implementation](../../PACKAGES.md). Online trust and system activation remain gates
+in [PACKAGE-MANAGER](../../PACKAGES.md#architecture-and-activation). Networking is not needed for these tests.
 
 ## Build and inspect
 
@@ -106,4 +106,4 @@ selection. Independent desktop/app updates require the M5 loader/isolation/API w
 Run `python3 -B tools/test_package_tool.py` for actual builder/plan attacks and
 `python3 tools/foundation-smoke.py /tmp/zenith-foundation` for native checks. Host
 unit coverage includes malformed manifests, compatibility/dependencies, corruption
-and file/directory/ancestor conflicts. Exact results are in [PROGRESS](PROGRESS.md).
+and file/directory/ancestor conflicts. Exact results are in [Master roadmap](../../ROADMAP.md#current-focus-and-execution-order).

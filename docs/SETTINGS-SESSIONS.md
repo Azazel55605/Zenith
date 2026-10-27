@@ -1,5 +1,7 @@
 # Shared settings and session foundation
 
+Work owners: **S1/S2/W3** in the [master roadmap](ROADMAP.md). This page is a contract/procedure, not a separate work tracker.
+
 > Settings and fallback console reference. Local text/login lifecycle: [Login sessions](LOGIN-SESSIONS.md). Work steps: [Sessions/desktop](components/SESSIONS-DESKTOP.md).
 
 ## On this page
@@ -166,7 +168,7 @@ Use explicit API/runtime compatibility when migrating these services to IPC; the
 existing native text ABI does not yet provide graphical/service IPC.
 
 Validation commands and exact native evidence are in [DEVELOPMENT](DEVELOPMENT.md)
-and [PROGRESS](PROGRESS.md). See [package prototype](PACKAGE-PROTOTYPE.md) for P0.
+and [Master roadmap](ROADMAP.md#current-focus-and-execution-order). See [package prototype](archive/2026-10-27/package-prototype.md) for P0.
 
 Functional native Appearance settings: [service, resources and wire contract](NATIVE-SETTINGS.md),
-with the [installed-VM checklist](SETTINGS-VM-TEST.md).
+with the [installed-VM checklist](testing/SETTINGS-VM-TEST.md).

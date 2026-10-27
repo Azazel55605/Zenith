@@ -99,7 +99,7 @@ and `zenith-man-pages/v0.1.3`. The atomic source/tag push succeeded and every
 remote peeled tag was verified at that commit. Later documentation commits do not change the
 qualified tag target. Local acceptance is unsigned; distributor signing/delivery
 and installed VMware acceptance remain separate. Follow the
-[VM test handoff](../../CLI-VM-TEST.md).
+[VM test handoff](../../testing/CLI-VM-TEST.md).
 
 ## Operator acceptance
 

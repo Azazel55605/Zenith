@@ -1,44 +1,40 @@
-# Maintaining the documentation
+# Documentation ownership
 
-## One owner for each kind of information
+**One work tracker: [ROADMAP.md](ROADMAP.md).** It owns priorities, current focus,
+all accepted open work, implementation state, dependencies, exits and release /
+installed acceptance. Do not create another project status/progress/plan ledger.
 
-| Information | Owner | Update when |
+## What belongs where
+
+| Location | Owns | Must not become |
 |---|---|---|
-| Cross-component state and release acceptance | [STATUS](STATUS.md) | Implementation or operator evidence changes |
-| Active task and immediate handoff | [PROGRESS](PROGRESS.md) | Each implementation/validation step |
-| Component implementation and next steps | [Component pages](README.md#components) | A component's behavior, limits or acceptance changes |
-| Order, dependencies and milestone exits | [ROADMAP](ROADMAP.md) | Priorities or scope change |
-| Exact API, commands and limits | Technical guide linked by the component | The contract changes |
-| Product requirements and design choices | [SYSTEM-PLAN](SYSTEM-PLAN.md), linked design pages | A decision is accepted or reopened |
-| Completed execution evidence | [Archive](archive/README.md) | A slice completes |
-| Historical narrative | [HISTORY](HISTORY.md) | A significant project transition occurs |
+| ROADMAP | Master work IDs, order, current state and evidence links | A chronological build log |
+| components/ | Smaller checklists/source boundaries under those same IDs | An independent schedule or duplicate release table |
+| Technical guides | Current APIs, commands, limits and requirements | Unowned TODOs or historical test-count/status appendices |
+| DESIGN-LANGUAGE | Accepted visual/material/interaction contract and parity criteria | A claim unsupported effects already run |
+| MERIDIAN-PAGES / MERIDIAN-PLAN | Exact page/control coverage and feature contracts mapped to master IDs | A competing project roadmap |
+| testing/ | Reusable procedures; results go in evidence/master state | A second pending-acceptance queue |
+| archive/ | Dated historical evidence and superseded investigations | Current requirements or active tasks |
+| PROGRESS | Compatibility pointer for agent entry instructions | Another checklist |
 
-## During a slice
+## During work
 
-1. Put the scope, concrete steps and validation plan in PROGRESS. Keep only current
-   work and immediate acceptance blockers there.
-2. Update the component checklist as steps land. A checked item means implemented;
-   separately record which host/native/operator checks passed, on what revision.
-3. Update the technical guide alongside API/command changes. State existing limits
-   and compatibility or migration requirements before examples.
-4. Record failures and corrections honestly. Build success does not prove guest
-   behavior; local success does not prove server publication or installation.
-5. On completion, move detailed evidence to `archive/YYYY-MM-DD/<slice>.md`, link
-   it from the archive index and component evidence, and leave a concise handoff.
-   Include revision, environment, test commands/results, limitations and remaining
-   operator action. Do not rely solely on ephemeral `/tmp` log paths.
-6. Update STATUS and ROADMAP only where the result changes their claims. Keep
-   completed history out of the roadmap and old task lists out of PROGRESS.
+1. Read the master current-focus section and the relevant component/contract.
+2. Add/map every newly accepted requirement to a master ID before it can be lost.
+   Component substeps keep that ID; completing one does not finish the whole row.
+3. Update the master state and the component's useful implementation detail in the
+   same change. Remove superseded blockers; preserve actual ABI/permission limits.
+4. Keep source, local tests, distributor publication and operator-installed evidence
+   distinct. Never infer installation from a tag or a successful local test.
+5. Archive detailed completed evidence once, with revision/artifacts/environment and
+   remaining limits. Link it; do not copy its execution history into active pages.
+6. Before a kernel release retain full clean-source qualification. Documentation or
+   a visual concept cannot waive gates or turn a menu stub into a backend.
+7. Run `python3 -B tools/check-documentation.py` after reorganizing docs. New open
+   work outside master/component pages must link its master owner rather than grow
+   a new checkbox list. Pinned `docs/cosmos/` is upstream reference: leave it alone.
 
-Do not repeat exact protocol constants across summary pages; link the owning
-reference. Do not label a source split/resource package as a protected executable.
-Do not turn a proposed design into an implemented claim by copying it into another
-page. Keep legacy milestone IDs for orientation, not as competing task lists.
-
-## Link and scope checks
-
-Check relative file links and heading anchors after moving pages, including links
-from the repository README and deployment runbooks. Existing public guide paths
-remain stable in this overhaul. Archived pages carry a historical banner and
-rebased relative links. `docs/cosmos/` is pinned upstream material: do not rewrite
-it as Zenith documentation. No kernel rebuild is needed for a Markdown-only change.
+Consolidate obsolete reference files into their owner and rewrite links. Preserve
+unique historical measurements only in the archive, explicitly dated/superseded.
+Do not accumulate root-level redirect files for each removed duplicate. Optional
+experiments remain outside the main product sequence unless explicitly promoted.

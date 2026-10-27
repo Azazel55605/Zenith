@@ -1,5 +1,7 @@
 # Accounts and filesystem access
 
+Work owners: **W3/R1** in the [master roadmap](ROADMAP.md). This page is a contract/procedure, not a separate work tracker.
+
 > Technical reference: installed account and access rules. Work steps: [Storage/security](components/STORAGE-SECURITY.md).
 
 ## On this page
@@ -113,7 +115,7 @@ CPU/hypervisor implementation. No timer, XorShift or OS-crypto fallback is used.
 Unavailable entropy refuses password creation and `/dev/random` reads. ARM64
 currently has a fail-closed stub. `/dev/random` is read-only, returning at most
 4096 bytes per read; failed reads erase the buffer. This does not replace Cosmos's
-other random APIs or claim suitability for unimplemented TLS/package signatures.
+other random APIs. TLS and package signing have separate implemented entropy/trust contracts; do not infer new cryptographic guarantees from this device alone.
 Password strings are managed memory and cannot be reliably erased; intermediate
 byte buffers are cleared. Do not log or dump passwords.
 

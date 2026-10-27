@@ -1,9 +1,9 @@
 # Current Zenith architecture
 
-Reviewed 2026-10-15 against source through `f502085`. This document describes
-current code; release/environment acceptance is tracked in [Status](STATUS.md).
-Future structure is in [SYSTEM-PLAN](SYSTEM-PLAN.md); update design is in
-[PACKAGE-MANAGER](PACKAGE-MANAGER.md).
+Audited 2026-10-27 against source `a558f66`. This document describes
+current code; release/environment acceptance is tracked in [Master roadmap](ROADMAP.md#state-and-evidence).
+Future structure is in [the master product definition](ROADMAP.md#product-definition); update design is in
+[package architecture](PACKAGES.md#architecture-and-activation).
 
 ## Build and execution model
 
@@ -13,15 +13,14 @@ pin Cosmos to 3.0.89; the host .NET SDK is a separate toolchain requirement. The
 explicit and ignored by Git. Publishing produces a native kernel ELF and boot ISO.
 CI uses Release builds; developer tasks also support Debug. See [build details](DEVELOPMENT.md).
 
-Most built-in commands, GUI applications and privileged services are C# linked into
-the kernel, sharing its trusted address space. Shell worker threads improve
-responsiveness but do not isolate those components. Separately packaged Sunbeam
-runs as protected static x64 ELF through the Zenith native ABI, including bounded
-read-only filesystem access. Resource packages independently deliver manuals,
-fonts, branding and colors. Changing remaining linked code still requires a kernel
-build; changing a compatible native ELF or resource package does not.
+Remaining shell evaluation/administrative commands, several GUI applications,
+compositor/greeter and privileged services share the trusted C# kernel address
+space. Worker threads improve responsiveness, not isolation. Selected base/fs/net
+and graphical C/ASM clients run as independently packaged protected static x64 ELF.
+Resource packages independently deliver manuals/fonts/branding/palettes. Compatible
+app/resource updates do not replace kernel bytes; remaining linked code does.
 
-[USERLAND](USERLAND.md) describes the remaining migration. A window is not an
+[USERLAND](components/USERLAND.md) describes the remaining migration. A window is not an
 isolated process, and resource delivery does not make the consuming renderer an
 independent executable.
 
@@ -160,7 +159,7 @@ Ctrl+C produces status 130. Pipeline stages exchange bytes through 8 KiB channel
 with backpressure; early reader exit stops the producer. Child stages isolate
 producer state and the final stage retains parent state. Eight stages/workers are
 allowed per shell tree, including nested pipelines. Compatibility builtins and
-post-command file redirection buffers are bounded at 1 MiB. No jobs, general process table or full-screen raw terminal mode exist.
+post-command file redirection buffers are bounded at 1 MiB. Owner-filtered native process snapshots/cancellation, four shell background jobs and foreground raw leases exist; a full PTY/signal/process-group contract does not.
 
 Desktop owns input routing, launcher/taskbar and the window manager. Windows
 float, cascade, focus, resize, minimize and maximize. There are no workspaces or
@@ -173,17 +172,15 @@ entry and basic create/open/rename/copy/move/delete with confirmation. Copies ar
 bounded to 8 MiB, Editor opens to 128 KiB; directory copies, cross-parent folder
 moves in the GUI and symlink/device transfers are unavailable. This is the
 baseline to replace later, not the intended final file manager.
-Settings currently exist as keyboard/timezone commands and persisted configuration;
-the System window reports information but is not a Settings application.
+Settings includes shared keyboard/timezone/session commands, typed root-only Appearance persistence and independent Meridian/Colors clients. Current source has native Welcome/System frontends; Terminal, Editor, Sunrise, greeter and compositor remain trusted. WIP Meridian pages are navigation, not management backends.
 
 ## Verification and delivery
 
-[Status](STATUS.md) owns current release acceptance. Source through `f502085` has
-620 passing host tests and local native filesystem acceptance; 0.0.13 full server
-gates and operator installation remain pending. Operator confirms installed
-0.0.12 login/resources. [Development](DEVELOPMENT.md) owns reproduction commands;
-[archived slice evidence](archive/2026-10-15/PROGRESS.md) records earlier runs and
-limitations. Do not combine test totals from different revisions into one release claim.
+The [master roadmap](ROADMAP.md#state-and-evidence) owns release/environment
+acceptance; [development](DEVELOPMENT.md) owns reproduction commands and the
+[archive](archive/README.md) preserves exact results. Full clean-source Release
+qualification is required before a new kernel tag. Historical test totals are not
+current architecture facts and must not be combined across revisions.
 
 ## Offline packaging foundation
 
@@ -196,7 +193,7 @@ under /etc and outside data payloads. See [PACKAGES](PACKAGES.md).
 
 P3 uses a separate signed kernel container and activation state. Installer, package
 and kernel mutations share a maintenance gate; normal shutdown refuses active work.
-Most compiled tools/desktop remain kernel-linked; Sunbeam is independent. Signed
+Selected base/filesystem/text/network tools and graphical clients are independently packaged; shell evaluation, privileged services, compositor and several apps remain kernel-linked. Signed
 online catalogs, named installs and all-installed updates are implemented. Matched
 kernel/root generations remain future work. Manifest-3 metapackages and extended
 catalog compatibility are documented in [ONLINE-PACKAGES](ONLINE-PACKAGES.md).
@@ -215,8 +212,7 @@ adapters guard IPv4 ingress, bound UDP/ICMP/TCP storage and share NTP correction
 with BCL/filesystem timestamps. TCP payload ACKs and contiguous sequence checks use
 signature-checked adapters; unread data shrinks the advertised receive window and
 application reads reopen it. Explicit fetch --kernel permits bounded ELF-sized
-transfers while ordinary downloads keep their smaller limit. Current apps remain
-kernel-linked.
+transfers while ordinary downloads keep their smaller limit. Selected native clients call owned services; trusted legacy clients still exist.
 
 
 ## Protected native executables
@@ -235,10 +231,8 @@ groups permit cancellation. Raw user windows still suspend normal managed dispat
 The stream extension adds canonical host stdin, live stdout/separate stderr and
 bounded byte pipelines. Up to eight rooted native contexts may wait on managed
 streams; a raw-entry gate serializes their user windows on the BSP. Per-invocation
-file write/create/truncate/append/flush services remain bounded. Sockets, raw TTY,
-job control and GUI interfaces remain unimplemented.
+file write/create/truncate/append/flush services remain bounded. Owned TCP/TLS, raw leases, jobs and private graphical surfaces/events are implemented. The optional interactive profile renews bounded quotas only with a live owned surface. Full PTY/POSIX services, independent compositor/session processes, surface resizing and backdrop composition remain open.
 
-Sunbeam's C/ASM source builds into an independent package containing cat/tee/wc/head/tail/ls/pwd/stat;
-remaining linked tools stay available for recovery. [Native programs](NATIVE-PROGRAMS.md)
+Freestanding C/ASM clients build into separate base/fs/net and graphical packages; explicit trusted recovery commands remain available. [Native programs](NATIVE-PROGRAMS.md)
 owns exact wire formats, limits and capability dependencies. [Multicore](MULTICORE.md)
 owns opt-in isolated integer workers; those APs do not execute managed services.

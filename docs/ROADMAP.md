@@ -1,92 +1,181 @@
-# Roadmap
+# Zenith — master roadmap
 
-Reviewed **2026-10-27**. This page owns order and milestone exits, not the execution
-log. Read [Status](STATUS.md) for delivery evidence and [Progress](PROGRESS.md) for
-active work. Historical milestone version targets are not release versions.
+**Single work tracker · audited 2026-10-27 · source baseline `a558f66`.**
+Start here for priorities, current state, outstanding work and release acceptance.
+Component pages expand these work IDs; technical guides explain contracts, not a
+second schedule. [Documentation map](README.md) · [Maintenance rules](MAINTAINING.md).
 
-## Now
+## Product definition
 
-1. **Close the selected CLI milestone.** Base/text/filesystem/network extraction
-   is implemented and fully qualified. The operator accepted the process/file/text
-   checks and confirms kernel 0.0.23 installed/boot-confirmed with net-tools 0.1.0;
-   representative home-path network/TLS checks pass. Optional remaining installed
-   replacement/cancellation exercises are listed in the [checklist](NETWORK-VM-TEST.md).
-   Shell evaluation and privileged administration remain trusted services.
-   [Active work](PROGRESS.md#cli-unbundling-and-application-foundations) separates
-   local qualification, distributor delivery and installed acceptance.
-2. **Deliver the graphical API, then build Settings.** The first owned surface/
-   event API and independent probe pass full qualification;
-   [VM acceptance](GRAPHICAL-VM-TEST.md) is operator confirmed. The
-   [system design language](DESIGN-LANGUAGE.md) is accepted; the first
-   [shared native widgets/text](USERLAND-UI.md) pass local compositor acceptance.
-   The [independent Appearance page](NATIVE-SETTINGS.md) now has typed authorized
-   persistence, signed palettes and saved/active state; full Release qualification
-   passes at `12ded91`; release tags are pushed. Confirm distributor delivery and
-   [installed acceptance](SETTINGS-VM-TEST.md). Follow the [Meridian plan](MERIDIAN-PLAN.md):
-   expose every menu with honest WIP states first, prioritize display resolution/
-   scaling, and activate services incrementally. Port other apps in parallel after
-   shared UI/display/preference foundations; do not wait for every later hardware
-   feature. Preserve the test DE until independent compositor/session teardown is verified.
-3. **Retain installed acceptance boundaries.** Operator reports installation;
-   local QEMU tests and server publication are separate evidence. Continue
-   representative installed permissions/input/update checks as features ship.
+A usable, independently updateable desktop OS: authenticated Desktop and local
+Headless sessions with serial recovery; a full floating DE and later selectable
+automatic-tiling WM; dependable Terminal, Editor, Files and Sunrise installation;
+Meridian settings with consistent CLI services; signed packages and recoverable
+updates. Applications must update and fail independently of the kernel. No Linux
+binary compatibility, POSIX completeness or particular filesystem is implied.
 
-## Next: continue unbundling
+The accepted neutral light/dark design is the target, including optional transparent,
+translucent and blurred surfaces. **Opaque mode is the same design with effects off.**
+[Visual specification and parity gaps](DESIGN-LANGUAGE.md).
 
-| Order | Slice | Exit / dependency |
+**A finished core product** requires the core rows below to pass their exits,
+usable install → login → configure → edit/save → manage files → update → recover
+workflows, and a published supported-device matrix. A growing menu/app count is not
+completion. Later hardware capabilities and developer ports have explicit separate
+exits; optional experiments do not block the core product.
+
+## State and evidence
+
+States: **accepted** = operator exercised that scope; **local** = implemented and
+locally tested; **partial** = some behavior exists; **planned** = implementation
+missing; **verification** = evidence needed, not an assumed reproducible defect.
+A row's implementation state does not imply publication or installed acceptance.
+
+| Baseline | Established | Boundary |
 |---|---|---|
-| 1 | Native input/write operator acceptance | Local common gate passed; delivery/update are operator reported; verify persistent writes/permissions on the installed VM |
-| 2 | Native stream delivery | Full local gate passed; publish/confirm compatible kernel before updating tools and accepting operator behavior |
-| 3 | Raw TTY/process lifecycle | Define terminal modes, wait/jobs and environment before larger CLI ports |
-| 4 | More independent command packages | Move selected base/fs/network tools after their required ABI exists; update the executable without changing kernel bytes; keep recovery tools available |
-| 5 | First protected graphical client | Versioned display/input/surface and IPC contract, per-client ownership and fault cleanup; client crash leaves login/session usable |
-| 6 | Desktop and privileged service migration | Separate compositor/session/app responsibilities; restart and compatibility rules proven before replacing the temporary DE |
+| Boot/storage/accounts/packages | Installed ext2, permissions, authentication, signed named updates, retained kernels and distributor/dashboard | 512 MiB root; no general journal/repair, complete system snapshot or hardware certification |
+| CLI extraction | Base/filesystem/text/network tools, owned streams/jobs/raw leases; operator exercises through 0.0.23 | Shell evaluation and privileged administration remain trusted; no full PTY/POSIX runtime |
+| Graphical ABI / 0.0.24 | Qualified private surfaces/events and independent probe; operator installed/tested | Trusted compositor/greeter; fixed opaque client surfaces |
+| Appearance / 0.0.25 | Tags at qualified `12ded91` pushed: Settings 0.1.0, theme 0.1.1, manuals 0.1.6 | Last operator report: building. Distributor completion and installed acceptance unconfirmed (**Q1**) |
+| Meridian/app foundation / `a558f66` | Local 43-page navigation, search, working Colors, Welcome/System native clients, interactive profile; 747 host/238 controller and targeted native checks | Unpushed source; full release qualification and installed acceptance outstanding (**Q2**). WIP pages are not implemented backends |
 
-CLI packages take priority over GUI work, as confirmed on 2026-10-26. This sequence is not a
-claim that all APIs or package names are settled. [Userland steps](USERLAND.md)
-own the detailed gates. Managed multicore is a separate dependency track, not a
-prerequisite for the next bounded file utility.
+Evidence: [CLI](archive/2026-10-26/cli-process-foundation.md),
+[text](archive/2026-10-26/native-text-traversal.md),
+[network](archive/2026-10-26/native-network-clients.md),
+[graphics](archive/2026-10-26/protected-graphical-clients.md),
+[Appearance](archive/2026-10-27/appearance-settings.md),
+[Meridian foundation](archive/2026-10-27/meridian-shell.md).
+Old 0.0.13/0.0.19 build failures are historical investigations, not current retry tasks.
 
-## Product tracks
+## Current focus and execution order
 
-| Track | Current position | Remaining delivery steps |
+1. **G1 / documentation — audited:** tracking is consolidated here; stale blockers
+   are reconciled and accepted requirements preserved. Keep this ownership model.
+2. **D1 / shared design:** close the preview/implementation gap at shared widget,
+   layout and material-role level **before expanding app ports**. Define the same
+   geometry in solid/translucent/blurred modes now; effects implementation is D3.
+3. **U1 + D2 / foundations:** finish interactive lifetime acceptance, rich controls,
+   text/clipboard/dialog contracts and guarded display resolution/scaling. Existing
+   display settings remain WIP until real Keep/Revert is proven. This stays early.
+4. **U2–U4 / finish this app migration:** native Editor, Terminal and Sunrise with
+   typed service contracts. Welcome/System already have local native frontends.
+   **Files is excluded from this batch** and gets its own later overhaul, A1.
+5. **S1 / preferences and Q2 / release:** consistent user/system scope and existing
+   settings services; qualify the coherent batch, publish compatible kernels first,
+   then clients. Q1 confirmation can happen in parallel; do not mutate existing tags.
+6. **W1–W3 / desktop and workflows:** full DE/lifecycle, notifications/workspaces,
+   automatic tiling, Files overhaul and shared app behavior. Activate Meridian pages
+   alongside their services rather than waiting for every backend to exist.
+7. **PK1–PK4, R1–R3, H1–H3 / product hardening:** package/config/trust, storage and
+   whole-system recovery, supported hardware, secure sessions and real media/devices.
+   Backend dependencies below determine the detailed order, not calendar promises.
+8. **C1–C4 and X1–X4 / larger tracks:** managed multicore and developer ports follow
+   their safety/resource prerequisites. They are not prerequisites for the next UI app.
+
+## Core delivery work
+
+Each row is a deliverable with a concrete exit. Update this table when its state
+changes; put smaller implementation steps in the linked component, using the same ID.
+
+| ID | State | Work, dependency and exit |
 |---|---|---|
-| Desktop/usability | Login, DE/local text selection and packaged appearance work | Shared UI/toolkit foundations → Settings → proper DE/automatic-tiling WM → Files/Editor overhaul → per-user customization/accessibility; GUI independence follows the native graphics contract |
-| Package delivery | Installed updates and home automation work | Accept new ABI packages → improve update/restart/configuration handling → trust rotation/revocation → coordinated recovery; retain signatures and full release gates |
-| Multicore | Opt-in native workers only | Wake/IPI and per-CPU state → GC barrier → pinned managed threads → migration/load balancing → contention/I/O/recovery acceptance |
-| Recovery/storage | Retained kernels and undo, bounded ext2 | Decide snapshot scope/backend → clean root generations/trial/restore → evaluate efficient CoW; capacity changes need installer/checker/memory redesign |
-| Developer tools | Host GCC/Clang builds freestanding Zenith executables | Cross-SDK/libc subset → terminal editor feasibility → Python runtime → on-system GCC if ABI/resources permit |
-| Hardware | QEMU and operator VMware testing | Explicit device matrix → boot/storage/network/input validation → USB/physical installs and recovery |
+| G1 | local, complete | One tracker; obsolete guides consolidated and open items mapped. [Audit and checks](archive/2026-10-27/documentation-and-material-contract.md) complete; future agents follow [maintenance](MAINTAINING.md). |
+| D1 | partial, next | [Preview parity/material contract](DESIGN-LANGUAGE.md): segmented modes, circular accent swatches, settings rows, consistent density/icons/chrome and focus states. Compare real dark/light widgets against the accepted specimen; preserve functional save/permission behavior. |
+| D2 | planned | Display identity/mode enumeration → guarded mode change → integer layout/text/surface scaling → driver-supported orientation/refresh. Requires richer client layout/resize contract. Smaller viewport, timeout/crash and explicit Keep/Revert must restore a usable mode. |
+| D3 | planned | Shared opaque surface roles are implemented; host-owned bounded material regions → alpha/tint → backdrop blur/damage caching → saved/effective user controls. Depends on D1 roles and D2 surface sizing. Same layout with effects on/off; contrast over busy backgrounds, movement/minimize/overlap and resource/performance fallback tested. No alpha packed into today's forced-opaque ABI. |
+| U1 | partial | [Shared native UI/runtime](components/USERLAND.md): lists, fields, selectors, sliders, dialogs, multiline text, clipboard, resizing/hover, runtime fonts/Unicode/IME; long-duration quota and teardown acceptance beyond old invocation limits. Existing profile renewal alone is not full long-lived-app qualification. |
+| U2 | planned | Editor: bounded UTF-8/LF/CRLF, selection/clipboard, undo/redo/search, safe staged save/save-as and external-change checks. Depends on U1 + caller-scoped files/dialogs; prove permission/out-of-space/cancel/dirty-close and independent update. |
+| U3 | planned | Terminal: owned PTY/shell session, byte streams, modes/resize, raw/canonical input, hidden secrets, type-ahead, jobs/EOF/cancel. Depends on U1; preserve all three recovery hosts. No privileged command-string RPC as a substitute. |
+| U4 | planned | Sunrise: native wizard over typed root/live-only disk/account/progress service. Preserve pre-erase asset/target checks, explicit destructive consent, secret handling, maintenance exclusion and teardown. Validate disposable install/reboot/recovery before replacing recovery UI. |
+| U5 | partial | Welcome/System: native frontends and signed shell/menu launch locally pass; finish D1 parity, live preferences and independent upgrade/cancel/other-user acceptance with Q2. Keep recovery start windows and fail-closed executable validation. |
+| U6 | planned | Separate service/compositor/session processes: owned/versioned IPC, authority and restart/compatibility contracts → fault isolation → independent restart/upgrade. Existing typed syscalls are a foundation, not completion. Keep drivers/GC/BSP limits explicit. |
+| S1 | partial | [Meridian shared services](MERIDIAN-PLAN.md): per-user overrides/system defaults, CLI parity, revision conflicts, typed keyboard/timezone/network/account summaries and actual About metadata. Two-account/reboot/error tests; never grant authority via environment or a page name. |
+| W1 | partial | [Full DE](components/SESSIONS-DESKTOP.md): usable keyboard-searchable launcher/panel, consistent dialogs, window identity/focus/move/snap, notifications/OSD, task switcher and virtual desktops. Requires U1/U6; prove app faults and busy/unsaved/session teardown. |
+| W2 | planned | Selectable automatic-tiling WM sharing apps/services with DE: layout/focus/keyboard policy, floating exceptions, monitor/workspace handling and recovery. Requires W1 service boundaries; does not replace the DE choice. |
+| W3 | planned | Secure lock/idle/grace, guarded auto-login, autostart, restore and confirmation policies. Requires session/app lifecycle; lock retains applications and blocks content/input leakage, never masquerades as logout. Password/elevation remains trusted. |
+| A1 | planned, later | [Files overhaul](APPLICATIONS.md#files-and-graphical-editor-requirements): places/navigation, sort/metadata, multiselect, transfer jobs/cancel/conflicts/permissions/links, then tabs/associations/trash/search/archives. Requires shared dialogs/operations; excluded from current port batch. |
+| A2 | planned, later | Extend Editor after U2: tabs/documents, syntax support, optional private crash recovery, project tools only after process/SDK support. Basic dependable editing comes first. |
+| PK1 | planned | [Configuration and activation](components/PACKAGES.md): `/etc` merge/conflict policy, shared defaults, restart notices and compatibility preflight across active apps/services/kernel. Retain local changes and recover interrupted operations. |
+| PK2 | planned | Signing-key rotation/revocation/roles, repository and transport certificate renewal procedures, compromise/rollback/expiry tests and independent security review before broader exposure. Private working HTTPS is not a complete public trust lifecycle. |
+| PK3 | verification | Distributor backup **restore** drill, deployment recovery and useful failure/phase/storage diagnostics. Build retries, version grouping, reporting/automatic cleanup already exist; improve only from measured gaps. Never clean active/pinned evidence. |
+| PK4 | partial | Combined update/recovery compatibility: kernel-first capability handling, schema/rollback rules and truthful partial-commit state. Requires PK1 + R2; current `pkg update` coordinates separate commits, not an atomic snapshot. |
+| R1 | planned | [Storage capacity/durability](components/STORAGE-SECURITY.md): measure limits → coordinate formatter/checker/inode/memory/installer expansion beyond 512 MiB; decide repair/journal or generation strategy. Keep traversal/symlink/held-handle authorization regressions. |
+| R2 | planned | [Matched system recovery](UPDATE-RECOVERY.md): define kernel/root/package/config/account/service/home scope → select/budget backend → retain consistent generations → trial/restore/boot identity and retention. `/home` and mutable schemas need explicit policy; no filesystem choice is assumed. |
+| R3 | planned | Recovery failure matrix: short writes/out-of-space/power cuts, trial without modifying preserved state, interrupted activation/restore, damaged root/ESP and external recovery/backup. Requires R1/R2; kernel retention alone does not meet this exit. |
+| N1 | verification | [Sustained networking](components/NETWORKING.md): repeatable VMware/proxy/DNS/TCP/TLS transfer/cancel/replacement benchmarks and actionable counters. Port-allocation mitigation is installed; stale-flow location remains unproved. No current reproduction is assumed from old traces. |
+| N2 | planned, later | Beyond primary wired IPv4 clients: socket/listener/UDP/server contracts, connection/device profiles and additional NICs; Wi-Fi/IPv6 only after explicit driver/protocol scopes. Reconnect/link loss/authz tests per supported profile. |
+| H1 | partial | [Supported device matrix](components/BOOT-RECOVERY.md): publish actual QEMU/VMware boot/storage/display/input/network support and repeatable recovery scenarios; verify physical/USB install separately. Investigate repeatable PS/2/relative-pointer anomalies before assigning fixes; absolute pointer/hardware cursor/damage presentation need driver work. |
+| H2 | planned | Audio playback/capture/mixer/device inventory and removable-device broker, then meters/stream routing and safe automount. Requires bounded buffers, stable identities and permissions; tests need real supported devices. |
+| H3 | planned, later | True suspend/resume, Bluetooth, printers and specialized accessibility. Define each scope/driver dependency first; WIP pages stay visible. Never count a menu or VM-only demo as device support. |
+| Q1 | verification | Confirm 0.0.25 distributor result and [Appearance installed procedure](testing/SETTINGS-VM-TEST.md); retain current release immutability. |
+| Q2 | pending batch | Complete remaining ports/contracts, clean-source Release qualification with every mandatory native gate, kernel-first publication, server delivery verification and installed regression checklist. Current targeted local checks are insufficient for a new kernel tag. |
+| Q3 | continuous | Measure boot/app responsiveness, idle memory/CPU, transfer/build phase times and stability across repeated workflows. Keep CI/controller/toolchain drift checks, fault injection and installed evidence distinct; enforce supported-profile performance budgets before claiming product readiness. |
 
-Optional Doom work remains outside the main delivery sequence. Bash, Vim/nano,
-Python and GCC are feasibility goals, not available Zenith packages. See
-[applications](APPLICATIONS.md) and [Bash assessment](BASH-PORT.md).
+## Meridian — every requested destination
 
-## Existing milestone identities
+All **10 categories / 43 pages** exist as local navigation. Only manual Colors
+settings and selected About data currently have backends. The table includes every
+page so an apparently finished menu cannot hide unfinished product work.
+[Detailed controls and scope](MERIDIAN-PAGES.md) · [Service contracts/phase details](MERIDIAN-PLAN.md).
+The M0–M10 names in that guide are Meridian phases, not separate project milestones.
 
-| ID | Status within its original scope | Current owner / unfinished extension |
+| Category / page IDs | Backend state | Remaining work / master owner |
 |---|---|---|
-| M0 foundation | Implemented: repeatable build, host/native validation, panic/logging | [Development](DEVELOPMENT.md); latest hosted CI is not asserted here |
-| M1 shell | Implemented: scripting, cancellation, layouts/history, editor/test DE | [Shell](components/SHELL.md); streaming/raw TTY remains open |
-| M2 filesystem | Complete for supported ext2/accounts/access profile | [Storage/security](components/STORAGE-SECURITY.md); not general ext4 or journaled recovery |
-| M3 networking | Complete for bounded IPv4 LAN client | [Networking](components/NETWORKING.md); not general network/server compatibility |
-| M4 installer | Implemented and VM exercised | [Boot/recovery](components/BOOT-RECOVERY.md); snapshots/physical hardware are separate |
-| M5 userland | In progress: protected foreground ELF plus bounded input/read/write file tools | [Userland](components/USERLAND.md); complete only after selected tools/services have controlled APIs and independent update/fault acceptance |
-| M6 desktop | Foundations implemented; full replacement planned | [Sessions/desktop](components/SESSIONS-DESKTOP.md) |
-| M7 hardware | Planned beyond the current VM profile | Device matrix and recovery acceptance needed |
-| S sessions | Shared settings, login/local/serial hosts implemented | Settings UI, per-user preferences and independent session processes remain |
-| P packages | Offline/online/update/distributor foundations implemented | [Packages](components/PACKAGES.md); future hardening is explicit there |
-| R recovery | Kernel-only retention implemented | [Snapshot design](UPDATE-RECOVERY.md); matched system restore remains planned |
+| Quick Settings — `quick.overview` | partial | Manual theme links exist; quick controls, persistent history and shared automatic schedule (**S1**, **S3**) |
+| Mouse & Touchpad — `input.mouse`, `input.touchpad` | WIP | Stable device selection, primary buttons, pointer/scroll speed, acceleration/inversion (**S2**) |
+| Keyboard — `input.keyboard`, `input.shortcuts` | WIP | Typed layouts/model/repeat/Num Lock/test, layout switching and conflict-safe shortcut capture (**S1**, **S2**) |
+| Sound — `audio.playback`, `audio.recording`, `audio.streams` | WIP | Real devices, formats/test, permissioned levels, stream inventory then advanced routing (**H2**) |
+| Display — `display.configuration`, `display.night-light` | WIP | Resolution/scaling/mode rollback first; supported orientation/refresh/brightness/tearing, then global temperature transform/schedule (**D2**, **S3**) |
+| Accessibility — `input.accessibility` | WIP | Baseline keyboard/contrast/text in U1; specialized features need scoped implementation (**H3**) |
+| Devices — `devices.bluetooth`, `devices.external`, `devices.printers` | WIP | Bluetooth/printer services later; stable safe automount policies and actual states (**H2**, **H3**) |
+| Networking — `network.connections` | WIP | Typed wired IP/DNS/autoconnect first; multiple profiles/priorities/link negotiation as supported (**S1**, **N2**) |
+| Wallpaper — `style.wallpaper` | WIP | Color/image/slideshow picker, categories and scheduled light/dark pairs (**S4**, **S3**) |
+| Colors — `style.colors` | partial | Manual modes/six accents work; user scope, picker and automatic switching (**S1**, **S4**, **S3**) |
+| Style — `style.application`, `style.decorations`, `style.icons`, `style.cursors` | WIP | Shared widget/button and host decoration variants, icon/cursor packs; optional materials without layout redesign (**D1**, **D3**, **S4**) |
+| Sounds/splashes — `style.sounds`, `style.splash`, `style.login`, `style.boot-splash` | WIP | Sound events/packs after audio; authenticated transition/login/boot styles preserve diagnostics and trusted auth (**H2**, **S4**, **W3**) |
+| Text — `style.fonts`, `style.font-management` | WIP | Shared native font loading/rendering/AA/hinting; All/Personal/System catalog/import (**U1**, **S3**) |
+| Animations — `style.animations` | WIP | Global speed and per-operation controls only for implemented effects; reduced motion (**S4**, **W1**) |
+| Apps/windows — `windows.notifications`, `windows.behavior`, `windows.switcher`, `windows.desktops` | WIP | DND/popups; focus/titlebar/snap; switcher sorting/filters; desktop names/order (**W1**) |
+| Workspace — `workspace.behavior`, `workspace.search` | WIP | Shared click/scroll/paste/drag policies, OSD and runner providers; bounded authorized file indexing separate from working settings search (**S2**, **W1**, **S5**) |
+| Security — `security.locking` | WIP | Actual lock/idle/grace with administrative auto-login policy (**W3**) |
+| Locale/time — `locale.region`, `locale.time`, `locale.day-night` | WIP | Per-field language/number/currency/address/phone/measurement/SI-IEC formats; clock/timezone/sync policy and one day/night schedule (**S1**, **S3**) |
+| About — `system.about` | partial | Runtime/boot/display/clock metadata works; real running/installed versions and hardware inventory (**U5**, **S1**, **H1**) |
+| System — `system.power`, `system.users`, `system.autostart`, `system.session` | WIP | Safe dim/suspend, guarded account lifecycle/password flows, autostart, confirmation/session restore (**W3**, **H3**) |
 
-## Decisions before the corresponding work starts
+| ID | State | Shared settings work and exit |
+|---|---|---|
+| S2 | planned | Input/device registry and shared workspace policies; device-specific support, protected shortcuts, relogin/reboot and DE/local keyboard tests. Builds on S1/U1. |
+| S3 | planned | One day/night/time/location service for theme/wallpaper/Night Light; manual fallback and opt-in location. Then locale, translation and font management. DST/time changes, malformed fonts and two-user tests; clock authority stays separate from personal formatting. |
+| S4 | planned | Wallpaper/assets/style presets, custom accent picker, cursor/icons and reduced-motion effects. Validated resources + shared toolkit/host consumption + opaque fallback. D3 owns composition, not individual apps. |
+| S5 | planned | Shared runner providers then bounded per-user file indexing: include/exclude rules, real status, capacity and permission-aware results; reuse in launcher and Files. No indexing merely to search settings pages. |
 
-- Raw TTY/job-control contract and scope of a small libc/SDK.
-- GUI transport, compositor/toolkit boundary and privilege delegation.
-- `/etc` merge policy and atomicity expectations across data and boot updates.
-- Snapshot backend, mutable-data scope, capacity and failed-trial policy.
-- Managed GC synchronization and upstream Cosmos integration strategy.
+## Larger engineering tracks
 
-Preserve agreed requirements in [System plan](SYSTEM-PLAN.md). The
-[previous roadmap](archive/2026-10-15/ROADMAP.md) retains original estimates,
-upstream investigations and historical scope; its “next” and “pending” labels
-are superseded by this page.
+| ID | State | Dependency-ordered work and exit |
+|---|---|---|
+| C1 | partial | Native integer AP workers exist opt-in. Add cancellable queues, safe wake/IPI, per-CPU interrupt stacks and shutdown quiescence instead of idle polling. |
+| C2 | planned | Per-CPU scheduler/current context/GDT/TSS/FP/timer and lock audit after C1. No managed AP execution yet. |
+| C3 | planned | Cross-CPU allocation, GC stop/root barriers, then pinned managed threads; require pressure/fault/cancel evidence before migration/load balancing. |
+| C4 | planned | Migration, credential/service concurrency, real I/O contention and recovery at 1/2/4+ CPUs; only then consider default managed SMP. [Detailed contract](MULTICORE.md). |
+| X1 | partial | Host cross-SDK exists in freestanding form; finish documented startup/headers/libc subset/compiler runtime and supported-API matrix; install/upgrade a real independent program. |
+| X2 | planned, later | PTY/terminal capabilities + libc source audit → nano/reduced Vim proof; optional Bash requires subprocess/pipe/signal/POSIX compatibility beyond the existing custom shell. |
+| X3 | planned, later | Deliberately scoped Python REPL/import/file I/O first, then modules backed by implemented APIs. No implied PyPI/subprocess/thread support. |
+| X4 | planned, later | On-Zenith GCC/binutils/make/runtime after process/SDK and storage budgets; compile/run a small program before self-hosting claims. [Developer-port requirements](DEVELOPER-TOOLS.md). |
+
+## Scope decisions and non-blocking ideas
+
+Optional Doom remains outside the product's main delivery sequence. Orbit/package
+browser, Observatory/resource monitor, Beacon/network panel, archive app, screenshots,
+SSH and diagnostic export are proposed additional applications, not approved core
+release blockers. Keep them in [application requirements](APPLICATIONS.md), and add
+an explicit work row only when promoted. Btrfs is a possible recovery backend, not
+an accepted prerequisite; WASM is an optional runtime investigation, not the desktop.
+
+## Completion and update rules
+
+A master row is accepted only after its stated exit and the relevant environment
+checks. Attach exact evidence; separate source, local qualification, publication
+and operator acceptance. Split a large row into component steps without inventing
+another roadmap. Reopen a resolved defect only with new evidence. Every newly
+accepted requirement must map to an ID here. No unchecked task may live solely in
+a technical guide, chat, archive or source comment without a master owner.

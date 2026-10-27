@@ -1,5 +1,7 @@
 # Multicore foundation
 
+Work owners: **C1–C4** in the [master roadmap](ROADMAP.md). This page is a contract/procedure, not a separate work tracker.
+
 > Experimental native worker reference. Managed multicore remains planned. Work steps: [Multicore](components/MULTICORE.md).
 
 

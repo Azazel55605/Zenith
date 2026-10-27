@@ -2,7 +2,7 @@
 
 Archived material preserves decisions and test evidence. It is **not current
 status**; “pending”, “active” and “next” apply to the original recording date.
-Start with [current status](../STATUS.md) or [active work](../PROGRESS.md).
+Start with [current status](../ROADMAP.md#state-and-evidence) or [active work](../ROADMAP.md#current-focus-and-execution-order).
 
 ## Investigation records
 
@@ -57,8 +57,8 @@ Start with [current status](../STATUS.md) or [active work](../PROGRESS.md).
 | [Server planning baseline](2026-10-15/PACKAGE-SERVER.md) | Provisioning sequence and historical connectivity/HTTPS investigation |
 | [Userland planning baseline](2026-10-15/USERLAND.md) | Original migration and runtime investigation |
 
-The [project history](../HISTORY.md) is a narrative map. The
-[technical notes](../TECHNICAL-NOTES.md) retain earlier measurements and context.
+The [project history](HISTORY.md) is a narrative map. The
+[technical notes](2026-10-27/legacy-display-notes.md) retain earlier measurements and context.
 For new completed slices, add a small dated record here instead of growing the
 active progress page. Snapshot source is the documentation at `f502085`; banners
 and relative-link rebasing are the only archival edits in this reorganization.
@@ -78,3 +78,10 @@ and relative-link rebasing are the only archival edits in this reorganization.
 - [2026-10-27 Meridian shell and first native app ports](2026-10-27/meridian-shell.md):
   complete page navigation, shared text controls, native Welcome/System, owned
   interactive lifetime and targeted acceptance; remaining ports and release gaps.
+
+- [2026-10-27 single tracker and material contract](2026-10-27/documentation-and-material-contract.md):
+  documentation consolidation/audit, corrected stale work, shared surface roles and
+  conceptual same-layout materials; actual visual parity/effects remain master D1/D3.
+- [Historical display measurements](2026-10-27/legacy-display-notes.md),
+  [legacy unsigned package prototype](2026-10-27/package-prototype.md) and
+  [narrative history](HISTORY.md) are preserved references, not active work lists.

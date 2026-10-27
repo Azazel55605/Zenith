@@ -113,7 +113,7 @@ RAM rescue with the installed disk attached. It performs no host boot-file repai
 The test also attaches a duplicate installation and checks that root UUID ambiguity
 stops startup rather than selecting a different root. The broader desktop, headless
 and package suites also boot guest-written images.
-Exact local results and environment limits are recorded in [PROGRESS](PROGRESS.md).
+Exact local results and environment limits are recorded in [Master roadmap](ROADMAP.md#current-focus-and-execution-order).
 
 `python3 tools/guided-install-smoke.py gui obj/guided-gui` and the equivalent
 `headless` mode verify rejected input/erasure, secret-free transcripts, account setup,

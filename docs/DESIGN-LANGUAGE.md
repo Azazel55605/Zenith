@@ -1,9 +1,9 @@
 # Zenith design language
 
 **Design baseline v0.1 accepted by the user on 2026-10-27.** This defines the
-shared visual and interaction language before widgets and Settings are built.
-It does not claim that these controls, effects or preferences already exist.
-[Visual specimen](design/system-specimen.svg) · [Execution](PROGRESS.md#system-design-language)
+shared visual and interaction language for widgets, Settings and the desktop.
+The palette/font foundation and selected controls exist. The full component geometry and materials are not yet at preview parity; see the explicit gap table below.
+[Visual specimen](design/system-specimen.svg) · [Master work D1/D3](ROADMAP.md#core-delivery-work)
 
 ## Agreed direction
 
@@ -79,29 +79,93 @@ preserve the requested hue where possible while deriving legible text/focus/acti
 variants. Decide exact contrast adjustment and storage representation during token
 implementation; never silently make custom accent text unreadable.
 
+## Preview parity — current implementation is not the finished visual system
+
+The accepted [specimen](design/system-specimen.svg) remains the target. The early
+native UI proved ownership, readable text and functional settings; it did **not**
+complete that specimen. Do not redefine the target to match temporary widgets.
+
+| Element | Accepted target | Actual gap / D1 exit |
+|---|---|---|
+| Mode choice | One grouped segmented selector, subtle track and selected segment | Currently two detached large choice buttons; replace in the shared toolkit |
+| Accents | Compact circular swatches with a non-color-only selection marker | Currently rectangular text choices; add swatch/check + keyboard labels |
+| Settings content | Aligned label/help/value rows, deliberate spacing and semantic sections | Current feature pages use coarse button lists/planned-option text; implement reusable rows/forms/cards |
+| Navigation | Calm sidebar/group hierarchy with restrained selected-row emphasis | Category/result buttons are a functional scaffold; shared navigation rows should replace app-specific button walls |
+| Chrome | Consistent window/panel radii and equal optically centered decoration slots | Host and native clients use different geometry/density; host retains ownership, align metrics centrally |
+| Text/icons | Inter hierarchy plus one outline icon family; real layout/scale | ASCII atlases/fixed sizes and few icon primitives are temporary; U1/D2 own text/scale coverage |
+| States | Clear focus, selected/disabled/error/busy without excess borders | Keep existing focus/permission/discard behavior while changing the shared presentation |
+
+Close these at the **shared primitives/layout layer before further app migration**.
+Then update existing consumers once. This is current unfinished implementation,
+not a planned new visual identity or an excuse for a later per-app redesign.
+
 ## Materials and optional effects
 
-Opacity and blur are separate preferences. Transparency reveals what is behind a
-surface; translucency combines a tinted transparent material with diffusion/blur.
-Blur requires compositor support; alpha alone is not blur.
+[Solid/translucent/blurred comparison](design/material-specimen.svg) illustrates the
+**same geometry and content**, in both modes. It is a design reference, not running
+blur. Opacity/blur samples are illustrative until compositor measurements exist.
 
-| Material | Intended use | Fallback |
+### Stable roles, independent of effect preferences
+
+| Role | Default appearance | Optional material behavior |
 |---|---|---|
-| Solid | Main document canvas, terminal, dense content | Always available |
-| Translucent | Optional panel, sidebar, menu and window-chrome material | Opaque semantic surface |
-| Blurred translucent | Same material with backdrop diffusion when enabled | Translucent if allowed, otherwise solid |
+| Content / document / terminal canvas | Solid semantic Surface | Stays opaque for legibility; no automatic whole-window transparency |
+| Control / field / status / important dialog | Solid semantic Raised/Subtle | Text, icons, selection, focus and input feedback stay opaque |
+| Navigation / secondary panel | Neutral semantic surface | May use tinted transparency and, independently, backdrop diffusion |
+| Host window chrome / shell panel / menu / popover | Neutral material surface | Host-authorized tint/alpha/blur within the same bounds and corner mask |
+| Recovery / protected authentication | Solid readable surface | Force-solid policy; user effects must not reduce trust or readability |
 
-Proposed settings: **Transparent surfaces** on/off and **Backdrop blur** on/off.
-Blur is unavailable when transparent surfaces are off; retain the saved preference
-and explain why it is inactive. A future intensity setting can follow. Do not lower
-text/icon opacity with the background. Use a stabilizing tint so busy wallpaper
-cannot defeat legibility. Password entry and important dialogs must stay readable
-with every effect choice. Recovery and unsupported renderers use solid surfaces.
+A settings/container background can use the Panel role too; eligible material is
+not restricted to the sidebar. Content means the document/text plane, not every
+pixel inside an application. Choose these semantic regions when building controls,
+then change composition centrally.
 
-No effect should be necessary to understand focus, hierarchy or selection. Avoid
-perpetual animation; damage-track redraw and bound blur region/cost. Performance
-fallbacks must report effective versus saved appearance rather than changing the
-saved preference. Exact material opacity/blur radius requires real compositor tests.
+Material choice **never changes layout**: same bounds, insets, type metrics,
+rounding, hit targets, scroll geometry, focus order, separators and window controls.
+Do not rebuild the page when effects toggle. Do not lower opacity on a finished
+window bitmap: that also fades text, controls and security affordances.
+
+### Rendering/ownership contract
+
+Current graphics ABI 1 forces opaque XRGB. A role-aware opaque painter is the
+fallback, not simulated transparency or blur. Userland owns shared widget geometry;
+the host owns backdrop sampling, composition and trusted decorations.
+
+The extension must negotiate a new capability/version with **bounded role/region/
+clip/corner metadata plus a foreground coverage plane** (for example premultiplied
+RGBA), keeping the legacy flattened XRGB path. Text/glyph antialias coverage must
+be composited as foreground; today's already-flattened pixels cannot simply be
+reinterpreted as alpha. The shared renderer changes targets/backends, not app layout.
+
+Only the host samples a backdrop. Clients never receive screenshots/framebuffer
+addresses, other-window pixels, arbitrary shaders or a right to blur outside their
+owned surface. Clamp region counts/areas/radii; respect z-order, nested clips,
+resize, focus, move, minimize, teardown and session revocation. Prefer damage-
+tracked/cached bounded software effects before making them generally available.
+The current shared role painter is a seam, **not** this future transport/renderer.
+
+### User preference and fallback rules
+
+Transparency and blur are separate choices. Transparency reveals the backdrop;
+translucency combines a stabilizing tint with diffusion when available. Blur is
+unavailable when transparent surfaces are off; retain its saved preference and
+explain why it is inactive. Custom intensity can follow measured support.
+
+Saved preference, capability availability and effective material must be distinct.
+Unsupported renderers, contrast failure, resource pressure or recovery can use the
+same opaque design without overwriting the user's saved choice. Preserve readable
+text over busy/high-contrast backgrounds; never make blur essential to hierarchy.
+Theme/style variants change tokens deliberately, not as a side effect of fallback.
+
+### D1/D3 acceptance
+
+Compare actual shared components with the accepted specimen in light/dark and all
+six accents: normal/focused/selected/disabled/error/busy. Match component geometry
+before effect work. Later render **identical layouts** in solid, tint-only and
+blurred modes; test busy backgrounds, overlapping/moving windows, scaling and
+runtime toggles. Audit contrast on final composites (4.5:1 text, 3:1 meaningful
+indicators), damage/caching cost, long idle/activity, missing capability and forced
+solid fallback. Performance fallback must not move a control or change a draft.
 
 ## Shared interaction rules
 
@@ -130,25 +194,12 @@ composition. Shipped defaults stay separate from local/per-user preferences.
 Current theme VERSION=1 covers only a subset of colors; radii/layout remain compiled.
 Current graphical clients have fixed opaque XRGB surfaces and no shared text/font
 service, resizing, hover events, clipboard or IME. They cannot request alpha/blur.
-Do not smuggle effects into that ABI or weaken surface isolation. A versioned resource
-contract and typed appearance services must be designed before implementation.
+Do not smuggle effects into that ABI or weaken surface isolation. Typed Appearance preferences and signed palette resources now exist. Material/foreground transport, richer fonts and preference scope still require the explicit extensions above.
 
-## Delivery sequence and acceptance
+## Work ownership and visual acceptance
 
-1. Visual baseline accepted: neutrals, density, typography, geometry and states.
-   Title-bar controls use equal slots with optically centered vector icons; do not
-   align decorations with spaces inside a text label.
-2. Define versioned semantic tokens/resources, text rendering and widget behavior;
-   keep theme compatibility and embedded recovery resources explicit.
-3. Build the minimal userland controls for an independently packaged Settings app;
-   prove keyboard/pointer focus, light/dark, all accents and error/disabled states.
-4. Add authorized saved/active appearance preferences through shared CLI/GUI services.
-   Document whether each change applies live, next login or after a restart.
-5. Add compositor material support, then exposed transparency/blur controls. Verify
-   opaque fallback, moving windows, busy backgrounds and bounded software-render cost.
-6. Migrate clients/chrome incrementally; do not claim the test DE replaced until its
-   independent lifecycle and teardown are verified.
-
-Review requires rendered normal/focused/disabled/error states in both appearances,
-contrast checks for all presets, keyboard-only use and scaled text without clipping.
-Native rendering, effects performance and installed-VM acceptance remain future gates.
+D1 in the [master roadmap](ROADMAP.md) owns preview parity; D2 owns mode/scale,
+D3 owns material composition, S1/S4 own preference/resources and U1 owns shared text
+and controls. Component checklists may expand those IDs, not create another style
+roadmap. The accepted specimen and comparison above are implementation references;
+host renders prove layout only, native/installed checks establish runtime behavior.

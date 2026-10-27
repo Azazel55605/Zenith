@@ -1,41 +1,30 @@
 # Multicore execution
 
-[Documentation](../README.md) · [Current status](../STATUS.md)
+[Master roadmap](../ROADMAP.md) · [Documentation](../README.md)
 
-**State:** experimental opt-in native integer workers. Ordinary managed work,
-drivers and foreground process services still run on the BSP. More QEMU vCPUs
-do not schedule Zenith's managed tasks across them.
+Work IDs below are detailed steps of the master tracker, not a separate schedule.
 
-## Implemented steps
+## Implemented boundary
 
-- [x] Discover processors through Limine MP and start bounded native AP workers.
-- [x] Give workers kernel-owned static stacks/context and no managed object access.
-- [x] Verify CPU identity, bounded integer jobs and completion/failure reporting.
-- [x] Preserve IF when loading the x64 IDT; test early installed boot handoff.
-- [x] Keep workers disabled by default; exercise explicit `smp=native` boots.
-- [x] Exercise protected foreground tools/faults with workers active.
+Opt-in native integer AP workers have private static stacks/context and no managed
+objects. Default boots keep them disabled. Managed scheduling, GC, drivers and
+foreground native service execution remain on the BSP. Extra vCPUs do not distribute
+ordinary Zenith application work. Polling workers consume idle CPU.
 
-Workers poll while idle and consume host CPU. They do not run the managed
-scheduler, GC, filesystem/network drivers or application syscalls. The measured
-server's nested KVM storage benchmark was slower than TCG; that deployment uses
-an explicit measured backend policy. This does not prove a universal KVM defect.
+## C1–C4 — Ordered implementation steps
 
-## Remaining steps, in dependency order
-
-1. Per-CPU interrupt stacks, safe IPI/wakeup and bounded cancellable queues; quiesce
-   workers before shutdown instead of idle polling.
-2. Per-CPU scheduler/current-thread/context/GDT/TSS/FP/timer state.
-3. Cross-CPU allocation/GC stop-and-root synchronization and audited locks.
-4. Pinned managed threads, then migration/load balancing and service credential audit.
-5. Concurrent I/O, memory pressure, faults, cancellation and reboot/recovery acceptance
-   before enabling managed multicore on ordinary boots.
+- [ ] C1: safe wake/IPI, per-CPU interrupt stacks, cancellable bounded queues and
+  shutdown quiescence instead of polling.
+- [ ] C2: per-CPU scheduler/current thread, context, GDT/TSS, FP and timer state;
+  audit lock/IRQ ownership before running managed work on APs.
+- [ ] C3: allocator/GC stop/root barriers, then pinned managed threads with memory
+  pressure/fault/cancel tests.
+- [ ] C4: migration/load balancing and credential/service concurrency; stress real
+  I/O and recovery at multiple CPU counts before considering default managed SMP.
 
 ## Source and acceptance
 
-Owners: [multiprocessing](../../src/Core/Multiprocessing), [native x64](../../src/Native/x64).
-Exact contract: [multicore guide](../MULTICORE.md).
-[CPU smoke](../../tools/native-cpu-smoke.py) covers default-disabled and opt-in
-1/2/4-vCPU guests. [Native process smoke](../../tools/native-process-smoke.py) with
-`--cpu-workers` checks protected tools with AP workers. Latest filesystem gate with
-workers passed locally at `f502085`; [record](../archive/2026-10-15/PROGRESS.md#2026-10-15--native-filesystem-tool-unbundling-locally-verified).
-Physical multiprocessor and managed multicore acceptance remain unclaimed.
+[Multiprocessing](../../src/Core/Multiprocessing), [x64](../../src/Native/x64),
+[exact contract](../MULTICORE.md), [CPU smoke](../../tools/native-cpu-smoke.py).
+Preserve default-disabled and 1/2/4-CPU opt-in scenarios. Nested-KVM measurements
+are deployment observations, not evidence that TCG is universally faster.

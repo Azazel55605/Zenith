@@ -1,5 +1,5 @@
 > **Historical snapshot, archived 2026-10-15.** Statements such as “pending” and
-> “next” refer to their original date. Use the [current status](../../STATUS.md).
+> “next” refer to their original date. Use the [current status](../../ROADMAP.md#state-and-evidence).
 
 # Kernel and userland separation
 
@@ -75,7 +75,7 @@ does not supply Linux syscalls, glibc or distribution-package compatibility.
 WASM remains an optional application runtime or possible intermediate, not the presumed
 final desktop architecture. Its interpreter, host APIs, IPC and isolation guarantees
 need validation. A basic WASI subset does not supply Bash fork/exec, signals or job
-control; see [BASH-PORT](../../BASH-PORT.md). Do not begin a large interpreter implementation
+control; see [BASH-PORT](../../DEVELOPER-TOOLS.md#bash). Do not begin a large interpreter implementation
 before the architectural compatibility decision.
 
 ## Acceptance evidence

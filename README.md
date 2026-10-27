@@ -173,7 +173,7 @@ P0 adds `pkg list`, `pkg inspect MANIFEST` and `pkg plan MANIFEST`, plus a Linux
 host data-bundle builder. Plans verify payload integrity and refuse unowned-path
 conflicts without changing the root. P1 adds signed offline script/data installation,
 upgrades and removal on installed ext2; compiled apps remain kernel-linked. See
-[package guide](docs/PACKAGES.md) and [prototype contract](docs/PACKAGE-PROTOTYPE.md).
+[package guide](docs/PACKAGES.md) and [prototype contract](docs/archive/2026-10-27/package-prototype.md).
 
 ## IPv4 networking
 
@@ -188,17 +188,15 @@ Downloads alone carry no package-install trust.
 
 ## Documentation
 
-Start with the [documentation hub](docs/README.md).
+Start with the [master roadmap](docs/ROADMAP.md): the single tracker for current
+focus, all product work, dependencies, completion criteria and release acceptance.
 
-- [Current status](docs/STATUS.md): what works, known limits and release/installation acceptance.
-- [Active progress](docs/PROGRESS.md): current task, concrete steps and validation.
-- [Roadmap](docs/ROADMAP.md): next slices, dependencies and milestone exits.
-- [Component guides](docs/README.md#components): implementation checklists and technical references.
-- [Architecture](docs/ARCHITECTURE.md) and [development](docs/DEVELOPMENT.md): code boundaries, building and testing.
-- [System requirements](docs/SYSTEM-PLAN.md) and [package design](docs/PACKAGE-MANAGER.md): accepted direction and open decisions.
-- [History](docs/HISTORY.md) and [archive](docs/archive/README.md): past decisions and detailed validation evidence.
-- [Shared instructions](INSTRUCTIONS.md) and [documentation rules](docs/MAINTAINING.md): contributor workflow.
-- [Cosmos reference](docs/cosmos/index.md): pinned upstream documentation.
+- [Documentation map](docs/README.md): component detail and technical contracts.
+- [Architecture](docs/ARCHITECTURE.md) and [development](docs/DEVELOPMENT.md): current boundaries, build and validation.
+- [Design language](docs/DESIGN-LANGUAGE.md): accepted preview, implementation gaps and future material rules.
+- [Operator procedures](docs/testing/README.md): test steps; results live in the master tracker.
+- [Evidence archive](docs/archive/README.md): historical investigations and exact results.
+- [Contributor instructions](INSTRUCTIONS.md), [documentation rules](docs/MAINTAINING.md) and [Cosmos reference](docs/cosmos/index.md).
 
 ## Layout
 

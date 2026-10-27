@@ -7,28 +7,24 @@ guidance here so the two entry points stay consistent.
 
 ## Source of truth
 
-- [docs/README.md](docs/README.md): documentation hub and reading paths.
-- [docs/STATUS.md](docs/STATUS.md): current component/release acceptance summary.
-- [docs/PROGRESS.md](docs/PROGRESS.md): bounded active task, steps and validation.
-- [docs/ROADMAP.md](docs/ROADMAP.md): ordered future slices and milestone exits.
-- [docs/components](docs/README.md#components): implementation checklists, source
-  owners, remaining steps and acceptance for each component.
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): current technical architecture.
-- [docs/SYSTEM-PLAN.md](docs/SYSTEM-PLAN.md): accepted product requirements.
-- [docs/PACKAGE-MANAGER.md](docs/PACKAGE-MANAGER.md): current package design and open decisions.
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): toolchain, validation and Cosmos builds.
-- [docs/HISTORY.md](docs/HISTORY.md) and [docs/archive](docs/archive/README.md):
-  historical narrative and completed execution evidence.
-- [README.md](README.md): user commands, layout and installation overview.
-- [docs/cosmos/index.md](docs/cosmos/index.md): pinned upstream documentation;
-  [SOURCE.md](docs/cosmos/SOURCE.md) records its revision.
+- [docs/ROADMAP.md](docs/ROADMAP.md) is the **single work tracker**: whole-product
+  requirements, current focus, work IDs, state, dependencies, exits and release/
+  installed acceptance. Every accepted open task needs an owner there.
+- [docs/README.md](docs/README.md) is the documentation map.
+- [docs/components](docs/README.md#implementation-details) expand the same roadmap
+  IDs with component implementation steps and source/contract links.
+- Technical guides document current behavior, APIs and requirements; they must not
+  acquire independent progress ledgers or unowned future task lists.
+- [docs/PROGRESS.md](docs/PROGRESS.md) remains a compatibility pointer to the master
+  active section. Do not append a second execution checklist there.
+- [docs/MAINTAINING.md](docs/MAINTAINING.md) defines consolidation and validation.
+  Detailed completed evidence belongs once in [docs/archive](docs/archive/README.md).
+- [docs/cosmos](docs/cosmos/index.md) is pinned upstream reference, not the Zenith
+  roadmap. Leave vendored documentation unchanged.
 
-Follow [docs/MAINTAINING.md](docs/MAINTAINING.md) when documenting a slice. Update
-PROGRESS and the component checklist as actual implementation/validation steps
-happen. Keep PROGRESS short: archive completed detailed evidence in a dated record,
-then update STATUS when delivery/acceptance changes. Separate implemented, locally
-verified, server-published and operator-installed claims. Do not prepend a permanent
-execution ledger or duplicate historical test totals into the roadmap.
+Update the master row and relevant component detail together. Separate source,
+local tests, publication and installed observations. Remove superseded blockers;
+never infer current failures from old release logs or claim a menu stub is a backend.
 
 ## Architecture and conventions
 
@@ -166,6 +162,11 @@ execution ledger or duplicate historical test totals into the roadmap.
   machine-specific package settings out of commits. Never format a real disk
   during validation; the smoke harness creates its own disposable disk.
 
+Kernel updates must preserve signatures, exact root/artifact identity, previous
+retention, monotonic versions, confirmation and interruption/fallback tests. Manual
+previous-kernel and external-ISO recovery remain required; neither automatic rollback
+nor arbitrary physical power-loss recovery is established.
+
 ## Validation
 
 ```sh
@@ -206,30 +207,17 @@ starts separately packaged protected native execution. Offline package research 
 public mirror updates need verified trust and recovery, not just HTTP fetching.
 
 User clarification (2026-10-11): the future desktop/apps must be outside the kernel;
-see [USERLAND](docs/USERLAND.md). WASM is optional, not the assumed final architecture.
+see [USERLAND](docs/components/USERLAND.md). WASM is optional, not the assumed final architecture.
 Customization/usability belong in proper desktop work. Home package hosting uses a dedicated VM with its own IP and existing
 VPN/DNS remote access ([server plan](docs/PACKAGE-SERVER.md)); snapshot/trial boot/restore is a
 requested investigation ([recovery plan](docs/UPDATE-RECOVERY.md)), not a Btrfs decision.
 
 User direction after M2: retain the simple DE for testing, replace it during proper
 userland/desktop work, and start packaging early. Shared settings/session and offline
-package foundations and S1 serial headless are implemented. Keep status accurate in
-PROGRESS. Preserve no-GPU live/installed validation when changing boot or shell I/O;
+package foundations and S1 serial headless are implemented. Keep state accurate in the master roadmap. Preserve no-GPU live/installed validation when changing boot or shell I/O;
 the test DE remains the default when supported display hardware is present.
 
-User deployment prerequisite (2026-10-11): finish guided installation, then implement
-and verify signed kernel package upgrades before the user actually installs Zenith.
-P3 has a dedicated signed kernel coordinator ([kernel guide](docs/KERNEL-UPDATES.md));
-preserve signature, UUID/artifact binding, previous retention, monotonic versions,
-confirmation and crash/fallback tests. P1 remains scripts/data without boot-file writes.
-Manual fallback and external ISO recovery are required; no automatic rollback or
-arbitrary FAT/ext2 power-loss guarantee is provided. Native validation stays in PROGRESS.
-
-User priority (2026-10-12): proper installed package delivery and progress usability
-come before automatic distributor builds. The user named the HTTPS proxy
-`https://zenith-stable.net.local`; it is a deployment setting, not a universal mirror
-default. A matching self-signed certificate is now loaded in Zoraxy; the user
-verified an installed Zenith HTTPS receipt and full signed package download. Keep
-certificate/hostname checks and separate package-signing trust. See PACKAGE-SERVER.
-Validation disks may be pruned with tools/prune-validation.py after tests stop;
-preserve VMware recovery copies and the in-use local update relay.
+Deployment settings such as the home HTTPS proxy and signing trust are local
+configuration, not universal defaults. Follow the package-server runbook. Validation
+artifacts may be pruned only after their tests stop; preserve active/pinned evidence
+and actual operator recovery copies. Current work/acceptance is in the master roadmap.
