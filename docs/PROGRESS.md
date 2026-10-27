@@ -21,8 +21,11 @@ Updated **2026-10-27**. [Status](STATUS.md) owns delivery boundaries;
   of held press/release, without repeating clicks or changing net position.
   The no-build replay and all 48 unchanged-tag graphical checks pass locally
   (137.135 s), with a clean ext2 audit. All 230 controller regressions pass.
-- [ ] Confirm sampled-click replay on the distributor before an expensive retry.
-  Exact legacy PS/2 cause remains unconfirmed.
+- [x] Operator's distributor replay passes on QEMU 10.0.13/TCG with exact kernel
+  SHA256 `078261ccf5d6bf96329361a5b94ef7d9f87efc7a2096be5ef90a89ce509c1ade`:
+  pointer acknowledgement and focused-key isolation succeed; original disk preserved.
+- [ ] Retry existing kernel 0.0.24 with the updated controller, then confirm full
+  distributor delivery and installed acceptance. Legacy PS/2 cause remains unconfirmed.
 
 [Evidence and replay command](archive/2026-10-27/graphical-input-profile.md).
 

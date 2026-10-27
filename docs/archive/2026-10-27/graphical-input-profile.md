@@ -90,3 +90,14 @@ required. Local graphical replay and all 48 checks of the unchanged tagged gate
 pass with an independent clean ext2 audit (137.135 s). All 230 controller tests
 pass, including 19 input-profile/parser tests. Kernel/client source and the release
 tag remain unchanged.
+
+## Distributor replay confirmed
+
+On 2026-10-27 the operator reports both native pixels/pointer acknowledgement/
+focused-key isolation and the complete no-build virtio replay passed on QEMU
+10.0.13/TCG. The verified server kernel remains
+`078261ccf5d6bf96329361a5b94ef7d9f87efc7a2096be5ef90a89ce509c1ade`;
+evidence is retained at `/var/tmp/zn-gui-_xrh__qi`. The original fixture disk is
+preserved. This confirms the sampled input correction on the actual distributor.
+It does not yet establish a complete release retry, signing/delivery or installed
+acceptance. Retry the existing immutable 0.0.24 release with the updated controller.
