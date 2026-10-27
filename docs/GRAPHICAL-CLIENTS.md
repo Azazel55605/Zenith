@@ -115,3 +115,6 @@ A successful present means the private pixel copy was accepted; it is not a
 synchronous screen-present barrier. The acceptance harness observes a complete
 rendered frame containing the probe before locating its controls. Surface-open or
 focus logs alone do not establish that those pixels are visible.
+
+The first [shared client UI library](USERLAND-UI.md) supplies opaque software
+widgets and Inter text without changing graphics ABI 1.

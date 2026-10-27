@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+<rect x="0" y="0" width="1440" height="900" rx="0" fill="#151619"/>
+<text x="48" y="55" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="28" font-weight="600">Zenith / shared design language</text>
+<text x="48" y="86" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="14" font-weight="400">Accepted direction v0.1 · neutral surfaces, soft geometry, optional depth · conceptual specimen, not running UI</text>
+<text x="48" y="126" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600">Dark · initial default</text>
+<rect x="48" y="148" width="640" height="490" rx="12" fill="#202125" stroke="#45474F"/>
+<rect x="49" y="149" width="638" height="43" rx="11" fill="#25262B"/>
+<text x="64" y="177" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600">Settings</text>
+<g fill="none" stroke="#B4B7C0" stroke-width="1.5" stroke-linecap="round">
+<title>Aligned title-bar controls: equal 36-unit slots, shared vertical center</title>
+<path d="M 618 170.5 H 630"/>
+<path d="M 656 166.5 L 664 174.5 M 664 166.5 L 656 174.5"/>
+</g>
+<text x="72" y="229" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="24" font-weight="600">Appearance</text>
+<text x="72" y="255" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="14" font-weight="400">Choose how Zenith looks and feels.</text>
+<text x="72" y="291" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600">Color mode</text>
+<rect x="72" y="305" width="280" height="36" rx="8" fill="#25262B"/>
+<rect x="76" y="309" width="136" height="28" rx="6" fill="#2A2C31" stroke="#45474F"/>
+<text x="120" y="328" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="400">Dark</text>
+<text x="258" y="328" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="400">Light</text>
+<text x="72" y="378" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600">Accent color</text>
+<rect x="72" y="393" width="32" height="32" rx="16" fill="#8BAAFF"/>
+<rect x="116" y="393" width="32" height="32" rx="16" fill="#B6A0FF"/>
+<rect x="160" y="393" width="32" height="32" rx="16" fill="#F39DB8"/>
+<rect x="204" y="393" width="32" height="32" rx="16" fill="#E7BB70"/>
+<rect x="248" y="393" width="32" height="32" rx="16" fill="#8BCBA4"/>
+<rect x="292" y="393" width="32" height="32" rx="16" fill="#7ECAC7"/>
+<text x="82" y="415" fill="#202125" font-family="Inter, sans-serif" font-size="17" font-weight="600">✓</text>
+<text x="72" y="460" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600">Transparent surfaces</text>
+<text x="72" y="483" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400">Let selected surfaces reveal the background.</text>
+<rect x="604" y="450" width="48" height="26" rx="13" fill="#45474F"/>
+<rect x="608" y="454" width="18" height="18" rx="9" fill="#2A2C31"/>
+<text x="72" y="526" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600">Backdrop blur</text>
+<text x="72" y="549" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400">Requires transparent surfaces and compositor support.</text>
+<rect x="604" y="516" width="48" height="26" rx="13" fill="#45474F"/>
+<rect x="608" y="520" width="18" height="18" rx="9" fill="#2A2C31"/>
+<text x="72" y="604" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400">Illustration: effects off · changes not applied</text>
+<text x="48" y="684" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="18" font-weight="600">Shared control states</text>
+<rect x="48" y="702" width="130" height="36" rx="8" fill="#8BAAFF"/>
+<text x="69" y="725" fill="#202125" font-family="Inter, sans-serif" font-size="13" font-weight="600">Save changes</text>
+<rect x="194" y="702" width="112" height="36" rx="8" fill="#2A2C31" stroke="#45474F"/>
+<text x="223" y="725" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="400">Cancel</text>
+<rect x="324" y="698" width="126" height="44" rx="10" fill="none" stroke="#8BAAFF"/>
+<rect x="328" y="702" width="118" height="36" rx="8" fill="#2A2C31" stroke="#45474F"/>
+<text x="351" y="725" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="400">Focused</text>
+<rect x="468" y="702" width="130" height="36" rx="8" fill="#25262B"/>
+<text x="487" y="725" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400">Unavailable</text>
+<text x="48" y="779" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400">Neutral content; accent for action, selection and focus.</text>
+<text x="752" y="126" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600">Light · equal component coverage</text>
+<rect x="752" y="148" width="640" height="490" rx="12" fill="#FAFAFB" stroke="#CFD1D8"/>
+<rect x="753" y="149" width="638" height="43" rx="11" fill="#EFF0F3"/>
+<text x="768" y="177" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600">Settings</text>
+<g fill="none" stroke="#5C606B" stroke-width="1.5" stroke-linecap="round">
+<title>Aligned title-bar controls: equal 36-unit slots, shared vertical center</title>
+<path d="M 1322 170.5 H 1334"/>
+<path d="M 1360 166.5 L 1368 174.5 M 1368 166.5 L 1360 174.5"/>
+</g>
+<text x="776" y="229" fill="#202126" font-family="Inter, sans-serif" font-size="24" font-weight="600">Appearance</text>
+<text x="776" y="255" fill="#5C606B" font-family="Inter, sans-serif" font-size="14" font-weight="400">Choose how Zenith looks and feels.</text>
+<text x="776" y="291" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600">Color mode</text>
+<rect x="776" y="305" width="280" height="36" rx="8" fill="#EFF0F3"/>
+<rect x="916" y="309" width="136" height="28" rx="6" fill="#FFFFFF" stroke="#CFD1D8"/>
+<text x="824" y="328" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="400">Dark</text>
+<text x="962" y="328" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="400">Light</text>
+<text x="776" y="378" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600">Accent color</text>
+<rect x="776" y="393" width="32" height="32" rx="16" fill="#3157B7"/>
+<rect x="820" y="393" width="32" height="32" rx="16" fill="#7042BE"/>
+<rect x="864" y="393" width="32" height="32" rx="16" fill="#AE325D"/>
+<rect x="908" y="393" width="32" height="32" rx="16" fill="#886010"/>
+<rect x="952" y="393" width="32" height="32" rx="16" fill="#277347"/>
+<rect x="996" y="393" width="32" height="32" rx="16" fill="#197571"/>
+<text x="786" y="415" fill="#FFFFFF" font-family="Inter, sans-serif" font-size="17" font-weight="600">✓</text>
+<text x="776" y="460" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600">Transparent surfaces</text>
+<text x="776" y="483" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400">Let selected surfaces reveal the background.</text>
+<rect x="1308" y="450" width="48" height="26" rx="13" fill="#CFD1D8"/>
+<rect x="1312" y="454" width="18" height="18" rx="9" fill="#FFFFFF"/>
+<text x="776" y="526" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600">Backdrop blur</text>
+<text x="776" y="549" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400">Requires transparent surfaces and compositor support.</text>
+<rect x="1308" y="516" width="48" height="26" rx="13" fill="#CFD1D8"/>
+<rect x="1312" y="520" width="18" height="18" rx="9" fill="#FFFFFF"/>
+<text x="776" y="604" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400">Illustration: effects off · changes not applied</text>
+<text x="752" y="684" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="18" font-weight="600">Shared control states</text>
+<rect x="752" y="702" width="130" height="36" rx="8" fill="#3157B7"/>
+<text x="773" y="725" fill="#FFFFFF" font-family="Inter, sans-serif" font-size="13" font-weight="600">Save changes</text>
+<rect x="898" y="702" width="112" height="36" rx="8" fill="#FFFFFF" stroke="#CFD1D8"/>
+<text x="927" y="725" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="400">Cancel</text>
+<rect x="1028" y="698" width="126" height="44" rx="10" fill="none" stroke="#3157B7"/>
+<rect x="1032" y="702" width="118" height="36" rx="8" fill="#FFFFFF" stroke="#CFD1D8"/>
+<text x="1055" y="725" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="400">Focused</text>
+<rect x="1172" y="702" width="130" height="36" rx="8" fill="#EFF0F3"/>
+<text x="1191" y="725" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400">Unavailable</text>
+<text x="752" y="779" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400">Neutral content; accent for action, selection and focus.</text>
+<text x="48" y="837" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="14" font-weight="400">Materials: Solid → tinted transparent → blurred translucent. Effects are optional and need host support.</text>
+<text x="48" y="864" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400">Typography: Inter / Hack · spacing: 4-unit base · control radius: 8 · window radius: 12 · normal control height: 36</text>
+</svg>

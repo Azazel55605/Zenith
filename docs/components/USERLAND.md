@@ -65,7 +65,8 @@ upgrade and confirm a compatible kernel before updating Sunbeam.
   graphical checks and every existing gate.
 - [x] Operator reports installed and tested; screenshot verifies probe 0.1.0,
   self-check, independent drawing and pointer interaction. [Evidence](../archive/2026-10-26/protected-graphical-clients.md#operator-installed-acceptance).
-- [ ] Build Settings service authorization and shared widgets after the surface API.
+- [x] Build the first [shared native widgets/text foundation](../USERLAND-UI.md).
+- [ ] Build Settings service authorization and resource preference loading.
 
 [Wire contract and limits](../GRAPHICAL-CLIENTS.md).
 

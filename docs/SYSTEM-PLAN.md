@@ -85,3 +85,13 @@ external backups. See [Recovery design](UPDATE-RECOVERY.md).
 The [original detailed planning baseline](archive/2026-10-15/SYSTEM-PLAN.md)
 preserves earlier acceptance discussions. Current component checklists and this
 page supersede its delivery status; do not treat historical proposals as shipped.
+
+## System appearance direction (2026-10-27)
+
+User direction: neutral, softly layered surfaces; light and dark modes together
+with dark initially default; six accent presets, later a custom color picker;
+optional transparency/translucency and backdrop blur with user controls and an
+opaque fallback. The [design language](DESIGN-LANGUAGE.md) owns the draft visual
+rules and separates accepted direction from proposed measurements. Shared widgets
+follow this work; effects and configurable delivery depend on compositor and
+Settings/CLI services that are not yet implemented.

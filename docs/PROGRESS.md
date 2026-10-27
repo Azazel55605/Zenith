@@ -3,6 +3,45 @@
 Updated **2026-10-27**. [Status](STATUS.md) owns delivery boundaries;
 [Roadmap](ROADMAP.md) orders future work.
 
+## Shared native UI foundation
+
+- [x] Inspect the protected graphics SDK and keep the first widgets wholly userland.
+- [x] Implement neutral semantic palettes, paired six-accent themes, clipped
+  rounded rendering and build-time Inter text atlases with font license delivery.
+- [x] Implement buttons/toggles/choices, Tab/reverse Tab, pointer capture,
+  enabled/selected/pressed/focus states and focus-loss/reset cancellation.
+- [x] Build independent 600x440 ui-gallery with disabled unsupported effects;
+  it changes its own preview, not system settings. GCC and Clang builds pass.
+- [x] Pass ASan/UBSan host checks, render/inspect dark/light actual library pixels,
+  and exercise 10,000 input sequences. Package intermediates stay outside payloads.
+- [x] Complete local TCG signed gallery install/upgrade, no-display refusal,
+  real keyboard/pointer light/Teal selection, disabled effects, shell restoration,
+  unchanged kernel digest and independent ext2 audit.
+  [Evidence](archive/2026-10-27/shared-userland-ui.md).
+- [ ] Implement authorized Settings state/services and resource preference loading.
+
+[Library contract, limits and commands](USERLAND-UI.md). Fixed ASCII atlases and
+static client linkage are explicit first-slice limits; no scalable/Unicode text,
+live theme loading, blur, completed Settings or desktop migration is claimed.
+
+## System design language
+
+- [x] Record user direction before shared widgets: neutral, softly layered UI;
+  light/dark together, dark default; six accents then custom picker; optional
+  transparency/translucency and blur with user controls.
+- [x] Draft [visual and interaction rules](DESIGN-LANGUAGE.md) and a
+  [dark/light specimen](design/system-specimen.svg); separate agreed direction
+  from proposed measurements and future renderer/Settings dependencies.
+- [x] Render and visually inspect the SVG. Check primary/secondary text across
+  all three surfaces plus six accent foreground/background combinations:
+  minimum contrast 6.18:1 dark, 4.82:1 light. These checks cover opaque draft
+  tokens only, not actual native rendering or composited materials.
+- [x] User accepts the design baseline on 2026-10-27. Correct the specimen’s
+  misaligned title-bar decorations using individually centered vector icons.
+- [x] Implement the first [userland token/text/widget contract](USERLAND-UI.md).
+- [ ] Define and implement the typed Settings service.
+- [ ] Implement effects only with compositor support and verified opaque fallback.
+
 ## Distributor graphical-input validation
 
 - [x] Read the failed 0.0.24 event trace: no pointer/focus-loss event, three keys

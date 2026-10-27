@@ -104,3 +104,12 @@ These are separate runs. Complete kernel-update and repository suites passed in
 the rebuilt candidate's common acceptance run; they remain required distributor gates. Local
 `/tmp` evidence paths in the archive may expire; use the commit, harness and
 retained distributor logs to reproduce or investigate a release.
+
+## Shared UI foundation (2026-10-27)
+
+The accepted [design language](DESIGN-LANGUAGE.md) now has a first independently
+compiled [client widget/text library and gallery](USERLAND-UI.md). Local GCC/Clang,
+sanitizer/palette checks and real-compositor keyboard/pointer/upgrade/ext2 checks
+pass on an unchanged kernel. This is not published/operator-installed acceptance;
+Settings persistence, resource preference loading, scaling/Unicode text and optional
+compositor effects remain pending. [Evidence](archive/2026-10-27/shared-userland-ui.md).

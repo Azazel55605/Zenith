@@ -37,7 +37,10 @@ The desktop floats windows; there are no implemented automatic-tiling WM/workspa
 - [x] Complete full graphical-client qualification at `cea1f5a`.
 - [x] Operator reports installed and tested; self-check, visible independent
   drawing and pointer interaction are shown. [Evidence](../archive/2026-10-26/protected-graphical-clients.md#operator-installed-acceptance).
-- [ ] Build shared client widgets/text/resources and the Settings service contract.
+- [x] Record the [system design direction](../DESIGN-LANGUAGE.md) before widgets.
+- [x] User accepts its visual specimen, measurements and shared control states.
+- [x] Build the first [shared userland widget/text library](../USERLAND-UI.md).
+- [ ] Connect installed resource preferences and the Settings service contract.
 - [ ] Build the proper Settings app on the existing configuration service.
 - [ ] Replace the temporary DE and add a selectable automatic-tiling WM.
 - [ ] Rework Files: navigation, selection, transfer jobs, permission/error UX and

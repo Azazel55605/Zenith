@@ -64,3 +64,7 @@ active progress page. Snapshot source is the documentation at `f502085`; banners
 and relative-link rebasing are the only archival edits in this reorganization.
 
 - [2026-10-18: Server-only native pipeline stall](2026-10-18/native-pipeline-server-stall.md) — unresolved distributor failure, exact-artifact comparisons and bounded failure snapshots.
+
+- [2026-10-27 shared native UI foundation](2026-10-27/shared-userland-ui.md):
+  accepted design baseline, independent widgets/Inter gallery, sanitizer and
+  real-compositor input/upgrade/ext2 evidence; Settings/effects remain pending.

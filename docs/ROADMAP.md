@@ -15,9 +15,12 @@ active work. Historical milestone version targets are not release versions.
    [Active work](PROGRESS.md#cli-unbundling-and-application-foundations) separates
    local qualification, distributor delivery and installed acceptance.
 2. **Deliver the graphical API, then build Settings.** The first owned surface/
-   event API and independent probe pass full qualification. Complete its
-   [VM acceptance](GRAPHICAL-VM-TEST.md), then implement typed authorized Settings
-   services, restart semantics and shared client widgets/text/resources. Preserve
+   event API and independent probe pass full qualification;
+   [VM acceptance](GRAPHICAL-VM-TEST.md) is operator confirmed. The
+   [system design language](DESIGN-LANGUAGE.md) is accepted; the first
+   [shared native widgets/text](USERLAND-UI.md) pass local compositor acceptance.
+   Next connect resource preferences and typed authorized Settings services with
+   explicit saved/active/restart semantics. Preserve
    the trusted test DE until independent compositor/session teardown is verified.
 3. **Retain installed acceptance boundaries.** Operator reports installation;
    local QEMU tests and server publication are separate evidence. Continue

@@ -54,3 +54,8 @@ Native network release testing: [kernel-first VM handoff](NETWORK-VM-TEST.md).
 Protected graphical-client API: [surfaces, events and lifecycle](GRAPHICAL-CLIENTS.md).
 
 Graphical API release testing: [VM handoff](GRAPHICAL-VM-TEST.md).
+
+System design language: [agreed direction and draft specification](DESIGN-LANGUAGE.md),
+with a [light/dark visual specimen](design/system-specimen.svg).
+
+Shared native UI: [library, gallery, build/test commands and limitations](USERLAND-UI.md).

@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+"""Host execution of the real client UI renderer and event state machine."""
+from pathlib import Path
+import subprocess
+import tempfile
+import unittest
+import importlib.util
+ROOT = Path(__file__).resolve().parents[1]
+
+class UiLibraryTests(unittest.TestCase):
+    def test_renderer_and_input_with_sanitizers(self):
+        with tempfile.TemporaryDirectory(prefix='zenith-ui-') as directory:
+            dest = Path(directory)
+            spec = importlib.util.spec_from_file_location('ui_fonts', ROOT/'tools/build-ui-fonts.py')
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            atlas = dest/'fonts.c'
+            module.build(atlas)
+            exe = dest/'ui-test'
+            subprocess.run(['gcc', '-std=c11', '-Wall', '-Wextra', '-Werror', '-O1', '-g',
+                            '-fsanitize=address,undefined', '-fno-omit-frame-pointer',
+                            '-I'+str(ROOT/'userland/ui'), str(ROOT/'userland/ui/test_ui.c'),
+                            str(ROOT/'userland/ui/ui.c'), str(ROOT/'userland/ui-gallery/gallery.c'),
+                            str(atlas), '-o', str(exe)], check=True)
+            subprocess.run([str(exe), directory], check=True, timeout=30)
+            def luminance(value):
+                values=[((value >> shift) & 255)/255 for shift in (16,8,0)]
+                values=[x/12.92 if x<=.04045 else ((x+.055)/1.055)**2.4 for x in values]
+                return sum(x*k for x,k in zip(values,(.2126,.7152,.0722)))
+            def contrast(a,b):
+                high,low=sorted((luminance(a),luminance(b)),reverse=True)
+                return (high+.05)/(low+.05)
+            palettes=(dest/'palette.tsv').read_text().splitlines()
+            self.assertEqual(len(palettes),12)
+            for row in palettes:
+                values=row.split()
+                surface,raised,subtle,text,secondary,accent,on_accent=map(lambda x:int(x,16),values[2:])
+                for foreground in (text,secondary):
+                    for background in (surface,raised,subtle):
+                        self.assertGreaterEqual(contrast(foreground,background),4.5,row)
+                self.assertGreaterEqual(contrast(accent,on_accent),4.5,row)
+                for background in (surface,raised,subtle):
+                    self.assertGreaterEqual(contrast(accent,background),3,row)
+            for name in ('dark', 'light'):
+                self.assertTrue((dest/(name+'.ppm')).read_bytes().startswith(b'P6\n600 440\n255\n'))
+
+if __name__ == '__main__':
+    unittest.main()
