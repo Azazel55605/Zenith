@@ -25,4 +25,7 @@ static inline long zenith_gui_poll(long handle,struct zenith_gui_event *event) {
     return zenith_call(602,(unsigned long)handle,(unsigned long)event,sizeof(*event));
 }
 static inline long zenith_gui_close(long handle) { return zenith_call(603,(unsigned long)handle,0,0); }
+/* Interactive ABI 1: renews bounded service/CPU/IO quotas every minute only
+ * while this invocation owns a live window. Legacy clients remain finite. */
+static inline long zenith_gui_interactive(long handle){return zenith_call(605,(unsigned long)handle,1,0);}
 #endif

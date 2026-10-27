@@ -74,3 +74,7 @@ and relative-link rebasing are the only archival edits in this reorganization.
 
 - [2026-10-27 Meridian user requirements](2026-10-27/meridian-user-requirements.md):
   original Settings outline; execution order and coverage live in the linked plan.
+
+- [2026-10-27 Meridian shell and first native app ports](2026-10-27/meridian-shell.md):
+  complete page navigation, shared text controls, native Welcome/System, owned
+  interactive lifetime and targeted acceptance; remaining ports and release gaps.

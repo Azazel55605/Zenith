@@ -41,15 +41,23 @@ def main():
         for capability in ('zenith-native-graphics-abi','zenith-native-settings-abi','zenith-native-window-state-abi'):
             assert 'requires\t'+capability+'\t1.0\n' in manifest
         package('seal',bundle,keep/'keys/private.pem',served/(version+'.zpk'))
+    desktop_payload=keep/'desktop-payload'
+    subprocess.run([sys.executable,str(ROOT/'tools/build-userland.py'),str(desktop_payload),'--program','desktop-tools'],check=True)
+    package('build-native','zenith-desktop-tools','0.1.0',desktop_payload,keep/'desktop-bundle')
+    package('seal',keep/'desktop-bundle',keep/'keys/private.pem',served/'desktop.zpk')
     theme=keep/'theme/usr/share/zenith/appearance/default';theme.mkdir(parents=True)
     (theme/'native.conf').write_text('VERSION=1\nlight.Surface=f6f7f9\n')
     package('build','zenith-theme-default','0.1.1',keep/'theme',keep/'theme-bundle')
     package('seal',keep/'theme-bundle',keep/'keys/private.pem',served/'theme.zpk')
     scripts={
-        'u':'native run settings | logger; echo S_UI=$? | logger',
+        'u':'native run settings --page style.colors | logger; echo S_UI=$? | logger',
         'v':'native run settings --show | logger; echo S_SHOW=$? | logger',
         'b':'native run settings --bounds | logger; echo S_BOUNDS=$? | logger',
         'p':'poweroff',
+        'j':'native run settings --system-info | logger; echo S_INFO=$? | logger',
+        'm':'native run settings | logger; echo S_MERIDIAN=$? | logger',
+        'w':'open Welcome; echo S_WELCOME_LAUNCH=$? | logger',
+        'z':'open System; echo S_SYSTEM_LAUNCH=$? | logger',
         'd':'su user; export USER=root; native run settings --set light rose; echo S_DENIED=$? | logger',
         'g':'pkg install /root/0.1.1.zpk; echo S_UPGRADE=$? | logger',
         'n':'native run settings --version | logger; echo S_VERSION=$? | logger',
@@ -92,10 +100,11 @@ def main():
             m=h.Machine(keep/'setup',disk,network=net);assert m.wait('headless ready',timeout=180)
             status('fetch '+url+'/key.pem /root/key.pem','S_KEY')
             status('pkg trust /root/key.pem '+hashlib.sha256(key).hexdigest(),'S_TRUST')
-            for name in ('0.1.0.zpk','0.1.1.zpk','theme.zpk',*scripts):
+            for name in ('0.1.0.zpk','0.1.1.zpk','theme.zpk','desktop.zpk',*scripts):
                 status('fetch '+url+'/'+name+' /root/'+name,'S_FETCH_'+name.replace('.',''))
             status('pkg install /root/0.1.0.zpk','S_PACKAGE')
             status('pkg install /root/theme.zpk','S_THEME')
+            status('pkg install /root/desktop.zpk','S_DESKTOP_PACKAGE')
             status('native run settings --bounds','S_BOUNDS')
             status('settings set appearance light teal','S_CLI')
             serial('native run settings --show','SETTINGS saved=light/teal active=dark/blue persistent=1 writable=1 pending=1')
@@ -160,10 +169,70 @@ def main():
             time.sleep(.5);off=len(m.log());login.monitor_type(monitor,'sh /root/'+name+'\n')
             assert m.wait(marker,off,timeout),marker+'; '+str(m.serial)
             print('PASS '+marker,flush=True)
+            return off
         desktop_script('v','SETTINGS saved=dark/teal active=dark/teal persistent=1 writable=1 pending=0')
         desktop_script('g','user: S_UPGRADE=0')
         desktop_script('n','user: settings 0.1.1')
         desktop_script('b','user: S_BOUNDS=0')
+        observed=desktop_script('j','user: S_INFO=0')
+        info=m.log()[observed:]
+        for actual in ('Runtime: Cosmos Gen 3 / NativeAOT','Display: 1280x800','Boot: installed','Time zone:'):
+            assert actual in info, 'missing actual system information: '+actual
+        desktop_script('m','MERIDIAN_FOCUSED')
+        monitor_command(monitor,'sendkey ctrl-f 30');time.sleep(.2)
+        login.monitor_type(monitor,'bluetooth')
+        monitor_command(monitor,'sendkey ret 30');time.sleep(.2)
+        off=len(m.log());monitor_command(monitor,'sendkey ret 30')
+        assert m.wait('MERIDIAN_PAGE devices.bluetooth',off,10),'settings search did not open WIP destination'
+        def wip_visible(w,h,rgb):
+            color=bytes.fromhex('25262b');needle=color*552
+            for y in range(h-56):
+                row=rgb[y*w*3:(y+1)*w*3];i=row.find(needle)
+                if i<0 or i%3:continue
+                x=i//3
+                # Both full-width edges and 56-pixel side edges distinguish the
+                # page banner from the same-color 36-pixel trusted title bar.
+                if rgb[((y+55)*w+x)*3:((y+55)*w+x+552)*3]!=needle:continue
+                if all(color_at(rgb,w,x,y+dy)==color and color_at(rgb,w,x+551,y+dy)==color for dy in range(56)):
+                    return True
+            return False
+        frame('meridian-wip',wip_visible)
+        off=len(m.log());monitor_command(monitor,'sendkey ctrl-q 30')
+        assert m.wait('user: S_MERIDIAN=0',off,30),'Meridian close'
+        desktop_script('v','SETTINGS saved=dark/teal active=dark/teal persistent=1 writable=1 pending=0')
+        for script in ('w','z'):
+            marker='native surface opened 600x440'
+            desktop_script(script,marker)
+            # GUI launch output is deliberately private/discarded, not journalled.
+            # A rendered enabled Close button proves the native frame is visible
+            # after host window admission/focus, unlike a client readiness print.
+            needle=bytes.fromhex('2a2c31')*146
+            frame('desktop-'+script,lambda w,h,rgb:any(needle in rgb[y*w*3:(y+1)*w*3] for y in range(h)))
+            off=len(m.log());monitor_command(monitor,'sendkey esc 30')
+            assert m.wait('native surface retired',off,30),'native launcher window retirement'
+            time.sleep(.5)
+        # Test the actual start menu too: shell `open` must not be the only
+        # route to signed applications. The fixed test desktop has seven apps.
+        _,(screen_width,screen_height)=observer.position()
+        for row in (0,5):
+            click(32,screen_height-32)
+            frame('launcher',lambda w,h,rgb:color_at(rgb,w,250,h-480)==bytes.fromhex('2a2c31'))
+            launched=len(m.log());target=(130,screen_height-480+row*46)
+            (cx,cy),_=observer.position()
+            monitor_command(monitor,f'mouse_move {target[0]-cx} {target[1]-cy}')
+            # Menu actions fire on press. Window admission acknowledges that
+            # actual press while startup work is scheduled; do not require a
+            # synthetic one-pixel restore beneath a newly opened window.
+            profile.monitor_text(monitor,'mouse_button 1')
+            try:
+                assert m.wait('native surface opened 600x440',launched,30),'start menu bypassed signed native launch'
+            finally:
+                profile.monitor_text(monitor,'mouse_button 0')
+            needle=bytes.fromhex('2a2c31')*146
+            frame('launcher-native-'+str(row),lambda w,h,rgb:any(needle in rgb[y*w*3:(y+1)*w*3] for y in range(h)))
+            off=len(m.log());monitor_command(monitor,'sendkey esc 30')
+            assert m.wait('native surface retired',off,30),'launcher client retirement'
+        print('PASS Meridian search/WIP no-write navigation and signed launcher Welcome/System',flush=True)
         desktop_script('p','all filesystems unmounted');assert m.process.wait(timeout=30)==0
         disk=m.disk;m.stop();m=None
         # Independent installed boot re-reads the committed system preference.

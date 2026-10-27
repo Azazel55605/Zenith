@@ -3,7 +3,7 @@
 **Planned 2026-10-27.** User scope: every menu in the supplied outline must be
 implemented; incomplete features must have a WIP message at the top of their page.
 This document proposes implementation order, dependencies and acceptance. It does
-not claim the expanded menus or services exist already.
+not claim all underlying services exist. The [active implementation](NATIVE-APP-MIGRATION.md) now supplies the first shell; this plan remains the owner for subsequent phases.
 
 [Complete page/control inventory](MERIDIAN-PAGES.md) ·
 [Original user outline](archive/2026-10-27/meridian-user-requirements.md) ·

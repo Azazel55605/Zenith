@@ -15,11 +15,11 @@ internal sealed class LauncherMenu
     private const int SeparatorHeight = 9;
 
     private readonly List<(Rect Rect, Action Run)> _items = new();
-    private readonly WindowManager _windows;
+    private readonly Func<string, string?, bool> _openApp;
 
-    public LauncherMenu(Rect anchor, WindowManager windows)
+    public LauncherMenu(Rect anchor, Func<string, string?, bool> openApp)
     {
-        _windows = windows;
+        _openApp = openApp;
 
         int height = 2 * Padding + AppRegistry.Apps.Count * AppItemHeight + SeparatorHeight + 3 * PowerItemHeight;
         Bounds = new Rect(anchor.X - 6, anchor.Y - height - 14, Width, height);
@@ -82,7 +82,7 @@ internal sealed class LauncherMenu
             surface.DrawText(app.Description, Fonts.Regular, Theme.TextSmall, Theme.TextSecondary, textX, item.Y + 24);
 
             AppInfo captured = app;
-            _items.Add((item, () => _windows.Open(captured.Create(null))));
+            _items.Add((item, () => _openApp(captured.Name, null)));
             y += AppItemHeight;
         }
 

@@ -125,3 +125,14 @@ gates). Authorized kernel 0.0.25/Settings 0.1.0/theme-default 0.1.1/manuals 0.1.
 tags are pushed at that exact source. Distributor delivery and
 [operator acceptance](SETTINGS-VM-TEST.md) remain pending.
 [Evidence](archive/2026-10-27/appearance-settings.md).
+
+## Meridian shell and first app ports (unshipped source)
+
+The [active migration](NATIVE-APP-MIGRATION.md) adds Meridian's complete page
+registry/navigation, search, recent links and WIP scope pages while retaining
+functional Colors. Native Welcome/System clients have a core package recipe and
+asynchronous signed launch path. An owned interactive profile renews bounded
+quotas only while a live surface exists. Terminal, Editor and Sunrise remain
+trusted windows pending their service contracts; Files is intentionally excluded.
+These changes are not part of the published 0.0.25 tags and have not received
+full clean-source release qualification or operator-installed acceptance.

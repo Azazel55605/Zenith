@@ -101,5 +101,13 @@
     "payload": "obj/packages/zenith-settings",
     "generate": "native",
     "program": "settings"
+  },
+  "zenith-desktop-tools": {
+    "kind": "data",
+    "name": "zenith-desktop-tools",
+    "repository": "core",
+    "payload": "obj/packages/zenith-desktop-tools",
+    "program": "desktop-tools",
+    "generate": "native"
   }
 }

@@ -1,0 +1,265 @@
+{
+  "quick.overview": [
+    "Appearance",
+    "Automatic color mode",
+    "Wallpaper",
+    "Recently visited settings"
+  ],
+  "input.mouse": [
+    "Mouse device",
+    "Primary button and left-handed mode",
+    "Pointer speed and acceleration",
+    "Scroll speed",
+    "Reverse scrolling"
+  ],
+  "input.touchpad": [
+    "Touchpad device",
+    "Primary button and left-handed mode",
+    "Pointer speed and acceleration",
+    "Scroll speed",
+    "Reverse scrolling"
+  ],
+  "input.keyboard": [
+    "Keyboard model",
+    "Num Lock at startup",
+    "Key repeat: enable, delay and rate",
+    "Typing test",
+    "Keyboard layouts: add, order and switch"
+  ],
+  "input.shortcuts": [
+    "System action shortcuts",
+    "Application shortcuts",
+    "Record a key combination",
+    "Find conflicting shortcuts",
+    "Reset to defaults"
+  ],
+  "audio.playback": [
+    "Playback devices",
+    "Default output",
+    "Test speakers",
+    "Channel configuration",
+    "Sample rate and bit depth"
+  ],
+  "audio.recording": [
+    "Recording devices",
+    "Default input",
+    "Capture permission and activity",
+    "Per-channel input levels"
+  ],
+  "audio.streams": [
+    "Applications playing audio",
+    "Playback stream details",
+    "Application output routing"
+  ],
+  "display.configuration": [
+    "Displays and supported modes",
+    "Resolution and scaling",
+    "Orientation and refresh rate",
+    "Brightness",
+    "Tearing policy"
+  ],
+  "display.night-light": [
+    "Night Light: Off, On or Automatic",
+    "Strength",
+    "Day and night color temperatures",
+    "Schedule and Day-Night Cycle"
+  ],
+  "input.accessibility": [
+    "Accessibility tools",
+    "Additional accessibility options will be defined here."
+  ],
+  "devices.bluetooth": [
+    "Bluetooth devices",
+    "Bluetooth management will be available here."
+  ],
+  "devices.external": [
+    "External devices and mounted volumes",
+    "Mount automatically at login",
+    "Mount automatically when connected",
+    "Per-device mounting policies",
+    "Mount status and errors"
+  ],
+  "devices.printers": [
+    "Printers",
+    "Printer management will be available here."
+  ],
+  "network.connections": [
+    "Connections and active state",
+    "Connection name",
+    "IPv4 address and gateway",
+    "DNS servers",
+    "Connect automatically",
+    "Connection priority",
+    "Link negotiation"
+  ],
+  "style.wallpaper": [
+    "Solid color, image or slideshow",
+    "Wallpaper categories and picker",
+    "Light and dark wallpaper pairs",
+    "Dynamic wallpapers and scheduling"
+  ],
+  "style.colors": [
+    "Light and dark color modes",
+    "Six accent presets",
+    "Custom accent color",
+    "Automatic color-mode schedule"
+  ],
+  "style.application": [
+    "Rounded and sharp widget styles",
+    "Button styles",
+    "Transparency",
+    "Translucency",
+    "Background blur"
+  ],
+  "style.decorations": [
+    "Window decoration presets",
+    "Conventional window buttons",
+    "Dot-style window buttons",
+    "Zenith window controls",
+    "Active and inactive window appearance"
+  ],
+  "style.icons": [
+    "Icon sets",
+    "Common icon previews",
+    "Missing-icon fallback"
+  ],
+  "style.cursors": [
+    "Cursor styles",
+    "Pointer-role previews",
+    "Recovery cursor"
+  ],
+  "style.sounds": [
+    "System sound packs",
+    "Interaction sound events",
+    "Preview sounds"
+  ],
+  "style.splash": [
+    "Enable session splash",
+    "Select session animation",
+    "Preview the transition from login to desktop"
+  ],
+  "style.login": [
+    "Login screen styles",
+    "Conventional, dot-style and Zenith layouts",
+    "Screen Locking and automatic login settings"
+  ],
+  "style.boot-splash": [
+    "Enable boot splash",
+    "Select boot animation",
+    "Boot diagnostics and recovery access"
+  ],
+  "style.fonts": [
+    "System UI font",
+    "Antialiasing",
+    "Hinting",
+    "Text preview"
+  ],
+  "style.font-management": [
+    "All Fonts",
+    "Personal Fonts",
+    "System Fonts",
+    "Install fonts",
+    "Manage installed fonts"
+  ],
+  "style.animations": [
+    "Global animation speed",
+    "Open and close windows",
+    "Maximize, minimize and fullscreen",
+    "Peek at desktop",
+    "Virtual desktop transitions",
+    "Reduced motion"
+  ],
+  "windows.notifications": [
+    "Do Not Disturb",
+    "Notification visibility conditions",
+    "Popup behavior"
+  ],
+  "windows.behavior": [
+    "Focus: click-to-focus, delay and raising",
+    "Titlebar: double-click action",
+    "Maximize-button actions",
+    "Movement: screen-edge snapping",
+    "Window snap zones"
+  ],
+  "windows.switcher": [
+    "Task switcher appearance",
+    "Window sort order",
+    "One window per application",
+    "Virtual desktop and monitor filters"
+  ],
+  "windows.desktops": [
+    "Create and remove virtual desktops",
+    "Desktop names and order",
+    "Desktop switching"
+  ],
+  "workspace.behavior": [
+    "Status popups and on-screen displays",
+    "Scrollbar clicks: jump or page",
+    "Single-click selection or opening",
+    "Middle-click paste",
+    "Double-click interval",
+    "Drag and drop: ask or move on the same drive"
+  ],
+  "workspace.search": [
+    "File indexing and status",
+    "Data to index",
+    "Include and exclude rules",
+    "Search providers: math, power and applications",
+    "Start menu and runner integration"
+  ],
+  "security.locking": [
+    "Automatic locking",
+    "Idle timeout",
+    "Delay before password is required",
+    "Administrative automatic-login policy"
+  ],
+  "locale.region": [
+    "Language preferences",
+    "Number and time formats",
+    "Currency and measurement units",
+    "Address and phone formats",
+    "Data and Storage Sizes: SI or IEC units",
+    "Format previews"
+  ],
+  "locale.time": [
+    "Automatic or manual time",
+    "Manual date and time adjustment",
+    "Time zone",
+    "Time synchronization source and status"
+  ],
+  "locale.day-night": [
+    "Automatic solar timing or manual schedule",
+    "Location: opt-in detection or manual entry",
+    "Day and night times",
+    "Shared schedule for colors, wallpaper and Night Light"
+  ],
+  "system.about": [
+    "Running software and kernel information",
+    "Installed package versions",
+    "Detected hardware"
+  ],
+  "system.power": [
+    "Suspend",
+    "Automatic idle dimming",
+    "Display dimming and backlight controls"
+  ],
+  "system.users": [
+    "User accounts",
+    "Add and remove accounts",
+    "Account details",
+    "Password actions",
+    "Home-folder handling"
+  ],
+  "system.autostart": [
+    "Startup applications",
+    "Add and remove startup entries",
+    "Enable or disable entries",
+    "Startup failures"
+  ],
+  "system.session": [
+    "Shutdown, reboot and logout confirmation",
+    "Restore application sessions",
+    "Desktop and Headless session availability",
+    "Unsaved work and busy applications"
+  ]
+}

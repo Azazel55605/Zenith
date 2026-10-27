@@ -36,7 +36,9 @@ Meridian is the chosen Settings application name. The [ordered plan](../MERIDIAN
 and [43-page inventory](../MERIDIAN-PAGES.md) own the requested expansion. All menus
 must become navigable in the first shell slice; incomplete features get top-of-page
 WIP notices. Resolution/scaling is the first major backend priority. The current
-published package name remains `zenith-settings`; no rename or expanded UI is claimed.
+published package name remains `zenith-settings`. Current unshipped source adds the
+[Meridian shell and first native app ports](../NATIVE-APP-MIGRATION.md); Terminal,
+Editor and Sunrise remain pending. Files is explicitly excluded from this batch.
 
 ## Remaining steps
 
@@ -52,7 +54,12 @@ published package name remains `zenith-settings`; no rename or expanded UI is cl
 - [x] Build the independent [Settings Appearance page](../NATIVE-SETTINGS.md) with
   preview/save, failed/stale edit retention and explicit dirty-close confirmation.
 - [x] Pass full clean-source Release qualification at `12ded91`.
-- [ ] Publish and complete installed Appearance acceptance.
+- [x] Publish the qualified Appearance package tags.
+- [ ] Complete operator-installed Appearance acceptance.
+- [x] Implement Meridian navigation, search and WIP scope pages in current source.
+- [x] Add native Welcome/System clients with signed asynchronous launch.
+- [ ] Port Terminal, Editor and Sunrise with their owned service contracts.
+  Files is excluded from this migration batch.
 - [ ] Extend Settings to keyboard/timezone/session and native font resource loading.
 - [ ] Replace the temporary DE and add a selectable automatic-tiling WM.
 - [ ] Rework Files: navigation, selection, transfer jobs, permission/error UX and

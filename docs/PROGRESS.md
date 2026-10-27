@@ -3,6 +3,27 @@
 Updated **2026-10-27**. [Status](STATUS.md) owns delivery boundaries;
 [Roadmap](ROADMAP.md) orders future work.
 
+## Native system apps and Meridian M1
+
+- [x] Confirm migration scope: Terminal, Editor, System Information, Welcome and
+  Sunrise; leave Files unchanged for its later redesign.
+- [x] Add shared bounded UTF-8-safe text input, wrapping and virtualized page lists.
+- [x] Implement all Meridian destinations, search, recent links and WIP scope
+  pages with drill-down groups; preserve Colors and navigation/close discard
+  guards. Detailed disabled forms remain for the subsequent page slices.
+- [x] Add owned interactive quota renewal, read-only system metadata and
+  asynchronous signed launcher dispatch. Preserve legacy/recovery behavior.
+- [x] Add native Welcome/System frontends and recipe; absent-package recovery
+  remains, invalid installed executables fail closed.
+- [ ] Finish Terminal PTY, Editor editing/save and Sunrise installer frontends;
+  [exact current boundaries](NATIVE-APP-MIGRATION.md). Files remains untouched.
+- [x] Pass 747 host tests, 238 controllers and sanitizer/GCC/Clang UI builds.
+- [x] Pass targeted native save/reboot/upgrade, metadata, visible WIP search,
+  shell and actual start-menu launches, cleanup and independent ext2 audit.
+  [Evidence](archive/2026-10-27/meridian-shell.md).
+- [ ] Complete remaining app ports, then full clean-source release qualification.
+  In-flight 0.0.25 tags are unchanged; nothing new is published or installed.
+
 ## Meridian scope and implementation plan
 
 - [x] Read and preserve the user's complete Settings outline; adopt Meridian as
@@ -15,8 +36,8 @@ Updated **2026-10-27**. [Status](STATUS.md) owns delivery boundaries;
   display resolution/scaling early, then capability-backed increments. Define WIP,
   no-device, unsupported, readonly and error states separately.
 - [x] Validate unique page IDs, category counts, coverage and document links.
-- [ ] Next implementation: M1 navigation/page registry/WIP shell and shared client
-  foundations. This planning slice does not implement the expanded menus.
+- [x] Begin M1 navigation/page registry/WIP shell and shared client foundations;
+  [current source implementation](NATIVE-APP-MIGRATION.md) separates remaining ports.
 
 ## Functional Appearance settings
 

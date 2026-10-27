@@ -119,10 +119,20 @@ internal sealed unsafe class NativeProcess
             address += (ulong)count; offset += count;
         }
     }
+    private readonly ProcessInteractive _interactive = new();
+    private static long MonotonicMilliseconds => System.Diagnostics.Stopwatch.GetTimestamp() / (System.Diagnostics.Stopwatch.Frequency / 1000);
     private long Service(ref Context c, ProcessFiles files, ProcessNetwork network, ProcessGraphics graphics, ref int readBytes)
     {
         try
         {
+            if (c.Call == 612)
+            {
+                if (c.Arg1 is < 1 or > 4096 || c.Arg2 != 1) { return -22; }
+                if (!Valid(c.Arg0, (int)c.Arg1, true)) { return -14; }
+                byte[] info = NativeSystemInformation.Snapshot();
+                if ((ulong)info.Length > c.Arg1) { return -34; }
+                Transfer(c.Arg0, info, true); return info.Length;
+            }
             if (c.Call == 610)
             {
                 if (c.Arg1 != ProcessAppearance.SnapshotBytes || c.Arg2 != 0) { return -22; }
@@ -135,6 +145,8 @@ internal sealed unsafe class NativeProcess
                 if (!Valid(c.Arg0, ProcessAppearance.RequestBytes, false)) { return -14; }
                 return ProcessAppearance.Save(Zenith.Core.Configuration.SystemConfiguration.Appearance, ReadUser(c.Arg0, ProcessAppearance.RequestBytes));
             }
+            if (c.Call == 605)
+            { return c.Arg0 > int.MaxValue || c.Arg1 != 1 || c.Arg2 != 0 ? -22 : _interactive.Enable(graphics.OwnsLive((int)c.Arg0), MonotonicMilliseconds); }
             if (c.Call == 604)
             { return c.Arg0 > int.MaxValue || c.Arg1 > 1 || c.Arg2 != 0 ? -22 : graphics.Dirty((int)c.Arg0, c.Arg1 != 0); }
             if (c.Call == 600)
@@ -403,16 +415,19 @@ internal sealed unsafe class NativeProcess
                 do
                 {
                     if (cancelled()) { status = 130; break; }
+                    if (!process._interactive.Advance(graphics!.Live, MonotonicMilliseconds, out bool renew)) { status = 130; break; }
+                    if (renew)
+                    { calls = graphicsCalls = readBytes = 0; files.RenewBudget(); graphics.RenewBudget(); context.Ticks = 1000; }
                     Monitor.Enter(s_rawGate);
                     try { status = (int)RunNative(&context); Monitor.Exit(s_rawGate); }
                     catch { Monitor.Exit(s_rawGate); throw; }
                     if (status != 4096) { break; }
                     if (cancelled()) { status = 130; break; }
-                    if (context.Call is >= 600 and <= 604 ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
+                    if (context.Call is >= 600 and <= 605 ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
                     var caller = Zenith.Core.Security.CredentialContext.Enter(identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
                     // while waiting for a peer. Mutations and transport setup stay serialized.
-                    bool standard = context.Call is 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    bool standard = context.Call is 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {

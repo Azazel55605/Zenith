@@ -67,6 +67,23 @@ public sealed class ProcessGraphicsTests
         Assert.Equal(-24, a.Open(160, 100, "A"));
     }
     [Fact]
+    public void RenewPresentationQuotaRetainsOwnedHandleAndRevocation()
+    {
+        var host = new Host(); using var graphics = new ProcessGraphics(host);
+        int handle = graphics.Open(160, 100, "interactive"); byte[] pixels = new byte[64000];
+        for (int i = 0; i < 3600; i++) { Assert.Equal(0, graphics.Present(handle, pixels)); }
+        Assert.Equal(-27, graphics.Size(handle));
+        var profile = new ProcessInteractive(); Assert.Equal(0, profile.Enable(graphics.OwnsLive(handle), 0));
+        Assert.True(profile.Advance(graphics.Live, 60000, out bool renew)); Assert.True(renew);
+        graphics.RenewBudget(); Assert.Equal(64000, graphics.Size(handle));
+        Assert.Equal(0, graphics.Present(handle, pixels));
+        host.Surfaces[0].Dispose(); Assert.False(graphics.Live);
+        Assert.False(graphics.OwnsLive(handle));
+        Assert.True(profile.Advance(graphics.Live, 60001, out renew)); Assert.False(renew);
+        Assert.False(profile.Advance(graphics.Live, 62001, out renew)); Assert.False(renew);
+        graphics.RenewBudget(); Assert.Equal(-32, graphics.Present(handle, pixels));
+    }
+    [Fact]
     public void RequestRejectsUnsupportedVersionFlagsSizesAndReservedFields()
     {
         byte[] b = new byte[48];

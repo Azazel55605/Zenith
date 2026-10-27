@@ -59,6 +59,20 @@ public class ProcessFilesTests
         files.Dispose(); Assert.Equal(-9, files.Read(0, new byte[1]));
     }
     [Fact]
+    public void InteractiveQuotaRenewalDoesNotResetDescriptorsInputOrPerCallBounds()
+    {
+        var backend = new Backend(); using var files = new ProcessFiles(backend, "/", "abc");
+        int fd = files.Open("out", ProcessFiles.WriteOnly);
+        byte[] chunk = new byte[4096];
+        for (int i = 0; i < 256; i++) { Assert.Equal(4096, files.Write(fd, chunk)); }
+        Assert.Equal(-28, files.Write(fd, new byte[1]));
+        Assert.Equal(1, files.Read(0, new byte[1]));
+        files.RenewBudget(); Assert.Equal(4096, files.Write(fd, chunk));
+        Assert.Equal(-22, files.Write(fd, new byte[4097]));
+        var remaining = new byte[4]; Assert.Equal(2, files.Read(0, remaining)); Assert.Equal((byte)'b', remaining[0]);
+        files.Close(fd); files.RenewBudget(); Assert.Equal(-9, files.Write(fd, new byte[1]));
+    }
+    [Fact]
     public void ShortWritesChargeActualBytesAcrossDescriptors()
     {
         var backend = new Backend(); var files = new ProcessFiles(backend, "/");

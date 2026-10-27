@@ -18,6 +18,6 @@ struct settings_app {
 };
 int settings_init(struct settings_app *app,unsigned int *pixels,struct settings_backend backend);
 void settings_draw(struct settings_app *app);
-void settings_event(struct settings_app *app,const struct zenith_gui_event *event);
+int settings_event(struct settings_app *app,const struct zenith_gui_event *event);
 void settings_refresh(struct settings_app *app);
 #endif

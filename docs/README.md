@@ -63,5 +63,6 @@ Shared native UI: [library, gallery, build/test commands and limitations](USERLA
 Independent Settings: [Appearance service/page](NATIVE-SETTINGS.md) and
 [operator checklist](SETTINGS-VM-TEST.md).
 
-Meridian planning: [ordered Settings implementation plan](MERIDIAN-PLAN.md) and
+Meridian: [current shell/app migration](NATIVE-APP-MIGRATION.md),
+[ordered Settings implementation plan](MERIDIAN-PLAN.md) and
 [all 43 pages and requested controls](MERIDIAN-PAGES.md).

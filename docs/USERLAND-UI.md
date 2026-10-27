@@ -76,7 +76,7 @@ with integer advances and antialias blending into opaque surface colors. Each ca
 reads at most 4096 bytes; labels use at most 256. The initial atlas covers printable
 ASCII. Unsupported or malformed UTF-8 displays a replacement `?` without treating
 continuation bytes of a complete sequence as separate glyphs. No shaping, IME,
-font fallback, multiline layout or general text-edit field is claimed.
+font fallback or IME support is claimed. Current source adds word-wrapped paragraphs and bounded single-line UTF-8-preserving editing in `text.h`/`text.c`; it does not yet provide a multiline document editor.
 
 Current font sizes are fixed; scalable text, integer/fractional UI scale and layout
 reflow still need explicit implementation and clipping acceptance. Do not treat the
@@ -90,7 +90,7 @@ must connect independently updated themes/fonts before broad app migration.
 
 ## Next steps
 
-1. Typed authorized Settings reads/writes, effective/saved/restart states and CLI parity.
+1. Extend the implemented typed Appearance service to the remaining Meridian pages.
 2. Resource/theme preference loading and reusable layout/text-field/scroll controls
    as the first real Settings pages need them. Keep errors and unsaved edits explicit.
 3. Scale/font coverage, keyboard interaction and independent package-update tests.

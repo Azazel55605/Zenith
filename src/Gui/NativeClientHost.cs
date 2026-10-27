@@ -88,7 +88,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
             };
             int modifiers = ((key.Modifiers & ConsoleModifiers.Shift) != 0 ? 1 : 0)
                 | ((key.Modifiers & ConsoleModifiers.Control) != 0 ? 2 : 0) | ((key.Modifiers & ConsoleModifiers.Alt) != 0 ? 4 : 0);
-            _surface.Send(new(3, key.KeyChar, 0, 0, modifiers, special));
+            _surface.Send(new(3, ProcessKeyEncoding.Text(key.KeyChar, key.Key.ToString(), modifiers), 0, 0, modifiers, special));
         }
     }
 }

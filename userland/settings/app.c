@@ -52,8 +52,8 @@ void settings_draw(struct settings_app *a){
         a->state.flags&Z_SETTINGS_PENDING?"Saved. Waiting for the desktop or next login to apply.":"Saved appearance is active.";
     text(a,24,332,status,&zui_body,u->theme.text);
     if(a->message)text(a,24,360,a->message,&zui_caption,u->theme.secondary);
-    if(a->prompt)text(a,24,389,a->prompt==1?"Discard unsaved changes and close?":"Discard unsaved changes and reload?",&zui_label,u->theme.text);
-    for(int i=0;i<u->count;i++){
+    if(a->prompt)text(a,24,389,a->prompt==1?"Discard unsaved changes and close?":a->prompt==3?"Discard changes and return to settings?":"Discard unsaved changes and reload?",&zui_label,u->theme.text);
+    for(int i=0;i<13;i++){
         struct zui_control *c=&u->controls[i];
         c->enabled=a->prompt?c->id>=90:c->id<90;
         if(c->id<30){c->enabled=c->enabled&&!!(a->state.flags&Z_SETTINGS_WRITABLE);c->value=c->id<10?c->id==(int)a->mode+1:c->id==(int)a->accent+10;}
@@ -67,31 +67,32 @@ static void close_request(struct settings_app *a,int prompt){
     else if(prompt==1)a->closing=1;
     else {a->message=0;settings_refresh(a);}
 }
-void settings_event(struct settings_app *a,const struct zenith_gui_event *e){
-    if(e->type==Z_GUI_CLOSE){a->closing=1;return;}
-    if(e->type==Z_GUI_CLOSE_INTENT){close_request(a,1);return;}
-    if(e->type==Z_GUI_KEY&&e->extra==1){if(a->prompt){a->prompt=0;a->ui.focus=0;a->ui.dirty=1;}else close_request(a,1);return;}
+int settings_event(struct settings_app *a,const struct zenith_gui_event *e){
+    if(e->type==Z_GUI_CLOSE){a->closing=1;return 0;}
+    if(e->type==Z_GUI_CLOSE_INTENT){close_request(a,1);return 0;}
+    if(e->type==Z_GUI_KEY&&e->extra==1){if(a->prompt){a->prompt=0;a->ui.focus=0;a->ui.dirty=1;}else close_request(a,1);return 0;}
     int action=zui_event(&a->ui,e);
-    if(!action)return;
-    if(action==90){a->prompt=0;a->ui.focus=0;a->ui.dirty=1;return;}
+    if(!action)return 0;
+    if(action==90){a->prompt=0;a->ui.focus=0;a->ui.dirty=1;return 0;}
+    if(action==900){if(a->edited){close_request(a,3);return 0;}return 900;}
     if(action==91){
-        if(a->backend.dirty(0)){a->message="Cannot update window state. Edits have been kept.";return;}
+        if(a->backend.dirty(0)){a->message="Cannot update window state. Edits have been kept.";return 0;}
         int prompt=a->prompt;a->edited=0;a->prompt=0;
         if(prompt==1)a->closing=1;
-        else {a->message=0;settings_refresh(a);}a->ui.dirty=1;return;
+        else {a->message=0;settings_refresh(a);a->ui.focus=0;}a->ui.dirty=1;return prompt==3?900:0;
     }
-    if(action==40){close_request(a,1);return;}
-    if(action==31){close_request(a,2);return;}
+    if(action==40){close_request(a,1);return 0;}
+    if(action==31){close_request(a,2);return 0;}
     if(action==30){
         long result=a->backend.save(a->mode,a->accent,a->base_revision);
         if(!result){a->edited=0;a->backend.dirty(0);a->message="Appearance saved.";settings_refresh(a);}
         else a->message=result==-11?"Changed elsewhere. Reload before saving; your edits are kept.":result==-13?"Administrator permission required. Edits have been kept.":"Save failed. Check writable storage; edits have been kept.";
-        a->ui.dirty=1;return;
+        a->ui.dirty=1;return 0;
     }
     unsigned int mode=a->mode,accent=a->accent;
     if(action<=2)mode=(unsigned int)action-1;
     else if(action>=10&&action<=15)accent=(unsigned int)action-10;
     int dirty=mode!=a->state.mode||accent!=a->state.accent;
-    if(a->backend.dirty(dirty)){a->message="Cannot protect unsaved changes. Selection was not changed.";a->ui.dirty=1;return;}
-    a->mode=mode;a->accent=accent;a->edited=dirty;a->message=0;palette(a);
+    if(a->backend.dirty(dirty)){a->message="Cannot protect unsaved changes. Selection was not changed.";a->ui.dirty=1;return 0;}
+    a->mode=mode;a->accent=accent;a->edited=dirty;a->message=0;palette(a);return 0;
 }

@@ -7,13 +7,15 @@ namespace Zenith.Gui.Shell;
 /// <summary>An installable application: what the launcher shows and how to open it.</summary>
 internal sealed class AppInfo
 {
-    public AppInfo(string name, string description, Func<string?, Window> create)
+    public AppInfo(string name, string description, Func<string?, Window> create, string? native = null, string? action = null)
     {
         Name = name;
         Description = description;
-        Create = create;
+        Create = create; Native = native; Action = action;
     }
 
+    public string? Native { get; }
+    public string? Action { get; }
     public string Name { get; }
     public string Description { get; }
     /// <summary>Creates the app's window; the argument (e.g. a file path) may be null.</summary>
@@ -25,12 +27,13 @@ internal static class AppRegistry
 {
     public static readonly List<AppInfo> Apps = new()
     {
-        new AppInfo("Welcome", "Getting started", _ => new WelcomeWindow()),
+        new AppInfo("Welcome", "Getting started", _ => new WelcomeWindow(), "desktop-tools", "welcome"),
         new AppInfo("Terminal", "Command line shell", _ => new TerminalWindow()),
         new AppInfo("Files", "Browse and manage files", path => new FileManagerWindow(path)),
         new AppInfo("Editor", "Edit text files", path => new EditorWindow(path)),
         new AppInfo("Sunrise", "Install Zenith", _ => new InstallerWindow()),
-        new AppInfo("System", "About this machine", _ => new SystemInfoWindow()),
+        new AppInfo("System", "About this machine", _ => new SystemInfoWindow(), "desktop-tools", "system"),
+        new AppInfo("Meridian", "System settings", _ => new AppLaunchNotice("Install the zenith-settings package to open Meridian."), "settings"),
     };
 
     public static bool Exists(string name)

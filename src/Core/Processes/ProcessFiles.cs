@@ -40,6 +40,7 @@ internal sealed class ProcessFiles : IDisposable
         _input = Encoding.UTF8.GetBytes(input ?? "");
     }
     public string Cwd => _cwd;
+    public void RenewBudget() { _written = 0; }
     public string Resolve(string path)
     {
         if (path.Length == 0 || path.Length > 1024 || path.IndexOf('\0') >= 0) { throw new ArgumentException("invalid native path"); }

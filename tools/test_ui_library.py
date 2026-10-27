@@ -48,6 +48,18 @@ class UiLibraryTests(unittest.TestCase):
                             str(ROOT/'userland/settings/app.c'),str(ROOT/'userland/ui/ui.c'),
                             str(atlas),'-o',str(settings_exe)],check=True)
             subprocess.run([str(settings_exe)],check=True,timeout=30)
+            pages_spec=importlib.util.spec_from_file_location('meridian_pages', ROOT/'tools/build-meridian-pages.py')
+            pages_module=importlib.util.module_from_spec(pages_spec)
+            pages_spec.loader.exec_module(pages_module)
+            pages=dest/'pages.c';pages_module.build(pages)
+            meridian_exe=dest/'meridian-test'
+            subprocess.run(['gcc','-std=c11','-Wall','-Wextra','-Werror','-O1','-g',
+                            '-fsanitize=address,undefined','-fno-omit-frame-pointer',
+                            '-I'+str(ROOT/'userland/ui'),'-I'+str(ROOT/'userland/settings'),str(ROOT/'userland/settings/test_meridian.c'),
+                            str(ROOT/'userland/settings/meridian.c'),str(ROOT/'userland/settings/app.c'),
+                            str(ROOT/'userland/ui/text.c'),str(ROOT/'userland/ui/ui.c'),
+                            str(pages),str(atlas),'-o',str(meridian_exe)],check=True)
+            subprocess.run([str(meridian_exe),directory],check=True,timeout=30)
             for name in ('dark', 'light'):
                 self.assertTrue((dest/(name+'.ppm')).read_bytes().startswith(b'P6\n600 440\n255\n'))
 

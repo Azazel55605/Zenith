@@ -6,12 +6,13 @@
 The independently compiled `zenith-settings` package supplies the first functional
 Appearance page. The GUI and trusted `settings` command use the same root-only
 system preference authority. This is not a kernel-linked Settings window.
-Other applications have not been ported by this slice.
+Current unshipped source extends it into the [Meridian shell and app migration](NATIVE-APP-MIGRATION.md); the published 0.0.25/Settings 0.1.0 tags still contain the qualified Appearance-only client.
 
 ## Use and visible behavior
 
 ```sh
 native run settings
+native run settings --page style.colors
 native run settings --show
 native run settings --set light teal
 settings show
@@ -34,8 +35,7 @@ revision check: stale saves fail rather than overwrite. Reloading over edits nee
 an explicit discard choice. Escape, the Close button and a dirty title-bar close
 request offer **Keep editing / Discard changes**. Session logout refuses unsaved
 windows. Forced process cancellation or host revocation still terminates the client
-without saving. Existing native invocation lifetimes/budgets still apply; this is
-not a general unlimited desktop process profile.
+without saving. Current source opts into the [owned interactive profile](NATIVE-APP-MIGRATION.md#interactive-and-metadata-contracts); the published Appearance-only client retains the original lifetime budgets.
 
 ## Persistence and resources
 

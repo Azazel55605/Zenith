@@ -27,6 +27,7 @@ internal sealed class Desktop
     private readonly Surface _scene;   // everything but the cursor
     private readonly Surface _frame;   // scene + cursor, what is on screen
     private readonly Input _input = new();
+    private NativeAppLauncher _apps = new();
     private NativeClientHost _nativeClients;
     private readonly Taskbar _taskbar;
     private readonly LauncherMenu _launcher;
@@ -44,6 +45,7 @@ internal sealed class Desktop
         _nativeClients = new NativeClientHost(Accounts.Session);
         Zenith.Core.Processes.NativeProcessGraphics.Register(_nativeClients.ForUser);
         int w = screen.Width, h = screen.Height;
+        Zenith.Core.Processes.NativeSystemInformation.Display(w + "x" + h + " @ " + screen.RefreshRate + " Hz");
 
         _wallpaper = new Surface(w, h);
         _scene = new Surface(w, h);
@@ -52,7 +54,7 @@ internal sealed class Desktop
 
         Windows = new WindowManager(new Rect(0, 0, w, h - Taskbar.Height - 2 * Taskbar.Margin));
         _taskbar = new Taskbar(w, h, Windows);
-        _launcher = new LauncherMenu(_taskbar.LauncherButton, Windows);
+        _launcher = new LauncherMenu(_taskbar.LauncherButton, OpenApp);
 
         MouseManager.SetScreenSize(w, h);
         MouseManager.SetPosition(w / 2, h / 2);
@@ -75,7 +77,16 @@ internal sealed class Desktop
         {
             if (string.Equals(app.Name, name, System.StringComparison.OrdinalIgnoreCase))
             {
-                Windows.Open(app.Create(argument));
+                if (app.Native is string native && Zenith.Core.Packages.NativePackageSource.State("/usr/share/zenith/native/" + native + ".elf") != Zenith.Core.Packages.PackagePathState.Missing)
+                {
+                    var args = new System.Collections.Generic.List<string> { native };
+                    if (app.Action is not null) { args.Add(app.Action); }
+                    if (argument is not null) { args.Add(argument); }
+                    string user = Accounts.Service?.Name(CredentialContext.Current.Uid) ?? "user";
+                    string cwd = CredentialContext.Current.IsRoot ? "/root" : "/home/" + user;
+                    if (!_apps.Launch(native, args.ToArray(), cwd)) { Windows.Open(new AppLaunchNotice("Too many applications are starting. Try again.")); }
+                }
+                else { Windows.Open(app.Create(argument)); }
                 return true;
             }
         }
@@ -85,15 +96,17 @@ internal sealed class Desktop
 
     public WindowManager Windows { get; }
 
-    public void StopClients() => _nativeClients.Stop();
+    public void StopClients() { _apps.Stop(); _nativeClients.Stop(); Zenith.Core.Processes.NativeSystemInformation.Display("No graphical session"); }
 
     public void Tick()
     {
         _nativeClients.Tick(Windows);
+        _apps.Tick(Windows);
         if (_generation != Accounts.Generation)
         {
             foreach (var window in Windows.Windows) { if (window is TerminalWindow terminal && terminal.IsBusy) { return; } }
             _generation = Accounts.Generation;
+            _apps.Stop(); _apps = new NativeAppLauncher();
             _nativeClients.Stop();
             _nativeClients = new NativeClientHost(Accounts.Session);
             Zenith.Core.Processes.NativeProcessGraphics.Register(_nativeClients.ForUser);

@@ -3,7 +3,7 @@
 [Ordered plan and WIP rules](MERIDIAN-PLAN.md) ·
 [Original outline](archive/2026-10-27/meridian-user-requirements.md)
 
-**Planning inventory, 2026-10-27 — not implemented navigation.** Every destination
+**Reviewed scope, 2026-10-27.** All destinations are now registered in the unshipped Meridian shell; most feature backends remain WIP. [Implementation boundaries](NATIVE-APP-MIGRATION.md). Every destination
 below must be present from M1, including later-phase features. Group names become
 expandable navigation headings; nested option groups/tabs remain available inside
 their page. Page IDs are proposed stable navigation/search identities, not an ABI.

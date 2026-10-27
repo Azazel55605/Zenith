@@ -118,3 +118,11 @@ focus logs alone do not establish that those pixels are visible.
 
 The first [shared client UI library](USERLAND-UI.md) supplies opaque software
 widgets and Inter text without changing graphics ABI 1.
+
+## Current interactive extension
+
+Unshipped source adds optional call 605 for owned live-window quota renewal and
+read-only call 612 for public system metadata. [Wire contract and limits](NATIVE-APP-MIGRATION.md#interactive-and-metadata-contracts).
+The original graphics ABI still uses finite lifetime quotas unless explicitly
+opted in. Ctrl+letter events now include a logical lowercase letter when Cosmos
+supplies no text; ordinary Unicode and AltGr text are preserved.

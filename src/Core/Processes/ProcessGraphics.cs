@@ -118,6 +118,9 @@ internal sealed class ProcessGraphics : IDisposable
     private ProcessSurface? _surface;
     private int _handle, _opens, _presents;
     private bool _disposed;
+    public bool Live => _surface is not null && !_surface.Ended;
+    public bool OwnsLive(int handle) => handle == _handle && Live;
+    public void RenewBudget() { _presents = 0; }
     public ProcessGraphics(IProcessGraphicsHost? host) { _host = host; }
     public int Open(int width, int height, string title)
     {
