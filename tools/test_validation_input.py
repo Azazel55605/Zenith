@@ -81,6 +81,35 @@ class RenderedMouseTests(unittest.TestCase):
             module.monitor_command('/tmp/m','mouse_button 1')
             transport.assert_called_once_with('/tmp/m',raw)
             self.assertEqual(2,transport.return_value.command.call_count)
+    def test_probe_requires_real_aligned_pixels(self):
+        header=b'P6\n100 100\n255\n'
+        self.assertFalse(profile.probe_visible(header+b'\0'*30000))
+        self.assertTrue(profile.probe_visible(header+bytes.fromhex('6b8cff')*10000))
+        # The same byte sequence straddling RGB boundaries is not a probe pixel.
+        self.assertFalse(profile.probe_visible(header+bytes.fromhex('ff6b8c')*10000))
+    def test_fixture_capture_waits_for_presented_pixels(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            frame=Path(directory)/'close.ppm';calls=[]
+            def raw(path,text):
+                calls.append(text)
+                pixels=b'\0'*30000 if len(calls)==1 else bytes.fromhex('6b8cff')*10000
+                frame.write_bytes(b'P6\n100 100\n255\n'+pixels)
+            mouse=profile.RenderedMouse(Path(directory)/'m',raw)
+            with patch('time.sleep'):
+                mouse.command('screendump '+str(frame))
+            self.assertEqual(2,len(calls))
+            self.assertTrue(all(c=='screendump '+str(frame) for c in calls))
+    def test_capture_waits_for_complete_bytes_without_reissuing_command(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'close.ppm';calls=[]
+            def raw(monitor,text):
+                calls.append(text);path.write_bytes(b'P6\n100 100\n255\n')
+            def complete(_):path.write_bytes(b'P6\n100 100\n255\n'+bytes.fromhex('6b8cff')*10000)
+            mouse=profile.RenderedMouse(Path(directory)/'m',raw)
+            with patch('time.sleep',side_effect=complete):mouse.command('screendump '+str(path))
+            self.assertEqual(['screendump '+str(path)],calls)
     def test_rendered_cursor_is_unique_and_exact(self):
         self.assertEqual(((10,5),(64,40)),profile.cursor_position(self.image()))
         for positions in ((),((10,5),(30,5))):

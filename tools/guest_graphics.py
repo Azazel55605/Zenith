@@ -26,6 +26,7 @@ def check(machine, monitor, keep, start):
         if not machine.wait(marker, off, timeout): raise RuntimeError('missing '+marker)
     try:
         require('native surface opened', 30); time.sleep(1)
+        phase='visible-first-frame'
         monitor_command(monitor, 'screendump '+str(keep/'client.ppm'))
         ppm=(keep/'client.ppm').read_bytes();parts=ppm.split(b'\n',3)
         w,height=map(int,parts[1].split());rgb=parts[3]

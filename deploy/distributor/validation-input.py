@@ -71,13 +71,37 @@ CURSOR = (
 )
 
 
-def cursor_position(ppm):
+class SnapshotIncomplete(RuntimeError):
+    pass
+
+
+def frame_pixels(ppm):
     parts = ppm.split(b'\n', 3)
-    if len(parts) != 4 or parts[0] != b'P6' or parts[2] != b'255':
-        raise RuntimeError('unsupported QEMU cursor snapshot')
+    if len(parts) < 4: raise SnapshotIncomplete('QEMU snapshot header incomplete')
+    if parts[0] != b'P6' or parts[2] != b'255':
+        raise RuntimeError('unsupported QEMU snapshot')
     width, height = map(int, parts[1].split()); pixels = parts[3]
-    if not (1 <= width <= 4096 and 1 <= height <= 2160) or len(pixels) != width * height * 3:
-        raise RuntimeError('invalid QEMU cursor snapshot dimensions')
+    if not (1 <= width <= 4096 and 1 <= height <= 2160):
+        raise RuntimeError('invalid QEMU snapshot dimensions')
+    if len(pixels) < width * height * 3: raise SnapshotIncomplete('QEMU snapshot pixels incomplete')
+    if len(pixels) != width * height * 3: raise RuntimeError('invalid QEMU snapshot byte count')
+    return width, height, pixels
+
+
+def probe_visible(ppm):
+    _, _, pixels = frame_pixels(ppm)
+    color = bytes.fromhex('6b8cff'); offset = count = 0
+    while True:
+        offset = pixels.find(color, offset)
+        if offset < 0: return False
+        if offset % 3 == 0:
+            count += 1
+            if count >= 5000: return True
+        offset += 1
+
+
+def cursor_position(ppm):
+    width, height, pixels = frame_pixels(ppm)
     pattern = [(x, y, bytes.fromhex('101320' if c == '#' else 'ffffff'))
                for y, row in enumerate(CURSOR) for x, c in enumerate(row) if c != ' ']
     found = []; offset = 0
@@ -100,9 +124,19 @@ class RenderedMouse:
     def __init__(self, monitor, command):
         self.monitor = Path(monitor); self.raw = command
         self.snapshot = self.monitor.parent / 'input-observation.ppm'
+    def capture(self, path):
+        import time
+        path = Path(path);path.unlink(missing_ok=True)
+        self.raw(self.monitor, 'screendump '+str(path))
+        deadline = time.monotonic() + 10
+        while True:
+            try:
+                data = path.read_bytes();frame_pixels(data);return data
+            except (FileNotFoundError, SnapshotIncomplete):
+                if time.monotonic() >= deadline: raise RuntimeError('QEMU snapshot did not complete: '+str(path))
+                time.sleep(.05)
     def position(self):
-        self.raw(self.monitor, 'screendump '+str(self.snapshot))
-        return cursor_position(self.snapshot.read_bytes())
+        return cursor_position(self.capture(self.snapshot))
     def wait_position(self, target):
         import time
         deadline = time.monotonic() + 10
@@ -114,6 +148,15 @@ class RenderedMouse:
             time.sleep(.05)
     def command(self, text):
         fields = text.split()
+        if fields[:1] == ['screendump'] and len(fields) == 2 and Path(fields[1]).name in ('client.ppm', 'close.ppm', 'minimized.ppm'):
+            import time
+            deadline = time.monotonic() + 10
+            while True:
+                data = self.capture(Path(fields[1]))
+                if probe_visible(data): return None
+                if time.monotonic() >= deadline:
+                    raise RuntimeError('native probe pixels not presented in '+fields[1])
+                time.sleep(.05)
         if fields[:1] == ['mouse_move'] and len(fields) in (3, 4):
             (x, y), (width, height) = self.position()
             target = (max(0, min(width-1, x+int(fields[1]))), max(0, min(height-1, y+int(fields[2]))))
@@ -138,7 +181,9 @@ def install_monitor(module):
     if getattr(original, '_zenith_rendered_mouse', False): return
     transports = {}
     def command(path, text):
-        if text.split()[:1] not in (['mouse_move'], ['mouse_button']):
+        fields = text.split()
+        frame = fields[:1] == ['screendump'] and len(fields) == 2 and Path(fields[1]).name in ('client.ppm', 'close.ppm', 'minimized.ppm')
+        if not frame and fields[:1] not in (['mouse_move'], ['mouse_button']):
             return original(path, text)
         key = str(path)
         if key not in transports: transports[key] = RenderedMouse(path, original)

@@ -110,3 +110,8 @@ Synthetic button transitions are held until a rendered cursor movement confirms
 the desktop sampled them; release is acknowledged and the pointer position is
 restored. Fixed short press/release delays are not a valid sampling guarantee on
 slower emulators. This is validation pacing, not a change to the client ABI.
+
+A successful present means the private pixel copy was accepted; it is not a
+synchronous screen-present barrier. The acceptance harness observes a complete
+rendered frame containing the probe before locating its controls. Surface-open or
+focus logs alone do not establish that those pixels are visible.

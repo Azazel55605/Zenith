@@ -32,8 +32,10 @@ manufacture success.
 
 A no-build diagnostic command copies the retained disposable fixture, verifies
 its boot kernel against the supplied ELF and replays just the graphical sequence.
-It never installs packages, compiles a kernel, modifies the original disk or signs
-anything. --mouse ps2 is a comparison mode, not an automatic fallback.
+The default input-only mode does not install packages. --full also runs the
+retained signed probe upgrade and final ext2 audit, changing only the independent
+fixture copy. Neither mode compiles/reinstalls the OS, modifies the original disk
+or signs anything. --mouse ps2 is a comparison mode, not an automatic fallback.
 
 ## Local validation and boundary
 
@@ -101,3 +103,39 @@ evidence is retained at `/var/tmp/zn-gui-_xrh__qi`. The original fixture disk is
 preserved. This confirms the sampled input correction on the actual distributor.
 It does not yet establish a complete release retry, signing/delivery or installed
 acceptance. Retry the existing immutable 0.0.24 release with the updated controller.
+
+## Follow-up: visible-frame readiness and full desktop replay
+
+The distributor retry passed G_INTERACTIVE but failed `close fixture pixels`.
+The operator's close.ppm had no blue, green, client-background or black pixels;
+the serial log showed the second client presented, remained ready, and opened/
+focused without exiting. A surface/open log is not proof that the composed frame
+has reached the display. The fixture's fixed 0.5 s delay was not a sufficient
+readiness contract on this host.
+
+The controller now waits for complete PPM dimensions/bytes and at least 5000 aligned
+probe-blue pixels for client.ppm, close.ppm and minimized.ppm. It captures fresh
+frames within a bounded deadline without replaying guest input/commands. Partial
+snapshot files are waited out rather than interpreted as missing application pixels.
+Other screenshots remain observations and do not acquire this sentinel condition.
+
+`graphical-input-replay.py --full` selects the retained harness's desktop-only
+assertions after booting a copied prepared fixture. It validates the expected
+script/desktop/audit boundaries before starting QEMU and excludes compiler/key
+creation/live installer preparation. It checks input, close, minimized cancellation,
+quota recovery, signed probe upgrade, UID denial and independent ext2 audit together.
+Its full mode changes packages only inside that copied disposable disk. This
+avoids discovering each later graphical assertion through another full build.
+
+Local evidence (unchanged 0.0.24 kernel):
+
+- Original tagged graphical gate: 48 checks and ext2 audit pass with visible-frame
+  capture readiness (138.242 s).
+- Complete no-build desktop replay: 21 desktop checks and ext2 audit pass, including
+  final complete-file readiness; original fixture preserved.
+- All 237 controller tests pass, including 26 input/parser/replay tests. Boundary
+  extraction works without release tag refs being present in a shallow CI checkout.
+
+Distributor full replay remains pending. After pulling the controller, add --full
+to the replay command above, retaining the original failed fixture and matching ELF.
+Do not start another expensive release retry until the whole desktop replay passes.

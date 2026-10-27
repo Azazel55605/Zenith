@@ -24,8 +24,15 @@ Updated **2026-10-27**. [Status](STATUS.md) owns delivery boundaries;
 - [x] Operator's distributor replay passes on QEMU 10.0.13/TCG with exact kernel
   SHA256 `078261ccf5d6bf96329361a5b94ef7d9f87efc7a2096be5ef90a89ce509c1ade`:
   pointer acknowledgement and focused-key isolation succeed; original disk preserved.
-- [ ] Retry existing kernel 0.0.24 with the updated controller, then confirm full
-  distributor delivery and installed acceptance. Legacy PS/2 cause remains unconfirmed.
+- [x] Retry passed input isolation but captured no client pixels for close. Client
+  presentation/open/focus logs were present; fixed screenshot waits were not frame
+  readiness. Require complete captures and visible probe pixels for all three
+  fixture screenshots instead of sleeping and reading immediately.
+- [x] Add --full no-build replay of every retained desktop assertion, signed probe
+  upgrade and ext2 audit on a disk copy. It passes locally (21 desktop checks);
+  original tagged gate passes 48 checks and all 237 controller regressions pass.
+- [ ] Run full desktop replay on the distributor before another full release retry,
+  then confirm delivery and installed acceptance. Legacy PS/2 cause is unconfirmed.
 
 [Evidence and replay command](archive/2026-10-27/graphical-input-profile.md).
 
