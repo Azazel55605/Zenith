@@ -34,8 +34,9 @@ Updated **2026-10-27**. [Status](STATUS.md) owns delivery boundaries;
 - [x] Operator confirms full desktop replay passed on QEMU 10.0.13/TCG with
   exact server kernel SHA256 `078261ccf5d6bf96329361a5b94ef7d9f87efc7a2096be5ef90a89ce509c1ade`:
   21 desktop checks and independent ext2 audit; original fixture preserved.
-- [ ] Retry existing kernel 0.0.24, then confirm complete distributor delivery and
-  installed acceptance. Legacy PS/2 cause remains unconfirmed.
+- [x] Operator reports 0.0.24/probe installed and tested. Screenshot confirms
+  gui-probe 0.1.0, GUI_PROBE_OK, an independent visible window, focus and pointer
+  events, and pointer-driven green rendering. Legacy PS/2 cause remains unconfirmed.
 
 [Evidence and replay command](archive/2026-10-27/graphical-input-profile.md).
 
@@ -55,7 +56,9 @@ Updated **2026-10-27**. [Status](STATUS.md) owns delivery boundaries;
   actual UID admission denial pass. [Exact evidence](archive/2026-10-26/protected-graphical-clients.md#final-clean-source-qualification).
 - [x] Operator authorizes publication; main and kernel 0.0.24/gui-probe 0.1.0
   tags pushed atomically. Both remote peeled tags resolve to exact `cea1f5a`.
-- [ ] Await distributor signing/delivery and [installed VM checks](GRAPHICAL-VM-TEST.md).
+- [x] Operator reports installation and testing completed; graphical-terminal
+  screenshot confirms the self-check, independent drawing and pointer interaction.
+  [Installed evidence](archive/2026-10-26/protected-graphical-clients.md#operator-installed-acceptance).
 - [x] Verify independent package upgrade under unchanged kernel and headless refusal.
 - [x] Document [ABI, SDK header and limits](GRAPHICAL-CLIENTS.md).
 - [ ] Next: Settings service authorization, restart behavior and shared client

@@ -63,7 +63,8 @@ upgrade and confirm a compatible kernel before updating Sunbeam.
 - [x] Add separately compiled/signed gui-probe and same-kernel package upgrade test.
 - [x] Complete full clean-source qualification at `cea1f5a`, including all 48
   graphical checks and every existing gate.
-- [ ] Complete publication, distributor delivery and [installed acceptance](../GRAPHICAL-VM-TEST.md).
+- [x] Operator reports installed and tested; screenshot verifies probe 0.1.0,
+  self-check, independent drawing and pointer interaction. [Evidence](../archive/2026-10-26/protected-graphical-clients.md#operator-installed-acceptance).
 - [ ] Build Settings service authorization and shared widgets after the surface API.
 
 [Wire contract and limits](../GRAPHICAL-CLIENTS.md).

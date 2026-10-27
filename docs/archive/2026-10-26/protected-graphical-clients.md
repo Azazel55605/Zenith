@@ -108,3 +108,18 @@ peeled refs were verified at exact qualified source
 `cea1f5ace138e001026602affb13c637a1aee7b9`. Distributor signing/delivery and installed
 acceptance remain pending. Pull the idle controller for the new recipe/gate,
 then follow the kernel-first [VM handoff](../../GRAPHICAL-VM-TEST.md).
+
+## Operator installed acceptance
+
+On 2026-10-27 the operator reports the 0.0.24/probe release installed and tested.
+The graphical-terminal screenshot shows gui-probe 0.1.0, GUI_PROBE_OK, GUI_FOCUS_IN,
+repeated GUI_POINTER events and the independently rendered window with its accent
+changed to green by pointer input. This establishes representative installed-VM
+use beyond the local and distributor fixtures. Explicit boot confirmation and
+individual keyboard/close/minimize/cancel outcomes are not separately visible in
+that screenshot; their automated evidence remains recorded above.
+
+The first protected graphical-client milestone is operator-accepted. Next are
+shared client widgets/text/resources and typed authorized Settings services,
+followed by the independently packaged Settings app. The compositor/login remain
+trusted kernel code; no full desktop migration is claimed.
