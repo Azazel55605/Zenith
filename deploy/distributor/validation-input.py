@@ -57,3 +57,91 @@ def install(machine):
                 self.stop(); raise
     machine.__init__ = initialize
     machine._zenith_graphics_input_profile = True
+
+
+# Read-only cursor observation: a new rendered position proves the desktop has
+# sampled input after that movement. This is stronger than waiting 150 ms while
+# press/release edges can collapse between two desktop polls on a slow host.
+CURSOR = (
+    '#           ', '##          ', '#.#         ', '#..#        ',
+    '#...#       ', '#....#      ', '#.....#     ', '#......#    ',
+    '#.......#   ', '#........#  ', '#.........# ', '#......#####',
+    '#...#..#    ', '#..##..#    ', '#.#  #..#   ', '##   #..#   ',
+    '#     #..#  ', '      #..#  ', '       ##   ',
+)
+
+
+def cursor_position(ppm):
+    parts = ppm.split(b'\n', 3)
+    if len(parts) != 4 or parts[0] != b'P6' or parts[2] != b'255':
+        raise RuntimeError('unsupported QEMU cursor snapshot')
+    width, height = map(int, parts[1].split()); pixels = parts[3]
+    if not (1 <= width <= 4096 and 1 <= height <= 2160) or len(pixels) != width * height * 3:
+        raise RuntimeError('invalid QEMU cursor snapshot dimensions')
+    pattern = [(x, y, bytes.fromhex('101320' if c == '#' else 'ffffff'))
+               for y, row in enumerate(CURSOR) for x, c in enumerate(row) if c != ' ']
+    found = []; offset = 0
+    while True:
+        # First white pixel in the arrow is at (1,2); avoid scanning every RGB
+        # pixel in Python, and reject unaligned cross-pixel byte matches.
+        offset = pixels.find(b'\xff\xff\xff', offset)
+        if offset < 0: break
+        i = offset; offset += 1
+        if i % 3: continue
+        x = (i // 3) % width - 1; y = (i // 3) // width - 2
+        if x < 0 or y < 0 or x + 12 > width or y + 19 > height: continue
+        if all(pixels[((y+dy)*width+x+dx)*3:((y+dy)*width+x+dx)*3+3] == color for dx,dy,color in pattern):
+            found.append((x, y))
+    if len(found) != 1: raise RuntimeError('expected one visible graphical cursor, found '+str(len(found)))
+    return found[0], (width, height)
+
+
+class RenderedMouse:
+    def __init__(self, monitor, command):
+        self.monitor = Path(monitor); self.raw = command
+        self.snapshot = self.monitor.parent / 'input-observation.ppm'
+    def position(self):
+        self.raw(self.monitor, 'screendump '+str(self.snapshot))
+        return cursor_position(self.snapshot.read_bytes())
+    def wait_position(self, target):
+        import time
+        deadline = time.monotonic() + 10
+        while True:
+            actual, _ = self.position()
+            if actual == target: return
+            if time.monotonic() >= deadline:
+                raise RuntimeError('rendered mouse did not reach '+str(target)+'; observed '+str(actual))
+            time.sleep(.05)
+    def command(self, text):
+        fields = text.split()
+        if fields[:1] == ['mouse_move'] and len(fields) in (3, 4):
+            (x, y), (width, height) = self.position()
+            target = (max(0, min(width-1, x+int(fields[1]))), max(0, min(height-1, y+int(fields[2]))))
+            result = self.raw(self.monitor, text)
+            if target != (x, y): self.wait_position(target)
+            return result
+        if fields[:1] == ['mouse_button'] and len(fields) == 2:
+            (x, y), (width, _) = self.position()
+            result = self.raw(self.monitor, text)
+            step = 1 if x < width-13 else -1
+            # Exactly one button transition. Move after it, observe a rendered
+            # frame, then restore position. Button stays held throughout a press;
+            # the same sequence also acknowledges release. No input is retried.
+            self.raw(self.monitor, 'mouse_move '+str(step)+' 0'); self.wait_position((x+step, y))
+            self.raw(self.monitor, 'mouse_move '+str(-step)+' 0'); self.wait_position((x, y))
+            return result
+        return self.raw(self.monitor, text)
+
+
+def install_monitor(module):
+    original = module.monitor_command
+    if getattr(original, '_zenith_rendered_mouse', False): return
+    transports = {}
+    def command(path, text):
+        if text.split()[:1] not in (['mouse_move'], ['mouse_button']):
+            return original(path, text)
+        key = str(path)
+        if key not in transports: transports[key] = RenderedMouse(path, original)
+        return transports[key].command(text)
+    command._zenith_rendered_mouse = True
+    module.monitor_command = command

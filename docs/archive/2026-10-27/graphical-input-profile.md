@@ -63,3 +63,30 @@ python3 -B tools/graphical-input-replay.py \
 Report its result and any Graphical input failure JSON. This isolates actual mouse
 transport on the server without another build. If it passes, retry the existing
 0.0.24 release with the updated controller; do not move the immutable tag.
+
+## Follow-up: correctly positioned cursor, unobserved click
+
+The distributor no-build replay on QEMU 10.0.13 verified the original server
+kernel SHA256 `078261ccf5d6bf96329361a5b94ef7d9f87efc7a2096be5ef90a89ce509c1ade`.
+Explicit virtio selection delivered the first pointer event, but focus loss still
+failed. Read-only inspection of the retained failure frame located the cursor at
+(313,180), exactly the intended terminal coordinate. Thus movement/coordinates
+were correct; the next button edge was not observed.
+
+The existing desktop samples current button state in Input.Poll. A fixed 150 ms
+press followed by release can collapse to the released state before the next
+render/input poll on the slower distributor. The controller now observes rendered
+input frames: exactly one button transition is sent, followed by a one-pixel move
+and return while holding that state. Both cursor positions must be rendered before
+the call returns. Release is acknowledged the same way. The net pointer position
+is unchanged, title drags return to their original position, and no button/key or
+guest command is retried. A missing frame fails with actual/expected coordinates.
+
+This pacing is installed only for the graphical validation monitor; it adapts the
+unchanged old tagged harness as well as current/direct helpers. It does not change
+kernel input semantics or claim to fix legacy mouse hardware. The original fixture
+and tag remain preserved. Distributor confirmation of this sampled pacing remains
+required. Local graphical replay and all 48 checks of the unchanged tagged gate
+pass with an independent clean ext2 audit (137.135 s). All 230 controller tests
+pass, including 19 input-profile/parser tests. Kernel/client source and the release
+tag remain unchanged.

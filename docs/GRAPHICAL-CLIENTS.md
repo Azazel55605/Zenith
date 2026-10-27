@@ -105,3 +105,8 @@ code; this API does not claim the desktop migration is complete.
 
 The disposable graphical gate uses an explicitly selected virtio mouse and keyboard;
 legacy PS/2 coverage is separate. [Distributor input-profile evidence and no-build replay](archive/2026-10-27/graphical-input-profile.md).
+
+Synthetic button transitions are held until a rendered cursor movement confirms
+the desktop sampled them; release is acknowledged and the pointer position is
+restored. Fixed short press/release delays are not a valid sampling guarantee on
+slower emulators. This is validation pacing, not a change to the client ABI.

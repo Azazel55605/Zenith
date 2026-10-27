@@ -15,8 +15,14 @@ Updated **2026-10-27**. [Status](STATUS.md) owns delivery boundaries;
   48 checks and ext2 audit under the corrected controller profile.
 - [x] Current hardened graphical gate passes all 48 checks and ext2 audit (133.226 s);
   all 223 controller regressions pass. Kernel/userland sources remain unchanged.
-- [ ] Complete distributor no-build replay before another expensive release retry.
-  Exact server PS/2 cause is unconfirmed.
+- [x] Distributor replay observes the first pointer but not focus loss; retained
+  screenshot confirms the cursor is exactly at its target. Movement is correct.
+- [x] Replace fixed-duration synthetic clicks with rendered-frame acknowledgement
+  of held press/release, without repeating clicks or changing net position.
+  The no-build replay and all 48 unchanged-tag graphical checks pass locally
+  (137.135 s), with a clean ext2 audit. All 230 controller regressions pass.
+- [ ] Confirm sampled-click replay on the distributor before an expensive retry.
+  Exact legacy PS/2 cause remains unconfirmed.
 
 [Evidence and replay command](archive/2026-10-27/graphical-input-profile.md).
 

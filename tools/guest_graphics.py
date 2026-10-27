@@ -1,9 +1,13 @@
 """Observe real graphical input prerequisites; never replay an input or mutation."""
 import json
+import importlib.util
 from pathlib import Path
 import re
 import time
-from recovery_console import monitor_command
+import recovery_console
+spec = importlib.util.spec_from_file_location('graphics_pointer_profile', Path(__file__).resolve().parents[1]/'deploy/distributor/validation-input.py')
+input_profile = importlib.util.module_from_spec(spec); spec.loader.exec_module(input_profile)
+monitor_command = recovery_console.monitor_command
 
 TRACE = re.compile(r'\[(?:SCHED|STRIDE|LAPIC|CV|LowLevelMonitor|Kernel|PageAllocator|SmallHeap)\][^\n]*\n')
 RECORD = re.compile(r'(?:^|\n)(?:\[zenith\] \[[^\]\n]*\] )?user: (GUI_[A-Z_]+|G_INTERACTIVE=\d+)\r?(?=\n|$)')
@@ -14,6 +18,9 @@ def records(text):
 
 
 def check(machine, monitor, keep, start):
+    input_profile.install_monitor(recovery_console)
+    global monitor_command
+    monitor_command = recovery_console.monitor_command
     keep = Path(keep); off = start(); phase = 'surface-admission'; geometry = {}
     def require(marker, timeout=10):
         if not machine.wait(marker, off, timeout): raise RuntimeError('missing '+marker)

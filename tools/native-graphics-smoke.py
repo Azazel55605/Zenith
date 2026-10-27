@@ -10,6 +10,10 @@ spec=importlib.util.spec_from_file_location('login',ROOT/'tools/login-session-sm
 def main():
     spec=importlib.util.spec_from_file_location('graphics_input',ROOT/'deploy/distributor/validation-input.py')
     input_profile=importlib.util.module_from_spec(spec);spec.loader.exec_module(input_profile);input_profile.install(h.Machine)
+    import recovery_console
+    input_profile.install_monitor(recovery_console)
+    global monitor_command
+    monitor_command=recovery_console.monitor_command
     keep=Path(sys.argv[1]);keep.mkdir(parents=True,exist_ok=False)
     tool=ROOT/'tools/Zenith.PackageTool/bin/Release/net10.0/Zenith.PackageTool.dll'
     subprocess.run(['dotnet','build',str(ROOT/'tools/Zenith.PackageTool'),'-c','Release'],check=True,stdout=subprocess.DEVNULL)

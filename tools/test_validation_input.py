@@ -58,4 +58,56 @@ class InputTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):Machine('/tmp',network=['virtio-gpu-pci'],monitor='/tmp/m')
         self.assertEqual([True],stopped)
 
+class RenderedMouseTests(unittest.TestCase):
+    def image(self, positions=((10,5),)):
+        width,height=64,40;pixels=bytearray(bytes.fromhex('334455')*(width*height))
+        for x,y in positions:
+            for dy,row in enumerate(profile.CURSOR):
+                for dx,c in enumerate(row):
+                    if c==' ':continue
+                    at=((y+dy)*width+x+dx)*3
+                    pixels[at:at+3]=bytes.fromhex('101320' if c=='#' else 'ffffff')
+        return b'P6\n64 40\n255\n'+pixels
+    def test_monitor_hook_is_scoped_and_idempotent(self):
+        from types import SimpleNamespace
+        calls=[]
+        def raw(path,text):calls.append((path,text))
+        module=SimpleNamespace(monitor_command=raw)
+        with patch.object(profile,'RenderedMouse') as transport:
+            profile.install_monitor(module);profile.install_monitor(module)
+            module.monitor_command('/tmp/m','sendkey a 30')
+            self.assertEqual([('/tmp/m','sendkey a 30')],calls)
+            module.monitor_command('/tmp/m','mouse_move 1 0')
+            module.monitor_command('/tmp/m','mouse_button 1')
+            transport.assert_called_once_with('/tmp/m',raw)
+            self.assertEqual(2,transport.return_value.command.call_count)
+    def test_rendered_cursor_is_unique_and_exact(self):
+        self.assertEqual(((10,5),(64,40)),profile.cursor_position(self.image()))
+        for positions in ((),((10,5),(30,5))):
+            with self.assertRaises(RuntimeError):profile.cursor_position(self.image(positions))
+    def test_malformed_snapshot_fails(self):
+        for data in (b'',b'P6\n64 40\n255\nshort',b'P6\n999999 40\n255\n'):
+            with self.assertRaises((RuntimeError,ValueError)):profile.cursor_position(data)
+    def test_press_is_sampled_before_return_without_button_replay(self):
+        calls=[];mouse=profile.RenderedMouse('/tmp/m.sock',lambda path,text:calls.append(text))
+        with patch.object(mouse,'position',return_value=((100,100),(1280,800))), patch.object(mouse,'wait_position') as wait:
+            mouse.command('mouse_button 1')
+        self.assertEqual(['mouse_button 1','mouse_move 1 0','mouse_move -1 0'],calls)
+        self.assertEqual([(101,100),(100,100)],[c.args[0] for c in wait.call_args_list])
+    def test_release_is_sampled_and_position_restored(self):
+        calls=[];mouse=profile.RenderedMouse('/tmp/m.sock',lambda path,text:calls.append(text))
+        with patch.object(mouse,'position',return_value=((100,100),(1280,800))), patch.object(mouse,'wait_position'):
+            mouse.command('mouse_button 0')
+        self.assertEqual(['mouse_button 0','mouse_move 1 0','mouse_move -1 0'],calls)
+    def test_failed_ack_does_not_retry_a_click_or_release_early(self):
+        calls=[];mouse=profile.RenderedMouse('/tmp/m.sock',lambda path,text:calls.append(text))
+        with patch.object(mouse,'position',return_value=((100,100),(1280,800))), patch.object(mouse,'wait_position',side_effect=RuntimeError('no frame')):
+            with self.assertRaises(RuntimeError):mouse.command('mouse_button 1')
+        self.assertEqual(['mouse_button 1','mouse_move 1 0'],calls)
+    def test_movement_waits_for_observed_destination(self):
+        calls=[];mouse=profile.RenderedMouse('/tmp/m.sock',lambda path,text:calls.append(text))
+        with patch.object(mouse,'position',return_value=((696,443),(1280,800))), patch.object(mouse,'wait_position') as wait:
+            mouse.command('mouse_move -383 -263')
+        self.assertEqual(['mouse_move -383 -263'],calls);wait.assert_called_once_with((313,180))
+
 if __name__=='__main__':unittest.main()

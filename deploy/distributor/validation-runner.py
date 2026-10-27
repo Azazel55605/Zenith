@@ -47,6 +47,8 @@ def run_harness(script):
     headless = script.parent / 'headless-smoke.py'
     def execute(loader, module):
         original_exec(loader, module)
+        if script.name == 'native-graphics-smoke.py' and Path(loader.path).name == 'recovery_console.py':
+            input_profile.install_monitor(module)
         if Path(loader.path).resolve() == headless.resolve():
             accelerator.install(module)
             network.install(module.Machine, instances)
@@ -55,6 +57,8 @@ def run_harness(script):
             if script.name == 'native-graphics-smoke.py': input_profile.install(module.Machine)
             profile.install(module.Machine, elf=module.ROOT / 'output-x64/Zenith.elf' if hasattr(module, 'ROOT') else None)
     importlib.machinery.SourceFileLoader.exec_module = execute
+    if script.name == 'native-graphics-smoke.py' and 'recovery_console' in sys.modules:
+        input_profile.install_monitor(sys.modules['recovery_console'])
     started = time.monotonic()
     try: runpy.run_path(str(script), run_name='__main__')
     finally:
