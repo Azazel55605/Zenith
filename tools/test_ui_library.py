@@ -41,6 +41,13 @@ class UiLibraryTests(unittest.TestCase):
                 self.assertGreaterEqual(contrast(accent,on_accent),4.5,row)
                 for background in (surface,raised,subtle):
                     self.assertGreaterEqual(contrast(accent,background),3,row)
+            settings_exe=dest/'settings-test'
+            subprocess.run(['gcc','-std=c11','-Wall','-Wextra','-Werror','-O1','-g',
+                            '-fsanitize=address,undefined','-fno-omit-frame-pointer',
+                            '-I'+str(ROOT/'userland/ui'),str(ROOT/'userland/settings/test_settings.c'),
+                            str(ROOT/'userland/settings/app.c'),str(ROOT/'userland/ui/ui.c'),
+                            str(atlas),'-o',str(settings_exe)],check=True)
+            subprocess.run([str(settings_exe)],check=True,timeout=30)
             for name in ('dark', 'light'):
                 self.assertTrue((dest/(name+'.ppm')).read_bytes().startswith(b'P6\n600 440\n255\n'))
 

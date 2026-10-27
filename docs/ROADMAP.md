@@ -19,8 +19,10 @@ active work. Historical milestone version targets are not release versions.
    [VM acceptance](GRAPHICAL-VM-TEST.md) is operator confirmed. The
    [system design language](DESIGN-LANGUAGE.md) is accepted; the first
    [shared native widgets/text](USERLAND-UI.md) pass local compositor acceptance.
-   Next connect resource preferences and typed authorized Settings services with
-   explicit saved/active/restart semantics. Preserve
+   The [independent Appearance page](NATIVE-SETTINGS.md) now has typed authorized
+   persistence, signed palettes and saved/active state. Complete Release and
+   [installed acceptance](SETTINGS-VM-TEST.md), then port other applications to
+   the shared GUI before expanding Settings pages. Preserve
    the trusted test DE until independent compositor/session teardown is verified.
 3. **Retain installed acceptance boundaries.** Operator reports installation;
    local QEMU tests and server publication are separate evidence. Continue

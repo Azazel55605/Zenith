@@ -167,3 +167,6 @@ existing native text ABI does not yet provide graphical/service IPC.
 
 Validation commands and exact native evidence are in [DEVELOPMENT](DEVELOPMENT.md)
 and [PROGRESS](PROGRESS.md). See [package prototype](PACKAGE-PROTOTYPE.md) for P0.
+
+Functional native Appearance settings: [service, resources and wire contract](NATIVE-SETTINGS.md),
+with the [installed-VM checklist](SETTINGS-VM-TEST.md).

@@ -123,6 +123,20 @@ internal sealed unsafe class NativeProcess
     {
         try
         {
+            if (c.Call == 610)
+            {
+                if (c.Arg1 != ProcessAppearance.SnapshotBytes || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, ProcessAppearance.SnapshotBytes, true)) { return -14; }
+                Transfer(c.Arg0, ProcessAppearance.Snapshot(Zenith.Core.Configuration.SystemConfiguration.Appearance), true); return 0;
+            }
+            if (c.Call == 611)
+            {
+                if (c.Arg1 != ProcessAppearance.RequestBytes || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, ProcessAppearance.RequestBytes, false)) { return -14; }
+                return ProcessAppearance.Save(Zenith.Core.Configuration.SystemConfiguration.Appearance, ReadUser(c.Arg0, ProcessAppearance.RequestBytes));
+            }
+            if (c.Call == 604)
+            { return c.Arg0 > int.MaxValue || c.Arg1 > 1 || c.Arg2 != 0 ? -22 : graphics.Dirty((int)c.Arg0, c.Arg1 != 0); }
             if (c.Call == 600)
             {
                 if (c.Arg1 != ProcessGraphicsRequest.Bytes || c.Arg2 != 0) { return -22; }
@@ -394,11 +408,11 @@ internal sealed unsafe class NativeProcess
                     catch { Monitor.Exit(s_rawGate); throw; }
                     if (status != 4096) { break; }
                     if (cancelled()) { status = 130; break; }
-                    if (context.Call is >= 600 and <= 603 ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
+                    if (context.Call is >= 600 and <= 604 ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
                     var caller = Zenith.Core.Security.CredentialContext.Enter(identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
                     // while waiting for a peer. Mutations and transport setup stay serialized.
-                    bool standard = context.Call is 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    bool standard = context.Call is 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {

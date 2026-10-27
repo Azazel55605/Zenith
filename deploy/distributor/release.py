@@ -234,10 +234,13 @@ def controller_checks(work):
 
 
 def native_prerequisites():
-    commands = (os.environ.get("QEMU", "qemu-system-x86_64"), "dotnet", "clang", "ld",
+    commands = (os.environ.get("QEMU", "qemu-system-x86_64"), "dotnet", "gcc", "clang", "ld",
                 "e2fsck", "debugfs", "mke2fs", "mcopy", "fsck.fat", "openssl")
     missing = [command for command in commands if shutil.which(command) is None]
     if missing: raise ValueError("missing native validation tools: " + ", ".join(missing))
+    if (REPO / "tools/native-settings-smoke.py").exists():
+        try: __import__("PIL.ImageFont")
+        except ImportError as error: raise ValueError("native Settings validation requires Python Pillow (Debian: python3-pil)") from error
     policy = os.environ.get("ZENITH_VALIDATION_ACCELERATOR", "auto")
     if policy not in ("auto", "tcg", "kvm"):
         raise ValueError("ZENITH_VALIDATION_ACCELERATOR must be auto, kvm or tcg")
@@ -270,6 +273,7 @@ def native_checks(work):
     print("Native workspace: " + str(directory) + "; retained afterward at " + str(work / "native"), flush=True)
     try:
         checks = [("r", "repository-smoke.py")]
+        if (REPO / "tools/native-settings-smoke.py").exists(): checks.append(("a", "native-settings-smoke.py"))
         if (REPO / "tools/native-graphics-smoke.py").exists(): checks.append(("g", "native-graphics-smoke.py"))
         if (REPO / "tools/native-network-smoke.py").exists(): checks.append(("n", "native-network-smoke.py"))
         if (REPO / "tools/native-cli-smoke.py").exists(): checks.append(("c", "native-cli-smoke.py"))

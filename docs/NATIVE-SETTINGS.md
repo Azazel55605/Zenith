@@ -1,0 +1,155 @@
+# Native Settings and Appearance
+
+[Shared UI](USERLAND-UI.md) · [Design language](DESIGN-LANGUAGE.md) ·
+[System settings/session behavior](SETTINGS-SESSIONS.md)
+
+The independently compiled `zenith-settings` package supplies the first functional
+Appearance page. The GUI and trusted `settings` command use the same root-only
+system preference authority. This is not a kernel-linked Settings window.
+Other applications have not been ported by this slice.
+
+## Use and visible behavior
+
+```sh
+native run settings
+native run settings --show
+native run settings --set light teal
+settings show
+settings set appearance dark blue
+```
+
+Modes: `dark`, `light`. Accents: `blue`, `violet`, `rose`, `amber`, `green`, `teal`.
+The GUI previews edits locally. **Save changes** persists them; simply selecting a
+mode/accent does not change other windows. The desktop applies a successful save
+on its next tick, without logging out. The page polls status and distinguishes
+unsaved preview, saved/pending and saved/active. Headless saves become active on the
+next graphical login; live-system changes are explicitly volatile.
+
+All users may read. Only captured UID 0 can save these **system-wide** preferences;
+setting `USER=root` does not grant permission. Non-administrator GUI controls are
+read-only. Per-user appearance overrides and an elevation dialog are not implemented.
+
+Failed saves retain edits and the active snapshot. Concurrent service edits use a
+revision check: stale saves fail rather than overwrite. Reloading over edits needs
+an explicit discard choice. Escape, the Close button and a dirty title-bar close
+request offer **Keep editing / Discard changes**. Session logout refuses unsaved
+windows. Forced process cancellation or host revocation still terminates the client
+without saving. Existing native invocation lifetimes/budgets still apply; this is
+not a general unlimited desktop process profile.
+
+## Persistence and resources
+
+Local administrator-owned `/etc/zenith/appearance.conf` has exactly these keys:
+
+```ini
+VERSION=1
+MODE=dark
+ACCENT=blue
+```
+
+Reads are bounded to 4096 UTF-8 bytes; invalid/duplicate/unknown keys and future
+versions fall back at boot with a diagnostic. Saves refuse to overwrite an invalid
+or future schema. Root must repair it explicitly. Revisions are monotonic during
+one boot, not durable IDs or filesystem watchers; reboot revokes all old clients.
+Direct out-of-band root file editing requires restart/reload through the normal
+boot route. Service/CLI edits share the same in-memory revision authority.
+
+Writes use the existing staged replacement, flush, mode and filesystem sync path.
+This preserves its existing ext2/power-loss limitations; it is not a journalled
+transaction. A post-replacement sync/metadata failure can leave new on-disk content
+while the service reports an error and retains its old active snapshot.
+
+Shipped defaults remain separate at
+`/usr/share/zenith/appearance/default/native.conf` in `zenith-theme-default`.
+The trusted host verifies package ownership, digest, mode and bounded regular-file
+content before loading resources at graphical login. Example:
+
+```ini
+VERSION=1
+light.Surface=f6f7f9
+dark.blue=8baaff
+```
+
+Keys are `dark|light.ROLE` or `dark|light.ACCENT`. Roles are `Surface`, `Raised`,
+`Subtle`, `Border`, `Text`, `Secondary`, `OnAccent`; accent names are the six above.
+Values are six hex RGB digits. Omitted values use the accepted neutral baseline.
+Unknown/duplicate keys, oversize/future schemas or insufficient contrast reject
+the whole resource, using built-in safe tokens. Normal text must reach 4.5:1 on
+all three surfaces; accents 3:1 on surfaces and accent labels 4.5:1. The complete
+immutable table is shared with clients, so previews use the actual loaded resource.
+
+Legacy `theme.conf` remains supported. On systems with neither explicit appearance
+preferences nor the new signed resource, existing legacy host themes remain intact.
+An explicit appearance save or the new resource opts the host into the shared
+palette. Resource/package changes load on next graphical login; preference saves
+apply live. The current native text atlases remain compiled into each client;
+installed font replacement, font selection, Unicode shaping and scalable layout
+are future work. Transparency/blur have no working preference or compositor path
+in this release and are shown as unavailable.
+
+## Native wire contract (settings ABI 1)
+
+Use `userland/include/zenith_settings.h`. Calls use protected service yield,
+full readable/writable range validation and captured credentials; no arbitrary
+path, command string, managed pointer or privileged callback crosses this API.
+
+| Call | Arguments | Result |
+|---|---|---|
+| 610 read | writable snapshot pointer, 448, 0 | 0, complete snapshot |
+| 611 save | readable request pointer, 32, 0 | 0 after persistence, or error |
+
+Snapshot, little endian: version u32=1, flags u32, saved revision u64,
+saved mode/accent u32 each, active mode/accent u32 each, active revision u64,
+resource generation u64, `RGB[2 modes][6 accents][8 roles]` u32, two reserved u64=0.
+The header is 48 bytes, table 384 bytes, reserved tail 16 bytes. Table order is
+Surface/Raised/Subtle/Border/Text/Secondary/Accent/OnAccent, matching `zui_theme`.
+
+Flags: persistent=1, writable=2, saved waiting for active=4, verified packaged
+semantic palette=8. No bit claims that blur, translucency or user elevation exists.
+Mode 0=dark/1=light; accent indexes follow the names above. Resource generation
+changes on graphical resource reload; client polling need not redraw unchanged data.
+
+Save request: version u32=1, flags u32=0, expected saved revision u64, mode/accent
+u32, reserved u64=0. Invalid version/size/reserved fields return -22, invalid memory
+-14, unauthorized save -13, stale revision -11, revision exhaustion -75 and storage/
+configuration failure -5. Invalid requests and failed saves never publish a new
+runtime selection. Calls share existing per-invocation service limits.
+
+## Owned window state ABI 1
+
+Call 604 takes invocation-local surface handle, dirty Boolean (0/1), 0. It returns
+0 or the existing bad-handle/closed/malformed errors. It cannot alter another
+client's window. Legacy clients that never call it retain their previous behavior.
+A dirty title-bar close keeps the surface alive and queues close-intent event 9;
+it survives input overflow. The client renders confirmation and either stays open
+or explicitly clears dirty state and closes. Forced revocation/exit still reclaims
+all resources and emits terminal close, regardless of dirty state. The host also
+uses dirty state to block ordinary logout. No global input or window enumeration
+is exposed.
+
+`zenith-settings` packages require `zenith-native-settings-abi 1.0`,
+`zenith-native-window-state-abi 1.0` and the existing graphics/native capabilities.
+Older kernels must reject installation until upgraded and boot-confirmed.
+
+## Build and validation
+
+```sh
+python3 -B tools/test_ui_library.py
+python3 -B tools/build-userland.py /tmp/settings-payload --program settings
+dotnet test tests/Zenith.Tests
+PATH="$PATH:/usr/sbin:/sbin:$HOME/.dotnet/tools" ZENITH_VALIDATION_ACCELERATOR=tcg \
+  python3 -B tools/native-settings-smoke.py /tmp/zn-settings-NEW
+```
+
+Python Pillow is required by the UI font atlas build; Debian uses `python3-pil`.
+The new gate joins the common kernel acceptance plan and CI. It creates disposable
+signed packages/disks and tests CLI parity, memory/format bounds, permission denial,
+packaged palette loading, preview/close confirmation/save, live host activation,
+same-kernel package upgrade, reboot persistence and independent ext2 integrity.
+`--prepared DISK` replays the desktop/reboot sequence on a **copy** of an existing
+setup fixture; it does not substitute for the full fresh-install gate.
+
+Host tests separately cover failed storage, malformed/future config and resources,
+concurrent/stale editors, dirty close overflow/revocation, readonly controls and
+save/discard state transitions with ASan/UBSan. Local proof does not establish
+server publication or operator-installed acceptance.

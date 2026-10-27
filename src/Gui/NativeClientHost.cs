@@ -54,7 +54,8 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
         { _surface = surface; Identity = identity; _frame = new int[surface.Width * surface.Height]; }
         public override bool CanResize => false;
         public override bool UpdateWhenMinimized => true;
-        public override void Close() { _surface.RequestClose(); base.Close(); }
+        public override bool HasUnsavedChanges => _surface.Unsaved;
+        public override void Close() { if (_surface.RequestClose()) { base.Close(); } }
         public override void EndSession() { _surface.Dispose(); base.Close(); }
         public override bool Update()
         {

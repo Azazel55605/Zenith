@@ -59,3 +59,6 @@ System design language: [agreed direction and draft specification](DESIGN-LANGUA
 with a [light/dark visual specimen](design/system-specimen.svg).
 
 Shared native UI: [library, gallery, build/test commands and limitations](USERLAND-UI.md).
+
+Independent Settings: [Appearance service/page](NATIVE-SETTINGS.md) and
+[operator checklist](SETTINGS-VM-TEST.md).

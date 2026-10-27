@@ -47,7 +47,8 @@ internal sealed class ProcessSurface : IDisposable
     private readonly object _gate = new();
     private readonly Queue<ProcessGraphicsEvent> _events = new();
     private int[] _pixels;
-    private bool _dirty = true, _closed, _disposed;
+    private bool _dirty = true, _closed, _disposed, _unsaved, _closeIntent;
+    public bool Unsaved { get { lock (_gate) { return _unsaved; } } }
     public ProcessSurface(int width, int height, string title)
     { Width = width; Height = height; Title = title; _pixels = new int[width * height]; }
     public int Width { get; }
@@ -94,10 +95,19 @@ internal sealed class ProcessSurface : IDisposable
         lock (_gate)
         {
             if (_closed || _disposed) { return new(1, 0, 0, 0, 0, 0); }
+            if (_closeIntent) { _closeIntent = false; return new(9, 0, 0, 0, 0, 0); }
             return _events.Count == 0 ? default : _events.Dequeue();
         }
     }
-    public void RequestClose() { lock (_gate) { _closed = true; _events.Clear(); } }
+    public int SetDirty(bool dirty) { lock (_gate) { if (_closed || _disposed) { return -32; } _unsaved = dirty; return 0; } }
+    public bool RequestClose()
+    {
+        lock (_gate)
+        {
+            if (_unsaved && !_disposed) { _closeIntent = true; return false; }
+            _closed = true; _events.Clear(); return true;
+        }
+    }
     public void Dispose() { lock (_gate) { _disposed = true; _closed = true; _events.Clear(); _pixels = Array.Empty<int>(); } }
 }
 
@@ -120,6 +130,7 @@ internal sealed class ProcessGraphics : IDisposable
         if (surface is null) { return -19; }
         _surface = surface; _handle = 20000 + ++_opens; return _handle;
     }
+    public int Dirty(int handle, bool dirty) => handle != _handle || _surface is null ? -9 : _surface.SetDirty(dirty);
     public int Size(int handle) => handle != _handle || _surface is null ? -9 : _presents >= 3600 ? -27 : _surface.Bytes;
     public int Present(int handle, byte[] pixels)
     {

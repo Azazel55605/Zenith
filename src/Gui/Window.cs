@@ -49,6 +49,7 @@ internal abstract class Window
     public Rect MaximizeButton => CanResize ? CloseButton.Offset(-ButtonSize - 2, 0) : new Rect(0, 0, 0, 0);
     public Rect MinimizeButton => CloseButton.Offset(-(ButtonSize + 2) * (CanResize ? 2 : 1), 0);
 
+    public virtual bool HasUnsavedChanges => false;
     public virtual bool CanClose => true;
     public virtual void Close() { if (CanClose) { IsClosed = true; } }
     public virtual void EndSession() => Close();

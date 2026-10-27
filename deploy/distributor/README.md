@@ -55,8 +55,8 @@ Then install as the VM administrator:
 
 ```sh
 sudo apt-get update
-sudo apt-get install -y git ca-certificates wget curl python3 nginx util-linux \
-  clang binutils openssl e2fsprogs dosfstools mtools parted qemu-system-x86 ovmf \
+sudo apt-get install -y git ca-certificates wget curl python3 python3-pil nginx util-linux \
+  gcc clang binutils openssl e2fsprogs dosfstools mtools parted qemu-system-x86 ovmf \
   dotnet-sdk-10.0
 sudo adduser --disabled-password --gecos '' zenith-release
 sudo install -d -o zenith-release -g zenith-release -m 0755 /srv/zenith /srv/zenith/packages

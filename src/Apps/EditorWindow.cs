@@ -48,7 +48,7 @@ internal sealed class EditorWindow : Window
     private readonly StringBuilder _promptInput = new();
     private bool _caretVisible = true;
     private bool _dirty = true;
-    public bool HasUnsavedChanges => _document.Modified;
+    public override bool HasUnsavedChanges => _document.Modified;
 
     public EditorWindow(string? path = null) : base("Editor", 720, 480)
     {

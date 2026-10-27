@@ -68,3 +68,6 @@ and relative-link rebasing are the only archival edits in this reorganization.
 - [2026-10-27 shared native UI foundation](2026-10-27/shared-userland-ui.md):
   accepted design baseline, independent widgets/Inter gallery, sanitizer and
   real-compositor input/upgrade/ext2 evidence; Settings/effects remain pending.
+
+- [2026-10-27 functional Appearance settings](2026-10-27/appearance-settings.md):
+  typed service, independent GUI, dirty close and save/apply/reboot evidence.

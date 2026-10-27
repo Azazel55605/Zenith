@@ -115,9 +115,10 @@ int zui_event(struct zui *u,const struct zenith_gui_event *e){
     return 0;
 }
 static unsigned long length(const char *s){unsigned long n=0;while(n<256&&s[n])n++;return n;}
-void zui_draw_controls(struct zui *u){
+void zui_draw_range(struct zui *u,int first,int count){
     struct zui_rect saved=u->clip;
-    for(int i=0;i<u->count;i++){
+    if(first<0||count<0||first>u->count||count>u->count-first)return;
+    for(int i=first;i<first+count;i++){
         struct zui_control *c=&u->controls[i];struct zui_rect r=c->rect;
         unsigned int fill=c->value?u->theme.accent:u->theme.raised;
         unsigned int fg=c->value?u->theme.on_accent:u->theme.text;
@@ -140,3 +141,5 @@ void zui_draw_controls(struct zui *u){
         u->clip=saved;
     }
 }
+
+void zui_draw_controls(struct zui *u){zui_draw_range(u,0,u->count);}

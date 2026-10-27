@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Zenith.Core;
+using Zenith.Core.Configuration;
 using Zenith.Core.Packages;
 using Zenith.Core.Security;
 
@@ -24,11 +25,22 @@ internal static class NativeAppearance
         }
         catch { return null; }
     }
+    private static ulong s_revision;
+    private static AppearancePalette? s_palette;
+    public static void ApplyPending(bool force = false)
+    {
+        var service = SystemConfiguration.Appearance; var target = service.Saved; var palette = service.Palette;
+        if (!force && s_revision == target.Revision && ReferenceEquals(s_palette, palette)) { return; }
+        if (service.UsePalette) { Theme.ApplyAppearance(palette, target.Mode, target.Accent); }
+        s_revision = target.Revision; s_palette = palette; service.MarkActive(target);
+    }
     public static void Reload()
     {
         bool valid = Theme.Apply(Resource("/usr/share/zenith/appearance/default/theme.conf"));
         Log.Write("appearance", "theme=" + Theme.Name + (valid ? "" : "; invalid resource, recovery palette"));
         using var root = CredentialContext.Enter(Credentials.Root);
         Fonts.Reload();
+        SystemConfiguration.Appearance.Resources(Resource("/usr/share/zenith/appearance/default/native.conf"));
+        ApplyPending(true);
     }
 }

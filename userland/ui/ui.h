@@ -34,4 +34,5 @@ int zui_add(struct zui *ui,int id,int kind,struct zui_rect rect,const char *labe
  * Forward focus/reset/close events, too; events never modify saved preferences. */
 int zui_event(struct zui *ui,const struct zenith_gui_event *event);
 void zui_draw_controls(struct zui *ui);
+void zui_draw_range(struct zui *ui,int first,int count);
 #endif

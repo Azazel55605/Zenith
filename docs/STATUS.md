@@ -113,3 +113,12 @@ sanitizer/palette checks and real-compositor keyboard/pointer/upgrade/ext2 check
 pass on an unchanged kernel. This is not published/operator-installed acceptance;
 Settings persistence, resource preference loading, scaling/Unicode text and optional
 compositor effects remain pending. [Evidence](archive/2026-10-27/shared-userland-ui.md).
+
+## Functional Appearance page (2026-10-27)
+
+The independent [Settings Appearance page](NATIVE-SETTINGS.md) and typed system
+service are implemented. Focused local guest checks pass preview/save, dirty-close
+confirmation, live host application, reboot persistence, native/CLI authority and
+same-kernel package upgrade with a clean independent ext2 audit. Broader Release
+qualification and [operator acceptance](SETTINGS-VM-TEST.md) remain pending.
+[Evidence](archive/2026-10-27/appearance-settings.md).

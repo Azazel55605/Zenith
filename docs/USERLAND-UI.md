@@ -96,6 +96,8 @@ must connect independently updated themes/fonts before broad app migration.
 3. Scale/font coverage, keyboard interaction and independent package-update tests.
 4. Compositor effects and user controls with performance-tested opaque fallback.
 
-No release tags or public pipeline entries are added for this development gallery.
+The development gallery has no release tags or public pipeline entry. The first
+functional consumer is the [independent Settings Appearance page](NATIVE-SETTINGS.md),
+which reads shared signed palette resources and saves preferences through typed services.
 
 [Local native acceptance and exact artifact hashes](archive/2026-10-27/shared-userland-ui.md).

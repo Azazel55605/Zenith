@@ -25,6 +25,7 @@ printf '\nBuild tools\n'
 for tool in dotnet git python3 nginx gcc clang ld nm e2fsck debugfs qemu-system-x86_64 cosmos cosmos.patcher; do
     command -v "$tool" || printf 'MISSING: %s\n' "$tool"
 done
+python3 -c 'from PIL import ImageFont; print("Pillow font rasterizer available")' || printf 'MISSING: Python Pillow (Debian: python3-pil)\n'
 if command -v dotnet >/dev/null; then
     dotnet --list-sdks
     dotnet tool list -g

@@ -118,6 +118,10 @@ internal static class ManualPages
 
             settings show
             settings set keyboard|timezone|session VALUE  (root)
+            settings set appearance dark|light blue|violet|rose|amber|green|teal
+            native run settings              (independent graphical Appearance page)
+            native run settings --show
+            native run settings --set light teal  (same root-only service)
             session [status | list | set-default MODE]
 
             Keyboard/timezone changes share validation and staged persistence with
@@ -127,6 +131,10 @@ internal static class ManualPages
             Boot session= overrides saved defaults; no display falls back to headless.
             Unknown session schema versions are preserved and cannot be downgraded.
             Config paths: /etc/vconsole.conf, /etc/timezone, /etc/zenith/session.conf.
+            Appearance uses /etc/zenith/appearance.conf. Save checks the revision;
+            stale edits require an explicit reload, and failed saves retain edits.
+            The desktop applies saved appearance without logging out; headless changes
+            apply on the next graphical login. Blur/transparency are not available yet.
             Reads are bounded regular files. See the repository settings/session guide.
             """),
         ("headless", """

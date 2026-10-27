@@ -1,0 +1,133 @@
+using System;
+using System.Buffers.Binary;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using Zenith.Core.Configuration;
+using Zenith.Core.Processes;
+using Zenith.Core.Security;
+
+namespace Zenith.Tests;
+
+public class AppearanceServiceTests
+{
+    private sealed class Store : ISettingsStore
+    {
+        public string? Text;
+        public bool Fail;
+        public bool Persistent => true;
+        public string? Read(string path) { Assert.Equal(AppearanceService.Path, path); return Text; }
+        public void Replace(string path, string text) { if (Fail) { throw new IOException("readonly"); } Text = text; }
+    }
+    [Fact]
+    public void SaveSeparatesPersistedAndActiveStateAndRebootLoadsWithoutWrites()
+    {
+        using var root = CredentialContext.Enter(Credentials.Root);
+        var store = new Store(); var service = new AppearanceService(store); Assert.Null(service.Load());
+        Assert.False(service.UsePalette); Assert.Equal(0, service.Save(1, 5, 1));
+        Assert.Contains("MODE=light\nACCENT=teal\n", store.Text); Assert.True(service.UsePalette);
+        Assert.Equal(1U, service.Saved.Mode); Assert.Equal(0U, service.Active.Mode);
+        service.MarkActive(service.Saved); Assert.Equal(service.Saved, service.Active);
+        var reboot = new AppearanceService(store); Assert.Null(reboot.Load());
+        Assert.Equal(1U, reboot.Active.Mode); Assert.Equal(5U, reboot.Active.Accent);
+    }
+    [Fact]
+    public void FailureAndStaleEditsDoNotApplyOrOverwrite()
+    {
+        using var root = CredentialContext.Enter(Credentials.Root);
+        var store = new Store { Fail = true }; var service = new AppearanceService(store);
+        Assert.Equal(-5, service.Save(1, 4, 1)); Assert.Null(store.Text); Assert.Equal(1UL, service.Saved.Revision);
+        store.Fail = false; Assert.Equal(0, service.Save(1, 3, 1)); string? saved = store.Text;
+        Assert.Equal(-11, service.Save(0, 0, 1)); Assert.Equal(saved, store.Text);
+        Assert.Equal(0U, service.Active.Mode);
+    }
+    [Fact]
+    public void IdentityIsRequiredEvenForValidRequests()
+    {
+        using var user = CredentialContext.Enter(new Credentials(1000, 1000));
+        var store = new Store(); var service = new AppearanceService(store);
+        Assert.Equal(-13, service.Save(1, 2, 1)); Assert.Null(store.Text);
+        byte[] snapshot = ProcessAppearance.Snapshot(service);
+        Assert.Equal(0U, BinaryPrimitives.ReadUInt32LittleEndian(snapshot.AsSpan(4)) & 2);
+    }
+    [Theory]
+    [InlineData("VERSION=9\nMODE=dark\nACCENT=blue\n")]
+    [InlineData("VERSION=1\nMODE=dark\nMODE=light\nACCENT=blue\n")]
+    [InlineData("VERSION=1\nMODE=unknown\nACCENT=blue\n")]
+    [InlineData("VERSION=1\nMODE=light\nACCENT=unknown\n")]
+    [InlineData("VERSION=1\0\nMODE=light\nACCENT=teal\n")]
+    public void CorruptOrFutureConfigurationFallsBackWithoutBeingOverwritten(string text)
+    {
+        using var root = CredentialContext.Enter(Credentials.Root);
+        var store = new Store { Text = text }; var service = new AppearanceService(store);
+        Assert.NotNull(service.Load()); Assert.Equal(0U, service.Saved.Mode);
+        Assert.Equal(-5, service.Save(1, 4, 1)); Assert.Equal(text, store.Text);
+    }
+    [Fact]
+    public void NativeRequestLayoutAndReservedFieldsAreStrict()
+    {
+        using var root = CredentialContext.Enter(Credentials.Root);
+        var store = new Store(); var service = new AppearanceService(store); byte[] request = new byte[32];
+        BinaryPrimitives.WriteUInt32LittleEndian(request, 1); BinaryPrimitives.WriteUInt64LittleEndian(request.AsSpan(8), 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(request.AsSpan(16), 1); BinaryPrimitives.WriteUInt32LittleEndian(request.AsSpan(20), 5);
+        Assert.Equal(-22, ProcessAppearance.Save(service, request.AsSpan(0, 31)));
+        request[24] = 1; Assert.Equal(-22, ProcessAppearance.Save(service, request)); request[24] = 0;
+        request[4] = 1; Assert.Equal(-22, ProcessAppearance.Save(service, request)); request[4] = 0;
+        request[0] = 2; Assert.Equal(-22, ProcessAppearance.Save(service, request)); request[0] = 1;
+        request[20] = 6; Assert.Equal(-22, ProcessAppearance.Save(service, request)); request[20] = 5;
+        Assert.Null(store.Text); Assert.Equal(0, ProcessAppearance.Save(service, request));
+        byte[] snapshot = ProcessAppearance.Snapshot(service); Assert.Equal(448, snapshot.Length);
+        Assert.Equal(2UL, BinaryPrimitives.ReadUInt64LittleEndian(snapshot.AsSpan(8)));
+        Assert.Equal(1U, BinaryPrimitives.ReadUInt32LittleEndian(snapshot.AsSpan(16)));
+        Assert.Equal(5U, BinaryPrimitives.ReadUInt32LittleEndian(snapshot.AsSpan(20)));
+        Assert.Equal(4U, BinaryPrimitives.ReadUInt32LittleEndian(snapshot.AsSpan(4)) & 4);
+        Assert.All(snapshot[432..], b => Assert.Equal(0, b));
+    }
+    [Fact]
+    public void SignedResourceFormatUsesCompleteContrastCheckedSemanticPalettes()
+    {
+        var service = new AppearanceService(new Store());
+        service.Resources("VERSION=1\nlight.blue=3157b7\ndark.Surface=202125\n");
+        Assert.True(service.Palette.Packaged); Assert.True(service.UsePalette);
+        Assert.Equal(0x3157b7U, service.Palette.Get(1, 0, 6));
+        Assert.Equal(0x197571U, service.Palette.Get(1, 5, 6));
+        byte[] snapshot = ProcessAppearance.Snapshot(service);
+        Assert.Equal(0x3157b7U, BinaryPrimitives.ReadUInt32LittleEndian(snapshot.AsSpan(48 + 6 * 32 + 24)));
+    }
+    [Theory]
+    [InlineData("VERSION=2\n")]
+    [InlineData("VERSION=1\nVERSION=1\n")]
+    [InlineData("VERSION=1\ndark.Text=202125\n")]
+    [InlineData("VERSION=1\nlight.blue=ffffff\n")]
+    [InlineData("VERSION=1\nlight.Bad=123456\n")]
+    [InlineData("VERSION=1\nlight.Surface=ff000000\n")]
+    public void InvalidResourcesUseSafeFallback(string text)
+    { Assert.Same(AppearancePalette.Default, AppearancePalette.Read(text)); }
+    [Fact]
+    public async Task ConcurrentServiceEditorsCannotBothCommitOneRevision()
+    {
+        var store = new Store(); var service = new AppearanceService(store);
+        var attempts = Enumerable.Range(0, 12).Select(i => Task.Run(() =>
+        {
+            using var root = CredentialContext.Enter(Credentials.Root);
+            return service.Save((uint)(i % 2), (uint)(i % 6), 1);
+        }));
+        int[] results = await Task.WhenAll(attempts);
+        Assert.Single(results.Where(value => value == 0));
+        Assert.Equal(11, results.Count(value => value == -11));
+        Assert.Equal(2UL, service.Saved.Revision);
+    }
+    [Fact]
+    public void OwnedDirtyCloseCanBeCancelledButRevocationAlwaysWins()
+    {
+        var surface = new ProcessSurface(160, 100, "test");
+        Assert.Equal(0, surface.SetDirty(true)); Assert.False(surface.RequestClose()); Assert.False(surface.Ended);
+        for (int i = 0; i < 100; i++) { surface.Send(new(3, i, 0, 0, 0, 0)); }
+        Assert.Equal(9, surface.Poll().Type); // Intent is not evicted by event overflow.
+        Assert.Equal(0, surface.SetDirty(false)); Assert.True(surface.RequestClose()); Assert.True(surface.Ended);
+        Assert.Equal(1, surface.Poll().Type);
+        var revoked = new ProcessSurface(160, 100, "test"); revoked.SetDirty(true); revoked.Dispose();
+        Assert.True(revoked.Ended); Assert.Equal(1, revoked.Poll().Type); Assert.Equal(-32, revoked.SetDirty(false));
+    }
+}

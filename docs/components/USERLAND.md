@@ -66,7 +66,9 @@ upgrade and confirm a compatible kernel before updating Sunbeam.
 - [x] Operator reports installed and tested; screenshot verifies probe 0.1.0,
   self-check, independent drawing and pointer interaction. [Evidence](../archive/2026-10-26/protected-graphical-clients.md#operator-installed-acceptance).
 - [x] Build the first [shared native widgets/text foundation](../USERLAND-UI.md).
-- [ ] Build Settings service authorization and resource preference loading.
+- [x] Build root-authorized typed Appearance settings and signed palette loading.
+- [x] Prove local native Settings save/apply/reboot and same-kernel package upgrade.
+- [ ] Complete installed acceptance, then port other applications onto the shared UI.
 
 [Wire contract and limits](../GRAPHICAL-CLIENTS.md).
 

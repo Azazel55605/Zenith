@@ -10,7 +10,7 @@ internal static class ConfigurationCommands
 {
     public static void Register(Action<Command> add)
     {
-        add(new Command("settings", "settings [show | set keyboard|timezone|session VALUE]", "Shared system settings", Settings));
+        add(new Command("settings", "settings [show | set keyboard|timezone|session VALUE | set appearance dark|light ACCENT]", "Shared system settings", Settings));
         add(new Command("session", "session [status | list | set-default MODE | switch MODE]", "Select a session or return to login", Session));
     }
     private static int Settings(CommandContext c)
@@ -22,9 +22,23 @@ internal static class ConfigurationCommands
             c.WriteLine("keyboard=" + settings.Current.Keyboard + " (active " + KeyboardLayouts.Current + ")");
             c.WriteLine("timezone=" + settings.Current.TimeZone + " (active " + SystemClock.Zone.Name + ")");
             c.WriteLine("session=" + SessionModes.Name(settings.Current.DefaultSession) + " (next boot)");
+            var appearance = SystemConfiguration.Appearance.Snapshot();
+            c.WriteLine("appearance=" + AppearanceService.ModeName(appearance.Saved.Mode) + "/" + AppearanceService.AccentName(appearance.Saved.Accent)
+                + " (active " + AppearanceService.ModeName(appearance.Active.Mode) + "/" + AppearanceService.AccentName(appearance.Active.Accent)
+                + (appearance.Saved.Revision != appearance.Active.Revision ? "; pending desktop/next login" : "") + ")");
             return 0;
         }
-        if (c.Args.Length != 3 || c.Args[0] != "set") { return c.Fail("usage: settings [show | set keyboard|timezone|session VALUE]"); }
+        if (c.Args.Length == 4 && c.Args[0] == "set" && c.Args[1] == "appearance")
+        {
+            if (!AppearanceService.TryMode(c.Args[2], out uint mode) || !AppearanceService.TryAccent(c.Args[3], out uint accent))
+            { return c.Fail("appearance requires dark|light and blue|violet|rose|amber|green|teal"); }
+            var service = SystemConfiguration.Appearance;
+            int result = service.Save(mode, accent, service.Saved.Revision);
+            if (result != 0) { return c.Fail("appearance save failed (" + result + "); settings were not applied"); }
+            c.WriteLine("saved appearance; desktop applies on its next tick, headless on next login" + (service.Persistent ? "" : " (live: volatile)"));
+            return 0;
+        }
+        if (c.Args.Length != 3 || c.Args[0] != "set") { return c.Fail("usage: settings [show | set keyboard|timezone|session VALUE | set appearance dark|light ACCENT]"); }
         switch (c.Args[1])
         {
             case "keyboard": settings.SetKeyboard(c.Args[2]); break;

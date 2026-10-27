@@ -29,6 +29,7 @@ internal sealed class DesktopSessionHost : ISessionHost
         {
             if (window.IsClosed) { continue; }
             if (window is EditorWindow editor && editor.HasUnsavedChanges) { return "Save or close the editor before logging out."; }
+            if (window.HasUnsavedChanges) { return "Save or discard unsaved application changes before logging out."; }
             if (window is TerminalWindow terminal && (terminal.HasBackgroundJobs || terminal.IsBusy && (requester is null || !terminal.OwnsShell(requester)))) { return "A terminal command is still running."; }
         }
         return null;
@@ -59,5 +60,5 @@ internal sealed class DesktopSessionHost : ISessionHost
         }
         Log.Write("kernel", "desktop ready (" + (SystemMounts.Mode == BootMode.Live ? "live" : "installed") + ")");
     }
-    public void Tick() => _desktop.Tick();
+    public void Tick() { NativeAppearance.ApplyPending(); _desktop.Tick(); }
 }

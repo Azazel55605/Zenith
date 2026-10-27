@@ -100,6 +100,19 @@ internal static class Theme
         }
         catch { s_colors = Defaults(); Name = "Zenith recovery"; return false; }
     }
+    public static void ApplyAppearance(Zenith.Core.Configuration.AppearancePalette palette, uint mode, uint accent)
+    {
+        uint Color(int role) => 0xff000000U | palette.Get(mode, accent, role);
+        var colors = Defaults();
+        colors["WindowBackground"] = Color(0); colors["WindowBorder"] = Color(3);
+        colors["WindowBorderFocused"] = Color(6); colors["TitleDivider"] = Color(3);
+        colors["Panel"] = Color(2); colors["PanelBorder"] = Color(3); colors["Menu"] = Color(1);
+        colors["TextPrimary"] = Color(4); colors["TextSecondary"] = Color(5); colors["TextMuted"] = Color(5);
+        colors["Accent"] = Color(6); colors["AccentSoft"] = (Color(6) & 0xffffffU) | 0x33000000U;
+        colors["Hover"] = mode == 0 ? 0x14ffffffU : 0x14000000U;
+        colors["Pressed"] = mode == 0 ? 0x24ffffffU : 0x24000000U;
+        s_colors = colors; Name = "Zenith " + Zenith.Core.Configuration.AppearanceService.ModeName(mode);
+    }
     private static double Light(uint color)
     {
         double Channel(int shift)

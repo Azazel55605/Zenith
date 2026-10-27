@@ -27,6 +27,8 @@ internal static class BootstrapComponents
         new("zenith-session-host", "1.0", "trusted login/session host; kernel-linked"),
 #if !ARCH_ARM64
         new("zenith-native-fs-abi", "1.0", "read-only native filesystem calls"),
+        new("zenith-native-settings-abi", "1.0", "typed system appearance settings with revision checks"),
+        new("zenith-native-window-state-abi", "1.0", "owned unsaved state and cancellable chrome close intent"),
         new("zenith-native-graphics-abi", "1.0", "owned private graphical surfaces and routed events"),
         new("zenith-native-network-abi", "1.0", "owned bounded TCP/verified-TLS clients and atomic download sinks"),
         new("zenith-native-path-abi", "1.0", "owned namespace/metadata operations and private descriptor seeks"),

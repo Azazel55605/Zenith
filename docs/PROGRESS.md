@@ -3,6 +3,20 @@
 Updated **2026-10-27**. [Status](STATUS.md) owns delivery boundaries;
 [Roadmap](ROADMAP.md) orders future work.
 
+## Functional Appearance settings
+
+- [x] Inspect settings authority, graphics ownership and signed resource loading.
+- [x] Add typed appearance persistence/revision state, bounded native snapshot/save
+  requests and independent resource palettes; retain legacy themes until explicit
+  preferences or signed native resources select the new language.
+- [x] Add owned unsaved-state/close-intent support; preserve legacy close behavior.
+- [x] Build the independent Settings Appearance page and matching CLI access.
+- [x] Pass 733 host tests plus sanitizer UI/state tests and 238 controllers; verify
+  permissions, malformed requests, actual preview/dirty chrome confirmation, GUI
+  save/live activation, independent upgrade/reboot persistence and ext2 audit.
+- [ ] Complete broader Release/native regression qualification.
+- [ ] Record qualification and package handoff before porting other applications.
+
 ## Shared native UI foundation
 
 - [x] Inspect the protected graphics SDK and keep the first widgets wholly userland.

@@ -40,8 +40,11 @@ The desktop floats windows; there are no implemented automatic-tiling WM/workspa
 - [x] Record the [system design direction](../DESIGN-LANGUAGE.md) before widgets.
 - [x] User accepts its visual specimen, measurements and shared control states.
 - [x] Build the first [shared userland widget/text library](../USERLAND-UI.md).
-- [ ] Connect installed resource preferences and the Settings service contract.
-- [ ] Build the proper Settings app on the existing configuration service.
+- [x] Connect signed semantic resource palettes and the typed appearance service.
+- [x] Build the independent [Settings Appearance page](../NATIVE-SETTINGS.md) with
+  preview/save, failed/stale edit retention and explicit dirty-close confirmation.
+- [ ] Finish broader Release qualification and installed Appearance acceptance.
+- [ ] Extend Settings to keyboard/timezone/session and native font resource loading.
 - [ ] Replace the temporary DE and add a selectable automatic-tiling WM.
 - [ ] Rework Files: navigation, selection, transfer jobs, permission/error UX and
   responsiveness; keep shared filesystem operations outside UI code.
