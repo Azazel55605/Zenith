@@ -34,15 +34,17 @@ struct zui_workspace zui_workspace_begin(struct zui *u,int side){
     struct zui_workspace w={{12,12,side,u->height-24},{side+24,12,u->width-side-36,u->height-24}};
     if(side<=0)w.content=(struct zui_rect){12,12,u->width-24,u->height-24};
     if(u->foreground&&u->full_background){
-        int split=side>0?side+24:0;
-        if(split)zui_material_surface(u,(struct zui_rect){0,0,split,u->height},0,ZUI_SURFACE_NAVIGATION,2);
-        zui_material_surface(u,(struct zui_rect){split,0,u->width-split,u->height},0,ZUI_SURFACE_CONTENT,2);
-        if(side>0){zui_round_alpha(u,w.sidebar,12,u->theme.border,48);zui_round_alpha(u,(struct zui_rect){w.sidebar.x+1,w.sidebar.y+1,w.sidebar.w-2,w.sidebar.h-2},11,u->theme.subtle,20);}
-        zui_round_alpha(u,w.content,12,u->theme.border,48);
-        zui_round_alpha(u,(struct zui_rect){w.content.x+1,w.content.y+1,w.content.w-2,w.content.h-2},11,u->theme.surface,28);
+        /* One base material continues the host title bar through the sidebar.
+         * Only the rounded detail inset is layered over it: no rectangular underlay. */
+        zui_material_surface(u,(struct zui_rect){0,0,u->width,u->height},0,ZUI_SURFACE_CONTENT,2);
+        zui_round_alpha(u,w.content,12,u->theme.surface,40);
     }else{
         zui_fill(u,u->clip,u->theme.subtle);
-        if(side>0)zui_surface(u,w.sidebar,12,ZUI_SURFACE_NAVIGATION);
+        if(side>0&&u->foreground){
+            int split=side+24;
+            if(zui_material_surface(u,(struct zui_rect){0,0,split,u->height},0,ZUI_SURFACE_NAVIGATION,2))
+                for(int y=0;y<u->height;y++)for(int x=0;x<split;x++)u->pixels[y*u->width+x]=0;
+        }
         zui_surface(u,w.content,12,ZUI_SURFACE_CONTENT);
     }
     return w;

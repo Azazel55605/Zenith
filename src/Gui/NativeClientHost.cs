@@ -58,6 +58,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
         private int _materialCount;
         public ClientWindow(ProcessSurface surface, Credentials identity) : base("Native · " + surface.Title, surface.Width, surface.Height + TitleBarHeight)
         { _surface = surface; Identity = identity; _frameWidth = surface.Width; _frameHeight = surface.Height; _frame = new int[surface.Width * surface.Height]; if (surface.Format == 2) { _composition = new(1920000); } }
+        public override bool UnifiedChrome => _surface.Resizable;
         public override bool CanResize => _surface.Resizable;
         public override (int Width, int Height) MinimumSize => (600, 480 + TitleBarHeight);
         public override (int Width, int Height) MaximumSize => (ProcessSurface.MaximumWidth, ProcessSurface.MaximumHeight + TitleBarHeight);
@@ -82,20 +83,21 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
         {
             if (_composition is null || content.W != _frameWidth || content.H != _frameHeight) { return; }
             int area = 0; bool blur = false, any = false;
+            int scale = _surface.Resizable && (MaterialResources.Policy.Effective & 2) != 0 && _frameWidth * _frameHeight > 131072 ? 4 : 1;
             for (int i = 0; i < _materialCount; i++)
             {
-                var r = _materials[i]; uint tint = r.Role == 1 ? Theme.WindowBackground : r.Role == 3 ? Theme.Panel : Theme.Raised;
+                var r = _materials[i]; uint tint = r.Role is 1 or 3 ? Theme.Panel : Theme.Raised;
                 int effect = r.Role == 1 && (MaterialResources.Policy.Effective & 4) == 0 ? 0
-                    : MaterialResources.Policy.Effect(r.Effect, tint, Theme.TextPrimary, Theme.TextSecondary, r.Width * r.Height);
-                area += r.Width * r.Height; blur |= effect == 2; any |= effect != 0;
+                    : MaterialResources.Policy.Effect(r.Effect, tint, Theme.TextPrimary, Theme.TextSecondary, MaterialComposition.SampleLength(r.Width, scale) * MaterialComposition.SampleLength(r.Height, scale));
+                area += MaterialComposition.SampleLength(r.Width, scale) * MaterialComposition.SampleLength(r.Height, scale); blur |= effect == 2; any |= effect != 0;
                 _effective[i] = r with { Effect = effect, Opacity = MaterialPolicy.Opacity(tint, Theme.TextPrimary, Theme.TextSecondary, effect) };
             }
-            if (any && !_composition.Ensure(area, blur))
+            if (any && !_composition.Ensure(area, blur, scale))
             {
-                bool tintOnly = blur && _composition.Ensure(area, false);
+                bool tintOnly = blur && _composition.Ensure(area, false, scale);
                 for (int i = 0; i < _materialCount; i++)
                 {
-                    var r = _effective[i]; uint tint = r.Role == 1 ? Theme.WindowBackground : r.Role == 3 ? Theme.Panel : Theme.Raised;
+                    var r = _effective[i]; uint tint = r.Role is 1 or 3 ? Theme.Panel : Theme.Raised;
                     int effect = tintOnly && r.Effect != 0 ? 1 : 0;
                     _effective[i] = r with { Effect = effect, Opacity = MaterialPolicy.Opacity(tint, Theme.TextPrimary, Theme.TextSecondary, effect) };
                 }
@@ -109,7 +111,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
             if (_composition is not null)
             {
                 _composition.Composition.Compose(_frame, surface.Pixels, surface.Width, surface.Height, content, _effective, _materialCount,
-                    Theme.WindowBackground, Theme.Raised, Theme.Panel, Theme.Raised);
+                    Theme.Panel, Theme.Raised, Theme.Panel, Theme.Raised);
                 return;
             }
             Rect clipped = content.Intersect(surface.Clip);

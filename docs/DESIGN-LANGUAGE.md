@@ -146,9 +146,9 @@ all client content, and masks the **completed** window against that backdrop.
 Rectangular client copies and status bars cannot paint through the outer outline.
 This uses one reusable bounded corner buffer, not a new full-frame allocation per
 window/frame. Maximized windows remain square. Moving/clipped/overlapping windows
-capture the current lower layers each frame. The inner content has a host-owned
-12px top-left curve in every mode, with unchanged client coordinates; other inner
-corners remain square. The outer mask remains independent of material sampling.
+capture the current lower layers each frame. Legacy clients retain the host-owned 12px inner top-left curve. Workspace clients
+own their rounded detail inset instead; the host does not cut another corner into
+the continuous title/sidebar base. The outer mask remains independent of material sampling.
 
 Shared host controls style the still-trusted Terminal, Editor and Sunrise; selected
 native app controls use the C library. Visual consistency is not completion of U2–U4
@@ -176,11 +176,15 @@ owned surface. Clamp region counts/areas/radii; respect z-order, nested clips,
 resize, focus, move, minimize, teardown and session revocation. Prefer damage-
 tracked/cached bounded software effects before making them generally available.
 Software composition caches unchanged sources. All owners share an 8 MiB cache
-lease pool and a 393216-pixel blur budget per composition; over-budget blur uses
+lease pool and a 393216-sample blur budget per composition; over-budget blur uses
 tint, unavailable/oversize caches use solid. Cache leases end with windows/session.
-Source-only tint caches use four bytes per pixel; blurred caches use twelve.
-A large/mixed frame can fall back to source-only tint when blur storage exceeds
-the lease pool. Native frame transfers reuse one private validated buffer per
+Source-only tint caches use four bytes per sample; blurred caches use twelve.
+Large resize-enabled app backgrounds average 4x4 pixel blocks, diffuse on the
+reduced grid and reconstruct smoothly with bilinear interpolation. This keeps
+whole-window blur within the same cache/work limits, including maximized windows;
+transparency-only mode retains full-resolution sampling. Lower-scene capture and
+foreground composition still scan bounded full-size frames. Exhausted caches/work
+can still fall back to tint or solid without changing saved preferences. Native frame transfers reuse one private validated buffer per
 invocation rather than allocating a full frame on every repaint.
 This bounds software work, not total system memory or frame latency. Fine damage
 tracking, GPU acceleration, sustained device performance and resize/scale remain
@@ -254,3 +258,8 @@ D3 owns material composition, S1/S4 own preference/resources and U1 owns shared 
 and controls. Component checklists may expand those IDs, not create another style
 roadmap. The accepted specimen and comparison above are implementation references;
 host renders prove layout only, native/installed checks establish runtime behavior.
+
+Workspace simplification (D1/D3): the shared title/sidebar base uses one neutral
+material treatment. Whole-background clients declare one continuous base region,
+then draw only the rounded detail inset as a subtle foreground layer. There is no
+second full-height rectangular content tint and no independent sidebar card.

@@ -41,6 +41,7 @@ internal abstract class Window
     public virtual bool CanResize => true;
     public virtual (int Width, int Height) MaximumSize => (int.MaxValue, int.MaxValue);
     public virtual bool AllowMaterials => true;
+    public virtual bool UnifiedChrome => false;
     internal HostMaterial ChromeMaterial { get; } = new();
 
     /// <summary>The smallest size the user can resize the window to.</summary>

@@ -41,7 +41,9 @@ int main(int argc,char **argv){
     assert(meridian_resize(&app,600,480,600*480));
     material_saved=7;meridian_refresh(&app);assert(meridian_open(&app,"style.colors"));
     app.colors.ui.foreground=app.navigation.foreground=1;meridian_draw(&app);
-    assert(app.colors.ui.material_count==2&&pixels[0]==0);
+    assert(app.colors.ui.material_count==1&&pixels[0]==0);
+    assert(pixels[100*600+203]==0); /* no rectangular detail underlay */
+    assert(pixels[12*600+204]==0); /* rounded detail corner reveals base material */
     for(int i=0;i<600*480;i++){unsigned int c=pixels[i],alpha=c>>24;assert((c&255)<=alpha&&((c>>8)&255)<=alpha&&((c>>16)&255)<=alpha);}
     assert(pixels[430*600+230]>>24==255); /* controls remain opaque */
     static unsigned int large[1920*1000];app.colors.ui.pixels=app.navigation.pixels=large;

@@ -14,6 +14,28 @@ public class ProcessMaterialTests
         return b;
     }
     [Fact]
+    public void CompactBackgroundBlurDiffusesDetailAndRetainsOpaqueForeground()
+    {
+        const int w = 601, h = 481, scale = 4;
+        int[] scene = new int[w*h], frame = new int[w*h], output = new int[w*h];
+        for (int i=0;i<scene.Length;i++) { scene[i] = (i % w & 1) == 0 ? -1 : unchecked((int)0xff000000); }
+        frame[300] = unchecked((int)0xffabcdef);
+        var region = new[] { new ProcessMaterialRegion(0,0,w,h,0,1,2,210) };
+        int samples = MaterialComposition.SampleLength(w,scale)*MaterialComposition.SampleLength(h,scale);
+        var composition = new MaterialComposition(samples,true,scale);
+        composition.Capture(scene,w,h,new(0,0,w,h),region,1,0xff25262b);
+        composition.Compose(frame,output,w,h,new(0,0,w,h),region,1,0xff25262b,0xff25262b,0xff25262b,0xff25262b);
+        Assert.Equal(unchecked((int)0xffabcdef),output[300]);
+        Assert.InRange(Math.Abs((output[w*200+200]&255)-(output[w*200+201]&255)),0,1);
+        Assert.Equal(1,composition.BlurRebuilds);
+        composition.Capture(scene,w,h,new(0,0,w,h),region,1,0xff25262b);
+        Assert.Equal(1,composition.BlurRebuilds);
+        Array.Fill(scene,unchecked((int)0xff102030));
+        composition.Capture(scene,w,h,new(-2,-3,w,h),region,1,0xff25262b);
+        Assert.Equal(2,composition.BlurRebuilds);
+    }
+
+    [Fact]
     public void NewOpenIsExplicitAndLegacyFormatCannotBecomeTransparent()
     {
         byte[] r = new byte[48];BinaryPrimitives.WriteUInt32LittleEndian(r, 2);

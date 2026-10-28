@@ -36,7 +36,8 @@ not indiscriminately journalled. Session stop revokes surfaces and invocations.
   and host chrome locally; Q2 owns installed confirmation, U1/D2 richer widgets/hover/text/scale;
   preserve [material roles](../DESIGN-LANGUAGE.md#materials-and-optional-effects).
 - [x] U1/D2: opt-in bounded client resize/maximize, stable sidebar/detail workspaces
-  and drag keyboard routing; [targeted tests and unresolved operator freeze](../archive/2026-10-28/meridian-workspace-input.md).
+  and drag keyboard routing; continuous title/sidebar materials and reduced-grid
+  whole-background blur remove the stacked rectangular content underlay; [targeted tests and unresolved operator freeze](../archive/2026-10-28/meridian-workspace-input.md).
 - [ ] D2: real display modes, scaling and crash-safe Keep/Revert.
 - [ ] S1: per-user/system defaults, typed existing settings and CLI/GUI parity.
 - [ ] S2–S5: activate the [43-page inventory](../MERIDIAN-PAGES.md) in backend order;

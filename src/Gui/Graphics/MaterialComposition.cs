@@ -8,12 +8,14 @@ namespace Zenith.Gui.Graphics;
 internal sealed class MaterialComposition
 {
     private const int BlurRadius = 4;
+    private readonly int _sampleScale;
+    public static int SampleLength(int length, int scale) => (length + scale - 1) / scale;
     private readonly int[] _source;
     private readonly int[] _scratch;
     private readonly int[] _filtered;
     private readonly ProcessMaterialRegion[] _previous = new ProcessMaterialRegion[ProcessMaterialRegion.MaximumRegions];
-    public MaterialComposition(int capacity = ProcessMaterialRegion.MaximumArea, bool blur = true)
-    { _source = new int[capacity]; _scratch = blur ? new int[capacity] : Array.Empty<int>(); _filtered = blur ? new int[capacity] : _source; }
+    public MaterialComposition(int capacity = ProcessMaterialRegion.MaximumArea, bool blur = true, int sampleScale = 1)
+    { _sampleScale = sampleScale is 1 or 4 ? sampleScale : throw new ArgumentOutOfRangeException(nameof(sampleScale)); _source = new int[capacity]; _scratch = blur ? new int[capacity] : Array.Empty<int>(); _filtered = blur ? new int[capacity] : _source; }
     private int _count = -1;
     public int BlurRebuilds { get; private set; }
 
@@ -23,28 +25,37 @@ internal sealed class MaterialComposition
         for (int i = 0; i < count; i++)
         {
             var r = regions[i]; changed |= _previous[i] != r; _previous[i] = r;
-            if (r.Effect == 0) { offset += r.Width * r.Height;continue; }
-            for (int y = 0; y < r.Height; y++)
+            int sampledWidth = SampleLength(r.Width, _sampleScale), sampledHeight = SampleLength(r.Height, _sampleScale);
+            if (r.Effect == 0) { offset += sampledWidth * sampledHeight; continue; }
+            for (int y = 0; y < sampledHeight; y++)
             {
-                for (int x = 0; x < r.Width; x++)
+                for (int x = 0; x < sampledWidth; x++)
                 {
-                    int sx = content.X + r.X + x, sy = content.Y + r.Y + y;
-                    int color = sx < 0 || sy < 0 || sx >= width || sy >= height ? (int)fallback : scene[sy * width + sx];
-                    int slot = offset + y * r.Width + x; changed |= _source[slot] != color; _source[slot] = color;
+                    int red = 0, green = 0, blue = 0, samples = 0;
+                    for (int dy = 0; dy < _sampleScale && y * _sampleScale + dy < r.Height; dy++)
+                    for (int dx = 0; dx < _sampleScale && x * _sampleScale + dx < r.Width; dx++)
+                    {
+                        int sx = content.X + r.X + x * _sampleScale + dx, sy = content.Y + r.Y + y * _sampleScale + dy;
+                        int color = sx < 0 || sy < 0 || sx >= width || sy >= height ? (int)fallback : scene[sy * width + sx];
+                        red += (color >> 16) & 255; green += (color >> 8) & 255; blue += color & 255; samples++;
+                    }
+                    int colorAverage = unchecked((int)0xff000000) | (red / samples << 16) | (green / samples << 8) | blue / samples;
+                    int slot = offset + y * sampledWidth + x; changed |= _source[slot] != colorAverage; _source[slot] = colorAverage;
                 }
             }
-            offset += r.Width * r.Height;
+            offset += sampledWidth * sampledHeight;
         }
         _count = count;
         if (!changed) { return; }
         offset = 0;
         for (int i = 0; i < count; i++)
         {
-            var r = regions[i]; int area = r.Width * r.Height;
+            var r = regions[i]; int sampledWidth = SampleLength(r.Width, _sampleScale), sampledHeight = SampleLength(r.Height, _sampleScale);
+            int area = sampledWidth * sampledHeight;
             if (r.Effect == 2)
             {
-                Blur(_source, _scratch, offset, r.Width, r.Height, true);
-                Blur(_scratch, _filtered, offset, r.Width, r.Height, false); BlurRebuilds++;
+                Blur(_source, _scratch, offset, sampledWidth, sampledHeight, true);
+                Blur(_scratch, _filtered, offset, sampledWidth, sampledHeight, false); BlurRebuilds++;
             }
             else if (r.Effect != 0) { Array.Copy(_source, offset, _filtered, offset, area); }
             offset += area;
@@ -76,6 +87,19 @@ internal sealed class MaterialComposition
         }
     }
 
+    // Bilinear reconstruction avoids visible low-resolution cells at material edges.
+    private int Sample(int offset, int width, int height, int x, int y)
+    {
+        int sw = SampleLength(width, _sampleScale), sh = SampleLength(height, _sampleScale);
+        int sx = x / _sampleScale, sy = y / _sampleScale;
+        if (_sampleScale == 1) { return _filtered[offset + sy * sw + sx]; }
+        int nextX = Math.Min(sx + 1, sw - 1), nextY = Math.Min(sy + 1, sh - 1);
+        int wx = x % _sampleScale * 255 / _sampleScale, wy = y % _sampleScale * 255 / _sampleScale;
+        int top = RoundedComposition.Blend(_filtered[offset + sy * sw + nextX], _filtered[offset + sy * sw + sx], wx);
+        int bottom = RoundedComposition.Blend(_filtered[offset + nextY * sw + nextX], _filtered[offset + nextY * sw + sx], wx);
+        return RoundedComposition.Blend(bottom, top, wy);
+    }
+
     public void Paint(int[] target, int width, int height, Rect content,
         ProcessMaterialRegion[] regions, int count, uint fallback, uint panel, uint navigation, uint popover, bool clear)
     {
@@ -96,12 +120,12 @@ internal sealed class MaterialComposition
                     int dx = Math.Min(px, r.Width - 1 - px), dy = Math.Min(py, r.Height - 1 - py);
                     int coverage = dx < r.Radius && dy < r.Radius ? RoundedComposition.Coverage(dx, dy, r.Radius) : 255;
                     int color = r.Effect == 0 ? (int)(tint | 0xff000000U)
-                        : RoundedComposition.Blend((int)tint, _filtered[offset + py * r.Width + px], r.Opacity > 0 ? r.Opacity : r.Effect == 1 ? 220 : 210);
+                        : RoundedComposition.Blend((int)tint, Sample(offset, r.Width, r.Height, px, py), r.Opacity > 0 ? r.Opacity : r.Effect == 1 ? 220 : 210);
                     if (coverage == 255) { target[y * width + x] = color; }
                     else if (coverage != 0) { target[y * width + x] = RoundedComposition.Blend(color, target[y * width + x], coverage); }
                 }
             }
-            offset += r.Width * r.Height;
+            offset += SampleLength(r.Width, _sampleScale) * SampleLength(r.Height, _sampleScale);
         }
     }
     public void Compose(int[] frame, int[] target, int width, int height, Rect content,

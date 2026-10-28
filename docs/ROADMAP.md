@@ -56,7 +56,10 @@ S1/D1 own persistent hierarchical navigation and inset sidebar/detail containers
 U1/D2 own the explicit native resize/maximize contract. Files remains excluded.
 These corrections precede new Settings backends. The untagged local follow-up adds
 persistent inset navigation, owned resize/maximize and a system-wide whole-app
-background preference. Targeted native tests pass; the operator freeze is not yet
+background preference. The visual follow-up removes stacked rectangular underlays,
+unifies the title/sidebar treatment and adds bounded reduced-grid whole-window blur
+([visual evidence](archive/2026-10-28/meridian-material-simplification.md)).
+Targeted native tests pass; the operator freeze is not yet
 proven resolved. [Evidence and limits](archive/2026-10-28/meridian-workspace-input.md).
 
 1. **G1 / documentation — audited:** tracking is consolidated here; stale blockers

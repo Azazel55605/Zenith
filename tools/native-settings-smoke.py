@@ -182,16 +182,16 @@ def main():
             bar=color_at(rgb,w,w-240,h-28)
             return max(bar)<128 and bar!=bytes.fromhex('25262b') and color_at(rgb,w,x+500,y-1)!=bytes.fromhex('45474f')
         width,height,rgb=frame('materials-applied',material_frame)
-        assert color_at(rgb,width,x+2,y+2)!=bytes.fromhex('202125'),'inner content corner is square'
+        assert color_at(rgb,width,x+204,y+12)!=bytes.fromhex('202125'),'inset detail corner is square'
         assert color_at(rgb,width,x+230,y+14)==bytes.fromhex('202125'),'inner corner changed the content layout'
-        print('PASS taskbar material, seamless chrome and rounded inner top-left',flush=True)
+        print('PASS taskbar material, seamless chrome and rounded detail inset',flush=True)
         click(x+548,y+249) # Keep saved blur, disable transparency.
         changed=len(m.log());click(x+274,y+438)
         assert m.wait('user: SETTINGS_REVISION_CHANGED',changed,15),'solid save'
         def solid_frame(w,h,rgb):
-            return color_at(rgb,w,w-240,h-28)==bytes.fromhex('25262b') and color_at(rgb,w,x+500,y-1)==bytes.fromhex('45474f')
+            return color_at(rgb,w,w-240,h-28)==bytes.fromhex('25262b') and color_at(rgb,w,x+500,y-1)==bytes.fromhex('25262b')
         width,height,rgb=frame('materials-disabled',solid_frame)
-        assert color_at(rgb,width,x+2,y+2)!=bytes.fromhex('202125'),'solid inner corner changed'
+        assert color_at(rgb,width,x+204,y+12)!=bytes.fromhex('202125'),'solid inset corner changed'
         assert color_at(rgb,width,x+230,y+14)==bytes.fromhex('202125'),'solid content layout changed'
         click(x+548,y+249) # Restore transparency; blur is still selected.
         changed=len(m.log());click(x+274,y+438)
@@ -208,7 +208,7 @@ def main():
         # Move beyond the underlying terminal so a blank detail pixel samples
         # wallpaper instead of an identical solid terminal background.
         (cx,cy),_=observer.position();monitor_command(monitor,f'mouse_move {x+280-cx} {y-22-cy}')
-        profile.monitor_text(monitor,'mouse_button 1');monitor_command(monitor,'mouse_move 100 0');profile.monitor_text(monitor,'mouse_button 0');x+=100
+        monitor_command(monitor,'mouse_button 1');monitor_command(monitor,'mouse_move 100 0');monitor_command(monitor,'mouse_button 0');x+=100
         frame('whole-background',lambda w,h,rgb:color_at(rgb,w,x+580,y+100)!=bytes.fromhex('202125') and max(color_at(rgb,w,x+580,y+100))<160)
         print('PASS whole-app background over wallpaper with opaque controls',flush=True)
         monitor_command(monitor,'mouse_button 1')

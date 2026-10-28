@@ -4,6 +4,22 @@ namespace Zenith.Tests;
 public class MaterialPolicyTests
 {
     [Fact]
+    public void FullViewportBlurUsesBoundedSampledWorkAndCache()
+    {
+        var policy = new MaterialPolicy(); policy.Begin(7);
+        int samples = MaterialComposition.SampleLength(1920,4)*MaterialComposition.SampleLength(1000,4);
+        Assert.Equal(2,policy.Effect(2,0xff25262b,0xfff1f2f4,0xffb4b7c0,samples));
+        Assert.Equal(2,policy.Effect(2,0xff25262b,0xfff1f2f4,0xffb4b7c0,samples));
+        int before = MaterialResources.UsedBytes;
+        using(var cache = new MaterialCache(1920000))
+        {
+            Assert.True(cache.Ensure(samples,true,4));
+            Assert.Equal(before+samples*12,MaterialResources.UsedBytes);
+        }
+        Assert.Equal(before,MaterialResources.UsedBytes);
+    }
+
+    [Fact]
     public void PreferencesFallbackBudgetsAndContrastRemainDistinct()
     {
         var p = new MaterialPolicy();p.Begin(2);Assert.Equal(0U, p.Effective);Assert.Equal(1U, p.Reason);

@@ -75,17 +75,18 @@ internal sealed class MaterialCache : IDisposable
 {
     private readonly int _capacity;
     private bool _disposed, _blur;
+    private int _sampleScale = 1;
     private int _allocated, _bytes;
     public MaterialComposition Composition { get; private set; } = new(0);
     public MaterialCache(int capacity) { _capacity = capacity; }
     public bool Ensure() => Ensure(_capacity, true);
-    public bool Ensure(int pixels, bool blur)
+    public bool Ensure(int pixels, bool blur, int sampleScale = 1)
     {
-        if (_disposed || pixels < 1 || pixels > _capacity) { return false; }
-        if (_allocated >= pixels && (!blur || _blur)) { return true; }
+        if (_disposed || pixels < 1 || pixels > _capacity || sampleScale is not (1 or 4)) { return false; }
+        if (_allocated >= pixels && (!blur || _blur) && _sampleScale == sampleScale) { return true; }
         int bytes = pixels * (blur ? 12 : 4);
         if (!MaterialResources.ReserveBytes(bytes - _bytes)) { MaterialResources.Policy.ResourceFallback(); return false; }
-        Composition = new(pixels, blur); _allocated = pixels; _blur = blur; _bytes = bytes; return true;
+        Composition = new(pixels, blur, sampleScale); _sampleScale = sampleScale; _allocated = pixels; _blur = blur; _bytes = bytes; return true;
     }
     public void Dispose()
     {
