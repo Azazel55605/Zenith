@@ -1,5 +1,7 @@
 import importlib.util
 import io
+import json
+import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
@@ -19,6 +21,20 @@ def frame(rect=None, public=True):
     stream=io.BytesIO();image.save(stream,format='PPM');return stream.getvalue()
 
 class TerminalTests(unittest.TestCase):
+    def test_unavailable_registry_records_only_vm_identity_without_typing(self):
+        for count in (0,2):
+            with tempfile.TemporaryDirectory() as directory:
+                path=Path(directory)/'monitor.sock'
+                machines=[SimpleNamespace(directory=path.parent/'desktop',process=SimpleNamespace(pid=123,poll=lambda:None)) for _ in range(count)]
+                login=SimpleNamespace(monitor_type=Mock());original=login.monitor_type
+                policy=SimpleNamespace(RenderedMouse=Mock(),monitor_text=Mock())
+                terminal.install(login,machines,policy)
+                with self.assertRaisesRegex(RuntimeError,'registered='+str(count)):
+                    login.monitor_type(path,'sh /root/u\n')
+                report=json.loads(path.with_name('terminal-handoff.json').read_text())
+                self.assertEqual(count,report['matches']);self.assertEqual(count,len(report['registered']))
+                original.assert_not_called();policy.RenderedMouse.assert_not_called()
+
     def test_requires_a_real_two_pixel_caret_blink(self):
         plain=frame();caret=frame((50,70,51,87))
         self.assertTrue(terminal.caret_changed(plain,caret))

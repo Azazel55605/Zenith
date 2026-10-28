@@ -5,6 +5,7 @@ public shell prompt before known public fixture commands. Never repeat a command
 submit credentials, or change the application's result assertions.
 """
 import re
+import json
 import time
 from pathlib import Path
 
@@ -65,7 +66,21 @@ def install(login, machines, policy):
             matches = [machine for machine in machines
                        if machine.directory.parent / 'monitor.sock' == Path(path)
                        and (not hasattr(machine,'process') or machine.process.poll() is None)]
-            if len(matches) != 1: raise RuntimeError('Settings Terminal handoff VM unavailable')
+            if len(matches) != 1:
+                rows = []
+                for candidate in machines:
+                    process = getattr(candidate, 'process', None)
+                    rows.append(dict(directory=str(candidate.directory),
+                                     pid=getattr(process, 'pid', None),
+                                     exit=process.poll() if process is not None else None,
+                                     requested_monitor=getattr(candidate, '_validation_requested_monitor', None),
+                                     expected_monitor=str(candidate.directory.parent/'monitor.sock')))
+                helper=getattr(getattr(login,'h',None),'__file__',None)
+                report = dict(monitor=str(path), registered=rows, matches=len(matches), login_headless_source=helper, observation_only=True)
+                print('Settings Terminal VM registry: '+json.dumps(report), flush=True)
+                try: Path(path).with_name('terminal-handoff.json').write_text(json.dumps(report,indent=2)+'\n')
+                except OSError: pass
+                raise RuntimeError('Settings Terminal handoff VM unavailable; registered='+str(len(rows))+'; matches='+str(len(matches)))
             machine = matches[0]
             raw = machine.log()
             offset = raw.rfind('graphics: native surface opened ')

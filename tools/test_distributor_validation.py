@@ -108,6 +108,26 @@ class ValidationTests(unittest.TestCase):
         self.assertEqual(self.source.read_bytes(), self.destination.read_bytes())
         self.assertLess(self.destination.stat().st_blocks * 512, self.destination.stat().st_size // 4)
 
+    def test_settings_registry_in_separate_tagged_checkout_selects_only_live_desktop(self):
+        helper=self.root/'headless-smoke.py'
+        helper.write_text("from types import SimpleNamespace\nclass Machine:\n"
+            " def __init__(self,directory,code=None,monitor=None): self.directory=directory;self.process=SimpleNamespace(poll=lambda:code)\n"
+            " def wait(self,marker,offset=0,timeout=180): return True\n"
+            " def send(self,text): raise AssertionError('unexpected input')\n"
+            " def log(self):\n  assert self.directory.name=='desktop'\n  raise LookupError('selected-live-desktop')\n"
+            " def stop(self): pass\n")
+        (self.root/'login-session-smoke.py').write_text("def monitor_type(*args): raise AssertionError('unexpected input')\n")
+        harness=self.root/'native-settings-smoke.py'
+        harness.write_text("import importlib.util,sys\nfrom pathlib import Path\n"
+            "def load(name,path):\n s=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(s);s.loader.exec_module(m);return m\n"
+            "root=Path(__file__).parent;h=load('headless',root/'headless-smoke.py');login=load('login',root/'login-session-smoke.py')\n"
+            "keep=Path(sys.argv[1]);monitor=keep/'monitor.sock'\n"
+            "h.Machine(keep/'live',0);h.Machine(keep/'setup',0);h.Machine(keep/'desktop',monitor=monitor)\n"
+            "try:login.monitor_type(monitor,'sh /root/u\\n')\n"
+            "except LookupError as e:assert str(e)=='selected-live-desktop'\n"
+            "else:raise AssertionError('selector was bypassed')\n")
+        subprocess.run([sys.executable,'-B',str(ROOT/'deploy/distributor/validation-runner.py'),str(harness),str(self.root/'keep')],check=True)
+
     def test_tagged_input_helper_uses_current_controller_policy(self):
         helper=self.root/'validation-input.py'
         helper.write_text("class RenderedMouse: pass\ndef install_monitor(module): raise RuntimeError('old helper')\ndef install(machine): pass\n")

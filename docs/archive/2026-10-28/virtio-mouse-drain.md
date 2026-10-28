@@ -136,3 +136,26 @@ binary rather than relying on the exploratory build.
 A successor kernel release is ready for publication approval. Existing 0.0.27 is
 unchanged. Distributor and installed acceptance, including sustained wheel/drag
 behavior, remain pending; local success does not certify those environments.
+
+## 0.0.28 distributor controller follow-up
+
+Tag `kernel/v0.0.28` was pushed at qualified source `5306703`. The distributor
+selected three native workers and started Settings and login concurrently.
+Settings failed at its first public `sh /root/u` handoff (224.611 seconds), before
+typing or launching Settings: the controller's live-VM selector returned a count
+other than one. The original error did not distinguish zero from ambiguity.
+
+The active workspace was still present while the login sibling continued; it had
+not yet been moved to the retained build path. The desktop log reached readiness
+and continued timer/scheduler ticks. QEMU reported termination by its Python
+harness, consistent with cleanup after this controller exception. No mouse
+acknowledgement assertion ran in this failure. The exact registry cause is still
+unknown; these logs do not establish a kernel, mouse or parallel-resource fault.
+
+The controller now records only VM identities, requested/inferred monitor paths,
+PIDs/exit states, helper source and match count in `terminal-handoff.json` and the
+phase log on selection failure. It still refuses typing on zero/ambiguous matches.
+A separate-checkout integration regression exercises live/setup shutdown followed
+by the live desktop. Focused replay must cover the fresh registry lifecycle: a
+prepared-only replay omits the preceding tracked live/setup instances. Existing
+kernel artifacts and the immutable release tag are preserved.

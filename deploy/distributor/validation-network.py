@@ -38,7 +38,9 @@ def wait(machine, marker, offset, timeout, original):
 def install(machine_type, instances):
     initialize, original_wait = machine_type.__init__, machine_type.wait
     def initialize_tracked(self, *args, **kwargs):
-        initialize(self, *args, **kwargs); instances.append(self)
+        initialize(self, *args, **kwargs)
+        self._validation_requested_monitor = str(kwargs['monitor']) if kwargs.get('monitor') is not None else None
+        instances.append(self)
     def checked_wait(self, marker, offset=0, timeout=180):
         return wait(self, marker, offset, timeout, original_wait)
     machine_type.__init__ = initialize_tracked
