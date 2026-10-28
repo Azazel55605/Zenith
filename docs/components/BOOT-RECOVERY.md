@@ -22,8 +22,9 @@ or automatic failed-boot fallback.
   identified hardware before claiming physical install support.
 - [x] Reproduce a stranded virtio-mouse queue with the server ELF/QEMU version;
   implement bounded IRQ-scoped periodic polling in copied dependencies.
-  [Candidate evidence](../archive/2026-10-28/virtio-mouse-drain.md); Q2 owns full
-  clean-source, distributor and installed confirmation.
+  [Qualified evidence](../archive/2026-10-28/virtio-mouse-drain.md): clean source
+  `5306703` passes all ten native gates and the exact QEMU 10 restricted-CPU
+  reproducer. Q2 owns publication, distributor and installed confirmation.
 - [ ] Investigate driver-specific relative/absolute pointer, hardware cursor and
   damage presentation work from measured failures/performance.
 

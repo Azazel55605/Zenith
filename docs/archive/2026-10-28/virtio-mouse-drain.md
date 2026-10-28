@@ -88,3 +88,51 @@ Evidence is retained under ignored `obj/maximize-input-qemu10*` and
 release qualification before any new kernel tag. Distributor and installed-VM
 acceptance remain separate; physical/PS2 behavior and the earlier installed
 wheel/drag freeze are not certified by this virtio-specific reproduction.
+
+## Clean-source release qualification
+
+Clean source commit `5306703` passed fresh unsigned acceptance with:
+
+```sh
+PATH="$PATH:/home/azazel/.dotnet/tools:/usr/sbin:/sbin" \
+ZENITH_VALIDATION_ACCELERATOR=tcg ZENITH_NATIVE_JOBS=4 \
+python3 -B deploy/distributor/validate.py --keep obj/mouse-poll-qualified-5306703
+```
+
+322 controller tests, 782 host tests and eight real runtime-adapter tests passed.
+All ten native gates ran fresh and passed; no receipt was reused:
+
+| Gate | Seconds |
+|---|---:|
+| Login/session | 224.507 |
+| Settings | 285.135 |
+| Network | 281.334 |
+| Online repository | 435.208 |
+| CLI | 248.508 |
+| Graphical clients | 155.467 |
+| Materials | 84.437 |
+| System app styling | 38.218 |
+| Kernel update/recovery | 681.124 |
+| Native processes/terminal streams | 765.966 |
+
+Independent gates overlapped; these durations must not be summed as elapsed wall
+time. Kernel update completed all 169 checks, repository all 94, network all 72,
+CLI all 100, and native processes retained all 64 exact byte-stream repetitions.
+The fresh Settings gate included wheel, resize, public/hidden handoff, independent
+package upgrade, reboot persistence and the ext2 audit.
+
+Artifacts qualified at this source commit:
+
+- ELF SHA256: `5fc6d12aa26a2acf23b859a8fe2fe0c29171f287c7911611e1b1cdd36659477b`
+- ISO SHA256: `7b7b6965a58dabe95b71e9ed3dc28525ee639a2f51b702515b7fff35987c6290`
+
+The same clean ELF and a separate copy of the completed desktop fixture also
+passed twenty exact maximize/restore cycles under QEMU 10.0.13 and a 0.5 CPU quota
+in 185.039 seconds (`obj/mouse-poll-clean-qemu10/result.json`). All 80 button commands
+completed, without coordinate correction or click replay. The original fixture
+was preserved. This repeats the device-specific regression on the actual qualified
+binary rather than relying on the exploratory build.
+
+A successor kernel release is ready for publication approval. Existing 0.0.27 is
+unchanged. Distributor and installed acceptance, including sustained wheel/drag
+behavior, remain pending; local success does not certify those environments.
