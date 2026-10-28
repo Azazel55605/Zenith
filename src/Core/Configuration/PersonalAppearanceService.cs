@@ -25,6 +25,7 @@ internal sealed class PersonalAppearanceService
     private readonly IPersonalAppearanceStore _store;
     private readonly object _gate = new();
     private readonly Dictionary<uint, Profile> _profiles = new();
+    private readonly HashSet<uint> _displayFailures = new();
     public PersonalAppearanceService(AppearanceService system, IPersonalAppearanceStore store) { _system = system; _store = store; }
     public bool Available(uint uid) => _store.Available(uid);
     private Profile Load(uint uid, AppearanceState system)
@@ -40,7 +41,9 @@ internal sealed class PersonalAppearanceService
         lock (_gate)
         {
             var system = _system.Snapshot();
-            if (!Available(uid)) { return new(system.Saved, system.Active, true, system, false); }
+            // Loaded profiles are boot-local data, not authorization grants. Native entry
+            // points and every save still validate the captured account identity.
+            if (!_profiles.ContainsKey(uid) && !Available(uid)) { return new(system.Saved, system.Active, true, system, false); }
             var p = Load(uid, system);
             if (p.Own is null && p.Defaults != system.Saved.Revision)
             { if (p.Revision == ulong.MaxValue) { throw new InvalidOperationException("personal revision exhausted"); } p.Revision++; p.Defaults = system.Saved.Revision; }
@@ -49,8 +52,18 @@ internal sealed class PersonalAppearanceService
     }
     public PersonalAppearanceState ForDisplay(uint uid)
     {
-        try { return Snapshot(uid); }
-        catch { var system = _system.Snapshot(); return new(system.Saved, system.Active, true, system, false); }
+        lock (_gate)
+        {
+            if (!_displayFailures.Contains(uid))
+            {
+                try { return Snapshot(uid); }
+                catch { _displayFailures.Add(uid); }
+            }
+            // A malformed/protected record must not trigger filesystem work on
+            // every frame. Explicit service saves or a reboot permit another load.
+            var system = _system.Snapshot();
+            return new(system.Saved, system.Active, true, system, false);
+        }
     }
     public int Save(uint uid, uint mode, uint accent, uint materials, uint level, ulong revision, bool inherit = false)
     {
@@ -68,7 +81,7 @@ internal sealed class PersonalAppearanceService
                 if (old is not null && old.Trim() != "VERSION=1\nINHERIT=1") { _ = AppearanceService.Parse(old); }
                 _store.Replace(uid, inherit ? "VERSION=1\nINHERIT=1\n" : AppearanceService.Serialize(mode, accent, materials, level));
                 p.Own = inherit ? null : new(mode, accent, p.Revision + 1, materials, level);
-                p.Defaults = state.System.Saved.Revision; p.Revision++; return 0;
+                p.Defaults = state.System.Saved.Revision; p.Revision++; _displayFailures.Remove(uid); return 0;
             }
             catch { return -5; }
         }

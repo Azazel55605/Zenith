@@ -26,3 +26,11 @@ An initial native permission assertion exposed the recovery builtin cat returnin
 success after reporting permission denied. No profile bytes were disclosed. The
 fixture now checks the native filesystem open result (-EACCES) directly and requires
 its explicit acknowledgement; it does not infer permissions from that builtin's status.
+
+Review also found account-file reads in each non-root desktop appearance poll.
+Loaded profile snapshots now stay in memory; actual native admission and every
+save still validate identity. Failed display loads use a boot-local fallback cache
+instead of retrying malformed files each frame. Regression loops assert no account
+or filesystem reads across 200 display polls, including malformed fallback. Explicit
+successful service saves clear that failure cache; direct root file edits require
+restart/reload through the normal boot route.

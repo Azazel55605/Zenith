@@ -11,10 +11,41 @@ public class PersonalAppearanceTests
     { public string? Text;public bool Persistent=>true;public string? Read(string path)=>Text;public void Replace(string path,string text){Text=text;} }
     private sealed class Store : IPersonalAppearanceStore
     {
-        public readonly Dictionary<uint,string> Files=new();public bool Fail;public bool Persistent=>true;
-        public bool Available(uint uid)=>uid is 0 or 1000 or 1001;
-        public string? Read(uint uid)=>Files.GetValueOrDefault(uid);
+        public readonly Dictionary<uint,string> Files=new();public bool Fail;public int AvailabilityReads, FileReads;public bool Persistent=>true;
+        public bool Available(uint uid){AvailabilityReads++;return uid is 0 or 1000 or 1001;}
+        public string? Read(uint uid){FileReads++;return Files.GetValueOrDefault(uid);}
         public void Replace(uint uid,string text){if(Fail)throw new InvalidOperationException();Files[uid]=text;}
+    }
+    [Fact]
+    public void DisplayPollingUsesLoadedProfilesWithoutAccountOrFilesystemReads()
+    {
+        var store = new Store();
+        var defaults = new AppearanceService(new Defaults());
+        defaults.Load();
+        var service = new PersonalAppearanceService(defaults, store);
+        service.ForDisplay(1000);
+        int accounts = store.AvailabilityReads, reads = store.FileReads;
+        using (CredentialContext.Enter(Credentials.Root)) { Assert.Equal(0, defaults.Save(1, 2, 1)); }
+        for (int i = 0; i < 200; i++) { Assert.Equal(1U, service.ForDisplay(1000).Saved.Mode); }
+        Assert.Equal(accounts, store.AvailabilityReads);
+        Assert.Equal(reads, store.FileReads);
+        Assert.Equal(0, service.Save(1000, 0, 1, 0, 40, service.Snapshot(1000).Saved.Revision));
+        Assert.True(store.AvailabilityReads > accounts);
+    }
+    [Fact]
+    public void MalformedDisplayFallbackDoesNotRetryDiskOnEveryFrame()
+    {
+        var store = new Store();
+        store.Files[1000] = "VERSION=999\n";
+        var defaults = new AppearanceService(new Defaults());
+        defaults.Load();
+        var service = new PersonalAppearanceService(defaults, store);
+        Assert.True(service.ForDisplay(1000).Inherited);
+        int reads = store.FileReads;
+        for (int i = 0; i < 200; i++) { Assert.True(service.ForDisplay(1000).Inherited); }
+        Assert.Equal(reads, store.FileReads);
+        Assert.Equal(-5, service.Save(1000, 0, 0, 0, 40, 1));
+        Assert.Equal("VERSION=999\n", store.Files[1000]);
     }
     [Fact]
     public void SavedPersonalProfileIsPendingUntilThatIdentityOwnsTheDisplay()
