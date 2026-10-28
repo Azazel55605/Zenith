@@ -169,3 +169,24 @@ showed an empty mouse receive queue, not the earlier stranded queue. That separa
 launcher/input readiness failure is retained in `obj/028-registry-fresh` and must
 not be described as a complete passing stress run. Its cause is not established.
 The controller-only suite passes 324 tests after the diagnostic additions.
+
+### Operator focused pass — 2026-10-29
+
+The operator ran the current controller against the immutable 0.0.28 harness and
+existing kernel artifacts, with a fresh disposable install/setup/desktop/reboot
+lifecycle under TCG. The entire single Settings gate passed in 671.370 seconds.
+Evidence path: `/var/tmp/zn-registry-JOKcXM/replay`. The supplied log includes:
+
+- The first public Terminal prompt and all subsequent public/hidden handoffs.
+- Appearance/material controls, wheel, maximize/restore and released drag input.
+- Shared defaults, personal inheritance/isolation and permission checks.
+- Independent package upgrade and both shell/start-menu Welcome/System launches.
+- Reboot-persisted preferences, clean shutdown and independent ext2 audit.
+
+No VM-registry failure diagnostic was emitted because selection succeeded. This
+establishes an operator-confirmed standalone Settings pass, not a root cause or
+repair of the earlier registry error, nor a passing parallel release matrix.
+The next boundary is a normal retry of unchanged `kernel/v0.0.28` with the current
+controller. Do not skip Settings, edit a receipt or mark the dashboard green from
+this standalone result. Keep the local quota-limited launcher failure and installed
+wheel/drag verification open until independently resolved.
