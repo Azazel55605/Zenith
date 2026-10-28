@@ -9,8 +9,12 @@ from PIL import Image, ImageDraw
 spec=importlib.util.spec_from_file_location('validation_terminal',Path(__file__).resolve().parents[1]/'deploy/distributor/validation-terminal.py')
 terminal=importlib.util.module_from_spec(spec);spec.loader.exec_module(terminal)
 
-def frame(rect=None):
+def frame(rect=None, public=True):
     image=Image.new('RGB',(300,200),(40,40,40))
+    if public:
+        draw=ImageDraw.Draw(image)
+        draw.rectangle((5,74,42,78),fill=(90,180,130))
+        draw.rectangle((44,76,46,78),fill=(100,130,220))
     if rect:ImageDraw.Draw(image).rectangle(rect,fill=(90,180,130))
     stream=io.BytesIO();image.save(stream,format='PPM');return stream.getvalue()
 
@@ -44,17 +48,18 @@ class TerminalTests(unittest.TestCase):
         policy.monitor_text.assert_not_called()
     def test_other_public_commands_and_all_credentials_are_untouched(self):
         path,machine,login,original,observer,policy=self.setup_hook()
-        for text in ('passwd root\n','a-secret\n','settings show\n','root\t','sh /root/later\n'):
+        for text in ('login root\n','a-secret\n','settings show\n','root\t','sh /root/later\n'):
             login.monitor_type(path,text)
         self.assertEqual(original.call_count,5);machine.wait.assert_not_called();observer.capture.assert_not_called()
     def test_unretired_native_surface_never_dispatches(self):
         path,machine,login,original,observer,policy=self.setup_hook(retired=False)
         with self.assertRaises(RuntimeError):login.monitor_type(path,'sh /root/o\n')
         original.assert_not_called();observer.capture.assert_not_called()
-    def test_first_launch_and_repeated_shell_commands_do_not_wait_for_nonexistent_exits(self):
+    def test_first_launch_waits_for_public_prompt_without_nonexistent_retirement(self):
         path,machine,login,original,observer,policy=self.setup_hook(log='desktop ready')
-        login.monitor_type(path,'sh /root/u\n')
-        machine.wait.assert_not_called();observer.capture.assert_not_called()
+        with patch.object(terminal.time,'sleep'):
+            login.monitor_type(path,'sh /root/u\n')
+        machine.wait.assert_not_called();self.assertEqual(3,observer.capture.call_count)
         original.assert_called_once_with(path,'sh /root/u\n')
     def test_every_new_page_exit_is_observed_even_for_repeated_same_script(self):
         path,machine,login,original,observer,policy=self.setup_hook()
@@ -67,6 +72,7 @@ class TerminalTests(unittest.TestCase):
                 self.assertEqual(index+1,machine.wait.call_count)
                 # Same native lifecycle is already acknowledged; a following
                 # shell-only command must not require another retirement.
+                observer.capture.side_effect=[frame(),frame((50,70,51,87))]
                 login.monitor_type(path,'sh /root/v\n')
                 self.assertEqual(index+1,machine.wait.call_count)
         self.assertEqual(10,original.call_count)
@@ -85,7 +91,42 @@ class TerminalTests(unittest.TestCase):
         path,machine,login,original,observer,policy=self.setup_hook()
         observer.capture.side_effect=None;observer.capture.return_value=frame((50,70,51,87))
         with patch.object(terminal.time,'sleep'),patch.object(terminal.time,'monotonic',side_effect=[0,16]):
-            with self.assertRaisesRegex(RuntimeError,'caret'):login.monitor_type(path,'sh /root/l\n')
+            with self.assertRaisesRegex(RuntimeError,'prompt'):login.monitor_type(path,'sh /root/l\n')
         original.assert_not_called()
+
+    def test_password_caret_without_public_prompt_never_dispatches_cancel_probe(self):
+        path,machine,login,original,observer,policy=self.setup_hook()
+        # A real caret blink while the hidden prompt remains active must fail.
+        observer.capture.side_effect=[frame(public=False),frame((50,70,51,87),public=False)]
+        with patch.object(terminal.time,'sleep'),patch.object(terminal.time,'monotonic',side_effect=[0,16]):
+            with self.assertRaisesRegex(RuntimeError,'Public Terminal prompt'):
+                login.monitor_type(path,'echo S_SECRET_CANCELLED | logger\n')
+        original.assert_not_called()
+    def test_cancellation_waits_through_hidden_caret_until_public_prompt_returns(self):
+        path,machine,login,original,observer,policy=self.setup_hook()
+        observer.capture.side_effect=[frame(public=False),frame((50,70,51,87),public=False),frame(),frame((50,70,51,87))]
+        with patch.object(terminal.time,'sleep'):
+            login.monitor_type(path,'echo S_SECRET_CANCELLED | logger\n')
+        self.assertEqual(4,observer.capture.call_count)
+        original.assert_called_once_with(path,'echo S_SECRET_CANCELLED | logger\n')
+    def test_known_passwd_command_waits_but_credentials_are_never_observed(self):
+        path,machine,login,original,observer,policy=self.setup_hook()
+        with patch.object(terminal.time,'sleep'):login.monitor_type(path,'passwd root\n')
+        self.assertEqual(3,observer.capture.call_count)
+        observer.capture.reset_mock();login.monitor_type(path,'private-value\n')
+        observer.capture.assert_not_called()
+        self.assertEqual(2,original.call_count)
+    def test_public_prompt_requires_same_row_ordered_green_host_and_blue_cwd(self):
+        box=(50,70,52,88)
+        self.assertTrue(terminal.public_prompt(frame(),box))
+        self.assertFalse(terminal.public_prompt(frame(public=False),box))
+        self.assertFalse(terminal.public_prompt(frame(),(50,100,52,118)))
+        # Neutral password text, green text alone, or blue before green cannot
+        # be mistaken for the public fixture prompt.
+        for host,cwd in (((150,150,150),(180,180,180)),((90,180,130),(150,150,150)),((100,130,220),(90,180,130))):
+            image=Image.new('RGB',(300,200),(40,40,40));draw=ImageDraw.Draw(image)
+            draw.rectangle((5,74,42,78),fill=host);draw.rectangle((44,76,46,78),fill=cwd)
+            stream=io.BytesIO();image.save(stream,format='PPM')
+            self.assertFalse(terminal.public_prompt(stream.getvalue(),box))
 
 if __name__=='__main__':unittest.main()

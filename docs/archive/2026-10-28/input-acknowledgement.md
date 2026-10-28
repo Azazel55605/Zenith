@@ -37,18 +37,24 @@ closing the keyboard page. The supplied tail shows retirement and a new thread,
 but no S_SHARED result; command truncation at this second failure is not yet
 confirmed by a framebuffer. The remaining exits had the same unsafe precondition.
 
-The controller now observes each native-window lifecycle before public fixture
-script launches (`sh /root/` plus a one-letter fixture name):
-wait for the native retirement log, then observe a rendered focused Terminal caret
-blink before injecting the command once. The blink must change exactly a solid
-2-pixel-wide, 8–32-pixel-tall rectangle; static, incomplete and frozen frames fail.
-No key or application command is repeated. Credential/password typing is untouched,
-and each native lifecycle is acknowledged once. The first launch and consecutive
-shell-only commands skip the observation; keyboard/time-zone/session/Meridian and
-launcher exits each establish a new handoff. A new native window appearing during
-observation fails before typing. This closes an
-unsafe test precondition; it does not prove the underlying mouse/device issue or
-the separately reported installed wheel/drag freeze is fixed.
+The controller now observes a rendered public shell prompt before every known
+Terminal fixture command: the one-letter `/root` scripts, the `passwd root`
+command that opens the test's hidden prompt, and its public cancellation probe.
+Each new native-window lifecycle must also retire before typing. The observation
+requires a genuine 2-pixel-wide, 8–32-pixel-tall caret blink and the public prompt's
+ANSI green user/host followed by blue cwd on that same row immediately to its left.
+Color dominance tolerates antialiased text on solid or material backgrounds in
+both appearance modes. The neutral hidden-password prompt, previous scrollback
+rows, static cursors and frozen screens cannot acknowledge public readiness.
+
+The first launch and consecutive shell commands now check public readiness too;
+only the already completed native-retirement check is reused. A newly opened
+native window during observation fails before typing. Every command is dispatched
+once; no click, mutation, credential or key sequence is repeated. Actual credential
+entry and in-app text editing are outside this hook. Tagged application result,
+material, security and filesystem assertions remain unchanged. This establishes
+an explicit test precondition; it does not establish a fix for the separate
+installed rapid-wheel/drag freeze or underlying mouse/device issue.
 
 ## Validation and replay
 
@@ -78,3 +84,42 @@ setup fixture and runs the tagged Settings gate with current controller policy.
 It skips kernel compilation and OS installation; the tagged harness may prepare
 client packages. Original disks are preserved. Distributor and installed confirmation
 remain pending; no local result substitutes for them.
+
+### Hidden-read cancellation evidence
+
+The next operator replay (`/var/tmp/zn-settings-glspqrmo/replay`) passed native
+retirement and S_LEVEL but stopped at S_SECRET_CANCELLED before shared selectors.
+Only the main thread remained; samples caught material painting/shadows. The
+copied final screen confirms the intended `echo S_SECRET_CANCELLED | logger`
+was truncated to `ho S_SECRET_CANCELLED | logger`; Terminal reported
+`sh: ho: command not found` and returned to its prompt. Ctrl+C had cancelled the
+hidden read, but the public command began before input cleanup had completed.
+
+Terminal deliberately clears input/type-ahead on both sides of hidden reads.
+Its worker clears the secret flag asynchronously; the next GUI update clears
+prepared input and completes the visible prompt transition. A fixed half-second
+sleep is not acknowledgement of that boundary. Caret blinking alone is also
+insufficient because a waiting password prompt has a caret. This evidence led to
+the public-prompt check above, covering ordinary command completion and secret
+cancellation as well as native-window focus restoration.
+
+The follow-up controller suite passed all 304 regressions, including a blinking
+hidden-prompt rejection, delayed public-prompt recovery, same-row/color ordering,
+untouched credential entry, frozen failure and one-time command dispatch. Server
+confirmation of the strengthened readiness protocol remains pending.
+
+Local verification of the public-prompt protocol on the exact server ELF:
+
+- Complete prepared Settings replay passed in 155.451 seconds, including hidden
+  cancellation, shared selectors, package upgrade, rapid wheel, launcher lifetimes,
+  reboot persistence and independent ext2 audit. Original disks were preserved.
+- A separate live negative control held `passwd root` at its hidden prompt. A real
+  blinking caret did not admit the public command: the observer timed out without
+  sending credentials or that command. After one explicit Ctrl+C, it observed
+  the public prompt, dispatched the command once and received S_SECRET_CANCELLED.
+- The inspected failure image independently classifies its returned shell prompt
+  as public and its earlier neutral password prompt as non-public.
+
+Evidence is retained under ignored `obj/server-027-public-prompt` and
+`obj/server-027-secret-negative`; source control contains the controller policy
+and regression cases. This is local exact-binary evidence, not server acceptance.
