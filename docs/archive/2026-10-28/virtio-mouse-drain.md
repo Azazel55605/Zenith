@@ -159,3 +159,13 @@ A separate-checkout integration regression exercises live/setup shutdown followe
 by the live desktop. Focused replay must cover the fresh registry lifecycle: a
 prepared-only replay omits the preceding tracked live/setup instances. Existing
 kernel artifacts and the immutable release tag are preserved.
+
+A fresh local run using exported immutable 0.0.28 sources in a separate checkout,
+the exact qualified ELF/ISO, and QEMU 10.0.13 at 0.5 CPU did not reproduce the
+registry failure. It passed first launch, all subsequent public/hidden handoffs,
+shared/personal settings, wheel and maximize/restore, then failed later at the
+second start-menu application's retirement (377.638 seconds). Read-only capture
+showed an empty mouse receive queue, not the earlier stranded queue. That separate
+launcher/input readiness failure is retained in `obj/028-registry-fresh` and must
+not be described as a complete passing stress run. Its cause is not established.
+The controller-only suite passes 324 tests after the diagnostic additions.
