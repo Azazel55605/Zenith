@@ -138,12 +138,14 @@ def main():
             for row_y in range(height):
                 row=rgb[row_y*w*3:(row_y+1)*w*3];i=row.find(needle)
                 if i<0 or i%3:continue
-                left,top=i//3-24,row_y-194
-                if left<0 or top<0 or left+600>w or top+480>height:continue
-                def pixel(x,y):
-                    at=((top+y)*w+left+x)*3;return rgb[at:at+3]
-                if pixel(2,2)==color and all(pixel(40+44*j,192)==bytes.fromhex(c) for j,c in enumerate(colors)):
-                    geometry[:]=[left,top];return True
+                left=i//3-24
+                if left<0 or left+600>w:continue
+                for top in range(max(0,row_y-216),row_y-183):
+                    if top+480>height:continue
+                    def pixel(x,y):
+                        at=((top+y)*w+left+x)*3;return rgb[at:at+3]
+                    if pixel(2,2)==color and pixel(40,183)==color and pixel(40,184)==blue and all(pixel(40+44*j,192)==bytes.fromhex(c) for j,c in enumerate(colors)):
+                        geometry[:]=[left,top];return True
             return False
         frame('dark',locate);x,y=geometry
         def color_at(rgb,w,px,py):return rgb[(py*w+px)*3:(py*w+px)*3+3]
@@ -165,7 +167,12 @@ def main():
         print('PASS chrome close intent and Keep editing',flush=True)
         changed=len(m.log());click(x+90,y+438) # Save now.
         assert m.wait('user: SETTINGS_REVISION_CHANGED',changed,15),'GUI save did not complete'
-        frame('saved',background('202125'));print('PASS GUI save',flush=True)
+        width,height,rgb=frame('saved',background('202125'));print('PASS GUI save',flush=True)
+        # Rectangular client row-copy must not leak into the rounded bottom
+        # corners. Their backdrop must differ from the solid body immediately in.
+        assert color_at(rgb,width,x,y+479)!=bytes.fromhex('202125'),'bottom-left rectangular bleed'
+        assert color_at(rgb,width,x+599,y+479)!=bytes.fromhex('202125'),'bottom-right rectangular bleed'
+        print('PASS completed native window corner mask',flush=True)
         done=len(m.log());monitor_command(monitor,'sendkey esc 30')
         assert m.wait('user: S_UI=0',done,30),'clean close and shell return'
         def desktop_script(name,marker,timeout=60):
@@ -189,14 +196,16 @@ def main():
         assert m.wait('MERIDIAN_PAGE devices.bluetooth',off,10),'settings search did not open WIP destination'
         def wip_visible(w,h,rgb):
             color=bytes.fromhex('2a2c31');needle=color*552
-            for row_y in range(4,h-52):
+            for row_y in range(8,h-56):
                 row=rgb[row_y*w*3:(row_y+1)*w*3];i=row.find(needle)
                 if i<0 or i%3:continue
-                x,y=i//3,row_y-4
-                # Rounded 552x56 semantic panel: full scanline begins four
-                # pixels below its top. Sample inset edges, outside the text.
-                if all(color_at(rgb,w,x+8,y+dy)==color and color_at(rgb,w,x+543,y+dy)==color for dy in range(56)):
-                    if color_at(rgb,w,x,y)!=color and color_at(rgb,w,x+551,y+55)!=color:return True
+                x=i//3
+                for y in range(max(1,row_y-8),row_y+1):
+                    # Locate the rounded panel's true top, independent of the
+                    # rasterizer's first completely covered edge scanline.
+                    if color_at(rgb,w,x+276,y-1)==color:continue
+                    if all(color_at(rgb,w,x+8,y+dy)==color and color_at(rgb,w,x+543,y+dy)==color for dy in range(56)):
+                        if color_at(rgb,w,x,y)!=color and color_at(rgb,w,x+551,y+55)!=color:return True
             return False
         frame('meridian-wip',wip_visible)
         off=len(m.log());monitor_command(monitor,'sendkey ctrl-q 30')

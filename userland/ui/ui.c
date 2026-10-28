@@ -30,15 +30,29 @@ void zui_fill(struct zui *u,struct zui_rect r,unsigned int c){
     r=intersect(r,u->clip);
     for(int y=r.y;y<r.y+r.h;y++)for(int x=r.x;x<r.x+r.w;x++)u->pixels[y*u->width+x]=c&0xffffff;
 }
+static unsigned int blend(unsigned int bg,unsigned int fg,unsigned int a);
+/* 4x4 subpixel coverage, integer-only for the freestanding no-SSE client.
+ * Only corner pixels need sampling; geometry is symmetric around pixel centers. */
+static unsigned int corner_coverage(int x,int y,int radius){
+    int hits=0,rr=radius*8;
+    for(int sy=1;sy<8;sy+=2)for(int sx=1;sx<8;sx+=2){
+        int dx=rr-(x*8+sx),dy=rr-(y*8+sy);
+        if(dx*dx+dy*dy<=rr*rr)hits++;
+    }
+    return (unsigned int)(hits*255+8)/16;
+}
 void zui_round(struct zui *u,struct zui_rect r,int radius,unsigned int c){
     if(r.w<=0||r.h<=0)return;
     radius=max(0,min(radius,min(r.w,r.h)/2));radius=min(radius,32);
-    struct zui_rect b=intersect(r,u->clip);
+    struct zui_rect b=intersect(r,u->clip);c&=0xffffff;
     for(int y=b.y;y<b.y+b.h;y++)for(int x=b.x;x<b.x+b.w;x++){
         long px=(long)x-r.x,py=(long)y-r.y;
-        long dx=px<radius?radius-1-px:(px>=r.w-radius?px-(r.w-radius):0);
-        long dy=py<radius?radius-1-py:(py>=r.h-radius?py-(r.h-radius):0);
-        if(dx*dx+dy*dy<=(long)radius*radius)u->pixels[y*u->width+x]=c&0xffffff;
+        long cx=px<radius?px:(px>=r.w-radius?r.w-1-px:radius);
+        long cy=py<radius?py:(py>=r.h-radius?r.h-1-py:radius);
+        unsigned int coverage=cx<radius&&cy<radius?corner_coverage((int)cx,(int)cy,radius):255;
+        unsigned int *pixel=&u->pixels[y*u->width+x];
+        if(coverage==255)*pixel=c;
+        else if(coverage)*pixel=blend(*pixel,c,coverage);
     }
 }
 int zui_backdrop_candidate(int role){

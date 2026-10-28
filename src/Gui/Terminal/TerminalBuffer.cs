@@ -7,11 +7,16 @@ namespace Zenith.Gui.Terminal;
 /// <summary>One character cell: the character and its foreground color.</summary>
 internal readonly struct Cell
 {
-    public Cell(char ch, uint color)
+    public Cell(char ch, uint color) : this(ch, color, -2) { }
+    internal Cell(char ch, uint color, int style)
     {
         Char = ch;
         Color = color;
+        _style = style;
     }
+    private readonly int _style;
+    public uint ResolveColor(uint foreground, bool light)
+        => _style == -2 ? Color : _style < 0 ? foreground : TerminalColors.Resolve(_style, light);
 
     public char Char { get; }
     public uint Color { get; }
@@ -108,12 +113,13 @@ internal sealed class TerminalBuffer
         Changed = true;
     }
 
-    private void Put(char c) => Put(new Cell(c, _color));
+    private int Style => _baseColor < 0 ? -1 : _bold && _baseColor < 8 ? _baseColor + 8 : _baseColor;
+    private void Put(char c) => Put(new Cell(c, _color, Style));
 
     private void Put(Cell cell)
     {
         var line = _lines[^1];
-        while (line.Count < _cursor) { line.Add(new Cell(' ', _color)); }
+        while (line.Count < _cursor) { line.Add(new Cell(' ', _color, Style)); }
         if (_cursor < line.Count) { line[_cursor] = cell; } else { line.Add(cell); }
         _cursor++;
     }

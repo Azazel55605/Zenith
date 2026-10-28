@@ -18,15 +18,12 @@ namespace Zenith.Apps;
 internal sealed class EditorWindow : Window
 {
     private const int FontSize = 14;
-    private const int Padding = 8;
-    private const int StatusHeight = 26;
+    private const int Padding = 16;
+    private const int StatusHeight = 36;
+    private const int ToolbarHeight = 52;
     private string HomeDirectory => Zenith.Core.Security.Accounts.Home(Identity);
 
-    private const uint Background = 0xFF161A26;
-    private const uint GutterText = 0xFF4D556B;
-    private const uint CurrentLine = 0x0AFFFFFF;
-    private const uint StatusBar = 0xFF1F2433;
-    private const uint SelectionColor = 0x557C9CFF;
+    private bool _selecting;
 
     private enum Prompt
     {
@@ -80,16 +77,30 @@ internal sealed class EditorWindow : Window
 
     public override void OnMouseDown(int x, int y)
     {
+        _selecting = false;
+        if (y >= 8 && y < 44)
+        {
+            if (_prompt != Prompt.None) { return; }
+            if (x >= 16 && x < 96) { HandleCommand(ConsoleKeyEx.N); }
+            else if (x >= 108 && x < 188) { HandleCommand(ConsoleKeyEx.O); }
+            else if (x >= 200 && x < 300) { HandleCommand(ConsoleKeyEx.S); }
+            _dirty = true;
+            return;
+        }
+        if (y < ToolbarHeight || y >= Content.H - StatusHeight) { return; }
+        _selecting = true;
         _document.ClearSelection();
         MoveToPoint(x, y);
         _document.BeginSelection();   // a drag from here selects; a plain click selects nothing
     }
 
-    public override void OnMouseDrag(int x, int y) => MoveToPoint(x, y);
+    public override void OnMouseDrag(int x, int y) { if (_selecting) { MoveToPoint(x, y); } }
+    public override void OnMouseUp(int x, int y) => _selecting = false;
+    public override void Close() { if (GuardUnsaved("close")) { base.Close(); } }
 
     private void MoveToPoint(int x, int y)
     {
-        int row = _top + (int)Math.Floor((y - Padding) / (double)_lineHeight);
+        int row = _top + (int)Math.Floor((y - ToolbarHeight - Padding) / (double)_lineHeight);
         int column = _left + Math.Max(0, (x - TextX(0) + _cellWidth / 2) / _cellWidth);
         _document.MoveTo(row, column);
         ScrollToCursor();
@@ -246,16 +257,8 @@ internal sealed class EditorWindow : Window
 
                 break;
             case ConsoleKeyEx.Q:
-                if (GuardUnsaved("close"))
-                {
-                    Close();
-                    Zenith.Core.Log.Write("editor", "closed");
-                }
-                else
-                {
-                    Zenith.Core.Log.Write("editor", "close requires discard confirmation");
-                }
-
+                Close();
+                Zenith.Core.Log.Write("editor", IsClosed ? "closed" : "close requires discard confirmation");
                 break;
             case ConsoleKeyEx.Home:
                 _document.MoveToStart();
@@ -418,9 +421,13 @@ internal sealed class EditorWindow : Window
 
     public override void DrawContent(Surface surface, Rect content)
     {
-        surface.FillRect(content, Background);
+        surface.FillRect(content, Theme.WindowBackground);
+        AppStyle.Panel(surface, new Rect(content.X, content.Y, content.W, ToolbarHeight));
+        AppStyle.Button(surface, new Rect(content.X + 16, content.Y + 8, 80, 36), "New", enabled: _prompt == Prompt.None);
+        AppStyle.Button(surface, new Rect(content.X + 108, content.Y + 8, 80, 36), "Open", enabled: _prompt == Prompt.None);
+        AppStyle.Button(surface, new Rect(content.X + 200, content.Y + 8, 100, 36), "Save", true, _prompt == Prompt.None);
 
-        Rect text = new(content.X, content.Y, content.W, content.H - StatusHeight);
+        Rect text = new(content.X, content.Y + ToolbarHeight, content.W, content.H - StatusHeight - ToolbarHeight);
         _rows = Math.Max(1, (text.H - Padding) / _lineHeight);
         _columns = Math.Max(1, (text.Right - TextX(text.X) - Padding) / _cellWidth);
 
@@ -431,11 +438,11 @@ internal sealed class EditorWindow : Window
             int y = text.Y + Padding + i * _lineHeight;
             if (row == _document.Row)
             {
-                surface.FillRect(new Rect(text.X, y - 1, text.W, _lineHeight), CurrentLine);
+                surface.FillRect(new Rect(text.X, y - 1, text.W, _lineHeight), Theme.Hover);
             }
 
             string number = (row + 1).ToString();
-            surface.DrawText(number, Fonts.Mono, FontSize, row == _document.Row ? Theme.TextSecondary : GutterText,
+            surface.DrawText(number, Fonts.Mono, FontSize, row == _document.Row ? Theme.Accent : Theme.TextSecondary,
                 text.X + Padding + gutter - (number.Length + 1) * _cellWidth, y);
 
             string line = _document.Line(row);
@@ -480,13 +487,13 @@ internal sealed class EditorWindow : Window
         to = Math.Min(to - _left, _columns);
         if (to > from)
         {
-            surface.FillRect(new Rect(TextX(textLeft) + from * _cellWidth, y - 1, (to - from) * _cellWidth, _lineHeight), SelectionColor);
+            surface.FillRect(new Rect(TextX(textLeft) + from * _cellWidth, y - 1, (to - from) * _cellWidth, _lineHeight), Theme.AccentSoft);
         }
     }
 
     private void DrawStatusBar(Surface surface, Rect bar)
     {
-        surface.FillRect(bar, StatusBar);
+        surface.FillRect(bar, Theme.Panel | 0xff000000U);
         surface.FillRect(new Rect(bar.X, bar.Y, bar.W, 1), Theme.TitleDivider);
 
         if (_prompt != Prompt.None)

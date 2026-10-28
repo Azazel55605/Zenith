@@ -351,12 +351,14 @@ internal sealed class WindowManager
             surface.DrawShadow(b, radius, Theme.ShadowSize, w.IsFocused ? Theme.ShadowAlpha : Theme.ShadowAlpha / 2, 6);
         }
 
-        surface.FillRoundRect(b, radius, Theme.WindowBackground);
+        // Compose the completed rectangular client only once against the real
+        // backdrop. A rectangular clip cannot protect rounded bottom corners.
+        surface.CaptureWindowCorners(b, radius);
+        surface.FillRect(b, Theme.WindowBackground);
 
         // Title bar: title on the left, minimize / maximize / close on the right.
         Rect title = w.TitleBar;
-        surface.FillRoundRect(title, radius, Theme.Panel);
-        surface.FillRect(new Rect(title.X, title.Bottom - radius, title.W, radius), Theme.Panel);
+        surface.FillRect(title, Theme.Panel | 0xff000000U);
         surface.FillRect(new Rect(b.X, title.Bottom - 1, b.W, 1), Theme.TitleDivider);
         surface.Clip = new Rect(title.X + 14, title.Y, w.MinimizeButton.X - title.X - 20, title.H);
         surface.DrawTextCentered(w.Title, Fonts.SemiBold, Theme.TextTitle,
@@ -379,6 +381,7 @@ internal sealed class WindowManager
         if (!w.IsMaximized)
         {
             surface.StrokeRoundRect(b, radius, w.IsFocused ? Theme.WindowBorderFocused : Theme.WindowBorder);
+            surface.CompositeWindowCorners(b, radius);
         }
     }
 

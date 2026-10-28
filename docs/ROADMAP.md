@@ -51,25 +51,31 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 
 1. **G1 / documentation — audited:** tracking is consolidated here; stale blockers
    are reconciled and accepted requirements preserved. Keep this ownership model.
-2. **D1 / shared design — locally qualified:** shared controls, navigation, chrome
-   and material roles now follow the accepted solid preview. Settings/gallery native
-   gates pass; Q2 owns installed confirmation. Effects implementation stays in D3.
-3. **U1 + D2 / foundations:** finish interactive lifetime acceptance, rich controls,
-   text/clipboard/dialog contracts and guarded display resolution/scaling. Existing
-   display settings remain WIP until real Keep/Revert is proven. This stays early.
-4. **U2–U4 / finish this app migration:** native Editor, Terminal and Sunrise with
-   typed service contracts. Welcome/System already have local native frontends.
-   **Files is excluded from this batch** and gets its own later overhaul, A1.
-5. **S1 / preferences and Q2 / release:** consistent user/system scope and existing
+2. **D1 / shared design — local follow-up:** smooth native shape coverage and a
+   completed-window corner mask fix the reported edge/rectangle bleed. Terminal,
+   Editor and Sunrise now use the design tokens/shared host controls; Files stays
+   excluded. [Evidence](archive/2026-10-28/smooth-edges-and-system-apps.md).
+3. **D3 / advanced rendering — next:** negotiate foreground coverage and bounded
+   host-owned material regions first, then tint/transparency and cached backdrop
+   blur, capability/fallback and saved/effective controls. Begin on today's fixed
+   surfaces; coordinate resizing/scale with D2. Keep text/content solid and protected
+   authentication opaque; never reinterpret legacy forced-XRGB as an alpha plane.
+4. **U1 + D2 / foundations:** rich controls, hover/text/clipboard/dialog contracts,
+   independent lifetimes and guarded display resolution/scaling remain required.
+5. **U2–U4 / finish native app migration:** Editor, Terminal and Sunrise over typed
+   service contracts, using the shared presentation already applied to their trusted
+   windows. Welcome/System have local native frontends. **Files is excluded** and
+   gets its own later overhaul, A1.
+6. **S1 / preferences and Q2 / release:** consistent user/system scope and existing
    settings services; qualify the coherent batch, publish compatible kernels first,
    then clients. Q1 confirmation can happen in parallel; do not mutate existing tags.
-6. **W1–W3 / desktop and workflows:** full DE/lifecycle, notifications/workspaces,
+7. **W1–W3 / desktop and workflows:** full DE/lifecycle, notifications/workspaces,
    automatic tiling, Files overhaul and shared app behavior. Activate Meridian pages
    alongside their services rather than waiting for every backend to exist.
-7. **PK1–PK4, R1–R3, H1–H3 / product hardening:** package/config/trust, storage and
+8. **PK1–PK4, R1–R3, H1–H3 / product hardening:** package/config/trust, storage and
    whole-system recovery, supported hardware, secure sessions and real media/devices.
    Backend dependencies below determine the detailed order, not calendar promises.
-8. **C1–C4 and X1–X4 / larger tracks:** managed multicore and developer ports follow
+9. **C1–C4 and X1–X4 / larger tracks:** managed multicore and developer ports follow
    their safety/resource prerequisites. They are not prerequisites for the next UI app.
 
 ## Core delivery work
@@ -80,13 +86,13 @@ changes; put smaller implementation steps in the linked component, using the sam
 | ID | State | Work, dependency and exit |
 |---|---|---|
 | G1 | local, complete | One tracker; obsolete guides consolidated and open items mapped. [Audit and checks](archive/2026-10-27/documentation-and-material-contract.md) complete; future agents follow [maintenance](MAINTAINING.md). |
-| D1 | local; installed verification pending | [Shared visual parity](DESIGN-LANGUAGE.md): neutral segments, checked circular swatches, label/help rows, restrained navigation and aligned host chrome implemented. Both modes/six accents and draft/permission behavior locally qualified; [evidence](archive/2026-10-28/shared-widget-parity.md). Q2 owns installed confirmation; U1/D2 own richer widgets/hover transport, Unicode and scale; D3 owns effects. |
+| D1 | local; installed verification pending | [Shared visual parity](DESIGN-LANGUAGE.md): neutral segments, antialiased swatches/switches, label/help rows, restrained navigation and completed-window rounded masks implemented. Remaining system windows share the design; [quality follow-up](archive/2026-10-28/smooth-edges-and-system-apps.md). Both modes/six accents and draft/permission behavior locally qualified; [evidence](archive/2026-10-28/shared-widget-parity.md). Q2 owns installed confirmation; U1/D2 own richer widgets/hover transport, Unicode and scale; D3 owns effects. |
 | D2 | planned | Display identity/mode enumeration → guarded mode change → integer layout/text/surface scaling → driver-supported orientation/refresh. Requires richer client layout/resize contract. Smaller viewport, timeout/crash and explicit Keep/Revert must restore a usable mode. |
-| D3 | planned | Shared opaque surface roles are implemented; host-owned bounded material regions → alpha/tint → backdrop blur/damage caching → saved/effective user controls. Depends on D1 roles and D2 surface sizing. Same layout with effects on/off; contrast over busy backgrounds, movement/minimize/overlap and resource/performance fallback tested. No alpha packed into today's forced-opaque ABI. |
+| D3 | planned | Shared opaque surface roles are implemented; host-owned bounded material regions → alpha/tint → backdrop blur/damage caching → saved/effective user controls. Depends on D1 roles; start with bounded fixed surfaces, then D2 resize/scale integration. Same layout with effects on/off; contrast over busy backgrounds, movement/minimize/overlap and resource/performance fallback tested. No alpha packed into today's forced-opaque ABI. |
 | U1 | partial | [Shared native UI/runtime](components/USERLAND.md): lists, fields, selectors, sliders, dialogs, multiline text, clipboard, resizing/hover, runtime fonts/Unicode/IME; long-duration quota and teardown acceptance beyond old invocation limits. Existing profile renewal alone is not full long-lived-app qualification. |
-| U2 | planned | Editor: bounded UTF-8/LF/CRLF, selection/clipboard, undo/redo/search, safe staged save/save-as and external-change checks. Depends on U1 + caller-scoped files/dialogs; prove permission/out-of-space/cancel/dirty-close and independent update. |
-| U3 | planned | Terminal: owned PTY/shell session, byte streams, modes/resize, raw/canonical input, hidden secrets, type-ahead, jobs/EOF/cancel. Depends on U1; preserve all three recovery hosts. No privileged command-string RPC as a substitute. |
-| U4 | planned | Sunrise: native wizard over typed root/live-only disk/account/progress service. Preserve pre-erase asset/target checks, explicit destructive consent, secret handling, maintenance exclusion and teardown. Validate disposable install/reboot/recovery before replacing recovery UI. |
+| U2 | native migration planned | Shared-design Editor is locally implemented; native extraction still needs: bounded UTF-8/LF/CRLF, selection/clipboard, undo/redo/search, safe staged save/save-as and external-change checks. Depends on U1 + caller-scoped files/dialogs; prove permission/out-of-space/cancel/dirty-close and independent update. |
+| U3 | native migration planned | Shared-design Terminal/appearance-aware scrollback is locally implemented; extraction still needs: owned PTY/shell session, byte streams, modes/resize, raw/canonical input, hidden secrets, type-ahead, jobs/EOF/cancel. Depends on U1; preserve all three recovery hosts. No privileged command-string RPC as a substitute. |
+| U4 | native migration planned | Shared-design Sunrise frontend is locally implemented; extraction still needs: native wizard over typed root/live-only disk/account/progress service. Preserve pre-erase asset/target checks, explicit destructive consent, secret handling, maintenance exclusion and teardown. Validate disposable install/reboot/recovery before replacing recovery UI. |
 | U5 | partial | Welcome/System: native frontends and signed shell/menu launch locally pass; finish D1 parity, live preferences and independent upgrade/cancel/other-user acceptance with Q2. Keep recovery start windows and fail-closed executable validation. |
 | U6 | planned | Separate service/compositor/session processes: owned/versioned IPC, authority and restart/compatibility contracts → fault isolation → independent restart/upgrade. Existing typed syscalls are a foundation, not completion. Keep drivers/GC/BSP limits explicit. |
 | S1 | partial | [Meridian shared services](MERIDIAN-PLAN.md): per-user overrides/system defaults, CLI parity, revision conflicts, typed keyboard/timezone/network/account summaries and actual About metadata. Two-account/reboot/error tests; never grant authority via environment or a page name. |

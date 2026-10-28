@@ -45,7 +45,8 @@ internal sealed class InstallerWindow : Window
     {
         lock (_gate)
         {
-            int x = content.X + 24, y = content.Y + 18;
+            surface.FillRect(content, Theme.WindowBackground);
+            int x = content.X + AppStyle.Inset, y = content.Y + AppStyle.Inset;
             Text(surface, "Install Zenith", x, y, Theme.TextHeading);
             Text(surface, "Test in a VM first. Keep the live ISO for recovery.", x, y + 34, 12, Theme.TextSecondary);
             y = content.Y + 86;
@@ -56,8 +57,7 @@ internal sealed class InstallerWindow : Window
                     for (int i = 0; i < 6 && _selected / 6 * 6 + i < _disks.Count; i++)
                     {
                         int index = _selected / 6 * 6 + i; var d = _disks[index]; var box = new Rect(x, y + 32 + i * 42, content.W - 48, 36);
-                        surface.FillRoundRect(box, 5, index == _selected ? Theme.AccentSoft : Theme.Hover);
-                        Text(surface, d.Name + "  " + (d.BlockCount * d.BlockSize / (1024 * 1024)) + " MiB  |  " + StorageManager.GetPartitions(d).Count + " existing partitions", box.X + 10, box.Y + 9, 14);
+                        AppStyle.NavigationRow(surface, box, d.Name + "  " + (d.BlockCount * d.BlockSize / (1024 * 1024)) + " MiB  |  " + StorageManager.GetPartitions(d).Count + " existing partitions", index == _selected);
                     }
                     if (_disks.Count == 0) { Text(surface, "No eligible disk (minimum 256 MiB).", x, y + 40, 14); }
                     break;
@@ -65,12 +65,11 @@ internal sealed class InstallerWindow : Window
                     for (int i = 0; i < _values.Length; i++)
                     {
                         Text(surface, Labels[i], x, y + i * 42 + 9, 13);
-                        var box = new Rect(x + 190, y + i * 42, content.W - 238, 34);
-                        surface.FillRoundRect(box, 5, i == _field ? Theme.AccentSoft : Theme.Hover);
+                        var box = new Rect(x + 190, y + i * 42, content.W - 238, AppStyle.ControlHeight);
                         string value = i < 2 ? _values[i] : new string('*', _values[i].Length);
                         value += i == _field ? "|" : "";
-                        while (value.Length > 0 && Fonts.Regular.MeasureString(value, 13) > box.W - 16) { value = value[1..]; }
-                        Text(surface, value, box.X + 8, box.Y + 9, 13);
+                        while (value.Length > 0 && Fonts.Regular.MeasureString(value, Theme.TextBody) > box.W - 24) { value = value[1..]; }
+                        AppStyle.Field(surface, box, value, i == _field);
                     }
                     break;
                 case Step.Confirm:
@@ -105,24 +104,24 @@ internal sealed class InstallerWindow : Window
             if (_step is Step.Disk or Step.Accounts or Step.Confirm)
             {
                 Button(surface, content, 24, _step == Step.Disk ? "Cancel" : "Back");
-                Button(surface, content, content.W - 154, _step == Step.Confirm ? "Erase and install" : "Next");
+                Button(surface, content, content.W - 154, _step == Step.Confirm ? "Erase and install" : "Next", true, _step != Step.Confirm || _erase, _step == Step.Confirm);
             }
             else if (_step is Step.Done or Step.Unavailable or Step.Error) { Button(surface, content, 24, "Close"); }
         }
     }
     private static void Text(Surface s, string text, int x, int y, int size, uint? color = null)
         => s.DrawText(text, Fonts.Regular, size, color ?? Theme.TextPrimary, x, y);
-    private static void Button(Surface s, Rect c, int x, string label)
+    private static void Button(Surface s, Rect c, int x, string label, bool primary = false, bool enabled = true, bool danger = false)
     {
-        var b = new Rect(c.X + x, c.Bottom - 55, 130, 34);
-        s.FillRoundRect(b, 5, Theme.AccentSoft); Text(s, label, b.X + 8, b.Y + 9, 13);
+        var b = new Rect(c.X + x, c.Bottom - 60, 130, AppStyle.ControlHeight);
+        AppStyle.Button(s, b, label, primary && !danger, enabled, danger);
     }
     public override void OnMouseDown(int x, int y)
     {
         lock (_gate)
         {
             if (_step == Step.Installing) { return; }
-            if (y >= Content.H - 55 && y < Content.H - 21)
+            if (y >= Content.H - 60 && y < Content.H - 24)
             {
                 if (x >= 24 && x < 154) { Back(); }
                 else if (x >= Content.W - 154 && x < Content.W - 24) { Next(); }

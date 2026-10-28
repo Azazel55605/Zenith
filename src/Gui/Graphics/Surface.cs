@@ -13,6 +13,7 @@ namespace Zenith.Gui.Graphics;
 internal sealed class Surface : Canvas
 {
     private Rect _clip;
+    private readonly RoundedComposition _roundedComposition = new();
 
     public Surface(int width, int height) : base(width, height)
     {
@@ -32,6 +33,12 @@ internal sealed class Surface : Canvas
         get => _clip;
         set => _clip = value.Intersect(Bounds);
     }
+
+    public void CaptureWindowCorners(Rect bounds, int radius)
+        => _roundedComposition.Capture(Pixels, Width, Height, bounds, radius);
+
+    public void CompositeWindowCorners(Rect bounds, int radius)
+        => _roundedComposition.Composite(Pixels, Width, Height, bounds, radius);
 
     public void ResetClip() => _clip = Bounds;
 

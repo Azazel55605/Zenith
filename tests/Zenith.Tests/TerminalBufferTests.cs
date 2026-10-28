@@ -87,4 +87,18 @@ public class TerminalBufferTests
         buffer.Write(text.ToString());
         Assert.Equal(2000, buffer.LineCount);
     }
+    [Fact]
+    public void ExistingScrollbackRetainsAnsiIntentAcrossAppearanceChanges()
+    {
+        var buffer = new TerminalBuffer();buffer.Write("N\u001b[32mG\u001b[1mB\u001b[0mR");
+        var cells = buffer.Line(0);
+        Assert.Equal(0xff202126U, cells[0].ResolveColor(0xff202126, true));
+        Assert.Equal(0xfff1f2f4U, cells[0].ResolveColor(0xfff1f2f4, false));
+        Assert.Equal(TerminalColors.Resolve(2, true), cells[1].ResolveColor(0xff202126, true));
+        Assert.Equal(TerminalColors.Resolve(10, false), cells[2].ResolveColor(0xfff1f2f4, false));
+        Assert.Equal(0xff202126U, cells[3].ResolveColor(0xff202126, true));
+        var literal = new Cell('x', 0xff123456);Assert.Equal(0xff123456U, literal.ResolveColor(0xffffffff, true));
+        var copy = new TerminalBuffer();copy.AppendCells(cells);
+        Assert.Equal(cells[1].ResolveColor(0xff202126, true), copy.Line(0)[1].ResolveColor(0xff202126, true));
+    }
 }

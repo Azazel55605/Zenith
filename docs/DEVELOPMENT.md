@@ -664,3 +664,15 @@ branch and return IL, including false/true/infinite completion). Run adapter che
 after the ISO build has finished; they read its copied reference assemblies.
 These tests establish runtime contracts; the full native gate and actual
 operator path remain separate evidence.
+
+
+### Shared system-app presentation regression
+
+After publishing the candidate ISO, run
+`ZENITH_VALIDATION_ACCELERATOR=tcg python3 -B tools/system-app-style-smoke.py obj/system-app-style-check`
+with a new evidence directory. It boots a disposable live VM, exercises both
+appearance modes, saves through the real Editor toolbar, checks unsaved chrome
+close and validates persisted file contents before normal teardown. The common
+native gate plan includes it when present in the immutable source tree. The
+Settings gate additionally checks native client bottom-corner masking. These
+checks establish current trusted app styling, not independent native app migration.

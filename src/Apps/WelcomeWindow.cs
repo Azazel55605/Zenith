@@ -12,7 +12,7 @@ internal sealed class WelcomeWindow : Window
         "Terminal gives you a Unix-style shell: try ls /, cat /etc/os-release, help.",
     };
 
-    public WelcomeWindow() : base("Welcome", 480, 270)
+    public WelcomeWindow() : base("Welcome", 560, 340)
     {
     }
 
@@ -20,9 +20,10 @@ internal sealed class WelcomeWindow : Window
 
     public override void DrawContent(Surface surface, Rect content)
     {
-        int x = content.X + 28;
+        surface.FillRect(content, Theme.WindowBackground);
+        int x = content.X + AppStyle.Inset;
         int y = content.Y + 24;
-        int width = content.W - 56;
+        int width = content.W - 2 * AppStyle.Inset;
 
         int logo = Fonts.SemiBold.GetLineHeight(Theme.TextHeading);
         Logo.Draw(surface, new Rect(x, y, logo, logo));

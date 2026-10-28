@@ -42,6 +42,17 @@ int main(int argc,char **argv){
     assert(zui_backdrop_candidate(ZUI_SURFACE_NAVIGATION)&&zui_backdrop_candidate(ZUI_SURFACE_POPOVER));
     unsigned int before=actual[4*32+4];assert(!zui_surface(&material,(struct zui_rect){0,0,32,32},0,999));assert(actual[4*32+4]==before);
 
+    /* Smooth curves contain real intermediate coverage and remain symmetric.
+     * Check the actual integer-only rasterizer, not a separate mock renderer. */
+    zui_clip(&material,(struct zui_rect){0,0,32,32});
+    zui_fill(&material,material.clip,0);zui_round(&material,material.clip,16,0xffffff);
+    int blended=0;
+    for(int y=0;y<32;y++)for(int x=0;x<32;x++){
+        unsigned int c=actual[y*32+x];
+        assert(c==actual[y*32+31-x]&&c==actual[(31-y)*32+x]);
+        if(c&&c!=0xffffff)blended++;
+    }
+    assert(blended>20&&actual[0]==0&&actual[16*32+16]==0xffffff);
     storage[0]=0x12345678;storage[600*440+1]=0xabcdef01;
     assert(gallery_init(&g,storage+1,0));
     char palette_path[4096];assert(snprintf(palette_path,sizeof(palette_path),"%s/palette.tsv",argv[1])>0);

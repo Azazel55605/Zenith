@@ -89,7 +89,7 @@ adding richer widgets. Local qualification and installed acceptance are tracked 
 | Element | Accepted target | Current implementation / remaining boundary |
 |---|---|---|
 | Mode choice | One grouped segmented selector, subtle track and selected segment | Shared 280×36 track, 136×28 inset segments, neutral selection; arrow and Tab/Enter selection |
-| Accents | Compact circular swatches with a non-color-only selection marker | 32px circular swatches on a 44px cadence, geometric check, focus ring and visible selected/focused color name; package palettes retained |
+| Accents | Compact circular swatches with a non-color-only selection marker | Antialiased 32px circular swatches on a 44px cadence, geometric check, focus ring and visible selected/focused color name; package palettes retained |
 | Settings content | Aligned label/help/value rows, deliberate spacing and semantic sections | Reusable label/help rows, independent 48×26 switches and rounded semantic panels; WIP page contents remain explicit plans, not pretend working controls |
 | Navigation | Calm sidebar/group hierarchy with restrained selected-row emphasis | Shared borderless rows, restrained selected indicator, outline chevrons and a separate navigation surface |
 | Chrome | Consistent window/panel radii and equal optically centered decoration slots | Host-owned 44px title bar, equal 36px decoration cadence, geometric centered icons, 12px window / 8px control radii |
@@ -127,6 +127,24 @@ Material choice **never changes layout**: same bounds, insets, type metrics,
 rounding, hit targets, scroll geometry, focus order, separators and window controls.
 Do not rebuild the page when effects toggle. Do not lower opacity on a finished
 window bitmap: that also fades text, controls and security affordances.
+
+### Smooth geometry and final window outline
+
+Native rounded shapes use bounded 4×4 subpixel coverage, blended into the current
+opaque fallback. Switch tracks and knobs use the same renderer as swatches and
+controls. Foreground/glyph coverage stays distinct from future material opacity.
+
+The compositor captures the actual backdrop in the four corner patches, draws
+all client content, and masks the **completed** window against that backdrop.
+Rectangular client copies and status bars cannot paint through the outer outline.
+This uses one reusable bounded corner buffer, not a new full-frame allocation per
+window/frame. Maximized windows remain square. Moving/clipped/overlapping windows
+capture the current lower layers each frame. D3 can reuse the geometry contract,
+not treat this corner-only buffer as an already implemented backdrop renderer.
+
+Shared host controls style the still-trusted Terminal, Editor and Sunrise; selected
+native app controls use the C library. Visual consistency is not completion of U2–U4
+process/PTY/service extraction. Files body/navigation remains outside this batch.
 
 ### Rendering/ownership contract
 

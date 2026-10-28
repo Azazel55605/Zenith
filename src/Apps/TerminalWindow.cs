@@ -32,7 +32,6 @@ internal sealed class TerminalWindow : Window, IOutput
 {
     private const int FontSize = 14;
     private const int Padding = 10;
-    private const uint Background = 0xFF141720;
 
     private readonly TerminalBuffer _buffer;
     private readonly Shell _shell;
@@ -71,7 +70,6 @@ internal sealed class TerminalWindow : Window, IOutput
     private readonly List<(List<Cell> Cells, bool Continues)> _visibleRows = new();
     private (int Row, int Column)? _selectionAnchor;
     private (int Row, int Column) _selectionHead;
-    private const uint SelectionColor = 0x557C9CFF;
 
     // `read` waiting for a line from the user; guarded by _sync.
     private bool _readRequested;
@@ -712,7 +710,7 @@ internal sealed class TerminalWindow : Window, IOutput
 
     public override void DrawContent(Surface surface, Rect content)
     {
-        surface.FillRect(content, Background);
+        surface.FillRect(content, Theme.WindowBackground);
 
         // What is shown: the scrollback, then its unfinished last line (e.g. a `read -p` prompt)
         // continued by the shell prompt and the input. Lines are wrapped here, at the current
@@ -753,11 +751,12 @@ internal sealed class TerminalWindow : Window, IOutput
         _visibleRows.Clear();
         _visibleRows.AddRange(visible);
         DrawSelection(surface, x0, y0);
+        bool light = Theme.IsLight;
         for (int r = 0; r < visible.Length; r++)
         {
             if (visible[r].Cells is not null)
             {
-                DrawCells(surface, visible[r].Cells, x0, y0 + r * _cellHeight);
+                DrawCells(surface, visible[r].Cells, x0, y0 + r * _cellHeight, light);
             }
         }
 
@@ -804,21 +803,21 @@ internal sealed class TerminalWindow : Window, IOutput
             int to = row == range.End.Row ? range.End.Column : _columns;
             if (to > from)
             {
-                surface.FillRect(new Rect(x0 + from * _cellWidth, y0 + row * _cellHeight, (to - from) * _cellWidth, _cellHeight), SelectionColor);
+                surface.FillRect(new Rect(x0 + from * _cellWidth, y0 + row * _cellHeight, (to - from) * _cellWidth, _cellHeight), Theme.AccentSoft);
             }
         }
     }
 
     /// <summary>Draws a row of cells, batching runs of the same color into one string.</summary>
-    private void DrawCells(Surface surface, List<Cell> cells, int x, int y)
+    private void DrawCells(Surface surface, List<Cell> cells, int x, int y, bool light)
     {
         int start = 0;
         while (start < cells.Count)
         {
-            uint color = cells[start].Color;
+            uint color = cells[start].ResolveColor(Theme.TextPrimary, light);
             int end = start;
             var run = new StringBuilder();
-            while (end < cells.Count && cells[end].Color == color)
+            while (end < cells.Count && cells[end].ResolveColor(Theme.TextPrimary, light) == color)
             {
                 run.Append(cells[end].Char);
                 end++;

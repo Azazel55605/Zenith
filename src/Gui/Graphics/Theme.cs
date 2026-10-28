@@ -15,6 +15,9 @@ internal static class Theme
     public static uint WindowBorder => s_colors["WindowBorder"];
     public static uint WindowBorderFocused => s_colors["WindowBorderFocused"];
     public static uint TitleDivider => s_colors["TitleDivider"];
+    public static uint Raised => s_colors["Raised"];
+    public static uint OnAccent => s_colors["OnAccent"];
+    public static bool IsLight => Light(WindowBackground) > 0.5;
     public static uint Panel => s_colors["Panel"];
     public static uint PanelBorder => s_colors["PanelBorder"];
     public static uint Menu => s_colors["Menu"];
@@ -41,7 +44,7 @@ internal static class Theme
     public const int TextSmall = 12;
     public const int TextBody = 14;
     public const int TextTitle = 13;
-    public const int TextHeading = 22;
+    public const int TextHeading = 24;
 
     private static Dictionary<string, uint> Defaults() => new(StringComparer.Ordinal)
     {
@@ -49,6 +52,8 @@ internal static class Theme
         ["WindowBorder"] = 0x1FFFFFFF,
         ["WindowBorderFocused"] = 0x5C7C9CFF,
         ["TitleDivider"] = 0x14FFFFFF,
+        ["Raised"] = 0xFF2A2C31,
+        ["OnAccent"] = 0xFF202125,
         ["Panel"] = 0xE0141724,
         ["PanelBorder"] = 0x1AFFFFFF,
         ["Menu"] = 0xF61A1E2C,
@@ -106,6 +111,7 @@ internal static class Theme
         var colors = Defaults();
         colors["WindowBackground"] = Color(0); colors["WindowBorder"] = Color(3);
         colors["WindowBorderFocused"] = Color(6); colors["TitleDivider"] = Color(3);
+        colors["Raised"] = Color(1); colors["OnAccent"] = Color(7);
         colors["Panel"] = Color(2); colors["PanelBorder"] = Color(3); colors["Menu"] = Color(1);
         colors["TextPrimary"] = Color(4); colors["TextSecondary"] = Color(5); colors["TextMuted"] = Color(5);
         colors["Accent"] = Color(6); colors["AccentSoft"] = (Color(6) & 0xffffffU) | 0x33000000U;

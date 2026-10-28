@@ -18,9 +18,9 @@ updateable. A resource package does not make the greeter an independent process.
 |---|---|---|
 | U5 Welcome/System | Native `desktop-tools` frontends, signed shell and menu dispatch locally tested | D1 parity, live preference/independent upgrade/user/teardown and Q2 release acceptance |
 | S1 Meridian | Native 43-page shell, seven groups, search/recent links, functional Colors and selected About data | U1 richer controls/lifetime tests, real page backends and Q1/Q2; WIP scope is not functionality |
-| U2 Editor | Trusted window | Shared multiline text/selection, clipboard/dialogs, UTF-8/LF/CRLF, undo/search, external changes and permission-aware staged saves |
-| U3 Terminal | Trusted shell host | Owned PTY/session byte/mode protocol, native renderer, raw/canonical/secret/type-ahead/jobs/EOF/cancel and all recovery hosts |
-| U4 Sunrise | Trusted installer | Typed root/live-only wizard with explicit erase consent, safe account secrets, progress and maintenance blockers |
+| U2 Editor | Trusted window, shared-design toolbar/canvas/status, guarded chrome close | Shared multiline text/selection, clipboard/dialogs, UTF-8/LF/CRLF, undo/search, external changes and permission-aware staged saves |
+| U3 Terminal | Trusted shell host, themed canvas and appearance-aware ANSI scrollback | Owned PTY/session byte/mode protocol, native renderer, raw/canonical/secret/type-ahead/jobs/EOF/cancel and all recovery hosts |
+| U4 Sunrise | Trusted installer, shared fields/navigation/action controls | Typed root/live-only wizard with explicit erase consent, safe account secrets, progress and maintenance blockers |
 | A1 Files | Intentionally unchanged | Separate full navigation/transfer/selection overhaul after this migration batch |
 
 The asynchronous launcher captures credentials and owns cancellation; compositor
@@ -31,14 +31,17 @@ not indiscriminately journalled. Session stop revokes surfaces and invocations.
 
 ## D1–D3 / S1–S5 — Shared presentation and Settings
 
-- [x] D1: current native controls match accepted segments/swatches/rows/navigation
+- [x] D1: smooth native controls, completed-window corner masks, shared system-app
+  controls and accepted segments/swatches/rows/navigation
   and host chrome locally; Q2 owns installed confirmation, U1/D2 richer widgets/hover/text/scale;
   preserve [material roles](../DESIGN-LANGUAGE.md#materials-and-optional-effects).
 - [ ] D2: real display modes, scaling and crash-safe Keep/Revert.
 - [ ] S1: per-user/system defaults, typed existing settings and CLI/GUI parity.
 - [ ] S2–S5: activate the [43-page inventory](../MERIDIAN-PAGES.md) in backend order;
   [Meridian contracts](../MERIDIAN-PLAN.md) specify details, not a second schedule.
-- [ ] D3: host-owned optional materials/blur with unchanged layout and opaque fallback.
+- [ ] D3 (next): version/capability + foreground coverage and material regions;
+  then host tint/transparency and bounded cached blur. Preserve fixed-surface and
+  eventual D2 resize/scale geometry, busy-background contrast and opaque fallbacks.
 
 ## W1–W3 / U6 — Product desktop and lifecycle
 

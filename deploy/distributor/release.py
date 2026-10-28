@@ -274,6 +274,7 @@ def native_checks(work):
     try:
         checks = [("r", "repository-smoke.py")]
         if (REPO / "tools/native-settings-smoke.py").exists(): checks.append(("a", "native-settings-smoke.py"))
+        if (REPO / "tools/system-app-style-smoke.py").exists(): checks.append(("v", "system-app-style-smoke.py"))
         if (REPO / "tools/native-graphics-smoke.py").exists(): checks.append(("g", "native-graphics-smoke.py"))
         if (REPO / "tools/native-network-smoke.py").exists(): checks.append(("n", "native-network-smoke.py"))
         if (REPO / "tools/native-cli-smoke.py").exists(): checks.append(("c", "native-cli-smoke.py"))
