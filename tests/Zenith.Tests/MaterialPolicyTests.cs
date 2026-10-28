@@ -27,4 +27,15 @@ public class MaterialPolicyTests
         finally { foreach (var c in caches) { c.Dispose(); } }
         Assert.Equal(original, MaterialResources.UsedBytes);
     }
+    [Fact]
+    public void LargeTintCacheFitsWithoutThreeFullSizeBlurBuffers()
+    {
+        int before=MaterialResources.UsedBytes;using(var cache=new MaterialCache(1920000))
+        {
+            Assert.False(cache.Ensure(1280*692,true));Assert.True(cache.Ensure(1280*692,false));
+            Assert.Equal(before+1280*692*4,MaterialResources.UsedBytes);
+        }
+        Assert.Equal(before,MaterialResources.UsedBytes);var policy=new MaterialPolicy();policy.Begin(7);Assert.Equal(7U,policy.Effective);
+        policy.Begin(6);Assert.Equal(0U,policy.Effective);Assert.Equal(1U,policy.Reason);
+    }
 }

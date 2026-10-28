@@ -18,7 +18,7 @@ import subprocess
 import struct
 import time
 
-PIPELINE = re.compile(r'N_STREAM_(?:BYTES_[0-9]+|FP_BYTES)')
+PIPELINE = re.compile(r'(?:N_STREAM_(?:BYTES_[0-9]+|FP_BYTES)|MERIDIAN_INPUT)')
 scheduler_spec = importlib.util.spec_from_file_location('validation_scheduler', Path(__file__).with_name('validation-scheduler.py'))
 scheduler = importlib.util.module_from_spec(scheduler_spec); scheduler_spec.loader.exec_module(scheduler)
 

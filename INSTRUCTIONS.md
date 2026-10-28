@@ -80,12 +80,19 @@ never infer current failures from old release logs or claim a menu stub is a bac
   material extension keeps ABI 1 forced opaque and uses explicit format 2 plus
   606/607 negotiation for premultiplied foreground/host material regions. Preserve
   full-frame atomic validation, RGB<=alpha, opacity outside declared rectangles,
-  8 nonoverlapping regions / 131072 pixels / 24px corners, bounded host blur and
+  8 nonoverlapping regions / legacy 131072 pixels / 24px corners, bounded host blur and
   no client backdrop readback. Keep native-materials-smoke and opaque client gates.
   System-wide material preferences use atomic revisioned 608/609 calls; legacy
-  610/611 appearance saves preserve them. Chrome, taskbar and opted-in client regions
+  610/611 appearance saves preserve them. Version-2 616/617 adds whole-background
+  preference bit 4; keep 608/609 snapshots/validation at their published masks and
+  preserve the newer bit on legacy saves. Chrome, taskbar and opted-in client regions
   share contrast/cache/work fallback without rewriting saved choices. Protected
-  credentials remain solid. Never expose
+  credentials remain solid. Explicit 613/614/615 viewport negotiation owns bounded
+  resize/maximize; require exact dimensions/generation before changing the private
+  frame stride. Resize-enabled surfaces may negotiate Content/background regions;
+  legacy forced-XRGB is unchanged. Shared workspace clients require viewport ABI.
+  Keep rapid wheel, drag-release keyboard, resize/restore/draft and large-frame
+  pressure checks. Never expose
   framebuffer addresses or global input. Native-graphics-smoke joins all six
   existing pre-tag gates; Settings and compositor migration remain separate.
   Native-network-smoke remains a mandatory pre-tag gate. Configuration,

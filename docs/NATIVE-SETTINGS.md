@@ -51,11 +51,14 @@ MATERIALS=0
 ```
 
 Schema 1 (MODE/ACCENT only) is read with solid materials. Schema 2 adds a strict
-mask: transparency=1, blur=2, valid values 0..3. Blur-only (2) is retained but
+mask: transparency=1, blur=2, valid values 0..3. Schema 3 adds Whole app
+background=4 (valid values 0..7); new saves use schema 3 only when that bit is set.
+Schemas 1 and 2 remain readable. Blur-only (2) is retained but
 inactive. Mode/accent/materials save together through one revision/replace.
-Legacy 611 saves preserve material bits. An older kernel does not understand
-schema 2: it uses its safe fallback and refuses to overwrite the file; restore
-schema 1 explicitly only if rolling preferences back is intended.
+Legacy 611 saves preserve material bits. A kernel that does not understand the saved schema uses its safe fallback and
+refuses to overwrite the file. Disable Whole app background before rolling back
+to a schema-2 kernel if appearance compatibility is wanted; restore an older schema
+explicitly only when that preference rollback is intended.
 
 Reads are bounded to 4096 UTF-8 bytes; invalid/duplicate/unknown keys and future
 versions fall back at boot with a diagnostic. Saves refuse to overwrite an invalid
@@ -135,17 +138,27 @@ runtime selection. Calls share existing per-invocation service limits.
   u64 expected saved revision, u32 mode, u32 accent, u32 material mask,
   u32 reserved=0. Captured UID 0 only; same atomic persistence/error rules as 611.
 
-Masks: transparency=1, blur=2. Effective reports renderer-enabled features; the
+Calls 608/609 retain their original version-1 mask (transparency=1, blur=2).
+Their snapshot masks the newer bit out, and a legacy save preserves that bit.
+Version-1 requests still reject values above 3.
+
+**616 read** and **617 save** use the same 48/32-byte layouts with version=2.
+They add Whole app background=4 (masks 0..7). The shared helper negotiates these
+calls and can fall back to the legacy surface-only service. New packages declare
+`zenith-native-background-abi 1.0`; older clients continue reading/saving their
+surface controls without resetting the newer preference. Effective reports renderer-enabled features; the
 reason explains per-surface reductions. Reasons: 0 normal, 1 blur needs
 transparency, 2 no graphical renderer, 3 cache budget/oversize, 4 per-frame blur
 budget, 5 contrast. Headless reports effective/available=0 while retaining saved
 bits. Fallback never modifies the saved selection. Legacy 448-byte appearance
 snapshots and 32-byte saves retain their reserved fields and semantics.
 
-CLI: `settings set materials solid|transparent|blur`; native diagnostics:
+CLI: `settings set materials solid|transparent|blur|background|background-blur`; native diagnostics:
 `native run settings --materials-show`. GUI toggles share Save/Discard/stale-edit
 and root-only controls with mode/accent. Turning transparency off retains the
-blur draft. Scope remains system-wide; per-user preferences/elevation are S1 work.
+blur and background drafts. Whole app background is a system-wide default for
+supported shared-toolkit clients; it is not whole-bitmap opacity. Existing ABI 1
+clients and protected credential surfaces stay opaque. Per-app overrides are deferred. Scope remains system-wide; per-user preferences/elevation are S1 work.
 
 ## Owned window state ABI 1
 

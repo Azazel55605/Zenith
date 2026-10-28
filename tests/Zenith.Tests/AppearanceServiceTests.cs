@@ -159,4 +159,22 @@ public class AppearanceServiceTests
         request[28] = 1;Assert.Equal(-22, ProcessAppearance.SaveMaterials(service, request));
         Assert.Equal(3U, service.Saved.Materials);
     }
+    [Fact]
+    public void WholeBackgroundUsesVersionThreeAndSurvivesLegacyAppearanceSave()
+    {
+        using var root = CredentialContext.Enter(Credentials.Root);
+        var store=new Store();var service=new AppearanceService(store);Assert.Null(service.Load());
+        Assert.Equal(0,service.SaveFull(0,0,7,1));Assert.Contains("VERSION=3",store.Text);
+        var loaded=new AppearanceService(store);Assert.Null(loaded.Load());Assert.Equal(7U,loaded.Saved.Materials);
+        Assert.Equal(0,loaded.Save(1,2,1));Assert.Equal(7U,loaded.Saved.Materials);
+        Assert.Equal(-22,loaded.SaveFull(0,0,8,2));
+        var legacy=ProcessAppearance.MaterialSnapshot(loaded);var extended=ProcessAppearance.MaterialSnapshot(loaded,true);
+        Assert.Equal(3U,BinaryPrimitives.ReadUInt32LittleEndian(legacy.AsSpan(16)));
+        Assert.Equal(2U,BinaryPrimitives.ReadUInt32LittleEndian(extended));Assert.Equal(7U,BinaryPrimitives.ReadUInt32LittleEndian(extended.AsSpan(16)));
+        byte[] request=new byte[32];BinaryPrimitives.WriteUInt32LittleEndian(request,1);BinaryPrimitives.WriteUInt64LittleEndian(request.AsSpan(8),2);
+        BinaryPrimitives.WriteUInt32LittleEndian(request.AsSpan(24),4);Assert.Equal(-22,ProcessAppearance.SaveMaterials(loaded,request));
+        BinaryPrimitives.WriteUInt32LittleEndian(request.AsSpan(24),1);Assert.Equal(0,ProcessAppearance.SaveMaterials(loaded,request));Assert.Equal(5U,loaded.Saved.Materials);
+        BinaryPrimitives.WriteUInt32LittleEndian(request,2);BinaryPrimitives.WriteUInt64LittleEndian(request.AsSpan(8),3);
+        BinaryPrimitives.WriteUInt32LittleEndian(request.AsSpan(24),7);Assert.Equal(0,ProcessAppearance.SaveMaterials(loaded,request,true));Assert.Equal(7U,loaded.Saved.Materials);
+    }
 }

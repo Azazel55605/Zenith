@@ -21,10 +21,15 @@ public class NativeImageTests
     private static void U64(byte[] b,int o,ulong n)=>BinaryPrimitives.WriteUInt64LittleEndian(b.AsSpan(o),n);
     [Fact] public void ValidStaticFileHasBoundedExecutableSegment()
     { var image=ElfImage.Read(Image());Assert.Equal(0x400000UL,image.Entry);Assert.Equal(5U,Assert.Single(image.Segments).Flags); }
+    [Fact] public void LargerBoundedStaticCanvasRetainsEightMiBImageLimit()
+    {
+        var bytes=Image();U64(bytes,104,0x800000);Assert.Equal(2048,ElfImage.Read(bytes).Segments[0].Pages);
+        U64(bytes,104,0x800001);Assert.Throws<IOException>(()=>ElfImage.Read(bytes));
+    }
     [Theory]
     [InlineData(16,3UL)] [InlineData(18,183UL)] [InlineData(32,ulong.MaxValue)] [InlineData(56,17UL)]
     [InlineData(68,7UL)] [InlineData(72,ulong.MaxValue)] [InlineData(80,0xffff800000000000UL)]
-    [InlineData(96,8193UL)] [InlineData(104,0x500000UL)] [InlineData(112,1UL)] [InlineData(120,2UL)]
+    [InlineData(96,8193UL)] [InlineData(104,0x900000UL)] [InlineData(112,1UL)] [InlineData(120,2UL)]
     [InlineData(4148,2UL)] [InlineData(24,0x401000UL)]
     public void BadFormatAlignmentKernelAddressesWxAndAbiAreRefused(int offset,ulong value)
     {

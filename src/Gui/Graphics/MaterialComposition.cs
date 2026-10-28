@@ -12,8 +12,8 @@ internal sealed class MaterialComposition
     private readonly int[] _scratch;
     private readonly int[] _filtered;
     private readonly ProcessMaterialRegion[] _previous = new ProcessMaterialRegion[ProcessMaterialRegion.MaximumRegions];
-    public MaterialComposition(int capacity = ProcessMaterialRegion.MaximumArea)
-    { _source = new int[capacity]; _scratch = new int[capacity]; _filtered = new int[capacity]; }
+    public MaterialComposition(int capacity = ProcessMaterialRegion.MaximumArea, bool blur = true)
+    { _source = new int[capacity]; _scratch = blur ? new int[capacity] : Array.Empty<int>(); _filtered = blur ? new int[capacity] : _source; }
     private int _count = -1;
     public int BlurRebuilds { get; private set; }
 
@@ -85,7 +85,7 @@ internal sealed class MaterialComposition
         int offset = 0;
         for (int i = 0; i < count; i++)
         {
-            var r = regions[i]; uint tint = r.Role == 3 ? navigation : r.Role == 5 ? popover : panel;
+            var r = regions[i]; uint tint = r.Role == 1 ? fallback : r.Role == 3 ? navigation : r.Role == 5 ? popover : panel;
             Rect rect = new(content.X + r.X, content.Y + r.Y, r.Width, r.Height);
             Rect visible = rect.Intersect(clip);
             for (int y = visible.Y; y < visible.Bottom; y++)
@@ -97,7 +97,8 @@ internal sealed class MaterialComposition
                     int coverage = dx < r.Radius && dy < r.Radius ? RoundedComposition.Coverage(dx, dy, r.Radius) : 255;
                     int color = r.Effect == 0 ? (int)(tint | 0xff000000U)
                         : RoundedComposition.Blend((int)tint, _filtered[offset + py * r.Width + px], r.Opacity > 0 ? r.Opacity : r.Effect == 1 ? 220 : 210);
-                    target[y * width + x] = RoundedComposition.Blend(color, target[y * width + x], coverage);
+                    if (coverage == 255) { target[y * width + x] = color; }
+                    else if (coverage != 0) { target[y * width + x] = RoundedComposition.Blend(color, target[y * width + x], coverage); }
                 }
             }
             offset += r.Width * r.Height;
@@ -113,7 +114,10 @@ internal sealed class MaterialComposition
             for (int x = clip.X; x < clip.Right; x++)
             {
                 int fg = frame[(y - content.Y) * content.W + x - content.X], at = y * width + x;
-                int alpha = (int)((uint)fg >> 24), bg = target[at]; uint color = 0xff000000;
+                int alpha = (int)((uint)fg >> 24);
+                if (alpha == 255) { target[at] = fg; continue; }
+                if (alpha == 0) { continue; }
+                int bg = target[at]; uint color = 0xff000000;
                 for (int shift = 0; shift < 24; shift += 8)
                 { color |= (uint)(((fg >> shift) & 255) + (((bg >> shift) & 255) * (255 - alpha) + 127) / 255) << shift; }
                 target[at] = (int)color;

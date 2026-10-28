@@ -12,7 +12,7 @@ internal sealed record ElfSegment(ulong Address, int Offset, int FileBytes, int 
 internal sealed record ElfImage(ulong Entry, IReadOnlyList<ElfSegment> Segments)
 {
     public const int MaximumBytes = 262144;
-    public const ulong MinimumAddress = 0x400000, MaximumAddress = 0x800000;
+    public const ulong MinimumAddress = 0x400000, MaximumAddress = 0xc00000;
     public static ElfImage Read(ReadOnlySpan<byte> bytes)
     {
         if (bytes.Length is < 64 or > MaximumBytes || bytes[0] != 127 || bytes[1] != 'E' || bytes[2] != 'L' || bytes[3] != 'F'

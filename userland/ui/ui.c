@@ -13,24 +13,53 @@ static struct zui_rect intersect(struct zui_rect a,struct zui_rect b){
     return (struct zui_rect){(int)x,(int)y,(int)(right-x),(int)(bottom-y)};
 }
 int zui_init(struct zui *u,unsigned int *p,int w,int h){
-    if(!u||!p||w<1||h<1||w>640||h>480)return 0;
+    if(!u||!p||w<1||h<1||w>1920||h>1000)return 0;
     *u=(struct zui){0};u->pixels=p;u->width=w;u->height=h;
     u->clip=(struct zui_rect){0,0,w,h};u->focus=-1;u->pressed=-1;
     zui_appearance(u,0,0);return 1;
+}
+int zui_resize(struct zui *u,int w,int h,unsigned long capacity){
+    if(w<1||h<1||w>1920||h>1000||(unsigned long)w*h>capacity)return 0;
+    u->width=w;u->height=h;u->clip=(struct zui_rect){0,0,w,h};u->material_count=0;u->dirty=1;return 1;
+}
+int zui_scroll_step(int value,int delta,int maximum){
+    if(maximum<0)maximum=0;
+    long next=(long)value+delta;
+    return next<0?0:next>maximum?maximum:(int)next;
+}
+struct zui_workspace zui_workspace_begin(struct zui *u,int side){
+    int maximum=u->width>360?u->width-360:0;side=max(0,min(side,maximum));
+    if(u->foreground)zui_begin_material_frame(u);
+    zui_clip(u,(struct zui_rect){0,0,u->width,u->height});
+    struct zui_workspace w={{12,12,side,u->height-24},{side+24,12,u->width-side-36,u->height-24}};
+    if(side<=0)w.content=(struct zui_rect){12,12,u->width-24,u->height-24};
+    if(u->foreground&&u->full_background){
+        int split=side>0?side+24:0;
+        if(split)zui_material_surface(u,(struct zui_rect){0,0,split,u->height},0,ZUI_SURFACE_NAVIGATION,2);
+        zui_material_surface(u,(struct zui_rect){split,0,u->width-split,u->height},0,ZUI_SURFACE_CONTENT,2);
+        if(side>0){zui_round_alpha(u,w.sidebar,12,u->theme.border,48);zui_round_alpha(u,(struct zui_rect){w.sidebar.x+1,w.sidebar.y+1,w.sidebar.w-2,w.sidebar.h-2},11,u->theme.subtle,20);}
+        zui_round_alpha(u,w.content,12,u->theme.border,48);
+        zui_round_alpha(u,(struct zui_rect){w.content.x+1,w.content.y+1,w.content.w-2,w.content.h-2},11,u->theme.surface,28);
+    }else{
+        zui_fill(u,u->clip,u->theme.subtle);
+        if(side>0)zui_surface(u,w.sidebar,12,ZUI_SURFACE_NAVIGATION);
+        zui_surface(u,w.content,12,ZUI_SURFACE_CONTENT);
+    }
+    return w;
 }
 void zui_begin_material_frame(struct zui *u){
     u->foreground=1;u->material_count=0;
     for(int i=0;i<u->width*u->height;i++)u->pixels[i]=0;
 }
 int zui_material_surface(struct zui *u,struct zui_rect r,int radius,int role,int effect){
-    if(!u->foreground||u->material_count>=8||!zui_backdrop_candidate(role)||effect<0||effect>2||
+    if(!u->foreground||u->material_count>=8||(!zui_backdrop_candidate(role)&&!(u->full_background&&role==ZUI_SURFACE_CONTENT))||effect<0||effect>2||
        radius<0||radius>24||r.x<0||r.y<0||r.w<1||r.h<1||(long)r.x+r.w>u->width||(long)r.y+r.h>u->height||radius>min(r.w,r.h)/2)return 0;
     long area=(long)r.w*r.h;
     for(int i=0;i<u->material_count;i++){
         struct zenith_material_region *p=&u->materials[i];area+=(long)p->w*p->h;
         if(r.x<p->x+p->w&&p->x<r.x+r.w&&r.y<p->y+p->h&&p->y<r.y+r.h)return 0;
     }
-    if(area>131072)return 0;
+    if(area>(u->full_background?1920000:131072))return 0;
     u->materials[u->material_count++]=(struct zenith_material_region){r.x,r.y,r.w,r.h,radius,role,effect,0};return 1;
 }
 static unsigned int over(unsigned int bg,unsigned int fg,unsigned int a){
@@ -75,14 +104,31 @@ void zui_round(struct zui *u,struct zui_rect r,int radius,unsigned int c){
         else if(coverage)*pixel=u->foreground?over(*pixel,c,coverage):blend(*pixel,c,coverage);
     }
 }
+void zui_round_alpha(struct zui *u,struct zui_rect r,int radius,unsigned int color,unsigned int opacity){
+    if(r.w<=0||r.h<=0)return;
+    if(opacity>255)opacity=255;
+    radius=max(0,min(radius,min(r.w,r.h)/2));radius=min(radius,32);
+    struct zui_rect b=intersect(r,u->clip);
+    for(int y=b.y;y<b.y+b.h;y++)for(int x=b.x;x<b.x+b.w;x++){
+        int px=x-r.x,py=y-r.y,dx=min(px,r.w-1-px),dy=min(py,r.h-1-py);
+        unsigned int a=dx<radius&&dy<radius?corner_coverage(dx,dy,radius):255;a=(a*opacity+127)/255;
+        unsigned int *p=&u->pixels[y*u->width+x];*p=u->foreground?over(*p,color,a):blend(*p,color,a);
+    }
+}
 int zui_backdrop_candidate(int role){
     return role==ZUI_SURFACE_NAVIGATION||role==ZUI_SURFACE_PANEL||role==ZUI_SURFACE_POPOVER;
 }
 int zui_surface(struct zui *u,struct zui_rect r,int radius,int role){
     unsigned int color;
-    if(u->foreground&&zui_backdrop_candidate(role)&&zui_material_surface(u,r,radius,role,2)){
+    if(u->foreground&&radius>=0&&radius<=24&&radius<=min(r.w,r.h)/2&&zui_backdrop_candidate(role)&&zui_material_surface(u,r,0,role,2)){
         struct zui_rect clear=intersect(r,u->clip);
-        for(int y=clear.y;y<clear.y+clear.h;y++)for(int x=clear.x;x<clear.x+clear.w;x++)u->pixels[y*u->width+x]=0;
+        for(int y=clear.y;y<clear.y+clear.h;y++)for(int x=clear.x;x<clear.x+clear.w;x++){
+            int dx=min(x-r.x,r.x+r.w-1-x),dy=min(y-r.y,r.y+r.h-1-y);
+            unsigned int coverage=dx<radius&&dy<radius?corner_coverage(dx,dy,radius):255;
+            unsigned int old=u->pixels[y*u->width+x],out=0;
+            for(int shift=0;shift<32;shift+=8)out|=((((old>>shift)&255)*(255-coverage)+127)/255)<<shift;
+            u->pixels[y*u->width+x]=out;
+        }
         return 1;
     }
     switch(role){
@@ -168,7 +214,7 @@ int zui_event(struct zui *u,const struct zenith_gui_event *e){
             }
         }
     }
-    if(e->type==Z_GUI_KEY&&!(e->modifiers&6)&&(e->extra==2||e->code==' ')&&u->focus>=0){
+    if(e->type==Z_GUI_KEY&&!(e->modifiers&6)&&(e->extra==2||e->code==' ')&&u->focus>=0&&u->focus<u->count){
         struct zui_control *c=&u->controls[u->focus];return c->enabled?c->id:0;
     }
     if(e->type==Z_GUI_DOWN){
@@ -180,7 +226,7 @@ int zui_event(struct zui *u,const struct zenith_gui_event *e){
     }
     if(e->type==Z_GUI_UP){
         int p=u->pressed;u->pressed=-1;u->dirty=1;
-        if(p>=0&&u->controls[p].enabled&&hit(u->controls[p].rect,e->x,e->y))return u->controls[p].id;
+        if(p>=0&&p<u->count&&u->controls[p].enabled&&hit(u->controls[p].rect,e->x,e->y))return u->controls[p].id;
     }
     return 0;
 }

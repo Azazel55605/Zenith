@@ -51,7 +51,7 @@ internal readonly record struct ProcessMaterialRegion(int X, int Y, int Width, i
         }
         regions = result; return true;
     }
-    public static bool Validate(ProcessMaterialRegion[] regions, int width, int height)
+    public static bool Validate(ProcessMaterialRegion[] regions, int width, int height, bool background = false)
     {
         if (regions.Length > MaximumRegions) { return false; }
         long area = 0;
@@ -60,9 +60,9 @@ internal readonly record struct ProcessMaterialRegion(int X, int Y, int Width, i
             var r = regions[i];
             if (r.X < 0 || r.Y < 0 || r.Width <= 0 || r.Height <= 0 || (long)r.X + r.Width > width
                 || (long)r.Y + r.Height > height || r.Radius < 0 || r.Radius > MaximumRadius
-                || r.Radius > Math.Min(r.Width, r.Height) / 2 || r.Role is < 3 or > 5 || r.Effect is < 0 or > 2 || r.Opacity != 0) { return false; }
+                || r.Radius > Math.Min(r.Width, r.Height) / 2 || ((r.Role is < 3 or > 5) && !(background && r.Role == 1)) || r.Effect is < 0 or > 2 || r.Opacity != 0) { return false; }
             area += (long)r.Width * r.Height;
-            if (area > MaximumArea) { return false; }
+            if (area > (background ? 1920000 : MaximumArea)) { return false; }
             for (int j = 0; j < i; j++)
             {
                 var other = regions[j];

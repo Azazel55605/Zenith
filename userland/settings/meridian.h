@@ -14,9 +14,11 @@ struct meridian {
     char query[128];
     char information[4096];
     int page,category,group,offset,scroll,search_focus,closing,lines;
+    int category_offset,pending_category;
     int recent[6],recent_count,matches[MERIDIAN_PAGE_COUNT],match_count;
 };
 int meridian_init(struct meridian *app,unsigned int *pixels,struct settings_backend backend,const char *page);
+int meridian_resize(struct meridian *app,int width,int height,unsigned long capacity);
 void meridian_draw(struct meridian *app);
 void meridian_event(struct meridian *app,const struct zenith_gui_event *event);
 void meridian_refresh(struct meridian *app);

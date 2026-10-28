@@ -26,11 +26,15 @@ struct zui {
     struct zui_rect clip;
     struct zui_control controls[ZUI_MAX_CONTROLS];
     int count,focus,pressed,window_focused,dirty;
-    int foreground,material_count;
+    int foreground,material_count,full_background;
     struct zenith_material_region materials[8];
 };
 /* Returns 0 for invalid dimensions/buffer; caller supplies width*height pixels. */
 int zui_init(struct zui *ui,unsigned int *pixels,int width,int height);
+int zui_resize(struct zui *ui,int width,int height,unsigned long capacity);
+struct zui_workspace { struct zui_rect sidebar,content; };
+struct zui_workspace zui_workspace_begin(struct zui *ui,int sidebar_width);
+int zui_scroll_step(int value,int delta,int maximum);
 /* Separate premultiplied foreground target. Begin clears coverage, not a whole
  * window's opacity; paint opaque content/control roles over declared materials. */
 void zui_begin_material_frame(struct zui *ui);
@@ -38,6 +42,7 @@ int zui_material_surface(struct zui *ui,struct zui_rect rect,int radius,int role
 void zui_appearance(struct zui *ui,int light,int accent);
 void zui_clip(struct zui *ui,struct zui_rect rect);
 void zui_fill(struct zui *ui,struct zui_rect rect,unsigned int color);
+void zui_round_alpha(struct zui *ui,struct zui_rect rect,int radius,unsigned int color,unsigned int opacity);
 void zui_round(struct zui *ui,struct zui_rect rect,int radius,unsigned int color);
 /* Up to 4096 UTF-8 input bytes per call. Unsupported/malformed characters render '?'. No shaping yet. */
 void zui_text(struct zui *ui,int x,int y,const char *text,unsigned long bytes,

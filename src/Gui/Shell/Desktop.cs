@@ -239,7 +239,7 @@ internal sealed class Desktop
         }
 
         var policy = MaterialResources.Policy;
-        Zenith.Core.Configuration.SystemConfiguration.Appearance.ReportMaterials(3, policy.Effective, policy.Reason);
+        Zenith.Core.Configuration.SystemConfiguration.Appearance.ReportMaterials(7, policy.Effective, policy.Reason);
         FrameStats.RecordCompose(start);
     }
     private int WidthForMessage() => 520;

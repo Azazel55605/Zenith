@@ -99,9 +99,12 @@ internal sealed class WindowManager
         }
         else
         {
+            var minimum = window.MinimumSize;
+            if (_workArea.W < minimum.Width || _workArea.H < minimum.Height) { return; }
             window.RestoreBounds = window.Bounds;
             window.IsMaximized = true;
-            window.SetBounds(_workArea);
+            var maximum = window.MaximumSize;
+            window.SetBounds(new(_workArea.X, _workArea.Y, Math.Min(_workArea.W, maximum.Width), Math.Min(_workArea.H, maximum.Height)));
         }
     }
 
@@ -115,6 +118,9 @@ internal sealed class WindowManager
             using var identity = Zenith.Core.Security.CredentialContext.Enter(w.Identity);
             if (w.IsClosed)
             {
+                if (_dragging == w) { _dragging = null; }
+                if (_contentDrag == w) { _contentDrag = null; }
+                if (_lastTitleClick == w) { _lastTitleClick = null; }
                 _windows.RemoveAt(i);
                 changed = true;
                 continue;
@@ -148,6 +154,7 @@ internal sealed class WindowManager
                 _dragging = null;
             }
 
+            RouteKeys(input);
             return true;
         }
 
@@ -221,20 +228,22 @@ internal sealed class WindowManager
         {
             using var identity = Zenith.Core.Security.CredentialContext.Enter(hit.Identity);
             // Wheel down reports positive deltas; windows take positive as "scroll back".
-            hit.OnScroll(-input.Scroll);
+            hit.OnScrollAt(-input.Scroll, input.X - hit.Content.X, input.Y - hit.Content.Y);
         }
 
-        Window? focused = Focused;
-        if (focused is not null)
-        {
-            foreach (var key in input.Keys)
-            {
-                using var identity = Zenith.Core.Security.CredentialContext.Enter(focused.Identity);
-                focused.OnKey(key);
-            }
-        }
-
+        RouteKeys(input);
         return hit is not null;
+    }
+
+    private void RouteKeys(Input input)
+    {
+        Window? focused = Focused;
+        if (focused is null) { return; }
+        foreach (var key in input.Keys)
+        {
+            using var identity = Zenith.Core.Security.CredentialContext.Enter(focused.Identity);
+            focused.OnKey(key);
+        }
     }
 
     private void StartDrag(Window w, Edges edges, int x, int y)
@@ -278,25 +287,26 @@ internal sealed class WindowManager
         int left = b.X, top = b.Y, right = b.Right, bottom = b.Bottom;
         if ((_edges & Edges.Left) != 0)
         {
-            left = Math.Clamp(b.X + dx, _workArea.X, right - minW);
+            left = Math.Clamp(b.X + dx, Math.Min(_workArea.X, right - minW), right - minW);
         }
 
         if ((_edges & Edges.Right) != 0)
         {
-            right = Math.Clamp(b.Right + dx, left + minW, _workArea.Right);
+            right = Math.Clamp(b.Right + dx, left + minW, Math.Max(left + minW, _workArea.Right));
         }
 
         if ((_edges & Edges.Top) != 0)
         {
-            top = Math.Clamp(b.Y + dy, _workArea.Y, bottom - minH);
+            top = Math.Clamp(b.Y + dy, Math.Min(_workArea.Y, bottom - minH), bottom - minH);
         }
 
         if ((_edges & Edges.Bottom) != 0)
         {
-            bottom = Math.Clamp(b.Bottom + dy, top + minH, _workArea.Bottom);
+            bottom = Math.Clamp(b.Bottom + dy, top + minH, Math.Max(top + minH, _workArea.Bottom));
         }
 
-        w.SetBounds(new Rect(left, top, right - left, bottom - top));
+        var maximum = w.MaximumSize;
+        w.SetBounds(new Rect(left, top, Math.Min(right - left, maximum.Width), Math.Min(bottom - top, maximum.Height)));
     }
 
     /// <summary>Which edges a press at (x, y) would resize; none inside the title buttons or for fixed windows.</summary>

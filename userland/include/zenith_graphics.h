@@ -43,4 +43,15 @@ static inline long zenith_gui_present_material(long handle,const unsigned int *p
     struct zenith_material_frame r={1,0,(unsigned long)pixels,length,count?(unsigned long)regions:0,count,0,0};
     return zenith_call(606,(unsigned long)handle,(unsigned long)&r,sizeof(r));
 }
+/* Viewport ABI 1: explicit opt-in; legacy surfaces remain fixed. */
+#define Z_GUI_RESIZE 10
+struct zenith_viewport { unsigned int version,flags,width,height; unsigned long generation; unsigned int max_width,max_height; };
+struct zenith_resize_request { unsigned int version,flags,width,height; unsigned long generation; };
+_Static_assert(sizeof(struct zenith_viewport)==32,"viewport snapshot");
+_Static_assert(sizeof(struct zenith_resize_request)==24,"resize acknowledgement");
+static inline long zenith_gui_resize_enable(long handle){return zenith_call(614,(unsigned long)handle,1,0);}
+static inline long zenith_gui_viewport(long handle,struct zenith_viewport *v){return zenith_call(613,(unsigned long)handle,(unsigned long)v,sizeof(*v));}
+static inline long zenith_gui_resize_accept(long handle,const struct zenith_viewport *v){
+    struct zenith_resize_request r={1,0,v->width,v->height,v->generation};return zenith_call(615,(unsigned long)handle,(unsigned long)&r,sizeof(r));
+}
 #endif

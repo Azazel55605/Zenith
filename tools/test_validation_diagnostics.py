@@ -38,6 +38,11 @@ class DiagnosticTests(unittest.TestCase):
         self.output = output.getvalue()
         return json.loads(result.read_text()) if result else None
 
+    def test_meridian_input_timeout_uses_same_bounded_observation_path(self):
+        with patch.object(diagnostics,'registers',return_value={'RIP':'1000','RSP':'2000','RFL':'246'}),patch.object(diagnostics.time,'sleep'):
+            report=self.capture('MERIDIAN_INPUT')
+        self.assertTrue(report['observation_only']);self.assertEqual(3,len(report['samples']))
+
     def test_fragmented_hmp_response_is_read_only_and_excludes_register_payloads(self):
         connection = Connection([b'QEMU monitor\n(qe', b'mu) ', b'RAX=534543524554\nPRIVATE_TEXT\nRIP=ffffffff80001000 ',
                                  b'RSP=ffff800010001000 RFL=00000246\n(qemu) '])

@@ -35,6 +35,8 @@ not indiscriminately journalled. Session stop revokes surfaces and invocations.
   controls and accepted segments/swatches/rows/navigation
   and host chrome locally; Q2 owns installed confirmation, U1/D2 richer widgets/hover/text/scale;
   preserve [material roles](../DESIGN-LANGUAGE.md#materials-and-optional-effects).
+- [x] U1/D2: opt-in bounded client resize/maximize, stable sidebar/detail workspaces
+  and drag keyboard routing; [targeted tests and unresolved operator freeze](../archive/2026-10-28/meridian-workspace-input.md).
 - [ ] D2: real display modes, scaling and crash-safe Keep/Revert.
 - [ ] S1: per-user/system defaults, typed existing settings and CLI/GUI parity.
 - [ ] S2–S5: activate the [43-page inventory](../MERIDIAN-PAGES.md) in backend order;
@@ -43,7 +45,9 @@ not indiscriminately journalled. Session stop revokes surfaces and invocations.
   cached tint/blur, saved/effective controls, shared chrome/taskbar/Meridian policy,
   contrast and bounded resource/work fallback. [Evidence](../archive/2026-10-28/desktop-material-integration.md).
   Q2 installed/device/sustained performance and D2 resize/scale acceptance remain;
-  credentials/document planes stay solid. Taskbar customization belongs to W1/S4.
+  credentials and legacy document planes stay solid. Supported workspace apps may
+  opt into the system-wide whole-background setting; legacy preference saves preserve
+  its bit. Taskbar customization belongs to W1/S4.
 
 ## W1–W3 / U6 — Product desktop and lifecycle
 

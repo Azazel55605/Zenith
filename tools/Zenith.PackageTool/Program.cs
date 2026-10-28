@@ -28,7 +28,7 @@ try
                 + "\narchitecture\t" + (native ? "x86_64" : "any") + "\nkind\tdata\nruntime\t" + PackageManifest.Runtime + "\nrequires\tzenith-base\t0.1\n");
             if (native) { manifest.Append("requires\tzenith-native-abi\t1.0\nrequires\tzenith-native-fs-abi\t1.0\nrequires\tzenith-native-io-abi\t1.0\nrequires\tzenith-native-stream-abi\t1.0\nrequires\tzenith-native-process-abi\t1.0\nrequires\tzenith-native-terminal-abi\t1.0\nrequires\tzenith-native-path-abi\t1.0\n"); }
             if (native && name is "zenith-gui-probe" or "zenith-ui-gallery" or "zenith-settings" or "zenith-desktop-tools") { manifest.Append("requires\tzenith-native-graphics-abi\t1.0\n"); }
-            if (native && name is "zenith-settings" or "zenith-desktop-tools") { manifest.Append("requires\tzenith-native-interactive-abi\t1.0\nrequires\tzenith-native-system-info-abi\t1.0\n"); }
+            if (native && name is "zenith-settings" or "zenith-desktop-tools") { manifest.Append("requires\tzenith-native-interactive-abi\t1.0\nrequires\tzenith-native-system-info-abi\t1.0\nrequires\tzenith-native-viewport-abi\t1.0\nrequires\tzenith-native-background-abi\t1.0\n"); }
             if (native && name == "zenith-settings") { manifest.Append("requires\tzenith-native-settings-abi\t1.0\nrequires\tzenith-native-window-state-abi\t1.0\n"); }
             if (native && name == "zenith-net-tools") { manifest.Append("requires\tzenith-native-network-abi\t1.0\n"); }
             if (meta)

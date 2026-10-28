@@ -22,7 +22,9 @@ This is not general POSIX execution, managed SMP or an isolated compositor.
   including minimized windows, cancellation and session revocation.
 - [ ] Add shared editable/selectable multiline text, clipboard, file dialogs,
   list/selector/slider/number fields and consistent error/confirmation components.
-- [ ] Add dynamic fonts, Unicode/shaping/IME, layout/resize/scale and input semantics;
+- [x] Explicit bounded viewport resize/maximize, persistent inset workspaces and
+  pane-aware wheel handling; [local evidence and freeze limits](../archive/2026-10-28/meridian-workspace-input.md).
+- [ ] Add dynamic fonts, Unicode/shaping/IME, display scaling and richer input semantics;
   no glyph replacement may corrupt saved text.
 - [ ] Match the accepted [design](../DESIGN-LANGUAGE.md) in primitives before more
   app-specific UI. Material roles keep geometry unchanged with D3 effects enabled or disabled.

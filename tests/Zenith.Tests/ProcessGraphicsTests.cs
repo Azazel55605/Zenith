@@ -104,4 +104,20 @@ public sealed class ProcessGraphicsTests
         Assert.Equal(24, b.Length); Assert.Equal(-3, BinaryPrimitives.ReadInt32LittleEndian(b.AsSpan(8)));
         Assert.Equal(7, BinaryPrimitives.ReadInt32LittleEndian(b.AsSpan(16)));
     }
+    [Fact]
+    public void ResizeRequiresOptInOwnedHandleAndExactCurrentAcknowledgement()
+    {
+        var host = new Host();using var g = new ProcessGraphics(host);int handle=g.Open(600,480,"resize",2);var surface=host.Surfaces[0];
+        surface.RequestResize(1280,692);Assert.Equal(600,surface.Width);
+        Assert.Equal(-9,g.EnableResize(handle+1));Assert.Equal(0,g.EnableResize(handle));
+        surface.RequestResize(1280,692);var e=g.Poll(handle)!.Value;Assert.Equal(10,e.Type);Assert.Equal(1280,e.X);Assert.Equal(692,e.Y);
+        var snapshot=g.Viewport(handle)!;var request=new byte[24];BinaryPrimitives.WriteUInt32LittleEndian(request,1);
+        snapshot.AsSpan(8,16).CopyTo(request.AsSpan(8));
+        surface.RequestResize(1000,600);Assert.Equal(-11,g.AcceptResize(handle,request));Assert.Equal(600,surface.Width);
+        snapshot=g.Viewport(handle)!;snapshot.AsSpan(8,16).CopyTo(request.AsSpan(8));Assert.Equal(0,g.AcceptResize(handle,request));
+        Assert.Equal((1000,600),surface.FrameSize);Assert.Equal(2400000,g.Size(handle));
+        Assert.False(surface.CopyFrame(new int[1000*600],false));
+        surface.RequestResize(int.MaxValue,int.MaxValue);Assert.Equal((1000,600),surface.FrameSize);
+        request[4]=1;Assert.Equal(-22,g.AcceptResize(handle,request));g.Close(handle);Assert.Null(g.Viewport(handle));
+    }
 }

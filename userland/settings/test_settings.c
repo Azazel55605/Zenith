@@ -8,7 +8,7 @@ static struct settings_app app;
 static long failure;
 static int guarded;
 static unsigned int material_saved;
-static long read_state(struct zenith_appearance *s,unsigned int *saved,unsigned int *effective,unsigned int *available,unsigned int *reason){*s=state;*saved=material_saved;*effective=(material_saved&1)?material_saved:0;*available=3;*reason=0;return 0;}
+static long read_state(struct zenith_appearance *s,unsigned int *saved,unsigned int *effective,unsigned int *available,unsigned int *reason){*s=state;*saved=material_saved;*effective=(material_saved&1)?material_saved:0;*available=7;*reason=0;return 0;}
 static long save_state(unsigned int m,unsigned int a,unsigned int materials,unsigned long revision){
     if(failure)return failure;
     if(revision!=state.revision)return -11;
@@ -20,6 +20,7 @@ static void event(int type,int code,int x,int y,int extra){
     if(app.ui.dirty)settings_draw(&app);
 }
 static void click(int x,int y){event(Z_GUI_DOWN,1,x,y,0);event(Z_GUI_UP,1,x,y,0);}
+static void activate(int id){for(int i=0;i<app.ui.count;i++)if(app.ui.controls[i].id==id){struct zui_rect r=app.ui.controls[i].rect;click(r.x+r.w/2,r.y+r.h/2);return;}assert(0);}
 int main(int argc,char **argv){
     struct zui ui;assert(zui_init(&ui,pixels,600,480));
     for(int m=0;m<2;m++)for(int a=0;a<6;a++){
@@ -37,7 +38,7 @@ int main(int argc,char **argv){
     failure=0;click(70,438);assert(app.edited&&strstr(app.message,"Changed elsewhere"));
     click(230,438);assert(app.prompt==2);click(230,438);assert(!app.prompt&&!app.edited&&!guarded&&app.mode==0);
     click(200,120);click(70,438);assert(!app.edited&&!guarded&&state.mode==1);
-    click(260,202);assert(app.edited&&app.accent==5);
+    activate(15);assert(app.edited&&app.accent==5);
     event(Z_GUI_KEY,0,0,0,1);assert(app.prompt==1&&!app.closing);
     click(230,438);assert(app.closing&&!guarded&&state.accent==0);
     state.flags=1;assert(settings_init(&app,pixels,backend));settings_draw(&app);
@@ -48,11 +49,13 @@ int main(int argc,char **argv){
     struct zui original;assert(zui_init(&original,pixels,600,480));zui_appearance(&original,0,3);
     state.palette[0][3][6]=original.theme.accent;
     state.flags=3;material_saved=0;assert(settings_init(&app,pixels,backend));settings_draw(&app);
-    event(Z_GUI_FOCUS,1,0,0,0);click(550,255);click(550,305);assert(app.effects==3&&app.edited&&guarded);
+    event(Z_GUI_FOCUS,1,0,0,0);activate(50);activate(51);assert(app.effects==3&&app.edited&&guarded);
     click(70,438);assert(material_saved==3&&!app.edited&&!guarded);
-    click(550,255);assert(app.effects==2&&app.edited);click(70,438);assert(material_saved==2&&!app.edited);
+    activate(50);assert(app.effects==2&&app.edited);click(70,438);assert(material_saved==2&&!app.edited);
+    activate(52);assert(app.effects==6&&app.edited);activate(30);assert(material_saved==6);
+    activate(50);activate(30);assert(material_saved==7&&app.ui.full_background);
     state.flags=1;assert(settings_init(&app,pixels,backend));settings_draw(&app);event(Z_GUI_FOCUS,1,0,0,0);
-    click(550,255);assert(app.effects==2&&!app.edited);material_saved=0;
+    activate(50);assert(app.effects==7&&!app.edited);material_saved=0;
     if(argc==2){
         for(int mode=0;mode<2;mode++)for(int accent=0;accent<6;accent++){
             state.mode=mode;state.accent=accent;state.flags=3;

@@ -99,4 +99,17 @@ public class ProcessMaterialTests
         c.Capture(scene, size, size, rect.Offset(1, 0), regions, 1, 0xff202125);Assert.Equal(2, c.BlurRebuilds);
         c.Capture(scene, size, size, rect.Offset(1, 0), regions, 1, 0xff202125);Assert.Equal(2, c.BlurRebuilds);
     }
+    [Fact]
+    public void ExtendedBackgroundRegionsRequireResizeOptInAndStayBounded()
+    {
+        var regions=new[]{new ProcessMaterialRegion(0,0,600,480,0,1,2)};
+        Assert.False(ProcessMaterialRegion.Validate(regions,600,480));
+        Assert.True(ProcessMaterialRegion.Validate(regions,600,480,true));
+        Assert.False(ProcessMaterialRegion.Validate(new[]{regions[0] with {Role=2}},600,480,true));
+        Assert.False(ProcessMaterialRegion.Validate(new[]{new ProcessMaterialRegion(0,0,1920,1001,0,1,2)},1920,1001,true));
+        using var surface=new ProcessSurface(600,480,"background",2);var pixels=new byte[600*480*4];
+        Assert.Equal(-22,surface.PresentMaterials(pixels,regions));Assert.Equal(0,surface.EnableResize());
+        Assert.Equal(0,surface.PresentMaterials(pixels,regions));var copy=new int[600*480];
+        Assert.True(surface.CopyFrame(copy,false));Assert.All(copy,value=>Assert.Equal(0,value));
+    }
 }

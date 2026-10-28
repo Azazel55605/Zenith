@@ -54,8 +54,62 @@ internal sealed class ProcessSurface : IDisposable
     public ProcessSurface(int width, int height, string title, int format = 1)
     { Width = width; Height = height; Title = title; Format = format; _pixels = new int[width * height];
       if (format == 2) { Array.Fill(_pixels, unchecked((int)0xff000000)); } }
-    public int Width { get; }
-    public int Height { get; }
+    public int Width { get; private set; }
+    public int Height { get; private set; }
+    public const int MaximumWidth = 1920, MaximumHeight = 1000;
+    private int _requestedWidth, _requestedHeight;
+    private ulong _sizeGeneration;
+    private bool _resizeEvent;
+    public bool Resizable { get; private set; }
+    public int EnableResize()
+    {
+        lock (_gate)
+        {
+            if (_closed || _disposed) { return -32; }
+            if (!Resizable) { Resizable = true; _requestedWidth = Width; _requestedHeight = Height; _sizeGeneration = 1; }
+            return 0;
+        }
+    }
+    public void RequestResize(int width, int height)
+    {
+        lock (_gate)
+        {
+            if (!Resizable || _closed || _disposed || width < 600 || height < 480 || width > MaximumWidth || height > MaximumHeight
+                || (width == _requestedWidth && height == _requestedHeight) || _sizeGeneration == ulong.MaxValue) { return; }
+            _requestedWidth = width; _requestedHeight = height; _sizeGeneration++; _resizeEvent = true;
+        }
+    }
+    public byte[] Viewport()
+    {
+        lock (_gate)
+        {
+            byte[] b = new byte[32];
+            BinaryPrimitives.WriteUInt32LittleEndian(b, 1);
+            BinaryPrimitives.WriteUInt32LittleEndian(b.AsSpan(4), Resizable ? 3U : 0U);
+            BinaryPrimitives.WriteInt32LittleEndian(b.AsSpan(8), Resizable ? _requestedWidth : Width);
+            BinaryPrimitives.WriteInt32LittleEndian(b.AsSpan(12), Resizable ? _requestedHeight : Height);
+            BinaryPrimitives.WriteUInt64LittleEndian(b.AsSpan(16), _sizeGeneration);
+            BinaryPrimitives.WriteInt32LittleEndian(b.AsSpan(24), MaximumWidth);
+            BinaryPrimitives.WriteInt32LittleEndian(b.AsSpan(28), MaximumHeight);
+            return b;
+        }
+    }
+    public int AcceptResize(ReadOnlySpan<byte> request)
+    {
+        lock (_gate)
+        {
+            if (_closed || _disposed) { return -32; }
+            if (!Resizable || request.Length != 24 || BinaryPrimitives.ReadUInt32LittleEndian(request) != 1
+                || BinaryPrimitives.ReadUInt32LittleEndian(request[4..]) != 0) { return -22; }
+            int width = BinaryPrimitives.ReadInt32LittleEndian(request[8..]), height = BinaryPrimitives.ReadInt32LittleEndian(request[12..]);
+            if (width != _requestedWidth || height != _requestedHeight || BinaryPrimitives.ReadUInt64LittleEndian(request[16..]) != _sizeGeneration) { return -11; }
+            if (width == Width && height == Height) { return 0; }
+            var pixels = new int[width * height]; Array.Fill(pixels, unchecked((int)0xff000000));
+            Width = width; Height = height; _pixels = pixels; _materials = Array.Empty<ProcessMaterialRegion>(); _dirty = false;
+            return 0;
+        }
+    }
+    public (int Width, int Height) FrameSize { get { lock (_gate) { return (Width, Height); } } }
     public string Title { get; }
     public int Bytes => Width * Height * 4;
     public bool Ended { get { lock (_gate) { return _closed || _disposed; } } }
@@ -76,7 +130,7 @@ internal sealed class ProcessSurface : IDisposable
         lock (_gate)
         {
             if (_closed || _disposed) { return -32; }
-            if (Format != 2 || !ProcessMaterialRegion.Validate(regions, Width, Height)
+            if (Format != 2 || !ProcessMaterialRegion.Validate(regions, Width, Height, Resizable)
                 || !ProcessMaterialRegion.ValidForeground(bytes, Width, Height, regions)) { return -22; }
             // Validate the complete frame before replacing anything. Caller buffers
             // and region arrays are never shared with compositor state.
@@ -119,6 +173,7 @@ internal sealed class ProcessSurface : IDisposable
         {
             if (_closed || _disposed) { return new(1, 0, 0, 0, 0, 0); }
             if (_closeIntent) { _closeIntent = false; return new(9, 0, 0, 0, 0, 0); }
+            if (_resizeEvent) { _resizeEvent = false; return new(10, 0, _requestedWidth, _requestedHeight, 0, 0); }
             return _events.Count == 0 ? default : _events.Dequeue();
         }
     }
@@ -156,6 +211,9 @@ internal sealed class ProcessGraphics : IDisposable
         if (surface is null) { return -19; }
         _surface = surface; _handle = 20000 + ++_opens; return _handle;
     }
+    public int EnableResize(int handle) => handle != _handle || _surface is null ? -9 : _surface.EnableResize();
+    public byte[]? Viewport(int handle) => handle != _handle || _surface is null || _surface.Ended ? null : _surface.Viewport();
+    public int AcceptResize(int handle, ReadOnlySpan<byte> request) => handle != _handle || _surface is null ? -9 : _surface.AcceptResize(request);
     public int Dirty(int handle, bool dirty) => handle != _handle || _surface is null ? -9 : _surface.SetDirty(dirty);
     public int Size(int handle) => handle != _handle || _surface is null ? -9 : _presents >= 3600 ? -27 : _surface.Bytes;
     public int Present(int handle, byte[] pixels)

@@ -7,12 +7,12 @@ namespace Zenith.Gui.Graphics;
 internal sealed class MaterialPolicy
 {
     public uint Requested { get; private set; }
-    public uint Effective => (Requested & 1) == 0 ? 0 : Requested & 3;
+    public uint Effective => (Requested & 1) == 0 ? 0 : Requested & 7;
     public uint Reason { get; private set; }
     private int _blurArea;
     public const int FrameBlurPixels = 393216;
     public void Begin(uint requested)
-    { Requested = requested & 3; Reason = Requested == 2 ? 1U : 0; _blurArea = 0; }
+    { Requested = requested & 7; Reason = (Requested & 1) == 0 && Requested != 0 ? 1U : 0; _blurArea = 0; }
     public void ResourceFallback() { Reason = 3; }
     public int Effect(int requested, uint tint, uint text, uint secondary, int area)
     {
@@ -62,32 +62,34 @@ internal static class MaterialResources
 {
     public const int MaximumBytes = 8 * 1024 * 1024;
     public static int UsedBytes { get; private set; }
-    public static bool Reserve(int pixels)
+    public static bool ReserveBytes(int bytes)
     {
-        if (pixels < 0 || pixels > (MaximumBytes - UsedBytes) / 12) { return false; }
-        UsedBytes += pixels * 12;return true;
+        if (bytes > MaximumBytes - UsedBytes || bytes < -UsedBytes) { return false; }
+        UsedBytes += bytes; return true;
     }
-    public static void Release(int pixels) { UsedBytes -= pixels * 12; }
+    public static void ReleaseBytes(int bytes) { UsedBytes -= bytes; }
     public static readonly MaterialPolicy Policy = new();
 }
 
 internal sealed class MaterialCache : IDisposable
 {
     private readonly int _capacity;
-    private bool _reserved, _disposed;
+    private bool _disposed, _blur;
+    private int _allocated, _bytes;
     public MaterialComposition Composition { get; private set; } = new(0);
     public MaterialCache(int capacity) { _capacity = capacity; }
-    public bool Ensure()
+    public bool Ensure() => Ensure(_capacity, true);
+    public bool Ensure(int pixels, bool blur)
     {
-        if (_disposed) { return false; }
-        if (_reserved) { return true; }
-        if (!MaterialResources.Reserve(_capacity)) { MaterialResources.Policy.ResourceFallback();return false; }
-        Composition = new(_capacity);_reserved = true;return true;
+        if (_disposed || pixels < 1 || pixels > _capacity) { return false; }
+        if (_allocated >= pixels && (!blur || _blur)) { return true; }
+        int bytes = pixels * (blur ? 12 : 4);
+        if (!MaterialResources.ReserveBytes(bytes - _bytes)) { MaterialResources.Policy.ResourceFallback(); return false; }
+        Composition = new(pixels, blur); _allocated = pixels; _blur = blur; _bytes = bytes; return true;
     }
     public void Dispose()
     {
-        if (_disposed) { return; }_disposed = true;
-        if (_reserved) { MaterialResources.Release(_capacity); }
-        Composition = new(0);
+        if (_disposed) { return; } _disposed = true;
+        MaterialResources.ReleaseBytes(_bytes); _bytes = 0; Composition = new(0);
     }
 }

@@ -207,3 +207,37 @@ Meridian negotiates format 2 and uses its sidebar as a material region. Chrome
 and taskbar use the same host compositor; legacy app content remains opaque.
 Protected authentication stays solid. Local evidence is recorded in
 [desktop integration](archive/2026-10-28/desktop-material-integration.md).
+
+## Owned viewport extension
+
+Native clients explicitly enable call **614** `(owned_handle, 1, 0)` to permit
+window resize and maximize/restore. Legacy clients remain fixed-size. The minimum
+client viewport is 600×480; the maximum is 1920×1000 pixels. This is window sizing,
+not a display-mode or DPI/scaling service. Maximization uses the desktop work area,
+retaining the taskbar and trusted title bar, within the advertised bound.
+
+- **613** `(owned_handle, writable_snapshot, 32)` returns little-endian u32
+  version=1, flags, requested width, requested height; u64 generation; u32 maximum
+  width, maximum height. Flags: resize enabled=1, extended background regions=2.
+- Event **10** reports requested width/height in X/Y. It is sticky/coalesced outside
+  the ordinary input queue; close takes precedence. Clients query the current
+  generation rather than treating an older event as authority.
+- **615** `(owned_handle, readable_request, 24)` acknowledges u32 version=1,
+  flags=0, width, height; u64 generation. Dimensions and generation must match the
+  latest host request (-11 if stale). Invalid layout returns -22, invalid memory
+  -14 and wrong handles -9. Only user/host window actions request a new size;
+  clients cannot use this API to move/resize arbitrary windows.
+
+Frame replacement retains private copies and strict byte counts. Until the client
+acknowledges/repaints the requested size, the host uses a bounded placeholder,
+never indexes an old frame with a new stride. New clients declare
+`zenith-native-viewport-abi 1.0`. The native ELF mapping limit is 8 MiB to accommodate
+a bounded static canvas; the signed file limit remains 256 KiB. Input, UID/session,
+request/CPU and teardown protections continue to apply.
+
+Resize-enabled format-2 clients can declare Content role **1** and up to 1920000
+material pixels. Legacy material frames still have their original role/131072-pixel
+bounds and unchanged 607 capabilities. The host authorizes Content effects only
+when the saved Whole app background bit is effective. Controls and credential
+surfaces remain opaque; no backdrop pixels or framebuffer pointers cross the API.
+Wheel events now carry content-local X/Y, allowing independent pane scrolling.

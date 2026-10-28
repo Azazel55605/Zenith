@@ -42,5 +42,17 @@ a real installed VM, separate from local disposable validation.
     Protected password entry must remain solid. Report prolonged frame lag or
     repaint artifacts along with the display size.
 
+12. In supported workspace apps, enable **Whole app background** in Colors and
+    Save. Blank content areas should reveal the backdrop while controls/text remain
+    opaque. Toggle transparency off/on; the whole-background choice must survive.
+    Check both light/dark and reboot persistence. Older clients stay compatible.
+13. Rapidly scroll the category sidebar and detail results, alternate directions,
+    then type/search/navigate. Drag repeatedly and test release plus keyboard input.
+    Record any freeze with input profile, effects, screen size and serial diagnostics;
+    the operator-reported 0.0.26 freeze is not proven fixed by local tests.
+14. Maximize/restore Meridian, Welcome and System Information. Resize with an unsaved
+    Colors draft: edits must survive without saving. Persistent categories and inset
+    detail panes should remain usable; close during a drag must release input.
+
 Report the exact kernel/client/theme versions and which steps passed. Source and
 local QEMU tests do not complete this operator checklist automatically.

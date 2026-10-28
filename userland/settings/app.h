@@ -9,6 +9,7 @@ struct settings_backend {
 };
 struct settings_app {
     struct zui ui;
+    struct zui_rect viewport;
     struct zenith_appearance state;
     struct settings_backend backend;
     unsigned int mode,accent,effects,saved_effects,effective_effects,available_effects,material_reason;
@@ -17,6 +18,8 @@ struct settings_app {
     const char *message;
 };
 int settings_init(struct settings_app *app,unsigned int *pixels,struct settings_backend backend);
+void settings_set_viewport(struct settings_app *app,struct zui_rect viewport);
+void settings_request_navigation(struct settings_app *app);
 void settings_draw(struct settings_app *app);
 int settings_event(struct settings_app *app,const struct zenith_gui_event *event);
 void settings_refresh(struct settings_app *app);

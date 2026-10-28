@@ -6,12 +6,14 @@
 static struct zenith_appearance saved;
 static int saves,dirty;
 static unsigned int material_saved;
-static long read_state(struct zenith_appearance *s,unsigned int *materials,unsigned int *effective,unsigned int *available,unsigned int *reason){*s=saved;*materials=*effective=material_saved;*available=3;*reason=0;return 0;}
+static long read_state(struct zenith_appearance *s,unsigned int *materials,unsigned int *effective,unsigned int *available,unsigned int *reason){*s=saved;*materials=*effective=material_saved;*available=7;*reason=0;return 0;}
 static long save(unsigned int m,unsigned int a,unsigned int materials,unsigned long revision){assert(revision==saved.revision);material_saved=materials;saved.mode=m;saved.accent=a;saved.revision++;saves++;return 0;}
 static long mark(int d){dirty=d;return 0;}
 static struct meridian app;
 static unsigned int pixels[600*480];
 static void click(int x,int y){struct zenith_gui_event e={Z_GUI_DOWN,0,x,y,0,0};meridian_event(&app,&e);meridian_draw(&app);e.type=Z_GUI_UP;meridian_event(&app,&e);meridian_draw(&app);}
+static void activate(int id){struct zui *u=meridian_ui(&app);for(int i=0;i<u->count;i++)if(u->controls[i].id==id){struct zui_rect r=u->controls[i].rect;click(r.x+r.w/2,r.y+r.h/2);return;}assert(!"missing control");}
+static int page_id(const char *id){for(int i=0;i<43;i++)if(!strcmp(id,meridian_pages[i].id))return i;assert(0);return 0;}
 static void key(int code,int extra,int mods){struct zenith_gui_event e={Z_GUI_KEY,code,0,0,mods,extra};meridian_event(&app,&e);meridian_draw(&app);}
 int main(int argc,char **argv){
     saved.version=1;saved.revision=1;saved.flags=3;
@@ -21,17 +23,35 @@ int main(int argc,char **argv){
     struct zenith_gui_event e={Z_GUI_FOCUS,1,0,0,0,0};meridian_event(&app,&e);meridian_draw(&app);
     for(int i=0;i<43;i++){assert(meridian_open(&app,meridian_pages[i].id));meridian_draw(&app);assert(app.page==i);assert(meridian_ui(&app)->count<=32);}
     assert(saves==0&&!dirty);assert(!meridian_open(&app,"missing.page"));
-    assert(meridian_open(&app,"style.colors"));meridian_draw(&app);click(200,120);assert(app.colors.edited&&dirty);
-    click(500,28);assert(app.colors.prompt==3&&app.page==16);click(60,436);assert(app.colors.edited&&!app.colors.prompt);
-    click(500,28);click(210,436);assert(app.page==-1&&!app.colors.edited&&!dirty&&saves==0);
+    assert(meridian_open(&app,"style.colors"));meridian_draw(&app);activate(2);assert(app.colors.edited&&dirty);
+    activate(1101);assert(app.colors.prompt==3&&app.page==16);activate(90);assert(app.colors.edited&&!app.colors.prompt);
+    activate(1101);activate(91);assert(app.page==-1&&!app.colors.edited&&!dirty&&saves==0&&app.category==1);
     key('f',0,2);for(const char *p="bluetooth";*p;p++)key(*p,0,0);
     assert(app.match_count==1);assert(strcmp(meridian_pages[app.matches[0]].id,"devices.bluetooth")==0);
-    key(0,2,0);click(300,130);assert(strcmp(meridian_pages[app.page].id,"devices.bluetooth")==0);
-    assert(meridian_open(&app,"style.colors"));meridian_draw(&app);click(200,120);click(70,435);assert(saves==1&&!dirty);
-    key('f',0,2);click(500,76);click(110,154);assert(app.category==1&&app.match_count==5);
-    click(300,130);assert(app.group==0&&app.match_count==2);
-    click(300,174);assert(strcmp(meridian_pages[app.page].id,"input.touchpad")==0);
-    click(500,28);assert(app.page==-1&&app.group==0);key(0,1,0);assert(app.group==-1);
+    key(0,2,0);activate(100+page_id("devices.bluetooth"));assert(strcmp(meridian_pages[app.page].id,"devices.bluetooth")==0);
+    assert(meridian_open(&app,"style.colors"));meridian_draw(&app);activate(2);activate(30);assert(saves==1&&!dirty);
+    activate(1101);assert(app.category==1&&app.match_count==5);activate(300);assert(app.group==0&&app.match_count==2);
+    activate(100+page_id("input.touchpad"));assert(strcmp(meridian_pages[app.page].id,"input.touchpad")==0);
+    key(0,1,0);assert(app.page==-1&&app.group==0);key(0,1,0);assert(app.group==-1);
+    for(int i=0;i<2000;i++){
+        e=(struct zenith_gui_event){Z_GUI_SCROLL,i%2?INT_MIN:INT_MAX,300,200,0,0};meridian_event(&app,&e);meridian_draw(&app);
+        assert(app.offset>=0&&app.offset<43&&meridian_ui(&app)->count<=32);
+    }
+    assert(!meridian_resize(&app,INT_MAX,INT_MAX,600*480));
+    assert(meridian_resize(&app,600,480,600*480));
+    material_saved=7;meridian_refresh(&app);assert(meridian_open(&app,"style.colors"));
+    app.colors.ui.foreground=app.navigation.foreground=1;meridian_draw(&app);
+    assert(app.colors.ui.material_count==2&&pixels[0]==0);
+    for(int i=0;i<600*480;i++){unsigned int c=pixels[i],alpha=c>>24;assert((c&255)<=alpha&&((c>>8)&255)<=alpha&&((c>>16)&255)<=alpha);}
+    assert(pixels[430*600+230]>>24==255); /* controls remain opaque */
+    static unsigned int large[1920*1000];app.colors.ui.pixels=app.navigation.pixels=large;
+    activate(saved.mode==0?2:1);assert(app.colors.edited&&dirty);unsigned long draft_revision=app.colors.base_revision;
+    assert(meridian_resize(&app,1280,692,1920*1000));meridian_draw(&app);assert(app.colors.ui.width==1280&&app.colors.ui.height==692);
+    assert(app.colors.edited&&dirty&&app.colors.base_revision==draft_revision);
+    assert(saves==1);activate(1101);activate(91);assert(!app.colors.edited&&!dirty);
+    key('f',0,2);assert(meridian_resize(&app,1920,1000,1920*1000));meridian_draw(&app);assert(app.navigation.count<=32);
+    app.colors.ui.pixels=app.navigation.pixels=pixels;material_saved=0;meridian_refresh(&app);
+    assert(meridian_resize(&app,600,480,600*480));app.colors.ui.foreground=app.navigation.foreground=0;
     struct zui_input input;char bytes[16]="A\xc3\xa9";assert(zui_input_init(&input,bytes,sizeof(bytes)));
     e=(struct zenith_gui_event){Z_GUI_KEY,0,0,0,0,3};assert(zui_input_event(&input,&e));assert(strcmp(bytes,"A")==0);
     e.code=0x1f600;e.extra=0;assert(zui_input_event(&input,&e));assert(input.length==5);e.code=0;e.extra=3;zui_input_event(&input,&e);assert(strcmp(bytes,"A")==0);
@@ -47,6 +67,11 @@ int main(int argc,char **argv){
         assert(meridian_open(&app,"quick.overview"));meridian_refresh(&app);meridian_draw(&app);
         char path[1024];snprintf(path,sizeof(path),"%s/meridian.ppm",argv[1]);FILE *f=fopen(path,"wb");assert(f);fprintf(f,"P6\n600 480\n255\n");
         for(int i=0;i<600*480;i++){unsigned char b[3]={pixels[i]>>16,pixels[i]>>8,pixels[i]};fwrite(b,1,3,f);}fclose(f);
+        for(int mode=0;mode<2;mode++){
+            saved.mode=mode;saved.revision++;assert(meridian_open(&app,"style.colors"));meridian_refresh(&app);meridian_draw(&app);
+            snprintf(path,sizeof(path),"%s/meridian-colors-%d.ppm",argv[1],mode);f=fopen(path,"wb");assert(f);fprintf(f,"P6\n600 480\n255\n");
+            for(int i=0;i<600*480;i++){unsigned char b[3]={pixels[i]>>16,pixels[i]>>8,pixels[i]};fwrite(b,1,3,f);}fclose(f);
+        }
     }
     puts("PASS all 43 Meridian pages, search, real pointer capture, navigation discard, save isolation and UTF-8 editing");return 0;
 }

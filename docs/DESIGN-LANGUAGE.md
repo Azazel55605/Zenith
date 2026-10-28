@@ -112,7 +112,7 @@ blur. Opacity/blur samples are illustrative until compositor measurements exist.
 
 | Role | Default appearance | Optional material behavior |
 |---|---|---|
-| Content / document / terminal canvas | Solid semantic Surface | Stays opaque for legibility; no automatic whole-window transparency |
+| Content / app canvas | Solid semantic Surface | Optional Whole app background layer for opted-in clients; text and controls remain foreground; legacy documents/terminals stay opaque |
 | Control / field / status / important dialog | Solid semantic Raised/Subtle | Text, icons, selection, focus and input feedback stay opaque |
 | Navigation / secondary panel | Neutral semantic surface | May use tinted transparency and, independently, backdrop diffusion |
 | Host window chrome / shell panel / menu / popover | Neutral material surface | Host-authorized tint/alpha/blur within the same bounds and corner mask |
@@ -122,6 +122,12 @@ A settings/container background can use the Panel role too; eligible material is
 not restricted to the sidebar. Content means the document/text plane, not every
 pixel inside an application. Choose these semantic regions when building controls,
 then change composition centrally.
+
+Meridian and suitable utility apps use a persistent leading navigation pane and
+an inset, rounded detail container. Category navigation stays available inside
+modules; groups, Back and global search provide a hierarchy without a second
+unrelated menu screen. Shared workspace geometry adapts to resize/maximize while
+preserving drafts and control identity. Files remains excluded from this batch.
 
 Material choice **never changes layout**: same bounds, insets, type metrics,
 rounding, hit targets, scroll geometry, focus order and window controls. The decoration/content divider is omitted when
@@ -172,6 +178,10 @@ tracked/cached bounded software effects before making them generally available.
 Software composition caches unchanged sources. All owners share an 8 MiB cache
 lease pool and a 393216-pixel blur budget per composition; over-budget blur uses
 tint, unavailable/oversize caches use solid. Cache leases end with windows/session.
+Source-only tint caches use four bytes per pixel; blurred caches use twelve.
+A large/mixed frame can fall back to source-only tint when blur storage exceeds
+the lease pool. Native frame transfers reuse one private validated buffer per
+invocation rather than allocating a full frame on every repaint.
 This bounds software work, not total system memory or frame latency. Fine damage
 tracking, GPU acceleration, sustained device performance and resize/scale remain
 separate acceptance work.
@@ -192,7 +202,10 @@ The host raises tint opacity from 210 (blur) or 220 (tint), up to 244/255, until
 primary/secondary text meets 4.5:1 over both black and white backdrop extremes.
 If no tested opacity passes, that surface stays solid. The client cannot choose
 opacity or weaken the policy. Terminal secret reads, the credential installer,
-greeter and recovery remain solid. The taskbar uses the same material policy and
+greeter and recovery remain solid. Whole app background is a separate system-wide layer for opted-in apps; it
+reveals the canvas without fading foreground controls, text or icons. Its saved
+bit remains when transparency is off. Per-app overrides are deferred.
+The taskbar uses the same material policy and
 geometry; customization is deferred.
 
 ### D1/D3 acceptance

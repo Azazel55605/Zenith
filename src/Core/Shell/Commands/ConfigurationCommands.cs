@@ -10,7 +10,7 @@ internal static class ConfigurationCommands
 {
     public static void Register(Action<Command> add)
     {
-        add(new Command("settings", "settings [show | set keyboard|timezone|session VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur]", "Shared system settings", Settings));
+        add(new Command("settings", "settings [show | set keyboard|timezone|session VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]", "Shared system settings", Settings));
         add(new Command("session", "session [status | list | set-default MODE | switch MODE]", "Select a session or return to login", Session));
     }
     private static int Settings(CommandContext c)
@@ -33,8 +33,8 @@ internal static class ConfigurationCommands
         }
         if (c.Args.Length == 3 && c.Args[0] == "set" && c.Args[1] == "materials")
         {
-            uint effects = c.Args[2] switch { "solid" => 0U, "transparent" => 1U, "blur" => 3U, _ => 4U };
-            if (effects > 3) { return c.Fail("materials requires solid|transparent|blur"); }
+            uint effects = c.Args[2] switch { "solid" => 0U, "transparent" => 1U, "blur" => 3U, "background" => 5U, "background-blur" => 7U, _ => 8U };
+            if (effects > 7) { return c.Fail("materials requires solid|transparent|blur|background|background-blur"); }
             var service = SystemConfiguration.Appearance;var current = service.Saved;
             int result = service.SaveFull(current.Mode, current.Accent, effects, current.Revision);
             if (result != 0) { return c.Fail("material save failed (" + result + ")"); }
@@ -50,7 +50,7 @@ internal static class ConfigurationCommands
             c.WriteLine("saved appearance; desktop applies on its next tick, headless on next login" + (service.Persistent ? "" : " (live: volatile)"));
             return 0;
         }
-        if (c.Args.Length != 3 || c.Args[0] != "set") { return c.Fail("usage: settings [show | set keyboard|timezone|session VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur]"); }
+        if (c.Args.Length != 3 || c.Args[0] != "set") { return c.Fail("usage: settings [show | set keyboard|timezone|session VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]"); }
         switch (c.Args[1])
         {
             case "keyboard": settings.SetKeyboard(c.Args[2]); break;

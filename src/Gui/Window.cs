@@ -39,6 +39,7 @@ internal abstract class Window
 
     /// <summary>Whether the user may resize and maximize the window. Fixed-layout windows say no.</summary>
     public virtual bool CanResize => true;
+    public virtual (int Width, int Height) MaximumSize => (int.MaxValue, int.MaxValue);
     public virtual bool AllowMaterials => true;
     internal HostMaterial ChromeMaterial { get; } = new();
 
@@ -98,6 +99,8 @@ internal abstract class Window
     }
 
     /// <summary>Mouse wheel over the window; positive scrolls back (up).</summary>
+    public virtual void OnScrollAt(int delta, int x, int y) => OnScroll(delta);
+
     public virtual void OnScroll(int delta)
     {
     }

@@ -23,7 +23,7 @@ internal sealed class AppearanceService
     public (uint Available, uint Effective, uint Reason) MaterialStatus
     { get { lock (_gate) { return (_materialAvailable, _materialEffective, _materialReason); } } }
     public void ReportMaterials(uint available, uint effective, uint reason)
-    { lock (_gate) { _materialAvailable = available & 3; _materialEffective = effective & available & 3; _materialReason = reason; } }
+    { lock (_gate) { _materialAvailable = available & 7; _materialEffective = effective & available & 7; _materialReason = reason; } }
     public bool UsePalette => _explicit || _palette.Packaged;
     public AppearancePalette Palette => _palette;
     public bool Persistent => _store.Persistent;
@@ -47,10 +47,16 @@ internal sealed class AppearanceService
     // Result codes are stable service errors, not exception text or authority supplied by a client.
     public int Save(uint mode, uint accent, ulong expectedRevision)
     { lock (_gate) { return SaveFull(mode, accent, _saved.Materials, expectedRevision); } }
+    public int SaveSurfaceMaterials(uint mode, uint accent, uint materials, ulong revision)
+    {
+        if (!CredentialContext.Current.IsRoot) { return -13; }
+        if (materials > 3) { return -22; }
+        lock (_gate) { return SaveFull(mode, accent, materials | (_saved.Materials & 4), revision); }
+    }
     public int SaveFull(uint mode, uint accent, uint materials, ulong expectedRevision)
     {
         if (!CredentialContext.Current.IsRoot) { return -13; }
-        if (mode > 1 || accent > 5 || materials > 3) { return -22; }
+        if (mode > 1 || accent > 5 || materials > 7) { return -22; }
         lock (_gate)
         {
             var old = _saved;
@@ -59,7 +65,7 @@ internal sealed class AppearanceService
             try
             {
                 _ = Parse(_store.Read(Path));
-                string text = "VERSION=2\nMODE=" + ModeName(mode) + "\nACCENT=" + AccentName(accent) + "\nMATERIALS=" + materials + "\n";
+                string text = "VERSION=" + (materials > 3 ? "3" : "2") + "\nMODE=" + ModeName(mode) + "\nACCENT=" + AccentName(accent) + "\nMATERIALS=" + materials + "\n";
                 _store.Replace(Path, text);
                 _explicit = true; _saved = new(mode, accent, old.Revision + 1, materials);
                 return 0;
@@ -96,15 +102,15 @@ internal sealed class AppearanceService
             int eq = line.IndexOf('=');
             if (eq < 1 || !fields.TryAdd(line[..eq], line[(eq + 1)..])) { throw new FormatException("invalid/duplicate appearance key"); }
         }
-        if (!fields.TryGetValue("VERSION", out var version) || version is not ("1" or "2")
+        if (!fields.TryGetValue("VERSION", out var version) || version is not ("1" or "2" or "3")
             || fields.Count != (version == "1" ? 3 : 4)
             || !fields.TryGetValue("MODE", out var mode) || !TryMode(mode, out uint m)
             || !fields.TryGetValue("ACCENT", out var accent) || !TryAccent(accent, out uint a))
         { throw new FormatException("unsupported appearance configuration"); }
         uint materials = 0;
-        if (version == "2" && (!fields.TryGetValue("MATERIALS", out var effects) || effects.Length != 1 || effects[0] < '0' || effects[0] > '3'))
+        if (version != "1" && (!fields.TryGetValue("MATERIALS", out var effects) || effects.Length != 1 || effects[0] < '0' || effects[0] > (version == "3" ? '7' : '3')))
         { throw new FormatException("invalid material preferences"); }
-        if (version == "2") { materials = (uint)(fields["MATERIALS"][0] - '0'); }
+        if (version != "1") { materials = (uint)(fields["MATERIALS"][0] - '0'); }
         return (m, a, materials);
     }
 }

@@ -41,6 +41,12 @@ internal sealed unsafe class NativeProcess
     private readonly ulong _hhdm;
     private ulong* _root;
     private byte[]? _processSnapshot;
+    private byte[]? _graphicsTransfer;
+    private byte[] ReadGraphics(ulong address, int size)
+    {
+        if (_graphicsTransfer is null || _graphicsTransfer.Length != size) { _graphicsTransfer = new byte[size]; }
+        Transfer(address, _graphicsTransfer, false); return _graphicsTransfer;
+    }
     internal static readonly ProcessTable Processes = new();
     private static readonly object s_rawGate = new(), s_rootsGate = new(), s_serviceGate = new();
     private static readonly Dictionary<int, object[]> s_roots = new();
@@ -125,6 +131,21 @@ internal sealed unsafe class NativeProcess
     {
         try
         {
+            if (c.Call == 614)
+            { return c.Arg0 > int.MaxValue || c.Arg1 != 1 || c.Arg2 != 0 ? -22 : graphics.EnableResize((int)c.Arg0); }
+            if (c.Call == 613)
+            {
+                if (c.Arg0 > int.MaxValue || c.Arg2 != 32) { return -22; }
+                if (!Valid(c.Arg1, 32, true)) { return -14; }
+                var viewport = graphics.Viewport((int)c.Arg0); if (viewport is null) { return -9; }
+                Transfer(c.Arg1, viewport, true); return 0;
+            }
+            if (c.Call == 615)
+            {
+                if (c.Arg0 > int.MaxValue || c.Arg2 != 24) { return -22; }
+                if (!Valid(c.Arg1, 24, false)) { return -14; }
+                return graphics.AcceptResize((int)c.Arg0, ReadUser(c.Arg1, 24));
+            }
             if (c.Call == 612)
             {
                 if (c.Arg1 is < 1 or > 4096 || c.Arg2 != 1) { return -22; }
@@ -159,17 +180,17 @@ internal sealed unsafe class NativeProcess
                 foreach (byte value in title) { if (value < 32 || value > 126) { return -22; } }
                 return graphics.Open(r.Width, r.Height, Encoding.ASCII.GetString(title), r.Format);
             }
-            if (c.Call == 608)
+            if (c.Call is 608 or 616)
             {
                 if (c.Arg1 != 48 || c.Arg2 != 0) { return -22; }
                 if (!Valid(c.Arg0, 48, true)) { return -14; }
-                Transfer(c.Arg0, ProcessAppearance.MaterialSnapshot(Zenith.Core.Configuration.SystemConfiguration.Appearance), true);return 0;
+                Transfer(c.Arg0, ProcessAppearance.MaterialSnapshot(Zenith.Core.Configuration.SystemConfiguration.Appearance, c.Call == 616), true);return 0;
             }
-            if (c.Call == 609)
+            if (c.Call is 609 or 617)
             {
                 if (c.Arg1 != 32 || c.Arg2 != 0) { return -22; }
                 if (!Valid(c.Arg0, 32, false)) { return -14; }
-                return ProcessAppearance.SaveMaterials(Zenith.Core.Configuration.SystemConfiguration.Appearance, ReadUser(c.Arg0, 32));
+                return ProcessAppearance.SaveMaterials(Zenith.Core.Configuration.SystemConfiguration.Appearance, ReadUser(c.Arg0, 32), c.Call == 617);
             }
             if (c.Call == 607)
             {
@@ -191,7 +212,7 @@ internal sealed unsafe class NativeProcess
                 if (!Valid(frame.Pixels, size, false) || (regionBytes != 0 && !Valid(frame.Regions, regionBytes, false))) { return -14; }
                 byte[] regions = regionBytes == 0 ? Array.Empty<byte>() : ReadUser(frame.Regions, regionBytes);
                 if (!ProcessMaterialRegion.TryRead(regions, frame.Count, out var materialRegions)) { return -22; }
-                int result = graphics.PresentMaterials((int)c.Arg0, ReadUser(frame.Pixels, size), materialRegions);
+                int result = graphics.PresentMaterials((int)c.Arg0, ReadGraphics(frame.Pixels, size), materialRegions);
                 Thread.Sleep(16); return result;
             }
             if (c.Call == 601)
@@ -201,7 +222,7 @@ internal sealed unsafe class NativeProcess
                 if (size < 0) { return size; }
                 if (c.Arg2 != (ulong)size) { return -22; }
                 if (!Valid(c.Arg1, size, false)) { return -14; }
-                int result = graphics.Present((int)c.Arg0, ReadUser(c.Arg1, size));
+                int result = graphics.Present((int)c.Arg0, ReadGraphics(c.Arg1, size));
                 Thread.Sleep(16); return result;
             }
             if (c.Call == 602)
@@ -458,7 +479,7 @@ internal sealed unsafe class NativeProcess
                     catch { Monitor.Exit(s_rawGate); throw; }
                     if (status != 4096) { break; }
                     if (cancelled()) { status = 130; break; }
-                    if (context.Call is >= 600 and <= 607 ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
+                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
                     var caller = Zenith.Core.Security.CredentialContext.Enter(identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
                     // while waiting for a peer. Mutations and transport setup stay serialized.

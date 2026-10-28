@@ -49,7 +49,7 @@ replacing the loaded kernel. The existing shell commands remain recovery builtin
 
 The loader accepts bounded, static ELF64 little-endian ET_EXEC for machine 62:
 64-byte ELF header, 56-byte program headers, 1..16 entries, at most 256 KiB on disk.
-PT_LOAD virtual addresses occupy 0x400000..0x800000, with 4096-byte aligned offsets
+PT_LOAD virtual addresses occupy 0x400000..0xc00000, with 4096-byte aligned offsets
 and addresses. Read-only, read/execute or read/write pages are accepted; writable
 executable pages and overlapping mappings are refused. BSS starts zeroed. Entry
 must lie in file-backed executable bytes. Dynamic/interpreter/TLS segments and

@@ -31,8 +31,15 @@ struct zenith_material_settings { unsigned int version,flags; unsigned long revi
 struct zenith_material_settings_request { unsigned int version,flags; unsigned long revision; unsigned int mode,accent,materials,reserved; };
 _Static_assert(sizeof(struct zenith_material_settings)==48,"material settings snapshot");
 _Static_assert(sizeof(struct zenith_material_settings_request)==32,"material settings request");
-static inline long zenith_material_settings_read(struct zenith_material_settings *state){return zenith_call(608,(unsigned long)state,sizeof(*state),0);}
+static inline long zenith_material_settings_read(struct zenith_material_settings *state){
+    long r=zenith_call(616,(unsigned long)state,sizeof(*state),0);
+    return r==-38?zenith_call(608,(unsigned long)state,sizeof(*state),0):r;
+}
 static inline long zenith_material_settings_save(unsigned int mode,unsigned int accent,unsigned int materials,unsigned long revision){
-    struct zenith_material_settings_request r={1,0,revision,mode,accent,materials,0};return zenith_call(609,(unsigned long)&r,sizeof(r),0);
+    struct zenith_material_settings_request r={2,0,revision,mode,accent,materials,0};
+    long result=zenith_call(617,(unsigned long)&r,sizeof(r),0);
+    if(result!=-38)return result;
+    if(materials>3)return -19;
+    r.version=1;return zenith_call(609,(unsigned long)&r,sizeof(r),0);
 }
 #endif
