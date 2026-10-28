@@ -458,6 +458,26 @@ independent disk copy with current controller diagnostics. Client fixture packag
 may be prepared by the tagged harness; the kernel is unchanged. Keep 0.0.27 immutable.
 See [evidence](../../docs/archive/2026-10-28/input-acknowledgement.md).
 
+### Focused maximize input diagnosis
+
+When the prepared replay reaches maximize but fails its cursor witness, use the
+failed **desktop** fixture directly; the earlier setup/saves do not need repeating:
+
+```sh
+PATH="$PATH:/usr/sbin:/sbin" ZENITH_VALIDATION_ACCELERATOR=tcg \
+python3 -B tools/maximize-input-replay.py \
+  --disk /var/tmp/zn-settings-brmvnb0c/replay/desktop/disk.img \
+  --elf ~/.local/state/zenith/distributor/build-kernel-v0.0.27/output-x64/Zenith.elf
+```
+
+It verifies the ELF, preserves the original disk, uses the installed Settings
+client and performs three maximize/restore cycles after the wheel/search prelude.
+No kernel or package compilation runs. The default evidence directory is under
+`/var/tmp/zn-max-*`; increase `--cycles` within 1..100 only for focused stress.
+This diagnostic is not a replacement for release acceptance. Pointer failures
+retain the exact rendered target and, when the verified layout is supported,
+read-only guest mouse coordinates/buttons in `pipeline-stall.json`.
+
 ## Parallel gates and faster retries
 
 Native gates run in separate disposable VMs. Automatic sizing uses up to four

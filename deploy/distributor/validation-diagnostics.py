@@ -2,7 +2,8 @@
 
 Capture code/stack addresses, flags and the documented numeric scheduler
 snapshot and validated halt return addresses, never general-register payloads, arbitrary
-memory, serial text or input.
+memory, serial text or keyboard input. Meridian failures also observe bounded
+mouse coordinates/buttons after validating the exact ELF's native field accesses.
 Typed queue fields can also be read using the exact ELF's DWARF and verified
 static getter. No object payloads or arbitrary stack locals are collected.
 These observations cannot pass a gate.
@@ -182,6 +183,16 @@ def capture(machine, label, elf=None):
                 report['scheduler_queue_after'] = scheduler.observe(monitor,elf,words)
             except (OSError,ValueError,KeyError,subprocess.SubprocessError,struct.error):
                 report['scheduler_queue_error'] = 'typed queue unavailable, changed during read or unsupported'
+            if label == 'MERIDIAN_INPUT':
+                try:
+                    spec=importlib.util.spec_from_file_location('failure_pointer',Path(__file__).with_name('validation-pointer.py'))
+                    pointer=importlib.util.module_from_spec(spec);spec.loader.exec_module(pointer)
+                    address=pointer.layout(elf)
+                    report['mouse_manager']=pointer.observe(monitor,address,words)
+                    time.sleep(.1)
+                    report['mouse_manager_after']=pointer.observe(monitor,address,words)
+                except (OSError,ValueError,subprocess.SubprocessError,struct.error):
+                    report['mouse_manager_error']='mouse layout unavailable, changed or unsupported'
     destination = directory / 'pipeline-stall.json'
     destination.write_text(json.dumps(report, indent=2)+'\n')
     print('Native pipeline stall snapshot (read-only): '+str(destination), flush=True)

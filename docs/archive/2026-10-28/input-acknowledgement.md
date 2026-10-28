@@ -123,3 +123,39 @@ Local verification of the public-prompt protocol on the exact server ELF:
 Evidence is retained under ignored `obj/server-027-public-prompt` and
 `obj/server-027-secret-negative`; source control contains the controller policy
 and regression cases. This is local exact-binary evidence, not server acceptance.
+
+### Maximize witness failure after public-input recovery
+
+The subsequent operator replay (`/var/tmp/zn-settings-brmvnb0c/replay`) passed
+password cancellation, all three shared selectors, personal/permission checks,
+package upgrade and rapid-wheel response. It then failed at cursor return during
+maximize: expected (910,156), observed (911,156). The retained journal contains
+MERIDIAN_RESIZED, confirming the application processed maximize before the
+synthetic witness failed. No cursor correction, click retry or relaxed destination
+has been added; the tiny-motion/driver/presentation cause remains unconfirmed.
+
+`tools/maximize-input-replay.py` boots a separate copy of that failed desktop disk,
+verifies its exact ELF, launches the installed Settings client, repeats the wheel
+and Bluetooth-search prelude and runs bounded maximize/restore cycles. It skips
+kernel/client compilation, OS installation and the earlier save/account checks.
+It requires the retained fixture's dark/teal profile. Each resize requires its
+journal acknowledgement and visible maximize/restore chrome/geometry; a maximized search field cannot
+satisfy the restored-window geometry check. No failed button sequence is repeated.
+
+Mouse failures now include two read-only MouseManager coordinate/button samples.
+The helper verifies the exact ELF's static symbol and the native Input.Poll field
+accesses before reading sixteen bounded bytes. Changed layouts are reported as
+unsupported instead of guessing. This distinguishes a manager coordinate that
+never reached the target from a manager/rendered-cursor discrepancy; it cannot
+make a failed gate pass or by itself prove the reason for a lost movement.
+
+Local focused evidence: three complete maximize/restore cycles passed on the exact
+server ELF (12 button commands, no replay/correction). A deliberately omitted
+return movement still failed at (1240,40) versus (1241,40); both bounded manager
+samples also reported (1241,40), left held, proving the added observation path on
+a known missing-input control. This negative result is expected, not a gate pass.
+All 313 shared controller regressions and the documentation check passed. An
+artificial single-CPU-contention run did not reach the desktop and was stopped;
+it supplies no mouse-failure evidence. Distributor root-cause confirmation remains
+pending; the public-prompt fixes remain confirmed through the operator's shared
+settings checks, and the original mouse witness assertion remains unchanged.
