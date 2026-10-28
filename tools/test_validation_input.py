@@ -133,6 +133,36 @@ class RenderedMouseTests(unittest.TestCase):
         with patch.object(mouse,'position',return_value=((100,100),(1280,800))), patch.object(mouse,'wait_position',side_effect=RuntimeError('no frame')):
             with self.assertRaises(RuntimeError):mouse.command('mouse_button 1')
         self.assertEqual(['mouse_button 1','mouse_move 1 0'],calls)
+    def test_missing_witness_motion_corrects_only_observed_delta(self):
+        import tempfile, time, json
+        with tempfile.TemporaryDirectory() as directory:
+            calls=[];mouse=profile.RenderedMouse(Path(directory)/'m.sock',lambda path,text:calls.append(text))
+            with patch.object(mouse,'position',side_effect=[((100,100),(1280,800)),((100,100),(1280,800)),((101,100),(1280,800))]), patch.object(time,'monotonic',side_effect=[0,.1,2.1]), patch.object(time,'sleep'):
+                mouse.wait_position((101,100),correct_motion=True)
+            self.assertEqual(['mouse_move 1 0'],calls)
+            row=json.loads((Path(directory)/'input-motion.jsonl').read_text())
+            self.assertEqual([100,100],row['observed']);self.assertEqual([101,100],row['target'])
+    def test_delayed_motion_overshoot_is_corrected_to_exact_target(self):
+        import tempfile, time
+        with tempfile.TemporaryDirectory() as directory:
+            calls=[];mouse=profile.RenderedMouse(Path(directory)/'m.sock',lambda path,text:calls.append(text))
+            with patch.object(mouse,'position',side_effect=[((100,100),(1280,800)),((102,100),(1280,800)),((101,100),(1280,800))]), patch.object(time,'monotonic',side_effect=[0,2.1,4.2]), patch.object(time,'sleep'):
+                mouse.wait_position((101,100),correct_motion=True)
+            self.assertEqual(['mouse_move 1 0','mouse_move -1 0'],calls)
+    def test_frozen_witness_fails_with_original_deadline_and_bounded_motion(self):
+        import tempfile, time
+        with tempfile.TemporaryDirectory() as directory:
+            calls=[];mouse=profile.RenderedMouse(Path(directory)/'m.sock',lambda path,text:calls.append(text))
+            with patch.object(mouse,'position',return_value=((100,100),(1280,800))), patch.object(time,'monotonic',side_effect=[0,2.1,4.2,10.1]), patch.object(time,'sleep'):
+                with self.assertRaisesRegex(RuntimeError,r'observed \(100, 100\)'):
+                    mouse.wait_position((101,100),correct_motion=True)
+            self.assertEqual(['mouse_move 1 0','mouse_move 1 0'],calls)
+    def test_ordinary_motion_is_never_corrected_implicitly(self):
+        import time
+        calls=[];mouse=profile.RenderedMouse('/tmp/m.sock',lambda path,text:calls.append(text))
+        with patch.object(mouse,'position',return_value=((100,100),(1280,800))), patch.object(time,'monotonic',side_effect=[0,2.1,10.1]), patch.object(time,'sleep'):
+            with self.assertRaises(RuntimeError):mouse.wait_position((101,100))
+        self.assertEqual([],calls)
     def test_movement_waits_for_observed_destination(self):
         calls=[];mouse=profile.RenderedMouse('/tmp/m.sock',lambda path,text:calls.append(text))
         with patch.object(mouse,'position',return_value=((696,443),(1280,800))), patch.object(mouse,'wait_position') as wait:

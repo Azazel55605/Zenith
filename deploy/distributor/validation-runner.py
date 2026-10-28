@@ -47,6 +47,14 @@ def run_harness(script):
     headless = script.parent / 'headless-smoke.py'
     def execute(loader, module):
         original_exec(loader, module)
+        if Path(loader.path).name == 'validation-input.py':
+            # Immutable tags keep their assertions and binaries. Input delivery is
+            # controller policy, just like authentication and network diagnostics.
+            # Some tagged harnesses import their own helper explicitly.
+            module.RenderedMouse = input_profile.RenderedMouse
+            module.install_monitor = input_profile.install_monitor
+            module.install = input_profile.install
+            print('Validation input policy: controller observed-motion-v2', flush=True)
         if script.name == 'native-graphics-smoke.py' and Path(loader.path).name == 'recovery_console.py':
             input_profile.install_monitor(module)
         if Path(loader.path).resolve() == headless.resolve():

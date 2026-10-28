@@ -90,6 +90,14 @@ class ValidationTests(unittest.TestCase):
         self.assertEqual(self.source.read_bytes(), self.destination.read_bytes())
         self.assertLess(self.destination.stat().st_blocks * 512, self.destination.stat().st_size // 4)
 
+    def test_tagged_input_helper_uses_current_controller_policy(self):
+        helper=self.root/'validation-input.py'
+        helper.write_text("class RenderedMouse: pass\ndef install_monitor(module): raise RuntimeError('old helper')\ndef install(machine): pass\n")
+        harness=self.root/'harness.py'
+        harness.write_text("import importlib.util\nfrom pathlib import Path\ns=importlib.util.spec_from_file_location('tagged_input',Path(__file__).with_name('validation-input.py'))\nm=importlib.util.module_from_spec(s);s.loader.exec_module(m)\nassert m.RenderedMouse.__module__ == 'validation_input'\nassert m.install_monitor.__module__ == 'validation_input'\nassert m.install.__module__ == 'validation_input'\n")
+        subprocess.run([sys.executable,'-B',str(ROOT/'deploy/distributor/validation-runner.py'),str(harness),str(self.destination)],check=True)
+        self.assertIn('old helper',helper.read_text())
+
     def test_dhcp_probe_requires_actual_online_state_and_expected_address(self):
         from unittest.mock import Mock
         machine=Mock(); machine.process.poll.return_value=None; machine.log.return_value='boot log'

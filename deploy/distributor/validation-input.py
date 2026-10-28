@@ -137,14 +137,27 @@ class RenderedMouse:
                 time.sleep(.05)
     def position(self):
         return cursor_position(self.capture(self.snapshot))
-    def wait_position(self, target):
+    def wait_position(self, target, correct_motion=False):
         import time
-        deadline = time.monotonic() + 10
+        started = time.monotonic(); deadline = started + 10
+        next_correction = started + 2; corrections = 0
         while True:
             actual, _ = self.position()
             if actual == target: return
-            if time.monotonic() >= deadline:
+            now = time.monotonic()
+            if now >= deadline:
                 raise RuntimeError('rendered mouse did not reach '+str(target)+'; observed '+str(actual))
+            if correct_motion and corrections < 2 and now >= next_correction:
+                # Positioning is idempotent; button edges and application actions
+                # are not. Correct only the remaining observed delta, never replay
+                # a click. Keep the exact destination and original total deadline.
+                import json
+                delta = (target[0]-actual[0], target[1]-actual[1])
+                with (self.monitor.parent/'input-motion.jsonl').open('a') as stream:
+                    stream.write(json.dumps(dict(target=target, observed=actual, delta=delta,
+                                                 correction=corrections+1))+'\n')
+                self.raw(self.monitor, 'mouse_move '+str(delta[0])+' '+str(delta[1]))
+                corrections += 1; next_correction = now + 2
             time.sleep(.05)
     def command(self, text):
         fields = text.split()
@@ -169,9 +182,10 @@ class RenderedMouse:
             step = 1 if x < width-13 else -1
             # Exactly one button transition. Move after it, observe a rendered
             # frame, then restore position. Button stays held throughout a press;
-            # the same sequence also acknowledges release. No input is retried.
-            self.raw(self.monitor, 'mouse_move '+str(step)+' 0'); self.wait_position((x+step, y))
-            self.raw(self.monitor, 'mouse_move '+str(-step)+' 0'); self.wait_position((x, y))
+            # the same sequence also acknowledges release. Only idempotent witness
+            # positioning may be corrected; button transitions are never repeated.
+            self.raw(self.monitor, 'mouse_move '+str(step)+' 0'); self.wait_position((x+step, y), correct_motion=True)
+            self.raw(self.monitor, 'mouse_move '+str(-step)+' 0'); self.wait_position((x, y), correct_motion=True)
             return result
         return self.raw(self.monitor, text)
 

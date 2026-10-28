@@ -6,6 +6,8 @@ Start with [current status](../ROADMAP.md#state-and-evidence) or [active work](.
 
 ## Investigation records
 
+- [2026-10-28 input acknowledgement](2026-10-28/input-acknowledgement.md): bounded witness-motion correction, no click replay, immutable-tag controller policy and native fault injection.
+
 - [2026-10-28 shared Settings stage](2026-10-28/shared-settings-stage.md): captured-UID profiles/inheritance, typed shared data/selectors and clean Release qualification.
 
 - [2026-10-27 graphical input profile](2026-10-27/graphical-input-profile.md): distributor mouse-delivery evidence, explicit test transport and no-build replay.

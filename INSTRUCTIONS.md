@@ -209,6 +209,10 @@ Before a new kernel tag, use `deploy/distributor/validate.py --keep NEW_DIRECTOR
 for unsigned full release acceptance; `--existing` is only for known prebuilt
 artifacts. CI uses this same native gate plan. Keep controller regressions in the
 common `--controller-only` set so server pre-build checks and CI stay aligned.
+Current input policy may correct only idempotent witness positioning from observed
+cursor coordinates; never replay clicks or application mutations, loosen exact
+positions or extend the original motion deadline. Tagged helper imports use the
+current controller policy; keep dead-pointer and omitted-motion fault tests.
 Authentication waits share `tools/guest_auth.py` in direct harnesses and the current
 distributor controller, including unchanged release tags. Keep prompt and hash/save
 completion phases distinct; never replay credentials or weaken hashing to fit a
