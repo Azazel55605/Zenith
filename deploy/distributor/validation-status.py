@@ -12,10 +12,17 @@ PROMPT = re.compile(r'(?:^|\r?\n)\[console\] [^\r\n]*[$#] ')
 
 def observation(machine, name, offset, output):
     """Only publish structured status/progress, never arbitrary guest text/secrets."""
-    raw = NOISE.sub('', machine.log()[offset:])
-    raw = re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', raw)
+    raw = re.sub(r'\x1b\[[0-9;]*[A-Za-z]', '', machine.log()[offset:])
     prefix = (r'(?:\[zenith\] \[[^\]\r\n]*\] )?user: ' if output else '')
-    codes = re.findall(r'(?:^|[\r\n])' + prefix + re.escape(name) + r'=([0-9]{1,3})(?=[\r\n])', raw)
+    record = prefix + re.escape(name) + r'=([0-9]{1,3})(?=[\r\n])'
+    complete_record = re.compile(record)
+    # Debug output can interrupt a progress line or command echo. Its final
+    # newline is then the only separator before the real status record. Keep
+    # that existing boundary instead of gluing the result to the preceding text.
+    # Otherwise retain removal/joining for debug fragments inside a split record.
+    source = raw
+    raw = NOISE.sub(lambda match: '\n' if complete_record.match(source, match.end()) else '', source)
+    codes = re.findall(r'(?:^|[\r\n])' + record, raw)
     phase = 'unknown'
     # Select the last *recognized* milestone. UART/debug volume is not progress.
     milestones = [

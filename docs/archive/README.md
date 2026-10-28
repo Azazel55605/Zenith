@@ -95,3 +95,5 @@ and relative-link rebasing are the only archival edits in this reorganization.
 - [Historical display measurements](2026-10-27/legacy-display-notes.md),
   [legacy unsigned package prototype](2026-10-27/package-prototype.md) and
   [narrative history](HISTORY.md) are preserved references, not active work lists.
+
+- [2026-10-29 status-record boundaries](2026-10-29/validation-status-record-boundaries.md): confirmed false fetch failure from removed debug-owned newlines; Q2 controller repair.

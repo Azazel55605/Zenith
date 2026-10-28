@@ -9,6 +9,37 @@ spec = importlib.util.spec_from_file_location('status', ROOT/'deploy/distributor
 status = importlib.util.module_from_spec(spec); spec.loader.exec_module(status)
 
 class StatusTests(unittest.TestCase):
+    def test_debug_removal_preserves_original_separator_before_logger_status(self):
+        from types import SimpleNamespace
+        for preceding in ('fetch progress [################] 100% 0.2/0.2 MiB',
+                          '[console] root@zenith:~$ cat /tmp/validation-status-fixture | logger'):
+            for code in (0,1,130):
+                raw=(preceding+'[SocketPlug] CloseTcp: status=8\n'
+                     '[libSystemNative] Thread 7 scheduled, stack 262144 bytes\n'
+                     '[SCHED] ExitThread: entering DisableInte\n'
+                     '[zenith] [   17.500] user: S_FETCH_010zpk='+str(code)+'\n'
+                     'rruptsScope for thread 7\n')
+                result=status.observation(SimpleNamespace(log=lambda:raw),'S_FETCH_010zpk',0,' | logger')
+                self.assertEqual(code,result['observed_status'])
+
+    def test_debug_removal_keeps_split_records_but_never_invents_a_boundary(self):
+        from types import SimpleNamespace
+        for raw,expected in (
+            ('\nuser: S_FETCH_[SCHED] Tick 900\n010zpk=1\n',1),
+            ('\nuser: S_FETCH_010zpk=[SCHED] Tick 900\n130\n',130),
+            ('echo [zenith] [ 17.500] user: S_FETCH_010zpk=0\n',None),
+            ('prefix user: S_FETCH_010zpk=0\n',None),
+            ('fetch[SocketPlug] done\n[zenith] [ 17.500] user: S_FETCH_010zpk=0oops\n',None),
+            ('fetch[SocketPlug] done\n[zenith] [ 17.500] user: S_FETCH_010zpk=0',None),
+        ):
+            result=status.observation(SimpleNamespace(log=lambda:raw),'S_FETCH_010zpk',0,' | logger')
+            self.assertEqual(expected,result['observed_status'],repr(raw))
+
+    def test_plain_status_keeps_debug_owned_separator(self):
+        from types import SimpleNamespace
+        raw='fetch 100%[SocketPlug] done\nP4_STAGE=1\n'
+        self.assertEqual(1,status.observation(SimpleNamespace(log=lambda:raw),'P4_STAGE',0,'')['observed_status'])
+
     def machine(self, replies, supply_records=True):
         class Machine:
             def __init__(self):
@@ -34,6 +65,22 @@ class StatusTests(unittest.TestCase):
         self.assertEqual("pkg kernel install /missing; printf '%s\\n' K_DENIED=$? > /tmp/validation-status-unique; cat /tmp/validation-status-unique | logger\r",m.sent[0])
         self.assertEqual(['cat /tmp/validation-status-unique | logger\r'],m.sent[1:])
         self.assertEqual(1,sum('pkg kernel install' in text for text in m.sent))
+
+    def test_completed_fetch_with_debug_separator_needs_no_status_readback(self):
+        m=self.machine([True],supply_records=False)
+        m.send('fetch http://10.0.2.2/0.1.0.zpk /root/0.1.0.zpk; echo S_FETCH_010zpk=$? | logger\r')
+        m.text+='\nfetch progress [################] 100% 0.2/0.2 MiB[SocketPlug] CloseTcp: entering\n'
+        m.text+='[SCHED] ExitThread: entering DisableInte\n[zenith] [   17.500] user: S_FETCH_010zpk=0\n'
+        self.assertTrue(m.wait('user: S_FETCH_010zpk=',4,300))
+        self.assertEqual(1,len(m.sent));self.assertEqual(1,len(m.waited))
+        self.assertEqual(0,m._validation_result['observed_status'])
+
+    def test_debug_separator_does_not_turn_a_nonzero_fetch_into_success(self):
+        m=self.machine([True],supply_records=False)
+        m.send('fetch http://10.0.2.2/0.1.0.zpk /root/0.1.0.zpk; echo S_FETCH_010zpk=$? | logger\r')
+        m.text+='\nfetch 100%[SocketPlug] CloseTcp: entering\n[zenith] [   17.500] user: S_FETCH_010zpk=1\n'
+        self.assertFalse(m.wait('user: S_FETCH_010zpk=0',4,300))
+        self.assertEqual(1,len(m.sent));self.assertEqual(1,m._validation_failure['observed_status'])
 
     def test_read_failure_is_bounded_and_does_not_repeat_operation(self):
         m=self.machine([False]*5);m.send('pkg update --yes; echo UPDATE=$? | logger\r')

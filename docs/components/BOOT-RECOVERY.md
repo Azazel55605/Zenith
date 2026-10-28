@@ -43,3 +43,5 @@ activation, failure to boot, incompatible schemas and external recovery.
 [future matched recovery](../UPDATE-RECOVERY.md).
 All new kernel tags require clean-source full qualification (Q2); old 0.0.13
 acceptance requests are superseded, not open tasks.
+
+Q2 also owns the [status-record normalizer repair](../archive/2026-10-29/validation-status-record-boundaries.md): a real fetch success was falsely rejected after debug-line removal. Preserve exact status/deadline assertions; validate the controller against the retained log before the unchanged release retry.
