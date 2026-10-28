@@ -392,4 +392,7 @@ zenith-net-tools; privileged configuration/trust and drivers remain kernel servi
 
 Calls 600..603 add versioned owned software surfaces, copied opaque presentation
 and bounded routed events. See [the graphical ABI contract](GRAPHICAL-CLIENTS.md)
-for exact layouts, session admission, quotas, unsaved/interactive extensions and cleanup. gui-probe is a validation client; independent Settings and selected app frontends now exist. Compositor/session isolation remains U6, not a completed consequence of these calls.
+for exact layouts, session admission, quotas, unsaved/interactive extensions and cleanup.
+The opt-in material extension uses format 2 plus calls 606/607 for validated
+premultiplied foreground/host regions; ABI 1 stays opaque. D3 remains partial
+until user policy, fallback and broad qualification are complete. gui-probe is a validation client; independent Settings and selected app frontends now exist. Compositor/session isolation remains U6, not a completed consequence of these calls.

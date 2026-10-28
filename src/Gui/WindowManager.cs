@@ -346,6 +346,7 @@ internal sealed class WindowManager
     {
         Rect b = w.Bounds;
         int radius = w.IsMaximized ? 0 : Theme.WindowRadius;
+        w.CaptureBackdrop(surface, w.Content);
         if (!w.IsMaximized)
         {
             surface.DrawShadow(b, radius, Theme.ShadowSize, w.IsFocused ? Theme.ShadowAlpha : Theme.ShadowAlpha / 2, 6);

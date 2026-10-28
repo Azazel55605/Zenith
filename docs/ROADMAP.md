@@ -55,10 +55,10 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
    completed-window corner mask fix the reported edge/rectangle bleed. Terminal,
    Editor and Sunrise now use the design tokens/shared host controls; Files stays
    excluded. [Evidence](archive/2026-10-28/smooth-edges-and-system-apps.md).
-3. **D3 / advanced rendering — next:** negotiate foreground coverage and bounded
-   host-owned material regions first, then tint/transparency and cached backdrop
-   blur, capability/fallback and saved/effective controls. Begin on today's fixed
-   surfaces; coordinate resizing/scale with D2. Keep text/content solid and protected
+3. **D3 / advanced rendering — active:** the opt-in foreground/material path,
+   host tint/blur and cache have local native proof. Next are saved/effective
+   controls, per-app integration, resource/performance fallback and broader
+   qualification. Coordinate resizing/scale with D2. Keep text/content solid and protected
    authentication opaque; never reinterpret legacy forced-XRGB as an alpha plane.
 4. **U1 + D2 / foundations:** rich controls, hover/text/clipboard/dialog contracts,
    independent lifetimes and guarded display resolution/scaling remain required.
@@ -88,7 +88,7 @@ changes; put smaller implementation steps in the linked component, using the sam
 | G1 | local, complete | One tracker; obsolete guides consolidated and open items mapped. [Audit and checks](archive/2026-10-27/documentation-and-material-contract.md) complete; future agents follow [maintenance](MAINTAINING.md). |
 | D1 | local; installed verification pending | [Shared visual parity](DESIGN-LANGUAGE.md): neutral segments, antialiased swatches/switches, label/help rows, restrained navigation and completed-window rounded masks implemented. Remaining system windows share the design; [quality follow-up](archive/2026-10-28/smooth-edges-and-system-apps.md). Both modes/six accents and draft/permission behavior locally qualified; [evidence](archive/2026-10-28/shared-widget-parity.md). Q2 owns installed confirmation; U1/D2 own richer widgets/hover transport, Unicode and scale; D3 owns effects. |
 | D2 | planned | Display identity/mode enumeration → guarded mode change → integer layout/text/surface scaling → driver-supported orientation/refresh. Requires richer client layout/resize contract. Smaller viewport, timeout/crash and explicit Keep/Revert must restore a usable mode. |
-| D3 | planned | Shared opaque surface roles are implemented; host-owned bounded material regions → alpha/tint → backdrop blur/damage caching → saved/effective user controls. Depends on D1 roles; start with bounded fixed surfaces, then D2 resize/scale integration. Same layout with effects on/off; contrast over busy backgrounds, movement/minimize/overlap and resource/performance fallback tested. No alpha packed into today's forced-opaque ABI. |
+| D3 | partial, opt-in local prototype | Version/capability negotiation, separate premultiplied foreground, bounded host regions, tint/box diffusion and unchanged-source cache implemented; [contract](GRAPHICAL-CLIENTS.md#opt-in-material-frames-d3-first-slice), [evidence](archive/2026-10-28/material-rendering-foundation.md). Next: saved/effective preferences and general app integration, resource/performance fallback and broad visual qualification. Depends on D1 roles; start with bounded fixed surfaces, then D2 resize/scale integration. Exit: same layout with effects on/off; contrast over busy backgrounds, movement/minimize/overlap and resource/performance fallback tested. ABI 1 stays forced opaque; format 2 is explicit. Default apps/protected authentication remain solid. |
 | U1 | partial | [Shared native UI/runtime](components/USERLAND.md): lists, fields, selectors, sliders, dialogs, multiline text, clipboard, resizing/hover, runtime fonts/Unicode/IME; long-duration quota and teardown acceptance beyond old invocation limits. Existing profile renewal alone is not full long-lived-app qualification. |
 | U2 | native migration planned | Shared-design Editor is locally implemented; native extraction still needs: bounded UTF-8/LF/CRLF, selection/clipboard, undo/redo/search, safe staged save/save-as and external-change checks. Depends on U1 + caller-scoped files/dialogs; prove permission/out-of-space/cancel/dirty-close and independent update. |
 | U3 | native migration planned | Shared-design Terminal/appearance-aware scrollback is locally implemented; extraction still needs: owned PTY/shell session, byte streams, modes/resize, raw/canonical input, hidden secrets, type-ahead, jobs/EOF/cancel. Depends on U1; preserve all three recovery hosts. No privileged command-string RPC as a substitute. |

@@ -71,6 +71,8 @@ internal abstract class Window
     public virtual bool UpdateWhenMinimized => false;
 
     /// <summary>Paints the content area. The surface is already clipped to <paramref name="content"/>.</summary>
+    public virtual void CaptureBackdrop(Surface surface, Rect content) { }
+
     public abstract void DrawContent(Surface surface, Rect content);
 
     /// <summary>The window changed size (resize or maximize); recompute layout here.</summary>

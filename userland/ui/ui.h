@@ -1,7 +1,8 @@
 #ifndef ZENITH_UI_H
 #define ZENITH_UI_H
 #include "../include/zenith_graphics.h"
-/* Client-only library v1. Owns no host state or syscall handles. All colors XRGB. */
+/* Client-only library v1. Owns no host state or handles. Colors are RGB; targets
+ * are legacy XRGB or explicitly initialized premultiplied foreground planes. */
 #define ZUI_API_VERSION 1
 #define ZUI_MAX_CONTROLS 32
 #define ZUI_MAX_TEXT_BYTES 4096
@@ -25,9 +26,15 @@ struct zui {
     struct zui_rect clip;
     struct zui_control controls[ZUI_MAX_CONTROLS];
     int count,focus,pressed,window_focused,dirty;
+    int foreground,material_count;
+    struct zenith_material_region materials[8];
 };
 /* Returns 0 for invalid dimensions/buffer; caller supplies width*height pixels. */
 int zui_init(struct zui *ui,unsigned int *pixels,int width,int height);
+/* Separate premultiplied foreground target. Begin clears coverage, not a whole
+ * window's opacity; paint opaque content/control roles over declared materials. */
+void zui_begin_material_frame(struct zui *ui);
+int zui_material_surface(struct zui *ui,struct zui_rect rect,int radius,int role,int effect);
 void zui_appearance(struct zui *ui,int light,int accent);
 void zui_clip(struct zui *ui,struct zui_rect rect);
 void zui_fill(struct zui *ui,struct zui_rect rect,unsigned int color);

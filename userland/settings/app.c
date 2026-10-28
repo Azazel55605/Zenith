@@ -47,7 +47,7 @@ void settings_draw(struct settings_app *a){
     text(a,24,79,"Color mode",&zui_label,u->theme.text);
     text(a,24,157,"Accent color",&zui_label,u->theme.text);
     zui_setting_row(u,(struct zui_rect){24,244,490,45},"","Let selected surfaces reveal the background.");
-    zui_setting_row(u,(struct zui_rect){24,294,490,45},"","Unavailable: requires transparency and compositor support.");
+    zui_setting_row(u,(struct zui_rect){24,294,490,45},"","Work in progress: system-wide material controls are not wired.");
     const char *scope=!(a->state.flags&Z_SETTINGS_WRITABLE)?"Read only: sign in as an administrator to save.":
         a->state.flags&Z_SETTINGS_PERSISTENT?"Installed system: saved changes survive reboot.":"Live system: changes will be lost at reboot.";
     text(a,24,347,scope,&zui_caption,u->theme.secondary);

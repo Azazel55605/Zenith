@@ -28,4 +28,19 @@ static inline long zenith_gui_close(long handle) { return zenith_call(603,(unsig
 /* Interactive ABI 1: renews bounded service/CPU/IO quotas every minute only
  * while this invocation owns a live window. Legacy clients remain finite. */
 static inline long zenith_gui_interactive(long handle){return zenith_call(605,(unsigned long)handle,1,0);}
+/* Opt-in materials extension. Query first; ABI 1 remains forced opaque. */
+struct zenith_material_caps { unsigned int version,features,max_regions,max_radius,max_area,blur_radius,max_width,max_height; };
+struct zenith_material_region { int x,y,w,h,radius,role,effect,reserved; };
+struct zenith_material_frame { unsigned int version,flags; unsigned long pixels,length,regions; unsigned int count,reserved; unsigned long reserved2; };
+_Static_assert(sizeof(struct zenith_material_frame)==48,"material frame layout");
+_Static_assert(sizeof(struct zenith_material_region)==32,"material region layout");
+static inline long zenith_gui_material_caps(struct zenith_material_caps *caps){return zenith_call(607,(unsigned long)caps,sizeof(*caps),0);}
+static inline long zenith_gui_open_material(unsigned int width,unsigned int height,const char *title,unsigned long length){
+    struct zenith_surface_request r={2,1,width,height,(unsigned long)title,length,{0,0}};
+    return zenith_call(600,(unsigned long)&r,sizeof(r),0);
+}
+static inline long zenith_gui_present_material(long handle,const unsigned int *pixels,unsigned long length,const struct zenith_material_region *regions,unsigned int count){
+    struct zenith_material_frame r={1,0,(unsigned long)pixels,length,count?(unsigned long)regions:0,count,0,0};
+    return zenith_call(606,(unsigned long)handle,(unsigned long)&r,sizeof(r));
+}
 #endif

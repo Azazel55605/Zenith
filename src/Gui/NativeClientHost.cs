@@ -19,14 +19,14 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
     private bool _stopped;
     public NativeClientHost(Credentials identity) { _identity = identity; _generation = Accounts.Generation; }
     public IProcessGraphicsHost? ForUser(uint uid) => uid == _identity.Uid ? this : null;
-    public ProcessSurface? Open(int width, int height, string title)
+    public ProcessSurface? Open(int width, int height, string title, int format = 1)
     {
         lock (_gate)
         {
             _surfaces.RemoveAll(s => s.Ended);
             _pending.RemoveAll(s => s.Ended);
             if (_stopped || Accounts.Generation != _generation || _surfaces.Count >= 4) { return null; }
-            var surface = new ProcessSurface(width, height, title);
+            var surface = new ProcessSurface(width, height, title, format);
             _surfaces.Add(surface); _pending.Add(surface); return surface;
         }
     }
@@ -50,8 +50,11 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
     {
         private readonly ProcessSurface _surface;
         private readonly int[] _frame;
+        private readonly ProcessMaterialRegion[] _materials = new ProcessMaterialRegion[ProcessMaterialRegion.MaximumRegions];
+        private readonly MaterialComposition? _composition;
+        private int _materialCount;
         public ClientWindow(ProcessSurface surface, Credentials identity) : base("Native · " + surface.Title, surface.Width, surface.Height + TitleBarHeight)
-        { _surface = surface; Identity = identity; _frame = new int[surface.Width * surface.Height]; }
+        { _surface = surface; Identity = identity; _frame = new int[surface.Width * surface.Height]; if (surface.Format == 2) { _composition = new(); } }
         public override bool CanResize => false;
         public override bool UpdateWhenMinimized => true;
         public override bool HasUnsavedChanges => _surface.Unsaved;
@@ -60,10 +63,19 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
         public override bool Update()
         {
             if (_surface.Ended) { base.Close(); Zenith.Core.Log.Write("graphics", "native surface retired"); return true; }
-            return !IsMinimized && _surface.CopyFrame(_frame, false);
+            if (IsMinimized || !_surface.CopyFrame(_frame, false, _materials, out int count)) { return false; }
+            _materialCount = count; return true;
         }
+        public override void CaptureBackdrop(Surface surface, Rect content)
+            => _composition?.Capture(surface.Pixels, surface.Width, surface.Height, content, _materials, _materialCount, Theme.WindowBackground);
         public override void DrawContent(Surface surface, Rect content)
         {
+            if (_composition is not null)
+            {
+                _composition.Compose(_frame, surface.Pixels, surface.Width, surface.Height, content, _materials, _materialCount,
+                    Theme.WindowBackground, Theme.Raised, Theme.Panel, Theme.Raised);
+                return;
+            }
             Rect clipped = content.Intersect(surface.Clip);
             for (int y = clipped.Y; y < clipped.Bottom; y++)
             {

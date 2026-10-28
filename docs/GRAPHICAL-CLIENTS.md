@@ -150,3 +150,52 @@ application shortcuts usable with the existing layout maps.
 Ctrl+letter events carry the logical lowercase letter when Cosmos provides no text;
 ordinary Unicode/AltGr is preserved. Work and release acceptance: U1/Q2 in the
 [master roadmap](ROADMAP.md). [Local targeted evidence](archive/2026-10-27/meridian-shell.md).
+
+## Opt-in material frames (D3 first slice)
+
+This extension is under local qualification; it does not enable global desktop
+materials or claim installed acceptance. The normal ABI 1 path stays opaque.
+
+- **607** `(out_caps, 32, 0)` queries the current invocation's graphical host.
+  Returns eight little-endian u32: extension version **2**, feature bits **15**
+  (coverage=1, regions=2, tint=4, blur=8), maximum regions **8**, corner radius **24**,
+  total material area **131072 pixels**, host blur radius **4**, surface **640×480**.
+  Headless/other-session users have no host; unsupported kernels return an error.
+- Open **600** with the existing 48-byte request, `version=2, flags=1`, opts into
+  premultiplied foreground coverage. All sizes/title/reserved checks still apply.
+  Version 1 requires flags 0 and retains forced XRGB. Other pairs are rejected.
+- **606** `(owned_handle, request, 48)` atomically presents a material frame.
+  Header: u32 version=1, u32 flags=0, u64 foreground pointer, u64 exact byte count,
+  u64 region pointer, u32 count, u32 reserved=0, u64 reserved=0. Count zero requires
+  a null region pointer. Foreground is little-endian premultiplied **ARGB8888**:
+  each RGB channel <= A; no unpremultiplied/hidden color is accepted.
+- Each region is 32 bytes: eight signed i32 values `x,y,width,height,radius,role,
+  effect,reserved`. Reserved=0, roles Navigation=3 / Panel=4 / Popover=5, effects
+  Solid=0 / Tint=1 / Blur=2. Regions must fit the surface, not overlap, and obey
+  the advertised total area/radius/count bounds. Pixels outside region bounding
+  rectangles must be opaque. The host supplies the solid color outside rounded
+  masks; clients cannot sample through excluded corners.
+- Call 601 is rejected on format-2 surfaces; 606 is rejected on format-1 surfaces.
+  Frames and region arrays are validated completely before replacing the owned
+  snapshot, and copied into private host storage. Failed frames retain the last
+  accepted image. Existing open/present/call/interactive budgets apply to 606/607.
+
+The compositor captures lower layers **before** drawing this window/shadow,
+uses a bounded separable box diffusion clamped to each region, caches unchanged
+source/region combinations, then composites the tint and foreground separately.
+No framebuffer address, screenshot, readback, user shader, opacity or arbitrary
+sampling radius is supplied by the client. Text/opaque controls and solid content
+are not faded with the material. Moving/overlapping windows sample the current
+lower scene; the outer window mask still applies to the completed composition.
+
+The opt-in `ui-gallery --materials` probe demonstrates 1 Solid / 2 Transparency /
+3 Backdrop blur. The shared C library provides `zui_begin_material_frame` and
+`zui_material_surface`: declare nonoverlapping material regions, then draw normal
+content/controls/text on the foreground target. RGB drawing becomes premultiplied
+coverage; legacy rendering is unchanged. Ordinary `zui_surface` paints its opaque
+fallback; do not clear a finished opaque window and reinterpret it as alpha.
+
+This is a bounded software prototype. User preferences (saved/effective/available),
+resource-pressure fallback, wider contrast/scale/hardware profiles and sustained
+performance remain D3 work before broad enablement. Protected login/recovery
+windows and existing apps continue using their opaque paths.

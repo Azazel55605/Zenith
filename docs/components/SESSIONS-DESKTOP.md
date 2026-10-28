@@ -39,9 +39,10 @@ not indiscriminately journalled. Session stop revokes surfaces and invocations.
 - [ ] S1: per-user/system defaults, typed existing settings and CLI/GUI parity.
 - [ ] S2–S5: activate the [43-page inventory](../MERIDIAN-PAGES.md) in backend order;
   [Meridian contracts](../MERIDIAN-PLAN.md) specify details, not a second schedule.
-- [ ] D3 (next): version/capability + foreground coverage and material regions;
-  then host tint/transparency and bounded cached blur. Preserve fixed-surface and
-  eventual D2 resize/scale geometry, busy-background contrast and opaque fallbacks.
+- [ ] D3: opt-in version/capability + foreground coverage, material regions, host
+  tint/box diffusion and unchanged-source cache are locally implemented. Finish
+  saved/effective user controls, resource fallback, general app use and sustained
+  qualification; retain D2 geometry, contrast and protected opaque paths.
 
 ## W1–W3 / U6 — Product desktop and lifecycle
 

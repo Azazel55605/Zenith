@@ -18,6 +18,26 @@ int zui_init(struct zui *u,unsigned int *p,int w,int h){
     u->clip=(struct zui_rect){0,0,w,h};u->focus=-1;u->pressed=-1;
     zui_appearance(u,0,0);return 1;
 }
+void zui_begin_material_frame(struct zui *u){
+    u->foreground=1;u->material_count=0;
+    for(int i=0;i<u->width*u->height;i++)u->pixels[i]=0;
+}
+int zui_material_surface(struct zui *u,struct zui_rect r,int radius,int role,int effect){
+    if(!u->foreground||u->material_count>=8||!zui_backdrop_candidate(role)||effect<0||effect>2||
+       radius<0||radius>24||r.x<0||r.y<0||r.w<1||r.h<1||(long)r.x+r.w>u->width||(long)r.y+r.h>u->height||radius>min(r.w,r.h)/2)return 0;
+    long area=(long)r.w*r.h;
+    for(int i=0;i<u->material_count;i++){
+        struct zenith_material_region *p=&u->materials[i];area+=(long)p->w*p->h;
+        if(r.x<p->x+p->w&&p->x<r.x+r.w&&r.y<p->y+p->h&&p->y<r.y+r.h)return 0;
+    }
+    if(area>131072)return 0;
+    u->materials[u->material_count++]=(struct zenith_material_region){r.x,r.y,r.w,r.h,radius,role,effect,0};return 1;
+}
+static unsigned int over(unsigned int bg,unsigned int fg,unsigned int a){
+    unsigned int out=(a+((bg>>24)*(255-a)+127)/255)<<24;
+    for(int s=0;s<24;s+=8)out|=(((((fg>>s)&255)*a+127)/255)+((((bg>>s)&255)*(255-a)+127)/255))<<s;
+    return out;
+}
 void zui_appearance(struct zui *u,int light,int accent){
     light=!!light;if(accent<0||accent>5)accent=0;
     u->theme=light?(struct zui_theme){0xfafafb,0xffffff,0xeff0f3,0xcfd1d8,0x202126,0x5c606b,accents[1][accent],0xffffff}:
@@ -28,7 +48,7 @@ void zui_appearance(struct zui *u,int light,int accent){
 void zui_clip(struct zui *u,struct zui_rect r){u->clip=intersect(r,(struct zui_rect){0,0,u->width,u->height});}
 void zui_fill(struct zui *u,struct zui_rect r,unsigned int c){
     r=intersect(r,u->clip);
-    for(int y=r.y;y<r.y+r.h;y++)for(int x=r.x;x<r.x+r.w;x++)u->pixels[y*u->width+x]=c&0xffffff;
+    for(int y=r.y;y<r.y+r.h;y++)for(int x=r.x;x<r.x+r.w;x++)u->pixels[y*u->width+x]=(c&0xffffff)|(u->foreground?0xff000000:0);
 }
 static unsigned int blend(unsigned int bg,unsigned int fg,unsigned int a);
 /* 4x4 subpixel coverage, integer-only for the freestanding no-SSE client.
@@ -51,8 +71,8 @@ void zui_round(struct zui *u,struct zui_rect r,int radius,unsigned int c){
         long cy=py<radius?py:(py>=r.h-radius?r.h-1-py:radius);
         unsigned int coverage=cx<radius&&cy<radius?corner_coverage((int)cx,(int)cy,radius):255;
         unsigned int *pixel=&u->pixels[y*u->width+x];
-        if(coverage==255)*pixel=c;
-        else if(coverage)*pixel=blend(*pixel,c,coverage);
+        if(coverage==255)*pixel=c|(u->foreground?0xff000000:0);
+        else if(coverage)*pixel=u->foreground?over(*pixel,c,coverage):blend(*pixel,c,coverage);
     }
 }
 int zui_backdrop_candidate(int role){
@@ -103,7 +123,7 @@ void zui_text(struct zui *u,int x,int y,const char *s,unsigned long n,const stru
             long px=pen+xx,py=(long)y+yy;
             if(px<u->clip.x||py<u->clip.y||px>=u->clip.x+u->clip.w||py>=u->clip.y+u->clip.h)continue;
             unsigned int a=f->pixels[(c*f->height+yy)*f->width+xx];
-            if(a){unsigned int *p=&u->pixels[py*u->width+px];*p=blend(*p,color,a);}
+            if(a){unsigned int *p=&u->pixels[py*u->width+px];*p=u->foreground?over(*p,color,a):blend(*p,color,a);}
         }
         pen+=f->advance[c];
     }

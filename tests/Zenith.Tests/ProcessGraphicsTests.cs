@@ -10,8 +10,8 @@ public sealed class ProcessGraphicsTests
     private sealed class Host : IProcessGraphicsHost
     {
         public readonly List<ProcessSurface> Surfaces = new();
-        public ProcessSurface Open(int width, int height, string title)
-        { var s = new ProcessSurface(width, height, title); Surfaces.Add(s); return s; }
+        public ProcessSurface Open(int width, int height, string title, int format = 1)
+        { var s = new ProcessSurface(width, height, title, format); Surfaces.Add(s); return s; }
     }
     [Fact]
     public void OwnedHandlesNeverAliasOtherInvocationsOrClosedHandles()

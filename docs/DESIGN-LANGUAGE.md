@@ -148,22 +148,28 @@ process/PTY/service extraction. Files body/navigation remains outside this batch
 
 ### Rendering/ownership contract
 
-Current graphics ABI 1 forces opaque XRGB. A role-aware opaque painter is the
-fallback, not simulated transparency or blur. Userland owns shared widget geometry;
-the host owns backdrop sampling, composition and trusted decorations.
+Legacy graphics ABI 1 forces opaque XRGB. The [opt-in extension](GRAPHICAL-CLIENTS.md#opt-in-material-frames-d3-first-slice)
+now transports separate premultiplied foreground and bounded material regions; it
+is a local prototype, not general desktop enablement. The opaque painter remains
+the default fallback. Userland owns geometry; the host owns backdrop sampling,
+composition and trusted decorations.
 
-The extension must negotiate a new capability/version with **bounded role/region/
-clip/corner metadata plus a foreground coverage plane** (for example premultiplied
-RGBA), keeping the legacy flattened XRGB path. Text/glyph antialias coverage must
+The extension explicitly negotiates a capability/version with **bounded role/region/
+corner metadata plus a premultiplied foreground coverage plane**, keeping legacy
+flattened XRGB separate. Text/glyph antialias coverage must
 be composited as foreground; today's already-flattened pixels cannot simply be
-reinterpreted as alpha. The shared renderer changes targets/backends, not app layout.
+reinterpreted as alpha. The shared renderer changes targets/backends, not app layout. Its material-frame
+entry points clear coverage and declare nonoverlapping regions before drawing
+foreground content; ordinary surface calls retain their opaque fallback.
 
 Only the host samples a backdrop. Clients never receive screenshots/framebuffer
 addresses, other-window pixels, arbitrary shaders or a right to blur outside their
 owned surface. Clamp region counts/areas/radii; respect z-order, nested clips,
 resize, focus, move, minimize, teardown and session revocation. Prefer damage-
 tracked/cached bounded software effects before making them generally available.
-The current shared role painter is a seam, **not** this future transport/renderer.
+The current prototype has bounded software composition and unchanged-source
+caching. Fine damage tracking, resource-pressure fallback and system preference
+controls remain unfinished; capability presence is not general qualification.
 
 ### User preference and fallback rules
 

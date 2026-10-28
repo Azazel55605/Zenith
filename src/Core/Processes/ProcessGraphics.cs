@@ -8,23 +8,23 @@ namespace Zenith.Core.Processes;
 // owns admission, session identity, decorations, focus and event delivery.
 internal interface IProcessGraphicsHost
 {
-    ProcessSurface? Open(int width, int height, string title);
+    ProcessSurface? Open(int width, int height, string title, int format = 1);
 }
 
-internal readonly record struct ProcessGraphicsRequest(int Width, int Height, ulong Title, int Length)
+internal readonly record struct ProcessGraphicsRequest(int Width, int Height, ulong Title, int Length, int Format = 1)
 {
     public const int Bytes = 48;
     public static bool TryRead(ReadOnlySpan<byte> b, out ProcessGraphicsRequest r)
     {
         r = default;
-        if (b.Length != Bytes || BinaryPrimitives.ReadUInt32LittleEndian(b) != 1
-            || BinaryPrimitives.ReadUInt32LittleEndian(b[4..]) != 0
+        if (b.Length != Bytes || !((BinaryPrimitives.ReadUInt32LittleEndian(b) == 1 && BinaryPrimitives.ReadUInt32LittleEndian(b[4..]) == 0)
+                || (BinaryPrimitives.ReadUInt32LittleEndian(b) == 2 && BinaryPrimitives.ReadUInt32LittleEndian(b[4..]) == 1))
             || BinaryPrimitives.ReadUInt64LittleEndian(b[32..]) != 0
             || BinaryPrimitives.ReadUInt64LittleEndian(b[40..]) != 0) { return false; }
         uint w = BinaryPrimitives.ReadUInt32LittleEndian(b[8..]), h = BinaryPrimitives.ReadUInt32LittleEndian(b[12..]);
         ulong n = BinaryPrimitives.ReadUInt64LittleEndian(b[24..]);
         if (w is < 160 or > 640 || h is < 100 or > 480 || n is < 1 or > 80) { return false; }
-        r = new((int)w, (int)h, BinaryPrimitives.ReadUInt64LittleEndian(b[16..]), (int)n); return true;
+        r = new((int)w, (int)h, BinaryPrimitives.ReadUInt64LittleEndian(b[16..]), (int)n, BinaryPrimitives.ReadUInt32LittleEndian(b) == 2 ? 2 : 1); return true;
     }
 }
 
@@ -47,10 +47,13 @@ internal sealed class ProcessSurface : IDisposable
     private readonly object _gate = new();
     private readonly Queue<ProcessGraphicsEvent> _events = new();
     private int[] _pixels;
+    private ProcessMaterialRegion[] _materials = Array.Empty<ProcessMaterialRegion>();
+    public int Format { get; }
     private bool _dirty = true, _closed, _disposed, _unsaved, _closeIntent;
     public bool Unsaved { get { lock (_gate) { return _unsaved; } } }
-    public ProcessSurface(int width, int height, string title)
-    { Width = width; Height = height; Title = title; _pixels = new int[width * height]; }
+    public ProcessSurface(int width, int height, string title, int format = 1)
+    { Width = width; Height = height; Title = title; Format = format; _pixels = new int[width * height];
+      if (format == 2) { Array.Fill(_pixels, unchecked((int)0xff000000)); } }
     public int Width { get; }
     public int Height { get; }
     public string Title { get; }
@@ -61,19 +64,39 @@ internal sealed class ProcessSurface : IDisposable
         lock (_gate)
         {
             if (_closed || _disposed) { return -32; }
-            if (bytes.Length != Bytes) { return -22; }
+            if (bytes.Length != Bytes || Format != 1) { return -22; }
             // Opaque XRGB8888, fixed row stride. No shared client/compositor pages.
             for (int i = 0; i < _pixels.Length; i++)
             { _pixels[i] = unchecked((int)(BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(i * 4)) | 0xff000000)); }
             _dirty = true; return 0;
         }
     }
-    public bool CopyFrame(int[] destination, bool force)
+    public int PresentMaterials(byte[] bytes, ProcessMaterialRegion[] regions)
     {
         lock (_gate)
         {
-            if (_disposed || destination.Length != _pixels.Length || (!_dirty && !force)) { return false; }
-            Array.Copy(_pixels, destination, _pixels.Length); _dirty = false; return true;
+            if (_closed || _disposed) { return -32; }
+            if (Format != 2 || !ProcessMaterialRegion.Validate(regions, Width, Height)
+                || !ProcessMaterialRegion.ValidForeground(bytes, Width, Height, regions)) { return -22; }
+            // Validate the complete frame before replacing anything. Caller buffers
+            // and region arrays are never shared with compositor state.
+            for (int i = 0; i < _pixels.Length; i++)
+            { _pixels[i] = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(i * 4)); }
+            _materials = (ProcessMaterialRegion[])regions.Clone(); _dirty = true; return 0;
+        }
+    }
+    public bool CopyFrame(int[] destination, bool force)
+        => CopyFrame(destination, force, null, out _);
+    public bool CopyFrame(int[] destination, bool force, ProcessMaterialRegion[]? materials, out int count)
+    {
+        lock (_gate)
+        {
+            count = 0;
+            if (_disposed || destination.Length != _pixels.Length || (!_dirty && !force)
+                || (materials is not null && materials.Length < _materials.Length)) { return false; }
+            Array.Copy(_pixels, destination, _pixels.Length);
+            if (materials is not null) { Array.Copy(_materials, materials, _materials.Length); count = _materials.Length; }
+            _dirty = false; return true;
         }
     }
     public void Send(ProcessGraphicsEvent e)
@@ -108,7 +131,7 @@ internal sealed class ProcessSurface : IDisposable
             _closed = true; _events.Clear(); return true;
         }
     }
-    public void Dispose() { lock (_gate) { _disposed = true; _closed = true; _events.Clear(); _pixels = Array.Empty<int>(); } }
+    public void Dispose() { lock (_gate) { _disposed = true; _closed = true; _events.Clear(); _pixels = Array.Empty<int>(); _materials = Array.Empty<ProcessMaterialRegion>(); } }
 }
 
 internal sealed class ProcessGraphics : IDisposable
@@ -122,14 +145,14 @@ internal sealed class ProcessGraphics : IDisposable
     public bool OwnsLive(int handle) => handle == _handle && Live;
     public void RenewBudget() { _presents = 0; }
     public ProcessGraphics(IProcessGraphicsHost? host) { _host = host; }
-    public int Open(int width, int height, string title)
+    public int Open(int width, int height, string title, int format = 1)
     {
         if (_disposed) { return -9; }
         if (_host is null) { return -19; }
         if (_surface is not null || _opens >= 4) { return -24; }
-        if (width is < 160 or > 640 || height is < 100 or > 480 || title.Length is < 1 or > 80) { return -22; }
+        if (format is < 1 or > 2 || width is < 160 or > 640 || height is < 100 or > 480 || title.Length is < 1 or > 80) { return -22; }
         foreach (char c in title) { if (c < ' ' || c > '~') { return -22; } }
-        var surface = _host.Open(width, height, title);
+        var surface = _host.Open(width, height, title, format);
         if (surface is null) { return -19; }
         _surface = surface; _handle = 20000 + ++_opens; return _handle;
     }
@@ -140,6 +163,13 @@ internal sealed class ProcessGraphics : IDisposable
         if (handle != _handle || _surface is null) { return -9; }
         if (++_presents > 3600) { return -27; }
         return _surface.Present(pixels);
+    }
+    public bool SupportsMaterials => !_disposed && _host is not null;
+    public int PresentMaterials(int handle, byte[] pixels, ProcessMaterialRegion[] regions)
+    {
+        if (handle != _handle || _surface is null) { return -9; }
+        if (++_presents > 3600) { return -27; }
+        return _surface.PresentMaterials(pixels, regions);
     }
     public ProcessGraphicsEvent? Poll(int handle) => handle == _handle && _surface is not null ? _surface.Poll() : null;
     public int Close(int handle)

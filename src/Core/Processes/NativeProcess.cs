@@ -157,7 +157,30 @@ internal sealed unsafe class NativeProcess
                 if (!Valid(r.Title, r.Length, false)) { return -14; }
                 byte[] title = ReadUser(r.Title, r.Length);
                 foreach (byte value in title) { if (value < 32 || value > 126) { return -22; } }
-                return graphics.Open(r.Width, r.Height, Encoding.ASCII.GetString(title));
+                return graphics.Open(r.Width, r.Height, Encoding.ASCII.GetString(title), r.Format);
+            }
+            if (c.Call == 607)
+            {
+                if (c.Arg1 != 32 || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, 32, true)) { return -14; }
+                if (!graphics.SupportsMaterials) { return -19; }
+                Transfer(c.Arg0, ProcessMaterialFrame.Capabilities(), true); return 0;
+            }
+            if (c.Call == 606)
+            {
+                if (c.Arg0 > int.MaxValue) { return -9; }
+                if (c.Arg2 != ProcessMaterialFrame.Bytes) { return -22; }
+                if (!Valid(c.Arg1, ProcessMaterialFrame.Bytes, false)) { return -14; }
+                if (!ProcessMaterialFrame.TryRead(ReadUser(c.Arg1, ProcessMaterialFrame.Bytes), out var frame)) { return -22; }
+                int size = graphics.Size((int)c.Arg0);
+                if (size < 0) { return size; }
+                if (frame.Length != (ulong)size) { return -22; }
+                int regionBytes = frame.Count * ProcessMaterialRegion.Bytes;
+                if (!Valid(frame.Pixels, size, false) || (regionBytes != 0 && !Valid(frame.Regions, regionBytes, false))) { return -14; }
+                byte[] regions = regionBytes == 0 ? Array.Empty<byte>() : ReadUser(frame.Regions, regionBytes);
+                if (!ProcessMaterialRegion.TryRead(regions, frame.Count, out var materialRegions)) { return -22; }
+                int result = graphics.PresentMaterials((int)c.Arg0, ReadUser(frame.Pixels, size), materialRegions);
+                Thread.Sleep(16); return result;
             }
             if (c.Call == 601)
             {
@@ -423,11 +446,11 @@ internal sealed unsafe class NativeProcess
                     catch { Monitor.Exit(s_rawGate); throw; }
                     if (status != 4096) { break; }
                     if (cancelled()) { status = 130; break; }
-                    if (context.Call is >= 600 and <= 605 ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
+                    if (context.Call is >= 600 and <= 607 ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
                     var caller = Zenith.Core.Security.CredentialContext.Enter(identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
                     // while waiting for a peer. Mutations and transport setup stay serialized.
-                    bool standard = context.Call is 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    bool standard = context.Call is 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {

@@ -76,7 +76,13 @@ never infer current failures from old release logs or claim a menu stub is a bac
   hold the native filesystem service gate; setup and mutations retain serialization.
   Graphical clients own fixed private surfaces and bounded events. Preserve
   session/UID admission, invocation handles, full pointer validation, opaque copies,
-  UI-thread-only window mutation and exit/fault/cancel/session cleanup. Never expose
+  UI-thread-only window mutation and exit/fault/cancel/session cleanup. The opt-in
+  material extension keeps ABI 1 forced opaque and uses explicit format 2 plus
+  606/607 negotiation for premultiplied foreground/host material regions. Preserve
+  full-frame atomic validation, RGB<=alpha, opacity outside declared rectangles,
+  8 nonoverlapping regions / 131072 pixels / 24px corners, bounded host blur and
+  no client backdrop readback. Keep native-materials-smoke and opaque client gates.
+  System-wide preference/resource fallback remains D3 work before broad enablement. Never expose
   framebuffer addresses or global input. Native-graphics-smoke joins all six
   existing pre-tag gates; Settings and compositor migration remain separate.
   Native-network-smoke remains a mandatory pre-tag gate. Configuration,

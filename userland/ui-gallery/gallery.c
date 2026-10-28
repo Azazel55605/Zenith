@@ -22,7 +22,7 @@ void gallery_draw(struct gallery *g){
     label(g,24,79,"Color mode",&zui_label,u->theme.text);
     label(g,24,163,"Accent color",&zui_label,u->theme.text);
     zui_setting_row(u,(struct zui_rect){24,286,480,42},"","Let selected surfaces reveal the background.");
-    zui_setting_row(u,(struct zui_rect){24,334,480,42},"","Requires transparency and compositor support.");
+    zui_setting_row(u,(struct zui_rect){24,334,480,42},"","System material controls are work in progress.");
     label(g,24,387,"Tab / Shift+Tab to focus. Enter or Space to choose.",&zui_caption,u->theme.secondary);
     label(g,24,408,"Escape closes. No system preferences are changed.",&zui_caption,u->theme.secondary);
     zui_swatch_caption(u,24,224);

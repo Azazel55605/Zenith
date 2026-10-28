@@ -53,6 +53,17 @@ int main(int argc,char **argv){
         if(c&&c!=0xffffff)blended++;
     }
     assert(blended>20&&actual[0]==0&&actual[16*32+16]==0xffffff);
+    zui_begin_material_frame(&material);
+    assert(zui_material_surface(&material,(struct zui_rect){0,0,16,32},0,ZUI_SURFACE_NAVIGATION,2));
+    assert(!zui_material_surface(&material,(struct zui_rect){8,0,16,32},0,ZUI_SURFACE_PANEL,1));
+    zui_round(&material,(struct zui_rect){0,0,16,16},8,0xffffff);
+    int fractional=0;
+    for(int i=0;i<32*32;i++){
+        unsigned int c=actual[i],a=c>>24;
+        assert((c&255)<=a&&((c>>8)&255)<=a&&((c>>16)&255)<=a);
+        if(a&&a<255)fractional++;
+    }
+    assert(fractional>4&&actual[31]==0&&material.material_count==1);
     storage[0]=0x12345678;storage[600*440+1]=0xabcdef01;
     assert(gallery_init(&g,storage+1,0));
     char palette_path[4096];assert(snprintf(palette_path,sizeof(palette_path),"%s/palette.tsv",argv[1])>0);
