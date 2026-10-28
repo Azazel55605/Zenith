@@ -74,14 +74,14 @@ proven resolved. [Evidence and limits](archive/2026-10-28/meridian-workspace-inp
    [desktop integration](archive/2026-10-28/desktop-material-integration.md).
    Q2 owns installed acceptance; sustained device performance and D2 resize/scale
    qualification remain. Protected authentication and document planes stay solid.
-4. **S1–S3 / functional Meridian — first slice local:** Keyboard layout and time
-   zone now use typed system-default read/save services shared with the CLI, with
-   revisions and root-only writes. Whole-app materials now include trusted app
-   bodies and a persisted translucency level. Q2 owns installed acceptance. Next:
-   per-user/default inheritance, About/network/account services and richer selectors.
-   [Implementation and local evidence](archive/2026-10-28/shared-settings-and-app-materials.md). Keep WIP
-   banners where a backend is missing. Add U1 controls and D2 guarded display
-   resolution/scaling as those pages require them.
+4. **S1 / shared Meridian settings — local candidate:** Personal appearance profiles
+   inherit system defaults until overridden; Colors exposes both scopes and an
+   explicit reset. Keyboard/time-zone/session defaults share revisioned root-only
+   services with CLI; searchable selectors use real catalogues. Network and account
+   pages show authorized read-only service data. Q2 owns installed acceptance.
+   [Scope and evidence](archive/2026-10-28/shared-settings-stage.md). Unsupported
+   edits/drivers retain WIP banners; richer controls and display modes belong to
+   U1/D2 and the remaining S2–S5 stages.
 5. **U2–U4 / finish native app migration:** Editor, Terminal and Sunrise over typed
    service contracts, using the shared presentation already applied to their trusted
    windows. Welcome/System have local native frontends. **Files is excluded** and
@@ -115,7 +115,7 @@ changes; put smaller implementation steps in the linked component, using the sam
 | U4 | native migration planned | Shared-design Sunrise frontend is locally implemented; extraction still needs: native wizard over typed root/live-only disk/account/progress service. Preserve pre-erase asset/target checks, explicit destructive consent, secret handling, maintenance exclusion and teardown. Validate disposable install/reboot/recovery before replacing recovery UI. |
 | U5 | partial | Welcome/System: native frontends and signed shell/menu launch locally pass; finish D1 parity, live preferences and independent upgrade/cancel/other-user acceptance with Q2. Keep recovery start windows and fail-closed executable validation. |
 | U6 | planned | Separate service/compositor/session processes: owned/versioned IPC, authority and restart/compatibility contracts → fault isolation → independent restart/upgrade. Existing typed syscalls are a foundation, not completion. Keep drivers/GC/BSP limits explicit. |
-| S1 | partial | Typed keyboard/time-zone system-default catalogues, root-only revisioned saves and functional Meridian controls locally implemented; per-user inheritance remains open. [Meridian shared services](MERIDIAN-PLAN.md): per-user overrides/system defaults, CLI parity, revision conflicts, typed keyboard/timezone/network/account summaries and actual About metadata. Two-account/reboot/error tests; never grant authority via environment or a page name. |
+| S1 | partial | Shared-settings slice locally implemented: per-UID appearance/inheritance, searchable keyboard/time-zone/session catalogues, root-only system saves and authorized read-only network/account summaries. [Meridian shared services](MERIDIAN-PLAN.md): per-user overrides/system defaults, CLI parity, revision conflicts, typed keyboard/timezone/network/account summaries and actual About metadata. Two-account/reboot/error tests; never grant authority via environment or a page name. |
 | W1 | partial | [Full DE](components/SESSIONS-DESKTOP.md): usable keyboard-searchable launcher/panel, consistent dialogs, window identity/focus/move/snap, notifications/OSD, task switcher and virtual desktops. Requires U1/U6; prove app faults and busy/unsaved/session teardown. |
 | W2 | planned | Selectable automatic-tiling WM sharing apps/services with DE: layout/focus/keyboard policy, floating exceptions, monitor/workspace handling and recovery. Requires W1 service boundaries; does not replace the DE choice. |
 | W3 | planned | Secure lock/idle/grace, guarded auto-login, autostart, restore and confirmation policies. Requires session/app lifecycle; lock retains applications and blocks content/input leakage, never masquerades as logout. Password/elevation remains trusted. |
@@ -154,9 +154,9 @@ The M0–M10 names in that guide are Meridian phases, not separate project miles
 | Display — `display.configuration`, `display.night-light` | WIP | Resolution/scaling/mode rollback first; supported orientation/refresh/brightness/tearing, then global temperature transform/schedule (**D2**, **S3**) |
 | Accessibility — `input.accessibility` | WIP | Baseline keyboard/contrast/text in U1; specialized features need scoped implementation (**H3**) |
 | Devices — `devices.bluetooth`, `devices.external`, `devices.printers` | WIP | Bluetooth/printer services later; stable safe automount policies and actual states (**H2**, **H3**) |
-| Networking — `network.connections` | WIP | Typed wired IP/DNS/autoconnect first; multiple profiles/priorities/link negotiation as supported (**S1**, **N2**) |
+| Networking — `network.connections` | partial | Actual primary NIC/IP/DNS information works; typed wired configuration/autoconnect next; multiple profiles/priorities/link negotiation as supported (**S1**, **N2**) |
 | Wallpaper — `style.wallpaper` | WIP | Color/image/slideshow picker, categories and scheduled light/dark pairs (**S4**, **S3**) |
-| Colors — `style.colors` | partial | Manual modes/six accents work; user scope, picker and automatic switching (**S1**, **S4**, **S3**) |
+| Colors — `style.colors` | partial | Personal/system modes, six accents, materials/level and inherited defaults work; arbitrary-color picker and automatic switching (**S1**, **S4**, **S3**) |
 | Style — `style.application`, `style.decorations`, `style.icons`, `style.cursors` | WIP | Shared widget/button and host decoration variants, icon/cursor packs; optional materials without layout redesign (**D1**, **D3**, **S4**) |
 | Sounds/splashes — `style.sounds`, `style.splash`, `style.login`, `style.boot-splash` | WIP | Sound events/packs after audio; authenticated transition/login/boot styles preserve diagnostics and trusted auth (**H2**, **S4**, **W3**) |
 | Text — `style.fonts`, `style.font-management` | WIP | Shared native font loading/rendering/AA/hinting; All/Personal/System catalog/import (**U1**, **S3**) |
@@ -166,7 +166,7 @@ The M0–M10 names in that guide are Meridian phases, not separate project miles
 | Security — `security.locking` | WIP | Actual lock/idle/grace with administrative auto-login policy (**W3**) |
 | Locale/time — `locale.region`, `locale.time`, `locale.day-night` | partial | Typed system-default time-zone selector implemented. Remaining: Per-field language/number/currency/address/phone/measurement/SI-IEC formats; clock/timezone/sync policy and one day/night schedule (**S1**, **S3**) |
 | About — `system.about` | partial | Runtime/boot/display/clock metadata works; real running/installed versions and hardware inventory (**U5**, **S1**, **H1**) |
-| System — `system.power`, `system.users`, `system.autostart`, `system.session` | WIP | Safe dim/suspend, guarded account lifecycle/password flows, autostart, confirmation/session restore (**W3**, **H3**) |
+| System — `system.power`, `system.users`, `system.autostart`, `system.session` | partial | Account information and registered default-session selector work; remaining: safe dim/suspend, guarded account lifecycle/password flows, autostart, confirmation/session restore (**W3**, **H3**) |
 
 | ID | State | Shared settings work and exit |
 |---|---|---|

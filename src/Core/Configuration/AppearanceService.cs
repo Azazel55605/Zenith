@@ -66,7 +66,7 @@ internal sealed class AppearanceService
             {
                 _ = Parse(_store.Read(Path));
                 uint level = translucency ?? old.Translucency;
-                string text = "VERSION=" + (level != 40 ? "4" : materials > 3 ? "3" : "2") + "\nMODE=" + ModeName(mode) + "\nACCENT=" + AccentName(accent) + "\nMATERIALS=" + materials + "\n" + (level != 40 ? "TRANSLUCENCY=" + level + "\n" : "");
+                string text = Serialize(mode, accent, materials, level);
                 _store.Replace(Path, text);
                 _explicit = true; _saved = new(mode, accent, old.Revision + 1, materials, level);
                 return 0;
@@ -92,7 +92,9 @@ internal sealed class AppearanceService
         for (uint i = 0; i < 6; i++) { if (AccentName(i) == name) { value = i; return true; } }
         value = 0; return false;
     }
-    private static (uint Mode, uint Accent, uint Materials, uint Translucency) Parse(string? text)
+    internal static string Serialize(uint mode, uint accent, uint materials, uint level)
+        => "VERSION=" + (level != 40 ? "4" : materials > 3 ? "3" : "2") + "\nMODE=" + ModeName(mode) + "\nACCENT=" + AccentName(accent) + "\nMATERIALS=" + materials + "\n" + (level != 40 ? "TRANSLUCENCY=" + level + "\n" : "");
+    internal static (uint Mode, uint Accent, uint Materials, uint Translucency) Parse(string? text)
     {
         if (text is null) { return (0, 0, 0, 40); }
         if (Encoding.UTF8.GetByteCount(text) > 4096 || text.Contains('\0')) { throw new FormatException("invalid appearance configuration"); }

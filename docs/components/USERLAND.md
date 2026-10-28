@@ -20,6 +20,8 @@ This is not general POSIX execution, managed SMP or an isolated compositor.
 - [x] Owned interactive quota renewal and unsaved-close intent.
 - [ ] Prove operation beyond former lifetime limits under idle/activity/pressure,
   including minimized windows, cancellation and session revocation.
+- [x] S1 bounded searchable keyboard/time-zone/session selectors and confirmed
+  personal-default reset; scoped service and C state-machine tests.
 - [ ] Add shared editable/selectable multiline text, clipboard, file dialogs,
   list/selector/slider/number fields and consistent error/confirmation components.
 - [x] Explicit bounded viewport resize/maximize, persistent inset workspaces and

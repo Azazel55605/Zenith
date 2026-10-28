@@ -51,4 +51,12 @@ static inline long zenith_material_control_read(struct zenith_material_control *
 static inline long zenith_material_control_save(unsigned int mode,unsigned int accent,unsigned int materials,unsigned int level,unsigned long revision){
     struct zenith_material_control_request r={3,0,revision,mode,accent,materials,level,0};return zenith_call(619,(unsigned long)&r,sizeof(r),0);
 }
+struct zenith_scoped_appearance { struct zenith_appearance appearance; struct zenith_material_control materials; unsigned int version,scope,uid,inherited; };
+struct zenith_scoped_request { unsigned int version,scope; unsigned long revision; unsigned int mode,accent,materials,level,inherit,reserved; unsigned long reserved2; };
+_Static_assert(sizeof(struct zenith_scoped_appearance)==512,"scoped appearance snapshot");
+_Static_assert(sizeof(struct zenith_scoped_request)==48,"scoped appearance request");
+static inline long zenith_scoped_appearance_read(unsigned int scope,struct zenith_scoped_appearance *s){return zenith_call(622,scope,(unsigned long)s,sizeof(*s));}
+static inline long zenith_scoped_appearance_save(unsigned int scope,unsigned int mode,unsigned int accent,unsigned int materials,unsigned int level,unsigned long revision,int inherit){
+    struct zenith_scoped_request r={1,scope,revision,mode,accent,materials,level,!!inherit,0,0};return zenith_call(623,(unsigned long)&r,sizeof(r),0);
+}
 #endif

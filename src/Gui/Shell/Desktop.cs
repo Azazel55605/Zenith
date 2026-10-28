@@ -222,7 +222,7 @@ internal sealed class Desktop
     private void ComposeScene()
     {
         long start = FrameStats.Now;
-        MaterialResources.Policy.Begin(Zenith.Core.Configuration.SystemConfiguration.Appearance.Active.Materials, Zenith.Core.Configuration.SystemConfiguration.Appearance.Active.Translucency);
+        MaterialResources.Policy.Begin(NativeAppearance.Current.Materials, NativeAppearance.Current.Translucency);
         _scene.CopyFrom(_wallpaper);
         Windows.Draw(_scene, _input.X, _input.Y);
 

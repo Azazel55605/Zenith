@@ -8,39 +8,66 @@ static const char *categories[]={"Quick Settings","Input & Output","Connected De
 static const char *groups[]={"Mouse & Touchpad","Keyboard","Sound","Display & Monitor","Colors & Themes","Text & Fonts","Window Management"};
 static unsigned int preference_field(struct meridian *a){
     if(a->page<0)return 0;
-    return same(meridian_pages[a->page].id,"input.keyboard")?1:same(meridian_pages[a->page].id,"locale.time")?2:0;
+    return same(meridian_pages[a->page].id,"input.keyboard")?1:same(meridian_pages[a->page].id,"locale.time")?2:same(meridian_pages[a->page].id,"system.session")?3:0;
 }
+static unsigned int information_kind(struct meridian *a){if(a->page<0)return 0;return same(meridian_pages[a->page].id,"network.connections")?1:same(meridian_pages[a->page].id,"system.users")?2:0;}
+static void refresh_information(struct meridian *a){
+    unsigned int kind=information_kind(a);if(!kind||!a->information_read)return;
+    struct zenith_settings_information state;long r=a->information_read(kind,&state);
+    if(r||state.version!=1||state.kind!=kind||state.length>=sizeof(state.text)||state.truncated>1){a->public_error=1;return;}
+    int changed=a->public_kind!=kind||a->public_error;
+    for(unsigned int i=0;i<state.length;i++){if(a->public_information[i]!=state.text[i])changed=1;a->public_information[i]=state.text[i];}
+    if(a->public_information[state.length])changed=1;
+    a->public_information[state.length]=0;a->public_kind=kind;a->public_error=0;if(changed)a->navigation.dirty=1;
+}
+void meridian_information_services(struct meridian *a,long (*read)(unsigned int,struct zenith_settings_information *)){a->information_read=read;refresh_information(a);}
 static int bounded_name(const char *s,int capacity){for(int i=0;i<capacity;i++){if(!s[i])return i>0;if((unsigned char)s[i]<32||(unsigned char)s[i]>126)return 0;}return 0;}
 static int preferences_valid(const struct zenith_system_settings *s){
-    if(s->version!=1||s->flags&~3U||!s->revision||!s->keyboard_count||s->keyboard_count>8||!s->zone_count||s->zone_count>48||s->keyboard>=s->keyboard_count||
+    if((s->version!=1&&s->version!=2)||s->flags&~3U||!s->revision||!s->keyboard_count||s->keyboard_count>8||!s->zone_count||s->zone_count>48||s->keyboard>=s->keyboard_count||
        (s->zone>=s->zone_count&&s->zone!=~0U)||!bounded_name(s->current_zone,64))return 0;
     for(unsigned int i=0;i<s->keyboard_count;i++)if(!bounded_name(s->keyboards[i],32))return 0;
     for(unsigned int i=0;i<s->zone_count;i++)if(!bounded_name(s->zones[i],64))return 0;
+    if(s->version==2){if(s->session_count>3||(s->session>=s->session_count&&s->session!=~0U)||!bounded_name(s->current_session,16))return 0;for(unsigned int i=0;i<s->session_count;i++)if(!bounded_name(s->sessions[i],16))return 0;}
     return 1;
 }
+static unsigned int choice_count(struct meridian *a){return a->preference_field==1?a->preferences.keyboard_count:a->preference_field==2?a->preferences.zone_count:a->preferences.session_count;}
+static unsigned int saved_choice(struct meridian *a){return a->preference_field==1?a->preferences.keyboard:a->preference_field==2?a->preferences.zone:a->preferences.session;}
+static const char *choice_name(struct meridian *a,unsigned int index){return a->preference_field==1?a->preferences.keyboards[index]:a->preference_field==2?a->preferences.zones[index]:a->preferences.sessions[index];}
 static void refresh_preferences(struct meridian *a){
     if(!a->preferences_read||!preference_field(a))return;
     struct zenith_system_settings s;long result=a->preferences_read(&s);
-    if(result||!preferences_valid(&s)){a->preference_message="Settings service unavailable; edits kept.";a->preferences_ready=0;return;}
+    if(result||!preferences_valid(&s)){a->preference_message="Settings service unavailable; edits kept.";a->preferences_ready=0;a->preference_picker=0;return;}
     unsigned int field=preference_field(a);
     if(!a->preference_edited){
         if(field!=a->preference_field)a->preference_message=0;
         if(field!=a->preference_field||s.revision!=a->preferences.revision)a->navigation.dirty=1;
-        a->preference_field=field;a->preference_choice=field==1?s.keyboard:s.zone;a->preference_revision=s.revision;
+        a->preference_field=field;a->preference_choice=field==1?s.keyboard:field==2?s.zone:s.session;a->preference_revision=s.revision;
     }else if(s.revision!=a->preference_revision)a->preference_message="Changed elsewhere. Discard edits to reload.";
-    a->preferences=s;a->preferences_ready=1;
+    a->preferences=s;a->preferences_ready=field!=3||s.version==2;
 }
 void meridian_system_services(struct meridian *a,long (*read)(struct zenith_system_settings *),long (*save)(unsigned int,unsigned int,unsigned long)){
     a->preferences_read=read;a->preferences_save=save;refresh_preferences(a);
 }
+static void preference_picker_draw(struct meridian *a,struct zui *u,struct zui_rect c){
+    zui_input_draw(u,(struct zui_rect){c.x+20,c.y+160,c.w-40,34},&a->preference_search,a->preference_search_focus);
+    if(!a->preference_query[0])text(u,c.x+30,c.y+169,"Filter choices",&zui_caption,u->theme.secondary);
+    zui_add(u,2005,ZUI_BUTTON,(struct zui_rect){c.x+20,c.y+160,c.w-40,34},"",0,1);
+    int found[48],count=0;for(unsigned int i=0;i<choice_count(a);i++)if(contains(choice_name(a,i),a->preference_query))found[count++]=(int)i;
+    a->preference_offset=zui_scroll_step(a->preference_offset,0,count-6);
+    for(int i=0;i<6&&a->preference_offset+i<count;i++){int item=found[a->preference_offset+i];zui_add(u,2100+item,ZUI_NAVIGATION,(struct zui_rect){c.x+20,c.y+204+i*30,c.w-40,28},choice_name(a,item),a->preference_choice==(unsigned int)item,1);}
+    zui_add(u,2006,ZUI_BUTTON,(struct zui_rect){c.x+20,c.y+c.h-48,90,34},"Previous",0,a->preference_offset>0);
+    zui_add(u,2007,ZUI_BUTTON,(struct zui_rect){c.x+118,c.y+c.h-48,90,34},"Next",0,a->preference_offset+6<count);
+    zui_add(u,2008,ZUI_BUTTON,(struct zui_rect){c.x+216,c.y+c.h-48,90,34},"Cancel",0,1);
+}
 static void preferences_draw(struct meridian *a,struct zui *u,struct zui_rect c){
-    unsigned int field=preference_field(a);int writable=a->preferences_ready&&!!(a->preferences.flags&2);
-    const char *choice=field==1?a->preferences.keyboards[a->preference_choice]:a->preference_choice<a->preferences.zone_count?a->preferences.zones[a->preference_choice]:a->preferences.current_zone;
-    text(u,c.x+20,c.y+166,field==1?"System keyboard layout":"System time zone",&zui_label,u->theme.text);
+    if(a->preference_picker){preference_picker_draw(a,u,c);return;}
+    unsigned int field=preference_field(a);int writable=a->preferences_ready&&!!(a->preferences.flags&2)&&choice_count(a)>0;
+    const char *choice=a->preference_choice<choice_count(a)?choice_name(a,a->preference_choice):field==2?a->preferences.current_zone:a->preferences.current_session;
+    text(u,c.x+20,c.y+166,field==1?"System keyboard layout":field==2?"System time zone":"Default login session",&zui_label,u->theme.text);
     struct zui_rect value={c.x+20,c.y+196,c.w-40,42};zui_surface(u,value,8,ZUI_SURFACE_CONTROL);
-    text(u,value.x+10,value.y+12,choice,&zui_body,u->theme.text);
+    zui_add(u,2004,ZUI_BUTTON,value,choice,0,writable&&!a->preference_prompt);
     text(u,c.x+20,c.y+306,writable?"System default - administrator changes":"System default - read only",&zui_caption,u->theme.secondary);
-    zui_paragraph(u,(struct zui_rect){c.x+20,c.y+338,c.w-40,66},a->preference_message?a->preference_message:a->preference_edited?"Unsaved changes. Save or discard before navigating.":field==1?"Applies to keyboard input across sessions immediately.":"Changes local time display; the UTC clock is unchanged.",&zui_caption,u->theme.secondary,0);
+    zui_paragraph(u,(struct zui_rect){c.x+20,c.y+338,c.w-40,66},a->preference_message?a->preference_message:a->preference_edited?"Unsaved changes. Save or discard before navigating.":field==1?"Applies to keyboard input across sessions immediately.":field==2?"Changes local time display; the UTC clock is unchanged.":"Applies on next boot; the running session is unchanged.",&zui_caption,u->theme.secondary,0);
     if(a->preference_prompt){
         zui_add(u,2010,ZUI_BUTTON,(struct zui_rect){c.x+20,c.y+c.h-48,126,34},"Keep editing",0,1);
         zui_add(u,2011,ZUI_BUTTON,(struct zui_rect){c.x+156,c.y+c.h-48,182,34},"Discard changes",0,1);
@@ -52,8 +79,18 @@ static void preferences_draw(struct meridian *a,struct zui *u,struct zui_rect c)
     }
 }
 static int preferences_action(struct meridian *a,int action){
+    if(action>=2100&&action<2148){
+        unsigned int next=(unsigned int)action-2100;
+        if(!a->preferences_ready||!(a->preferences.flags&2)||next>=choice_count(a))return 1;
+        int dirty=next!=saved_choice(a);if(a->colors.backend.dirty(dirty))return 1;
+        a->preference_choice=next;a->preference_edited=dirty;a->preference_picker=0;a->preference_message=0;a->navigation.dirty=1;return 1;
+    }
     if(action<2000||action>2011)return 0;
     struct zui *u=&a->navigation;u->dirty=1;
+    if(action==2004){a->preference_picker=1;a->preference_offset=0;a->preference_search_focus=1;a->preference_query[0]=0;zui_input_init(&a->preference_search,a->preference_query,sizeof(a->preference_query));return 1;}
+    if(action==2005){a->preference_search_focus=1;return 1;}
+    if(action==2006||action==2007){a->preference_offset=zui_scroll_step(a->preference_offset,action==2006?-6:6,48);return 1;}
+    if(action==2008){a->preference_picker=0;return 1;}
     if(action==2010){a->preference_prompt=0;return 1;}
     if(action==2003||action==2011){
         if(a->colors.backend.dirty(0)){a->preference_message="Cannot release unsaved state; edits kept.";return 1;}
@@ -65,14 +102,14 @@ static int preferences_action(struct meridian *a,int action){
     if(!a->preferences_ready||!a->preferences_save||!(a->preferences.flags&2)||a->preference_prompt)return 1;
     if(action==2002){
         long result=a->preferences_save(a->preference_field,a->preference_choice,a->preference_revision);
-        if(!result){a->preference_edited=0;a->colors.backend.dirty(0);a->preference_message="System default saved and applied.";refresh_preferences(a);}
+        if(!result){a->preference_edited=0;a->colors.backend.dirty(0);a->preference_message=a->preference_field==3?"Default session saved for next boot.":"System default saved and applied.";refresh_preferences(a);}
         else a->preference_message=result==-11?"Changed elsewhere. Discard edits to reload.":result==-13?"Administrator permission required.":"Save failed; edits kept.";
         return 1;
     }
     if(action==2000||action==2001){
-        unsigned int count=a->preference_field==1?a->preferences.keyboard_count:a->preferences.zone_count;
+        unsigned int count=choice_count(a);if(!count)return 1;
         unsigned int next=a->preference_choice>=count?0:action==2001?(a->preference_choice+1)%count:(a->preference_choice+count-1)%count;
-        unsigned int saved=a->preference_field==1?a->preferences.keyboard:a->preferences.zone;
+        unsigned int saved=saved_choice(a);
         int dirty=next!=saved;
         if(a->colors.backend.dirty(dirty)){a->preference_message="Cannot protect edits; selection kept.";return 1;}
         a->preference_choice=next;a->preference_edited=dirty;a->preference_message=0;
@@ -83,7 +120,7 @@ struct zui *meridian_ui(struct meridian *a){return a->page==MERIDIAN_COLORS?&a->
 static void recent(struct meridian *a,int page){int i=0;while(i<a->recent_count&&a->recent[i]!=page)i++;if(i==a->recent_count&&i<6)a->recent_count++;if(i>5)i=5;for(;i>0;i--)a->recent[i]=a->recent[i-1];a->recent[0]=page;}
 static int category_of(int page){for(int i=0;i<10;i++)if(same(categories[i],meridian_pages[page].category))return i;return 0;}
 static void open_page(struct meridian *a,int p){
-    a->page=p;a->scroll=0;a->search_focus=0;
+    a->preference_picker=0;a->page=p;a->scroll=0;a->search_focus=0;
     if(p>=0){recent(a,p);a->category=category_of(p);}
     a->navigation.focus=a->navigation.pressed=-1;a->navigation.dirty=1;a->colors.ui.dirty=1;
 }
@@ -101,7 +138,7 @@ int meridian_init(struct meridian *a,unsigned int *pixels,struct settings_backen
 }
 void meridian_refresh(struct meridian *a){
     unsigned long rev=a->colors.state.revision,res=a->colors.state.resources;unsigned int flags=a->colors.state.flags;
-    refresh_preferences(a);settings_refresh(&a->colors);a->navigation.theme=a->colors.ui.theme;a->navigation.full_background=(a->colors.state.mode<2&&(a->colors.saved_effects&5)==5);
+    refresh_information(a);refresh_preferences(a);settings_refresh(&a->colors);a->navigation.theme=a->colors.ui.theme;a->navigation.full_background=(a->colors.state.mode<2&&(a->colors.saved_effects&5)==5);
     if(rev!=a->colors.state.revision||res!=a->colors.state.resources||flags!=a->colors.state.flags)a->navigation.dirty=1;
 }
 static int result_rows(struct zui *u){int n=(u->height-168)/42;return n>18?18:n<1?1:n;}
@@ -137,8 +174,7 @@ void meridian_draw(struct meridian *a){
     struct zui *u=meridian_ui(a);int focus=u->focus>=0&&u->focus<u->count?u->controls[u->focus].id:0;
     int pressed=u->pressed>=0&&u->pressed<u->count?u->controls[u->pressed].id:0;
     if(a->page==MERIDIAN_COLORS){
-        u->count=18;settings_draw(&a->colors);sidebar(a,u);
-        zui_add(u,900,ZUI_BUTTON,(struct zui_rect){a->colors.viewport.x+a->colors.viewport.w-88,28,72,28},"Back",0,!a->colors.prompt);
+        u->count=20;settings_draw(&a->colors);sidebar(a,u);
         struct zui_rect r=a->colors.viewport;zui_clip(u,r);
         zui_surface(u,(struct zui_rect){r.x+16,r.y+46,r.w-32,28},6,ZUI_SURFACE_CONTROL);
         zui_paragraph(u,(struct zui_rect){r.x+22,r.y+49,r.w-44,25},"WIP: automatic switching and custom colors.",&zui_caption,u->theme.secondary,0);
@@ -151,8 +187,8 @@ void meridian_draw(struct meridian *a){
             text(u,c.x+20,c.y+18,p->title,&zui_heading,u->theme.text);
             text(u,c.x+20,c.y+56,p->category,&zui_caption,u->theme.secondary);
             zui_surface(u,(struct zui_rect){c.x+16,c.y+84,c.w-32,58},8,ZUI_SURFACE_CONTROL);
-            zui_paragraph(u,(struct zui_rect){c.x+26,c.y+94,c.w-52,40},a->preferences.version==1&&preference_field(a)?(preference_field(a)==1?"WIP: model, repeat, Num Lock and shortcuts. Layout selection works.":"WIP: clock editing and sync policy. Time zone selection works."):a->page==0?"WIP: scheduled mode and persistent history. Recent pages are kept while Meridian is open.":a->page==MERIDIAN_ABOUT?"WIP: available runtime information; hardware inventory is planned.":"Work in progress. This page needs additional system services. No settings here can be changed yet.",&zui_caption,u->theme.secondary,0);
-            if(a->preferences.version==1&&preference_field(a))preferences_draw(a,u,c);
+            zui_paragraph(u,(struct zui_rect){c.x+26,c.y+94,c.w-52,40},(a->preferences.version==2||(a->preferences.version==1&&preference_field(a)<3))&&preference_field(a)?(preference_field(a)==1?"WIP: model, repeat, Num Lock and shortcuts. Layout selection works.":preference_field(a)==2?"WIP: clock editing and sync policy. Time zone selection works.":"WIP: session restore and confirmation policy. Default session selection works."):a->page==0?"WIP: scheduled mode and persistent history. Recent pages are kept while Meridian is open.":a->page==MERIDIAN_ABOUT?"WIP: available runtime information; hardware inventory is planned.":information_kind(a)==1?"WIP: connection editing and profiles. Actual network state is shown below.":information_kind(a)==2?"WIP: account creation, deletion and passwords. Public account information is shown below.":"Work in progress. This page needs additional system services. No settings here can be changed yet.",&zui_caption,u->theme.secondary,0);
+            if((a->preferences.version==2||(a->preferences.version==1&&preference_field(a)<3))&&preference_field(a))preferences_draw(a,u,c);
             else if(a->page==0){
                 zui_add(u,100+MERIDIAN_COLORS,ZUI_NAVIGATION,(struct zui_rect){c.x+16,c.y+164,c.w-32,36},"Colors and materials",0,1);
                 zui_add(u,115,ZUI_NAVIGATION,(struct zui_rect){c.x+16,c.y+206,c.w-32,36},"Wallpaper",0,1);
@@ -160,7 +196,7 @@ void meridian_draw(struct meridian *a){
                 int row=0;for(int i=0;i<a->recent_count&&row<3;i++)if(a->recent[i]!=0){zui_add(u,200+i,ZUI_NAVIGATION,(struct zui_rect){c.x+16,c.y+296+row*34,c.w-32,30},meridian_pages[a->recent[i]].title,0,1);row++;}
             }else{
                 struct zui_rect body={c.x+20,c.y+164,c.w-40,c.h-232};
-                a->lines=zui_paragraph(u,body,a->page==MERIDIAN_ABOUT&&a->information[0]?a->information:p->requirements,&zui_body,u->theme.secondary,a->scroll);
+                a->lines=zui_paragraph(u,body,information_kind(a)&&a->information_read?(a->public_kind==information_kind(a)?a->public_information:"Information service unavailable."):a->page==MERIDIAN_ABOUT&&a->information[0]?a->information:p->requirements,&zui_body,u->theme.secondary,a->scroll);
                 zui_add(u,10,ZUI_BUTTON,(struct zui_rect){c.x+16,c.y+c.h-48,98,34},"Scroll up",0,a->scroll>0);
                 zui_add(u,11,ZUI_BUTTON,(struct zui_rect){c.x+126,c.y+c.h-48,110,34},"Scroll down",0,a->scroll+8<a->lines);
             }
@@ -168,13 +204,13 @@ void meridian_draw(struct meridian *a){
     }
     zui_clip(u,(struct zui_rect){0,0,u->width,u->height});
     for(int i=0;i<u->count;i++)if(u->controls[i].enabled){if(u->controls[i].id==focus)u->focus=i;if(u->controls[i].id==pressed)u->pressed=i;}
-    int first=a->page==MERIDIAN_COLORS?18:0,side_count=1+category_rows(u);
+    int first=a->page==MERIDIAN_COLORS?20:0,side_count=1+category_rows(u);
     zui_clip(u,(struct zui_rect){12,12,180,u->height-24});zui_draw_range(u,first+1,side_count-1);
     zui_input_draw(u,(struct zui_rect){24,60,156,34},&a->search,a->search_focus&&u->window_focused);
     if(!a->query[0]&&!a->search_focus)text(u,33,68,"Search settings",&zui_caption,u->theme.secondary);
     zui_clip(u,(struct zui_rect){204,12,u->width-216,u->height-24});
-    if(a->page==MERIDIAN_COLORS)zui_draw_range(u,first+side_count,1);
-    else zui_draw_range(u,side_count,u->count-side_count);
+    if(a->page!=MERIDIAN_COLORS)zui_draw_range(u,side_count,u->count-side_count);
+    if(a->preference_picker){struct zui_rect c={204,12,u->width-216,u->height-24};zui_input_draw(u,(struct zui_rect){c.x+20,c.y+160,c.w-40,34},&a->preference_search,a->preference_search_focus);}
     zui_clip(u,(struct zui_rect){0,0,u->width,u->height});u->dirty=0;
 }
 static void navigate(struct meridian *a,int category){
@@ -186,7 +222,15 @@ static void navigate(struct meridian *a,int category){
 void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     if(e->type==Z_GUI_FOCUS||e->type==Z_GUI_RESET){zui_event(&a->navigation,e);zui_event(&a->colors.ui,e);return;}
     struct zui *u=meridian_ui(a);if(!u->window_focused&&e->type!=Z_GUI_CLOSE&&e->type!=Z_GUI_CLOSE_INTENT)return;
-    if(a->preference_edited&&(e->type==Z_GUI_CLOSE_INTENT||(e->type==Z_GUI_KEY&&e->modifiers==2&&(e->code=='q'||e->code=='Q')))){a->preference_prompt=1;u->dirty=1;return;}
+    if(a->preference_picker&&e->type==Z_GUI_KEY&&!(e->modifiers&6)){
+        if(e->extra==1){a->preference_picker=0;u->dirty=1;return;}
+        if(e->extra==4)a->preference_search_focus=0;
+        else if(a->preference_search_focus){
+            if(e->extra==2){for(unsigned int i=0;i<choice_count(a);i++)if(contains(choice_name(a,i),a->preference_query)){preferences_action(a,2100+(int)i);return;}}
+            if(zui_input_event(&a->preference_search,e)){a->preference_offset=0;u->dirty=1;}return;
+        }
+    }
+    if(a->preference_edited&&(e->type==Z_GUI_CLOSE_INTENT||(e->type==Z_GUI_KEY&&e->modifiers==2&&(e->code=='q'||e->code=='Q')))){a->preference_picker=0;a->preference_prompt=1;u->dirty=1;return;}
     if(a->preference_edited&&e->type==Z_GUI_KEY&&e->extra==1){a->preference_prompt=a->preference_prompt?0:2;u->dirty=1;return;}
     if(e->type==Z_GUI_KEY&&e->modifiers==2&&(e->code=='q'||e->code=='Q')){
         if(a->page==MERIDIAN_COLORS){struct zenith_gui_event c={Z_GUI_CLOSE_INTENT,0,0,0,0,0};settings_event(&a->colors,&c);a->closing=a->colors.closing;}else a->closing=1;return;
@@ -204,7 +248,8 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     if(e->type==Z_GUI_SCROLL){
         if(!e->code)return;
         long movement=-(long)e->code*3;int delta=movement>24?24:movement< -24?-24:(int)movement,old;
-        if(e->x<204){old=a->category_offset;a->category_offset=zui_scroll_step(old,delta,10-category_rows(u));if(old!=a->category_offset)u->dirty=1;}
+        if(a->preference_picker&&e->x>=204){old=a->preference_offset;a->preference_offset=zui_scroll_step(old,delta,48);if(old!=a->preference_offset)u->dirty=1;}
+        else if(e->x<204){old=a->category_offset;a->category_offset=zui_scroll_step(old,delta,10-category_rows(u));if(old!=a->category_offset)u->dirty=1;}
         else if(a->page<0){old=a->offset;a->offset=zui_scroll_step(old,delta,a->match_count-result_rows(u));if(old!=a->offset)u->dirty=1;}
         else if(a->page!=MERIDIAN_COLORS&&a->page!=0){old=a->scroll;a->scroll=zui_scroll_step(old,delta,a->lines-8);if(old!=a->scroll)u->dirty=1;}
         return;

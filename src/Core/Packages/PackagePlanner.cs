@@ -30,6 +30,8 @@ internal static class BootstrapComponents
         new("zenith-native-settings-abi", "1.0", "typed system appearance settings with revision checks"),
         new("zenith-native-interactive-abi", "1.0", "owned live-window quota renewal and bounded revocation cleanup"),
         new("zenith-native-system-info-abi", "1.0", "bounded read-only running system metadata"),
+        new("zenith-native-personal-appearance-abi", "1.0", "captured-UID personal overrides and system inheritance"),
+        new("zenith-native-shared-settings-abi", "1.0", "session defaults and bounded public network/account information"),
         new("zenith-native-material-control-abi", "1.0", "revisioned system-wide translucency strength"),
         new("zenith-native-system-settings-abi", "1.0", "typed administrator keyboard and time-zone preferences"),
         new("zenith-native-background-abi", "1.0", "versioned whole-background preferences for opted-in clients"),

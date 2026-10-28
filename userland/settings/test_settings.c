@@ -28,7 +28,7 @@ int main(int argc,char **argv){
         zui_appearance(&ui,m,a);memcpy(state.palette[m][a],&ui.theme,sizeof(ui.theme));
     }
     state.version=1;state.flags=3;state.revision=1;state.active_revision=1;
-    struct settings_backend backend={read_state,save_state,dirty_state};
+    struct settings_backend backend={read_state,save_state,dirty_state,0};
     assert(settings_init(&app,pixels,backend));settings_draw(&app);
     event(Z_GUI_FOCUS,1,0,0,0);click(200,120);assert(app.edited&&guarded&&app.mode==1);
     failure=-5;click(70,438);assert(app.edited&&guarded&&state.mode==0);

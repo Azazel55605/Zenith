@@ -46,7 +46,7 @@
   <ItemGroup>
     <Compile Include="../../src/Core/Shell/**/*.cs" Exclude="../../src/Core/Shell/Commands/SystemCommands.cs;../../src/Core/Shell/Commands/AccountCommands.cs;../../src/Core/Shell/Commands/ConfigurationCommands.cs;../../src/Core/Shell/Commands/PackageCommands.cs;../../src/Core/Shell/Commands/NetworkCommands.cs;../../src/Core/Shell/Commands/NativeProcessCommands.cs" LinkBase="Kernel/Shell" />
     <Compile Include="../../src/Core/Security/*.cs" Exclude="../../src/Core/Security/HardwareEntropy.cs;../../src/Core/Security/VfsSecurityPlug.cs;../../src/Core/Security/Accounts.cs;../../src/Core/Security/NativeAccessProbe.cs" LinkBase="Kernel/Security" />
-    <Compile Include="../../src/Core/Configuration/*.cs" Exclude="../../src/Core/Configuration/NativeSettingsStore.cs;../../src/Core/Configuration/SystemConfiguration.cs" LinkBase="Kernel/Configuration" />
+    <Compile Include="../../src/Core/Configuration/*.cs" Exclude="../../src/Core/Configuration/Native*.cs;../../src/Core/Configuration/SystemConfiguration.cs" LinkBase="Kernel/Configuration" />
     <Compile Include="../../src/Core/Sessions/SessionSelection.cs" LinkBase="Kernel/Sessions" />
     <Compile Include="../../src/Core/Sessions/LoginPrompt.cs" LinkBase="Kernel/Sessions" />
     <Compile Include="../../src/Core/Console/SerialTerminal.cs" LinkBase="Kernel/Console" />

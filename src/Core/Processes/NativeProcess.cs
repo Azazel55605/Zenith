@@ -180,6 +180,37 @@ internal sealed unsafe class NativeProcess
                 foreach (byte value in title) { if (value < 32 || value > 126) { return -22; } }
                 return graphics.Open(r.Width, r.Height, Encoding.ASCII.GetString(title), r.Format);
             }
+            if (c.Call == 624)
+            {
+                if(c.Arg0 is < 1 or > 2 || c.Arg2 != 4096) { return -22; }
+                if(!Valid(c.Arg1,4096,true)) { return -14; }
+                try { Transfer(c.Arg1,NativeSettingsInformation.Snapshot((uint)c.Arg0),true);return 0; } catch { return -5; }
+            }
+            if(c.Call == 625)
+            {
+                if(c.Arg1 != 4096 || c.Arg2 != 0) { return -22; }
+                if(!Valid(c.Arg0,4096,true)) { return -14; }
+                Transfer(c.Arg0,ProcessSystemSettings.Snapshot(Zenith.Core.Configuration.SystemConfiguration.Settings,true),true);return 0;
+            }
+            if(c.Call == 626)
+            {
+                if(c.Arg1 != 32 || c.Arg2 != 0) { return -22; }
+                if(!Valid(c.Arg0,32,false)) { return -14; }
+                return ProcessSystemSettings.Save(Zenith.Core.Configuration.SystemConfiguration.Settings,ReadUser(c.Arg0,32),true);
+            }
+            if (c.Call == 622)
+            {
+                if (c.Arg0 > 1 || c.Arg2 != 512) { return -22; }
+                if (!Valid(c.Arg1,512,true)) { return -14; }
+                try { Transfer(c.Arg1,ProcessScopedAppearance.Snapshot(Zenith.Core.Configuration.SystemConfiguration.Appearance,Zenith.Core.Configuration.SystemConfiguration.PersonalAppearance,(uint)c.Arg0),true);return 0; }
+                catch { return -5; }
+            }
+            if (c.Call == 623)
+            {
+                if (c.Arg1 != 48 || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0,48,false)) { return -14; }
+                return ProcessScopedAppearance.Save(Zenith.Core.Configuration.SystemConfiguration.Appearance,Zenith.Core.Configuration.SystemConfiguration.PersonalAppearance,ReadUser(c.Arg0,48));
+            }
             if (c.Call == 620)
             {
                 if (c.Arg1 != ProcessSystemSettings.SnapshotBytes || c.Arg2 != 0) { return -22; }

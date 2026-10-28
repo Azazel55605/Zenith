@@ -89,7 +89,12 @@ never infer current failures from old release logs or claim a menu stub is a bac
   translucency level; schema 4 and legacy saves preserve it. Typed 620/621 exports
   bounded real keyboard/time-zone catalogues and root-only revisioned choices
   through SettingsService; keep CLI/native parity, read-only users, stale/error
-  drafts and reboot tests. These are system defaults, not personal overrides. Chrome, taskbar and opted-in client regions
+  drafts and reboot tests. 625/626 extend those controls with registered default sessions without changing
+  620/621. Captured-UID 622/623 owns private appearance/inheritance and root-only
+  system defaults; 624 exports bounded read-only network/account information. Personal
+  storage uses protected root-owned ancestry, never caller paths or USER/HOME. Keep
+  two-account inheritance/reset, denied raw reads, malformed/stale/reboot tests.
+  Chrome, taskbar and opted-in client regions
   share contrast/cache/work fallback without rewriting saved choices. Protected
   credentials remain solid. Explicit 613/614/615 viewport negotiation owns bounded
   resize/maximize; require exact dimensions/generation before changing the private

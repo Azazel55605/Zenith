@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 
 namespace Zenith.Core.Security;
 
@@ -27,6 +28,20 @@ internal sealed class AccountService
                 foreach (var user in Load().Users) { if (user.Password != "!" && user.Password != "*") { return true; } }
                 return false;
             }
+        }
+    }
+    public string PublicSummary()
+    {
+        lock(_gate)
+        {
+            var result=new StringBuilder(); var caller=CredentialContext.Current; int shown=0;
+            foreach(var user in Load().Users)
+            {
+                if(!caller.IsRoot && user.Uid!=caller.Uid) { continue; }
+                if(shown++==24) { result.Append("More accounts are available through the CLI.\n");break; }
+                result.Append(user.Name).Append("  uid=").Append(user.Uid).Append(" gid=").Append(user.Gid).Append("\nHome: ").Append(user.Home).Append("\n\n");
+            }
+            return result.Length==0 ? "No account record for this identity.\n" : result.ToString();
         }
     }
     public UserAccount? Find(string name) { lock (_gate) { return Load().Find(name); } }

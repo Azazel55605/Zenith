@@ -64,9 +64,16 @@ def main():
         'k':'native run settings --page input.keyboard | logger; echo S_KEYBOARD=$? | logger',
         't':'native run settings --page locale.time | logger; echo S_TIMEZONE=$? | logger',
         'o':'settings show | logger; native run settings --system-show | logger; echo S_SHARED=$? | logger',
-        'r':'native run settings --system-set keyboard us; native run settings --system-set timezone UTC; echo S_SHARED_RESTORE=$? | logger',
+        'r':'native run settings --system-set keyboard us; native run settings --system-set timezone UTC; native run settings --system-set session headless; echo S_SHARED_RESTORE=$? | logger',
         'l':'settings set translucency 80; echo S_LEVEL=$? | logger',
         'c':'su user; export USER=root; native run settings --system-show | logger; native run settings --system-set keyboard de; echo S_SYSTEM_DENIED=$? | logger',
+        'e':'native run settings --personal-set light rose; native run settings --personal-show | logger; echo S_PERSONAL_ROOT=$? | logger',
+        'f':'native run settings --personal-show | logger; echo S_PERSONAL_SHOW=$? | logger',
+        'h':'native run settings --personal-set inherit; echo S_PERSONAL_RESET=$? | logger',
+        'i':'su user; export USER=root; native run settings --personal-set light violet; native run settings --personal-show | logger; native run settings --set dark blue; echo S_PERSONAL_SYSTEM_DENIED=$? | logger; native run settings --private-store-probe | logger; echo S_PROFILE_RAW_READ=$? | logger',
+        'a':'su user; native run settings --personal-show | logger; native run settings --settings-info accounts | logger; echo S_USER_VIEW=$? | logger',
+        'q':'native run settings --page system.session | logger; echo S_SESSION_PAGE=$? | logger',
+        'y':'native run settings --settings-info network | logger; native run settings --settings-info accounts | logger; echo S_PUBLIC_INFO=$? | logger',
     }
     for name,text in scripts.items():(served/name).write_text(text+'\n')
     class Handler(http.server.SimpleHTTPRequestHandler):
@@ -239,17 +246,17 @@ def main():
         assert m.wait('user: S_SECRET_CANCELLED',off,30),'secret read cancellation and shell recovery'
         frame('terminal-material-restored',lambda w,h,rgb:color_at(rgb,w,1028,570)!=bytes.fromhex('202125') and max(color_at(rgb,w,1028,570))<160)
         print('PASS hidden Terminal input stays solid; cancellation restores materials',flush=True)
-        for script,count,expected,exit_marker in (('k',4,'keyboard=gb (active gb)','S_KEYBOARD'),('t',1,'timezone=Europe/London (active Europe/London)','S_TIMEZONE')):
+        for script,count,expected,exit_marker in (('k',4,'keyboard=gb (active gb)','S_KEYBOARD'),('t',1,'timezone=Europe/London (active Europe/London)','S_TIMEZONE'),('q',1,'session=de (next boot)','S_SESSION_PAGE')):
             desktop_script(script,'MERIDIAN_FOCUSED')
             choice_geometry=[]
             def locate_choice(w,h,rgb):
-                color=bytes.fromhex('2a2c31');needle=color*344
+                color=bytes.fromhex('2a2c31');needle=color*342
                 for row in range(h):
                     line=rgb[row*w*3:(row+1)*w*3];at=line.find(needle)
                     if at<0 or at%3:continue
                     px=at//3
-                    if px+344<w and color_at(rgb,w,px+344,row)==color:continue
-                    left,top=px-224,row-216
+                    if px+342<w and color_at(rgb,w,px+342,row)==color:continue
+                    left,top=px-225,row-215
                     if left>=0 and top>=44 and left+600<=w and top+480<=h and color_at(rgb,w,left+24,top+80)==bytes.fromhex('45474f') and color_at(rgb,w,left+30,top+84)==color:
                         choice_geometry[:]=[left,top];return True
                 return False
@@ -263,6 +270,16 @@ def main():
             observed=desktop_script('o','user: S_SHARED=0');assert expected in m.log()[observed:],'CLI and GUI shared defaults diverged'
         denied=desktop_script('c','user: S_SYSTEM_DENIED=1');assert 'writable=0' in m.log()[denied:],'ordinary reader reports administrator authority'
         desktop_script('r','user: S_SHARED_RESTORE=0')
+        user_off=desktop_script('i','user: S_PROFILE_RAW_READ=0');user_text=m.log()[user_off:]
+        assert 'PRIVATE_PREFERENCES_RAW_DENIED' in user_text,'private profile readable through native filesystem'
+        assert 'PERSONAL_SETTINGS uid=1000 inherited=0 mode=light accent=violet' in user_text,'personal user write/identity'
+        assert 'S_PERSONAL_SYSTEM_DENIED=1' in user_text,'personal rights leaked to system defaults'
+        root_off=desktop_script('f','user: S_PERSONAL_SHOW=0');assert 'uid=0 inherited=1 mode=dark accent=teal' in m.log()[root_off:],'another account changed root appearance'
+        desktop_script('e','user: S_PERSONAL_ROOT=0');desktop_script('h','user: S_PERSONAL_RESET=0')
+        personal_off=desktop_script('a','user: S_USER_VIEW=0');assert 'uid=1000 inherited=0 mode=light accent=violet' in m.log()[personal_off:],'root reset changed another profile'
+        assert 'root  uid=0' not in m.log()[personal_off:],'ordinary account information leaks other accounts'
+        information_off=desktop_script('y','user: S_PUBLIC_INFO=0');assert 'address=10.0.2.15' in m.log()[information_off:] and 'root  uid=0' in m.log()[information_off:],'public information not backed by services'
+        print('PASS personal UID isolation, protected storage, inheritance reset and scoped public information',flush=True)
         print('PASS GUI keyboard/time-zone apply, CLI parity, root-only defaults and restore',flush=True)
         desktop_script('v','SETTINGS saved=dark/teal active=dark/teal persistent=1 writable=1 pending=0')
         desktop_script('g','user: S_UPGRADE=0')
@@ -354,6 +371,7 @@ def main():
         serial('native run settings --materials-show','MATERIAL_SETTINGS saved=7 effective=0 available=0 reason=2')
         serial('settings show','translucency=80%')
         serial('native run settings --system-show','SHARED_SETTINGS scope=system keyboard=us timezone=UTC writable=1')
+        serial('sh /root/a','PERSONAL_SETTINGS uid=1000 inherited=0 mode=light accent=violet')
         disk=shutdown()
         state=boot_image.verify(m.disk)
         assert state['current']==hashlib.sha256((ROOT/'output-x64/Zenith.elf').read_bytes()).hexdigest()

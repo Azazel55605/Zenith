@@ -10,9 +10,13 @@ internal static class ProcessAppearance
     public const int SnapshotBytes = 448, RequestBytes = 32;
     public static byte[] Snapshot(AppearanceService service)
     {
-        var state = service.Snapshot(); byte[] bytes = new byte[SnapshotBytes]; var b = bytes.AsSpan();
+        return Snapshot(service.Snapshot(), service.Persistent, CredentialContext.Current.IsRoot);
+    }
+    internal static byte[] Snapshot(AppearanceState state, bool persistent, bool writable)
+    {
+        byte[] bytes = new byte[SnapshotBytes]; var b = bytes.AsSpan();
         BinaryPrimitives.WriteUInt32LittleEndian(b, 1);
-        uint flags = (service.Persistent ? 1U : 0U) | (CredentialContext.Current.IsRoot ? 2U : 0U)
+        uint flags = (persistent ? 1U : 0U) | (writable ? 2U : 0U)
             | (state.Saved.Revision != state.Active.Revision ? 4U : 0U) | (state.Palette.Packaged ? 8U : 0U);
         BinaryPrimitives.WriteUInt32LittleEndian(b[4..], flags);
         BinaryPrimitives.WriteUInt64LittleEndian(b[8..], state.Saved.Revision);

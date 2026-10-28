@@ -9,13 +9,16 @@ static int same(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return *
 static void print(const char *s){unsigned long n=0;while(s[n])n++;zenith_write(s,n);}
 static unsigned long length(const char *s){unsigned long n=0;while(n<4096&&s[n])n++;return n;}
 static void update(void){
-    struct zenith_appearance state={0};
-    if(!zenith_appearance_read(&state)&&state.mode<2&&state.accent<6){const unsigned int *p=state.palette[state.mode][state.accent];ui.theme=(struct zui_theme){p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]};}
+    struct zenith_appearance state={0};struct zenith_scoped_appearance scoped={0};
+    int personal=zenith_scoped_appearance_read(1,&scoped)==0;
+    if(personal)state=scoped.appearance;
+    if((personal||!zenith_appearance_read(&state))&&state.active_mode<2&&state.active_accent<6){const unsigned int *p=state.palette[state.active_mode][state.active_accent];ui.theme=(struct zui_theme){p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]};}
     long r=zenith_call(612,(unsigned long)information,sizeof(information)-1,1);
     if(r>0&&r<(long)sizeof(information))information[r]=0;
     else {const char *s="System information unavailable.";unsigned int i=0;for(;s[i];i++)information[i]=s[i];information[i]=0;}
     struct zenith_material_settings material_state={0};
-    if(!zenith_material_settings_read(&material_state))ui.full_background=(material_state.saved&5)==5;
+    if(personal)ui.full_background=(scoped.materials.saved&5)==5;
+    else if(!zenith_material_settings_read(&material_state))ui.full_background=(material_state.saved&5)==5;
     ui.dirty=1;
 }
 int main(int argc,char **argv){

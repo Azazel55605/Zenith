@@ -66,5 +66,21 @@ a real installed VM, separate from local disposable validation.
     cannot grant writes. Change a value via CLI while the GUI has a draft: Save
     must reject stale edits and keep them until explicit discard/reload.
 
+17. In Colors, switch Personal/System. As an ordinary user, save a personal mode,
+    accent, effects and translucency; System must remain read-only even with
+    `USER=root`. A second account must retain its own appearance. Log out/in and
+    reboot to verify identity and persistence. Keep a draft while changing its
+    service revision via CLI: Save must reject it without losing edits.
+18. Change root's system defaults: inheriting accounts follow them, existing personal
+    overrides remain unchanged. Use defaults in the personal scope asks confirmation
+    and restores inheritance. Cancel keeps edits. CLI `settings personal show` agrees.
+19. Open Keyboard, Date & Time and Session. Open the choice picker, filter, page,
+    cancel, and choose a result with pointer and keyboard. Only registered session
+    hosts appear; the session default applies next boot. Restore headless if that
+    was your original default. Unsupported restore/confirmation policy stays WIP.
+20. Network shows actual IP/device/DNS status; Users shows only your public account
+    for ordinary users and the bounded account list for root. Neither view exposes
+    passwords/hashes or offers unimplemented mutations. Confirm WIP banners remain.
+
 Report the exact kernel/client/theme versions and which steps passed. Source and
 local QEMU tests do not complete this operator checklist automatically.

@@ -16,6 +16,13 @@ public class AccountServiceTests
         Assert.Null(service.Authenticate("root", "User-password-1"));
         Assert.Equal(1000u, service.Authenticate("user", "User-password-1")!.Uid);
     }
+    [Fact]
+    public void PublicAccountSummaryHasNoSecretsAndOrdinaryReadersSeeOnlyThemselves()
+    {
+        var service=new AccountService(new Store(),new Entropy());
+        using(CredentialContext.Enter(Credentials.Root)){string text=service.PublicSummary();Assert.Contains("root  uid=0",text);Assert.Contains("user  uid=1000",text);Assert.DoesNotContain("!",text);}
+        using(CredentialContext.Enter(new Credentials(1000,1000))){string text=service.PublicSummary();Assert.DoesNotContain("/root",text);Assert.Contains("/home/user",text);}
+    }
     private sealed class Store : IAccountStore
     {
         public Dictionary<string,string> Files = new()

@@ -12,8 +12,9 @@ Work owners: **S1/S2/W3** in the [master roadmap](ROADMAP.md). This page is a co
 - [Packaging and later migration](#packaging-and-later-migration)
 
 S0 system-settings/session seam and S1 x64 serial headless, 2026-10-11. The current
-floating desktop remains the test DE. Tiling WM, user preferences and a graphical
-Settings app are later slices; `session list` reports availability on this boot.
+floating desktop remains the test DE. Tiling WM remains unavailable; `session list` reports registered hosts on this boot.
+Meridian now exposes typed shared settings and personal appearance inheritance;
+see [native Settings](NATIVE-SETTINGS.md) for scopes, storage and authority.
 
 0.0.11 adds [graphical login, local text Headless and logout/session selection](LOGIN-SESSIONS.md).
 Configured installed accounts start at login; Ctrl+Alt+T opens Terminal and

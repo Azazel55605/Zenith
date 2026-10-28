@@ -89,10 +89,12 @@ internal sealed class SettingsService
             Current = Current with { DefaultSession = mode }; _revision++;
         }
     }
+    public IReadOnlyList<SessionMode> SessionChoices
+    { get { var result = new List<SessionMode>(); foreach(var mode in new[] { SessionMode.Desktop, SessionMode.Headless, SessionMode.WindowManager }) { if(_available(mode)) { result.Add(mode); } } return result; } }
     public int SaveChoice(uint field, uint choice, ulong revision)
     {
         if (!CredentialContext.Current.IsRoot) { return -13; }
-        if (field is not (1 or 2) || (field == 1 ? choice >= KeyboardLayoutCatalog.Names.Length : choice >= TimeZones.All.Count)) { return -22; }
+        if (field is not (1 or 2 or 3) || (field == 1 ? choice >= KeyboardLayoutCatalog.Names.Length : field == 2 ? choice >= TimeZones.All.Count : choice >= SessionChoices.Count)) { return -22; }
         lock (_gate)
         {
             if (revision != _revision) { return -11; }
@@ -100,7 +102,8 @@ internal sealed class SettingsService
             try
             {
                 if (field == 1) { SetKeyboard(KeyboardLayoutCatalog.Names[choice]); }
-                else { SetTimeZone(TimeZones.All[(int)choice].Name); }
+                else if(field == 2) { SetTimeZone(TimeZones.All[(int)choice].Name); }
+                else { SetSession(SessionChoices[(int)choice]); }
                 return 0;
             }
             catch { return -5; }

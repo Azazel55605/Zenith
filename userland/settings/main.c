@@ -3,6 +3,8 @@ static unsigned int pixels[1920*1000];
 static struct meridian shell;
 #define app shell.colors
 static long handle=-1;
+static int selected_scope=-1;
+static unsigned int scope_info;
 static int material_surface;
 static long present(void){
     struct zui *u=meridian_ui(&shell);
@@ -23,7 +25,16 @@ static const char *mode(unsigned int value){return value?"light":"dark";}
 static const char *accent(unsigned int value){const char *names[]={"blue","violet","rose","amber","green","teal"};return value<6?names[value]:"unknown";}
 static long read_settings(struct zenith_appearance *s,unsigned int *saved,unsigned int *effective,unsigned int *available,unsigned int *reason,unsigned int *level){
     *level=40;
-    long r=zenith_appearance_read(s);if(r)return r;
+    long r;
+    if(selected_scope<0){r=zenith_appearance_read(s);if(r)return r;selected_scope=(s->flags&2)?0:1;}
+    struct zenith_scoped_appearance scoped={0};r=zenith_scoped_appearance_read((unsigned int)selected_scope,&scoped);
+    if(r!=-38){
+        if(r)return r;
+        if(scoped.version!=1||scoped.scope!=(unsigned int)selected_scope||scoped.inherited>1||scoped.materials.version!=3)return -22;
+        *s=scoped.appearance;*saved=scoped.materials.saved;*effective=scoped.materials.effective;*available=scoped.materials.available;*reason=scoped.materials.reason;*level=scoped.materials.translucency;
+        scope_info=4U|(unsigned int)selected_scope|(scoped.inherited<<1);return 0;
+    }
+    scope_info=0;r=zenith_appearance_read(s);if(r)return r;
     struct zenith_material_control control={0};
     r=zenith_material_control_read(&control);
     if(!r){if(control.version!=3||control.translucency>100||control.revision!=s->revision)return -11;*saved=control.saved;*effective=control.effective;*available=control.available;*reason=control.reason;*level=control.translucency;return 0;}
@@ -33,12 +44,20 @@ static long read_settings(struct zenith_appearance *s,unsigned int *saved,unsign
     *saved=m.saved;*effective=m.effective;*available=m.available;*reason=m.reason;return 0;
 }
 static long save_settings(unsigned int m,unsigned int a,unsigned int effects,unsigned int level,unsigned long revision){
+    if(scope_info&4)return zenith_scoped_appearance_save((unsigned int)selected_scope,m,a,effects,level,revision,0);
     long result=zenith_material_control_save(m,a,effects,level,revision);
     if(result!=-38)return result;
     if(level!=40)return -19;
     struct zenith_material_settings state={0};
     if(zenith_material_settings_read(&state))return effects?-19:zenith_appearance_save(m,a,revision);
     return zenith_material_settings_save(m,a,effects,revision);
+}
+static long scope_action(unsigned int action,unsigned long revision){
+    if(action==3)return scope_info;
+    if(action==2)return selected_scope==1?zenith_scoped_appearance_save(1,0,0,0,40,revision,1):-22;
+    if(action>1)return -22;
+    struct zenith_scoped_appearance state={0};long r=zenith_scoped_appearance_read(action,&state);
+    if(!r){selected_scope=(int)action;}return r;
 }
 static long dirty(int value){return zenith_gui_dirty(handle,value);}
 static int show(void){
@@ -50,14 +69,28 @@ static int show(void){
 }
 static int system_preferences(int argc,char **argv){
     struct zenith_system_settings state={0};
-    if(zenith_system_settings_read(&state)||state.version!=1||state.keyboard_count>8||state.zone_count>48||state.keyboard>=state.keyboard_count){print("settings: shared service unavailable\n");return 1;}
-    if(argc==2){print("SHARED_SETTINGS scope=system keyboard=");print(state.keyboards[state.keyboard]);print(" timezone=");print(state.current_zone);print(" writable=");number(!!(state.flags&2));print("\n");return 0;}
-    unsigned int field=same(argv[2],"keyboard")?1:same(argv[2],"timezone")?2:0,count=field==1?state.keyboard_count:state.zone_count;
+    if(zenith_system_settings_read(&state)||(state.version!=1&&state.version!=2)||state.keyboard_count>8||state.zone_count>48||state.keyboard>=state.keyboard_count){print("settings: shared service unavailable\n");return 1;}
+    if(argc==2){print("SHARED_SETTINGS scope=system keyboard=");print(state.keyboards[state.keyboard]);print(" timezone=");print(state.current_zone);print(" writable=");number(!!(state.flags&2));if(state.version==2){print(" session=");print(state.current_session);}print("\n");return 0;}
+    unsigned int field=same(argv[2],"keyboard")?1:same(argv[2],"timezone")?2:same(argv[2],"session")?3:0,count=field==1?state.keyboard_count:field==2?state.zone_count:state.session_count;
     if(!field){print("settings: unknown shared field\n");return 2;}
-    for(unsigned int i=0;i<count;i++)if(same(argv[3],field==1?state.keyboards[i]:state.zones[i])){
+    for(unsigned int i=0;i<count;i++)if(same(argv[3],field==1?state.keyboards[i]:field==2?state.zones[i]:state.sessions[i])){
         long r=zenith_system_settings_save(field,i,state.revision);if(r){print("settings: system default save failed\n");return 1;}print("SYSTEM_DEFAULT_SAVED\n");return 0;
     }
     print("settings: unknown supported choice\n");return 2;
+}
+static int personal_settings(int argc,char **argv){
+    struct zenith_scoped_appearance state={0};if(zenith_scoped_appearance_read(1,&state)){print("settings: personal preferences unavailable\n");return 1;}
+    if(argc==2){print("PERSONAL_SETTINGS uid=");number(state.uid);print(" inherited=");number(state.inherited);print(" mode=");print(mode(state.appearance.mode));print(" accent=");print(accent(state.appearance.accent));print("\n");return 0;}
+    int inherit=argc==3&&same(argv[2],"inherit");if(argc==3&&!inherit)return 2;unsigned int m=state.appearance.mode,a=state.appearance.accent;
+    if(!inherit){m=same(argv[2],"dark")?0:same(argv[2],"light")?1:2;for(a=0;a<6;a++)if(same(argv[3],accent(a)))break;if(m>1||a>5)return 2;}
+    long r=zenith_scoped_appearance_save(1,m,a,state.materials.saved,state.materials.translucency,state.appearance.revision,inherit);
+    if(r){print("settings: personal save failed\n");return 1;}print("PERSONAL_SETTINGS_SAVED\n");return 0;
+}
+static int settings_information(const char *name){
+    unsigned int kind=same(name,"network")?1:same(name,"accounts")?2:0;if(!kind)return 2;
+    struct zenith_settings_information state={0};long r=zenith_settings_information_read(kind,&state);
+    if(r||state.version!=1||state.kind!=kind||state.length>=sizeof(state.text))return 1;
+    state.text[state.length]=0;print(state.text);print("\nSETTINGS_INFORMATION_OK\n");return 0;
 }
 static int bounds(void){
     struct zenith_appearance before={0},after={0};
@@ -98,6 +131,15 @@ static int bounds(void){
     if(zenith_call(621,0xffff800000000000UL,32,0)!=-14)return 35;
     struct zenith_system_settings_request preference_request={1,1,1,0,1,0};
     if(zenith_call(621,(unsigned long)&preference_request,32,0)!=-22)return 36;
+    if(zenith_call(622,2,(unsigned long)&after,512)!=-22)return 40;
+    if(zenith_call(622,0,0xffff800000000000UL,512)!=-14)return 41;
+    if(zenith_call(623,0xffff800000000000UL,48,0)!=-14)return 42;
+    struct zenith_scoped_request scoped_request={1,0,before.revision,0,0,0,40,0,1,0};
+    if(zenith_call(623,(unsigned long)&scoped_request,48,0)!=-22)return 43;
+    if(zenith_call(624,3,(unsigned long)&after,4096)!=-22)return 44;
+    if(zenith_call(624,1,0xffff800000000000UL,4096)!=-14)return 45;
+    if(zenith_call(625,0xffff800000000000UL,4096,0)!=-14)return 46;
+    if(zenith_call(626,0xffff800000000000UL,32,0)!=-14)return 47;
     if(zenith_gui_viewport(20001,&viewport_state)!=-9)return 26;
     if(materials.version==2){
         if(zenith_call(616,(unsigned long)&materials,47,0)!=-22)return 27;
@@ -127,6 +169,20 @@ int main(int argc,char **argv){
         struct zenith_material_settings m={0};if(zenith_material_settings_read(&m))return 1;
         print("MATERIAL_SETTINGS saved=");number(m.saved);print(" effective=");number(m.effective);print(" available=");number(m.available);print(" reason=");number(m.reason);print("\n");return 0;
     }
+    if((argc==2&&same(argv[1],"--personal-show"))||((argc==3||argc==4)&&same(argv[1],"--personal-set")))return personal_settings(argc,argv);
+    if(argc==3&&same(argv[1],"--settings-info"))return settings_information(argv[2]);
+    if(argc==2&&same(argv[1],"--private-store-probe")){
+        struct zenith_scoped_appearance state={0};
+        if(zenith_scoped_appearance_read(1,&state)||!state.uid)return 1;
+        char path[80]="/etc/zenith/preferences/",digits[10];unsigned int uid=state.uid,n=0,i=sizeof("/etc/zenith/preferences/")-1;
+        do{digits[n++]=(char)('0'+uid%10);uid/=10;}while(uid);
+        while(n)path[i++]=digits[--n];
+        const char suffix[]=".conf";for(n=0;suffix[n];n++)path[i++]=suffix[n];path[i]=0;
+        long fd=zenith_call(2,(unsigned long)path,i,0);
+        if(fd>=0){zenith_call(3,(unsigned long)fd,0,0);return 1;}
+        if(fd!=-13)return 1;
+        print("PRIVATE_PREFERENCES_RAW_DENIED\n");return 0;
+    }
     if(argc==2&&same(argv[1],"--bounds"))return bounds();
     if(argc==4&&same(argv[1],"--set")){
         unsigned int m=2,a=6;if(same(argv[2],"dark"))m=0;if(same(argv[2],"light"))m=1;
@@ -140,7 +196,7 @@ int main(int argc,char **argv){
     const char *page=0;
     if(argc==3&&same(argv[1],"--page"))page=argv[2];
     else if(argc!=1){print("usage: native run settings [--page ID | --system-info | --show | --set dark|light ACCENT | --materials solid|transparent|blur | --materials-show | --version | --bounds]\n");return 2;}
-    struct settings_backend backend={read_settings,save_settings,dirty};
+    struct settings_backend backend={read_settings,save_settings,dirty,scope_action};
     if(!meridian_init(&shell,pixels,backend,page)){print("settings: service unavailable\n");return 1;}
     long info=zenith_call(612,(unsigned long)shell.information,sizeof(shell.information)-1,1);
     if(info>0&&info<(long)sizeof(shell.information))shell.information[info]=0;
@@ -154,6 +210,7 @@ int main(int argc,char **argv){
     if(zenith_gui_interactive(handle)<0){zenith_gui_close(handle);print("settings: interactive client support required\n");return 1;}
     if(zenith_gui_resize_enable(handle)<0){zenith_gui_close(handle);print("settings: viewport service required\n");return 1;}
     meridian_system_services(&shell,zenith_system_settings_read,zenith_system_settings_save);
+    meridian_information_services(&shell,zenith_settings_information_read);
     meridian_refresh(&shell);meridian_draw(&shell);
     if(present()<0){zenith_gui_close(handle);return 1;}
     print("SETTINGS_READY\nMERIDIAN_PAGE ");print(meridian_pages[shell.page].id);print("\n");int result=0;

@@ -22,14 +22,26 @@ static long save_preferences(unsigned int field,unsigned int choice,unsigned lon
     if(!(preferences.flags&2))return -13;
     if(revision!=preferences.revision)return -11;
     if(field==1)preferences.keyboard=choice;
-    else {preferences.zone=choice;strcpy(preferences.current_zone,preferences.zones[choice]);}
+    else if(field==2){preferences.zone=choice;strcpy(preferences.current_zone,preferences.zones[choice]);}
+    else {preferences.session=choice;strcpy(preferences.current_session,preferences.sessions[choice]);}
     preferences.revision++;return 0;
+}
+static unsigned int scope_test,scope_inherited;
+static long scoped_read(struct zenith_appearance *s,unsigned int *m,unsigned int *e,unsigned int *v,unsigned int *r,unsigned int *level){
+    long result=read_state(s,m,e,v,r,level);if(scope_test&&!scope_inherited)s->mode=saved.mode^1;return result;
+}
+static long scoped_action(unsigned int action,unsigned long revision){
+    (void)revision;if(action==3)return 4|scope_test|(scope_inherited<<1);
+    if(action<2)scope_test=action;else if(action==2)scope_inherited=1;return 0;
+}
+static long information_read(unsigned int kind,struct zenith_settings_information *s){
+    *s=(struct zenith_settings_information){.version=1,.kind=kind};const char *text=kind==1?"address=10.0.2.15\n":"user uid=1000\n";s->length=(unsigned int)strlen(text);strcpy(s->text,text);return 0;
 }
 int main(int argc,char **argv){
     saved.version=1;saved.revision=1;saved.flags=3;
     struct zui palette;zui_init(&palette,pixels,600,480);
     for(int m=0;m<2;m++)for(int a=0;a<6;a++){zui_appearance(&palette,m,a);memcpy(saved.palette[m][a],&palette.theme,sizeof(palette.theme));}
-    assert(meridian_init(&app,pixels,(struct settings_backend){read_state,save,mark},0));meridian_refresh(&app);
+    assert(meridian_init(&app,pixels,(struct settings_backend){read_state,save,mark,0},0));meridian_refresh(&app);
     struct zenith_gui_event e={Z_GUI_FOCUS,1,0,0,0,0};meridian_event(&app,&e);meridian_draw(&app);
     for(int i=0;i<43;i++){assert(meridian_open(&app,meridian_pages[i].id));meridian_draw(&app);assert(app.page==i);assert(meridian_ui(&app)->count<=32);}
     assert(saves==0&&!dirty);assert(!meridian_open(&app,"missing.page"));
@@ -70,7 +82,7 @@ int main(int argc,char **argv){
     activate(2001);assert(app.preference_edited&&dirty&&app.preference_choice==1);
     key('f',0,2);assert(app.page==page_id("input.keyboard")&&app.preference_edited);
     activate(2002);assert(!app.preference_edited&&!dirty&&preferences.keyboard==1);
-    assert(meridian_open(&app,"locale.time"));meridian_refresh(&app);assert(!app.preference_message);meridian_draw(&app);activate(2001);assert(app.preference_choice==1);
+    assert(meridian_open(&app,"locale.time"));meridian_refresh(&app);assert(!app.preference_message);meridian_draw(&app);activate(2004);key('b',0,0);key('e',0,0);key(0,2,0);assert(!app.preference_picker&&app.preference_choice==1);
     preferences.revision++;meridian_refresh(&app);activate(2002);assert(app.preference_edited&&dirty);
     activate(2003);assert(!dirty&&!app.preference_edited);
     activate(2001);key('q',0,2);assert(app.preference_prompt==1&&!app.closing);
@@ -80,6 +92,15 @@ int main(int argc,char **argv){
     unsigned int old=app.preference_choice;activate(2001);assert(app.preference_choice==old&&!dirty);
     assert(meridian_open(&app,"style.colors"));meridian_refresh(&app);meridian_draw(&app);activate(54);assert(app.colors.translucency==50&&app.colors.edited);
     activate(30);assert(material_level==50&&!dirty);
+    app.colors.backend.read=scoped_read;app.colors.backend.scope=scoped_action;scope_inherited=0;meridian_refresh(&app);meridian_draw(&app);
+    activate(60);assert(app.colors.scope==1&&app.colors.mode==(saved.mode^1));
+    activate(40);assert(app.colors.prompt==4);activate(90);assert(!app.colors.prompt&&!scope_inherited);
+    activate(40);activate(91);assert(scope_inherited&&app.colors.inherited&&app.colors.mode==saved.mode);
+    activate(61);assert(app.colors.scope==0);app.colors.backend.scope=0;app.colors.backend.read=read_state;app.colors.has_scopes=app.colors.scope=0;
+    preferences.flags=3;preferences.version=2;preferences.session_count=2;preferences.session=0;strcpy(preferences.current_session,"de");strcpy(preferences.sessions[0],"de");strcpy(preferences.sessions[1],"headless");
+    assert(meridian_open(&app,"system.session"));meridian_refresh(&app);meridian_draw(&app);activate(2004);key('h',0,0);key(0,2,0);assert(app.preference_edited&&app.preference_choice==1);activate(2002);assert(preferences.session==1&&!dirty);
+    meridian_information_services(&app,information_read);assert(meridian_open(&app,"network.connections"));meridian_refresh(&app);meridian_draw(&app);assert(strstr(app.public_information,"10.0.2.15")&&!dirty);
+    assert(meridian_open(&app,"system.users"));meridian_refresh(&app);meridian_draw(&app);assert(app.public_kind==2&&strstr(app.public_information,"uid=1000")&&!dirty);
     struct zui_input input;char bytes[16]="A\xc3\xa9";assert(zui_input_init(&input,bytes,sizeof(bytes)));
     e=(struct zenith_gui_event){Z_GUI_KEY,0,0,0,0,3};assert(zui_input_event(&input,&e));assert(strcmp(bytes,"A")==0);
     e.code=0x1f600;e.extra=0;assert(zui_input_event(&input,&e));assert(input.length==5);e.code=0;e.extra=3;zui_input_event(&input,&e);assert(strcmp(bytes,"A")==0);

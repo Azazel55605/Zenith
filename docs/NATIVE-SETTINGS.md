@@ -6,8 +6,8 @@ Work owners: **S1/D1/D3** in the [master roadmap](ROADMAP.md). This page is a co
 [System settings/session behavior](SETTINGS-SESSIONS.md)
 
 The independently compiled `zenith-settings` package supplies the first functional
-Appearance page plus typed keyboard-layout and time-zone controls. The GUI and trusted `settings` command use the same root-only
-system preference authority. This is not a kernel-linked Settings window.
+Appearance page plus typed keyboard-layout, time-zone and default-session controls.
+The GUI and trusted `settings` command share captured-identity preference services. This is not a kernel-linked Settings window.
 Meridian extends it into the [Settings shell and app migration](components/SESSIONS-DESKTOP.md#native-app-migration). Most pages retain explicit WIP banners until their typed backends are implemented.
 
 ## Use and visible behavior
@@ -32,9 +32,10 @@ on its next tick, without logging out. The page polls status and distinguishes
 unsaved preview, saved/pending and saved/active. Headless saves become active on the
 next graphical login; live-system changes are explicitly volatile.
 
-All users may read. Only captured UID 0 can save these **system-wide** preferences;
-setting `USER=root` does not grant permission. Non-administrator GUI controls are
-read-only. Per-user appearance overrides and an elevation dialog are not implemented.
+All accounts may read system defaults; only captured UID 0 may save them. Ordinary
+accounts can save their own personal appearance and reset it to inherited defaults.
+`USER=root` grants no authority. System keyboard/time-zone/session controls remain
+read-only to ordinary accounts. An elevation dialog is not implemented.
 
 Failed saves retain edits and the active snapshot. Concurrent service edits use a
 revision check: stale saves fail rather than overwrite. Reloading over edits needs
@@ -167,7 +168,7 @@ CLI: `settings set materials solid|transparent|blur|background|background-blur`;
 and root-only controls with mode/accent. Turning transparency off retains the
 blur and background drafts. Whole app background is a system-wide default for
 supported shared-toolkit clients; it is not whole-bitmap opacity. Existing ABI 1
-clients and protected credential surfaces stay opaque. Per-app overrides are deferred. Scope remains system-wide; per-user preferences/elevation are S1 work.
+clients and protected credential surfaces stay opaque. Per-app overrides are deferred. Legacy calls retain system scope; scoped calls below add personal profiles. Elevation is not implemented.
 
 ## Owned window state ABI 1
 
@@ -237,8 +238,8 @@ credentials force a solid body/chrome. Files stays outside this design pass.
 
 `zenith-native-system-settings-abi 1.0` exposes existing `SettingsService`
 operations without shell callbacks, paths or authority derived from page names.
-These controls are explicitly **system defaults**, not per-user overrides. Personal
-preferences/inheritance remain S1 work in the master roadmap.
+These controls are explicitly **system defaults**; personal appearance uses the
+separate captured-UID service below.
 
 - **620 read** `(writable snapshot, 4096, 0)`: little-endian version=1, flags
   (persistent=1, captured UID 0 writable=2), u64 boot-local revision; u32 keyboard
@@ -264,3 +265,62 @@ Meridian's Keyboard and Date & Time pages protect drafts, support save/discard,
 and refuse stale saves without replaying operations. WIP banners remain for
 model/repeat/Num Lock/shortcut and clock-edit/sync-policy features. The time-zone
 control changes local display/DST rules, not UTC or authenticated time sync.
+
+
+## Captured-UID appearance and public shared data
+
+`zenith-native-personal-appearance-abi 1.0` adds:
+
+- **622 read** `(scope, writable snapshot, 512)`: scope 0=system, 1=own personal.
+  Bytes 0..447 retain the appearance snapshot; 448..495 contain material-control
+  version 3. u32 version=1/scope/captured UID/inherited are at 496/500/504/508.
+  Revisions and writable/persistent flags belong to the selected scope. Effective
+  renderer availability still describes the current desktop.
+- **623 save** `(readable request, 48, 0)`: u32 version=1/scope, u64 revision,
+  u32 mode/accent/materials/level/inherit, u32 reserved=0, u64 reserved=0.
+  System writes require root and inherit=0; personal writes target only the captured
+  caller UID. inherit=1 resets the personal profile. No target UID/path is accepted.
+
+Personal profiles are service-owned `/etc/zenith/preferences/UID.conf`. The final
+ancestor is root-owned 0700; all ancestors and existing/staged records are validated
+before privileged I/O. Records must be single-link root-owned regular files with no
+unprivileged write permission. Raw filesystem access remains denied to ordinary
+accounts. Missing profiles inherit live system defaults; explicit reset writes
+`VERSION=1` / `INHERIT=1`. Overrides use the existing bounded appearance schemas.
+Malformed/future records are preserved and saves refused; the renderer safely uses
+system defaults. Live boot profiles are volatile. Revisions are boot-local; changes
+apply when that identity owns the desktop, not through another account's invocation.
+The existing staged-replace/power-loss limitations above also apply here.
+
+`zenith-native-shared-settings-abi 1.0` adds:
+
+- **624 information** `(kind, writable snapshot, 4096)`: kind 1=primary network
+  status, 2=public account information. Four u32 values (version=1, kind, UTF-8
+  byte length, truncated) precede 4080 bytes of NUL-terminated text. Payload is at
+  most 4079 bytes, never a partial UTF-8 sequence. Network values come from the
+  existing network service. Root sees at most 24 public account rows; ordinary
+  users see only themselves. Password/hash fields are never serialized.
+- **625 system read** `(writable snapshot, 4096, 0)`: version 2 keeps 620's layout,
+  adds current session name at 96..111, u32 session count/index at 3456/3460,
+  then three 16-byte registered session names at 3464. Remaining bytes are zero.
+  UINT32_MAX means the saved selection is unavailable. Only registered hosts appear.
+- **626 system save** `(readable request, 32, 0)`: version 2 retains 621's format
+  and adds field 3=default session. Fields 1/2 remain keyboard/time-zone. Root-only;
+  revision and actual catalogue membership are checked. 620/621 remain version 1
+  and refuse session writes. Default-session changes take effect on the next boot.
+
+Meridian offers searchable bounded keyboard/time-zone/session pickers, explicit
+Personal/System scope and confirmed Use defaults. Network/account pages are
+read-only information with WIP notices for unsupported edits. Examples:
+
+```sh
+settings personal show
+settings personal appearance light violet
+settings personal inherit
+native run settings --personal-show
+native run settings --personal-set light violet
+native run settings --personal-set inherit
+native run settings --system-set session headless
+native run settings --settings-info network
+native run settings --settings-info accounts
+```

@@ -16,6 +16,23 @@ internal static class ConfigurationCommands
     private static int Settings(CommandContext c)
     {
         var settings = SystemConfiguration.Settings;
+        if (c.Args.Length > 0 && c.Args[0] == "personal")
+        {
+            uint uid=Zenith.Core.Security.CredentialContext.Current.Uid;var personal=SystemConfiguration.PersonalAppearance;
+            var state=personal.Snapshot(uid);
+            if(c.Args.Length==1 || (c.Args.Length==2&&c.Args[1]=="show"))
+            { c.WriteLine("scope: personal uid="+uid+"; "+(state.Inherited?"following system defaults":"personal override"));c.WriteLine("appearance="+AppearanceService.ModeName(state.Saved.Mode)+"/"+AppearanceService.AccentName(state.Saved.Accent)+" materials="+state.Saved.Materials+" translucency="+state.Saved.Translucency+"%");return 0; }
+            uint mode=state.Saved.Mode,accent=state.Saved.Accent,materials=state.Saved.Materials,level=state.Saved.Translucency;
+            bool inherit=c.Args.Length==2&&c.Args[1]=="inherit";
+            if(!inherit)
+            {
+                if(c.Args.Length==4&&c.Args[1]=="appearance") { if(!AppearanceService.TryMode(c.Args[2],out mode)||!AppearanceService.TryAccent(c.Args[3],out accent))return c.Fail("invalid personal appearance"); }
+                else if(c.Args.Length==3&&c.Args[1]=="translucency") { if(!uint.TryParse(c.Args[2],out level)||level>100)return c.Fail("translucency requires 0..100"); }
+                else return c.Fail("usage: settings personal [show|inherit|appearance dark|light ACCENT|translucency 0..100]");
+            }
+            int result=personal.Save(uid,mode,accent,materials,level,state.Saved.Revision,inherit);if(result!=0)return c.Fail("personal save failed ("+result+")");
+            c.WriteLine(inherit?"Following system defaults.":"Personal appearance saved.");return 0;
+        }
         if (c.Args.Length == 0 || (c.Args.Length == 1 && c.Args[0] == "show"))
         {
             c.WriteLine("scope: system; storage: " + (settings.Persistent ? "installed" : "live (volatile)"));

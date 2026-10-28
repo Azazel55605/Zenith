@@ -18,6 +18,7 @@ static void palette(struct settings_app *a){
 void settings_refresh(struct settings_app *a){
     struct zenith_appearance s={0};unsigned int saved=0,effective=0,available=0,reason=0,level=40;long result=a->backend.read(&s,&saved,&effective,&available,&reason,&level);
     if(result||level>100||!valid(&s)||saved>7||effective>7||available>7||reason>5){a->message="Settings service unavailable. Edits have been kept.";a->ui.dirty=1;return;}
+    if(a->backend.scope){long info=a->backend.scope(3,0);if(info>=0){a->scope=info&1;a->inherited=!!(info&2);a->has_scopes=!!(info&4);}}
     int changed=effective!=a->effective_effects||available!=a->available_effects||reason!=a->material_reason||!a->have_state||s.revision!=a->state.revision||s.active_revision!=a->state.active_revision||s.resources!=a->state.resources||s.flags!=a->state.flags;
     if(!a->edited){a->translucency=level;a->effects=saved;a->mode=s.mode;a->accent=s.accent;a->base_revision=s.revision;}
     else if(s.revision!=a->base_revision)a->message="Changed elsewhere. Reload before saving; your edits are kept.";
@@ -43,10 +44,15 @@ int settings_init(struct settings_app *a,unsigned int *pixels,struct settings_ba
     zui_add(&a->ui,52,ZUI_TOGGLE,(struct zui_rect){24,336,552,26},"Whole app background",0,0);
     zui_add(&a->ui,53,ZUI_BUTTON,(struct zui_rect){1,1,32,26},"-",0,1);
     zui_add(&a->ui,54,ZUI_BUTTON,(struct zui_rect){1,1,32,26},"+",0,1);
+    zui_add(&a->ui,60,ZUI_SEGMENT,(struct zui_rect){1,1,88,28},"Personal",0,0);
+    zui_add(&a->ui,61,ZUI_SEGMENT,(struct zui_rect){1,1,84,28},"System",1,0);
     settings_set_viewport(a,a->viewport);return 1;
 }
 void settings_set_viewport(struct settings_app *a,struct zui_rect r){
-    a->viewport=r;int x=r.x+16,y=r.y,bottom=r.y+r.h;
+    a->viewport=r;
+    a->ui.controls[18].rect=(struct zui_rect){r.x+r.w-192,r.y+16,88,28};
+    a->ui.controls[19].rect=(struct zui_rect){r.x+r.w-100,r.y+16,84,28};
+    int x=r.x+16,y=r.y,bottom=r.y+r.h;
     a->ui.controls[0].rect=(struct zui_rect){x+4,y+96,136,28};
     a->ui.controls[1].rect=(struct zui_rect){x+140,y+96,136,28};
     for(int i=0;i<6;i++)a->ui.controls[2+i].rect=(struct zui_rect){x+i*44,y+164,32,32};
@@ -66,19 +72,20 @@ void settings_draw(struct settings_app *a){
     if(r.x>8)zui_workspace_begin(u,180);
     else {if(u->foreground)zui_begin_material_frame(u);zui_clip(u,(struct zui_rect){0,0,u->width,u->height});zui_surface(u,u->clip,0,ZUI_SURFACE_CONTENT);}
     zui_clip(u,r);
-    text(a,24,16,"Appearance",&zui_heading,u->theme.text);
+    text(a,24,16,"Colors",&zui_heading,u->theme.text);
     text(a,24,75,"Color mode",&zui_label,u->theme.text);
     text(a,24,139,"Accent color",&zui_label,u->theme.text);
     zui_setting_row(u,(struct zui_rect){r.x+16,r.y+226,r.w-32,45},"","Let panels reveal the background.");
     zui_setting_row(u,(struct zui_rect){r.x+16,r.y+266,r.w-32,45},"",!a->available_effects?"Unavailable here; saved choices are kept.":!(a->effects&1)&&(a->effects&2)?"Saved; enable transparency to activate it.":a->material_reason>=3?"Some surfaces fall back for contrast or speed.":"Diffuse the backdrop; controls remain clear.");
     zui_setting_row(u,(struct zui_rect){r.x+16,r.y+306,r.w-32,45},"",!(a->effects&1)&&(a->effects&4)?"Saved; enable transparency to activate it.":"Extend effects to the app canvas.");
-    const char *scope=!(a->state.flags&Z_SETTINGS_WRITABLE)?"Read only: sign in as an administrator to save.":
+    const char *scope=a->has_scopes&&a->scope?(a->inherited?"Personal: following system defaults.":"Personal override for this account."):!(a->state.flags&Z_SETTINGS_WRITABLE)?"Read only: sign in as an administrator to save.":
         a->state.flags&Z_SETTINGS_PERSISTENT?"Installed system: saved changes survive reboot.":"Live system: changes will be lost at reboot.";
     text(a,24,374,scope,&zui_caption,u->theme.secondary);
     const char *status=a->edited?"Unsaved changes - showing your preview.":
         a->state.flags&Z_SETTINGS_PENDING?"Saved. Waiting for the desktop or next login to apply.":"Saved appearance is active.";
+    if(a->has_scopes&&!a->scope&&!a->inherited)status="System defaults saved; personal overrides are active.";
     text(a,24,390,a->message&&!a->prompt?a->message:status,&zui_caption,u->theme.text);
-    if(a->prompt)text(a,24,390,a->prompt==1?"Discard unsaved changes and close?":a->prompt==3?"Discard changes and return to settings?":"Discard unsaved changes and reload?",&zui_label,u->theme.text);
+    if(a->prompt)text(a,24,390,a->prompt==4?"Replace personal overrides with system defaults?":a->prompt==1?"Discard unsaved changes and close?":a->prompt==3?"Discard changes and return to settings?":"Discard unsaved changes and reload?",&zui_label,u->theme.text);
     for(int i=0;i<13;i++){
         struct zui_control *c=&u->controls[i];
         c->enabled=a->prompt?c->id>=90:c->id<90;
@@ -93,6 +100,11 @@ void settings_draw(struct settings_app *a){
     zui_text(u,r.x+16,r.y+350,percent,18,&zui_label,u->theme.text);
     for(int i=16;i<18;i++)u->controls[i].enabled=!a->prompt&&!!(a->state.flags&Z_SETTINGS_WRITABLE)&&!!a->available_effects;
     if(!a->prompt)zui_draw_range(u,16,2);
+    u->controls[10].label=a->has_scopes&&a->scope?"Use defaults":"Close";
+    if(a->has_scopes&&a->scope)u->controls[10].enabled=!a->prompt&&!a->inherited;
+    u->controls[12].label=a->prompt==4?"Use defaults":"Discard changes";
+    for(int i=18;i<20;i++){u->controls[i].enabled=a->has_scopes&&!a->prompt&&!a->edited;u->controls[i].value=a->scope==(i==18?1U:0U);}
+    zui_draw_range(u,18,2);
     zui_swatch_caption(u,r.x+16,r.y+204);
     zui_segment_track(u,(struct zui_rect){r.x+16,r.y+92,280,36});
     if(!a->prompt)zui_draw_range(u,13,3);
@@ -112,15 +124,20 @@ int settings_event(struct settings_app *a,const struct zenith_gui_event *e){
     int action=zui_event(&a->ui,e);
     if(!action)return 0;
     if(action>=1000)return action;
+    if(action==60||action==61){
+        if(a->edited||!a->backend.scope){a->message="Save or discard edits before changing scope.";a->ui.dirty=1;return 0;}
+        if(a->backend.scope(action==60?1:0,0)){a->message="Scope unavailable; previous settings kept.";}else {a->message=0;settings_refresh(a);palette(a);}a->ui.dirty=1;return 0;
+    }
     if(action==90){a->prompt=0;a->ui.focus=0;a->ui.dirty=1;return 0;}
     if(action==900){if(a->edited){close_request(a,3);return 0;}return 900;}
     if(action==91){
+        if(a->prompt==4&&(!a->backend.scope||a->backend.scope(2,a->base_revision))){a->message="Cannot restore defaults; edits kept.";a->prompt=0;a->ui.dirty=1;return 0;}
         if(a->backend.dirty(0)){a->message="Cannot update window state. Edits have been kept.";return 0;}
         int prompt=a->prompt;a->edited=0;a->prompt=0;
         if(prompt==1)a->closing=1;
         else {a->message=0;settings_refresh(a);a->ui.focus=0;}a->ui.dirty=1;return prompt==3?900:0;
     }
-    if(action==40){close_request(a,1);return 0;}
+    if(action==40){if(a->has_scopes&&a->scope){a->prompt=4;a->ui.dirty=1;}else close_request(a,1);return 0;}
     if(action==31){close_request(a,2);return 0;}
     if(action==30){
         long result=a->backend.save(a->mode,a->accent,a->effects,a->translucency,a->base_revision);

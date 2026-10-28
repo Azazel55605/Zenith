@@ -9,7 +9,7 @@
     <Compile Include="../../src/Core/IO/*.cs" LinkBase="IO" />
     <Compile Include="../../src/Core/Boot/*.cs" Exclude="../../src/Core/Boot/Native*.cs" LinkBase="Boot" />
     <Compile Include="../../src/Core/Packages/*.cs" Exclude="../../src/Core/Packages/Native*.cs" LinkBase="Packages" />
-    <Compile Include="../../src/Core/Processes/*.cs" Exclude="../../src/Core/Processes/Native*.cs;../../src/Core/Processes/ProcessAppearance.cs;../../src/Core/Processes/ProcessSystemSettings.cs" LinkBase="Processes" />
+    <Compile Include="../../src/Core/Processes/*.cs" Exclude="../../src/Core/Processes/Native*.cs;../../src/Core/Processes/ProcessAppearance.cs;../../src/Core/Processes/ProcessSystemSettings.cs;../../src/Core/Processes/ProcessScopedAppearance.cs" LinkBase="Processes" />
     <Compile Include="../../src/Core/Security/Sha256.cs" Link="Sha256.cs" />
   </ItemGroup>
 </Project>

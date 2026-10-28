@@ -17,6 +17,18 @@ public class ProcessSystemSettingsTests
         public void Replace(string path,string text) { if(Fail)throw new IOException(); Files[path]=text; }
     }
     [Fact]
+    public void NewSessionCatalogueIsVersionedAndOldRequestsCannotSaveIt()
+    {
+        var service=new SettingsService(new Store(),_=>{},_=>{},mode=>mode!=Zenith.Core.Sessions.SessionMode.WindowManager);
+        using var root=CredentialContext.Enter(Credentials.Root);var data=ProcessSystemSettings.Snapshot(service,true);
+        Assert.Equal(2U,BinaryPrimitives.ReadUInt32LittleEndian(data));Assert.Equal(2U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(3456)));
+        byte[] request=new byte[32];request[0]=2;request[4]=3;request[8]=1;request[16]=1;
+        Assert.Equal(0,ProcessSystemSettings.Save(service,request,true));Assert.Equal(Zenith.Core.Sessions.SessionMode.Headless,service.Current.DefaultSession);
+        request[0]=1;Assert.Equal(-22,ProcessSystemSettings.Save(service,request));
+        var info=ProcessSettingsInformation.Encode(2,new string('é',5000));int length=(int)BinaryPrimitives.ReadUInt32LittleEndian(info.AsSpan(8));
+        Assert.Equal(1U,BinaryPrimitives.ReadUInt32LittleEndian(info.AsSpan(12)));Assert.Equal(length,System.Text.Encoding.UTF8.GetByteCount(System.Text.Encoding.UTF8.GetString(info,16,length)));
+    }
+    [Fact]
     public void ChoicesAreRealSharedDefaultsWithRevisionAndPermissionChecks()
     {
         var store = new Store();var service = new SettingsService(store,_=>{},_=>{},_=>true);

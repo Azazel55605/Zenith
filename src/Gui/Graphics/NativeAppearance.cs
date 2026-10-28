@@ -26,13 +26,20 @@ internal static class NativeAppearance
         catch { return null; }
     }
     private static ulong s_revision;
+    private static uint s_uid = uint.MaxValue;
+    private static bool s_personal;
+    public static AppearanceSelection Current { get; private set; } = new(0,0,1);
     private static AppearancePalette? s_palette;
     public static void ApplyPending(bool force = false)
     {
-        var service = SystemConfiguration.Appearance; var target = service.Saved; var palette = service.Palette;
-        if (!force && s_revision == target.Revision && ReferenceEquals(s_palette, palette)) { return; }
-        if (service.UsePalette) { Theme.ApplyAppearance(palette, target.Mode, target.Accent); }
-        s_revision = target.Revision; s_palette = palette; service.MarkActive(target);
+        var service = SystemConfiguration.Appearance; var profile = SystemConfiguration.PersonalAppearance.ForDisplay(Accounts.Session.Uid);
+        var target = profile.Saved; var palette = service.Palette;
+        if (!force && s_uid == Accounts.Session.Uid && s_revision == target.Revision && ReferenceEquals(s_palette, palette)) { return; }
+        if (service.UsePalette || !profile.Inherited || s_personal) { Theme.ApplyAppearance(palette, target.Mode, target.Accent); }
+        s_personal = !profile.Inherited;
+        s_uid = Accounts.Session.Uid; s_revision = target.Revision; s_palette = palette; Current = target;
+        SystemConfiguration.PersonalAppearance.MarkActive(s_uid,target);
+        service.MarkActive(profile.Inherited ? service.Saved : target with { Revision = 0 });
     }
     public static void Reload()
     {

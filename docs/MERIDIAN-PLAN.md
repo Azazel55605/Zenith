@@ -105,7 +105,10 @@ home immediately; later phases progressively remove WIP banners.
 ### Current foundation and next contracts
 
 The local shell already registers all 43 pages, search, group navigation and recent
-links; Colors retains working persistence and About has selected real metadata.
+links; Colors has scoped persistence/inheritance, keyboard/time-zone/session pages
+have searchable catalogues, network/accounts show authorized read-only data and
+About has selected real metadata. The shared-settings S1 slice is locally implemented;
+see [contract and evidence](archive/2026-10-28/shared-settings-stage.md).
 This does not finish M1: shared form/text/control richness, responsive scale/layout
 and long-duration lifetime acceptance remain U1/D1/D2. Every backend beyond those
 must retain WIP until its own service and native acceptance exists.
@@ -124,10 +127,11 @@ settings plugins as a shortcut. Keep rendering/forms in userland and privileged
 operations in narrowly typed, versioned services. Never route a native page through
 an arbitrary root shell command or give it raw framebuffer/input/device addresses.
 
-Personalization defaults to **user scope** once that foundation exists. Network,
+Personalization defaults to **user scope** for ordinary accounts; administrators
+initially see system defaults and can select their personal profile. Network,
 accounts, global clock, boot/login policy and system device policy require explicit
-system authority. The present root-only Appearance service remains clearly labelled
-until migration; do not silently convert its global file into a per-user setting.
+system authority. The global Appearance service remains system authority; personal profiles inherit
+it until explicitly overridden and never rewrite its file.
 User identity/home paths come from the trusted account/session service, not client
 supplied `USER`, `HOME` or arbitrary configuration paths. Future elevation requires
 a trusted host prompt; do not collect administrator credentials in an ordinary page.
