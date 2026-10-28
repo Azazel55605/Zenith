@@ -6,6 +6,8 @@ Start with [current status](../ROADMAP.md#state-and-evidence) or [active work](.
 
 ## Investigation records
 
+- [2026-10-28 shared Settings stage](2026-10-28/shared-settings-stage.md): captured-UID profiles/inheritance, typed shared data/selectors and clean Release qualification.
+
 - [2026-10-27 graphical input profile](2026-10-27/graphical-input-profile.md): distributor mouse-delivery evidence, explicit test transport and no-build replay.
 
 - [2026-10-26 protected graphical clients](2026-10-26/protected-graphical-clients.md): owned surfaces/events, independent client, lifecycle and qualification.
