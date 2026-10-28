@@ -20,6 +20,10 @@ or automatic failed-boot fallback.
 - [ ] Publish the tested QEMU/VMware device matrix and recovery procedure.
 - [ ] Exercise USB/physical boot, storage, display, input/network and recovery on
   identified hardware before claiming physical install support.
+- [x] Reproduce a stranded virtio-mouse queue with the server ELF/QEMU version;
+  implement bounded IRQ-scoped periodic polling in copied dependencies.
+  [Candidate evidence](../archive/2026-10-28/virtio-mouse-drain.md); Q2 owns full
+  clean-source, distributor and installed confirmation.
 - [ ] Investigate driver-specific relative/absolute pointer, hardware cursor and
   damage presentation work from measured failures/performance.
 

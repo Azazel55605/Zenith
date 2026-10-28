@@ -159,3 +159,10 @@ artificial single-CPU-contention run did not reach the desktop and was stopped;
 it supplies no mouse-failure evidence. Distributor root-cause confirmation remains
 pending; the public-prompt fixes remain confirmed through the operator's shared
 settings checks, and the original mouse witness assertion remains unchanged.
+
+## Subsequent kernel finding
+
+The later focused failure was reproduced with a stranded virtio receive queue.
+See [periodic mouse drain](virtio-mouse-drain.md) for the device evidence, kernel
+candidate and qualification boundary. The prompt protocol fixes above remain in
+place; controller cursor correction remains disabled.

@@ -217,6 +217,7 @@ def build(config, release, native=False):
         if native: native_prerequisites()
         phase("Host tests", ["dotnet", "test", "tests/Zenith.Tests", "-c", "Release"], work / "tests.log")
         phase("Kernel build", ["dotnet", "publish", "-c", "Release", "-r", "linux-x64", "-o", str(work / "build")], work / "build.log")
+        adapter_checks(work, work / "build")
         clean()
         if source_commit() != commit: raise ValueError("source commit changed during build; publication refused")
         phase("Package tool", ["dotnet", "build", "tools/Zenith.PackageTool", "-c", "Release", "--nologo"], work / "package-tool.log")
@@ -238,6 +239,18 @@ def controller_checks(work):
     # Always test the running controller, even when REPO is an older pinned tag.
     phase("Validation controller tests", [sys.executable, "-B", str(CONTROLLER / "validate.py"),
           "--controller-only"], work / "controller-tests.log")
+
+
+def adapter_checks(work, references=None):
+    # Source-specific, post-build regressions: old immutable tags without this
+    # adapter keep their existing plan; new kernels must execute their real IL.
+    test = REPO / 'tools/test_mouse_poll_fixup.py'
+    if not test.is_file(): return
+    candidates = ([references] if references is not None else []) + [REPO/'output-x64', REPO/'obj/Release/net10.0/linux-x64/cosmos/ref']
+    directory = next((p for p in candidates if (p/'Cosmos.Kernel.System.dll').is_file() and (p/'Zenith.Network.dll').is_file()), None)
+    if directory is None: raise ValueError('mouse adapter test references missing after kernel build')
+    environment = dict(os.environ, ZENITH_FIXUP_REFERENCE_DIR=str(directory.resolve()))
+    phase('Runtime adapter tests', [sys.executable,'-B',str(test)], work/'adapter-tests.log', env=environment)
 
 
 def native_prerequisites():

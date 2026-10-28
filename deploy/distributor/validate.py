@@ -48,6 +48,7 @@ def acceptance(release, keep, existing=False):
         release.prerequisites()
         release.phase("Kernel build", ["dotnet", "publish", "-c", "Release", "-r", "linux-x64",
                       "-o", "output-x64"], keep / "build.log")
+    if (ROOT / 'tools/test_mouse_poll_fixup.py').is_file(): release.adapter_checks(keep)
     artifacts = {}
     for name in ("Zenith.iso", "Zenith.elf"):
         artifact = ROOT / "output-x64" / name

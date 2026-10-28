@@ -37,6 +37,11 @@
     <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.HAL.dll&quot;" />
   </Target>
 
+  <Target Name="AdaptZenithMousePolling" BeforeTargets="CheckIlcCache" DependsOnTargets="RunPatcher">
+    <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.System.dll&quot;" />
+    <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.HAL.dll&quot;" />
+  </Target>
+
   <ItemGroup>
     <AsmSearchPath Include="src/Native" />
   </ItemGroup>

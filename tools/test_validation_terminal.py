@@ -129,4 +129,13 @@ class TerminalTests(unittest.TestCase):
             stream=io.BytesIO();image.save(stream,format='PPM')
             self.assertFalse(terminal.public_prompt(stream.getvalue(),box))
 
+    def test_fresh_install_ignores_stopped_vms_that_shared_the_monitor_parent(self):
+        path,machine,login,original,observer,policy=self.setup_hook()
+        machine.process=SimpleNamespace(poll=lambda:None)
+        stopped=[SimpleNamespace(directory=path.parent/name,process=SimpleNamespace(poll=lambda:0)) for name in ('live','setup')]
+        other=SimpleNamespace(monitor_type=original)
+        terminal.install(other,[*stopped,machine],policy)
+        with patch.object(terminal.time,'sleep'):other.monitor_type(path,'sh /root/u\n')
+        original.assert_called_once_with(path,'sh /root/u\n')
+
 if __name__=='__main__':unittest.main()

@@ -40,6 +40,9 @@ void QuietTrace(MethodDefinition method, string firstText, string lastText)
     foreach (var instruction in range.Skip(2)) { instruction.OpCode = OpCodes.Nop; instruction.Operand = null; }
     changed = true;
 }
+if (assembly.Name.Name == "Zenith") { changed |= MousePollingFixup.BindMain(module, resolver); }
+if (assembly.Name.Name == "Cosmos.Kernel.System") { changed |= MousePollingFixup.System(module, resolver); }
+if (assembly.Name.Name == "Cosmos.Kernel.HAL") { changed |= MousePollingFixup.Hal(module); }
 if (assembly.Name.Name == "Cosmos.Kernel.Core")
 {
     changed |= AllocationPublicationFixup.Apply(module);

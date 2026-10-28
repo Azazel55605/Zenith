@@ -63,7 +63,8 @@ def install(login, machines, policy):
         public = re.fullmatch(r'sh /root/[a-z]\n', text) or text in ('passwd root\n','echo S_SECRET_CANCELLED | logger\n')
         if public:
             matches = [machine for machine in machines
-                       if machine.directory.parent / 'monitor.sock' == Path(path)]
+                       if machine.directory.parent / 'monitor.sock' == Path(path)
+                       and (not hasattr(machine,'process') or machine.process.poll() is None)]
             if len(matches) != 1: raise RuntimeError('Settings Terminal handoff VM unavailable')
             machine = matches[0]
             raw = machine.log()

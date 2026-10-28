@@ -118,6 +118,11 @@ never infer current failures from old release logs or claim a menu stub is a bac
   APs own static stacks/tables, never managed objects or UART, and currently poll
   when idle. Preserve default-disabled boots and 1/2/4-CPU acceptance; do not enable
   managed AP execution before per-CPU context and GC synchronization are implemented.
+- GUI input must periodically drain registered mice before sampling coordinates,
+  even if a virtio notification was missed. Keep polling IRQ-scoped on the BSP,
+  restore prior flags on success/exception, bound virtio drains to 64 events and
+  retain partial SYN reports across polls. The mouse bridge must fail closed if
+  its copied-runtime adapter was omitted; keep real-dependency IRQ/budget tests.
 - `src/Core` holds system behavior; `src/Gui` rendering and window management;
   `src/Apps` desktop windows. Keep UI concerns out of the core layer.
 - M3 has a primary IPv4 service and diagnostic/NTP/HTTP/verified HTTPS commands; see

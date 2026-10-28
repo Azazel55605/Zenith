@@ -4,8 +4,10 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
 import time
 import boot_image
@@ -54,6 +56,8 @@ def main():
     keep.mkdir(parents=True,exist_ok=False)
     print('Original fixture preserved: '+str(args.disk.resolve()),flush=True)
     print('Replay evidence: '+str(keep),flush=True)
+    version=subprocess.run([os.environ.get('QEMU','qemu-system-x86_64'),'--version'],capture_output=True,text=True,check=True,timeout=10).stdout.splitlines()[0]
+    print(version,flush=True)
     h=load('max_headless',ROOT/'tools/headless-smoke.py')
     login=load('max_login',ROOT/'tools/login-session-smoke.py')
     policy=load('max_input',ROOT/'deploy/distributor/validation-input.py')
@@ -61,10 +65,13 @@ def main():
     load('max_accelerator',ROOT/'deploy/distributor/validation-accelerator.py').install(h)
     policy.install(h.Machine);policy.DIAGNOSTIC_ELF=args.elf.resolve()
     monitor=keep/'monitor.sock';mouse=policy.RenderedMouse(monitor,policy.monitor_text);m=None
-    buttons=[]
+    buttons=[];last_command={};phase='boot'
     original=mouse.raw
     def transport(path,text):
         if text.startswith('mouse_button '):buttons.append(text)
+        if text.startswith(('mouse_move ','mouse_button ')):
+            last_command.clear();last_command.update(command=text,phase=phase,time=time.time(),qemu_log_offset=(keep/'desktop/qemu.log').stat().st_size)
+            with (keep/'mouse-commands.jsonl').open('a') as output:output.write(json.dumps(last_command)+'\n')
         return original(path,text)
     mouse.raw=transport
     def wait(marker,off=0):
@@ -85,12 +92,13 @@ def main():
     def click(x,y):
         move(x,y);mouse.command('mouse_button 1');mouse.command('mouse_button 0')
     try:
-        m=h.Machine(keep/'desktop',args.disk,'session=de',network=['-device','virtio-gpu-pci','-device','virtio-keyboard-pci'],monitor=monitor)
+        m=h.Machine(keep/'desktop',args.disk,'session=de',network=['-device','virtio-gpu-pci','-device','virtio-keyboard-pci','-trace','enable=virtio_input_queue_full'],monitor=monitor)
         wait('desktop ready (installed)');terminal.install(login,[m],policy)
         off=len(m.log());login.monitor_type(monitor,'sh /root/m\n');wait('MERIDIAN_FOCUSED',off)
         x,y,w,ht=focus_geometry()
         # Same bounded wheel and WIP-search prelude as the failed gate. Do not
         # repeat mutations after any missing acknowledgement.
+        phase='wheel-search-warmup'
         for target in ((x+100,y+260),(x+350,y+260)):
             move(*target)
             for burst in range(8):
@@ -100,15 +108,35 @@ def main():
         login.monitor_type(monitor,'bluetooth');policy.monitor_text(monitor,'sendkey ret 30');time.sleep(.2)
         off=len(m.log());policy.monitor_text(monitor,'sendkey ret 30');wait('MERIDIAN_PAGE devices.bluetooth',off)
         for cycle in range(args.cycles):
+            phase='maximize-'+str(cycle+1)
             off=len(m.log());click(x+542,y-22);wait('MERIDIAN_RESIZED',off)
             frame('maximized',maximized_chrome)
+            phase='restore-'+str(cycle+1)
             off=len(m.log());click(w-58,22);wait('MERIDIAN_RESIZED',off)
             x,y,w,ht=focus_geometry()
             print('PASS exact maximize/restore cycle '+str(cycle+1),flush=True)
         if buttons!=['mouse_button 1','mouse_button 0']*(args.cycles*2):raise RuntimeError('button sequence changed')
-        result=dict(cycles=args.cycles,button_commands=len(buttons),seconds=round(time.monotonic()-started,3),elf_sha256=hashlib.sha256(args.elf.read_bytes()).hexdigest())
+        result=dict(cycles=args.cycles,button_commands=len(buttons),seconds=round(time.monotonic()-started,3),qemu=version,elf_sha256=hashlib.sha256(args.elf.read_bytes()).hexdigest())
         (keep/'result.json').write_text(json.dumps(result,indent=2)+'\n')
         print('PASS focused maximize input replay; original fixture preserved',flush=True)
+    except (OSError,RuntimeError,ValueError) as error:
+        summary=dict(phase=phase,error=str(error),last_mouse_command=last_command.copy(),observation_only=True)
+        try:
+            path=keep/'pipeline-stall.json'
+            if path.is_file() and path.stat().st_size<1024*1024:
+                report=json.loads(path.read_text())
+                for key in ('mouse_manager','mouse_manager_after','mouse_devices','mouse_devices_after'):
+                    if key in report:summary[key]=report[key]
+            if 'qemu_log_offset' in last_command:
+                with (keep/'desktop/qemu.log').open('rb') as stream:
+                    stream.seek(last_command['qemu_log_offset']);tail=stream.read(1024*1024)
+                summary['queue_full_after_last_command']=tail.count(b'virtio_input_queue_full')
+            index,active=policy.mouse_index(policy.monitor_text(monitor,'info mice'))
+            summary.update(backend_mouse_index=index,backend_mouse_active=active)
+            (keep/'failure-summary.json').write_text(json.dumps(summary,indent=2)+'\n')
+            print('Focused mouse failure: '+json.dumps(summary),flush=True)
+        except (OSError,RuntimeError,ValueError):pass
+        raise
     finally:
         if m is not None:m.stop()
 

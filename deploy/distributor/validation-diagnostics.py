@@ -193,6 +193,15 @@ def capture(machine, label, elf=None):
                     report['mouse_manager_after']=pointer.observe(monitor,address,words)
                 except (OSError,ValueError,subprocess.SubprocessError,struct.error):
                     report['mouse_manager_error']='mouse layout unavailable, changed or unsupported'
+                try:
+                    spec=importlib.util.spec_from_file_location('failure_pointer_device',Path(__file__).with_name('validation-pointer.py'))
+                    pointer_device=importlib.util.module_from_spec(spec);spec.loader.exec_module(pointer_device)
+                    metadata=pointer_device.device_layout(elf)
+                    report['mouse_devices']=pointer_device.devices(monitor,metadata,words)
+                    time.sleep(.1)
+                    report['mouse_devices_after']=pointer_device.devices(monitor,metadata,words)
+                except (OSError,ValueError,KeyError,subprocess.SubprocessError,struct.error):
+                    report['mouse_devices_error']='typed mouse queue unavailable, changed or unsupported'
     destination = directory / 'pipeline-stall.json'
     destination.write_text(json.dumps(report, indent=2)+'\n')
     print('Native pipeline stall snapshot (read-only): '+str(destination), flush=True)

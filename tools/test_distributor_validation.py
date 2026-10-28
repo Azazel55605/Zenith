@@ -25,6 +25,24 @@ output = module('build_output', ROOT / 'deploy/distributor/build_output.py')
 network = module('validation_network', ROOT / 'deploy/distributor/validation-network.py')
 
 class ValidationTests(unittest.TestCase):
+    def test_adapter_checks_skip_immutable_sources_without_adapter(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(release, 'REPO', Path(temp)), patch.object(release, 'phase') as phase:
+            release.adapter_checks(Path(temp))
+            phase.assert_not_called()
+
+    def test_adapter_checks_require_built_references_and_forward_them(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(release, 'REPO', Path(temp)), patch.object(release, 'phase') as phase:
+            root = Path(temp); (root/'tools').mkdir()
+            (root/'tools/test_mouse_poll_fixup.py').write_text('# adapter fixture')
+            with self.assertRaisesRegex(ValueError, 'references missing'):
+                release.adapter_checks(root)
+            phase.assert_not_called()
+            refs = root/'build'; refs.mkdir()
+            for name in ('Cosmos.Kernel.System.dll', 'Zenith.Network.dll'): (refs/name).write_bytes(b'fixture')
+            release.adapter_checks(root, refs)
+            self.assertEqual('Runtime adapter tests', phase.call_args.args[0])
+            self.assertEqual(str(refs.resolve()), phase.call_args.kwargs['env']['ZENITH_FIXUP_REFERENCE_DIR'])
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)

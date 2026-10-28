@@ -474,7 +474,11 @@ It verifies the ELF, preserves the original disk, uses the installed Settings
 client and performs three maximize/restore cycles after the wheel/search prelude.
 No kernel or package compilation runs. The default evidence directory is under
 `/var/tmp/zn-max-*`; increase `--cycles` within 1..100 only for focused stress.
-This diagnostic is not a replacement for release acceptance. Pointer failures
+This diagnostic is not a replacement for release acceptance. It records the QEMU
+version, mouse-command phases and queue-full trace counts. Failures additionally
+inspect typed mouse-device DMA indices (never keyboard payloads or MMIO status
+registers), to distinguish pending guest buffers from an upstream delivery loss.
+See the [stranded-queue kernel candidate](../../docs/archive/2026-10-28/virtio-mouse-drain.md). Pointer failures
 retain the exact rendered target and, when the verified layout is supported,
 read-only guest mouse coordinates/buttons in `pipeline-stall.json`.
 

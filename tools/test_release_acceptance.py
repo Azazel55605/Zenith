@@ -59,6 +59,16 @@ class AcceptanceTests(unittest.TestCase):
         self.assertEqual(['Host tests', 'Package tool'], [call.args[0] for call in engine.phase.call_args_list])
         engine.native_checks.assert_called_once_with(self.keep)
 
+    def test_source_adapter_failure_blocks_native_acceptance(self):
+        (self.root/'tools').mkdir()
+        (self.root/'tools/test_mouse_poll_fixup.py').write_text('# source-specific adapter')
+        engine = Mock(); engine.adapter_checks.side_effect = ValueError('adapter regression')
+        with patch.object(validate, 'ROOT', self.root), patch.object(validate.subprocess, 'run'):
+            with self.assertRaisesRegex(ValueError, 'adapter regression'):
+                validate.acceptance(engine, self.keep, existing=True)
+        engine.adapter_checks.assert_called_once_with(self.keep)
+        engine.native_checks.assert_not_called()
+
     def test_pretag_forces_fresh_gates_and_restores_environment_after_failure(self):
         engine = Mock()
         def native(keep):

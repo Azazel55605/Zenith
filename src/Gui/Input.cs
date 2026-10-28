@@ -28,6 +28,7 @@ internal sealed class Input
 
     public void Poll()
     {
+        Zenith.Core.Input.MousePolling.Drain();
         int x = MouseManager.X, y = MouseManager.Y;
         Moved = x != X || y != Y;
         X = x;
