@@ -33,6 +33,7 @@ def main():
     h = load('ack_headless', ROOT/'tools/headless-smoke.py')
     policy = load('ack_policy', ROOT/'deploy/distributor/validation-input.py')
     load('ack_accelerator', ROOT/'deploy/distributor/validation-accelerator.py').install(h)
+    policy.DIAGNOSTIC_ELF = args.elf.resolve()
     policy.install(h.Machine)
     monitor = keep/'monitor.sock'; buttons = []; omitted = []
 

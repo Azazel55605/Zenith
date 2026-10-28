@@ -120,6 +120,9 @@ def cursor_position(ppm):
     return found[0], (width, height)
 
 
+DIAGNOSTIC_ELF = None
+
+
 class RenderedMouse:
     def __init__(self, monitor, command):
         self.monitor = Path(monitor); self.raw = command
@@ -137,27 +140,32 @@ class RenderedMouse:
                 time.sleep(.05)
     def position(self):
         return cursor_position(self.capture(self.snapshot))
+    def failure(self, target, actual):
+        # Read-only evidence before the harness finally block stops QEMU. Never
+        # send keyboard commands to test responsiveness or replay application input.
+        import json, importlib.util
+        from types import SimpleNamespace
+        report = dict(target=target, observed=actual, correction_policy="disabled",
+                      screenshot=str(self.snapshot), observation_only=True)
+        try:
+            (self.monitor.parent/'input-failure.json').write_text(json.dumps(report,indent=2)+'\n')
+            if DIAGNOSTIC_ELF is not None:
+                spec=importlib.util.spec_from_file_location('input_diagnostics',Path(__file__).with_name('validation-diagnostics.py'))
+                diagnostics=importlib.util.module_from_spec(spec);spec.loader.exec_module(diagnostics)
+                diagnostics.capture(SimpleNamespace(directory=self.monitor.parent),'MERIDIAN_INPUT',DIAGNOSTIC_ELF)
+        except Exception as error:
+            print('Input failure diagnostic unavailable: '+type(error).__name__,flush=True)
     def wait_position(self, target, correct_motion=False):
         import time
-        started = time.monotonic(); deadline = started + 10
-        next_correction = started + 2; corrections = 0
+        # Kept as a compatibility parameter for old callers. Screenshot feedback
+        # cannot safely correct relative motion: a stale frame accumulates deltas.
+        deadline = time.monotonic()+10
         while True:
             actual, _ = self.position()
             if actual == target: return
-            now = time.monotonic()
-            if now >= deadline:
+            if time.monotonic() >= deadline:
+                self.failure(target,actual)
                 raise RuntimeError('rendered mouse did not reach '+str(target)+'; observed '+str(actual))
-            if correct_motion and corrections < 2 and now >= next_correction:
-                # Positioning is idempotent; button edges and application actions
-                # are not. Correct only the remaining observed delta, never replay
-                # a click. Keep the exact destination and original total deadline.
-                import json
-                delta = (target[0]-actual[0], target[1]-actual[1])
-                with (self.monitor.parent/'input-motion.jsonl').open('a') as stream:
-                    stream.write(json.dumps(dict(target=target, observed=actual, delta=delta,
-                                                 correction=corrections+1))+'\n')
-                self.raw(self.monitor, 'mouse_move '+str(delta[0])+' '+str(delta[1]))
-                corrections += 1; next_correction = now + 2
             time.sleep(.05)
     def command(self, text):
         fields = text.split()
@@ -182,10 +190,10 @@ class RenderedMouse:
             step = 1 if x < width-13 else -1
             # Exactly one button transition. Move after it, observe a rendered
             # frame, then restore position. Button stays held throughout a press;
-            # the same sequence also acknowledges release. Only idempotent witness
-            # positioning may be corrected; button transitions are never repeated.
-            self.raw(self.monitor, 'mouse_move '+str(step)+' 0'); self.wait_position((x+step, y), correct_motion=True)
-            self.raw(self.monitor, 'mouse_move '+str(-step)+' 0'); self.wait_position((x, y), correct_motion=True)
+            # the same sequence also acknowledges release. No relative feedback
+            # corrections: capture the running guest when acknowledgement fails.
+            self.raw(self.monitor, 'mouse_move '+str(step)+' 0'); self.wait_position((x+step, y))
+            self.raw(self.monitor, 'mouse_move '+str(-step)+' 0'); self.wait_position((x, y))
             return result
         return self.raw(self.monitor, text)
 

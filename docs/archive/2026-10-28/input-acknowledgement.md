@@ -1,5 +1,13 @@
 # Distributor input acknowledgement — 2026-10-28
 
+**Superseded correction policy:** a later distributor retry failed at (670,644),
+observed (668,644). Its journal showed alternating undershoot/overshoot while
+relative corrections accumulated. Observed-motion-v2 is withdrawn; the historical
+local passes below did not establish server reliability. Current v3 sends no
+corrections and captures running-guest CPU/scheduler state on failure. Use
+`tools/settings-replay.py --build BUILD_CHECKOUT` for a focused replay without a
+kernel rebuild. Underlying device/frame-delivery cause remains unconfirmed (H1/Q2).
+
 Owners: Q2/H1 in [master roadmap](../../ROADMAP.md). No kernel or client binary
 changes, no new kernel tag and no rewrite of kernel/v0.0.27.
 
@@ -77,3 +85,12 @@ ZENITH_VALIDATION_ACCELERATOR=tcg python3 -B tools/mouse-ack-replay.py \
 
 Use a fresh evidence directory and a disposable test fixture with an available
 public desktop, never the live installed VM disk. No compilation or installer runs.
+
+### v3 read-only diagnostic validation
+
+The omitted-return-motion negative control now fails at the exact expected pixel
+with no corrective input, retains `input-failure.json`/framebuffer and successfully
+captures three symbolized CPU samples plus scheduler observations for the matching
+0.27 ELF. This is deliberately a failing transport control, not a kernel pass.
+`settings-replay.py` selects the newest retained setup fixture and preserves its
+input; it provides a focused server run without kernel compilation/OS installation.

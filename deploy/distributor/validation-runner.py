@@ -42,6 +42,7 @@ def run_harness(script):
     authentication = importlib.util.module_from_spec(spec); spec.loader.exec_module(authentication)
     spec = importlib.util.spec_from_file_location('validation_input', Path(__file__).with_name('validation-input.py'))
     input_profile = importlib.util.module_from_spec(spec); spec.loader.exec_module(input_profile)
+    input_profile.DIAGNOSTIC_ELF = script.parent.parent / 'output-x64/Zenith.elf'
     original_exec = importlib.machinery.SourceFileLoader.exec_module
     instances = []
     headless = script.parent / 'headless-smoke.py'
@@ -54,7 +55,7 @@ def run_harness(script):
             module.RenderedMouse = input_profile.RenderedMouse
             module.install_monitor = input_profile.install_monitor
             module.install = input_profile.install
-            print('Validation input policy: controller observed-motion-v2', flush=True)
+            print('Validation input policy: controller observed-motion-v3 (read-only failure capture)', flush=True)
         if script.name == 'native-graphics-smoke.py' and Path(loader.path).name == 'recovery_console.py':
             input_profile.install_monitor(module)
         if Path(loader.path).resolve() == headless.resolve():

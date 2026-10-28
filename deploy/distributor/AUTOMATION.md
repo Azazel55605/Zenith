@@ -432,17 +432,25 @@ establish server publication or an installed upgrade.
 
 ## Graphical input policy for existing tags
 
-An error such as `rendered mouse did not reach (670, 644); observed (671, 644)`
-can stop the synthetic acknowledgement before a Settings assertion. The current
-controller supplies its rendered-mouse policy even when an immutable harness imports
-its own old helper. It never replays button edges or application operations. Only
-witness positioning has bounded observed-delta correction, with the same exact
-pixel destination and ten-second deadline. `input-motion.jsonl` records corrections;
-failed UI results and frozen motion still fail. See [evidence](../../docs/archive/2026-10-28/input-acknowledgement.md).
+The observed-motion-v2 correction was withdrawn after the distributor journal
+showed oscillating/stale cursor observations. Current policy never feeds relative
+corrections back from screenshots. Exact destinations/deadlines remain unchanged;
+on failure it records `input-failure.json`, the current framebuffer and read-only
+CPU/scheduler state in `pipeline-stall.json` before QEMU is stopped.
 
-Pull the current controller into the service checkout, then use **Retry build** on
-the failed 0.0.27 run. The tag and its tested kernel remain unchanged. No server
-success or installed acceptance is implied by local replay.
+To diagnose the failed 0.0.27 Settings gate without recompiling the kernel or
+reinstalling the OS:
+
+```sh
+PATH="$PATH:/usr/sbin:/sbin" ZENITH_VALIDATION_ACCELERATOR=tcg \
+python3 -B tools/settings-replay.py \
+  --build ~/.local/state/zenith/distributor/build-kernel-v0.0.27
+```
+
+It selects the newest retained setup fixture and runs the tagged assertions on an
+independent disk copy with current controller diagnostics. Client fixture packages
+may be prepared by the tagged harness; the kernel is unchanged. Keep 0.0.27 immutable.
+See [evidence](../../docs/archive/2026-10-28/input-acknowledgement.md).
 
 ## Before the next kernel tag
 

@@ -98,6 +98,26 @@ class ValidationTests(unittest.TestCase):
         subprocess.run([sys.executable,'-B',str(ROOT/'deploy/distributor/validation-runner.py'),str(harness),str(self.destination)],check=True)
         self.assertIn('old helper',helper.read_text())
 
+    def test_settings_replay_selects_newest_fixture_and_preserves_original(self):
+        replay=module('settings_replay',ROOT/'tools/settings-replay.py')
+        build=self.root/'build';(build/'tools').mkdir(parents=True);(build/'output-x64').mkdir()
+        (build/'tools/native-settings-smoke.py').write_text('# retained harness')
+        (build/'output-x64/Zenith.elf').write_bytes(b'ELF')
+        for name,stamp in [('release-old',1),('release-new',2)]:
+            p=build/'obj/distributor'/name/'native/a/setup/disk.img';p.parent.mkdir(parents=True);p.write_bytes(b'original');os.utime(p,(stamp,stamp))
+        newest=build/'obj/distributor/release-new/native/a/setup/disk.img'
+        keep=self.root/'replay'
+        with patch.object(sys,'argv',['settings-replay','--build',str(build),'--keep',str(keep)]), patch.object(replay.subprocess,'run',return_value=subprocess.CompletedProcess([],0)) as run:
+            with self.assertRaises(SystemExit) as result:replay.main()
+        self.assertEqual(0,result.exception.code)
+        self.assertEqual(['--prepared',str(newest)],run.call_args.args[0][-2:])
+        self.assertEqual(build,run.call_args.kwargs['cwd']);self.assertEqual(b'original',newest.read_bytes())
+    def test_settings_replay_refuses_missing_fixture(self):
+        replay=module('settings_replay_empty',ROOT/'tools/settings-replay.py')
+        with patch.object(sys,'argv',['settings-replay','--build',str(self.root)]),patch.object(replay.subprocess,'run') as run:
+            with self.assertRaisesRegex(SystemExit,'No retained Settings'):replay.main()
+        run.assert_not_called()
+
     def test_dhcp_probe_requires_actual_online_state_and_expected_address(self):
         from unittest.mock import Mock
         machine=Mock(); machine.process.poll.return_value=None; machine.log.return_value='boot log'
