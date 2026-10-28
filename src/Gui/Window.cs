@@ -41,7 +41,9 @@ internal abstract class Window
     public virtual bool CanResize => true;
     public virtual (int Width, int Height) MaximumSize => (int.MaxValue, int.MaxValue);
     public virtual bool AllowMaterials => true;
-    public virtual bool UnifiedChrome => false;
+    public virtual bool AllowBackgroundMaterials => false;
+    public virtual bool UnifiedChrome => AllowBackgroundMaterials;
+    private readonly HostMaterial _contentMaterial = new(1920000);
     internal HostMaterial ChromeMaterial { get; } = new();
 
     /// <summary>The smallest size the user can resize the window to.</summary>
@@ -55,7 +57,7 @@ internal abstract class Window
 
     public virtual bool HasUnsavedChanges => false;
     public virtual bool CanClose => true;
-    public virtual void Close() { if (CanClose) { ChromeMaterial.Dispose(); IsClosed = true; } }
+    public virtual void Close() { if (CanClose) { ChromeMaterial.Dispose(); _contentMaterial.Dispose(); IsClosed = true; } }
     public virtual void EndSession() => Close();
 
     /// <summary>Moves or resizes the window; <see cref="OnResized"/> runs when the size changed.</summary>
@@ -75,7 +77,14 @@ internal abstract class Window
     public virtual bool UpdateWhenMinimized => false;
 
     /// <summary>Paints the content area. The surface is already clipped to <paramref name="content"/>.</summary>
-    public virtual void CaptureBackdrop(Surface surface, Rect content) { }
+    public virtual void CaptureBackdrop(Surface surface, Rect content)
+        => _contentMaterial.Capture(surface, content, 0, Theme.Panel, AllowBackgroundMaterials && AllowMaterials && (MaterialResources.Policy.Effective & 4) != 0);
+
+    protected void PaintBackground(Surface surface, Rect content)
+    {
+        if (_contentMaterial.Active && AllowMaterials) { _contentMaterial.Paint(surface, content, Theme.Panel); }
+        else { surface.FillRect(content, Theme.WindowBackground); }
+    }
 
     public abstract void DrawContent(Surface surface, Rect content);
 

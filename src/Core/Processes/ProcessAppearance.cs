@@ -33,10 +33,10 @@ internal static class ProcessAppearance
         return service.Save(BinaryPrimitives.ReadUInt32LittleEndian(b[16..]), BinaryPrimitives.ReadUInt32LittleEndian(b[20..]),
             BinaryPrimitives.ReadUInt64LittleEndian(b[8..]));
     }
-    public static byte[] MaterialSnapshot(AppearanceService service, bool extended = false)
+    public static byte[] MaterialSnapshot(AppearanceService service, bool extended = false, bool control = false)
     {
         var state = service.Snapshot(); var status = service.MaterialStatus; byte[] bytes = new byte[48];var b = bytes.AsSpan();
-        BinaryPrimitives.WriteUInt32LittleEndian(b, extended ? 2U : 1U);
+        BinaryPrimitives.WriteUInt32LittleEndian(b, control ? 3U : extended ? 2U : 1U);
         uint mask = extended ? 7U : 3U;
         BinaryPrimitives.WriteUInt32LittleEndian(b[4..], (service.Persistent ? 1U : 0U) | (CredentialContext.Current.IsRoot ? 2U : 0U));
         BinaryPrimitives.WriteUInt64LittleEndian(b[8..], state.Saved.Revision);
@@ -44,7 +44,17 @@ internal static class ProcessAppearance
         BinaryPrimitives.WriteUInt32LittleEndian(b[20..], status.Effective & mask);
         BinaryPrimitives.WriteUInt32LittleEndian(b[24..], status.Available & mask);
         BinaryPrimitives.WriteUInt32LittleEndian(b[28..], status.Reason);
-        BinaryPrimitives.WriteUInt64LittleEndian(b[32..], state.Active.Revision);return bytes;
+        BinaryPrimitives.WriteUInt64LittleEndian(b[32..], state.Active.Revision);
+        if (control) { BinaryPrimitives.WriteUInt32LittleEndian(b[40..], state.Saved.Translucency); BinaryPrimitives.WriteUInt32LittleEndian(b[44..], state.Active.Translucency); }
+        return bytes;
+    }
+    public static byte[] MaterialControlSnapshot(AppearanceService service) => MaterialSnapshot(service, true, true);
+    public static long SaveMaterialControl(AppearanceService service, ReadOnlySpan<byte> b)
+    {
+        if (b.Length != 40 || BinaryPrimitives.ReadUInt32LittleEndian(b) != 3 || BinaryPrimitives.ReadUInt32LittleEndian(b[4..]) != 0
+            || BinaryPrimitives.ReadUInt64LittleEndian(b[32..]) != 0) { return -22; }
+        return service.SaveFull(BinaryPrimitives.ReadUInt32LittleEndian(b[16..]), BinaryPrimitives.ReadUInt32LittleEndian(b[20..]),
+            BinaryPrimitives.ReadUInt32LittleEndian(b[24..]), BinaryPrimitives.ReadUInt64LittleEndian(b[8..]), BinaryPrimitives.ReadUInt32LittleEndian(b[28..]));
     }
     public static long SaveMaterials(AppearanceService service, ReadOnlySpan<byte> b, bool extended = false)
     {

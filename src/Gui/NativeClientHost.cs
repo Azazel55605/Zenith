@@ -90,7 +90,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
                 int effect = r.Role == 1 && (MaterialResources.Policy.Effective & 4) == 0 ? 0
                     : MaterialResources.Policy.Effect(r.Effect, tint, Theme.TextPrimary, Theme.TextSecondary, MaterialComposition.SampleLength(r.Width, scale) * MaterialComposition.SampleLength(r.Height, scale));
                 area += MaterialComposition.SampleLength(r.Width, scale) * MaterialComposition.SampleLength(r.Height, scale); blur |= effect == 2; any |= effect != 0;
-                _effective[i] = r with { Effect = effect, Opacity = MaterialPolicy.Opacity(tint, Theme.TextPrimary, Theme.TextSecondary, effect) };
+                _effective[i] = r with { Effect = effect, Opacity = MaterialPolicy.Opacity(tint, Theme.TextPrimary, Theme.TextSecondary, effect, MaterialResources.Policy.Translucency) };
             }
             if (any && !_composition.Ensure(area, blur, scale))
             {
@@ -99,7 +99,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
                 {
                     var r = _effective[i]; uint tint = r.Role is 1 or 3 ? Theme.Panel : Theme.Raised;
                     int effect = tintOnly && r.Effect != 0 ? 1 : 0;
-                    _effective[i] = r with { Effect = effect, Opacity = MaterialPolicy.Opacity(tint, Theme.TextPrimary, Theme.TextSecondary, effect) };
+                    _effective[i] = r with { Effect = effect, Opacity = MaterialPolicy.Opacity(tint, Theme.TextPrimary, Theme.TextSecondary, effect, MaterialResources.Policy.Translucency) };
                 }
             }
             _composition.Composition.Capture(surface.Pixels, surface.Width, surface.Height, content, _effective, _materialCount, Theme.WindowBackground);

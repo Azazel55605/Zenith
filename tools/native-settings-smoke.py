@@ -61,6 +61,12 @@ def main():
         'd':'su user; export USER=root; native run settings --set light rose; echo S_DENIED=$? | logger',
         'g':'pkg install /root/0.1.1.zpk; echo S_UPGRADE=$? | logger',
         'n':'native run settings --version | logger; echo S_VERSION=$? | logger',
+        'k':'native run settings --page input.keyboard | logger; echo S_KEYBOARD=$? | logger',
+        't':'native run settings --page locale.time | logger; echo S_TIMEZONE=$? | logger',
+        'o':'settings show | logger; native run settings --system-show | logger; echo S_SHARED=$? | logger',
+        'r':'native run settings --system-set keyboard us; native run settings --system-set timezone UTC; echo S_SHARED_RESTORE=$? | logger',
+        'l':'settings set translucency 80; echo S_LEVEL=$? | logger',
+        'c':'su user; export USER=root; native run settings --system-show | logger; native run settings --system-set keyboard de; echo S_SYSTEM_DENIED=$? | logger',
     }
     for name,text in scripts.items():(served/name).write_text(text+'\n')
     class Handler(http.server.SimpleHTTPRequestHandler):
@@ -221,6 +227,43 @@ def main():
             assert m.wait(marker,off,timeout),marker+'; '+str(m.serial)
             print('PASS '+marker,flush=True)
             return off
+        desktop_script('l','user: S_LEVEL=0')
+        frame('terminal-background',lambda w,h,rgb:color_at(rgb,w,1028,570)!=bytes.fromhex('202125') and max(color_at(rgb,w,1028,570))<160)
+        print('PASS trusted Terminal whole background with translucent text-free margins',flush=True)
+        # No credentials are submitted or retained: check the real hidden-read state,
+        # then cancel it and prove the public terminal/material path recovers.
+        login.monitor_type(monitor,'passwd root\n')
+        frame('terminal-secret-solid',lambda w,h,rgb:color_at(rgb,w,1028,570)==bytes.fromhex('202125'))
+        monitor_command(monitor,'sendkey ctrl-c 30');time.sleep(.5)
+        off=len(m.log());login.monitor_type(monitor,'echo S_SECRET_CANCELLED | logger\n')
+        assert m.wait('user: S_SECRET_CANCELLED',off,30),'secret read cancellation and shell recovery'
+        frame('terminal-material-restored',lambda w,h,rgb:color_at(rgb,w,1028,570)!=bytes.fromhex('202125') and max(color_at(rgb,w,1028,570))<160)
+        print('PASS hidden Terminal input stays solid; cancellation restores materials',flush=True)
+        for script,count,expected,exit_marker in (('k',4,'keyboard=gb (active gb)','S_KEYBOARD'),('t',1,'timezone=Europe/London (active Europe/London)','S_TIMEZONE')):
+            desktop_script(script,'MERIDIAN_FOCUSED')
+            choice_geometry=[]
+            def locate_choice(w,h,rgb):
+                color=bytes.fromhex('2a2c31');needle=color*344
+                for row in range(h):
+                    line=rgb[row*w*3:(row+1)*w*3];at=line.find(needle)
+                    if at<0 or at%3:continue
+                    px=at//3
+                    if px+344<w and color_at(rgb,w,px+344,row)==color:continue
+                    left,top=px-224,row-216
+                    if left>=0 and top>=44 and left+600<=w and top+480<=h and color_at(rgb,w,left+24,top+80)==bytes.fromhex('45474f') and color_at(rgb,w,left+30,top+84)==color:
+                        choice_geometry[:]=[left,top];return True
+                return False
+            frame('shared-'+script,locate_choice);sx,sy=choice_geometry
+            for _ in range(count):click(sx+446,sy+279)
+            off=len(m.log());click(sx+287,sy+437)
+            if not m.wait('user: SYSTEM_SETTINGS_REVISION_CHANGED',off,15):
+                observer.capture(keep/('shared-save-failure-'+script+'.ppm'));raise RuntimeError('shared system save; retained screenshot')
+            frame('shared-saved-'+script,locate_choice)
+            off=len(m.log());monitor_command(monitor,'sendkey ctrl-q 30');assert m.wait('user: '+exit_marker+'=0',off,30),'shared page exit'
+            observed=desktop_script('o','user: S_SHARED=0');assert expected in m.log()[observed:],'CLI and GUI shared defaults diverged'
+        denied=desktop_script('c','user: S_SYSTEM_DENIED=1');assert 'writable=0' in m.log()[denied:],'ordinary reader reports administrator authority'
+        desktop_script('r','user: S_SHARED_RESTORE=0')
+        print('PASS GUI keyboard/time-zone apply, CLI parity, root-only defaults and restore',flush=True)
         desktop_script('v','SETTINGS saved=dark/teal active=dark/teal persistent=1 writable=1 pending=0')
         desktop_script('g','user: S_UPGRADE=0')
         desktop_script('n','user: settings 0.1.1')
@@ -309,6 +352,8 @@ def main():
         m=h.Machine(keep/'reboot',disk,network=net);assert m.wait('headless ready',timeout=180)
         serial('native run settings --show','SETTINGS saved=dark/teal active=dark/teal persistent=1 writable=1 pending=0')
         serial('native run settings --materials-show','MATERIAL_SETTINGS saved=7 effective=0 available=0 reason=2')
+        serial('settings show','translucency=80%')
+        serial('native run settings --system-show','SHARED_SETTINGS scope=system keyboard=us timezone=UTC writable=1')
         disk=shutdown()
         state=boot_image.verify(m.disk)
         assert state['current']==hashlib.sha256((ROOT/'output-x64/Zenith.elf').read_bytes()).hexdigest()

@@ -16,12 +16,12 @@ static void palette(struct settings_app *a){
     a->ui.dirty=1;
 }
 void settings_refresh(struct settings_app *a){
-    struct zenith_appearance s={0};unsigned int saved=0,effective=0,available=0,reason=0;long result=a->backend.read(&s,&saved,&effective,&available,&reason);
-    if(result||!valid(&s)||saved>7||effective>7||available>7||reason>5){a->message="Settings service unavailable. Edits have been kept.";a->ui.dirty=1;return;}
+    struct zenith_appearance s={0};unsigned int saved=0,effective=0,available=0,reason=0,level=40;long result=a->backend.read(&s,&saved,&effective,&available,&reason,&level);
+    if(result||level>100||!valid(&s)||saved>7||effective>7||available>7||reason>5){a->message="Settings service unavailable. Edits have been kept.";a->ui.dirty=1;return;}
     int changed=effective!=a->effective_effects||available!=a->available_effects||reason!=a->material_reason||!a->have_state||s.revision!=a->state.revision||s.active_revision!=a->state.active_revision||s.resources!=a->state.resources||s.flags!=a->state.flags;
-    if(!a->edited){a->effects=saved;a->mode=s.mode;a->accent=s.accent;a->base_revision=s.revision;}
+    if(!a->edited){a->translucency=level;a->effects=saved;a->mode=s.mode;a->accent=s.accent;a->base_revision=s.revision;}
     else if(s.revision!=a->base_revision)a->message="Changed elsewhere. Reload before saving; your edits are kept.";
-    a->saved_effects=saved;a->effective_effects=effective;a->available_effects=available;a->material_reason=reason;a->state=s;a->have_state=1;if(changed)palette(a);
+    a->saved_translucency=level;a->saved_effects=saved;a->effective_effects=effective;a->available_effects=available;a->material_reason=reason;a->state=s;a->have_state=1;if(changed)palette(a);
 }
 int settings_init(struct settings_app *a,unsigned int *pixels,struct settings_backend backend){
     *a=(struct settings_app){0};a->backend=backend;
@@ -41,6 +41,8 @@ int settings_init(struct settings_app *a,unsigned int *pixels,struct settings_ba
     zui_add(&a->ui,50,ZUI_TOGGLE,(struct zui_rect){24,242,552,26},"Transparent surfaces",0,0);
     zui_add(&a->ui,51,ZUI_TOGGLE,(struct zui_rect){24,292,552,26},"Backdrop blur",0,0);
     zui_add(&a->ui,52,ZUI_TOGGLE,(struct zui_rect){24,336,552,26},"Whole app background",0,0);
+    zui_add(&a->ui,53,ZUI_BUTTON,(struct zui_rect){1,1,32,26},"-",0,1);
+    zui_add(&a->ui,54,ZUI_BUTTON,(struct zui_rect){1,1,32,26},"+",0,1);
     settings_set_viewport(a,a->viewport);return 1;
 }
 void settings_set_viewport(struct settings_app *a,struct zui_rect r){
@@ -54,8 +56,10 @@ void settings_set_viewport(struct settings_app *a,struct zui_rect r){
     a->ui.controls[11].rect=(struct zui_rect){x,bottom-48,124,36};
     a->ui.controls[12].rect=(struct zui_rect){x+136,bottom-48,180,36};
     a->ui.controls[13].rect=(struct zui_rect){x,y+224,r.w-32,26};
-    a->ui.controls[14].rect=(struct zui_rect){x,y+270,r.w-32,26};
-    a->ui.controls[15].rect=(struct zui_rect){x,y+316,r.w-32,26};
+    a->ui.controls[14].rect=(struct zui_rect){x,y+264,r.w-32,26};
+    a->ui.controls[15].rect=(struct zui_rect){x,y+304,r.w-32,26};
+    a->ui.controls[16].rect=(struct zui_rect){x+240,y+346,32,26};
+    a->ui.controls[17].rect=(struct zui_rect){x+280,y+346,32,26};
 }
 void settings_draw(struct settings_app *a){
     struct zui *u=&a->ui;struct zui_rect r=a->viewport;
@@ -66,15 +70,15 @@ void settings_draw(struct settings_app *a){
     text(a,24,75,"Color mode",&zui_label,u->theme.text);
     text(a,24,139,"Accent color",&zui_label,u->theme.text);
     zui_setting_row(u,(struct zui_rect){r.x+16,r.y+226,r.w-32,45},"","Let panels reveal the background.");
-    zui_setting_row(u,(struct zui_rect){r.x+16,r.y+272,r.w-32,45},"",!a->available_effects?"Unavailable here; saved choices are kept.":!(a->effects&1)&&(a->effects&2)?"Saved; enable transparency to activate it.":a->material_reason>=3?"Some surfaces fall back for contrast or speed.":"Diffuse the backdrop; controls remain clear.");
-    zui_setting_row(u,(struct zui_rect){r.x+16,r.y+318,r.w-32,45},"",!(a->effects&1)&&(a->effects&4)?"Saved; enable transparency to activate it.":"Extend effects to the app canvas.");
+    zui_setting_row(u,(struct zui_rect){r.x+16,r.y+266,r.w-32,45},"",!a->available_effects?"Unavailable here; saved choices are kept.":!(a->effects&1)&&(a->effects&2)?"Saved; enable transparency to activate it.":a->material_reason>=3?"Some surfaces fall back for contrast or speed.":"Diffuse the backdrop; controls remain clear.");
+    zui_setting_row(u,(struct zui_rect){r.x+16,r.y+306,r.w-32,45},"",!(a->effects&1)&&(a->effects&4)?"Saved; enable transparency to activate it.":"Extend effects to the app canvas.");
     const char *scope=!(a->state.flags&Z_SETTINGS_WRITABLE)?"Read only: sign in as an administrator to save.":
         a->state.flags&Z_SETTINGS_PERSISTENT?"Installed system: saved changes survive reboot.":"Live system: changes will be lost at reboot.";
-    text(a,24,364,scope,&zui_caption,u->theme.secondary);
+    text(a,24,374,scope,&zui_caption,u->theme.secondary);
     const char *status=a->edited?"Unsaved changes - showing your preview.":
         a->state.flags&Z_SETTINGS_PENDING?"Saved. Waiting for the desktop or next login to apply.":"Saved appearance is active.";
-    text(a,24,384,a->message&&!a->prompt?a->message:status,&zui_caption,u->theme.text);
-    if(a->prompt)text(a,24,384,a->prompt==1?"Discard unsaved changes and close?":a->prompt==3?"Discard changes and return to settings?":"Discard unsaved changes and reload?",&zui_label,u->theme.text);
+    text(a,24,390,a->message&&!a->prompt?a->message:status,&zui_caption,u->theme.text);
+    if(a->prompt)text(a,24,390,a->prompt==1?"Discard unsaved changes and close?":a->prompt==3?"Discard changes and return to settings?":"Discard unsaved changes and reload?",&zui_label,u->theme.text);
     for(int i=0;i<13;i++){
         struct zui_control *c=&u->controls[i];
         c->enabled=a->prompt?c->id>=90:c->id<90;
@@ -85,6 +89,10 @@ void settings_draw(struct settings_app *a){
         u->controls[i].enabled=!a->prompt&&!!(a->state.flags&Z_SETTINGS_WRITABLE)&&!!(a->available_effects&(1U<<(i-13)));
         u->controls[i].value=!!(a->effects&(1U<<(i-13)));
     }
+    char percent[24]="Translucency: 000%";unsigned int n=a->translucency;percent[14]=n<100?' ':(char)('0'+n/100);percent[15]=n<10?' ':(char)('0'+n/10%10);percent[16]=(char)('0'+n%10);
+    zui_text(u,r.x+16,r.y+350,percent,18,&zui_label,u->theme.text);
+    for(int i=16;i<18;i++)u->controls[i].enabled=!a->prompt&&!!(a->state.flags&Z_SETTINGS_WRITABLE)&&!!a->available_effects;
+    if(!a->prompt)zui_draw_range(u,16,2);
     zui_swatch_caption(u,r.x+16,r.y+204);
     zui_segment_track(u,(struct zui_rect){r.x+16,r.y+92,280,36});
     if(!a->prompt)zui_draw_range(u,13,3);
@@ -115,18 +123,20 @@ int settings_event(struct settings_app *a,const struct zenith_gui_event *e){
     if(action==40){close_request(a,1);return 0;}
     if(action==31){close_request(a,2);return 0;}
     if(action==30){
-        long result=a->backend.save(a->mode,a->accent,a->effects,a->base_revision);
+        long result=a->backend.save(a->mode,a->accent,a->effects,a->translucency,a->base_revision);
         if(!result){a->edited=0;a->backend.dirty(0);a->message="Appearance saved.";settings_refresh(a);}
         else a->message=result==-11?"Changed elsewhere. Reload before saving; your edits are kept.":result==-13?"Administrator permission required. Edits have been kept.":"Save failed. Check writable storage; edits have been kept.";
         a->ui.dirty=1;return 0;
     }
-    unsigned int mode=a->mode,accent=a->accent,effects=a->effects;
+    unsigned int mode=a->mode,accent=a->accent,effects=a->effects,level=a->translucency;
     if(action<=2)mode=(unsigned int)action-1;
     else if(action>=10&&action<=15)accent=(unsigned int)action-10;
     if(action==50)effects^=1;
     if(action==51)effects^=2;
     if(action==52)effects^=4;
-    int dirty=effects!=a->saved_effects||mode!=a->state.mode||accent!=a->state.accent;
+    if(action==53)level=level<10?0:level-10;
+    if(action==54)level=level>90?100:level+10;
+    int dirty=level!=a->saved_translucency||effects!=a->saved_effects||mode!=a->state.mode||accent!=a->state.accent;
     if(a->backend.dirty(dirty)){a->message="Cannot protect unsaved changes. Selection was not changed.";a->ui.dirty=1;return 0;}
-    a->mode=mode;a->accent=accent;a->effects=effects;a->edited=dirty;a->message=0;palette(a);return 0;
+    a->translucency=level;a->mode=mode;a->accent=accent;a->effects=effects;a->edited=dirty;a->message=0;palette(a);return 0;
 }

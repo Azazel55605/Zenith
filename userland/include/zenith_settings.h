@@ -42,4 +42,13 @@ static inline long zenith_material_settings_save(unsigned int mode,unsigned int 
     if(materials>3)return -19;
     r.version=1;return zenith_call(609,(unsigned long)&r,sizeof(r),0);
 }
+/* Material-control ABI 3 adds a host-clamped translucency preference. */
+struct zenith_material_control { unsigned int version,flags; unsigned long revision; unsigned int saved,effective,available,reason; unsigned long active_revision; unsigned int translucency,active_translucency; };
+struct zenith_material_control_request { unsigned int version,flags; unsigned long revision; unsigned int mode,accent,materials,translucency; unsigned long reserved; };
+_Static_assert(sizeof(struct zenith_material_control)==48,"material control snapshot");
+_Static_assert(sizeof(struct zenith_material_control_request)==40,"material control request");
+static inline long zenith_material_control_read(struct zenith_material_control *state){return zenith_call(618,(unsigned long)state,sizeof(*state),0);}
+static inline long zenith_material_control_save(unsigned int mode,unsigned int accent,unsigned int materials,unsigned int level,unsigned long revision){
+    struct zenith_material_control_request r={3,0,revision,mode,accent,materials,level,0};return zenith_call(619,(unsigned long)&r,sizeof(r),0);
+}
 #endif

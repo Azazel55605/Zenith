@@ -6,40 +6,44 @@ namespace Zenith.Gui.Graphics;
 /// Preferences are never changed by a rendering fallback.</summary>
 internal sealed class MaterialPolicy
 {
+    public uint Translucency { get; private set; } = 40;
     public uint Requested { get; private set; }
     public uint Effective => (Requested & 1) == 0 ? 0 : Requested & 7;
     public uint Reason { get; private set; }
     private int _blurArea;
     public const int FrameBlurPixels = 393216;
-    public void Begin(uint requested)
-    { Requested = requested & 7; Reason = (Requested & 1) == 0 && Requested != 0 ? 1U : 0; _blurArea = 0; }
+    public void Begin(uint requested, uint translucency = 40)
+    { Translucency = Math.Min(translucency, 100); Requested = requested & 7; Reason = (Requested & 1) == 0 && Requested != 0 ? 1U : 0; _blurArea = 0; }
     public void ResourceFallback() { Reason = 3; }
     public int Effect(int requested, uint tint, uint text, uint secondary, int area)
     {
-        if ((Effective & 1) == 0 || requested == 0) { return 0; }
+        if ((Effective & 1) == 0 || requested == 0 || Translucency == 0) { return 0; }
         int effect = requested == 2 && (Effective & 2) != 0 ? 2 : 1;
         if (effect == 2 && (area < 0 || area > FrameBlurPixels - _blurArea)) { effect = 1; Reason = 4; }
-        int opacity = Opacity(tint, text, secondary, effect);
+        int opacity = Opacity(tint, text, secondary, effect, Translucency);
         if (opacity == 255) { Reason = 5; return 0; }
         if (effect == 2) { _blurArea += area; }
         return effect;
     }
-    private sealed record OpacityMemo(uint Tint, uint Text, uint Secondary, int Effect, int Value);
+    private sealed record OpacityMemo(uint Tint, uint Text, uint Secondary, int Effect, uint Translucency, int Value);
     private static readonly OpacityMemo?[] Opacities = new OpacityMemo[32];
     private static int s_slot;
-    public static int Opacity(uint tint, uint text, uint secondary, int effect)
+    public static int Opacity(uint tint, uint text, uint secondary, int effect, uint translucency = 40)
     {
         if (effect == 0) { return 255; }
+        translucency = Math.Min(translucency, 100);
         foreach (var item in Opacities)
-        { if (item is not null && item.Tint == tint && item.Text == text && item.Secondary == secondary && item.Effect == effect) { return item.Value; } }
-        int result = CalculateOpacity(tint, text, secondary, effect);
+        { if (item is not null && item.Tint == tint && item.Text == text && item.Secondary == secondary && item.Effect == effect && item.Translucency == translucency) { return item.Value; } }
+        int result = CalculateOpacity(tint, text, secondary, effect, translucency);
         int slot = System.Threading.Interlocked.Increment(ref s_slot) & 31;
-        System.Threading.Volatile.Write(ref Opacities[slot], new OpacityMemo(tint, text, secondary, effect, result));return result;
+        System.Threading.Volatile.Write(ref Opacities[slot], new OpacityMemo(tint, text, secondary, effect, translucency, result));return result;
     }
-    private static int CalculateOpacity(uint tint, uint text, uint secondary, int effect)
+    private static int CalculateOpacity(uint tint, uint text, uint secondary, int effect, uint translucency = 40)
     {
-        for (int opacity = effect == 2 ? 210 : 220; opacity <= 244; opacity += 2)
-        { if (Readable(tint, text, opacity) && Readable(tint, secondary, opacity)) { return opacity; } }
+        // Map the complete user range onto the readable range, rather than
+        // letting most high-strength choices collapse onto the same contrast floor.
+        for (int opacity = effect == 2 ? 145 : 170; opacity <= 255; opacity += 2)
+        { if (Readable(tint, text, opacity) && Readable(tint, secondary, opacity)) { return 255 - (255 - opacity) * (int)translucency / 100; } }
         return 255;
     }
     private static bool Readable(uint tint, uint foreground, int opacity)

@@ -4,6 +4,15 @@ namespace Zenith.Tests;
 public class MaterialPolicyTests
 {
     [Fact]
+    public void TranslucencyStrengthIsMonotonicAndContrastBounded()
+    {
+        int solid=MaterialPolicy.Opacity(0xff25262b,0xfff1f2f4,0xffb4b7c0,2,0);
+        int low=MaterialPolicy.Opacity(0xff25262b,0xfff1f2f4,0xffb4b7c0,2,20);
+        int high=MaterialPolicy.Opacity(0xff25262b,0xfff1f2f4,0xffb4b7c0,2,100);
+        Assert.Equal(255,solid);Assert.True(solid>low&&low>high);Assert.InRange(high,145,254);
+        var policy=new MaterialPolicy();policy.Begin(7,0);Assert.Equal(0,policy.Effect(2,0xff25262b,0xfff1f2f4,0xffb4b7c0,100));
+    }
+    [Fact]
     public void FullViewportBlurUsesBoundedSampledWorkAndCache()
     {
         var policy = new MaterialPolicy(); policy.Begin(7);

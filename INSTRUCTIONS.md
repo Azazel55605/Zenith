@@ -85,7 +85,11 @@ never infer current failures from old release logs or claim a menu stub is a bac
   System-wide material preferences use atomic revisioned 608/609 calls; legacy
   610/611 appearance saves preserve them. Version-2 616/617 adds whole-background
   preference bit 4; keep 608/609 snapshots/validation at their published masks and
-  preserve the newer bit on legacy saves. Chrome, taskbar and opted-in client regions
+  preserve the newer bit on legacy saves. Version-3 618/619 adds a contrast-clamped
+  translucency level; schema 4 and legacy saves preserve it. Typed 620/621 exports
+  bounded real keyboard/time-zone catalogues and root-only revisioned choices
+  through SettingsService; keep CLI/native parity, read-only users, stale/error
+  drafts and reboot tests. These are system defaults, not personal overrides. Chrome, taskbar and opted-in client regions
   share contrast/cache/work fallback without rewriting saved choices. Protected
   credentials remain solid. Explicit 613/614/615 viewport negotiation owns bounded
   resize/maximize; require exact dimensions/generation before changing the private

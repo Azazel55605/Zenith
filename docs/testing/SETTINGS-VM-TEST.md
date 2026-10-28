@@ -54,5 +54,17 @@ a real installed VM, separate from local disposable validation.
     Colors draft: edits must survive without saving. Persistent categories and inset
     detail panes should remain usable; close during a drag must release input.
 
+15. Change Translucency with minus/plus, Save, and compare 0, 40 and 100 over a
+    busy backdrop. Text/controls stay opaque; higher values reveal more backdrop
+    within the readability limit. The taskbar, Terminal and Editor follow the same
+    level. `settings set translucency 80` must agree with the GUI after reload.
+    Hidden Terminal input and Sunrise account fields must stay solid.
+16. Open Keyboard: choose a supported layout, save, and compare `settings show`
+    with real typing. Restore your original layout. Date & Time similarly saves a
+    built-in time zone and updates local display; it must not change UTC. Reboot
+    and verify saved defaults. Ordinary users see read-only controls; USER=root
+    cannot grant writes. Change a value via CLI while the GUI has a draft: Save
+    must reject stale edits and keep them until explicit discard/reload.
+
 Report the exact kernel/client/theme versions and which steps passed. Source and
 local QEMU tests do not complete this operator checklist automatically.

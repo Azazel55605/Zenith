@@ -34,9 +34,11 @@ internal sealed class SystemInfoWindow : Window
         return true;
     }
 
+    public override bool AllowBackgroundMaterials => true;
+
     public override void DrawContent(Surface surface, Rect content)
     {
-        surface.FillRect(content, Theme.WindowBackground);
+        PaintBackground(surface, content);
         int x = content.X + AppStyle.Inset;
         int y = content.Y + 22;
 

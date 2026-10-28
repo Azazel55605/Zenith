@@ -709,9 +709,11 @@ internal sealed class TerminalWindow : Window, IOutput
         return true;
     }
 
+    public override bool AllowBackgroundMaterials => true;
+
     public override void DrawContent(Surface surface, Rect content)
     {
-        surface.FillRect(content, Theme.WindowBackground);
+        PaintBackground(surface, content);
 
         // What is shown: the scrollback, then its unfinished last line (e.g. a `read -p` prompt)
         // continued by the shell prompt and the input. Lines are wrapped here, at the current

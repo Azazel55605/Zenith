@@ -6,7 +6,7 @@ Work owners: **S1/D1/D3** in the [master roadmap](ROADMAP.md). This page is a co
 [System settings/session behavior](SETTINGS-SESSIONS.md)
 
 The independently compiled `zenith-settings` package supplies the first functional
-Appearance page. The GUI and trusted `settings` command use the same root-only
+Appearance page plus typed keyboard-layout and time-zone controls. The GUI and trusted `settings` command use the same root-only
 system preference authority. This is not a kernel-linked Settings window.
 Meridian extends it into the [Settings shell and app migration](components/SESSIONS-DESKTOP.md#native-app-migration). Most pages retain explicit WIP banners until their typed backends are implemented.
 
@@ -19,6 +19,10 @@ native run settings --show
 native run settings --set light teal
 settings show
 settings set appearance dark blue
+settings set translucency 80
+native run settings --page input.keyboard
+native run settings --page locale.time
+native run settings --system-show
 ```
 
 Modes: `dark`, `light`. Accents: `blue`, `violet`, `rose`, `amber`, `green`, `teal`.
@@ -53,7 +57,12 @@ MATERIALS=0
 Schema 1 (MODE/ACCENT only) is read with solid materials. Schema 2 adds a strict
 mask: transparency=1, blur=2, valid values 0..3. Schema 3 adds Whole app
 background=4 (valid values 0..7); new saves use schema 3 only when that bit is set.
-Schemas 1 and 2 remain readable. Blur-only (2) is retained but
+Schema 4 adds `TRANSLUCENCY=0..100`; it is written when the level differs from
+the default 40. Schemas 1–3 load with level 40. Legacy saves preserve both newer
+material bits and the level. Zero gives a solid base; 100 is the maximum readable
+translucency for the active palette, not unrestricted alpha. The renderer maps the
+whole range onto its contrast-safe range.
+Blur-only (2) is retained but
 inactive. Mode/accent/materials save together through one revision/replace.
 Legacy 611 saves preserve material bits. A kernel that does not understand the saved schema uses its safe fallback and
 refuses to overwrite the file. Disable Whole app background before rolling back
@@ -202,3 +211,56 @@ server publication or operator-installed acceptance.
 Meridian is the chosen application name for the next shell. Its [implementation
 plan](MERIDIAN-PLAN.md) and [full page inventory](MERIDIAN-PAGES.md) describe the
 future scope; this document continues to describe the implemented Appearance API.
+
+
+## Translucency control ABI
+
+The `zenith-native-material-control-abi 1.0` capability adds:
+
+- **618 read** `(writable snapshot, 48, 0)`: the material snapshot layout with
+  version=3; offsets 40/44 contain u32 saved/active translucency (0..100).
+- **619 save** `(readable request, 40, 0)`: u32 version=3, flags=0, u64 revision,
+  u32 mode, accent, materials, translucency, then u64 reserved=0.
+
+Mode/accent/materials/level are persisted in one revisioned replace. Captured UID 0
+is required. Old 608/609 and 616/617 keep their exact versions, masks, lengths and
+reserved fields; their saves preserve the level. Foreground text and controls are
+never globally faded. Meridian provides keyboard/pointer minus/plus controls in
+10-point increments; the CLI accepts every integer 0..100.
+
+Terminal, Editor, non-credential Sunrise steps and the trusted Welcome/System
+fallbacks use the same owned bounded background material as the native workspaces
+when Whole app background is enabled. Hidden terminal reads and Sunrise account
+credentials force a solid body/chrome. Files stays outside this design pass.
+
+## Shared system-default settings ABI
+
+`zenith-native-system-settings-abi 1.0` exposes existing `SettingsService`
+operations without shell callbacks, paths or authority derived from page names.
+These controls are explicitly **system defaults**, not per-user overrides. Personal
+preferences/inheritance remain S1 work in the master roadmap.
+
+- **620 read** `(writable snapshot, 4096, 0)`: little-endian version=1, flags
+  (persistent=1, captured UID 0 writable=2), u64 boot-local revision; u32 keyboard
+  count/zone count/current keyboard index/current zone index at offsets 16/20/24/28.
+  Current time-zone text is NUL-terminated UTF-8 in bytes 32..95. Reserved bytes
+  96..127 are zero. Eight 32-byte keyboard-name slots start at 128; forty-eight
+  64-byte zone-name slots start at 384. Bytes 3456..4095 are reserved/zero.
+  Only the counted slots are populated. A fixed-offset zone outside the built-in
+  catalogue uses current zone index UINT32_MAX while retaining its actual label.
+- **621 save** `(readable request, 32, 0)`: u32 version=1, field (keyboard=1,
+  time zone=2), u64 expected revision, u32 catalogue choice index, u32 reserved=0,
+  u64 reserved=0. Root-only; validates before indexing. No arbitrary config writes.
+
+CLI/service changes increment the same boot-local revision. Stale requests return
+-11, ordinary-user writes -13, malformed fields/indices -22, storage/apply errors
+-5. A successful choice saves through the existing configuration store and applies
+through the existing keymap/clock callback. Read-only users see actual defaults;
+spoofing USER cannot grant write access. All native pointers are checked over the
+full declared range before copying. Catalogues are bounded to implemented layouts
+and the built-in zone table, not a complete device or tz database.
+
+Meridian's Keyboard and Date & Time pages protect drafts, support save/discard,
+and refuse stale saves without replaying operations. WIP banners remain for
+model/repeat/Num Lock/shortcut and clock-edit/sync-policy features. The time-zone
+control changes local display/DST rules, not UTC or authenticated time sync.

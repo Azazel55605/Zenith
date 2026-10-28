@@ -35,18 +35,20 @@ internal sealed class InstallerWindow : Window
         { _step = Step.Unavailable; _message = "Start Sunrise as root from the ISO live rescue session."; }
     }
     public override bool CanResize => false;
-    public override bool AllowMaterials => false;
+    public override bool AllowMaterials { get { lock (_gate) { return _step != Step.Accounts; } } }
     public override bool CanClose { get { lock (_gate) { return _step != Step.Installing; } } }
     public override void Close() { if (CanClose) { ClearSecrets(); base.Close(); } }
     public override void EndSession() { if (CanClose) { ClearSecrets(); Close(); } }
     public override bool Update() { lock (_gate) { bool dirty = _dirty; _dirty = false; return dirty; } }
     private void ClearSecrets() { for (int i = 2; i < _values.Length; i++) { _values[i] = ""; } }
     private void SetStatus(string message) { lock (_gate) { _message = message; _dirty = true; } }
+    public override bool AllowBackgroundMaterials => true;
+
     public override void DrawContent(Surface surface, Rect content)
     {
         lock (_gate)
         {
-            surface.FillRect(content, Theme.WindowBackground);
+            PaintBackground(surface, content);
             int x = content.X + AppStyle.Inset, y = content.Y + AppStyle.Inset;
             Text(surface, "Install Zenith", x, y, Theme.TextHeading);
             Text(surface, "Test in a VM first. Keep the live ISO for recovery.", x, y + 34, 12, Theme.TextSecondary);

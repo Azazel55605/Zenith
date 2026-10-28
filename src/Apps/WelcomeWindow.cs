@@ -18,9 +18,11 @@ internal sealed class WelcomeWindow : Window
 
     public override bool CanResize => false;
 
+    public override bool AllowBackgroundMaterials => true;
+
     public override void DrawContent(Surface surface, Rect content)
     {
-        surface.FillRect(content, Theme.WindowBackground);
+        PaintBackground(surface, content);
         int x = content.X + AppStyle.Inset;
         int y = content.Y + 24;
         int width = content.W - 2 * AppStyle.Inset;

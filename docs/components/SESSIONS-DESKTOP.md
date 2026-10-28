@@ -17,10 +17,10 @@ updateable. A resource package does not make the greeter an independent process.
 | Master ID / app | Current frontend | Detailed exit |
 |---|---|---|
 | U5 Welcome/System | Native `desktop-tools` frontends, signed shell and menu dispatch locally tested | D1 parity, live preference/independent upgrade/user/teardown and Q2 release acceptance |
-| S1 Meridian | Native 43-page shell, seven groups, search/recent links, functional Colors and selected About data | U1 richer controls/lifetime tests, real page backends and Q1/Q2; WIP scope is not functionality |
+| S1 Meridian | Native 43-page shell, seven groups, search/recent links, functional Colors, keyboard layout/time zone and selected About data | U1 richer controls/lifetime tests, real page backends and Q1/Q2; WIP scope is not functionality |
 | U2 Editor | Trusted window, shared-design toolbar/canvas/status, guarded chrome close | Shared multiline text/selection, clipboard/dialogs, UTF-8/LF/CRLF, undo/search, external changes and permission-aware staged saves |
-| U3 Terminal | Trusted shell host, themed canvas and appearance-aware ANSI scrollback | Owned PTY/session byte/mode protocol, native renderer, raw/canonical/secret/type-ahead/jobs/EOF/cancel and all recovery hosts |
-| U4 Sunrise | Trusted installer, shared fields/navigation/action controls | Typed root/live-only wizard with explicit erase consent, safe account secrets, progress and maintenance blockers |
+| U3 Terminal | Trusted shell host, shared material canvas, solid hidden input and appearance-aware ANSI scrollback | Owned PTY/session byte/mode protocol, native renderer, raw/canonical/secret/type-ahead/jobs/EOF/cancel and all recovery hosts |
+| U4 Sunrise | Trusted installer, shared fields/navigation/action controls and credential-solid account entry | Typed root/live-only wizard with explicit erase consent, safe account secrets, progress and maintenance blockers |
 | A1 Files | Intentionally unchanged | Separate full navigation/transfer/selection overhaul after this migration batch |
 
 The asynchronous launcher captures credentials and owns cancellation; compositor
@@ -39,14 +39,18 @@ not indiscriminately journalled. Session stop revokes surfaces and invocations.
   and drag keyboard routing; continuous title/sidebar materials and reduced-grid
   whole-background blur remove the stacked rectangular content underlay; [targeted tests and unresolved operator freeze](../archive/2026-10-28/meridian-workspace-input.md).
 - [ ] D2: real display modes, scaling and crash-safe Keep/Revert.
-- [ ] S1: per-user/system defaults, typed existing settings and CLI/GUI parity.
+- [x] S1: typed root-only keyboard/time-zone system-default catalogues and saves,
+  stale revision checks, explicit save/discard and CLI parity.
+- [ ] S1: per-user/default inheritance and the remaining typed settings backends.
 - [ ] S2–S5: activate the [43-page inventory](../MERIDIAN-PAGES.md) in backend order;
   [Meridian contracts](../MERIDIAN-PLAN.md) specify details, not a second schedule.
 - [ ] D3: software integration locally qualified: explicit foreground/regions,
   cached tint/blur, saved/effective controls, shared chrome/taskbar/Meridian policy,
   contrast and bounded resource/work fallback. [Evidence](../archive/2026-10-28/desktop-material-integration.md).
   Q2 installed/device/sustained performance and D2 resize/scale acceptance remain;
-  credentials and legacy document planes stay solid. Supported workspace apps may
+  credential entry remains solid. Terminal, Editor, non-credential Sunrise and
+  recovery Welcome/System bodies now opt into the whole-background policy; Files
+  is excluded. System-wide translucency level maps onto a readable contrast range. Supported workspace apps may
   opt into the system-wide whole-background setting; legacy preference saves preserve
   its bit. Taskbar customization belongs to W1/S4.
 

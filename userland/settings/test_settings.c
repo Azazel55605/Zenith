@@ -8,11 +8,12 @@ static struct settings_app app;
 static long failure;
 static int guarded;
 static unsigned int material_saved;
-static long read_state(struct zenith_appearance *s,unsigned int *saved,unsigned int *effective,unsigned int *available,unsigned int *reason){*s=state;*saved=material_saved;*effective=(material_saved&1)?material_saved:0;*available=7;*reason=0;return 0;}
-static long save_state(unsigned int m,unsigned int a,unsigned int materials,unsigned long revision){
+static unsigned int material_level=40;
+static long read_state(struct zenith_appearance *s,unsigned int *saved,unsigned int *effective,unsigned int *available,unsigned int *reason,unsigned int *level){*level=material_level;*s=state;*saved=material_saved;*effective=(material_saved&1)?material_saved:0;*available=7;*reason=0;return 0;}
+static long save_state(unsigned int m,unsigned int a,unsigned int materials,unsigned int level,unsigned long revision){assert(level<=100);
     if(failure)return failure;
     if(revision!=state.revision)return -11;
-    material_saved=materials;state.mode=m;state.accent=a;state.revision++;return 0;
+    material_level=level;material_saved=materials;state.mode=m;state.accent=a;state.revision++;return 0;
 }
 static long dirty_state(int dirty){guarded=dirty;return 0;}
 static void event(int type,int code,int x,int y,int extra){

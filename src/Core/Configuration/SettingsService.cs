@@ -29,6 +29,8 @@ internal sealed class SettingsService
     private readonly Func<SessionMode, bool> _available;
     private readonly object _gate = new();
     public SystemSettings Current { get; private set; } = new("us", "UTC", SessionMode.Desktop);
+    private ulong _revision = 1;
+    public (SystemSettings Settings, ulong Revision) Snapshot() { lock (_gate) { return (Current, _revision); } }
     public bool Persistent => _store.Persistent;
 
     public SettingsService(ISettingsStore store, Action<string> keyboard, Action<string> zone, Func<SessionMode, bool> available)
@@ -58,9 +60,10 @@ internal sealed class SettingsService
         string canonical = KeyboardLayoutCatalog.Normalize(name) ?? throw new ArgumentException("unknown keyboard layout");
         lock (_gate)
         {
+            if (_revision == ulong.MaxValue) { throw new InvalidOperationException("settings revision exhausted"); }
             string text = Update(_store.Read(KeyboardPath), new Dictionary<string, string> { ["KEYMAP"] = canonical });
             _store.Replace(KeyboardPath, text); _keyboard(canonical);
-            Current = Current with { Keyboard = canonical };
+            Current = Current with { Keyboard = canonical }; _revision++;
         }
     }
     public void SetTimeZone(string name)
@@ -68,8 +71,9 @@ internal sealed class SettingsService
         RequireRoot(); string canonical = NormalizeZone(name);
         lock (_gate)
         {
+            if (_revision == ulong.MaxValue) { throw new InvalidOperationException("settings revision exhausted"); }
             _store.Replace(TimeZonePath, canonical + "\n"); _zone(canonical);
-            Current = Current with { TimeZone = canonical };
+            Current = Current with { TimeZone = canonical }; _revision++;
         }
     }
     public void SetSession(SessionMode mode)
@@ -78,10 +82,28 @@ internal sealed class SettingsService
         if (!_available(mode)) { throw new InvalidOperationException("session '" + SessionModes.Name(mode) + "' is unavailable in this build"); }
         lock (_gate)
         {
+            if (_revision == ulong.MaxValue) { throw new InvalidOperationException("settings revision exhausted"); }
             string? old = _store.Read(SessionPath);
             _ = ReadSession(old); // Never silently downgrade an unknown future schema.
             _store.Replace(SessionPath, Update(old, new Dictionary<string, string> { ["VERSION"] = "1", ["SESSION"] = SessionModes.Name(mode) }));
-            Current = Current with { DefaultSession = mode };
+            Current = Current with { DefaultSession = mode }; _revision++;
+        }
+    }
+    public int SaveChoice(uint field, uint choice, ulong revision)
+    {
+        if (!CredentialContext.Current.IsRoot) { return -13; }
+        if (field is not (1 or 2) || (field == 1 ? choice >= KeyboardLayoutCatalog.Names.Length : choice >= TimeZones.All.Count)) { return -22; }
+        lock (_gate)
+        {
+            if (revision != _revision) { return -11; }
+            if (_revision == ulong.MaxValue) { return -75; }
+            try
+            {
+                if (field == 1) { SetKeyboard(KeyboardLayoutCatalog.Names[choice]); }
+                else { SetTimeZone(TimeZones.All[(int)choice].Name); }
+                return 0;
+            }
+            catch { return -5; }
         }
     }
     private static void RequireRoot()

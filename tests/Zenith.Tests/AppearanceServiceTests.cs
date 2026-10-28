@@ -12,6 +12,20 @@ namespace Zenith.Tests;
 
 public class AppearanceServiceTests
 {
+    [Fact]
+    public void TranslucencyPersistsAndLegacySavesPreserveIt()
+    {
+        using var root=CredentialContext.Enter(Credentials.Root);
+        var store=new Store();var service=new AppearanceService(store);Assert.Null(service.Load());
+        byte[] request=new byte[40];request[0]=3;request[8]=1;request[24]=7;request[28]=80;
+        Assert.Equal(0,ProcessAppearance.SaveMaterialControl(service,request));Assert.Contains("VERSION=4",store.Text);Assert.Contains("TRANSLUCENCY=80",store.Text);
+        var reboot=new AppearanceService(store);Assert.Null(reboot.Load());Assert.Equal(80U,reboot.Saved.Translucency);
+        Assert.Equal(0,reboot.Save(1,2,1));Assert.Equal(80U,reboot.Saved.Translucency);
+        Assert.Equal(0,reboot.SaveSurfaceMaterials(0,0,3,2));Assert.Equal(80U,reboot.Saved.Translucency);
+        byte[] state=ProcessAppearance.MaterialControlSnapshot(reboot);Assert.Equal(3U,BinaryPrimitives.ReadUInt32LittleEndian(state));Assert.Equal(80U,BinaryPrimitives.ReadUInt32LittleEndian(state.AsSpan(40)));
+        Assert.Equal(0UL,BinaryPrimitives.ReadUInt64LittleEndian(ProcessAppearance.MaterialSnapshot(reboot,true).AsSpan(40)));
+        request[8]=3;request[28]=101;Assert.Equal(-22,ProcessAppearance.SaveMaterialControl(reboot,request));request[28]=40;request[32]=1;Assert.Equal(-22,ProcessAppearance.SaveMaterialControl(reboot,request));
+    }
     private sealed class Store : ISettingsStore
     {
         public string? Text;

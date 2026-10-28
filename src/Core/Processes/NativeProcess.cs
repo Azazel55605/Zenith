@@ -180,6 +180,30 @@ internal sealed unsafe class NativeProcess
                 foreach (byte value in title) { if (value < 32 || value > 126) { return -22; } }
                 return graphics.Open(r.Width, r.Height, Encoding.ASCII.GetString(title), r.Format);
             }
+            if (c.Call == 620)
+            {
+                if (c.Arg1 != ProcessSystemSettings.SnapshotBytes || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, ProcessSystemSettings.SnapshotBytes, true)) { return -14; }
+                Transfer(c.Arg0, ProcessSystemSettings.Snapshot(Zenith.Core.Configuration.SystemConfiguration.Settings), true); return 0;
+            }
+            if (c.Call == 621)
+            {
+                if (c.Arg1 != ProcessSystemSettings.RequestBytes || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, ProcessSystemSettings.RequestBytes, false)) { return -14; }
+                return ProcessSystemSettings.Save(Zenith.Core.Configuration.SystemConfiguration.Settings, ReadUser(c.Arg0, ProcessSystemSettings.RequestBytes));
+            }
+            if (c.Call == 618)
+            {
+                if (c.Arg1 != 48 || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, 48, true)) { return -14; }
+                Transfer(c.Arg0, ProcessAppearance.MaterialControlSnapshot(Zenith.Core.Configuration.SystemConfiguration.Appearance), true); return 0;
+            }
+            if (c.Call == 619)
+            {
+                if (c.Arg1 != 40 || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, 40, false)) { return -14; }
+                return ProcessAppearance.SaveMaterialControl(Zenith.Core.Configuration.SystemConfiguration.Appearance, ReadUser(c.Arg0, 40));
+            }
             if (c.Call is 608 or 616)
             {
                 if (c.Arg1 != 48 || c.Arg2 != 0) { return -22; }

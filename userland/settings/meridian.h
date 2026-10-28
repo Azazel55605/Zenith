@@ -1,6 +1,7 @@
 #ifndef ZENITH_MERIDIAN_H
 #define ZENITH_MERIDIAN_H
 #include "app.h"
+#include "../include/zenith_system_settings.h"
 #include "../ui/text.h"
 #define MERIDIAN_PAGE_COUNT 43
 enum { MERIDIAN_COLORS=16, MERIDIAN_ABOUT=38 };
@@ -9,6 +10,13 @@ extern const struct meridian_page meridian_pages[MERIDIAN_PAGE_COUNT];
 /* Complete catalogue; controls are virtualized to eight visible results. */
 struct meridian {
     struct settings_app colors;
+    struct zenith_system_settings preferences;
+    long (*preferences_read)(struct zenith_system_settings *);
+    long (*preferences_save)(unsigned int,unsigned int,unsigned long);
+    unsigned int preference_field,preference_choice;
+    unsigned long preference_revision;
+    int preference_edited,preference_prompt,preferences_ready;
+    const char *preference_message;
     struct zui navigation;
     struct zui_input search;
     char query[128];
@@ -21,6 +29,7 @@ int meridian_init(struct meridian *app,unsigned int *pixels,struct settings_back
 int meridian_resize(struct meridian *app,int width,int height,unsigned long capacity);
 void meridian_draw(struct meridian *app);
 void meridian_event(struct meridian *app,const struct zenith_gui_event *event);
+void meridian_system_services(struct meridian *app,long (*read)(struct zenith_system_settings *),long (*save)(unsigned int,unsigned int,unsigned long));
 void meridian_refresh(struct meridian *app);
 int meridian_open(struct meridian *app,const char *id);
 struct zui *meridian_ui(struct meridian *app);

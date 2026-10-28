@@ -419,10 +419,12 @@ internal sealed class EditorWindow : Window
 
     private int TextX(int contentX) => contentX + Padding + GutterWidth;
 
+    public override bool AllowBackgroundMaterials => true;
+
     public override void DrawContent(Surface surface, Rect content)
     {
-        surface.FillRect(content, Theme.WindowBackground);
-        AppStyle.Panel(surface, new Rect(content.X, content.Y, content.W, ToolbarHeight));
+        PaintBackground(surface, content);
+        if ((MaterialResources.Policy.Effective & 5) != 5) { AppStyle.Panel(surface, new Rect(content.X, content.Y, content.W, ToolbarHeight)); }
         AppStyle.Button(surface, new Rect(content.X + 16, content.Y + 8, 80, 36), "New", enabled: _prompt == Prompt.None);
         AppStyle.Button(surface, new Rect(content.X + 108, content.Y + 8, 80, 36), "Open", enabled: _prompt == Prompt.None);
         AppStyle.Button(surface, new Rect(content.X + 200, content.Y + 8, 100, 36), "Save", true, _prompt == Prompt.None);
@@ -493,7 +495,7 @@ internal sealed class EditorWindow : Window
 
     private void DrawStatusBar(Surface surface, Rect bar)
     {
-        surface.FillRect(bar, Theme.Panel | 0xff000000U);
+        if ((MaterialResources.Policy.Effective & 5) != 5) { surface.FillRect(bar, Theme.Panel | 0xff000000U); }
         surface.FillRect(new Rect(bar.X, bar.Y, bar.W, 1), Theme.TitleDivider);
 
         if (_prompt != Prompt.None)

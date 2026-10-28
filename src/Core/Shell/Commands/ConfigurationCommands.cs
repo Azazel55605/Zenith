@@ -10,7 +10,7 @@ internal static class ConfigurationCommands
 {
     public static void Register(Action<Command> add)
     {
-        add(new Command("settings", "settings [show | set keyboard|timezone|session VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]", "Shared system settings", Settings));
+        add(new Command("settings", "settings [show | set keyboard|timezone|session|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]", "Shared system settings", Settings));
         add(new Command("session", "session [status | list | set-default MODE | switch MODE]", "Select a session or return to login", Session));
     }
     private static int Settings(CommandContext c)
@@ -28,8 +28,16 @@ internal static class ConfigurationCommands
                 + (appearance.Saved.Revision != appearance.Active.Revision ? "; pending desktop/next login" : "") + ")");
             var materials = SystemConfiguration.Appearance.MaterialStatus;
             c.WriteLine("materials saved=" + appearance.Saved.Materials + " effective=" + materials.Effective
-                + " available=" + materials.Available + " fallback=" + materials.Reason);
+                + " translucency=" + appearance.Saved.Translucency + "%" + " available=" + materials.Available + " fallback=" + materials.Reason);
             return 0;
+        }
+        if (c.Args.Length == 3 && c.Args[0] == "set" && c.Args[1] == "translucency")
+        {
+            if (!uint.TryParse(c.Args[2], out uint level) || level > 100) { return c.Fail("translucency requires 0..100"); }
+            var service = SystemConfiguration.Appearance; var saved = service.Saved;
+            int result = service.SaveFull(saved.Mode, saved.Accent, saved.Materials, saved.Revision, level);
+            if (result != 0) { return c.Fail("translucency save failed (" + result + ")"); }
+            c.WriteLine("saved translucency=" + level + "%; text contrast may limit the effective transparency"); return 0;
         }
         if (c.Args.Length == 3 && c.Args[0] == "set" && c.Args[1] == "materials")
         {
@@ -50,7 +58,7 @@ internal static class ConfigurationCommands
             c.WriteLine("saved appearance; desktop applies on its next tick, headless on next login" + (service.Persistent ? "" : " (live: volatile)"));
             return 0;
         }
-        if (c.Args.Length != 3 || c.Args[0] != "set") { return c.Fail("usage: settings [show | set keyboard|timezone|session VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]"); }
+        if (c.Args.Length != 3 || c.Args[0] != "set") { return c.Fail("usage: settings [show | set keyboard|timezone|session|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]"); }
         switch (c.Args[1])
         {
             case "keyboard": settings.SetKeyboard(c.Args[2]); break;

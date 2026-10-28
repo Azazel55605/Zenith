@@ -54,7 +54,7 @@ can freeze the VM (no panic reported; effect dependency not established). U1/D3
 own reproduction, bounded redraw/input handling and continued host responsiveness.
 S1/D1 own persistent hierarchical navigation and inset sidebar/detail containers;
 U1/D2 own the explicit native resize/maximize contract. Files remains excluded.
-These corrections precede new Settings backends. The untagged local follow-up adds
+These corrections and the first typed Settings slice are being validated together. The untagged local follow-up adds
 persistent inset navigation, owned resize/maximize and a system-wide whole-app
 background preference. The visual follow-up removes stacked rectangular underlays,
 unifies the title/sidebar treatment and adds bounded reduced-grid whole-window blur
@@ -74,9 +74,12 @@ proven resolved. [Evidence and limits](archive/2026-10-28/meridian-workspace-inp
    [desktop integration](archive/2026-10-28/desktop-material-integration.md).
    Q2 owns installed acceptance; sustained device performance and D2 resize/scale
    qualification remain. Protected authentication and document planes stay solid.
-4. **S1–S3 / functional Meridian — next after VM acceptance:** activate real
-   settings pages over typed services, starting with shared scope/defaults and
-   existing keyboard, timezone, About, network and account services. Keep WIP
+4. **S1–S3 / functional Meridian — first slice local:** Keyboard layout and time
+   zone now use typed system-default read/save services shared with the CLI, with
+   revisions and root-only writes. Whole-app materials now include trusted app
+   bodies and a persisted translucency level. Q2 owns installed acceptance. Next:
+   per-user/default inheritance, About/network/account services and richer selectors.
+   [Implementation and local evidence](archive/2026-10-28/shared-settings-and-app-materials.md). Keep WIP
    banners where a backend is missing. Add U1 controls and D2 guarded display
    resolution/scaling as those pages require them.
 5. **U2–U4 / finish native app migration:** Editor, Terminal and Sunrise over typed
@@ -105,14 +108,14 @@ changes; put smaller implementation steps in the linked component, using the sam
 | G1 | local, complete | One tracker; obsolete guides consolidated and open items mapped. [Audit and checks](archive/2026-10-27/documentation-and-material-contract.md) complete; future agents follow [maintenance](MAINTAINING.md). |
 | D1 | local; installed verification pending | [Shared visual parity](DESIGN-LANGUAGE.md): neutral segments, antialiased swatches/switches, label/help rows, restrained navigation and completed-window rounded masks implemented. Remaining system windows share the design; [quality follow-up](archive/2026-10-28/smooth-edges-and-system-apps.md). Both modes/six accents and draft/permission behavior locally qualified; [evidence](archive/2026-10-28/shared-widget-parity.md). Q2 owns installed confirmation; U1/D2 own richer widgets/hover transport, Unicode and scale; D3 owns effects. |
 | D2 | partial | Bounded native client resize/maximize implemented and locally exercised; display mode/scaling remains separate. Display identity/mode enumeration → guarded mode change → integer layout/text/surface scaling → driver-supported orientation/refresh. Requires richer client layout/resize contract. Smaller viewport, timeout/crash and explicit Keep/Revert must restore a usable mode. |
-| D3 | software implementation local; device acceptance pending | System-wide whole-app background opt-in for supported clients, compatible versioned preferences and adaptive tint/blur caches locally tested. Explicit format-2 foreground/regions, cached tint/box diffusion, atomic saved/effective/available preferences, Meridian controls/sidebar and host chrome/taskbar integrated. Shared contrast, 8 MiB cache and per-frame work budgets fall back without changing preferences/layout. [Contract](GRAPHICAL-CLIENTS.md#opt-in-material-frames-d3-first-slice), [local evidence](archive/2026-10-28/desktop-material-integration.md). Q2: installed on/off/light/dark/overlap acceptance and sustained performance; D2: resize/scale qualification. Hardware/GPU acceleration is not implemented. Protected credentials remain solid. |
+| D3 | software implementation local; device acceptance pending | System-wide whole-app materials for native/trusted app bodies, a contrast-clamped translucency level, compatible preferences and adaptive tint/blur caches locally tested. Explicit format-2 foreground/regions, cached tint/box diffusion, atomic saved/effective/available preferences, Meridian controls/sidebar and host chrome/taskbar integrated. Shared contrast, 8 MiB cache and per-frame work budgets fall back without changing preferences/layout. [Contract](GRAPHICAL-CLIENTS.md#opt-in-material-frames-d3-first-slice), [local evidence](archive/2026-10-28/desktop-material-integration.md). Q2: installed on/off/light/dark/overlap acceptance and sustained performance; D2: resize/scale qualification. Hardware/GPU acceleration is not implemented. Protected credentials remain solid. |
 | U1 | partial | Owned viewport generation/acknowledgement, pane-aware saturated wheel handling and drag keyboard routing locally tested; operator freeze investigation remains open. [Shared native UI/runtime](components/USERLAND.md): lists, fields, selectors, sliders, dialogs, multiline text, clipboard, resizing/hover, runtime fonts/Unicode/IME; long-duration quota and teardown acceptance beyond old invocation limits. Existing profile renewal alone is not full long-lived-app qualification. |
 | U2 | native migration planned | Shared-design Editor is locally implemented; native extraction still needs: bounded UTF-8/LF/CRLF, selection/clipboard, undo/redo/search, safe staged save/save-as and external-change checks. Depends on U1 + caller-scoped files/dialogs; prove permission/out-of-space/cancel/dirty-close and independent update. |
 | U3 | native migration planned | Shared-design Terminal/appearance-aware scrollback is locally implemented; extraction still needs: owned PTY/shell session, byte streams, modes/resize, raw/canonical input, hidden secrets, type-ahead, jobs/EOF/cancel. Depends on U1; preserve all three recovery hosts. No privileged command-string RPC as a substitute. |
 | U4 | native migration planned | Shared-design Sunrise frontend is locally implemented; extraction still needs: native wizard over typed root/live-only disk/account/progress service. Preserve pre-erase asset/target checks, explicit destructive consent, secret handling, maintenance exclusion and teardown. Validate disposable install/reboot/recovery before replacing recovery UI. |
 | U5 | partial | Welcome/System: native frontends and signed shell/menu launch locally pass; finish D1 parity, live preferences and independent upgrade/cancel/other-user acceptance with Q2. Keep recovery start windows and fail-closed executable validation. |
 | U6 | planned | Separate service/compositor/session processes: owned/versioned IPC, authority and restart/compatibility contracts → fault isolation → independent restart/upgrade. Existing typed syscalls are a foundation, not completion. Keep drivers/GC/BSP limits explicit. |
-| S1 | partial | [Meridian shared services](MERIDIAN-PLAN.md): per-user overrides/system defaults, CLI parity, revision conflicts, typed keyboard/timezone/network/account summaries and actual About metadata. Two-account/reboot/error tests; never grant authority via environment or a page name. |
+| S1 | partial | Typed keyboard/time-zone system-default catalogues, root-only revisioned saves and functional Meridian controls locally implemented; per-user inheritance remains open. [Meridian shared services](MERIDIAN-PLAN.md): per-user overrides/system defaults, CLI parity, revision conflicts, typed keyboard/timezone/network/account summaries and actual About metadata. Two-account/reboot/error tests; never grant authority via environment or a page name. |
 | W1 | partial | [Full DE](components/SESSIONS-DESKTOP.md): usable keyboard-searchable launcher/panel, consistent dialogs, window identity/focus/move/snap, notifications/OSD, task switcher and virtual desktops. Requires U1/U6; prove app faults and busy/unsaved/session teardown. |
 | W2 | planned | Selectable automatic-tiling WM sharing apps/services with DE: layout/focus/keyboard policy, floating exceptions, monitor/workspace handling and recovery. Requires W1 service boundaries; does not replace the DE choice. |
 | W3 | planned | Secure lock/idle/grace, guarded auto-login, autostart, restore and confirmation policies. Requires session/app lifecycle; lock retains applications and blocks content/input leakage, never masquerades as logout. Password/elevation remains trusted. |
@@ -136,8 +139,8 @@ changes; put smaller implementation steps in the linked component, using the sam
 
 ## Meridian — every requested destination
 
-All **10 categories / 43 pages** exist as local navigation. Only manual Colors
-settings and selected About data currently have backends. The table includes every
+All **10 categories / 43 pages** exist as local navigation. Colors/material preferences, keyboard layout, time zone and selected About data
+currently have backends. The table includes every
 page so an apparently finished menu cannot hide unfinished product work.
 [Detailed controls and scope](MERIDIAN-PAGES.md) · [Service contracts/phase details](MERIDIAN-PLAN.md).
 The M0–M10 names in that guide are Meridian phases, not separate project milestones.
@@ -146,7 +149,7 @@ The M0–M10 names in that guide are Meridian phases, not separate project miles
 |---|---|---|
 | Quick Settings — `quick.overview` | partial | Manual theme links exist; quick controls, persistent history and shared automatic schedule (**S1**, **S3**) |
 | Mouse & Touchpad — `input.mouse`, `input.touchpad` | WIP | Stable device selection, primary buttons, pointer/scroll speed, acceleration/inversion (**S2**) |
-| Keyboard — `input.keyboard`, `input.shortcuts` | WIP | Typed layouts/model/repeat/Num Lock/test, layout switching and conflict-safe shortcut capture (**S1**, **S2**) |
+| Keyboard — `input.keyboard`, `input.shortcuts` | partial | Typed layout selector, save/discard and CLI parity implemented for system defaults. Model/repeat/Num Lock/test, layout switching and conflict-safe shortcut capture (**S1**, **S2**) |
 | Sound — `audio.playback`, `audio.recording`, `audio.streams` | WIP | Real devices, formats/test, permissioned levels, stream inventory then advanced routing (**H2**) |
 | Display — `display.configuration`, `display.night-light` | WIP | Resolution/scaling/mode rollback first; supported orientation/refresh/brightness/tearing, then global temperature transform/schedule (**D2**, **S3**) |
 | Accessibility — `input.accessibility` | WIP | Baseline keyboard/contrast/text in U1; specialized features need scoped implementation (**H3**) |
@@ -161,7 +164,7 @@ The M0–M10 names in that guide are Meridian phases, not separate project miles
 | Apps/windows — `windows.notifications`, `windows.behavior`, `windows.switcher`, `windows.desktops` | WIP | DND/popups; focus/titlebar/snap; switcher sorting/filters; desktop names/order (**W1**) |
 | Workspace — `workspace.behavior`, `workspace.search` | WIP | Shared click/scroll/paste/drag policies, OSD and runner providers; bounded authorized file indexing separate from working settings search (**S2**, **W1**, **S5**) |
 | Security — `security.locking` | WIP | Actual lock/idle/grace with administrative auto-login policy (**W3**) |
-| Locale/time — `locale.region`, `locale.time`, `locale.day-night` | WIP | Per-field language/number/currency/address/phone/measurement/SI-IEC formats; clock/timezone/sync policy and one day/night schedule (**S1**, **S3**) |
+| Locale/time — `locale.region`, `locale.time`, `locale.day-night` | partial | Typed system-default time-zone selector implemented. Remaining: Per-field language/number/currency/address/phone/measurement/SI-IEC formats; clock/timezone/sync policy and one day/night schedule (**S1**, **S3**) |
 | About — `system.about` | partial | Runtime/boot/display/clock metadata works; real running/installed versions and hardware inventory (**U5**, **S1**, **H1**) |
 | System — `system.power`, `system.users`, `system.autostart`, `system.session` | WIP | Safe dim/suspend, guarded account lifecycle/password flows, autostart, confirmation/session restore (**W3**, **H3**) |
 
