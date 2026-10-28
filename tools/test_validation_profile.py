@@ -11,7 +11,7 @@ spec=importlib.util.spec_from_file_location('profile',ROOT/'deploy/distributor/v
 profile=importlib.util.module_from_spec(spec);spec.loader.exec_module(profile)
 
 class ProfileTests(unittest.TestCase):
-    def machine(self,outcome):
+    def machine(self,outcome,harness=None):
         temporary=tempfile.TemporaryDirectory();self.addCleanup(temporary.cleanup)
         directory=Path(temporary.name)
         class Machine:
@@ -20,7 +20,7 @@ class ProfileTests(unittest.TestCase):
             def wait(self,marker,offset=0,timeout=180):
                 if isinstance(outcome,Exception):raise outcome
                 return outcome
-        profile.install(Machine);return Machine()
+        profile.install(Machine,harness=harness);return Machine()
 
     def test_result_and_original_arguments_remain_unchanged_without_private_marker_output(self):
         m=self.machine(True)
@@ -36,6 +36,16 @@ class ProfileTests(unittest.TestCase):
             self.assertFalse(m.wait('user: K_INSTALL=',0,600))
         row=json.loads((m.directory/'wait-times.jsonl').read_text())
         self.assertEqual(('K_INSTALL','failed'),(row['label'],row['outcome']))
+
+    def test_settings_command_timeout_captures_without_replaying_input(self):
+        failed=self.machine(False,harness='native-settings-smoke.py')
+        with patch.object(profile.diagnostics,'capture',return_value=failed.directory/'pipeline-stall.json') as capture:
+            self.assertFalse(failed.wait('user: S_LEVEL=0'))
+        self.assertEqual('MERIDIAN_INPUT',capture.call_args.args[1])
+        self.assertEqual(failed.directory.parent,capture.call_args.args[0].directory)
+        row=json.loads((failed.directory/'wait-times.jsonl').read_text())
+        self.assertEqual('failed',row['outcome']);self.assertEqual('S_LEVEL',row['label'])
+        self.assertNotIn('private',json.dumps(row))
 
     def test_pipeline_snapshot_is_failure_only_and_cannot_change_acceptance(self):
         failed=self.machine(False)

@@ -64,7 +64,7 @@ def run_harness(script):
             status.install(module.Machine)
             authentication.install(module.Machine)
             if script.name == 'native-graphics-smoke.py': input_profile.install(module.Machine)
-            profile.install(module.Machine, elf=module.ROOT / 'output-x64/Zenith.elf' if hasattr(module, 'ROOT') else None)
+            profile.install(module.Machine, elf=module.ROOT / 'output-x64/Zenith.elf' if hasattr(module, 'ROOT') else None, harness=script.name)
     importlib.machinery.SourceFileLoader.exec_module = execute
     if script.name == 'native-graphics-smoke.py' and 'recovery_console' in sys.modules:
         input_profile.install_monitor(sys.modules['recovery_console'])

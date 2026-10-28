@@ -62,7 +62,7 @@ def resources(machine):
     except (OSError, AttributeError, ValueError, KeyError, IndexError): return {}
 
 
-def install(machine_type, elf=None):
+def install(machine_type, elf=None, harness=None):
     original_wait = machine_type.wait
     def wait(machine, marker, offset=0, timeout=180):
         # Minimal synthetic helpers in controller tests have no VM directory.
@@ -90,9 +90,17 @@ def install(machine_type, elf=None):
             if outcome == 'failed' and isinstance(failure, dict):
                 row['failure'] = failure
             after = resources(machine)
-            if outcome == 'failed' and diagnostics.PIPELINE.fullmatch(row['label']):
+            if outcome == 'failed' and (diagnostics.PIPELINE.fullmatch(row['label']) or harness == 'native-settings-smoke.py'):
                 try:
-                    snapshot = diagnostics.capture(machine, row['label'], elf)
+                    if harness == 'native-settings-smoke.py':
+                        from types import SimpleNamespace
+                        keep=machine.directory.parent
+                        snapshot=diagnostics.capture(SimpleNamespace(directory=keep),'MERIDIAN_INPUT',elf)
+                        spec=importlib.util.spec_from_file_location('wait_failure_input',Path(__file__).with_name('validation-input.py'))
+                        input_policy=importlib.util.module_from_spec(spec);spec.loader.exec_module(input_policy)
+                        try:input_policy.RenderedMouse(keep/'monitor.sock',input_policy.monitor_text).capture(keep/'wait-failure.ppm')
+                        except (OSError,RuntimeError,ValueError):pass
+                    else:snapshot = diagnostics.capture(machine, row['label'], elf)
                     if snapshot is not None: row['stall_snapshot'] = str(snapshot)
                 except Exception:
                     # A diagnostic failure must preserve the original failed gate.
