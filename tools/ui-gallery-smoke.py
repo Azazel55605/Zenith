@@ -113,10 +113,10 @@ def main():
         assert m.wait('user: UI_CHANGED',change,10),'keyboard activation'
         frame('light',background('fafafb'));print('PASS keyboard light mode',flush=True)
         # Click Teal through actual compositor input; observe both log and accent pixels.
-        (cx,cy),_=observer.position();monitor_command(monitor,f'mouse_move {x+524-cx} {y+208-cy}')
+        (cx,cy),_=observer.position();monitor_command(monitor,f'mouse_move {x+260-cx} {y+208-cy}')
         change=len(m.log());monitor_command(monitor,'mouse_button 1');monitor_command(monitor,'mouse_button 0')
         assert m.wait('user: UI_CHANGED',change,10),'pointer activation'
-        frame('teal',lambda w,h,rgb:color_at(rgb,w,x+524,y+194)==bytes.fromhex('197571'))
+        frame('teal',lambda w,h,rgb:color_at(rgb,w,x+260,y+206)==bytes.fromhex('197571'))
         print('PASS pointer accent choice',flush=True)
         # Disabled effects must neither activate nor change the selected appearance.
         (cx,cy),_=observer.position();monitor_command(monitor,f'mouse_move {x+300-cx} {y+294-cy}')

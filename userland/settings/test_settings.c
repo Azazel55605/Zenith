@@ -19,7 +19,7 @@ static void event(int type,int code,int x,int y,int extra){
     if(app.ui.dirty)settings_draw(&app);
 }
 static void click(int x,int y){event(Z_GUI_DOWN,1,x,y,0);event(Z_GUI_UP,1,x,y,0);}
-int main(void){
+int main(int argc,char **argv){
     struct zui ui;assert(zui_init(&ui,pixels,600,480));
     for(int m=0;m<2;m++)for(int a=0;a<6;a++){
         zui_appearance(&ui,m,a);memcpy(state.palette[m][a],&ui.theme,sizeof(ui.theme));
@@ -36,11 +36,25 @@ int main(void){
     failure=0;click(70,438);assert(app.edited&&strstr(app.message,"Changed elsewhere"));
     click(230,438);assert(app.prompt==2);click(230,438);assert(!app.prompt&&!app.edited&&!guarded&&app.mode==0);
     click(200,120);click(70,438);assert(!app.edited&&!guarded&&state.mode==1);
-    click(530,202);assert(app.edited&&app.accent==5);
+    click(260,202);assert(app.edited&&app.accent==5);
     event(Z_GUI_KEY,0,0,0,1);assert(app.prompt==1&&!app.closing);
     click(230,438);assert(app.closing&&!guarded&&state.accent==0);
     state.flags=1;assert(settings_init(&app,pixels,backend));settings_draw(&app);
     event(Z_GUI_FOCUS,1,0,0,0);click(70,120);assert(!app.edited); // Read-only users cannot edit.
+    state.mode=0;state.palette[0][3][6]=0x987654;
+    assert(settings_init(&app,pixels,backend));
+    assert(zui_accent_color(&app.ui,3)==0x987654); /* package-provided swatches */
+    struct zui original;assert(zui_init(&original,pixels,600,480));zui_appearance(&original,0,3);
+    state.palette[0][3][6]=original.theme.accent;
+    if(argc==2){
+        for(int mode=0;mode<2;mode++)for(int accent=0;accent<6;accent++){
+            state.mode=mode;state.accent=accent;state.flags=3;
+            assert(settings_init(&app,pixels,backend));settings_draw(&app);
+            char path[4096];snprintf(path,sizeof(path),"%s/appearance-%d-%d.ppm",argv[1],mode,accent);
+            FILE *f=fopen(path,"wb");assert(f);fprintf(f,"P6\n600 480\n255\n");
+            for(int i=0;i<600*480;i++){unsigned char b[]={pixels[i]>>16,pixels[i]>>8,pixels[i]};assert(fwrite(b,1,3,f)==3);}assert(!fclose(f));
+        }
+    }
     puts("PASS Settings save failure, stale edits, explicit reload/discard, chrome intent and readonly controls");
     return 0;
 }

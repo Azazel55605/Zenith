@@ -31,7 +31,8 @@ not indiscriminately journalled. Session stop revokes surfaces and invocations.
 
 ## D1–D3 / S1–S5 — Shared presentation and Settings
 
-- [ ] D1: match accepted controls/density/typography/chrome before further app ports;
+- [x] D1: current native controls match accepted segments/swatches/rows/navigation
+  and host chrome locally; Q2 owns installed confirmation, U1/D2 richer widgets/hover/text/scale;
   preserve [material roles](../DESIGN-LANGUAGE.md#materials-and-optional-effects).
 - [ ] D2: real display modes, scaling and crash-safe Keep/Revert.
 - [ ] S1: per-user/system defaults, typed existing settings and CLI/GUI parity.

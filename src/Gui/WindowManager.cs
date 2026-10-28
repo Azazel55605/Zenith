@@ -355,6 +355,8 @@ internal sealed class WindowManager
 
         // Title bar: title on the left, minimize / maximize / close on the right.
         Rect title = w.TitleBar;
+        surface.FillRoundRect(title, radius, Theme.Panel);
+        surface.FillRect(new Rect(title.X, title.Bottom - radius, title.W, radius), Theme.Panel);
         surface.FillRect(new Rect(b.X, title.Bottom - 1, b.W, 1), Theme.TitleDivider);
         surface.Clip = new Rect(title.X + 14, title.Y, w.MinimizeButton.X - title.X - 20, title.H);
         surface.DrawTextCentered(w.Title, Fonts.SemiBold, Theme.TextTitle,
@@ -413,7 +415,11 @@ internal sealed class WindowManager
                 surface.FillRect(new Rect(cx + 5, cy - 6, 1, 8), color);
                 break;
             default:
-                surface.DrawTextCentered("×", Fonts.Regular, 18, color, r, true);
+                for (int i = -4; i <= 4; i++)
+                {
+                    surface.FillRect(new Rect(cx + i, cy + i, 1, 1), color);
+                    surface.FillRect(new Rect(cx + i, cy - i, 1, 1), color);
+                }
                 break;
         }
     }

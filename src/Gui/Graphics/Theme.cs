@@ -32,8 +32,8 @@ internal static class Theme
     public static uint TextMuted => s_colors["TextMuted"];
 
     // Shape
-    public const int WindowRadius = 10;
-    public const int ControlRadius = 6;
+    public const int WindowRadius = 12;
+    public const int ControlRadius = 8;
     public const int ShadowSize = 20;
     public const int ShadowAlpha = 90;
 

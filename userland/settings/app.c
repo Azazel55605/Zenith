@@ -9,6 +9,7 @@ static int valid(const struct zenith_appearance *s){
 static void palette(struct settings_app *a){
     if(a->have_state){
         const unsigned int *p=a->state.palette[a->mode][a->accent];
+        for(int i=0;i<6;i++)a->ui.swatches[i]=a->state.palette[a->mode][i][6];
         a->ui.theme=(struct zui_theme){p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]};
     }
     a->ui.dirty=1;
@@ -26,15 +27,17 @@ int settings_init(struct settings_app *a,unsigned int *pixels,struct settings_ba
     if(!backend.read||!backend.save||!backend.dirty||!zui_init(&a->ui,pixels,600,480))return 0;
     settings_refresh(a);
     if(!a->have_state)return 0;
-    zui_add(&a->ui,1,ZUI_CHOICE,(struct zui_rect){24,104,112,36},"Dark",0,1);
-    zui_add(&a->ui,2,ZUI_CHOICE,(struct zui_rect){148,104,112,36},"Light",0,1);
+    zui_add(&a->ui,1,ZUI_SEGMENT,(struct zui_rect){28,108,136,28},"Dark",0,1);
+    zui_add(&a->ui,2,ZUI_SEGMENT,(struct zui_rect){164,108,136,28},"Light",0,1);
     const char *names[]={"Blue","Violet","Rose","Amber","Green","Teal"};
-    for(int i=0;i<6;i++)zui_add(&a->ui,10+i,ZUI_CHOICE,(struct zui_rect){24+i*92,184,80,36},names[i],0,1);
+    for(int i=0;i<6;i++)zui_add_swatch(&a->ui,10+i,(struct zui_rect){24+i*44,184,32,32},names[i],i,0,1);
     zui_add(&a->ui,30,ZUI_BUTTON,(struct zui_rect){24,420,148,36},"Save changes",0,1);
     zui_add(&a->ui,31,ZUI_BUTTON,(struct zui_rect){188,420,112,36},"Reload",0,1);
     zui_add(&a->ui,40,ZUI_BUTTON,(struct zui_rect){316,420,112,36},"Close",0,1);
     zui_add(&a->ui,90,ZUI_BUTTON,(struct zui_rect){24,420,148,36},"Keep editing",0,0);
     zui_add(&a->ui,91,ZUI_BUTTON,(struct zui_rect){188,420,180,36},"Discard changes",0,0);
+    zui_add(&a->ui,50,ZUI_TOGGLE,(struct zui_rect){24,242,552,26},"Transparent surfaces",0,0);
+    zui_add(&a->ui,51,ZUI_TOGGLE,(struct zui_rect){24,292,552,26},"Backdrop blur",0,0);
     return 1;
 }
 void settings_draw(struct settings_app *a){
@@ -43,15 +46,15 @@ void settings_draw(struct settings_app *a){
     text(a,24,51,"System-wide settings. Preview changes before saving.",&zui_body,u->theme.secondary);
     text(a,24,79,"Color mode",&zui_label,u->theme.text);
     text(a,24,157,"Accent color",&zui_label,u->theme.text);
-    text(a,24,244,"Transparency and blur",&zui_label,u->theme.text);
-    text(a,24,269,"Unavailable until the compositor supports these effects.",&zui_body,u->theme.secondary);
+    zui_setting_row(u,(struct zui_rect){24,244,490,45},"","Let selected surfaces reveal the background.");
+    zui_setting_row(u,(struct zui_rect){24,294,490,45},"","Unavailable: requires transparency and compositor support.");
     const char *scope=!(a->state.flags&Z_SETTINGS_WRITABLE)?"Read only: sign in as an administrator to save.":
         a->state.flags&Z_SETTINGS_PERSISTENT?"Installed system: saved changes survive reboot.":"Live system: changes will be lost at reboot.";
-    text(a,24,306,scope,&zui_caption,u->theme.secondary);
+    text(a,24,347,scope,&zui_caption,u->theme.secondary);
     const char *status=a->edited?"Unsaved changes - showing your preview.":
         a->state.flags&Z_SETTINGS_PENDING?"Saved. Waiting for the desktop or next login to apply.":"Saved appearance is active.";
-    text(a,24,332,status,&zui_body,u->theme.text);
-    if(a->message)text(a,24,360,a->message,&zui_caption,u->theme.secondary);
+    text(a,24,368,status,&zui_body,u->theme.text);
+    if(a->message&&!a->prompt)text(a,24,390,a->message,&zui_caption,u->theme.secondary);
     if(a->prompt)text(a,24,389,a->prompt==1?"Discard unsaved changes and close?":a->prompt==3?"Discard changes and return to settings?":"Discard unsaved changes and reload?",&zui_label,u->theme.text);
     for(int i=0;i<13;i++){
         struct zui_control *c=&u->controls[i];
@@ -59,6 +62,9 @@ void settings_draw(struct settings_app *a){
         if(c->id<30){c->enabled=c->enabled&&!!(a->state.flags&Z_SETTINGS_WRITABLE);c->value=c->id<10?c->id==(int)a->mode+1:c->id==(int)a->accent+10;}
         if(c->id==30){c->enabled=c->enabled&&a->edited&&!!(a->state.flags&Z_SETTINGS_WRITABLE);c->value=1;}
     }
+    zui_swatch_caption(u,24,224);
+    zui_segment_track(u,(struct zui_rect){24,104,280,36});
+    if(!a->prompt)zui_draw_range(u,13,2);
     zui_draw_range(u,a->prompt?11:0,a->prompt?2:11);
     u->dirty=0;
 }

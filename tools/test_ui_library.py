@@ -3,6 +3,8 @@
 from pathlib import Path
 import subprocess
 import tempfile
+import os
+import shutil
 import unittest
 import importlib.util
 ROOT = Path(__file__).resolve().parents[1]
@@ -47,7 +49,7 @@ class UiLibraryTests(unittest.TestCase):
                             '-I'+str(ROOT/'userland/ui'),str(ROOT/'userland/settings/test_settings.c'),
                             str(ROOT/'userland/settings/app.c'),str(ROOT/'userland/ui/ui.c'),
                             str(atlas),'-o',str(settings_exe)],check=True)
-            subprocess.run([str(settings_exe)],check=True,timeout=30)
+            subprocess.run([str(settings_exe), directory],check=True,timeout=30)
             pages_spec=importlib.util.spec_from_file_location('meridian_pages', ROOT/'tools/build-meridian-pages.py')
             pages_module=importlib.util.module_from_spec(pages_spec)
             pages_spec.loader.exec_module(pages_module)
@@ -60,6 +62,10 @@ class UiLibraryTests(unittest.TestCase):
                             str(ROOT/'userland/ui/text.c'),str(ROOT/'userland/ui/ui.c'),
                             str(pages),str(atlas),'-o',str(meridian_exe)],check=True)
             subprocess.run([str(meridian_exe),directory],check=True,timeout=30)
+            evidence=os.environ.get('ZENITH_UI_EVIDENCE_DIR')
+            if evidence:
+                target=Path(evidence);target.mkdir(parents=True,exist_ok=True)
+                for source in dest.glob('*.ppm'):shutil.copyfile(source,target/source.name)
             for name in ('dark', 'light'):
                 self.assertTrue((dest/(name+'.ppm')).read_bytes().startswith(b'P6\n600 440\n255\n'))
 

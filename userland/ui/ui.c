@@ -22,6 +22,7 @@ void zui_appearance(struct zui *u,int light,int accent){
     light=!!light;if(accent<0||accent>5)accent=0;
     u->theme=light?(struct zui_theme){0xfafafb,0xffffff,0xeff0f3,0xcfd1d8,0x202126,0x5c606b,accents[1][accent],0xffffff}:
         (struct zui_theme){0x202125,0x2a2c31,0x25262b,0x45474f,0xf1f2f4,0xb4b7c0,accents[0][accent],0x202125};
+    for(int i=0;i<6;i++)u->swatches[i]=accents[light][i];
     u->dirty=1;
 }
 void zui_clip(struct zui *u,struct zui_rect r){u->clip=intersect(r,(struct zui_rect){0,0,u->width,u->height});}
@@ -94,10 +95,15 @@ void zui_text(struct zui *u,int x,int y,const char *s,unsigned long n,const stru
     }
 }
 int zui_add(struct zui *u,int id,int kind,struct zui_rect r,const char *label,int value,int enabled){
-    if(u->count>=ZUI_MAX_CONTROLS||id<=0||kind<1||kind>3||!label||r.w<1||r.h<1||r.x<0||r.y<0||
+    if(u->count>=ZUI_MAX_CONTROLS||id<=0||kind<1||kind>ZUI_NAVIGATION||!label||r.w<1||r.h<1||r.x<0||r.y<0||
        (long)r.x+r.w>u->width||(long)r.y+r.h>u->height)return 0;
     for(int i=0;i<u->count;i++)if(u->controls[i].id==id)return 0;
-    u->controls[u->count++]=(struct zui_control){id,kind,!!enabled,!!value,r,label};u->dirty=1;return 1;
+    u->controls[u->count++]=(struct zui_control){id,kind,!!enabled,!!value,0,r,label};u->dirty=1;return 1;
+}
+int zui_add_swatch(struct zui *u,int id,struct zui_rect r,const char *label,int accent,int selected,int enabled){
+    if(accent<0||accent>5||r.w!=r.h||r.w<24||r.w>48)return 0;
+    if(!zui_add(u,id,ZUI_SWATCH,r,label,selected,enabled))return 0;
+    u->controls[u->count-1].swatch=accent;return 1;
 }
 static int hit(struct zui_rect r,int x,int y){return x>=r.x&&y>=r.y&&x-r.x<r.w&&y-r.y<r.h;}
 int zui_event(struct zui *u,const struct zenith_gui_event *e){
@@ -112,6 +118,16 @@ int zui_event(struct zui *u,const struct zenith_gui_event *e){
             if(u->controls[cursor].enabled){found=cursor;break;}
         }
         u->focus=found;u->dirty=1;return 0;
+    }
+    if(e->type==Z_GUI_KEY&&!(e->modifiers&7)&&(e->extra==5||e->extra==6)&&u->focus>=0&&u->focus<u->count){
+        int kind=u->controls[u->focus].kind;
+        if(kind==ZUI_SEGMENT||kind==ZUI_SWATCH){
+            int step=e->extra==5?-1:1,at=u->focus;
+            for(int k=0;k<u->count;k++){
+                at=(at+step+u->count)%u->count;
+                if(u->controls[at].kind==kind&&u->controls[at].enabled){u->focus=at;u->dirty=1;return u->controls[at].id;}
+            }
+        }
     }
     if(e->type==Z_GUI_KEY&&!(e->modifiers&6)&&(e->extra==2||e->code==' ')&&u->focus>=0){
         struct zui_control *c=&u->controls[u->focus];return c->enabled?c->id:0;
@@ -130,31 +146,83 @@ int zui_event(struct zui *u,const struct zenith_gui_event *e){
     return 0;
 }
 static unsigned long length(const char *s){unsigned long n=0;while(n<256&&s[n])n++;return n;}
+unsigned int zui_accent_color(const struct zui *u,int index){
+    return u->swatches[index>=0&&index<6?index:0];
+}
+void zui_swatch_caption(struct zui *u,int x,int y){
+    const char *label=0;
+    for(int i=0;i<u->count;i++)if(u->controls[i].kind==ZUI_SWATCH&&u->controls[i].value)label=u->controls[i].label;
+    if(u->window_focused&&u->focus>=0&&u->focus<u->count&&u->controls[u->focus].kind==ZUI_SWATCH)label=u->controls[u->focus].label;
+    if(label)zui_text(u,x,y,label,length(label),&zui_caption,u->theme.secondary);
+}
+void zui_segment_track(struct zui *u,struct zui_rect r){zui_surface(u,r,8,ZUI_SURFACE_NAVIGATION);}
+void zui_setting_row(struct zui *u,struct zui_rect r,const char *label,const char *help){
+    struct zui_rect saved=u->clip;zui_clip(u,intersect(saved,r));
+    if(!u->clip.w||!u->clip.h){u->clip=saved;return;}
+    zui_text(u,r.x,r.y,label,length(label),&zui_label,u->theme.text);
+    if(help)zui_text(u,r.x,r.y+24,help,length(help),&zui_caption,u->theme.secondary);
+    u->clip=saved;
+}
+/* One bounded outline family; checks and chevrons do not depend on Unicode glyphs. */
+static void check(struct zui *u,int x,int y,unsigned int c){
+    for(int i=0;i<5;i++)zui_fill(u,(struct zui_rect){x+i,y+i,2,2},c);
+    for(int i=0;i<9;i++)zui_fill(u,(struct zui_rect){x+4+i,y+4-i,2,2},c);
+}
 void zui_draw_range(struct zui *u,int first,int count){
     struct zui_rect saved=u->clip;
     if(first<0||count<0||first>u->count||count>u->count-first)return;
     for(int i=first;i<first+count;i++){
         struct zui_control *c=&u->controls[i];struct zui_rect r=c->rect;
-        unsigned int fill=c->value?u->theme.accent:u->theme.raised;
-        unsigned int fg=c->value?u->theme.on_accent:u->theme.text;
+        int selected=c->value,pressed=u->pressed==i;
+        unsigned int fill=selected?u->theme.accent:u->theme.raised;
+        unsigned int fg=selected?u->theme.on_accent:u->theme.text;
         if(!c->enabled){fill=u->theme.subtle;fg=u->theme.secondary;}
+        int radius=c->kind==ZUI_SWATCH?r.w/2:8;
         if(u->window_focused&&u->focus==i&&c->enabled){
-            zui_round(u,(struct zui_rect){r.x-3,r.y-3,r.w+6,r.h+6},10,u->theme.accent);
-            zui_round(u,(struct zui_rect){r.x-2,r.y-2,r.w+4,r.h+4},9,u->theme.surface);
+            zui_round(u,(struct zui_rect){r.x-3,r.y-3,r.w+6,r.h+6},radius+3,u->theme.accent);
+            zui_round(u,(struct zui_rect){r.x-2,r.y-2,r.w+4,r.h+4},radius+2,u->theme.surface);
         }
-        zui_round(u,r,8,u->theme.border);
-        zui_round(u,(struct zui_rect){r.x+1,r.y+1,r.w-2,r.h-2},7,u->pressed==i?u->theme.subtle:fill);
-        if(u->pressed==i)fg=u->theme.text;
+        if(c->kind==ZUI_SWATCH){
+            unsigned int color=zui_accent_color(u,c->swatch);
+            if(!c->enabled)color=blend(u->theme.surface,color,100);
+            zui_round(u,r,radius,pressed?blend(color,u->theme.text,40):color);
+            if(selected)check(u,r.x+(r.w-14)/2,r.y+r.h/2,u->theme.on_accent);
+            continue;
+        }
+        if(c->kind==ZUI_SEGMENT){
+            fill=selected?u->theme.raised:u->theme.subtle;fg=c->enabled?u->theme.text:u->theme.secondary;
+            if(selected){zui_round(u,r,6,u->theme.border);zui_round(u,(struct zui_rect){r.x+1,r.y+1,r.w-2,r.h-2},5,fill);}
+            else zui_round(u,r,6,pressed?u->theme.raised:fill);
+        }else if(c->kind==ZUI_NAVIGATION){
+            fill=selected?blend(u->theme.subtle,u->theme.accent,32):u->theme.subtle;
+            if(selected||pressed)zui_round(u,r,6,pressed?u->theme.raised:fill);
+            fg=c->enabled?u->theme.text:u->theme.secondary;
+            if(selected)zui_round(u,(struct zui_rect){r.x+1,r.y+7,3,r.h-14},1,u->theme.accent);
+        }else if(c->kind==ZUI_TOGGLE){
+            /* A settings row, not a selected accent-filled button. */
+            fg=c->enabled?u->theme.text:u->theme.secondary;
+            int x=r.x+r.w-48,y=r.y+(r.h-26)/2;
+            zui_round(u,(struct zui_rect){x,y,48,26},13,selected&&c->enabled?u->theme.accent:u->theme.border);
+            zui_round(u,(struct zui_rect){x+4+(selected?22:0),y+4,18,18},9,selected&&c->enabled?u->theme.on_accent:u->theme.raised);
+        }else{
+            zui_round(u,r,8,c->enabled?u->theme.border:u->theme.subtle);
+            zui_round(u,(struct zui_rect){r.x+1,r.y+1,r.w-2,r.h-2},7,pressed?u->theme.subtle:fill);
+            if(pressed)fg=u->theme.text;
+        }
         zui_clip(u,intersect(saved,r));
-        int tx=r.x+12;
-        if(c->kind==ZUI_TOGGLE){
-            zui_round(u,(struct zui_rect){r.x+r.w-48,r.y+(r.h-24)/2,40,24},12,c->value?u->theme.on_accent:u->theme.secondary);
-            zui_round(u,(struct zui_rect){r.x+r.w-46+(c->value?16:0),r.y+(r.h-20)/2,20,20},10,fill);
-            u->clip=intersect(u->clip,(struct zui_rect){r.x,r.y,r.w-56,r.h});
-        }else tx=r.x+(r.w-zui_measure(c->label,length(c->label),&zui_label))/2;
+        int tx=r.x+(r.w-zui_measure(c->label,length(c->label),&zui_label))/2;
+        if(c->kind==ZUI_TOGGLE||c->kind==ZUI_NAVIGATION){
+            tx=r.x+(c->kind==ZUI_NAVIGATION?12:0);
+            u->clip=intersect(u->clip,(struct zui_rect){r.x,r.y,r.w-(c->kind==ZUI_TOGGLE?60:24),r.h});
+        }
         zui_text(u,tx,r.y+(r.h-zui_label.height)/2,c->label,length(c->label),&zui_label,fg);
         u->clip=saved;
+        if(c->kind==ZUI_NAVIGATION){
+            for(int k=0;k<5;k++){
+                zui_fill(u,(struct zui_rect){r.x+r.w-16+k,r.y+r.h/2-4+k,1,1},u->theme.secondary);
+                zui_fill(u,(struct zui_rect){r.x+r.w-16+k,r.y+r.h/2+4-k,1,1},u->theme.secondary);
+            }
+        }
     }
 }
-
 void zui_draw_controls(struct zui *u){zui_draw_range(u,0,u->count);}

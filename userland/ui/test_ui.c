@@ -48,10 +48,19 @@ int main(int argc,char **argv){
     FILE *palette=fopen(palette_path,"w");assert(palette);
     for(int mode=0;mode<2;mode++)for(int accent=0;accent<6;accent++){
         zui_appearance(&g.ui,mode,accent);struct zui_theme t=g.ui.theme;
+        g.light=mode;g.accent=accent;g.ui.controls[0].value=!mode;g.ui.controls[1].value=mode;
+        for(int i=0;i<6;i++)g.ui.controls[i+2].value=i==accent;
+        gallery_draw(&g);char name[64];snprintf(name,sizeof(name),"gallery-%d-%d",mode,accent);image(argv[1],name);
+        /* Compact color targets keep a readable name and a geometric selection
+         * check; they cannot silently resolve to the currently selected color. */
+        assert(g.ui.pixels[206*600+40]==zui_accent_color(&g.ui,0)||accent==0);
+        assert(g.ui.pixels[193*600+24]==g.ui.theme.surface); /* circular corner */
         fprintf(palette,"%d %d %06x %06x %06x %06x %06x %06x %06x\n",mode,accent,
             t.surface,t.raised,t.subtle,t.text,t.secondary,t.accent,t.on_accent);
     }
-    assert(fclose(palette)==0);zui_appearance(&g.ui,0,0);
+    assert(fclose(palette)==0);g.light=0;g.accent=0;zui_appearance(&g.ui,0,0);
+    g.ui.controls[0].value=1;g.ui.controls[1].value=0;
+    for(int i=0;i<6;i++)g.ui.controls[i+2].value=i==0;
     gallery_draw(&g);image(argv[1],"dark");
     assert(g.ui.count==10&&g.ui.focus==-1&&!g.ui.dirty);
     assert(!event(Z_GUI_KEY,0,0,0,0,4));assert(g.ui.focus==-1); /* no unfocused input */
@@ -61,10 +70,15 @@ int main(int argc,char **argv){
     assert(event(Z_GUI_KEY,0,0,0,0,2)==2&&g.light);
     gallery_draw(&g);image(argv[1],"light");
     for(int i=0;i<6;i++){
-        event(Z_GUI_DOWN,1,30+i*92,205,0,0);
-        assert(event(Z_GUI_UP,1,30+i*92,205,0,0)==10+i&&g.accent==i);
+        event(Z_GUI_DOWN,1,40+i*44,205,0,0);
+        assert(event(Z_GUI_UP,1,40+i*44,205,0,0)==10+i&&g.accent==i);
         assert(g.ui.controls[i+2].value);
     }
+    /* Arrow keys traverse choices without altering unrelated controls; focused
+     * swatches retain a textual label and unavailable effects never activate. */
+    assert(event(Z_GUI_KEY,0,0,0,0,5)==14&&g.accent==4);
+    assert(event(Z_GUI_KEY,0,0,0,0,6)==15&&g.accent==5);
+    gallery_draw(&g);image(argv[1],"focused");
     /* Tab skips unavailable controls, wraps; Shift+Tab reverses. */
     event(Z_GUI_KEY,0,0,0,0,4);assert(g.ui.focus==0);
     event(Z_GUI_KEY,0,0,0,1,4);assert(g.ui.focus==7);

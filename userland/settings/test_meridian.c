@@ -20,13 +20,13 @@ int main(int argc,char **argv){
     struct zenith_gui_event e={Z_GUI_FOCUS,1,0,0,0,0};meridian_event(&app,&e);meridian_draw(&app);
     for(int i=0;i<43;i++){assert(meridian_open(&app,meridian_pages[i].id));meridian_draw(&app);assert(app.page==i);assert(meridian_ui(&app)->count<=32);}
     assert(saves==0&&!dirty);assert(!meridian_open(&app,"missing.page"));
-    assert(meridian_open(&app,"style.colors"));meridian_draw(&app);click(160,120);assert(app.colors.edited&&dirty);
+    assert(meridian_open(&app,"style.colors"));meridian_draw(&app);click(200,120);assert(app.colors.edited&&dirty);
     click(500,28);assert(app.colors.prompt==3&&app.page==16);click(60,436);assert(app.colors.edited&&!app.colors.prompt);
     click(500,28);click(210,436);assert(app.page==-1&&!app.colors.edited&&!dirty&&saves==0);
     key('f',0,2);for(const char *p="bluetooth";*p;p++)key(*p,0,0);
     assert(app.match_count==1);assert(strcmp(meridian_pages[app.matches[0]].id,"devices.bluetooth")==0);
     key(0,2,0);click(300,130);assert(strcmp(meridian_pages[app.page].id,"devices.bluetooth")==0);
-    assert(meridian_open(&app,"style.colors"));meridian_draw(&app);click(160,120);click(70,435);assert(saves==1&&!dirty);
+    assert(meridian_open(&app,"style.colors"));meridian_draw(&app);click(200,120);click(70,435);assert(saves==1&&!dirty);
     key('f',0,2);click(500,76);click(110,154);assert(app.category==1&&app.match_count==5);
     click(300,130);assert(app.group==0&&app.match_count==2);
     click(300,174);assert(strcmp(meridian_pages[app.page].id,"input.touchpad")==0);

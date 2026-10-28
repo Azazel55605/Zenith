@@ -129,18 +129,21 @@ def main():
                 time.sleep(.05)
         geometry=[]
         def locate(w,height,rgb):
-            # Chrome shares the surface color and clips rounded bottom corners.
-            # Locate the selected Light button inside a fully rendered client body.
-            color=bytes.fromhex('f6f7f9');selected=bytes.fromhex('197571')
-            if sum(rgb[i:i+3]==color for i in range(0,len(rgb),3))<200000:return False
-            needle=selected*110
+            # Anchor on the compact Blue circle's first full-width scanline,
+            # then verify the other five swatches and the client background.
+            # Mode selection is deliberately neutral in the accepted design.
+            color=bytes.fromhex('f6f7f9');blue=bytes.fromhex('3157b7')
+            needle=blue*32
+            colors=('3157b7','7042be','ae325d','886010','277347','197571')
             for row_y in range(height):
                 row=rgb[row_y*w*3:(row_y+1)*w*3];i=row.find(needle)
-                if i<3 or i%3 or row[i-3:i]==selected or row[i+330:i+333]==selected:continue
-                left,top=i//3-149,row_y-108
-                if top<0:continue
-                sample=((top+2)*w+left+2)*3
-                if rgb[sample:sample+3]==color:geometry[:]=[left,top];return True
+                if i<0 or i%3:continue
+                left,top=i//3-24,row_y-194
+                if left<0 or top<0 or left+600>w or top+480>height:continue
+                def pixel(x,y):
+                    at=((top+y)*w+left+x)*3;return rgb[at:at+3]
+                if pixel(2,2)==color and all(pixel(40+44*j,192)==bytes.fromhex(c) for j,c in enumerate(colors)):
+                    geometry[:]=[left,top];return True
             return False
         frame('dark',locate);x,y=geometry
         def color_at(rgb,w,px,py):return rgb[(py*w+px)*3:(py*w+px)*3+3]
@@ -185,16 +188,15 @@ def main():
         off=len(m.log());monitor_command(monitor,'sendkey ret 30')
         assert m.wait('MERIDIAN_PAGE devices.bluetooth',off,10),'settings search did not open WIP destination'
         def wip_visible(w,h,rgb):
-            color=bytes.fromhex('25262b');needle=color*552
-            for y in range(h-56):
-                row=rgb[y*w*3:(y+1)*w*3];i=row.find(needle)
+            color=bytes.fromhex('2a2c31');needle=color*552
+            for row_y in range(4,h-52):
+                row=rgb[row_y*w*3:(row_y+1)*w*3];i=row.find(needle)
                 if i<0 or i%3:continue
-                x=i//3
-                # Both full-width edges and 56-pixel side edges distinguish the
-                # page banner from the same-color 36-pixel trusted title bar.
-                if rgb[((y+55)*w+x)*3:((y+55)*w+x+552)*3]!=needle:continue
-                if all(color_at(rgb,w,x,y+dy)==color and color_at(rgb,w,x+551,y+dy)==color for dy in range(56)):
-                    return True
+                x,y=i//3,row_y-4
+                # Rounded 552x56 semantic panel: full scanline begins four
+                # pixels below its top. Sample inset edges, outside the text.
+                if all(color_at(rgb,w,x+8,y+dy)==color and color_at(rgb,w,x+543,y+dy)==color for dy in range(56)):
+                    if color_at(rgb,w,x,y)!=color and color_at(rgb,w,x+551,y+55)!=color:return True
             return False
         frame('meridian-wip',wip_visible)
         off=len(m.log());monitor_command(monitor,'sendkey ctrl-q 30')

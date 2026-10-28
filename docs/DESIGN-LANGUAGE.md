@@ -2,7 +2,7 @@
 
 **Design baseline v0.1 accepted by the user on 2026-10-27.** This defines the
 shared visual and interaction language for widgets, Settings and the desktop.
-The palette/font foundation and selected controls exist. The full component geometry and materials are not yet at preview parity; see the explicit gap table below.
+The current native control set follows the accepted solid specimen: neutral segments, checked swatches, settings rows, navigation and aligned host chrome. Effects and the richer text/widget set remain separate capabilities; see the implementation table below.
 [Visual specimen](design/system-specimen.svg) · [Master work D1/D3](ROADMAP.md#core-delivery-work)
 
 ## Agreed direction
@@ -79,25 +79,28 @@ preserve the requested hue where possible while deriving legible text/focus/acti
 variants. Decide exact contrast adjustment and storage representation during token
 implementation; never silently make custom accent text unreadable.
 
-## Preview parity — current implementation is not the finished visual system
+## Preview parity — implementation and capability boundaries
 
-The accepted [specimen](design/system-specimen.svg) remains the target. The early
-native UI proved ownership, readable text and functional settings; it did **not**
-complete that specimen. Do not redefine the target to match temporary widgets.
+The accepted [specimen](design/system-specimen.svg) remains the target. The original
+native UI proved ownership and functional settings. The shared renderer now implements
+the specimen geometry for its current control set; do not redefine the target when
+adding richer widgets. Local qualification and installed acceptance are tracked by D1/Q2.
 
-| Element | Accepted target | Actual gap / D1 exit |
+| Element | Accepted target | Current implementation / remaining boundary |
 |---|---|---|
-| Mode choice | One grouped segmented selector, subtle track and selected segment | Currently two detached large choice buttons; replace in the shared toolkit |
-| Accents | Compact circular swatches with a non-color-only selection marker | Currently rectangular text choices; add swatch/check + keyboard labels |
-| Settings content | Aligned label/help/value rows, deliberate spacing and semantic sections | Current feature pages use coarse button lists/planned-option text; implement reusable rows/forms/cards |
-| Navigation | Calm sidebar/group hierarchy with restrained selected-row emphasis | Category/result buttons are a functional scaffold; shared navigation rows should replace app-specific button walls |
-| Chrome | Consistent window/panel radii and equal optically centered decoration slots | Host and native clients use different geometry/density; host retains ownership, align metrics centrally |
-| Text/icons | Inter hierarchy plus one outline icon family; real layout/scale | ASCII atlases/fixed sizes and few icon primitives are temporary; U1/D2 own text/scale coverage |
-| States | Clear focus, selected/disabled/error/busy without excess borders | Keep existing focus/permission/discard behavior while changing the shared presentation |
+| Mode choice | One grouped segmented selector, subtle track and selected segment | Shared 280×36 track, 136×28 inset segments, neutral selection; arrow and Tab/Enter selection |
+| Accents | Compact circular swatches with a non-color-only selection marker | 32px circular swatches on a 44px cadence, geometric check, focus ring and visible selected/focused color name; package palettes retained |
+| Settings content | Aligned label/help/value rows, deliberate spacing and semantic sections | Reusable label/help rows, independent 48×26 switches and rounded semantic panels; WIP page contents remain explicit plans, not pretend working controls |
+| Navigation | Calm sidebar/group hierarchy with restrained selected-row emphasis | Shared borderless rows, restrained selected indicator, outline chevrons and a separate navigation surface |
+| Chrome | Consistent window/panel radii and equal optically centered decoration slots | Host-owned 44px title bar, equal 36px decoration cadence, geometric centered icons, 12px window / 8px control radii |
+| Text/icons | Inter hierarchy plus one outline icon family; real layout/scale | Inter 24/14/12 hierarchy and shared geometric check/chevron/decoration family; broader icons, Unicode/shaping and scaling remain U1/D2 |
+| States | Clear focus, selected/disabled/error/busy without excess borders | Normal/selected/pressed/focused/disabled presentation preserves draft, permission and discard behavior. Hover needs an owned pointer-move/leave transport (U1); asynchronous busy/form errors accompany the corresponding real services |
 
-Close these at the **shared primitives/layout layer before further app migration**.
-Then update existing consumers once. This is current unfinished implementation,
-not a planned new visual identity or an excuse for a later per-app redesign.
+Shared primitives are consumed by Appearance, the gallery, Meridian navigation and
+Welcome/System. The same geometry and surface intent apply when U1 grows the widget
+set and D3 adds composition. Current ABI 1 sends no hover events; do not fake them
+from focus or replay global pointer state. Effects remain optional and unavailable
+controls stay disabled with an explanation.
 
 ## Materials and optional effects
 

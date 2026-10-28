@@ -16,11 +16,12 @@ enum { ZUI_SURFACE_CONTENT=1,ZUI_SURFACE_CONTROL=2,ZUI_SURFACE_NAVIGATION=3,
 struct zui;
 int zui_surface(struct zui *ui,struct zui_rect rect,int radius,int role);
 int zui_backdrop_candidate(int role);
-enum { ZUI_BUTTON=1,ZUI_TOGGLE=2,ZUI_CHOICE=3 };
-struct zui_control { int id,kind,enabled,value; struct zui_rect rect; const char *label; };
+enum { ZUI_BUTTON=1,ZUI_TOGGLE=2,ZUI_CHOICE=3,ZUI_SEGMENT=4,ZUI_SWATCH=5,ZUI_NAVIGATION=6 };
+struct zui_control { int id,kind,enabled,value,swatch; struct zui_rect rect; const char *label; };
 struct zui {
     unsigned int *pixels; int width,height;
     struct zui_theme theme;
+    unsigned int swatches[6];
     struct zui_rect clip;
     struct zui_control controls[ZUI_MAX_CONTROLS];
     int count,focus,pressed,window_focused,dirty;
@@ -34,8 +35,15 @@ void zui_round(struct zui *ui,struct zui_rect rect,int radius,unsigned int color
 /* Up to 4096 UTF-8 input bytes per call. Unsupported/malformed characters render '?'. No shaping yet. */
 void zui_text(struct zui *ui,int x,int y,const char *text,unsigned long bytes,
               const struct zui_font *font,unsigned int color);
+/* Shared 24px inset / 36px control / 8px radius geometry. Row help stays
+ * separate from the opaque control so future panel materials do not fade it. */
+void zui_setting_row(struct zui *ui,struct zui_rect rect,const char *label,const char *help);
+void zui_swatch_caption(struct zui *ui,int x,int y);
+void zui_segment_track(struct zui *ui,struct zui_rect rect);
+unsigned int zui_accent_color(const struct zui *ui,int index);
 int zui_measure(const char *text,unsigned long bytes,const struct zui_font *font);
 /* Positive unique IDs; labels remain owned by caller and must outlive the control. */
+int zui_add_swatch(struct zui *ui,int id,struct zui_rect rect,const char *label,int accent,int selected,int enabled);
 int zui_add(struct zui *ui,int id,int kind,struct zui_rect rect,const char *label,int value,int enabled);
 /* Returns activated ID or 0. Application owns values; disabled controls never activate.
  * Forward focus/reset/close events, too; events never modify saved preferences. */

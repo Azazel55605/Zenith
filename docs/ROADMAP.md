@@ -51,9 +51,9 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 
 1. **G1 / documentation — audited:** tracking is consolidated here; stale blockers
    are reconciled and accepted requirements preserved. Keep this ownership model.
-2. **D1 / shared design:** close the preview/implementation gap at shared widget,
-   layout and material-role level **before expanding app ports**. Define the same
-   geometry in solid/translucent/blurred modes now; effects implementation is D3.
+2. **D1 / shared design — locally qualified:** shared controls, navigation, chrome
+   and material roles now follow the accepted solid preview. Settings/gallery native
+   gates pass; Q2 owns installed confirmation. Effects implementation stays in D3.
 3. **U1 + D2 / foundations:** finish interactive lifetime acceptance, rich controls,
    text/clipboard/dialog contracts and guarded display resolution/scaling. Existing
    display settings remain WIP until real Keep/Revert is proven. This stays early.
@@ -80,7 +80,7 @@ changes; put smaller implementation steps in the linked component, using the sam
 | ID | State | Work, dependency and exit |
 |---|---|---|
 | G1 | local, complete | One tracker; obsolete guides consolidated and open items mapped. [Audit and checks](archive/2026-10-27/documentation-and-material-contract.md) complete; future agents follow [maintenance](MAINTAINING.md). |
-| D1 | partial, next | [Preview parity/material contract](DESIGN-LANGUAGE.md): segmented modes, circular accent swatches, settings rows, consistent density/icons/chrome and focus states. Compare real dark/light widgets against the accepted specimen; preserve functional save/permission behavior. |
+| D1 | local; installed verification pending | [Shared visual parity](DESIGN-LANGUAGE.md): neutral segments, checked circular swatches, label/help rows, restrained navigation and aligned host chrome implemented. Both modes/six accents and draft/permission behavior locally qualified; [evidence](archive/2026-10-28/shared-widget-parity.md). Q2 owns installed confirmation; U1/D2 own richer widgets/hover transport, Unicode and scale; D3 owns effects. |
 | D2 | planned | Display identity/mode enumeration → guarded mode change → integer layout/text/surface scaling → driver-supported orientation/refresh. Requires richer client layout/resize contract. Smaller viewport, timeout/crash and explicit Keep/Revert must restore a usable mode. |
 | D3 | planned | Shared opaque surface roles are implemented; host-owned bounded material regions → alpha/tint → backdrop blur/damage caching → saved/effective user controls. Depends on D1 roles and D2 surface sizing. Same layout with effects on/off; contrast over busy backgrounds, movement/minimize/overlap and resource/performance fallback tested. No alpha packed into today's forced-opaque ABI. |
 | U1 | partial | [Shared native UI/runtime](components/USERLAND.md): lists, fields, selectors, sliders, dialogs, multiline text, clipboard, resizing/hover, runtime fonts/Unicode/IME; long-duration quota and teardown acceptance beyond old invocation limits. Existing profile renewal alone is not full long-lived-app qualification. |

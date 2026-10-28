@@ -10,8 +10,8 @@ namespace Zenith.Gui;
 /// </summary>
 internal abstract class Window
 {
-    public const int TitleBarHeight = 38;
-    public const int ButtonSize = 28;
+    public const int TitleBarHeight = 44;
+    public const int ButtonSize = 32;
 
     protected Window(string title, int width, int height)
     {
@@ -46,8 +46,8 @@ internal abstract class Window
     public Rect TitleBar => new(Bounds.X, Bounds.Y, Bounds.W, TitleBarHeight);
     public Rect Content => new(Bounds.X, Bounds.Y + TitleBarHeight, Bounds.W, Bounds.H - TitleBarHeight);
     public Rect CloseButton => new(Bounds.Right - ButtonSize - 6, Bounds.Y + (TitleBarHeight - ButtonSize) / 2, ButtonSize, ButtonSize);
-    public Rect MaximizeButton => CanResize ? CloseButton.Offset(-ButtonSize - 2, 0) : new Rect(0, 0, 0, 0);
-    public Rect MinimizeButton => CloseButton.Offset(-(ButtonSize + 2) * (CanResize ? 2 : 1), 0);
+    public Rect MaximizeButton => CanResize ? CloseButton.Offset(-ButtonSize - 4, 0) : new Rect(0, 0, 0, 0);
+    public Rect MinimizeButton => CloseButton.Offset(-(ButtonSize + 4) * (CanResize ? 2 : 1), 0);
 
     public virtual bool HasUnsavedChanges => false;
     public virtual bool CanClose => true;
