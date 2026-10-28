@@ -29,14 +29,24 @@ screen supplied the missing evidence: Terminal had received `t/l`, reported
 fixture command was `sh /root/l`. This was lost injected input, not a stuck settings
 mutation or failed translucency service.
 
-The tagged test waits only half a second after S_UI=0 before typing again. That
-worker status precedes native-surface retirement, so it is not an input-readiness
-acknowledgement. The controller now guards this specific public fixture handoff:
+The tagged test waits only half a second after native-worker completion before
+typing again. A worker status precedes native-surface retirement, so it is not an
+input-readiness acknowledgement. The first controller change guarded only S_LEVEL;
+the distributor confirmed that handoff passed, then failed at S_SHARED after
+closing the keyboard page. The supplied tail shows retirement and a new thread,
+but no S_SHARED result; command truncation at this second failure is not yet
+confirmed by a framebuffer. The remaining exits had the same unsafe precondition.
+
+The controller now observes each native-window lifecycle before public fixture
+script launches (`sh /root/` plus a one-letter fixture name):
 wait for the native retirement log, then observe a rendered focused Terminal caret
 blink before injecting the command once. The blink must change exactly a solid
 2-pixel-wide, 8–32-pixel-tall rectangle; static, incomplete and frozen frames fail.
 No key or application command is repeated. Credential/password typing is untouched,
-and the observer runs only before the known `sh /root/l` script. This closes an
+and each native lifecycle is acknowledged once. The first launch and consecutive
+shell-only commands skip the observation; keyboard/time-zone/session/Meridian and
+launcher exits each establish a new handoff. A new native window appearing during
+observation fails before typing. This closes an
 unsafe test precondition; it does not prove the underlying mouse/device issue or
 the separately reported installed wheel/drag freeze is fixed.
 
@@ -53,8 +63,16 @@ saves, hidden-input cancellation, keyboard/time-zone/session selectors, captured
 profiles, independent upgrade, reboot persistence and an independent ext2 audit.
 This is local exact-binary evidence; distributor confirmation remains separate.
 
+After covering all native exits, the full exact-server-binary prepared replay
+passed again in 148.411 seconds. It acknowledged seven native-to-Terminal handoffs,
+including all three S_SHARED checks and the later Meridian/launcher transitions.
+All 300 shared controller regressions passed. Tagged assertions and the kernel
+binary remained unchanged; distributor confirmation of this follow-up is pending.
+
 Controller regressions cover retirement-before-dispatch, rendered caret detection,
-static/frozen failure, single command dispatch and untouched credential/other input.
+static/frozen failure, repeated page exits and repeated same-script launches,
+first-launch/shell-only bypass, concurrent lifecycle changes, single command
+dispatch and untouched credential/other input.
 `tools/settings-replay.py --build BUILD_CHECKOUT` selects the newest retained
 setup fixture and runs the tagged Settings gate with current controller policy.
 It skips kernel compilation and OS installation; the tagged harness may prepare

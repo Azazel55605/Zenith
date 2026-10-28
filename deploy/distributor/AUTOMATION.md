@@ -437,8 +437,9 @@ showed oscillating/stale cursor observations. Current policy never feeds relativ
 corrections back from screenshots. Exact destinations/deadlines remain unchanged;
 on failure it records `input-failure.json`, the current framebuffer and read-only
 CPU/scheduler state in `pipeline-stall.json` before QEMU is stopped. The Settings
-post-close public script additionally waits for native-window retirement and a
-rendered Terminal caret blink; the earlier worker status is not input readiness.
+public fixture scripts after each native-window lifecycle additionally wait for
+retirement and a rendered Terminal caret blink; the earlier worker status is not
+input readiness. Consecutive shell-only commands skip this handoff observation.
 This scoped handoff observation never resends commands or credentials.
 
 To diagnose the failed 0.0.27 Settings gate without recompiling the kernel or
