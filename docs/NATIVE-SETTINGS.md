@@ -8,7 +8,7 @@ Work owners: **S1/D1/D3** in the [master roadmap](ROADMAP.md). This page is a co
 The independently compiled `zenith-settings` package supplies the first functional
 Appearance page. The GUI and trusted `settings` command use the same root-only
 system preference authority. This is not a kernel-linked Settings window.
-Current unshipped source extends it into the [Meridian shell and app migration](components/SESSIONS-DESKTOP.md#native-app-migration); the published 0.0.25/Settings 0.1.0 tags still contain the qualified Appearance-only client.
+Meridian extends it into the [Settings shell and app migration](components/SESSIONS-DESKTOP.md#native-app-migration). Most pages retain explicit WIP banners until their typed backends are implemented.
 
 ## Use and visible behavior
 

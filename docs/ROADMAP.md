@@ -37,7 +37,7 @@ A row's implementation state does not imply publication or installed acceptance.
 | CLI extraction | Base/filesystem/text/network tools, owned streams/jobs/raw leases; operator exercises through 0.0.23 | Shell evaluation and privileged administration remain trusted; no full PTY/POSIX runtime |
 | Graphical ABI / 0.0.24 | Qualified private surfaces/events and independent probe; operator installed/tested | Trusted compositor/greeter; fixed opaque client surfaces |
 | Appearance / 0.0.25 | Tags at qualified `12ded91` pushed: Settings 0.1.0, theme 0.1.1, manuals 0.1.6 | Last operator report: building. Distributor completion and installed acceptance unconfirmed (**Q1**) |
-| Meridian/app foundation / `a558f66` | Local 43-page navigation, search, working Colors, Welcome/System native clients, interactive profile; 747 host/238 controller and targeted native checks | Unpushed source; full release qualification and installed acceptance outstanding (**Q2**). WIP pages are not implemented backends |
+| Meridian/materials / 0.0.26 | Full clean Release qualification at `1487c93`: 765 host/239 controller, all ten native gates and light materials passed. Release set: kernel 0.0.26, Settings 0.2.0, desktop-tools 0.1.0. [Evidence](archive/2026-10-28/desktop-material-integration.md#release-qualification) | Distributor build/delivery and installed acceptance pending (**Q2**). Most Meridian pages remain WIP until their backends exist |
 
 Evidence: [CLI](archive/2026-10-26/cli-process-foundation.md),
 [text](archive/2026-10-26/native-text-traversal.md),
@@ -61,15 +61,18 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
    [desktop integration](archive/2026-10-28/desktop-material-integration.md).
    Q2 owns installed acceptance; sustained device performance and D2 resize/scale
    qualification remain. Protected authentication and document planes stay solid.
-4. **U1 + D2 / foundations:** rich controls, hover/text/clipboard/dialog contracts,
-   independent lifetimes and guarded display resolution/scaling remain required.
+4. **S1–S3 / functional Meridian — next after VM acceptance:** activate real
+   settings pages over typed services, starting with shared scope/defaults and
+   existing keyboard, timezone, About, network and account services. Keep WIP
+   banners where a backend is missing. Add U1 controls and D2 guarded display
+   resolution/scaling as those pages require them.
 5. **U2–U4 / finish native app migration:** Editor, Terminal and Sunrise over typed
    service contracts, using the shared presentation already applied to their trusted
    windows. Welcome/System have local native frontends. **Files is excluded** and
    gets its own later overhaul, A1.
-6. **S1 / preferences and Q2 / release:** consistent user/system scope and existing
-   settings services; qualify the coherent batch, publish compatible kernels first,
-   then clients. Q1 confirmation can happen in parallel; do not mutate existing tags.
+6. **Q2 / release acceptance:** qualify coherent batches, publish compatible
+   kernels first, then clients; record actual installed observations. Q1 confirmation
+   can happen in parallel; do not mutate existing tags.
 7. **W1–W3 / desktop and workflows:** full DE/lifecycle, notifications/workspaces,
    automatic tiling, Files overhaul and shared app behavior. Activate Meridian pages
    alongside their services rather than waiting for every backend to exist.
@@ -115,7 +118,7 @@ changes; put smaller implementation steps in the linked component, using the sam
 | H2 | planned | Audio playback/capture/mixer/device inventory and removable-device broker, then meters/stream routing and safe automount. Requires bounded buffers, stable identities and permissions; tests need real supported devices. |
 | H3 | planned, later | True suspend/resume, Bluetooth, printers and specialized accessibility. Define each scope/driver dependency first; WIP pages stay visible. Never count a menu or VM-only demo as device support. |
 | Q1 | verification | Confirm 0.0.25 distributor result and [Appearance installed procedure](testing/SETTINGS-VM-TEST.md); retain current release immutability. |
-| Q2 | pending batch | Complete remaining ports/contracts, clean-source Release qualification with every mandatory native gate, kernel-first publication, server delivery verification and installed regression checklist. Current targeted local checks are insufficient for a new kernel tag. |
+| Q2 | qualified; distributor/VM pending | Clean-source Release qualification at `1487c93` passed every mandatory gate for kernel 0.0.26 / Settings 0.2.0 / desktop-tools 0.1.0. Verify distributor delivery, install/confirm kernel first, then clients and run the [installed checklist](testing/SETTINGS-VM-TEST.md). Remaining ports/contracts retain U2–U6 ownership; this batch does not complete them. |
 | Q3 | continuous | Measure boot/app responsiveness, idle memory/CPU, transfer/build phase times and stability across repeated workflows. Keep CI/controller/toolchain drift checks, fault injection and installed evidence distinct; enforce supported-profile performance budgets before claiming product readiness. |
 
 ## Meridian — every requested destination

@@ -68,3 +68,33 @@ frame latency. D2 owns display resize/scale; Q2 owns distributor and real instal
 VM acceptance, sustained performance and target-device contrast/repaint review.
 No packages or tags are published by this implementation batch. Use the
 [installed checklist](../../testing/SETTINGS-VM-TEST.md) for operator acceptance.
+
+## Release qualification
+
+User-authorized release set: `kernel/v0.0.26`, `zenith-settings/v0.2.0`,
+`zenith-desktop-tools/v0.1.0`, all at qualified commit `1487c93`. The theme payload
+is unchanged; no theme tag is needed. The accompanying roadmap update is docs-only.
+
+A clean-source Release rebuild and full `deploy/distributor/validate.py` run
+passed without modifying the candidate or artifacts. Evidence:
+`obj/release-materials-1487c93/` (ignored generated files). 765 host tests,
+239 controller tests and all ten native gates passed: 71 login/session checks,
+94 online repository checks, Settings save/apply/reboot and material toggles,
+system-app styling, material composition, 48 graphics checks, 72 network checks,
+100 CLI checks, native processes including all 64 exact-output pipeline repetitions,
+and 169 kernel-update/recovery checks. Independent ext2 audits passed. A separate
+Release light-material gate passed in 64.354s.
+
+Release ELF SHA256:
+`1daf4465ce0ae46b7aabeaa028d53c1c386f15876397bcb3c3f8ccc9ef9ad90d`.
+Release ISO SHA256:
+`c90e95afb0c6e273921f640c16e63d9c3599eb128fb5b3c03e5e700e8363dc70`.
+These identify local qualification artifacts; distributor builds have independent
+provenance and must pass server acceptance. They are not separately distributed
+under the server's immutable package version.
+
+The distributor should pull the current controller before polling to include the
+new system-app/material gates. Server signing/publication/delivery and operator
+VM acceptance remain unverified here. Install and boot-confirm the kernel before
+updating clients; preserve the prior kernel. After operator acceptance, the next
+user-selected work is functional Meridian settings pages and typed backends.
