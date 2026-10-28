@@ -144,12 +144,12 @@ def main():
                     if top+480>height:continue
                     def pixel(x,y):
                         at=((top+y)*w+left+x)*3;return rgb[at:at+3]
-                    if pixel(2,2)==color and pixel(40,183)==color and pixel(40,184)==blue and all(pixel(40+44*j,192)==bytes.fromhex(c) for j,c in enumerate(colors)):
+                    if pixel(20,2)==color and pixel(40,183)==color and pixel(40,184)==blue and all(pixel(40+44*j,192)==bytes.fromhex(c) for j,c in enumerate(colors)):
                         geometry[:]=[left,top];return True
             return False
         frame('dark',locate);x,y=geometry
         def color_at(rgb,w,px,py):return rgb[(py*w+px)*3:(py*w+px)*3+3]
-        def background(color):return lambda w,h,rgb:color_at(rgb,w,x+2,y+2)==bytes.fromhex(color)
+        def background(color):return lambda w,h,rgb:color_at(rgb,w,x+20,y+2)==bytes.fromhex(color)
         def click(px,py):
             (cx,cy),_=observer.position();monitor_command(monitor,f'mouse_move {px-cx} {py-cy}')
             monitor_command(monitor,'mouse_button 1');monitor_command(monitor,'mouse_button 0')
@@ -165,9 +165,30 @@ def main():
         click(x+90,y+438) # Keep editing.
         frame('kept-editing',lambda w,h,rgb:color_at(rgb,w,x+100,y+424)==bytes.fromhex('7ecac7'))
         print('PASS chrome close intent and Keep editing',flush=True)
+        click(x+550,y+255);click(x+550,y+305) # Transparency and blur are one draft/save.
         changed=len(m.log());click(x+90,y+438) # Save now.
         assert m.wait('user: SETTINGS_REVISION_CHANGED',changed,15),'GUI save did not complete'
         width,height,rgb=frame('saved',background('202125'));print('PASS GUI save',flush=True)
+        def material_frame(w,h,rgb):
+            bar=color_at(rgb,w,w-240,h-28)
+            return max(bar)<128 and bar!=bytes.fromhex('25262b') and color_at(rgb,w,x+500,y-1)!=bytes.fromhex('45474f')
+        width,height,rgb=frame('materials-applied',material_frame)
+        assert color_at(rgb,width,x+2,y+2)!=bytes.fromhex('202125'),'inner content corner is square'
+        assert color_at(rgb,width,x+20,y+2)==bytes.fromhex('202125'),'inner corner changed the content layout'
+        print('PASS taskbar material, seamless chrome and rounded inner top-left',flush=True)
+        click(x+550,y+255) # Keep saved blur, disable transparency.
+        changed=len(m.log());click(x+90,y+438)
+        assert m.wait('user: SETTINGS_REVISION_CHANGED',changed,15),'solid save'
+        def solid_frame(w,h,rgb):
+            return color_at(rgb,w,w-240,h-28)==bytes.fromhex('25262b') and color_at(rgb,w,x+500,y-1)==bytes.fromhex('45474f')
+        width,height,rgb=frame('materials-disabled',solid_frame)
+        assert color_at(rgb,width,x+2,y+2)!=bytes.fromhex('202125'),'solid inner corner changed'
+        assert color_at(rgb,width,x+20,y+2)==bytes.fromhex('202125'),'solid content layout changed'
+        click(x+550,y+255) # Restore transparency; blur is still selected.
+        changed=len(m.log());click(x+90,y+438)
+        assert m.wait('user: SETTINGS_REVISION_CHANGED',changed,15),'effects restore'
+        width,height,rgb=frame('materials-restored',material_frame)
+        print('PASS live effects off/on, retained blur and identical content geometry',flush=True)
         # Rectangular client row-copy must not leak into the rounded bottom
         # corners. Their backdrop must differ from the solid body immediately in.
         assert color_at(rgb,width,x,y+479)!=bytes.fromhex('202125'),'bottom-left rectangular bleed'
@@ -190,6 +211,22 @@ def main():
             assert actual in info, 'missing actual system information: '+actual
         desktop_script('m','MERIDIAN_FOCUSED')
         monitor_command(monitor,'sendkey ctrl-f 30');time.sleep(.2)
+        def navigation_material(w,h,rgb):
+            # A focused search-field border identifies the new, cascaded window.
+            # Waiting for its pixels prevents the underlying terminal satisfying
+            # a mere non-solid-color check before the native frame is composed.
+            for row_y in range(59,h-422):
+                row=rgb[row_y*w*3:(row_y+1)*w*3];at=row.find(bytes.fromhex('7ecac7')*400)
+                if at<0 or at%3:continue
+                left,top=at//3-32,row_y-58
+                if left<0 or left+600>w:continue
+                if color_at(rgb,w,left+238,top+57)!=bytes.fromhex('202125'):continue
+                if color_at(rgb,w,left+238,top+59)!=bytes.fromhex('2a2c31'):continue
+                nav=color_at(rgb,w,left+16,top+390)
+                if max(nav)<128 and nav!=bytes.fromhex('25262b') and color_at(rgb,w,left+590,top+390)==bytes.fromhex('202125'):return True
+            return False
+        frame('meridian-material-sidebar',navigation_material)
+        print('PASS Meridian material sidebar and opaque content',flush=True)
         login.monitor_type(monitor,'bluetooth')
         monitor_command(monitor,'sendkey ret 30');time.sleep(.2)
         off=len(m.log());monitor_command(monitor,'sendkey ret 30')
@@ -249,6 +286,7 @@ def main():
         # Independent installed boot re-reads the committed system preference.
         m=h.Machine(keep/'reboot',disk,network=net);assert m.wait('headless ready',timeout=180)
         serial('native run settings --show','SETTINGS saved=dark/teal active=dark/teal persistent=1 writable=1 pending=0')
+        serial('native run settings --materials-show','MATERIAL_SETTINGS saved=3 effective=0 available=0 reason=2')
         disk=shutdown()
         state=boot_image.verify(m.disk)
         assert state['current']==hashlib.sha256((ROOT/'output-x64/Zenith.elf').read_bytes()).hexdigest()

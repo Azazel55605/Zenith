@@ -159,6 +159,18 @@ internal sealed unsafe class NativeProcess
                 foreach (byte value in title) { if (value < 32 || value > 126) { return -22; } }
                 return graphics.Open(r.Width, r.Height, Encoding.ASCII.GetString(title), r.Format);
             }
+            if (c.Call == 608)
+            {
+                if (c.Arg1 != 48 || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, 48, true)) { return -14; }
+                Transfer(c.Arg0, ProcessAppearance.MaterialSnapshot(Zenith.Core.Configuration.SystemConfiguration.Appearance), true);return 0;
+            }
+            if (c.Call == 609)
+            {
+                if (c.Arg1 != 32 || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, 32, false)) { return -14; }
+                return ProcessAppearance.SaveMaterials(Zenith.Core.Configuration.SystemConfiguration.Appearance, ReadUser(c.Arg0, 32));
+            }
             if (c.Call == 607)
             {
                 if (c.Arg1 != 32 || c.Arg2 != 0) { return -22; }

@@ -111,6 +111,7 @@ internal sealed class TerminalWindow : Window, IOutput
     public static Func<string, string?, bool>? OpenApp { get; set; }
 
     /// <summary>Whether a command line is running.</summary>
+    public override bool AllowMaterials => !_secretRead;
     public bool IsBusy => _jobRunning;
     public bool HasBackgroundJobs => _shell.HasBackgroundJobs;
     public bool OwnsShell(Shell shell) => ReferenceEquals(_shell, shell);

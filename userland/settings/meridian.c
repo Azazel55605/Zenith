@@ -87,11 +87,11 @@ static void controls(struct meridian *a){
 void meridian_draw(struct meridian *a){
     if(a->page==MERIDIAN_COLORS){
         settings_draw(&a->colors);struct zui *u=&a->colors.ui;
-        zui_surface(u,(struct zui_rect){24,48,552,26},6,ZUI_SURFACE_PANEL);
+        zui_surface(u,(struct zui_rect){24,48,552,26},6,ZUI_SURFACE_CONTROL);
         text(u,30,53,"WIP: automatic switching and custom colors are planned.",&zui_caption,u->theme.secondary);
         u->controls[15].enabled=!a->colors.prompt;zui_draw_range(u,15,1);u->dirty=0;return;
     }
-    struct zui *u=&a->navigation;zui_clip(u,(struct zui_rect){0,0,600,480});zui_surface(u,u->clip,0,ZUI_SURFACE_CONTENT);
+    struct zui *u=&a->navigation;if(u->foreground)zui_begin_material_frame(u);zui_clip(u,(struct zui_rect){0,0,600,480});zui_surface(u,u->clip,0,ZUI_SURFACE_CONTENT);
     if(a->page<0){
         text(u,24,14,"Meridian",&zui_heading,u->theme.text);text(u,178,23,"System Settings",&zui_body,u->theme.secondary);
         zui_surface(u,(struct zui_rect){12,104,208,312},8,ZUI_SURFACE_NAVIGATION);
@@ -101,7 +101,7 @@ void meridian_draw(struct meridian *a){
     }else{
         const struct meridian_page *p=&meridian_pages[a->page];
         text(u,24,14,p->title,&zui_heading,u->theme.text);
-        zui_surface(u,(struct zui_rect){24,58,552,56},8,ZUI_SURFACE_PANEL);
+        zui_surface(u,(struct zui_rect){24,58,552,56},8,ZUI_SURFACE_CONTROL);
         zui_paragraph(u,(struct zui_rect){34,67,532,46},a->page==0?"WIP: scheduled mode and persistent history are planned. Recent pages are kept only while Meridian is open.":a->page==MERIDIAN_ABOUT?"WIP: showing available runtime information. Hardware inventory and release-version metadata are planned.":"Work in progress. These controls need additional system services. No settings on this page can be changed yet.",&zui_caption,u->theme.secondary,0);
         if(a->page==0){
             const char *status=a->colors.state.mode?"Saved appearance: Light":"Saved appearance: Dark";
@@ -109,7 +109,7 @@ void meridian_draw(struct meridian *a){
             controls(a);zui_draw_controls(u);
         }else{
             text(u,24,130,p->category,&zui_label,u->theme.text);
-            zui_surface(u,(struct zui_rect){24,154,552,250},8,ZUI_SURFACE_PANEL);
+            zui_surface(u,(struct zui_rect){24,154,552,250},8,ZUI_SURFACE_CONTROL);
             a->lines=zui_paragraph(u,(struct zui_rect){36,166,528,228},a->page==MERIDIAN_ABOUT&&a->information[0]?a->information:p->requirements,&zui_body,u->theme.secondary,a->scroll);
             controls(a);zui_draw_controls(u);
         }

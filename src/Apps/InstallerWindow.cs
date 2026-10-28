@@ -35,6 +35,7 @@ internal sealed class InstallerWindow : Window
         { _step = Step.Unavailable; _message = "Start Sunrise as root from the ISO live rescue session."; }
     }
     public override bool CanResize => false;
+    public override bool AllowMaterials => false;
     public override bool CanClose { get { lock (_gate) { return _step != Step.Installing; } } }
     public override void Close() { if (CanClose) { ClearSecrets(); base.Close(); } }
     public override void EndSession() { if (CanClose) { ClearSecrets(); Close(); } }

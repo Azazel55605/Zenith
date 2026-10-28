@@ -84,6 +84,7 @@ def main():
         for name in ('ui.zpk','u','p'):status('fetch '+url+'/'+name+' /root/'+stem+'-'+name,'UI_FETCH_'+name.replace('.',''))
         status('pkg install /root/'+stem+'-ui.zpk','UI_PACKAGE')
         status('native run ui-gallery --probe','UI_HEADLESS',1)
+        if args.materials:status('settings set materials blur','MATERIAL_ENABLE')
         if args.materials:status('settings set appearance '+('light' if args.material_light else 'dark')+' blue','MATERIAL_THEME')
         disk=shutdown();m=None
         m=h.Machine(keep/'desktop',disk,'session=de',network=net+['-device','virtio-gpu-pci','-device','virtio-keyboard-pci'],monitor=monitor)
@@ -103,13 +104,18 @@ def main():
             nav,body,ink,accent=('eff0f3','fafafb','202126','3157b7') if args.material_light else ('25262b','202125','f1f2f4','8baaff')
             geometry=[]
             def locate(w,height,rgb):
-                needle=bytes.fromhex(nav)*199
-                for y in range(height-440):
-                    row=rgb[y*w*3:(y+1)*w*3];i=row.find(needle)
-                    if i<3 or i%3 or row[i+597:i+600]!=bytes.fromhex(body):continue
-                    x=i//3-1
-                    at=((y+400)*w+x+100)*3
-                    if rgb[at:at+3]==bytes.fromhex(nav):geometry[:]=[x,y];return True
+                needle=bytes.fromhex(accent)*200
+                for row_y in range(height):
+                    row=rgb[row_y*w*3:(row_y+1)*w*3];i=row.find(needle)
+                    if i<0 or i%3 or row[i+600:i+603]==bytes.fromhex(accent):continue
+                    x=i//3-224
+                    if x<0 or x+600>w:continue
+                    for y in range(max(0,row_y-255),row_y-223):
+                        if y+440>height:continue
+                        def at(px,py):
+                            offset=((y+py)*w+x+px)*3;return rgb[offset:offset+3]
+                        if at(324,223)==bytes.fromhex(body) and at(324,224)==bytes.fromhex(accent) and at(100,400)==bytes.fromhex(nav):
+                            geometry[:]=[x,y];return True
                 return False
             width,height,solid=frame('material-solid',locate);x,y=geometry
             def pixel(rgb,px,py):

@@ -3,13 +3,28 @@ static unsigned int pixels[600*480];
 static struct meridian shell;
 #define app shell.colors
 static long handle=-1;
+static int material_surface;
+static long present(void){
+    struct zui *u=meridian_ui(&shell);
+    return material_surface?zenith_gui_present_material(handle,pixels,sizeof(pixels),u->materials,u->material_count):zenith_gui_present(handle,pixels,sizeof(pixels));
+}
 static int same(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return *a==*b;}
 static void print(const char *s){unsigned long n=0;while(s[n])n++;zenith_write(s,n);}
 static void number(unsigned long value){char text[21];int n=0;do{text[n++]=(char)('0'+value%10);value/=10;}while(value);while(n)zenith_write(&text[--n],1);}
 static const char *mode(unsigned int value){return value?"light":"dark";}
 static const char *accent(unsigned int value){const char *names[]={"blue","violet","rose","amber","green","teal"};return value<6?names[value]:"unknown";}
-static long read_settings(struct zenith_appearance *s){return zenith_appearance_read(s);}
-static long save_settings(unsigned int m,unsigned int a,unsigned long revision){return zenith_appearance_save(m,a,revision);}
+static long read_settings(struct zenith_appearance *s,unsigned int *saved,unsigned int *effective,unsigned int *available,unsigned int *reason){
+    long r=zenith_appearance_read(s);if(r)return r;
+    struct zenith_material_settings m={0};r=zenith_material_settings_read(&m);
+    if(r){*saved=*effective=*available=*reason=0;return 0;}
+    if(m.version!=1||m.reserved||m.revision!=s->revision)return -11;
+    *saved=m.saved;*effective=m.effective;*available=m.available;*reason=m.reason;return 0;
+}
+static long save_settings(unsigned int m,unsigned int a,unsigned int effects,unsigned long revision){
+    struct zenith_material_settings state={0};
+    if(zenith_material_settings_read(&state))return effects?-19:zenith_appearance_save(m,a,revision);
+    return zenith_material_settings_save(m,a,effects,revision);
+}
 static long dirty(int value){return zenith_gui_dirty(handle,value);}
 static int show(void){
     struct zenith_appearance s={0};if(zenith_appearance_read(&s)||s.version!=1){print("settings: service unavailable\n");return 1;}
@@ -35,6 +50,15 @@ static int bounds(void){
     if(zenith_call(612,0xffff800000000000UL,4096,1)!=-14)return 10;
     if(zenith_call(612,(unsigned long)&after,4097,1)!=-22)return 11;
     if(zenith_call(605,20001,1,0)!=-9)return 12;
+    struct zenith_material_settings materials={0};
+    if(!zenith_material_settings_read(&materials)){
+        if(zenith_call(608,(unsigned long)&materials,47,0)!=-22)return 20;
+        if(zenith_call(609,0xffff800000000000UL,32,0)!=-14)return 21;
+        struct zenith_material_settings_request request={1,0,before.revision,0,0,0,1};
+        if(zenith_call(609,(unsigned long)&request,sizeof(request),0)!=-22)return 22;
+        request.reserved=0;request.materials=4;
+        if(zenith_call(609,(unsigned long)&request,sizeof(request),0)!=((before.flags&Z_SETTINGS_WRITABLE)?-22:-13))return 23;
+    }
     if(zenith_appearance_read(&after)||before.revision!=after.revision)return 9;
     print("SETTINGS_BOUNDS_OK\n");return 0;
 }
@@ -45,6 +69,16 @@ int main(int argc,char **argv){
         long n=zenith_call(612,(unsigned long)shell.information,sizeof(shell.information)-1,1);
         if(n<=0||n>=(long)sizeof(shell.information)){print("settings: system information unavailable\n");return 1;}
         shell.information[n]=0;print(shell.information);print("\n");return 0;
+    }
+    if(argc==3&&same(argv[1],"--materials")){
+        unsigned int effects=same(argv[2],"solid")?0:same(argv[2],"transparent")?1:same(argv[2],"blur")?3:4;
+        struct zenith_appearance a={0};if(effects>3||zenith_appearance_read(&a))return 2;
+        if(zenith_material_settings_save(a.mode,a.accent,effects,a.revision))return 1;
+        print("MATERIAL_SETTINGS_SAVED\n");return 0;
+    }
+    if(argc==2&&same(argv[1],"--materials-show")){
+        struct zenith_material_settings m={0};if(zenith_material_settings_read(&m))return 1;
+        print("MATERIAL_SETTINGS saved=");number(m.saved);print(" effective=");number(m.effective);print(" available=");number(m.available);print(" reason=");number(m.reason);print("\n");return 0;
     }
     if(argc==2&&same(argv[1],"--bounds"))return bounds();
     if(argc==4&&same(argv[1],"--set")){
@@ -58,16 +92,21 @@ int main(int argc,char **argv){
     }
     const char *page=0;
     if(argc==3&&same(argv[1],"--page"))page=argv[2];
-    else if(argc!=1){print("usage: native run settings [--page ID | --system-info | --show | --set dark|light ACCENT | --version | --bounds]\n");return 2;}
+    else if(argc!=1){print("usage: native run settings [--page ID | --system-info | --show | --set dark|light ACCENT | --materials solid|transparent|blur | --materials-show | --version | --bounds]\n");return 2;}
     struct settings_backend backend={read_settings,save_settings,dirty};
     if(!meridian_init(&shell,pixels,backend,page)){print("settings: service unavailable\n");return 1;}
     long info=zenith_call(612,(unsigned long)shell.information,sizeof(shell.information)-1,1);
     if(info>0&&info<(long)sizeof(shell.information))shell.information[info]=0;
-    handle=zenith_gui_open(600,480,"Meridian",8);
+    struct zenith_material_caps caps={0};
+    struct zenith_material_settings material_state={0};
+    material_surface=zenith_material_settings_read(&material_state)==0&&material_state.version==1&&!material_state.reserved&&
+        zenith_gui_material_caps(&caps)==0&&caps.version==2&&(caps.features&3)==3;
+    handle=material_surface?zenith_gui_open_material(600,480,"Meridian",8):zenith_gui_open(600,480,"Meridian",8);
+    if(material_surface){app.ui.foreground=1;shell.navigation.foreground=1;}
     if(handle<0){print("settings: graphical session required; use --show or --set\n");return 1;}
     if(zenith_gui_interactive(handle)<0){zenith_gui_close(handle);print("settings: interactive client support required\n");return 1;}
     meridian_refresh(&shell);meridian_draw(&shell);
-    if(zenith_gui_present(handle,pixels,sizeof(pixels))<0){zenith_gui_close(handle);return 1;}
+    if(present()<0){zenith_gui_close(handle);return 1;}
     print("SETTINGS_READY\nMERIDIAN_PAGE ");print(meridian_pages[shell.page].id);print("\n");int result=0;
     for(unsigned int i=0;!shell.closing;i++){
         struct zenith_gui_event e={0};long r=zenith_gui_poll(handle,&e);
@@ -80,7 +119,7 @@ int main(int argc,char **argv){
         if(!edited&&app.edited)print("SETTINGS_UNSAVED\n");
         if(!prompt&&app.prompt)print("SETTINGS_DISCARD_PROMPT\n");
         if(app.state.revision!=rev)print("SETTINGS_REVISION_CHANGED\n");
-        if(meridian_ui(&shell)->dirty&&!shell.closing){meridian_refresh(&shell);meridian_draw(&shell);if(zenith_gui_present(handle,pixels,sizeof(pixels))<0){result=1;break;}}
+        if(meridian_ui(&shell)->dirty&&!shell.closing){meridian_refresh(&shell);meridian_draw(&shell);if(present()<0){result=1;break;}}
     }
     zenith_gui_close(handle);print("SETTINGS_EXIT\n");return result;
 }

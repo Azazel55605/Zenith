@@ -96,7 +96,7 @@ internal sealed class Desktop
 
     public WindowManager Windows { get; }
 
-    public void StopClients() { _apps.Stop(); _nativeClients.Stop(); Zenith.Core.Processes.NativeSystemInformation.Display("No graphical session"); }
+    public void StopClients() { _taskbar.Dispose(); Zenith.Core.Configuration.SystemConfiguration.Appearance.ReportMaterials(0, 0, 2); _apps.Stop(); _nativeClients.Stop(); Zenith.Core.Processes.NativeSystemInformation.Display("No graphical session"); }
 
     public void Tick()
     {
@@ -222,6 +222,7 @@ internal sealed class Desktop
     private void ComposeScene()
     {
         long start = FrameStats.Now;
+        MaterialResources.Policy.Begin(Zenith.Core.Configuration.SystemConfiguration.Appearance.Active.Materials);
         _scene.CopyFrom(_wallpaper);
         Windows.Draw(_scene, _input.X, _input.Y);
 
@@ -237,6 +238,8 @@ internal sealed class Desktop
             _launcher.Draw(_scene, _input.X, _input.Y);
         }
 
+        var policy = MaterialResources.Policy;
+        Zenith.Core.Configuration.SystemConfiguration.Appearance.ReportMaterials(3, policy.Effective, policy.Reason);
         FrameStats.RecordCompose(start);
     }
     private int WidthForMessage() => 520;

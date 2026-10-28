@@ -27,7 +27,20 @@ a real installed VM, separate from local disposable validation.
    grant permission. The matching user's graphical page is read-only.
 7. Reboot normally. Saved appearance must remain, and saved/active must agree.
 8. Update only the Settings package; verify its version changes while the confirmed
-   kernel stays the same. Transparency/blur remain marked unavailable.
+   kernel stays the same.
+9. In Colors, enable Transparent surfaces and Backdrop blur, then Save. The panel,
+   window decorations and Meridian navigation should reveal a tinted/diffused
+   backdrop; document/text/credential surfaces stay opaque. The decoration divider
+   disappears; the inner content top-left curve and all hit targets stay fixed.
+10. Turn transparency off and Save. Blur stays selected but inactive; the solid
+    panel and divider return. Turn transparency back on: blur reactivates. Reboot
+    and verify the saved choices persist. `native run settings --materials-show`
+    distinguishes saved/effective/available flags; headless reports no active renderer.
+11. Move and overlap windows over text and bright/dark backgrounds, minimize and
+    restore, and repeat in light mode. Text must remain readable. Open enough
+    surfaces to exercise tint/solid fallback; no saved setting may be overwritten.
+    Protected password entry must remain solid. Report prolonged frame lag or
+    repaint artifacts along with the display size.
 
 Report the exact kernel/client/theme versions and which steps passed. Source and
 local QEMU tests do not complete this operator checklist automatically.

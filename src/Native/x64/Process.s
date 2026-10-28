@@ -364,7 +364,7 @@ z_syscall:
     je z_service
     cmp $600, %rax
     jb 9f
-    cmp $607, %rax
+    cmp $609, %rax
     jbe z_service
 9:
     cmp $500, %rax

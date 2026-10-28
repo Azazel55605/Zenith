@@ -44,10 +44,18 @@ without saving. Current source opts into the [owned interactive profile](GRAPHIC
 Local administrator-owned `/etc/zenith/appearance.conf` has exactly these keys:
 
 ```ini
-VERSION=1
+VERSION=2
 MODE=dark
 ACCENT=blue
+MATERIALS=0
 ```
+
+Schema 1 (MODE/ACCENT only) is read with solid materials. Schema 2 adds a strict
+mask: transparency=1, blur=2, valid values 0..3. Blur-only (2) is retained but
+inactive. Mode/accent/materials save together through one revision/replace.
+Legacy 611 saves preserve material bits. An older kernel does not understand
+schema 2: it uses its safe fallback and refuses to overwrite the file; restore
+schema 1 explicitly only if rolling preferences back is intended.
 
 Reads are bounded to 4096 UTF-8 bytes; invalid/duplicate/unknown keys and future
 versions fall back at boot with a diagnostic. Saves refuse to overwrite an invalid
@@ -86,8 +94,9 @@ An explicit appearance save or the new resource opts the host into the shared
 palette. Resource/package changes load on next graphical login; preference saves
 apply live. The current native text atlases remain compiled into each client;
 installed font replacement, font selection, Unicode shaping and scalable layout
-are future work. Transparency/blur have no working preference or compositor path
-in this release and are shown as unavailable.
+are future work. The Colors page now saves transparency/blur separately, in the
+same draft as mode/accent. Unsupported/headless renderers report them unavailable;
+saved, effective and available state are distinct.
 
 ## Native wire contract (settings ABI 1)
 
@@ -116,6 +125,27 @@ u32, reserved u64=0. Invalid version/size/reserved fields return -22, invalid me
 -14, unauthorized save -13, stale revision -11, revision exhaustion -75 and storage/
 configuration failure -5. Invalid requests and failed saves never publish a new
 runtime selection. Calls share existing per-invocation service limits.
+
+## Material preference extension
+
+- **608 read** `(writable snapshot, 48, 0)`: u32 version=1, u32 flags
+  (persistent=1/writable=2), u64 saved revision, u32 saved mask, u32 effective mask,
+  u32 available mask, u32 reason, u64 active revision, u64 reserved=0.
+- **609 save** `(readable request, 32, 0)`: u32 version=1, u32 flags=0,
+  u64 expected saved revision, u32 mode, u32 accent, u32 material mask,
+  u32 reserved=0. Captured UID 0 only; same atomic persistence/error rules as 611.
+
+Masks: transparency=1, blur=2. Effective reports renderer-enabled features; the
+reason explains per-surface reductions. Reasons: 0 normal, 1 blur needs
+transparency, 2 no graphical renderer, 3 cache budget/oversize, 4 per-frame blur
+budget, 5 contrast. Headless reports effective/available=0 while retaining saved
+bits. Fallback never modifies the saved selection. Legacy 448-byte appearance
+snapshots and 32-byte saves retain their reserved fields and semantics.
+
+CLI: `settings set materials solid|transparent|blur`; native diagnostics:
+`native run settings --materials-show`. GUI toggles share Save/Discard/stale-edit
+and root-only controls with mode/accent. Turning transparency off retains the
+blur draft. Scope remains system-wide; per-user preferences/elevation are S1 work.
 
 ## Owned window state ABI 1
 

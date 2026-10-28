@@ -153,8 +153,9 @@ ordinary Unicode/AltGr is preserved. Work and release acceptance: U1/Q2 in the
 
 ## Opt-in material frames (D3 first slice)
 
-This extension is under local qualification; it does not enable global desktop
-materials or claim installed acceptance. The normal ABI 1 path stays opaque.
+This extension has local software qualification and integrates with system-wide
+preferences. Distributor/installed acceptance remains separate. ABI 1 client pixels
+stay opaque; trusted decorations may independently use the host material policy.
 
 - **607** `(out_caps, 32, 0)` queries the current invocation's graphical host.
   Returns eight little-endian u32: extension version **2**, feature bits **15**
@@ -192,10 +193,17 @@ The opt-in `ui-gallery --materials` probe demonstrates 1 Solid / 2 Transparency 
 3 Backdrop blur. The shared C library provides `zui_begin_material_frame` and
 `zui_material_surface`: declare nonoverlapping material regions, then draw normal
 content/controls/text on the foreground target. RGB drawing becomes premultiplied
-coverage; legacy rendering is unchanged. Ordinary `zui_surface` paints its opaque
-fallback; do not clear a finished opaque window and reinterpret it as alpha.
+coverage; legacy rendering is unchanged. On an explicit foreground target, ordinary
+`zui_surface` calls for Navigation/Panel/Popover declare an eligible region before
+clearing its coverage. Failed declarations keep the opaque fallback. Controls,
+status/credential/document planes remain opaque; do not reinterpret finished RGB.
 
-This is a bounded software prototype. User preferences (saved/effective/available),
-resource-pressure fallback, wider contrast/scale/hardware profiles and sustained
-performance remain D3 work before broad enablement. Protected login/recovery
-windows and existing apps continue using their opaque paths.
+The host clamps every requested region through the shared desktop policy:
+transparency off gives solid; blur off gives tint; resource/work/contrast limits
+may further reduce the effect. The saved preference is unchanged. See
+[policy and budgets](DESIGN-LANGUAGE.md#user-preference-and-fallback-rules) and
+[608/609 preference services](NATIVE-SETTINGS.md#material-preference-extension).
+Meridian negotiates format 2 and uses its sidebar as a material region. Chrome
+and taskbar use the same host compositor; legacy app content remains opaque.
+Protected authentication stays solid. Local evidence is recorded in
+[desktop integration](archive/2026-10-28/desktop-material-integration.md).

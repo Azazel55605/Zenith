@@ -39,6 +39,8 @@ internal abstract class Window
 
     /// <summary>Whether the user may resize and maximize the window. Fixed-layout windows say no.</summary>
     public virtual bool CanResize => true;
+    public virtual bool AllowMaterials => true;
+    internal HostMaterial ChromeMaterial { get; } = new();
 
     /// <summary>The smallest size the user can resize the window to.</summary>
     public virtual (int Width, int Height) MinimumSize => (300, 180);
@@ -51,7 +53,7 @@ internal abstract class Window
 
     public virtual bool HasUnsavedChanges => false;
     public virtual bool CanClose => true;
-    public virtual void Close() { if (CanClose) { IsClosed = true; } }
+    public virtual void Close() { if (CanClose) { ChromeMaterial.Dispose(); IsClosed = true; } }
     public virtual void EndSession() => Close();
 
     /// <summary>Moves or resizes the window; <see cref="OnResized"/> runs when the size changed.</summary>

@@ -64,6 +64,13 @@ int main(int argc,char **argv){
         if(a&&a<255)fractional++;
     }
     assert(fractional>4&&actual[31]==0&&material.material_count==1);
+    zui_begin_material_frame(&material);
+    zui_surface(&material,material.clip,0,ZUI_SURFACE_CONTENT);
+    assert(zui_surface(&material,(struct zui_rect){0,0,16,32},0,ZUI_SURFACE_NAVIGATION));
+    assert(material.material_count==1&&actual[1]==0&&actual[31]>>24==255);
+    /* Overlapping auto-regions fall back to opaque controls, never a partial frame. */
+    assert(zui_surface(&material,(struct zui_rect){8,0,16,32},0,ZUI_SURFACE_PANEL));
+    assert(material.material_count==1&&actual[10]>>24==255);
     storage[0]=0x12345678;storage[600*440+1]=0xabcdef01;
     assert(gallery_init(&g,storage+1,0));
     char palette_path[4096];assert(snprintf(palette_path,sizeof(palette_path),"%s/palette.tsv",argv[1])>0);

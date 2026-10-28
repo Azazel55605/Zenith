@@ -7,11 +7,12 @@ static struct zenith_appearance state;
 static struct settings_app app;
 static long failure;
 static int guarded;
-static long read_state(struct zenith_appearance *s){*s=state;return 0;}
-static long save_state(unsigned int m,unsigned int a,unsigned long revision){
+static unsigned int material_saved;
+static long read_state(struct zenith_appearance *s,unsigned int *saved,unsigned int *effective,unsigned int *available,unsigned int *reason){*s=state;*saved=material_saved;*effective=(material_saved&1)?material_saved:0;*available=3;*reason=0;return 0;}
+static long save_state(unsigned int m,unsigned int a,unsigned int materials,unsigned long revision){
     if(failure)return failure;
     if(revision!=state.revision)return -11;
-    state.mode=m;state.accent=a;state.revision++;return 0;
+    material_saved=materials;state.mode=m;state.accent=a;state.revision++;return 0;
 }
 static long dirty_state(int dirty){guarded=dirty;return 0;}
 static void event(int type,int code,int x,int y,int extra){
@@ -46,6 +47,12 @@ int main(int argc,char **argv){
     assert(zui_accent_color(&app.ui,3)==0x987654); /* package-provided swatches */
     struct zui original;assert(zui_init(&original,pixels,600,480));zui_appearance(&original,0,3);
     state.palette[0][3][6]=original.theme.accent;
+    state.flags=3;material_saved=0;assert(settings_init(&app,pixels,backend));settings_draw(&app);
+    event(Z_GUI_FOCUS,1,0,0,0);click(550,255);click(550,305);assert(app.effects==3&&app.edited&&guarded);
+    click(70,438);assert(material_saved==3&&!app.edited&&!guarded);
+    click(550,255);assert(app.effects==2&&app.edited);click(70,438);assert(material_saved==2&&!app.edited);
+    state.flags=1;assert(settings_init(&app,pixels,backend));settings_draw(&app);event(Z_GUI_FOCUS,1,0,0,0);
+    click(550,255);assert(app.effects==2&&!app.edited);material_saved=0;
     if(argc==2){
         for(int mode=0;mode<2;mode++)for(int accent=0;accent<6;accent++){
             state.mode=mode;state.accent=accent;state.flags=3;

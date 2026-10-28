@@ -36,6 +36,8 @@ Start with [current status](../ROADMAP.md#state-and-evidence) or [active work](.
 
 ## Completed slices
 
+- [2026-10-28 desktop materials](2026-10-28/desktop-material-integration.md): atomic effect preferences, shared chrome/taskbar/Meridian composition, bounded fallback and local qualification.
+
 - [2026-10-17 native streams](2026-10-17/native-streams.md): live standard descriptors, canonical input, bounded byte pipelines, independent wc/head/tail and full local acceptance; publication pending.
 
 - [2026-10-17 dashboard retries](2026-10-17/dashboard-retry.md): failed/interrupted build controls, restricted publisher queue helper and background service execution.

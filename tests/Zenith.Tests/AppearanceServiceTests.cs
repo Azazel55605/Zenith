@@ -130,4 +130,33 @@ public class AppearanceServiceTests
         var revoked = new ProcessSurface(160, 100, "test"); revoked.SetDirty(true); revoked.Dispose();
         Assert.True(revoked.Ended); Assert.Equal(1, revoked.Poll().Type); Assert.Equal(-32, revoked.SetDirty(false));
     }
+    [Fact]
+    public void MaterialsMigrateAtomicallyPersistAndLegacySavesRetainThem()
+    {
+        using var root = CredentialContext.Enter(Credentials.Root);
+        var store = new Store { Text = "VERSION=1\nMODE=dark\nACCENT=blue\n" };
+        var service = new AppearanceService(store);Assert.Null(service.Load());
+        Assert.Equal(0, service.SaveFull(1, 4, 3, 1));Assert.Contains("VERSION=2", store.Text);
+        Assert.Equal(3U, service.Saved.Materials);Assert.Equal(0U, service.Active.Materials);
+        Assert.Equal(-11, service.SaveFull(0, 0, 0, 1));Assert.Equal(3U, service.Saved.Materials);
+        Assert.Equal(0, service.Save(0, 1, 2));Assert.Equal(3U, service.Saved.Materials);
+        var reboot = new AppearanceService(store);Assert.Null(reboot.Load());Assert.Equal(3U, reboot.Saved.Materials);
+        Assert.Equal(0, reboot.SaveFull(0, 1, 2, 1));Assert.Equal(2U, reboot.Saved.Materials); // saved blur can outlive transparency
+        store.Fail = true;Assert.Equal(-5, reboot.SaveFull(1, 3, 1, 2));Assert.Equal(2U, reboot.Saved.Materials);
+        using var user = CredentialContext.Enter(new Credentials(1000, 1000));Assert.Equal(-13, reboot.SaveFull(0, 0, 0, 2));
+    }
+    [Fact]
+    public void MaterialSettingsWireDoesNotChangeLegacySnapshotsOrTrustClientFlags()
+    {
+        using var root = CredentialContext.Enter(Credentials.Root);var service = new AppearanceService(new Store());
+        byte[] request = new byte[32];request[0] = 1;request[8] = 1;request[24] = 3;
+        Assert.Equal(0, ProcessAppearance.SaveMaterials(service, request));
+        service.MarkActive(service.Saved);service.ReportMaterials(3, 1, 4);
+        var snapshot = ProcessAppearance.MaterialSnapshot(service);Assert.Equal(48, snapshot.Length);
+        Assert.Equal(3U, BinaryPrimitives.ReadUInt32LittleEndian(snapshot.AsSpan(16)));
+        Assert.Equal(1U, BinaryPrimitives.ReadUInt32LittleEndian(snapshot.AsSpan(20)));
+        Assert.All(ProcessAppearance.Snapshot(service)[432..], value => Assert.Equal(0, value));
+        request[28] = 1;Assert.Equal(-22, ProcessAppearance.SaveMaterials(service, request));
+        Assert.Equal(3U, service.Saved.Materials);
+    }
 }

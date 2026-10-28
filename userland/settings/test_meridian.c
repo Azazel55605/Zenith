@@ -5,8 +5,9 @@
 #include <limits.h>
 static struct zenith_appearance saved;
 static int saves,dirty;
-static long read_state(struct zenith_appearance *s){*s=saved;return 0;}
-static long save(unsigned int m,unsigned int a,unsigned long revision){assert(revision==saved.revision);saved.mode=m;saved.accent=a;saved.revision++;saves++;return 0;}
+static unsigned int material_saved;
+static long read_state(struct zenith_appearance *s,unsigned int *materials,unsigned int *effective,unsigned int *available,unsigned int *reason){*s=saved;*materials=*effective=material_saved;*available=3;*reason=0;return 0;}
+static long save(unsigned int m,unsigned int a,unsigned int materials,unsigned long revision){assert(revision==saved.revision);material_saved=materials;saved.mode=m;saved.accent=a;saved.revision++;saves++;return 0;}
 static long mark(int d){dirty=d;return 0;}
 static struct meridian app;
 static unsigned int pixels[600*480];

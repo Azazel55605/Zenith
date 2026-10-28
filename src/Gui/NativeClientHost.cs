@@ -51,28 +51,39 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
         private readonly ProcessSurface _surface;
         private readonly int[] _frame;
         private readonly ProcessMaterialRegion[] _materials = new ProcessMaterialRegion[ProcessMaterialRegion.MaximumRegions];
-        private readonly MaterialComposition? _composition;
+        private readonly MaterialCache? _composition;
+        private readonly ProcessMaterialRegion[] _effective = new ProcessMaterialRegion[ProcessMaterialRegion.MaximumRegions];
         private int _materialCount;
         public ClientWindow(ProcessSurface surface, Credentials identity) : base("Native · " + surface.Title, surface.Width, surface.Height + TitleBarHeight)
-        { _surface = surface; Identity = identity; _frame = new int[surface.Width * surface.Height]; if (surface.Format == 2) { _composition = new(); } }
+        { _surface = surface; Identity = identity; _frame = new int[surface.Width * surface.Height]; if (surface.Format == 2) { _composition = new(ProcessMaterialRegion.MaximumArea); } }
         public override bool CanResize => false;
         public override bool UpdateWhenMinimized => true;
         public override bool HasUnsavedChanges => _surface.Unsaved;
-        public override void Close() { if (_surface.RequestClose()) { base.Close(); } }
-        public override void EndSession() { _surface.Dispose(); base.Close(); }
+        public override void Close() { if (_surface.RequestClose()) { _composition?.Dispose();base.Close(); } }
+        public override void EndSession() { _composition?.Dispose();_surface.Dispose(); base.Close(); }
         public override bool Update()
         {
-            if (_surface.Ended) { base.Close(); Zenith.Core.Log.Write("graphics", "native surface retired"); return true; }
+            if (_surface.Ended) { _composition?.Dispose();base.Close(); Zenith.Core.Log.Write("graphics", "native surface retired"); return true; }
             if (IsMinimized || !_surface.CopyFrame(_frame, false, _materials, out int count)) { return false; }
             _materialCount = count; return true;
         }
         public override void CaptureBackdrop(Surface surface, Rect content)
-            => _composition?.Capture(surface.Pixels, surface.Width, surface.Height, content, _materials, _materialCount, Theme.WindowBackground);
+        {
+            if (_composition is null) { return; }
+            for (int i = 0; i < _materialCount; i++)
+            {
+                var r = _materials[i];uint tint = r.Role == 3 ? Theme.Panel : Theme.Raised;
+                int effect = MaterialResources.Policy.Effect(r.Effect, tint, Theme.TextPrimary, Theme.TextSecondary, r.Width * r.Height);
+                if (effect != 0 && !_composition.Ensure()) { effect = 0; }
+                _effective[i] = r with { Effect = effect, Opacity = MaterialPolicy.Opacity(tint, Theme.TextPrimary, Theme.TextSecondary, effect) };
+            }
+            _composition.Composition.Capture(surface.Pixels, surface.Width, surface.Height, content, _effective, _materialCount, Theme.WindowBackground);
+        }
         public override void DrawContent(Surface surface, Rect content)
         {
             if (_composition is not null)
             {
-                _composition.Compose(_frame, surface.Pixels, surface.Width, surface.Height, content, _materials, _materialCount,
+                _composition.Composition.Compose(_frame, surface.Pixels, surface.Width, surface.Height, content, _effective, _materialCount,
                     Theme.WindowBackground, Theme.Raised, Theme.Panel, Theme.Raised);
                 return;
             }

@@ -82,7 +82,10 @@ never infer current failures from old release logs or claim a menu stub is a bac
   full-frame atomic validation, RGB<=alpha, opacity outside declared rectangles,
   8 nonoverlapping regions / 131072 pixels / 24px corners, bounded host blur and
   no client backdrop readback. Keep native-materials-smoke and opaque client gates.
-  System-wide preference/resource fallback remains D3 work before broad enablement. Never expose
+  System-wide material preferences use atomic revisioned 608/609 calls; legacy
+  610/611 appearance saves preserve them. Chrome, taskbar and opted-in client regions
+  share contrast/cache/work fallback without rewriting saved choices. Protected
+  credentials remain solid. Never expose
   framebuffer addresses or global input. Native-graphics-smoke joins all six
   existing pre-tag gates; Settings and compositor migration remain separate.
   Native-network-smoke remains a mandatory pre-tag gate. Configuration,

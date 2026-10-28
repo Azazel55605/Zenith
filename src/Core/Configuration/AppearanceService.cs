@@ -5,7 +5,7 @@ using Zenith.Core.Security;
 
 namespace Zenith.Core.Configuration;
 
-internal sealed record AppearanceSelection(uint Mode, uint Accent, ulong Revision);
+internal sealed record AppearanceSelection(uint Mode, uint Accent, ulong Revision, uint Materials = 0);
 internal sealed record AppearanceState(AppearanceSelection Saved, AppearanceSelection Active, AppearancePalette Palette, ulong Resources);
 
 /// <summary>Shared system preference authority. Never exposes paths or invokes shell commands.</summary>
@@ -19,6 +19,11 @@ internal sealed class AppearanceService
     private volatile AppearancePalette _palette = AppearancePalette.Default;
     private ulong _resources = 1;
     private volatile bool _explicit;
+    private uint _materialAvailable, _materialEffective, _materialReason = 2;
+    public (uint Available, uint Effective, uint Reason) MaterialStatus
+    { get { lock (_gate) { return (_materialAvailable, _materialEffective, _materialReason); } } }
+    public void ReportMaterials(uint available, uint effective, uint reason)
+    { lock (_gate) { _materialAvailable = available & 3; _materialEffective = effective & available & 3; _materialReason = reason; } }
     public bool UsePalette => _explicit || _palette.Packaged;
     public AppearancePalette Palette => _palette;
     public bool Persistent => _store.Persistent;
@@ -33,7 +38,7 @@ internal sealed class AppearanceService
             {
                 string? text = _store.Read(Path); var value = Parse(text);
                 _explicit = text is not null;
-                _saved = _active = new(value.Mode, value.Accent, 1);
+                _saved = _active = new(value.Mode, value.Accent, 1, value.Materials);
                 return null;
             }
             catch (Exception e) { _saved = _active = new(0, 0, 1); return e.Message + "; using dark/blue"; }
@@ -41,9 +46,11 @@ internal sealed class AppearanceService
     }
     // Result codes are stable service errors, not exception text or authority supplied by a client.
     public int Save(uint mode, uint accent, ulong expectedRevision)
+    { lock (_gate) { return SaveFull(mode, accent, _saved.Materials, expectedRevision); } }
+    public int SaveFull(uint mode, uint accent, uint materials, ulong expectedRevision)
     {
         if (!CredentialContext.Current.IsRoot) { return -13; }
-        if (mode > 1 || accent > 5) { return -22; }
+        if (mode > 1 || accent > 5 || materials > 3) { return -22; }
         lock (_gate)
         {
             var old = _saved;
@@ -51,9 +58,10 @@ internal sealed class AppearanceService
             if (old.Revision == ulong.MaxValue) { return -75; }
             try
             {
-                _ = Parse(_store.Read(Path)); // Refuse malformed/future schemas rather than downgrading them.
-                _store.Replace(Path, "VERSION=1\nMODE=" + ModeName(mode) + "\nACCENT=" + AccentName(accent) + "\n");
-                _explicit = true; _saved = new(mode, accent, old.Revision + 1);
+                _ = Parse(_store.Read(Path));
+                string text = "VERSION=2\nMODE=" + ModeName(mode) + "\nACCENT=" + AccentName(accent) + "\nMATERIALS=" + materials + "\n";
+                _store.Replace(Path, text);
+                _explicit = true; _saved = new(mode, accent, old.Revision + 1, materials);
                 return 0;
             }
             catch { return -5; }
@@ -77,9 +85,9 @@ internal sealed class AppearanceService
         for (uint i = 0; i < 6; i++) { if (AccentName(i) == name) { value = i; return true; } }
         value = 0; return false;
     }
-    private static (uint Mode, uint Accent) Parse(string? text)
+    private static (uint Mode, uint Accent, uint Materials) Parse(string? text)
     {
-        if (text is null) { return (0, 0); }
+        if (text is null) { return (0, 0, 0); }
         if (Encoding.UTF8.GetByteCount(text) > 4096 || text.Contains('\0')) { throw new FormatException("invalid appearance configuration"); }
         var fields = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (string raw in text.Replace("\r\n", "\n").Split('\n'))
@@ -88,10 +96,15 @@ internal sealed class AppearanceService
             int eq = line.IndexOf('=');
             if (eq < 1 || !fields.TryAdd(line[..eq], line[(eq + 1)..])) { throw new FormatException("invalid/duplicate appearance key"); }
         }
-        if (fields.Count != 3 || !fields.TryGetValue("VERSION", out var version) || version != "1"
+        if (!fields.TryGetValue("VERSION", out var version) || version is not ("1" or "2")
+            || fields.Count != (version == "1" ? 3 : 4)
             || !fields.TryGetValue("MODE", out var mode) || !TryMode(mode, out uint m)
             || !fields.TryGetValue("ACCENT", out var accent) || !TryAccent(accent, out uint a))
         { throw new FormatException("unsupported appearance configuration"); }
-        return (m, a);
+        uint materials = 0;
+        if (version == "2" && (!fields.TryGetValue("MATERIALS", out var effects) || effects.Length != 1 || effects[0] < '0' || effects[0] > '3'))
+        { throw new FormatException("invalid material preferences"); }
+        if (version == "2") { materials = (uint)(fields["MATERIALS"][0] - '0'); }
+        return (m, a, materials);
     }
 }

@@ -14,6 +14,7 @@ internal sealed class Surface : Canvas
 {
     private Rect _clip;
     private readonly RoundedComposition _roundedComposition = new();
+    private readonly RoundedComposition _contentCorner = new();
 
     public Surface(int width, int height) : base(width, height)
     {
@@ -39,6 +40,11 @@ internal sealed class Surface : Canvas
 
     public void CompositeWindowCorners(Rect bounds, int radius)
         => _roundedComposition.Composite(Pixels, Width, Height, bounds, radius);
+
+    public void CaptureContentCorner(Rect bounds, int radius)
+        => _contentCorner.Capture(Pixels, Width, Height, bounds, radius, 1);
+    public void CompositeContentCorner(Rect bounds, int radius)
+        => _contentCorner.Composite(Pixels, Width, Height, bounds, radius, 1);
 
     public void ResetClip() => _clip = Bounds;
 

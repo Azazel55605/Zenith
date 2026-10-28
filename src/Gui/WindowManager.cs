@@ -346,6 +346,8 @@ internal sealed class WindowManager
     {
         Rect b = w.Bounds;
         int radius = w.IsMaximized ? 0 : Theme.WindowRadius;
+        Rect chrome = new(b.X, b.Y, b.W, Window.TitleBarHeight + Theme.WindowRadius);
+        w.ChromeMaterial.Capture(surface, chrome, 0, Theme.Panel, w.AllowMaterials);
         w.CaptureBackdrop(surface, w.Content);
         if (!w.IsMaximized)
         {
@@ -359,8 +361,9 @@ internal sealed class WindowManager
 
         // Title bar: title on the left, minimize / maximize / close on the right.
         Rect title = w.TitleBar;
-        surface.FillRect(title, Theme.Panel | 0xff000000U);
-        surface.FillRect(new Rect(b.X, title.Bottom - 1, b.W, 1), Theme.TitleDivider);
+        w.ChromeMaterial.Paint(surface, chrome, Theme.Panel);
+        if ((MaterialResources.Policy.Effective & 1) == 0 || !w.AllowMaterials)
+        { surface.FillRect(new Rect(b.X, title.Bottom - 1, b.W, 1), Theme.TitleDivider); }
         surface.Clip = new Rect(title.X + 14, title.Y, w.MinimizeButton.X - title.X - 20, title.H);
         surface.DrawTextCentered(w.Title, Fonts.SemiBold, Theme.TextTitle,
             w.IsFocused ? Theme.TextPrimary : Theme.TextSecondary, surface.Clip, false);
@@ -374,10 +377,12 @@ internal sealed class WindowManager
 
         DrawTitleButton(surface, w.CloseButton, TitleIcon.Close, mouseX, mouseY, Theme.Danger, w.IsFocused);
 
+        surface.CaptureContentCorner(w.Content, Theme.WindowRadius);
         surface.Clip = w.Content.Inflate(-1);
         using var identity = Zenith.Core.Security.CredentialContext.Enter(w.Identity);
         w.DrawContent(surface, w.Content);
         surface.ResetClip();
+        surface.CompositeContentCorner(w.Content, Theme.WindowRadius);
 
         if (!w.IsMaximized)
         {

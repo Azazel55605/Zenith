@@ -8,10 +8,12 @@ namespace Zenith.Gui.Graphics;
 internal sealed class MaterialComposition
 {
     private const int BlurRadius = 4;
-    private readonly int[] _source = new int[ProcessMaterialRegion.MaximumArea];
-    private readonly int[] _scratch = new int[ProcessMaterialRegion.MaximumArea];
-    private readonly int[] _filtered = new int[ProcessMaterialRegion.MaximumArea];
+    private readonly int[] _source;
+    private readonly int[] _scratch;
+    private readonly int[] _filtered;
     private readonly ProcessMaterialRegion[] _previous = new ProcessMaterialRegion[ProcessMaterialRegion.MaximumRegions];
+    public MaterialComposition(int capacity = ProcessMaterialRegion.MaximumArea)
+    { _source = new int[capacity]; _scratch = new int[capacity]; _filtered = new int[capacity]; }
     private int _count = -1;
     public int BlurRebuilds { get; private set; }
 
@@ -21,6 +23,7 @@ internal sealed class MaterialComposition
         for (int i = 0; i < count; i++)
         {
             var r = regions[i]; changed |= _previous[i] != r; _previous[i] = r;
+            if (r.Effect == 0) { offset += r.Width * r.Height;continue; }
             for (int y = 0; y < r.Height; y++)
             {
                 for (int x = 0; x < r.Width; x++)
@@ -43,7 +46,7 @@ internal sealed class MaterialComposition
                 Blur(_source, _scratch, offset, r.Width, r.Height, true);
                 Blur(_scratch, _filtered, offset, r.Width, r.Height, false); BlurRebuilds++;
             }
-            else { Array.Copy(_source, offset, _filtered, offset, area); }
+            else if (r.Effect != 0) { Array.Copy(_source, offset, _filtered, offset, area); }
             offset += area;
         }
     }
@@ -73,11 +76,11 @@ internal sealed class MaterialComposition
         }
     }
 
-    public void Compose(int[] frame, int[] target, int width, int height, Rect content,
-        ProcessMaterialRegion[] regions, int count, uint fallback, uint panel, uint navigation, uint popover)
+    public void Paint(int[] target, int width, int height, Rect content,
+        ProcessMaterialRegion[] regions, int count, uint fallback, uint panel, uint navigation, uint popover, bool clear)
     {
         Rect clip = content.Intersect(new Rect(0, 0, width, height));
-        for (int y = clip.Y; y < clip.Bottom; y++)
+        if (clear)for (int y = clip.Y; y < clip.Bottom; y++)
         { Array.Fill(target, (int)(fallback | 0xff000000U), y * width + clip.X, clip.W); }
         int offset = 0;
         for (int i = 0; i < count; i++)
@@ -93,12 +96,18 @@ internal sealed class MaterialComposition
                     int dx = Math.Min(px, r.Width - 1 - px), dy = Math.Min(py, r.Height - 1 - py);
                     int coverage = dx < r.Radius && dy < r.Radius ? RoundedComposition.Coverage(dx, dy, r.Radius) : 255;
                     int color = r.Effect == 0 ? (int)(tint | 0xff000000U)
-                        : RoundedComposition.Blend((int)tint, _filtered[offset + py * r.Width + px], r.Effect == 1 ? 220 : 210);
+                        : RoundedComposition.Blend((int)tint, _filtered[offset + py * r.Width + px], r.Opacity > 0 ? r.Opacity : r.Effect == 1 ? 220 : 210);
                     target[y * width + x] = RoundedComposition.Blend(color, target[y * width + x], coverage);
                 }
             }
             offset += r.Width * r.Height;
         }
+    }
+    public void Compose(int[] frame, int[] target, int width, int height, Rect content,
+        ProcessMaterialRegion[] regions, int count, uint fallback, uint panel, uint navigation, uint popover)
+    {
+        Paint(target, width, height, content, regions, count, fallback, panel, navigation, popover, true);
+        Rect clip = content.Intersect(new Rect(0, 0, width, height));
         for (int y = clip.Y; y < clip.Bottom; y++)
         {
             for (int x = clip.X; x < clip.Right; x++)

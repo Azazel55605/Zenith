@@ -27,4 +27,12 @@ static inline long zenith_appearance_save(unsigned int mode,unsigned int accent,
 /* Window-state ABI 1. Dirty chrome close emits intent event 9; explicit close/revocation stays terminal. */
 #define Z_GUI_CLOSE_INTENT 9
 static inline long zenith_gui_dirty(long handle,int dirty){return zenith_call(604,(unsigned long)handle,!!dirty,0);}
+struct zenith_material_settings { unsigned int version,flags; unsigned long revision; unsigned int saved,effective,available,reason; unsigned long active_revision,reserved; };
+struct zenith_material_settings_request { unsigned int version,flags; unsigned long revision; unsigned int mode,accent,materials,reserved; };
+_Static_assert(sizeof(struct zenith_material_settings)==48,"material settings snapshot");
+_Static_assert(sizeof(struct zenith_material_settings_request)==32,"material settings request");
+static inline long zenith_material_settings_read(struct zenith_material_settings *state){return zenith_call(608,(unsigned long)state,sizeof(*state),0);}
+static inline long zenith_material_settings_save(unsigned int mode,unsigned int accent,unsigned int materials,unsigned long revision){
+    struct zenith_material_settings_request r={1,0,revision,mode,accent,materials,0};return zenith_call(609,(unsigned long)&r,sizeof(r),0);
+}
 #endif

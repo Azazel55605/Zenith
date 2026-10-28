@@ -15,12 +15,12 @@ static void palette(struct settings_app *a){
     a->ui.dirty=1;
 }
 void settings_refresh(struct settings_app *a){
-    struct zenith_appearance s={0};long result=a->backend.read(&s);
-    if(result||!valid(&s)){a->message="Settings service unavailable. Edits have been kept.";a->ui.dirty=1;return;}
-    int changed=!a->have_state||s.revision!=a->state.revision||s.active_revision!=a->state.active_revision||s.resources!=a->state.resources||s.flags!=a->state.flags;
-    if(!a->edited){a->mode=s.mode;a->accent=s.accent;a->base_revision=s.revision;}
+    struct zenith_appearance s={0};unsigned int saved=0,effective=0,available=0,reason=0;long result=a->backend.read(&s,&saved,&effective,&available,&reason);
+    if(result||!valid(&s)||saved>3||effective>3||available>3||reason>5){a->message="Settings service unavailable. Edits have been kept.";a->ui.dirty=1;return;}
+    int changed=effective!=a->effective_effects||available!=a->available_effects||reason!=a->material_reason||!a->have_state||s.revision!=a->state.revision||s.active_revision!=a->state.active_revision||s.resources!=a->state.resources||s.flags!=a->state.flags;
+    if(!a->edited){a->effects=saved;a->mode=s.mode;a->accent=s.accent;a->base_revision=s.revision;}
     else if(s.revision!=a->base_revision)a->message="Changed elsewhere. Reload before saving; your edits are kept.";
-    a->state=s;a->have_state=1;if(changed)palette(a);
+    a->saved_effects=saved;a->effective_effects=effective;a->available_effects=available;a->material_reason=reason;a->state=s;a->have_state=1;if(changed)palette(a);
 }
 int settings_init(struct settings_app *a,unsigned int *pixels,struct settings_backend backend){
     *a=(struct settings_app){0};a->backend=backend;
@@ -41,13 +41,13 @@ int settings_init(struct settings_app *a,unsigned int *pixels,struct settings_ba
     return 1;
 }
 void settings_draw(struct settings_app *a){
-    struct zui *u=&a->ui;zui_clip(u,(struct zui_rect){0,0,600,480});zui_surface(u,u->clip,0,ZUI_SURFACE_CONTENT);
+    struct zui *u=&a->ui;if(u->foreground)zui_begin_material_frame(u);zui_clip(u,(struct zui_rect){0,0,600,480});zui_surface(u,u->clip,0,ZUI_SURFACE_CONTENT);
     text(a,24,16,"Appearance",&zui_heading,u->theme.text);
     text(a,24,51,"System-wide settings. Preview changes before saving.",&zui_body,u->theme.secondary);
     text(a,24,79,"Color mode",&zui_label,u->theme.text);
     text(a,24,157,"Accent color",&zui_label,u->theme.text);
     zui_setting_row(u,(struct zui_rect){24,244,490,45},"","Let selected surfaces reveal the background.");
-    zui_setting_row(u,(struct zui_rect){24,294,490,45},"","Work in progress: system-wide material controls are not wired.");
+    zui_setting_row(u,(struct zui_rect){24,294,490,45},"",!a->available_effects?"Unavailable on this renderer; saved choices are kept.":a->effects==2?"Blur is saved; enable transparent surfaces to activate it.":a->material_reason>=3?"Some surfaces use a solid or tint fallback for readability and speed.":"Diffuse the background while keeping text and controls clear.");
     const char *scope=!(a->state.flags&Z_SETTINGS_WRITABLE)?"Read only: sign in as an administrator to save.":
         a->state.flags&Z_SETTINGS_PERSISTENT?"Installed system: saved changes survive reboot.":"Live system: changes will be lost at reboot.";
     text(a,24,347,scope,&zui_caption,u->theme.secondary);
@@ -61,6 +61,10 @@ void settings_draw(struct settings_app *a){
         c->enabled=a->prompt?c->id>=90:c->id<90;
         if(c->id<30){c->enabled=c->enabled&&!!(a->state.flags&Z_SETTINGS_WRITABLE);c->value=c->id<10?c->id==(int)a->mode+1:c->id==(int)a->accent+10;}
         if(c->id==30){c->enabled=c->enabled&&a->edited&&!!(a->state.flags&Z_SETTINGS_WRITABLE);c->value=1;}
+    }
+    for(int i=13;i<15;i++){
+        u->controls[i].enabled=!a->prompt&&!!(a->state.flags&Z_SETTINGS_WRITABLE)&&!!(a->available_effects&(1U<<(i-13)));
+        u->controls[i].value=!!(a->effects&(1U<<(i-13)));
     }
     zui_swatch_caption(u,24,224);
     zui_segment_track(u,(struct zui_rect){24,104,280,36});
@@ -90,15 +94,17 @@ int settings_event(struct settings_app *a,const struct zenith_gui_event *e){
     if(action==40){close_request(a,1);return 0;}
     if(action==31){close_request(a,2);return 0;}
     if(action==30){
-        long result=a->backend.save(a->mode,a->accent,a->base_revision);
+        long result=a->backend.save(a->mode,a->accent,a->effects,a->base_revision);
         if(!result){a->edited=0;a->backend.dirty(0);a->message="Appearance saved.";settings_refresh(a);}
         else a->message=result==-11?"Changed elsewhere. Reload before saving; your edits are kept.":result==-13?"Administrator permission required. Edits have been kept.":"Save failed. Check writable storage; edits have been kept.";
         a->ui.dirty=1;return 0;
     }
-    unsigned int mode=a->mode,accent=a->accent;
+    unsigned int mode=a->mode,accent=a->accent,effects=a->effects;
     if(action<=2)mode=(unsigned int)action-1;
     else if(action>=10&&action<=15)accent=(unsigned int)action-10;
-    int dirty=mode!=a->state.mode||accent!=a->state.accent;
+    if(action==50)effects^=1;
+    if(action==51)effects^=2;
+    int dirty=effects!=a->saved_effects||mode!=a->state.mode||accent!=a->state.accent;
     if(a->backend.dirty(dirty)){a->message="Cannot protect unsaved changes. Selection was not changed.";a->ui.dirty=1;return 0;}
-    a->mode=mode;a->accent=accent;a->edited=dirty;a->message=0;palette(a);return 0;
+    a->mode=mode;a->accent=accent;a->effects=effects;a->edited=dirty;a->message=0;palette(a);return 0;
 }

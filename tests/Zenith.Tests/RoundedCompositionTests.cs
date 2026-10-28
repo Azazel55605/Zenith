@@ -58,4 +58,13 @@ public class RoundedCompositionTests
         var copy = (int[])p.Clone();composition.Capture(p, 64, 64, b, 0);composition.Composite(p, 64, 64, b, 0);
         Assert.Equal(copy, p); // Maximized/square windows have no mask.
     }
+    [Fact]
+    public void InnerContentMaskRoundsOnlyTopLeftAndKeepsOtherCornersSquare()
+    {
+        var pixels = new int[40 * 40];Array.Fill(pixels, unchecked((int)0xff8899aa));
+        var mask = new RoundedComposition();var bounds = new Rect(0, 0, 40, 40);
+        mask.Capture(pixels, 40, 40, bounds, 12, 1);Array.Fill(pixels, -1);mask.Composite(pixels, 40, 40, bounds, 12, 1);
+        Assert.Equal(unchecked((int)0xff8899aa), pixels[0]);Assert.Equal(-1, pixels[39]);
+        Assert.Equal(-1, pixels[39 * 40]);Assert.Equal(-1, pixels[^1]);
+    }
 }

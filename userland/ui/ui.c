@@ -80,6 +80,11 @@ int zui_backdrop_candidate(int role){
 }
 int zui_surface(struct zui *u,struct zui_rect r,int radius,int role){
     unsigned int color;
+    if(u->foreground&&zui_backdrop_candidate(role)&&zui_material_surface(u,r,radius,role,2)){
+        struct zui_rect clear=intersect(r,u->clip);
+        for(int y=clear.y;y<clear.y+clear.h;y++)for(int x=clear.x;x<clear.x+clear.w;x++)u->pixels[y*u->width+x]=0;
+        return 1;
+    }
     switch(role){
         case ZUI_SURFACE_CONTENT:color=u->theme.surface;break;
         case ZUI_SURFACE_CONTROL:case ZUI_SURFACE_PANEL:case ZUI_SURFACE_POPOVER:color=u->theme.raised;break;
@@ -189,7 +194,7 @@ void zui_swatch_caption(struct zui *u,int x,int y){
     if(u->window_focused&&u->focus>=0&&u->focus<u->count&&u->controls[u->focus].kind==ZUI_SWATCH)label=u->controls[u->focus].label;
     if(label)zui_text(u,x,y,label,length(label),&zui_caption,u->theme.secondary);
 }
-void zui_segment_track(struct zui *u,struct zui_rect r){zui_surface(u,r,8,ZUI_SURFACE_NAVIGATION);}
+void zui_segment_track(struct zui *u,struct zui_rect r){zui_round(u,r,8,u->theme.subtle);}
 void zui_setting_row(struct zui *u,struct zui_rect r,const char *label,const char *help){
     struct zui_rect saved=u->clip;zui_clip(u,intersect(saved,r));
     if(!u->clip.w||!u->clip.h){u->clip=saved;return;}

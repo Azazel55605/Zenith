@@ -3,15 +3,15 @@
 #include "../ui/ui.h"
 #include "../include/zenith_settings.h"
 struct settings_backend {
-    long (*read)(struct zenith_appearance *state);
-    long (*save)(unsigned int mode,unsigned int accent,unsigned long revision);
+    long (*read)(struct zenith_appearance *state,unsigned int *saved,unsigned int *effective,unsigned int *available,unsigned int *reason);
+    long (*save)(unsigned int mode,unsigned int accent,unsigned int materials,unsigned long revision);
     long (*dirty)(int value);
 };
 struct settings_app {
     struct zui ui;
     struct zenith_appearance state;
     struct settings_backend backend;
-    unsigned int mode,accent;
+    unsigned int mode,accent,effects,saved_effects,effective_effects,available_effects,material_reason;
     unsigned long base_revision;
     int edited,prompt,closing,have_state;
     const char *message;

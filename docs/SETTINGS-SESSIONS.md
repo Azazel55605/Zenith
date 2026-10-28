@@ -172,3 +172,9 @@ and [Master roadmap](ROADMAP.md#current-focus-and-execution-order). See [package
 
 Functional native Appearance settings: [service, resources and wire contract](NATIVE-SETTINGS.md),
 with the [installed-VM checklist](testing/SETTINGS-VM-TEST.md).
+
+Material preferences use the same system-wide appearance authority and atomic
+Save as mode/accent; [schema and 608/609 services](NATIVE-SETTINGS.md#material-preference-extension)
+distinguish saved, effective and available choices. Headless/recovery stays solid
+without clearing saved effects. The taskbar and decorations follow this policy;
+panel customization remains W1/S4 in the master roadmap.

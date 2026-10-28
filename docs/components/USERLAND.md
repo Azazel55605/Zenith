@@ -25,7 +25,7 @@ This is not general POSIX execution, managed SMP or an isolated compositor.
 - [ ] Add dynamic fonts, Unicode/shaping/IME, layout/resize/scale and input semantics;
   no glyph replacement may corrupt saved text.
 - [ ] Match the accepted [design](../DESIGN-LANGUAGE.md) in primitives before more
-  app-specific UI. Material roles keep geometry unchanged when D3 effects arrive.
+  app-specific UI. Material roles keep geometry unchanged with D3 effects enabled or disabled.
 
 ## U2–U6 — Runtime separation
 

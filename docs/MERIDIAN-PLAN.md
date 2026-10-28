@@ -39,7 +39,11 @@ unconfirmed. [Evidence](archive/2026-10-27/appearance-settings.md).
 Existing trusted services also cover selected keyboard layouts, timezone, default
 session, accounts, primary-NIC IPv4 configuration, one-shot NTP and reboot/poweroff.
 Those are useful foundations, **not completed Meridian pages or general native
-management APIs**. Current native graphics has fixed opaque surfaces up to 640x480,
+management APIs**. Current native graphics has fixed surfaces up to 640x480,
+legacy forced-opaque pixels and an explicit foreground/material extension with
+shared host policy. Meridian now has atomic transparency/blur preferences;
+[desktop integration](archive/2026-10-28/desktop-material-integration.md) records
+local qualification. It still has
 bounded lifetime/request budgets, no resize/scale/text-composition protocol and no
 shared dynamic native font loading. UI text atlases currently cover ASCII.
 

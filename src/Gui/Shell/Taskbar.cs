@@ -19,6 +19,8 @@ internal sealed class Taskbar
 
     private readonly WindowManager _windows;
     private readonly List<(Rect Rect, Window Window)> _pills = new();
+    private readonly HostMaterial _material = new();
+    public void Dispose() => _material.Dispose();
     private string _time = string.Empty;
     private string _date = string.Empty;
 
@@ -106,8 +108,9 @@ internal sealed class Taskbar
 
     public void Draw(Surface surface, int mouseX, int mouseY)
     {
+        _material.Capture(surface, Bounds, 12, Theme.Panel);
         surface.DrawShadow(Bounds, 12, 14, 70, 3);
-        surface.FillRoundRect(Bounds, 12, Theme.Panel);
+        _material.Paint(surface, Bounds, Theme.Panel);
         surface.StrokeRoundRect(Bounds, 12, Theme.PanelBorder);
 
         DrawLauncherButton(surface, mouseX, mouseY);

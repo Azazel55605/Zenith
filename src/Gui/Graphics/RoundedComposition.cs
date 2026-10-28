@@ -26,19 +26,20 @@ internal sealed class RoundedComposition
         return (hits * 255 + 8) / 16;
     }
 
-    public void Capture(int[] pixels, int width, int height, Rect bounds, int radius)
-        => Visit(pixels, width, height, bounds, radius, false);
+    public void Capture(int[] pixels, int width, int height, Rect bounds, int radius, int corners = 15)
+        => Visit(pixels, width, height, bounds, radius, false, corners);
 
-    public void Composite(int[] pixels, int width, int height, Rect bounds, int radius)
-        => Visit(pixels, width, height, bounds, radius, true);
+    public void Composite(int[] pixels, int width, int height, Rect bounds, int radius, int corners = 15)
+        => Visit(pixels, width, height, bounds, radius, true, corners);
 
-    private void Visit(int[] pixels, int width, int height, Rect bounds, int radius, bool composite)
+    private void Visit(int[] pixels, int width, int height, Rect bounds, int radius, bool composite, int corners)
     {
         if (width <= 0 || height <= 0 || (long)width * height != pixels.Length)
         { throw new ArgumentException("Invalid composition surface"); }
         radius = Math.Clamp(radius, 0, Math.Min(MaximumRadius, Math.Min(bounds.W, bounds.H) / 2));
         for (int corner = 0; corner < 4; corner++)
         {
+            if ((corners & (1 << corner)) == 0) { continue; }
             for (int y = 0; y < radius; y++)
             {
                 for (int x = 0; x < radius; x++)

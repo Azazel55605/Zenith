@@ -124,7 +124,8 @@ pixel inside an application. Choose these semantic regions when building control
 then change composition centrally.
 
 Material choice **never changes layout**: same bounds, insets, type metrics,
-rounding, hit targets, scroll geometry, focus order, separators and window controls.
+rounding, hit targets, scroll geometry, focus order and window controls. The decoration/content divider is omitted when
+transparency is enabled; it returns in solid mode.
 Do not rebuild the page when effects toggle. Do not lower opacity on a finished
 window bitmap: that also fades text, controls and security affordances.
 
@@ -132,15 +133,16 @@ window bitmap: that also fades text, controls and security affordances.
 
 Native rounded shapes use bounded 4×4 subpixel coverage, blended into the current
 opaque fallback. Switch tracks and knobs use the same renderer as swatches and
-controls. Foreground/glyph coverage stays distinct from future material opacity.
+controls. Foreground/glyph coverage stays distinct from material opacity.
 
 The compositor captures the actual backdrop in the four corner patches, draws
 all client content, and masks the **completed** window against that backdrop.
 Rectangular client copies and status bars cannot paint through the outer outline.
 This uses one reusable bounded corner buffer, not a new full-frame allocation per
 window/frame. Maximized windows remain square. Moving/clipped/overlapping windows
-capture the current lower layers each frame. D3 can reuse the geometry contract,
-not treat this corner-only buffer as an already implemented backdrop renderer.
+capture the current lower layers each frame. The inner content has a host-owned
+12px top-left curve in every mode, with unchanged client coordinates; other inner
+corners remain square. The outer mask remains independent of material sampling.
 
 Shared host controls style the still-trusted Terminal, Editor and Sunrise; selected
 native app controls use the C library. Visual consistency is not completion of U2–U4
@@ -150,8 +152,8 @@ process/PTY/service extraction. Files body/navigation remains outside this batch
 
 Legacy graphics ABI 1 forces opaque XRGB. The [opt-in extension](GRAPHICAL-CLIENTS.md#opt-in-material-frames-d3-first-slice)
 now transports separate premultiplied foreground and bounded material regions; it
-is a local prototype, not general desktop enablement. The opaque painter remains
-the default fallback. Userland owns geometry; the host owns backdrop sampling,
+is integrated with saved desktop preferences, chrome, taskbar and Meridian.
+The opaque painter remains the default and per-surface fallback. Userland owns geometry; the host owns backdrop sampling,
 composition and trusted decorations.
 
 The extension explicitly negotiates a capability/version with **bounded role/region/
@@ -167,15 +169,18 @@ addresses, other-window pixels, arbitrary shaders or a right to blur outside the
 owned surface. Clamp region counts/areas/radii; respect z-order, nested clips,
 resize, focus, move, minimize, teardown and session revocation. Prefer damage-
 tracked/cached bounded software effects before making them generally available.
-The current prototype has bounded software composition and unchanged-source
-caching. Fine damage tracking, resource-pressure fallback and system preference
-controls remain unfinished; capability presence is not general qualification.
+Software composition caches unchanged sources. All owners share an 8 MiB cache
+lease pool and a 393216-pixel blur budget per composition; over-budget blur uses
+tint, unavailable/oversize caches use solid. Cache leases end with windows/session.
+This bounds software work, not total system memory or frame latency. Fine damage
+tracking, GPU acceleration, sustained device performance and resize/scale remain
+separate acceptance work.
 
 ### User preference and fallback rules
 
 Transparency and blur are separate choices. Transparency reveals the backdrop;
 translucency combines a stabilizing tint with diffusion when available. Blur is
-unavailable when transparent surfaces are off; retain its saved preference and
+inactive when transparent surfaces are off; retain its saved preference and
 explain why it is inactive. Custom intensity can follow measured support.
 
 Saved preference, capability availability and effective material must be distinct.
@@ -183,6 +188,12 @@ Unsupported renderers, contrast failure, resource pressure or recovery can use t
 same opaque design without overwriting the user's saved choice. Preserve readable
 text over busy/high-contrast backgrounds; never make blur essential to hierarchy.
 Theme/style variants change tokens deliberately, not as a side effect of fallback.
+The host raises tint opacity from 210 (blur) or 220 (tint), up to 244/255, until
+primary/secondary text meets 4.5:1 over both black and white backdrop extremes.
+If no tested opacity passes, that surface stays solid. The client cannot choose
+opacity or weaken the policy. Terminal secret reads, the credential installer,
+greeter and recovery remain solid. The taskbar uses the same material policy and
+geometry; customization is deferred.
 
 ### D1/D3 acceptance
 

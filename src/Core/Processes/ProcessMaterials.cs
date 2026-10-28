@@ -31,7 +31,7 @@ internal readonly record struct ProcessMaterialFrame(ulong Pixels, ulong Length,
 
 // These are material intentions, not colors, opacity or arbitrary shader programs.
 // Host policy chooses the actual tint/blur budget. No backdrop is returned.
-internal readonly record struct ProcessMaterialRegion(int X, int Y, int Width, int Height, int Radius, int Role, int Effect)
+internal readonly record struct ProcessMaterialRegion(int X, int Y, int Width, int Height, int Radius, int Role, int Effect, int Opacity = 0)
 {
     public const int Bytes = 32, MaximumRegions = 8, MaximumRadius = 24, MaximumArea = 131072;
     public bool Contains(int x, int y) => x >= X && y >= Y && x - X < Width && y - Y < Height;
@@ -60,7 +60,7 @@ internal readonly record struct ProcessMaterialRegion(int X, int Y, int Width, i
             var r = regions[i];
             if (r.X < 0 || r.Y < 0 || r.Width <= 0 || r.Height <= 0 || (long)r.X + r.Width > width
                 || (long)r.Y + r.Height > height || r.Radius < 0 || r.Radius > MaximumRadius
-                || r.Radius > Math.Min(r.Width, r.Height) / 2 || r.Role is < 3 or > 5 || r.Effect is < 0 or > 2) { return false; }
+                || r.Radius > Math.Min(r.Width, r.Height) / 2 || r.Role is < 3 or > 5 || r.Effect is < 0 or > 2 || r.Opacity != 0) { return false; }
             area += (long)r.Width * r.Height;
             if (area > MaximumArea) { return false; }
             for (int j = 0; j < i; j++)

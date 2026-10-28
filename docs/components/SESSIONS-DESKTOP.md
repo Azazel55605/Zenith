@@ -39,10 +39,11 @@ not indiscriminately journalled. Session stop revokes surfaces and invocations.
 - [ ] S1: per-user/system defaults, typed existing settings and CLI/GUI parity.
 - [ ] S2–S5: activate the [43-page inventory](../MERIDIAN-PAGES.md) in backend order;
   [Meridian contracts](../MERIDIAN-PLAN.md) specify details, not a second schedule.
-- [ ] D3: opt-in version/capability + foreground coverage, material regions, host
-  tint/box diffusion and unchanged-source cache are locally implemented. Finish
-  saved/effective user controls, resource fallback, general app use and sustained
-  qualification; retain D2 geometry, contrast and protected opaque paths.
+- [ ] D3: software integration locally qualified: explicit foreground/regions,
+  cached tint/blur, saved/effective controls, shared chrome/taskbar/Meridian policy,
+  contrast and bounded resource/work fallback. [Evidence](../archive/2026-10-28/desktop-material-integration.md).
+  Q2 installed/device/sustained performance and D2 resize/scale acceptance remain;
+  credentials/document planes stay solid. Taskbar customization belongs to W1/S4.
 
 ## W1–W3 / U6 — Product desktop and lifecycle
 
