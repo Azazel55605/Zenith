@@ -49,7 +49,11 @@ junk, embedded echoed records and end-to-end waits. A completed fetch now needs
 neither readback nor another guest operation; a nonzero result remains failure.
 All 329 common controller tests passed in 33.289 seconds, including 40 status
 regressions. Documentation validation passed for 99 files and 43 work IDs.
-Operator offline verification against the complete retained log remains pending.
+The operator then pulled `0f34825` and parsed the complete retained server log
+without starting a VM or repeating the operation. It returned
+`observed_status=0, last_guest_phase=download-100%`, confirming this false-timeout
+repair against the actual failed run. The normal parallel release retry remains
+pending.
 
 The original earlier VM-registry selection error was not reproduced by the
 operator's passing standalone gate and remains unexplained. The separate local
