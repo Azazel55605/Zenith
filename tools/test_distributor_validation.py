@@ -98,6 +98,23 @@ class ValidationTests(unittest.TestCase):
         subprocess.run([sys.executable,'-B',str(ROOT/'deploy/distributor/validation-runner.py'),str(harness),str(self.destination)],check=True)
         self.assertIn('old helper',helper.read_text())
 
+    def test_parallel_harness_reuses_only_hash_verified_prebuilt_tool(self):
+        build=self.root/'prebuilt';project=build/'tools/Zenith.PackageTool';binary=project/'bin/Release/net10.0/Zenith.PackageTool.dll';binary.parent.mkdir(parents=True);binary.write_bytes(b'prebuilt fixture')
+        commands=self.root/'commands';commands.mkdir();dotnet=commands/'dotnet';dotnet.write_text('#!/bin/sh\necho REAL_BUILD_ATTEMPT\nexit 9\n');dotnet.chmod(0o755)
+        harness=build/'tools/harness.py';harness.write_text("import subprocess\nfrom pathlib import Path\np=Path(__file__).parent/'Zenith.PackageTool'\nr=subprocess.run(['dotnet','build',str(p),'-c','Release'],capture_output=True,text=True,check=True)\nassert r.returncode==0 and r.stdout==''\nr=subprocess.run(['dotnet','build',str(p),'-c','Release','-p:Unsafe=true'],capture_output=True,text=True)\nassert r.returncode==9 and 'REAL_BUILD_ATTEMPT' in r.stdout\n")
+        import hashlib
+        env=dict(os.environ,PATH=str(commands)+os.pathsep+os.environ['PATH'],ZENITH_NATIVE_PREBUILT_ROOT=str(build),ZENITH_NATIVE_PREBUILT_SHA256=hashlib.sha256(binary.read_bytes()).hexdigest())
+        subprocess.run([sys.executable,'-B',str(ROOT/'deploy/distributor/validation-runner.py'),str(harness),str(self.destination)],env=env,check=True)
+        env['ZENITH_NATIVE_PREBUILT_SHA256']='0'*64
+        result=subprocess.run([sys.executable,'-B',str(ROOT/'deploy/distributor/validation-runner.py'),str(harness),str(self.destination)],env=env,capture_output=True,text=True)
+        self.assertNotEqual(0,result.returncode);self.assertIn('prebuilt PackageTool changed',result.stderr)
+    def test_parallel_phase_rows_do_not_overwrite_each_other(self):
+        path=self.root/'parallel.details.json';a=self.root/'a.log';b=self.root/'b.log';a.write_text('a output');b.write_text('b output')
+        reporter=output.Reporter(path);first=reporter.start('A');second=reporter.start('B')
+        second.update(b,[],2,'passed',force=True);first.update(a,[],5,'running',force=True)
+        rows=json.loads(path.read_text())['phases'];self.assertEqual(['a output','b output'],[row['text'] for row in rows])
+        self.assertEqual(['running','passed'],[row['status'] for row in rows])
+
     def test_settings_replay_selects_newest_fixture_and_preserves_original(self):
         replay=module('settings_replay',ROOT/'tools/settings-replay.py')
         build=self.root/'build';(build/'tools').mkdir(parents=True);(build/'output-x64').mkdir()
@@ -262,6 +279,39 @@ class ValidationTests(unittest.TestCase):
         subprocess.run([sys.executable,'-B',str(ROOT/'deploy/distributor/validation-runner.py'),
                         str(harness),str(self.destination)],check=True)
         self.assertEqual(before,(helper.read_bytes(),harness.read_bytes()))
+
+    def test_native_retry_reuses_only_independently_completed_matching_gates(self):
+        import hashlib
+        repo=self.root/'retry-repo';(repo/'tools').mkdir(parents=True);(repo/'output-x64').mkdir()
+        for script in ('native-settings-smoke.py','login-session-smoke.py'):(repo/'tools'/script).touch()
+        for artifact in ('Zenith.elf','Zenith.iso'):(repo/'output-x64'/artifact).write_bytes(artifact.encode())
+        binary=repo/'tools/Zenith.PackageTool/bin/Release/net10.0/Zenith.PackageTool.dll';binary.parent.mkdir(parents=True);binary.write_bytes(b'tool')
+        source='a'*40;base=dict(source=source,artifacts={a:hashlib.sha256((repo/'output-x64'/a).read_bytes()).hexdigest() for a in ('Zenith.elf','Zenith.iso')})
+        counter=0;failed=True;calls=[]
+        def scratch(*args,**kwargs):
+            nonlocal counter
+            counter+=1;p=self.root/('scratch-'+str(counter));p.mkdir();return str(p)
+        def phase(name,command,log,**kwargs):
+            calls.append(name);log.write_text('real successful fixture output')
+            self.assertIn('ZENITH_NATIVE_PREBUILT_SHA256',kwargs['env'])
+            if failed and name=='Native native-settings-smoke.py':raise ValueError('actual assertion')
+        with patch.object(release,'REPO',repo),patch.object(release,'source_commit',return_value=source),patch.object(release,'clean'),patch.object(release.native_validation,'identity',return_value=(base,release.native_validation.digest(release.CONTROLLER/'validation-input.py'))),patch.object(release.native_validation,'workers',return_value=2),patch.object(release.tempfile,'mkdtemp',side_effect=scratch),patch.object(release.maintenance,'register_native'),patch.object(release,'phase',side_effect=phase):
+            first=self.root/'first';first.mkdir()
+            with self.assertRaisesRegex(ValueError,'actual assertion'):release.native_checks(first)
+            failed=False;calls.clear();second=self.root/'second';second.mkdir();release.native_checks(second)
+        self.assertCountEqual(['Native native-settings-smoke.py','Native repository-smoke.py','Native kernel-update-smoke.py'],calls)
+        self.assertTrue((second/'login-session-smoke.py.log').read_text().startswith('Reused exact-input'))
+        self.assertTrue((first/'native').is_dir());self.assertTrue((second/'native').is_dir())
+
+    def test_cancelled_parallel_phase_stops_its_process_group(self):
+        import threading
+        cancelled=threading.Event();cancelled.set();started=time.monotonic()
+        with patch.object(release,'REPO',self.root):
+            with self.assertRaises(InterruptedError):
+                release.phase('Cancelled',[sys.executable,'-c','import time;time.sleep(30)'],self.root/'cancelled.log',cancelled=cancelled)
+        self.assertLess(time.monotonic()-started,3)
+        row=json.loads((self.root/'phase-times.json').read_text())[-1]
+        self.assertEqual('interrupted',row['status'])
 
     def test_phase_metrics_record_success_and_failure_without_hiding_error(self):
         with patch.object(release, 'REPO', self.root):

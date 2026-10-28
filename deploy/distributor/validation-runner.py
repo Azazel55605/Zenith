@@ -4,6 +4,8 @@ from pathlib import Path
 import runpy
 import importlib.machinery
 import importlib.util
+import hashlib
+import os
 import shutil
 import subprocess
 import sys
@@ -43,11 +45,29 @@ def run_harness(script):
     spec = importlib.util.spec_from_file_location('validation_input', Path(__file__).with_name('validation-input.py'))
     input_profile = importlib.util.module_from_spec(spec); spec.loader.exec_module(input_profile)
     input_profile.DIAGNOSTIC_ELF = script.parent.parent / 'output-x64/Zenith.elf'
+    original_run = subprocess.run
+    prebuilt = os.environ.get('ZENITH_NATIVE_PREBUILT_SHA256')
+    root = os.environ.get('ZENITH_NATIVE_PREBUILT_ROOT')
+    def run(command, *args, **kwargs):
+        if prebuilt and root and isinstance(command,(list,tuple)) and len(command) in (5,6) and list(map(str,command[:2]))==['dotnet','build'] and list(map(str,command[3:5]))==['-c','Release'] and (len(command)==5 or str(command[5])=='--nologo'):
+            target=Path(command[2]).resolve();expected=Path(root)/'tools/Zenith.PackageTool'
+            if target==expected or target==expected/'Zenith.PackageTool.csproj':
+                binary=expected/'bin/Release/net10.0/Zenith.PackageTool.dll'
+                if hashlib.sha256(binary.read_bytes()).hexdigest()!=prebuilt:raise ValueError('prebuilt PackageTool changed before native gate')
+                print('Reusing hash-verified prebuilt PackageTool',flush=True)
+                empty='' if kwargs.get('text') or kwargs.get('encoding') else b''
+                return subprocess.CompletedProcess(command,0,empty if kwargs.get('capture_output') else None,empty if kwargs.get('capture_output') else None)
+        return original_run(command,*args,**kwargs)
+    subprocess.run = run
     original_exec = importlib.machinery.SourceFileLoader.exec_module
     instances = []
     headless = script.parent / 'headless-smoke.py'
     def execute(loader, module):
         original_exec(loader, module)
+        if script.name == 'native-settings-smoke.py' and Path(loader.path).name == 'login-session-smoke.py':
+            spec = importlib.util.spec_from_file_location('validation_terminal', Path(__file__).with_name('validation-terminal.py'))
+            terminal = importlib.util.module_from_spec(spec); spec.loader.exec_module(terminal)
+            terminal.install(module, instances, input_profile)
         if Path(loader.path).name == 'validation-input.py':
             # Immutable tags keep their assertions and binaries. Input delivery is
             # controller policy, just like authentication and network diagnostics.
@@ -72,6 +92,7 @@ def run_harness(script):
     try: runpy.run_path(str(script), run_name='__main__')
     finally:
         importlib.machinery.SourceFileLoader.exec_module = original_exec
+        subprocess.run = original_run
         # A failed boot can raise before its harness assigns the machine to the
         # outer cleanup variable. Reap that VM before retaining/removing evidence.
         for machine in instances:

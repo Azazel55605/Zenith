@@ -187,6 +187,18 @@ class DashboardTests(unittest.TestCase):
         (self.root / "secret").write_text("private contents")
         self.assertEqual([], self.manager.inventory()[0])
 
+    def test_parallel_output_selects_active_or_failed_gate_not_last_finished(self):
+        path=self.state/'kernel-v0.0.7.details.json'
+        rows=[dict(name='Native A',status='running',started=100,elapsed=20,updated=120,text='A active'),dict(name='Native B',status='passed',started=100,elapsed=5,updated=105,text='B passed')]
+        path.write_text(json.dumps(dict(phases=rows)))
+        data=json.loads(self.request('/manage/api/build-output?build=kernel-v0.0.7')[1])
+        self.assertEqual('0',data['selected']);self.assertEqual('A active',data['text'])
+        self.records['kernel/v0.0.7'].update(status='failed',error='A failed')
+        (self.state/'releases.json').write_text(json.dumps(self.records));rows[0].update(status='failed',text='A failure evidence')
+        path.write_text(json.dumps(dict(phases=rows)))
+        data=json.loads(self.request('/manage/api/build-output?build=kernel-v0.0.7')[1])
+        self.assertEqual('0',data['selected']);self.assertEqual('A failure evidence',data['text'])
+
     def test_delivery_failure_after_passed_index_shows_controller_error_by_default(self):
         record=self.records['kernel/v0.0.7']
         record.update(status='failed',error='build/verification failed (worker exit 1)')

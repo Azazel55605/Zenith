@@ -18,7 +18,7 @@ CONTROLLER_TESTS = (
     "test_validation_accelerator.py", "test_validation_input.py", "test_guest_graphics.py", "test_graphical_replay.py", "test_distributor_validation.py",
     "test_recovery_console.py", "test_release_acceptance.py", "test_distributor_retry.py",
     "test_sunbeam_streams.py", "test_net_tools.py", "test_guest_pipeline.py",
-    "test_distributor_poll.py", "test_distributor_release.py", "test_ui_library.py", "test_documentation.py",
+    "test_native_validation.py", "test_validation_terminal.py", "test_distributor_dashboard.py", "test_distributor_poll.py", "test_distributor_release.py", "test_ui_library.py", "test_documentation.py",
 )
 
 
@@ -57,7 +57,12 @@ def acceptance(release, keep, existing=False):
     (keep / "artifacts.json").write_text(json.dumps(dict(sha256=artifacts, existing=existing), indent=2) + "\n")
     release.phase("Package tool", ["dotnet", "build", "tools/Zenith.PackageTool", "-c", "Release", "--nologo"],
                   keep / "package-tool.log")
-    release.native_checks(keep)
+    previous_fresh=os.environ.get('ZENITH_VALIDATION_FRESH')
+    os.environ['ZENITH_VALIDATION_FRESH']='1'
+    try:release.native_checks(keep)
+    finally:
+        if previous_fresh is None:os.environ.pop('ZENITH_VALIDATION_FRESH',None)
+        else:os.environ['ZENITH_VALIDATION_FRESH']=previous_fresh
     for name, digest in artifacts.items():
         if hashlib.sha256((ROOT / "output-x64" / name).read_bytes()).hexdigest() != digest:
             raise ValueError("artifact changed during acceptance: " + name)

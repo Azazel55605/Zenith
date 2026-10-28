@@ -59,6 +59,16 @@ class AcceptanceTests(unittest.TestCase):
         self.assertEqual(['Host tests', 'Package tool'], [call.args[0] for call in engine.phase.call_args_list])
         engine.native_checks.assert_called_once_with(self.keep)
 
+    def test_pretag_forces_fresh_gates_and_restores_environment_after_failure(self):
+        engine = Mock()
+        def native(keep):
+            self.assertEqual('1',os.environ['ZENITH_VALIDATION_FRESH'])
+            raise ValueError('failed gate')
+        engine.native_checks.side_effect=native
+        with patch.dict(os.environ,{'ZENITH_VALIDATION_FRESH':'0'}),patch.object(validate,'ROOT',self.root),patch.object(validate.subprocess,'run'):
+            with self.assertRaisesRegex(ValueError,'failed gate'):validate.acceptance(engine,self.keep,existing=True)
+            self.assertEqual('0',os.environ['ZENITH_VALIDATION_FRESH'])
+
     def test_missing_artifact_or_failed_host_test_blocks_native_acceptance(self):
         (self.root / 'output-x64/Zenith.iso').unlink()
         engine = Mock()

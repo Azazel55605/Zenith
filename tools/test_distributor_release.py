@@ -78,7 +78,7 @@ class ReleaseTests(unittest.TestCase):
 
     def test_controller_failure_never_builds_signs_or_publishes_and_keeps_log(self):
         calls = []
-        def phase(label, command, log):
+        def phase(label, command, log, **kwargs):
             calls.append(label); log.write_text("fixture controller test failure\n")
             raise ValueError("Validation controller tests failed")
         with patch.object(release, "REPO", self.repo), patch.object(release, "clean"), \
@@ -101,7 +101,7 @@ class ReleaseTests(unittest.TestCase):
 
     def test_native_failure_blocks_signing_and_publication(self):
         calls = []
-        def phase(label, command, log):
+        def phase(label, command, log, **kwargs):
             calls.append(label)
             if label == "Kernel build":
                 output = Path(command[-1]); output.mkdir()
@@ -132,7 +132,7 @@ class ReleaseTests(unittest.TestCase):
             self.assertEqual("/var/tmp", kwargs["dir"])
             return original(prefix=kwargs["prefix"], dir="/tmp")
         calls = []
-        def phase(label, command, log):
+        def phase(label, command, log, **kwargs):
             keep = Path(command[-1]).resolve(); calls.append(keep)
             directory = keep / "recover-efi-active"; directory.mkdir(parents=True)
             for name in ("serial.sock", "monitor.sock"):
@@ -143,7 +143,7 @@ class ReleaseTests(unittest.TestCase):
                     peer, _ = server.accept(); peer.close()
             (keep / "evidence.txt").write_text(label)
         with patch.object(release.tempfile, "mkdtemp", side_effect=allocate), patch.object(release, "phase", side_effect=phase):
-            release.native_checks(work)
+            with patch.object(release.native_validation,'workers',return_value=1):release.native_checks(work)
         self.assertTrue((work / "native/k/evidence.txt").exists())
         self.assertTrue((work / "native/r/evidence.txt").exists())
         self.assertTrue((work / "native/u/evidence.txt").exists())
@@ -155,7 +155,7 @@ class ReleaseTests(unittest.TestCase):
     def test_old_tags_without_login_gate_keep_existing_acceptance(self):
         work = self.repo / "old-tag-native"; work.mkdir()
         original = tempfile.mkdtemp; calls = []
-        def phase(label, command, log):
+        def phase(label, command, log, **kwargs):
             keep=Path(command[-1]); keep.mkdir(); calls.append(keep.name)
         with patch.object(release, "REPO", self.repo), \
              patch.object(release.tempfile, "mkdtemp", side_effect=lambda **kw: original(prefix="zn-", dir="/tmp")), \
@@ -166,18 +166,18 @@ class ReleaseTests(unittest.TestCase):
     def test_failed_native_artifacts_retained_without_masking_failure(self):
         work = self.repo / "failed-native"; work.mkdir()
         original = tempfile.mkdtemp
-        def phase(label, command, log):
+        def phase(label, command, log, **kwargs):
             keep = Path(command[-1]); keep.mkdir()
             (keep / "failure.txt").write_text("acceptance evidence")
             raise ValueError("fixture native failure")
         with patch.object(release.tempfile, "mkdtemp", side_effect=lambda **kw: original(prefix="zn-", dir="/tmp")), \
              patch.object(release, "phase", side_effect=phase):
-            with self.assertRaisesRegex(ValueError, "fixture native failure"): release.native_checks(work)
+            with patch.object(release.native_validation,"workers",return_value=1), self.assertRaisesRegex(ValueError, "fixture native failure"): release.native_checks(work)
         self.assertTrue((work / "native/s/failure.txt").exists())
 
     def test_build_orchestration_uses_real_signature_and_publisher(self):
         original = release.phase; calls = []
-        def phase(label, command, log):
+        def phase(label, command, log, **kwargs):
             calls.append(label)
             if label == "Kernel build":
                 output = Path(command[-1]); output.mkdir()
@@ -201,7 +201,7 @@ class ReleaseTests(unittest.TestCase):
     def test_data_build_sign_publish_uses_committed_payload_and_extra_identity(self):
         payload = self.repo / "payload"; shutil.copytree(self.source / "data", payload)
         original = release.phase
-        def phase(label, command, log):
+        def phase(label, command, log, **kwargs):
             if label == "Package tool": log.write_text("existing fixture tool\n")
             else: original(label, command, log)
         with patch.object(release, "REPO", self.repo), patch.object(release, "clean"), \

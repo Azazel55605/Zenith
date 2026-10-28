@@ -206,9 +206,12 @@ class Dashboard:
             result["phases"].append({key: row.get(key) for key in ("name", "status", "started", "elapsed", "updated")})
         # Publication/delivery can fail after the last subprocess phase passed.
         # Its stale successful output must not hide the controller's real error.
-        controller_failure = view == "auto" and failed and rows and rows[-1]["status"] == "passed"
+        controller_failure = view == "auto" and failed and rows and not any(row["status"] in ("failed","interrupted") for row in rows)
         if view != "controller" and rows and not controller_failure:
-            index = len(rows) - 1 if view == "auto" else int(view)
+            if view == "auto":
+                candidates=[i for i,row in enumerate(rows) if row["status"] in (("failed","interrupted") if failed else ("running",))]
+                index=candidates[-1] if candidates else len(rows)-1
+            else:index=int(view)
             if not 0 <= index < len(rows): raise ValueError("unknown phase")
             row = rows[index]
             result.update(text=str(row.get("text", ""))[-16384:], diagnostic=str(row.get("diagnostic", ""))[-16384:], selected=str(index))

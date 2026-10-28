@@ -206,7 +206,8 @@ Cosmos integration, build the ISO and extend the QEMU smoke harness (ASCII log
 assertions). A successful host test or build does not establish guest behavior.
 Record exact failures and validation limits in the progress log.
 Before a new kernel tag, use `deploy/distributor/validate.py --keep NEW_DIRECTORY`
-for unsigned full release acceptance; `--existing` is only for known prebuilt
+for unsigned full release acceptance (always fresh, though independent gates run
+concurrently within the host budget); `--existing` is only for known prebuilt
 artifacts. CI uses this same native gate plan. Keep controller regressions in the
 common `--controller-only` set so server pre-build checks and CI stay aligned.
 Do not correct relative input from screenshot feedback: stale frames accumulate

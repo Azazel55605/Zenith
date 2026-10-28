@@ -6,7 +6,9 @@ Start with [current status](../ROADMAP.md#state-and-evidence) or [active work](.
 
 ## Investigation records
 
-- [2026-10-28 input acknowledgement](2026-10-28/input-acknowledgement.md): bounded witness-motion correction, no click replay, immutable-tag controller policy and native fault injection.
+- [2026-10-28 parallel native validation](2026-10-28/parallel-native-validation.md): bounded workers, protected shared-tool use, exact-input retry receipts and measured four-gate execution.
+
+- [2026-10-28 input acknowledgement](2026-10-28/input-acknowledgement.md): withdrawn relative corrections, read-only failure capture and rendered Terminal handoff for immutable tagged tests.
 
 - [2026-10-28 shared Settings stage](2026-10-28/shared-settings-stage.md): captured-UID profiles/inheritance, typed shared data/selectors and clean Release qualification.
 

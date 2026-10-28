@@ -17,6 +17,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import threading
 import urllib.parse
 import urllib.request
 
@@ -32,6 +33,11 @@ spec = importlib.util.spec_from_file_location("build_output", Path(__file__).par
 build_output = importlib.util.module_from_spec(spec); spec.loader.exec_module(build_output)
 spec = importlib.util.spec_from_file_location("maintenance", Path(__file__).parent / "maintenance.py")
 maintenance = importlib.util.module_from_spec(spec); spec.loader.exec_module(maintenance)
+
+spec = importlib.util.spec_from_file_location("native_validation", CONTROLLER / "native_validation.py")
+native_validation = importlib.util.module_from_spec(spec); spec.loader.exec_module(native_validation)
+_PHASE_TIMING_GATE = threading.Lock()
+_NATIVE_FIRMWARE = None
 
 
 def version(value):
@@ -111,16 +117,17 @@ def available(root, release, name="zenith-kernel", repository="core"):
         raise ValueError("version already published; use verify instead of rebuilding/replacing it")
 
 
-def phase(label, command, log):
+def phase(label, command, log, env=None, cancelled=None):
     print(label + " — " + str(log), flush=True)
     started = time.monotonic()
     last_update = started
     observer = build_output.start(label)
     with log.open("wb") as output:
-        process = subprocess.Popen(command, cwd=REPO, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
+        process = subprocess.Popen(command, cwd=REPO, stdout=output, stderr=subprocess.STDOUT, start_new_session=True, env=env)
         try:
             while process.poll() is None:
                 time.sleep(0.2)
+                if cancelled is not None and cancelled.is_set(): raise InterruptedError('native validation interrupted')
                 now = time.monotonic()
                 if observer: observer.update(log, command, now - started)
                 if now - last_update >= (5 if sys.stdout.isatty() else 60):
@@ -145,20 +152,20 @@ def phase(label, command, log):
 
 
 def phase_timing(log, label, started, status):
-    path = log.parent / "phase-times.json"
-    try:
-        rows = json.loads(path.read_text()) if path.exists() else []
-        if not isinstance(rows, list): raise ValueError("invalid phase timing list")
-        rows.append(dict(phase=label, status=status, seconds=round(time.monotonic() - started, 3)))
-        descriptor, temporary = tempfile.mkstemp(prefix=".phase-times-", dir=log.parent)
+    with _PHASE_TIMING_GATE:
+        path = log.parent / "phase-times.json"
         try:
-            with os.fdopen(descriptor, "w") as output:
-                json.dump(rows, output, indent=2); output.flush(); os.fsync(output.fileno())
-            os.replace(temporary, path)
-        finally:
-            if os.path.exists(temporary): os.unlink(temporary)
-    except (OSError, ValueError): print("Could not retain phase timing: " + str(path), file=sys.stderr)
-
+            rows = json.loads(path.read_text()) if path.exists() else []
+            if not isinstance(rows, list): raise ValueError("invalid phase timing list")
+            rows.append(dict(phase=label, status=status, seconds=round(time.monotonic() - started, 3)))
+            descriptor, temporary = tempfile.mkstemp(prefix=".phase-times-", dir=log.parent)
+            try:
+                with os.fdopen(descriptor, "w") as output:
+                    json.dump(rows, output, indent=2); output.flush(); os.fsync(output.fileno())
+                os.replace(temporary, path)
+            finally:
+                if os.path.exists(temporary): os.unlink(temporary)
+        except (OSError, ValueError): print("Could not retain phase timing: " + str(path), file=sys.stderr)
 
 def publish(config, release, archive, commit, work, name="zenith-kernel", repository="core", kind="kernel"):
     keys, root, public = paths(config)
@@ -234,6 +241,7 @@ def controller_checks(work):
 
 
 def native_prerequisites():
+    global _NATIVE_FIRMWARE
     commands = (os.environ.get("QEMU", "qemu-system-x86_64"), "dotnet", "gcc", "clang", "ld",
                 "e2fsck", "debugfs", "mke2fs", "mcopy", "fsck.fat", "openssl")
     missing = [command for command in commands if shutil.which(command) is None]
@@ -255,7 +263,7 @@ def native_prerequisites():
     try:
         spec = importlib.util.spec_from_file_location("preflight_efi", REPO / "tools/test-installed-boot.py")
         efi = importlib.util.module_from_spec(spec); spec.loader.exec_module(efi)
-        efi.firmware()
+        _NATIVE_FIRMWARE = efi.firmware()
     except RuntimeError as error:
         raise ValueError("native validation firmware unavailable: " + str(error)) from error
     finally: sys.path.pop(0)
@@ -287,9 +295,60 @@ def native_checks(work):
         # Catch display/login transport regressions before the much longer
         # full-sized kernel delivery and crash-recovery sequence. No gate omitted.
         if (REPO / "tools/login-session-smoke.py").exists(): checks.insert(0, ("s", "login-session-smoke.py"))
-        for name, script in checks:
-            phase("Native " + script, [sys.executable, "-B", str(Path(__file__).parent / "validation-runner.py"), str(REPO / "tools" / script),
-                  str(directory / name)], work / (script + ".log"))
+        base = None; cache = None; input_hash = None
+        try:
+            base,input_hash = native_validation.identity(REPO,CONTROLLER,source_commit(),_NATIVE_FIRMWARE)
+            cache = native_validation.Receipts(REPO/'obj/distributor/native-receipts',base,input_hash)
+            cache.prune()
+        except (OSError,ValueError,ImportError,subprocess.SubprocessError) as error:
+            cache = None
+            print('Native result reuse unavailable: '+str(error),flush=True)
+        prebuilt = (REPO/'tools/Zenith.PackageTool/bin/Release/net10.0/Zenith.PackageTool.dll')
+        ready = prebuilt.is_file() and all((REPO/'output-x64'/name).is_file() for name in ('Zenith.elf','Zenith.iso'))
+        jobs = native_validation.workers() if ready else 1
+        fresh = os.environ.get('ZENITH_VALIDATION_FRESH') == '1'
+        print('Native validation workers: '+str(jobs)+'; successful-result reuse: '+('disabled (fresh)' if fresh else 'enabled' if cache else 'unavailable'),flush=True)
+        cancelled = threading.Event()
+        child_env = dict(os.environ)
+        if ready:
+            child_env['ZENITH_NATIVE_PREBUILT_SHA256'] = native_validation.digest(prebuilt)
+            child_env['ZENITH_NATIVE_PREBUILT_ROOT'] = str(REPO.resolve())
+        def unchanged(check):
+            if base is None:return
+            if source_commit()!=base['source']:raise ValueError('source changed during native validation')
+            clean()
+            for name,value in base.get('controller',{}).items():
+                path=CONTROLLER.parents[1]/'tools/guest_auth.py' if name=='guest_auth.py' else CONTROLLER/name
+                if native_validation.digest(path)!=value:raise ValueError('controller policy changed during native validation: '+name)
+            if check[0] in native_validation.GUI and input_hash is not None and native_validation.digest(CONTROLLER/'validation-input.py')!=input_hash:
+                raise ValueError('input policy changed during native validation')
+            for name,value in base.get('package',{}).items():
+                if native_validation.digest(prebuilt.parent/name)!=value:raise ValueError('PackageTool changed during native validation')
+            for artifact,value in base['artifacts'].items():
+                if native_validation.digest(REPO/'output-x64'/artifact)!=value:raise ValueError('artifact changed during native validation: '+artifact)
+        def run(check):
+            name,script=check; log=work/(script+'.log')
+            unchanged(check)
+            previous = cache.get(check) if cache and not fresh else None
+            if previous is not None:
+                log.write_bytes(b'Reused exact-input native acceptance receipt; no guest operation replayed.\n'+previous.read_bytes())
+                label='Native '+script+' (reused)';observer=build_output.start(label)
+                if observer:observer.update(log,[],0,'passed',force=True)
+                phase_timing(log,label,time.monotonic(),'passed')
+                print(label+'; receipt='+cache.key(check),flush=True)
+                return
+            command=[sys.executable,'-B',str(CONTROLLER/'validation-runner.py'),str(REPO/'tools'/script),str(directory/name)]
+            if not ready:phase('Native '+script,command,log)
+            else:phase('Native '+script,command,log,env=child_env,cancelled=cancelled)
+            unchanged(check)
+            if cache:
+                try:cache.put(check,log)
+                except OSError as error:print('Native receipt not retained: '+str(error),flush=True)
+        try:native_validation.execute(checks,run,jobs,cancelled)
+        finally:
+            if cache:
+                try:cache.prune()
+                except OSError as error:print('Native receipt cleanup unavailable: '+str(error),flush=True)
     finally:
         # Stale Unix sockets cannot be copied if /var/tmp is another filesystem.
         for parent, _, files in os.walk(directory):

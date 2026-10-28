@@ -436,7 +436,10 @@ The observed-motion-v2 correction was withdrawn after the distributor journal
 showed oscillating/stale cursor observations. Current policy never feeds relative
 corrections back from screenshots. Exact destinations/deadlines remain unchanged;
 on failure it records `input-failure.json`, the current framebuffer and read-only
-CPU/scheduler state in `pipeline-stall.json` before QEMU is stopped.
+CPU/scheduler state in `pipeline-stall.json` before QEMU is stopped. The Settings
+post-close public script additionally waits for native-window retirement and a
+rendered Terminal caret blink; the earlier worker status is not input readiness.
+This scoped handoff observation never resends commands or credentials.
 
 To diagnose the failed 0.0.27 Settings gate without recompiling the kernel or
 reinstalling the OS:
@@ -451,6 +454,29 @@ It selects the newest retained setup fixture and runs the tagged assertions on a
 independent disk copy with current controller diagnostics. Client fixture packages
 may be prepared by the tagged harness; the kernel is unchanged. Keep 0.0.27 immutable.
 See [evidence](../../docs/archive/2026-10-28/input-acknowledgement.md).
+
+## Parallel gates and faster retries
+
+Native gates run in separate disposable VMs. Automatic sizing uses up to four
+workers within measured CPU/memory limits. To choose a maximum of six:
+
+```ini
+# systemctl edit zenith-distributor.service
+[Service]
+Environment=ZENITH_NATIVE_JOBS=6
+```
+
+Run `sudo systemctl daemon-reload` after editing the unit. The next service run
+reports its selected worker count. Supported values are `auto` and `1..8`; the
+scheduler reserves host capacity. One worker retains serial execution. Shared
+PackageTool builds are prebuilt/hash-verified, and dashboard phases remain separate.
+
+Completed native passes are reused on retries only with matching source, ELF/ISO,
+policies, toolchain/firmware and host identity. Failed gates are never reused. Cache
+receipts/logs are bounded under the pinned checkout's `obj/distributor/native-receipts`.
+Old unversioned runs cannot seed this cache. New/changed kernels run their gates;
+`ZENITH_VALIDATION_FRESH=1` disables reuse, and pre-tag `validate.py` always runs fresh.
+See [design and measured local evidence](../../docs/archive/2026-10-28/parallel-native-validation.md).
 
 ## Before the next kernel tag
 
