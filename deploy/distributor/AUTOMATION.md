@@ -579,3 +579,24 @@ files. Missing generations.tsv may be normal for a baseline installation;
 installed.tsv and its directory ancestors must exist. Intact disk paths do not
 rule out a live VFS lookup failure. Paste the output for diagnosis before starting
 another long release run. Exact rejected runtime ancestor remains under investigation.
+
+### Focused native launcher replay
+
+After a Settings start-menu retirement failure, first use the unchanged installed
+fixture rather than another kernel build or full install/setup sequence:
+
+```sh
+PATH="$PATH:/usr/sbin:/sbin" ZENITH_VALIDATION_ACCELERATOR=tcg \
+python3 -B tools/desktop-launch-replay.py \
+  --build ~/.local/state/zenith/distributor/build-kernel-v0.0.28 --cycles 5
+```
+
+Run from the current controller checkout. The tool verifies the latest retained
+Settings desktop disk against that build's ELF and uses a separate copy. Each
+planned cycle launches Welcome and System, observes a complete enabled native
+frame with focused chrome, then sends one Escape and requires retirement. It
+finishes with observed public-shell poweroff and independent ext2 audit. Failure
+stops the sequence and preserves screenshots and read-only diagnostics. It never
+retries an event, rebuilds a kernel, replaces packages or edits acceptance receipts.
+Use explicit `--disk PATH --elf PATH` if the fixture is still under `/var/tmp`.
+A focused pass is not a substitute for the normal release matrix.

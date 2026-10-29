@@ -47,3 +47,5 @@ acceptance requests are superseded, not open tasks.
 Q2 also owns the [status-record normalizer repair](../archive/2026-10-29/validation-status-record-boundaries.md): a real fetch success was falsely rejected after debug-line removal. Preserve exact status/deadline assertions; validate the controller against the retained log before the unchanged release retry.
 
 Q2 also tracks the [materials Terminal handoff](../archive/2026-10-29/materials-terminal-handoff.md): the gallery now shares public-prompt/retirement observation instead of relying on a fixed shutdown delay. The operator confirmed the focused distributor gate passes on 2026-10-29, with full unmount, poweroff and ext2 assertions retained; normal parallel release and installed acceptance remain pending.
+
+Q2 owns the [launcher frame-readiness repair](../archive/2026-10-29/launcher-frame-readiness.md): shared background colour and window admission do not prove a native client has presented. Keep one Escape/retirement, focused no-build replay and normal distributor acceptance separate.

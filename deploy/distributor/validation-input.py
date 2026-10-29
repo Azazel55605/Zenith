@@ -100,6 +100,39 @@ def probe_visible(ppm):
         offset += 1
 
 
+DESKTOP_FRAMES = frozenset(('desktop-w.ppm','desktop-z.ppm','launcher-native-0.ppm','launcher-native-5.ppm'))
+
+
+def desktop_frame(ppm):
+    """Recognize the fixed dark/teal desktop-tools fixture, not a shared fill.
+
+    The 600x480 native frame has an opaque 96x34 enabled Close button at
+    (476,420). Require its border, inset fill and text, plus matching focused
+    host chrome. Neither the Terminal nor the launcher menu provides this.
+    """
+    width,height,rgb = frame_pixels(ppm)
+    border,fill,ink,accent,secondary = map(bytes.fromhex,('45474f','2a2c31','f1f2f4','7ecac7','b4b7c0'))
+    def pixel(x,y): return rgb[(y*width+x)*3:(y*width+x)*3+3]
+    offset = 0; needle = border*82
+    while True:
+        index = rgb.find(needle,offset)
+        if index < 0: return None
+        offset = index+1
+        if index%3: continue
+        bx,by = (index//3)%width-7,(index//3)//width
+        x,y = bx-476,by-420
+        if x<0 or y<44 or x+600>width or y+480>height: continue
+        if not all(pixel(bx+dx,by+dy)==color for dx,dy,color in (
+            (48,0,border),(0,17,border),(95,17,border),(48,33,border),
+            (48,1,fill),(1,17,fill),(94,17,fill),(48,32,fill))): continue
+        if sum(pixel(bx+dx,by+dy)==ink for dx in range(20,76) for dy in range(7,27))<30: continue
+        # A cascaded window can meet the panel's upper shadow at its bottom
+        # edge. Top and side chrome remain unoccluded focused-colour witnesses.
+        if not all(pixel(x+dx,y+dy)==accent for dx,dy in ((300,-44),(0,200),(599,200))): continue
+        if not all(pixel(x+578+i,y-22+i)==secondary and pixel(x+578+i,y-22-i)==secondary for i in range(-4,5)): continue
+        return dict(content=[x,y,600,480],close=[bx,by,96,34])
+
+
 def cursor_position(ppm):
     width, height, pixels = frame_pixels(ppm)
     pattern = [(x, y, bytes.fromhex('101320' if c == '#' else 'ffffff'))
@@ -128,6 +161,23 @@ class RenderedMouse:
         self.monitor = Path(monitor); self.raw = command
         self.snapshot = self.monitor.parent / 'input-observation.ppm'
     def capture(self, path):
+        path=Path(path)
+        if path.name not in DESKTOP_FRAMES: return self._capture_once(path)
+        import time,json
+        deadline=time.monotonic()+20
+        while True:
+            data=self._capture_once(path)
+            geometry=desktop_frame(data)
+            if geometry is not None:
+                print('PASS rendered focused desktop client before Escape: '+path.name,flush=True)
+                return data
+            if time.monotonic()>=deadline:
+                report=dict(expected='focused desktop-tools frame with enabled Close control',screenshot=str(path),observation_only=True)
+                (self.monitor.parent/'native-frame-failure.json').write_text(json.dumps(report,indent=2)+'\n')
+                raise RuntimeError('native desktop client frame not presented: '+str(path))
+            time.sleep(.05)
+
+    def _capture_once(self, path):
         import time
         path = Path(path);path.unlink(missing_ok=True)
         self.raw(self.monitor, 'screendump '+str(path))

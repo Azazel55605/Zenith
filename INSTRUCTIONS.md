@@ -222,6 +222,9 @@ helper imports use current controller policy; preserve stale-frame/frozen tests.
 GUI fixture scripts crossing a native-client/Terminal boundary must observe
 surface retirement and a focused public prompt; a fixed delay or client exit
 status is not a shell-readiness acknowledgement.
+Native launcher tests must observe the complete enabled native control and focused
+host chrome before sending a key. Window admission or shared background colour
+is not a presented-client witness; private launcher output stays private.
 Authentication waits share `tools/guest_auth.py` in direct harnesses and the current
 distributor controller, including unchanged release tags. Keep prompt and hash/save
 completion phases distinct; never replay credentials or weaken hashing to fit a
