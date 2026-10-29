@@ -48,4 +48,4 @@ Q2 also owns the [status-record normalizer repair](../archive/2026-10-29/validat
 
 Q2 also tracks the [materials Terminal handoff](../archive/2026-10-29/materials-terminal-handoff.md): the gallery now shares public-prompt/retirement observation instead of relying on a fixed shutdown delay. The operator confirmed the focused distributor gate passes on 2026-10-29, with full unmount, poweroff and ext2 assertions retained; normal parallel release and installed acceptance remain pending.
 
-Q2 owns the [launcher frame-readiness repair](../archive/2026-10-29/launcher-frame-readiness.md): shared background colour and window admission do not prove a native client has presented. Keep one Escape/retirement, focused no-build replay and normal distributor acceptance separate.
+Q2 owns the [launcher frame-readiness repair](../archive/2026-10-29/launcher-frame-readiness.md): shared background colour and window admission do not prove a native client has presented. The operator confirmed the five-cycle distributor probe passed on 2026-10-29. Keep its single Escape/retirement assertions, focused result and pending normal release/installed acceptance separate.

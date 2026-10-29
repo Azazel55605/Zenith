@@ -110,7 +110,15 @@ retirement-deadline increase. All 347 common controller regressions passed in
 30.704 seconds; documentation validation passes 101 files. The real C renderer
 also supplies a disabled Close control as a negative test.
 
-The exact distributor fixture still needs the focused no-build probe above.
-Its single-gate result cannot be substituted for the normal parallel release
-pipeline or installed-VM acceptance. No new kernel tag is needed for this
-controller-only frame-readiness repair.
+## Operator distributor confirmation
+
+On 2026-10-29 the operator confirmed that the requested `--build ... --cycles 5`
+probe passed after pulling `51a1138`. That command verifies the distributor ELF
+against its retained Settings disk, copies it, tests ten Welcome/System launches
+with single Escape/retirement assertions, and requires clean poweroff plus the
+independent ext2 audit. This is operator-reported success; the detailed result log
+and timing were not supplied.
+
+This focused result cannot substitute for the normal parallel release pipeline or
+installed-VM acceptance. Retry unchanged kernel 0.0.28 with the current controller;
+no new kernel tag is needed for the frame-readiness repair.
