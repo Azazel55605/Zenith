@@ -64,8 +64,14 @@ QEMU CPU timings.
   increase was used. Evidence: ignored `obj/028-materials-guard-fresh` and
   `obj/028-materials-guard-light`; documentation validation passes 100 files.
 
-Distributor verification remains pending. Run the focused immutable materials
-harness with the current controller and a copied retained clean live-install disk;
-this redoes package setup and every visual/shutdown/audit assertion without a
-kernel build or unrelated native gates. A pass must still be followed by the normal
-release pipeline. The exact earlier server timeout cause remains unconfirmed.
+## Operator distributor confirmation
+
+On 2026-10-29 the operator confirmed that the requested focused materials gate
+passed after pulling `f2e7753`. That command runs the immutable 0.0.28 materials
+harness with the current controller and a separate copy of the retained clean
+live-install disk, preserving all visual, shutdown and ext2 audit assertions.
+This is operator-reported success; a detailed result log/timing was not supplied.
+
+The normal parallel release pipeline and installed VM acceptance remain pending.
+No new kernel tag or kernel source change is needed for this controller repair.
+The exact earlier shutdown-timeout cause remains unconfirmed.
