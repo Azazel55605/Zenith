@@ -10,6 +10,21 @@ import importlib.util
 ROOT = Path(__file__).resolve().parents[1]
 
 class UiLibraryTests(unittest.TestCase):
+    def test_widgets_with_sanitizers(self):
+        with tempfile.TemporaryDirectory(prefix='zenith-widgets-') as directory:
+            dest = Path(directory)
+            def generated(tool, name):
+                spec = importlib.util.spec_from_file_location(name, ROOT/'tools'/tool)
+                module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+                path = dest/(name + '.c'); module.build(path); return str(path)
+            exe = dest/'widgets-test'
+            subprocess.run(['gcc','-std=c11','-Wall','-Wextra','-Werror','-O1','-g',
+                            '-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(ROOT/'userland/ui'),
+                            str(ROOT/'userland/ui/test_widgets.c'),str(ROOT/'userland/ui/widgets.c'),
+                            str(ROOT/'userland/ui/ui.c'),generated('build-ui-fonts.py','fonts'),
+                            generated('build-ui-icons.py','icons'),'-o',str(exe)],check=True)
+            subprocess.run([str(exe)],check=True,timeout=30)
+
     def test_renderer_and_input_with_sanitizers(self):
         with tempfile.TemporaryDirectory(prefix='zenith-ui-') as directory:
             dest = Path(directory)

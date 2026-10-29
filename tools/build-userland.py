@@ -24,7 +24,7 @@ def main():
             subprocess.run([sys.executable,str(ROOT/'tools/build-ui-fonts.py'),str(atlas)],check=True)
             icons=Path(temporary)/'ui-icons.c'
             subprocess.run([sys.executable,str(ROOT/'tools/build-ui-icons.py'),str(icons)],check=True)
-            extra=['-I'+str(ROOT/'userland/ui'),str(ROOT/'userland/ui/ui.c'),
+            extra=['-I'+str(ROOT/'userland/ui'),str(ROOT/'userland/ui/ui.c'),str(ROOT/'userland/ui/widgets.c'),
                    *([str(ROOT/'userland/ui-gallery/gallery.c')] if args.program=='ui-gallery' else [str(ROOT/'userland/settings/app.c')] if args.program=='settings' else []),str(ROOT/'userland/ui/runtime.c'),str(ROOT/'userland/ui/text.c'),str(atlas),str(icons)]
             if args.program=='settings':
                 pages=Path(temporary)/'meridian-pages.c'
