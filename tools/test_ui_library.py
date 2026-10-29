@@ -18,12 +18,15 @@ class UiLibraryTests(unittest.TestCase):
             spec.loader.exec_module(module)
             atlas = dest/'fonts.c'
             module.build(atlas)
+            icon_spec = importlib.util.spec_from_file_location('ui_icons', ROOT/'tools/build-ui-icons.py')
+            icon_module = importlib.util.module_from_spec(icon_spec); icon_spec.loader.exec_module(icon_module)
+            icons = dest/'icons.c'; icon_module.build(icons)
             exe = dest/'ui-test'
             subprocess.run(['gcc', '-std=c11', '-Wall', '-Wextra', '-Werror', '-O1', '-g',
                             '-fsanitize=address,undefined', '-fno-omit-frame-pointer',
                             '-I'+str(ROOT/'userland/ui'), str(ROOT/'userland/ui/test_ui.c'),
                             str(ROOT/'userland/ui/ui.c'), str(ROOT/'userland/ui-gallery/gallery.c'),
-                            str(atlas), '-o', str(exe)], check=True)
+                            str(atlas),str(icons), '-o', str(exe)], check=True)
             subprocess.run([str(exe), directory], check=True, timeout=30)
             def luminance(value):
                 values=[((value >> shift) & 255)/255 for shift in (16,8,0)]
@@ -48,7 +51,7 @@ class UiLibraryTests(unittest.TestCase):
                             '-fsanitize=address,undefined','-fno-omit-frame-pointer',
                             '-I'+str(ROOT/'userland/ui'),str(ROOT/'userland/settings/test_settings.c'),
                             str(ROOT/'userland/settings/app.c'),str(ROOT/'userland/ui/ui.c'),
-                            str(atlas),'-o',str(settings_exe)],check=True)
+                            str(atlas),str(icons),'-o',str(settings_exe)],check=True)
             subprocess.run([str(settings_exe), directory],check=True,timeout=30)
             pages_spec=importlib.util.spec_from_file_location('meridian_pages', ROOT/'tools/build-meridian-pages.py')
             pages_module=importlib.util.module_from_spec(pages_spec)
@@ -60,7 +63,7 @@ class UiLibraryTests(unittest.TestCase):
                             '-I'+str(ROOT/'userland/ui'),'-I'+str(ROOT/'userland/settings'),str(ROOT/'userland/settings/test_meridian.c'),
                             str(ROOT/'userland/settings/meridian.c'),str(ROOT/'userland/settings/app.c'),
                             str(ROOT/'userland/ui/text.c'),str(ROOT/'userland/ui/ui.c'),
-                            str(pages),str(atlas),'-o',str(meridian_exe)],check=True)
+                            str(pages),str(atlas),str(icons),'-o',str(meridian_exe)],check=True)
             subprocess.run([str(meridian_exe),directory],check=True,timeout=30)
             evidence=os.environ.get('ZENITH_UI_EVIDENCE_DIR')
             if evidence:

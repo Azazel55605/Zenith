@@ -54,6 +54,14 @@ void zui_swatch_caption(struct zui *ui,int x,int y);
 void zui_segment_track(struct zui *ui,struct zui_rect rect);
 unsigned int zui_accent_color(const struct zui *ui,int index);
 int zui_measure(const char *text,unsigned long bytes,const struct zui_font *font);
+/* Build-time Lucide masks (tools/build-ui-icons.py): 16/24/32/48 px, 8-bit coverage. */
+struct zui_icon_mask { const char *name; unsigned short size; const unsigned char *alpha; };
+extern const struct zui_icon_mask zui_icon_masks[];
+extern const int zui_icon_mask_count;
+/* Tint roles: normal accent, accent contrast on selected rows, muted disabled, body text. */
+enum { ZUI_ICON_NORMAL=0,ZUI_ICON_SELECTED=1,ZUI_ICON_DISABLED=2,ZUI_ICON_TEXT=3 };
+/* Draws the named mask at (x,y) within the clip; 0 for an unknown name or size. */
+int zui_icon(struct zui *ui,const char *name,int x,int y,int size,int role);
 /* Positive unique IDs; labels remain owned by caller and must outlive the control.
  * clip records a narrowed viewport active at registration (empty = whole window);
  * rect within it is the hit and draw area, so callers may still move rect later. A control with no visible part

@@ -324,3 +324,23 @@ void zui_draw_range(struct zui *u,int first,int count){
     }
 }
 void zui_draw_controls(struct zui *u){zui_draw_range(u,0,u->count);}
+static int same_name(const char *a,const char *b){
+    for(int i=0;i<64;i++){if(a[i]!=b[i])return 0;if(!a[i])return 1;}
+    return 0;
+}
+int zui_icon(struct zui *u,const char *name,int x,int y,int size,int role){
+    if(!name)return 0;
+    const struct zui_icon_mask *m=0;
+    for(int i=0;i<zui_icon_mask_count;i++)if(zui_icon_masks[i].size==size&&same_name(zui_icon_masks[i].name,name)){m=&zui_icon_masks[i];break;}
+    if(!m)return 0;
+    unsigned int color=role==ZUI_ICON_SELECTED?u->theme.on_accent:role==ZUI_ICON_DISABLED?u->theme.secondary:
+        role==ZUI_ICON_TEXT?u->theme.text:u->theme.accent;
+    struct zui_rect b=intersect((struct zui_rect){x,y,size,size},u->clip);
+    for(int py=b.y;py<b.y+b.h;py++)for(int px=b.x;px<b.x+b.w;px++){
+        unsigned int a=m->alpha[(py-y)*size+(px-x)];
+        if(!a)continue;
+        unsigned int *p=&u->pixels[py*u->width+px];
+        *p=a==255?(color|(u->foreground?0xff000000:0)):u->foreground?over(*p,color,a):blend(*p,color,a);
+    }
+    return 1;
+}

@@ -158,6 +158,18 @@ int main(int argc,char **argv){
         zui_event(&b,&d);assert(zui_event(&b,&up)==0);           /* outside clip */
         d.y=up.y=30;zui_event(&b,&d);assert(zui_event(&b,&up)==7); /* inside clip */
     }
+    { /* icon roles, unknown names and clipping */
+        static unsigned int px[64*64];struct zui b;assert(zui_init(&b,px,64,64));zui_appearance(&b,0,2);
+        zui_fill(&b,b.clip,0);
+        assert(!zui_icon(&b,"no-such-icon",0,0,24,ZUI_ICON_NORMAL));
+        assert(!zui_icon(&b,"x",0,0,20,ZUI_ICON_NORMAL));
+        for(int i=0;i<64*64;i++)assert(px[i]==0);
+        assert(zui_icon(&b,"x",0,0,24,ZUI_ICON_NORMAL));assert(px[12*64+12]==b.theme.accent);
+        assert(zui_icon(&b,"x",32,0,24,ZUI_ICON_SELECTED));assert(px[12*64+44]==b.theme.on_accent);
+        assert(zui_icon(&b,"x",0,32,24,ZUI_ICON_DISABLED));assert(px[44*64+12]==b.theme.secondary);
+        zui_fill(&b,(struct zui_rect){0,0,64,64},0);zui_clip(&b,(struct zui_rect){0,0,10,64});
+        assert(zui_icon(&b,"x",0,0,24,ZUI_ICON_NORMAL));assert(px[12*64+12]==0);
+    }
     puts("PASS UI renderer bounds, fonts, theme, focus, activation, disabled/reset/capture and 10000 event sequences");
     return 0;
 }
