@@ -58,7 +58,8 @@ Python 3 + Pillow (build-time generators), gcc/clang with ASan/UBSan host tests 
 - Test: `userland/ui/test_ui.c`
 
 **Interfaces:**
-- Produces: `#define ZUI_MAX_CONTROLS 128`; `struct zui_control` gains `struct zui_rect clip;`. `zui_add` accepts a rect that leaves the window when its intersection with `ui->clip` is non-empty, stores `clip = intersect(rect, ui->clip)`, and both hit-testing and drawing use that clip. Rects with an empty visible part return 0 (not registered).
+- Produces: `#define ZUI_MAX_CONTROLS 128`; `struct zui_control` gains `struct zui_rect clip;`, the **narrowed viewport active at registration** (stored empty when the clip was the whole window, so it follows resizes). Hit-testing and drawing use `rect ∩ viewport`, so callers that move `rect` after registration (Settings `app.c`) keep working. `zui_add` accepts rects leaving the window when their visible part is non-empty; otherwise it returns 0 (not registered).
+- Implementation note (found while executing): storing `intersect(rect, clip)` broke `app.c`, which repositions registered controls, and Meridian resize.
 
 - [ ] **Step 1: Write the failing tests** — append to `main` in `test_ui.c` before the final `return`:
 
@@ -734,7 +735,8 @@ int zui_list_event(struct zui *u,struct zui_list *l,const struct zenith_gui_even
         for(int i=0;i<l->visible_controls;i++){
             int c=l->first_control+i;if(c>=u->count)break;
             struct zui_control *k=&u->controls[c];
-            if(k->enabled&&e->x>=k->clip.x&&e->y>=k->clip.y&&e->x-k->clip.x<k->clip.w&&e->y-k->clip.y<k->clip.h){
+            struct zui_rect area=zui_control_area(u,c);
+            if(k->enabled&&e->x>=area.x&&e->y>=area.y&&e->x-area.x<area.w&&e->y-area.y<area.h){
                 l->selected=k->id-l->base_id;u->dirty=1;return l->selected+1;
             }
         }

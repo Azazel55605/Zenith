@@ -4,7 +4,7 @@
 /* Client-only library v1. Owns no host state or handles. Colors are RGB; targets
  * are legacy XRGB or explicitly initialized premultiplied foreground planes. */
 #define ZUI_API_VERSION 1
-#define ZUI_MAX_CONTROLS 32
+#define ZUI_MAX_CONTROLS 128
 #define ZUI_MAX_TEXT_BYTES 4096
 struct zui_theme { unsigned int surface,raised,subtle,border,text,secondary,accent,on_accent; };
 struct zui_font { unsigned short width,height,ascent; const unsigned char *advance,*pixels; };
@@ -18,7 +18,7 @@ struct zui;
 int zui_surface(struct zui *ui,struct zui_rect rect,int radius,int role);
 int zui_backdrop_candidate(int role);
 enum { ZUI_BUTTON=1,ZUI_TOGGLE=2,ZUI_CHOICE=3,ZUI_SEGMENT=4,ZUI_SWATCH=5,ZUI_NAVIGATION=6 };
-struct zui_control { int id,kind,enabled,value,swatch; struct zui_rect rect; const char *label; };
+struct zui_control { int id,kind,enabled,value,swatch; struct zui_rect rect,clip; const char *label; };
 struct zui {
     unsigned int *pixels; int width,height;
     struct zui_theme theme;
@@ -54,12 +54,17 @@ void zui_swatch_caption(struct zui *ui,int x,int y);
 void zui_segment_track(struct zui *ui,struct zui_rect rect);
 unsigned int zui_accent_color(const struct zui *ui,int index);
 int zui_measure(const char *text,unsigned long bytes,const struct zui_font *font);
-/* Positive unique IDs; labels remain owned by caller and must outlive the control. */
+/* Positive unique IDs; labels remain owned by caller and must outlive the control.
+ * clip records a narrowed viewport active at registration (empty = whole window);
+ * rect within it is the hit and draw area, so callers may still move rect later. A control with no visible part
+ * when added is not registered and returns 0. */
 int zui_add_swatch(struct zui *ui,int id,struct zui_rect rect,const char *label,int accent,int selected,int enabled);
 int zui_add(struct zui *ui,int id,int kind,struct zui_rect rect,const char *label,int value,int enabled);
 /* Returns activated ID or 0. Application owns values; disabled controls never activate.
  * Forward focus/reset/close events, too; events never modify saved preferences. */
 int zui_event(struct zui *ui,const struct zenith_gui_event *event);
+/* Visible hit/draw area of control index (rect within its viewport); empty if out of range. */
+struct zui_rect zui_control_area(const struct zui *ui,int index);
 void zui_draw_controls(struct zui *ui);
 void zui_draw_range(struct zui *ui,int first,int count);
 #endif

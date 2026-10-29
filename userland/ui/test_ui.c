@@ -144,6 +144,20 @@ int main(int argc,char **argv){
     for(int i=0;i<g.ui.count;i++)g.ui.controls[i].enabled=0;
     event(Z_GUI_KEY,0,0,0,0,4);assert(g.ui.focus==-1);
     assert(storage[0]==0x12345678&&storage[600*440+1]==0xabcdef01);
+    { /* 128-region budget and clipped registration */
+        static unsigned int px[200*100];struct zui b;assert(zui_init(&b,px,200,100));
+        for(int i=0;i<128;i++)assert(zui_add(&b,i+1,ZUI_BUTTON,(struct zui_rect){0,0,4,4},"r",0,1));
+        assert(!zui_add(&b,500,ZUI_BUTTON,(struct zui_rect){0,0,4,4},"over",0,1));
+        assert(zui_init(&b,px,200,100));b.window_focused=1;
+        zui_clip(&b,(struct zui_rect){0,20,200,40});
+        assert(zui_add(&b,7,ZUI_BUTTON,(struct zui_rect){10,-30,50,70},"partly",0,1));
+        assert(b.controls[0].clip.y==20&&b.controls[0].clip.h==40);
+        struct zui_rect area=zui_control_area(&b,0);assert(area.y==20&&area.h==20&&zui_control_area(&b,5).w==0);
+        assert(!zui_add(&b,8,ZUI_BUTTON,(struct zui_rect){10,70,50,20},"hidden",0,1));
+        struct zenith_gui_event d={Z_GUI_DOWN,1,20,10,0,0},up={Z_GUI_UP,1,20,10,0,0};
+        zui_event(&b,&d);assert(zui_event(&b,&up)==0);           /* outside clip */
+        d.y=up.y=30;zui_event(&b,&d);assert(zui_event(&b,&up)==7); /* inside clip */
+    }
     puts("PASS UI renderer bounds, fonts, theme, focus, activation, disabled/reset/capture and 10000 event sequences");
     return 0;
 }
