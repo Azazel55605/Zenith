@@ -14,10 +14,11 @@ box, form layout, footer bar, dialog, hover plumbing, 128-region budget) to
 values and per-widget state structs; the toolkit keeps only transient interaction
 state. Controls gain a per-control clip so scrolled content is drawn and hit-tested
 only inside its viewport. Icons are Lucide SVGs rasterized at build time by a
-Pillow-based subset rasterizer into 8-bit alpha masks, exactly like the font atlas.
+standard-library subset rasterizer (exact distance-based stroke coverage, 8x8 supersampling) into 8-bit alpha masks, generated at build time like the font atlas.
+Implementation note: Pillow's thick lines proved asymmetric (24/255 mirror error), so the shipped tool computes coverage itself and needs no Pillow; it also accepts compact arc flags (`a1.5 1.5 0 00-2.4`).
 
 **Tech Stack:** Freestanding C (std=c11; no libc, no allocation, no FP in hot paths),
-Python 3 + Pillow (build-time generators), gcc/clang with ASan/UBSan host tests via
+Python 3 (build-time generators; Pillow only for the existing font atlas), gcc/clang with ASan/UBSan host tests via
 `tools/test_ui_library.py`.
 
 ## Global Constraints
