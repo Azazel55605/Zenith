@@ -98,9 +98,14 @@ to another CPU is refused with status 95. ARM64 execution is not implemented.
 
 Up to eight bounded invocation contexts can wait on managed streams on the BSP.
 A shared entry gate serializes every raw user window on its original CPU. During its raw user
-window normal managed scheduler/device handlers do not run; IRQs are acknowledged
-and the timer supplies a budget of 1000 interrupts. A loop terminates with status
-124. This is an interrupt budget, not a portable wall-clock duration. Managed
+window the managed scheduler does not run; timer IRQs are acknowledged and supply a
+budget of 1000 interrupts. A loop terminates with status 124. Every other device
+IRQ leaves the window unacknowledged: the bridge saves a resumable user frame,
+restores the managed environment and delivers the vector through its original
+Cosmos stub, whose driver consumes the device state and sends EOI; the loop then
+resumes the unchanged frame (internal status 4097). Acknowledging without the
+driver left an 8042 byte unread and silenced all later PS/2 input
+([evidence](archive/2026-10-29/native-device-irq-forwarding.md)). This is an interrupt budget, not a portable wall-clock duration. Managed
 owners remain explicitly rooted across each user window and managed service return; private frames are released on normal
 exit, contained fault, timeout or managed setup failure. Installation, package/boot
 mutation and shutdown are excluded by the shared maintenance gate. Cancellation
@@ -163,8 +168,8 @@ x87/SSE state. User pointers are never dereferenced under the kernel's original
 page table: copyin/copyout walks only owned user frames and validates the complete
 range before I/O, including writable mappings for copyout. No kernel pointer or
 managed object is exported. Noncanonical/high-half user stack pointers terminate
-the process before IRET can fault in kernel mode; timer IRQs are acknowledged on
-that exit path. Read-only code, unmapped gaps, kernel addresses and
+the process before IRET can fault in kernel mode; on that exit path timer IRQs are
+acknowledged and device IRQs are delivered to their original handler. Read-only code, unmapped gaps, kernel addresses and
 wrapped ranges fail with -14 before descriptor offsets or directory cursors change.
 
 Additional `int 0xfe` calls use the existing RAX/RDI/RSI/RDX convention. This is a

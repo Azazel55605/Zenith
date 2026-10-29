@@ -32,7 +32,8 @@ def check(machine, command, expected, label, timeout=120):
 
 # Only known Cosmos debug writers may interrupt a public fixture line. Preserve
 # arbitrary bracketed application output, errors and command echoes.
-TRACE = re.compile(r'\[(?:SCHED|STRIDE|LAPIC|CV|LowLevelMonitor|Kernel|PageAllocator|SmallHeap)\][^\n]*\n')
+TRACE_TAG = r'\[(?:SCHED|STRIDE|LAPIC|CV|LowLevelMonitor|Kernel|PageAllocator|SmallHeap)\]'
+TRACE = re.compile(TRACE_TAG + r'[^\n]*\n')
 
 
 def check_stderr(text, expected_error, label):
@@ -41,5 +42,8 @@ def check_stderr(text, expected_error, label):
         raise ValueError('stderr check requires a unique fixture status label')
     cleaned = TRACE.sub('', text)
     output = re.findall(r'(?:^|[\r\n])(?:\[zenith\] \[[^\]\r\n]*\] )?user: ([^\r\n]*)', cleaned)
-    if expected_error not in cleaned.splitlines() or '0' not in output or label + '=0' not in output:
+    # A preempted trace record can also be left unterminated with the exact
+    # diagnostic completing that physical line; its remainder resumes later.
+    resumed = re.search(r'(?m)^' + TRACE_TAG + r'[^\n]*?' + re.escape(expected_error) + r'\r?$', text)
+    if (expected_error not in cleaned.splitlines() and not resumed) or '0' not in output or label + '=0' not in output:
         raise RuntimeError(label + ': stderr line, zero downstream bytes and successful completion are all required')

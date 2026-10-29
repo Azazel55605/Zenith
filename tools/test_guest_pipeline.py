@@ -57,6 +57,16 @@ class StderrChecks(unittest.TestCase):
         self.assertNotIn(self.error,raw)
         check_stderr(raw,self.error,'N_STREAM_ERR')
 
+    def test_error_after_unterminated_trace_fragment_is_kept(self):
+        # Retained irq-forward run: a preempted ExitThread record resumed later.
+        raw=('[SCHED] ExitThread: entering DisableInterruptsS'+self.error+'\n'
+             '[SCHED] Thread entry completed\ncope for thread 465\n'+self.status)
+        check_stderr(raw,self.error,'N_STREAM_ERR')
+
+    def test_unknown_prefix_cannot_supply_the_error_line(self):
+        for prefix in ('[application] ','echo ','x'):
+            with self.assertRaises(RuntimeError):check_stderr(prefix+self.error+'\n'+self.status,self.error,'N_STREAM_ERR')
+
     def test_error_and_zero_count_and_completion_are_independently_required(self):
         good=self.error+'\n'+self.status
         check_stderr(good,self.error,'N_STREAM_ERR')

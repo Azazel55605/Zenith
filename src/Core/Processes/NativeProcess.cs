@@ -47,6 +47,8 @@ internal sealed unsafe class NativeProcess
         if (_graphicsTransfer is null || _graphicsTransfer.Length != size) { _graphicsTransfer = new byte[size]; }
         Transfer(address, _graphicsTransfer, false); return _graphicsTransfer;
     }
+    // Process.s: a user-window device IRQ was forwarded to its original handler.
+    private const int DeviceInterruptYield = 4097;
     internal static readonly ProcessTable Processes = new();
     private static readonly object s_rawGate = new(), s_rootsGate = new(), s_serviceGate = new();
     private static readonly Dictionary<int, object[]> s_roots = new();
@@ -532,6 +534,9 @@ internal sealed unsafe class NativeProcess
                     Monitor.Enter(s_rawGate);
                     try { status = (int)RunNative(&context); Monitor.Exit(s_rawGate); }
                     catch { Monitor.Exit(s_rawGate); throw; }
+                    // A device IRQ interrupted the user window and has been delivered
+                    // to its managed driver; resume the unchanged frame.
+                    if (status == DeviceInterruptYield) { continue; }
                     if (status != 4096) { break; }
                     if (cancelled()) { status = 130; break; }
                     if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }

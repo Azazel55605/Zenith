@@ -290,11 +290,16 @@ z_bridge:
     cmp $239, %eax
     je 4f
     cmp $32, %eax
-    jne 5f
+    je 4f
+    # A device IRQ carries state only its managed driver can consume: an 8042
+    # byte left unread keeps its edge line high and silences every later IRQ.
+    pop %rdx
+    pop %rcx
+    pop %rax
+    jmp z_device_yield
 4:
     mov z_context(%rip), %rax
     subq $1, 72(%rax)
-5:
     call z_eoi
     mov z_context(%rip), %rax
     cmpq $0, 72(%rax)
@@ -333,6 +338,16 @@ z_invalid_user_stack:
     je 13f
     cmpq $255, (%rsp)
     je 13f
+    cmpq $239, (%rsp)
+    je 14f
+    cmpq $32, (%rsp)
+    je 14f
+    push %rax
+    mov 8(%rsp), %rax
+    mov %rax, z_pending_vector(%rip)
+    pop %rax
+    jmp 13f
+14:
     call z_eoi
 13:
     mov z_context(%rip), %rax
@@ -479,6 +494,40 @@ z_service:
     movq $1, 128(%rbx)
     movq $4096, 64(%rbx)
     jmp z_exit
+# Leave the device IRQ unacknowledged, save a resumable frame like z_service
+# (the interrupted RAX is the resume result), then let z_exit forward the
+# vector to its original Cosmos handler on the managed stack.
+z_device_yield:
+    push %rax
+    push %rbx
+    push %rcx
+    push %rdx
+    push %rsi
+    push %rdi
+    push %rbp
+    push %r8
+    push %r9
+    push %r10
+    push %r11
+    push %r12
+    push %r13
+    push %r14
+    push %r15
+    cld
+    mov z_context(%rip), %rbx
+    mov 112(%rsp), %rax
+    mov %rax, 168(%rbx)
+    mov 120(%rsp), %rax
+    mov %rax, z_pending_vector(%rip)
+    mov %rsp, %rsi
+    mov 176(%rbx), %rdi
+    mov $22, %ecx
+    rep movsq
+    mov 184(%rbx), %rax
+    fxsave64 (%rax)
+    movq $1, 128(%rbx)
+    movq $4097, 64(%rbx)
+    jmp z_exit
 z_exit:
     cli
     cld
@@ -517,6 +566,27 @@ z_exit:
     mov z_old_gs(%rip), %eax
     mov z_old_gs+4(%rip), %edx
     wrmsr
+    mov z_pending_vector(%rip), %rax
+    test %rax, %rax
+    jz z_restore_registers
+    # Deliver the still in-service device vector through its original Cosmos
+    # stub as a kernel-origin interrupt: aligned like a CPU-pushed frame, IF
+    # clear, returning to the ordinary managed exit. The handler sends EOI and
+    # may preempt this thread exactly as for any interrupt in managed code.
+    movq $0, z_pending_vector(%rip)
+    mov z_saved_rsp(%rip), %rcx
+    mov %rcx, %rsp
+    and $-16, %rsp
+    mov %ss, %edx
+    push %rdx
+    push %rcx
+    pushq $2
+    mov %cs, %edx
+    push %rdx
+    lea z_restore_registers(%rip), %rdx
+    push %rdx
+    lea z_old_stubs(%rip), %rdx
+    jmp *(%rdx,%rax,8)
 z_restore_registers:
     mov z_context(%rip), %rax
     mov 64(%rax), %rax
@@ -582,6 +652,7 @@ z_tss: .zero 104
 z_old_stubs: .zero 2048
 z_saved_rsp: .zero 8
 z_context: .zero 8
+z_pending_vector: .zero 8
 z_old_cr3: .zero 8
 z_old_cr4: .zero 8
 z_old_efer: .zero 8
