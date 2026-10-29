@@ -97,3 +97,5 @@ and relative-link rebasing are the only archival edits in this reorganization.
   [narrative history](HISTORY.md) are preserved references, not active work lists.
 
 - [2026-10-29 status-record boundaries](2026-10-29/validation-status-record-boundaries.md): confirmed false fetch failure from removed debug-owned newlines; Q2 controller repair.
+
+- [2026-10-29 materials Terminal handoff](2026-10-29/materials-terminal-handoff.md): gallery launch/shutdown use the public-prompt protocol; Q2 validation boundary.

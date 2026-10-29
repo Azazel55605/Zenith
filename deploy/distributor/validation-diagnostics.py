@@ -19,7 +19,7 @@ import subprocess
 import struct
 import time
 
-PIPELINE = re.compile(r'(?:N_STREAM_(?:BYTES_[0-9]+|FP_BYTES)|MERIDIAN_INPUT)')
+PIPELINE = re.compile(r'(?:N_STREAM_(?:BYTES_[0-9]+|FP_BYTES)|MERIDIAN_INPUT|GALLERY_INPUT)')
 scheduler_spec = importlib.util.spec_from_file_location('validation_scheduler', Path(__file__).with_name('validation-scheduler.py'))
 scheduler = importlib.util.module_from_spec(scheduler_spec); scheduler_spec.loader.exec_module(scheduler)
 
@@ -183,7 +183,7 @@ def capture(machine, label, elf=None):
                 report['scheduler_queue_after'] = scheduler.observe(monitor,elf,words)
             except (OSError,ValueError,KeyError,subprocess.SubprocessError,struct.error):
                 report['scheduler_queue_error'] = 'typed queue unavailable, changed during read or unsupported'
-            if label == 'MERIDIAN_INPUT':
+            if label in ('MERIDIAN_INPUT','GALLERY_INPUT'):
                 try:
                     spec=importlib.util.spec_from_file_location('failure_pointer',Path(__file__).with_name('validation-pointer.py'))
                     pointer=importlib.util.module_from_spec(spec);spec.loader.exec_module(pointer)

@@ -109,6 +109,14 @@ class ValidationTests(unittest.TestCase):
         self.assertLess(self.destination.stat().st_blocks * 512, self.destination.stat().st_size // 4)
 
     def test_settings_registry_in_separate_tagged_checkout_selects_only_live_desktop(self):
+        self.check_registry_handoff('native-settings-smoke.py','sh /root/u\n')
+
+    def test_gallery_registry_in_separate_tagged_checkout_and_materials_wrapper(self):
+        for wrapper in (False,True):
+            with self.subTest(wrapper=wrapper):
+                self.check_registry_handoff('ui-gallery-smoke.py','sh /root/ui010-p\n',wrapper=wrapper)
+
+    def check_registry_handoff(self,name,command,wrapper=False):
         helper=self.root/'headless-smoke.py'
         helper.write_text("from types import SimpleNamespace\nclass Machine:\n"
             " def __init__(self,directory,code=None,monitor=None): self.directory=directory;self.process=SimpleNamespace(poll=lambda:code)\n"
@@ -117,15 +125,18 @@ class ValidationTests(unittest.TestCase):
             " def log(self):\n  assert self.directory.name=='desktop'\n  raise LookupError('selected-live-desktop')\n"
             " def stop(self): pass\n")
         (self.root/'login-session-smoke.py').write_text("def monitor_type(*args): raise AssertionError('unexpected input')\n")
-        harness=self.root/'native-settings-smoke.py'
+        harness=self.root/name
         harness.write_text("import importlib.util,sys\nfrom pathlib import Path\n"
             "def load(name,path):\n s=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(s);s.loader.exec_module(m);return m\n"
             "root=Path(__file__).parent;h=load('headless',root/'headless-smoke.py');login=load('login',root/'login-session-smoke.py')\n"
             "keep=Path(sys.argv[1]);monitor=keep/'monitor.sock'\n"
             "h.Machine(keep/'live',0);h.Machine(keep/'setup',0);h.Machine(keep/'desktop',monitor=monitor)\n"
-            "try:login.monitor_type(monitor,'sh /root/u\\n')\n"
+            f"try:login.monitor_type(monitor,{command!r})\n"
             "except LookupError as e:assert str(e)=='selected-live-desktop'\n"
             "else:raise AssertionError('selector was bypassed')\n")
+        if wrapper:
+            harness=self.root/'native-materials-smoke.py'
+            harness.write_bytes((ROOT/'tools/native-materials-smoke.py').read_bytes())
         subprocess.run([sys.executable,'-B',str(ROOT/'deploy/distributor/validation-runner.py'),str(harness),str(self.root/'keep')],check=True)
 
     def test_tagged_input_helper_uses_current_controller_policy(self):

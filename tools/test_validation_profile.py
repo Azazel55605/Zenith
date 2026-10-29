@@ -47,6 +47,23 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual('failed',row['outcome']);self.assertEqual('S_LEVEL',row['label'])
         self.assertNotIn('private',json.dumps(row))
 
+    def test_gallery_shutdown_failure_captures_from_parent_monitor_without_passing(self):
+        for harness in ('native-materials-smoke.py','ui-gallery-smoke.py'):
+            failed=self.machine(False,harness=harness)
+            with patch.object(profile.diagnostics,'capture',return_value=failed.directory/'pipeline-stall.json') as capture:
+                self.assertFalse(failed.wait('all filesystems unmounted',7,60))
+            self.assertEqual('GALLERY_INPUT',capture.call_args.args[1])
+            self.assertEqual(failed.directory.parent,capture.call_args.args[0].directory)
+            row=json.loads((failed.directory/'wait-times.jsonl').read_text())
+            self.assertEqual(('shutdown','failed',60),(row['label'],row['outcome'],row['timeout']))
+            self.assertNotIn('private',json.dumps(row))
+
+    def test_successful_gallery_shutdown_does_not_capture(self):
+        passed=self.machine(True,harness='native-materials-smoke.py')
+        with patch.object(profile.diagnostics,'capture') as capture:
+            self.assertTrue(passed.wait('all filesystems unmounted'))
+        capture.assert_not_called()
+
     def test_pipeline_snapshot_is_failure_only_and_cannot_change_acceptance(self):
         failed=self.machine(False)
         with patch.object(profile.diagnostics,'capture',return_value=failed.directory/'pipeline-stall.json') as capture:

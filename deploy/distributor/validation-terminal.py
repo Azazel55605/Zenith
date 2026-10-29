@@ -1,4 +1,4 @@
-"""Observe the public Settings-to-Terminal handoff before injecting its next script.
+"""Observe the public native-client-to-Terminal handoff before its next script.
 
 Worker completion and cancellation precede GUI input cleanup. Observe a focused
 public shell prompt before known public fixture commands. Never repeat a command,
@@ -57,11 +57,15 @@ def public_prompt(ppm, box):
             min(blue) > max(green) and min(blue) >= width-4*height)
 
 
-def install(login, machines, policy):
+def install(login, machines, policy, *, protocol='settings'):
+    if protocol not in ('settings','gallery'): raise ValueError('unknown Terminal handoff protocol')
+    scripts = r'sh /root/[a-z]\n' if protocol == 'settings' else r'sh /root/ui[0-9]{3,30}-[up]\n'
+    commands = ('passwd root\n','echo S_SECRET_CANCELLED | logger\n') if protocol == 'settings' else ()
+    context = 'Settings' if protocol == 'settings' else 'UI gallery'
     original = login.monitor_type
     acknowledged = {}
     def monitor_type(path, text, *args, **kwargs):
-        public = re.fullmatch(r'sh /root/[a-z]\n', text) or text in ('passwd root\n','echo S_SECRET_CANCELLED | logger\n')
+        public = re.fullmatch(scripts, text) or text in commands
         if public:
             matches = [machine for machine in machines
                        if machine.directory.parent / 'monitor.sock' == Path(path)
@@ -77,15 +81,15 @@ def install(login, machines, policy):
                                      expected_monitor=str(candidate.directory.parent/'monitor.sock')))
                 helper=getattr(getattr(login,'h',None),'__file__',None)
                 report = dict(monitor=str(path), registered=rows, matches=len(matches), login_headless_source=helper, observation_only=True)
-                print('Settings Terminal VM registry: '+json.dumps(report), flush=True)
+                print(context+' Terminal VM registry: '+json.dumps(report), flush=True)
                 try: Path(path).with_name('terminal-handoff.json').write_text(json.dumps(report,indent=2)+'\n')
                 except OSError: pass
-                raise RuntimeError('Settings Terminal handoff VM unavailable; registered='+str(len(rows))+'; matches='+str(len(matches)))
+                raise RuntimeError(context+' Terminal handoff VM unavailable; registered='+str(len(rows))+'; matches='+str(len(matches)))
             machine = matches[0]
             raw = machine.log()
             offset = raw.rfind('graphics: native surface opened ')
             if offset > acknowledged.get(id(machine), -1) and not machine.wait('graphics: native surface retired', offset, timeout=15):
-                raise RuntimeError('Settings native window did not retire before public script')
+                raise RuntimeError(context+' native window did not retire before public script')
             observer = policy.RenderedMouse(path, policy.monitor_text)
             previous = observer.capture(observer.snapshot)
             deadline = time.monotonic()+15
@@ -96,7 +100,7 @@ def install(login, machines, policy):
                 if box is not None and public_prompt(current,box): break
                 previous = current
                 if time.monotonic() >= deadline:
-                    raise RuntimeError('Public Terminal prompt did not acknowledge Settings handoff')
+                    raise RuntimeError('Public Terminal prompt did not acknowledge '+context+' handoff')
             if machine.log().rfind('graphics: native surface opened ') != offset:
                 raise RuntimeError('Native window changed during Terminal handoff')
             acknowledged[id(machine)] = offset

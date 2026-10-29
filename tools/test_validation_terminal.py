@@ -42,15 +42,45 @@ class TerminalTests(unittest.TestCase):
         for other in (plain,frame((50,70,54,87)),frame((50,70,51,75)),frame((50,70,51,110))):
             self.assertFalse(terminal.caret_changed(plain,other))
         self.assertFalse(terminal.caret_changed(caret,caret))
-    def setup_hook(self, log='graphics: native surface opened 600x480\nuser: S_UI=0', retired=True):
+    def setup_hook(self, log='graphics: native surface opened 600x480\nuser: S_UI=0', retired=True, protocol='settings'):
         path=Path('/tmp/fixture/monitor.sock')
         machine=SimpleNamespace(directory=path.parent/'desktop',log=Mock(return_value=log),wait=Mock(return_value=retired))
         login=SimpleNamespace(monitor_type=Mock());original=login.monitor_type
         observer=Mock(snapshot=path.parent/'observation.ppm')
         observer.capture.side_effect=[frame(),frame(),frame((50,70,51,87))]
         policy=SimpleNamespace(RenderedMouse=Mock(return_value=observer),monitor_text=Mock())
-        terminal.install(login,[machine],policy)
+        terminal.install(login,[machine],policy,protocol=protocol)
         return path,machine,login,original,observer,policy
+
+    def test_gallery_shutdown_observes_retirement_and_delayed_public_prompt_once(self):
+        path,machine,login,original,observer,policy=self.setup_hook(log='graphics: native surface opened 600x440\nuser: UI_DONE=0',protocol='gallery')
+        observer.capture.side_effect=[frame(public=False),frame(public=False),frame(),frame((50,70,51,87))]
+        with patch.object(terminal.time,'sleep'):
+            login.monitor_type(path,'sh /root/ui010-p\n')
+        machine.wait.assert_called_once_with('graphics: native surface retired',0,timeout=15)
+        self.assertEqual(4,observer.capture.call_count)
+        original.assert_called_once_with(path,'sh /root/ui010-p\n')
+        policy.monitor_text.assert_not_called()
+
+    def test_gallery_first_launch_requires_public_prompt_without_retirement(self):
+        path,machine,login,original,observer,policy=self.setup_hook(log='desktop ready',protocol='gallery')
+        with patch.object(terminal.time,'sleep'):login.monitor_type(path,'sh /root/ui010-u\n')
+        machine.wait.assert_not_called();self.assertEqual(3,observer.capture.call_count)
+        original.assert_called_once_with(path,'sh /root/ui010-u\n')
+
+    def test_gallery_unretired_window_or_frozen_prompt_never_sends_poweroff(self):
+        for retired in (False,True):
+            path,machine,login,original,observer,policy=self.setup_hook(retired=retired,protocol='gallery')
+            observer.capture.side_effect=None;observer.capture.return_value=frame()
+            with patch.object(terminal.time,'sleep'),patch.object(terminal.time,'monotonic',side_effect=[0,16]):
+                with self.assertRaises(RuntimeError):login.monitor_type(path,'sh /root/ui010-p\n')
+            original.assert_not_called()
+
+    def test_gallery_protocol_does_not_intercept_other_scripts_or_credentials(self):
+        path,machine,login,original,observer,policy=self.setup_hook(protocol='gallery')
+        for text in ('sh /root/u\n','sh /root/ui010-p-extra\n','sh /root/ui010-p; poweroff\n','private-value\n','passwd root\n'):
+            login.monitor_type(path,text)
+        self.assertEqual(5,original.call_count);observer.capture.assert_not_called()
     def test_close_status_and_retirement_then_rendered_blink_before_one_dispatch(self):
         path,machine,login,original,observer,policy=self.setup_hook()
         def capture(_):

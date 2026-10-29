@@ -45,3 +45,5 @@ All new kernel tags require clean-source full qualification (Q2); old 0.0.13
 acceptance requests are superseded, not open tasks.
 
 Q2 also owns the [status-record normalizer repair](../archive/2026-10-29/validation-status-record-boundaries.md): a real fetch success was falsely rejected after debug-line removal. Preserve exact status/deadline assertions; validate the controller against the retained log before the unchanged release retry.
+
+Q2 also tracks the [materials Terminal handoff](../archive/2026-10-29/materials-terminal-handoff.md): the gallery now shares public-prompt/retirement observation instead of relying on a fixed shutdown delay. Full unmount, poweroff and ext2 assertions remain mandatory.

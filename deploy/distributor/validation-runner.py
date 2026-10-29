@@ -64,10 +64,11 @@ def run_harness(script):
     headless = script.parent / 'headless-smoke.py'
     def execute(loader, module):
         original_exec(loader, module)
-        if script.name == 'native-settings-smoke.py' and Path(loader.path).name == 'login-session-smoke.py':
+        if script.name in ('native-settings-smoke.py','native-materials-smoke.py','ui-gallery-smoke.py') and Path(loader.path).name == 'login-session-smoke.py':
             spec = importlib.util.spec_from_file_location('validation_terminal', Path(__file__).with_name('validation-terminal.py'))
             terminal = importlib.util.module_from_spec(spec); spec.loader.exec_module(terminal)
-            terminal.install(module, instances, input_profile)
+            terminal.install(module, instances, input_profile,
+                             protocol='settings' if script.name == 'native-settings-smoke.py' else 'gallery')
         if Path(loader.path).name == 'validation-input.py':
             # Immutable tags keep their assertions and binaries. Input delivery is
             # controller policy, just like authentication and network diagnostics.

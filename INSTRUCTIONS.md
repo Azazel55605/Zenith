@@ -219,6 +219,9 @@ Do not correct relative input from screenshot feedback: stale frames accumulate
 deltas. Never replay clicks/application mutations or relax exact destinations.
 Capture read-only running-guest diagnostics on acknowledgement failure. Tagged
 helper imports use current controller policy; preserve stale-frame/frozen tests.
+GUI fixture scripts crossing a native-client/Terminal boundary must observe
+surface retirement and a focused public prompt; a fixed delay or client exit
+status is not a shell-readiness acknowledgement.
 Authentication waits share `tools/guest_auth.py` in direct harnesses and the current
 distributor controller, including unchanged release tags. Keep prompt and hash/save
 completion phases distinct; never replay credentials or weaken hashing to fit a
