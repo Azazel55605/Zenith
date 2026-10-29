@@ -76,3 +76,20 @@ old file; that panicked run is not counted).
 Evidence: `obj/irq-gates/`, traces `/tmp/claude-1000/zvm/kvm-run1.dat` and
 `kvm.dat` (temporary). Remaining: clean-source full qualification of all ten
 native gates, kernel release, distributor and installed VMware acceptance.
+
+## Clean-source release qualification
+
+Unchanged source `760c5fe` passed fresh unsigned acceptance
+(`deploy/distributor/validate.py --keep obj/irq-qualified-760c5fe`, four native
+jobs): 349 controller tests, host tests, kernel build, runtime adapter and package
+tool, and all ten native gates — login 242.6s, Settings 305.0s, network 285.6s,
+repository 454.4s, CLI 256.7s, graphics 189.6s, materials 109.2s, system app
+styling 39.2s, native processes 751.3s, kernel update 798.6s (overlapping; not
+summed). An earlier run at `b2fa649` passed every gate but was correctly refused
+because documentation was committed while it ran.
+
+- ELF SHA256: `5e4d25adcdb5553b6f2c6f7d03c673e5b09f7a90642c5932005f66f7f9b61d5a`
+- ISO SHA256: `1b1a19a166fd922533bad90fc47df8eaa5db3b57237921be121c0e0009f1eb14`
+
+Tag `kernel/v0.0.29` was pushed at `760c5fe`. Distributor build and installed
+VMware acceptance remain pending.
