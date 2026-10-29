@@ -43,3 +43,50 @@ int zui_scroll_event(struct zui *u,struct zui_scroll *s,const struct zenith_gui_
     if(s->offset!=old)u->dirty=1;
     return s->offset!=old;
 }
+static int row_h(const struct zui_list *l){return l->row_height>0?l->row_height:40;}
+static unsigned long len256(const char *s){unsigned long n=0;while(s&&n<256&&s[n])n++;return n;}
+void zui_list_draw(struct zui *u,struct zui_list *l,struct zui_rect r,int count,zui_list_source items,void *ctx){
+    int h=row_h(l);l->count=count<0?0:count;
+    if(l->selected>=l->count)l->selected=l->count?l->count-1:0;
+    if(l->selected<0)l->selected=0;
+    int top=zui_scroll_begin(u,&l->scroll,r);
+    l->first_control=u->count;l->visible_controls=0;
+    for(int i=l->scroll.offset/h;i<l->count;i++){
+        int y=top+i*h;if(y>=r.y+r.h)break;
+        struct zui_list_item it;if(!items(ctx,i,&it))continue;
+        struct zui_rect row={r.x,y,r.w-12,h-4};
+        if(zui_add(u,l->base_id+i,ZUI_NAVIGATION,row,it.label?it.label:"",i==l->selected,it.enabled))l->visible_controls++;
+        int role=!it.enabled?ZUI_ICON_DISABLED:ZUI_ICON_NORMAL;
+        if(it.icon)zui_icon(u,it.icon,row.x+10,row.y+(row.h-24)/2,24,role);
+        if(it.subtitle)zui_text(u,row.x+44,row.y+row.h-16,it.subtitle,len256(it.subtitle),&zui_caption,u->theme.secondary);
+    }
+    zui_scroll_end(u,&l->scroll,(int)((long)l->count*h>0x3fffffff?0x3fffffff:(long)l->count*h));
+}
+static int enabled_at(zui_list_source items,void *ctx,int i){struct zui_list_item it;return items(ctx,i,&it)&&it.enabled;}
+static int lower(int c){return c>='A'&&c<='Z'?c+32:c;}
+int zui_list_event(struct zui *u,struct zui_list *l,const struct zenith_gui_event *e,zui_list_source items,void *ctx){
+    int h=row_h(l),old=l->selected;
+    if(zui_scroll_event(u,&l->scroll,e))return 0;
+    if(e->type==Z_GUI_UP){
+        for(int i=0;i<l->visible_controls;i++){
+            int c=l->first_control+i;if(c>=u->count)break;
+            struct zui_rect area=zui_control_area(u,c);
+            if(u->controls[c].enabled&&inside(area,e->x,e->y)){l->selected=u->controls[c].id-l->base_id;u->dirty=1;return l->selected+1;}
+        }
+        return 0;
+    }
+    if(e->type!=Z_GUI_KEY||(e->modifiers&6)||!l->count)return 0;
+    if(e->extra==2)return enabled_at(items,ctx,l->selected)?l->selected+1:0;
+    int step=e->extra==8?1:e->extra==7?-1:0,at=l->selected;
+    if(e->extra==10){at=-1;step=1;}else if(e->extra==11){at=l->count;step=-1;}
+    if(step){
+        for(int i=at+step;i>=0&&i<l->count;i+=step)if(enabled_at(items,ctx,i)){l->selected=i;break;}
+    }else if(!e->extra&&e->code>32&&e->code<127){
+        for(int k=1;k<=l->count;k++){
+            int i=(l->selected+k)%l->count;struct zui_list_item it;
+            if(items(ctx,i,&it)&&it.enabled&&it.label&&lower((unsigned char)it.label[0])==lower(e->code)){l->selected=i;break;}
+        }
+    }
+    if(l->selected!=old){zui_scroll_reveal(&l->scroll,l->selected*h,h);u->dirty=1;}
+    return 0;
+}
