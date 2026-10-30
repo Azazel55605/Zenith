@@ -24,9 +24,10 @@ class DesktopFrameTests(unittest.TestCase):
     def setUpClass(cls):
         cls.temp=tempfile.TemporaryDirectory();folder=Path(cls.temp.name)
         atlas=folder/'fonts.c';load('desktop_frame_fonts',ROOT/'tools/build-ui-fonts.py').build(atlas)
+        icons=folder/'icons.c';load('desktop_frame_icons',ROOT/'tools/build-ui-icons.py').build(icons)
         exe=folder/'frame'
         subprocess.run(['gcc','-std=c11','-Wall','-Wextra','-Werror','-O1','-I'+str(ROOT/'userland/ui'),
-                        str(ROOT/'tools/fixtures/desktop-frame.c'),str(ROOT/'userland/ui/ui.c'),str(atlas),'-o',str(exe)],check=True)
+                        str(ROOT/'tools/fixtures/desktop-frame.c'),str(ROOT/'userland/ui/ui.c'),str(atlas),str(icons),'-o',str(exe)],check=True)
         dest=folder/'native.ppm';subprocess.run([str(exe),str(dest)],check=True)
         cls.native=Image.open(dest).convert('RGB')
         dest=folder/'disabled.ppm';subprocess.run([str(exe),str(dest),'disabled'],check=True)
