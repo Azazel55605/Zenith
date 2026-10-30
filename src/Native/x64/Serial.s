@@ -150,3 +150,33 @@ zenith_idt_irq_test:
     ret
 .size zenith_idt_irq_test, .-zenith_idt_irq_test
 .section .note.GNU-stack,"",@progbits
+
+# Port access for the checked power-off path.
+.text
+.globl zenith_port_inw
+.type zenith_port_inw, @function
+zenith_port_inw:
+    mov %edi, %edx
+    inw %dx, %ax
+    movzwl %ax, %eax
+    ret
+.globl zenith_port_outw
+.type zenith_port_outw, @function
+zenith_port_outw:
+    mov %edi, %edx
+    mov %esi, %eax
+    outw %ax, %dx
+    ret
+.globl zenith_port_outb
+.type zenith_port_outb, @function
+zenith_port_outb:
+    mov %edi, %edx
+    mov %esi, %eax
+    outb %al, %dx
+    ret
+.globl zenith_interrupts_off
+.type zenith_interrupts_off, @function
+zenith_interrupts_off:
+    cli
+    ret
+.section .note.GNU-stack,"",@progbits
