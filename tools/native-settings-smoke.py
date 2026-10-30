@@ -187,6 +187,13 @@ def main():
         click(x+448,y+282) # Cancel.
         frame('kept-editing',lambda w,h,rgb:color_at(rgb,w,x+500,y+170)==bytes.fromhex('202125'))
         print('PASS chrome close intent and dialog Cancel',flush=True)
+        # Page Down moves the form by a viewport; Home returns exactly.
+        top_pixel=color_at(frame('form-top',background('202125'))[2],frame('form-top',background('202125'))[0],x+500,y+225)
+        monitor_command(monitor,'sendkey pgdn 30')
+        frame('form-paged',lambda w,h,rgb:color_at(rgb,w,x+500,y+225)!=top_pixel)
+        monitor_command(monitor,'sendkey home 30')
+        frame('form-home',lambda w,h,rgb:color_at(rgb,w,x+500,y+225)==top_pixel)
+        print('PASS Page Down and Home on the form',flush=True)
         # Scroll the form by keyboard to reach the effects rows (40 px per Down).
         for _ in range(6):monitor_command(monitor,'sendkey down 30');time.sleep(.05)
         frame('effects-visible',lambda w,h,rgb:color_at(rgb,w,x+530,y+209)==bytes.fromhex('45474f'))
@@ -313,6 +320,13 @@ def main():
         frame('wheel-unfocused',lambda w,h,rgb:color_at(rgb,w,x+80,y+20)!=bytes.fromhex('7ecac7'))
         monitor_command(monitor,'sendkey ctrl-f 30');frame('wheel-alive',navigation_material)
         print('PASS rapid wheel input, bounded navigation and continued host response',flush=True)
+        # Hover: a sidebar row tints under the pointer with no click, then restores.
+        rest=color_at(frame('hover-rest',navigation_material)[2],frame('hover-rest',navigation_material)[0],x+150,y+150)
+        (cx,cy),_=observer.position();monitor_command(monitor,f'mouse_move {x+100-cx} {y+165-cy}')
+        frame('hover-row',lambda w,h,rgb:color_at(rgb,w,x+150,y+150)!=rest)
+        (cx,cy),_=observer.position();monitor_command(monitor,f'mouse_move {x+400-cx} {y+300-cy}')
+        frame('hover-left',lambda w,h,rgb:color_at(rgb,w,x+150,y+150)==rest)
+        print('PASS opt-in pointer motion drives hover without input',flush=True)
         login.monitor_type(monitor,'bluetooth')
         off=len(m.log());monitor_command(monitor,'sendkey ret 30')
         assert m.wait('MERIDIAN_PAGE devices.bluetooth',off,10),'settings search did not open WIP destination'

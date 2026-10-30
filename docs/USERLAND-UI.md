@@ -16,7 +16,7 @@ or a finished Settings application.
   as per-glyph ink boxes.
 - Labels, buttons, Boolean toggles and choice controls; enabled/disabled,
   selected, pressed and visible keyboard focus states. Hover is tracked only when a
-  client sets `hover_supported`; no current host sends pointer motion (stage 3).
+  client sets `hover_supported`, after call 627 succeeds (kernel 0.0.30 and later).
 - Tab/Shift+Tab wrap over enabled controls. Enter/Space activate the focused
   control; Ctrl/Alt chords are not consumed. Pointer release activates only after
   a matching enabled press. Focus loss/reset cancels held state.
@@ -57,7 +57,8 @@ struct and the toolkit never allocates.
 Frame order: lay out the page (including combo fields), call `zui_draw_controls`,
 then draw overlays (`zui_combo_popup`, `zui_dialog_draw`), which paint their own
 surfaces and controls. Route input to an open dialog first, then an open combo.
-Page Up/Down and hover delivery need the stage-3 graphical ABI. The UI gallery's
+Hover is recomputed from the last pointer position with `zui_update_hover`, and focus
+rings appear only after keyboard focus moves. The UI gallery's
 second page (Ctrl+Right) demonstrates every widget.
 
 UI programs must fit the 256 KiB package file limit that installed kernels

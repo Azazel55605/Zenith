@@ -50,6 +50,8 @@ internal sealed class ProcessSurface : IDisposable
     private ProcessMaterialRegion[] _materials = Array.Empty<ProcessMaterialRegion>();
     public int Format { get; }
     private bool _dirty = true, _closed, _disposed, _unsaved, _closeIntent;
+    private bool _pointerMotion, _movePending;
+    private int _moveX, _moveY;
     public bool Unsaved { get { lock (_gate) { return _unsaved; } } }
     public ProcessSurface(int width, int height, string title, int format = 1)
     { Width = width; Height = height; Title = title; Format = format; _pixels = new int[width * height];
@@ -70,6 +72,21 @@ internal sealed class ProcessSurface : IDisposable
             return 0;
         }
     }
+    public int EnablePointerMotion()
+    {
+        lock (_gate) { if (_closed || _disposed) { return -32; } _pointerMotion = true; return 0; }
+    }
+    // One replaceable pending position outside the bounded queue: motion can never
+    // evict keys or clicks, and a busy pointer costs a client one event per poll.
+    public void SendPointerMove(int x, int y)
+    {
+        lock (_gate)
+        {
+            if (!_pointerMotion || _closed || _disposed) { return; }
+            _moveX = x; _moveY = y; _movePending = true;
+        }
+    }
+    public void SendPointerLeave() => SendPointerMove(-1, -1);
     public void RequestResize(int width, int height)
     {
         lock (_gate)
@@ -174,7 +191,9 @@ internal sealed class ProcessSurface : IDisposable
             if (_closed || _disposed) { return new(1, 0, 0, 0, 0, 0); }
             if (_closeIntent) { _closeIntent = false; return new(9, 0, 0, 0, 0, 0); }
             if (_resizeEvent) { _resizeEvent = false; return new(10, 0, _requestedWidth, _requestedHeight, 0, 0); }
-            return _events.Count == 0 ? default : _events.Dequeue();
+            if (_events.Count > 0) { return _events.Dequeue(); }
+            if (_movePending) { _movePending = false; return new(11, 0, _moveX, _moveY, 0, 0); }
+            return default;
         }
     }
     public int SetDirty(bool dirty) { lock (_gate) { if (_closed || _disposed) { return -32; } _unsaved = dirty; return 0; } }
@@ -212,6 +231,7 @@ internal sealed class ProcessGraphics : IDisposable
         _surface = surface; _handle = 20000 + ++_opens; return _handle;
     }
     public int EnableResize(int handle) => handle != _handle || _surface is null ? -9 : _surface.EnableResize();
+    public int EnablePointerMotion(int handle) => handle != _handle || _surface is null ? -9 : _surface.EnablePointerMotion();
     public byte[]? Viewport(int handle) => handle != _handle || _surface is null || _surface.Ended ? null : _surface.Viewport();
     public int AcceptResize(int handle, ReadOnlySpan<byte> request) => handle != _handle || _surface is null ? -9 : _surface.AcceptResize(request);
     public int Dirty(int handle, bool dirty) => handle != _handle || _surface is null ? -9 : _surface.SetDirty(dirty);

@@ -50,6 +50,9 @@ struct zenith_resize_request { unsigned int version,flags,width,height; unsigned
 _Static_assert(sizeof(struct zenith_viewport)==32,"viewport snapshot");
 _Static_assert(sizeof(struct zenith_resize_request)==24,"resize acknowledgement");
 static inline long zenith_gui_resize_enable(long handle){return zenith_call(614,(unsigned long)handle,1,0);}
+/* Opt in to pointer motion (event 11; x=y=-1 on leave). Older kernels return -38. */
+#define Z_GUI_MOVE 11
+static inline long zenith_gui_pointer_motion(long handle){return zenith_call(627,(unsigned long)handle,1,0);}
 static inline long zenith_gui_viewport(long handle,struct zenith_viewport *v){return zenith_call(613,(unsigned long)handle,(unsigned long)v,sizeof(*v));}
 static inline long zenith_gui_resize_accept(long handle,const struct zenith_viewport *v){
     struct zenith_resize_request r={1,0,v->width,v->height,v->generation};return zenith_call(615,(unsigned long)handle,(unsigned long)&r,sizeof(r));

@@ -133,6 +133,8 @@ internal sealed unsafe class NativeProcess
     {
         try
         {
+            if (c.Call == 627)
+            { return c.Arg0 > int.MaxValue || c.Arg1 != 1 || c.Arg2 != 0 ? -22 : graphics.EnablePointerMotion((int)c.Arg0); }
             if (c.Call == 614)
             { return c.Arg0 > int.MaxValue || c.Arg1 != 1 || c.Arg2 != 0 ? -22 : graphics.EnableResize((int)c.Arg0); }
             if (c.Call == 613)

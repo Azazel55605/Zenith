@@ -14,6 +14,28 @@ public sealed class ProcessGraphicsTests
         { var s = new ProcessSurface(width, height, title, format); Surfaces.Add(s); return s; }
     }
     [Fact]
+    public void PointerMotionIsOptInCoalescedAndNeverDisplacesInput()
+    {
+        var h = new Host(); using var g = new ProcessGraphics(h);
+        int handle = g.Open(160, 100, "M");
+        Assert.Equal(-9, g.EnablePointerMotion(handle + 1));
+        var surface = h.Surfaces[0];
+        surface.SendPointerMove(1, 2);
+        Assert.Equal(0, surface.Poll().Type);                         // legacy clients see nothing
+        Assert.Equal(0, g.EnablePointerMotion(handle));
+        surface.Send(new(3, 'a', 0, 0, 0, 0));
+        for (int i = 0; i < 10000; i++) { surface.SendPointerMove(i % 160, i % 100); }
+        Assert.Equal(3, surface.Poll().Type);                         // input first, never reset
+        var move = surface.Poll();
+        Assert.Equal(new ProcessGraphicsEvent(11, 0, 9999 % 160, 9999 % 100, 0, 0), move);
+        Assert.Equal(0, surface.Poll().Type);                         // exactly one pending move
+        surface.SendPointerLeave();
+        Assert.Equal(new ProcessGraphicsEvent(11, 0, -1, -1, 0, 0), surface.Poll());
+        surface.SendPointerMove(3, 3); surface.Dispose();
+        Assert.Equal(1, surface.Poll().Type);                         // close stays sticky
+        Assert.Equal(-9, g.EnablePointerMotion(handle + 1));
+    }
+    [Fact]
     public void OwnedHandlesNeverAliasOtherInvocationsOrClosedHandles()
     {
         var h = new Host(); using var a = new ProcessGraphics(h); using var b = new ProcessGraphics(h);

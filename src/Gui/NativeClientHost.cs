@@ -125,6 +125,8 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
         public override void OnMouseDown(int x, int y) => Pointer(4, x, y);
         public override void OnMouseUp(int x, int y) => Pointer(5, x, y);
         public override void OnMouseDrag(int x, int y) => Pointer(6, x, y);
+        public override void OnPointerMove(int x, int y) => _surface.SendPointerMove(Math.Clamp(x, 0, _surface.Width - 1), Math.Clamp(y, 0, _surface.Height - 1));
+        public override void OnPointerLeave() => _surface.SendPointerLeave();
         private void Pointer(int type, int x, int y) => _surface.Send(new(type, 1, Math.Clamp(x, 0, _surface.Width - 1), Math.Clamp(y, 0, _surface.Height - 1), 0, 0));
         public override void OnScrollAt(int delta, int x, int y) => _surface.Send(new(8, Math.Clamp(delta, -120, 120), Math.Clamp(x, 0, Content.W-1), Math.Clamp(y, 0, Content.H-1), 0, 0));
         public override void OnKey(KeyEvent key)
@@ -134,7 +136,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
                 ConsoleKeyEx.Escape => 1, ConsoleKeyEx.Enter => 2, ConsoleKeyEx.Backspace => 3,
                 ConsoleKeyEx.Tab => 4, ConsoleKeyEx.LeftArrow => 5, ConsoleKeyEx.RightArrow => 6,
                 ConsoleKeyEx.UpArrow => 7, ConsoleKeyEx.DownArrow => 8, ConsoleKeyEx.Delete => 9,
-                ConsoleKeyEx.Home => 10, ConsoleKeyEx.End => 11, _ => 0
+                ConsoleKeyEx.Home => 10, ConsoleKeyEx.End => 11, ConsoleKeyEx.PageUp => 12, ConsoleKeyEx.PageDown => 13, _ => 0
             };
             int modifiers = ((key.Modifiers & ConsoleModifiers.Shift) != 0 ? 1 : 0)
                 | ((key.Modifiers & ConsoleModifiers.Control) != 0 ? 2 : 0) | ((key.Modifiers & ConsoleModifiers.Alt) != 0 ? 4 : 0);

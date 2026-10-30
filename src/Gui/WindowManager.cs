@@ -39,6 +39,7 @@ internal sealed class WindowManager
 
     // A press in a window's content area: drags and the release go to that window.
     private Window? _contentDrag;
+    private Window? _pointerWindow;
 
     private Window? _lastTitleClick;
     private long _lastTitleClickTime;
@@ -120,6 +121,7 @@ internal sealed class WindowManager
             {
                 if (_dragging == w) { _dragging = null; }
                 if (_contentDrag == w) { _contentDrag = null; }
+                if (_pointerWindow == w) { _pointerWindow = null; }
                 if (_lastTitleClick == w) { _lastTitleClick = null; }
                 _windows.RemoveAt(i);
                 changed = true;
@@ -177,6 +179,7 @@ internal sealed class WindowManager
         }
 
         Window? hit = HitTest(input.X, input.Y, includeResizeMargin: true);
+        RoutePointerMotion(hit, input);
 
         if (input.LeftPressed && hit is not null)
         {
@@ -454,6 +457,14 @@ internal sealed class WindowManager
 
         int part = hit.CloseButton.Contains(x, y) ? 1 : hit.MaximizeButton.Contains(x, y) ? 2 : hit.MinimizeButton.Contains(x, y) ? 3 : 4;
         return (_windows.IndexOf(hit) + 1) * 8 + part;
+    }
+
+    private void RoutePointerMotion(Window? hit, Input input)
+    {
+        Window? over = _contentDrag is null && hit is not null && hit.Content.Contains(input.X, input.Y) ? hit : null;
+        if (over != _pointerWindow) { _pointerWindow?.OnPointerLeave(); _pointerWindow = over; }
+        else if (!input.Moved) { return; }
+        over?.OnPointerMove(input.X - over.Content.X, input.Y - over.Content.Y);
     }
 
     private Window? HitTest(int x, int y, bool includeResizeMargin)

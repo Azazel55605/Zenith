@@ -20,7 +20,9 @@ int zui_scroll_begin(struct zui *u,struct zui_scroll *s,struct zui_rect r){
 void zui_scroll_end(struct zui *u,struct zui_scroll *s,int content){
     s->content=content<0?0:content;s->offset=clampi(s->offset,0,zui_scroll_maximum(s));
     struct zui_rect t=thumb(s);
-    if(t.h)zui_round_alpha(u,t,3,u->theme.secondary,s->dragging?220:140);
+    int over=u->hover_supported&&u->pointer_x>=s->rect.x+s->rect.w-12&&inside(s->rect,u->pointer_x,u->pointer_y);
+    if(over||s->dragging){t.x-=2;t.w+=2;}
+    if(t.h)zui_round_alpha(u,t,3,u->theme.secondary,s->dragging?220:over?190:140);
     u->clip=s->saved_clip;
 }
 void zui_scroll_reveal(struct zui_scroll *s,int top,int height){
@@ -78,6 +80,13 @@ int zui_list_event(struct zui *u,struct zui_list *l,const struct zenith_gui_even
     if(e->extra==2)return enabled_at(items,ctx,l->selected)?l->selected+1:0;
     int step=e->extra==8?1:e->extra==7?-1:0,at=l->selected;
     if(e->extra==10){at=-1;step=1;}else if(e->extra==11){at=l->count;step=-1;}
+    else if(e->extra==ZUI_KEY_PAGE_UP||e->extra==ZUI_KEY_PAGE_DOWN){
+        int rows=l->scroll.rect.h/h-1;if(rows<1)rows=1;
+        step=e->extra==ZUI_KEY_PAGE_UP?-1:1;at=l->selected+step*rows;
+        at=at<0?0:at>=l->count?l->count-1:at;
+        if(!enabled_at(items,ctx,at)){int i=at;while(i>=0&&i<l->count&&!enabled_at(items,ctx,i))i+=step;if(i>=0&&i<l->count)at=i;else at=l->selected;}
+        l->selected=at;step=0;
+    }
     if(step){
         for(int i=at+step;i>=0&&i<l->count;i+=step)if(enabled_at(items,ctx,i)){l->selected=i;break;}
     }else if(!e->extra&&e->code>32&&e->code<127){
@@ -104,6 +113,7 @@ void zui_combo_popup(struct zui *u,struct zui_combo *c,int count,zui_list_source
     struct zui_rect saved=u->clip;zui_clip(u,(struct zui_rect){0,0,u->width,u->height});
     zui_surface(u,c->panel,10,ZUI_SURFACE_CONTROL);
     zui_list_draw(u,&c->popup,(struct zui_rect){f.x+4,y+4,f.w-8,h-8},count,items,ctx);
+    zui_update_hover(u);
     zui_draw_range(u,c->popup.first_control,c->popup.visible_controls);
     u->clip=saved;
 }
@@ -178,6 +188,7 @@ void zui_dialog_draw(struct zui *u,const struct zui_dialog *d){
     for(int i=d->count-1;i>=0;i--){
         bx-=104;zui_add(u,d->base_id+i+1,ZUI_BUTTON,(struct zui_rect){bx,y+h-60,96,36},d->labels[i],i==0,1);bx-=8;
     }
+    zui_update_hover(u);
     zui_draw_range(u,first,u->count-first);
     if(!dialog_control(u,d,u->focus))
         for(int i=0;i<u->count;i++)if(u->controls[i].id==d->base_id+1){u->focus=i;break;}

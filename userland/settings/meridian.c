@@ -241,6 +241,7 @@ void meridian_draw(struct meridian *a){
     draw_sidebar(a,u,w.sidebar);
     draw_page(a,u,w.content);
     zui_clip(u,(struct zui_rect){0,0,u->width,u->height});
+    zui_update_hover(u);if(a->combo.open||a->dialog.open)u->hover=-1;
     u->focus=focus?index_of(u,focus):-1;u->pressed=pressed?index_of(u,pressed):-1;
     if(a->focus_row!=-1){u->focus=index_of(u,ID_ROWS+(a->focus_row==-2?a->sidebar.selected:a->focus_row));a->focus_row=-1;}
     zui_draw_controls(u);
@@ -308,10 +309,13 @@ static void page_keys(struct meridian *a,const struct zenith_gui_event *e){
     else if(e->extra==8)next=zui_scroll_step(next,40,max);
     else if(e->extra==10)next=0;
     else if(e->extra==11)next=max;
+    else if(e->extra==ZUI_KEY_PAGE_UP)next=zui_scroll_step(next,-a->page_scroll.rect.h,max);
+    else if(e->extra==ZUI_KEY_PAGE_DOWN)next=zui_scroll_step(next,a->page_scroll.rect.h,max);
     if(next!=a->page_scroll.offset){a->page_scroll.offset=next;a->ui.dirty=1;}
 }
 void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     struct zui *u=&a->ui;
+    if(e->type==Z_GUI_MOVE){zui_event(u,e);return;}
     if(e->type==Z_GUI_FOCUS||e->type==Z_GUI_RESET){zui_event(u,e);a->combo.open=0;a->sidebar.scroll.dragging=a->page_scroll.dragging=0;return;}
     if(e->type==Z_GUI_CLOSE){a->closing=1;return;}
     if(!u->window_focused&&e->type!=Z_GUI_CLOSE_INTENT)return;
@@ -347,7 +351,7 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
             else if(e->type==Z_GUI_KEY)a->focus_row=row-1;
             sync_theme(a);return;
         }
-        if(on_rows&&e->type==Z_GUI_KEY&&(e->extra==7||e->extra==8||e->extra==10||e->extra==11||(!e->extra&&e->code>32&&e->code<127))){a->focus_row=a->sidebar.selected;u->focus_visible=1;u->dirty=1;return;}
+        if(on_rows&&e->type==Z_GUI_KEY&&(e->extra==7||e->extra==8||e->extra==10||e->extra==11||e->extra==ZUI_KEY_PAGE_UP||e->extra==ZUI_KEY_PAGE_DOWN||(!e->extra&&e->code>32&&e->code<127))){a->focus_row=a->sidebar.selected;u->focus_visible=1;u->dirty=1;return;}
     }
     if(zui_scroll_event(u,&a->page_scroll,e))return;
     if(e->type==Z_GUI_KEY&&!e->modifiers&&!on_rows)page_keys(a,e);

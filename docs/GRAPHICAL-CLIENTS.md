@@ -66,12 +66,13 @@ for 16 ms. Its 24-byte event contains six signed i32 fields:
 | 4 / 5 / 6 | Left pointer press/release/drag; code 1, content-local clamped x/y |
 | 7 | Input queue overflow; discard any locally held key/button state |
 | 8 | Scroll; code signed delta clamped to -120..120 |
+| 11 | Pointer motion after opt-in (call 627); content-local x/y, x=y=-1 on leave |
 
 On focus loss, clients should discard locally held input state.
 
 Key extra: Escape=1, Enter=2, Backspace=3, Tab=4, Left=5, Right=6, Up=7,
-Down=8, Delete=9, Home=10, End=11, otherwise 0. These are Zenith codes, not
-Cosmos enum ordinals. No key releases, hover/right-button or text composition
+Down=8, Delete=9, Home=10, End=11, Page Up=12, Page Down=13, otherwise 0. These are Zenith codes, not
+Cosmos enum ordinals. No key releases, right-button or text composition
 protocol is provided yet. The queue has 64 entries; overflow clears stale input,
 emits reset then the newest event. Close is sticky and cannot be evicted.
 
@@ -207,6 +208,14 @@ Meridian negotiates format 2 and uses its sidebar as a material region. Chrome
 and taskbar use the same host compositor; legacy app content remains opaque.
 Protected authentication stays solid. Local evidence is recorded in
 [desktop integration](archive/2026-10-28/desktop-material-integration.md).
+
+## Pointer motion extension
+
+Call **627** `(owned_handle, 1, 0)` opts a surface in to event 11; other clients never
+receive it, and kernels before 0.0.30 return -38, so clients must treat hover as
+optional. The host keeps one replaceable pending position outside the 64-entry queue,
+delivered only when that queue is empty: motion cannot evict keys or clicks or cause a
+reset. No motion is sent while a content drag holds the button (event 6 applies).
 
 ## Owned viewport extension
 

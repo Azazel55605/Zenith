@@ -111,6 +111,10 @@ internal abstract class Window
     /// <summary>Mouse wheel over the window; positive scrolls back (up).</summary>
     public virtual void OnScrollAt(int delta, int x, int y) => OnScroll(delta);
 
+    /// <summary>Pointer moved over the content with no button held (content-local).</summary>
+    public virtual void OnPointerMove(int x, int y) { }
+    public virtual void OnPointerLeave() { }
+
     public virtual void OnScroll(int delta)
     {
     }

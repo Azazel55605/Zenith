@@ -140,6 +140,9 @@ static int bounds(void){
     if(zenith_call(625,0xffff800000000000UL,4096,0)!=-14)return 46;
     if(zenith_call(626,0xffff800000000000UL,32,0)!=-14)return 47;
     if(zenith_gui_viewport(20001,&viewport_state)!=-9)return 26;
+    long motion=zenith_gui_pointer_motion(20001);
+    if(motion!=-9&&motion!=-38)return 48;
+    if(motion==-9&&zenith_call(627,20001,2,0)!=-22)return 49;
     if(materials.version==2){
         if(zenith_call(616,(unsigned long)&materials,47,0)!=-22)return 27;
         if(zenith_call(617,0xffff800000000000UL,32,0)!=-14)return 28;
@@ -210,6 +213,7 @@ int main(int argc,char **argv){
     if(handle<0){print("settings: graphical session required; use --show or --set\n");return 1;}
     if(zenith_gui_interactive(handle)<0){zenith_gui_close(handle);print("settings: interactive client support required\n");return 1;}
     if(zenith_gui_resize_enable(handle)<0){zenith_gui_close(handle);print("settings: viewport service required\n");return 1;}
+    shell.ui.hover_supported=zenith_gui_pointer_motion(handle)==0; /* -38 on older kernels */
     meridian_system_services(&shell,zenith_system_settings_read,zenith_system_settings_save);
     meridian_information_services(&shell,zenith_settings_information_read);
     meridian_refresh(&shell);meridian_draw(&shell);

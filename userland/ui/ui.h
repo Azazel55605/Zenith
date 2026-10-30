@@ -16,9 +16,8 @@ struct zui_rect { int x,y,w,h; };
  * future host-negotiated composition is possible, never authority to sample it. */
 enum { ZUI_SURFACE_CONTENT=1,ZUI_SURFACE_CONTROL=2,ZUI_SURFACE_NAVIGATION=3,
        ZUI_SURFACE_PANEL=4,ZUI_SURFACE_POPOVER=5 };
-#ifndef Z_GUI_MOVE
-#define Z_GUI_MOVE 11 /* Opt-in host pointer motion (stage 3 ABI); ignored unless hover_supported. */
-#endif
+/* Host key extras added with pointer motion; older kernels never send them. */
+enum { ZUI_KEY_PAGE_UP=12,ZUI_KEY_PAGE_DOWN=13 };
 struct zui;
 int zui_surface(struct zui *ui,struct zui_rect rect,int radius,int role);
 int zui_backdrop_candidate(int role);
@@ -34,7 +33,7 @@ struct zui {
     struct zui_control controls[ZUI_MAX_CONTROLS];
     int count,focus,pressed,window_focused,dirty;
     int focus_visible; /* last focus move came from the keyboard: draw the ring */
-    int hover,hover_supported; /* hover: control index under the pointer or -1 */
+    int hover,hover_supported,pointer_x,pointer_y; /* hover: control under the pointer or -1 */
     int foreground,material_count,full_background;
     struct zenith_material_region materials[8];
 };
@@ -83,6 +82,8 @@ int zui_add(struct zui *ui,int id,int kind,struct zui_rect rect,const char *labe
 int zui_event(struct zui *ui,const struct zenith_gui_event *event);
 /* Visible hit/draw area of control index (rect within its viewport); empty if out of range. */
 struct zui_rect zui_control_area(const struct zui *ui,int index);
+/* Recompute hover from the last pointer position after rebuilding controls. */
+void zui_update_hover(struct zui *ui);
 void zui_draw_controls(struct zui *ui);
 void zui_draw_range(struct zui *ui,int first,int count);
 #endif

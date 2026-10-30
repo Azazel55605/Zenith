@@ -147,7 +147,34 @@ static void footer_dialog_tests(void){
     zui_dialog_draw(&u,&d);struct zenith_gui_event enter={Z_GUI_KEY,0,0,0,0,2};
     assert(zui_dialog_event(&u,&d,&enter)==1&&!d.open);
 }
+static void stage3_tests(void){
+    struct zui u;assert(zui_init(&u,px,800,600));u.window_focused=1;u.hover_supported=1;int n=100;
+    /* Page Up/Down move selection one viewport of rows. */
+    struct zui_list l={0};l.base_id=1000;zui_list_draw(&u,&l,(struct zui_rect){0,0,300,400},n,rows,&n);
+    struct zenith_gui_event k={Z_GUI_KEY,0,0,0,0,ZUI_KEY_PAGE_DOWN};
+    zui_list_event(&u,&l,&k,rows,&n);assert(l.selected==9&&l.scroll.offset>0);
+    k.extra=ZUI_KEY_PAGE_UP;zui_list_event(&u,&l,&k,rows,&n);assert(l.selected==0&&l.scroll.offset==0);
+    k.extra=ZUI_KEY_PAGE_UP;zui_list_event(&u,&l,&k,rows,&n);assert(l.selected==0);
+    /* Hover follows the pointer across rebuilt frames and into overlay rows. */
+    u.count=0;zui_list_draw(&u,&l,(struct zui_rect){0,0,300,400},n,rows,&n);
+    struct zenith_gui_event m={Z_GUI_MOVE,0,50,125,0,0};u.dirty=0;zui_event(&u,&m);
+    assert(u.controls[u.hover].id==1003&&u.dirty);
+    u.dirty=0;m.x=60;zui_event(&u,&m);assert(!u.dirty);               /* same control: no repaint */
+    u.count=0;l.scroll.offset=40;zui_list_draw(&u,&l,(struct zui_rect){0,0,300,400},n,rows,&n);zui_update_hover(&u);
+    assert(u.controls[u.hover].id==1004);
+    struct zui_combo c={0};c.id=50;c.popup.base_id=2000;c.open=1;u.count=0;
+    zui_combo_draw(&u,&c,(struct zui_rect){400,40,200,36},n,rows,&n);
+    m.x=500;m.y=100;zui_event(&u,&m);zui_combo_popup(&u,&c,n,rows,&n);
+    assert(u.hover>=0&&u.controls[u.hover].id>=2000);
+    /* Scrollbar widens under the pointer. */
+    u.count=0;struct zui_scroll s={0};zui_fill(&u,(struct zui_rect){0,0,800,600},0x123456);
+    m.x=50;m.y=50;zui_event(&u,&m);zui_scroll_begin(&u,&s,(struct zui_rect){100,100,300,200});zui_scroll_end(&u,&s,1000);
+    assert(px[110*800+391]==0x123456);
+    m.x=395;m.y=200;zui_event(&u,&m);zui_scroll_begin(&u,&s,(struct zui_rect){100,100,300,200});zui_scroll_end(&u,&s,1000);
+    assert(px[110*800+391]!=0x123456);
+}
 int main(void){
+    stage3_tests();
     scroll_tests();
     list_tests();
     combo_tests();

@@ -83,6 +83,12 @@ int main(int argc,char **argv){
     key(0,2,0);assert(app.nav.mode==NAV_PAGES&&app.nav.category==2&&app.page==page_id("devices.bluetooth"));
     assert(app.ui.focus_visible&&app.ui.controls[app.ui.focus].id==app.sidebar.base_id+1);
     key(0,3,0);assert(app.nav.mode==NAV_CATEGORIES);
+    /* Hover tracks the pointer without stealing input; Page Down scrolls the form. */
+    assert(meridian_open(&app,"style.colors"));draw();app.ui.hover_supported=1;
+    int hover_row=zui_control_area(&app.ui,find_id(app.sidebar.base_id+2)).y+10;
+    send((struct zenith_gui_event){Z_GUI_MOVE,0,100,hover_row,0,0});assert(app.ui.controls[app.ui.hover].id==app.sidebar.base_id+2);
+    send((struct zenith_gui_event){Z_GUI_MOVE,0,-1,-1,0,0});assert(app.ui.hover==-1);app.ui.hover_supported=0;
+    key(0,ZUI_KEY_PAGE_DOWN,0);assert(app.page_scroll.offset>100);key(0,ZUI_KEY_PAGE_UP,0);assert(app.page_scroll.offset==0);
     /* Colors draft, footer state and the unsaved-changes dialog on navigation. */
     assert(meridian_open(&app,"style.colors"));draw();
     assert(!enabled(900+ZUI_FOOTER_APPLY)&&!enabled(900+ZUI_FOOTER_RESET));

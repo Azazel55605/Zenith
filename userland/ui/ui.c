@@ -15,7 +15,7 @@ static struct zui_rect intersect(struct zui_rect a,struct zui_rect b){
 int zui_init(struct zui *u,unsigned int *p,int w,int h){
     if(!u||!p||w<1||h<1||w>1920||h>1000)return 0;
     *u=(struct zui){0};u->pixels=p;u->width=w;u->height=h;
-    u->clip=(struct zui_rect){0,0,w,h};u->focus=-1;u->pressed=-1;u->hover=-1;
+    u->clip=(struct zui_rect){0,0,w,h};u->focus=-1;u->pressed=-1;u->hover=-1;u->pointer_x=u->pointer_y=-1;
     zui_appearance(u,0,0);return 1;
 }
 int zui_resize(struct zui *u,int w,int h,unsigned long capacity){
@@ -204,14 +204,12 @@ int zui_event(struct zui *u,const struct zenith_gui_event *e){
     if(!e)return 0;
     if(e->type==Z_GUI_MOVE){
         if(!u->hover_supported)return 0;
-        int h=-1;
-        if(e->x>=0&&e->y>=0)for(int i=u->count-1;i>=0;i--)
-            if(u->controls[i].enabled&&hit(intersect(u->controls[i].rect,viewport(u,&u->controls[i])),e->x,e->y)){h=i;break;}
-        if(h!=u->hover){u->hover=h;u->dirty=1;}
+        u->pointer_x=e->x;u->pointer_y=e->y;int old=u->hover;zui_update_hover(u);
+        if(old!=u->hover)u->dirty=1;
         return 0;
     }
-    if(e->type==Z_GUI_FOCUS){u->window_focused=!!e->code;u->pressed=-1;u->hover=-1;u->dirty=1;return 0;}
-    if(e->type==Z_GUI_RESET||e->type==Z_GUI_CLOSE){u->pressed=-1;u->hover=-1;u->dirty=1;return 0;}
+    if(e->type==Z_GUI_FOCUS){u->window_focused=!!e->code;u->pressed=-1;u->hover=-1;u->pointer_x=u->pointer_y=-1;u->dirty=1;return 0;}
+    if(e->type==Z_GUI_RESET||e->type==Z_GUI_CLOSE){u->pressed=-1;u->hover=-1;u->pointer_x=u->pointer_y=-1;u->dirty=1;return 0;}
     if(!u->window_focused)return 0;
     if(e->type==Z_GUI_KEY&&e->extra==4&&!(e->modifiers&6)){
         int cursor=u->focus,found=-1;
@@ -246,6 +244,12 @@ int zui_event(struct zui *u,const struct zenith_gui_event *e){
         if(p>=0&&p<u->count&&u->controls[p].enabled&&hit(intersect(u->controls[p].rect,viewport(u,&u->controls[p])),e->x,e->y))return u->controls[p].id;
     }
     return 0;
+}
+void zui_update_hover(struct zui *u){
+    u->hover=-1;
+    if(!u->hover_supported||u->pointer_x<0||u->pointer_y<0)return;
+    for(int i=u->count-1;i>=0;i--)
+        if(u->controls[i].enabled&&hit(intersect(u->controls[i].rect,viewport(u,&u->controls[i])),u->pointer_x,u->pointer_y)){u->hover=i;return;}
 }
 struct zui_rect zui_control_area(const struct zui *u,int i){
     if(i<0||i>=u->count)return (struct zui_rect){0,0,0,0};
