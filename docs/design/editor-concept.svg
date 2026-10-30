@@ -1,0 +1,437 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1700" viewBox="0 0 1440 1700">
+<rect width="1440" height="1700" fill="#151619"/>
+<text x="48" y="55" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="28" font-weight="600" xml:space="preserve">Zenith / Editor concept</text>
+<text x="48" y="86" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">Proposal, not running UI · reference: KDE Kate · uses the accepted neutral surfaces, 8/12 radii, Inter and Hack</text>
+<text x="48" y="126" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Dark</text>
+<rect x="48" y="148" width="1344" height="680" rx="12" fill="#202125" stroke="#45474F"/>
+<rect x="49" y="149" width="1342" height="43" rx="11" fill="#25262B"/>
+<text x="64" y="176" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">session-store.cs — Editor</text>
+<g transform="translate(1280 162) scale(.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(1316 162) scale(.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(1352 162) scale(.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<text x="72" y="224" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">Documents</text>
+<g transform="translate(254 210) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></g>
+<rect x="64" y="240" width="216" height="32" rx="6" fill="#2C3B3D"/>
+<rect x="65" y="247" width="3" height="18" rx="1" fill="#7ECAC7"/>
+<g transform="translate(74 248) scale(0.6666666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="98" y="261" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">session-store.cs</text>
+<rect x="260" y="252" width="8" height="8" rx="4" fill="#7ECAC7"/>
+<g transform="translate(74 284) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="98" y="297" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">window-rules.conf</text>
+<rect x="260" y="288" width="8" height="8" rx="4" fill="#7ECAC7"/>
+<g transform="translate(74 320) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="98" y="333" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">README.md</text>
+<g transform="translate(74 356) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="98" y="369" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">notes.txt</text>
+<text x="72" y="426" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">Project</text>
+<g transform="translate(74 447) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<text x="98" y="460" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">src</text>
+<g transform="translate(90 477) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<text x="114" y="490" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Core</text>
+<g transform="translate(106 507) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="130" y="520" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">session-store.cs</text>
+<g transform="translate(74 537) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<text x="98" y="550" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">tests</text>
+<text x="72" y="592" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">Outline</text>
+<text x="74" y="618" fill="#B4B7C0" font-family="Hack, monospace" font-size="12" font-weight="400" xml:space="preserve">SessionStore</text>
+<text x="74" y="644" fill="#B4B7C0" font-family="Hack, monospace" font-size="12" font-weight="400" xml:space="preserve">  TryRestore(path, out)</text>
+<text x="74" y="670" fill="#B4B7C0" font-family="Hack, monospace" font-size="12" font-weight="400" xml:space="preserve">  Dispose()</text>
+<rect x="296" y="200" width="1084" height="616" rx="12" fill="#25262B"/>
+<rect x="304" y="208" width="178" height="32" rx="8" fill="#202125" stroke="#45474F"/>
+<text x="316" y="229" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">session-store.cs</text>
+<rect x="448" y="220" width="8" height="8" rx="4" fill="#7ECAC7"/>
+<g transform="translate(460 217) scale(0.5833333333333334)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></g>
+<rect x="486" y="208" width="178" height="32" rx="8" fill="none"/>
+<text x="498" y="229" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">window-rules.conf</text>
+<rect x="630" y="220" width="8" height="8" rx="4" fill="#7ECAC7"/>
+<g transform="translate(642 217) scale(0.5833333333333334)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></g>
+<rect x="668" y="208" width="178" height="32" rx="8" fill="none"/>
+<text x="680" y="229" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">README.md</text>
+<g transform="translate(824 217) scale(0.5833333333333334)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></g>
+<text x="312" y="264" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Zenith  ›  src  ›  Core  ›  session-store.cs</text>
+<rect x="304" y="410" width="986" height="22" rx="4" fill="#2C3B3D"/>
+<rect x="485.28" y="412" width="78.3" height="18" rx="3" fill="#7ECAC7"/>
+<text x="344" y="294" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">41</text>
+<text x="360" y="294" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">// Bounded session restore; a damaged record is skipped, never fatal.</text>
+<text x="344" y="316" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">42</text>
+<text x="360" y="316" fill="#B6A0FF" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">internal sealed class </text>
+<text x="532.26" y="316" fill="#7ECAC7" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">SessionStore</text>
+<text x="626.22" y="316" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve"> : </text>
+<text x="649.71" y="316" fill="#7ECAC7" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">IDisposable</text>
+<text x="344" y="338" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">43</text>
+<text x="360" y="338" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">{</text>
+<text x="344" y="360" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">44</text>
+<text x="360" y="360" fill="#B6A0FF" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">    private const int </text>
+<text x="532.26" y="360" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">MaximumEntries = </text>
+<text x="665.37" y="360" fill="#8BCBA4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">128</text>
+<text x="688.86" y="360" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">;</text>
+<text x="344" y="382" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">45</text>
+<text x="360" y="382" fill="#B6A0FF" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">    private readonly </text>
+<text x="524.4300000000001" y="382" fill="#7ECAC7" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">List</text>
+<text x="555.7500000000001" y="382" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">&lt;</text>
+<text x="563.5800000000002" y="382" fill="#7ECAC7" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">Entry</text>
+<text x="602.7300000000001" y="382" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">&gt; _entries = new();</text>
+<text x="344" y="404" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">46</text>
+<text x="360" y="404" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve"></text>
+<text x="344" y="426" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">47</text>
+<text x="360" y="426" fill="#B6A0FF" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">    public bool </text>
+<text x="485.28" y="426" fill="#202125" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">TryRestore</text>
+<text x="563.5799999999999" y="426" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">(string path, out int restored)</text>
+<text x="344" y="448" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">48</text>
+<text x="360" y="448" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">    {</text>
+<text x="344" y="470" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">49</text>
+<text x="360" y="470" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">        restored = </text>
+<text x="508.77" y="470" fill="#8BCBA4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">0</text>
+<text x="516.6" y="470" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">;</text>
+<text x="344" y="492" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">50</text>
+<text x="360" y="492" fill="#B6A0FF" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">        if </text>
+<text x="446.13" y="492" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">(!File.Exists(path)) { </text>
+<text x="626.22" y="492" fill="#B6A0FF" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">return false</text>
+<text x="720.1800000000001" y="492" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">; }</text>
+<text x="344" y="514" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">51</text>
+<text x="360" y="514" fill="#B6A0FF" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">        foreach </text>
+<text x="485.28" y="514" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">(string line </text>
+<text x="587.0699999999999" y="514" fill="#B6A0FF" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">in </text>
+<text x="610.56" y="514" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">File.ReadLines(path))</text>
+<text x="344" y="536" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">52</text>
+<text x="360" y="536" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">        {</text>
+<text x="344" y="558" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">53</text>
+<text x="360" y="558" fill="#B6A0FF" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">            if </text>
+<text x="477.45" y="558" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">(restored == MaximumEntries) { </text>
+<text x="720.18" y="558" fill="#B6A0FF" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">break</text>
+<text x="759.3299999999999" y="558" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">; }</text>
+<text x="344" y="580" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">54</text>
+<text x="360" y="580" fill="#B6A0FF" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">            if </text>
+<text x="477.45" y="580" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">(Entry.TryParse(line, </text>
+<text x="649.71" y="580" fill="#B6A0FF" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">out var </text>
+<text x="712.35" y="580" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">entry))</text>
+<text x="344" y="602" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">55</text>
+<text x="360" y="602" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">            { _entries.Add(entry); restored++; }</text>
+<text x="344" y="624" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">56</text>
+<text x="360" y="624" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">        }</text>
+<text x="344" y="646" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">57</text>
+<text x="360" y="646" fill="#B6A0FF" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">        return true</text>
+<text x="508.77" y="646" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">;</text>
+<text x="344" y="668" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">58</text>
+<text x="360" y="668" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">    }</text>
+<text x="344" y="690" fill="#8A8E98" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">59</text>
+<text x="360" y="690" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">}</text>
+<rect x="704.52" y="413" width="2" height="16" rx="0" fill="#F1F2F4"/>
+<rect x="1294" y="278" width="78" height="418" rx="6" fill="#202125"/>
+<rect x="1300" y="284.0" width="30" height="2.4" rx="1" fill="#7ECAC7"/>
+<rect x="1302" y="289.6" width="19" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1304" y="295.2" width="35" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1306" y="300.8" width="51" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1308" y="306.4" width="13" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1300" y="312.0" width="14" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1302" y="317.6" width="44" height="2.4" rx="1" fill="#7ECAC7"/>
+<rect x="1304" y="323.2" width="16" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1306" y="328.8" width="33" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1308" y="334.4" width="47" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1300" y="340.0" width="13" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1302" y="345.6" width="42" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1304" y="351.2" width="23" height="2.4" rx="1" fill="#7ECAC7"/>
+<rect x="1306" y="356.8" width="12" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1308" y="362.4" width="15" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1300" y="368.0" width="37" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1302" y="373.6" width="36" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1304" y="379.2" width="14" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1306" y="384.8" width="25" height="2.4" rx="1" fill="#7ECAC7"/>
+<rect x="1308" y="390.4" width="15" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1300" y="396.0" width="45" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1302" y="401.6" width="37" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1304" y="407.2" width="13" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1306" y="412.79999999999995" width="46" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1308" y="418.4" width="17" height="2.4" rx="1" fill="#7ECAC7"/>
+<rect x="1300" y="424.0" width="24" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1302" y="429.6" width="50" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1304" y="435.2" width="50" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1306" y="440.79999999999995" width="47" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1308" y="446.4" width="13" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1300" y="452.0" width="46" height="2.4" rx="1" fill="#7ECAC7"/>
+<rect x="1302" y="457.6" width="47" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1304" y="463.2" width="35" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1306" y="468.79999999999995" width="13" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1308" y="474.4" width="24" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1300" y="480.0" width="12" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1302" y="485.6" width="45" height="2.4" rx="1" fill="#7ECAC7"/>
+<rect x="1304" y="491.2" width="18" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1306" y="496.79999999999995" width="28" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1308" y="502.4" width="36" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1300" y="508.0" width="19" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1302" y="513.6" width="44" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1304" y="519.2" width="17" height="2.4" rx="1" fill="#7ECAC7"/>
+<rect x="1306" y="524.8" width="46" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1308" y="530.4" width="29" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1300" y="536.0" width="45" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1302" y="541.5999999999999" width="53" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1304" y="547.2" width="21" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1306" y="552.8" width="16" height="2.4" rx="1" fill="#7ECAC7"/>
+<rect x="1308" y="558.4" width="47" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1300" y="564.0" width="46" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1302" y="569.5999999999999" width="50" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1304" y="575.2" width="22" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1306" y="580.8" width="33" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1308" y="586.4" width="16" height="2.4" rx="1" fill="#7ECAC7"/>
+<rect x="1300" y="592.0" width="45" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1302" y="597.5999999999999" width="55" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1304" y="603.2" width="14" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1306" y="608.8" width="46" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1308" y="614.4" width="13" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1300" y="620.0" width="49" height="2.4" rx="1" fill="#7ECAC7"/>
+<rect x="1302" y="625.5999999999999" width="23" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1304" y="631.2" width="41" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1306" y="636.8" width="53" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1308" y="642.4" width="44" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1300" y="648.0" width="37" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1302" y="653.5999999999999" width="30" height="2.4" rx="1" fill="#7ECAC7"/>
+<rect x="1304" y="659.2" width="39" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1306" y="664.8" width="47" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1308" y="670.4" width="39" height="2.4" rx="1" fill="#B4B7C0"/>
+<rect x="1294" y="368" width="78" height="110" rx="4" fill="#45474F" fill-opacity=".35"/>
+<rect x="304" y="720" width="1068" height="44" rx="8" fill="#202125" stroke="#45474F"/>
+<g transform="translate(316 734) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.3-4.3"/><path d="M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0"/></g>
+<rect x="342" y="727" width="300" height="30" rx="6" fill="#2A2C31" stroke="#7ECAC7"/>
+<text x="352" y="747" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">TryRestore</text>
+<text x="656" y="747" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">3 of 7</text>
+<rect x="716" y="729" width="30" height="26" rx="6" fill="#2C3B3D" stroke="#7ECAC7"/>
+<text x="731" y="747" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle" xml:space="preserve">Aa</text>
+<rect x="752" y="729" width="30" height="26" rx="6" fill="#2A2C31" stroke="#45474F"/>
+<text x="767" y="747" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle" xml:space="preserve">W</text>
+<rect x="788" y="729" width="30" height="26" rx="6" fill="#2A2C31" stroke="#45474F"/>
+<text x="803" y="747" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle" xml:space="preserve">.*</text>
+<g transform="translate(836 734) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></g>
+<g transform="translate(864 734) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></g>
+<rect x="900" y="727" width="240" height="30" rx="6" fill="#2A2C31" stroke="#45474F"/>
+<text x="910" y="747" fill="#8A8E98" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Replace with</text>
+<rect x="1148" y="727" width="80" height="30" rx="6" fill="#2A2C31" stroke="#45474F"/>
+<text x="1188" y="747" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">Replace</text>
+<g transform="translate(1342 734) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></g>
+<rect x="296" y="772" width="1084" height="1" rx="0" fill="#45474F"/>
+<text x="312" y="799" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Ln 47, Col 45</text>
+<text x="416" y="799" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">10 selected</text>
+<text x="1040" y="799" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">INS</text>
+<text x="940" y="799" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Spaces: 4</text>
+<text x="870" y="799" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">UTF-8</text>
+<text x="826" y="799" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">LF</text>
+<text x="780" y="799" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">C#</text>
+<text x="506" y="799" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Saved 2 min ago · unsaved edits</text>
+<rect x="0" y="850" width="1440" height="850" rx="0" fill="#E9EAEE"/>
+<text x="48" y="886" fill="#202126" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Light · equal coverage</text>
+<rect x="48" y="906" width="1344" height="680" rx="12" fill="#F6F7F9" stroke="#CFD1D8"/>
+<rect x="49" y="907" width="1342" height="43" rx="11" fill="#EFF0F3"/>
+<text x="64" y="934" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">session-store.cs — Editor</text>
+<g transform="translate(1280 920) scale(.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(1316 920) scale(.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(1352 920) scale(.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<text x="72" y="982" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">Documents</text>
+<g transform="translate(254 968) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></g>
+<rect x="64" y="998" width="216" height="32" rx="6" fill="#D7E9E8"/>
+<rect x="65" y="1005" width="3" height="18" rx="1" fill="#197571"/>
+<g transform="translate(74 1006) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="98" y="1019" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">session-store.cs</text>
+<rect x="260" y="1010" width="8" height="8" rx="4" fill="#197571"/>
+<g transform="translate(74 1042) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="98" y="1055" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">window-rules.conf</text>
+<rect x="260" y="1046" width="8" height="8" rx="4" fill="#197571"/>
+<g transform="translate(74 1078) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="98" y="1091" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">README.md</text>
+<g transform="translate(74 1114) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="98" y="1127" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">notes.txt</text>
+<text x="72" y="1184" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">Project</text>
+<g transform="translate(74 1205) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<text x="98" y="1218" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">src</text>
+<g transform="translate(90 1235) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<text x="114" y="1248" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Core</text>
+<g transform="translate(106 1265) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="130" y="1278" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">session-store.cs</text>
+<g transform="translate(74 1295) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<text x="98" y="1308" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">tests</text>
+<text x="72" y="1350" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">Outline</text>
+<text x="74" y="1376" fill="#5C606B" font-family="Hack, monospace" font-size="12" font-weight="400" xml:space="preserve">SessionStore</text>
+<text x="74" y="1402" fill="#5C606B" font-family="Hack, monospace" font-size="12" font-weight="400" xml:space="preserve">  TryRestore(path, out)</text>
+<text x="74" y="1428" fill="#5C606B" font-family="Hack, monospace" font-size="12" font-weight="400" xml:space="preserve">  Dispose()</text>
+<rect x="296" y="958" width="1084" height="616" rx="12" fill="#FFFFFF"/>
+<rect x="304" y="966" width="178" height="32" rx="8" fill="#F6F7F9" stroke="#CFD1D8"/>
+<text x="316" y="987" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">session-store.cs</text>
+<rect x="448" y="978" width="8" height="8" rx="4" fill="#197571"/>
+<g transform="translate(460 975) scale(0.5833333333333334)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></g>
+<rect x="486" y="966" width="178" height="32" rx="8" fill="none"/>
+<text x="498" y="987" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">window-rules.conf</text>
+<rect x="630" y="978" width="8" height="8" rx="4" fill="#197571"/>
+<g transform="translate(642 975) scale(0.5833333333333334)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></g>
+<rect x="668" y="966" width="178" height="32" rx="8" fill="none"/>
+<text x="680" y="987" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">README.md</text>
+<g transform="translate(824 975) scale(0.5833333333333334)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></g>
+<text x="312" y="1022" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Zenith  ›  src  ›  Core  ›  session-store.cs</text>
+<rect x="304" y="1168" width="986" height="22" rx="4" fill="#D7E9E8"/>
+<rect x="485.28" y="1170" width="78.3" height="18" rx="3" fill="#197571"/>
+<text x="344" y="1052" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">41</text>
+<text x="360" y="1052" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">// Bounded session restore; a damaged record is skipped, never fatal.</text>
+<text x="344" y="1074" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">42</text>
+<text x="360" y="1074" fill="#7042BE" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">internal sealed class </text>
+<text x="532.26" y="1074" fill="#197571" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">SessionStore</text>
+<text x="626.22" y="1074" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve"> : </text>
+<text x="649.71" y="1074" fill="#197571" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">IDisposable</text>
+<text x="344" y="1096" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">43</text>
+<text x="360" y="1096" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">{</text>
+<text x="344" y="1118" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">44</text>
+<text x="360" y="1118" fill="#7042BE" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">    private const int </text>
+<text x="532.26" y="1118" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">MaximumEntries = </text>
+<text x="665.37" y="1118" fill="#277347" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">128</text>
+<text x="688.86" y="1118" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">;</text>
+<text x="344" y="1140" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">45</text>
+<text x="360" y="1140" fill="#7042BE" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">    private readonly </text>
+<text x="524.4300000000001" y="1140" fill="#197571" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">List</text>
+<text x="555.7500000000001" y="1140" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">&lt;</text>
+<text x="563.5800000000002" y="1140" fill="#197571" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">Entry</text>
+<text x="602.7300000000001" y="1140" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">&gt; _entries = new();</text>
+<text x="344" y="1162" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">46</text>
+<text x="360" y="1162" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve"></text>
+<text x="344" y="1184" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">47</text>
+<text x="360" y="1184" fill="#7042BE" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">    public bool </text>
+<text x="485.28" y="1184" fill="#FFFFFF" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">TryRestore</text>
+<text x="563.5799999999999" y="1184" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">(string path, out int restored)</text>
+<text x="344" y="1206" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">48</text>
+<text x="360" y="1206" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">    {</text>
+<text x="344" y="1228" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">49</text>
+<text x="360" y="1228" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">        restored = </text>
+<text x="508.77" y="1228" fill="#277347" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">0</text>
+<text x="516.6" y="1228" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">;</text>
+<text x="344" y="1250" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">50</text>
+<text x="360" y="1250" fill="#7042BE" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">        if </text>
+<text x="446.13" y="1250" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">(!File.Exists(path)) { </text>
+<text x="626.22" y="1250" fill="#7042BE" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">return false</text>
+<text x="720.1800000000001" y="1250" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">; }</text>
+<text x="344" y="1272" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">51</text>
+<text x="360" y="1272" fill="#7042BE" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">        foreach </text>
+<text x="485.28" y="1272" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">(string line </text>
+<text x="587.0699999999999" y="1272" fill="#7042BE" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">in </text>
+<text x="610.56" y="1272" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">File.ReadLines(path))</text>
+<text x="344" y="1294" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">52</text>
+<text x="360" y="1294" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">        {</text>
+<text x="344" y="1316" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">53</text>
+<text x="360" y="1316" fill="#7042BE" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">            if </text>
+<text x="477.45" y="1316" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">(restored == MaximumEntries) { </text>
+<text x="720.18" y="1316" fill="#7042BE" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">break</text>
+<text x="759.3299999999999" y="1316" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">; }</text>
+<text x="344" y="1338" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">54</text>
+<text x="360" y="1338" fill="#7042BE" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">            if </text>
+<text x="477.45" y="1338" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">(Entry.TryParse(line, </text>
+<text x="649.71" y="1338" fill="#7042BE" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">out var </text>
+<text x="712.35" y="1338" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">entry))</text>
+<text x="344" y="1360" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">55</text>
+<text x="360" y="1360" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">            { _entries.Add(entry); restored++; }</text>
+<text x="344" y="1382" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">56</text>
+<text x="360" y="1382" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">        }</text>
+<text x="344" y="1404" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">57</text>
+<text x="360" y="1404" fill="#7042BE" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">        return true</text>
+<text x="508.77" y="1404" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">;</text>
+<text x="344" y="1426" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">58</text>
+<text x="360" y="1426" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">    }</text>
+<text x="344" y="1448" fill="#6E727C" font-family="Hack, monospace" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">59</text>
+<text x="360" y="1448" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">}</text>
+<rect x="704.52" y="1171" width="2" height="16" rx="0" fill="#202126"/>
+<rect x="1294" y="1036" width="78" height="418" rx="6" fill="#F6F7F9"/>
+<rect x="1300" y="1042.0" width="30" height="2.4" rx="1" fill="#197571"/>
+<rect x="1302" y="1047.6" width="19" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1304" y="1053.2" width="35" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1306" y="1058.8" width="51" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1308" y="1064.4" width="13" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1300" y="1070.0" width="14" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1302" y="1075.6" width="44" height="2.4" rx="1" fill="#197571"/>
+<rect x="1304" y="1081.2" width="16" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1306" y="1086.8" width="33" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1308" y="1092.4" width="47" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1300" y="1098.0" width="13" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1302" y="1103.6" width="42" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1304" y="1109.2" width="23" height="2.4" rx="1" fill="#197571"/>
+<rect x="1306" y="1114.8" width="12" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1308" y="1120.4" width="15" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1300" y="1126.0" width="37" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1302" y="1131.6" width="36" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1304" y="1137.2" width="14" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1306" y="1142.8" width="25" height="2.4" rx="1" fill="#197571"/>
+<rect x="1308" y="1148.4" width="15" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1300" y="1154.0" width="45" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1302" y="1159.6" width="37" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1304" y="1165.2" width="13" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1306" y="1170.8" width="46" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1308" y="1176.4" width="17" height="2.4" rx="1" fill="#197571"/>
+<rect x="1300" y="1182.0" width="24" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1302" y="1187.6" width="50" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1304" y="1193.2" width="50" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1306" y="1198.8" width="47" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1308" y="1204.4" width="13" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1300" y="1210.0" width="46" height="2.4" rx="1" fill="#197571"/>
+<rect x="1302" y="1215.6" width="47" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1304" y="1221.2" width="35" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1306" y="1226.8" width="13" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1308" y="1232.4" width="24" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1300" y="1238.0" width="12" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1302" y="1243.6" width="45" height="2.4" rx="1" fill="#197571"/>
+<rect x="1304" y="1249.2" width="18" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1306" y="1254.8" width="28" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1308" y="1260.4" width="36" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1300" y="1266.0" width="19" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1302" y="1271.6" width="44" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1304" y="1277.2" width="17" height="2.4" rx="1" fill="#197571"/>
+<rect x="1306" y="1282.8" width="46" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1308" y="1288.4" width="29" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1300" y="1294.0" width="45" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1302" y="1299.6" width="53" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1304" y="1305.2" width="21" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1306" y="1310.8" width="16" height="2.4" rx="1" fill="#197571"/>
+<rect x="1308" y="1316.4" width="47" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1300" y="1322.0" width="46" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1302" y="1327.6" width="50" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1304" y="1333.2" width="22" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1306" y="1338.8" width="33" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1308" y="1344.4" width="16" height="2.4" rx="1" fill="#197571"/>
+<rect x="1300" y="1350.0" width="45" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1302" y="1355.6" width="55" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1304" y="1361.2" width="14" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1306" y="1366.8" width="46" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1308" y="1372.4" width="13" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1300" y="1378.0" width="49" height="2.4" rx="1" fill="#197571"/>
+<rect x="1302" y="1383.6" width="23" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1304" y="1389.2" width="41" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1306" y="1394.8" width="53" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1308" y="1400.4" width="44" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1300" y="1406.0" width="37" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1302" y="1411.6" width="30" height="2.4" rx="1" fill="#197571"/>
+<rect x="1304" y="1417.2" width="39" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1306" y="1422.8" width="47" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1308" y="1428.4" width="39" height="2.4" rx="1" fill="#5C606B"/>
+<rect x="1294" y="1126" width="78" height="110" rx="4" fill="#CFD1D8" fill-opacity=".35"/>
+<rect x="304" y="1478" width="1068" height="44" rx="8" fill="#F6F7F9" stroke="#CFD1D8"/>
+<g transform="translate(316 1492) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.3-4.3"/><path d="M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0"/></g>
+<rect x="342" y="1485" width="300" height="30" rx="6" fill="#FFFFFF" stroke="#197571"/>
+<text x="352" y="1505" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">TryRestore</text>
+<text x="656" y="1505" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">3 of 7</text>
+<rect x="716" y="1487" width="30" height="26" rx="6" fill="#D7E9E8" stroke="#197571"/>
+<text x="731" y="1505" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle" xml:space="preserve">Aa</text>
+<rect x="752" y="1487" width="30" height="26" rx="6" fill="#FFFFFF" stroke="#CFD1D8"/>
+<text x="767" y="1505" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle" xml:space="preserve">W</text>
+<rect x="788" y="1487" width="30" height="26" rx="6" fill="#FFFFFF" stroke="#CFD1D8"/>
+<text x="803" y="1505" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle" xml:space="preserve">.*</text>
+<g transform="translate(836 1492) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></g>
+<g transform="translate(864 1492) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></g>
+<rect x="900" y="1485" width="240" height="30" rx="6" fill="#FFFFFF" stroke="#CFD1D8"/>
+<text x="910" y="1505" fill="#6E727C" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Replace with</text>
+<rect x="1148" y="1485" width="80" height="30" rx="6" fill="#FFFFFF" stroke="#CFD1D8"/>
+<text x="1188" y="1505" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">Replace</text>
+<g transform="translate(1342 1492) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></g>
+<rect x="296" y="1530" width="1084" height="1" rx="0" fill="#CFD1D8"/>
+<text x="312" y="1557" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Ln 47, Col 45</text>
+<text x="416" y="1557" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">10 selected</text>
+<text x="1040" y="1557" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">INS</text>
+<text x="940" y="1557" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Spaces: 4</text>
+<text x="870" y="1557" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">UTF-8</text>
+<text x="826" y="1557" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">LF</text>
+<text x="780" y="1557" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">C#</text>
+<text x="506" y="1557" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Saved 2 min ago · unsaved edits</text>
+<text x="48" y="1616" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Documents, project tree and outline share one sidebar; only one document list, tabs mirror it. A dot marks unsaved documents in both places.</text>
+<text x="48" y="1638" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Find/replace docks above the status bar and never covers code. Status bar states line, selection, indent, encoding, line ending, syntax and mode.</text>
+<text x="48" y="1660" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Requires U1 clipboard/selection, U2 staged save and external-change checks. Syntax colors come from the accent palette only. Effects stay off over code.</text>
+</svg>

@@ -713,7 +713,7 @@ internal sealed class TerminalWindow : Window, IOutput
 
     public override void DrawContent(Surface surface, Rect content)
     {
-        PaintBackground(surface, content);
+        PaintWorkspace(surface, content, 0, 4);
 
         // What is shown: the scrollback, then its unfinished last line (e.g. a `read -p` prompt)
         // continued by the shell prompt and the input. Lines are wrapped here, at the current

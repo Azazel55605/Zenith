@@ -1,2 +1,3 @@
 requires	zenith-theme-default	>=0.1.0,<1.0
 requires	zenith-fonts	>=0.1.0
+requires	zenith-icons	>=0.1.0,<1.0

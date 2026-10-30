@@ -86,6 +86,21 @@ internal abstract class Window
         else { surface.FillRect(content, Theme.WindowBackground); }
     }
 
+    /// <summary>Meridian's layout: a sidebar on the base surface beside a rounded detail inset.
+    /// Material windows keep their continuous background. Returns the detail rectangle.</summary>
+    protected Rect PaintWorkspace(Surface surface, Rect content, int sidebar, int margin = 12)
+    {
+        var detail = new Rect(content.X + (sidebar > 0 ? sidebar + 2 * margin : margin), content.Y + margin,
+            content.W - (sidebar > 0 ? sidebar + 3 * margin : 2 * margin), content.H - 2 * margin);
+        if (_contentMaterial.Active && AllowMaterials) { _contentMaterial.Paint(surface, content, Theme.Panel); }
+        else
+        {
+            surface.FillRect(content, Theme.Panel);
+            surface.FillRoundRect(detail, Theme.WindowRadius, Theme.WindowBackground | 0xff000000U);
+        }
+        return detail;
+    }
+
     public abstract void DrawContent(Surface surface, Rect content);
 
     /// <summary>The window changed size (resize or maximize); recompute layout here.</summary>

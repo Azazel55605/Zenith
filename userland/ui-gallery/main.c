@@ -57,6 +57,7 @@ static int materials(void){
     zenith_gui_close(h);print("MATERIALS_EXIT\n");return result;
 }
 int main(int argc,char **argv){
+    zui_icons_use_packages();
     if(argc>1&&same(argv[1],"--materials"))return materials();
     if(argc>1&&same(argv[1],"--version")){print("ui-gallery " SUNBEAM_VERSION "\n");return 0;}
     if(!gallery_init(&gallery,pixels,argc>1&&same(argv[1],"--light")))return 1;

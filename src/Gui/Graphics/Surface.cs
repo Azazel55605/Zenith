@@ -271,7 +271,7 @@ internal sealed class Surface : Canvas
         }
     }
 
-    private void BlendPixel(int index, uint color, int alpha)
+    internal void BlendPixel(int index, uint color, int alpha)
     {
         if (alpha >= 255)
         {

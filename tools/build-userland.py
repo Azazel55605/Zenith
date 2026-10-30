@@ -22,10 +22,8 @@ def main():
         if args.program in ('ui-gallery','settings','desktop-tools'):
             atlas=Path(temporary)/'ui-fonts.c'
             subprocess.run([sys.executable,str(ROOT/'tools/build-ui-fonts.py'),str(atlas)],check=True)
-            icons=Path(temporary)/'ui-icons.c'
-            subprocess.run([sys.executable,str(ROOT/'tools/build-ui-icons.py'),str(icons)],check=True)
             extra=['-I'+str(ROOT/'userland/ui'),str(ROOT/'userland/ui/ui.c'),str(ROOT/'userland/ui/widgets.c'),
-                   *([str(ROOT/'userland/ui-gallery/gallery.c')] if args.program=='ui-gallery' else [str(ROOT/'userland/settings/app.c'),str(ROOT/'userland/settings/navigation.c'),str(ROOT/'userland/settings/bindings.c')] if args.program=='settings' else []),str(ROOT/'userland/ui/runtime.c'),str(ROOT/'userland/ui/text.c'),str(atlas),str(icons)]
+                   *([str(ROOT/'userland/ui-gallery/gallery.c')] if args.program=='ui-gallery' else [str(ROOT/'userland/settings/app.c'),str(ROOT/'userland/settings/navigation.c'),str(ROOT/'userland/settings/bindings.c')] if args.program=='settings' else []),str(ROOT/'userland/ui/runtime.c'),str(ROOT/'userland/ui/text.c'),str(atlas)]
             if args.program=='settings':
                 pages=Path(temporary)/'meridian-pages.c'
                 subprocess.run([sys.executable,str(ROOT/'tools/build-meridian-pages.py'),str(pages)],check=True)
@@ -37,6 +35,5 @@ def main():
     if args.program in ('ui-gallery','settings','desktop-tools'):
         license_dir=destination/('usr/share/zenith/'+args.program);license_dir.mkdir(parents=True,exist_ok=True)
         shutil.copyfile(ROOT/'Resources/Fonts/LICENSE-Inter.txt',license_dir/'LICENSE-Inter.txt')
-        shutil.copyfile(ROOT/'userland/ui/icons/LICENSE',license_dir/'LICENSE-Lucide.txt')
     print('Built standalone native program: '+str(output))
 if __name__=='__main__':main()

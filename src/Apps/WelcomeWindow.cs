@@ -22,7 +22,7 @@ internal sealed class WelcomeWindow : Window
 
     public override void DrawContent(Surface surface, Rect content)
     {
-        PaintBackground(surface, content);
+        PaintWorkspace(surface, content, 0);
         int x = content.X + AppStyle.Inset;
         int y = content.Y + 24;
         int width = content.W - 2 * AppStyle.Inset;

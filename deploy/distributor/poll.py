@@ -90,6 +90,8 @@ def execute(config, checkout, version, recipe):
             release.phase("Generate manuals", ["dotnet", "run", "--project", "tools/Zenith.ManualBuilder", "--", str(payload)], preparation / "generate.log")
         elif recipe.get("generate") == "fonts":
             release.phase("Generate fonts", [sys.executable, "-B", str(checkout / "tools/build-font-package.py"), str(payload)], preparation / "generate.log")
+        elif recipe.get("generate") == "icons":
+            release.phase("Generate icons", [sys.executable, "-B", str(checkout / "tools/build-ui-icons.py"), "--package", str(payload)], preparation / "generate.log")
         elif recipe.get("generate") == "native":
             command = [sys.executable, "-B", str(checkout / "tools/build-userland.py"), str(payload), "--version", version]
             # Older immutable Sunbeam tags do not support the program selector.

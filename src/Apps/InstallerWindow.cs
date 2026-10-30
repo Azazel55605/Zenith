@@ -20,12 +20,14 @@ internal sealed class InstallerWindow : Window
     private readonly List<IBlockDevice> _disks;
     private readonly string[] _values = { "zenith", "user", "", "", "", "" };
     private static readonly string[] Labels = { "Hostname", "User name", "User password", "Repeat user password", "Root password", "Repeat root password" };
+    private const int SidebarWidth = 168, BackX = SidebarWidth + 44, NextInset = 162;
+    private static readonly string[] StepNames = { "Disk", "Accounts", "Review", "Install", "Finish" };
     private Step _step;
     private int _selected, _field;
     private string _message = "";
     private bool _dirty = true;
     private bool _erase;
-    public InstallerWindow() : base("Sunrise - Install Zenith", 620, 530)
+    public InstallerWindow() : base("Sunrise - Install Zenith", 780, 530)
     {
         _disks = Installer.Candidates();
         Log.Write("installer", "Sunrise ready");
@@ -48,8 +50,9 @@ internal sealed class InstallerWindow : Window
     {
         lock (_gate)
         {
-            PaintBackground(surface, content);
-            int x = content.X + AppStyle.Inset, y = content.Y + AppStyle.Inset;
+            Rect detail = PaintWorkspace(surface, content, SidebarWidth);
+            DrawSteps(surface, content);
+            int x = detail.X + 20, y = content.Y + AppStyle.Inset, width = detail.W - 40;
             Text(surface, "Install Zenith", x, y, Theme.TextHeading);
             Text(surface, "Test in a VM first. Keep the live ISO for recovery.", x, y + 34, 12, Theme.TextSecondary);
             y = content.Y + 86;
@@ -59,7 +62,7 @@ internal sealed class InstallerWindow : Window
                     Text(surface, "Choose a disk. All existing data on it will be erased.", x, y, 14);
                     for (int i = 0; i < 6 && _selected / 6 * 6 + i < _disks.Count; i++)
                     {
-                        int index = _selected / 6 * 6 + i; var d = _disks[index]; var box = new Rect(x, y + 32 + i * 42, content.W - 48, 36);
+                        int index = _selected / 6 * 6 + i; var d = _disks[index]; var box = new Rect(x, y + 32 + i * 42, width, 36);
                         AppStyle.NavigationRow(surface, box, d.Name + "  " + (d.BlockCount * d.BlockSize / (1024 * 1024)) + " MiB  |  " + StorageManager.GetPartitions(d).Count + " existing partitions", index == _selected);
                     }
                     if (_disks.Count == 0) { Text(surface, "No eligible disk (minimum 256 MiB).", x, y + 40, 14); }
@@ -68,7 +71,7 @@ internal sealed class InstallerWindow : Window
                     for (int i = 0; i < _values.Length; i++)
                     {
                         Text(surface, Labels[i], x, y + i * 42 + 9, 13);
-                        var box = new Rect(x + 190, y + i * 42, content.W - 238, AppStyle.ControlHeight);
+                        var box = new Rect(x + 190, y + i * 42, width - 190, AppStyle.ControlHeight);
                         string value = i < 2 ? _values[i] : new string('*', _values[i].Length);
                         value += i == _field ? "|" : "";
                         while (value.Length > 0 && Fonts.Regular.MeasureString(value, Theme.TextBody) > box.W - 24) { value = value[1..]; }
@@ -102,14 +105,24 @@ internal sealed class InstallerWindow : Window
                     break;
             }
             int messageY = content.Y + 365;
-            foreach (string line in Fonts.Wrap(_message, Fonts.Regular, 13, content.W - 48))
+            foreach (string line in Fonts.Wrap(_message, Fonts.Regular, 13, width))
             { Text(surface, line, x, messageY, 13, _step == Step.Error ? Theme.Danger : Theme.TextSecondary); messageY += 16; }
             if (_step is Step.Disk or Step.Accounts or Step.Confirm)
             {
-                Button(surface, content, 24, _step == Step.Disk ? "Cancel" : "Back");
-                Button(surface, content, content.W - 154, _step == Step.Confirm ? "Erase and install" : "Next", true, _step != Step.Confirm || _erase, _step == Step.Confirm);
+                Button(surface, content, BackX, _step == Step.Disk ? "Cancel" : "Back");
+                Button(surface, content, content.W - NextInset, _step == Step.Confirm ? "Erase and install" : "Next", true, _step != Step.Confirm || _erase, _step == Step.Confirm);
             }
-            else if (_step is Step.Done or Step.Unavailable or Step.Error) { Button(surface, content, 24, "Close"); }
+            else if (_step is Step.Done or Step.Unavailable or Step.Error) { Button(surface, content, BackX, "Close"); }
+        }
+    }
+    private void DrawSteps(Surface surface, Rect content)
+    {
+        surface.DrawText("Sunrise", Fonts.SemiBold, Theme.TextBody, Theme.TextPrimary, content.X + 24, content.Y + 24);
+        int current = _step switch { Step.Disk => 0, Step.Accounts => 1, Step.Confirm => 2, Step.Installing => 3, _ => 4 };
+        for (int i = 0; i < StepNames.Length; i++)
+        {
+            var row = new Rect(content.X + 12, content.Y + 56 + i * 40, SidebarWidth, 36);
+            AppStyle.NavigationRow(surface, row, StepNames[i], i == current);
         }
     }
     private static void Text(Surface s, string text, int x, int y, int size, uint? color = null)
@@ -126,9 +139,10 @@ internal sealed class InstallerWindow : Window
             if (_step == Step.Installing) { return; }
             if (y >= Content.H - 60 && y < Content.H - 24)
             {
-                if (x >= 24 && x < 154) { Back(); }
-                else if (x >= Content.W - 154 && x < Content.W - 24) { Next(); }
+                if (x >= BackX && x < BackX + 130) { Back(); }
+                else if (x >= Content.W - NextInset && x < Content.W - NextInset + 130) { Next(); }
             }
+            else if (x < SidebarWidth + 24) { return; }
             else if (_step == Step.Disk && y >= 118)
             { _selected = Math.Clamp(_selected / 6 * 6 + (y - 118) / 42, 0, Math.Max(0, _disks.Count - 1)); }
             else if (_step == Step.Accounts && y >= 86 && y < 338) { _field = (y - 86) / 42; }

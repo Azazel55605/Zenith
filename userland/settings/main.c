@@ -198,6 +198,7 @@ int main(int argc,char **argv){
     const char *page=0;
     if(argc==3&&same(argv[1],"--page"))page=argv[2];
     else if(argc!=1){print("usage: native run settings [--page ID | --system-info | --show | --set dark|light ACCENT | --materials solid|transparent|blur | --materials-show | --version | --bounds]\n");return 2;}
+    zui_icons_use_packages();
     struct settings_backend backend={read_settings,save_settings,dirty,scope_action};
     if(!meridian_init(&shell,pixels,backend,page)){print("settings: service unavailable\n");return 1;}
     long info=zenith_call(612,(unsigned long)shell.information,sizeof(shell.information)-1,1);

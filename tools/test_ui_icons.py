@@ -16,7 +16,27 @@ class IconTests(unittest.TestCase):
             self.assertEqual(a.read_bytes(), b.read_bytes())
             text = a.read_text()
             for svg in (ROOT/'userland/ui/icons').glob('*.svg'):
-                for size in t.SIZES: self.assertIn(f'{{"{svg.stem}",{size},', text)
+                self.assertIn(f'{{"{svg.stem}",icon_', text)
+
+    def test_package_has_one_bounded_file_per_icon(self):
+        t = tool()
+        with tempfile.TemporaryDirectory() as d:
+            t.build_package(Path(d))
+            target = Path(d)/t.ICON_DIR
+            self.assertTrue((target/'LICENSE-Lucide.txt').exists())
+            sources = {p.stem for p in (ROOT/'userland/ui/icons').glob('*.svg')}
+            self.assertEqual(sources, {p.stem for p in target.glob('*.zic')})
+            self.assertLessEqual(len(sources) + 1, 64)            # PackageManifest.MaximumFiles
+            for icon in target.glob('*.zic'):
+                data = icon.read_bytes()
+                self.assertEqual(b'ZIC1', data[:4]); self.assertEqual(len(t.SIZES), data[4])
+                self.assertLess(len(data), t.ICON_FILE_LIMIT)
+                at = 5
+                for size in t.SIZES:
+                    self.assertEqual(size, int.from_bytes(data[at:at+2], 'little'))
+                    n = int.from_bytes(data[at+2:at+6], 'little')
+                    self.assertEqual(size*size, len(t.decode(data[at+6:at+6+n], size*size))); at += 6 + n
+                self.assertEqual(len(data), at)
 
     def test_x_icon_is_symmetric_and_inked(self):
         mask = tool().rasterize((ROOT/'userland/ui/icons/x.svg').read_text(), 24)

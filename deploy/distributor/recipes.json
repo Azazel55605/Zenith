@@ -24,6 +24,13 @@
     "payload": "obj/packages/zenith-fonts",
     "generate": "fonts"
   },
+  "zenith-icons": {
+    "kind": "data",
+    "name": "zenith-icons",
+    "repository": "core",
+    "payload": "obj/packages/zenith-icons",
+    "generate": "icons"
+  },
   "sunbeam-tools": {
     "kind": "data",
     "name": "sunbeam-tools",

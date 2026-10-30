@@ -56,3 +56,8 @@ namespace Cosmos.Kernel.System
 {
     internal static class Power { public static int Calls; public static void Reboot() => Calls++; public static void Shutdown() => Calls++; }
 }
+
+namespace Zenith.Core.Boot
+{
+    internal static class NativeAcpiPower { public static string Describe() => "acpi: test"; public static void PowerOff() { } }
+}

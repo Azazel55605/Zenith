@@ -45,6 +45,9 @@ def main():
     subprocess.run([sys.executable,str(ROOT/'tools/build-userland.py'),str(desktop_payload),'--program','desktop-tools'],check=True)
     package('build-native','zenith-desktop-tools','0.1.0',desktop_payload,keep/'desktop-bundle')
     package('seal',keep/'desktop-bundle',keep/'keys/private.pem',served/'desktop.zpk')
+    subprocess.run([sys.executable,'-B',str(ROOT/'tools/build-ui-icons.py'),'--package',str(keep/'icons')],check=True)
+    package('build','zenith-icons','0.1.0',keep/'icons',keep/'icons-bundle')
+    package('seal',keep/'icons-bundle',keep/'keys/private.pem',served/'icons.zpk')
     theme=keep/'theme/usr/share/zenith/appearance/default';theme.mkdir(parents=True)
     (theme/'native.conf').write_text('VERSION=1\nlight.Surface=f6f7f9\n')
     package('build','zenith-theme-default','0.1.1',keep/'theme',keep/'theme-bundle')
@@ -113,8 +116,9 @@ def main():
             m=h.Machine(keep/'setup',disk,network=net);assert m.wait('headless ready',timeout=180)
             status('fetch '+url+'/key.pem /root/key.pem','S_KEY')
             status('pkg trust /root/key.pem '+hashlib.sha256(key).hexdigest(),'S_TRUST')
-            for name in ('0.1.0.zpk','0.1.1.zpk','theme.zpk','desktop.zpk',*scripts):
+            for name in ('0.1.0.zpk','0.1.1.zpk','theme.zpk','desktop.zpk','icons.zpk',*scripts):
                 status('fetch '+url+'/'+name+' /root/'+name,'S_FETCH_'+name.replace('.',''))
+            status('pkg install /root/icons.zpk','S_ICONS')
             status('pkg install /root/0.1.0.zpk','S_PACKAGE')
             status('pkg install /root/theme.zpk','S_THEME')
             status('pkg install /root/desktop.zpk','S_DESKTOP_PACKAGE')
@@ -318,7 +322,10 @@ def main():
                 for n in range(24):profile.monitor_text(monitor,'mouse_move 0 0 '+('1' if burst%2 else '-1'))
         monitor_command(monitor,'sendkey esc 30')
         frame('wheel-unfocused',lambda w,h,rgb:color_at(rgb,w,x+80,y+20)!=bytes.fromhex('7ecac7'))
-        monitor_command(monitor,'sendkey ctrl-f 30');frame('wheel-alive',navigation_material)
+        monitor_command(monitor,'sendkey ctrl-f 30');wheel_w,_,wheel_rgb=frame('wheel-alive',navigation_material)
+        # The package-installed Lucide zap icon is drawn in the accent on the first row.
+        assert any(color_at(wheel_rgb,wheel_w,x+24+dx,y+76+dy)==bytes.fromhex('7ecac7') for dx in range(24) for dy in range(30)),'package icon missing'
+        print('PASS package-installed icon',flush=True)
         print('PASS rapid wheel input, bounded navigation and continued host response',flush=True)
         # Hover: a sidebar row tints under the pointer with no click, then restores.
         rest=color_at(frame('hover-rest',navigation_material)[2],frame('hover-rest',navigation_material)[0],x+150,y+150)

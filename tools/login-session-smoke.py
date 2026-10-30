@@ -33,6 +33,8 @@ def main():
     for name in ('zenith-session','zenith-theme-default','zenith-style'):package(name,'0.1.0',ROOT/'packaging'/name,name=='zenith-style')
     subprocess.run([sys.executable,str(ROOT/'tools/build-font-package.py'),str(keep/'fonts')],check=True,stdout=subprocess.DEVNULL)
     package('zenith-fonts','0.1.0',keep/'fonts')
+    subprocess.run([sys.executable,'-B',str(ROOT/'tools/build-ui-icons.py'),'--package',str(keep/'icons')],check=True)
+    package('zenith-icons','0.1.0',keep/'icons')
     upgrade=keep/'theme-upgrade/usr/share/zenith/appearance/default';upgrade.mkdir(parents=True)
     (upgrade/'theme.conf').write_text('VERSION=1\nNAME=Sunrise Test\nAccent=FFFFBC70\nAccentSoft=33FFBC70\n')
     package('zenith-theme-default','0.1.1',keep/'theme-upgrade')
@@ -72,7 +74,7 @@ def main():
             command('passwd '+user,'New password: ')
             command(secret,'Repeat password: ');command(secret,'password updated for '+user)
         status('fetch '+url+'/public.pem /tmp/key','LOGIN_KEY_FETCH');status('pkg trust /tmp/key '+hashlib.sha256(key).hexdigest(),'LOGIN_KEY')
-        for name in ('zenith-theme-default','zenith-fonts','zenith-session','zenith-style'):
+        for name in ('zenith-theme-default','zenith-fonts','zenith-icons','zenith-session','zenith-style'):
             path='/tmp/'+name+'.zpk';status('fetch '+url+'/'+name+'-0.1.0.zpk '+path,'LOGIN_FETCH_'+name.replace('-','_'))
             status('pkg install '+path,'LOGIN_PKG_'+name.replace('-','_'))
         status('pkg verify','LOGIN_VERIFY');disk=shutdown()

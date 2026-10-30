@@ -349,19 +349,67 @@ void zui_draw_range(struct zui *u,int first,int count){
     }
 }
 void zui_draw_controls(struct zui *u){zui_draw_range(u,0,u->count);}
+#define ZUI_ICON_ENTRIES 64
+#define ZUI_ICON_FILE_BYTES 16384
+#define ZUI_ICON_POOL_BYTES 131072
+static long (*icon_read)(const char *,unsigned char *,unsigned long);
+static struct { char name[32]; unsigned int offset,length; } icon_entries[ZUI_ICON_ENTRIES];
+static int icon_entry_count;
+static unsigned int icon_pool_used;
+static unsigned char icon_pool[ZUI_ICON_POOL_BYTES];
+void zui_icon_source(long (*read)(const char *,unsigned char *,unsigned long)){icon_read=read;icon_entry_count=0;icon_pool_used=0;}
 static int same_name(const char *a,const char *b){
-    for(int i=0;i<64;i++){if(a[i]!=b[i])return 0;if(!a[i])return 1;}
+    for(int i=0;i<32;i++){if(a[i]!=b[i])return 0;if(!a[i])return 1;}
     return 0;
+}
+/* Whole-file validation: magic, each size's bounds, and exact length. */
+static int icon_file_valid(const unsigned char *d,unsigned long n){
+    if(n<5||d[0]!='Z'||d[1]!='I'||d[2]!='C'||d[3]!='1')return 0;
+    unsigned long at=5;
+    for(int i=0;i<d[4];i++){
+        if(n-at<6)return 0;
+        unsigned long size=d[at]|((unsigned long)d[at+1]<<8),bytes=d[at+2]|((unsigned long)d[at+3]<<8)|((unsigned long)d[at+4]<<16)|((unsigned long)d[at+5]<<24);
+        if(size<1||size>64||bytes>n-at-6)return 0;
+        at+=6+bytes;
+    }
+    return at==n;
+}
+static int icon_name_valid(const char *s){
+    int i=0;
+    for(;i<32&&s[i];i++)if(!((s[i]>='a'&&s[i]<='z')||(s[i]>='0'&&s[i]<='9')||s[i]=='-'))return 0;
+    return i>0&&i<32;
+}
+/* Failures are cached too, so a missing icon costs one read rather than one per frame. */
+static const unsigned char *icon_load(const char *name,unsigned int *length){
+    if(!icon_name_valid(name))return 0;
+    for(int i=0;i<icon_entry_count;i++)if(same_name(icon_entries[i].name,name)){
+        *length=icon_entries[i].length;return icon_entries[i].length?icon_pool+icon_entries[i].offset:0;
+    }
+    if(icon_entry_count>=ZUI_ICON_ENTRIES)return 0;
+    int e=icon_entry_count++,k=0;
+    for(;name[k];k++)icon_entries[e].name[k]=name[k];
+    icon_entries[e].name[k]=0;icon_entries[e].offset=icon_entries[e].length=0;
+    unsigned long room=ZUI_ICON_POOL_BYTES-icon_pool_used;
+    if(!icon_read||room<ZUI_ICON_FILE_BYTES)return 0;
+    long got=icon_read(name,icon_pool+icon_pool_used,ZUI_ICON_FILE_BYTES);
+    if(got<=0||got>ZUI_ICON_FILE_BYTES||!icon_file_valid(icon_pool+icon_pool_used,(unsigned long)got))return 0;
+    icon_entries[e].offset=icon_pool_used;icon_entries[e].length=(unsigned int)got;icon_pool_used+=(unsigned int)got;
+    *length=(unsigned int)got;return icon_pool+icon_entries[e].offset;
 }
 int zui_icon(struct zui *u,const char *name,int x,int y,int size,int role){
     if(!name)return 0;
-    const struct zui_icon_mask *m=0;
-    for(int i=0;i<zui_icon_mask_count;i++)if(zui_icon_masks[i].size==size&&same_name(zui_icon_masks[i].name,name)){m=&zui_icon_masks[i];break;}
-    if(!m)return 0;
+    unsigned int file_length=0;const unsigned char *d=icon_load(name,&file_length);
+    if(!d)return 0;
+    const unsigned char *run=0,*end=0;
+    for(unsigned long at=5,i=0;i<d[4];i++){
+        unsigned long s=d[at]|((unsigned long)d[at+1]<<8),bytes=d[at+2]|((unsigned long)d[at+3]<<8)|((unsigned long)d[at+4]<<16)|((unsigned long)d[at+5]<<24);
+        if((int)s==size){run=d+at+6;end=run+bytes;break;}
+        at+=6+bytes;
+    }
+    if(!run)return 0;
     unsigned int color=role==ZUI_ICON_SELECTED?u->theme.on_accent:role==ZUI_ICON_DISABLED?u->theme.secondary:
         role==ZUI_ICON_TEXT?u->theme.text:u->theme.accent;
     struct zui_rect b=intersect((struct zui_rect){x,y,size,size},u->clip);
-    const unsigned char *run=m->runs,*end=m->runs+m->bytes;
     for(int i=0,total=size*size;i<total&&end-run>=2;){
         i+=run[0];int literals=run[1];run+=2;
         for(int k=0;k<literals&&i<total&&run<end;k++,i++){

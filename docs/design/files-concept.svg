@@ -1,0 +1,233 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1700" viewBox="0 0 1440 1700">
+<rect width="1440" height="1700" fill="#151619"/>
+<text x="48" y="55" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="28" font-weight="600" xml:space="preserve">Zenith / Files concept</text>
+<text x="48" y="86" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">Proposal, not running UI · reference: KDE Dolphin · uses the accepted neutral surfaces, 8/12 radii, Inter and Lucide icons</text>
+<text x="48" y="126" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Dark</text>
+<rect x="48" y="148" width="1344" height="640" rx="12" fill="#202125" stroke="#45474F"/>
+<rect x="49" y="149" width="1342" height="43" rx="11" fill="#25262B"/>
+<text x="64" y="176" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">Documents — Files</text>
+<g transform="translate(1280 162) scale(.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(1316 162) scale(.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(1352 162) scale(.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<g transform="translate(72 208) scale(0.8333333333333334)" fill="none" stroke="#F1F2F4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></g>
+<g transform="translate(106 208) scale(0.8333333333333334)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></g>
+<g transform="translate(140 208) scale(0.8333333333333334)" fill="none" stroke="#F1F2F4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></g>
+<rect x="174" y="200" width="640" height="36" rx="8" fill="#2A2C31" stroke="#45474F"/>
+<text x="186" y="223" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Home</text>
+<g transform="translate(222.8 211) scale(0.5833333333333334)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></g>
+<text x="244.8" y="223" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">user</text>
+<g transform="translate(281.6 211) scale(0.5833333333333334)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></g>
+<text x="303.6" y="223" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Documents</text>
+<rect x="824" y="202" width="126" height="32" rx="8" fill="#25262B"/>
+<rect x="828" y="205" width="38" height="26" rx="6" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(839 210) scale(0.6666666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M14 14h7v7h-7z"/><path d="M3 14h7v7H3z"/></g>
+<g transform="translate(879 210) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/></g>
+<g transform="translate(919 210) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M12 3v18"/></g>
+<rect x="960" y="200" width="296" height="36" rx="8" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(970 210) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.3-4.3"/><path d="M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0"/></g>
+<text x="996" y="223" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Search this folder</text>
+<g transform="translate(1272 208) scale(0.8333333333333334)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3"/><path d="M12 18v3"/><path d="M3 12h3"/><path d="M18 12h3"/><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8"/></g>
+<g transform="translate(1306 208) scale(0.8333333333333334)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M12 3v18"/></g>
+<text x="72" y="266" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Places</text>
+<g transform="translate(76 284) scale(0.6666666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/></g>
+<text x="100" y="297" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Home</text>
+<rect x="64" y="312" width="208" height="32" rx="6" fill="#2C3B3D"/>
+<rect x="65" y="319" width="3" height="18" rx="1" fill="#7ECAC7"/>
+<g transform="translate(76 320) scale(0.6666666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="100" y="333" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Documents</text>
+<g transform="translate(76 356) scale(0.6666666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></g>
+<text x="100" y="369" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Downloads</text>
+<g transform="translate(76 392) scale(0.6666666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<text x="100" y="405" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Root</text>
+<text x="72" y="444" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Devices</text>
+<g transform="translate(76 462) scale(0.6666666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1"/></g>
+<text x="100" y="475" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">sata0 root</text>
+<rect x="100" y="484" width="160" height="4" rx="2" fill="#45474F"/>
+<rect x="100" y="484" width="72" height="4" rx="2" fill="#7ECAC7"/>
+<text x="100" y="504" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" xml:space="preserve">230 MiB of 512 MiB free</text>
+<rect x="284" y="248" width="818" height="488" rx="12" fill="#25262B"/>
+<g transform="translate(357 274) scale(2.0)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<text x="381" y="348" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">Designs</text>
+<text x="381" y="368" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">6 items</text>
+<g transform="translate(547 274) scale(2.0)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<text x="571" y="348" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">Notes</text>
+<text x="571" y="368" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">14 items</text>
+<g transform="translate(737 274) scale(2.0)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<text x="761" y="348" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">Reports</text>
+<text x="761" y="368" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">3 items</text>
+<g transform="translate(927 274) scale(2.0)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<text x="951" y="348" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">Archive</text>
+<text x="951" y="368" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">27 items</text>
+<rect x="298" y="394" width="166" height="122" rx="10" fill="#2C3B3D" stroke="#7ECAC7"/>
+<g transform="translate(357 408) scale(2.0)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="381" y="482" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">plan.md</text>
+<text x="381" y="502" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">12.4 KiB</text>
+<g transform="translate(547 408) scale(2.0)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="571" y="482" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">todo.txt</text>
+<text x="571" y="502" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">1.1 KiB</text>
+<g transform="translate(737 408) scale(2.0)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="761" y="482" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">budget.csv</text>
+<text x="761" y="502" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">8.0 KiB</text>
+<g transform="translate(927 408) scale(2.0)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="951" y="482" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">photo.png</text>
+<text x="951" y="502" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">2.3 MiB</text>
+<g transform="translate(357 542) scale(2.0)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="381" y="616" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">notes.log</text>
+<text x="381" y="636" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">44 KiB</text>
+<g transform="translate(547 542) scale(2.0)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="571" y="616" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">release.zpk</text>
+<text x="571" y="636" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">1.8 MiB</text>
+<g transform="translate(737 542) scale(2.0)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="761" y="616" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">site.conf</text>
+<text x="761" y="636" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">512 B</text>
+<g transform="translate(927 542) scale(2.0)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="951" y="616" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">kernel.elf</text>
+<text x="951" y="636" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">16 MiB</text>
+<rect x="1114" y="248" width="266" height="488" rx="12" fill="#25262B"/>
+<g transform="translate(1215 270) scale(2.6666666666666665)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="1247" y="360" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="middle" xml:space="preserve">plan.md</text>
+<text x="1247" y="382" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="middle" xml:space="preserve">Markdown document</text>
+<text x="1130" y="420" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Size</text>
+<text x="1364" y="420" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">12.4 KiB</text>
+<text x="1130" y="448" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Modified</text>
+<text x="1364" y="448" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">30 Oct 14:02</text>
+<text x="1130" y="476" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Owner</text>
+<text x="1364" y="476" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">user</text>
+<text x="1130" y="504" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Group</text>
+<text x="1364" y="504" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">users</text>
+<text x="1130" y="532" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Permissions</text>
+<text x="1364" y="532" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">rw-r--r--</text>
+<text x="1130" y="560" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Links</text>
+<text x="1364" y="560" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">1</text>
+<rect x="1130" y="632" width="234" height="36" rx="8" fill="#2A2C31" stroke="#45474F"/>
+<text x="1247" y="655" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">Open in Editor</text>
+<rect x="1130" y="680" width="234" height="36" rx="8" fill="#2A2C31" stroke="#45474F"/>
+<text x="1247" y="703" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">Properties</text>
+<rect x="49" y="746" width="1342" height="1" rx="0" fill="#45474F"/>
+<text x="72" y="772" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">12 items · 4 folders · 1 selected (12.4 KiB)</text>
+<text x="1062" y="772" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Zoom</text>
+<rect x="1100" y="766" width="120" height="4" rx="2" fill="#45474F"/>
+<rect x="1100" y="766" width="70" height="4" rx="2" fill="#7ECAC7"/>
+<rect x="1164" y="760" width="16" height="16" rx="8" fill="#7ECAC7"/>
+<text x="1368" y="772" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">230 MiB free</text>
+<rect x="0" y="850" width="1440" height="850" rx="0" fill="#E9EAEE"/>
+<text x="48" y="886" fill="#202126" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Light · equal coverage</text>
+<rect x="48" y="906" width="1344" height="640" rx="12" fill="#F6F7F9" stroke="#CFD1D8"/>
+<rect x="49" y="907" width="1342" height="43" rx="11" fill="#EFF0F3"/>
+<text x="64" y="934" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">Documents — Files</text>
+<g transform="translate(1280 920) scale(.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(1316 920) scale(.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(1352 920) scale(.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<g transform="translate(72 966) scale(0.8333333333333334)" fill="none" stroke="#202126" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></g>
+<g transform="translate(106 966) scale(0.8333333333333334)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></g>
+<g transform="translate(140 966) scale(0.8333333333333334)" fill="none" stroke="#202126" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></g>
+<rect x="174" y="958" width="640" height="36" rx="8" fill="#FFFFFF" stroke="#CFD1D8"/>
+<text x="186" y="981" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Home</text>
+<g transform="translate(222.8 969) scale(0.5833333333333334)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></g>
+<text x="244.8" y="981" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">user</text>
+<g transform="translate(281.6 969) scale(0.5833333333333334)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></g>
+<text x="303.6" y="981" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Documents</text>
+<rect x="824" y="960" width="126" height="32" rx="8" fill="#EFF0F3"/>
+<g transform="translate(839 968) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M14 14h7v7h-7z"/><path d="M3 14h7v7H3z"/></g>
+<rect x="868" y="963" width="38" height="26" rx="6" fill="#FFFFFF" stroke="#CFD1D8"/>
+<g transform="translate(879 968) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/></g>
+<g transform="translate(919 968) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M12 3v18"/></g>
+<rect x="960" y="958" width="296" height="36" rx="8" fill="#FFFFFF" stroke="#CFD1D8"/>
+<g transform="translate(970 968) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.3-4.3"/><path d="M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0"/></g>
+<text x="996" y="981" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Search this folder</text>
+<text x="72" y="1024" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Places</text>
+<g transform="translate(76 1042) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/></g>
+<text x="100" y="1055" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Home</text>
+<rect x="64" y="1070" width="208" height="32" rx="6" fill="#D7E9E8"/>
+<rect x="65" y="1077" width="3" height="18" rx="1" fill="#197571"/>
+<g transform="translate(76 1078) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="100" y="1091" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Documents</text>
+<g transform="translate(76 1114) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></g>
+<text x="100" y="1127" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Downloads</text>
+<g transform="translate(76 1150) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<text x="100" y="1163" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Root</text>
+<rect x="284" y="1006" width="536" height="424" rx="12" fill="#FFFFFF" stroke="#197571"/>
+<text x="298" y="1030" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Documents</text>
+<text x="328" y="1058" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Name</text>
+<text x="610" y="1058" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Size</text>
+<text x="680" y="1058" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Modified</text>
+<rect x="292" y="1066" width="520" height="1" rx="0" fill="#CFD1D8"/>
+<g transform="translate(300 1079) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<text x="328" y="1092" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Designs</text>
+<text x="610" y="1092" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">6 items</text>
+<text x="680" y="1092" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Oct 28</text>
+<g transform="translate(300 1113) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<text x="328" y="1126" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Notes</text>
+<text x="610" y="1126" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">14 items</text>
+<text x="680" y="1126" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Oct 29</text>
+<rect x="290" y="1140" width="524" height="30" rx="6" fill="#D7E9E8"/>
+<g transform="translate(300 1147) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="328" y="1160" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">plan.md</text>
+<text x="610" y="1160" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">12.4 KiB</text>
+<text x="680" y="1160" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Oct 30</text>
+<rect x="290" y="1174" width="524" height="30" rx="6" fill="#D7E9E8"/>
+<g transform="translate(300 1181) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="328" y="1194" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">budget.csv</text>
+<text x="610" y="1194" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">8.0 KiB</text>
+<text x="680" y="1194" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Oct 21</text>
+<g transform="translate(300 1215) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="328" y="1228" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">photo.png</text>
+<text x="610" y="1228" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">2.3 MiB</text>
+<text x="680" y="1228" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Oct 12</text>
+<g transform="translate(300 1249) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="328" y="1262" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">release.zpk</text>
+<text x="610" y="1262" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">1.8 MiB</text>
+<text x="680" y="1262" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Oct 29</text>
+<g transform="translate(300 1283) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="328" y="1296" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">site.conf</text>
+<text x="610" y="1296" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">512 B</text>
+<text x="680" y="1296" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Sep 30</text>
+<rect x="832" y="1006" width="536" height="424" rx="12" fill="#FFFFFF" stroke="#CFD1D8"/>
+<text x="846" y="1030" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Archive</text>
+<text x="876" y="1058" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Name</text>
+<text x="1158" y="1058" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Size</text>
+<text x="1228" y="1058" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Modified</text>
+<rect x="840" y="1066" width="520" height="1" rx="0" fill="#CFD1D8"/>
+<g transform="translate(848 1079) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<text x="876" y="1092" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Designs</text>
+<text x="1158" y="1092" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">6 items</text>
+<text x="1228" y="1092" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Oct 28</text>
+<g transform="translate(848 1113) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></g>
+<text x="876" y="1126" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Notes</text>
+<text x="1158" y="1126" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">14 items</text>
+<text x="1228" y="1126" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Oct 29</text>
+<g transform="translate(848 1147) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="876" y="1160" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">plan.md</text>
+<text x="1158" y="1160" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">12.4 KiB</text>
+<text x="1228" y="1160" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Oct 30</text>
+<g transform="translate(848 1181) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="876" y="1194" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">budget.csv</text>
+<text x="1158" y="1194" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">8.0 KiB</text>
+<text x="1228" y="1194" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Oct 21</text>
+<g transform="translate(848 1215) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="876" y="1228" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">photo.png</text>
+<text x="1158" y="1228" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">2.3 MiB</text>
+<text x="1228" y="1228" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Oct 12</text>
+<g transform="translate(848 1249) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="876" y="1262" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">release.zpk</text>
+<text x="1158" y="1262" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">1.8 MiB</text>
+<text x="1228" y="1262" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Oct 29</text>
+<g transform="translate(848 1283) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.7.7l3.6 3.6A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></g>
+<text x="876" y="1296" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">site.conf</text>
+<text x="1158" y="1296" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">512 B</text>
+<text x="1228" y="1296" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Sep 30</text>
+<rect x="284" y="1438" width="1084" height="48" rx="10" fill="#FFFFFF" stroke="#CFD1D8"/>
+<text x="300" y="1459" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Copying 2 items to Archive</text>
+<text x="300" y="1477" fill="#5C606B" font-family="Inter, sans-serif" font-size="11" font-weight="400" xml:space="preserve">budget.csv · 1 of 2 · 6.2 MiB of 9.1 MiB</text>
+<rect x="608" y="1458" width="520" height="6" rx="3" fill="#CFD1D8"/>
+<rect x="608" y="1458" width="354" height="6" rx="3" fill="#197571"/>
+<text x="1144" y="1467" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">68%</text>
+<rect x="1278" y="1446" width="86" height="32" rx="8" fill="#FFFFFF" stroke="#CFD1D8"/>
+<text x="1321" y="1467" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">Cancel</text>
+<rect x="49" y="1504" width="1342" height="1" rx="0" fill="#CFD1D8"/>
+<text x="72" y="1530" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">7 items · 2 selected (20.4 KiB)</text>
+<text x="1368" y="1530" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">230 MiB free</text>
+<text x="48" y="1616" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Dark: icons view with Places, breadcrumb, view modes, information panel, zoom and free space. Light: details view in split panes with a transfer job strip.</text>
+<text x="48" y="1638" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Transfers show honest phase and progress with Cancel; conflicts and permission errors use the shared dialog. Selection is soft accent; focus keeps the accent ring.</text>
+<text x="48" y="1660" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Requires A1 transfer jobs, U1 dialogs, caller-scoped file services. Trash, tabs, archives and indexing follow A1 stages; nothing here implies they exist yet.</text>
+</svg>

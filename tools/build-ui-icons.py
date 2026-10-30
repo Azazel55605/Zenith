@@ -181,19 +181,49 @@ def decode(runs, total):
     if len(out) != total: raise ValueError('run length mismatch')
     return bytes(out)
 
-def build(output):
-    lines = ['/* Generated Lucide 8-bit alpha icon masks; see userland/ui/icons/LICENSE (ISC). */', '#include "ui.h"']
-    entries = []
+MAGIC = b'ZIC1'
+ICON_DIR = 'usr/share/zenith/icons'
+ICON_FILE_LIMIT = 16384     # matches ZUI_ICON_FILE_BYTES in ui.c
+
+def icon_file(svg_text):
+    """ZIC1, u8 count, then per size: u16 size, u32 bytes, run-length coverage (little endian)."""
+    out = bytearray(MAGIC + bytes((len(SIZES),)))
+    for size in SIZES:
+        runs = encode(rasterize(svg_text, size))
+        out += size.to_bytes(2, 'little') + len(runs).to_bytes(4, 'little') + runs
+    return bytes(out)
+
+def build_package(output):
+    """Write the installable icon tree: one file per icon, so any package can add its own."""
+    target = Path(output)/ICON_DIR; target.mkdir(parents=True, exist_ok=True)
     for svg in sorted((ROOT/'userland/ui/icons').glob('*.svg')):
-        for size in SIZES:
-            name = 'icon_' + svg.stem.replace('-', '_') + '_' + str(size)
-            data = encode(rasterize(svg.read_text(), size))
-            lines.append(f'static const unsigned char {name}[{len(data)}]={{' + ','.join(map(str, data)) + '};')
-            entries.append(f'{{"{svg.stem}",{size},{len(data)},{name}}}')
-    lines.append('const struct zui_icon_mask zui_icon_masks[]={' + ','.join(entries) + '};')
-    lines.append(f'const int zui_icon_mask_count={len(entries)};')
+        (target/(svg.stem + '.zic')).write_bytes(icon_file(svg.read_text()))
+    (target/'LICENSE-Lucide.txt').write_bytes((ROOT/'userland/ui/icons/LICENSE').read_bytes())
+
+def build(output):
+    """Host test source: serves the same files through the toolkit's icon source hook."""
+    lines = ['/* Generated test icon source; see userland/ui/icons/LICENSE (ISC). */', '#include "ui.h"']
+    names = []
+    for index, svg in enumerate(sorted((ROOT/'userland/ui/icons').glob('*.svg'))):
+        data = icon_file(svg.read_text())
+        lines.append(f'static const unsigned char icon_{index}[{len(data)}]={{' + ','.join(map(str, data)) + '};')
+        names.append(f'{{"{svg.stem}",icon_{index},{len(data)}}}')
+    lines.append('static const struct { const char *name; const unsigned char *data; unsigned long size; } icons[]={' + ','.join(names) + '};')
+    lines.append("""static long host_read(const char *name,unsigned char *out,unsigned long capacity){
+    for(unsigned long i=0;i<sizeof(icons)/sizeof(icons[0]);i++){
+        const char *a=icons[i].name,*b=name;while(*a&&*a==*b){a++;b++;}
+        if(*a||*b)continue;
+        if(icons[i].size>capacity)return -1;
+        for(unsigned long k=0;k<icons[i].size;k++)out[k]=icons[i].data[k];
+        return (long)icons[i].size;
+    }
+    return -2;
+}
+__attribute__((constructor)) static void install_host_icons(void){zui_icon_source(host_read);}""")
     Path(output).write_text('\n'.join(lines) + '\n')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__); parser.add_argument('output', type=Path)
-    build(parser.parse_args().output)
+    parser.add_argument('--package', action='store_true', help='write the installable icon tree')
+    arguments = parser.parse_args()
+    (build_package if arguments.package else build)(arguments.output)
