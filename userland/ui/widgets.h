@@ -27,4 +27,14 @@ void zui_list_draw(struct zui *ui,struct zui_list *l,struct zui_rect rect,int co
 /* Returns index+1 when a row is activated (click release or Enter), else 0. Handles
  * Up/Down/Home/End, first-letter type-ahead and the embedded scroll area. */
 int zui_list_event(struct zui *ui,struct zui_list *l,const struct zenith_gui_event *e,zui_list_source items,void *context);
+
+/* Combo box: a closed field (ZUI_BUTTON with id) showing the current item and a
+ * chevron; when open, a popup list of up to 8 rows kept inside the window (below the
+ * field when it fits, otherwise above). Draw the combo after other controls so the
+ * popup is on top. */
+struct zui_combo { int id,open,value; struct zui_list popup; struct zui_rect field,panel; };
+void zui_combo_draw(struct zui *ui,struct zui_combo *c,struct zui_rect field,int count,zui_list_source items,void *context);
+/* Returns value+1 when a choice is committed. Esc or a click outside cancels. An open
+ * combo consumes pointer and key events. */
+int zui_combo_event(struct zui *ui,struct zui_combo *c,const struct zenith_gui_event *e,zui_list_source items,void *context);
 #endif

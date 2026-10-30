@@ -57,9 +57,36 @@ static void list_tests(void){
     struct zenith_gui_event dd={Z_GUI_DOWN,1,50,45,0,0},uu={Z_GUI_UP,1,50,45,0,0};
     zui_event(&u,&dd);assert(zui_list_event(&u,&l,&uu,rows,&n)==0);   /* disabled row ignored */
 }
+static void combo_tests(void){
+    struct zui u;assert(zui_init(&u,px,800,600));u.window_focused=1;int n=20;
+    struct zui_combo c={0};c.id=50;c.popup.base_id=2000;c.value=3;
+    zui_combo_draw(&u,&c,(struct zui_rect){100,560,200,36},n,rows,&n);
+    struct zenith_gui_event d={Z_GUI_DOWN,1,150,570,0,0},up={Z_GUI_UP,1,150,570,0,0};
+    zui_event(&u,&d);assert(zui_combo_event(&u,&c,&up,rows,&n)==0&&c.open);
+    assert(c.popup.selected==3);
+    u.count=0;zui_combo_draw(&u,&c,(struct zui_rect){100,560,200,36},n,rows,&n);
+    assert(c.panel.y+c.panel.h<=560&&c.panel.y>=0&&c.panel.h==328);   /* opens upward */
+    struct zenith_gui_event k={Z_GUI_KEY,0,0,0,0,8};zui_combo_event(&u,&c,&k,rows,&n);
+    k.extra=2;assert(zui_combo_event(&u,&c,&k,rows,&n)==5&&!c.open&&c.value==4);
+    u.count=0;zui_combo_draw(&u,&c,(struct zui_rect){100,560,200,36},n,rows,&n);
+    zui_event(&u,&d);zui_combo_event(&u,&c,&up,rows,&n);assert(c.open);
+    k.extra=1;assert(zui_combo_event(&u,&c,&k,rows,&n)==0&&!c.open&&c.value==4); /* Esc keeps value */
+    /* Opens downward with room below; a click outside the panel cancels. */
+    c=(struct zui_combo){0};c.id=51;c.popup.base_id=3000;u.count=0;
+    zui_combo_draw(&u,&c,(struct zui_rect){100,40,200,36},n,rows,&n);
+    struct zenith_gui_event d2={Z_GUI_DOWN,1,150,50,0,0},u2={Z_GUI_UP,1,150,50,0,0};
+    zui_event(&u,&d2);zui_combo_event(&u,&c,&u2,rows,&n);assert(c.open);
+    u.count=0;zui_combo_draw(&u,&c,(struct zui_rect){100,40,200,36},n,rows,&n);assert(c.panel.y==80);
+    struct zenith_gui_event out={Z_GUI_UP,1,700,500,0,0};
+    assert(zui_combo_event(&u,&c,&out,rows,&n)==0&&!c.open&&c.value==0);
+    c.value=15;zui_event(&u,&d2);zui_combo_event(&u,&c,&u2,rows,&n);
+    u.count=0;zui_combo_draw(&u,&c,(struct zui_rect){100,40,200,36},n,rows,&n);
+    assert(15*40>=c.popup.scroll.offset&&15*40+40<=c.popup.scroll.offset+c.panel.h-8); /* selection visible */
+}
 int main(void){
     scroll_tests();
     list_tests();
-    puts("PASS widget scroll area and list view");
+    combo_tests();
+    puts("PASS widget scroll area, list view and combo box");
     return 0;
 }

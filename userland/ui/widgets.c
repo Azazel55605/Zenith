@@ -90,3 +90,32 @@ int zui_list_event(struct zui *u,struct zui_list *l,const struct zenith_gui_even
     if(l->selected!=old){zui_scroll_reveal(&l->scroll,l->selected*h,h);u->dirty=1;}
     return 0;
 }
+void zui_combo_draw(struct zui *u,struct zui_combo *c,struct zui_rect f,int count,zui_list_source items,void *ctx){
+    struct zui_list_item it={0};c->field=f;
+    const char *label=items(ctx,c->value,&it)&&it.label?it.label:"";
+    zui_add(u,c->id,ZUI_BUTTON,f,label,0,1);
+    zui_icon(u,"chevron-down",f.x+f.w-28,f.y+(f.h-16)/2,16,ZUI_ICON_TEXT);
+    if(!c->open)return;
+    int rows=count<8?count:8,h=rows*40+8;
+    int y=f.y+f.h+4<=u->height-h?f.y+f.h+4:f.y-4-h;
+    if(y<0)y=0;
+    c->panel=(struct zui_rect){f.x,y,f.w,h};
+    zui_surface(u,c->panel,10,ZUI_SURFACE_POPOVER);
+    zui_list_draw(u,&c->popup,(struct zui_rect){f.x+4,y+4,f.w-8,h-8},count,items,ctx);
+}
+int zui_combo_event(struct zui *u,struct zui_combo *c,const struct zenith_gui_event *e,zui_list_source items,void *ctx){
+    if(!c->open){
+        int focused=u->focus>=0&&u->focus<u->count&&u->controls[u->focus].id==c->id;
+        if((e->type==Z_GUI_UP&&inside(c->field,e->x,e->y))||(e->type==Z_GUI_KEY&&e->extra==2&&focused)){
+            /* Content height is unknown until the next draw; scroll_end clamps this. */
+            c->open=1;c->popup.selected=c->value;c->popup.scroll.offset=c->value>3?(c->value-3)*40:0;u->dirty=1;
+        }
+        return 0;
+    }
+    if((e->type==Z_GUI_KEY&&e->extra==1)||(e->type==Z_GUI_UP&&!inside(c->panel,e->x,e->y))||e->type==Z_GUI_FOCUS){
+        c->open=0;u->dirty=1;return 0;
+    }
+    int chosen=zui_list_event(u,&c->popup,e,items,ctx);
+    if(chosen){c->value=chosen-1;c->open=0;u->dirty=1;return chosen;}
+    return 0;
+}
