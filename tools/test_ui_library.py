@@ -40,7 +40,7 @@ class UiLibraryTests(unittest.TestCase):
             subprocess.run(['gcc', '-std=c11', '-Wall', '-Wextra', '-Werror', '-O1', '-g',
                             '-fsanitize=address,undefined', '-fno-omit-frame-pointer',
                             '-I'+str(ROOT/'userland/ui'), str(ROOT/'userland/ui/test_ui.c'),
-                            str(ROOT/'userland/ui/ui.c'), str(ROOT/'userland/ui-gallery/gallery.c'),
+                            str(ROOT/'userland/ui/ui.c'), str(ROOT/'userland/ui/widgets.c'), str(ROOT/'userland/ui-gallery/gallery.c'),
                             str(atlas),str(icons), '-o', str(exe)], check=True)
             subprocess.run([str(exe), directory], check=True, timeout=30)
             def luminance(value):

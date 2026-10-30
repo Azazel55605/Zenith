@@ -183,6 +183,29 @@ int main(int argc,char **argv){
         m.x=m.y=20;zui_event(&b,&m);assert(b.hover==0);
         struct zenith_gui_event f={Z_GUI_FOCUS,0,0,0,0,0};zui_event(&b,&f);assert(b.hover==-1);
     }
+    { /* gallery page 2 composes every stage-1 primitive */
+        assert(gallery_init(&g,storage+1,0));event(Z_GUI_FOCUS,1,0,0,0,0);
+        assert(!event(Z_GUI_KEY,0,0,0,2,6)&&g.page==1);gallery_draw(&g);image(argv[1],"gallery-widgets");
+        int rows=0,footer=0,toggle=-1;
+        for(int i=0;i<g.ui.count;i++){
+            if(g.ui.controls[i].kind==ZUI_NAVIGATION&&g.ui.controls[i].icon)rows++;
+            if(g.ui.controls[i].id>GALLERY_FOOTER&&g.ui.controls[i].id<=GALLERY_FOOTER+ZUI_FOOTER_APPLY)footer++;
+            if(g.ui.controls[i].id==GALLERY_TOGGLE)toggle=i;
+        }
+        assert(rows>=5&&footer==3&&toggle>=0);
+        int apply=-1;for(int i=0;i<g.ui.count;i++)if(g.ui.controls[i].id==GALLERY_FOOTER+ZUI_FOOTER_APPLY)apply=i;
+        assert(!g.ui.controls[apply].enabled);
+        struct zui_rect t=zui_control_area(&g.ui,toggle);int tx=t.x+t.w/2,ty=t.y+t.h/2;
+        event(Z_GUI_DOWN,1,tx,ty,0,0);assert(event(Z_GUI_UP,1,tx,ty,0,0)==GALLERY_TOGGLE);
+        gallery_draw(&g);for(int i=0;i<g.ui.count;i++)if(g.ui.controls[i].id==GALLERY_FOOTER+ZUI_FOOTER_APPLY)apply=i;
+        assert(g.ui.controls[apply].enabled);
+        struct zui_rect a=zui_control_area(&g.ui,apply);int ax=a.x+a.w/2,ay=a.y+a.h/2;
+        event(Z_GUI_DOWN,1,ax,ay,0,0);event(Z_GUI_UP,1,ax,ay,0,0);assert(g.dialog.open);
+        gallery_draw(&g);image(argv[1],"gallery-dialog");
+        event(Z_GUI_KEY,0,0,0,0,1);assert(!g.dialog.open&&g.toggles[0]);     /* Esc = Cancel keeps draft */
+        assert(!event(Z_GUI_KEY,0,0,0,2,5)&&g.page==0&&g.ui.count==10&&g.ui.controls[0].id==1);
+        gallery_draw(&g);
+    }
     puts("PASS UI renderer bounds, fonts, theme, focus, activation, disabled/reset/capture and 10000 event sequences");
     return 0;
 }
