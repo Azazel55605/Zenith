@@ -9,6 +9,7 @@ static void palette(struct settings_app *a){
         const unsigned int *p=a->state.palette[a->mode][a->accent];
         for(int i=0;i<6;i++)a->ui.swatches[i]=a->state.palette[a->mode][i][6];
         a->ui.theme=(struct zui_theme){p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]};
+        a->ui.theme_preview=a->mode!=a->state.active_mode;
     }
     a->ui.full_background=(a->effects&5)==5;
     a->ui.dirty=1;
@@ -70,6 +71,7 @@ void settings_theme(const struct settings_app *a,struct zui *u){
         const unsigned int *p=a->state.palette[a->mode][a->accent];
         for(int i=0;i<6;i++)u->swatches[i]=a->state.palette[a->mode][i][6];
         u->theme=(struct zui_theme){p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]};
+        u->theme_preview=a->mode!=a->state.active_mode;
     }
     u->full_background=(a->effects&5)==5;u->dirty=1;
 }

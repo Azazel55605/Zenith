@@ -33,7 +33,7 @@ struct zui_workspace zui_workspace_begin(struct zui *u,int side){
     zui_clip(u,(struct zui_rect){0,0,u->width,u->height});
     struct zui_workspace w={{12,12,side,u->height-24},{side+24,12,u->width-side-36,u->height-24}};
     if(side<=0)w.content=(struct zui_rect){12,12,u->width-24,u->height-24};
-    if(u->foreground&&u->full_background){
+    if(u->foreground&&u->full_background&&!u->theme_preview){
         /* One base material continues the host title bar through the sidebar.
          * Only the rounded detail inset is layered over it: no rectangular underlay. */
         zui_material_surface(u,(struct zui_rect){0,0,u->width,u->height},0,ZUI_SURFACE_CONTENT,2);
@@ -54,7 +54,7 @@ void zui_begin_material_frame(struct zui *u){
     for(int i=0;i<u->width*u->height;i++)u->pixels[i]=0;
 }
 int zui_material_surface(struct zui *u,struct zui_rect r,int radius,int role,int effect){
-    if(!u->foreground||u->material_count>=8||(!zui_backdrop_candidate(role)&&!(u->full_background&&role==ZUI_SURFACE_CONTENT))||effect<0||effect>2||
+    if(!u->foreground||u->theme_preview||u->material_count>=8||(!zui_backdrop_candidate(role)&&!(u->full_background&&role==ZUI_SURFACE_CONTENT))||effect<0||effect>2||
        radius<0||radius>24||r.x<0||r.y<0||r.w<1||r.h<1||(long)r.x+r.w>u->width||(long)r.y+r.h>u->height||radius>min(r.w,r.h)/2)return 0;
     long area=(long)r.w*r.h;
     for(int i=0;i<u->material_count;i++){

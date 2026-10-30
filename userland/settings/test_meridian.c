@@ -147,6 +147,13 @@ int main(int argc,char **argv){
     int apply=find_id(900+ZUI_FOOTER_APPLY);assert(apply>=0);struct zui_rect r=zui_control_area(&app.ui,apply);
     assert(app.ui.pixels[(r.y+r.h/2)*app.ui.width+r.x+4]>>24==255);
     for(int i=0;i<app.ui.width*app.ui.height;i++){unsigned int c=app.ui.pixels[i],a=c>>24;assert((c&255)<=a&&((c>>8)&255)<=a&&((c>>16)&255)<=a);}
+    /* The host tints materials with the active theme, so a preview of the other mode paints its own opaque surfaces. */
+    assert(app.ui.material_count>0);
+    unsigned int live_mode=app.colors.mode;
+    settings_preview(&app.colors,!live_mode,app.colors.accent,app.colors.effects,app.colors.translucency);meridian_refresh(&app);draw();
+    assert(app.ui.material_count==0);assert(app.ui.pixels[100*app.ui.width+4]>>24==255);
+    settings_reset(&app.colors);meridian_refresh(&app);draw();
+    assert(app.colors.mode==live_mode&&app.ui.material_count>0);
     app.ui.foreground=0;material_saved=0;meridian_refresh(&app);
     if(argc==2){
         const char *shots[]={"quick.overview","style.colors","input.keyboard","network.connections","devices.bluetooth"};

@@ -35,6 +35,7 @@ struct zui {
     int focus_visible; /* last focus move came from the keyboard: draw the ring */
     int hover,hover_supported,pointer_x,pointer_y; /* hover: control under the pointer or -1 */
     int foreground,material_count,full_background;
+    int theme_preview; /* theme differs from the host's, whose tint would mismatch: no materials */
     struct zenith_material_region materials[8];
 };
 /* Returns 0 for invalid dimensions/buffer; caller supplies width*height pixels. */

@@ -21,10 +21,10 @@ static void refresh_information(struct meridian *a){
 }
 /* The draft palette follows the colors model; repaint only when it really changed. */
 static void sync_theme(struct meridian *a){
-    struct zui *u=&a->ui;struct zui_theme theme=u->theme;unsigned int swatches[6];int background=u->full_background,dirty=u->dirty;
+    struct zui *u=&a->ui;struct zui_theme theme=u->theme;unsigned int swatches[6];int background=u->full_background,preview=u->theme_preview,dirty=u->dirty;
     for(int i=0;i<6;i++)swatches[i]=u->swatches[i];
     settings_theme(&a->colors,u);
-    int same_theme=background==u->full_background;
+    int same_theme=background==u->full_background&&preview==u->theme_preview;
     const unsigned int *x=(const unsigned int *)&theme,*y=(const unsigned int *)&u->theme;
     for(unsigned int i=0;i<sizeof(theme)/sizeof(unsigned int);i++)if(x[i]!=y[i])same_theme=0;
     for(int i=0;i<6;i++)if(swatches[i]!=u->swatches[i])same_theme=0;
