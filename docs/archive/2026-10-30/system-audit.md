@@ -27,3 +27,12 @@ whether it was reproduced or only read from source.
 | Low | System window hard-codes version 0.1; About reports the kernel version as not recorded | Observed | U5 |
 | Low | Below-the-fold form controls cannot be reached with Tab until scrolled | Known from stage 2 | U1 |
 | Low | Hardware exceptions from user mode such as NMI are treated as that program's fault | Source | U6 |
+
+## Release qualification
+
+Unchanged source `cdba28a` passed fresh unsigned acceptance (`obj/s5-qualified`, four
+native jobs): 352 controller tests, host tests and all ten native gates, including kernel
+update 533.1s and native processes 687.4s. This covers the selector correction, stage 3,
+icons, restyle and power-off. Tags pushed at that commit: `kernel/v0.0.30`,
+`zenith-icons/v0.1.0`, `zenith-style/v0.2.0`, `zenith-settings/v0.5.0`,
+`zenith-desktop-tools/v0.3.0`. Distributor and installed VMware acceptance are pending.
