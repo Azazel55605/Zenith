@@ -21,7 +21,8 @@ struct zui;
 int zui_surface(struct zui *ui,struct zui_rect rect,int radius,int role);
 int zui_backdrop_candidate(int role);
 enum { ZUI_BUTTON=1,ZUI_TOGGLE=2,ZUI_CHOICE=3,ZUI_SEGMENT=4,ZUI_SWATCH=5,ZUI_NAVIGATION=6 };
-/* icon/detail/no_chevron: optional ZUI_NAVIGATION decorations painted with the row. */
+/* icon/detail/no_chevron: optional ZUI_NAVIGATION decorations painted with the row;
+ * a ZUI_BUTTON with an icon is drawn as a field (leading label, trailing 16 px icon). */
 struct zui_control { int id,kind,enabled,value,swatch; struct zui_rect rect,clip; const char *label,*icon,*detail; int no_chevron; };
 struct zui {
     unsigned int *pixels; int width,height;

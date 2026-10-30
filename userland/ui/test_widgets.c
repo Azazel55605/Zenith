@@ -68,27 +68,27 @@ static void list_tests(void){
 static void combo_tests(void){
     struct zui u;assert(zui_init(&u,px,800,600));u.window_focused=1;int n=20;
     struct zui_combo c={0};c.id=50;c.popup.base_id=2000;c.value=3;
-    zui_combo_draw(&u,&c,(struct zui_rect){100,560,200,36},n,rows,&n);
+    zui_combo_draw(&u,&c,(struct zui_rect){100,560,200,36},n,rows,&n);zui_combo_popup(&u,&c,n,rows,&n);
     struct zenith_gui_event d={Z_GUI_DOWN,1,150,570,0,0},up={Z_GUI_UP,1,150,570,0,0};
     zui_event(&u,&d);assert(zui_combo_event(&u,&c,&up,rows,&n)==0&&c.open);
     assert(c.popup.selected==3);
-    u.count=0;zui_combo_draw(&u,&c,(struct zui_rect){100,560,200,36},n,rows,&n);
+    u.count=0;zui_combo_draw(&u,&c,(struct zui_rect){100,560,200,36},n,rows,&n);zui_combo_popup(&u,&c,n,rows,&n);
     assert(c.panel.y+c.panel.h<=560&&c.panel.y>=0&&c.panel.h==328);   /* opens upward */
     struct zenith_gui_event k={Z_GUI_KEY,0,0,0,0,8};zui_combo_event(&u,&c,&k,rows,&n);
     k.extra=2;assert(zui_combo_event(&u,&c,&k,rows,&n)==5&&!c.open&&c.value==4);
-    u.count=0;zui_combo_draw(&u,&c,(struct zui_rect){100,560,200,36},n,rows,&n);
+    u.count=0;zui_combo_draw(&u,&c,(struct zui_rect){100,560,200,36},n,rows,&n);zui_combo_popup(&u,&c,n,rows,&n);
     zui_event(&u,&d);zui_combo_event(&u,&c,&up,rows,&n);assert(c.open);
     k.extra=1;assert(zui_combo_event(&u,&c,&k,rows,&n)==0&&!c.open&&c.value==4); /* Esc keeps value */
     /* Opens downward with room below; a click outside the panel cancels. */
     c=(struct zui_combo){0};c.id=51;c.popup.base_id=3000;u.count=0;
-    zui_combo_draw(&u,&c,(struct zui_rect){100,40,200,36},n,rows,&n);
+    zui_combo_draw(&u,&c,(struct zui_rect){100,40,200,36},n,rows,&n);zui_combo_popup(&u,&c,n,rows,&n);
     struct zenith_gui_event d2={Z_GUI_DOWN,1,150,50,0,0},u2={Z_GUI_UP,1,150,50,0,0};
     zui_event(&u,&d2);zui_combo_event(&u,&c,&u2,rows,&n);assert(c.open);
-    u.count=0;zui_combo_draw(&u,&c,(struct zui_rect){100,40,200,36},n,rows,&n);assert(c.panel.y==80);
+    u.count=0;zui_combo_draw(&u,&c,(struct zui_rect){100,40,200,36},n,rows,&n);zui_combo_popup(&u,&c,n,rows,&n);assert(c.panel.y==80);
     struct zenith_gui_event out={Z_GUI_UP,1,700,500,0,0};
     assert(zui_combo_event(&u,&c,&out,rows,&n)==0&&!c.open&&c.value==0);
     c.value=15;zui_event(&u,&d2);zui_combo_event(&u,&c,&u2,rows,&n);
-    u.count=0;zui_combo_draw(&u,&c,(struct zui_rect){100,40,200,36},n,rows,&n);
+    u.count=0;zui_combo_draw(&u,&c,(struct zui_rect){100,40,200,36},n,rows,&n);zui_combo_popup(&u,&c,n,rows,&n);
     assert(15*40>=c.popup.scroll.offset&&15*40+40<=c.popup.scroll.offset+c.panel.h-8); /* selection visible */
 }
 static void form_tests(void){
@@ -106,6 +106,20 @@ static void form_tests(void){
     /* Scrolled origin: rows follow the content top. */
     zui_form_begin(&f,(struct zui_rect){0,100,1000,400},-300,1000);
     r=zui_form_row(&u,&f,"Mode",0,200,36);assert(r.y==-300&&zui_form_height(&f,-300)==60);
+}
+static void overlay_order_tests(void){
+    /* Frame order: page controls, zui_draw_controls, then overlays paint on top. */
+    struct zui u;assert(zui_init(&u,px,800,600));u.window_focused=1;int n=20;
+    struct zui_combo c={0};c.id=50;c.popup.base_id=2000;c.open=1;
+    zui_combo_draw(&u,&c,(struct zui_rect){100,40,200,36},n,rows,&n);
+    assert(u.controls[0].icon);                                       /* chevron belongs to the field */
+    zui_add(&u,7,ZUI_BUTTON,(struct zui_rect){100,90,200,300},"under",1,1); /* selected: accent fill */
+    zui_draw_controls(&u);zui_combo_popup(&u,&c,n,rows,&n);
+    int accent=0;for(int y=c.panel.y+8;y<c.panel.y+c.panel.h-8;y++)accent+=px[y*800+290]==u.theme.accent;
+    assert(accent==0);                                                /* popup covers the page button */
+    u.count=0;zui_add(&u,7,ZUI_BUTTON,(struct zui_rect){0,0,800,600},"under",1,1);zui_draw_controls(&u);
+    struct zui_dialog d={1,400,"Title","Message",{"OK","Cancel"},2};zui_dialog_draw(&u,&d);
+    assert(px[10*800+10]!=u.theme.accent);                            /* dimmed after page paint */
 }
 static int find(const struct zui *u,int id){for(int i=0;i<u->count;i++)if(u->controls[i].id==id)return i;return -1;}
 static void footer_dialog_tests(void){
@@ -136,6 +150,7 @@ int main(void){
     combo_tests();
     form_tests();
     footer_dialog_tests();
+    overlay_order_tests();
     puts("PASS widget scroll area, list view, combo box, form layout, footer and dialog");
     return 0;
 }

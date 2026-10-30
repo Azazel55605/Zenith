@@ -2,7 +2,12 @@
 #define ZENITH_UI_WIDGETS_H
 #include "ui.h"
 /* Composite widgets over the immediate-mode toolkit. Applications own every state
- * struct below; the toolkit never allocates or keeps pointers between frames. */
+ * struct below; the toolkit never allocates or keeps pointers between frames.
+ *
+ * Frame order: lay out the page (including combo fields), call zui_draw_controls,
+ * then draw overlays (zui_combo_popup, zui_dialog_draw). Overlays paint their own
+ * surface and controls, so page controls never cover them. Route events to an open
+ * dialog first, then open combos, then page widgets. */
 
 /* Vertical scroll area. Wheel: -code/2 px per event, clamped to +/-120. The overlay
  * scrollbar appears only on overflow; the thumb drags and the track pages. */
@@ -28,12 +33,13 @@ void zui_list_draw(struct zui *ui,struct zui_list *l,struct zui_rect rect,int co
  * Up/Down/Home/End, first-letter type-ahead and the embedded scroll area. */
 int zui_list_event(struct zui *ui,struct zui_list *l,const struct zenith_gui_event *e,zui_list_source items,void *context);
 
-/* Combo box: a closed field (ZUI_BUTTON with id) showing the current item and a
- * chevron; when open, a popup list of up to 8 rows kept inside the window (below the
- * field when it fits, otherwise above). Draw the combo after other controls so the
- * popup is on top. */
+/* Combo box: a field (ZUI_BUTTON with id) showing the current item and a chevron;
+ * when open, a popup list of up to 8 rows kept inside the window (below the field
+ * when it fits, otherwise above). zui_combo_draw registers the field during layout;
+ * zui_combo_popup is an overlay drawn after zui_draw_controls. */
 struct zui_combo { int id,open,value; struct zui_list popup; struct zui_rect field,panel; };
 void zui_combo_draw(struct zui *ui,struct zui_combo *c,struct zui_rect field,int count,zui_list_source items,void *context);
+void zui_combo_popup(struct zui *ui,struct zui_combo *c,int count,zui_list_source items,void *context);
 /* Returns value+1 when a choice is committed. Esc or a click outside cancels. An open
  * combo consumes pointer and key events. */
 int zui_combo_event(struct zui *ui,struct zui_combo *c,const struct zenith_gui_event *e,zui_list_source items,void *context);
@@ -58,7 +64,7 @@ enum { ZUI_FOOTER_HELP=1,ZUI_FOOTER_DEFAULTS=2,ZUI_FOOTER_RESET=3,ZUI_FOOTER_APP
 int zui_footer(struct zui *ui,struct zui_rect bar,int base_id,int help,int changed,int at_defaults);
 
 /* Modal dialog over a dimmed window with two or three buttons (ids base_id+1..count).
- * Draw it last in a frame. While open it owns input: focus starts on button 1 and
+ * An overlay: draw it after zui_draw_controls. While open it owns input: focus starts on button 1 and
  * Tab stays within the dialog, Esc chooses the last button (Cancel), and controls
  * behind it cannot activate. */
 struct zui_dialog { int open,base_id; const char *title,*message,*labels[3]; int count; };

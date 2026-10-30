@@ -90,17 +90,22 @@ int zui_list_event(struct zui *u,struct zui_list *l,const struct zenith_gui_even
     return 0;
 }
 void zui_combo_draw(struct zui *u,struct zui_combo *c,struct zui_rect f,int count,zui_list_source items,void *ctx){
-    struct zui_list_item it={0};c->field=f;
+    struct zui_list_item it={0};c->field=f;(void)count;
     const char *label=items(ctx,c->value,&it)&&it.label?it.label:"";
-    zui_add(u,c->id,ZUI_BUTTON,f,label,0,1);
-    zui_icon(u,"chevron-down",f.x+f.w-28,f.y+(f.h-16)/2,16,ZUI_ICON_TEXT);
+    if(zui_add(u,c->id,ZUI_BUTTON,f,label,0,1))u->controls[u->count-1].icon="chevron-down";
+}
+void zui_combo_popup(struct zui *u,struct zui_combo *c,int count,zui_list_source items,void *ctx){
     if(!c->open)return;
+    struct zui_rect f=c->field;
     int rows=count<8?count:8,h=rows*40+8;
     int y=f.y+f.h+4<=u->height-h?f.y+f.h+4:f.y-4-h;
     if(y<0)y=0;
     c->panel=(struct zui_rect){f.x,y,f.w,h};
+    struct zui_rect saved=u->clip;zui_clip(u,(struct zui_rect){0,0,u->width,u->height});
     zui_surface(u,c->panel,10,ZUI_SURFACE_POPOVER);
     zui_list_draw(u,&c->popup,(struct zui_rect){f.x+4,y+4,f.w-8,h-8},count,items,ctx);
+    zui_draw_range(u,c->popup.first_control,c->popup.visible_controls);
+    u->clip=saved;
 }
 int zui_combo_event(struct zui *u,struct zui_combo *c,const struct zenith_gui_event *e,zui_list_source items,void *ctx){
     if(!c->open){
@@ -169,9 +174,11 @@ void zui_dialog_draw(struct zui *u,const struct zui_dialog *d){
     zui_text(u,x+24,y+20,d->title,len256(d->title),&zui_label,u->theme.text);
     zui_text(u,x+24,y+52,d->message,len256(d->message),&zui_body,u->theme.secondary);
     int bx=x+w-24;
+    int first=u->count;
     for(int i=d->count-1;i>=0;i--){
         bx-=104;zui_add(u,d->base_id+i+1,ZUI_BUTTON,(struct zui_rect){bx,y+h-60,96,36},d->labels[i],i==0,1);bx-=8;
     }
+    zui_draw_range(u,first,u->count-first);
     if(!dialog_control(u,d,u->focus))
         for(int i=0;i<u->count;i++)if(u->controls[i].id==d->base_id+1){u->focus=i;break;}
 }

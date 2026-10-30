@@ -320,6 +320,11 @@ void zui_draw_range(struct zui *u,int first,int count){
         }
         u->clip=intersect(intersect(saved,viewport(u,c)),r);
         int tx=r.x+(r.w-zui_measure(c->label,length(c->label),&zui_label))/2,ty=r.y+(r.h-zui_label.height)/2;
+        if(c->kind==ZUI_BUTTON&&c->icon){ /* field style: leading label, trailing icon */
+            tx=r.x+12;
+            zui_icon(u,c->icon,r.x+r.w-28,r.y+(r.h-16)/2,16,c->enabled?ZUI_ICON_TEXT:ZUI_ICON_DISABLED);
+            u->clip=intersect(u->clip,(struct zui_rect){r.x,r.y,r.w-40,r.h});
+        }
         if(c->kind==ZUI_TOGGLE||c->kind==ZUI_NAVIGATION){
             tx=r.x+(c->kind==ZUI_NAVIGATION?(c->icon?44:12):0);
             if(c->kind==ZUI_NAVIGATION&&c->icon)zui_icon(u,c->icon,r.x+10,r.y+(r.h-24)/2,24,c->enabled?ZUI_ICON_NORMAL:ZUI_ICON_DISABLED);
