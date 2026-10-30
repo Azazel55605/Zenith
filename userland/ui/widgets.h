@@ -37,4 +37,17 @@ void zui_combo_draw(struct zui *ui,struct zui_combo *c,struct zui_rect field,int
 /* Returns value+1 when a choice is committed. Esc or a click outside cancels. An open
  * combo consumes pointer and key events. */
 int zui_combo_event(struct zui *ui,struct zui_combo *c,const struct zenith_gui_event *e,zui_list_source items,void *context);
+
+/* Form layout: a column centered in area, at most 640 px wide. Wide windows put
+ * right-aligned labels in a 40% column beside the control; windows narrower than
+ * 720 px stack the label above it. Help text goes below the control. content_top is
+ * the scrolled y origin from zui_scroll_begin. */
+struct zui_form { struct zui_rect area; int top,y,label_w,narrow,x,w; };
+void zui_form_begin(struct zui_form *f,struct zui_rect area,int content_top,int window_width);
+/* Draws a section heading with a rule; returns its content y. */
+int zui_form_section(struct zui *ui,struct zui_form *f,const char *title);
+/* Draws the label (and help) and returns the control rect; width is clamped. */
+struct zui_rect zui_form_row(struct zui *ui,struct zui_form *f,const char *label,const char *help,int control_w,int control_h);
+/* Laid-out height so far, for zui_scroll_end. */
+int zui_form_height(const struct zui_form *f,int content_top);
 #endif

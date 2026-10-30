@@ -83,10 +83,27 @@ static void combo_tests(void){
     u.count=0;zui_combo_draw(&u,&c,(struct zui_rect){100,40,200,36},n,rows,&n);
     assert(15*40>=c.popup.scroll.offset&&15*40+40<=c.popup.scroll.offset+c.panel.h-8); /* selection visible */
 }
+static void form_tests(void){
+    struct zui u;assert(zui_init(&u,px,800,600));struct zui_form f;
+    zui_form_begin(&f,(struct zui_rect){0,0,1000,600},0,1000);
+    assert(f.w==640&&f.x==180&&!f.narrow);
+    struct zui_rect r=zui_form_row(&u,&f,"Mode",0,200,36);
+    assert(r.x==f.x+f.label_w+16&&r.y==0&&r.w==200);
+    struct zui_rect r2=zui_form_row(&u,&f,"Accent","Help text",200,36);assert(r2.y>r.y+36);
+    int section=zui_form_section(&u,&f,"Effects");assert(section>r2.y+36);
+    zui_form_begin(&f,(struct zui_rect){0,0,600,600},0,600);assert(f.narrow&&f.w==600);
+    r=zui_form_row(&u,&f,"Mode",0,200,36);assert(r.x==f.x&&r.y==24);   /* label stacked above */
+    r=zui_form_row(&u,&f,"Wide",0,2000,36);assert(r.w==f.w);            /* control clamped */
+    assert(zui_form_height(&f,0)>r.y+36);
+    /* Scrolled origin: rows follow the content top. */
+    zui_form_begin(&f,(struct zui_rect){0,100,1000,400},-300,1000);
+    r=zui_form_row(&u,&f,"Mode",0,200,36);assert(r.y==-300&&zui_form_height(&f,-300)==60);
+}
 int main(void){
     scroll_tests();
     list_tests();
     combo_tests();
-    puts("PASS widget scroll area, list view and combo box");
+    form_tests();
+    puts("PASS widget scroll area, list view, combo box and form layout");
     return 0;
 }

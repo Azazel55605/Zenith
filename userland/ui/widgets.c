@@ -119,3 +119,33 @@ int zui_combo_event(struct zui *u,struct zui_combo *c,const struct zenith_gui_ev
     if(chosen){c->value=chosen-1;c->open=0;u->dirty=1;return chosen;}
     return 0;
 }
+void zui_form_begin(struct zui_form *f,struct zui_rect a,int top,int window_width){
+    f->area=a;f->top=top;f->y=top;f->narrow=window_width<720;
+    f->w=a.w<640?a.w:640;if(f->w<1)f->w=1;
+    f->x=a.x+(a.w-f->w)/2;f->label_w=f->narrow?0:f->w*2/5;
+}
+int zui_form_section(struct zui *u,struct zui_form *f,const char *title){
+    if(f->y>f->top)f->y+=16;
+    int at=f->y;
+    zui_text(u,f->x,f->y,title,len256(title),&zui_label,u->theme.text);
+    zui_fill(u,(struct zui_rect){f->x,f->y+26,f->w,1},u->theme.border);
+    f->y+=40;return at;
+}
+struct zui_rect zui_form_row(struct zui *u,struct zui_form *f,const char *label,const char *help,int cw,int ch){
+    int width=f->narrow?f->w:f->w-f->label_w-16;
+    if(cw>width)cw=width;
+    if(cw<1)cw=1;
+    if(ch<1)ch=1;
+    struct zui_rect r;
+    if(f->narrow){
+        zui_text(u,f->x,f->y,label,len256(label),&zui_label,u->theme.text);
+        r=(struct zui_rect){f->x,f->y+24,cw,ch};f->y+=24+ch;
+    }else{
+        int lw=zui_measure(label,len256(label),&zui_label);
+        zui_text(u,f->x+f->label_w-lw,f->y+(ch-zui_label.height)/2,label,len256(label),&zui_label,u->theme.text);
+        r=(struct zui_rect){f->x+f->label_w+16,f->y,cw,ch};f->y+=ch;
+    }
+    if(help){zui_text(u,r.x,f->y+4,help,len256(help),&zui_caption,u->theme.secondary);f->y+=22;}
+    f->y+=12;return r;
+}
+int zui_form_height(const struct zui_form *f,int top){return f->y-top+12;}
