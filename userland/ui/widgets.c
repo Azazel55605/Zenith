@@ -149,3 +149,50 @@ struct zui_rect zui_form_row(struct zui *u,struct zui_form *f,const char *label,
     f->y+=12;return r;
 }
 int zui_form_height(const struct zui_form *f,int top){return f->y-top+12;}
+int zui_footer(struct zui *u,struct zui_rect b,int base,int help,int changed,int at_defaults){
+    zui_fill(u,(struct zui_rect){b.x,b.y,b.w,1},u->theme.border);
+    int y=b.y+(b.h-36)/2,x=b.x+b.w-12;
+    x-=112;zui_add(u,base+ZUI_FOOTER_APPLY,ZUI_BUTTON,(struct zui_rect){x,y,112,36},"Apply",changed,changed);
+    x-=120;zui_add(u,base+ZUI_FOOTER_RESET,ZUI_BUTTON,(struct zui_rect){x,y,112,36},"Reset",0,changed);
+    x-=120;zui_add(u,base+ZUI_FOOTER_DEFAULTS,ZUI_BUTTON,(struct zui_rect){x,y,112,36},"Defaults",0,!at_defaults);
+    if(help)zui_add(u,base+ZUI_FOOTER_HELP,ZUI_BUTTON,(struct zui_rect){b.x+12,y,96,36},"Help",0,1);
+    return 56;
+}
+static int dialog_control(const struct zui *u,const struct zui_dialog *d,int index){
+    return index>=0&&index<u->count&&u->controls[index].id>d->base_id&&u->controls[index].id<=d->base_id+d->count;
+}
+void zui_dialog_draw(struct zui *u,const struct zui_dialog *d){
+    if(!d->open||d->count<1||d->count>3)return;
+    zui_clip(u,(struct zui_rect){0,0,u->width,u->height});
+    zui_round_alpha(u,(struct zui_rect){0,0,u->width,u->height},0,0x000000,120);
+    int w=u->width<440?u->width-24:416,h=168,x=(u->width-w)/2,y=(u->height-h)/2;
+    zui_surface(u,(struct zui_rect){x,y,w,h},12,ZUI_SURFACE_POPOVER);
+    zui_text(u,x+24,y+20,d->title,len256(d->title),&zui_label,u->theme.text);
+    zui_text(u,x+24,y+52,d->message,len256(d->message),&zui_body,u->theme.secondary);
+    int bx=x+w-24;
+    for(int i=d->count-1;i>=0;i--){
+        bx-=104;zui_add(u,d->base_id+i+1,ZUI_BUTTON,(struct zui_rect){bx,y+h-60,96,36},d->labels[i],i==0,1);bx-=8;
+    }
+    if(!dialog_control(u,d,u->focus))
+        for(int i=0;i<u->count;i++)if(u->controls[i].id==d->base_id+1){u->focus=i;break;}
+}
+int zui_dialog_event(struct zui *u,struct zui_dialog *d,const struct zenith_gui_event *e){
+    if(!d->open)return 0;
+    if(e->type==Z_GUI_KEY&&e->extra==1){d->open=0;u->dirty=1;return d->count;}
+    if(e->type==Z_GUI_KEY&&e->extra==4){
+        int first=-1;
+        for(int i=0;i<u->count;i++)if(dialog_control(u,d,i)){first=i;break;}
+        if(first<0)return 0;
+        int next=dialog_control(u,d,u->focus)?u->focus+((e->modifiers&1)?-1:1):first;
+        if(next<first)next=first+d->count-1;
+        if(next>=first+d->count)next=first;
+        u->focus=next;u->dirty=1;return 0;
+    }
+    int id=zui_event(u,e);
+    if(e->type==Z_GUI_DOWN&&!dialog_control(u,d,u->pressed)){
+        u->pressed=-1;
+        for(int i=0;i<u->count;i++)if(u->controls[i].id==d->base_id+1){u->focus=i;break;}
+    }
+    if(id>d->base_id&&id<=d->base_id+d->count){d->open=0;u->dirty=1;return id-d->base_id;}
+    return 0;
+}

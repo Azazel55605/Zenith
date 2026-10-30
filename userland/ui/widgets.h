@@ -50,4 +50,19 @@ int zui_form_section(struct zui *ui,struct zui_form *f,const char *title);
 struct zui_rect zui_form_row(struct zui *ui,struct zui_form *f,const char *label,const char *help,int control_w,int control_h);
 /* Laid-out height so far, for zui_scroll_end. */
 int zui_form_height(const struct zui_form *f,int content_top);
+
+/* Uniform footer: [Help] ... Defaults · Reset · Apply, ids base_id+ZUI_FOOTER_*.
+ * Apply/Reset are enabled only when changed; Defaults only when not at defaults.
+ * Returns the bar height (56). */
+enum { ZUI_FOOTER_HELP=1,ZUI_FOOTER_DEFAULTS=2,ZUI_FOOTER_RESET=3,ZUI_FOOTER_APPLY=4 };
+int zui_footer(struct zui *ui,struct zui_rect bar,int base_id,int help,int changed,int at_defaults);
+
+/* Modal dialog over a dimmed window with two or three buttons (ids base_id+1..count).
+ * Draw it last in a frame. While open it owns input: focus starts on button 1 and
+ * Tab stays within the dialog, Esc chooses the last button (Cancel), and controls
+ * behind it cannot activate. */
+struct zui_dialog { int open,base_id; const char *title,*message,*labels[3]; int count; };
+void zui_dialog_draw(struct zui *ui,const struct zui_dialog *d);
+/* Returns the chosen button number (1..count) and closes, else 0. */
+int zui_dialog_event(struct zui *ui,struct zui_dialog *d,const struct zenith_gui_event *e);
 #endif

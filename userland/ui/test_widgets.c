@@ -99,11 +99,35 @@ static void form_tests(void){
     zui_form_begin(&f,(struct zui_rect){0,100,1000,400},-300,1000);
     r=zui_form_row(&u,&f,"Mode",0,200,36);assert(r.y==-300&&zui_form_height(&f,-300)==60);
 }
+static int find(const struct zui *u,int id){for(int i=0;i<u->count;i++)if(u->controls[i].id==id)return i;return -1;}
+static void footer_dialog_tests(void){
+    struct zui u;assert(zui_init(&u,px,800,600));u.window_focused=1;
+    for(int changed=0;changed<2;changed++)for(int def=0;def<2;def++){
+        u.count=0;assert(zui_footer(&u,(struct zui_rect){0,544,800,56},300,0,changed,def)==56);
+        assert(find(&u,301)<0);
+        assert(u.controls[find(&u,304)].enabled==changed&&u.controls[find(&u,303)].enabled==changed);
+        assert(u.controls[find(&u,302)].enabled==!def);
+    }
+    u.count=0;assert(zui_footer(&u,(struct zui_rect){0,544,800,56},300,1,0,1)==56&&find(&u,301)>=0);
+    u.count=0;u.focus=-1;struct zui_dialog d={1,400,"Unsaved changes","Apply them?",{"Apply","Discard","Cancel"},3};
+    zui_add(&u,9,ZUI_BUTTON,(struct zui_rect){0,0,40,40},"behind",0,1);u.focus=0;
+    zui_dialog_draw(&u,&d);assert(u.controls[u.focus].id==401);       /* default action focused */
+    struct zenith_gui_event tab={Z_GUI_KEY,0,0,0,0,4};
+    for(int i=0;i<7;i++){zui_dialog_event(&u,&d,&tab);assert(u.controls[u.focus].id>=401);}
+    struct zenith_gui_event dn={Z_GUI_DOWN,1,10,10,0,0},up={Z_GUI_UP,1,10,10,0,0};
+    assert(zui_dialog_event(&u,&d,&dn)==0&&u.controls[u.focus].id==401&&u.pressed==-1); /* focus stays */
+    zui_event(&u,&dn);assert(zui_dialog_event(&u,&d,&up)==0&&d.open);   /* behind is blocked */
+    struct zenith_gui_event esc={Z_GUI_KEY,0,0,0,0,1};assert(zui_dialog_event(&u,&d,&esc)==3&&!d.open);
+    d.open=1;u.count=0;zui_add(&u,9,ZUI_BUTTON,(struct zui_rect){0,0,40,40},"behind",0,1);u.focus=0;
+    zui_dialog_draw(&u,&d);struct zenith_gui_event enter={Z_GUI_KEY,0,0,0,0,2};
+    assert(zui_dialog_event(&u,&d,&enter)==1&&!d.open);
+}
 int main(void){
     scroll_tests();
     list_tests();
     combo_tests();
     form_tests();
-    puts("PASS widget scroll area, list view, combo box and form layout");
+    footer_dialog_tests();
+    puts("PASS widget scroll area, list view, combo box, form layout, footer and dialog");
     return 0;
 }
