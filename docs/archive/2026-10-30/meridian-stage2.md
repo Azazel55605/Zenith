@@ -2,7 +2,7 @@
 
 Owners: S1/D1/U1 in the [master roadmap](../../ROADMAP.md);
 [design](../../MERIDIAN-BEHAVIOR.md), [plan and departures](../../components/MERIDIAN-STAGE2.md).
-Local evidence only: no Settings release, distributor build or installed acceptance.
+Distributor build and installed acceptance are pending.
 
 ## Change
 
@@ -29,3 +29,13 @@ covers pointer and keyboard previews, dialog Cancel, material on/off, whole-app
 background, keyboard combo apply with CLI parity, search, wheel stress, maximize/restore,
 reboot persistence, independent upgrade, permissions and the ext2 audit. Evidence is
 retained under ignored `obj/s2-gate`.
+
+## Clean-source release qualification
+
+Unchanged source `2a80ce2` passed fresh unsigned acceptance
+(`deploy/distributor/validate.py --keep obj/s2-qualified`, four native jobs): 352
+controller tests, host tests, kernel build, runtime adapter, package tool and all ten
+native gates (login 228.7s, Settings 283.9s, network 282.9s, CLI 256.6s, repository
+560.7s, materials 113.6s, system app styling 39.4s, graphics 189.6s, native processes
+736.4s, kernel update 764.4s; overlapping, not summed). Tag `zenith-settings/v0.4.0` was
+pushed at `2a80ce2`.
