@@ -52,14 +52,14 @@ void zui_list_draw(struct zui *u,struct zui_list *l,struct zui_rect r,int count,
     int top=zui_scroll_begin(u,&l->scroll,r);
     l->first_control=u->count;l->visible_controls=0;
     for(int i=l->scroll.offset/h;i<l->count;i++){
-        int y=top+i*h;if(y>=r.y+r.h)break;
+        int y=top+3+i*h;if(y>=r.y+r.h)break;
         struct zui_list_item it;if(!items(ctx,i,&it))continue;
-        struct zui_rect row={r.x,y,r.w-12,h-4};
+        struct zui_rect row={r.x+3,y,r.w-15,h-4};
         if(!zui_add(u,l->base_id+i,ZUI_NAVIGATION,row,it.label?it.label:"",i==l->selected,it.enabled))continue;
         struct zui_control *c=&u->controls[u->count-1];
         c->icon=it.icon;c->detail=it.subtitle;c->no_chevron=!it.chevron;l->visible_controls++;
     }
-    zui_scroll_end(u,&l->scroll,(int)((long)l->count*h>0x3fffffff?0x3fffffff:(long)l->count*h));
+    zui_scroll_end(u,&l->scroll,l->count?(int)((long)l->count*h+6>0x3fffffff?0x3fffffff:(long)l->count*h+6):0);
 }
 static int enabled_at(zui_list_source items,void *ctx,int i){struct zui_list_item it;return items(ctx,i,&it)&&it.enabled;}
 static int lower(int c){return c>='A'&&c<='Z'?c+32:c;}
@@ -86,7 +86,7 @@ int zui_list_event(struct zui *u,struct zui_list *l,const struct zenith_gui_even
             if(items(ctx,i,&it)&&it.enabled&&it.label&&lower((unsigned char)it.label[0])==lower(e->code)){l->selected=i;break;}
         }
     }
-    if(l->selected!=old){zui_scroll_reveal(&l->scroll,l->selected*h,h);u->dirty=1;}
+    if(l->selected!=old){zui_scroll_reveal(&l->scroll,l->selected*h,h+6);u->dirty=1;}
     return 0;
 }
 void zui_combo_draw(struct zui *u,struct zui_combo *c,struct zui_rect f,int count,zui_list_source items,void *ctx){
@@ -97,7 +97,7 @@ void zui_combo_draw(struct zui *u,struct zui_combo *c,struct zui_rect f,int coun
 void zui_combo_popup(struct zui *u,struct zui_combo *c,int count,zui_list_source items,void *ctx){
     if(!c->open)return;
     struct zui_rect f=c->field;
-    int rows=count<8?count:8,h=rows*40+8;
+    int rows=count<8?count:8,h=rows*40+14;
     int y=f.y+f.h+4<=u->height-h?f.y+f.h+4:f.y-4-h;
     if(y<0)y=0;
     c->panel=(struct zui_rect){f.x,y,f.w,h};
@@ -192,7 +192,7 @@ int zui_dialog_event(struct zui *u,struct zui_dialog *d,const struct zenith_gui_
         int next=dialog_control(u,d,u->focus)?u->focus+((e->modifiers&1)?-1:1):first;
         if(next<first)next=first+d->count-1;
         if(next>=first+d->count)next=first;
-        u->focus=next;u->dirty=1;return 0;
+        u->focus=next;u->focus_visible=1;u->dirty=1;return 0;
     }
     int id=zui_event(u,e);
     if(e->type==Z_GUI_DOWN&&!dialog_control(u,d,u->pressed)){

@@ -20,6 +20,7 @@ struct meridian {
     struct zui_input search;
     char query[64];
     int page,search_focus,closing;
+    int focus_row; /* sidebar row to focus next frame: -1 none, -2 the highlighted row */
     int pending,pending_row,pending_page;
     int recent[6],recent_count;
     long (*information_read)(unsigned int,struct zenith_settings_information *);

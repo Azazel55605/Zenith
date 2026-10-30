@@ -70,7 +70,7 @@ int meridian_init(struct meridian *a,unsigned int *pixels,struct settings_backen
     *a=(struct meridian){0};
     if(!settings_init(&a->colors,pixels,backend)||!zui_init(&a->ui,pixels,600,480)||!zui_input_init(&a->search,a->query,sizeof(a->query)))return 0;
     binding_init(&a->bindings,&a->colors,0,0,backend.dirty);
-    nav_init(&a->nav,0);a->sidebar.base_id=ID_ROWS;a->combo.id=ID_COMBO;a->combo.popup.base_id=ID_COMBO_ROWS;
+    a->focus_row=-1;nav_init(&a->nav,0);a->sidebar.base_id=ID_ROWS;a->combo.id=ID_COMBO;a->combo.popup.base_id=ID_COMBO_ROWS;
     remember(a,0);
     if(page&&!meridian_open(a,page))return 0;
     sync_theme(a);return 1;
@@ -242,6 +242,7 @@ void meridian_draw(struct meridian *a){
     draw_page(a,u,w.content);
     zui_clip(u,(struct zui_rect){0,0,u->width,u->height});
     u->focus=focus?index_of(u,focus):-1;u->pressed=pressed?index_of(u,pressed):-1;
+    if(a->focus_row!=-1){u->focus=index_of(u,ID_ROWS+(a->focus_row==-2?a->sidebar.selected:a->focus_row));a->focus_row=-1;}
     zui_draw_controls(u);
     struct zui_rect r=search_rect(w.sidebar);
     zui_input_draw(u,r,&a->search,a->search_focus&&u->window_focused);
@@ -285,6 +286,7 @@ static void resolve(struct meridian *a,int button){
     else if(pending==PENDING_PAGE)request_page(a,a->pending_page);
 }
 static void back(struct meridian *a){
+    a->ui.focus=-1;
     if(a->nav.mode==NAV_SEARCH)clear_search(a);
     else if(a->nav.mode==NAV_PAGES){nav_back(&a->nav);a->sidebar.scroll.offset=0;}
     a->ui.dirty=1;
@@ -334,10 +336,18 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     if(e->type==Z_GUI_DOWN)a->search_focus=0;
     if(e->type==Z_GUI_KEY&&(e->extra==1||(e->modifiers==4&&e->extra==5)||(!e->modifiers&&e->extra==3))){back(a);return;}
     int focused=u->focus>=0&&u->focus<u->count?u->controls[u->focus].id:0,on_rows=focused>=ID_ROWS&&focused<ID_ROWS+MERIDIAN_PAGE_COUNT+1;
+    if(on_rows&&e->type==Z_GUI_KEY)a->sidebar.selected=focused-ID_ROWS;
     if(e->type!=Z_GUI_KEY||on_rows){
         int row=zui_list_event(u,&a->sidebar,e,sidebar_rows,a);
-        if(row){u->pressed=-1;request_row(a,row-1);sync_theme(a);return;}
-        if(on_rows&&e->type==Z_GUI_KEY&&(e->extra==7||e->extra==8||e->extra==10||e->extra==11)){u->dirty=1;return;}
+        if(row){
+            /* Rows are replaced by id: never leave focus on whichever row inherits it. */
+            int mode=a->nav.mode,category=a->nav.category;
+            u->pressed=-1;request_row(a,row-1);
+            if(a->nav.mode!=mode||a->nav.category!=category){u->focus=-1;if(e->type==Z_GUI_KEY)a->focus_row=-2;}
+            else if(e->type==Z_GUI_KEY)a->focus_row=row-1;
+            sync_theme(a);return;
+        }
+        if(on_rows&&e->type==Z_GUI_KEY&&(e->extra==7||e->extra==8||e->extra==10||e->extra==11||(!e->extra&&e->code>32&&e->code<127))){a->focus_row=a->sidebar.selected;u->focus_visible=1;u->dirty=1;return;}
     }
     if(zui_scroll_event(u,&a->page_scroll,e))return;
     if(e->type==Z_GUI_KEY&&!e->modifiers&&!on_rows)page_keys(a,e);

@@ -206,6 +206,15 @@ int main(int argc,char **argv){
         assert(!event(Z_GUI_KEY,0,0,0,2,5)&&g.page==0&&g.ui.count==10&&g.ui.controls[0].id==1);
         gallery_draw(&g);
     }
+    { /* focus ring is keyboard-only */
+        static unsigned int px[100*60];struct zui b;assert(zui_init(&b,px,100,60));b.window_focused=1;
+        zui_add(&b,1,ZUI_BUTTON,(struct zui_rect){10,10,40,30},"f",0,1);
+        struct zenith_gui_event d={Z_GUI_DOWN,1,20,20,0,0},t={Z_GUI_KEY,0,0,0,0,4};
+        zui_fill(&b,b.clip,0x123456);zui_event(&b,&d);assert(b.focus==0&&!b.focus_visible);
+        zui_draw_controls(&b);assert(px[8*100+30]==0x123456);
+        zui_event(&b,&t);assert(b.focus_visible);zui_draw_controls(&b);assert(px[8*100+30]!=0x123456);
+        zui_event(&b,&d);assert(!b.focus_visible);
+    }
     puts("PASS UI renderer bounds, fonts, theme, focus, activation, disabled/reset/capture and 10000 event sequences");
     return 0;
 }

@@ -219,7 +219,7 @@ int zui_event(struct zui *u,const struct zenith_gui_event *e){
             cursor=cursor<0?((e->modifiers&1)?u->count-1:0):(cursor+((e->modifiers&1)?u->count-1:1))%u->count;
             if(u->controls[cursor].enabled){found=cursor;break;}
         }
-        u->focus=found;u->dirty=1;return 0;
+        u->focus=found;u->focus_visible=1;u->dirty=1;return 0;
     }
     if(e->type==Z_GUI_KEY&&!(e->modifiers&7)&&(e->extra==5||e->extra==6)&&u->focus>=0&&u->focus<u->count){
         int kind=u->controls[u->focus].kind;
@@ -227,7 +227,7 @@ int zui_event(struct zui *u,const struct zenith_gui_event *e){
             int step=e->extra==5?-1:1,at=u->focus;
             for(int k=0;k<u->count;k++){
                 at=(at+step+u->count)%u->count;
-                if(u->controls[at].kind==kind&&u->controls[at].enabled){u->focus=at;u->dirty=1;return u->controls[at].id;}
+                if(u->controls[at].kind==kind&&u->controls[at].enabled){u->focus=at;u->focus_visible=1;u->dirty=1;return u->controls[at].id;}
             }
         }
     }
@@ -235,7 +235,7 @@ int zui_event(struct zui *u,const struct zenith_gui_event *e){
         struct zui_control *c=&u->controls[u->focus];return c->enabled?c->id:0;
     }
     if(e->type==Z_GUI_DOWN){
-        u->pressed=-1;
+        u->pressed=-1;u->focus_visible=0;
         for(int i=u->count-1;i>=0;i--)if(u->controls[i].enabled&&hit(intersect(u->controls[i].rect,viewport(u,&u->controls[i])),e->x,e->y)){
             u->focus=i;u->pressed=i;break;
         }
@@ -287,7 +287,7 @@ void zui_draw_range(struct zui *u,int first,int count){
         int hovered=u->hover==i&&!pressed&&c->enabled;
         if(hovered&&!selected&&c->kind!=ZUI_SWATCH&&c->kind!=ZUI_TOGGLE)fill=blend(fill,u->theme.text,16);
         int radius=c->kind==ZUI_SWATCH?r.w/2:8;
-        if(u->window_focused&&u->focus==i&&c->enabled){
+        if(u->window_focused&&u->focus_visible&&u->focus==i&&c->enabled){
             zui_round(u,(struct zui_rect){r.x-3,r.y-3,r.w+6,r.h+6},radius+3,u->theme.accent);
             zui_round(u,(struct zui_rect){r.x-2,r.y-2,r.w+4,r.h+4},radius+2,u->theme.surface);
         }

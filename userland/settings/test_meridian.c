@@ -72,6 +72,17 @@ int main(int argc,char **argv){
     key('f',0,2);assert(app.search_focus);type("bluetooth");assert(app.nav.mode==NAV_SEARCH&&app.nav.result_count==1);
     key(0,2,0);assert(app.page==page_id("devices.bluetooth")&&!app.search_focus);
     key(0,1,0);assert(app.nav.mode==NAV_CATEGORIES);
+    /* Selector: a pointer leaves no focus ring and no focus on a row that replaced it. */
+    assert(meridian_open(&app,"input.mouse"));draw();
+    click_id(app.sidebar.base_id);assert(app.nav.mode==NAV_CATEGORIES&&!app.ui.focus_visible);
+    assert(app.ui.focus<0||app.ui.controls[app.ui.focus].id!=app.sidebar.base_id);
+    /* Keyboard: Tab onto rows, arrows move focus, Enter activates the focused row. */
+    key(0,4,0);assert(app.ui.focus_visible&&app.ui.controls[app.ui.focus].id==1002);
+    key(0,4,0);assert(app.ui.controls[app.ui.focus].id==app.sidebar.base_id);
+    key(0,8,0);key(0,8,0);assert(app.ui.controls[app.ui.focus].id==app.sidebar.base_id+2&&app.nav.category==1);
+    key(0,2,0);assert(app.nav.mode==NAV_PAGES&&app.nav.category==2&&app.page==page_id("devices.bluetooth"));
+    assert(app.ui.focus_visible&&app.ui.controls[app.ui.focus].id==app.sidebar.base_id+1);
+    key(0,3,0);assert(app.nav.mode==NAV_CATEGORIES);
     /* Colors draft, footer state and the unsaved-changes dialog on navigation. */
     assert(meridian_open(&app,"style.colors"));draw();
     assert(!enabled(900+ZUI_FOOTER_APPLY)&&!enabled(900+ZUI_FOOTER_RESET));

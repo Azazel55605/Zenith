@@ -33,6 +33,7 @@ struct zui {
     struct zui_rect clip;
     struct zui_control controls[ZUI_MAX_CONTROLS];
     int count,focus,pressed,window_focused,dirty;
+    int focus_visible; /* last focus move came from the keyboard: draw the ring */
     int hover,hover_supported; /* hover: control index under the pointer or -1 */
     int foreground,material_count,full_background;
     struct zenith_material_region materials[8];

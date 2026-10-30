@@ -43,7 +43,7 @@ static void list_tests(void){
     struct zui_list l={0};l.base_id=1000;int n=0;
     zui_list_draw(&u,&l,(struct zui_rect){0,0,300,400},n,rows,&n);assert(u.count==0);
     n=10000;u.count=0;zui_list_draw(&u,&l,(struct zui_rect){0,0,300,400},n,rows,&n);
-    assert(u.count==10&&l.scroll.content==400000);                    /* only visible rows */
+    assert(u.count==10&&l.scroll.content==400006);                    /* only visible rows */
     assert(u.controls[0].icon&&u.controls[1].no_chevron==0&&u.controls[0].no_chevron==0);
     { /* the row background must not cover the icon: draw after registration */
         struct zui v;assert(zui_init(&v,px,800,600));v.window_focused=1;zui_appearance(&v,0,1);
@@ -53,13 +53,16 @@ static void list_tests(void){
         assert(inked>20);                                              /* zap icon visible on row 0 */
     }
     struct zenith_gui_event k={Z_GUI_KEY,0,0,0,0,11};                  /* End */
-    zui_list_event(&u,&l,&k,rows,&n);assert(l.selected==9999&&l.scroll.offset==400000-400);
+    zui_list_event(&u,&l,&k,rows,&n);assert(l.selected==9999&&l.scroll.offset==400006-400);
     k.extra=10;zui_list_event(&u,&l,&k,rows,&n);assert(l.selected==0&&l.scroll.offset==0);
     k.extra=8;zui_list_event(&u,&l,&k,rows,&n);assert(l.selected==2);  /* Down skips disabled row 1 */
     k=(struct zenith_gui_event){Z_GUI_KEY,'b',0,0,0,0};zui_list_event(&u,&l,&k,rows,&n);
     assert(l.selected==4);                                             /* next enabled "Bravo" */
     k=(struct zenith_gui_event){Z_GUI_KEY,0,0,0,0,2};assert(zui_list_event(&u,&l,&k,rows,&n)==5);
     u.count=0;l.scroll.offset=0;zui_list_draw(&u,&l,(struct zui_rect){0,0,300,400},n,rows,&n);
+    { /* rows leave room for the 3 px focus ring inside the viewport */
+        struct zui_rect first=zui_control_area(&u,0);assert(first.x==3&&first.y==3&&first.h==u.controls[0].rect.h);
+    }
     struct zenith_gui_event d={Z_GUI_DOWN,1,50,85,0,0},up={Z_GUI_UP,1,50,85,0,0};
     zui_event(&u,&d);assert(zui_list_event(&u,&l,&up,rows,&n)==3);    /* third row clicked */
     struct zenith_gui_event dd={Z_GUI_DOWN,1,50,45,0,0},uu={Z_GUI_UP,1,50,45,0,0};
@@ -73,7 +76,7 @@ static void combo_tests(void){
     zui_event(&u,&d);assert(zui_combo_event(&u,&c,&up,rows,&n)==0&&c.open);
     assert(c.popup.selected==3);
     u.count=0;zui_combo_draw(&u,&c,(struct zui_rect){100,560,200,36},n,rows,&n);zui_combo_popup(&u,&c,n,rows,&n);
-    assert(c.panel.y+c.panel.h<=560&&c.panel.y>=0&&c.panel.h==328);   /* opens upward */
+    assert(c.panel.y+c.panel.h<=560&&c.panel.y>=0&&c.panel.h==334);   /* opens upward */
     struct zenith_gui_event k={Z_GUI_KEY,0,0,0,0,8};zui_combo_event(&u,&c,&k,rows,&n);
     k.extra=2;assert(zui_combo_event(&u,&c,&k,rows,&n)==5&&!c.open&&c.value==4);
     u.count=0;zui_combo_draw(&u,&c,(struct zui_rect){100,560,200,36},n,rows,&n);zui_combo_popup(&u,&c,n,rows,&n);
