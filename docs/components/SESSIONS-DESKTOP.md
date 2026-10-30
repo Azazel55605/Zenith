@@ -31,6 +31,9 @@ not indiscriminately journalled. Session stop revokes surfaces and invocations.
 
 ## D1–D3 / S1–S5 — Shared presentation and Settings
 
+- [ ] [Meridian behavior design](../MERIDIAN-BEHAVIOR.md) stage 2: drill-down
+  navigation, form pages, combo choices, footer and unsaved-changes dialog
+  ([implementation plan](MERIDIAN-STAGE2.md)).
 - [x] D1: smooth native controls, completed-window corner masks, shared system-app
   controls and accepted segments/swatches/rows/navigation
   and host chrome locally; Q2 owns installed confirmation, U1/D2 richer widgets/hover/text/scale;
