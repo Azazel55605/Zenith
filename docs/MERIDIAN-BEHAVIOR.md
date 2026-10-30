@@ -1,6 +1,6 @@
 # Meridian behavior and toolkit primitives — design
 
-**Accepted design** (operator review 2026-10-29); stages 1 and 2 are implemented, stage 3 locally. Work owners:
+**Accepted design** (operator review 2026-10-29); stages 1 to 3 are implemented and qualified at `cdba28a`. Work owners:
 **U1** (toolkit primitives, hover ABI), **S1** (Meridian navigation and pages),
 **D1** (shared visual parity) in the [master roadmap](ROADMAP.md). This page is the
 contract; state and evidence stay in the roadmap.
