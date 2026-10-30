@@ -66,6 +66,27 @@ int main(int argc,char **argv){
             for(int i=0;i<600*480;i++){unsigned char b[]={pixels[i]>>16,pixels[i]>>8,pixels[i]};assert(fwrite(b,1,3,f)==3);}assert(!fclose(f));
         }
     }
+    { /* drawing-free model API used by Meridian stage 2 */
+        state.flags=3;state.mode=0;state.accent=0;state.revision=7;material_saved=0;material_level=40;failure=0;
+        assert(settings_init(&app,pixels,backend));assert(settings_at_defaults(&app));
+        assert(!settings_preview(&app,1,2,0,40)&&app.edited&&guarded&&app.mode==1&&app.accent==2);
+        assert(!settings_at_defaults(&app));
+        assert(!settings_preview(&app,0,0,0,40)&&!app.edited&&!guarded);      /* back to saved */
+        assert(settings_preview(&app,0,0,0,101)==-22&&!app.edited);
+        assert(!settings_preview(&app,1,4,1,60)&&app.edited);
+        struct zui themed;assert(zui_init(&themed,pixels,600,480));settings_theme(&app,&themed);
+        assert(themed.theme.accent==state.palette[1][4][6]&&themed.swatches[2]==state.palette[1][2][6]);
+        assert(settings_set_scope(&app,1)==-16);                                /* refused while edited */
+        state.revision++;assert(settings_apply(&app)==-11&&app.edited&&strstr(app.message,"Changed elsewhere"));
+        assert(!settings_reset(&app)&&!app.edited&&!guarded&&app.mode==0);
+        assert(!settings_preview(&app,1,4,1,60)&&settings_apply(&app)==0&&!app.edited&&!guarded);
+        assert(state.mode==1&&state.accent==4&&material_saved==1&&material_level==60);
+        assert(!settings_at_defaults(&app));
+        assert(!settings_defaults(&app)&&app.edited&&app.mode==0&&app.accent==0&&app.effects==0&&app.translucency==40);
+        assert(settings_at_defaults(&app));settings_reset(&app);
+        state.flags=1;settings_refresh(&app);
+        assert(settings_preview(&app,0,0,0,40)==-13&&!app.edited&&app.mode==1);  /* read only */
+    }
     puts("PASS Settings save failure, stale edits, explicit reload/discard, chrome intent and readonly controls");
     return 0;
 }

@@ -124,10 +124,7 @@ int settings_event(struct settings_app *a,const struct zenith_gui_event *e){
     int action=zui_event(&a->ui,e);
     if(!action)return 0;
     if(action>=1000)return action;
-    if(action==60||action==61){
-        if(a->edited||!a->backend.scope){a->message="Save or discard edits before changing scope.";a->ui.dirty=1;return 0;}
-        if(a->backend.scope(action==60?1:0,0)){a->message="Scope unavailable; previous settings kept.";}else {a->message=0;settings_refresh(a);palette(a);}a->ui.dirty=1;return 0;
-    }
+    if(action==60||action==61){settings_set_scope(a,action==60);a->ui.dirty=1;return 0;}
     if(action==90){a->prompt=0;a->ui.focus=0;a->ui.dirty=1;return 0;}
     if(action==900){if(a->edited){close_request(a,3);return 0;}return 900;}
     if(action==91){
@@ -139,12 +136,7 @@ int settings_event(struct settings_app *a,const struct zenith_gui_event *e){
     }
     if(action==40){if(a->has_scopes&&a->scope){a->prompt=4;a->ui.dirty=1;}else close_request(a,1);return 0;}
     if(action==31){close_request(a,2);return 0;}
-    if(action==30){
-        long result=a->backend.save(a->mode,a->accent,a->effects,a->translucency,a->base_revision);
-        if(!result){a->edited=0;a->backend.dirty(0);a->message="Appearance saved.";settings_refresh(a);}
-        else a->message=result==-11?"Changed elsewhere. Reload before saving; your edits are kept.":result==-13?"Administrator permission required. Edits have been kept.":"Save failed. Check writable storage; edits have been kept.";
-        a->ui.dirty=1;return 0;
-    }
+    if(action==30){settings_apply(a);return 0;}
     unsigned int mode=a->mode,accent=a->accent,effects=a->effects,level=a->translucency;
     if(action<=2)mode=(unsigned int)action-1;
     else if(action>=10&&action<=15)accent=(unsigned int)action-10;
@@ -153,7 +145,49 @@ int settings_event(struct settings_app *a,const struct zenith_gui_event *e){
     if(action==52)effects^=4;
     if(action==53)level=level<10?0:level-10;
     if(action==54)level=level>90?100:level+10;
+    settings_preview(a,mode,accent,effects,level);return 0;
+}
+int settings_preview(struct settings_app *a,unsigned int mode,unsigned int accent,unsigned int effects,unsigned int level){
+    if(!a->have_state||!(a->state.flags&Z_SETTINGS_WRITABLE))return -13;
+    if(mode>1||accent>5||effects>7||level>100)return -22;
+    if((effects^a->effects)&~a->available_effects)return -95;
+    if((level!=a->translucency)&&!a->available_effects)return -95;
     int dirty=level!=a->saved_translucency||effects!=a->saved_effects||mode!=a->state.mode||accent!=a->state.accent;
-    if(a->backend.dirty(dirty)){a->message="Cannot protect unsaved changes. Selection was not changed.";a->ui.dirty=1;return 0;}
+    if(a->backend.dirty(dirty)){a->message="Cannot protect unsaved changes. Selection was not changed.";a->ui.dirty=1;return -5;}
     a->translucency=level;a->mode=mode;a->accent=accent;a->effects=effects;a->edited=dirty;a->message=0;palette(a);return 0;
+}
+long settings_apply(struct settings_app *a){
+    long result=a->backend.save(a->mode,a->accent,a->effects,a->translucency,a->base_revision);
+    if(!result){a->edited=0;a->backend.dirty(0);a->message="Appearance saved.";settings_refresh(a);}
+    else a->message=result==-11?"Changed elsewhere. Reload before saving; your edits are kept.":result==-13?"Administrator permission required. Edits have been kept.":"Save failed. Check writable storage; edits have been kept.";
+    a->ui.dirty=1;return result;
+}
+int settings_reset(struct settings_app *a){
+    if(a->backend.dirty(0)){a->message="Cannot update window state. Edits have been kept.";a->ui.dirty=1;return -5;}
+    a->edited=0;a->message=0;settings_refresh(a);palette(a);return 0;
+}
+int settings_defaults(struct settings_app *a){
+    if(a->has_scopes&&a->scope){
+        if(a->edited&&settings_reset(a))return -5;
+        if(!a->backend.scope||a->backend.scope(2,a->base_revision)){a->message="Cannot restore defaults; edits kept.";a->ui.dirty=1;return -5;}
+        a->message=0;settings_refresh(a);palette(a);return 0;
+    }
+    return settings_preview(a,0,0,0,40);
+}
+int settings_at_defaults(const struct settings_app *a){
+    if(a->has_scopes&&a->scope)return (int)a->inherited&&!a->edited;
+    return a->mode==0&&a->accent==0&&a->effects==0&&a->translucency==40;
+}
+int settings_set_scope(struct settings_app *a,unsigned int personal){
+    if(a->edited||!a->backend.scope){a->message="Save or discard edits before changing scope.";a->ui.dirty=1;return -16;}
+    if(a->backend.scope(personal?1:0,0)){a->message="Scope unavailable; previous settings kept.";a->ui.dirty=1;return -19;}
+    a->message=0;settings_refresh(a);palette(a);return 0;
+}
+void settings_theme(const struct settings_app *a,struct zui *u){
+    if(a->have_state){
+        const unsigned int *p=a->state.palette[a->mode][a->accent];
+        for(int i=0;i<6;i++)u->swatches[i]=a->state.palette[a->mode][i][6];
+        u->theme=(struct zui_theme){p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]};
+    }
+    u->full_background=(a->effects&5)==5;u->dirty=1;
 }
