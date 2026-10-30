@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Host execution of the real client UI renderer and event state machine."""
 from pathlib import Path
+import re
+import sys
 import subprocess
 import tempfile
 import os
@@ -10,6 +12,17 @@ import importlib.util
 ROOT = Path(__file__).resolve().parents[1]
 
 class UiLibraryTests(unittest.TestCase):
+    def test_ui_programs_fit_the_package_file_limit(self):
+        # PackageManifest.MaximumFileBytes is enforced by installed kernels too.
+        limit = int(re.search(r'MaximumFileBytes = (\d+)', (ROOT/'src/Core/Packages/PackageManifest.cs').read_text()).group(1))
+        with tempfile.TemporaryDirectory(prefix='zenith-ui-size-') as directory:
+            for program in ('ui-gallery', 'settings', 'desktop-tools'):
+                dest = Path(directory)/program
+                subprocess.run([sys.executable, '-B', str(ROOT/'tools/build-userland.py'), str(dest), '--program', program],
+                               check=True, stdout=subprocess.DEVNULL)
+                size = (dest/'usr/share/zenith/native'/(program + '.elf')).stat().st_size
+                self.assertLessEqual(size, limit - 32768, f'{program}.elf leaves under 32 KiB package headroom: {size}')
+
     def test_widgets_with_sanitizers(self):
         with tempfile.TemporaryDirectory(prefix='zenith-widgets-') as directory:
             dest = Path(directory)

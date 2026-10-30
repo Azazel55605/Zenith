@@ -26,6 +26,11 @@ class IconTests(unittest.TestCase):
         for y in range(24):
             for x in range(24): self.assertLessEqual(abs(mask[y*24+x]-mask[y*24+23-x]), 8)
 
+    def test_run_length_round_trip(self):
+        t = tool()
+        for mask in (bytes(576), bytes([255])*576, bytes([0]*300 + [7]*300 + [0]*24), t.rasterize((ROOT/'userland/ui/icons/zap.svg').read_text(), 48)):
+            self.assertEqual(t.decode(t.encode(mask), len(mask)), mask)
+
     def test_unsupported_svg_is_refused(self):
         with self.assertRaises(ValueError):
             tool().rasterize('<svg viewBox="0 0 24 24"><text>x</text></svg>', 16)

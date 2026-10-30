@@ -7,7 +7,9 @@
 #define ZUI_MAX_CONTROLS 128
 #define ZUI_MAX_TEXT_BYTES 4096
 struct zui_theme { unsigned int surface,raised,subtle,border,text,secondary,accent,on_accent; };
-struct zui_font { unsigned short width,height,ascent; const unsigned char *advance,*pixels; };
+/* width/height/ascent describe the glyph cell. Each glyph stores only its ink box:
+ * boxes[4*g] = x,y,w,h within the cell; pixels+offsets[g] holds w*h coverage bytes. */
+struct zui_font { unsigned short width,height,ascent; const unsigned char *advance,*pixels,*boxes; const unsigned int *offsets; };
 extern const struct zui_font zui_body,zui_label,zui_heading,zui_caption;
 struct zui_rect { int x,y,w,h; };
 /* Stable surface intent; current XRGB painting is always opaque. Candidate means
@@ -60,8 +62,9 @@ void zui_swatch_caption(struct zui *ui,int x,int y);
 void zui_segment_track(struct zui *ui,struct zui_rect rect);
 unsigned int zui_accent_color(const struct zui *ui,int index);
 int zui_measure(const char *text,unsigned long bytes,const struct zui_font *font);
-/* Build-time Lucide masks (tools/build-ui-icons.py): 16/24/32/48 px, 8-bit coverage. */
-struct zui_icon_mask { const char *name; unsigned short size; const unsigned char *alpha; };
+/* Build-time Lucide masks (tools/build-ui-icons.py): 16/24/32/48 px, 8-bit coverage
+ * run-length coded as (zero run, literal count, literals...) over size*size bytes. */
+struct zui_icon_mask { const char *name; unsigned short size; unsigned int bytes; const unsigned char *runs; };
 extern const struct zui_icon_mask zui_icon_masks[];
 extern const int zui_icon_mask_count;
 /* Tint roles: normal accent, accent contrast on selected rows, muted disabled, body text. */

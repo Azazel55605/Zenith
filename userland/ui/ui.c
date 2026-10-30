@@ -172,10 +172,11 @@ void zui_text(struct zui *u,int x,int y,const char *s,unsigned long n,const stru
     long pen=x;
     for(unsigned long i=0;i<n&&s[i]&&pen<u->clip.x+u->clip.w;){
         unsigned int c=glyph(s,n,&i)-32;
-        for(int yy=0;yy<f->height;yy++)for(int xx=0;xx<f->width;xx++){
-            long px=pen+xx,py=(long)y+yy;
+        const unsigned char *box=f->boxes+c*4,*ink=f->pixels+f->offsets[c];
+        for(int yy=0;yy<box[3];yy++)for(int xx=0;xx<box[2];xx++){
+            long px=pen+box[0]+xx,py=(long)y+box[1]+yy;
             if(px<u->clip.x||py<u->clip.y||px>=u->clip.x+u->clip.w||py>=u->clip.y+u->clip.h)continue;
-            unsigned int a=f->pixels[(c*f->height+yy)*f->width+xx];
+            unsigned int a=ink[yy*box[2]+xx];
             if(a){unsigned int *p=&u->pixels[py*u->width+px];*p=u->foreground?over(*p,color,a):blend(*p,color,a);}
         }
         pen+=f->advance[c];
@@ -356,11 +357,15 @@ int zui_icon(struct zui *u,const char *name,int x,int y,int size,int role){
     unsigned int color=role==ZUI_ICON_SELECTED?u->theme.on_accent:role==ZUI_ICON_DISABLED?u->theme.secondary:
         role==ZUI_ICON_TEXT?u->theme.text:u->theme.accent;
     struct zui_rect b=intersect((struct zui_rect){x,y,size,size},u->clip);
-    for(int py=b.y;py<b.y+b.h;py++)for(int px=b.x;px<b.x+b.w;px++){
-        unsigned int a=m->alpha[(py-y)*size+(px-x)];
-        if(!a)continue;
-        unsigned int *p=&u->pixels[py*u->width+px];
-        *p=a==255?(color|(u->foreground?0xff000000:0)):u->foreground?over(*p,color,a):blend(*p,color,a);
+    const unsigned char *run=m->runs,*end=m->runs+m->bytes;
+    for(int i=0,total=size*size;i<total&&end-run>=2;){
+        i+=run[0];int literals=run[1];run+=2;
+        for(int k=0;k<literals&&i<total&&run<end;k++,i++){
+            unsigned int a=*run++;int px=x+i%size,py=y+i/size;
+            if(!a||px<b.x||py<b.y||px>=b.x+b.w||py>=b.y+b.h)continue;
+            unsigned int *p=&u->pixels[py*u->width+px];
+            *p=a==255?(color|(u->foreground?0xff000000:0)):u->foreground?over(*p,color,a):blend(*p,color,a);
+        }
     }
     return 1;
 }

@@ -163,15 +163,33 @@ def rasterize(svg, size):
             out[y*size + x] = (hits * 255 + SCALE*SCALE // 2) // (SCALE*SCALE)
     return bytes(out)
 
+def encode(mask):
+    """(zero run, literal count, literals...) pairs, each count at most 255."""
+    out, i = bytearray(), 0
+    while i < len(mask):
+        zeros = 0
+        while i < len(mask) and mask[i] == 0 and zeros < 255: zeros += 1; i += 1
+        start = i
+        while i < len(mask) and mask[i] != 0 and i - start < 255: i += 1
+        out += bytes((zeros, i - start)) + mask[start:i]
+    return bytes(out)
+
+def decode(runs, total):
+    out, j = bytearray(), 0
+    while j < len(runs):
+        out += bytes(runs[j]); count = runs[j + 1]; out += runs[j + 2:j + 2 + count]; j += 2 + count
+    if len(out) != total: raise ValueError('run length mismatch')
+    return bytes(out)
+
 def build(output):
     lines = ['/* Generated Lucide 8-bit alpha icon masks; see userland/ui/icons/LICENSE (ISC). */', '#include "ui.h"']
     entries = []
     for svg in sorted((ROOT/'userland/ui/icons').glob('*.svg')):
         for size in SIZES:
             name = 'icon_' + svg.stem.replace('-', '_') + '_' + str(size)
-            data = rasterize(svg.read_text(), size)
+            data = encode(rasterize(svg.read_text(), size))
             lines.append(f'static const unsigned char {name}[{len(data)}]={{' + ','.join(map(str, data)) + '};')
-            entries.append(f'{{"{svg.stem}",{size},{name}}}')
+            entries.append(f'{{"{svg.stem}",{size},{len(data)},{name}}}')
     lines.append('const struct zui_icon_mask zui_icon_masks[]={' + ','.join(entries) + '};')
     lines.append(f'const int zui_icon_mask_count={len(entries)};')
     Path(output).write_text('\n'.join(lines) + '\n')
