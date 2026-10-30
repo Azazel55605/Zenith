@@ -93,3 +93,10 @@ because documentation was committed while it ran.
 
 Tag `kernel/v0.0.29` was pushed at `760c5fe`. Distributor build and installed
 VMware acceptance remain pending.
+
+## Operator observation — 2026-10-30
+
+The operator built and installed kernel 0.0.29 and reports that the VMware
+all-input freeze has not recurred so far. This is an early installed observation,
+not a long-duration certification; PS/2 behavior on physical hardware remains
+unverified.
