@@ -40,19 +40,21 @@ Rules:
 
 - **State changes first.** The window manager applies the real state at once, so hit tests,
   focus and input never wait for an animation.
-- **Any scene change ends it.** Input that dirties the scene, or a client frame for a window
-  in the animation, jumps to the end state and composes normally.
+- **Only input ends it early.** Input that dirties the scene jumps to the end state. Background
+  updates, such as a blinking terminal cursor, wait: the full compose at the end catches up.
 - **Never required.** Allocation failure, a frame over budget twice in a row, reduced motion
   or duration 0 all take the existing immediate path. Session stop, panic and power-off
   cancel animations without waiting.
-- **Memory.** Base and layers are bounded to one screen each. Layers are released when the
-  animation ends.
-- **Waking.** The desktop keeps drawing nothing while idle. While animating it must wake
-  often enough to draw; the wake rate of the `Run()` halt loop is measured in this stage,
-  and a timer alarm is added if it is too low.
+- **Memory.** One base and one layer, each at most one screen, allocated on first use and kept
+  for the session. An animation does not start unless free memory covers them with a 16 MiB
+  reserve.
+- **Waking.** The desktop draws nothing while idle. While animating it relies on the `Run()`
+  loop, which the 10 ms scheduler tick wakes at the latest.
 
-Exit: every gate passes with motion enabled but no animation started, and `fps` shows no
-idle frames.
+`fps motion` fades the focused window in over 150 ms, logs the frames drawn, worst frame and
+how it ended, and shows the same under `fps`. It proves the path on real hardware before any
+effect depends on it. The system-app gate runs it and checks the scene returns to the same
+pixels, apart from the clock and the cursor.
 
 ## Stage 3: window animations
 

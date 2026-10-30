@@ -52,6 +52,18 @@ def main():
             observer.capture(args.keep/('editor-guard-'+mode+'.ppm'));m.type('^S^Q')
             command('tail -n 1 /tmp/style-'+mode+'.txt | logger','user: -dirty')
             print('PASS '+mode+' Terminal/Editor, pointer Save and guarded chrome close',flush=True)
+        # A test animation plays and ends on exactly the frame it started from.
+        off=len(m.log());m.type('sleep 3; fps motion; sleep 5; logger MOTION_DONE\n');time.sleep(1.5)
+        _,_,before=profile.frame_pixels(observer.capture(args.keep/'motion-before.ppm'))
+        assert m.wait_for('ended=',30,off),'motion test result'
+        report=[line for line in m.log()[off:].splitlines() if 'ended=' in line][0];print(report,flush=True)
+        assert 'ended=Finished' in report or 'ended=OverBudget' in report,report
+        time.sleep(.5);w,h,after=profile.frame_pixels(observer.capture(args.keep/'motion-after.ppm'))
+        changed=sum(before[i:i+3]!=after[i:i+3] for i in range(0,len(before),3))
+        # Only the blinking cursor and the taskbar clock may differ.
+        assert changed<2000,'scene not restored: '+str(changed)+' pixels differ'
+        assert m.wait_for('user: MOTION_DONE',30,off),'terminal after motion'
+        print('PASS test animation restores the scene',flush=True)
         command('poweroff','all filesystems unmounted');assert m.wait_exit(30)
         print('PASS shared system-app styling and normal teardown',flush=True)
     finally:

@@ -343,12 +343,12 @@ internal sealed class WindowManager
         return edges;
     }
 
-    public void Draw(Surface surface, int mouseX, int mouseY)
+    public void Draw(Surface surface, int mouseX, int mouseY, Window? except = null)
     {
         Window? hovered = _dragging is null ? HitTest(mouseX, mouseY, includeResizeMargin: false) : null;
         foreach (Window w in _windows)
         {
-            if (!w.IsMinimized)
+            if (!w.IsMinimized && w != except)
             {
                 DrawWindow(surface, w, w == hovered ? mouseX : -1, mouseY);
             }
