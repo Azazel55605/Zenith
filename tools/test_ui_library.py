@@ -23,6 +23,22 @@ class UiLibraryTests(unittest.TestCase):
                 size = (dest/'usr/share/zenith/native'/(program + '.elf')).stat().st_size
                 self.assertLessEqual(size, limit - 32768, f'{program}.elf leaves under 32 KiB package headroom: {size}')
 
+    def test_settings_units_with_sanitizers(self):
+        with tempfile.TemporaryDirectory(prefix='zenith-settings-units-') as directory:
+            dest = Path(directory)
+            def generated(tool, name):
+                spec = importlib.util.spec_from_file_location(name, ROOT/'tools'/tool)
+                module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+                path = dest/(name + '.c'); module.build(path); return str(path)
+            exe = dest/'settings-units'
+            subprocess.run(['gcc','-std=c11','-Wall','-Wextra','-Werror','-O1','-g',
+                            '-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(ROOT/'userland/ui'),
+                            '-I'+str(ROOT/'userland/settings'),str(ROOT/'userland/settings/test_navigation.c'),
+                            str(ROOT/'userland/settings/navigation.c'),generated('build-meridian-pages.py','pages'),
+                            str(ROOT/'userland/ui/ui.c'),str(ROOT/'userland/ui/widgets.c'),
+                            generated('build-ui-fonts.py','fonts'),generated('build-ui-icons.py','icons'),'-o',str(exe)],check=True)
+            subprocess.run([str(exe)],check=True,timeout=30)
+
     def test_widgets_with_sanitizers(self):
         with tempfile.TemporaryDirectory(prefix='zenith-widgets-') as directory:
             dest = Path(directory)

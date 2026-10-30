@@ -3,10 +3,7 @@
 #include "app.h"
 #include "../include/zenith_system_settings.h"
 #include "../ui/text.h"
-#define MERIDIAN_PAGE_COUNT 43
-enum { MERIDIAN_COLORS=16, MERIDIAN_ABOUT=38 };
-struct meridian_page { const char *id,*title,*category,*requirements,*foundation; int group; };
-extern const struct meridian_page meridian_pages[MERIDIAN_PAGE_COUNT];
+#include "navigation.h"
 /* Complete catalogue; controls are virtualized to eight visible results. */
 struct meridian {
     struct settings_app colors;
