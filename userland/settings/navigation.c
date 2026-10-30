@@ -3,7 +3,7 @@
 static const char *const inventory[10]={"Quick Settings","Input & Output","Connected Devices","Networking","Appearance & Style",
     "Apps & Windows","Workspace","Security & Privacy","Language & Time","System"};
 const char *const meridian_categories[10]={"Quick Settings","Input & Output","Devices","Networking","Appearance",
-    "Apps & Windows","Workspace","Security","Language & Time","System"};
+    "Apps & Windows","Workspace","Security","Language","System"};
 const char *const meridian_category_icons[10]={"zap","keyboard","usb","network","palette","app-window","layout-grid",
     "shield","languages","monitor-cog"};
 static const char *const groups[7]={"Mouse & Touchpad","Keyboard","Sound","Display & Monitor","Colors & Themes","Text & Fonts","Window Management"};

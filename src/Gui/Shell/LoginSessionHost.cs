@@ -71,7 +71,8 @@ internal sealed class LoginSessionHost : ISessionHost
                 if (Restart.Contains(_input.X, _input.Y) || Shutdown.Contains(_input.X, _input.Y))
                 {
                     using var root = CredentialContext.Enter(Credentials.Root);
-                    if (Restart.Contains(_input.X, _input.Y)) { Zenith.Core.PowerControl.Reboot(); } else { Zenith.Core.PowerControl.PowerOff(); }
+                    try { if (Restart.Contains(_input.X, _input.Y)) { Zenith.Core.PowerControl.Reboot(); } else { Zenith.Core.PowerControl.PowerOff(); } }
+                    catch (Exception e) { Zenith.Core.Log.Write("session", "power action failed: " + e.Message); }
                     return;
                 }
                 if (Field(0).Contains(_input.X, _input.Y)) { _focus = 0; }

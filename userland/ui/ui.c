@@ -336,7 +336,7 @@ void zui_draw_range(struct zui *u,int first,int count){
             if(c->kind==ZUI_NAVIGATION&&c->detail){
                 ty=r.y+2;zui_text(u,tx,r.y+r.h-zui_caption.height-1,c->detail,length(c->detail),&zui_caption,u->theme.secondary);
             }
-            u->clip=intersect(u->clip,(struct zui_rect){r.x,r.y,r.w-(c->kind==ZUI_TOGGLE?60:24),r.h});
+            u->clip=intersect(u->clip,(struct zui_rect){r.x,r.y,r.w-(c->kind==ZUI_TOGGLE?60:c->no_chevron?8:24),r.h});
         }
         zui_text(u,tx,ty,c->label,length(c->label),&zui_label,fg);
         u->clip=saved;

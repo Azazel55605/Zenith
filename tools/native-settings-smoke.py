@@ -354,7 +354,9 @@ def main():
             # A rendered enabled Close button proves the native frame is visible
             # after host window admission/focus, unlike a client readiness print.
             needle=bytes.fromhex('2a2c31')*94
-            frame('desktop-'+script,lambda w,h,rgb:any(needle in rgb[y*w*3:(y+1)*w*3] for y in range(h)))
+            dw,_,drgb=frame('desktop-'+script,lambda w,h,rgb:any(needle in rgb[y*w*3:(y+1)*w*3] for y in range(h)))
+            ink=sum(1 for row in range(200,420) for px in range(dw//2-100,dw//2+200) if color_at(drgb,dw,px,row)==bytes.fromhex('b4b7c0'))
+            assert ink>40,'desktop client body text missing'
             off=len(m.log());monitor_command(monitor,'sendkey esc 30')
             assert m.wait('native surface retired',off,30),'native launcher window retirement'
             time.sleep(.5)

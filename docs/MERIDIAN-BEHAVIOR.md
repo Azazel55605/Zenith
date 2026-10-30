@@ -17,7 +17,7 @@ its own [design language](DESIGN-LANGUAGE.md).
 | Decision | Choice |
 |---|---|
 | Toolkit model | Extend immediate-mode `zui`; the application owns all values. A retained widget tree was rejected as a new toolkit; per-page patches as non-reusable. |
-| Icons | Lucide SVG sources (ISC), rasterized at build time; tinted by role at runtime |
+| Icons | Lucide SVG sources (ISC) rasterized into the installable `zenith-icons` package; tinted by role at runtime |
 | Hover | New opt-in `Z_GUI_MOVE` event, separate kernel release after the input-freeze fix |
 | Release order | Freeze-fix kernel first; then toolkit, Settings, hover kernel as independently qualified stages |
 
@@ -85,12 +85,10 @@ increment a debug counter; content is never silently dropped.
 
 ## Icon pipeline
 
-- About 25 Lucide SVGs (the exact list is fixed in stage 1) in `userland/ui/icons/` with the ISC license text, also
-  listed in the licenses manual.
-- `tools/build-ui-icons.py` (beside `build-ui-fonts.py`) rasterizes the SVG subset
-  Lucide uses with the Python standard library (exact stroke-distance coverage,
-  8x8 supersampling) into 8-bit masks and generates a C table (name → size → mask).
-  Like the font atlas it runs at build time and is not checked in; tests require
+- Icons ship as data, not code: see the [toolkit guide](USERLAND-UI.md#client-library-v2-widgets-stage-1).
+  Sources are Lucide SVGs in `userland/ui/icons/` with the ISC license text.
+- `tools/build-ui-icons.py` rasterizes the SVG subset Lucide uses with the Python
+  standard library (exact stroke-distance coverage, 8x8 supersampling); tests require
   byte-identical output across runs and refuse DTDs, transforms and unknown elements.
 - `zui_icon` blends the mask with the role tint using the text coverage blend,
   in both opaque and material frames.

@@ -36,11 +36,15 @@ its existing invocation, ownership, request/presentation and lifetime limits.
 [Meridian behavior design](MERIDIAN-BEHAVIOR.md); applications own every state
 struct and the toolkit never allocates.
 
-- **Icons:** `zui_icon(name, x, y, size, role)` draws vendored Lucide 1.64.0 (ISC)
-  masks at 16/24/32/48 px, tinted by role: accent, accent contrast on selected
-  rows, muted when disabled, or body text. `tools/build-ui-icons.py` rasterizes
-  the SVG subset at build time (no checked-in output) and run-length codes it;
-  programs ship `LICENSE-Lucide.txt` beside the Inter license.
+- **Icons:** system-wide files at `/usr/share/zenith/icons/<name>.zic`, one per icon,
+  so any package can add a name (`[a-z0-9-]`, 31 characters) without owning a shared
+  index. `zenith-icons` ships the vendored Lucide 1.64.0 set (ISC) and its license,
+  and `zenith-style` requires it. `tools/build-ui-icons.py --package DIR` builds
+  files from SVG sources: magic `ZIC1`, count, then u16 size, u32 bytes and run-length
+  coverage per size (16/24/32/48). Native programs call `zui_icons_use_packages()` and
+  draw with `zui_icon(name, x, y, size, role)`, tinted accent, accent contrast,
+  muted or body text; trusted windows use `Icons.Draw`. Files load once into fixed
+  caches (64 names, 128 KiB, 16 KiB per file) and a missing icon draws nothing.
 - **Scroll area:** clip to a viewport, wheel (-code/2 px, at most 120), thumb drag,
   track paging, `zui_scroll_reveal`; the overlay scrollbar shows only on overflow.
 - **List view:** lazy item source, only visible rows registered, single selection,

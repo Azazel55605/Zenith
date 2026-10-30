@@ -62,9 +62,11 @@ int main(int argc,char **argv){
             zui_text(&ui,c.x+24,c.y+50,caption,length(caption),&zui_caption,ui.theme.secondary);
             const char *body=about?information:tab==0?"Your desktop, built around independent applications.\n\nUse the sidebar for an introduction, everyday tasks and recovery.\n\nMeridian is the system settings app. Colors and materials support Light and Dark modes, six accents and optional transparency/blur. Other planned settings are clearly marked Work in progress.":tab==1?"Open apps from the launcher. Drag their title bars to move them, maximize supported windows, or switch between them from the taskbar.\n\nTerminal is your command line. Type help to explore commands. Editor opens and saves text files. Files provides the existing file browser; its larger redesign is separate.\n\nUse Meridian's category sidebar and search to find settings pages.":"Keep a confirmed previous kernel when updating. Confirm a healthy new boot with boot confirm.\n\nTerminal remains the recovery and command host. Local text login and serial fallback are available where supported.\n\nSunrise installs Zenith from the live image. It erases the selected disk only after explicit confirmation.\n\nGeneral snapshot restore and arbitrary power-loss recovery are not implemented.";
             struct zui_rect area={c.x,c.y+74,c.w,c.h-74-60};
-            int top=zui_scroll_begin(&ui,&page,area);
-            lines=zui_paragraph(&ui,(struct zui_rect){c.x+24,top+8,c.w-52,4000},body,&zui_body,ui.theme.secondary,0);
-            zui_scroll_end(&ui,&page,lines*(zui_body.height+4)+16);
+            /* Paragraphs stay inside the window, so the offset selects whole lines. */
+            int line=zui_body.height+4;
+            zui_scroll_begin(&ui,&page,area);
+            lines=zui_paragraph(&ui,(struct zui_rect){c.x+24,area.y+8,c.w-52,area.h-8},body,&zui_body,ui.theme.secondary,page.offset/line);
+            zui_scroll_end(&ui,&page,lines*line+16);
             for(int i=0;i<ui.count;i++)if(ui.controls[i].enabled){if(ui.controls[i].id==focus)ui.focus=i;if(ui.controls[i].id==pressed)ui.pressed=i;}
             zui_clip(&ui,(struct zui_rect){0,0,ui.width,ui.height});zui_update_hover(&ui);zui_draw_controls(&ui);ui.dirty=0;
             long r=material?zenith_gui_present_material(handle,pixels,(unsigned long)ui.width*ui.height*4,ui.materials,ui.material_count):zenith_gui_present(handle,pixels,(unsigned long)ui.width*ui.height*4);

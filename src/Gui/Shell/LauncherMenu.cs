@@ -36,7 +36,9 @@ internal sealed class LauncherMenu
         {
             if (rect.Contains(x, y))
             {
-                run();
+                // A state change between drawing and clicking must not reach the panic path.
+                try { run(); }
+                catch (Exception e) { Zenith.Core.Log.Write("session", "menu action failed: " + e.Message); }
                 return;
             }
         }
@@ -75,7 +77,8 @@ internal sealed class LauncherMenu
             // Monogram tile.
             Rect icon = new(item.X + 8, item.Y + 7, 32, 32);
             surface.FillRoundRect(icon, 8, Theme.AccentSoft);
-            surface.DrawTextCentered(app.Name.Substring(0, 1), Fonts.SemiBold, 15, Theme.Accent, icon, true);
+            if (!Icons.Draw(surface, IconName(app.Name), icon.X + (icon.W - 24) / 2, icon.Y + (icon.H - 24) / 2, 24, Theme.Accent))
+            { surface.DrawTextCentered(app.Name.Substring(0, 1), Fonts.SemiBold, 15, Theme.Accent, icon, true); }
 
             int textX = icon.Right + 12;
             surface.DrawText(app.Name, Fonts.SemiBold, Theme.TextTitle, Theme.TextPrimary, textX, item.Y + 6);
@@ -102,11 +105,18 @@ internal sealed class LauncherMenu
         { surface.DrawText(message, Fonts.Regular, 12, Theme.Danger, Bounds.X + 12, Math.Max(0, Bounds.Y - 20)); }
     }
 
+    private static string IconName(string app) => app switch
+    {
+        "Welcome" => "hand", "Terminal" => "terminal", "Files" => "folder", "Editor" => "file-text",
+        "Sunrise" => "sunrise", "System" => "monitor", "Meridian" => "sliders-horizontal", _ => "package"
+    };
+
     private void AddPowerItem(Surface surface, Rect item, string label, Action run, int mouseX, int mouseY)
     {
-        if (!Zenith.Core.Security.CredentialContext.Current.IsRoot)
+        string? blocked = !Zenith.Core.Security.CredentialContext.Current.IsRoot ? "root" : PowerControl.BlockedReason;
+        if (blocked is not null)
         {
-            surface.DrawTextCentered(label + " (root)", Fonts.Regular, Theme.TextTitle, Theme.TextSecondary,
+            surface.DrawTextCentered(label + " (" + blocked + ")", Fonts.Regular, Theme.TextTitle, Theme.TextSecondary,
                 new Rect(item.X + 14, item.Y, item.W - 14, item.H), false);
             return;
         }

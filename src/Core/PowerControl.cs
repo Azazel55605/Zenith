@@ -8,6 +8,12 @@ namespace Zenith.Core;
 /// <summary>Power changes occur only after checked sync, unmount and disk flush.</summary>
 internal static class PowerControl
 {
+    /// <summary>Why power cannot change right now, or null. Menus show this instead of failing on click.</summary>
+    public static string? BlockedReason
+        => Zenith.Core.Processes.NativeProcess.IsRunning ? "close running applications first"
+            : Installer.IsRunning || Zenith.Core.Boot.NativeKernelUpdates.IsRunning || Zenith.Core.Shell.Commands.PackageCommands.IsRunning
+                ? "wait for installation or update to finish" : null;
+
     public static void Reboot() => Shutdown(Power.Reboot, "rebooting", false);
     public static void PowerOff() => Shutdown(FirmwarePowerOff, "powering off", true);
 
@@ -24,8 +30,7 @@ internal static class PowerControl
         Monitor.Enter(Installer.MaintenanceGate);
         try
         {
-            if (Installer.IsRunning || Zenith.Core.Boot.NativeKernelUpdates.IsRunning || Zenith.Core.Shell.Commands.PackageCommands.IsRunning || Zenith.Core.Processes.NativeProcess.IsRunning)
-            { throw new InvalidOperationException("wait for installation/update to finish before shutting down"); }
+            if (BlockedReason is string blocked) { throw new InvalidOperationException(blocked); }
             Log.Write("power", message);
 #if !ARCH_ARM64
             // Logged before unmounting so boot.log.1 explains a failed power-off.

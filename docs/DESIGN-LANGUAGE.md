@@ -3,7 +3,7 @@
 **Design baseline v0.1 accepted by the user on 2026-10-27.** This defines the
 shared visual and interaction language for widgets, Settings and the desktop.
 The current native control set follows the accepted solid specimen: neutral segments, checked swatches, settings rows, navigation and aligned host chrome. Effects and the richer text/widget set remain separate capabilities; see the implementation table below.
-[Visual specimen](design/system-specimen.svg) · [Master work D1/D3](ROADMAP.md#core-delivery-work)
+[Editor concept](design/editor-concept.svg) · [Files concept](design/files-concept.svg) (proposals, owners U2/A1) · [Visual specimen](design/system-specimen.svg) · [Master work D1/D3](ROADMAP.md#core-delivery-work)
 
 ## Agreed direction
 

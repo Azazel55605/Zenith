@@ -621,14 +621,10 @@ internal sealed class TerminalWindow : Window, IOutput
         _job = new Thread(() =>
         {
             using var credentials = CredentialContext.Enter(_shell.Identity);
-            try
-            {
-                _shell.Execute(line);
-            }
-            finally
-            {
-                _jobRunning = false;
-            }
+            // Explicit: Cosmos can skip unwind-finally, which would leave this Terminal busy forever.
+            try { _shell.Execute(line); }
+            catch (Exception e) { Zenith.Core.Log.Write("terminal", "command failed: " + e.Message); }
+            _jobRunning = false;
         });
         _job.Start();
     }
