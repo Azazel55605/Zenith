@@ -38,6 +38,16 @@ widgets, Python native gate (`tools/native-settings-smoke.py`).
 - `settings.elf` keeps at least 32 KiB below the 256 KiB package limit (existing test).
 - Every task ends with `cd tools && python3 -B -m unittest test_ui_library` passing.
 
+## Execution notes (2026-10-30)
+
+- **Window:** the host admits at most 640x480 at open and has a 600 px minimum, so the
+  planned 800x560 default and single-pane narrow mode were dropped: Meridian opens at
+  640x480 with two panes (200 px sidebar below 720 px wide, 240 px above). This
+  replaces the window and narrow statements in the constraints and Task 4 below.
+- **Defaults** stays visible but disabled on pages without defaults, as in KDE.
+- **Layering:** a stage-1 bug gave hover event 9, already `Z_GUI_CLOSE_INTENT`; it is
+  now 11. Overlays use the opaque control role, not a material region.
+
 ## File structure
 
 | File | Responsibility |

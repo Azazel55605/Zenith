@@ -1,10 +1,10 @@
 #include "meridian.h"
 enum { PENDING_NONE=0,PENDING_CLOSE=1,PENDING_ROW=2,PENDING_PAGE=3 };
-enum { ID_ROWS=100,ID_FOOTER=900,ID_DIALOG=950,ID_SEARCH=1002,ID_BACK=1003,ID_COMBO=2004,ID_COMBO_ROWS=2100,ID_LINKS=3000 };
+enum { ID_ROWS=100,ID_FOOTER=900,ID_DIALOG=950,ID_SEARCH=1002,ID_COMBO=2004,ID_COMBO_ROWS=2100,ID_LINKS=3000 };
 static unsigned long length(const char *s){unsigned long n=0;while(n<4096&&s[n])n++;return n;}
 static int same(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return *a==*b;}
 static void text(struct zui *u,int x,int y,const char *s,const struct zui_font *f,unsigned int c){zui_text(u,x,y,s,length(s),f,c);}
-static int wide(const struct meridian *a){return a->ui.width>=720;}
+static int sidebar_width(const struct meridian *a){return a->ui.width>=720?240:200;}
 static int page_kind(const struct meridian *a){return binding_of(meridian_pages[a->page].id);}
 static unsigned int information_kind(const struct meridian *a){
     const char *id=meridian_pages[a->page].id;
@@ -43,7 +43,7 @@ static void remember(struct meridian *a,int page){
     a->recent[0]=page;
 }
 /* Adopt a navigation state; a new page starts at its top with fresh transient state. */
-static void adopt(struct meridian *a,const struct meridian_nav *next,int show_page){
+static void adopt(struct meridian *a,const struct meridian_nav *next){
     int changed=next->page!=a->page;
     a->nav=*next;a->page=next->page;
     if(a->nav.mode!=NAV_SEARCH&&a->query[0]){a->query[0]=0;zui_input_init(&a->search,a->query,sizeof(a->query));}
@@ -51,7 +51,6 @@ static void adopt(struct meridian *a,const struct meridian_nav *next,int show_pa
         a->page_scroll.offset=0;a->combo.open=0;a->ui.focus=a->ui.pressed=-1;
         remember(a,a->page);refresh_information(a);
     }
-    if(changed||show_page)a->narrow_page=1;
     a->ui.dirty=1;
 }
 static void clear_search(struct meridian *a){
@@ -61,7 +60,7 @@ static void clear_search(struct meridian *a){
 int meridian_open(struct meridian *a,const char *id){
     if(binding_any_changed(&a->bindings))return 0;
     struct meridian_nav next=a->nav;if(!nav_open(&next,id))return 0;
-    adopt(a,&next,1);a->sidebar.scroll.offset=0;return 1;
+    adopt(a,&next);a->sidebar.scroll.offset=0;return 1;
 }
 int meridian_resize(struct meridian *a,int w,int h,unsigned long capacity){
     if(w<600||h<480||!zui_resize(&a->ui,w,h,capacity))return 0;
@@ -71,7 +70,7 @@ int meridian_init(struct meridian *a,unsigned int *pixels,struct settings_backen
     *a=(struct meridian){0};
     if(!settings_init(&a->colors,pixels,backend)||!zui_init(&a->ui,pixels,600,480)||!zui_input_init(&a->search,a->query,sizeof(a->query)))return 0;
     binding_init(&a->bindings,&a->colors,0,0,backend.dirty);
-    nav_init(&a->nav,0);a->sidebar.base_id=ID_ROWS;a->combo.id=ID_COMBO;a->combo.popup.base_id=ID_COMBO_ROWS;a->narrow_page=1;
+    nav_init(&a->nav,0);a->sidebar.base_id=ID_ROWS;a->combo.id=ID_COMBO;a->combo.popup.base_id=ID_COMBO_ROWS;
     remember(a,0);
     if(page&&!meridian_open(a,page))return 0;
     sync_theme(a);return 1;
@@ -213,10 +212,6 @@ static void planned_form(struct meridian *a,struct zui *u,struct zui_form *f){
 }
 static void draw_page(struct meridian *a,struct zui *u,struct zui_rect c){
     const struct meridian_page *p=&meridian_pages[a->page];int kind=page_kind(a),footer=kind!=BIND_NONE?56:0,x=c.x+24;
-    if(!wide(a)){
-        if(zui_add(u,ID_BACK,ZUI_BUTTON,(struct zui_rect){c.x+12,c.y+16,36,32},"",0,1))u->controls[u->count-1].icon="arrow-left";
-        x+=32;
-    }
     text(u,x,c.y+14,p->title,&zui_heading,u->theme.text);
     text(u,x,c.y+50,meridian_categories[nav_category_of(a->page)],&zui_caption,u->theme.secondary);
     struct zui_rect body={c.x,c.y+74,c.w,c.h-74-footer};
@@ -242,21 +237,17 @@ void meridian_draw(struct meridian *a){
     struct zui *u=&a->ui;
     int focus=u->focus>=0&&u->focus<u->count?u->controls[u->focus].id:0,pressed=u->pressed>=0&&u->pressed<u->count?u->controls[u->pressed].id:0;
     u->count=0;
-    int show_side=wide(a)||!a->narrow_page,show_page=wide(a)||a->narrow_page;
-    struct zui_workspace w=zui_workspace_begin(u,wide(a)?240:0);
-    struct zui_rect side=wide(a)?w.sidebar:w.content;
-    if(show_side)draw_sidebar(a,u,side);
-    if(show_page)draw_page(a,u,w.content);
+    struct zui_workspace w=zui_workspace_begin(u,sidebar_width(a));
+    draw_sidebar(a,u,w.sidebar);
+    draw_page(a,u,w.content);
     zui_clip(u,(struct zui_rect){0,0,u->width,u->height});
     u->focus=focus?index_of(u,focus):-1;u->pressed=pressed?index_of(u,pressed):-1;
     zui_draw_controls(u);
-    if(show_side){
-        struct zui_rect r=search_rect(side);
-        zui_input_draw(u,r,&a->search,a->search_focus&&u->window_focused);
-        if(!a->query[0]&&!a->search_focus)text(u,r.x+10,r.y+9,"Search settings",&zui_caption,u->theme.secondary);
-    }
+    struct zui_rect r=search_rect(w.sidebar);
+    zui_input_draw(u,r,&a->search,a->search_focus&&u->window_focused);
+    if(!a->query[0]&&!a->search_focus)text(u,r.x+10,r.y+9,"Search settings",&zui_caption,u->theme.secondary);
     int kind=page_kind(a);
-    if(show_page&&kind>=BIND_KEYBOARD&&a->combo.open)zui_combo_popup(u,&a->combo,binding_choice_count(&a->bindings,kind),choice_rows,a);
+    if(kind>=BIND_KEYBOARD&&a->combo.open)zui_combo_popup(u,&a->combo,binding_choice_count(&a->bindings,kind),choice_rows,a);
     if(a->dialog.open){
         int base=u->count,top=ID_DIALOG+a->dialog.count;
         if(focus>ID_DIALOG&&focus<=top)u->focus=base+top-focus;
@@ -273,14 +264,13 @@ static void confirm(struct meridian *a,int pending){
 static void request_row(struct meridian *a,int row){
     struct meridian_nav next=a->nav;nav_activate(&next,row);
     if(next.page!=a->page&&binding_changed(&a->bindings,page_kind(a))){a->pending_row=row;confirm(a,PENDING_ROW);return;}
-    int opens=nav_row_page(&a->nav,row)>=0;
     if(next.mode!=a->nav.mode||next.category!=a->nav.category)a->sidebar.scroll.offset=0;
-    adopt(a,&next,opens);
+    adopt(a,&next);
 }
 static void request_page(struct meridian *a,int page){
     if(page!=a->page&&binding_changed(&a->bindings,page_kind(a))){a->pending_page=page;confirm(a,PENDING_PAGE);return;}
     struct meridian_nav next=a->nav;nav_open(&next,meridian_pages[page].id);
-    a->sidebar.scroll.offset=0;adopt(a,&next,1);
+    a->sidebar.scroll.offset=0;adopt(a,&next);
 }
 static void close_request(struct meridian *a){
     if(binding_any_changed(&a->bindings))confirm(a,PENDING_CLOSE);else a->closing=1;
@@ -297,7 +287,6 @@ static void resolve(struct meridian *a,int button){
 static void back(struct meridian *a){
     if(a->nav.mode==NAV_SEARCH)clear_search(a);
     else if(a->nav.mode==NAV_PAGES){nav_back(&a->nav);a->sidebar.scroll.offset=0;}
-    else if(!wide(a)&&a->narrow_page)a->narrow_page=0;
     a->ui.dirty=1;
 }
 static void colors_action(struct meridian *a,int id){
@@ -327,13 +316,12 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     if(a->dialog.open){int button=zui_dialog_event(u,&a->dialog,e);if(button)resolve(a,button);sync_theme(a);return;}
     if(e->type==Z_GUI_CLOSE_INTENT||(e->type==Z_GUI_KEY&&e->modifiers==2&&(e->code=='q'||e->code=='Q'))){close_request(a);return;}
     int kind=page_kind(a);
-    if(kind>=BIND_KEYBOARD&&binding_writable(&a->bindings,kind)&&(wide(a)||a->narrow_page)){
+    if(kind>=BIND_KEYBOARD&&binding_writable(&a->bindings,kind)){
         int was=a->combo.open,chosen=zui_combo_event(u,&a->combo,e,choice_rows,a);
         if(chosen)binding_choose(&a->bindings,kind,(unsigned int)chosen-1);
         if(was||a->combo.open){if(a->combo.open!=was)u->pressed=-1;u->dirty=1;return;}
     }
     if(e->type==Z_GUI_KEY&&e->modifiers==2&&(e->code=='f'||e->code=='F')){
-        if(!wide(a))a->narrow_page=0;
         a->search_focus=1;u->dirty=1;return;
     }
     if(a->search_focus&&e->type==Z_GUI_KEY&&e->extra!=4){
@@ -345,20 +333,16 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     if(e->type==Z_GUI_KEY&&e->extra==4)a->search_focus=0;
     if(e->type==Z_GUI_DOWN)a->search_focus=0;
     if(e->type==Z_GUI_KEY&&(e->extra==1||(e->modifiers==4&&e->extra==5)||(!e->modifiers&&e->extra==3))){back(a);return;}
-    int show_side=wide(a)||!a->narrow_page,show_page=wide(a)||a->narrow_page;
     int focused=u->focus>=0&&u->focus<u->count?u->controls[u->focus].id:0,on_rows=focused>=ID_ROWS&&focused<ID_ROWS+MERIDIAN_PAGE_COUNT+1;
-    if(show_side&&(e->type!=Z_GUI_KEY||on_rows)){
+    if(e->type!=Z_GUI_KEY||on_rows){
         int row=zui_list_event(u,&a->sidebar,e,sidebar_rows,a);
         if(row){u->pressed=-1;request_row(a,row-1);sync_theme(a);return;}
         if(on_rows&&e->type==Z_GUI_KEY&&(e->extra==7||e->extra==8||e->extra==10||e->extra==11)){u->dirty=1;return;}
     }
-    if(show_page){
-        if(zui_scroll_event(u,&a->page_scroll,e))return;
-        if(e->type==Z_GUI_KEY&&!e->modifiers&&!on_rows)page_keys(a,e);
-    }
+    if(zui_scroll_event(u,&a->page_scroll,e))return;
+    if(e->type==Z_GUI_KEY&&!e->modifiers&&!on_rows)page_keys(a,e);
     int id=zui_event(u,e);
     if(id==ID_SEARCH){a->search_focus=1;u->dirty=1;}
-    else if(id==ID_BACK){a->narrow_page=0;u->dirty=1;}
     else if(id==ID_FOOTER+ZUI_FOOTER_APPLY)binding_apply(&a->bindings,kind);
     else if(id==ID_FOOTER+ZUI_FOOTER_RESET)binding_reset(&a->bindings,kind);
     else if(id==ID_FOOTER+ZUI_FOOTER_DEFAULTS)binding_defaults(&a->bindings,kind);

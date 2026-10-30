@@ -203,8 +203,9 @@ int main(int argc,char **argv){
     struct zenith_material_settings material_state={0};
     material_surface=zenith_material_settings_read(&material_state)==0&&(material_state.version==1||material_state.version==2)&&!material_state.reserved&&
         zenith_gui_material_caps(&caps)==0&&caps.version==2&&(caps.features&3)==3;
-    if(!meridian_resize(&shell,800,560,1920*1000))return 1;
-    handle=material_surface?zenith_gui_open_material(800,560,"Meridian",8):zenith_gui_open(800,560,"Meridian",8);
+    /* 640x480 is the largest surface the host admits at open; maximize goes beyond it. */
+    if(!meridian_resize(&shell,640,480,1920*1000))return 1;
+    handle=material_surface?zenith_gui_open_material(640,480,"Meridian",8):zenith_gui_open(640,480,"Meridian",8);
     if(material_surface)shell.ui.foreground=1;
     if(handle<0){print("settings: graphical session required; use --show or --set\n");return 1;}
     if(zenith_gui_interactive(handle)<0){zenith_gui_close(handle);print("settings: interactive client support required\n");return 1;}
@@ -222,7 +223,8 @@ int main(int argc,char **argv){
             for(int n=0;n<15;n++){
                 struct zenith_gui_event next={0};long k=zenith_gui_poll(handle,&next);
                 if(k<0){r=k;break;}if(!k)break;
-                if(next.type!=Z_GUI_SCROLL||((next.x<252)!=(e.x<252))){deferred=next;have_deferred=1;break;}
+                int edge=shell.ui.width>=720?252:212;
+                if(next.type!=Z_GUI_SCROLL||((next.x<edge)!=(e.x<edge))){deferred=next;have_deferred=1;break;}
                 e.code+=next.code;
             }
         }

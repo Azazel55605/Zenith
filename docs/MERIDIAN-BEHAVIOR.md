@@ -33,7 +33,7 @@ new primitives follow the same rules.
 | Scroll area | `begin(rect, &offset)` / `end(content_height)` clips content. Wheel scrolls -code/2 px per event (at most 120); Home/End move list selection; `zui_scroll_reveal` brings a range into view. Page Up/Down need the stage-3 key codes. Overlay scrollbar only on overflow; draggable, track click pages. |
 | List view | Virtualized rows (icon, label, optional subtitle, trailing chevron). Single selection, Up/Down/Home/End, Enter activates, first-letter type-ahead. Only visible rows consume the region budget. |
 | Combo box | Closed field with value and chevron. Click/Enter opens a popup list (list view) placed inside the window. Esc cancels; Enter/click commits; type-ahead. |
-| Form layout | Centered column, maximum width 640 px: right-aligned labels, left-aligned controls, help text below the control, section headings/separators. Below the narrow threshold labels stack above controls. |
+| Form layout | Centered column, maximum width 640 px: right-aligned labels, left-aligned controls, help text below the control, section headings/separators. Below 720 px wide labels stack above controls. |
 | Footer bar | Help (optional) · Defaults · Reset · Apply. Apply/Reset enabled only when draft differs from saved; Defaults only when saved differs from defaults. |
 | Dialog | Modal card over a dimmed window: title, message, two or three buttons, trapped focus, Esc selects Cancel. |
 | Hover | Only when the host advertises move events: hover tint on buttons, rows and chevrons; scrollbar widens. No hover is drawn otherwise. |
@@ -65,8 +65,10 @@ increment a debug counter; content is never silently dropped.
 - **Backends:** existing services and revision/permission checks are unchanged
   and bound as row bindings: appearance, keyboard layout, time zone, default
   session, network/account/About information.
-- **Narrow windows:** below 720 px only the sidebar or the page is shown,
-  with back navigation. Resize and maximize keep the current viewport contract.
+- **Window size:** Meridian opens at 640x480, the largest surface the host admits at
+  open (and 600 px is its minimum), so it always shows two panes: a 200 px sidebar
+  below 720 px wide, 240 px above. Form labels stack above controls below 720 px.
+  Resize and maximize keep the current viewport contract.
 
 ## Hover ABI
 

@@ -7,7 +7,7 @@
 #include "../ui/text.h"
 /* Shell over the navigation model, page bindings and shared widgets. Control ids:
  * 1,2 mode; 10-15 accent; 50-54 effects; 60,61 scope; 100+ sidebar rows; 900+ footer;
- * 950+ dialog; 1002 search; 1003 narrow back; 2004 combo, 2100+ its rows; 3000+ page links. */
+ * 950+ dialog; 1002 search; 2004 combo, 2100+ its rows; 3000+ page links. */
 struct meridian {
     struct zui ui;
     struct settings_app colors;
@@ -19,7 +19,7 @@ struct meridian {
     struct zui_dialog dialog;
     struct zui_input search;
     char query[64];
-    int page,search_focus,narrow_page,closing;
+    int page,search_focus,closing;
     int pending,pending_row,pending_page;
     int recent[6],recent_count;
     long (*information_read)(unsigned int,struct zenith_settings_information *);

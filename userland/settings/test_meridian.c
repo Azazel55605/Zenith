@@ -45,7 +45,7 @@ static void click_index(int i){
 }
 static void click_id(int id){click_index(find_id(id));}
 static void click_label(const char *label){click_index(find_label(label));}
-static void wheel_until(int id){for(int i=0;i<40&&find_id(id)<0;i++)send((struct zenith_gui_event){Z_GUI_SCROLL,-120,500,300,0,0});assert(find_id(id)>=0);}
+static void wheel_until(int id){for(int i=0;i<40&&find_id(id)<0;i++)send((struct zenith_gui_event){Z_GUI_SCROLL,-120,400,300,0,0});assert(find_id(id)>=0);}
 static int page_id(const char *id){for(int i=0;i<MERIDIAN_PAGE_COUNT;i++)if(!strcmp(id,meridian_pages[i].id))return i;assert(0);return 0;}
 static int enabled(int id){int i=find_id(id);return i>=0&&app.ui.controls[i].enabled;}
 int main(int argc,char **argv){
@@ -53,17 +53,17 @@ int main(int argc,char **argv){
     struct zui palette;zui_init(&palette,pixels,600,480);
     for(int m=0;m<2;m++)for(int a=0;a<6;a++){zui_appearance(&palette,m,a);memcpy(saved.palette[m][a],&palette.theme,sizeof(palette.theme));}
     assert(meridian_init(&app,pixels,(struct settings_backend){read_state,save,mark,0},0));
-    assert(meridian_resize(&app,800,560,1920*1000));meridian_refresh(&app);
+    assert(meridian_resize(&app,640,480,1920*1000));meridian_refresh(&app);
     send((struct zenith_gui_event){Z_GUI_FOCUS,1,0,0,0,0});
     assert(app.page==page_id("quick.overview"));
     /* Every destination draws at the default and the minimum size within the region budget. */
     for(int size=0;size<2;size++){
-        assert(meridian_resize(&app,size?600:800,size?480:560,1920*1000));
+        assert(meridian_resize(&app,size?600:640,480,1920*1000));
         for(int i=0;i<MERIDIAN_PAGE_COUNT;i++){assert(meridian_open(&app,meridian_pages[i].id));draw();assert(app.page==i&&app.ui.count<=ZUI_MAX_CONTROLS);}
     }
     assert(!meridian_open(&app,"missing.page"));
     assert(!meridian_resize(&app,599,480,1920*1000)&&!meridian_resize(&app,INT_MAX,INT_MAX,1920*1000));
-    assert(meridian_resize(&app,800,560,1920*1000));
+    assert(meridian_resize(&app,640,480,1920*1000));
     /* Drill-down, back and search by real input. */
     assert(meridian_open(&app,"quick.overview"));draw();
     click_label("Input & Output");assert(app.nav.mode==NAV_PAGES&&app.page==page_id("input.mouse"));
@@ -115,19 +115,17 @@ int main(int argc,char **argv){
     /* Rapid extreme wheel input stays within both scroll ranges. */
     assert(meridian_open(&app,"devices.bluetooth"));draw();click_id(app.sidebar.base_id);
     for(int i=0;i<2000;i++){
-        send((struct zenith_gui_event){Z_GUI_SCROLL,i%2?INT_MIN:INT_MAX,i%4<2?100:500,300,0,0});
+        send((struct zenith_gui_event){Z_GUI_SCROLL,i%2?INT_MIN:INT_MAX,i%4<2?100:400,300,0,0});
         assert(app.sidebar.scroll.offset>=0&&app.sidebar.scroll.offset<=zui_scroll_maximum(&app.sidebar.scroll));
         assert(app.page_scroll.offset>=0&&app.page_scroll.offset<=zui_scroll_maximum(&app.page_scroll));
     }
-    /* Drafts survive resize; narrow layouts show one pane with a back control. */
+    /* Drafts survive resize. */
     assert(meridian_open(&app,"style.colors"));draw();click_label(saved.mode?"Dark":"Light");
     assert(meridian_resize(&app,1920,1000,1920*1000));draw();assert(app.colors.edited);
-    assert(meridian_resize(&app,600,480,1920*1000));draw();assert(app.colors.edited&&app.narrow_page);
-    assert(find_id(app.sidebar.base_id+1)<0&&find_id(1003)>=0);
-    click_id(1003);assert(!app.narrow_page&&find_id(1003)<0&&find_id(900+ZUI_FOOTER_RESET)<0&&find_id(app.sidebar.base_id+1)>=0);
-    app.narrow_page=1;draw();click_id(900+ZUI_FOOTER_RESET);assert(!app.colors.edited&&!dirty);
+    assert(meridian_resize(&app,600,480,1920*1000));draw();assert(app.colors.edited);
+    click_id(900+ZUI_FOOTER_RESET);assert(!app.colors.edited&&!dirty);       /* footer fits the minimum window */
     /* Material frames keep controls opaque. */
-    assert(meridian_resize(&app,800,560,1920*1000));
+    assert(meridian_resize(&app,640,480,1920*1000));
     material_saved=7;meridian_refresh(&app);app.ui.foreground=1;draw();
     int apply=find_id(900+ZUI_FOOTER_APPLY);assert(apply>=0);struct zui_rect r=zui_control_area(&app.ui,apply);
     assert(app.ui.pixels[(r.y+r.h/2)*app.ui.width+r.x+4]>>24==255);
@@ -143,6 +141,6 @@ int main(int argc,char **argv){
             fclose(f);
         }
     }
-    puts("PASS Meridian stage 2: drill-down, search, form pages, footer, dialog, combo defaults, narrow and material layouts");
+    puts("PASS Meridian stage 2: drill-down, search, form pages, footer, dialog, combo defaults and material layouts");
     return 0;
 }
