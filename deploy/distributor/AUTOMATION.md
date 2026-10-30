@@ -358,6 +358,10 @@ source contains them). All gates remain mandatory for signing. Earlier immutable
 tags retain their product sources; updated controller adapters and ordering apply
 when explicitly retrying them.
 
+A failed wait in the graphics, Settings, materials or gallery gate writes
+`pipeline-stall.json` to that gate's directory. Its `scheduler_queue.threads` lists every
+live thread with its state and saved call frames, which shows where a hung command waits.
+
 Check the actual accelerator in the failed wait metric. The service's effective
 policy can be inspected with:
 

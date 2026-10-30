@@ -38,6 +38,10 @@ class DiagnosticTests(unittest.TestCase):
         self.output = output.getvalue()
         return json.loads(result.read_text()) if result else None
 
+    def test_graphics_command_timeout_is_observed(self):
+        with patch.object(diagnostics,'registers',return_value={'RIP':'1000','RSP':'2000','RFL':'246'}):
+            self.assertEqual(self.capture('GRAPHICS_COMMAND')['label'],'GRAPHICS_COMMAND')
+
     def test_meridian_input_timeout_uses_same_bounded_observation_path(self):
         with patch.object(diagnostics,'registers',return_value={'RIP':'1000','RSP':'2000','RFL':'246'}),patch.object(diagnostics.time,'sleep'):
             report=self.capture('MERIDIAN_INPUT')

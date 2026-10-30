@@ -76,7 +76,7 @@ def observe(monitor,elf,read_words):
     def scalar(address,size=8):
         nonlocal reads
         reads+=1
-        if reads>640 or time.monotonic()>deadline or size not in (1,2,4,8): raise ValueError('scheduler read budget exceeded')
+        if reads>4000 or time.monotonic()>deadline or size not in (1,2,4,8): raise ValueError('scheduler read budget exceeded')
         # Read the containing aligned metadata word; never return uninterpreted bytes.
         aligned=address & ~7
         if address+size>aligned+8: raise ValueError('unaligned scheduler field')
@@ -119,7 +119,7 @@ def observe(monitor,elf,read_words):
     items=field(queue,list_type,'_items');capacity,entries=array(items,thread,256)
     if count>capacity: raise ValueError('invalid scheduler queue count')
     pointers=[scalar(entries+i*8) for i in range(count)]
-    def describe(pointer):
+    def describe(pointer,depth=8):
         instance(pointer,thread)
         policy=instance(field(pointer,base_type,'<SchedulerData>k__BackingField'),thread_data_type)
         passed=field(policy,thread_data_type,'<Pass>k__BackingField')
@@ -139,7 +139,7 @@ def observe(monitor,elf,read_words):
                 frame=scalar(sp+336);pc=scalar(sp+408)
                 frames=[];initial=location(pc)
                 if initial: frames.append(initial)
-                for _ in range(8):
+                for _ in range(depth):
                     if frame%8 or not low<=frame<=high-16: break
                     parent=scalar(frame);returned=scalar(frame+8);label=location(returned)
                     if label is None: break
@@ -155,5 +155,23 @@ def observe(monitor,elf,read_words):
     stable=(field(queue,list_type,'_size',4)==count and field(queue,list_type,'_version',4)==version
             and field(cpu,cpu_type,'<CurrentThread>k__BackingField')==current)
     if any(t['state']>5 or t['id']>65535 for t in queue_rows+[current_row]): raise ValueError('invalid scheduler thread metadata')
-    return dict(format='ZenithSchedulerQueue-v1',current=current_row,queue=queue_rows,
+    result=dict(format='ZenithSchedulerQueue-v1',current=current_row,queue=queue_rows,
                 total_tickets=tickets,stable_endpoints=stable,observation_only=True)
+    # A blocked thread is on no run queue, so a hang needs the GC's thread registry too.
+    # No getter survives inlining: find it among the statics by its exact array type.
+    try:
+        registry_name='__Array<'+thread+'>';registry_table=table(registry_name)
+        registries=[]
+        for offset in range(8,136,8):
+            pointer=scalar(statics+offset)
+            if pointer>=0xffff800000000000 and pointer%8==0 and scalar(pointer)==registry_table:registries.append(pointer)
+        if len(registries)!=1: raise ValueError('scheduler thread registry not unique')
+        slots,slot_entries=array(registries[0],thread,256)
+        reads=0;deadline=time.monotonic()+20
+        live=[scalar(slot_entries+i*8) for i in range(slots)]
+        rows=[describe(p,16) for p in live if p]
+        if any(t['state']>5 or t['id']>65535 for t in rows): raise ValueError('invalid scheduler thread metadata')
+        result['threads']=rows
+    except (OSError,ValueError,KeyError,struct.error,subprocess.SubprocessError) as error:
+        result['threads_error']=str(error)
+    return result
