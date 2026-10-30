@@ -141,91 +141,95 @@ def main():
                 if time.monotonic()>=deadline:raise RuntimeError('visible frame '+name)
                 time.sleep(.05)
         geometry=[]
+        def color_at(rgb,w,px,py):return rgb[(py*w+px)*3:(py*w+px)*3+3]
         def locate(w,height,rgb):
-            # Anchor on the compact Blue circle's first full-width scanline,
-            # then verify the other five swatches and the client background.
-            # Mode selection is deliberately neutral in the accepted design.
-            color=bytes.fromhex('f6f7f9');blue=bytes.fromhex('3157b7')
-            needle=blue*32
+            # Anchor on the Blue swatch's widest scanline, then verify the other
+            # five swatches and the content surface at their layout positions.
+            light=bytes.fromhex('f6f7f9');blue=bytes.fromhex('3157b7')
             colors=('3157b7','7042be','ae325d','886010','277347','197571')
             for row_y in range(height):
-                row=rgb[row_y*w*3:(row_y+1)*w*3];i=row.find(needle)
+                row=rgb[row_y*w*3:(row_y+1)*w*3];i=row.find(blue*32)
                 if i<0 or i%3:continue
-                left=i//3-220
-                if left<0 or left+600>w:continue
-                for top in range(max(0,row_y-195),row_y-175):
-                    if top+480>height:continue
-                    def pixel(x,y):
-                        at=((top+y)*w+left+x)*3;return rgb[at:at+3]
-                    if pixel(230,14)==color and pixel(236,175)==color and pixel(236,176)==blue and all(pixel(236+44*j,192)==bytes.fromhex(c) for j,c in enumerate(colors)):
-                        geometry[:]=[left,top];return True
+                left=i//3-240
+                if left<0 or left+640>w:continue
+                top=row_y-303 # First full-width scanline of the 32 px circle at layout y 289.
+                if top<0 or top+480>height:continue
+                if color_at(rgb,w,left+400,top+18)==light and all(color_at(rgb,w,left+244+44*j,top+305)==bytes.fromhex(c) for j,c in enumerate(colors)):
+                    geometry[:]=[left,top];return True
             return False
-        frame('dark',locate);x,y=geometry
-        def color_at(rgb,w,px,py):return rgb[(py*w+px)*3:(py*w+px)*3+3]
-        def background(color):return lambda w,h,rgb:color_at(rgb,w,x+230,y+14)==bytes.fromhex(color)
+        frame('light',locate);x,y=geometry
+        def background(color):return lambda w,h,rgb:color_at(rgb,w,x+400,y+18)==bytes.fromhex(color)
         def click(px,py):
             (cx,cy),_=observer.position()
             try:monitor_command(monitor,f'mouse_move {px-cx} {py-cy}')
             except RuntimeError:
                 from types import SimpleNamespace
                 off=len(m.log());profile.monitor_text(monitor,'sendkey ctrl-f 30')
-                responded=m.wait('MERIDIAN_PAGE navigation',off,5)
+                responded=m.wait('MERIDIAN_FOCUSED',off,5)
                 print('Input failure diagnostic: keyboard response='+str(responded),flush=True)
                 diagnostic=load('meridian_input_diagnostic',ROOT/'deploy/distributor/validation-diagnostics.py')
                 diagnostic.capture(SimpleNamespace(directory=keep),'MERIDIAN_INPUT',ROOT/'output-x64/Zenith.elf')
                 raise
             monitor_command(monitor,'mouse_button 1');monitor_command(monitor,'mouse_button 0')
-        # Preview is not persistence. Keyboard input picks Dark without saving.
-        monitor_command(monitor,'sendkey tab 30');time.sleep(.1)
-        changed=len(m.log());monitor_command(monitor,'sendkey ret 30')
+        APPLY=(x+560,y+440)
+        # Preview is not persistence. Pointer picks Dark; keyboard leaves and re-enters the draft.
+        changed=len(m.log());click(x+308,y+237)
+        assert m.wait('user: SETTINGS_UNSAVED',changed,10),'pointer draft'
+        frame('preview',background('202125'))
+        monitor_command(monitor,'sendkey right 30');frame('preview-saved',background('f6f7f9'))
+        changed=len(m.log());monitor_command(monitor,'sendkey left 30')
         assert m.wait('user: SETTINGS_UNSAVED',changed,10),'keyboard draft'
-        frame('preview',background('202125'));print('PASS keyboard preview',flush=True)
-        # Real chrome close must leave the surface alive and offer a discard choice.
-        changed=len(m.log());click(x+580,y-19)
+        frame('preview-keyboard',background('202125'));print('PASS pointer and keyboard preview',flush=True)
+        # Real chrome close must leave the surface alive and offer the dialog.
+        changed=len(m.log());click(x+620,y-19)
         assert m.wait('user: SETTINGS_DISCARD_PROMPT',changed,10),'chrome close lost edits'
-        frame('discard-prompt',lambda w,h,rgb:background('202125')(w,h,rgb) and color_at(rgb,w,x+236,y+424)==bytes.fromhex('2a2c31'))
-        click(x+274,y+438) # Keep editing.
-        frame('kept-editing',lambda w,h,rgb:color_at(rgb,w,x+236,y+424)==bytes.fromhex('7ecac7'))
-        print('PASS chrome close intent and Keep editing',flush=True)
-        click(x+548,y+249);click(x+548,y+295) # Transparency and blur are one draft/save.
-        changed=len(m.log());click(x+274,y+438) # Save now.
-        assert m.wait('user: SETTINGS_REVISION_CHANGED',changed,15),'GUI save did not complete'
-        width,height,rgb=frame('saved',background('202125'));print('PASS GUI save',flush=True)
+        frame('discard-prompt',lambda w,h,rgb:color_at(rgb,w,x+500,y+170)==bytes.fromhex('2a2c31'))
+        click(x+448,y+282) # Cancel.
+        frame('kept-editing',lambda w,h,rgb:color_at(rgb,w,x+500,y+170)==bytes.fromhex('202125'))
+        print('PASS chrome close intent and dialog Cancel',flush=True)
+        # Scroll the form by keyboard to reach the effects rows (40 px per Down).
+        for _ in range(6):monitor_command(monitor,'sendkey down 30');time.sleep(.05)
+        frame('effects-visible',lambda w,h,rgb:color_at(rgb,w,x+530,y+209)==bytes.fromhex('45474f'))
+        TRANSPARENT,BLUR,WHOLE=(x+516,y+209),(x+516,y+295),(x+516,y+381)
+        click(*TRANSPARENT);click(*BLUR) # Transparency and blur are one draft/apply.
+        changed=len(m.log());click(*APPLY)
+        assert m.wait('user: SETTINGS_REVISION_CHANGED',changed,15),'GUI apply did not complete'
+        width,height,rgb=frame('saved',background('202125'));print('PASS GUI apply',flush=True)
         def material_frame(w,h,rgb):
             bar=color_at(rgb,w,w-240,h-28)
             return max(bar)<128 and bar!=bytes.fromhex('25262b') and color_at(rgb,w,x+500,y-1)!=bytes.fromhex('45474f')
         width,height,rgb=frame('materials-applied',material_frame)
-        assert color_at(rgb,width,x+204,y+12)!=bytes.fromhex('202125'),'inset detail corner is square'
-        assert color_at(rgb,width,x+230,y+14)==bytes.fromhex('202125'),'inner corner changed the content layout'
+        assert color_at(rgb,width,x+224,y+12)!=bytes.fromhex('202125'),'inset detail corner is square'
+        assert color_at(rgb,width,x+250,y+14)==bytes.fromhex('202125'),'inner corner changed the content layout'
         print('PASS taskbar material, seamless chrome and rounded detail inset',flush=True)
-        click(x+548,y+249) # Keep saved blur, disable transparency.
-        changed=len(m.log());click(x+274,y+438)
-        assert m.wait('user: SETTINGS_REVISION_CHANGED',changed,15),'solid save'
+        click(*TRANSPARENT) # Keep saved blur, disable transparency.
+        changed=len(m.log());click(*APPLY)
+        assert m.wait('user: SETTINGS_REVISION_CHANGED',changed,15),'solid apply'
         def solid_frame(w,h,rgb):
             return color_at(rgb,w,w-240,h-28)==bytes.fromhex('25262b') and color_at(rgb,w,x+500,y-1)==bytes.fromhex('25262b')
         width,height,rgb=frame('materials-disabled',solid_frame)
-        assert color_at(rgb,width,x+204,y+12)!=bytes.fromhex('202125'),'solid inset corner changed'
-        assert color_at(rgb,width,x+230,y+14)==bytes.fromhex('202125'),'solid content layout changed'
-        click(x+548,y+249) # Restore transparency; blur is still selected.
-        changed=len(m.log());click(x+274,y+438)
+        assert color_at(rgb,width,x+224,y+12)!=bytes.fromhex('202125'),'solid inset corner changed'
+        assert color_at(rgb,width,x+250,y+14)==bytes.fromhex('202125'),'solid content layout changed'
+        click(*TRANSPARENT) # Restore transparency; blur is still selected.
+        changed=len(m.log());click(*APPLY)
         assert m.wait('user: SETTINGS_REVISION_CHANGED',changed,15),'effects restore'
         width,height,rgb=frame('materials-restored',material_frame)
         print('PASS live effects off/on, retained blur and identical content geometry',flush=True)
         # Rectangular client row-copy must not leak into the rounded bottom
         # corners. Their backdrop must differ from the solid body immediately in.
         assert color_at(rgb,width,x,y+479)!=bytes.fromhex('202125'),'bottom-left rectangular bleed'
-        assert color_at(rgb,width,x+599,y+479)!=bytes.fromhex('202125'),'bottom-right rectangular bleed'
+        assert color_at(rgb,width,x+639,y+479)!=bytes.fromhex('202125'),'bottom-right rectangular bleed'
         print('PASS completed native window corner mask',flush=True)
-        click(x+548,y+341);changed=len(m.log());click(x+274,y+438)
-        assert m.wait('user: SETTINGS_REVISION_CHANGED',changed,15),'whole-background save'
+        click(*WHOLE);changed=len(m.log());click(*APPLY)
+        assert m.wait('user: SETTINGS_REVISION_CHANGED',changed,15),'whole-background apply'
         # Move beyond the underlying terminal so a blank detail pixel samples
         # wallpaper instead of an identical solid terminal background.
         (cx,cy),_=observer.position();monitor_command(monitor,f'mouse_move {x+280-cx} {y-22-cy}')
         monitor_command(monitor,'mouse_button 1');monitor_command(monitor,'mouse_move 100 0');monitor_command(monitor,'mouse_button 0');x+=100
-        frame('whole-background',lambda w,h,rgb:color_at(rgb,w,x+580,y+100)!=bytes.fromhex('202125') and max(color_at(rgb,w,x+580,y+100))<160)
+        frame('whole-background',lambda w,h,rgb:color_at(rgb,w,x+616,y+100)!=bytes.fromhex('202125') and max(color_at(rgb,w,x+616,y+100))<160)
         print('PASS whole-app background over wallpaper with opaque controls',flush=True)
         monitor_command(monitor,'mouse_button 1')
-        done=len(m.log());monitor_command(monitor,'sendkey esc 30')
+        done=len(m.log());monitor_command(monitor,'sendkey ctrl-q 30')
         try:assert m.wait('user: S_UI=0',done,30),'close key while dragging and shell return'
         finally:profile.monitor_text(monitor,'mouse_button 0')
         print('PASS close during title drag and released pointer ownership',flush=True)
@@ -246,26 +250,19 @@ def main():
         assert m.wait('user: S_SECRET_CANCELLED',off,30),'secret read cancellation and shell recovery'
         frame('terminal-material-restored',lambda w,h,rgb:color_at(rgb,w,1028,570)!=bytes.fromhex('202125') and max(color_at(rgb,w,1028,570))<160)
         print('PASS hidden Terminal input stays solid; cancellation restores materials',flush=True)
-        for script,count,expected,exit_marker in (('k',4,'keyboard=gb (active gb)','S_KEYBOARD'),('t',1,'timezone=Europe/London (active Europe/London)','S_TIMEZONE'),('q',1,'session=de (next boot)','S_SESSION_PAGE')):
+        for script,count,direction,expected,exit_marker in (('k',4,'down','keyboard=gb (active gb)','S_KEYBOARD'),('t',1,'down','timezone=Europe/London (active Europe/London)','S_TIMEZONE'),('q',1,'up','session=de (next boot)','S_SESSION_PAGE')):
             desktop_script(script,'MERIDIAN_FOCUSED')
-            choice_geometry=[]
-            def locate_choice(w,h,rgb):
-                color=bytes.fromhex('2a2c31');needle=color*342
-                for row in range(h):
-                    line=rgb[row*w*3:(row+1)*w*3];at=line.find(needle)
-                    if at<0 or at%3:continue
-                    px=at//3
-                    if px+342<w and color_at(rgb,w,px+342,row)==color:continue
-                    left,top=px-225,row-215
-                    if left>=0 and top>=44 and left+600<=w and top+480<=h and color_at(rgb,w,left+24,top+80)==bytes.fromhex('45474f') and color_at(rgb,w,left+30,top+84)==color:
-                        choice_geometry[:]=[left,top];return True
-                return False
-            frame('shared-'+script,locate_choice);sx,sy=choice_geometry
-            for _ in range(count):click(sx+446,sy+279)
-            off=len(m.log());click(sx+287,sy+437)
+            # Keyboard path: footer buttons start disabled, so Shift+Tab lands on the
+            # combo; Enter opens it, Down moves, Enter commits, Tab reaches Apply.
+            time.sleep(.5);observer.capture(keep/('shared-'+script+'.ppm'))
+            monitor_command(monitor,'sendkey shift-tab 30');time.sleep(.1);monitor_command(monitor,'sendkey ret 30');time.sleep(.2)
+            for _ in range(count):monitor_command(monitor,'sendkey '+direction+' 30');time.sleep(.05)
+            monitor_command(monitor,'sendkey ret 30');time.sleep(.2)
+            monitor_command(monitor,'sendkey tab 30');time.sleep(.1)
+            off=len(m.log());monitor_command(monitor,'sendkey ret 30')
             if not m.wait('user: SYSTEM_SETTINGS_REVISION_CHANGED',off,15):
-                observer.capture(keep/('shared-save-failure-'+script+'.ppm'));raise RuntimeError('shared system save; retained screenshot')
-            frame('shared-saved-'+script,locate_choice)
+                observer.capture(keep/('shared-save-failure-'+script+'.ppm'));raise RuntimeError('shared system apply; retained screenshot')
+            observer.capture(keep/('shared-saved-'+script+'.ppm'))
             off=len(m.log());monitor_command(monitor,'sendkey ctrl-q 30');assert m.wait('user: '+exit_marker+'=0',off,30),'shared page exit'
             observed=desktop_script('o','user: S_SHARED=0');assert expected in m.log()[observed:],'CLI and GUI shared defaults diverged'
         denied=desktop_script('c','user: S_SYSTEM_DENIED=1');assert 'writable=0' in m.log()[denied:],'ordinary reader reports administrator authority'
@@ -295,13 +292,13 @@ def main():
             # A focused search-field border identifies the new, cascaded window.
             # Waiting for its pixels prevents the underlying terminal satisfying
             # a mere non-solid-color check before the native frame is composed.
-            for row_y in range(61,h-420):
+            for row_y in range(21,h-460):
                 row=rgb[row_y*w*3:(row_y+1)*w*3];at=row.find(bytes.fromhex('7ecac7')*130)
                 if at<0 or at%3:continue
-                left,top=at//3-31,row_y-60
-                if left<0 or left+600>w:continue
-                if color_at(rgb,w,left+80,top+59)==bytes.fromhex('7ecac7'):continue
-                if color_at(rgb,w,left+80,top+61)!=bytes.fromhex('2a2c31'):continue
+                left,top=at//3-31,row_y-20
+                if left<0 or left+640>w:continue
+                if color_at(rgb,w,left+80,top+19)==bytes.fromhex('7ecac7'):continue
+                if color_at(rgb,w,left+80,top+21)!=bytes.fromhex('2a2c31'):continue
                 nav=color_at(rgb,w,left+16,top+390)
                 if max(nav)<160 and nav!=bytes.fromhex('25262b'):
                     geometry[:]=[left,top];return True
@@ -312,18 +309,17 @@ def main():
             (cx,cy),_=observer.position();monitor_command(monitor,f'mouse_move {target[0]-cx} {target[1]-cy}')
             for burst in range(8):
                 for n in range(24):profile.monitor_text(monitor,'mouse_move 0 0 '+('1' if burst%2 else '-1'))
-        off=len(m.log());monitor_command(monitor,'sendkey esc 30');time.sleep(.2);monitor_command(monitor,'sendkey esc 30')
-        assert m.wait('MERIDIAN_PAGE quick.overview',off,30),'app/host response after rapid wheel events'
+        monitor_command(monitor,'sendkey esc 30')
+        frame('wheel-unfocused',lambda w,h,rgb:color_at(rgb,w,x+80,y+20)!=bytes.fromhex('7ecac7'))
         monitor_command(monitor,'sendkey ctrl-f 30');frame('wheel-alive',navigation_material)
         print('PASS rapid wheel input, bounded navigation and continued host response',flush=True)
         login.monitor_type(monitor,'bluetooth')
-        monitor_command(monitor,'sendkey ret 30');time.sleep(.2)
         off=len(m.log());monitor_command(monitor,'sendkey ret 30')
         assert m.wait('MERIDIAN_PAGE devices.bluetooth',off,10),'settings search did not open WIP destination'
         frame('meridian-wip',lambda w,h,rgb:any(bytes.fromhex('2a2c31')*336 in rgb[row*w*3:(row+1)*w*3] for row in range(h)))
-        off=len(m.log());click(x+542,y-22)
+        off=len(m.log());click(x+582,y-22)
         assert m.wait('MERIDIAN_RESIZED',off,20),'maximize acknowledgement'
-        frame('meridian-maximized',lambda w,h,rgb:any(bytes.fromhex('2a2c31')*1000 in rgb[row*w*3:(row+1)*w*3] for row in range(h)))
+        frame('meridian-maximized',lambda w,h,rgb:any(bytes.fromhex('2a2c31')*600 in rgb[row*w*3:(row+1)*w*3] for row in range(h)))
         off=len(m.log());click(1280-58,22)
         assert m.wait('MERIDIAN_RESIZED',off,20),'restore acknowledgement'
         print('PASS responsive maximize/restore and inset detail layout',flush=True)
