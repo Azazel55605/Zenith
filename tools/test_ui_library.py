@@ -34,7 +34,7 @@ class UiLibraryTests(unittest.TestCase):
             subprocess.run(['gcc','-std=c11','-Wall','-Wextra','-Werror','-O1','-g',
                             '-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(ROOT/'userland/ui'),
                             '-I'+str(ROOT/'userland/settings'),str(ROOT/'userland/settings/test_navigation.c'),
-                            str(ROOT/'userland/settings/navigation.c'),generated('build-meridian-pages.py','pages'),
+                            str(ROOT/'userland/settings/navigation.c'),str(ROOT/'userland/settings/bindings.c'),str(ROOT/'userland/settings/app.c'),generated('build-meridian-pages.py','pages'),
                             str(ROOT/'userland/ui/ui.c'),str(ROOT/'userland/ui/widgets.c'),
                             generated('build-ui-fonts.py','fonts'),generated('build-ui-icons.py','icons'),'-o',str(exe)],check=True)
             subprocess.run([str(exe)],check=True,timeout=30)
