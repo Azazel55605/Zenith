@@ -14,6 +14,9 @@ struct zui_rect { int x,y,w,h; };
  * future host-negotiated composition is possible, never authority to sample it. */
 enum { ZUI_SURFACE_CONTENT=1,ZUI_SURFACE_CONTROL=2,ZUI_SURFACE_NAVIGATION=3,
        ZUI_SURFACE_PANEL=4,ZUI_SURFACE_POPOVER=5 };
+#ifndef Z_GUI_MOVE
+#define Z_GUI_MOVE 9 /* Opt-in host pointer motion (stage 3 ABI); ignored unless hover_supported. */
+#endif
 struct zui;
 int zui_surface(struct zui *ui,struct zui_rect rect,int radius,int role);
 int zui_backdrop_candidate(int role);
@@ -26,6 +29,7 @@ struct zui {
     struct zui_rect clip;
     struct zui_control controls[ZUI_MAX_CONTROLS];
     int count,focus,pressed,window_focused,dirty;
+    int hover,hover_supported; /* hover: control index under the pointer or -1 */
     int foreground,material_count,full_background;
     struct zenith_material_region materials[8];
 };

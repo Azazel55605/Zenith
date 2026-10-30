@@ -15,7 +15,7 @@ static struct zui_rect intersect(struct zui_rect a,struct zui_rect b){
 int zui_init(struct zui *u,unsigned int *p,int w,int h){
     if(!u||!p||w<1||h<1||w>1920||h>1000)return 0;
     *u=(struct zui){0};u->pixels=p;u->width=w;u->height=h;
-    u->clip=(struct zui_rect){0,0,w,h};u->focus=-1;u->pressed=-1;
+    u->clip=(struct zui_rect){0,0,w,h};u->focus=-1;u->pressed=-1;u->hover=-1;
     zui_appearance(u,0,0);return 1;
 }
 int zui_resize(struct zui *u,int w,int h,unsigned long capacity){
@@ -201,8 +201,16 @@ static struct zui_rect viewport(const struct zui *u,const struct zui_control *c)
 }
 int zui_event(struct zui *u,const struct zenith_gui_event *e){
     if(!e)return 0;
-    if(e->type==Z_GUI_FOCUS){u->window_focused=!!e->code;u->pressed=-1;u->dirty=1;return 0;}
-    if(e->type==Z_GUI_RESET||e->type==Z_GUI_CLOSE){u->pressed=-1;u->dirty=1;return 0;}
+    if(e->type==Z_GUI_MOVE){
+        if(!u->hover_supported)return 0;
+        int h=-1;
+        if(e->x>=0&&e->y>=0)for(int i=u->count-1;i>=0;i--)
+            if(u->controls[i].enabled&&hit(intersect(u->controls[i].rect,viewport(u,&u->controls[i])),e->x,e->y)){h=i;break;}
+        if(h!=u->hover){u->hover=h;u->dirty=1;}
+        return 0;
+    }
+    if(e->type==Z_GUI_FOCUS){u->window_focused=!!e->code;u->pressed=-1;u->hover=-1;u->dirty=1;return 0;}
+    if(e->type==Z_GUI_RESET||e->type==Z_GUI_CLOSE){u->pressed=-1;u->hover=-1;u->dirty=1;return 0;}
     if(!u->window_focused)return 0;
     if(e->type==Z_GUI_KEY&&e->extra==4&&!(e->modifiers&6)){
         int cursor=u->focus,found=-1;
@@ -275,6 +283,8 @@ void zui_draw_range(struct zui *u,int first,int count){
         unsigned int fill=selected?u->theme.accent:u->theme.raised;
         unsigned int fg=selected?u->theme.on_accent:u->theme.text;
         if(!c->enabled){fill=u->theme.subtle;fg=u->theme.secondary;}
+        int hovered=u->hover==i&&!pressed&&c->enabled;
+        if(hovered&&!selected&&c->kind!=ZUI_SWATCH&&c->kind!=ZUI_TOGGLE)fill=blend(fill,u->theme.text,16);
         int radius=c->kind==ZUI_SWATCH?r.w/2:8;
         if(u->window_focused&&u->focus==i&&c->enabled){
             zui_round(u,(struct zui_rect){r.x-3,r.y-3,r.w+6,r.h+6},radius+3,u->theme.accent);
@@ -293,7 +303,8 @@ void zui_draw_range(struct zui *u,int first,int count){
             else zui_round(u,r,6,pressed?u->theme.raised:fill);
         }else if(c->kind==ZUI_NAVIGATION){
             fill=selected?blend(u->theme.subtle,u->theme.accent,32):u->theme.subtle;
-            if(selected||pressed)zui_round(u,r,6,pressed?u->theme.raised:fill);
+            if(hovered&&!selected)fill=blend(u->theme.subtle,u->theme.text,16);
+            if(selected||pressed||hovered)zui_round(u,r,6,pressed?u->theme.raised:fill);
             fg=c->enabled?u->theme.text:u->theme.secondary;
             if(selected)zui_round(u,(struct zui_rect){r.x+1,r.y+7,3,r.h-14},1,u->theme.accent);
         }else if(c->kind==ZUI_TOGGLE){

@@ -170,6 +170,19 @@ int main(int argc,char **argv){
         zui_fill(&b,(struct zui_rect){0,0,64,64},0);zui_clip(&b,(struct zui_rect){0,0,10,64});
         assert(zui_icon(&b,"x",0,0,24,ZUI_ICON_NORMAL));assert(px[12*64+12]==0);
     }
+    { /* hover only when supported; leave and focus loss clear it */
+        static unsigned int px[100*60];struct zui b;assert(zui_init(&b,px,100,60));b.window_focused=1;
+        assert(b.hover==-1);
+        zui_add(&b,1,ZUI_BUTTON,(struct zui_rect){10,10,40,30},"h",0,1);
+        struct zenith_gui_event m={Z_GUI_MOVE,0,20,20,0,0};
+        zui_event(&b,&m);assert(b.hover==-1);
+        b.hover_supported=1;b.dirty=0;zui_event(&b,&m);assert(b.hover==0&&b.dirty);
+        zui_draw_controls(&b);unsigned int hovered=px[25*100+30];
+        m.x=m.y=-1;zui_event(&b,&m);assert(b.hover==-1);
+        zui_draw_controls(&b);assert(px[25*100+30]!=hovered);
+        m.x=m.y=20;zui_event(&b,&m);assert(b.hover==0);
+        struct zenith_gui_event f={Z_GUI_FOCUS,0,0,0,0,0};zui_event(&b,&f);assert(b.hover==-1);
+    }
     puts("PASS UI renderer bounds, fonts, theme, focus, activation, disabled/reset/capture and 10000 event sequences");
     return 0;
 }
