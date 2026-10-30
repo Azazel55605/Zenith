@@ -10,9 +10,12 @@ static void scroll_tests(void){
     struct zui_scroll s={0};struct zui_rect view={100,100,300,200};
     assert(zui_scroll_begin(&u,&s,view)==100);zui_scroll_end(&u,&s,1000);
     assert(zui_scroll_maximum(&s)==800);
-    struct zenith_gui_event w=ev(Z_GUI_SCROLL,-120,150,150,0);
-    assert(zui_scroll_event(&u,&s,&w)&&s.offset==60);
-    w.code=INT_MIN;assert(zui_scroll_event(&u,&s,&w)&&s.offset==180);   /* clamped to 120 px */
+    /* The PS/2 wheel reports one unit per notch; each must move a full step. */
+    struct zenith_gui_event w=ev(Z_GUI_SCROLL,-1,150,150,0);
+    assert(zui_scroll_event(&u,&s,&w)&&s.offset==40);
+    w.code=1;assert(zui_scroll_event(&u,&s,&w)&&s.offset==0);
+    w.code=-3;assert(zui_scroll_event(&u,&s,&w)&&s.offset==120);        /* coalesced notches */
+    w.code=INT_MIN;assert(zui_scroll_event(&u,&s,&w)&&s.offset==320);   /* at most one viewport */
     w.code=120;w.x=50;assert(!zui_scroll_event(&u,&s,&w));               /* outside rect */
     for(int i=0;i<100;i++){w=ev(Z_GUI_SCROLL,-120,150,150,0);zui_scroll_event(&u,&s,&w);}
     assert(s.offset==800);

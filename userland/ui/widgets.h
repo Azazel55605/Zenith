@@ -17,6 +17,7 @@ int zui_scroll_begin(struct zui *ui,struct zui_scroll *s,struct zui_rect rect);
 /* Records content height, clamps offset, draws the scrollbar and restores the clip. */
 void zui_scroll_end(struct zui *ui,struct zui_scroll *s,int content_height);
 /* Returns 1 when the offset changed. */
+#define ZUI_WHEEL_STEP 40 /* pixels per wheel notch, the same as an arrow key */
 int zui_scroll_event(struct zui *ui,struct zui_scroll *s,const struct zenith_gui_event *e);
 /* Scrolls minimally so content [top,top+height) is visible. */
 void zui_scroll_reveal(struct zui_scroll *s,int top,int height);

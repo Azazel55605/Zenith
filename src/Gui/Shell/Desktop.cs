@@ -61,11 +61,17 @@ internal sealed class Desktop
 
         TerminalWindow.OpenApp = OpenApp;
         FileManagerWindow.OpenApp = OpenApp;
-        CommandShell.Register(new Command("fps", "fps", "Show compositor statistics", c =>
+        CommandShell.Register(new Command("fps", "fps [reset]", "Show compositor statistics", c =>
         {
+            if (c.Args.Length == 1 && c.Args[0] == "reset") { FrameStats.ResetWindow(); return 0; }
+            if (c.Args.Length != 0) { return c.Fail("usage: fps [reset]"); }
             c.WriteLine("frames presented: " + FrameStats.Frames + ", scene composes: " + FrameStats.SceneComposes);
             c.WriteLine("last compose: " + FrameStats.LastComposeMicros + " us, last present: " + FrameStats.LastPresentMicros + " us");
             c.WriteLine("display: " + _screen.Name + " " + _screen.Width + "x" + _screen.Height);
+            c.WriteLine("since reset: " + FrameStats.SceneFrames + " scene frames, average " + FrameStats.AverageFrameMicros + " us, worst " + FrameStats.MaxFrameMicros + " us");
+            c.WriteLine("worst compose: " + FrameStats.MaxComposeMicros + " us, worst present: " + FrameStats.MaxPresentMicros + " us");
+            c.WriteLine("over 16 ms: " + FrameStats.FramesOver16Ms + ", over 33 ms: " + FrameStats.FramesOver33Ms);
+            c.WriteLine("windows: " + Windows.Windows.Count + ", materials: " + MaterialResources.Policy.Effective);
             return 0;
         }));
     }
@@ -147,10 +153,12 @@ internal sealed class Desktop
 
         if (_sceneDirty)
         {
+            long frameStart = FrameStats.Now;
             ComposeScene();
             _frame.CopyFrom(_scene);
             DrawCursor();
             Present();
+            FrameStats.RecordSceneFrame(frameStart);
         }
         else if (_cursorDirty)
         {

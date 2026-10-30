@@ -45,7 +45,7 @@ struct and the toolkit never allocates.
   draw with `zui_icon(name, x, y, size, role)`, tinted accent, accent contrast,
   muted or body text; trusted windows use `Icons.Draw`. Files load once into fixed
   caches (64 names, 128 KiB, 16 KiB per file) and a missing icon draws nothing.
-- **Scroll area:** clip to a viewport, wheel (-code/2 px, at most 120), thumb drag,
+- **Scroll area:** clip to a viewport, wheel (40 px per notch, at most one viewport per event), thumb drag,
   track paging, `zui_scroll_reveal`; the overlay scrollbar shows only on overflow.
 - **List view:** lazy item source, only visible rows registered, single selection,
   Up/Down/Home/End skipping disabled rows, first-letter type-ahead; navigation

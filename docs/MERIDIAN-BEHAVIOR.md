@@ -30,7 +30,7 @@ new primitives follow the same rules.
 | Primitive | Contract |
 |---|---|
 | `zui_icon(name, rect, role)` | 16/24/32 px masks with 2x variants. Roles: normal = accent, selected = accent contrast (`on_accent`), disabled = secondary text. Unknown name draws nothing and returns 0. |
-| Scroll area | `begin(rect, &offset)` / `end(content_height)` clips content. Wheel scrolls -code/2 px per event (at most 120); Home/End move list selection; `zui_scroll_reveal` brings a range into view. Page Up/Down need the stage-3 key codes. Overlay scrollbar only on overflow; draggable, track click pages. |
+| Scroll area | `begin(rect, &offset)` / `end(content_height)` clips content. Wheel scrolls 40 px per notch (at most one viewport per event); Home/End move list selection; `zui_scroll_reveal` brings a range into view. Page Up/Down need the stage-3 key codes. Overlay scrollbar only on overflow; draggable, track click pages. |
 | List view | Virtualized rows (icon, label, optional subtitle, trailing chevron). Single selection, Up/Down/Home/End, Enter activates, first-letter type-ahead. Only visible rows consume the region budget. |
 | Combo box | Closed field with value and chevron. Click/Enter opens a popup list (list view) placed inside the window. Esc cancels; Enter/click commits; type-ahead. |
 | Form layout | Centered column, maximum width 640 px: right-aligned labels, left-aligned controls, help text below the control, section headings/separators. Below 720 px wide labels stack above controls. |

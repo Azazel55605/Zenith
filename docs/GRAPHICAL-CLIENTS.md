@@ -65,7 +65,7 @@ for 16 ms. Its 24-byte event contains six signed i32 fields:
 | 3 | Key press; code UTF-16 character, modifiers Shift=1/Control=2/Alt=4 |
 | 4 / 5 / 6 | Left pointer press/release/drag; code 1, content-local clamped x/y |
 | 7 | Input queue overflow; discard any locally held key/button state |
-| 8 | Scroll; code signed delta clamped to -120..120 |
+| 8 | Scroll; code signed notch count, positive = up, clamped to -120..120 (a single notch is ±1) |
 | 11 | Pointer motion after opt-in (call 627); content-local x/y, x=y=-1 on leave |
 
 On focus loss, clients should discard locally held input state.

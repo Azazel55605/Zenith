@@ -198,6 +198,16 @@ def main():
         monitor_command(monitor,'sendkey home 30')
         frame('form-home',lambda w,h,rgb:color_at(rgb,w,x+500,y+225)==top_pixel)
         print('PASS Page Down and Home on the form',flush=True)
+        # One real wheel notch moves the form exactly one 40 px step. The pointer rests
+        # on the form's empty right margin (the page ends at x+628), so no hover tint falls inside the compared rows.
+        (cx,cy),_=observer.position();monitor_command(monitor,f'mouse_move {x+614-cx} {y+120-cy}');time.sleep(.3)
+        before=frame('wheel-before',background('202125'))[2]
+        def row(rgb,w,py):return rgb[(py*w+x+300)*3:(py*w+x+600)*3]
+        monitor_command(monitor,'mouse_move 0 0 1')
+        frame('wheel-notch',lambda w,h,rgb:row(rgb,w,y+300)!=row(before,w,y+300) and all(row(rgb,w,y+r)==row(before,w,y+r+40) for r in range(200,340,4)))
+        monitor_command(monitor,'sendkey home 30')
+        frame('wheel-home',lambda w,h,rgb:row(rgb,w,y+300)==row(before,w,y+300))
+        print('PASS one wheel notch scrolls one step',flush=True)
         # Scroll the form by keyboard to reach the effects rows (40 px per Down).
         for _ in range(6):monitor_command(monitor,'sendkey down 30');time.sleep(.05)
         frame('effects-visible',lambda w,h,rgb:color_at(rgb,w,x+530,y+209)==bytes.fromhex('45474f'))

@@ -33,7 +33,9 @@ void zui_scroll_reveal(struct zui_scroll *s,int top,int height){
 int zui_scroll_event(struct zui *u,struct zui_scroll *s,const struct zenith_gui_event *e){
     int old=s->offset,max=zui_scroll_maximum(s);
     if(e->type==Z_GUI_SCROLL&&inside(s->rect,e->x,e->y)&&e->code){
-        long d=-(long)e->code/2;d=d>120?120:d<-120?-120:d;s->offset=clampi(s->offset+d,0,max);
+        /* One notch is a code of 1; a coalesced burst never jumps past a viewport. */
+        long d=-(long)e->code*ZUI_WHEEL_STEP,limit=s->rect.h>ZUI_WHEEL_STEP?s->rect.h:ZUI_WHEEL_STEP;
+        d=d>limit?limit:d<-limit?-limit:d;s->offset=clampi(s->offset+d,0,max);
     }else if(e->type==Z_GUI_DOWN&&max){
         struct zui_rect t=thumb(s),track={t.x,s->rect.y,t.w,s->rect.h};
         if(inside(t,e->x,e->y)){s->dragging=1;s->drag_y=e->y;s->drag_offset=s->offset;}
