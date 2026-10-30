@@ -15,7 +15,7 @@ This is not general POSIX execution, managed SMP or an isolated compositor.
 
 ## U1 / D1 — Shared runtime and widgets
 
-- [ ] [Meridian behavior design](../MERIDIAN-BEHAVIOR.md) stage 1: 128-region budget,
+- [x] [Meridian behavior design](../MERIDIAN-BEHAVIOR.md) stage 1 (local): 128-region budget,
   Lucide icons, scroll area, list view, combo box, form layout, footer, dialog and
   hover plumbing ([implementation plan](USERLAND-UI-STAGE1.md)).
 - [x] Buttons/toggles/choices, fixed Inter atlases, clipping, focus and opaque palettes.

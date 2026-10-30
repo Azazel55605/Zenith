@@ -26,7 +26,7 @@ native run settings --system-show
 ```
 
 Modes: `dark`, `light`. Accents: `blue`, `violet`, `rose`, `amber`, `green`, `teal`.
-The GUI previews edits locally. **Save changes** persists them; simply selecting a
+The GUI previews edits locally. footer **Apply** persists them; simply selecting a
 mode/accent does not change other windows. The desktop applies a successful save
 on its next tick, without logging out. The page polls status and distinguishes
 unsaved preview, saved/pending and saved/active. Headless saves become active on the

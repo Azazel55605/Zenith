@@ -1,6 +1,6 @@
 # Meridian KDE-baseline pages (stage 2) — implementation plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 Owners: **S1/D1** (U1 primitives) in the [master roadmap](../ROADMAP.md); contract in
 [Meridian behavior design](../MERIDIAN-BEHAVIOR.md), stage 2. Stage 1 primitives:
@@ -82,7 +82,7 @@ int settings_set_scope(struct settings_app *a,unsigned int personal); /* refused
 void settings_theme(const struct settings_app *a,struct zui *ui);     /* draft palette, swatches, full_background */
 ```
 
-- [ ] **Step 1: Failing test** — replace `test_settings.c` body with model tests (fake backend as today):
+- [x] **Step 1: Failing test** — replace `test_settings.c` body with model tests (fake backend as today):
   preview of mode/accent marks `edited` and calls `dirty(1)`; preview back to saved values clears it;
   read-only state (`flags` without `Z_SETTINGS_WRITABLE`) refuses with -13 and leaves values;
   `settings_apply` saves `mode/accent/effects/level/base_revision`, clears `edited`, calls `dirty(0)`;
@@ -91,10 +91,10 @@ void settings_theme(const struct settings_app *a,struct zui *ui);     /* draft p
   with a scope backend in personal scope it calls `scope(2, base_revision)` and rereads;
   `settings_at_defaults` true only for those values (system) or `inherited` (personal);
   `settings_set_scope` refused (-16) while edited; `settings_theme` copies the draft palette.
-- [ ] **Step 2:** `cd tools && python3 -B -m unittest test_ui_library` — FAIL (undefined `settings_preview`).
-- [ ] **Step 3: Implement** — move the edit logic out of `settings_event` (actions 1–2, 10–15, 50–54, 30, 31, 60/61, 91 with prompt 4) into the functions above; keep `settings_init` (without controls) and `settings_refresh`. Delete the drawing code.
-- [ ] **Step 4:** Tests pass. `meridian.c` is not compiled by this test target yet; keep the Meridian test target building by guarding it out of `test_ui_library.py` until Task 4 (comment in the test explains why).
-- [ ] **Step 5: Commit** — "Turn the Settings colors app into a drawing-free model".
+- [x] **Step 2:** `cd tools && python3 -B -m unittest test_ui_library` — FAIL (undefined `settings_preview`).
+- [x] **Step 3: Implement** — move the edit logic out of `settings_event` (actions 1–2, 10–15, 50–54, 30, 31, 60/61, 91 with prompt 4) into the functions above; keep `settings_init` (without controls) and `settings_refresh`. Delete the drawing code.
+- [x] **Step 4:** Tests pass. `meridian.c` is not compiled by this test target yet; keep the Meridian test target building by guarding it out of `test_ui_library.py` until Task 4 (comment in the test explains why).
+- [x] **Step 5: Commit** — "Turn the Settings colors app into a drawing-free model".
 
 ---
 
@@ -129,14 +129,14 @@ Search matches title, id and `pages.json` labels (case-insensitive); results sho
 category as subtitle. Category icons: `zap keyboard usb network palette app-window
 layout-grid shield languages monitor-cog`.
 
-- [ ] **Step 1: Failing test** (`test_navigation.c`): all 43 pages reachable through categories exactly once;
+- [x] **Step 1: Failing test** (`test_navigation.c`): all 43 pages reachable through categories exactly once;
   activating category 1 lists its five pages and opens `input.mouse`; `nav_back` returns to categories with
   category 1 selected; `nav_search(n,"bluetooth")` yields exactly `devices.bluetooth`; `nav_search(n,"")` returns
   to the previous mode; Quick Settings opens `quick.overview` without leaving the category list; `nav_open`
   of every id selects its category; unknown id returns 0 and changes nothing.
-- [ ] **Step 2:** Add a sanitizer target compiling `test_navigation.c navigation.c meridian-pages.c ui.c fonts.c icons.c`; run — FAIL.
-- [ ] **Step 3: Implement** using the generated `meridian_pages` table (category string compare as today).
-- [ ] **Step 4:** Pass. **Step 5: Commit** — "Add a host-tested Meridian navigation model".
+- [x] **Step 2:** Add a sanitizer target compiling `test_navigation.c navigation.c meridian-pages.c ui.c fonts.c icons.c`; run — FAIL.
+- [x] **Step 3: Implement** using the generated `meridian_pages` table (category string compare as today).
+- [x] **Step 4:** Pass. **Step 5: Commit** — "Add a host-tested Meridian navigation model".
 
 ---
 
@@ -171,12 +171,12 @@ int binding_choice_count(const struct meridian_bindings *b,int kind);
 const char *binding_choice_name(const struct meridian_bindings *b,int kind,unsigned int index);
 ```
 
-- [ ] **Step 1: Failing test:** keyboard draft change marks changed and `dirty(1)`; apply saves field 1 with the
+- [x] **Step 1: Failing test:** keyboard draft change marks changed and `dirty(1)`; apply saves field 1 with the
   draft revision; a revision bump during the draft makes apply return -11 and keeps the draft with message
   "Changed elsewhere. Reset to reload."; read-only flags refuse `binding_choose` (-13); reset restores saved;
   session binding unavailable (choice count 0) when `preferences.version==1`; colors kind delegates to the
   Task 1 model.
-- [ ] **Steps 2–5:** run (FAIL), implement by moving `preferences_valid`/`refresh_preferences`/save logic out of
+- [x] **Steps 2–5:** run (FAIL), implement by moving `preferences_valid`/`refresh_preferences`/save logic out of
   `meridian.c`, run (PASS), commit — "Give editable Meridian pages one draft contract".
 
 ---
@@ -225,7 +225,7 @@ Layout contract (window coordinates, wide layout):
   `{"Apply changes?","This page has unapplied changes.",{"Apply","Discard","Cancel"}}`;
   Apply that fails keeps the page and shows the binding message.
 
-- [ ] **Step 1: Failing test** (`test_meridian.c` rewritten): every page opens and draws at 800x560 and 600x480
+- [x] **Step 1: Failing test** (`test_meridian.c` rewritten): every page opens and draws at 800x560 and 600x480
   with `ui.count<=ZUI_MAX_CONTROLS`; sidebar drill-down/back/search round trips by real clicks (helper finds a
   control by id or label and clicks its `zui_control_area`); colors: click Light segment → `SETTINGS_UNSAVED`
   equivalent (`colors.edited`), footer Apply enabled, Apply saves; change then click another category →
@@ -234,7 +234,7 @@ Layout contract (window coordinates, wide layout):
   network/users pages show service text lines; 2000 alternating extreme wheel events keep scroll offsets in
   range; resize 600x480 ↔ 1920x1000 keeps drafts; material frame keeps controls opaque (existing assertions
   adapted to the new geometry).
-- [ ] **Steps 2–5:** run (FAIL), implement, run (PASS), commit — "Rebuild Meridian on drill-down navigation, form pages and a uniform footer".
+- [x] **Steps 2–5:** run (FAIL), implement, run (PASS), commit — "Rebuild Meridian on drill-down navigation, form pages and a uniform footer".
 
 ---
 
@@ -242,11 +242,11 @@ Layout contract (window coordinates, wide layout):
 
 **Files:** Modify `userland/settings/main.c`.
 
-- [ ] Open `800x560` (material and opaque surfaces); scroll coalescing splits at the sidebar edge
+- [x] Open `800x560` (material and opaque surfaces); scroll coalescing splits at the sidebar edge
   (`x < 252` wide, page-only in narrow); print `MERIDIAN_PAGE navigation` when the sidebar returns
   to categories; `SETTINGS_DISCARD_PROMPT` when the dialog opens; keep every other marker.
-- [ ] Build: `python3 -B tools/build-userland.py obj/s2-settings --program settings`; size test passes.
-- [ ] Commit — "Open Meridian at 800x560 with stage-2 markers".
+- [x] Build: `python3 -B tools/build-userland.py obj/s2-settings --program settings`; size test passes.
+- [x] Commit — "Open Meridian at 800x560 with stage-2 markers".
 
 ---
 
@@ -255,24 +255,24 @@ Layout contract (window coordinates, wide layout):
 **Files:** Modify `tools/native-settings-smoke.py` (Settings UI section only; CLI, permission, reboot and
 audit steps unchanged).
 
-- [ ] Locate the window by the focused search field border (`7ecac7` row at the sidebar) and derive every
+- [x] Locate the window by the focused search field border (`7ecac7` row at the sidebar) and derive every
   control position from the Task 4 layout contract; keep `frame()` retries and rendered witnesses.
-- [ ] Replace colors steps: open `style.colors` via `--page`; keyboard Tab/Enter on Light; check
+- [x] Replace colors steps: open `style.colors` via `--page`; keyboard Tab/Enter on Light; check
   `SETTINGS_UNSAVED`; chrome close → `SETTINGS_DISCARD_PROMPT` and dialog Cancel keeps editing;
   toggle transparency/blur and footer Apply → `SETTINGS_REVISION_CHANGED`; material/solid frame checks
   as today with new sample points.
-- [ ] Replace shared-default steps: open keyboard/time zone/session pages, open the combo, Down × count,
+- [x] Replace shared-default steps: open keyboard/time zone/session pages, open the combo, Down × count,
   Enter, Apply; check `SYSTEM_SETTINGS_REVISION_CHANGED` and CLI parity as today.
-- [ ] Navigation: Ctrl+F, type `bluetooth`, Enter → `MERIDIAN_PAGE devices.bluetooth`; rapid wheel over
+- [x] Navigation: Ctrl+F, type `bluetooth`, Enter → `MERIDIAN_PAGE devices.bluetooth`; rapid wheel over
   sidebar and page, then Esc/back responds; maximize/restore → `MERIDIAN_RESIZED`.
-- [ ] Run `python3 -B tools/native-settings-smoke.py obj/s2-gate`; all checks pass. Commit — "Drive the
+- [x] Run `python3 -B tools/native-settings-smoke.py obj/s2-gate`; all checks pass. Commit — "Drive the
   stage-2 Meridian layout in the native Settings gate".
 
 ---
 
 ### Task 7: Documentation, evidence and release
 
-- [ ] Update `docs/MERIDIAN-PAGES.md` header/state, `docs/MERIDIAN-BEHAVIOR.md` (stage 2 implemented locally),
+- [x] Update `docs/MERIDIAN-PAGES.md` header/state, `docs/MERIDIAN-BEHAVIOR.md` (stage 2 implemented locally),
   `docs/SETTINGS-SESSIONS.md` if it describes the old picker, roadmap S1/D1 rows, and record evidence.
 - [ ] Full `deploy/distributor/validate.py` qualification on unchanged source.
 - [ ] Ask the operator before tagging the Settings release (`zenith-settings/v0.4.0`).
