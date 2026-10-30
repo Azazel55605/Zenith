@@ -105,7 +105,7 @@ class UiLibraryTests(unittest.TestCase):
             subprocess.run(['gcc','-std=c11','-Wall','-Wextra','-Werror','-O1','-g',
                             '-fsanitize=address,undefined','-fno-omit-frame-pointer',
                             '-I'+str(ROOT/'userland/ui'),'-I'+str(ROOT/'userland/settings'),str(ROOT/'userland/settings/test_meridian.c'),
-                            str(ROOT/'userland/settings/meridian.c'),str(ROOT/'userland/settings/app.c'),
+                            str(ROOT/'userland/settings/meridian.c'),str(ROOT/'userland/settings/app.c'),str(ROOT/'userland/settings/navigation.c'),str(ROOT/'userland/settings/bindings.c'),str(ROOT/'userland/ui/widgets.c'),
                             str(ROOT/'userland/ui/text.c'),str(ROOT/'userland/ui/ui.c'),
                             str(pages),str(atlas),str(icons),'-o',str(meridian_exe)],check=True)
             subprocess.run([str(meridian_exe),directory],check=True,timeout=30)

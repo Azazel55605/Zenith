@@ -17,7 +17,7 @@ struct zui_rect { int x,y,w,h; };
 enum { ZUI_SURFACE_CONTENT=1,ZUI_SURFACE_CONTROL=2,ZUI_SURFACE_NAVIGATION=3,
        ZUI_SURFACE_PANEL=4,ZUI_SURFACE_POPOVER=5 };
 #ifndef Z_GUI_MOVE
-#define Z_GUI_MOVE 9 /* Opt-in host pointer motion (stage 3 ABI); ignored unless hover_supported. */
+#define Z_GUI_MOVE 11 /* Opt-in host pointer motion (stage 3 ABI); ignored unless hover_supported. */
 #endif
 struct zui;
 int zui_surface(struct zui *ui,struct zui_rect rect,int radius,int role);

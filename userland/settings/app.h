@@ -9,22 +9,17 @@ struct settings_backend {
     long (*scope)(unsigned int action,unsigned long revision);
 };
 struct settings_app {
-    struct zui ui;
-    struct zui_rect viewport;
+    struct zui ui; /* theme holder for the draft palette; never drawn */
     struct zenith_appearance state;
     struct settings_backend backend;
     unsigned int scope,inherited,has_scopes;
     unsigned int translucency,saved_translucency;
     unsigned int mode,accent,effects,saved_effects,effective_effects,available_effects,material_reason;
     unsigned long base_revision;
-    int edited,prompt,closing,have_state;
+    int edited,have_state;
     const char *message;
 };
 int settings_init(struct settings_app *app,unsigned int *pixels,struct settings_backend backend);
-void settings_set_viewport(struct settings_app *app,struct zui_rect viewport);
-void settings_request_navigation(struct settings_app *app);
-void settings_draw(struct settings_app *app);
-int settings_event(struct settings_app *app,const struct zenith_gui_event *event);
 void settings_refresh(struct settings_app *app);
 /* Drawing-free model used by Meridian. Edits are drafts until settings_apply.
  * Errors: -13 read only, -95 effect unavailable, -22 invalid value, -5 the window

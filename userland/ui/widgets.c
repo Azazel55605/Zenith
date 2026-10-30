@@ -102,7 +102,7 @@ void zui_combo_popup(struct zui *u,struct zui_combo *c,int count,zui_list_source
     if(y<0)y=0;
     c->panel=(struct zui_rect){f.x,y,f.w,h};
     struct zui_rect saved=u->clip;zui_clip(u,(struct zui_rect){0,0,u->width,u->height});
-    zui_surface(u,c->panel,10,ZUI_SURFACE_POPOVER);
+    zui_surface(u,c->panel,10,ZUI_SURFACE_CONTROL);
     zui_list_draw(u,&c->popup,(struct zui_rect){f.x+4,y+4,f.w-8,h-8},count,items,ctx);
     zui_draw_range(u,c->popup.first_control,c->popup.visible_controls);
     u->clip=saved;
@@ -170,7 +170,7 @@ void zui_dialog_draw(struct zui *u,const struct zui_dialog *d){
     zui_clip(u,(struct zui_rect){0,0,u->width,u->height});
     zui_round_alpha(u,(struct zui_rect){0,0,u->width,u->height},0,0x000000,120);
     int w=u->width<440?u->width-24:416,h=168,x=(u->width-w)/2,y=(u->height-h)/2;
-    zui_surface(u,(struct zui_rect){x,y,w,h},12,ZUI_SURFACE_POPOVER);
+    zui_surface(u,(struct zui_rect){x,y,w,h},12,ZUI_SURFACE_CONTROL);
     zui_text(u,x+24,y+20,d->title,len256(d->title),&zui_label,u->theme.text);
     zui_text(u,x+24,y+52,d->message,len256(d->message),&zui_body,u->theme.secondary);
     int bx=x+w-24;

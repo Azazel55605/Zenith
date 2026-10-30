@@ -1,7 +1,6 @@
 #include "meridian.h"
 static unsigned int pixels[1920*1000];
 static struct meridian shell;
-#define app shell.colors
 static long handle=-1;
 static int selected_scope=-1;
 static unsigned int scope_info;
@@ -13,7 +12,7 @@ static long present(void){
 static void print(const char *s);
 static int viewport(void){
     struct zenith_viewport v={0};if(zenith_gui_viewport(handle,&v)||v.version!=1||!(v.flags&1)||v.width<600||v.height<480||v.width>1920||v.height>1000)return 0;
-    if(v.width==(unsigned int)app.ui.width&&v.height==(unsigned int)app.ui.height)return 1;
+    if(v.width==(unsigned int)shell.ui.width&&v.height==(unsigned int)shell.ui.height)return 1;
     long r=zenith_gui_resize_accept(handle,&v);if(r==-11)return 1;if(r)return 0;
     if(!meridian_resize(&shell,v.width,v.height,1920*1000))return 0;
     print("MERIDIAN_RESIZED\n");return 1;
@@ -204,8 +203,9 @@ int main(int argc,char **argv){
     struct zenith_material_settings material_state={0};
     material_surface=zenith_material_settings_read(&material_state)==0&&(material_state.version==1||material_state.version==2)&&!material_state.reserved&&
         zenith_gui_material_caps(&caps)==0&&caps.version==2&&(caps.features&3)==3;
-    handle=material_surface?zenith_gui_open_material(600,480,"Meridian",8):zenith_gui_open(600,480,"Meridian",8);
-    if(material_surface){app.ui.foreground=1;shell.navigation.foreground=1;}
+    if(!meridian_resize(&shell,800,560,1920*1000))return 1;
+    handle=material_surface?zenith_gui_open_material(800,560,"Meridian",8):zenith_gui_open(800,560,"Meridian",8);
+    if(material_surface)shell.ui.foreground=1;
     if(handle<0){print("settings: graphical session required; use --show or --set\n");return 1;}
     if(zenith_gui_interactive(handle)<0){zenith_gui_close(handle);print("settings: interactive client support required\n");return 1;}
     if(zenith_gui_resize_enable(handle)<0){zenith_gui_close(handle);print("settings: viewport service required\n");return 1;}
@@ -222,21 +222,22 @@ int main(int argc,char **argv){
             for(int n=0;n<15;n++){
                 struct zenith_gui_event next={0};long k=zenith_gui_poll(handle,&next);
                 if(k<0){r=k;break;}if(!k)break;
-                if(next.type!=Z_GUI_SCROLL||((next.x<204)!=(e.x<204))){deferred=next;have_deferred=1;break;}
+                if(next.type!=Z_GUI_SCROLL||((next.x<252)!=(e.x<252))){deferred=next;have_deferred=1;break;}
                 e.code+=next.code;
             }
         }
         if((r>0&&e.type==Z_GUI_RESIZE)||(i&31)==0){if(!viewport()){result=1;break;}}
         if(r<0){result=1;break;}
-        int previous_page=shell.page;
-        int edited=app.edited,prompt=app.prompt;unsigned long rev=app.state.revision,preference_revision=shell.preferences.revision;
+        int previous_page=shell.page,previous_mode=shell.nav.mode;
+        int edited=binding_any_changed(&shell.bindings),prompt=shell.dialog.open;unsigned long rev=shell.colors.state.revision,preference_revision=shell.bindings.preferences.revision;
         if(r){meridian_event(&shell,&e);if(e.type==Z_GUI_FOCUS&&e.code)print("MERIDIAN_FOCUSED\n");}
-        if(previous_page!=shell.page){print("MERIDIAN_PAGE ");print(shell.page<0?"navigation":meridian_pages[shell.page].id);print("\n");}
+        if(previous_page!=shell.page){print("MERIDIAN_PAGE ");print(meridian_pages[shell.page].id);print("\n");}
+        if(previous_mode!=NAV_CATEGORIES&&shell.nav.mode==NAV_CATEGORIES)print("MERIDIAN_PAGE navigation\n");
         if((i&31)==0)meridian_refresh(&shell);
-        if(!edited&&app.edited)print("SETTINGS_UNSAVED\n");
-        if(!prompt&&app.prompt)print("SETTINGS_DISCARD_PROMPT\n");
-        if(shell.preferences.revision!=preference_revision)print("SYSTEM_SETTINGS_REVISION_CHANGED\n");
-        if(app.state.revision!=rev)print("SETTINGS_REVISION_CHANGED\n");
+        if(!edited&&binding_any_changed(&shell.bindings))print("SETTINGS_UNSAVED\n");
+        if(!prompt&&shell.dialog.open)print("SETTINGS_DISCARD_PROMPT\n");
+        if(shell.bindings.preferences.revision!=preference_revision)print("SYSTEM_SETTINGS_REVISION_CHANGED\n");
+        if(shell.colors.state.revision!=rev)print("SETTINGS_REVISION_CHANGED\n");
         if(meridian_ui(&shell)->dirty&&!shell.closing){meridian_refresh(&shell);meridian_draw(&shell);if(present()<0){result=1;break;}}
     }
     zenith_gui_close(handle);print("SETTINGS_EXIT\n");return result;

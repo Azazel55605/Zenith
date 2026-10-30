@@ -70,7 +70,7 @@ increment a debug counter; content is never silently dropped.
 
 ## Hover ABI
 
-- `Z_GUI_MOVE = 9` carries surface-relative x/y. It is delivered only to surfaces
+- `Z_GUI_MOVE = 11` carries surface-relative x/y. It is delivered only to surfaces
   that opt in through a new surface-request flag; legacy clients receive nothing new.
 - The host keeps at most one pending move per surface and replaces it with the
   latest position, so motion cannot fill the bounded queue or displace keys/clicks.

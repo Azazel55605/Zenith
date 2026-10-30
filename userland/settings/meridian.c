@@ -1,16 +1,15 @@
 #include "meridian.h"
+enum { PENDING_NONE=0,PENDING_CLOSE=1,PENDING_ROW=2,PENDING_PAGE=3 };
+enum { ID_ROWS=100,ID_FOOTER=900,ID_DIALOG=950,ID_SEARCH=1002,ID_BACK=1003,ID_COMBO=2004,ID_COMBO_ROWS=2100,ID_LINKS=3000 };
 static unsigned long length(const char *s){unsigned long n=0;while(n<4096&&s[n])n++;return n;}
 static int same(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return *a==*b;}
-static char lower(char c){return c>='A'&&c<='Z'?(char)(c+32):c;}
-static int contains(const char *s,const char *q){if(!*q)return 1;for(;*s;s++){const char *a=s,*b=q;while(*a&&*b&&lower(*a)==lower(*b)){a++;b++;}if(!*b)return 1;}return 0;}
 static void text(struct zui *u,int x,int y,const char *s,const struct zui_font *f,unsigned int c){zui_text(u,x,y,s,length(s),f,c);}
-static const char *categories[]={"Quick Settings","Input & Output","Connected Devices","Networking","Appearance & Style","Apps & Windows","Workspace","Security & Privacy","Language & Time","System"};
-static const char *groups[]={"Mouse & Touchpad","Keyboard","Sound","Display & Monitor","Colors & Themes","Text & Fonts","Window Management"};
-static unsigned int preference_field(struct meridian *a){
-    if(a->page<0)return 0;
-    return same(meridian_pages[a->page].id,"input.keyboard")?1:same(meridian_pages[a->page].id,"locale.time")?2:same(meridian_pages[a->page].id,"system.session")?3:0;
+static int wide(const struct meridian *a){return a->ui.width>=720;}
+static int page_kind(const struct meridian *a){return binding_of(meridian_pages[a->page].id);}
+static unsigned int information_kind(const struct meridian *a){
+    const char *id=meridian_pages[a->page].id;
+    return same(id,"network.connections")?1:same(id,"system.users")?2:0;
 }
-static unsigned int information_kind(struct meridian *a){if(a->page<0)return 0;return same(meridian_pages[a->page].id,"network.connections")?1:same(meridian_pages[a->page].id,"system.users")?2:0;}
 static void refresh_information(struct meridian *a){
     unsigned int kind=information_kind(a);if(!kind||!a->information_read)return;
     struct zenith_settings_information state;long r=a->information_read(kind,&state);
@@ -18,255 +17,353 @@ static void refresh_information(struct meridian *a){
     int changed=a->public_kind!=kind||a->public_error;
     for(unsigned int i=0;i<state.length;i++){if(a->public_information[i]!=state.text[i])changed=1;a->public_information[i]=state.text[i];}
     if(a->public_information[state.length])changed=1;
-    a->public_information[state.length]=0;a->public_kind=kind;a->public_error=0;if(changed)a->navigation.dirty=1;
+    a->public_information[state.length]=0;a->public_kind=kind;a->public_error=0;if(changed)a->ui.dirty=1;
+}
+/* The draft palette follows the colors model; repaint only when it really changed. */
+static void sync_theme(struct meridian *a){
+    struct zui *u=&a->ui;struct zui_theme theme=u->theme;unsigned int swatches[6];int background=u->full_background,dirty=u->dirty;
+    for(int i=0;i<6;i++)swatches[i]=u->swatches[i];
+    settings_theme(&a->colors,u);
+    int same_theme=background==u->full_background;
+    const unsigned int *x=(const unsigned int *)&theme,*y=(const unsigned int *)&u->theme;
+    for(unsigned int i=0;i<sizeof(theme)/sizeof(unsigned int);i++)if(x[i]!=y[i])same_theme=0;
+    for(int i=0;i<6;i++)if(swatches[i]!=u->swatches[i])same_theme=0;
+    u->dirty=dirty||!same_theme||a->colors.ui.dirty;a->colors.ui.dirty=0;
 }
 void meridian_information_services(struct meridian *a,long (*read)(unsigned int,struct zenith_settings_information *)){a->information_read=read;refresh_information(a);}
-static int bounded_name(const char *s,int capacity){for(int i=0;i<capacity;i++){if(!s[i])return i>0;if((unsigned char)s[i]<32||(unsigned char)s[i]>126)return 0;}return 0;}
-static int preferences_valid(const struct zenith_system_settings *s){
-    if((s->version!=1&&s->version!=2)||s->flags&~3U||!s->revision||!s->keyboard_count||s->keyboard_count>8||!s->zone_count||s->zone_count>48||s->keyboard>=s->keyboard_count||
-       (s->zone>=s->zone_count&&s->zone!=~0U)||!bounded_name(s->current_zone,64))return 0;
-    for(unsigned int i=0;i<s->keyboard_count;i++)if(!bounded_name(s->keyboards[i],32))return 0;
-    for(unsigned int i=0;i<s->zone_count;i++)if(!bounded_name(s->zones[i],64))return 0;
-    if(s->version==2){if(s->session_count>3||(s->session>=s->session_count&&s->session!=~0U)||!bounded_name(s->current_session,16))return 0;for(unsigned int i=0;i<s->session_count;i++)if(!bounded_name(s->sessions[i],16))return 0;}
-    return 1;
-}
-static unsigned int choice_count(struct meridian *a){return a->preference_field==1?a->preferences.keyboard_count:a->preference_field==2?a->preferences.zone_count:a->preferences.session_count;}
-static unsigned int saved_choice(struct meridian *a){return a->preference_field==1?a->preferences.keyboard:a->preference_field==2?a->preferences.zone:a->preferences.session;}
-static const char *choice_name(struct meridian *a,unsigned int index){return a->preference_field==1?a->preferences.keyboards[index]:a->preference_field==2?a->preferences.zones[index]:a->preferences.sessions[index];}
-static void refresh_preferences(struct meridian *a){
-    if(!a->preferences_read||!preference_field(a))return;
-    struct zenith_system_settings s;long result=a->preferences_read(&s);
-    if(result||!preferences_valid(&s)){a->preference_message="Settings service unavailable; edits kept.";a->preferences_ready=0;a->preference_picker=0;return;}
-    unsigned int field=preference_field(a);
-    if(!a->preference_edited){
-        if(field!=a->preference_field)a->preference_message=0;
-        if(field!=a->preference_field||s.revision!=a->preferences.revision)a->navigation.dirty=1;
-        a->preference_field=field;a->preference_choice=field==1?s.keyboard:field==2?s.zone:s.session;a->preference_revision=s.revision;
-    }else if(s.revision!=a->preference_revision)a->preference_message="Changed elsewhere. Discard edits to reload.";
-    a->preferences=s;a->preferences_ready=field!=3||s.version==2;
-}
 void meridian_system_services(struct meridian *a,long (*read)(struct zenith_system_settings *),long (*save)(unsigned int,unsigned int,unsigned long)){
-    a->preferences_read=read;a->preferences_save=save;refresh_preferences(a);
+    a->bindings.read=read;a->bindings.save=save;binding_refresh(&a->bindings);
 }
-static void preference_picker_draw(struct meridian *a,struct zui *u,struct zui_rect c){
-    zui_input_draw(u,(struct zui_rect){c.x+20,c.y+160,c.w-40,34},&a->preference_search,a->preference_search_focus);
-    if(!a->preference_query[0])text(u,c.x+30,c.y+169,"Filter choices",&zui_caption,u->theme.secondary);
-    zui_add(u,2005,ZUI_BUTTON,(struct zui_rect){c.x+20,c.y+160,c.w-40,34},"",0,1);
-    int found[48],count=0;for(unsigned int i=0;i<choice_count(a);i++)if(contains(choice_name(a,i),a->preference_query))found[count++]=(int)i;
-    a->preference_offset=zui_scroll_step(a->preference_offset,0,count-6);
-    for(int i=0;i<6&&a->preference_offset+i<count;i++){int item=found[a->preference_offset+i];zui_add(u,2100+item,ZUI_NAVIGATION,(struct zui_rect){c.x+20,c.y+204+i*30,c.w-40,28},choice_name(a,item),a->preference_choice==(unsigned int)item,1);}
-    zui_add(u,2006,ZUI_BUTTON,(struct zui_rect){c.x+20,c.y+c.h-48,90,34},"Previous",0,a->preference_offset>0);
-    zui_add(u,2007,ZUI_BUTTON,(struct zui_rect){c.x+118,c.y+c.h-48,90,34},"Next",0,a->preference_offset+6<count);
-    zui_add(u,2008,ZUI_BUTTON,(struct zui_rect){c.x+216,c.y+c.h-48,90,34},"Cancel",0,1);
+struct zui *meridian_ui(struct meridian *a){return &a->ui;}
+static void remember(struct meridian *a,int page){
+    int i=0;while(i<a->recent_count&&a->recent[i]!=page)i++;
+    if(i==a->recent_count&&i<6)a->recent_count++;
+    if(i>5)i=5;
+    for(;i>0;i--)a->recent[i]=a->recent[i-1];
+    a->recent[0]=page;
 }
-static void preferences_draw(struct meridian *a,struct zui *u,struct zui_rect c){
-    if(a->preference_picker){preference_picker_draw(a,u,c);return;}
-    unsigned int field=preference_field(a);int writable=a->preferences_ready&&!!(a->preferences.flags&2)&&choice_count(a)>0;
-    const char *choice=a->preference_choice<choice_count(a)?choice_name(a,a->preference_choice):field==2?a->preferences.current_zone:a->preferences.current_session;
-    text(u,c.x+20,c.y+166,field==1?"System keyboard layout":field==2?"System time zone":"Default login session",&zui_label,u->theme.text);
-    struct zui_rect value={c.x+20,c.y+196,c.w-40,42};zui_surface(u,value,8,ZUI_SURFACE_CONTROL);
-    zui_add(u,2004,ZUI_BUTTON,value,choice,0,writable&&!a->preference_prompt);
-    text(u,c.x+20,c.y+306,writable?"System default - administrator changes":"System default - read only",&zui_caption,u->theme.secondary);
-    zui_paragraph(u,(struct zui_rect){c.x+20,c.y+338,c.w-40,66},a->preference_message?a->preference_message:a->preference_edited?"Unsaved changes. Save or discard before navigating.":field==1?"Applies to keyboard input across sessions immediately.":field==2?"Changes local time display; the UTC clock is unchanged.":"Applies on next boot; the running session is unchanged.",&zui_caption,u->theme.secondary,0);
-    if(a->preference_prompt){
-        zui_add(u,2010,ZUI_BUTTON,(struct zui_rect){c.x+20,c.y+c.h-48,126,34},"Keep editing",0,1);
-        zui_add(u,2011,ZUI_BUTTON,(struct zui_rect){c.x+156,c.y+c.h-48,182,34},"Discard changes",0,1);
-    }else{
-        zui_add(u,2000,ZUI_BUTTON,(struct zui_rect){c.x+20,c.y+250,140,34},"Previous",0,writable);
-        zui_add(u,2001,ZUI_BUTTON,(struct zui_rect){c.x+172,c.y+250,140,34},"Next",0,writable);
-        zui_add(u,2002,ZUI_BUTTON,(struct zui_rect){c.x+20,c.y+c.h-48,126,34},"Save changes",1,writable&&a->preference_edited);
-        zui_add(u,2003,ZUI_BUTTON,(struct zui_rect){c.x+156,c.y+c.h-48,182,34},"Discard changes",0,a->preference_edited);
+/* Adopt a navigation state; a new page starts at its top with fresh transient state. */
+static void adopt(struct meridian *a,const struct meridian_nav *next,int show_page){
+    int changed=next->page!=a->page;
+    a->nav=*next;a->page=next->page;
+    if(a->nav.mode!=NAV_SEARCH&&a->query[0]){a->query[0]=0;zui_input_init(&a->search,a->query,sizeof(a->query));}
+    if(changed){
+        a->page_scroll.offset=0;a->combo.open=0;a->ui.focus=a->ui.pressed=-1;
+        remember(a,a->page);refresh_information(a);
     }
+    if(changed||show_page)a->narrow_page=1;
+    a->ui.dirty=1;
 }
-static int preferences_action(struct meridian *a,int action){
-    if(action>=2100&&action<2148){
-        unsigned int next=(unsigned int)action-2100;
-        if(!a->preferences_ready||!(a->preferences.flags&2)||next>=choice_count(a))return 1;
-        int dirty=next!=saved_choice(a);if(a->colors.backend.dirty(dirty))return 1;
-        a->preference_choice=next;a->preference_edited=dirty;a->preference_picker=0;a->preference_message=0;a->navigation.dirty=1;return 1;
-    }
-    if(action<2000||action>2011)return 0;
-    struct zui *u=&a->navigation;u->dirty=1;
-    if(action==2004){a->preference_picker=1;a->preference_offset=0;a->preference_search_focus=1;a->preference_query[0]=0;zui_input_init(&a->preference_search,a->preference_query,sizeof(a->preference_query));return 1;}
-    if(action==2005){a->preference_search_focus=1;return 1;}
-    if(action==2006||action==2007){a->preference_offset=zui_scroll_step(a->preference_offset,action==2006?-6:6,48);return 1;}
-    if(action==2008){a->preference_picker=0;return 1;}
-    if(action==2010){a->preference_prompt=0;return 1;}
-    if(action==2003||action==2011){
-        if(a->colors.backend.dirty(0)){a->preference_message="Cannot release unsaved state; edits kept.";return 1;}
-        int prompt=a->preference_prompt;a->preference_edited=a->preference_prompt=0;a->preference_message=0;refresh_preferences(a);
-        if(prompt==1)a->closing=1;
-        if(prompt==2)a->page=-1;
-        return 1;
-    }
-    if(!a->preferences_ready||!a->preferences_save||!(a->preferences.flags&2)||a->preference_prompt)return 1;
-    if(action==2002){
-        long result=a->preferences_save(a->preference_field,a->preference_choice,a->preference_revision);
-        if(!result){a->preference_edited=0;a->colors.backend.dirty(0);a->preference_message=a->preference_field==3?"Default session saved for next boot.":"System default saved and applied.";refresh_preferences(a);}
-        else a->preference_message=result==-11?"Changed elsewhere. Discard edits to reload.":result==-13?"Administrator permission required.":"Save failed; edits kept.";
-        return 1;
-    }
-    if(action==2000||action==2001){
-        unsigned int count=choice_count(a);if(!count)return 1;
-        unsigned int next=a->preference_choice>=count?0:action==2001?(a->preference_choice+1)%count:(a->preference_choice+count-1)%count;
-        unsigned int saved=saved_choice(a);
-        int dirty=next!=saved;
-        if(a->colors.backend.dirty(dirty)){a->preference_message="Cannot protect edits; selection kept.";return 1;}
-        a->preference_choice=next;a->preference_edited=dirty;a->preference_message=0;
-    }
-    return 1;
+static void clear_search(struct meridian *a){
+    a->query[0]=0;zui_input_init(&a->search,a->query,sizeof(a->query));nav_search(&a->nav,"");
+    a->search_focus=0;a->sidebar.scroll.offset=0;a->ui.dirty=1;
 }
-struct zui *meridian_ui(struct meridian *a){return a->page==MERIDIAN_COLORS?&a->colors.ui:&a->navigation;}
-static void recent(struct meridian *a,int page){int i=0;while(i<a->recent_count&&a->recent[i]!=page)i++;if(i==a->recent_count&&i<6)a->recent_count++;if(i>5)i=5;for(;i>0;i--)a->recent[i]=a->recent[i-1];a->recent[0]=page;}
-static int category_of(int page){for(int i=0;i<10;i++)if(same(categories[i],meridian_pages[page].category))return i;return 0;}
-static void open_page(struct meridian *a,int p){
-    a->preference_picker=0;a->page=p;a->scroll=0;a->search_focus=0;
-    if(p>=0){recent(a,p);a->category=category_of(p);}
-    a->navigation.focus=a->navigation.pressed=-1;a->navigation.dirty=1;a->colors.ui.dirty=1;
+int meridian_open(struct meridian *a,const char *id){
+    if(binding_any_changed(&a->bindings))return 0;
+    struct meridian_nav next=a->nav;if(!nav_open(&next,id))return 0;
+    adopt(a,&next,1);a->sidebar.scroll.offset=0;return 1;
 }
-int meridian_open(struct meridian *a,const char *id){if(a->colors.edited||a->preference_edited)return 0;for(int i=0;i<MERIDIAN_PAGE_COUNT;i++)if(same(id,meridian_pages[i].id)){open_page(a,i);return 1;}return 0;}
 int meridian_resize(struct meridian *a,int w,int h,unsigned long capacity){
-    if(w<600||h<480||!zui_resize(&a->navigation,w,h,capacity)||!zui_resize(&a->colors.ui,w,h,capacity))return 0;
-    settings_set_viewport(&a->colors,(struct zui_rect){204,12,w-216,h-24});return 1;
+    if(w<600||h<480||!zui_resize(&a->ui,w,h,capacity))return 0;
+    a->combo.open=0;return 1;
 }
 int meridian_init(struct meridian *a,unsigned int *pixels,struct settings_backend backend,const char *page){
-    *a=(struct meridian){0};a->category=0;a->group=-1;a->page=0;a->pending_category=-2;
-    if(!settings_init(&a->colors,pixels,backend)||!zui_init(&a->navigation,pixels,600,480)||!zui_input_init(&a->search,a->query,sizeof(a->query)))return 0;
-    meridian_resize(a,600,480,600*480);
+    *a=(struct meridian){0};
+    if(!settings_init(&a->colors,pixels,backend)||!zui_init(&a->ui,pixels,600,480)||!zui_input_init(&a->search,a->query,sizeof(a->query)))return 0;
+    binding_init(&a->bindings,&a->colors,0,0,backend.dirty);
+    nav_init(&a->nav,0);a->sidebar.base_id=ID_ROWS;a->combo.id=ID_COMBO;a->combo.popup.base_id=ID_COMBO_ROWS;a->narrow_page=1;
+    remember(a,0);
     if(page&&!meridian_open(a,page))return 0;
-    recent(a,a->page);return 1;
+    sync_theme(a);return 1;
 }
 void meridian_refresh(struct meridian *a){
-    unsigned long rev=a->colors.state.revision,res=a->colors.state.resources;unsigned int flags=a->colors.state.flags;
-    refresh_information(a);refresh_preferences(a);settings_refresh(&a->colors);a->navigation.theme=a->colors.ui.theme;a->navigation.full_background=(a->colors.state.mode<2&&(a->colors.saved_effects&5)==5);
-    if(rev!=a->colors.state.revision||res!=a->colors.state.resources||flags!=a->colors.state.flags)a->navigation.dirty=1;
+    unsigned long rev=a->colors.state.revision,res=a->colors.state.resources,pref=a->bindings.preferences.revision;unsigned int flags=a->colors.state.flags;
+    int ready=a->bindings.ready;
+    refresh_information(a);binding_refresh(&a->bindings);settings_refresh(&a->colors);sync_theme(a);
+    if(rev!=a->colors.state.revision||res!=a->colors.state.resources||flags!=a->colors.state.flags||pref!=a->bindings.preferences.revision||ready!=a->bindings.ready)a->ui.dirty=1;
 }
-static int result_rows(struct zui *u){int n=(u->height-168)/42;return n>18?18:n<1?1:n;}
-static int category_rows(struct zui *u){int n=(u->height-130)/30;return n>10?10:n<1?1:n;}
-static void sidebar(struct meridian *a,struct zui *u){
-    text(u,24,25,"Meridian",&zui_label,u->theme.text);
-    zui_add(u,1002,ZUI_BUTTON,(struct zui_rect){24,60,156,34},a->query,0,!a->colors.prompt);
-    int rows=category_rows(u);a->category_offset=zui_scroll_step(a->category_offset,0,10-rows);
-    for(int i=0;i<rows;i++){int cat=a->category_offset+i;zui_add(u,1100+cat,ZUI_NAVIGATION,(struct zui_rect){20,110+i*30,164,26},(const char*[]){"Quick Settings","Input & Output","Devices","Networking","Appearance","Apps & Windows","Workspace","Security","Language & Time","System"}[cat],a->category==cat&&!a->query[0],!a->colors.prompt);}
+static int sidebar_rows(void *c,int i,struct zui_list_item *o){return nav_rows(&((struct meridian *)c)->nav,i,o);}
+static int choice_rows(void *c,int i,struct zui_list_item *o){
+    struct meridian *a=c;int kind=page_kind(a);
+    if(i<0||i>=binding_choice_count(&a->bindings,kind))return 0;
+    *o=(struct zui_list_item){0,binding_choice_name(&a->bindings,kind,(unsigned int)i),0,0,1};return 1;
 }
-static void results(struct meridian *a,struct zui *u,struct zui_rect c){
-    text(u,c.x+20,c.y+20,a->query[0]?"Search results":a->group>=0?groups[a->group]:a->category>=0?categories[a->category]:"All Settings",&zui_heading,u->theme.text);
-    text(u,c.x+20,c.y+58,a->query[0]?"Matching settings pages":"Choose a settings page",&zui_caption,u->theme.secondary);
-    a->match_count=0;int grouped[7]={0};
-    for(int i=0;i<MERIDIAN_PAGE_COUNT;i++){
-        const struct meridian_page *p=&meridian_pages[i];
-        if(a->category>=0&&!same(categories[a->category],p->category))continue;
-        if(a->group>=0&&p->group!=a->group)continue;
-        if(!contains(p->title,a->query)&&!contains(p->id,a->query)&&!contains(p->requirements,a->query))continue;
-        if(!a->query[0]&&a->category>=0&&a->group<0&&p->group>=0){if(!grouped[p->group]){a->matches[a->match_count++]=-1-p->group;grouped[p->group]=1;}}
-        else a->matches[a->match_count++]=i;
+static struct zui_rect search_rect(struct zui_rect s){return (struct zui_rect){s.x+12,s.y+8,s.w-24,34};}
+static void draw_sidebar(struct meridian *a,struct zui *u,struct zui_rect s){
+    zui_add(u,ID_SEARCH,ZUI_BUTTON,search_rect(s),"",0,1);
+    a->sidebar.selected=a->nav.category;
+    if(a->nav.mode!=NAV_CATEGORIES)for(int i=1;i<nav_row_count(&a->nav);i++)if(nav_row_page(&a->nav,i)==a->page)a->sidebar.selected=i;
+    zui_list_draw(u,&a->sidebar,(struct zui_rect){s.x,s.y+52,s.w,s.h-52},nav_row_count(&a->nav),sidebar_rows,a);
+}
+static const char *wip_note(const struct meridian *a,int kind){
+    if(kind==BIND_COLORS)return "Work in progress: automatic switching and custom colors.";
+    if(kind==BIND_KEYBOARD)return "Work in progress: model, repeat, Num Lock and shortcuts.";
+    if(kind==BIND_TIMEZONE)return "Work in progress: clock editing and sync policy.";
+    if(kind==BIND_SESSION)return "Work in progress: session restore and confirmation policy.";
+    if(a->page==0)return "Work in progress: scheduled mode and persistent history.";
+    if(a->page==MERIDIAN_ABOUT)return "Work in progress: hardware inventory is planned.";
+    if(information_kind(a)==1)return "Work in progress: connection editing and profiles.";
+    if(information_kind(a)==2)return "Work in progress: account creation, deletion and passwords.";
+    return "Work in progress: this page needs additional system services. Nothing here can be changed yet.";
+}
+static void note(struct zui *u,struct zui_form *f,const char *s){
+    int inner=f->w-24,lines=inner>0?zui_measure(s,length(s),&zui_caption)/inner+1:1,h=lines*19+16;
+    struct zui_rect r={f->x,f->y,f->w,h};
+    zui_surface(u,r,8,ZUI_SURFACE_CONTROL);
+    zui_paragraph(u,(struct zui_rect){r.x+12,r.y+8,inner,h-12},s,&zui_caption,u->theme.secondary,0);
+    f->y+=h+12;
+}
+static void status(struct zui *u,struct zui_form *f,const char *s){
+    if(!s)return;
+    zui_paragraph(u,(struct zui_rect){f->x,f->y,f->w,36},s,&zui_caption,u->theme.text,0);f->y+=40;
+}
+static void colors_form(struct meridian *a,struct zui *u,struct zui_form *f){
+    struct settings_app *s=&a->colors;int writable=binding_writable(&a->bindings,BIND_COLORS),cw=f->narrow?f->w:f->w-f->label_w-16;
+    zui_form_section(u,f,"Appearance");
+    struct zui_rect r=zui_form_row(u,f,"Color mode",0,272,32);
+    zui_segment_track(u,(struct zui_rect){r.x-4,r.y-4,r.w+8,r.h+8});
+    zui_add(u,1,ZUI_SEGMENT,(struct zui_rect){r.x,r.y,r.w/2,32},"Dark",s->mode==0,writable);
+    zui_add(u,2,ZUI_SEGMENT,(struct zui_rect){r.x+r.w/2,r.y,r.w/2,32},"Light",s->mode==1,writable);
+    r=zui_form_row(u,f,"Accent color",0,264,54);
+    static const char *const names[6]={"Blue","Violet","Rose","Amber","Green","Teal"};
+    for(int i=0;i<6;i++)zui_add_swatch(u,10+i,(struct zui_rect){r.x+i*44,r.y,32,32},names[i],i,s->accent==(unsigned int)i,writable);
+    zui_swatch_caption(u,r.x,r.y+38);
+    zui_form_section(u,f,"Effects");
+    static const char *const effect_names[3]={"Transparency","Backdrop blur","Whole app"};
+    const char *help[3]={"Let panels reveal the background.",
+        !s->available_effects?"Unavailable here; saved choices are kept.":!(s->effects&1)&&(s->effects&2)?"Saved; enable transparency to activate it.":s->material_reason>=3?"Some surfaces fall back for contrast or speed.":"Diffuse the backdrop; controls remain clear.",
+        !(s->effects&1)&&(s->effects&4)?"Saved; enable transparency to activate it.":"Extend effects to the app canvas."};
+    for(int i=0;i<3;i++){
+        r=zui_form_row(u,f,effect_names[i],help[i],cw<300?cw:300,28);
+        zui_add(u,50+i,ZUI_TOGGLE,r,"",!!(s->effects&(1U<<i)),writable&&!!(s->available_effects&(1U<<i)));
     }
-    int rows=result_rows(u);a->offset=zui_scroll_step(a->offset,0,a->match_count-rows);
-    for(int i=0;i<rows&&a->offset+i<a->match_count;i++){
-        int p=a->matches[a->offset+i];zui_add(u,p<0?300+(-1-p):100+p,ZUI_NAVIGATION,(struct zui_rect){c.x+16,c.y+92+i*42,c.w-32,36},p<0?groups[-1-p]:meridian_pages[p].title,0,1);
+    r=zui_form_row(u,f,"Translucency",0,152,32);
+    int level_enabled=writable&&!!s->available_effects;
+    zui_add(u,53,ZUI_BUTTON,(struct zui_rect){r.x,r.y,32,32},"-",0,level_enabled);
+    zui_add(u,54,ZUI_BUTTON,(struct zui_rect){r.x+r.w-32,r.y,32,32},"+",0,level_enabled);
+    char percent[5];unsigned int n=s->translucency>100?100:s->translucency;int k=0;
+    if(n>=100)percent[k++]='1';
+    if(n>=10)percent[k++]=(char)('0'+n/10%10);
+    percent[k++]=(char)('0'+n%10);percent[k++]='%';percent[k]=0;
+    text(u,r.x+60,r.y+8,percent,&zui_label,u->theme.text);
+    if(s->has_scopes){
+        zui_form_section(u,f,"Scope");
+        r=zui_form_row(u,f,"Applies to",0,272,32);
+        zui_segment_track(u,(struct zui_rect){r.x-4,r.y-4,r.w+8,r.h+8});
+        zui_add(u,60,ZUI_SEGMENT,(struct zui_rect){r.x,r.y,r.w/2,32},"Personal",s->scope==1,!s->edited);
+        zui_add(u,61,ZUI_SEGMENT,(struct zui_rect){r.x+r.w/2,r.y,r.w/2,32},"System",s->scope==0,!s->edited);
     }
-    if(!a->match_count)text(u,c.x+20,c.y+100,"No matching settings.",&zui_body,u->theme.secondary);
-    zui_add(u,4,ZUI_BUTTON,(struct zui_rect){c.x+16,c.y+c.h-48,94,34},"Previous",0,a->offset>0);
-    zui_add(u,5,ZUI_BUTTON,(struct zui_rect){c.x+120,c.y+c.h-48,82,34},"Next",0,a->offset+rows<a->match_count);
-    zui_add(u,6,ZUI_BUTTON,(struct zui_rect){c.x+c.w-138,c.y+c.h-48,122,34},a->group>=0?"Back to category":"All categories",0,a->category>=0);
+    const char *where=s->has_scopes&&s->scope?(s->inherited?"Personal: following system defaults.":"Personal override for this account."):
+        !(s->state.flags&Z_SETTINGS_WRITABLE)?"Read only: sign in as an administrator to save.":
+        s->state.flags&Z_SETTINGS_PERSISTENT?"Installed system: applied changes survive reboot.":"Live system: changes will be lost at reboot.";
+    const char *state=s->edited?"Unapplied changes - showing your preview.":s->state.flags&Z_SETTINGS_PENDING?"Applied. Waiting for the desktop or next login.":"Applied appearance is active.";
+    if(s->has_scopes&&!s->scope&&!s->inherited)state="System defaults applied; personal overrides are active.";
+    f->y+=8;
+    text(u,f->x,f->y,where,&zui_caption,u->theme.secondary);f->y+=20;
+    text(u,f->x,f->y,s->message?s->message:state,&zui_caption,u->theme.text);f->y+=20;
+}
+static void preference_form(struct meridian *a,struct zui *u,struct zui_form *f,int kind){
+    const struct meridian_bindings *b=&a->bindings;int writable=binding_writable(b,kind),count=binding_choice_count(b,kind);
+    zui_form_section(u,f,"System default");
+    struct zui_rect r=zui_form_row(u,f,kind==BIND_KEYBOARD?"Keyboard layout":kind==BIND_TIMEZONE?"Time zone":"Login session",
+        writable?"Administrators change this for all users.":"Read only: sign in as an administrator.",280,36);
+    if(count){
+        if(!a->combo.open)a->combo.value=(int)binding_choice(b,kind);
+        zui_combo_draw(u,&a->combo,r,count,choice_rows,a);
+        int field=-1;for(int i=0;i<u->count;i++)if(u->controls[i].id==ID_COMBO)field=i;
+        if(field>=0){
+            u->controls[field].enabled=writable;
+            if(binding_choice(b,kind)>=(unsigned int)count)u->controls[field].label=kind==BIND_TIMEZONE?b->preferences.current_zone:b->preferences.current_session;
+        }
+    }else text(u,r.x,r.y+10,"Unavailable from the settings service.",&zui_body,u->theme.secondary);
+    status(u,f,b->message?b->message:binding_changed(b,kind)?"Unapplied change.":kind==BIND_KEYBOARD?"Applies to keyboard input across sessions immediately.":
+        kind==BIND_TIMEZONE?"Changes local time display; the UTC clock is unchanged.":"Applies on next boot; the running session is unchanged.");
+}
+static void lines_form(struct zui *u,struct zui_form *f,const char *s){
+    while(*s){
+        unsigned long n=0;while(s[n]&&s[n]!='\n'&&n<4096)n++;
+        if(n)zui_text(u,f->x,f->y,s,n,&zui_body,u->theme.secondary);
+        f->y+=22;s+=n;if(*s)s++;
+    }
+}
+static void link_row(struct zui *u,struct zui_form *f,int page,const char *label){
+    zui_add(u,ID_LINKS+page,ZUI_NAVIGATION,(struct zui_rect){f->x,f->y,f->w,36},label,0,1);f->y+=42;
+}
+static void overview_form(struct meridian *a,struct zui *u,struct zui_form *f){
+    zui_form_section(u,f,"Appearance");
+    link_row(u,f,MERIDIAN_COLORS,"Colors and materials");
+    for(int i=0;i<MERIDIAN_PAGE_COUNT;i++)if(same(meridian_pages[i].id,"style.wallpaper"))link_row(u,f,i,"Wallpaper");
+    int shown=0;
+    for(int i=0;i<a->recent_count&&shown<3;i++)if(a->recent[i]!=0&&a->recent[i]!=MERIDIAN_COLORS&&!same(meridian_pages[a->recent[i]].id,"style.wallpaper")){
+        if(!shown)zui_form_section(u,f,"Recently visited");
+        link_row(u,f,a->recent[i],meridian_pages[a->recent[i]].title);shown++;
+    }
+}
+static void planned_form(struct meridian *a,struct zui *u,struct zui_form *f){
+    zui_form_section(u,f,"Planned options");
+    const char *s=meridian_pages[a->page].requirements;
+    while(*s){
+        unsigned long n=0;while(s[n]&&s[n]!='\n')n++;
+        if(n>2&&s[0]=='-'&&s[1]==' '){
+            zui_text(u,f->x,f->y,s+2,n-2,&zui_body,u->theme.text);f->y+=20;
+            text(u,f->x,f->y,"Not available yet",&zui_caption,u->theme.secondary);f->y+=26;
+        }
+        s+=n;if(*s)s++;
+    }
+}
+static void draw_page(struct meridian *a,struct zui *u,struct zui_rect c){
+    const struct meridian_page *p=&meridian_pages[a->page];int kind=page_kind(a),footer=kind!=BIND_NONE?56:0,x=c.x+24;
+    if(!wide(a)){
+        if(zui_add(u,ID_BACK,ZUI_BUTTON,(struct zui_rect){c.x+12,c.y+16,36,32},"",0,1))u->controls[u->count-1].icon="arrow-left";
+        x+=32;
+    }
+    text(u,x,c.y+14,p->title,&zui_heading,u->theme.text);
+    text(u,x,c.y+50,meridian_categories[nav_category_of(a->page)],&zui_caption,u->theme.secondary);
+    struct zui_rect body={c.x,c.y+74,c.w,c.h-74-footer};
+    int top=zui_scroll_begin(u,&a->page_scroll,body);
+    struct zui_form f;zui_form_begin(&f,(struct zui_rect){body.x+16,body.y,body.w-32,body.h},top+8,u->width);
+    note(u,&f,wip_note(a,kind));
+    if(kind==BIND_COLORS)colors_form(a,u,&f);
+    else if(kind!=BIND_NONE)preference_form(a,u,&f,kind);
+    else if(a->page==0)overview_form(a,u,&f);
+    else if(information_kind(a))lines_form(u,&f,a->information_read&&a->public_kind==information_kind(a)&&!a->public_error?a->public_information:"Information service unavailable.");
+    else if(a->page==MERIDIAN_ABOUT&&a->information[0])lines_form(u,&f,a->information);
+    else planned_form(a,u,&f);
+    zui_scroll_end(u,&a->page_scroll,zui_form_height(&f,top)+8);
+    if(footer)zui_footer(u,(struct zui_rect){c.x,c.y+c.h-56,c.w,56},ID_FOOTER,0,binding_changed(&a->bindings,kind),binding_at_defaults(&a->bindings,kind));
+}
+/* Indices change every frame: restore focus and press by control id. Dialog buttons
+ * are registered last in reverse order, so their index follows from the page count. */
+static int index_of(const struct zui *u,int id){
+    for(int i=0;i<u->count;i++)if(u->controls[i].id==id&&u->controls[i].enabled)return i;
+    return -1;
 }
 void meridian_draw(struct meridian *a){
-    struct zui *u=meridian_ui(a);int focus=u->focus>=0&&u->focus<u->count?u->controls[u->focus].id:0;
-    int pressed=u->pressed>=0&&u->pressed<u->count?u->controls[u->pressed].id:0;
-    if(a->page==MERIDIAN_COLORS){
-        u->count=20;settings_draw(&a->colors);sidebar(a,u);
-        struct zui_rect r=a->colors.viewport;zui_clip(u,r);
-        zui_surface(u,(struct zui_rect){r.x+16,r.y+46,r.w-32,28},6,ZUI_SURFACE_CONTROL);
-        zui_paragraph(u,(struct zui_rect){r.x+22,r.y+49,r.w-44,25},"WIP: automatic switching and custom colors.",&zui_caption,u->theme.secondary,0);
-    }else{
-        struct zui_workspace w=zui_workspace_begin(u,180);struct zui_rect c=w.content;u->count=0;u->focus=u->pressed=-1;
-        sidebar(a,u);zui_clip(u,c);
-        if(a->page<0)results(a,u,c);
-        else {
-            const struct meridian_page *p=&meridian_pages[a->page];
-            text(u,c.x+20,c.y+18,p->title,&zui_heading,u->theme.text);
-            text(u,c.x+20,c.y+56,p->category,&zui_caption,u->theme.secondary);
-            zui_surface(u,(struct zui_rect){c.x+16,c.y+84,c.w-32,58},8,ZUI_SURFACE_CONTROL);
-            zui_paragraph(u,(struct zui_rect){c.x+26,c.y+94,c.w-52,40},(a->preferences.version==2||(a->preferences.version==1&&preference_field(a)<3))&&preference_field(a)?(preference_field(a)==1?"WIP: model, repeat, Num Lock and shortcuts. Layout selection works.":preference_field(a)==2?"WIP: clock editing and sync policy. Time zone selection works.":"WIP: session restore and confirmation policy. Default session selection works."):a->page==0?"WIP: scheduled mode and persistent history. Recent pages are kept while Meridian is open.":a->page==MERIDIAN_ABOUT?"WIP: available runtime information; hardware inventory is planned.":information_kind(a)==1?"WIP: connection editing and profiles. Actual network state is shown below.":information_kind(a)==2?"WIP: account creation, deletion and passwords. Public account information is shown below.":"Work in progress. This page needs additional system services. No settings here can be changed yet.",&zui_caption,u->theme.secondary,0);
-            if((a->preferences.version==2||(a->preferences.version==1&&preference_field(a)<3))&&preference_field(a))preferences_draw(a,u,c);
-            else if(a->page==0){
-                zui_add(u,100+MERIDIAN_COLORS,ZUI_NAVIGATION,(struct zui_rect){c.x+16,c.y+164,c.w-32,36},"Colors and materials",0,1);
-                zui_add(u,115,ZUI_NAVIGATION,(struct zui_rect){c.x+16,c.y+206,c.w-32,36},"Wallpaper",0,1);
-                text(u,c.x+20,c.y+266,"Recently visited",&zui_label,u->theme.text);
-                int row=0;for(int i=0;i<a->recent_count&&row<3;i++)if(a->recent[i]!=0){zui_add(u,200+i,ZUI_NAVIGATION,(struct zui_rect){c.x+16,c.y+296+row*34,c.w-32,30},meridian_pages[a->recent[i]].title,0,1);row++;}
-            }else{
-                struct zui_rect body={c.x+20,c.y+164,c.w-40,c.h-232};
-                a->lines=zui_paragraph(u,body,information_kind(a)&&a->information_read?(a->public_kind==information_kind(a)?a->public_information:"Information service unavailable."):a->page==MERIDIAN_ABOUT&&a->information[0]?a->information:p->requirements,&zui_body,u->theme.secondary,a->scroll);
-                zui_add(u,10,ZUI_BUTTON,(struct zui_rect){c.x+16,c.y+c.h-48,98,34},"Scroll up",0,a->scroll>0);
-                zui_add(u,11,ZUI_BUTTON,(struct zui_rect){c.x+126,c.y+c.h-48,110,34},"Scroll down",0,a->scroll+8<a->lines);
-            }
-        }
-    }
+    struct zui *u=&a->ui;
+    int focus=u->focus>=0&&u->focus<u->count?u->controls[u->focus].id:0,pressed=u->pressed>=0&&u->pressed<u->count?u->controls[u->pressed].id:0;
+    u->count=0;
+    int show_side=wide(a)||!a->narrow_page,show_page=wide(a)||a->narrow_page;
+    struct zui_workspace w=zui_workspace_begin(u,wide(a)?240:0);
+    struct zui_rect side=wide(a)?w.sidebar:w.content;
+    if(show_side)draw_sidebar(a,u,side);
+    if(show_page)draw_page(a,u,w.content);
     zui_clip(u,(struct zui_rect){0,0,u->width,u->height});
-    for(int i=0;i<u->count;i++)if(u->controls[i].enabled){if(u->controls[i].id==focus)u->focus=i;if(u->controls[i].id==pressed)u->pressed=i;}
-    int first=a->page==MERIDIAN_COLORS?20:0,side_count=1+category_rows(u);
-    zui_clip(u,(struct zui_rect){12,12,180,u->height-24});zui_draw_range(u,first+1,side_count-1);
-    zui_input_draw(u,(struct zui_rect){24,60,156,34},&a->search,a->search_focus&&u->window_focused);
-    if(!a->query[0]&&!a->search_focus)text(u,33,68,"Search settings",&zui_caption,u->theme.secondary);
-    zui_clip(u,(struct zui_rect){204,12,u->width-216,u->height-24});
-    if(a->page!=MERIDIAN_COLORS)zui_draw_range(u,side_count,u->count-side_count);
-    if(a->preference_picker){struct zui_rect c={204,12,u->width-216,u->height-24};zui_input_draw(u,(struct zui_rect){c.x+20,c.y+160,c.w-40,34},&a->preference_search,a->preference_search_focus);}
+    u->focus=focus?index_of(u,focus):-1;u->pressed=pressed?index_of(u,pressed):-1;
+    zui_draw_controls(u);
+    if(show_side){
+        struct zui_rect r=search_rect(side);
+        zui_input_draw(u,r,&a->search,a->search_focus&&u->window_focused);
+        if(!a->query[0]&&!a->search_focus)text(u,r.x+10,r.y+9,"Search settings",&zui_caption,u->theme.secondary);
+    }
+    int kind=page_kind(a);
+    if(show_page&&kind>=BIND_KEYBOARD&&a->combo.open)zui_combo_popup(u,&a->combo,binding_choice_count(&a->bindings,kind),choice_rows,a);
+    if(a->dialog.open){
+        int base=u->count,top=ID_DIALOG+a->dialog.count;
+        if(focus>ID_DIALOG&&focus<=top)u->focus=base+top-focus;
+        if(pressed>ID_DIALOG&&pressed<=top)u->pressed=base+top-pressed;
+        zui_dialog_draw(u,&a->dialog);
+    }
     zui_clip(u,(struct zui_rect){0,0,u->width,u->height});u->dirty=0;
 }
-static void navigate(struct meridian *a,int category){
-    if(a->preference_edited){a->preference_message="Save or discard changes before navigating.";a->navigation.dirty=1;return;}
-    if(a->colors.edited){a->pending_category=category;settings_request_navigation(&a->colors);return;}
-    a->category=category;a->group=-1;a->offset=0;a->query[0]=0;zui_input_init(&a->search,a->query,sizeof(a->query));
-    if(category==0)open_page(a,0);else open_page(a,-1);
+static void confirm(struct meridian *a,int pending){
+    a->pending=pending;a->combo.open=0;
+    a->dialog=(struct zui_dialog){1,ID_DIALOG,"Apply changes?","This page has unapplied changes.",{"Apply","Discard","Cancel"},3};
+    a->ui.pressed=-1;a->ui.dirty=1;
+}
+static void request_row(struct meridian *a,int row){
+    struct meridian_nav next=a->nav;nav_activate(&next,row);
+    if(next.page!=a->page&&binding_changed(&a->bindings,page_kind(a))){a->pending_row=row;confirm(a,PENDING_ROW);return;}
+    int opens=nav_row_page(&a->nav,row)>=0;
+    if(next.mode!=a->nav.mode||next.category!=a->nav.category)a->sidebar.scroll.offset=0;
+    adopt(a,&next,opens);
+}
+static void request_page(struct meridian *a,int page){
+    if(page!=a->page&&binding_changed(&a->bindings,page_kind(a))){a->pending_page=page;confirm(a,PENDING_PAGE);return;}
+    struct meridian_nav next=a->nav;nav_open(&next,meridian_pages[page].id);
+    a->sidebar.scroll.offset=0;adopt(a,&next,1);
+}
+static void close_request(struct meridian *a){
+    if(binding_any_changed(&a->bindings))confirm(a,PENDING_CLOSE);else a->closing=1;
+}
+static void resolve(struct meridian *a,int button){
+    int pending=a->pending,kind=page_kind(a);a->pending=PENDING_NONE;a->ui.dirty=1;
+    if(button==3)return;
+    if(button==1&&binding_apply(&a->bindings,kind))return;
+    if(button==2)binding_reset(&a->bindings,kind);
+    if(pending==PENDING_CLOSE)a->closing=1;
+    else if(pending==PENDING_ROW)request_row(a,a->pending_row);
+    else if(pending==PENDING_PAGE)request_page(a,a->pending_page);
+}
+static void back(struct meridian *a){
+    if(a->nav.mode==NAV_SEARCH)clear_search(a);
+    else if(a->nav.mode==NAV_PAGES){nav_back(&a->nav);a->sidebar.scroll.offset=0;}
+    else if(!wide(a)&&a->narrow_page)a->narrow_page=0;
+    a->ui.dirty=1;
+}
+static void colors_action(struct meridian *a,int id){
+    struct settings_app *s=&a->colors;unsigned int mode=s->mode,accent=s->accent,effects=s->effects,level=s->translucency;
+    if(id==60||id==61){settings_set_scope(s,id==60);return;}
+    if(id==1||id==2)mode=(unsigned int)id-1;
+    else if(id>=10&&id<=15)accent=(unsigned int)id-10;
+    else if(id>=50&&id<=52)effects^=1U<<(id-50);
+    else if(id==53)level=level<10?0:level-10;
+    else if(id==54)level=level>90?100:level+10;
+    else return;
+    settings_preview(s,mode,accent,effects,level);
+}
+static void page_keys(struct meridian *a,const struct zenith_gui_event *e){
+    int max=zui_scroll_maximum(&a->page_scroll),next=a->page_scroll.offset;
+    if(e->extra==7)next=zui_scroll_step(next,-40,max);
+    else if(e->extra==8)next=zui_scroll_step(next,40,max);
+    else if(e->extra==10)next=0;
+    else if(e->extra==11)next=max;
+    if(next!=a->page_scroll.offset){a->page_scroll.offset=next;a->ui.dirty=1;}
 }
 void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
-    if(e->type==Z_GUI_FOCUS||e->type==Z_GUI_RESET){zui_event(&a->navigation,e);zui_event(&a->colors.ui,e);return;}
-    struct zui *u=meridian_ui(a);if(!u->window_focused&&e->type!=Z_GUI_CLOSE&&e->type!=Z_GUI_CLOSE_INTENT)return;
-    if(a->preference_picker&&e->type==Z_GUI_KEY&&!(e->modifiers&6)){
-        if(e->extra==1){a->preference_picker=0;u->dirty=1;return;}
-        if(e->extra==4)a->preference_search_focus=0;
-        else if(a->preference_search_focus){
-            if(e->extra==2){for(unsigned int i=0;i<choice_count(a);i++)if(contains(choice_name(a,i),a->preference_query)){preferences_action(a,2100+(int)i);return;}}
-            if(zui_input_event(&a->preference_search,e)){a->preference_offset=0;u->dirty=1;}return;
-        }
-    }
-    if(a->preference_edited&&(e->type==Z_GUI_CLOSE_INTENT||(e->type==Z_GUI_KEY&&e->modifiers==2&&(e->code=='q'||e->code=='Q')))){a->preference_picker=0;a->preference_prompt=1;u->dirty=1;return;}
-    if(a->preference_edited&&e->type==Z_GUI_KEY&&e->extra==1){a->preference_prompt=a->preference_prompt?0:2;u->dirty=1;return;}
-    if(e->type==Z_GUI_KEY&&e->modifiers==2&&(e->code=='q'||e->code=='Q')){
-        if(a->page==MERIDIAN_COLORS){struct zenith_gui_event c={Z_GUI_CLOSE_INTENT,0,0,0,0,0};settings_event(&a->colors,&c);a->closing=a->colors.closing;}else a->closing=1;return;
+    struct zui *u=&a->ui;
+    if(e->type==Z_GUI_FOCUS||e->type==Z_GUI_RESET){zui_event(u,e);a->combo.open=0;a->sidebar.scroll.dragging=a->page_scroll.dragging=0;return;}
+    if(e->type==Z_GUI_CLOSE){a->closing=1;return;}
+    if(!u->window_focused&&e->type!=Z_GUI_CLOSE_INTENT)return;
+    if(a->dialog.open){int button=zui_dialog_event(u,&a->dialog,e);if(button)resolve(a,button);sync_theme(a);return;}
+    if(e->type==Z_GUI_CLOSE_INTENT||(e->type==Z_GUI_KEY&&e->modifiers==2&&(e->code=='q'||e->code=='Q'))){close_request(a);return;}
+    int kind=page_kind(a);
+    if(kind>=BIND_KEYBOARD&&binding_writable(&a->bindings,kind)&&(wide(a)||a->narrow_page)){
+        int was=a->combo.open,chosen=zui_combo_event(u,&a->combo,e,choice_rows,a);
+        if(chosen)binding_choose(&a->bindings,kind,(unsigned int)chosen-1);
+        if(was||a->combo.open){if(a->combo.open!=was)u->pressed=-1;u->dirty=1;return;}
     }
     if(e->type==Z_GUI_KEY&&e->modifiers==2&&(e->code=='f'||e->code=='F')){
-        if(a->preference_edited){a->preference_message="Save or discard changes before searching.";u->dirty=1;return;}
-        if(a->colors.edited){a->colors.message="Save or discard changes before searching.";u->dirty=1;return;}
-        a->query[0]=0;zui_input_init(&a->search,a->query,sizeof(a->query));open_page(a,-1);a->category=a->group=-1;a->search_focus=1;return;
+        if(!wide(a))a->narrow_page=0;
+        a->search_focus=1;u->dirty=1;return;
     }
     if(a->search_focus&&e->type==Z_GUI_KEY&&e->extra!=4){
-        if(e->extra==1){a->search_focus=0;u->dirty=1;return;}
-        if(e->extra==2){a->search_focus=0;u->focus=1+category_rows(u);u->dirty=1;return;}
-        if(zui_input_event(&a->search,e)){a->page=-1;a->offset=0;a->category=a->group=-1;a->navigation.dirty=1;}return;
+        if(e->extra==1)clear_search(a);
+        else if(e->extra==2){a->search_focus=0;if(a->nav.mode==NAV_SEARCH&&a->nav.result_count)request_row(a,1);}
+        else if(zui_input_event(&a->search,e)){nav_search(&a->nav,a->query);a->sidebar.scroll.offset=0;}
+        u->dirty=1;sync_theme(a);return;
     }
-    if(e->type==Z_GUI_SCROLL){
-        if(!e->code)return;
-        long movement=-(long)e->code*3;int delta=movement>24?24:movement< -24?-24:(int)movement,old;
-        if(a->preference_picker&&e->x>=204){old=a->preference_offset;a->preference_offset=zui_scroll_step(old,delta,48);if(old!=a->preference_offset)u->dirty=1;}
-        else if(e->x<204){old=a->category_offset;a->category_offset=zui_scroll_step(old,delta,10-category_rows(u));if(old!=a->category_offset)u->dirty=1;}
-        else if(a->page<0){old=a->offset;a->offset=zui_scroll_step(old,delta,a->match_count-result_rows(u));if(old!=a->offset)u->dirty=1;}
-        else if(a->page!=MERIDIAN_COLORS&&a->page!=0){old=a->scroll;a->scroll=zui_scroll_step(old,delta,a->lines-8);if(old!=a->scroll)u->dirty=1;}
-        return;
+    if(e->type==Z_GUI_KEY&&e->extra==4)a->search_focus=0;
+    if(e->type==Z_GUI_DOWN)a->search_focus=0;
+    if(e->type==Z_GUI_KEY&&(e->extra==1||(e->modifiers==4&&e->extra==5)||(!e->modifiers&&e->extra==3))){back(a);return;}
+    int show_side=wide(a)||!a->narrow_page,show_page=wide(a)||a->narrow_page;
+    int focused=u->focus>=0&&u->focus<u->count?u->controls[u->focus].id:0,on_rows=focused>=ID_ROWS&&focused<ID_ROWS+MERIDIAN_PAGE_COUNT+1;
+    if(show_side&&(e->type!=Z_GUI_KEY||on_rows)){
+        int row=zui_list_event(u,&a->sidebar,e,sidebar_rows,a);
+        if(row){u->pressed=-1;request_row(a,row-1);sync_theme(a);return;}
+        if(on_rows&&e->type==Z_GUI_KEY&&(e->extra==7||e->extra==8||e->extra==10||e->extra==11)){u->dirty=1;return;}
     }
-    if(a->page!=MERIDIAN_COLORS&&(e->type==Z_GUI_CLOSE||e->type==Z_GUI_CLOSE_INTENT)){a->closing=1;return;}
-    if(a->page!=MERIDIAN_COLORS&&e->type==Z_GUI_KEY&&e->extra==1){if(a->page>=0)open_page(a,-1);else if(a->group>=0){a->group=-1;u->dirty=1;}else navigate(a,0);return;}
-    int prompt=a->colors.prompt;
-    int action=a->page==MERIDIAN_COLORS?settings_event(&a->colors,e):zui_event(u,e);a->closing=a->colors.closing;
-    if(prompt==3&&!a->colors.prompt&&action!=900)a->pending_category=-2;
-    if(preferences_action(a,action))return;
-    if(action==900){int cat=a->pending_category;a->pending_category=-2;if(cat==-2)open_page(a,-1);else navigate(a,cat);}
-    else if(action==1002){if(a->preference_edited){a->preference_message="Save or discard changes before searching.";u->dirty=1;}else if(a->colors.edited){a->colors.message="Save or discard changes before searching.";u->dirty=1;}else {open_page(a,-1);a->category=a->group=-1;a->search_focus=1;}}
-    else if(action>=1100&&action<1110)navigate(a,action-1100);
-    else if(action==4||action==5){int next=zui_scroll_step(a->offset,action==4?-result_rows(u):result_rows(u),a->match_count-result_rows(u));if(next!=a->offset){a->offset=next;u->dirty=1;}}
-    else if(action==6){if(a->group>=0){a->group=-1;u->dirty=1;}else navigate(a,-1);}
-    else if(action==10||action==11){int next=zui_scroll_step(a->scroll,action==10?-8:8,a->lines-8);if(next!=a->scroll){a->scroll=next;u->dirty=1;}}
-    else if(action>=300&&action<307){a->group=action-300;a->offset=0;u->dirty=1;}
-    else if(action>=100&&action<100+MERIDIAN_PAGE_COUNT)open_page(a,action-100);
-    else if(action>=200&&action<200+a->recent_count)open_page(a,a->recent[action-200]);
+    if(show_page){
+        if(zui_scroll_event(u,&a->page_scroll,e))return;
+        if(e->type==Z_GUI_KEY&&!e->modifiers&&!on_rows)page_keys(a,e);
+    }
+    int id=zui_event(u,e);
+    if(id==ID_SEARCH){a->search_focus=1;u->dirty=1;}
+    else if(id==ID_BACK){a->narrow_page=0;u->dirty=1;}
+    else if(id==ID_FOOTER+ZUI_FOOTER_APPLY)binding_apply(&a->bindings,kind);
+    else if(id==ID_FOOTER+ZUI_FOOTER_RESET)binding_reset(&a->bindings,kind);
+    else if(id==ID_FOOTER+ZUI_FOOTER_DEFAULTS)binding_defaults(&a->bindings,kind);
+    else if(id>=ID_LINKS&&id<ID_LINKS+MERIDIAN_PAGE_COUNT)request_page(a,id-ID_LINKS);
+    else if(id&&kind==BIND_COLORS)colors_action(a,id);
+    if(id)u->dirty=1;
+    sync_theme(a);
 }

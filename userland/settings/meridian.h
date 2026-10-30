@@ -1,30 +1,30 @@
 #ifndef ZENITH_MERIDIAN_H
 #define ZENITH_MERIDIAN_H
 #include "app.h"
+#include "bindings.h"
+#include "navigation.h"
 #include "../include/zenith_system_settings.h"
 #include "../ui/text.h"
-#include "navigation.h"
-/* Complete catalogue; controls are virtualized to eight visible results. */
+/* Shell over the navigation model, page bindings and shared widgets. Control ids:
+ * 1,2 mode; 10-15 accent; 50-54 effects; 60,61 scope; 100+ sidebar rows; 900+ footer;
+ * 950+ dialog; 1002 search; 1003 narrow back; 2004 combo, 2100+ its rows; 3000+ page links. */
 struct meridian {
+    struct zui ui;
     struct settings_app colors;
-    struct zenith_system_settings preferences;
-    long (*preferences_read)(struct zenith_system_settings *);
-    long (*preferences_save)(unsigned int,unsigned int,unsigned long);
-    int preference_picker,preference_offset,preference_search_focus;
-    char preference_query[64];struct zui_input preference_search;
+    struct meridian_bindings bindings;
+    struct meridian_nav nav;
+    struct zui_list sidebar;
+    struct zui_scroll page_scroll;
+    struct zui_combo combo;
+    struct zui_dialog dialog;
+    struct zui_input search;
+    char query[64];
+    int page,search_focus,narrow_page,closing;
+    int pending,pending_row,pending_page;
+    int recent[6],recent_count;
     long (*information_read)(unsigned int,struct zenith_settings_information *);
     char public_information[4096];unsigned int public_kind;int public_error;
-    unsigned int preference_field,preference_choice;
-    unsigned long preference_revision;
-    int preference_edited,preference_prompt,preferences_ready;
-    const char *preference_message;
-    struct zui navigation;
-    struct zui_input search;
-    char query[128];
     char information[4096];
-    int page,category,group,offset,scroll,search_focus,closing,lines;
-    int category_offset,pending_category;
-    int recent[6],recent_count,matches[MERIDIAN_PAGE_COUNT],match_count;
 };
 int meridian_init(struct meridian *app,unsigned int *pixels,struct settings_backend backend,const char *page);
 int meridian_resize(struct meridian *app,int width,int height,unsigned long capacity);
