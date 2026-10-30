@@ -12,21 +12,56 @@ or a finished Settings application.
 - Semantic neutral light/dark surfaces and text, six paired accent palettes;
   applications select the current palette without changing saved system preferences.
 - Bounded clipped fills, rounded rectangles and antialiased text using embedded
-  Inter A8 glyph atlases at 12/14/24 pixels (Regular/SemiBold as appropriate).
+  Inter glyph atlases at 12/14/24 pixels (Regular/SemiBold as appropriate), stored
+  as per-glyph ink boxes.
 - Labels, buttons, Boolean toggles and choice controls; enabled/disabled,
-  selected, pressed and visible keyboard focus states. No fabricated hover state:
-  the current host does not send hover events.
+  selected, pressed and visible keyboard focus states. Hover is tracked only when a
+  client sets `hover_supported`; no current host sends pointer motion (stage 3).
 - Tab/Shift+Tab wrap over enabled controls. Enter/Space activate the focused
   control; Ctrl/Alt chords are not consumed. Pointer release activates only after
   a matching enabled press. Focus loss/reset cancels held state.
 - Application-owned values and positive unique action IDs; no hidden callback
-  into a service and no settings mutation. At most 32 controls per UI context.
+  into a service and no settings mutation. At most 128 interactive regions per
+  frame; each control keeps the narrowed viewport it was registered in.
 - Dirty-driven gallery presentation: idle polling does not continuously redraw.
 
 `userland/ui/ui.h` owns the API; `ui.c` is host-testable renderer/input code.
 `userland/ui-gallery` is a separate example executable that changes only its own
 preview. Effects are visibly unavailable. Escape/chrome close exits; the host keeps
 its existing invocation, ownership, request/presentation and lifetime limits.
+
+## Client library v2 widgets (stage 1)
+
+`userland/ui/widgets.h` adds composite widgets for the
+[Meridian behavior design](MERIDIAN-BEHAVIOR.md); applications own every state
+struct and the toolkit never allocates.
+
+- **Icons:** `zui_icon(name, x, y, size, role)` draws vendored Lucide 1.64.0 (ISC)
+  masks at 16/24/32/48 px, tinted by role: accent, accent contrast on selected
+  rows, muted when disabled, or body text. `tools/build-ui-icons.py` rasterizes
+  the SVG subset at build time (no checked-in output) and run-length codes it;
+  programs ship `LICENSE-Lucide.txt` beside the Inter license.
+- **Scroll area:** clip to a viewport, wheel (-code/2 px, at most 120), thumb drag,
+  track paging, `zui_scroll_reveal`; the overlay scrollbar shows only on overflow.
+- **List view:** lazy item source, only visible rows registered, single selection,
+  Up/Down/Home/End skipping disabled rows, first-letter type-ahead; navigation
+  controls carry an optional icon, detail line and chevron suppression.
+- **Combo box:** a field button with a chevron plus a popup list of up to eight
+  rows placed inside the window; Esc, focus loss or an outside click cancels.
+- **Form layout:** centered column of at most 640 px; labels beside controls, or
+  stacked above them below a 720 px window; section headings; help under controls.
+- **Footer:** Help/Defaults/Reset/Apply with enablement from changed/at-defaults.
+- **Dialog:** dims the window, focuses its default button, keeps Tab, clicks and
+  focus inside itself; Esc chooses the last button.
+
+Frame order: lay out the page (including combo fields), call `zui_draw_controls`,
+then draw overlays (`zui_combo_popup`, `zui_dialog_draw`), which paint their own
+surfaces and controls. Route input to an open dialog first, then an open combo.
+Page Up/Down and hover delivery need the stage-3 graphical ABI. The UI gallery's
+second page (Ctrl+Right) demonstrates every widget.
+
+UI programs must fit the 256 KiB package file limit that installed kernels
+enforce; `tools/test_ui_library.py` builds each one and requires 32 KiB of headroom.
 
 ## Build and test
 

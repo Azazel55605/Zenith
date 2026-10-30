@@ -30,7 +30,7 @@ new primitives follow the same rules.
 | Primitive | Contract |
 |---|---|
 | `zui_icon(name, rect, role)` | 16/24/32 px masks with 2x variants. Roles: normal = accent, selected = accent contrast (`on_accent`), disabled = secondary text. Unknown name draws nothing and returns 0. |
-| Scroll area | `begin(rect, &offset)` / `end(content_height)` clips content. Wheel uses `zui_scroll_step`; Page Up/Down, Home/End; focused elements scroll into view. Overlay scrollbar only on overflow; draggable, track click pages. |
+| Scroll area | `begin(rect, &offset)` / `end(content_height)` clips content. Wheel scrolls -code/2 px per event (at most 120); Home/End move list selection; `zui_scroll_reveal` brings a range into view. Page Up/Down need the stage-3 key codes. Overlay scrollbar only on overflow; draggable, track click pages. |
 | List view | Virtualized rows (icon, label, optional subtitle, trailing chevron). Single selection, Up/Down/Home/End, Enter activates, first-letter type-ahead. Only visible rows consume the region budget. |
 | Combo box | Closed field with value and chevron. Click/Enter opens a popup list (list view) placed inside the window. Esc cancels; Enter/click commits; type-ahead. |
 | Form layout | Centered column, maximum width 640 px: right-aligned labels, left-aligned controls, help text below the control, section headings/separators. Below the narrow threshold labels stack above controls. |
@@ -75,6 +75,8 @@ increment a debug counter; content is never silently dropped.
 - The host keeps at most one pending move per surface and replaces it with the
   latest position, so motion cannot fill the bounded queue or displace keys/clicks.
 - Leaving the surface sends one move with x = y = -1.
+- The same ABI revision adds key extras Page Up = 12 and Page Down = 13 for scroll
+  areas and lists.
 - The ABI version and [graphical client guide](GRAPHICAL-CLIENTS.md) record the
   capability. The toolkit shows hover only when the host advertises it, so new
   Settings runs on older kernels without hover.
@@ -83,10 +85,11 @@ increment a debug counter; content is never silently dropped.
 
 - About 25 Lucide SVGs (the exact list is fixed in stage 1) in `userland/ui/icons/` with the ISC license text, also
   listed in the licenses manual.
-- `tools/build-ui-icons.py` (beside `build-ui-fonts.py`) rasterizes them with a
-  pinned offline rasterizer into 8-bit coverage masks and generates a C table
-  (name → size → mask) with a checksum. The generated table is checked in, like
-  the font atlas; a test regenerates it and fails on drift.
+- `tools/build-ui-icons.py` (beside `build-ui-fonts.py`) rasterizes the SVG subset
+  Lucide uses with the Python standard library (exact stroke-distance coverage,
+  8x8 supersampling) into 8-bit masks and generates a C table (name → size → mask).
+  Like the font atlas it runs at build time and is not checked in; tests require
+  byte-identical output across runs and refuse DTDs, transforms and unknown elements.
 - `zui_icon` blends the mask with the role tint using the text coverage blend,
   in both opaque and material frames.
 

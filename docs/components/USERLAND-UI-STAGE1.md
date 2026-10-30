@@ -34,6 +34,23 @@ Python 3 (build-time generators; Pillow only for the existing font atlas), gcc/c
 - Existing behavior and tests must keep passing (`test_ui.c`, `test_settings.c`, `test_meridian.c`, gallery).
 - Every task ends with: `python3 -B -m unittest tools/test_ui_library.py` passing.
 
+## Execution notes (2026-10-30)
+
+Implemented in commits `711a7ea`..`8e78fc0`; departures from the task text below:
+
+- **Control clip** stores the narrowed registration viewport (empty for the whole
+  window), because Settings repositions registered controls and Meridian resizes.
+- **Icons** use a standard-library exact stroke-coverage rasterizer (Pillow lines were
+  asymmetric) and accept compact arc flags; upstream renamed `circle-help` to
+  `circle-question-mark`.
+- **Paint order:** list icons/details and the combo chevron are control decorations
+  drawn by `zui_draw_range`; `zui_combo_popup` and `zui_dialog_draw` are overlays
+  drawn after `zui_draw_controls`. Mid-frame painting was covered by page controls.
+- **Package size:** icon masks pushed `settings.elf` past the 256 KiB package file
+  limit. Font atlases now store per-glyph ink boxes and icons are run-length coded
+  (renders byte-identical); a test requires 32 KiB headroom for every UI program.
+- **Gallery** switches pages with Ctrl+Left/Right, since Left/Right move segments.
+
 ## File structure
 
 | File | Responsibility |
@@ -62,7 +79,7 @@ Python 3 (build-time generators; Pillow only for the existing font atlas), gcc/c
 - Produces: `#define ZUI_MAX_CONTROLS 128`; `struct zui_control` gains `struct zui_rect clip;`, the **narrowed viewport active at registration** (stored empty when the clip was the whole window, so it follows resizes). Hit-testing and drawing use `rect ∩ viewport`, so callers that move `rect` after registration (Settings `app.c`) keep working. `zui_add` accepts rects leaving the window when their visible part is non-empty; otherwise it returns 0 (not registered).
 - Implementation note (found while executing): storing `intersect(rect, clip)` broke `app.c`, which repositions registered controls, and Meridian resize.
 
-- [ ] **Step 1: Write the failing tests** — append to `main` in `test_ui.c` before the final `return`:
+- [x] **Step 1: Write the failing tests** — append to `main` in `test_ui.c` before the final `return`:
 
 ```c
     { /* 128-region budget and clipped registration */
@@ -80,12 +97,12 @@ Python 3 (build-time generators; Pillow only for the existing font atlas), gcc/c
     }
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `python3 -B -m unittest tools/test_ui_library.py`
 Expected: FAIL — compile error `'struct zui_control' has no member named 'clip'`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `ui.h`: change `#define ZUI_MAX_CONTROLS 32` to `128` and the control struct to:
 
@@ -107,12 +124,12 @@ int zui_add(struct zui *u,int id,int kind,struct zui_rect r,const char *label,in
 
 In `zui_event`, replace both `hit(u->controls[i].rect,…)` / `hit(u->controls[p].rect,…)` with `hit(u->controls[i].clip,…)` / `hit(u->controls[p].clip,…)`. In `zui_draw_range`, after `struct zui_rect r=c->rect;` add `u->clip=intersect(saved,c->clip);` and change every later `zui_clip(u,intersect(saved,r))` to `u->clip=intersect(intersect(saved,c->clip),r)`; keep `u->clip=saved;` at the end of each iteration and before the `continue` of the swatch branch.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `python3 -B -m unittest tools/test_ui_library.py`
 Expected: OK (existing gallery/settings/meridian tests unchanged).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add userland/ui/ui.h userland/ui/ui.c userland/ui/test_ui.c
@@ -134,7 +151,7 @@ git commit -m "Raise toolkit region budget to 128 and clip controls to their vie
   (sorted by name, then size), each `{name, size, alpha}` with `size*size` alpha bytes.
   CLI: `python3 tools/build-ui-icons.py OUTPUT.c`.
 
-- [ ] **Step 1: Vendor the icons** (downloads are untrusted data: fetch into an empty directory, inspect, then copy)
+- [x] **Step 1: Vendor the icons** (downloads are untrusted data: fetch into an empty directory, inspect, then copy)
 
 ```bash
 TAG=0.469.0   # use the newest lucide release tag at implementation time; record it in SOURCE.md
@@ -163,7 +180,7 @@ Add a `Lucide icons (ISC)` entry with the LICENSE text to the licenses manual so
 (`grep -rn "Inter" Resources/ packaging/ | grep -i licen` locates the existing font
 license entry; add Lucide beside it in the same format).
 
-- [ ] **Step 2: Write the failing tests** — `tools/test_ui_icons.py`:
+- [x] **Step 2: Write the failing tests** — `tools/test_ui_icons.py`:
 
 ```python
 #!/usr/bin/env python3
@@ -205,12 +222,12 @@ class IconTests(unittest.TestCase):
 if __name__ == '__main__': unittest.main()
 ```
 
-- [ ] **Step 3: Run to verify failure**
+- [x] **Step 3: Run to verify failure**
 
 Run: `python3 -B -m unittest tools/test_ui_icons.py`
 Expected: FAIL — `FileNotFoundError` for `tools/build-ui-icons.py`.
 
-- [ ] **Step 4: Implement `tools/build-ui-icons.py`**
+- [x] **Step 4: Implement `tools/build-ui-icons.py`**
 
 ```python
 #!/usr/bin/env python3
@@ -367,12 +384,12 @@ if __name__ == '__main__':
     build(parser.parse_args().output)
 ```
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 Run: `python3 -B -m unittest tools/test_ui_icons.py`
 Expected: OK (3 tests). If an icon fails with `unsupported element`, inspect that SVG and extend `_shapes` only for the element it uses.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add userland/ui/icons tools/build-ui-icons.py tools/test_ui_icons.py
@@ -403,7 +420,7 @@ int zui_icon(struct zui *ui,const char *name,int x,int y,int size,int role);
 
 (`ZUI_ICON_TEXT` tints with `theme.text`, for chevrons and footer actions.)
 
-- [ ] **Step 1: Write the failing test** — append to `test_ui.c` `main`:
+- [x] **Step 1: Write the failing test** — append to `test_ui.c` `main`:
 
 ```c
     { /* icon roles, unknown names and clipping */
@@ -420,12 +437,12 @@ int zui_icon(struct zui *ui,const char *name,int x,int y,int size,int role);
     }
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `python3 -B -m unittest tools/test_ui_library.py`
 Expected: FAIL — implicit declaration of `zui_icon`.
 
-- [ ] **Step 3: Implement** — add the declarations above to `ui.h`; append to `ui.c`:
+- [x] **Step 3: Implement** — add the declarations above to `ui.h`; append to `ui.c`:
 
 ```c
 static int same(const char *a,const char *b){
@@ -469,12 +486,12 @@ that compiles `ui.c`). In `tools/build-userland.py`, after the atlas generation 
 
 and append `str(icons)` to the `extra` list right after `str(atlas)`.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `python3 -B -m unittest tools/test_ui_library.py tools/test_ui_icons.py`
 Expected: OK. Then `python3 -B tools/build-userland.py obj/stage1-gallery --program ui-gallery` succeeds.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add userland/ui/ui.h userland/ui/ui.c userland/ui/test_ui.c tools/test_ui_library.py tools/build-userland.py
@@ -505,7 +522,7 @@ void zui_scroll_reveal(struct zui_scroll *s,int top,int height);
 int zui_scroll_maximum(const struct zui_scroll *s);
 ```
 
-- [ ] **Step 1: Write the failing test** — `userland/ui/test_widgets.c`:
+- [x] **Step 1: Write the failing test** — `userland/ui/test_widgets.c`:
 
 ```c
 /* Host-only widget contract tests: the same code linked into native clients. */
@@ -560,12 +577,12 @@ Add to `tools/test_ui_library.py`:
             subprocess.run([str(exe)],check=True,timeout=30)
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `python3 -B -m unittest tools.test_ui_library.UiLibraryTests.test_widgets_with_sanitizers` (from repo root: `cd tools && python3 -B -m unittest test_ui_library.UiLibraryTests.test_widgets_with_sanitizers`)
 Expected: FAIL — `widgets.h: No such file or directory`.
 
-- [ ] **Step 3: Implement** — `userland/ui/widgets.h`:
+- [x] **Step 3: Implement** — `userland/ui/widgets.h`:
 
 ```c
 #ifndef ZENITH_UI_WIDGETS_H
@@ -635,12 +652,12 @@ int zui_scroll_event(struct zui *u,struct zui_scroll *s,const struct zenith_gui_
 
 Add `str(ROOT/'userland/ui/widgets.c')` to the `extra` list in `tools/build-userland.py` next to `ui.c`.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `cd tools && python3 -B -m unittest test_ui_library`
 Expected: OK.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add userland/ui/widgets.h userland/ui/widgets.c userland/ui/test_widgets.c tools/test_ui_library.py tools/build-userland.py
@@ -672,7 +689,7 @@ int zui_list_event(struct zui *ui,struct zui_list *l,const struct zenith_gui_eve
 
 Row height defaults to 40 (36 + 4 gap) when `row_height` is 0.
 
-- [ ] **Step 1: Write the failing test** — add to `test_widgets.c` and call from `main`:
+- [x] **Step 1: Write the failing test** — add to `test_widgets.c` and call from `main`:
 
 ```c
 static const char *names[]={"Alpha","Bravo","Charlie"};
@@ -699,9 +716,9 @@ static void list_tests(void){
 }
 ```
 
-- [ ] **Step 2: Run to verify failure** — `cd tools && python3 -B -m unittest test_ui_library` → FAIL: unknown type `struct zui_list`.
+- [x] **Step 2: Run to verify failure** — `cd tools && python3 -B -m unittest test_ui_library` → FAIL: unknown type `struct zui_list`.
 
-- [ ] **Step 3: Implement** — add the declarations to `widgets.h`; append to `widgets.c`:
+- [x] **Step 3: Implement** — add the declarations to `widgets.h`; append to `widgets.c`:
 
 ```c
 static int row_h(const struct zui_list *l){return l->row_height>0?l->row_height:40;}
@@ -760,8 +777,8 @@ int zui_list_event(struct zui *u,struct zui_list *l,const struct zenith_gui_even
 }
 ```
 
-- [ ] **Step 4: Run tests** — `cd tools && python3 -B -m unittest test_ui_library` → OK.
-- [ ] **Step 5: Commit** — `git add userland/ui && git commit -m "Add virtualized toolkit list view with keyboard and type-ahead"`
+- [x] **Step 4: Run tests** — `cd tools && python3 -B -m unittest test_ui_library` → OK.
+- [x] **Step 5: Commit** — `git add userland/ui && git commit -m "Add virtualized toolkit list view with keyboard and type-ahead"`
 
 ---
 
@@ -787,7 +804,7 @@ int zui_combo_event(struct zui *ui,struct zui_combo *c,const struct zenith_gui_e
 
 Popup: at most 8 rows of 40 px; `panel` = field width, placed below `field` if it fits in `ui->height`, else above; clamped to the window.
 
-- [ ] **Step 1: Write the failing test** — add and call from `main`:
+- [x] **Step 1: Write the failing test** — add and call from `main`:
 
 ```c
 static void combo_tests(void){
@@ -806,8 +823,8 @@ static void combo_tests(void){
 }
 ```
 
-- [ ] **Step 2: Run to verify failure** — FAIL: unknown type `struct zui_combo`.
-- [ ] **Step 3: Implement** — declarations to `widgets.h`; append to `widgets.c`:
+- [x] **Step 2: Run to verify failure** — FAIL: unknown type `struct zui_combo`.
+- [x] **Step 3: Implement** — declarations to `widgets.h`; append to `widgets.c`:
 
 ```c
 void zui_combo_draw(struct zui *u,struct zui_combo *c,struct zui_rect f,int count,
@@ -841,8 +858,8 @@ int zui_combo_event(struct zui *u,struct zui_combo *c,const struct zenith_gui_ev
 }
 ```
 
-- [ ] **Step 4: Run tests** → OK.
-- [ ] **Step 5: Commit** — `git commit -am "Add toolkit combo box with window-bounded popup list"`
+- [x] **Step 4: Run tests** → OK.
+- [x] **Step 5: Commit** — `git commit -am "Add toolkit combo box with window-bounded popup list"`
 
 ---
 
@@ -866,7 +883,7 @@ struct zui_rect zui_form_row(struct zui *ui,struct zui_form *f,const char *label
 int zui_form_height(const struct zui_form *f,int content_top);
 ```
 
-- [ ] **Step 1: Write the failing test** — add and call:
+- [x] **Step 1: Write the failing test** — add and call:
 
 ```c
 static void form_tests(void){
@@ -883,8 +900,8 @@ static void form_tests(void){
 }
 ```
 
-- [ ] **Step 2: Run to verify failure** — FAIL: unknown type `struct zui_form`.
-- [ ] **Step 3: Implement** — declarations to `widgets.h`; append to `widgets.c`:
+- [x] **Step 2: Run to verify failure** — FAIL: unknown type `struct zui_form`.
+- [x] **Step 3: Implement** — declarations to `widgets.h`; append to `widgets.c`:
 
 ```c
 void zui_form_begin(struct zui_form *f,struct zui_rect a,int top,int window_width){
@@ -914,8 +931,8 @@ struct zui_rect zui_form_row(struct zui *u,struct zui_form *f,const char *label,
 int zui_form_height(const struct zui_form *f,int top){return f->y-top+12;}
 ```
 
-- [ ] **Step 4: Run tests** → OK.
-- [ ] **Step 5: Commit** — `git commit -am "Add toolkit form layout with centered column and narrow stacking"`
+- [x] **Step 4: Run tests** → OK.
+- [x] **Step 5: Commit** — `git commit -am "Add toolkit form layout with centered column and narrow stacking"`
 
 ---
 
@@ -939,7 +956,7 @@ void zui_dialog_draw(struct zui *ui,const struct zui_dialog *d);
 int zui_dialog_event(struct zui *ui,struct zui_dialog *d,const struct zenith_gui_event *e);
 ```
 
-- [ ] **Step 1: Write the failing test** — add and call:
+- [x] **Step 1: Write the failing test** — add and call:
 
 ```c
 static int find(const struct zui *u,int id){for(int i=0;i<u->count;i++)if(u->controls[i].id==id)return i;return -1;}
@@ -962,8 +979,8 @@ static void footer_dialog_tests(void){
 }
 ```
 
-- [ ] **Step 2: Run to verify failure** — FAIL: implicit declaration of `zui_footer`.
-- [ ] **Step 3: Implement** — declarations to `widgets.h`; append to `widgets.c`:
+- [x] **Step 2: Run to verify failure** — FAIL: implicit declaration of `zui_footer`.
+- [x] **Step 3: Implement** — declarations to `widgets.h`; append to `widgets.c`:
 
 ```c
 int zui_footer(struct zui *u,struct zui_rect b,int base,int help,int changed,int at_defaults){
@@ -1013,8 +1030,8 @@ int zui_dialog_event(struct zui *u,struct zui_dialog *d,const struct zenith_gui_
 anything behind it; the `Z_GUI_DOWN` line cancels presses that landed on controls
 behind the dim layer.)
 
-- [ ] **Step 4: Run tests** → OK.
-- [ ] **Step 5: Commit** — `git commit -am "Add uniform toolkit footer bar and modal dialog"`
+- [x] **Step 4: Run tests** → OK.
+- [x] **Step 5: Commit** — `git commit -am "Add uniform toolkit footer bar and modal dialog"`
 
 ---
 
@@ -1030,7 +1047,7 @@ behind the dim layer.)
   `hover_supported`. `zui_draw_range` tints a hovered, unpressed, unselected
   button/navigation/segment fill with `blend(fill, theme.text, 16)`.
 
-- [ ] **Step 1: Write the failing test** — append to `test_ui.c` `main`:
+- [x] **Step 1: Write the failing test** — append to `test_ui.c` `main`:
 
 ```c
     { /* hover only when supported; leave clears */
@@ -1046,8 +1063,8 @@ behind the dim layer.)
     }
 ```
 
-- [ ] **Step 2: Run to verify failure** — FAIL: `Z_GUI_MOVE` undeclared / no member `hover`.
-- [ ] **Step 3: Implement** — in `ui.h` add before `struct zui`:
+- [x] **Step 2: Run to verify failure** — FAIL: `Z_GUI_MOVE` undeclared / no member `hover`.
+- [x] **Step 3: Implement** — in `ui.h` add before `struct zui`:
 
 ```c
 #ifndef Z_GUI_MOVE
@@ -1079,8 +1096,8 @@ Also reset `u->hover=-1` in the `Z_GUI_FOCUS`/`Z_GUI_RESET`/`Z_GUI_CLOSE` branch
 and in the `ZUI_NAVIGATION` branch draw the row background when hovered too:
 `if(selected||pressed||u->hover==i)zui_round(u,r,6,pressed?u->theme.raised:fill);`.
 
-- [ ] **Step 4: Run tests** → OK (`cd tools && python3 -B -m unittest test_ui_library`).
-- [ ] **Step 5: Commit** — `git commit -am "Track toolkit hover state behind an opt-in capability"`
+- [x] **Step 4: Run tests** → OK (`cd tools && python3 -B -m unittest test_ui_library`).
+- [x] **Step 5: Commit** — `git commit -am "Track toolkit hover state behind an opt-in capability"`
 
 ---
 
@@ -1095,7 +1112,7 @@ and in the `ZUI_NAVIGATION` branch draw the row background when hovered too:
 - Produces: gallery page 2 (Right/Left switches pages) showing a list with icons, a
   combo, a scrolled form with sections, a footer and a dialog opened by its Apply.
 
-- [ ] **Step 1: Write the failing test** — in `test_ui.c`, after existing gallery checks:
+- [x] **Step 1: Write the failing test** — in `test_ui.c`, after existing gallery checks:
 
 ```c
     { /* gallery page 2 composes every stage-1 primitive */
@@ -1107,8 +1124,8 @@ and in the `ZUI_NAVIGATION` branch draw the row background when hovered too:
     }
 ```
 
-- [ ] **Step 2: Run to verify failure** — FAIL: no member `page` / `GALLERY_FOOTER` undeclared.
-- [ ] **Step 3: Implement** — in `gallery.h` add `int page; struct zui_list list; struct zui_combo combo; struct zui_scroll scroll; struct zui_dialog dialog; int toggle_a,toggle_b;` to `struct gallery` and `#define GALLERY_FOOTER 900`; include `"../ui/widgets.h"`. In `gallery.c`:
+- [x] **Step 2: Run to verify failure** — FAIL: no member `page` / `GALLERY_FOOTER` undeclared.
+- [x] **Step 3: Implement** — in `gallery.h` add `int page; struct zui_list list; struct zui_combo combo; struct zui_scroll scroll; struct zui_dialog dialog; int toggle_a,toggle_b;` to `struct gallery` and `#define GALLERY_FOOTER 900`; include `"../ui/widgets.h"`. In `gallery.c`:
   - Left/Right (extra 5/6) with no focused segment/swatch switches `page` 0↔1 and sets `ui.dirty`.
   - Page 1 draw: `zui_workspace_begin(&g->ui,240)`; sidebar `zui_list_draw` over a static array of the ten Meridian category labels with the icon names from Task 2 (`zap keyboard usb network palette app-window layout-grid shield languages monitor-cog`, chevrons on all but the first); content: `zui_scroll_begin`, `zui_form_begin`, two `zui_form_section`s with a combo row ("Layout", items `us de gb fr`) and two toggle rows, `zui_scroll_end(…, zui_form_height(…))`; `zui_footer` with `GALLERY_FOOTER`, `changed` = any toggle differs from its initial value; `zui_dialog_draw` last.
   - Page 1 events: dialog first (`zui_dialog_event`), then combo, then list, then scroll, then `zui_event`; footer Apply opens the dialog `{"Apply changes","The gallery only previews controls.",{"Apply","Discard","Cancel"},3}`; Reset restores toggles.
@@ -1121,7 +1138,7 @@ and in the `ZUI_NAVIGATION` branch draw the row background when hovered too:
   `Page Down=13` key extras to the Hover ABI section. Record stage-1 local evidence in
   the U1 roadmap row.
 
-- [ ] **Step 4: Run all checks**
+- [x] **Step 4: Run all checks**
 
 ```bash
 cd tools && python3 -B -m unittest test_ui_library test_ui_icons && cd ..
@@ -1134,7 +1151,7 @@ python3 -B deploy/distributor/validate.py --controller-only
 Expected: all OK; inspect `gallery-widgets.ppm` from a kept test directory (set
 `TMPDIR` to a kept path) for icon tinting, scrollbar and footer.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add userland docs tools
