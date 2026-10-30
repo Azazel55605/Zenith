@@ -44,6 +44,14 @@ static void list_tests(void){
     zui_list_draw(&u,&l,(struct zui_rect){0,0,300,400},n,rows,&n);assert(u.count==0);
     n=10000;u.count=0;zui_list_draw(&u,&l,(struct zui_rect){0,0,300,400},n,rows,&n);
     assert(u.count==10&&l.scroll.content==400000);                    /* only visible rows */
+    assert(u.controls[0].icon&&u.controls[1].no_chevron==0&&u.controls[0].no_chevron==0);
+    { /* the row background must not cover the icon: draw after registration */
+        struct zui v;assert(zui_init(&v,px,800,600));v.window_focused=1;zui_appearance(&v,0,1);
+        struct zui_list w={0};w.base_id=1;int m=3;
+        zui_list_draw(&v,&w,(struct zui_rect){0,0,300,400},m,rows,&m);zui_draw_controls(&v);
+        int inked=0;for(int y=0;y<36;y++)for(int x=10;x<34;x++)inked+=px[y*800+x]==v.theme.accent;
+        assert(inked>20);                                              /* zap icon visible on row 0 */
+    }
     struct zenith_gui_event k={Z_GUI_KEY,0,0,0,0,11};                  /* End */
     zui_list_event(&u,&l,&k,rows,&n);assert(l.selected==9999&&l.scroll.offset==400000-400);
     k.extra=10;zui_list_event(&u,&l,&k,rows,&n);assert(l.selected==0&&l.scroll.offset==0);

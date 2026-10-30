@@ -55,10 +55,9 @@ void zui_list_draw(struct zui *u,struct zui_list *l,struct zui_rect r,int count,
         int y=top+i*h;if(y>=r.y+r.h)break;
         struct zui_list_item it;if(!items(ctx,i,&it))continue;
         struct zui_rect row={r.x,y,r.w-12,h-4};
-        if(zui_add(u,l->base_id+i,ZUI_NAVIGATION,row,it.label?it.label:"",i==l->selected,it.enabled))l->visible_controls++;
-        int role=!it.enabled?ZUI_ICON_DISABLED:ZUI_ICON_NORMAL;
-        if(it.icon)zui_icon(u,it.icon,row.x+10,row.y+(row.h-24)/2,24,role);
-        if(it.subtitle)zui_text(u,row.x+44,row.y+row.h-16,it.subtitle,len256(it.subtitle),&zui_caption,u->theme.secondary);
+        if(!zui_add(u,l->base_id+i,ZUI_NAVIGATION,row,it.label?it.label:"",i==l->selected,it.enabled))continue;
+        struct zui_control *c=&u->controls[u->count-1];
+        c->icon=it.icon;c->detail=it.subtitle;c->no_chevron=!it.chevron;l->visible_controls++;
     }
     zui_scroll_end(u,&l->scroll,(int)((long)l->count*h>0x3fffffff?0x3fffffff:(long)l->count*h));
 }

@@ -188,7 +188,7 @@ int zui_add(struct zui *u,int id,int kind,struct zui_rect r,const char *label,in
     for(int i=0;i<u->count;i++)if(u->controls[i].id==id)return 0;
     /* An unnarrowed clip is stored empty: it follows later resizes and moves. */
     struct zui_rect viewport=u->clip.x||u->clip.y||u->clip.w!=u->width||u->clip.h!=u->height?u->clip:(struct zui_rect){0,0,0,0};
-    u->controls[u->count++]=(struct zui_control){id,kind,!!enabled,!!value,0,r,viewport,label};u->dirty=1;return 1;
+    u->controls[u->count++]=(struct zui_control){id,kind,!!enabled,!!value,0,r,viewport,label,0,0,0};u->dirty=1;return 1;
 }
 int zui_add_swatch(struct zui *u,int id,struct zui_rect r,const char *label,int accent,int selected,int enabled){
     if(accent<0||accent>5||r.w!=r.h||r.w<24||r.w>48)return 0;
@@ -319,14 +319,18 @@ void zui_draw_range(struct zui *u,int first,int count){
             if(pressed)fg=u->theme.text;
         }
         u->clip=intersect(intersect(saved,viewport(u,c)),r);
-        int tx=r.x+(r.w-zui_measure(c->label,length(c->label),&zui_label))/2;
+        int tx=r.x+(r.w-zui_measure(c->label,length(c->label),&zui_label))/2,ty=r.y+(r.h-zui_label.height)/2;
         if(c->kind==ZUI_TOGGLE||c->kind==ZUI_NAVIGATION){
-            tx=r.x+(c->kind==ZUI_NAVIGATION?12:0);
+            tx=r.x+(c->kind==ZUI_NAVIGATION?(c->icon?44:12):0);
+            if(c->kind==ZUI_NAVIGATION&&c->icon)zui_icon(u,c->icon,r.x+10,r.y+(r.h-24)/2,24,c->enabled?ZUI_ICON_NORMAL:ZUI_ICON_DISABLED);
+            if(c->kind==ZUI_NAVIGATION&&c->detail){
+                ty=r.y+2;zui_text(u,tx,r.y+r.h-zui_caption.height-1,c->detail,length(c->detail),&zui_caption,u->theme.secondary);
+            }
             u->clip=intersect(u->clip,(struct zui_rect){r.x,r.y,r.w-(c->kind==ZUI_TOGGLE?60:24),r.h});
         }
-        zui_text(u,tx,r.y+(r.h-zui_label.height)/2,c->label,length(c->label),&zui_label,fg);
+        zui_text(u,tx,ty,c->label,length(c->label),&zui_label,fg);
         u->clip=saved;
-        if(c->kind==ZUI_NAVIGATION){
+        if(c->kind==ZUI_NAVIGATION&&!c->no_chevron){
             for(int k=0;k<5;k++){
                 zui_fill(u,(struct zui_rect){r.x+r.w-16+k,r.y+r.h/2-4+k,1,1},u->theme.secondary);
                 zui_fill(u,(struct zui_rect){r.x+r.w-16+k,r.y+r.h/2+4-k,1,1},u->theme.secondary);
