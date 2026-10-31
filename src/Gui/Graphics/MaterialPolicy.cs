@@ -15,6 +15,9 @@ internal sealed class MaterialPolicy
     public void Begin(uint requested, uint translucency = 40)
     { Translucency = Math.Min(translucency, 100); Requested = requested & 7; Reason = (Requested & 1) == 0 && Requested != 0 ? 1U : 0; _blurArea = 0; }
     public void ResourceFallback() { Reason = 3; }
+    /// <summary>The blur budget and reason so far, so a cached lower scene charges what drawing it would.</summary>
+    public (int BlurArea, uint Reason) Spent => (_blurArea, Reason);
+    public void Restore((int BlurArea, uint Reason) spent) { _blurArea = spent.BlurArea; Reason = spent.Reason; }
     public int Effect(int requested, uint tint, uint text, uint secondary, int area)
     {
         if ((Effective & 1) == 0 || requested == 0 || Translucency == 0) { return 0; }
@@ -72,6 +75,15 @@ internal static class MaterialResources
         UsedBytes += bytes; return true;
     }
     public static void ReleaseBytes(int bytes) { UsedBytes -= bytes; }
+    // Finished pixels only save time, so running out of this budget costs speed and nothing else.
+    public const int MaximumPaintedBytes = 16 * 1024 * 1024;
+    public static int PaintedBytes { get; private set; }
+    public static bool ReservePainted(int bytes)
+    {
+        if (bytes > MaximumPaintedBytes - PaintedBytes) { return false; }
+        PaintedBytes += bytes; return true;
+    }
+    public static void ReleasePainted(int bytes) { PaintedBytes -= bytes; }
     public static readonly MaterialPolicy Policy = new();
 }
 
@@ -90,11 +102,11 @@ internal sealed class MaterialCache : IDisposable
         if (_allocated >= pixels && (!blur || _blur) && _sampleScale == sampleScale) { return true; }
         int bytes = pixels * (blur ? 12 : 4);
         if (!MaterialResources.ReserveBytes(bytes - _bytes)) { MaterialResources.Policy.ResourceFallback(); return false; }
-        Composition = new(pixels, blur, sampleScale); _sampleScale = sampleScale; _allocated = pixels; _blur = blur; _bytes = bytes; return true;
+        Composition.ReleasePainted(); Composition = new(pixels, blur, sampleScale); _sampleScale = sampleScale; _allocated = pixels; _blur = blur; _bytes = bytes; return true;
     }
     public void Dispose()
     {
         if (_disposed) { return; } _disposed = true;
-        MaterialResources.ReleaseBytes(_bytes); _bytes = 0; Composition = new(0);
+        Composition.ReleasePainted(); MaterialResources.ReleaseBytes(_bytes); _bytes = 0; Composition = new(0);
     }
 }

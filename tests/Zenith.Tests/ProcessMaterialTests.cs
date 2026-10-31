@@ -134,4 +134,64 @@ public class ProcessMaterialTests
         Assert.Equal(0,surface.PresentMaterials(pixels,regions));var copy=new int[600*480];
         Assert.True(surface.CopyFrame(copy,false));Assert.All(copy,value=>Assert.Equal(0,value));
     }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(4)]
+    public void RepaintFromTheCacheMatchesLivePaintExactly(int scale)
+    {
+        const int width = 200, height = 120;
+        var scene = new int[width * height];
+        for (int i = 0; i < scene.Length; i++) { scene[i] = unchecked((int)0xff000000) | (i * 2654435 & 0xffffff); }
+        var content = new Rect(10, 8, 160, 100);
+        ProcessMaterialRegion[] regions = { new(0, 0, 160, 60, 12, 4, 2, 200), new(0, 60, 80, 40, 0, 1, 1, 180) };
+        int samples = MaterialComposition.SampleLength(160, scale) * MaterialComposition.SampleLength(60, scale)
+            + MaterialComposition.SampleLength(80, scale) * MaterialComposition.SampleLength(40, scale);
+        var composition = new MaterialComposition(samples, true, scale);
+        var live = new int[scene.Length]; var cached = new int[scene.Length];
+        System.Array.Fill(live, 0x123456); System.Array.Fill(cached, 0x123456);
+
+        composition.Capture(scene, width, height, content, regions, 2, 0xff202020);
+        composition.Paint(live, width, height, content, regions, 2, 0xff202020, 0xff304050, 0xff304050, 0xff304050, false);
+        Assert.False(composition.HasPaintedCache);
+
+        // The backdrop repeats, whether found by scanning or promised by the caller.
+        composition.Capture(scene, width, height, content, regions, 2, 0xff202020);
+        composition.Paint(cached, width, height, content, regions, 2, 0xff202020, 0xff304050, 0xff304050, 0xff304050, false);
+        Assert.True(composition.HasPaintedCache);
+        Assert.Equal(live, cached);
+        composition.Capture(scene, width, height, content, regions, 2, 0xff202020, backdropUnchanged: true);
+        System.Array.Fill(cached, 0x123456);
+        composition.Paint(cached, width, height, content, regions, 2, 0xff202020, 0xff304050, 0xff304050, 0xff304050, false);
+        Assert.Equal(live, cached);
+
+        // A new backdrop drops the cache and paints the new pixels.
+        scene[(20 * width) + 30] ^= 0xffffff;
+        composition.Capture(scene, width, height, content, regions, 2, 0xff202020);
+        Assert.False(composition.HasPaintedCache);
+        System.Array.Fill(cached, 0x123456);
+        composition.Paint(cached, width, height, content, regions, 2, 0xff202020, 0xff304050, 0xff304050, 0xff304050, false);
+        Assert.NotEqual(live, cached);
+        composition.ReleasePainted();
+    }
+
+    [Fact]
+    public void PaintCacheFallsBackWhenTheBudgetIsSpent()
+    {
+        int spare = MaterialResources.MaximumPaintedBytes - MaterialResources.PaintedBytes;
+        Assert.True(MaterialResources.ReservePainted(spare));
+        try
+        {
+            var scene = new int[64 * 64]; var target = new int[scene.Length];
+            var content = new Rect(0, 0, 64, 64);
+            ProcessMaterialRegion[] regions = { new(0, 0, 64, 64, 0, 4, 2, 200) };
+            var composition = new MaterialComposition(64 * 64);
+            composition.Capture(scene, 64, 64, content, regions, 1, 0xff202020);
+            composition.Capture(scene, 64, 64, content, regions, 1, 0xff202020);
+            composition.Paint(target, 64, 64, content, regions, 1, 0xff202020, 0xff304050, 0xff304050, 0xff304050, false);
+            Assert.False(composition.HasPaintedCache);
+            Assert.NotEqual(0, target[0]);
+        }
+        finally { MaterialResources.ReleasePainted(spare); }
+    }
 }

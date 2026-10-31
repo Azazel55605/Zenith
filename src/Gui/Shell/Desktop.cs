@@ -26,6 +26,7 @@ internal sealed class Desktop
 {
     private readonly Canvas _screen;
     private readonly Surface _wallpaper;
+    private readonly Surface _lower;   // wallpaper and every window below the top one
     private readonly Surface _scene;   // everything but the cursor
     private readonly Surface _frame;   // scene + cursor, what is on screen
     private readonly Input _input = new();
@@ -33,6 +34,10 @@ internal sealed class Desktop
     private NativeClientHost _nativeClients;
     private readonly Taskbar _taskbar;
     private readonly LauncherMenu _launcher;
+    private long _lowerStamp;
+    private bool _lowerValid;
+    private (int BlurArea, uint Reason) _lowerSpent;
+    private uint _lowerMaterials, _lowerTranslucency, _lowerPanel, _lowerBackground, _lowerBorder, _lowerFocused, _lowerText, _lowerAccent;
     private bool _sceneDirty = true;
     private bool _cursorDirty;
     private long _hoverKey;
@@ -47,6 +52,8 @@ internal sealed class Desktop
     private int[]? _motionBase;
     private volatile bool _motionTestRequested;
     private bool _motionTestRunning;
+    private volatile bool _benchRequested;
+    private const int BenchFrames = 30;
 
     public Desktop(Canvas screen)
     {
@@ -58,6 +65,7 @@ internal sealed class Desktop
         Zenith.Core.Processes.NativeSystemInformation.Display(w + "x" + h + " @ " + screen.RefreshRate + " Hz");
 
         _wallpaper = new Surface(w, h);
+        _lower = new Surface(w, h);
         _scene = new Surface(w, h);
         _frame = new Surface(w, h);
         Wallpaper.Render(_wallpaper);
@@ -71,12 +79,13 @@ internal sealed class Desktop
 
         TerminalWindow.OpenApp = OpenApp;
         FileManagerWindow.OpenApp = OpenApp;
-        CommandShell.Register(new Command("fps", "fps [reset|motion]", "Show compositor statistics", c =>
+        CommandShell.Register(new Command("fps", "fps [reset|motion|bench]", "Show compositor statistics", c =>
         {
             if (c.Args.Length == 1 && c.Args[0] == "reset") { FrameStats.ResetWindow(); return 0; }
             // The desktop tick owns the windows, so the test runs there and reports to the log.
             if (c.Args.Length == 1 && c.Args[0] == "motion") { _motionTestRequested = true; return 0; }
-            if (c.Args.Length != 0) { return c.Fail("usage: fps [reset|motion]"); }
+            if (c.Args.Length == 1 && c.Args[0] == "bench") { _benchRequested = true; return 0; }
+            if (c.Args.Length != 0) { return c.Fail("usage: fps [reset|motion|bench]"); }
             c.WriteLine("frames presented: " + FrameStats.Frames + ", scene composes: " + FrameStats.SceneComposes);
             c.WriteLine("last compose: " + FrameStats.LastComposeMicros + " us, last present: " + FrameStats.LastPresentMicros + " us");
             c.WriteLine("display: " + _screen.Name + " " + _screen.Width + "x" + _screen.Height);
@@ -166,6 +175,7 @@ internal sealed class Desktop
             _sceneDirty = true;
         }
 
+        if (_benchRequested) { _benchRequested = false; RunBench(); _sceneDirty = true; }
         if (_motionTestRequested) { _motionTestRequested = false; StartMotionTest(); }
         if (_motion.Active || _motionTestRunning)
         {
@@ -241,6 +251,38 @@ internal sealed class Desktop
         _motionTestRunning = true;
     }
 
+    /// <summary>Times the three kinds of scene change, compares the cached result with a
+    /// full redraw and reports to the log.</summary>
+    private void RunBench()
+    {
+        long Run(System.Action before)
+        {
+            FrameStats.TakePhases(1);
+            long start = FrameStats.Now;
+            for (int i = 0; i < BenchFrames; i++) { before(); ComposeScene(); }
+            return (Micros(FrameStats.Now) - Micros(start)) / BenchFrames;
+        }
+
+        // Compare before timing, so a stale cache is seen as it was.
+        ComposeScene();
+        _motionBase ??= new int[_frame.Pixels.Length];
+        System.Array.Copy(_scene.Pixels, _motionBase, _motionBase.Length);
+        Windows.InvalidateLower();
+        ComposeScene();
+        int differ = 0;
+        for (int i = 0; i < _motionBase.Length; i++) { if (_motionBase[i] != _scene.Pixels[i]) { differ++; } }
+
+        long full = Run(Windows.InvalidateLower);
+        string fullPhases = FrameStats.TakePhases(BenchFrames);
+        long top = Run(static () => { });
+        string topPhases = FrameStats.TakePhases(BenchFrames);
+        int step = 1;
+        long drag = Run(() => { Windows.NudgeTop(step); step = -step; });
+        string dragPhases = FrameStats.TakePhases(BenchFrames);
+        Zenith.Core.Log.Write("compose", "bench windows=" + Windows.Windows.Count + " materials=" + MaterialResources.Policy.Effective + " verify=" + differ
+            + " full=" + full + " [" + fullPhases + "] top=" + top + " [" + topPhases + "] drag=" + drag + " [" + dragPhases + "]");
+    }
+
     /// <summary>Identifies the control under the pointer; a change means hover highlights need redrawing.</summary>
     private long HoverKey()
     {
@@ -301,9 +343,33 @@ internal sealed class Desktop
     {
         long start = FrameStats.Now;
         MaterialResources.Policy.Begin(NativeAppearance.Current.Materials, NativeAppearance.Current.Translucency);
-        _scene.CopyFrom(_wallpaper);
-        Windows.Draw(_scene, _input.X, _input.Y, except);
+        if (except is not null)
+        {
+            _scene.CopyFrom(_wallpaper);
+            Windows.Draw(_scene, _input.X, _input.Y, except);
+            _lowerValid = false;
+        }
+        else
+        {
+            if (!LowerStillValid())
+            {
+                _scene.CopyFrom(_wallpaper);
+                Windows.DrawLower(_scene, _input.X, _input.Y);
+                _lower.CopyFrom(_scene);
+                _lowerSpent = MaterialResources.Policy.Spent;
+                _lowerStamp++;
+                _lowerValid = true;
+                RememberLowerAppearance();
+            }
+            else
+            {
+                _scene.CopyFrom(_lower);
+                MaterialResources.Policy.Restore(_lowerSpent);
+            }
+            Windows.DrawTop(_scene, _input.X, _input.Y, _lowerStamp);
+        }
 
+        long shell = FrameStats.Now;
         _taskbar.LauncherOpen = _launcher.IsOpen;
         _taskbar.Draw(_scene, _input.X, _input.Y);
         if (Zenith.Core.Sessions.SessionRuntime.Message is string message)
@@ -316,11 +382,25 @@ internal sealed class Desktop
             _launcher.Draw(_scene, _input.X, _input.Y);
         }
 
+        FrameStats.ShellTicks += FrameStats.Now - shell;
         var policy = MaterialResources.Policy;
         Zenith.Core.Configuration.SystemConfiguration.Appearance.ReportMaterials(7, policy.Effective, policy.Reason);
         FrameStats.RecordCompose(start);
     }
     private int WidthForMessage() => 520;
+
+    private bool LowerStillValid() => _lowerValid
+        && _lowerMaterials == MaterialResources.Policy.Requested && _lowerTranslucency == MaterialResources.Policy.Translucency
+        && _lowerPanel == Theme.Panel && _lowerBackground == Theme.WindowBackground && _lowerBorder == Theme.WindowBorder
+        && _lowerFocused == Theme.WindowBorderFocused && _lowerText == Theme.TextPrimary && _lowerAccent == Theme.Accent
+        && Windows.LowerUnchanged(_input.X, _input.Y);
+
+    private void RememberLowerAppearance()
+    {
+        _lowerMaterials = MaterialResources.Policy.Requested; _lowerTranslucency = MaterialResources.Policy.Translucency;
+        _lowerPanel = Theme.Panel; _lowerBackground = Theme.WindowBackground; _lowerBorder = Theme.WindowBorder;
+        _lowerFocused = Theme.WindowBorderFocused; _lowerText = Theme.TextPrimary; _lowerAccent = Theme.Accent;
+    }
 
     private void DrawCursor()
     {

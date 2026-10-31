@@ -46,6 +46,12 @@ internal abstract class Window
     private readonly HostMaterial _contentMaterial = new(1920000);
     internal HostMaterial ChromeMaterial { get; } = new();
 
+    /// <summary>The lower scene this window last captured its materials from, or -1 when unknown.</summary>
+    internal long BackdropStamp { get; set; } = -1;
+    internal Rect BackdropBounds { get; set; }
+    /// <summary>Set by the window manager for one draw when that lower scene has not changed.</summary>
+    protected internal bool BackdropUnchanged { get; internal set; }
+
     /// <summary>The smallest size the user can resize the window to.</summary>
     public virtual (int Width, int Height) MinimumSize => (300, 180);
 
@@ -78,7 +84,7 @@ internal abstract class Window
 
     /// <summary>Paints the content area. The surface is already clipped to <paramref name="content"/>.</summary>
     public virtual void CaptureBackdrop(Surface surface, Rect content)
-        => _contentMaterial.Capture(surface, content, 0, Theme.Panel, AllowBackgroundMaterials && AllowMaterials && (MaterialResources.Policy.Effective & 4) != 0);
+        => _contentMaterial.Capture(surface, content, 0, Theme.Panel, AllowBackgroundMaterials && AllowMaterials && (MaterialResources.Policy.Effective & 4) != 0, BackdropUnchanged);
 
     protected void PaintBackground(Surface surface, Rect content)
     {

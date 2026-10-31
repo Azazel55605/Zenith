@@ -81,7 +81,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
         }
         public override void CaptureBackdrop(Surface surface, Rect content)
         {
-            if (_composition is null || content.W != _frameWidth || content.H != _frameHeight) { return; }
+            if (_composition is null || content.W != _frameWidth || content.H != _frameHeight) { BackdropStamp = -1; return; }
             int area = 0; bool blur = false, any = false;
             int scale = _surface.Resizable && (MaterialResources.Policy.Effective & 2) != 0 && _frameWidth * _frameHeight > 131072 ? 4 : 1;
             for (int i = 0; i < _materialCount; i++)
@@ -102,7 +102,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
                     _effective[i] = r with { Effect = effect, Opacity = MaterialPolicy.Opacity(tint, Theme.TextPrimary, Theme.TextSecondary, effect, MaterialResources.Policy.Translucency) };
                 }
             }
-            _composition.Composition.Capture(surface.Pixels, surface.Width, surface.Height, content, _effective, _materialCount, Theme.WindowBackground);
+            _composition.Composition.Capture(surface.Pixels, surface.Width, surface.Height, content, _effective, _materialCount, Theme.WindowBackground, BackdropUnchanged);
         }
         public override void DrawContent(Surface surface, Rect content)
         {

@@ -64,6 +64,14 @@ def main():
         assert changed<2000,'scene not restored: '+str(changed)+' pixels differ'
         assert m.wait_for('user: MOTION_DONE',30,off),'terminal after motion'
         print('PASS test animation restores the scene',flush=True)
+        # The cached scene below the top window must equal a full redraw, also after a lower window changed.
+        command('settings set materials background-blur; logger MATERIALS_ON','user: MATERIALS_ON')
+        m.type('sleep 6; echo LOWER-CHANGED\n');time.sleep(1);m.type('{ctrl-alt-t}');time.sleep(3);m.type('{ctrl-alt-t}');time.sleep(3)
+        off=len(m.raw_log());m.type('sleep 6; fps bench\n')
+        assert m.wait_for('bench windows=',90,off),'compose bench'
+        report=[line for line in m.raw_log()[off:].splitlines() if 'bench windows=' in line][0];print(report,flush=True)
+        assert ' verify=0 ' in report,report
+        print('PASS cached lower scene equals a full redraw',flush=True)
         command('poweroff','all filesystems unmounted');assert m.wait_exit(30)
         print('PASS shared system-app styling and normal teardown',flush=True)
     finally:

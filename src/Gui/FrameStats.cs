@@ -23,6 +23,16 @@ internal static class FrameStats
 
     public static long Now => Stopwatch.GetTimestamp();
 
+    // Where compose time goes, accumulated between TakePhases calls.
+    public static long BackdropTicks, ChromeTicks, ContentTicks, ShellTicks;
+    public static string TakePhases(int frames)
+    {
+        long per = Math.Max(1, frames) * Math.Max(1, Stopwatch.Frequency / 1_000_000);
+        string text = "backdrop=" + BackdropTicks / per + " chrome=" + ChromeTicks / per + " content=" + ContentTicks / per + " shell=" + ShellTicks / per;
+        BackdropTicks = ChromeTicks = ContentTicks = ShellTicks = 0;
+        return text;
+    }
+
     public static void RecordCompose(long start) { SceneComposes++; LastComposeMicros = Micros(start); MaxComposeMicros = Math.Max(MaxComposeMicros, LastComposeMicros); }
 
     public static void RecordPresent(long start) { Frames++; LastPresentMicros = Micros(start); MaxPresentMicros = Math.Max(MaxPresentMicros, LastPresentMicros); }

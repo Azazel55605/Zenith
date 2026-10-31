@@ -26,7 +26,23 @@ internal sealed class WindowManager
         Bottom = 8,
     }
 
+    private readonly struct LowerWindow
+    {
+        private readonly Window _window;
+        private readonly Rect _bounds;
+        private readonly bool _focused, _maximized;
+        private readonly string _title;
+        private readonly int _button;
+        public LowerWindow(Window w, int button) { _window = w; _bounds = w.Bounds; _focused = w.IsFocused; _maximized = w.IsMaximized; _title = w.Title; _button = button; }
+        public bool Shows(Window w, int button) => _window == w && SameRect(_bounds, w.Bounds) && _focused == w.IsFocused && _maximized == w.IsMaximized && _title == w.Title && _button == button;
+    }
+
+    private static bool SameRect(Rect a, Rect b) => a.X == b.X && a.Y == b.Y && a.W == b.W && a.H == b.H;
+
     private readonly List<Window> _windows = new();
+    // What the cached scene below the top window shows; any difference means drawing it again.
+    private readonly List<LowerWindow> _lower = new();
+    private bool _lowerDirty = true;
     private readonly Rect _workArea;
     private int _cascade;
 
@@ -131,6 +147,7 @@ internal sealed class WindowManager
             if ((!w.IsMinimized || w.UpdateWhenMinimized) && w.Update())
             {
                 changed = true;
+                if (!w.IsMinimized && w != Top) { _lowerDirty = true; }
             }
         }
 
@@ -163,6 +180,7 @@ internal sealed class WindowManager
         if (_contentDrag is not null)
         {
             Window target = _contentDrag;
+            if (target != Top) { _lowerDirty = true; }
             using var identity = Zenith.Core.Security.CredentialContext.Enter(target.Identity);
             if (input.Left)
             {
@@ -230,6 +248,7 @@ internal sealed class WindowManager
         if (input.Scroll != 0 && hit is not null)
         {
             using var identity = Zenith.Core.Security.CredentialContext.Enter(hit.Identity);
+            if (hit != Top) { _lowerDirty = true; }
             // Wheel down reports positive deltas; windows take positive as "scroll back".
             hit.OnScrollAt(-input.Scroll, input.X - hit.Content.X, input.Y - hit.Content.Y);
         }
@@ -343,25 +362,87 @@ internal sealed class WindowManager
         return edges;
     }
 
-    public void Draw(Surface surface, int mouseX, int mouseY, Window? except = null)
+    /// <summary>The window drawn last, the only one the scene below it does not depend on.</summary>
+    public Window? Top
+    {
+        get
+        {
+            for (int i = _windows.Count - 1; i >= 0; i--) { if (!_windows[i].IsMinimized) { return _windows[i]; } }
+            return null;
+        }
+    }
+
+    /// <summary>Draws every window except <paramref name="except"/>, with nothing reusable afterwards.</summary>
+    public void Draw(Surface surface, int mouseX, int mouseY, Window except)
     {
         Window? hovered = _dragging is null ? HitTest(mouseX, mouseY, includeResizeMargin: false) : null;
         foreach (Window w in _windows)
         {
-            if (!w.IsMinimized && w != except)
-            {
-                DrawWindow(surface, w, w == hovered ? mouseX : -1, mouseY);
-            }
+            if (!w.IsMinimized && w != except) { w.BackdropStamp = -1; DrawWindow(surface, w, w == hovered ? mouseX : -1, mouseY); }
         }
     }
+
+    /// <summary>True when drawing the windows below the top one would repeat the last <see cref="DrawLower"/>.</summary>
+    public bool LowerUnchanged(int mouseX, int mouseY)
+    {
+        if (_lowerDirty) { return false; }
+        Window? top = Top, hovered = _dragging is null ? HitTest(mouseX, mouseY, includeResizeMargin: false) : null;
+        int at = 0;
+        foreach (Window w in _windows)
+        {
+            if (w.IsMinimized || w == top) { continue; }
+            if (at == _lower.Count || !_lower[at].Shows(w, w == hovered ? ButtonAt(w, mouseX, mouseY) : 0)) { return false; }
+            at++;
+        }
+        return at == _lower.Count;
+    }
+
+    /// <summary>Draws the windows below the top one and remembers what they looked like.</summary>
+    public void DrawLower(Surface surface, int mouseX, int mouseY)
+    {
+        Window? top = Top, hovered = _dragging is null ? HitTest(mouseX, mouseY, includeResizeMargin: false) : null;
+        _lower.Clear(); _lowerDirty = false;
+        foreach (Window w in _windows)
+        {
+            if (w.IsMinimized || w == top) { continue; }
+            _lower.Add(new LowerWindow(w, w == hovered ? ButtonAt(w, mouseX, mouseY) : 0));
+            w.BackdropStamp = -1;
+            DrawWindow(surface, w, w == hovered ? mouseX : -1, mouseY);
+        }
+    }
+
+    /// <summary>Draws the top window; <paramref name="stamp"/> names the lower scene already on the surface.</summary>
+    public void DrawTop(Surface surface, int mouseX, int mouseY, long stamp)
+    {
+        Window? top = Top;
+        if (top is null) { return; }
+        top.BackdropUnchanged = top.BackdropStamp == stamp && SameRect(top.BackdropBounds, top.Bounds);
+        top.BackdropStamp = stamp; top.BackdropBounds = top.Bounds;
+        bool hovered = _dragging is null && HitTest(mouseX, mouseY, includeResizeMargin: false) == top;
+        DrawWindow(surface, top, hovered ? mouseX : -1, mouseY);
+        top.BackdropUnchanged = false;
+    }
+
+    /// <summary>Forgets the lower scene, for the benchmark and for pixel comparison.</summary>
+    public void InvalidateLower() => _lowerDirty = true;
+
+    /// <summary>Moves the top window, for the benchmark.</summary>
+    public void NudgeTop(int dx)
+    {
+        if (Top is Window top) { top.SetBounds(top.Bounds.Offset(dx, 0)); }
+    }
+
+    private static int ButtonAt(Window w, int x, int y) => w.CloseButton.Contains(x, y) ? 1 : w.MaximizeButton.Contains(x, y) ? 2 : w.MinimizeButton.Contains(x, y) ? 3 : 0;
 
     private static void DrawWindow(Surface surface, Window w, int mouseX, int mouseY)
     {
         Rect b = w.Bounds;
         int radius = w.IsMaximized ? 0 : Theme.WindowRadius;
         Rect chrome = new(b.X, b.Y, b.W, Window.TitleBarHeight + Theme.WindowRadius);
+        long phase = FrameStats.Now;
         w.ChromeMaterial.Capture(surface, chrome, 0, Theme.Panel, w.AllowMaterials);
         w.CaptureBackdrop(surface, w.Content);
+        FrameStats.BackdropTicks += FrameStats.Now - phase; phase = FrameStats.Now;
         if (!w.IsMaximized)
         {
             surface.DrawShadow(b, radius, Theme.ShadowSize, w.IsFocused ? Theme.ShadowAlpha : Theme.ShadowAlpha / 2, 6);
@@ -392,9 +473,11 @@ internal sealed class WindowManager
 
         if (!w.UnifiedChrome) { surface.CaptureContentCorner(w.Content, Theme.WindowRadius); }
         surface.Clip = w.Content.Inflate(-1);
+        FrameStats.ChromeTicks += FrameStats.Now - phase; phase = FrameStats.Now;
         using var identity = Zenith.Core.Security.CredentialContext.Enter(w.Identity);
         w.DrawContent(surface, w.Content);
         surface.ResetClip();
+        FrameStats.ContentTicks += FrameStats.Now - phase; phase = FrameStats.Now;
         if (!w.UnifiedChrome) { surface.CompositeContentCorner(w.Content, Theme.WindowRadius); }
 
         if (!w.IsMaximized)
@@ -402,6 +485,7 @@ internal sealed class WindowManager
             surface.StrokeRoundRect(b, radius, w.IsFocused ? Theme.WindowBorderFocused : Theme.WindowBorder);
             surface.CompositeWindowCorners(b, radius);
         }
+        FrameStats.ChromeTicks += FrameStats.Now - phase;
     }
 
     private enum TitleIcon
