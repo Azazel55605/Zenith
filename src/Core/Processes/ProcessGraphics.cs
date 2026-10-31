@@ -49,7 +49,7 @@ internal sealed class ProcessSurface : IDisposable
     private int[] _pixels;
     private ProcessMaterialRegion[] _materials = Array.Empty<ProcessMaterialRegion>();
     public int Format { get; }
-    private bool _dirty = true, _closed, _disposed, _unsaved, _closeIntent;
+    private bool _dirty = true, _closed, _disposed, _unsaved, _closeIntent, _presented;
     private bool _pointerMotion, _movePending;
     private int _moveX, _moveY;
     public bool Unsaved { get { lock (_gate) { return _unsaved; } } }
@@ -130,6 +130,7 @@ internal sealed class ProcessSurface : IDisposable
     public string Title { get; }
     public int Bytes => Width * Height * 4;
     public bool Ended { get { lock (_gate) { return _closed || _disposed; } } }
+    public bool HasPresented { get { lock (_gate) { return _presented; } } }
     public int Present(byte[] bytes)
     {
         lock (_gate)
@@ -139,7 +140,7 @@ internal sealed class ProcessSurface : IDisposable
             // Opaque XRGB8888, fixed row stride. No shared client/compositor pages.
             for (int i = 0; i < _pixels.Length; i++)
             { _pixels[i] = unchecked((int)(BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(i * 4)) | 0xff000000)); }
-            _dirty = true; return 0;
+            _dirty = _presented = true; return 0;
         }
     }
     public int PresentMaterials(byte[] bytes, ProcessMaterialRegion[] regions)
@@ -153,7 +154,7 @@ internal sealed class ProcessSurface : IDisposable
             // and region arrays are never shared with compositor state.
             for (int i = 0; i < _pixels.Length; i++)
             { _pixels[i] = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(i * 4)); }
-            _materials = (ProcessMaterialRegion[])regions.Clone(); _dirty = true; return 0;
+            _materials = (ProcessMaterialRegion[])regions.Clone(); _dirty = _presented = true; return 0;
         }
     }
     public bool CopyFrame(int[] destination, bool force)

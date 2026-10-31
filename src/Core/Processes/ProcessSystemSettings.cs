@@ -35,6 +35,9 @@ internal static class ProcessSystemSettings
             BinaryPrimitives.WriteUInt32LittleEndian(b[3456..], (uint)choices.Count); uint selected=uint.MaxValue;
             for(int i=0;i<choices.Count;i++) { Put(data,3464+i*16,16,SessionModes.Name(choices[i])); if(choices[i]==state.DefaultSession) { selected=(uint)i; } }
             BinaryPrimitives.WriteUInt32LittleEndian(b[3460..],selected); Put(data,96,16,SessionModes.Name(state.DefaultSession));
+            BinaryPrimitives.WriteUInt32LittleEndian(b[3512..],(uint)SettingsService.AnimationLabels.Length);
+            BinaryPrimitives.WriteUInt32LittleEndian(b[3516..],state.Animation);
+            for(int i=0;i<SettingsService.AnimationLabels.Length;i++) { Put(data,3520+i*24,24,SettingsService.AnimationLabels[i]); }
         }
         return data;
     }

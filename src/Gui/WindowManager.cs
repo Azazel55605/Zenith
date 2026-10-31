@@ -11,6 +11,11 @@ namespace Zenith.Gui;
 /// with its chrome. Double-clicking a title bar toggles maximize; dragging a maximized window
 /// restores it under the pointer.
 /// </summary>
+internal enum WindowChange { Opened, Closed, Minimized, Restored, Resized }
+
+/// <summary>A state change the desktop may animate; <see cref="From"/> is where the window was.</summary>
+internal readonly record struct WindowTransition(WindowChange Change, Window Window, Rect From);
+
 internal sealed class WindowManager
 {
     private const int ResizeMargin = 5;   // grab zone on each side of a window edge
@@ -40,11 +45,13 @@ internal sealed class WindowManager
     private static bool SameRect(Rect a, Rect b) => a.X == b.X && a.Y == b.Y && a.W == b.W && a.H == b.H;
 
     private readonly List<Window> _windows = new();
+    private readonly List<Window> _opened = new();
     // What the cached scene below the top window shows; any difference means drawing it again.
     private readonly List<LowerWindow> _lower = new();
     private bool _lowerDirty = true;
     private readonly Rect _workArea;
     private int _cascade;
+    private WindowTransition? _transition;
 
     // Pointer drag in progress: moving (_edges == None) or resizing.
     private Window? _dragging;
@@ -68,6 +75,9 @@ internal sealed class WindowManager
     /// <summary>Open windows, bottom to top.</summary>
     public IReadOnlyList<Window> Windows => _windows;
 
+    /// <summary>Open windows, oldest first; unlike the stack, focus does not reorder it.</summary>
+    public IReadOnlyList<Window> OpenOrder => _opened;
+
     public bool IsDragging => _dragging is not null || _contentDrag is not null;
 
     public Window? Focused => _windows.Count > 0 && _windows[^1].IsFocused ? _windows[^1] : null;
@@ -81,11 +91,22 @@ internal sealed class WindowManager
         window.SetBounds(new Rect(Math.Max(x, 0), Math.Max(y, 0), window.Bounds.W, window.Bounds.H));
 
         _windows.Add(window);
+        _opened.Add(window);
         Focus(window);
+        _transition = new(WindowChange.Opened, window, window.Bounds);
+    }
+
+    /// <summary>The latest change since the last call. State has already changed; only the top window's changes are reported.</summary>
+    public WindowTransition? TakeTransition()
+    {
+        WindowTransition? transition = _transition;
+        _transition = null;
+        return transition;
     }
 
     public void Focus(Window window)
     {
+        if (window.IsMinimized) { _transition = new(WindowChange.Restored, window, window.Bounds); }
         window.IsMinimized = false;
         _windows.Remove(window);
         _windows.Add(window);
@@ -97,6 +118,7 @@ internal sealed class WindowManager
 
     public void Minimize(Window window)
     {
+        if (window == Top) { _transition = new(WindowChange.Minimized, window, window.Bounds); }
         window.IsMinimized = true;
         window.IsFocused = false;
         FocusTopmostVisible();
@@ -109,6 +131,7 @@ internal sealed class WindowManager
             return;
         }
 
+        Rect from = window.Bounds;
         if (window.IsMaximized)
         {
             window.IsMaximized = false;
@@ -123,12 +146,14 @@ internal sealed class WindowManager
             var maximum = window.MaximumSize;
             window.SetBounds(new(_workArea.X, _workArea.Y, Math.Min(_workArea.W, maximum.Width), Math.Min(_workArea.H, maximum.Height)));
         }
+
+        if (window == Top) { _transition = new(WindowChange.Resized, window, from); }
     }
 
     /// <summary>Removes windows that closed themselves; returns true if any window changed.</summary>
     public bool Update()
     {
-        bool changed = false;
+        bool changed = false, closedOne = false;
         for (int i = _windows.Count - 1; i >= 0; i--)
         {
             Window w = _windows[i];
@@ -139,7 +164,10 @@ internal sealed class WindowManager
                 if (_contentDrag == w) { _contentDrag = null; }
                 if (_pointerWindow == w) { _pointerWindow = null; }
                 if (_lastTitleClick == w) { _lastTitleClick = null; }
+                if (w == Top && !closedOne) { _transition = new(WindowChange.Closed, w, w.Bounds); }
+                closedOne = true;
                 _windows.RemoveAt(i);
+                _opened.Remove(w);
                 changed = true;
                 continue;
             }
@@ -369,16 +397,6 @@ internal sealed class WindowManager
         {
             for (int i = _windows.Count - 1; i >= 0; i--) { if (!_windows[i].IsMinimized) { return _windows[i]; } }
             return null;
-        }
-    }
-
-    /// <summary>Draws every window except <paramref name="except"/>, with nothing reusable afterwards.</summary>
-    public void Draw(Surface surface, int mouseX, int mouseY, Window except)
-    {
-        Window? hovered = _dragging is null ? HitTest(mouseX, mouseY, includeResizeMargin: false) : null;
-        foreach (Window w in _windows)
-        {
-            if (!w.IsMinimized && w != except) { w.BackdropStamp = -1; DrawWindow(surface, w, w == hovered ? mouseX : -1, mouseY); }
         }
     }
 

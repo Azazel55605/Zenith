@@ -12,7 +12,9 @@ namespace Zenith.Gui;
 internal sealed class NativeClientHost : IProcessGraphicsHost
 {
     private readonly object _gate = new();
-    private readonly List<ProcessSurface> _pending = new();
+    // A window opens with the client's first frame, or empty if that takes too long.
+    private const long FirstFrameMilliseconds = 500;
+    private readonly List<(ProcessSurface Surface, long Since)> _pending = new();
     private readonly List<ProcessSurface> _surfaces = new();
     private readonly Credentials _identity;
     private readonly int _generation;
@@ -24,10 +26,10 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
         lock (_gate)
         {
             _surfaces.RemoveAll(s => s.Ended);
-            _pending.RemoveAll(s => s.Ended);
+            _pending.RemoveAll(p => p.Surface.Ended);
             if (_stopped || Accounts.Generation != _generation || _surfaces.Count >= 4) { return null; }
             var surface = new ProcessSurface(width, height, title, format);
-            _surfaces.Add(surface); _pending.Add(surface); return surface;
+            _surfaces.Add(surface); _pending.Add((surface, System.Diagnostics.Stopwatch.GetTimestamp())); return surface;
         }
     }
     public void Tick(WindowManager windows)
@@ -36,9 +38,14 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
         {
             if (_stopped) { return; }
             if (Accounts.Generation != _generation) { StopCore(); return; }
-            foreach (var surface in _pending)
-            { if (!surface.Ended) { windows.Open(new ClientWindow(surface, _identity)); Zenith.Core.Log.Write("graphics", "native surface opened " + surface.Width + "x" + surface.Height); } }
-            _pending.Clear();
+            long now = System.Diagnostics.Stopwatch.GetTimestamp();
+            for (int i = 0; i < _pending.Count; i++)
+            {
+                var (surface, since) = _pending[i];
+                if (!surface.Ended && !surface.HasPresented && (now - since) * 1000 / System.Diagnostics.Stopwatch.Frequency < FirstFrameMilliseconds) { continue; }
+                _pending.RemoveAt(i--);
+                if (!surface.Ended) { windows.Open(new ClientWindow(surface, _identity)); Zenith.Core.Log.Write("graphics", "native surface opened " + surface.Width + "x" + surface.Height); }
+            }
             _surfaces.RemoveAll(s => s.Ended);
         }
     }

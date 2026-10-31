@@ -30,7 +30,7 @@ static void binding_tests(void){
     static struct settings_app colors;assert(settings_init(&colors,pixels,(struct settings_backend){look_read,look_save,prefs_mark,0}));
     struct meridian_bindings b;binding_init(&b,&colors,prefs_read,prefs_save,prefs_mark);
     assert(binding_of("style.colors")==BIND_COLORS&&binding_of("input.keyboard")==BIND_KEYBOARD&&binding_of("locale.time")==BIND_TIMEZONE);
-    assert(binding_of("system.session")==BIND_SESSION&&binding_of("devices.bluetooth")==BIND_NONE);
+    assert(binding_of("system.session")==BIND_SESSION&&binding_of("style.animations")==BIND_ANIMATIONS&&binding_of("devices.bluetooth")==BIND_NONE);
     assert(binding_has_defaults(BIND_COLORS)&&!binding_has_defaults(BIND_KEYBOARD)&&binding_at_defaults(&b,BIND_KEYBOARD));
     assert(binding_choice_count(&b,BIND_KEYBOARD)==2&&!strcmp(binding_choice_name(&b,BIND_KEYBOARD,1),"de"));
     assert(binding_choice_count(&b,BIND_SESSION)==0);                      /* version 1 has no sessions */
@@ -52,6 +52,10 @@ static void binding_tests(void){
     prefs.version=2;prefs.session_count=2;strcpy(prefs.sessions[0],"de");strcpy(prefs.sessions[1],"headless");strcpy(prefs.current_session,"de");
     binding_refresh(&b);assert(binding_choice_count(&b,BIND_SESSION)==2);
     assert(!binding_choose(&b,BIND_SESSION,1)&&!binding_apply(&b,BIND_SESSION)&&prefs.session==1&&prefs_saves==3);
+    prefs.animation_count=2;strcpy(prefs.animations[0],"Normal");strcpy(prefs.animations[1],"Off");
+    binding_refresh(&b);assert(binding_choice_count(&b,BIND_ANIMATIONS)==2&&!strcmp(binding_choice_name(&b,BIND_ANIMATIONS,1),"Off"));
+    assert(!binding_choose(&b,BIND_ANIMATIONS,1)&&binding_changed(&b,BIND_ANIMATIONS)&&binding_any_changed(&b));binding_reset(&b,BIND_ANIMATIONS);
+    assert(!binding_changed(&b,BIND_ANIMATIONS));
     prefs.keyboard_count=99;binding_refresh(&b);assert(!b.ready&&b.message);  /* malformed service data */
 }
 int main(void){

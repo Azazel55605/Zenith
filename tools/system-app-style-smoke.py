@@ -35,6 +35,8 @@ def main():
             time.sleep(.1)
         raise RuntimeError('Editor frame missing: '+name)
     def click(x,y):
+        # QEMU paces typed keys but not mouse commands: let the keys arrive first.
+        time.sleep(1)
         (cx,cy),_=observer.position();recovery_console.monitor_command(m.monitor,f'mouse_move {x-cx} {y-cy}')
         recovery_console.monitor_command(m.monitor,'mouse_button 1');recovery_console.monitor_command(m.monitor,'mouse_button 0')
     try:
@@ -53,10 +55,10 @@ def main():
             command('tail -n 1 /tmp/style-'+mode+'.txt | logger','user: -dirty')
             print('PASS '+mode+' Terminal/Editor, pointer Save and guarded chrome close',flush=True)
         # A test animation plays and ends on exactly the frame it started from.
-        off=len(m.log());m.type('sleep 3; fps motion; sleep 5; logger MOTION_DONE\n');time.sleep(1.5)
+        off=len(m.raw_log());m.type('sleep 3; fps motion; sleep 5; logger MOTION_DONE\n');time.sleep(1.5)
         _,_,before=profile.frame_pixels(observer.capture(args.keep/'motion-before.ppm'))
-        assert m.wait_for('ended=',30,off),'motion test result'
-        report=[line for line in m.log()[off:].splitlines() if 'ended=' in line][0];print(report,flush=True)
+        assert m.wait_for('test frames=',30,off),'motion test result'
+        report=[line for line in m.raw_log()[off:].splitlines() if 'test frames=' in line][0];print(report,flush=True)
         assert 'ended=Finished' in report or 'ended=OverBudget' in report,report
         time.sleep(.5);w,h,after=profile.frame_pixels(observer.capture(args.keep/'motion-after.ppm'))
         changed=sum(before[i:i+3]!=after[i:i+3] for i in range(0,len(before),3))
@@ -72,6 +74,30 @@ def main():
         report=[line for line in m.raw_log()[off:].splitlines() if 'bench windows=' in line][0];print(report,flush=True)
         assert ' verify=0 ' in report,report
         print('PASS cached lower scene equals a full redraw',flush=True)
+        # Each window change animates, ends on its own, and leaves the real state behind.
+        def played(action,name):
+            off=len(m.raw_log());action();assert m.wait_for(name+' frames=',30,off),name
+            report=[line for line in m.raw_log()[off:].splitlines() if name+' frames=' in line][0];print(report,flush=True)
+            assert 'ended=Finished' in report or 'ended=OverBudget' in report,report
+            time.sleep(.5)
+        def top():
+            off=len(m.raw_log());m.type('fps | logger\n');assert m.wait_for('pill: ',30,off),'top window'
+            words=[line for line in m.raw_log()[off:].splitlines() if 'pill: ' in line][0].split('top window: ')[1].split()
+            return [int(v) for v in words[:4]],[int(v) for v in words[5:9]]
+        played(lambda:m.type('{ctrl-alt-t}'),'Opened');time.sleep(1)
+        (x,y,w,h),pill=top()
+        def button(b,n):return b[0]+b[2]-22-n*36,b[1]+22
+        played(lambda:click(*button((x,y,w,h),1)),'Resized');assert top()[0]!=[x,y,w,h],'maximized'
+        played(lambda:click(*button(top()[0],1)),'Resized');assert top()[0]==[x,y,w,h],'restored'
+        played(lambda:click(*button((x,y,w,h),2)),'Minimized')
+        played(lambda:click(pill[0]+pill[2]//2,pill[1]+pill[3]//2),'Restored');assert top()[0]==[x,y,w,h],'restored from pill'
+        played(lambda:m.type('exit\n'),'Closed')
+        print('PASS window changes animate and end in their real state',flush=True)
+        command('settings set animations off; logger ANIMATIONS_OFF','user: ANIMATIONS_OFF')
+        off=len(m.raw_log());m.type('{ctrl-alt-t}');time.sleep(3)
+        assert 'Opened frames=' not in m.raw_log()[off:],'animation played while off'
+        command('settings set animations normal; logger ANIMATIONS_ON','user: ANIMATIONS_ON')
+        print('PASS animations off keeps window changes immediate',flush=True)
         command('poweroff','all filesystems unmounted');assert m.wait_exit(30)
         print('PASS shared system-app styling and normal teardown',flush=True)
     finally:

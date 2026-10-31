@@ -99,6 +99,7 @@ static const char *wip_note(const struct meridian *a,int kind){
     if(kind==BIND_KEYBOARD)return "Work in progress: model, repeat, Num Lock and shortcuts.";
     if(kind==BIND_TIMEZONE)return "Work in progress: clock editing and sync policy.";
     if(kind==BIND_SESSION)return "Work in progress: session restore and confirmation policy.";
+    if(kind==BIND_ANIMATIONS)return "Work in progress: per-effect controls, peek and desktop transitions.";
     if(a->page==0)return "Work in progress: scheduled mode and persistent history.";
     if(a->page==MERIDIAN_ABOUT)return "Work in progress: hardware inventory is planned.";
     if(information_kind(a)==1)return "Work in progress: connection editing and profiles.";
@@ -164,7 +165,7 @@ static void colors_form(struct meridian *a,struct zui *u,struct zui_form *f){
 static void preference_form(struct meridian *a,struct zui *u,struct zui_form *f,int kind){
     const struct meridian_bindings *b=&a->bindings;int writable=binding_writable(b,kind),count=binding_choice_count(b,kind);
     zui_form_section(u,f,"System default");
-    struct zui_rect r=zui_form_row(u,f,kind==BIND_KEYBOARD?"Keyboard layout":kind==BIND_TIMEZONE?"Time zone":"Login session",
+    struct zui_rect r=zui_form_row(u,f,kind==BIND_KEYBOARD?"Keyboard layout":kind==BIND_TIMEZONE?"Time zone":kind==BIND_ANIMATIONS?"Window animations":"Login session",
         writable?"Administrators change this for all users.":"Read only: sign in as an administrator.",280,36);
     if(count){
         if(!a->combo.open)a->combo.value=(int)binding_choice(b,kind);
@@ -176,7 +177,7 @@ static void preference_form(struct meridian *a,struct zui *u,struct zui_form *f,
         }
     }else text(u,r.x,r.y+10,"Unavailable from the settings service.",&zui_body,u->theme.secondary);
     status(u,f,b->message?b->message:binding_changed(b,kind)?"Unapplied change.":kind==BIND_KEYBOARD?"Applies to keyboard input across sessions immediately.":
-        kind==BIND_TIMEZONE?"Changes local time display; the UTC clock is unchanged.":"Applies on next boot; the running session is unchanged.");
+        kind==BIND_TIMEZONE?"Changes local time display; the UTC clock is unchanged.":kind==BIND_ANIMATIONS?"Applies to the next window change. Off keeps every change immediate.":"Applies on next boot; the running session is unchanged.");
 }
 static void lines_form(struct zui *u,struct zui_form *f,const char *s){
     while(*s){

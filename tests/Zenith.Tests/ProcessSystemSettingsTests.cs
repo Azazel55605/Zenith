@@ -17,6 +17,23 @@ public class ProcessSystemSettingsTests
         public void Replace(string path,string text) { if(Fail)throw new IOException(); Files[path]=text; }
     }
     [Fact]
+    public void AnimationChoiceIsPublishedSavedAndSurvivesReboot()
+    {
+        var store=new Store();var service=new SettingsService(store,_=>{},_=>{},_=>true);
+        using var root=CredentialContext.Enter(Credentials.Root);
+        Assert.Equal(100,service.AnimationPercent);
+        var data=ProcessSystemSettings.Snapshot(service,true);
+        Assert.Equal(4U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(3512)));Assert.Equal(0U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(3516)));
+        Assert.Equal((byte)'N',data[3520]);Assert.Equal((byte)'O',data[3520+3*24]);
+        byte[] request=new byte[32];request[0]=2;request[4]=4;request[8]=1;request[16]=3;
+        Assert.Equal(0,ProcessSystemSettings.Save(service,request,true));Assert.Equal(0,service.AnimationPercent);
+        request[8]=2;request[16]=4;Assert.Equal(-22,ProcessSystemSettings.Save(service,request,true));
+        request[0]=1;request[16]=1;Assert.Equal(-22,ProcessSystemSettings.Save(service,request));
+        var reboot=new SettingsService(store,_=>{},_=>{},_=>true);Assert.Empty(reboot.Load());Assert.Equal(3U,reboot.Current.Animation);
+        store.Replace(SettingsService.MotionPath,"ANIMATION=sideways\n");
+        var broken=new SettingsService(store,_=>{},_=>{},_=>true);Assert.Single(broken.Load());Assert.Equal(100,broken.AnimationPercent);
+    }
+    [Fact]
     public void NewSessionCatalogueIsVersionedAndOldRequestsCannotSaveIt()
     {
         var service=new SettingsService(new Store(),_=>{},_=>{},mode=>mode!=Zenith.Core.Sessions.SessionMode.WindowManager);

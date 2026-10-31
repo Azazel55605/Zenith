@@ -14,7 +14,7 @@ internal interface ISettingsStore
     bool Persistent { get; }
 }
 
-internal sealed record SystemSettings(string Keyboard, string TimeZone, SessionMode DefaultSession);
+internal sealed record SystemSettings(string Keyboard, string TimeZone, SessionMode DefaultSession, uint Animation = 0);
 
 /// <summary>Shared validated settings operations. Local /etc state is administrator-owned.</summary>
 internal sealed class SettingsService
@@ -23,6 +23,12 @@ internal sealed class SettingsService
     public const string KeyboardPath = "/etc/vconsole.conf";
     public const string TimeZonePath = "/etc/timezone";
     public const string SessionPath = "/etc/zenith/session.conf";
+    public const string MotionPath = "/etc/zenith/motion.conf";
+    public static readonly string[] AnimationNames = { "normal", "fast", "slow", "off" };
+    public static readonly string[] AnimationLabels = { "Normal", "Fast", "Slow", "Off (reduced motion)" };
+    private static readonly int[] AnimationPercents = { 100, 60, 150, 0 };
+    /// <summary>Animation durations as a percentage of normal; 0 means window changes are immediate.</summary>
+    public int AnimationPercent => AnimationPercents[Current.Animation];
     private readonly ISettingsStore _store;
     private readonly Action<string> _keyboard;
     private readonly Action<string> _zone;
@@ -41,15 +47,17 @@ internal sealed class SettingsService
         lock (_gate)
         {
             var errors = new List<string>();
-            string keymap = "us", zone = "UTC"; SessionMode session = SessionMode.Desktop;
+            string keymap = "us", zone = "UTC"; SessionMode session = SessionMode.Desktop; uint animation = 0;
             try { var fields = Fields(_store.Read(KeyboardPath)); if (fields.TryGetValue("KEYMAP", out string? value)) { keymap = KeyboardLayoutCatalog.Normalize(value) ?? throw new FormatException("unknown KEYMAP"); } }
             catch (Exception e) { errors.Add(KeyboardPath + ": " + e.Message + "; using us"); }
             try { string value = Bound(_store.Read(TimeZonePath) ?? "UTC").Trim(); if (value.Length > 0) { zone = NormalizeZone(value); } }
             catch (Exception e) { errors.Add(TimeZonePath + ": " + e.Message + "; using UTC"); }
             try { session = ReadSession(_store.Read(SessionPath)); }
             catch (Exception e) { errors.Add(SessionPath + ": " + e.Message + "; using de"); }
+            try { animation = ReadAnimation(_store.Read(MotionPath)); }
+            catch (Exception e) { errors.Add(MotionPath + ": " + e.Message + "; using normal"); }
             _keyboard(keymap); _zone(zone);
-            Current = new(keymap, zone, session);
+            Current = new(keymap, zone, session, animation);
             return errors;
         }
     }
@@ -89,12 +97,26 @@ internal sealed class SettingsService
             Current = Current with { DefaultSession = mode }; _revision++;
         }
     }
+    public void SetAnimation(string name)
+    {
+        RequireRoot();
+        int choice = Array.IndexOf(AnimationNames, name);
+        if (choice < 0) { throw new ArgumentException("unknown animation setting"); }
+        lock (_gate)
+        {
+            if (_revision == ulong.MaxValue) { throw new InvalidOperationException("settings revision exhausted"); }
+            string? old = _store.Read(MotionPath);
+            _ = ReadAnimation(old); // Never silently downgrade an unknown future schema.
+            _store.Replace(MotionPath, Update(old, new Dictionary<string, string> { ["VERSION"] = "1", ["ANIMATION"] = name }));
+            Current = Current with { Animation = (uint)choice }; _revision++;
+        }
+    }
     public IReadOnlyList<SessionMode> SessionChoices
     { get { var result = new List<SessionMode>(); foreach(var mode in new[] { SessionMode.Desktop, SessionMode.Headless, SessionMode.WindowManager }) { if(_available(mode)) { result.Add(mode); } } return result; } }
     public int SaveChoice(uint field, uint choice, ulong revision)
     {
         if (!CredentialContext.Current.IsRoot) { return -13; }
-        if (field is not (1 or 2 or 3) || (field == 1 ? choice >= KeyboardLayoutCatalog.Names.Length : field == 2 ? choice >= TimeZones.All.Count : choice >= SessionChoices.Count)) { return -22; }
+        if (field is not (1 or 2 or 3 or 4) || (field == 1 ? choice >= KeyboardLayoutCatalog.Names.Length : field == 2 ? choice >= TimeZones.All.Count : field == 3 ? choice >= SessionChoices.Count : choice >= AnimationNames.Length)) { return -22; }
         lock (_gate)
         {
             if (revision != _revision) { return -11; }
@@ -103,7 +125,8 @@ internal sealed class SettingsService
             {
                 if (field == 1) { SetKeyboard(KeyboardLayoutCatalog.Names[choice]); }
                 else if(field == 2) { SetTimeZone(TimeZones.All[(int)choice].Name); }
-                else { SetSession(SessionChoices[(int)choice]); }
+                else if(field == 3) { SetSession(SessionChoices[(int)choice]); }
+                else { SetAnimation(AnimationNames[choice]); }
                 return 0;
             }
             catch { return -5; }
@@ -120,6 +143,14 @@ internal sealed class SettingsService
         if (!fields.TryGetValue("SESSION", out string? name)) { return SessionMode.Desktop; }
         if (!SessionModes.TryParse(name, out var mode)) { throw new FormatException("unknown SESSION"); }
         return mode;
+    }
+    private static uint ReadAnimation(string? text)
+    {
+        var fields = Fields(text);
+        if (fields.TryGetValue("VERSION", out string? version) && version != "1") { throw new FormatException("unsupported settings VERSION"); }
+        if (!fields.TryGetValue("ANIMATION", out string? name)) { return 0; }
+        int choice = Array.IndexOf(AnimationNames, name);
+        return choice >= 0 ? (uint)choice : throw new FormatException("unknown ANIMATION");
     }
     private static string Bound(string text)
     {

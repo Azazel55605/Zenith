@@ -70,8 +70,9 @@ Rules:
 
 - **State changes first.** The window manager applies the real state at once, so hit tests,
   focus and input never wait for an animation.
-- **Only input ends it early.** Input that dirties the scene jumps to the end state. Background
-  updates, such as a blinking terminal cursor, wait: the full compose at the end catches up.
+- **Only input ends it early.** A press, key, wheel turn or drag jumps to the end state. Button
+  releases, hover changes and background updates, such as a blinking terminal cursor, wait:
+  the full compose at the end catches up.
 - **Never required.** Allocation failure, a frame over budget twice in a row, reduced motion
   or duration 0 all take the existing immediate path. Session stop, panic and power-off
   cancel animations without waiting.
@@ -95,13 +96,24 @@ Durations follow the design language (100–180 ms).
 | Open | Fade in, scale 96% to 100% |
 | Close | Fade out, scale 100% to 96%, using the last pixels; the process has already ended or been asked to close |
 | Minimize / restore | Move and scale towards or from the taskbar pill, with fade |
-| Maximize / restore / snap | Move and scale from old to new bounds, then the new content |
+| Maximize / restore | Move and scale from old to new bounds, then the new content |
+
+Edge snapping does not exist yet; it gets this animation when it does. Only the top window's
+changes animate, and the latest change wins. Starting one reuses the cached lower scene.
 
 A native client takes a moment to draw at its new size. The animation ends on its last
-frame and the normal path shows the client's next frame, as it does today.
+frame and the normal path shows the client's next frame, as it does today. A new native
+window opens with its first frame, or empty after 500 ms, so it does not fade in blank.
 
-Stage 3 also makes `style.animations` a real page: global speed and reduced motion, plus
-per-operation controls only for effects that exist.
+Taskbar pills keep opening order instead of stack order, so a minimizing window has a fixed
+place to go.
+
+`style.animations` offers Normal, Fast (60%), Slow (150%) and Off (reduced motion). It is a
+system-wide choice in `/etc/zenith/motion.conf`, also set by `settings set animations`, and
+applies to the next window change. Per-effect controls are not built.
+
+Each animation logs its name, frames, worst frame and how it ended. The system-app gate plays
+all five changes, checks the resulting window state, and checks Off plays nothing.
 
 ## Later stages
 

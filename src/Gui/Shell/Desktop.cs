@@ -45,13 +45,14 @@ internal sealed class Desktop
     private int _cursorY;
     private int _generation;
 
-    private const long MotionTestMicros = 150_000;
+    private const long MotionTestMicros = 150_000, OpenMicros = 150_000, CloseMicros = 120_000, MinimizeMicros = 180_000, ResizeMicros = 160_000;
+    private const int PillAlpha = 60;
     private const ulong MotionReservePages = 4096;
     private readonly MotionPlayer _motion = new();
     private readonly PixelLayer _motionLayer = new();
     private int[]? _motionBase;
     private volatile bool _motionTestRequested;
-    private bool _motionTestRunning;
+    private string? _motionName;
     private volatile bool _benchRequested;
     private const int BenchFrames = 30;
 
@@ -93,6 +94,11 @@ internal sealed class Desktop
             c.WriteLine("worst compose: " + FrameStats.MaxComposeMicros + " us, worst present: " + FrameStats.MaxPresentMicros + " us");
             c.WriteLine("over 16 ms: " + FrameStats.FramesOver16Ms + ", over 33 ms: " + FrameStats.FramesOver33Ms);
             c.WriteLine("windows: " + Windows.Windows.Count + ", materials: " + MaterialResources.Policy.Effective);
+            if (Windows.Top is Window top)
+            {
+                Rect b = top.Bounds, pill = _taskbar.PillOf(top) ?? new Rect(0, 0, 0, 0);
+                c.WriteLine("top window: " + b.X + " " + b.Y + " " + b.W + " " + b.H + " pill: " + pill.X + " " + pill.Y + " " + pill.W + " " + pill.H);
+            }
             c.WriteLine("last motion: " + _motion.Frames + " frames in " + _motion.ElapsedMicros + " us, worst " + _motion.WorstFrameMicros + " us, ended " + _motion.LastEnd);
             return 0;
         }));
@@ -147,6 +153,8 @@ internal sealed class Desktop
         }
         _input.Poll();
 
+        // A release or a hover change only redraws; the click that started an animation must not cut it short.
+        bool interrupts = _input.LeftPressed || _input.RightPressed || _input.Scroll != 0 || _input.Keys.Count > 0;
         if (_input.LeftPressed || _input.LeftReleased || _input.RightPressed || _input.Scroll != 0 || _input.Keys.Count > 0)
         {
             HandleInput();
@@ -159,6 +167,7 @@ internal sealed class Desktop
             if (Windows.IsDragging || hover != _hoverKey)
             {
                 _sceneDirty = true;
+                interrupts |= Windows.IsDragging;
             }
             else
             {
@@ -168,8 +177,8 @@ internal sealed class Desktop
             _hoverKey = hover;
         }
 
-        // Only input ends an animation early: the recompose at its end catches up on anything else.
-        if (_sceneDirty) { _motion.Interrupt(); }
+        // The recompose at the end of an animation catches up on everything else.
+        if (interrupts) { _motion.Interrupt(); }
         if (Windows.Update() | _taskbar.Update())
         {
             _sceneDirty = true;
@@ -177,7 +186,8 @@ internal sealed class Desktop
 
         if (_benchRequested) { _benchRequested = false; RunBench(); _sceneDirty = true; }
         if (_motionTestRequested) { _motionTestRequested = false; StartMotionTest(); }
-        if (_motion.Active || _motionTestRunning)
+        StartTransition();
+        if (_motion.Active || _motionName is not null)
         {
             if (DrawMotionFrame())
             {
@@ -214,11 +224,7 @@ internal sealed class Desktop
         long start = FrameStats.Now;
         if (!_motion.Render(_frame.Pixels, _frame.Width, _frame.Height, Micros(start)))
         {
-            if (_motionTestRunning)
-            {
-                _motionTestRunning = false;
-                Zenith.Core.Log.Write("motion", "test frames=" + _motion.Frames + " elapsed=" + _motion.ElapsedMicros + " worst=" + _motion.WorstFrameMicros + " ended=" + _motion.LastEnd);
-            }
+            ReportMotion();
             return false;
         }
         DrawCursor();
@@ -227,28 +233,99 @@ internal sealed class Desktop
         return true;
     }
 
+    private void ReportMotion()
+    {
+        if (_motionName is null) { return; }
+        Zenith.Core.Log.Write("motion", _motionName + " frames=" + _motion.Frames + " elapsed=" + _motion.ElapsedMicros + " worst=" + _motion.WorstFrameMicros + " ended=" + _motion.LastEnd);
+        _motionName = null;
+    }
+
+    private bool MotionMemory()
+    {
+        ulong needed = (ulong)(_frame.Width * _frame.Height * 2 * sizeof(int) / 4096) + MotionReservePages;
+        if (MemoryInfo.FreePages < needed) { return false; }
+        _motionBase ??= new int[_frame.Pixels.Length];
+        return true;
+    }
+
+    private void CopyBase() => System.Array.Copy(_scene.Pixels, _motionBase!, _motionBase!.Length);
+
+    /// <summary>Most of a rectangle, centered: where a window fades in from and out to.</summary>
+    private static Rect Shrunk(Rect area) => new(area.X + area.W / 50, area.Y + area.H / 50, area.W - area.W / 25, area.H - area.H / 25);
+
+    /// <summary>Plays the window manager's latest change. Pixels from before the change are still in the scene,
+    /// so what left the screen is captured first; the scene below the top window comes from its cache.</summary>
+    private void StartTransition()
+    {
+        if (Windows.TakeTransition() is not WindowTransition t) { return; }
+        _motion.Interrupt();
+        ReportMotion();
+        int percent = Zenith.Core.Configuration.SystemConfiguration.Settings.AnimationPercent;
+        if (percent == 0 || !MotionMemory()) { return; }
+        Rect screen = _scene.Bounds;
+        Rect now = t.Window.Bounds.Intersect(screen), was = t.From.Intersect(screen);
+        Rect from, to;
+        int fromAlpha = 255, toAlpha = 255;
+        long duration;
+        switch (t.Change)
+        {
+            case WindowChange.Closed:
+            case WindowChange.Minimized:
+                from = t.Change == WindowChange.Closed ? t.From.Inflate(Theme.ShadowSize).Intersect(screen) : was;
+                if (from.IsEmpty) { return; }
+                _motionLayer.Capture(_scene.Pixels, _scene.Width, _scene.Height, from);
+                ComposeScene();
+                CopyBase();
+                Rect? pill = t.Change == WindowChange.Minimized ? _taskbar.PillOf(t.Window) : null;
+                to = pill ?? Shrunk(from);
+                toAlpha = pill is null ? 0 : PillAlpha;
+                duration = t.Change == WindowChange.Closed ? CloseMicros : MinimizeMicros;
+                break;
+            case WindowChange.Resized:
+                if (Windows.Top != t.Window || was.IsEmpty || now.IsEmpty) { return; }
+                _motionLayer.Capture(_scene.Pixels, _scene.Width, _scene.Height, was);
+                ComposeScene(withoutTop: true);
+                CopyBase();
+                ComposeScene();
+                from = was; to = now;
+                duration = ResizeMicros;
+                break;
+            default:
+                to = t.Change == WindowChange.Opened ? t.Window.Bounds.Inflate(Theme.ShadowSize).Intersect(screen) : now;
+                if (Windows.Top != t.Window || to.IsEmpty) { return; }
+                ComposeScene(withoutTop: true);
+                CopyBase();
+                ComposeScene();
+                _motionLayer.Capture(_scene.Pixels, _scene.Width, _scene.Height, to);
+                Rect? origin = t.Change == WindowChange.Restored ? _taskbar.PillOf(t.Window) : null;
+                from = origin ?? Shrunk(to);
+                fromAlpha = origin is null ? 0 : PillAlpha;
+                duration = t.Change == WindowChange.Opened ? OpenMicros : MinimizeMicros;
+                break;
+        }
+        _motion.Begin(_motionBase!, _motionLayer, from, to, fromAlpha, toAlpha, Micros(FrameStats.Now), duration * percent / 100);
+        _motionName = t.Change.ToString();
+    }
+
     private static long Micros(long timestamp) => timestamp / System.Math.Max(1, System.Diagnostics.Stopwatch.Frequency / 1_000_000);
 
     /// <summary>Fades the focused window in over the scene behind it, to measure what this machine can draw.</summary>
     private void StartMotionTest()
     {
         Window? window = Windows.Focused;
-        ulong needed = (ulong)(_frame.Width * _frame.Height * 2 * sizeof(int) / 4096) + MotionReservePages;
-        if (window is null || _motion.Active || MemoryInfo.FreePages < needed)
+        if (window is null || window != Windows.Top || _motion.Active || !MotionMemory())
         {
             Zenith.Core.Log.Write("motion", "test not started");
             return;
         }
 
-        _motionBase ??= new int[_frame.Pixels.Length];
-        ComposeScene(window);
-        System.Array.Copy(_scene.Pixels, _motionBase, _motionBase.Length);
+        ComposeScene(withoutTop: true);
+        CopyBase();
         ComposeScene();
         Rect area = window.Bounds.Inflate(Theme.ShadowSize).Intersect(_scene.Bounds);
         _motionLayer.Capture(_scene.Pixels, _scene.Width, _scene.Height, area);
-        Rect from = new(area.X + area.W / 50, area.Y + area.H / 50, area.W - area.W / 25, area.H - area.H / 25);
-        _motion.Begin(_motionBase, _motionLayer, from, area, 0, 255, Micros(FrameStats.Now), MotionTestMicros);
-        _motionTestRunning = true;
+        _motion.Begin(_motionBase!, _motionLayer, Shrunk(area), area, 0, 255, Micros(FrameStats.Now), MotionTestMicros);
+        _motionName = "test";
     }
 
     /// <summary>Times the three kinds of scene change, compares the cached result with a
@@ -339,35 +416,26 @@ internal sealed class Desktop
         Windows.HandleInput(_input);
     }
 
-    private void ComposeScene(Window? except = null)
+    private void ComposeScene(bool withoutTop = false)
     {
         long start = FrameStats.Now;
         MaterialResources.Policy.Begin(NativeAppearance.Current.Materials, NativeAppearance.Current.Translucency);
-        if (except is not null)
+        if (!LowerStillValid())
         {
             _scene.CopyFrom(_wallpaper);
-            Windows.Draw(_scene, _input.X, _input.Y, except);
-            _lowerValid = false;
+            Windows.DrawLower(_scene, _input.X, _input.Y);
+            _lower.CopyFrom(_scene);
+            _lowerSpent = MaterialResources.Policy.Spent;
+            _lowerStamp++;
+            _lowerValid = true;
+            RememberLowerAppearance();
         }
         else
         {
-            if (!LowerStillValid())
-            {
-                _scene.CopyFrom(_wallpaper);
-                Windows.DrawLower(_scene, _input.X, _input.Y);
-                _lower.CopyFrom(_scene);
-                _lowerSpent = MaterialResources.Policy.Spent;
-                _lowerStamp++;
-                _lowerValid = true;
-                RememberLowerAppearance();
-            }
-            else
-            {
-                _scene.CopyFrom(_lower);
-                MaterialResources.Policy.Restore(_lowerSpent);
-            }
-            Windows.DrawTop(_scene, _input.X, _input.Y, _lowerStamp);
+            _scene.CopyFrom(_lower);
+            MaterialResources.Policy.Restore(_lowerSpent);
         }
+        if (!withoutTop) { Windows.DrawTop(_scene, _input.X, _input.Y, _lowerStamp); }
 
         long shell = FrameStats.Now;
         _taskbar.LauncherOpen = _launcher.IsOpen;

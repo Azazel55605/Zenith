@@ -87,6 +87,13 @@ internal sealed class Taskbar
         return true;
     }
 
+    /// <summary>Where the last draw put this window's pill; null when it did not fit on the bar.</summary>
+    public Rect? PillOf(Window window)
+    {
+        foreach (var (rect, w) in _pills) { if (w == window) { return rect; } }
+        return null;
+    }
+
     /// <summary>A value that changes whenever the pointer crosses into a different button on the bar.</summary>
     public int HoverKey(int x, int y)
     {
@@ -155,7 +162,7 @@ internal sealed class Taskbar
         Rect area = new(x, Bounds.Y, maxRight - x, Bounds.H);
         surface.Clip = area;
 
-        foreach (Window w in _windows.Windows)
+        foreach (Window w in _windows.OpenOrder)
         {
             int textWidth = Fonts.Regular.MeasureString(w.Title, Theme.TextTitle);
             Rect pill = new(x, LauncherButton.Y, Math.Min(textWidth + 28, 200), LauncherButton.H);
