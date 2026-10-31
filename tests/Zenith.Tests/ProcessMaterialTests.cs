@@ -194,4 +194,67 @@ public class ProcessMaterialTests
         }
         finally { MaterialResources.ReleasePainted(spare); }
     }
+
+    [Theory]
+    [InlineData(255)]
+    [InlineData(210)]
+    [InlineData(1)]
+    public void Sse2AndScalarRowsAreIdentical(int opacity)
+    {
+        var random = new Random(opacity);
+        for (int count = 1; count < 40; count++)
+        {
+            var a = new int[count + 1]; var b = new int[count + 1];
+            for (int i = 0; i <= count; i++) { a[i] = random.Next(int.MinValue, int.MaxValue); b[i] = random.Next(int.MinValue, int.MaxValue); }
+            foreach (int width in new[] { count * 4, count * 4 - 3 })
+            {
+                int[] Run(bool sse)
+                {
+                    bool saved = MaterialRows.UseSse2;
+                    MaterialRows.UseSse2 = sse;
+                    try
+                    {
+                        var coarse = new int[count]; var row = new int[Math.Max(1, width)];
+                        var results = new System.Collections.Generic.List<int>();
+                        for (int weight = 0; weight < 4; weight++)
+                        {
+                            MaterialRows.Mix(a, 1, b, 0, coarse, count, weight); results.AddRange(coarse);
+                        }
+                        MaterialRows.Tint(coarse, 0, coarse, 0, count, 0xff305070, opacity); results.AddRange(coarse);
+                        MaterialRows.Expand(coarse, count, row, 0, width); results.AddRange(row);
+                        return results.ToArray();
+                    }
+                    finally { MaterialRows.UseSse2 = saved; }
+                }
+                Assert.Equal(Run(false), Run(true));
+            }
+        }
+    }
+
+    [Fact]
+    public void TintStaysWithinTwoStepsOfTheExactBlend()
+    {
+        var random = new Random(7);
+        var output = new int[1];
+        for (int i = 0; i < 20000; i++)
+        {
+            int[] source = { random.Next(int.MinValue, int.MaxValue) | unchecked((int)0xff000000) };
+            uint tint = (uint)random.Next(int.MinValue, int.MaxValue) | 0xff000000U;
+            int opacity = random.Next(256);
+            MaterialRows.Tint(source, 0, output, 0, 1, tint, opacity);
+            int exact = RoundedComposition.Blend((int)tint, source[0], opacity);
+            for (int shift = 0; shift < 24; shift += 8)
+            { Assert.InRange(((output[0] >> shift) & 255) - ((exact >> shift) & 255), -2, 2); }
+        }
+    }
+
+    [Fact]
+    public void TintEndsMeetTheSourceAndTheTint()
+    {
+        int[] pixel = { unchecked((int)0xff102030) }; var output = new int[1];
+        MaterialRows.Tint(pixel, 0, output, 0, 1, 0xffa0b0c0, 255);
+        Assert.Equal(unchecked((int)0xffa0b0c0), output[0]);
+        MaterialRows.Tint(pixel, 0, output, 0, 1, 0xffa0b0c0, 0);
+        Assert.Equal(unchecked((int)0xff102030), output[0]);
+    }
 }

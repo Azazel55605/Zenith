@@ -3,6 +3,7 @@
   <!-- Host-side tests: compiles the kernel's plain-.NET sources (shell, commands, terminal
        buffer) directly, so they run under `dotnet test` without Cosmos or QEMU. -->
   <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -60,7 +61,7 @@
     <Compile Include="../../src/Core/Network/Transport/*.cs" LinkBase="Kernel/Network/Transport" />
     <Compile Include="../../src/Core/Time/*.cs" LinkBase="Kernel/Time" />
     <Compile Include="../../src/Core/Text/*.cs" LinkBase="Kernel/Text" />
-    <Compile Include="../../src/Gui/Terminal/TerminalBuffer.cs;../../src/Gui/Terminal/TerminalColors.cs;../../src/Gui/Graphics/Theme.cs;../../src/Gui/Graphics/Rect.cs;../../src/Gui/Graphics/RoundedComposition.cs;../../src/Gui/Graphics/MaterialComposition.cs;../../src/Gui/Graphics/MaterialPolicy.cs" LinkBase="Kernel/Gui" />
+    <Compile Include="../../src/Gui/Terminal/TerminalBuffer.cs;../../src/Gui/Terminal/TerminalColors.cs;../../src/Gui/Graphics/Theme.cs;../../src/Gui/Graphics/Rect.cs;../../src/Gui/Graphics/RoundedComposition.cs;../../src/Gui/Graphics/MaterialComposition.cs;../../src/Gui/Graphics/MaterialRows.cs;../../src/Gui/Graphics/MaterialPolicy.cs" LinkBase="Kernel/Gui" />
   </ItemGroup>
 
   <ItemGroup>

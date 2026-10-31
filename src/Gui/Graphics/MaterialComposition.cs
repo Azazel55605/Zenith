@@ -17,6 +17,7 @@ internal sealed class MaterialComposition
     public MaterialComposition(int capacity = ProcessMaterialRegion.MaximumArea, bool blur = true, int sampleScale = 1)
     { _sampleScale = sampleScale is 1 or 4 ? sampleScale : throw new ArgumentOutOfRangeException(nameof(sampleScale)); _source = new int[capacity]; _scratch = blur ? new int[capacity] : Array.Empty<int>(); _filtered = blur ? new int[capacity] : _source; }
     private int _count = -1;
+    private int[] _row = Array.Empty<int>(), _coarse = Array.Empty<int>();
     public int BlurRebuilds { get; private set; }
 
     // Finished material pixels before corner coverage, kept once a capture repeats. Repainting
@@ -106,17 +107,17 @@ internal sealed class MaterialComposition
         }
     }
 
-    // Bilinear reconstruction avoids visible low-resolution cells at material edges.
-    private int Sample(int offset, int width, int height, int x, int y)
+    // One finished row of a region, before corner coverage. Bilinear reconstruction avoids visible
+    // low-resolution cells; the tint is linear too, so it is blended at the coarse size.
+    private void MaterialRow(int offset, ProcessMaterialRegion r, int py, uint tint, int opacity, int[] target, int at)
     {
-        int sw = SampleLength(width, _sampleScale), sh = SampleLength(height, _sampleScale);
-        int sx = x / _sampleScale, sy = y / _sampleScale;
-        if (_sampleScale == 1) { return _filtered[offset + sy * sw + sx]; }
-        int nextX = Math.Min(sx + 1, sw - 1), nextY = Math.Min(sy + 1, sh - 1);
-        int wx = x % _sampleScale * 255 / _sampleScale, wy = y % _sampleScale * 255 / _sampleScale;
-        int top = RoundedComposition.Blend(_filtered[offset + sy * sw + nextX], _filtered[offset + sy * sw + sx], wx);
-        int bottom = RoundedComposition.Blend(_filtered[offset + nextY * sw + nextX], _filtered[offset + nextY * sw + sx], wx);
-        return RoundedComposition.Blend(bottom, top, wy);
+        int sw = SampleLength(r.Width, _sampleScale);
+        if (_sampleScale == 1) { MaterialRows.Tint(_filtered, offset + py * sw, target, at, r.Width, tint, opacity); return; }
+        int sh = SampleLength(r.Height, _sampleScale), sy = py / _sampleScale, nextY = Math.Min(sy + 1, sh - 1);
+        if (_coarse.Length < sw) { _coarse = new int[sw]; }
+        MaterialRows.Mix(_filtered, offset + sy * sw, _filtered, offset + nextY * sw, _coarse, sw, py % _sampleScale);
+        MaterialRows.Tint(_coarse, 0, _coarse, 0, sw, tint, opacity);
+        MaterialRows.Expand(_coarse, sw, target, at, r.Width);
     }
 
     public void Paint(int[] target, int width, int height, Rect content,
@@ -132,35 +133,24 @@ internal sealed class MaterialComposition
             var r = regions[i]; uint tint = r.Role == 1 ? fallback : r.Role == 3 ? navigation : r.Role == 5 ? popover : panel;
             Rect rect = new(content.X + r.X, content.Y + r.Y, r.Width, r.Height);
             Rect visible = rect.Intersect(clip);
-            if (painted is not null && r.Effect != 0)
-            {
-                for (int y = visible.Y; y < visible.Bottom; y++)
-                {
-                    int py = y - rect.Y, source = paintedOffset + py * r.Width - rect.X, row = y * width;
-                    int cornerRow = r.Radius > 0 && Math.Min(py, r.Height - 1 - py) < r.Radius ? r.Radius : 0;
-                    int solidStart = Math.Min(visible.Right, Math.Max(visible.X, rect.X + cornerRow));
-                    int solidEnd = Math.Max(solidStart, Math.Min(visible.Right, rect.Right - cornerRow));
-                    for (int x = visible.X; x < solidStart; x++) { PaintCorner(target, row + x, painted[source + x], x - rect.X, py, r); }
-                    Array.Copy(painted, source + solidStart, target, row + solidStart, solidEnd - solidStart);
-                    for (int x = solidEnd; x < visible.Right; x++) { PaintCorner(target, row + x, painted[source + x], x - rect.X, py, r); }
-                }
-                paintedOffset += r.Width * r.Height;
-                offset += SampleLength(r.Width, _sampleScale) * SampleLength(r.Height, _sampleScale);
-                continue;
-            }
+            int opacity = r.Opacity > 0 ? r.Opacity : r.Effect == 1 ? 220 : 210;
+            bool cached = painted is not null && r.Effect != 0;
+            if (!cached && _row.Length < r.Width) { _row = new int[r.Width]; }
+            if (r.Effect == 0 && visible.H > 0) { Array.Fill(_row, (int)(tint | 0xff000000U), 0, r.Width); }
             for (int y = visible.Y; y < visible.Bottom; y++)
             {
-                for (int x = visible.X; x < visible.Right; x++)
-                {
-                    int px = x - rect.X, py = y - rect.Y;
-                    int dx = Math.Min(px, r.Width - 1 - px), dy = Math.Min(py, r.Height - 1 - py);
-                    int coverage = dx < r.Radius && dy < r.Radius ? RoundedComposition.Coverage(dx, dy, r.Radius) : 255;
-                    int color = r.Effect == 0 ? (int)(tint | 0xff000000U)
-                        : RoundedComposition.Blend((int)tint, Sample(offset, r.Width, r.Height, px, py), r.Opacity > 0 ? r.Opacity : r.Effect == 1 ? 220 : 210);
-                    if (coverage == 255) { target[y * width + x] = color; }
-                    else if (coverage != 0) { target[y * width + x] = RoundedComposition.Blend(color, target[y * width + x], coverage); }
-                }
+                int py = y - rect.Y, at = y * width;
+                if (!cached && r.Effect != 0) { MaterialRow(offset, r, py, tint, opacity, _row, 0); }
+                int[] pixels = cached ? painted! : _row;
+                int source = (cached ? paintedOffset + py * r.Width : 0) - rect.X;
+                int cornerRow = r.Radius > 0 && Math.Min(py, r.Height - 1 - py) < r.Radius ? r.Radius : 0;
+                int solidStart = Math.Min(visible.Right, Math.Max(visible.X, rect.X + cornerRow));
+                int solidEnd = Math.Max(solidStart, Math.Min(visible.Right, rect.Right - cornerRow));
+                for (int x = visible.X; x < solidStart; x++) { PaintCorner(target, at + x, pixels[source + x], x - rect.X, py, r); }
+                Array.Copy(pixels, source + solidStart, target, at + solidStart, solidEnd - solidStart);
+                for (int x = solidEnd; x < visible.Right; x++) { PaintCorner(target, at + x, pixels[source + x], x - rect.X, py, r); }
             }
+            if (cached) { paintedOffset += r.Width * r.Height; }
             offset += SampleLength(r.Width, _sampleScale) * SampleLength(r.Height, _sampleScale);
         }
     }
@@ -194,10 +184,7 @@ internal sealed class MaterialComposition
             if (r.Effect != 0)
             {
                 int opacity = r.Opacity > 0 ? r.Opacity : r.Effect == 1 ? 220 : 210;
-                for (int py = 0; py < r.Height; py++)
-                {
-                    for (int px = 0; px < r.Width; px++) { _painted[at++] = RoundedComposition.Blend((int)tint, Sample(offset, r.Width, r.Height, px, py), opacity); }
-                }
+                for (int py = 0; py < r.Height; py++) { MaterialRow(offset, r, py, tint, opacity, _painted, at); at += r.Width; }
             }
             offset += SampleLength(r.Width, _sampleScale) * SampleLength(r.Height, _sampleScale);
         }

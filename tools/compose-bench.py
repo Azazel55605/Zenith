@@ -21,7 +21,7 @@ def main():
         assert m.wait_for('bench windows=',60,off),'bench result'
         print([line for line in m.raw_log()[off:].splitlines() if 'bench windows=' in line][0],flush=True);time.sleep(1)
     try:
-        m.type('settings set materials background-blur\n');time.sleep(2)
+        m.type('settings set materials background-blur; settings set translucency 100\n');time.sleep(2)
         bench()
         for _ in range(2):
             m.type('{ctrl-alt-t}');time.sleep(3)

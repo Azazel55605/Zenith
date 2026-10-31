@@ -29,6 +29,11 @@ The compositor keeps two caches, both pure speed-ups with the old path as fallba
 - **Finished material pixels:** once a material's backdrop repeats, it repaints by row copy.
   They have their own 16 MiB budget; running out only costs speed.
 
+Materials paint in row loops with an SSE2 path, tested identical to its scalar fallback. The
+scheduler saves XMM registers across task switches; nothing enables or saves AVX, so wider
+vectors need kernel work first. Only the bench below covers Terminal windows; a native client
+adds its per-pixel foreground blend.
+
 `fps bench` logs the cost of a full redraw, a top-window redraw and a drag, and how many
 pixels of the cached scene differ from a full redraw. The system-app gate requires zero after
 a lower window changed.
@@ -38,9 +43,10 @@ a lower window changed.
 | Before: any scene change | 17.0 ms | 37.9 ms |
 | Lower window changed | 5.0 ms | 9.2 ms |
 | Top window changed | 2.0 ms | 2.0 ms |
-| Top window dragged | 12.0 ms | 11.8 ms |
+| Top window dragged, scalar | 12.0 ms | 11.8 ms |
+| Top window dragged, SSE2 rows | 3.3 ms | 3.3 ms |
 
-Dragging rebuilds that window's blur and repaints it live; the window count no longer matters.
+Dragging rebuilds that window's blur and repaints it live; the window count no longer matters. The SSE2 row is measured at translucency 100.
 
 ## Stage 2: layers and clock, no visible change
 
