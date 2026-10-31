@@ -98,6 +98,42 @@ def main():
         assert 'Opened frames=' not in m.raw_log()[off:],'animation played while off'
         command('settings set animations normal; logger ANIMATIONS_ON','user: ANIMATIONS_ON')
         print('PASS animations off keeps window changes immediate',flush=True)
+        def bar():
+            off=len(m.raw_log());m.type('fps | logger\n');assert m.wait_for('last motion: ',30,off),'taskbar state'
+            lines=m.raw_log()[off:].splitlines()
+            words=[l for l in lines if 'taskbar: ' in l][0].split('taskbar: ')[1].split()
+            size=[l for l in lines if 'display: ' in l][0].split()[-1].split('x')
+            return words[0],words[1]=='shown=1',int(words[2].split('=')[1]),[int(words[3]),int(words[4])],[int(v) for v in size]
+        def move(x,y):
+            (cx,cy),_=observer.position();recovery_console.monitor_command(m.monitor,f'mouse_move {x-cx} {y-cy}');time.sleep(1)
+        screen=bar()[4]
+        def setting(value):
+            command('settings set taskbar '+value+'; logger BAR_'+value,'user: BAR_'+value);time.sleep(1)
+        # F11 covers the screen and the bar ducks; the bottom row brings it back over the window.
+        move(screen[0]//2,screen[1]//2);windowed=top()[0]
+        played(lambda:m.type('{f11}'),'Resized');assert top()[0]==[0,0,*screen],'fullscreen bounds';time.sleep(1);assert not bar()[1],'bar ducked'
+        played(lambda:move(screen[0]//2,screen[1]-1),'TaskbarShown');assert bar()[1],'revealed'
+        played(lambda:move(screen[0]//2,screen[1]//2),'TaskbarHidden');assert not bar()[1],'hidden again'
+        played(lambda:m.type('{f11}'),'Resized');assert top()[0]==windowed,'left fullscreen';time.sleep(1);assert bar()[1],'bar back'
+        print('PASS fullscreen ducks the taskbar and the bottom edge reveals it',flush=True)
+        setting('auto');assert not bar()[1],'auto hides'
+        played(lambda:click(*button(windowed,1)),'Resized');assert top()[0]==[0,0,*screen],'auto maximize fills'
+        played(lambda:click(*button(top()[0],1)),'Resized');assert top()[0]==windowed
+        setting('maximized');assert bar()[1],'shown while not maximized'
+        click(*button(windowed,1));time.sleep(1);assert top()[0]==[0,0,*screen];assert not bar()[1],'hidden while maximized'
+        click(*button(top()[0],1));time.sleep(1);assert bar()[1],'shown after restore'
+        setting('always');assert bar()[1]
+        played(lambda:click(*button(windowed,1)),'Resized');assert top()[0][3]<screen[1],'always keeps the bar clear'
+        played(lambda:click(*button(top()[0],1)),'Resized');assert top()[0]==windowed
+        print('PASS taskbar visibility modes',flush=True)
+        # Windows that do not fit stay reachable, and the focused one keeps a pill.
+        for _ in range(10):m.type('{ctrl-alt-t}');time.sleep(1.5)
+        state=bar();assert state[2]>0,state
+        assert top()[1][2]>0,'focused window has a pill'
+        focused=top()[0];click(state[3][0]+20,state[3][1]+18);time.sleep(1)
+        click(state[3][0]+20,screen[1]-64-20);time.sleep(1)
+        assert top()[0]!=focused,'overflow list focuses its window'
+        print('PASS overflow list reaches every window',flush=True)
         command('poweroff','all filesystems unmounted');assert m.wait_exit(30)
         print('PASS shared system-app styling and normal teardown',flush=True)
     finally:

@@ -3,8 +3,8 @@
 #include "../ui/widgets.h"
 /* Generated page inventory (tools/build-meridian-pages.py). category is the
  * reviewed category name; requirements lists the planned options. */
-#define MERIDIAN_PAGE_COUNT 43
-enum { MERIDIAN_COLORS=16, MERIDIAN_ABOUT=38 };
+#define MERIDIAN_PAGE_COUNT 44
+enum { MERIDIAN_COLORS=16, MERIDIAN_ABOUT=39 };
 struct meridian_page { const char *id,*title,*category,*requirements,*foundation; int group; };
 extern const struct meridian_page meridian_pages[MERIDIAN_PAGE_COUNT];
 

@@ -17,6 +17,21 @@ public class ProcessSystemSettingsTests
         public void Replace(string path,string text) { if(Fail)throw new IOException(); Files[path]=text; }
     }
     [Fact]
+    public void TaskbarChoiceIsPublishedSavedAndSurvivesReboot()
+    {
+        var store=new Store();var service=new SettingsService(store,_=>{},_=>{},_=>true);
+        using var root=CredentialContext.Enter(Credentials.Root);
+        var data=ProcessSystemSettings.Snapshot(service,true);
+        Assert.Equal(3U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(3616)));Assert.Equal(0U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(3620)));
+        Assert.Equal((byte)'A',data[3624]);Assert.Equal((byte)'A',data[3624+2*24]);
+        byte[] request=new byte[32];request[0]=2;request[4]=5;request[8]=1;request[16]=2;
+        Assert.Equal(0,ProcessSystemSettings.Save(service,request,true));Assert.Equal(2U,service.Current.Taskbar);
+        request[8]=2;request[16]=3;Assert.Equal(-22,ProcessSystemSettings.Save(service,request,true));
+        var reboot=new SettingsService(store,_=>{},_=>{},_=>true);Assert.Empty(reboot.Load());Assert.Equal(2U,reboot.Current.Taskbar);
+        store.Replace(SettingsService.TaskbarPath,"TASKBAR=sideways\n");
+        var broken=new SettingsService(store,_=>{},_=>{},_=>true);Assert.Single(broken.Load());Assert.Equal(0U,broken.Current.Taskbar);
+    }
+    [Fact]
     public void AnimationChoiceIsPublishedSavedAndSurvivesReboot()
     {
         var store=new Store();var service=new SettingsService(store,_=>{},_=>{},_=>true);

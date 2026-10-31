@@ -45,8 +45,8 @@ def check(machine, monitor, keep, start):
         require('user: GUI_FOCUS_OUT')
         monitor_command(monitor,'sendkey f12 30');time.sleep(.2)
         phase='focus-return'
-        # Pills keep opening order: Welcome, Terminal, then this client.
-        x,y=270,height-32
+        # Pills keep opening order: Welcome, Terminal, then this client, wherever their titles put it.
+        x,y=380,height-32
         monitor_command(monitor,'mouse_move '+str(x-tx)+' '+str(y-ty));time.sleep(.15)
         monitor_command(monitor,'mouse_button 1');time.sleep(.15);monitor_command(monitor,'mouse_button 0');time.sleep(.2)
         # Initial focus and restored focus must both be observed before key input.

@@ -326,7 +326,7 @@ internal sealed class TerminalWindow : Window, IOutput
     private void UpdateGeometry()
     {
         _columns = Math.Max(20, (Bounds.W - 2 * Padding) / _cellWidth);
-        _rows = Math.Max(3, (Bounds.H - TitleBarHeight - 2 * Padding) / _cellHeight);
+        _rows = Math.Max(3, (Content.H - 2 * Padding) / _cellHeight);
     }
 
     public override void OnMouseDown(int x, int y)

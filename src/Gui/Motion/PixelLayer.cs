@@ -10,16 +10,27 @@ internal sealed class PixelLayer
 
     public int Width { get; private set; }
     public int Height { get; private set; }
+    private int _corner;
 
-    public void Capture(int[] source, int sourceWidth, int sourceHeight, Rect area)
+    /// <summary>Copies a rectangle; a <paramref name="corner"/> radius leaves what is outside the rounded corners undrawn at full size.</summary>
+    public void Capture(int[] source, int sourceWidth, int sourceHeight, Rect area, int corner = 0)
     {
         Rect c = area.Intersect(new Rect(0, 0, sourceWidth, sourceHeight));
-        Width = c.W; Height = c.H;
+        Width = c.W; Height = c.H; _corner = corner;
         if (_pixels.Length < c.W * c.H) { _pixels = new int[c.W * c.H]; }
         for (int y = 0; y < c.H; y++)
         {
             Array.Copy(source, (c.Y + y) * sourceWidth + c.X, _pixels, y * c.W, c.W);
         }
+    }
+
+    /// <summary>How far a row this far from the top or bottom edge starts inside the rounded corner.</summary>
+    private int Inset(int row)
+    {
+        if (row >= _corner) { return 0; }
+        int rise = _corner - row, inset = 0;
+        while (inset < _corner && (_corner - inset) * (_corner - inset) + rise * rise > _corner * _corner) { inset++; }
+        return inset;
     }
 
     /// <summary>Draws the layer stretched over <paramref name="target"/> (nearest neighbour), clipped to the destination.</summary>
@@ -38,7 +49,9 @@ internal sealed class PixelLayer
             int at = y * destinationWidth + c.X;
             if (opaque && unscaled)
             {
-                Array.Copy(_pixels, row + (c.X - target.X), destination, at, c.W);
+                int inset = Inset(Math.Min(y - target.Y, target.Bottom - 1 - y));
+                int left = Math.Max(c.X, target.X + inset), right = Math.Min(c.Right, target.Right - inset);
+                if (right > left) { Array.Copy(_pixels, row + (left - target.X), destination, y * destinationWidth + left, right - left); }
                 continue;
             }
             long fx = startX;

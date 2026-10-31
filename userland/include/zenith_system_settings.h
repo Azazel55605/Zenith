@@ -6,7 +6,7 @@ struct zenith_system_settings {
     unsigned int version,flags; unsigned long revision;
     unsigned int keyboard_count,zone_count,keyboard,zone;
     char current_zone[64],current_session[16]; unsigned char reserved[16];
-    char keyboards[8][32],zones[48][64]; unsigned int session_count,session;char sessions[3][16];unsigned int animation_count,animation;char animations[4][24];unsigned char tail[480];
+    char keyboards[8][32],zones[48][64]; unsigned int session_count,session;char sessions[3][16];unsigned int animation_count,animation;char animations[4][24];unsigned int taskbar_count,taskbar;char taskbars[3][24];unsigned char tail[400];
 };
 struct zenith_system_settings_request {
     unsigned int version,field;unsigned long revision;

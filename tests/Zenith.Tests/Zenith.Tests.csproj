@@ -44,6 +44,7 @@
     <Compile Include="../../src/Core/PowerControl.cs" Link="Kernel/PowerControl.cs" />
     <Compile Include="../../src/Gui/FrameStats.cs" Link="Gui/FrameStats.cs" />
     <Compile Include="../../src/Gui/Motion/*.cs" LinkBase="Gui/Motion" />
+    <Compile Include="../../src/Gui/Shell/TaskbarLayout.cs" Link="Gui/Shell/TaskbarLayout.cs" />
   </ItemGroup>
 
   <ItemGroup>

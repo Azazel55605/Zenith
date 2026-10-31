@@ -4,14 +4,14 @@
 #include "../include/zenith_system_settings.h"
 /* One draft contract for every editable Meridian page. A page is changed while its
  * draft differs from saved state; the window's unsaved flag covers all pages. */
-enum { BIND_NONE=0,BIND_COLORS=1,BIND_KEYBOARD=2,BIND_TIMEZONE=3,BIND_SESSION=4,BIND_ANIMATIONS=5 };
+enum { BIND_NONE=0,BIND_COLORS=1,BIND_KEYBOARD=2,BIND_TIMEZONE=3,BIND_SESSION=4,BIND_ANIMATIONS=5,BIND_TASKBAR=6 };
 struct meridian_bindings {
     struct settings_app *colors;
     struct zenith_system_settings preferences; int ready;
     long (*read)(struct zenith_system_settings *);
     long (*save)(unsigned int field,unsigned int choice,unsigned long revision);
     long (*dirty)(int value);
-    unsigned int choice[5];      /* system preference drafts, fields 1..4 */
+    unsigned int choice[6];      /* system preference drafts, fields 1..5 */
     unsigned long revision;      /* revision the drafts are based on */
     const char *message;
 };

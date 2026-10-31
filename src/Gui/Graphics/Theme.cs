@@ -36,6 +36,9 @@ internal static class Theme
 
     // Shape
     public const int WindowRadius = 12;
+    public const int TaskbarHeight = 48;
+    public const int TaskbarMargin = 8;
+    public const int ShellControlHeight = 36;
     public const int ControlRadius = 8;
     public const int ShadowSize = 20;
     public const int ShadowAlpha = 90;

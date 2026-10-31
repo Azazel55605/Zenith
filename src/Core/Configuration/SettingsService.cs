@@ -14,7 +14,7 @@ internal interface ISettingsStore
     bool Persistent { get; }
 }
 
-internal sealed record SystemSettings(string Keyboard, string TimeZone, SessionMode DefaultSession, uint Animation = 0);
+internal sealed record SystemSettings(string Keyboard, string TimeZone, SessionMode DefaultSession, uint Animation = 0, uint Taskbar = 0);
 
 /// <summary>Shared validated settings operations. Local /etc state is administrator-owned.</summary>
 internal sealed class SettingsService
@@ -29,6 +29,9 @@ internal sealed class SettingsService
     private static readonly int[] AnimationPercents = { 100, 60, 150, 0 };
     /// <summary>Animation durations as a percentage of normal; 0 means window changes are immediate.</summary>
     public int AnimationPercent => AnimationPercents[Current.Animation];
+    public const string TaskbarPath = "/etc/zenith/taskbar.conf";
+    public static readonly string[] TaskbarNames = { "always", "maximized", "auto" };
+    public static readonly string[] TaskbarLabels = { "Always visible", "Hide when maximized", "Auto-hide" };
     private readonly ISettingsStore _store;
     private readonly Action<string> _keyboard;
     private readonly Action<string> _zone;
@@ -47,7 +50,7 @@ internal sealed class SettingsService
         lock (_gate)
         {
             var errors = new List<string>();
-            string keymap = "us", zone = "UTC"; SessionMode session = SessionMode.Desktop; uint animation = 0;
+            string keymap = "us", zone = "UTC"; SessionMode session = SessionMode.Desktop; uint animation = 0, taskbar = 0;
             try { var fields = Fields(_store.Read(KeyboardPath)); if (fields.TryGetValue("KEYMAP", out string? value)) { keymap = KeyboardLayoutCatalog.Normalize(value) ?? throw new FormatException("unknown KEYMAP"); } }
             catch (Exception e) { errors.Add(KeyboardPath + ": " + e.Message + "; using us"); }
             try { string value = Bound(_store.Read(TimeZonePath) ?? "UTC").Trim(); if (value.Length > 0) { zone = NormalizeZone(value); } }
@@ -56,8 +59,10 @@ internal sealed class SettingsService
             catch (Exception e) { errors.Add(SessionPath + ": " + e.Message + "; using de"); }
             try { animation = ReadAnimation(_store.Read(MotionPath)); }
             catch (Exception e) { errors.Add(MotionPath + ": " + e.Message + "; using normal"); }
+            try { taskbar = ReadTaskbar(_store.Read(TaskbarPath)); }
+            catch (Exception e) { errors.Add(TaskbarPath + ": " + e.Message + "; using always"); }
             _keyboard(keymap); _zone(zone);
-            Current = new(keymap, zone, session, animation);
+            Current = new(keymap, zone, session, animation, taskbar);
             return errors;
         }
     }
@@ -111,12 +116,26 @@ internal sealed class SettingsService
             Current = Current with { Animation = (uint)choice }; _revision++;
         }
     }
+    public void SetTaskbar(string name)
+    {
+        RequireRoot();
+        int choice = Array.IndexOf(TaskbarNames, name);
+        if (choice < 0) { throw new ArgumentException("unknown taskbar setting"); }
+        lock (_gate)
+        {
+            if (_revision == ulong.MaxValue) { throw new InvalidOperationException("settings revision exhausted"); }
+            string? old = _store.Read(TaskbarPath);
+            _ = ReadTaskbar(old); // Never silently downgrade an unknown future schema.
+            _store.Replace(TaskbarPath, Update(old, new Dictionary<string, string> { ["VERSION"] = "1", ["TASKBAR"] = name }));
+            Current = Current with { Taskbar = (uint)choice }; _revision++;
+        }
+    }
     public IReadOnlyList<SessionMode> SessionChoices
     { get { var result = new List<SessionMode>(); foreach(var mode in new[] { SessionMode.Desktop, SessionMode.Headless, SessionMode.WindowManager }) { if(_available(mode)) { result.Add(mode); } } return result; } }
     public int SaveChoice(uint field, uint choice, ulong revision)
     {
         if (!CredentialContext.Current.IsRoot) { return -13; }
-        if (field is not (1 or 2 or 3 or 4) || (field == 1 ? choice >= KeyboardLayoutCatalog.Names.Length : field == 2 ? choice >= TimeZones.All.Count : field == 3 ? choice >= SessionChoices.Count : choice >= AnimationNames.Length)) { return -22; }
+        if (field is not (1 or 2 or 3 or 4 or 5) || (field == 1 ? choice >= KeyboardLayoutCatalog.Names.Length : field == 2 ? choice >= TimeZones.All.Count : field == 3 ? choice >= SessionChoices.Count : field == 4 ? choice >= AnimationNames.Length : choice >= TaskbarNames.Length)) { return -22; }
         lock (_gate)
         {
             if (revision != _revision) { return -11; }
@@ -126,7 +145,8 @@ internal sealed class SettingsService
                 if (field == 1) { SetKeyboard(KeyboardLayoutCatalog.Names[choice]); }
                 else if(field == 2) { SetTimeZone(TimeZones.All[(int)choice].Name); }
                 else if(field == 3) { SetSession(SessionChoices[(int)choice]); }
-                else { SetAnimation(AnimationNames[choice]); }
+                else if(field == 4) { SetAnimation(AnimationNames[choice]); }
+                else { SetTaskbar(TaskbarNames[choice]); }
                 return 0;
             }
             catch { return -5; }
@@ -151,6 +171,14 @@ internal sealed class SettingsService
         if (!fields.TryGetValue("ANIMATION", out string? name)) { return 0; }
         int choice = Array.IndexOf(AnimationNames, name);
         return choice >= 0 ? (uint)choice : throw new FormatException("unknown ANIMATION");
+    }
+    private static uint ReadTaskbar(string? text)
+    {
+        var fields = Fields(text);
+        if (fields.TryGetValue("VERSION", out string? version) && version != "1") { throw new FormatException("unsupported settings VERSION"); }
+        if (!fields.TryGetValue("TASKBAR", out string? name)) { return 0; }
+        int choice = Array.IndexOf(TaskbarNames, name);
+        return choice >= 0 ? (uint)choice : throw new FormatException("unknown TASKBAR");
     }
     private static string Bound(string text)
     {

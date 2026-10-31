@@ -36,6 +36,19 @@ internal static class AppRegistry
         new AppInfo("Meridian", "System settings", _ => new AppLaunchNotice("Install the zenith-settings package to open Meridian."), "settings"),
     };
 
+    /// <summary>The icon of a registered app; window titles may add to the app's name.</summary>
+    public static string IconFor(string title)
+    {
+        if (title.Contains("Terminal")) { return "terminal"; }
+        if (title.Contains("Files")) { return "folder"; }
+        if (title.Contains("Editor")) { return "file-text"; }
+        if (title.Contains("Welcome")) { return "hand"; }
+        if (title.Contains("Sunrise")) { return "sunrise"; }
+        if (title.Contains("System") || title.Contains("About")) { return "monitor"; }
+        if (title.Contains("Meridian") || title.Contains("Settings")) { return "sliders-horizontal"; }
+        return "app-window";
+    }
+
     public static bool Exists(string name)
         => Apps.Exists(app => string.Equals(app.Name, name, StringComparison.OrdinalIgnoreCase));
 }

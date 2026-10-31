@@ -43,7 +43,7 @@ def check():
             if identity not in ids:errors.append(f'{p.relative_to(ROOT)}: unknown master work ID {identity}')
     pages=set(re.findall(r'\| `([a-z.-]+)` —', (ROOT/'docs/MERIDIAN-PAGES.md').read_text()))
     covered=set(re.findall(r'`([a-z]+\.[a-z.-]+)`',master))
-    if len(pages)!=43 or covered!=pages:errors.append('ROADMAP: 43-page coverage differs: '+str(pages^covered))
+    if len(pages)!=44 or covered!=pages:errors.append('ROADMAP: 44-page coverage differs: '+str(pages^covered))
     for p in (ROOT/'docs').glob('*.md'):
         if p.name not in ('PROGRESS.md','ROADMAP.md') and re.search(r'^\s*- \[[ x]\]',p.read_text(),re.M):
             errors.append(f'{p.relative_to(ROOT)}: work checklists belong in master/component pages')
@@ -52,6 +52,6 @@ def check():
         if (ROOT/'docs'/obsolete).exists():errors.append('duplicate root document: '+obsolete)
     if errors:
         print('\n'.join(errors));return 1
-    print(f'PASS {len(files)} documentation files; local links/anchors, {len(ids)} master work IDs, 43 Meridian pages and single-tracker boundaries')
+    print(f'PASS {len(files)} documentation files; local links/anchors, {len(ids)} master work IDs, 44 Meridian pages and single-tracker boundaries')
     return 0
 if __name__=='__main__':sys.exit(check())

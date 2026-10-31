@@ -17,7 +17,7 @@ updateable. A resource package does not make the greeter an independent process.
 | Master ID / app | Current frontend | Detailed exit |
 |---|---|---|
 | U5 Welcome/System | Native `desktop-tools` frontends, signed shell and menu dispatch locally tested | D1 parity, live preference/independent upgrade/user/teardown and Q2 release acceptance |
-| S1 Meridian | Native 43-page shell, seven groups, search/recent links, scoped Colors/inheritance, searchable keyboard/time-zone/session choices, authorized network/account information and selected About data | U1 richer controls/lifetime tests, real page backends and Q1/Q2; WIP scope is not functionality |
+| S1 Meridian | Native 44-page shell, seven groups, search/recent links, scoped Colors/inheritance, searchable keyboard/time-zone/session choices, authorized network/account information and selected About data | U1 richer controls/lifetime tests, real page backends and Q1/Q2; WIP scope is not functionality |
 | U2 Editor | Trusted window, shared-design toolbar/canvas/status, guarded chrome close | Shared multiline text/selection, clipboard/dialogs, UTF-8/LF/CRLF, undo/search, external changes and permission-aware staged saves |
 | U3 Terminal | Trusted shell host, shared material canvas, solid hidden input and appearance-aware ANSI scrollback | Owned PTY/session byte/mode protocol, native renderer, raw/canonical/secret/type-ahead/jobs/EOF/cancel and all recovery hosts |
 | U4 Sunrise | Trusted installer, shared fields/navigation/action controls and credential-solid account entry | Typed root/live-only wizard with explicit erase consent, safe account secrets, progress and maintenance blockers |
@@ -49,7 +49,7 @@ not indiscriminately journalled. Session stop revokes surfaces and invocations.
   [Contract/evidence](../archive/2026-10-28/shared-settings-stage.md); Q2 owns installed two-account acceptance.
 - [ ] S1 remaining broader backends: guarded edits/authority and richer About inventory;
   driver/device, clock scheduling and account lifecycle remain their roadmap owners.
-- [ ] S2–S5: activate the [43-page inventory](../MERIDIAN-PAGES.md) in backend order;
+- [ ] S2–S5: activate the [44-page inventory](../MERIDIAN-PAGES.md) in backend order;
   [Meridian contracts](../MERIDIAN-PLAN.md) specify details, not a second schedule.
 - [ ] D3: software integration locally qualified: explicit foreground/regions,
   cached tint/blur, saved/effective controls, shared chrome/taskbar/Meridian policy,

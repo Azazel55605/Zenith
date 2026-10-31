@@ -115,13 +115,43 @@ applies to the next window change. Per-effect controls are not built.
 Each animation logs its name, frames, worst frame and how it ended. The system-app gate plays
 all five changes, checks the resulting window state, and checks Off plays nothing.
 
+## Stage 4: taskbar
+
+**Look.** Sizes live in the theme: a 48 px bar, a 36 px control height and the shared radii.
+Each pill has a 16 px icon and its title, cut with "..." inside the pill. Active is the accent
+tint with an accent bar, hover is the neutral hover, and minimized is muted, so the three no
+longer look alike. Client titles lose the "Native · " prefix. The clock is centered.
+
+**Too many windows.** Pills shrink evenly to 120 px, then the rest move to a `+N` button that
+lists them. The focused window always keeps a pill. Every window stays reachable.
+
+**Hiding.** `taskbar` is a system-wide choice in `/etc/zenith/taskbar.conf`, set on the
+`windows.taskbar` page or with `settings set taskbar`:
+
+| Choice | Bar shows | Maximize fills |
+|---|---|---|
+| `always` | Always | Space above the bar |
+| `maximized` | Unless the top window is maximized | Whole screen |
+| `auto` | Only on demand | Whole screen |
+
+In every mode the bar ducks for a fullscreen top window, returns when the pointer reaches the
+bottom screen row, and stays 400 ms after the pointer leaves. An open launcher or `+N` list
+keeps it up, and dragging a window to the bottom edge does not raise it.
+
+**Fullscreen.** F11 toggles the focused resizable window to the whole screen without a title
+bar. A client gets the normal resize. Client surfaces stop at 1920x1000, so on taller screens
+wallpaper shows below a fullscreen client.
+
+**Motion.** The bar slides in over 160 ms and out over 120 ms, with its rounded corners masked
+and without its shadow. A window change at the same moment takes priority and the bar moves
+at once. Animations Off moves it at once too.
+
+The system-app gate checks each mode, fullscreen, the reveal and overflow.
+
 ## Later stages
 
 Each gets its own design before work starts.
 
-4. **Taskbar overhaul:** theme-owned sizes, icons on pills, reachable overflow, no
-   "Native · " prefix; a changeable work area, real fullscreen, duck and auto-hide; a
-   taskbar settings page.
 5. **Login:** the shared design and controls, hover, confirmation for Restart and Shut down,
    cursor-only redraws; crossfades for login and logout.
 6. **Inside applications:** a toolkit frame clock, page transitions and smooth scrolling.

@@ -38,6 +38,9 @@ internal static class ProcessSystemSettings
             BinaryPrimitives.WriteUInt32LittleEndian(b[3512..],(uint)SettingsService.AnimationLabels.Length);
             BinaryPrimitives.WriteUInt32LittleEndian(b[3516..],state.Animation);
             for(int i=0;i<SettingsService.AnimationLabels.Length;i++) { Put(data,3520+i*24,24,SettingsService.AnimationLabels[i]); }
+            BinaryPrimitives.WriteUInt32LittleEndian(b[3616..],(uint)SettingsService.TaskbarLabels.Length);
+            BinaryPrimitives.WriteUInt32LittleEndian(b[3620..],state.Taskbar);
+            for(int i=0;i<SettingsService.TaskbarLabels.Length;i++) { Put(data,3624+i*24,24,SettingsService.TaskbarLabels[i]); }
         }
         return data;
     }

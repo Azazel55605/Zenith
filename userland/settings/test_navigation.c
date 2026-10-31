@@ -30,7 +30,7 @@ static void binding_tests(void){
     static struct settings_app colors;assert(settings_init(&colors,pixels,(struct settings_backend){look_read,look_save,prefs_mark,0}));
     struct meridian_bindings b;binding_init(&b,&colors,prefs_read,prefs_save,prefs_mark);
     assert(binding_of("style.colors")==BIND_COLORS&&binding_of("input.keyboard")==BIND_KEYBOARD&&binding_of("locale.time")==BIND_TIMEZONE);
-    assert(binding_of("system.session")==BIND_SESSION&&binding_of("style.animations")==BIND_ANIMATIONS&&binding_of("devices.bluetooth")==BIND_NONE);
+    assert(binding_of("system.session")==BIND_SESSION&&binding_of("style.animations")==BIND_ANIMATIONS&&binding_of("windows.taskbar")==BIND_TASKBAR&&binding_of("devices.bluetooth")==BIND_NONE);
     assert(binding_has_defaults(BIND_COLORS)&&!binding_has_defaults(BIND_KEYBOARD)&&binding_at_defaults(&b,BIND_KEYBOARD));
     assert(binding_choice_count(&b,BIND_KEYBOARD)==2&&!strcmp(binding_choice_name(&b,BIND_KEYBOARD,1),"de"));
     assert(binding_choice_count(&b,BIND_SESSION)==0);                      /* version 1 has no sessions */

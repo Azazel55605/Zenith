@@ -1,6 +1,6 @@
 #include "bindings.h"
 static int same(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return *a==*b;}
-static int field(int kind){return kind==BIND_KEYBOARD?1:kind==BIND_TIMEZONE?2:kind==BIND_SESSION?3:kind==BIND_ANIMATIONS?4:0;}
+static int field(int kind){return kind==BIND_KEYBOARD?1:kind==BIND_TIMEZONE?2:kind==BIND_SESSION?3:kind==BIND_ANIMATIONS?4:kind==BIND_TASKBAR?5:0;}
 static int bounded_name(const char *s,int capacity){
     for(int i=0;i<capacity;i++){if(!s[i])return i>0;if((unsigned char)s[i]<32||(unsigned char)s[i]>126)return 0;}
     return 0;
@@ -15,26 +15,28 @@ static int valid(const struct zenith_system_settings *s){
         for(unsigned int i=0;i<s->session_count;i++)if(!bounded_name(s->sessions[i],16))return 0;
         if(s->animation_count>4||(s->animation_count&&s->animation>=s->animation_count))return 0;
         for(unsigned int i=0;i<s->animation_count;i++)if(!bounded_name(s->animations[i],24))return 0;
+        if(s->taskbar_count>3||(s->taskbar_count&&s->taskbar>=s->taskbar_count))return 0;
+        for(unsigned int i=0;i<s->taskbar_count;i++)if(!bounded_name(s->taskbars[i],24))return 0;
     }
     return 1;
 }
-static unsigned int saved(const struct zenith_system_settings *s,int f){return f==1?s->keyboard:f==2?s->zone:f==3?s->session:s->animation;}
+static unsigned int saved(const struct zenith_system_settings *s,int f){return f==1?s->keyboard:f==2?s->zone:f==3?s->session:f==4?s->animation:s->taskbar;}
 void binding_init(struct meridian_bindings *b,struct settings_app *colors,long (*read)(struct zenith_system_settings *),
                   long (*save)(unsigned int,unsigned int,unsigned long),long (*dirty)(int)){
     *b=(struct meridian_bindings){0};b->colors=colors;b->read=read;b->save=save;b->dirty=dirty;binding_refresh(b);
 }
 int binding_of(const char *id){
     return same(id,"style.colors")?BIND_COLORS:same(id,"input.keyboard")?BIND_KEYBOARD:same(id,"locale.time")?BIND_TIMEZONE:
-        same(id,"system.session")?BIND_SESSION:same(id,"style.animations")?BIND_ANIMATIONS:BIND_NONE;
+        same(id,"system.session")?BIND_SESSION:same(id,"style.animations")?BIND_ANIMATIONS:same(id,"windows.taskbar")?BIND_TASKBAR:BIND_NONE;
 }
 static int preference_changed(const struct meridian_bindings *b,int f){return b->ready&&b->choice[f]!=saved(&b->preferences,f);}
 void binding_refresh(struct meridian_bindings *b){
     if(!b->read)return;
     struct zenith_system_settings s;
     if(b->read(&s)||!valid(&s)){b->ready=0;b->message="Settings service unavailable; edits kept.";return;}
-    int drafts=0;for(int f=1;f<=4;f++)drafts|=preference_changed(b,f);
+    int drafts=0;for(int f=1;f<=5;f++)drafts|=preference_changed(b,f);
     if(drafts&&s.revision!=b->revision)b->message="Changed elsewhere. Reset to reload.";
-    for(int f=1;f<=4;f++)if(!preference_changed(b,f))b->choice[f]=saved(&s,f);
+    for(int f=1;f<=5;f++)if(!preference_changed(b,f))b->choice[f]=saved(&s,f);
     b->preferences=s;b->ready=1;
     if(!drafts){b->revision=s.revision;if(b->message&&same(b->message,"Settings service unavailable; edits kept."))b->message=0;}
 }
@@ -43,7 +45,7 @@ int binding_changed(const struct meridian_bindings *b,int kind){
     int f=field(kind);return f&&preference_changed(b,f);
 }
 int binding_any_changed(const struct meridian_bindings *b){
-    for(int k=BIND_COLORS;k<=BIND_ANIMATIONS;k++)if(binding_changed(b,k))return 1;
+    for(int k=BIND_COLORS;k<=BIND_TASKBAR;k++)if(binding_changed(b,k))return 1;
     return 0;
 }
 int binding_has_defaults(int kind){return kind==BIND_COLORS;}
@@ -51,11 +53,11 @@ int binding_at_defaults(const struct meridian_bindings *b,int kind){return kind!
 int binding_choice_count(const struct meridian_bindings *b,int kind){
     int f=field(kind);if(!f||!b->ready)return 0;
     if(f>=3&&b->preferences.version!=2)return 0;
-    return (int)(f==1?b->preferences.keyboard_count:f==2?b->preferences.zone_count:f==3?b->preferences.session_count:b->preferences.animation_count);
+    return (int)(f==1?b->preferences.keyboard_count:f==2?b->preferences.zone_count:f==3?b->preferences.session_count:f==4?b->preferences.animation_count:b->preferences.taskbar_count);
 }
 const char *binding_choice_name(const struct meridian_bindings *b,int kind,unsigned int i){
     int f=field(kind);if(i>=(unsigned int)binding_choice_count(b,kind))return "";
-    return f==1?b->preferences.keyboards[i]:f==2?b->preferences.zones[i]:f==3?b->preferences.sessions[i]:b->preferences.animations[i];
+    return f==1?b->preferences.keyboards[i]:f==2?b->preferences.zones[i]:f==3?b->preferences.sessions[i]:f==4?b->preferences.animations[i]:b->preferences.taskbars[i];
 }
 unsigned int binding_choice(const struct meridian_bindings *b,int kind){int f=field(kind);return f?b->choice[f]:0;}
 int binding_writable(const struct meridian_bindings *b,int kind){

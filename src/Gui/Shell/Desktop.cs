@@ -47,6 +47,9 @@ internal sealed class Desktop
 
     private const long MotionTestMicros = 150_000, OpenMicros = 150_000, CloseMicros = 120_000, MinimizeMicros = 180_000, ResizeMicros = 160_000;
     private const int PillAlpha = 60;
+    private const long BarShowMicros = 160_000, BarHideMicros = 120_000, BarLingerMicros = 400_000;
+    private TaskbarMode _barMode;
+    private long _barPointerUntil;
     private const ulong MotionReservePages = 4096;
     private readonly MotionPlayer _motion = new();
     private readonly PixelLayer _motionLayer = new();
@@ -71,7 +74,7 @@ internal sealed class Desktop
         _frame = new Surface(w, h);
         Wallpaper.Render(_wallpaper);
 
-        Windows = new WindowManager(new Rect(0, 0, w, h - Taskbar.Height - 2 * Taskbar.Margin));
+        Windows = new WindowManager(new Rect(0, 0, w, h - Theme.TaskbarHeight - 2 * Theme.TaskbarMargin), new Rect(0, 0, w, h));
         _taskbar = new Taskbar(w, h, Windows);
         _launcher = new LauncherMenu(_taskbar.LauncherButton, OpenApp);
 
@@ -99,6 +102,7 @@ internal sealed class Desktop
                 Rect b = top.Bounds, pill = _taskbar.PillOf(top) ?? new Rect(0, 0, 0, 0);
                 c.WriteLine("top window: " + b.X + " " + b.Y + " " + b.W + " " + b.H + " pill: " + pill.X + " " + pill.Y + " " + pill.W + " " + pill.H);
             }
+            c.WriteLine("taskbar: " + _barMode + " shown=" + (_taskbar.Shown ? 1 : 0) + " overflow=" + _taskbar.OverflowCount + " " + _taskbar.OverflowButton.X + " " + _taskbar.OverflowButton.Y);
             c.WriteLine("last motion: " + _motion.Frames + " frames in " + _motion.ElapsedMicros + " us, worst " + _motion.WorstFrameMicros + " us, ended " + _motion.LastEnd);
             return 0;
         }));
@@ -186,6 +190,7 @@ internal sealed class Desktop
 
         if (_benchRequested) { _benchRequested = false; RunBench(); _sceneDirty = true; }
         if (_motionTestRequested) { _motionTestRequested = false; StartMotionTest(); }
+        UpdateTaskbar();
         StartTransition();
         if (_motion.Active || _motionName is not null)
         {
@@ -216,6 +221,47 @@ internal sealed class Desktop
 
         _sceneDirty = false;
         _cursorDirty = false;
+    }
+
+    /// <summary>Applies the taskbar choice and shows or hides the bar for what is on screen now.</summary>
+    private void UpdateTaskbar()
+    {
+        int w = _scene.Width, h = _scene.Height;
+        var mode = (TaskbarMode)Zenith.Core.Configuration.SystemConfiguration.Settings.Current.Taskbar;
+        if (mode != _barMode)
+        {
+            _barMode = mode;
+            Windows.SetWorkArea(new Rect(0, 0, w, TaskbarPolicy.Reserves(mode) ? h - Theme.TaskbarHeight - 2 * Theme.TaskbarMargin : h));
+            _sceneDirty = true;
+        }
+
+        long now = Micros(FrameStats.Now);
+        bool near = _input.Y >= h - 1 || (_taskbar.Shown && _input.Y >= _taskbar.Bounds.Y - Theme.TaskbarMargin);
+        if (near && !Windows.IsDragging) { _barPointerUntil = now + BarLingerMicros; }
+        Window? top = Windows.Top;
+        bool shown = TaskbarPolicy.Shown(mode, top?.IsFullscreen == true, top?.IsMaximized == true, now < _barPointerUntil, _launcher.IsOpen || _taskbar.OverflowOpen);
+        if (shown == _taskbar.Shown) { return; }
+
+        _sceneDirty = true;
+        int percent = Zenith.Core.Configuration.SystemConfiguration.Settings.AnimationPercent;
+        if (percent == 0 || Windows.HasTransition || _motion.Active || !MotionMemory())
+        {
+            _taskbar.Shown = shown;
+            return;
+        }
+
+        // The base is the scene without the bar; the layer is the bar alone, without its shadow.
+        Rect bar = _taskbar.Bounds, away = bar.Offset(0, Theme.TaskbarHeight + Theme.TaskbarMargin);
+        _taskbar.Shown = true;
+        ComposeScene();
+        _motionLayer.Capture(_scene.Pixels, _scene.Width, _scene.Height, bar, Theme.WindowRadius);
+        _taskbar.Shown = false;
+        ComposeScene();
+        CopyBase();
+        _taskbar.Shown = shown;
+        long duration = (shown ? BarShowMicros : BarHideMicros) * percent / 100;
+        _motion.Begin(_motionBase!, _motionLayer, shown ? away : bar, shown ? bar : away, 255, 255, now, duration);
+        _motionName = shown ? "TaskbarShown" : "TaskbarHidden";
     }
 
     /// <summary>Draws and presents one animation frame; false once the animation is over.</summary>
@@ -378,6 +424,8 @@ internal sealed class Desktop
                 if (key.Key == ConsoleKeyEx.T) { OpenApp("Terminal", null); return; }
                 if (key.Key == ConsoleKeyEx.L) { Zenith.Core.Sessions.SessionRuntime.RequestLogout(); return; }
             }
+            if (key.Key == ConsoleKeyEx.F11 && Windows.Focused is Window focused) { Windows.ToggleFullscreen(focused); return; }
+            if (key.Key == ConsoleKeyEx.Escape && _taskbar.OverflowOpen) { _taskbar.OverflowOpen = false; return; }
         }
         bool menuWasOpen = _launcher.IsOpen;
         if (menuWasOpen)
@@ -439,7 +487,8 @@ internal sealed class Desktop
 
         long shell = FrameStats.Now;
         _taskbar.LauncherOpen = _launcher.IsOpen;
-        _taskbar.Draw(_scene, _input.X, _input.Y);
+        if (_taskbar.Shown) { _taskbar.Draw(_scene, _input.X, _input.Y); }
+        else { _taskbar.Layout(); }
         if (Zenith.Core.Sessions.SessionRuntime.Message is string message)
         {
             _scene.FillRoundRect(new Rect(12, 12, Math.Min(WidthForMessage(), _scene.Width - 24), 40), 6, Theme.Panel);
@@ -449,6 +498,7 @@ internal sealed class Desktop
         {
             _launcher.Draw(_scene, _input.X, _input.Y);
         }
+        if (_taskbar.Shown) { _taskbar.DrawOverflowList(_scene, _input.X, _input.Y); }
 
         FrameStats.ShellTicks += FrameStats.Now - shell;
         var policy = MaterialResources.Policy;

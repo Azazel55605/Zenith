@@ -63,7 +63,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
         private readonly MaterialCache? _composition;
         private readonly ProcessMaterialRegion[] _effective = new ProcessMaterialRegion[ProcessMaterialRegion.MaximumRegions];
         private int _materialCount;
-        public ClientWindow(ProcessSurface surface, Credentials identity) : base("Native · " + surface.Title, surface.Width, surface.Height + TitleBarHeight)
+        public ClientWindow(ProcessSurface surface, Credentials identity) : base(surface.Title, surface.Width, surface.Height + TitleBarHeight)
         { _surface = surface; Identity = identity; _frameWidth = surface.Width; _frameHeight = surface.Height; _frame = new int[surface.Width * surface.Height]; if (surface.Format == 2) { _composition = new(1920000); } }
         public override bool UnifiedChrome => _surface.Resizable;
         public override bool CanResize => _surface.Resizable;

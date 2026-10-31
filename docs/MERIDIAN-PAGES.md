@@ -82,11 +82,12 @@ to Application Style as carried forward from the accepted design direction.
 
 ## 6. Apps & Windows
 
-Window Management groups Window Behavior, Task Switcher and Virtual Desktops.
+Window Management groups Taskbar, Window Behavior, Task Switcher and Virtual Desktops.
 
 | ID / page | Requested sections and controls | Baseline; activation / owner |
 |---|---|---|
 | `windows.notifications` — Notifications | Do Not Disturb, visibility conditions and popup behavior. Settings summaries remain truthful before the notification service exists. | —; M7. U; notification service/compositor presentation. |
+| `windows.taskbar` — Taskbar | Visibility: always, hide when maximized, auto-hide; later position and pinned applications. | H; M7. U; compositor presentation. |
 | `windows.behavior` — Window Behavior | Focus: click-to-focus in DE, focus delay, raising; titlebar double-click/maximize-button actions; movement screen-edge and window snap zones. Expose per-session capabilities for floating DE versus later tiling WM. | H for fixed DE behavior; M7. U; window manager/compositor. |
 | `windows.switcher` — Task Switcher | Several visualizations; sort order; one-window-per-application option; filters for virtual desktops and monitors when those concepts exist. Use owned app/window identity. | —; M7, monitor-specific filters after display support. U; session window/task service. |
 | `windows.desktops` — Virtual Desktops | Create/manage virtual desktops and their order/names; coordinate switching with animations/task filtering. | —; M7. U; compositor/workspace service. |
@@ -124,8 +125,8 @@ Window Management groups Window Behavior, Task Switcher and Virtual Desktops.
 
 ## Coverage check
 
-Counts by category: **1 + 10 + 3 + 1 + 13 + 4 + 2 + 1 + 3 + 5 = 43**.
-All 10 categories and 43 destinations are required in M1. Later-phase pages retain
+Counts by category: **1 + 10 + 3 + 1 + 13 + 5 + 2 + 1 + 3 + 5 = 44**.
+All 10 categories and 44 destinations are required in M1. Later-phase pages retain
 their WIP banner rather than being removed from navigation. Option groups such as
 keyboard Focus/Titlebar/Movement, font All/Personal/System, and region formats are
 part of page coverage, even though they are not counted as additional destinations.

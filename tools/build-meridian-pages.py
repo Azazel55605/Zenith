@@ -14,9 +14,9 @@ def rows():
         if m:
             identity,title,description,foundation=(x.strip() for x in m.groups())
             result.append((identity,title,category,description,foundation))
-    if len(result)!=43 or len({r[0] for r in result})!=43 or len({r[2] for r in result})!=10:
-        raise ValueError('Meridian inventory must contain 43 unique pages and 10 categories')
-    if result[16][0]!='style.colors' or result[38][0]!='system.about':raise ValueError('update page constants after inventory reordering')
+    if len(result)!=44 or len({r[0] for r in result})!=44 or len({r[2] for r in result})!=10:
+        raise ValueError('Meridian inventory must contain 44 unique pages and 10 categories')
+    if result[16][0]!='style.colors' or result[39][0]!='system.about':raise ValueError('update page constants after inventory reordering')
     for row in result:
         if any(len(x.encode())>4096 for x in row): raise ValueError('oversized page text')
     return result
@@ -28,7 +28,7 @@ GROUPS=(
     ('display.configuration','display.night-light'),
     ('style.colors','style.application','style.decorations','style.icons','style.cursors','style.sounds','style.splash','style.login','style.boot-splash'),
     ('style.fonts','style.font-management'),
-    ('windows.behavior','windows.switcher','windows.desktops'),
+    ('windows.taskbar','windows.behavior','windows.switcher','windows.desktops'),
 )
 def build(path):
     # ASCII atlas currently replaces unsupported scalars; generated content uses

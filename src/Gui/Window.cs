@@ -32,10 +32,14 @@ internal abstract class Window
 
     public bool IsMinimized { get; internal set; }
     public bool IsMaximized { get; internal set; }
+    /// <summary>Covers the whole screen without a title bar.</summary>
+    public bool IsFullscreen { get; internal set; }
     public bool IsClosed { get; private set; }
 
     /// <summary>Where a maximized window goes back to.</summary>
     internal Rect RestoreBounds { get; set; }
+    /// <summary>Where a fullscreen window goes back to.</summary>
+    internal Rect WindowedBounds { get; set; }
 
     /// <summary>Whether the user may resize and maximize the window. Fixed-layout windows say no.</summary>
     public virtual bool CanResize => true;
@@ -55,11 +59,15 @@ internal abstract class Window
     /// <summary>The smallest size the user can resize the window to.</summary>
     public virtual (int Width, int Height) MinimumSize => (300, 180);
 
-    public Rect TitleBar => new(Bounds.X, Bounds.Y, Bounds.W, TitleBarHeight);
-    public Rect Content => new(Bounds.X, Bounds.Y + TitleBarHeight, Bounds.W, Bounds.H - TitleBarHeight);
-    public Rect CloseButton => new(Bounds.Right - ButtonSize - 6, Bounds.Y + (TitleBarHeight - ButtonSize) / 2, ButtonSize, ButtonSize);
+    private int ChromeHeight => IsFullscreen ? 0 : TitleBarHeight;
+    public Rect TitleBar => new(Bounds.X, Bounds.Y, Bounds.W, ChromeHeight);
+    public Rect Content => new(Bounds.X, Bounds.Y + ChromeHeight, Bounds.W, Bounds.H - ChromeHeight);
+    public Rect CloseButton => IsFullscreen ? new Rect(0, 0, 0, 0) : new(Bounds.Right - ButtonSize - 6, Bounds.Y + (TitleBarHeight - ButtonSize) / 2, ButtonSize, ButtonSize);
     public Rect MaximizeButton => CanResize ? CloseButton.Offset(-ButtonSize - 4, 0) : new Rect(0, 0, 0, 0);
     public Rect MinimizeButton => CloseButton.Offset(-(ButtonSize + 4) * (CanResize ? 2 : 1), 0);
+
+    /// <summary>The package icon on this window's taskbar pill.</summary>
+    public string IconName => Zenith.Gui.Shell.AppRegistry.IconFor(Title);
 
     public virtual bool HasUnsavedChanges => false;
     public virtual bool CanClose => true;

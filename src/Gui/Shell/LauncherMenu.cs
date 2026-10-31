@@ -77,7 +77,7 @@ internal sealed class LauncherMenu
             // Monogram tile.
             Rect icon = new(item.X + 8, item.Y + 7, 32, 32);
             surface.FillRoundRect(icon, 8, Theme.AccentSoft);
-            if (!Icons.Draw(surface, IconName(app.Name), icon.X + (icon.W - 24) / 2, icon.Y + (icon.H - 24) / 2, 24, Theme.Accent))
+            if (!Icons.Draw(surface, AppRegistry.IconFor(app.Name), icon.X + (icon.W - 24) / 2, icon.Y + (icon.H - 24) / 2, 24, Theme.Accent))
             { surface.DrawTextCentered(app.Name.Substring(0, 1), Fonts.SemiBold, 15, Theme.Accent, icon, true); }
 
             int textX = icon.Right + 12;
@@ -104,12 +104,6 @@ internal sealed class LauncherMenu
         if (Zenith.Core.Sessions.SessionRuntime.Message is string message)
         { surface.DrawText(message, Fonts.Regular, 12, Theme.Danger, Bounds.X + 12, Math.Max(0, Bounds.Y - 20)); }
     }
-
-    private static string IconName(string app) => app switch
-    {
-        "Welcome" => "hand", "Terminal" => "terminal", "Files" => "folder", "Editor" => "file-text",
-        "Sunrise" => "sunrise", "System" => "monitor", "Meridian" => "sliders-horizontal", _ => "package"
-    };
 
     private void AddPowerItem(Surface surface, Rect item, string label, Action run, int mouseX, int mouseY)
     {

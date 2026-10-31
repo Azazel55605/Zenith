@@ -10,7 +10,7 @@ internal static class ConfigurationCommands
 {
     public static void Register(Action<Command> add)
     {
-        add(new Command("settings", "settings [show | set keyboard|timezone|session|animations|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]", "Shared system settings", Settings));
+        add(new Command("settings", "settings [show | set keyboard|timezone|session|animations|taskbar|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]", "Shared system settings", Settings));
         add(new Command("session", "session [status | list | set-default MODE | switch MODE]", "Select a session or return to login", Session));
     }
     private static int Settings(CommandContext c)
@@ -40,6 +40,7 @@ internal static class ConfigurationCommands
             c.WriteLine("timezone=" + settings.Current.TimeZone + " (active " + SystemClock.Zone.Name + ")");
             c.WriteLine("session=" + SessionModes.Name(settings.Current.DefaultSession) + " (next boot)");
             c.WriteLine("animations=" + SettingsService.AnimationNames[settings.Current.Animation]);
+            c.WriteLine("taskbar=" + SettingsService.TaskbarNames[settings.Current.Taskbar]);
             var appearance = SystemConfiguration.Appearance.Snapshot();
             c.WriteLine("appearance=" + AppearanceService.ModeName(appearance.Saved.Mode) + "/" + AppearanceService.AccentName(appearance.Saved.Accent)
                 + " (active " + AppearanceService.ModeName(appearance.Active.Mode) + "/" + AppearanceService.AccentName(appearance.Active.Accent)
@@ -83,6 +84,7 @@ internal static class ConfigurationCommands
             case "timezone": settings.SetTimeZone(c.Args[2]); break;
             case "session": return SaveSession(c, c.Args[2]);
             case "animations": settings.SetAnimation(c.Args[2]); break;
+            case "taskbar": settings.SetTaskbar(c.Args[2]); break;
             default: return c.Fail("unknown setting");
         }
         c.WriteLine("saved " + c.Args[1] + (settings.Persistent ? "" : " (live: lost at reboot)"));

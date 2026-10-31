@@ -35,11 +35,11 @@ internal sealed class WindowManager
     {
         private readonly Window _window;
         private readonly Rect _bounds;
-        private readonly bool _focused, _maximized;
+        private readonly bool _focused, _maximized, _fullscreen;
         private readonly string _title;
         private readonly int _button;
-        public LowerWindow(Window w, int button) { _window = w; _bounds = w.Bounds; _focused = w.IsFocused; _maximized = w.IsMaximized; _title = w.Title; _button = button; }
-        public bool Shows(Window w, int button) => _window == w && SameRect(_bounds, w.Bounds) && _focused == w.IsFocused && _maximized == w.IsMaximized && _title == w.Title && _button == button;
+        public LowerWindow(Window w, int button) { _window = w; _bounds = w.Bounds; _focused = w.IsFocused; _maximized = w.IsMaximized; _fullscreen = w.IsFullscreen; _title = w.Title; _button = button; }
+        public bool Shows(Window w, int button) => _window == w && SameRect(_bounds, w.Bounds) && _focused == w.IsFocused && _maximized == w.IsMaximized && _fullscreen == w.IsFullscreen && _title == w.Title && _button == button;
     }
 
     private static bool SameRect(Rect a, Rect b) => a.X == b.X && a.Y == b.Y && a.W == b.W && a.H == b.H;
@@ -49,7 +49,8 @@ internal sealed class WindowManager
     // What the cached scene below the top window shows; any difference means drawing it again.
     private readonly List<LowerWindow> _lower = new();
     private bool _lowerDirty = true;
-    private readonly Rect _workArea;
+    private Rect _workArea;
+    private readonly Rect _screen;
     private int _cascade;
     private WindowTransition? _transition;
 
@@ -67,10 +68,27 @@ internal sealed class WindowManager
     private Window? _lastTitleClick;
     private long _lastTitleClickTime;
 
-    public WindowManager(Rect workArea)
+    public WindowManager(Rect workArea, Rect screen)
     {
         _workArea = workArea;
+        _screen = screen;
     }
+
+    /// <summary>Changes the space maximized windows fill and moves those already maximized.</summary>
+    public void SetWorkArea(Rect workArea)
+    {
+        _workArea = workArea;
+        foreach (Window w in _windows)
+        {
+            if (!w.IsMaximized) { continue; }
+            var maximum = w.MaximumSize;
+            Rect maximized = new(workArea.X, workArea.Y, Math.Min(workArea.W, maximum.Width), Math.Min(workArea.H, maximum.Height));
+            if (w.IsFullscreen) { w.WindowedBounds = maximized; }
+            else { w.SetBounds(maximized); }
+        }
+    }
+
+    public bool HasTransition => _transition is not null;
 
     /// <summary>Open windows, bottom to top.</summary>
     public IReadOnlyList<Window> Windows => _windows;
@@ -145,6 +163,30 @@ internal sealed class WindowManager
             window.IsMaximized = true;
             var maximum = window.MaximumSize;
             window.SetBounds(new(_workArea.X, _workArea.Y, Math.Min(_workArea.W, maximum.Width), Math.Min(_workArea.H, maximum.Height)));
+        }
+
+        if (window == Top) { _transition = new(WindowChange.Resized, window, from); }
+    }
+
+    /// <summary>Toggles the whole screen for a resizable window; its restore state is kept for coming back.</summary>
+    public void ToggleFullscreen(Window window)
+    {
+        if (!window.CanResize) { return; }
+        Rect from = window.Bounds;
+        if (window.IsFullscreen)
+        {
+            window.IsFullscreen = false;
+            window.SetBounds(window.WindowedBounds);
+        }
+        else
+        {
+            var minimum = window.MinimumSize;
+            if (_screen.W < minimum.Width || _screen.H < minimum.Height - Window.TitleBarHeight) { return; }
+            window.WindowedBounds = window.Bounds;
+            window.IsFullscreen = true;
+            var maximum = window.MaximumSize;
+            int height = maximum.Height == int.MaxValue ? _screen.H : Math.Min(_screen.H, maximum.Height - Window.TitleBarHeight);
+            window.SetBounds(new(_screen.X, _screen.Y, Math.Min(_screen.W, maximum.Width), height));
         }
 
         if (window == Top) { _transition = new(WindowChange.Resized, window, from); }
@@ -362,7 +404,7 @@ internal sealed class WindowManager
     /// <summary>Which edges a press at (x, y) would resize; none inside the title buttons or for fixed windows.</summary>
     private static Edges EdgesAt(Window w, int x, int y)
     {
-        if (!w.CanResize || w.IsMaximized)
+        if (!w.CanResize || w.IsMaximized || w.IsFullscreen)
         {
             return Edges.None;
         }
@@ -454,6 +496,7 @@ internal sealed class WindowManager
 
     private static void DrawWindow(Surface surface, Window w, int mouseX, int mouseY)
     {
+        if (w.IsFullscreen) { DrawFullscreen(surface, w); return; }
         Rect b = w.Bounds;
         int radius = w.IsMaximized ? 0 : Theme.WindowRadius;
         Rect chrome = new(b.X, b.Y, b.W, Window.TitleBarHeight + Theme.WindowRadius);
@@ -504,6 +547,19 @@ internal sealed class WindowManager
             surface.CompositeWindowCorners(b, radius);
         }
         FrameStats.ChromeTicks += FrameStats.Now - phase;
+    }
+
+    private static void DrawFullscreen(Surface surface, Window w)
+    {
+        long phase = FrameStats.Now;
+        w.CaptureBackdrop(surface, w.Content);
+        FrameStats.BackdropTicks += FrameStats.Now - phase; phase = FrameStats.Now;
+        surface.FillRect(w.Bounds, Theme.WindowBackground);
+        surface.Clip = w.Content;
+        using var identity = Zenith.Core.Security.CredentialContext.Enter(w.Identity);
+        w.DrawContent(surface, w.Content);
+        surface.ResetClip();
+        FrameStats.ContentTicks += FrameStats.Now - phase;
     }
 
     private enum TitleIcon
@@ -574,7 +630,7 @@ internal sealed class WindowManager
         for (int i = _windows.Count - 1; i >= 0; i--)
         {
             Window w = _windows[i];
-            Rect area = includeResizeMargin && w.CanResize && !w.IsMaximized ? w.Bounds.Inflate(ResizeMargin) : w.Bounds;
+            Rect area = includeResizeMargin && w.CanResize && !w.IsMaximized && !w.IsFullscreen ? w.Bounds.Inflate(ResizeMargin) : w.Bounds;
             if (!w.IsMinimized && area.Contains(x, y))
             {
                 return w;
