@@ -14,6 +14,13 @@ namespace Zenith.Tests;
 public class ProcessLifecycleTests
 {
     [Fact]
+    public void RefusalNamesTheActualCause()
+    {
+        Assert.Contains("update",ProcessTable.Refusal(true));
+        Assert.Contains("Close one",ProcessTable.Refusal(false));
+        Assert.DoesNotContain("contexts",ProcessTable.Refusal(true));
+    }
+    [Fact]
     public void EnvironmentStackHasIndependentTerminatedVectorsAndAlignedUserPointers()
     {
         var env = new Dictionary<string,string> { ["TERM"]="zenith", ["LANG"]="Grüße", ["EMPTY"]="" };

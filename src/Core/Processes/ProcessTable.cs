@@ -30,6 +30,10 @@ internal sealed class ProcessTable
         if (maximum is < 1 or > 64 || history is < 0 or > 256) { throw new ArgumentOutOfRangeException(); }
         _maximum = maximum; _history = history;
     }
+    /// <summary>Why a program could not start, in words for the person who asked for it.</summary>
+    public static string Refusal(bool maintenance) => maintenance
+        ? "A system update is running. Try again when it finishes."
+        : "Too many programs are running. Close one and try again.";
     public int ActiveCount { get { lock (_gate) { return _active; } } }
     public int Start(string name, uint uid, Action stop)
     {

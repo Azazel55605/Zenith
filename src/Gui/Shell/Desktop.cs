@@ -118,7 +118,7 @@ internal sealed class Desktop
                     if (argument is not null) { args.Add(argument); }
                     string user = Accounts.Service?.Name(CredentialContext.Current.Uid) ?? "user";
                     string cwd = CredentialContext.Current.IsRoot ? "/root" : "/home/" + user;
-                    if (!_apps.Launch(native, args.ToArray(), cwd)) { Windows.Open(new AppLaunchNotice("Too many applications are starting. Try again.")); }
+                    if (!_apps.Launch(native, args.ToArray(), cwd)) { Windows.Open(new AppLaunchNotice("Too many applications are open. Close one and try again.")); }
                 }
                 else { Windows.Open(app.Create(argument)); }
                 return true;

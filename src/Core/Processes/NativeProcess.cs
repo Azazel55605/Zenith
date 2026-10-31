@@ -469,13 +469,14 @@ internal sealed unsafe class NativeProcess
         if (setupError is not null) { return (1, setupError, 0); }
         int pid = -1;
         var identity = Zenith.Core.Security.CredentialContext.Current;
+        bool maintenance;
         lock (Installer.MaintenanceGate)
         {
-            if (!Installer.IsRunning && !Zenith.Core.Shell.Commands.PackageCommands.IsRunning
-                && !Zenith.Core.Boot.NativeKernelUpdates.IsRunning)
-            { pid = Processes.Start(name, identity.Uid, requestStop ?? (() => { })); }
+            maintenance = Installer.IsRunning || Zenith.Core.Shell.Commands.PackageCommands.IsRunning
+                || Zenith.Core.Boot.NativeKernelUpdates.IsRunning;
+            if (!maintenance) { pid = Processes.Start(name, identity.Uid, requestStop ?? (() => { })); }
         }
-        if (pid < 0) { return (1, "native process/system maintenance busy (maximum 8 contexts)", 0); }
+        if (pid < 0) { return (1, ProcessTable.Refusal(maintenance), 0); }
         bool released = false;
         NativeProcess? process = null; ProcessFiles? files = null; ProcessNetwork? network = null; ProcessGraphics? graphics = null;
         try
