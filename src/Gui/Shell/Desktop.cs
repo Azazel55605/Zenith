@@ -48,6 +48,7 @@ internal sealed class Desktop
     private const long MotionTestMicros = 150_000, OpenMicros = 150_000, CloseMicros = 120_000, MinimizeMicros = 180_000, ResizeMicros = 160_000;
     private const int PillAlpha = 60;
     private const long BarShowMicros = 160_000, BarHideMicros = 120_000, BarLingerMicros = 400_000;
+    private const int BarRevealRows = 3;
     private TaskbarMode _barMode;
     private long _barPointerUntil;
     private const ulong MotionReservePages = 4096;
@@ -236,7 +237,7 @@ internal sealed class Desktop
         }
 
         long now = Micros(FrameStats.Now);
-        bool near = _input.Y >= h - 1 || (_taskbar.Shown && _input.Y >= _taskbar.Bounds.Y - Theme.TaskbarMargin);
+        bool near = _input.Y >= h - BarRevealRows || (_taskbar.Shown && _input.Y >= _taskbar.Bounds.Y - Theme.TaskbarMargin);
         if (near && !Windows.IsDragging) { _barPointerUntil = now + BarLingerMicros; }
         Window? top = Windows.Top;
         bool shown = TaskbarPolicy.Shown(mode, top?.IsFullscreen == true, top?.IsMaximized == true, now < _barPointerUntil, _launcher.IsOpen || _taskbar.OverflowOpen);

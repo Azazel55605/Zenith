@@ -209,7 +209,8 @@ internal sealed class Taskbar
 
         if (_overflow.Count > 0)
         {
-            _overflowButton = new Rect(x, LauncherButton.Y, TaskbarLayout.OverflowWidth, LauncherButton.H);
+            // Beside the clock: pills move when a title changes, and this button must not.
+            _overflowButton = new Rect(left + available - TaskbarLayout.OverflowWidth, LauncherButton.Y, TaskbarLayout.OverflowWidth, LauncherButton.H);
         }
     }
 

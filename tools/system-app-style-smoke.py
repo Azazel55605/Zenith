@@ -16,7 +16,8 @@ def main():
     smoke=load('app_style_smoke',ROOT/'tools/smoke-test.py')
     load('app_style_accel',ROOT/'deploy/distributor/validation-accelerator.py').install(smoke)
     profile=load('app_style_input',ROOT/'deploy/distributor/validation-input.py');profile.install_monitor(recovery_console)
-    m,_=smoke.boot(ROOT/'output-x64/Zenith.iso',180,'system app styling')
+    # PS/2, as on real machines and VMware: the Cosmos virtio keyboard map stops at F10.
+    m,_=smoke.boot(ROOT/'output-x64/Zenith.iso',180,'system app styling',keyboard='ps2')
     if not m:raise RuntimeError('desktop boot')
     observer=profile.RenderedMouse(m.monitor,recovery_console.monitor_command)
     def command(text,marker):
@@ -38,7 +39,7 @@ def main():
         # QEMU paces typed keys but not mouse commands: let the keys arrive first.
         time.sleep(1)
         (cx,cy),_=observer.position();recovery_console.monitor_command(m.monitor,f'mouse_move {x-cx} {y-cy}')
-        recovery_console.monitor_command(m.monitor,'mouse_button 1');recovery_console.monitor_command(m.monitor,'mouse_button 0')
+        recovery_console.monitor_command(m.monitor,'mouse_button 1');time.sleep(.15);recovery_console.monitor_command(m.monitor,'mouse_button 0')
     try:
         for mode,accent,surface in [('dark','8baaff','202125'),('light','3157b7','fafafb')]:
             command('settings set appearance '+mode+' blue; logger STYLE_'+mode,'user: STYLE_'+mode)
@@ -106,13 +107,14 @@ def main():
             return words[0],words[1]=='shown=1',int(words[2].split('=')[1]),[int(words[3]),int(words[4])],[int(v) for v in size]
         def move(x,y):
             (cx,cy),_=observer.position();recovery_console.monitor_command(m.monitor,f'mouse_move {x-cx} {y-cy}');time.sleep(1)
+        def shot(name):observer.capture(args.keep/(name+'.ppm'))
         screen=bar()[4]
         def setting(value):
             command('settings set taskbar '+value+'; logger BAR_'+value,'user: BAR_'+value);time.sleep(1)
         # F11 covers the screen and the bar ducks; the bottom row brings it back over the window.
         move(screen[0]//2,screen[1]//2);windowed=top()[0]
-        played(lambda:m.type('{f11}'),'Resized');assert top()[0]==[0,0,*screen],'fullscreen bounds';time.sleep(1);assert not bar()[1],'bar ducked'
-        played(lambda:move(screen[0]//2,screen[1]-1),'TaskbarShown');assert bar()[1],'revealed'
+        played(lambda:m.type('{f11}'),'Resized');assert top()[0]==[0,0,*screen],'fullscreen bounds';time.sleep(1);assert not bar()[1],'bar ducked';shot('fullscreen')
+        played(lambda:move(screen[0]//2,screen[1]-3),'TaskbarShown');assert bar()[1],'revealed';shot('revealed')
         played(lambda:move(screen[0]//2,screen[1]//2),'TaskbarHidden');assert not bar()[1],'hidden again'
         played(lambda:m.type('{f11}'),'Resized');assert top()[0]==windowed,'left fullscreen';time.sleep(1);assert bar()[1],'bar back'
         print('PASS fullscreen ducks the taskbar and the bottom edge reveals it',flush=True)
@@ -128,9 +130,9 @@ def main():
         print('PASS taskbar visibility modes',flush=True)
         # Windows that do not fit stay reachable, and the focused one keeps a pill.
         for _ in range(10):m.type('{ctrl-alt-t}');time.sleep(1.5)
-        state=bar();assert state[2]>0,state
+        state=bar();assert state[2]>0,state;shot('overflow')
         assert top()[1][2]>0,'focused window has a pill'
-        focused=top()[0];click(state[3][0]+20,state[3][1]+18);time.sleep(1)
+        focused=top()[0];click(state[3][0]+20,state[3][1]+18);time.sleep(1);shot('overflow-list')
         click(state[3][0]+20,screen[1]-64-20);time.sleep(1)
         assert top()[0]!=focused,'overflow list focuses its window'
         print('PASS overflow list reaches every window',flush=True)

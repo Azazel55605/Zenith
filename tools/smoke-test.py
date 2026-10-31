@@ -326,7 +326,7 @@ class Machine:
 BOOT_ATTEMPTS = 3
 
 
-def boot(iso: Path, timeout: float, label: str, initial_disk: Path | None = None, memory: int = 512):
+def boot(iso: Path, timeout: float, label: str, initial_disk: Path | None = None, memory: int = 512, keyboard: str = "virtio"):
     """
     Boots a fresh VM until the desktop is up, retrying when the kernel faults during early
     init. Cosmos 3.0.89 occasionally takes a general-protection fault while setting up the
@@ -335,7 +335,7 @@ def boot(iso: Path, timeout: float, label: str, initial_disk: Path | None = None
     """
     for attempt in range(1, BOOT_ATTEMPTS + 1):
         workdir = Path(tempfile.mkdtemp(prefix="zenith-smoke-"))
-        machine = Machine(iso, workdir, initial_disk, memory)
+        machine = Machine(iso, workdir, initial_disk, memory, keyboard)
         start = time.time()
         while time.time() - start < timeout:
             log = machine.log()

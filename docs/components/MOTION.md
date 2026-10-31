@@ -122,8 +122,8 @@ Each pill has a 16 px icon and its title, cut with "..." inside the pill. Active
 tint with an accent bar, hover is the neutral hover, and minimized is muted, so the three no
 longer look alike. Client titles lose the "Native · " prefix. The clock is centered.
 
-**Too many windows.** Pills shrink evenly to 120 px, then the rest move to a `+N` button that
-lists them. The focused window always keeps a pill. Every window stays reachable.
+**Too many windows.** Pills shrink evenly to 120 px, then the rest move to a `+N` button beside
+the clock that lists them. The focused window always keeps a pill. Every window stays reachable.
 
 **Hiding.** `taskbar` is a system-wide choice in `/etc/zenith/taskbar.conf`, set on the
 `windows.taskbar` page or with `settings set taskbar`:
@@ -135,7 +135,7 @@ lists them. The focused window always keeps a pill. Every window stays reachable
 | `auto` | Only on demand | Whole screen |
 
 In every mode the bar ducks for a fullscreen top window, returns when the pointer reaches the
-bottom screen row, and stays 400 ms after the pointer leaves. An open launcher or `+N` list
+bottom three screen rows, and stays 400 ms after the pointer leaves. An open launcher or `+N` list
 keeps it up, and dragging a window to the bottom edge does not raise it.
 
 **Fullscreen.** F11 toggles the focused resizable window to the whole screen without a title

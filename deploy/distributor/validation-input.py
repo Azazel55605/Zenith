@@ -146,8 +146,9 @@ def cursor_position(ppm):
         i = offset; offset += 1
         if i % 3: continue
         x = (i // 3) % width - 1; y = (i // 3) // width - 2
-        if x < 0 or y < 0 or x + 12 > width or y + 19 > height: continue
-        if all(pixels[((y+dy)*width+x+dx)*3:((y+dy)*width+x+dx)*3+3] == color for dx,dy,color in pattern):
+        # The bottom edge may cut the arrow off; the rows on screen must still match.
+        if x < 0 or y < 0 or x + 12 > width: continue
+        if all(pixels[((y+dy)*width+x+dx)*3:((y+dy)*width+x+dx)*3+3] == color for dx,dy,color in pattern if y+dy < height):
             found.append((x, y))
     if len(found) != 1: raise RuntimeError('expected one visible graphical cursor, found '+str(len(found)))
     return found[0], (width, height)
