@@ -14,6 +14,9 @@ internal static class PowerControl
             : Installer.IsRunning || Zenith.Core.Boot.NativeKernelUpdates.IsRunning || Zenith.Core.Shell.Commands.PackageCommands.IsRunning
                 ? "wait for installation or update to finish" : null;
 
+    /// <summary>A last look on screen, given what is happening. Bounded, and only ever after the disks are safe.</summary>
+    public static Action<string>? Farewell { get; set; }
+
     public static void Reboot() => Shutdown(Power.Reboot, "rebooting", false);
     public static void PowerOff() => Shutdown(FirmwarePowerOff, "powering off", true);
 
@@ -37,6 +40,8 @@ internal static class PowerControl
             if (powerOff) { Log.Write("power", Zenith.Core.Boot.NativeAcpiPower.Describe()); }
 #endif
             SystemMounts.Shutdown();
+            try { Farewell?.Invoke(powerOff ? "Shutting down" : "Restarting"); }
+            catch (Exception e) { Log.Write("power", "farewell skipped: " + e.Message); }
             power();
         }
         catch

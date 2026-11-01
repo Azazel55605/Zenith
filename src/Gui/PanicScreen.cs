@@ -30,19 +30,7 @@ internal static class PanicScreen
             Log.Write("panic", "  " + frame.Trim());
         }
 
-        try
-        {
-            Draw(title, trace);
-        }
-        catch (Exception)
-        {
-            // Our own drawing failed (fonts not loaded, out of memory): fall back to the Canvas basics.
-            Canvas canvas = Canvas.GetFullScreen();
-            canvas.Clear(Color.FromArgb(unchecked((int)Background)));
-            canvas.DrawString("Zenith stopped: " + title, PCScreenFont.DefaultFont, Color.White, 40, 40);
-            canvas.DrawString("Press R to restart.", PCScreenFont.DefaultFont, Color.White, 40, 90);
-            canvas.Display();
-        }
+        PaintScreen(title, trace);
 
         while (true)
         {
@@ -55,6 +43,27 @@ internal static class PanicScreen
             }
 
             Power.Halt();
+        }
+    }
+
+    /// <summary>Shows the failure and returns, for a caller with its own way to wait.</summary>
+    public static void Paint(Exception exception)
+        => PaintScreen(exception.GetType().Name + ": " + exception.Message, (exception.StackTrace ?? "(no stack trace available)").Split('\n'));
+
+    private static void PaintScreen(string title, string[] trace)
+    {
+        try
+        {
+            Draw(title, trace);
+        }
+        catch (Exception)
+        {
+            // Our own drawing failed (fonts not loaded, out of memory): fall back to the Canvas basics.
+            Canvas canvas = Canvas.GetFullScreen();
+            canvas.Clear(Color.FromArgb(unchecked((int)Background)));
+            canvas.DrawString("Zenith stopped: " + title, PCScreenFont.DefaultFont, Color.White, 40, 40);
+            canvas.DrawString("Press R to restart.", PCScreenFont.DefaultFont, Color.White, 40, 90);
+            canvas.Display();
         }
     }
 

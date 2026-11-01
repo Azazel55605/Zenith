@@ -30,7 +30,12 @@ public class Kernel : Sys.Kernel
             SessionRuntime.DesktopAvailable = () => hasDisplay;
             SessionRuntime.LoginFactory = mode => new LoginSessionHost(mode);
             Zenith.Core.Multiprocessing.CpuWorkers.Initialize();
-            SystemRuntime.Initialize();
+            SessionDisplay.MarkSessionThread();
+            PowerControl.Farewell = SessionDisplay.Farewell;
+            bool bootScreen = hasDisplay && BootScreen.Wanted(CommandLine());
+            if (bootScreen) { BootScreen.Begin(); }
+            SystemRuntime.Initialize(bootScreen ? BootScreen.Phase : null);
+            if (bootScreen) { BootScreen.Phase("Starting session"); BootScreen.Finish(); }
             SessionRuntime.Start(SystemConfiguration.Settings.Current.DefaultSession,
                 mode => mode switch
                 {
@@ -64,7 +69,7 @@ public class Kernel : Sys.Kernel
             }
 
             Zenith.Core.Network.NetworkService.Tick();
-            SessionRuntime.Tick();
+            if (!SessionDisplay.ServeFarewell()) { SessionRuntime.Tick(); }
         }
         catch (Exception e)
         {
@@ -83,6 +88,15 @@ public class Kernel : Sys.Kernel
             try { PanicScreen.Show(exception); }
             catch (Exception drawing) { Log.Write("panic", "graphical reporting failed: " + drawing.Message); }
         }
+        // Before the first session only the boot screen is showing: it must not hide the failure.
+        else if (BootScreen.Shown)
+        {
+            try { PanicScreen.Paint(exception); }
+            catch (Exception drawing) { Log.Write("panic", "graphical reporting failed: " + drawing.Message); }
+        }
         SerialPanic.Show(exception);
     }
+
+    private static unsafe string CommandLine()
+        => System.Runtime.InteropServices.Marshal.PtrToStringUTF8((IntPtr)Cosmos.Kernel.Boot.Limine.Limine.Cmdline) ?? "";
 }

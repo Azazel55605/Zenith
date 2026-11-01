@@ -31,6 +31,7 @@ internal sealed class LoginSessionHost : ISessionHost
     public string? StopBlocker(CommandShell? requester) => _login.Busy ? "Authentication is running." : null;
     public void Stop()
     {
+        SessionDisplay.LiveFrame = null;
         if (_started) { SessionDisplay.KeepFrame(_frame.Pixels); }
         _name.Clear(); _password.Clear(); _surface = null!; _frame = null!; _background = null!;
     }
@@ -39,6 +40,7 @@ internal sealed class LoginSessionHost : ISessionHost
     {
         NativeAppearance.Reload();
         var screen = SessionDisplay.Screen; _surface = new Surface(screen.Width, screen.Height); _frame = new Surface(screen.Width, screen.Height);
+        SessionDisplay.LiveFrame = _frame.Pixels;
         _background = new Surface(screen.Width, screen.Height); Wallpaper.Render(_background);
         string? branding = NativeAppearance.Resource("/usr/share/zenith/session/login.conf");
         if (branding is not null && branding.StartsWith("VERSION=1\n", StringComparison.Ordinal) && branding.Length < 512)

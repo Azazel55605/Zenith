@@ -67,5 +67,73 @@ internal static class SessionDisplay
         Zenith.Core.Log.Write("motion", "SessionFade frames=" + frames + " elapsed=" + elapsed + " worst=" + worst + " ended=" + end);
     }
 
+    // What a session shows now, for the fade when the machine goes down. The session sets and clears it.
+    public static int[]? LiveFrame { get; set; }
+    private const long FarewellMicros = 200_000, FarewellWaitMicros = 300_000, HoldMicros = 3_000_000;
+    private static volatile string? s_farewell;
+    private static volatile bool s_farewellDone;
+    private static long s_holdUntil;
+    [System.ThreadStatic] private static bool t_session;
+
+    /// <summary>Marks the thread that draws sessions; only it may touch the screen.</summary>
+    public static void MarkSessionThread() => t_session = true;
+
+    /// <summary>Called with the disks safe, just before the power changes. A worker asks the session thread and gives up
+    /// after a bound; either way this takes well under a second, and a failure only skips it.</summary>
+    public static void Farewell(string label)
+    {
+        if (t_session) { PlayFarewell(label); return; }
+        s_farewellDone = false;
+        s_farewell = label;
+        long start = Now();
+        while (!s_farewellDone && Now() - start < FarewellWaitMicros + FarewellMicros) { System.Threading.Thread.Sleep(5); }
+    }
+
+    /// <summary>On the session thread, before each session tick. True while the farewell owns the screen: no tick may
+    /// draw over it. The hold ends by itself, so a power call that returned cannot freeze the session.</summary>
+    public static bool ServeFarewell()
+    {
+        if (s_farewell is string label)
+        {
+            s_farewell = null;
+            s_holdUntil = Now() + HoldMicros;
+            try { PlayFarewell(label); }
+            catch (System.Exception e) { Zenith.Core.Log.Write("power", "farewell skipped: " + e.Message); }
+            s_farewellDone = true;
+        }
+        return s_holdUntil != 0 && Now() < s_holdUntil;
+    }
+
+    private static void PlayFarewell(string label)
+    {
+        int percent = System.Math.Min(100, Zenith.Core.Configuration.SystemConfiguration.Settings.AnimationPercent);
+        int[]? from = LiveFrame;
+        if (percent == 0 || from is null) { return; }
+        Canvas screen = Screen;
+        if (from.Length != screen.Width * screen.Height) { return; }
+        if (MemoryInfo.FreePages < (ulong)(from.Length * sizeof(int) * 2 / 4096) + ReservePages) { return; }
+        var target = new Zenith.Gui.Graphics.Surface(screen.Width, screen.Height);
+        BootScreen.Paint(target, label, -1);
+        int[] mix = new int[from.Length];
+        long duration = FarewellMicros * percent / 100, start = Now(), elapsed = 0, worst = 0;
+        int frames = 0, slow = 0;
+        string end = "Finished";
+        while ((elapsed = Now() - start) < duration)
+        {
+            long frameStart = Now();
+            PixelBlend.Mix(from, target.Pixels, mix, MotionCurve.EaseOut(MotionCurve.Linear(elapsed, duration)) * 255 / MotionCurve.One);
+            screen.DrawArray(mix, 0, 0, screen.Width, screen.Height);
+            screen.Display();
+            long took = Now() - frameStart;
+            frames++;
+            worst = System.Math.Max(worst, took);
+            slow = took > SlowFrameMicros ? slow + 1 : 0;
+            if (slow >= 2) { end = "OverBudget"; break; }
+        }
+        screen.DrawArray(target.Pixels, 0, 0, screen.Width, screen.Height);
+        screen.Display();
+        Zenith.Core.Log.Write("motion", "Farewell frames=" + frames + " elapsed=" + elapsed + " worst=" + worst + " ended=" + end);
+    }
+
     private static long Now() => System.Diagnostics.Stopwatch.GetTimestamp() / System.Math.Max(1, System.Diagnostics.Stopwatch.Frequency / 1_000_000);
 }

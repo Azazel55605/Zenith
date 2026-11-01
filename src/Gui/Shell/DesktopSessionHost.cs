@@ -36,6 +36,7 @@ internal sealed class DesktopSessionHost : ISessionHost
     }
     public void Stop()
     {
+        SessionDisplay.LiveFrame = null;
         SessionDisplay.KeepFrame(_desktop.FramePixels);
         Zenith.Core.Processes.NativeProcessGraphics.Register(null);
         _desktop.StopClients();
@@ -53,6 +54,7 @@ internal sealed class DesktopSessionHost : ISessionHost
     {
         NativeAppearance.Reload();
         _desktop = new Desktop(SessionDisplay.Screen);
+        SessionDisplay.LiveFrame = _desktop.FramePixels;
         using var session = CredentialContext.Enter(Accounts.Session);
         if (SystemMounts.Mode == BootMode.Live || Accounts.Service is null || !Accounts.Service.HasPasswords)
         {

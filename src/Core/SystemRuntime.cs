@@ -10,11 +10,15 @@ namespace Zenith.Core;
 /// <summary>Shared boot phase, independent of desktop allocation and app startup.</summary>
 internal static class SystemRuntime
 {
-    public static void Initialize()
+    /// <param name="phase">Told as each startup phase begins, after the disks for the first one.</param>
+    public static void Initialize(System.Action<string>? phase = null)
     {
         SystemMounts.Initialize();
+        phase?.Invoke("Loading accounts");
         Accounts.Initialize();
+        phase?.Invoke("Loading settings");
         SystemConfiguration.Initialize();
+        phase?.Invoke("Starting network");
         Network.NetworkService.Initialize();
         SystemCommands.Register(CommandShell.Register);
         NativeProcessCommands.Register(CommandShell.Register);

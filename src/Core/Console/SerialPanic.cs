@@ -15,6 +15,9 @@ internal static class SerialPanic
         {
             int value = SerialPort.Read();
             if (value == 'r' || value == 'R') { Power.Reboot(); }
+            // The panic screen, when one is up, offers R on the keyboard too.
+            while (Cosmos.Kernel.System.Keyboard.KeyboardManager.TryReadKey(out var key))
+            { if (key.Key == Cosmos.Kernel.System.Keyboard.ConsoleKeyEx.R) { Power.Reboot(); } }
             Power.Halt();
         }
     }

@@ -151,7 +151,10 @@ def main():
         click(state[3][0]+20,screen[1]-64-20);time.sleep(1)
         assert top()[0]!=focused,'overflow list focuses its window'
         print('PASS overflow list reaches every window',flush=True)
-        command('poweroff','all filesystems unmounted');assert m.wait_exit(30)
+        off=len(m.log());command('poweroff','all filesystems unmounted');assert m.wait_exit(30)
+        farewell=re.search(r'motion: Farewell frames=(\d+) elapsed=(\d+)',m.log()[off:])
+        assert farewell and int(farewell[2])<=260000,'shutdown fade missing or over its bound'
+        print('shutdown motion: '+farewell[0],flush=True)
         print('PASS shared system-app styling and normal teardown',flush=True)
     finally:
         m.stop();shutil.copyfile(m.serial,args.keep/'serial.log');shutil.rmtree(m.workdir,ignore_errors=True)

@@ -224,9 +224,23 @@ It now takes 420 ms, easing both ways. The logout fade stays as it was.
 keep doing so. Welcome and System keep line scrolling, since their text is laid out by lines, but
 gain the faster pacing. Popups and dialogs have no animation.
 
-## Later stages
+## Stage 7: boot and shutdown
 
-This gets its own design before work starts.
+**Boot screen.** Once graphics is up, the kernel shows the logo and a bar that fills as real startup phases
+finish: disks, accounts, settings, network, session. The bar never guesses a percentage, and the phase name
+shows where a slow boot is. The first phase has no text, because fonts live on the disk it mounts. The last
+frame crossfades into the first session with the existing fade. Colors are fixed dark, because the
+appearance is not loaded yet.
 
-7. **Boot and shutdown:** logo and progress once graphics is up, diagnostics still
-   reachable; a short shutdown fade that can never delay power-off.
+**Diagnostics stay reachable.** The serial log runs as before. `session=headless` (the boot menu's rescue
+entry) and `nosplash` skip the screen. A failure before the first session paints the panic screen over it,
+then waits as before, on R from serial or now the keyboard. If the boot screen itself fails, the boot goes on
+without it. Firmware and the boot menu come before the kernel, so the screen starts after them.
+
+**Shutdown.** Restart and Shut down fade over 200 ms, at most, to the logo and what is happening. The order is
+the point: sync and unmount first, then the fade, then the power change, so a failed flush leaves the session
+as it was, and nothing the display does can risk data. A Terminal `poweroff` runs on a worker, which asks the
+session thread and gives up after a bound. Two slow frames, too little memory, an error, Off, or a console
+session all skip it. It logs as `Farewell`. The disks are already unmounted, so that line reaches serial only.
+
+The login gate checks the boot screen and its fade. The system-app gate checks the shutdown fade and its bound.

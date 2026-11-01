@@ -113,6 +113,8 @@ def main():
             if dismiss=='key':monitor_command(keep/'monitor.sock','sendkey esc 30')
             else:click(width//2,height//2-300)
             check(m.wait('session: power confirmation cancelled',off,30),'confirmation cancels by '+dismiss);time.sleep(.5)
+        check('boot: boot screen shown' in m.log(),'graphical boot shows the boot screen')
+        check('motion: SessionFade frames=' in m.log(),'boot screen fades into the greeter')
         off=len(m.log());monitor_type(keep/'monitor.sock','user\twrong\n');check(m.wait('session: authentication failed',off,120),'wrong password completes rejection')
         check('authenticated session started' not in m.log(),'wrong password refused')
         monitor_command(keep/'monitor.sock','screendump '+str(keep/'failed.ppm'))
