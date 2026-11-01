@@ -146,6 +146,14 @@ def main():
                 if predicate(w,hgt,rgb):return w,hgt,rgb
                 if time.monotonic()>=deadline:raise RuntimeError('visible frame '+name)
                 time.sleep(.05)
+        def settled(name):
+            # Scrolling animates: wait for a window whose rows stop changing, however slow the machine.
+            deadline=time.monotonic()+20;last=None
+            while True:
+                _,_,rgb=frame(name,background('202125'))
+                if rgb==last:return rgb
+                if time.monotonic()>=deadline:raise RuntimeError('settled frame '+name)
+                last=rgb;time.sleep(.25)
         geometry=[]
         def color_at(rgb,w,px,py):return rgb[(py*w+px)*3:(py*w+px)*3+3]
         def locate(w,height,rgb):
@@ -203,7 +211,7 @@ def main():
         # One real wheel notch moves the form exactly one 40 px step. The pointer rests
         # on the form's empty right margin (the page ends at x+628), so no hover tint falls inside the compared rows.
         (cx,cy),_=observer.position();monitor_command(monitor,f'mouse_move {x+614-cx} {y+120-cy}');time.sleep(.3)
-        before=frame('wheel-before',background('202125'))[2]
+        before=settled('wheel-before')
         def row(rgb,w,py):return rgb[(py*w+x+300)*3:(py*w+x+600)*3]
         wheel_off=len(m.log());monitor_command(monitor,'mouse_move 0 0 1')
         frame('wheel-notch',lambda w,h,rgb:row(rgb,w,y+300)!=row(before,w,y+300) and all(row(rgb,w,y+r)==row(before,w,y+r+40) for r in range(200,340,4)))
@@ -216,6 +224,7 @@ def main():
         print('scroll motion: '+moved[0],flush=True)
         # Scroll the form by keyboard to reach the effects rows (40 px per Down).
         for _ in range(6):monitor_command(monitor,'sendkey down 30');time.sleep(.05)
+        settled('effects-moved')
         frame('effects-visible',lambda w,h,rgb:color_at(rgb,w,x+530,y+209)==bytes.fromhex('45474f'))
         TRANSPARENT,BLUR,WHOLE=(x+516,y+209),(x+516,y+295),(x+516,y+381)
         click(*TRANSPARENT);click(*BLUR) # Transparency and blur are one draft/apply.

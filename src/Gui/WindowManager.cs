@@ -200,6 +200,13 @@ internal sealed class WindowManager
         {
             Window w = _windows[i];
             using var identity = Zenith.Core.Security.CredentialContext.Enter(w.Identity);
+            // Update may close the window. It leaves now: until the next update it would still be on top and take keys.
+            if (!w.IsClosed && (!w.IsMinimized || w.UpdateWhenMinimized) && w.Update())
+            {
+                changed = true;
+                if (!w.IsMinimized && w != Top) { _lowerDirty = true; }
+            }
+
             if (w.IsClosed)
             {
                 if (_dragging == w) { _dragging = null; }
@@ -211,13 +218,6 @@ internal sealed class WindowManager
                 _windows.RemoveAt(i);
                 _opened.Remove(w);
                 changed = true;
-                continue;
-            }
-
-            if ((!w.IsMinimized || w.UpdateWhenMinimized) && w.Update())
-            {
-                changed = true;
-                if (!w.IsMinimized && w != Top) { _lowerDirty = true; }
             }
         }
 

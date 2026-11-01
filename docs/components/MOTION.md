@@ -200,7 +200,7 @@ they need another frame. A pause counts as at most 50 ms of animation time.
 
 **Smooth scrolling.** `offset` stays the logic's position and `visual` follows it. Each frame closes
 a share of the distance that depends only on the time passed, about 160 ms for a notch, so a slow
-machine covers more ground per frame instead of scrolling slower. Controls register at the drawn
+machine covers more ground per frame, up to the 50 ms a frame may count, instead of scrolling slower. Controls register at the drawn
 position, so a click always hits what is under the pointer. Dragging the thumb and replaced content
 do not animate.
 
