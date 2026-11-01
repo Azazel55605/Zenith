@@ -2,19 +2,33 @@ using System;
 
 namespace Zenith.Gui.Shell;
 
-internal enum TaskbarMode { Always, Maximized, Auto }
+internal enum TaskbarMode { DockMaximized, Floating, Docked, HideMaximized, Auto }
 
-/// <summary>When the taskbar shows and how much of the screen it keeps for itself.</summary>
+/// <summary>What shape the taskbar takes, whether it shows and how much of the screen it keeps.</summary>
 internal static class TaskbarPolicy
 {
-    public static bool Reserves(TaskbarMode mode) => mode == TaskbarMode.Always;
+    /// <summary>Rows at the bottom of the screen that maximized windows stay out of.</summary>
+    public static int Reserved(TaskbarMode mode, int barHeight, int margin) => mode switch
+    {
+        TaskbarMode.Floating => barHeight + 2 * margin,
+        TaskbarMode.DockMaximized or TaskbarMode.Docked => barHeight,
+        _ => 0,
+    };
 
     public static bool Shown(TaskbarMode mode, bool topFullscreen, bool topMaximized, bool pointerNear, bool popupOpen)
     {
         if (popupOpen || pointerNear) { return true; }
         if (topFullscreen) { return false; }
-        return mode == TaskbarMode.Always || (mode == TaskbarMode.Maximized && !topMaximized);
+        return mode switch
+        {
+            TaskbarMode.Auto => false,
+            TaskbarMode.HideMaximized => !topMaximized,
+            _ => true,
+        };
     }
+
+    public static bool Docked(TaskbarMode mode, bool topFullscreen, bool topMaximized)
+        => mode == TaskbarMode.Docked || (mode == TaskbarMode.DockMaximized && (topFullscreen || topMaximized));
 }
 
 /// <summary>How window pills share the bar: natural width, then evenly narrower, then an overflow button.</summary>

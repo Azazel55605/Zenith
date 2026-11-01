@@ -10,13 +10,11 @@ internal sealed class PixelLayer
 
     public int Width { get; private set; }
     public int Height { get; private set; }
-    private int _corner;
 
-    /// <summary>Copies a rectangle; a <paramref name="corner"/> radius leaves what is outside the rounded corners undrawn at full size.</summary>
-    public void Capture(int[] source, int sourceWidth, int sourceHeight, Rect area, int corner = 0)
+    public void Capture(int[] source, int sourceWidth, int sourceHeight, Rect area)
     {
         Rect c = area.Intersect(new Rect(0, 0, sourceWidth, sourceHeight));
-        Width = c.W; Height = c.H; _corner = corner;
+        Width = c.W; Height = c.H;
         if (_pixels.Length < c.W * c.H) { _pixels = new int[c.W * c.H]; }
         for (int y = 0; y < c.H; y++)
         {
@@ -24,17 +22,17 @@ internal sealed class PixelLayer
         }
     }
 
-    /// <summary>How far a row this far from the top or bottom edge starts inside the rounded corner.</summary>
-    private int Inset(int row)
+    /// <summary>How far a row this far from the top or bottom edge starts inside a rounded corner.</summary>
+    private static int Inset(int row, int corner)
     {
-        if (row >= _corner) { return 0; }
-        int rise = _corner - row, inset = 0;
-        while (inset < _corner && (_corner - inset) * (_corner - inset) + rise * rise > _corner * _corner) { inset++; }
+        if (row >= corner) { return 0; }
+        int rise = corner - row, inset = 0;
+        while (inset < corner && (corner - inset) * (corner - inset) + rise * rise > corner * corner) { inset++; }
         return inset;
     }
 
-    /// <summary>Draws the layer stretched over <paramref name="target"/> (nearest neighbour), clipped to the destination.</summary>
-    public void Draw(int[] destination, int destinationWidth, int destinationHeight, Rect target, int alpha)
+    /// <summary>Draws the layer stretched over <paramref name="target"/> (nearest neighbour), clipped to the destination; pixels outside a <paramref name="corner"/> radius stay as they are.</summary>
+    public void Draw(int[] destination, int destinationWidth, int destinationHeight, Rect target, int alpha, int corner = 0)
     {
         if (target.IsEmpty || Width == 0 || Height == 0 || alpha <= 0) { return; }
         Rect c = target.Intersect(new Rect(0, 0, destinationWidth, destinationHeight));
@@ -42,20 +40,20 @@ internal sealed class PixelLayer
         bool opaque = alpha >= 255, unscaled = target.W == Width && target.H == Height;
         uint a = (uint)Math.Min(alpha, 255), inverse = 255 - a;
         long stepX = ((long)Width << 16) / target.W;
-        long startX = (c.X - target.X) * stepX;
         for (int y = c.Y; y < c.Bottom; y++)
         {
             int row = (int)((long)(y - target.Y) * Height / target.H) * Width;
-            int at = y * destinationWidth + c.X;
+            int inset = Inset(Math.Min(y - target.Y, target.Bottom - 1 - y), corner);
+            int left = Math.Max(c.X, target.X + inset), right = Math.Min(c.Right, target.Right - inset);
+            if (right <= left) { continue; }
+            int at = y * destinationWidth + left;
             if (opaque && unscaled)
             {
-                int inset = Inset(Math.Min(y - target.Y, target.Bottom - 1 - y));
-                int left = Math.Max(c.X, target.X + inset), right = Math.Min(c.Right, target.Right - inset);
-                if (right > left) { Array.Copy(_pixels, row + (left - target.X), destination, y * destinationWidth + left, right - left); }
+                Array.Copy(_pixels, row + (left - target.X), destination, at, right - left);
                 continue;
             }
-            long fx = startX;
-            for (int x = 0; x < c.W; x++, at++, fx += stepX)
+            long fx = (left - target.X) * stepX;
+            for (int x = left; x < right; x++, at++, fx += stepX)
             {
                 uint s = (uint)_pixels[row + (int)(fx >> 16)];
                 if (opaque) { destination[at] = (int)s; continue; }

@@ -6,7 +6,7 @@ using Zenith.Gui.Graphics;
 namespace Zenith.Gui.Shell;
 
 /// <summary>
-/// The floating bar along the bottom edge: the launcher button, one pill per open window, a list
+/// The bar along the bottom edge, floating or docked to it: the launcher button, one pill per open window, a list
 /// of the windows that did not fit, and the clock.
 /// </summary>
 internal sealed class Taskbar
@@ -17,6 +17,7 @@ internal sealed class Taskbar
     private static readonly string[] s_months = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
     private readonly WindowManager _windows;
+    private readonly int _screenWidth, _screenHeight;
     private readonly List<(Rect Rect, Window Window)> _pills = new();
     private readonly List<Window> _overflow = new();
     private readonly HostMaterial _material = new();
@@ -28,14 +29,30 @@ internal sealed class Taskbar
     public Taskbar(int screenWidth, int screenHeight, WindowManager windows)
     {
         _windows = windows;
-        Bounds = new Rect(Theme.TaskbarMargin, screenHeight - Theme.TaskbarHeight - Theme.TaskbarMargin,
-            screenWidth - 2 * Theme.TaskbarMargin, Theme.TaskbarHeight);
-        int inset = (Theme.TaskbarHeight - Theme.ShellControlHeight) / 2;
-        LauncherButton = new Rect(Bounds.X + inset, Bounds.Y + inset, Theme.ShellControlHeight, Theme.ShellControlHeight);
+        _screenWidth = screenWidth;
+        _screenHeight = screenHeight;
     }
 
-    public Rect Bounds { get; }
-    public Rect LauncherButton { get; }
+    /// <summary>Docked: edge to edge on the bottom row with square corners. Floating: inset, rounded.</summary>
+    public bool Docked { get; set; }
+    public Rect Bounds => BoundsFor(Docked);
+    public int Radius => RadiusFor(Docked);
+    public Rect LauncherButton
+    {
+        get
+        {
+            int inset = (Theme.TaskbarHeight - Theme.ShellControlHeight) / 2;
+            return new Rect(Bounds.X + inset, Bounds.Y + inset, Theme.ShellControlHeight, Theme.ShellControlHeight);
+        }
+    }
+
+    public Rect BoundsFor(bool docked)
+    {
+        int margin = docked ? 0 : Theme.TaskbarMargin;
+        return new Rect(margin, _screenHeight - Theme.TaskbarHeight - margin, _screenWidth - 2 * margin, Theme.TaskbarHeight);
+    }
+
+    public static int RadiusFor(bool docked) => docked ? 0 : Theme.WindowRadius;
     public bool Shown { get; set; } = true;
     public bool OverflowOpen { get; set; }
     public int OverflowCount => _overflow.Count;
@@ -217,10 +234,11 @@ internal sealed class Taskbar
     public void Draw(Surface surface, int mouseX, int mouseY)
     {
         Layout();
-        _material.Capture(surface, Bounds, Theme.WindowRadius, Theme.Panel);
-        surface.DrawShadow(Bounds, Theme.WindowRadius, 14, 70, 3);
+        _material.Capture(surface, Bounds, Radius, Theme.Panel);
+        if (!Docked) { surface.DrawShadow(Bounds, Radius, 14, 70, 3); }
         _material.Paint(surface, Bounds, Theme.Panel);
-        surface.StrokeRoundRect(Bounds, Theme.WindowRadius, Theme.PanelBorder);
+        if (Docked) { surface.FillRect(new Rect(Bounds.X, Bounds.Y, Bounds.W, 1), Theme.PanelBorder); }
+        else { surface.StrokeRoundRect(Bounds, Radius, Theme.PanelBorder); }
 
         DrawLauncherButton(surface, mouseX, mouseY);
         DrawClock(surface);

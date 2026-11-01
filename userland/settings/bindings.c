@@ -15,7 +15,7 @@ static int valid(const struct zenith_system_settings *s){
         for(unsigned int i=0;i<s->session_count;i++)if(!bounded_name(s->sessions[i],16))return 0;
         if(s->animation_count>4||(s->animation_count&&s->animation>=s->animation_count))return 0;
         for(unsigned int i=0;i<s->animation_count;i++)if(!bounded_name(s->animations[i],24))return 0;
-        if(s->taskbar_count>3||(s->taskbar_count&&s->taskbar>=s->taskbar_count))return 0;
+        if(s->taskbar_count>5||(s->taskbar_count&&s->taskbar>=s->taskbar_count))return 0;
         for(unsigned int i=0;i<s->taskbar_count;i++)if(!bounded_name(s->taskbars[i],24))return 0;
     }
     return 1;
@@ -80,7 +80,7 @@ long binding_apply(struct meridian_bindings *b,int kind){
     if(r){b->message=r==-11?"Changed elsewhere. Reset to reload.":r==-13?"Administrator permission required.":"Save failed; edits kept.";return r;}
     b->message=f==3?"Default session saved for next boot.":"System default saved and applied.";
     struct zenith_system_settings s;
-    if(b->read&&!b->read(&s)&&valid(&s)){b->preferences.revision=s.revision;b->preferences.keyboard=s.keyboard;b->preferences.zone=s.zone;b->preferences.session=s.session;b->preferences.animation=s.animation;}
+    if(b->read&&!b->read(&s)&&valid(&s)){b->preferences.revision=s.revision;b->preferences.keyboard=s.keyboard;b->preferences.zone=s.zone;b->preferences.session=s.session;b->preferences.animation=s.animation;b->preferences.taskbar=s.taskbar;}
     const char *message=b->message;binding_refresh(b);b->message=message;mark(b);return 0;
 }
 void binding_reset(struct meridian_bindings *b,int kind){

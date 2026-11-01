@@ -30,8 +30,8 @@ internal sealed class SettingsService
     /// <summary>Animation durations as a percentage of normal; 0 means window changes are immediate.</summary>
     public int AnimationPercent => AnimationPercents[Current.Animation];
     public const string TaskbarPath = "/etc/zenith/taskbar.conf";
-    public static readonly string[] TaskbarNames = { "always", "maximized", "auto" };
-    public static readonly string[] TaskbarLabels = { "Always visible", "Hide when maximized", "Auto-hide" };
+    public static readonly string[] TaskbarNames = { "dock-maximized", "floating", "docked", "maximized", "auto" };
+    public static readonly string[] TaskbarLabels = { "Dock when maximized", "Floating", "Docked", "Hide when maximized", "Auto-hide" };
     private readonly ISettingsStore _store;
     private readonly Action<string> _keyboard;
     private readonly Action<string> _zone;
@@ -177,6 +177,7 @@ internal sealed class SettingsService
         var fields = Fields(text);
         if (fields.TryGetValue("VERSION", out string? version) && version != "1") { throw new FormatException("unsupported settings VERSION"); }
         if (!fields.TryGetValue("TASKBAR", out string? name)) { return 0; }
+        if (name == "always") { name = "floating"; } // The name 0.0.35 saved.
         int choice = Array.IndexOf(TaskbarNames, name);
         return choice >= 0 ? (uint)choice : throw new FormatException("unknown TASKBAR");
     }

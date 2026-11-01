@@ -49,7 +49,8 @@ internal sealed class Desktop
     private const int PillAlpha = 60;
     private const long BarShowMicros = 160_000, BarHideMicros = 120_000, BarLingerMicros = 400_000;
     private const int BarRevealRows = 3;
-    private TaskbarMode _barMode;
+    private TaskbarMode _barMode = (TaskbarMode)(-1);
+    private readonly PixelLayer _barLayer = new();
     private long _barPointerUntil;
     private const ulong MotionReservePages = 4096;
     private readonly MotionPlayer _motion = new();
@@ -77,7 +78,7 @@ internal sealed class Desktop
 
         Windows = new WindowManager(new Rect(0, 0, w, h - Theme.TaskbarHeight - 2 * Theme.TaskbarMargin), new Rect(0, 0, w, h));
         _taskbar = new Taskbar(w, h, Windows);
-        _launcher = new LauncherMenu(_taskbar.LauncherButton, OpenApp);
+        _launcher = new LauncherMenu(_taskbar.Bounds, OpenApp);
 
         MouseManager.SetScreenSize(w, h);
         MouseManager.SetPosition(w / 2, h / 2);
@@ -103,7 +104,7 @@ internal sealed class Desktop
                 Rect b = top.Bounds, pill = _taskbar.PillOf(top) ?? new Rect(0, 0, 0, 0);
                 c.WriteLine("top window: " + b.X + " " + b.Y + " " + b.W + " " + b.H + " pill: " + pill.X + " " + pill.Y + " " + pill.W + " " + pill.H);
             }
-            c.WriteLine("taskbar: " + _barMode + " shown=" + (_taskbar.Shown ? 1 : 0) + " overflow=" + _taskbar.OverflowCount + " " + _taskbar.OverflowButton.X + " " + _taskbar.OverflowButton.Y);
+            c.WriteLine("taskbar: " + _barMode + " shown=" + (_taskbar.Shown ? 1 : 0) + " overflow=" + _taskbar.OverflowCount + " " + _taskbar.OverflowButton.X + " " + _taskbar.OverflowButton.Y + " docked=" + (_taskbar.Docked ? 1 : 0));
             c.WriteLine("last motion: " + _motion.Frames + " frames in " + _motion.ElapsedMicros + " us, worst " + _motion.WorstFrameMicros + " us, ended " + _motion.LastEnd);
             return 0;
         }));
@@ -191,7 +192,6 @@ internal sealed class Desktop
 
         if (_benchRequested) { _benchRequested = false; RunBench(); _sceneDirty = true; }
         if (_motionTestRequested) { _motionTestRequested = false; StartMotionTest(); }
-        UpdateTaskbar();
         StartTransition();
         if (_motion.Active || _motionName is not null)
         {
@@ -224,15 +224,15 @@ internal sealed class Desktop
         _cursorDirty = false;
     }
 
-    /// <summary>Applies the taskbar choice and shows or hides the bar for what is on screen now.</summary>
-    private void UpdateTaskbar()
+    /// <summary>Applies the taskbar choice and works out the bar's shape and visibility for what is on screen now.</summary>
+    private (bool Shown, bool Docked) WantedBar()
     {
         int w = _scene.Width, h = _scene.Height;
         var mode = (TaskbarMode)Zenith.Core.Configuration.SystemConfiguration.Settings.Current.Taskbar;
         if (mode != _barMode)
         {
             _barMode = mode;
-            Windows.SetWorkArea(new Rect(0, 0, w, TaskbarPolicy.Reserves(mode) ? h - Theme.TaskbarHeight - 2 * Theme.TaskbarMargin : h));
+            Windows.SetWorkArea(new Rect(0, 0, w, h - TaskbarPolicy.Reserved(mode, Theme.TaskbarHeight, Theme.TaskbarMargin)));
             _sceneDirty = true;
         }
 
@@ -240,30 +240,36 @@ internal sealed class Desktop
         bool near = _input.Y >= h - BarRevealRows || (_taskbar.Shown && _input.Y >= _taskbar.Bounds.Y - Theme.TaskbarMargin);
         if (near && !Windows.IsDragging) { _barPointerUntil = now + BarLingerMicros; }
         Window? top = Windows.Top;
-        bool shown = TaskbarPolicy.Shown(mode, top?.IsFullscreen == true, top?.IsMaximized == true, now < _barPointerUntil, _launcher.IsOpen || _taskbar.OverflowOpen);
-        if (shown == _taskbar.Shown) { return; }
-
-        _sceneDirty = true;
-        int percent = Zenith.Core.Configuration.SystemConfiguration.Settings.AnimationPercent;
-        if (percent == 0 || Windows.HasTransition || _motion.Active || !MotionMemory())
-        {
-            _taskbar.Shown = shown;
-            return;
-        }
-
-        // The base is the scene without the bar; the layer is the bar alone, without its shadow.
-        Rect bar = _taskbar.Bounds, away = bar.Offset(0, Theme.TaskbarHeight + Theme.TaskbarMargin);
-        _taskbar.Shown = true;
-        ComposeScene();
-        _motionLayer.Capture(_scene.Pixels, _scene.Width, _scene.Height, bar, Theme.WindowRadius);
-        _taskbar.Shown = false;
-        ComposeScene();
-        CopyBase();
-        _taskbar.Shown = shown;
-        long duration = (shown ? BarShowMicros : BarHideMicros) * percent / 100;
-        _motion.Begin(_motionBase!, _motionLayer, shown ? away : bar, shown ? bar : away, 255, 255, now, duration);
-        _motionName = shown ? "TaskbarShown" : "TaskbarHidden";
+        bool fullscreen = top?.IsFullscreen == true, maximized = top?.IsMaximized == true;
+        return (TaskbarPolicy.Shown(mode, fullscreen, maximized, now < _barPointerUntil, _launcher.IsOpen || _taskbar.OverflowOpen),
+                TaskbarPolicy.Docked(mode, fullscreen, maximized));
     }
+
+    private void SetBar(bool shown, bool docked)
+    {
+        _taskbar.Shown = shown;
+        _taskbar.Docked = docked;
+        _launcher.AlignTo(_taskbar.Bounds);
+    }
+
+    /// <summary>Composes without the bar when the bar is about to animate, since it travels above everything else.</summary>
+    private void ComposeBase(bool barMoves, bool shown, bool docked, bool withoutTop)
+    {
+        if (barMoves) { SetBar(false, docked); }
+        ComposeScene(withoutTop);
+        if (barMoves) { SetBar(shown, docked); }
+    }
+
+    private void BeginBarOverlay(bool wasShown, bool wasDocked, bool shown, bool docked)
+    {
+        Rect now = _taskbar.BoundsFor(docked), was = _taskbar.BoundsFor(wasDocked);
+        int away = Theme.TaskbarHeight + Theme.TaskbarMargin;
+        Rect from = wasShown ? was : now.Offset(0, away), to = shown ? now : was.Offset(0, away);
+        _motion.SetOverlay(_barLayer, from, to, Taskbar.RadiusFor(wasShown ? wasDocked : docked), Taskbar.RadiusFor(shown ? docked : wasDocked));
+    }
+
+    private static string BarMotionName(bool wasShown, bool shown, bool docked)
+        => shown != wasShown ? (shown ? "TaskbarShown" : "TaskbarHidden") : docked ? "TaskbarDocked" : "TaskbarFloated";
 
     /// <summary>Draws and presents one animation frame; false once the animation is over.</summary>
     private bool DrawMotionFrame()
@@ -300,47 +306,90 @@ internal sealed class Desktop
     /// <summary>Most of a rectangle, centered: where a window fades in from and out to.</summary>
     private static Rect Shrunk(Rect area) => new(area.X + area.W / 50, area.Y + area.H / 50, area.W - area.W / 25, area.H - area.H / 25);
 
-    /// <summary>Plays the window manager's latest change. Pixels from before the change are still in the scene,
-    /// so what left the screen is captured first; the scene below the top window comes from its cache.</summary>
+    /// <summary>Plays the window manager's latest change and any change it makes to the bar, together. Pixels from
+    /// before the change are still in the scene, so what left the screen is captured first; the scene below the top
+    /// window comes from its cache.</summary>
     private void StartTransition()
     {
-        if (Windows.TakeTransition() is not WindowTransition t) { return; }
-        _motion.Interrupt();
-        ReportMotion();
+        WindowTransition? change = Windows.TakeTransition();
+        var (shown, docked) = WantedBar();
+        bool wasShown = _taskbar.Shown, wasDocked = _taskbar.Docked;
+        bool barMoves = shown != wasShown || (shown && docked != wasDocked);
+        if (change is null && !barMoves)
+        {
+            if (docked != wasDocked) { SetBar(shown, docked); _sceneDirty = true; }
+            return;
+        }
+
+        _sceneDirty = true;
+        if (change is not null) { _motion.Interrupt(); ReportMotion(); }
         int percent = Zenith.Core.Configuration.SystemConfiguration.Settings.AnimationPercent;
-        if (percent == 0 || !MotionMemory()) { return; }
+        // A bar change alone waits for nothing, but must not cut a window animation short.
+        if (percent == 0 || (change is null && _motion.Active) || !MotionMemory())
+        {
+            SetBar(shown, docked);
+            return;
+        }
+
+        if (barMoves && wasShown && !shown) { _barLayer.Capture(_scene.Pixels, _scene.Width, _scene.Height, _taskbar.Bounds); }
+        PixelLayer? layer = null;
+        Rect from = default, to = default;
+        int fromAlpha = 255, toAlpha = 255;
+        long duration = shown ? BarShowMicros : BarHideMicros;
+        if (change is WindowTransition t && !PrepareWindowLayer(t, barMoves, shown, docked, ref from, ref to, ref fromAlpha, ref toAlpha, ref duration))
+        {
+            SetBar(shown, docked);
+            return;
+        }
+        if (change is not null) { layer = _motionLayer; }
+        else { ComposeBase(barMoves, shown, docked, false); CopyBase(); }
+
+        if (barMoves && shown)
+        {
+            SetBar(true, docked);
+            ComposeScene();
+            _barLayer.Capture(_scene.Pixels, _scene.Width, _scene.Height, _taskbar.Bounds);
+        }
+        SetBar(shown, docked);
+
+        _motion.Begin(_motionBase!, layer, from, to, fromAlpha, toAlpha, Micros(FrameStats.Now), duration * percent / 100);
+        if (barMoves) { BeginBarOverlay(wasShown, wasDocked, shown, docked); }
+        string? bar = barMoves ? BarMotionName(wasShown, shown, docked) : null;
+        _motionName = change is WindowTransition named ? named.Change + (bar is null ? "" : " bar=" + bar) : bar;
+    }
+
+    /// <summary>Captures the window's layer and the base under it; false when this change has nothing to show.</summary>
+    private bool PrepareWindowLayer(WindowTransition t, bool barMoves, bool shown, bool docked, ref Rect from, ref Rect to, ref int fromAlpha, ref int toAlpha, ref long duration)
+    {
         Rect screen = _scene.Bounds;
         Rect now = t.Window.Bounds.Intersect(screen), was = t.From.Intersect(screen);
-        Rect from, to;
-        int fromAlpha = 255, toAlpha = 255;
-        long duration;
         switch (t.Change)
         {
             case WindowChange.Closed:
             case WindowChange.Minimized:
                 from = t.Change == WindowChange.Closed ? t.From.Inflate(Theme.ShadowSize).Intersect(screen) : was;
-                if (from.IsEmpty) { return; }
+                if (from.IsEmpty) { return false; }
                 _motionLayer.Capture(_scene.Pixels, _scene.Width, _scene.Height, from);
-                ComposeScene();
+                ComposeBase(barMoves, shown, docked, false);
                 CopyBase();
                 Rect? pill = t.Change == WindowChange.Minimized ? _taskbar.PillOf(t.Window) : null;
                 to = pill ?? Shrunk(from);
                 toAlpha = pill is null ? 0 : PillAlpha;
                 duration = t.Change == WindowChange.Closed ? CloseMicros : MinimizeMicros;
-                break;
+                return true;
             case WindowChange.Resized:
-                if (Windows.Top != t.Window || was.IsEmpty || now.IsEmpty) { return; }
+                if (Windows.Top != t.Window || was.IsEmpty || now.IsEmpty) { return false; }
                 _motionLayer.Capture(_scene.Pixels, _scene.Width, _scene.Height, was);
-                ComposeScene(withoutTop: true);
+                ComposeBase(barMoves, shown, docked, true);
                 CopyBase();
                 ComposeScene();
                 from = was; to = now;
                 duration = ResizeMicros;
-                break;
+                return true;
             default:
                 to = t.Change == WindowChange.Opened ? t.Window.Bounds.Inflate(Theme.ShadowSize).Intersect(screen) : now;
-                if (Windows.Top != t.Window || to.IsEmpty) { return; }
-                ComposeScene(withoutTop: true);
+                if (Windows.Top != t.Window || to.IsEmpty) { return false; }
+                ComposeBase(barMoves, shown, docked, true);
                 CopyBase();
                 ComposeScene();
                 _motionLayer.Capture(_scene.Pixels, _scene.Width, _scene.Height, to);
@@ -348,10 +397,8 @@ internal sealed class Desktop
                 from = origin ?? Shrunk(to);
                 fromAlpha = origin is null ? 0 : PillAlpha;
                 duration = t.Change == WindowChange.Opened ? OpenMicros : MinimizeMicros;
-                break;
+                return true;
         }
-        _motion.Begin(_motionBase!, _motionLayer, from, to, fromAlpha, toAlpha, Micros(FrameStats.Now), duration * percent / 100);
-        _motionName = t.Change.ToString();
     }
 
     private static long Micros(long timestamp) => timestamp / System.Math.Max(1, System.Diagnostics.Stopwatch.Frequency / 1_000_000);

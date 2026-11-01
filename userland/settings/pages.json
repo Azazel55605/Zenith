@@ -175,7 +175,7 @@
     "Popup behavior"
   ],
   "windows.taskbar": [
-    "Taskbar visibility",
+    "Docked, floating and hidden taskbar",
     "Position",
     "Pinned applications"
   ],

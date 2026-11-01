@@ -304,13 +304,13 @@ The existing staged-replace/power-loss limitations above also apply here.
   adds current session name at 96..111, u32 session count/index at 3456/3460,
   then three 16-byte registered session names at 3464, u32 animation count/index at
   3512/3516, then four 24-byte animation labels at 3520, u32 taskbar count/index at 3616/3620, then
-  three 24-byte taskbar labels at 3624. Remaining bytes are zero. A kernel without
+  five 24-byte taskbar labels at 3624. Remaining bytes are zero. A kernel without
   animations or taskbar choices leaves that count at 0 and the page reports it unavailable.
   UINT32_MAX means the saved selection is unavailable. Only registered hosts appear.
 - **626 system save** `(readable request, 32, 0)`: version 2 retains 621's format
   and adds field 3=default session and field 4=window animations (normal, fast, slow,
-  off; applies to the next window change) and field 5=taskbar visibility (always, maximized,
-  auto; applies immediately). Fields 1/2 remain keyboard/time-zone. Root-only;
+  off; applies to the next window change) and field 5=taskbar (dock-maximized, floating, docked,
+  maximized, auto; applies immediately). Fields 1/2 remain keyboard/time-zone. Root-only;
   revision and actual catalogue membership are checked. 620/621 remain version 1
   and refuse session writes. Default-session changes take effect on the next boot.
 

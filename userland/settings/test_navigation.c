@@ -16,6 +16,7 @@ static long prefs_save(unsigned int field,unsigned int choice,unsigned long revi
     if(!(prefs.flags&2))return -13;
     if(revision!=prefs.revision)return -11;
     if(field==1)prefs.keyboard=choice;else if(field==2){prefs.zone=choice;strcpy(prefs.current_zone,prefs.zones[choice]);}
+    else if(field==4)prefs.animation=choice;else if(field==5)prefs.taskbar=choice;
     else{prefs.session=choice;strcpy(prefs.current_session,prefs.sessions[choice]);}
     prefs.revision++;prefs_saves++;return 0;
 }
@@ -56,6 +57,10 @@ static void binding_tests(void){
     binding_refresh(&b);assert(binding_choice_count(&b,BIND_ANIMATIONS)==2&&!strcmp(binding_choice_name(&b,BIND_ANIMATIONS,1),"Off"));
     assert(!binding_choose(&b,BIND_ANIMATIONS,1)&&binding_changed(&b,BIND_ANIMATIONS)&&binding_any_changed(&b));binding_reset(&b,BIND_ANIMATIONS);
     assert(!binding_changed(&b,BIND_ANIMATIONS));
+    prefs.taskbar_count=2;strcpy(prefs.taskbars[0],"Floating");strcpy(prefs.taskbars[1],"Docked");
+    binding_refresh(&b);assert(binding_choice_count(&b,BIND_TASKBAR)==2&&binding_writable(&b,BIND_TASKBAR));
+    assert(!binding_choose(&b,BIND_TASKBAR,1)&&binding_changed(&b,BIND_TASKBAR));
+    assert(!binding_apply(&b,BIND_TASKBAR)&&prefs.taskbar==1&&!binding_changed(&b,BIND_TASKBAR)&&!binding_any_changed(&b));
     prefs.keyboard_count=99;binding_refresh(&b);assert(!b.ready&&b.message);  /* malformed service data */
 }
 int main(void){

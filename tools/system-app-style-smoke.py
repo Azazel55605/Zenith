@@ -2,6 +2,7 @@
 """Exercise themed Terminal/Editor and mouse save/dirty-chrome close on a disposable live VM."""
 from pathlib import Path
 import argparse
+import re
 import importlib.util
 import shutil
 import time
@@ -77,8 +78,11 @@ def main():
         print('PASS cached lower scene equals a full redraw',flush=True)
         # Each window change animates, ends on its own, and leaves the real state behind.
         def played(action,name):
-            off=len(m.raw_log());action();assert m.wait_for(name+' frames=',30,off),name
-            report=[line for line in m.raw_log()[off:].splitlines() if name+' frames=' in line][0];print(report,flush=True)
+            off=len(m.raw_log());action();found=re.compile('motion: '+name+'( bar=[A-Za-z]+)? frames=');deadline=time.monotonic()+30
+            while not found.search(m.raw_log()[off:]):
+                assert time.monotonic()<deadline,name
+                time.sleep(.1)
+            report=[line for line in m.raw_log()[off:].splitlines() if found.search(line)][0];print(report,flush=True)
             assert 'ended=Finished' in report or 'ended=OverBudget' in report,report
             time.sleep(.5)
         def top():
@@ -104,7 +108,7 @@ def main():
             lines=m.raw_log()[off:].splitlines()
             words=[l for l in lines if 'taskbar: ' in l][0].split('taskbar: ')[1].split()
             size=[l for l in lines if 'display: ' in l][0].split()[-1].split('x')
-            return words[0],words[1]=='shown=1',int(words[2].split('=')[1]),[int(words[3]),int(words[4])],[int(v) for v in size]
+            return words[0],words[1]=='shown=1',int(words[2].split('=')[1]),[int(words[3]),int(words[4])],[int(v) for v in size],words[5]=='docked=1'
         def move(x,y):
             (cx,cy),_=observer.position();recovery_console.monitor_command(m.monitor,f'mouse_move {x-cx} {y-cy}');time.sleep(1)
         def shot(name):observer.capture(args.keep/(name+'.ppm'))
@@ -118,15 +122,24 @@ def main():
         played(lambda:move(screen[0]//2,screen[1]//2),'TaskbarHidden');assert not bar()[1],'hidden again'
         played(lambda:m.type('{f11}'),'Resized');assert top()[0]==windowed,'left fullscreen';time.sleep(1);assert bar()[1],'bar back'
         print('PASS fullscreen ducks the taskbar and the bottom edge reveals it',flush=True)
+        def together(n,window,change):
+            # The bar's change must play in the window's animation, not jump.
+            off=len(m.raw_log());click(*button(window,n));assert m.wait_for('Resized bar='+change+' frames=',30,off),change;print(change,flush=True);time.sleep(1)
         setting('auto');assert not bar()[1],'auto hides'
         played(lambda:click(*button(windowed,1)),'Resized');assert top()[0]==[0,0,*screen],'auto maximize fills'
         played(lambda:click(*button(top()[0],1)),'Resized');assert top()[0]==windowed
         setting('maximized');assert bar()[1],'shown while not maximized'
-        click(*button(windowed,1));time.sleep(1);assert top()[0]==[0,0,*screen];assert not bar()[1],'hidden while maximized'
-        click(*button(top()[0],1));time.sleep(1);assert bar()[1],'shown after restore'
-        setting('always');assert bar()[1]
-        played(lambda:click(*button(windowed,1)),'Resized');assert top()[0][3]<screen[1],'always keeps the bar clear'
+        together(1,windowed,'TaskbarHidden');assert top()[0]==[0,0,*screen];assert not bar()[1],'hidden while maximized'
+        together(1,top()[0],'TaskbarShown');assert bar()[1],'shown after restore'
+        setting('floating');state=bar();assert state[1] and not state[5],'floating'
+        played(lambda:click(*button(windowed,1)),'Resized');assert top()[0][3]==screen[1]-64,'floating keeps its gap';assert not bar()[5]
         played(lambda:click(*button(top()[0],1)),'Resized');assert top()[0]==windowed
+        setting('docked');state=bar();assert state[1] and state[5],'always docked'
+        played(lambda:click(*button(windowed,1)),'Resized');assert top()[0][3]==screen[1]-48,'docked fills to the bar';shot('docked')
+        played(lambda:click(*button(top()[0],1)),'Resized');assert top()[0]==windowed
+        setting('dock-maximized');assert not bar()[5],'floats until maximized'
+        together(1,windowed,'TaskbarDocked');assert top()[0][3]==screen[1]-48 and bar()[5],'docks on maximize'
+        together(1,top()[0],'TaskbarFloated');assert top()[0]==windowed and not bar()[5],'floats on restore'
         print('PASS taskbar visibility modes',flush=True)
         # Windows that do not fit stay reachable, and the focused one keeps a pill.
         for _ in range(10):m.type('{ctrl-alt-t}');time.sleep(1.5)

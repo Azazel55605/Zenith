@@ -10,12 +10,26 @@ public class TaskbarTests
     [InlineData(0, false, false, true)]
     [InlineData(0, true, false, true)]
     [InlineData(0, false, true, false)]
-    [InlineData(1, false, false, true)]
-    [InlineData(1, true, false, false)]
+    [InlineData(1, true, false, true)]
     [InlineData(1, false, true, false)]
-    [InlineData(2, false, false, false)]
+    [InlineData(2, true, false, true)]
+    [InlineData(3, false, false, true)]
+    [InlineData(3, true, false, false)]
+    [InlineData(3, false, true, false)]
+    [InlineData(4, false, false, false)]
     public void ModeDecidesVisibility(int mode, bool maximized, bool fullscreen, bool shown)
         => Assert.Equal(shown, TaskbarPolicy.Shown((TaskbarMode)mode, fullscreen, maximized, false, false));
+
+    [Theory]
+    [InlineData(0, false, false, false)]
+    [InlineData(0, true, false, true)]
+    [InlineData(0, false, true, true)]
+    [InlineData(1, true, false, false)]
+    [InlineData(2, false, false, true)]
+    [InlineData(3, true, false, false)]
+    [InlineData(4, true, false, false)]
+    public void ModeDecidesShape(int mode, bool maximized, bool fullscreen, bool docked)
+        => Assert.Equal(docked, TaskbarPolicy.Docked((TaskbarMode)mode, fullscreen, maximized));
 
     [Theory]
     [InlineData(true, false)]
@@ -26,13 +40,14 @@ public class TaskbarTests
         { Assert.True(TaskbarPolicy.Shown(mode, true, true, pointer, popup)); }
     }
 
-    [Fact]
-    public void OnlyAlwaysReservesScreenSpace()
-    {
-        Assert.True(TaskbarPolicy.Reserves(TaskbarMode.Always));
-        Assert.False(TaskbarPolicy.Reserves(TaskbarMode.Maximized));
-        Assert.False(TaskbarPolicy.Reserves(TaskbarMode.Auto));
-    }
+    [Theory]
+    [InlineData(0, 48)]
+    [InlineData(1, 64)]
+    [InlineData(2, 48)]
+    [InlineData(3, 0)]
+    [InlineData(4, 0)]
+    public void DockedAndFloatingKeepTheirOwnSpace(int mode, int rows)
+        => Assert.Equal(rows, TaskbarPolicy.Reserved((TaskbarMode)mode, 48, 8));
 
     [Fact]
     public void PillsKeepNaturalWidthWhenTheyFit()
@@ -66,14 +81,32 @@ public class TaskbarTests
         int[] source = new int[100];
         System.Array.Fill(source, 7);
         var layer = new PixelLayer();
-        layer.Capture(source, 10, 10, new Rect(0, 0, 10, 10), 4);
+        layer.Capture(source, 10, 10, new Rect(0, 0, 10, 10));
         int[] destination = new int[100];
-        layer.Draw(destination, 10, 10, new Rect(0, 0, 10, 10), 255);
+        layer.Draw(destination, 10, 10, new Rect(0, 0, 10, 10), 255, 4);
         Assert.Equal(0, destination[0]);
         Assert.Equal(0, destination[9]);
         Assert.Equal(0, destination[90]);
         Assert.Equal(0, destination[99]);
         Assert.Equal(7, destination[55]);
         Assert.Equal(7, destination[5]);
+    }
+
+    [Fact]
+    public void OverlayDrawsAboveTheLayerAndMovesWithIt()
+    {
+        int[] baseImage = new int[100], under = new int[100], over = new int[100], frame = new int[100];
+        System.Array.Fill(under, 1); System.Array.Fill(over, 2);
+        PixelLayer window = new(), bar = new();
+        window.Capture(under, 10, 10, new Rect(0, 0, 10, 10));
+        bar.Capture(over, 10, 10, new Rect(0, 0, 10, 2));
+        var player = new MotionPlayer();
+        player.Begin(baseImage, window, new Rect(0, 0, 10, 10), new Rect(0, 0, 10, 10), 255, 255, 0, 1000);
+        player.SetOverlay(bar, new Rect(0, 8, 10, 2), new Rect(0, 10, 10, 2), 0, 0);
+        Assert.True(player.Render(frame, 10, 10, 0));
+        Assert.Equal(1, frame[75]);
+        Assert.Equal(2, frame[85]);
+        Assert.True(player.Render(frame, 10, 10, 999));
+        Assert.Equal(1, frame[85]);
     }
 }

@@ -17,15 +17,21 @@ internal sealed class LauncherMenu
     private readonly List<(Rect Rect, Action Run)> _items = new();
     private readonly Func<string, string?, bool> _openApp;
 
-    public LauncherMenu(Rect anchor, Func<string, string?, bool> openApp)
+    public LauncherMenu(Rect bar, Func<string, string?, bool> openApp)
     {
         _openApp = openApp;
-
-        int height = 2 * Padding + AppRegistry.Apps.Count * AppItemHeight + SeparatorHeight + 3 * PowerItemHeight;
-        Bounds = new Rect(anchor.X - 6, anchor.Y - height - 14, Width, height);
+        AlignTo(bar);
     }
 
-    public Rect Bounds { get; }
+    public Rect Bounds { get; private set; }
+
+    /// <summary>Sits above the bar's left end, wherever the bar's shape put it.</summary>
+    public void AlignTo(Rect bar)
+    {
+        int height = 2 * Padding + AppRegistry.Apps.Count * AppItemHeight + SeparatorHeight + 3 * PowerItemHeight;
+        Bounds = new Rect(Math.Max(bar.X, Theme.TaskbarMargin), bar.Y - height - Theme.TaskbarMargin, Width, height);
+    }
+
     public bool IsOpen { get; set; }
 
     /// <summary>Handles a click while open. Always closes the menu; runs the item under the pointer, if any.</summary>

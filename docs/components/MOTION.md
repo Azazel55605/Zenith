@@ -125,26 +125,31 @@ longer look alike. Client titles lose the "Native · " prefix. The clock is cent
 **Too many windows.** Pills shrink evenly to 120 px, then the rest move to a `+N` button beside
 the clock that lists them. The focused window always keeps a pill. Every window stays reachable.
 
-**Hiding.** `taskbar` is a system-wide choice in `/etc/zenith/taskbar.conf`, set on the
-`windows.taskbar` page or with `settings set taskbar`:
+**Shape and hiding.** `taskbar` is a system-wide choice in `/etc/zenith/taskbar.conf`, set on
+the `windows.taskbar` page or with `settings set taskbar`. Docked runs edge to edge along the
+bottom row with square corners; floating is inset and rounded.
 
-| Choice | Bar shows | Maximize fills |
+| Choice | Bar | Maximize fills |
 |---|---|---|
-| `always` | Always | Space above the bar |
-| `maximized` | Unless the top window is maximized | Whole screen |
-| `auto` | Only on demand | Whole screen |
+| `dock-maximized` (default) | Floating; docked while the top window is maximized or fullscreen | Space above the docked bar |
+| `floating` | Always floating | Space above the floating bar |
+| `docked` | Always docked | Space above the docked bar |
+| `maximized` | Floating; hidden while the top window is maximized | Whole screen |
+| `auto` | Floating, only on demand | Whole screen |
 
-In every mode the bar ducks for a fullscreen top window, returns when the pointer reaches the
-bottom three screen rows, and stays 400 ms after the pointer leaves. An open launcher or `+N` list
-keeps it up, and dragging a window to the bottom edge does not raise it.
+One setting covers both, because a Meridian page holds one control and these are the
+combinations worth having. `always`, saved by 0.0.35, reads as `floating`.
 
 **Fullscreen.** F11 toggles the focused resizable window to the whole screen without a title
 bar. A client gets the normal resize. Client surfaces stop at 1920x1000, so on taller screens
 wallpaper shows below a fullscreen client.
 
-**Motion.** The bar slides in over 160 ms and out over 120 ms, with its rounded corners masked
-and without its shadow. A window change at the same moment takes priority and the bar moves
-at once. Animations Off moves it at once too.
+**Motion.** The bar slides in over 160 ms and out over 120 ms, with its corners masked and
+without its shadow, and changes shape by moving and stretching between the two rectangles while
+its corner radius follows. It travels above everything else. A window change that moves the bar
+plays with it in one animation, at the window's duration, and logs as `Resized bar=TaskbarDocked`.
+A bar change on its own never cuts a window animation short: the bar moves at once instead.
+Animations Off moves it at once too.
 
 The system-app gate checks each mode, fullscreen, the reveal and overflow.
 
