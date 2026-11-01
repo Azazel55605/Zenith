@@ -138,8 +138,22 @@ internal sealed class Desktop
 
     public void StopClients() { _taskbar.Dispose(); Zenith.Core.Configuration.SystemConfiguration.Appearance.ReportMaterials(0, 0, 2); _apps.Stop(); _nativeClients.Stop(); Zenith.Core.Processes.NativeSystemInformation.Display("No graphical session"); }
 
+    /// <summary>What is on screen, for the crossfade when this session ends.</summary>
+    public int[] FramePixels => _frame.Pixels;
+
     public void Tick()
     {
+        if (SessionDisplay.FadePending)
+        {
+            _input.Poll();
+            WantedBar();
+            ComposeScene();
+            _frame.CopyFrom(_scene);
+            DrawCursor();
+            SessionDisplay.FadeTo(_frame.Pixels, _frame.Width, _frame.Height);
+            _sceneDirty = false;
+        }
+
         _nativeClients.Tick(Windows);
         _apps.Tick(Windows);
         if (_generation != Accounts.Generation)

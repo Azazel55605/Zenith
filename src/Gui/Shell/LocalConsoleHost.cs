@@ -24,6 +24,7 @@ internal sealed class LocalConsoleHost : ISessionHost
     public void BeginStop() => _terminal.CloseInput();
     public void Start()
     {
+        SessionDisplay.DropFrame();
         NativeAppearance.Reload();
         var screen = SessionDisplay.Screen;
         _surface = new Surface(screen.Width, screen.Height);

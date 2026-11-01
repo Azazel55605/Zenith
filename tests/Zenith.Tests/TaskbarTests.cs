@@ -109,4 +109,14 @@ public class TaskbarTests
         Assert.True(player.Render(frame, 10, 10, 999));
         Assert.Equal(1, frame[85]);
     }
+
+    [Fact]
+    public void CrossfadeEndsExactlyOnEachFrame()
+    {
+        int[] from = { unchecked((int)0xff102030) }, to = { unchecked((int)0xffa0b0c0) }, output = new int[1];
+        PixelBlend.Mix(from, to, output, 0);
+        Assert.Equal(from[0], output[0]);
+        PixelBlend.Mix(from, to, output, 255);
+        Assert.Equal(to[0], output[0]);
+    }
 }

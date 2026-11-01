@@ -153,12 +153,34 @@ Animations Off moves it at once too.
 
 The system-app gate checks each mode, fullscreen, the reveal and overflow.
 
+## Stage 5: login
+
+**Look.** The card, fields and buttons use the shared `AppStyle` controls and theme sizes, the
+same radii and control height as the desktop, with the logo beside the title. The focused field
+shows a caret, a failed sign-in is in the danger color, and Desktop and Headless are two buttons
+rather than `< >`. Branding from `login.conf` still applies.
+
+**Pointer.** Controls show hover, and a pointer move over the same control redraws only under
+the cursor, as the desktop does.
+
+**Power.** Restart and Shut down ask first, in a panel that replaces the two buttons. Only a
+click on the named button goes ahead. Escape, Cancel or any other click cancels, and other keys
+are ignored while it is open, so typing a password cannot restart the machine. Power actions
+have no keyboard path yet.
+
+**Crossfade.** Login to desktop and desktop to login fade over 220 ms, scaled by the animation
+choice. The stopping session copies its last frame; the next one fades from it on its first
+draw and then wipes both buffers, so no session's pixels outlive the fade. A local console drops
+the copy unused. The fade blocks the session for its length and gives up after two frames over
+33 ms. Off, or too little free memory, skips it. It logs as `SessionFade`. Boot and power-off
+have no fade yet.
+
+The login gate checks confirmation and cancellation, and that both fades ran.
+
 ## Later stages
 
 Each gets its own design before work starts.
 
-5. **Login:** the shared design and controls, hover, confirmation for Restart and Shut down,
-   cursor-only redraws; crossfades for login and logout.
 6. **Inside applications:** a toolkit frame clock, page transitions and smooth scrolling.
 7. **Boot and shutdown:** logo and progress once graphics is up, diagnostics still
    reachable; a short shutdown fade that can never delay power-off.

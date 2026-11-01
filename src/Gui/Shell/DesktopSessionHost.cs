@@ -36,6 +36,7 @@ internal sealed class DesktopSessionHost : ISessionHost
     }
     public void Stop()
     {
+        SessionDisplay.KeepFrame(_desktop.FramePixels);
         Zenith.Core.Processes.NativeProcessGraphics.Register(null);
         _desktop.StopClients();
         foreach (var window in _desktop.Windows.Windows) { window.EndSession(); }

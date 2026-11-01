@@ -68,6 +68,9 @@ their package operations can fail clearly. Account/boot recovery remains availab
 return to the retained compatible kernel before further package operations. This
 is not a matched kernel/root snapshot.
 
+The greeter's look, power confirmation and crossfades are designed in
+[Desktop motion](components/MOTION.md#stage-5-login).
+
 `tools/login-session-smoke.py` checks installed authentication, user credentials,
 busy/unsaved logout refusal, repeated DE/local-console login, history/German input,
 visible signed styling upgrade under the same kernel, meta removal and independent
