@@ -66,7 +66,7 @@ def main():
         'n':'native run settings --version | logger; echo S_VERSION=$? | logger',
         'k':'native run settings --page input.keyboard | logger; echo S_KEYBOARD=$? | logger',
         't':'native run settings --page locale.time | logger; echo S_TIMEZONE=$? | logger',
-        'b':'native run settings --page windows.taskbar | logger; echo S_TASKBAR=$? | logger',
+        'x':'native run settings --page windows.taskbar | logger; echo S_TASKBAR=$? | logger',
         'o':'settings show | logger; native run settings --system-show | logger; echo S_SHARED=$? | logger',
         'r':'native run settings --system-set keyboard us; native run settings --system-set timezone UTC; native run settings --system-set session headless; settings set taskbar dock-maximized; echo S_SHARED_RESTORE=$? | logger',
         'l':'settings set translucency 80; echo S_LEVEL=$? | logger',
@@ -272,7 +272,7 @@ def main():
         assert m.wait('user: S_SECRET_CANCELLED',off,30),'secret read cancellation and shell recovery'
         frame('terminal-material-restored',lambda w,h,rgb:color_at(rgb,w,1028,570)!=bytes.fromhex('202125') and max(color_at(rgb,w,1028,570))<160)
         print('PASS hidden Terminal input stays solid; cancellation restores materials',flush=True)
-        for script,count,direction,expected,exit_marker in (('k',4,'down','keyboard=gb (active gb)','S_KEYBOARD'),('t',1,'down','timezone=Europe/London (active Europe/London)','S_TIMEZONE'),('b',2,'down','taskbar=docked','S_TASKBAR'),('q',1,'up','session=de (next boot)','S_SESSION_PAGE')):
+        for script,count,direction,expected,exit_marker in (('k',4,'down','keyboard=gb (active gb)','S_KEYBOARD'),('t',1,'down','timezone=Europe/London (active Europe/London)','S_TIMEZONE'),('x',2,'down','taskbar=docked','S_TASKBAR'),('q',1,'up','session=de (next boot)','S_SESSION_PAGE')):
             desktop_script(script,'MERIDIAN_FOCUSED')
             # Keyboard path: footer buttons start disabled, so Shift+Tab lands on the
             # combo; Enter opens it, Down moves, Enter commits, Tab reaches Apply.
