@@ -59,6 +59,9 @@ missing or failing Polaris falls back to, and local console and serial are uncha
    of scrollback; plain PgUp and PgDn scroll, as in the built-in one. Selection and clipboard have host tests only
    for the model, not a VM check. Terminal windows the desktop opens itself at first boot stay built-in.
 4. **P4 tabs and layouts:** several sessions, up to eight, with Tall, Columns and Rows.
+   Also from operator testing of 0.1.0: the launcher should say Polaris once it is installed, not Terminal. Pasting
+   text with line breaks must not run it: it stays editable until Enter, as multi-line paste. This also applies to the
+   built-in Terminal, which shares the session code. Move the helpers listed under the toolkit gaps into `userland/ui`.
 5. **P5 navigation:** find bar, profiles, prompt marks, hints and the scrollback rail. Inline images are not planned yet.
 
 ## H1 / N1 / X2 — Related work
