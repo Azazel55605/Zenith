@@ -9,8 +9,20 @@ namespace Zenith.Gui;
 
 // Process workers only touch owned buffers/queues. WindowManager is mutated
 // exclusively by the desktop tick. A host is permanently bound to one login.
-internal sealed class NativeClientHost : IProcessGraphicsHost
+internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalHost
 {
+    private readonly List<Zenith.Gui.Terminal.ClientTerminal> _terminals = new();
+    /// <summary>Whether a client's terminal session has a command or background job a logout would interrupt.</summary>
+    public bool TerminalBusy { get { lock (_gate) { foreach (var t in _terminals) { if (!t.Closed && t.Busy) { return true; } } return false; } } }
+    public IProcessTerminal? OpenTerminal(int columns)
+    {
+        lock (_gate)
+        {
+            if (_stopped || Accounts.Generation != _generation || _terminals.Count >= 16) { return null; }
+            var terminal = new Zenith.Gui.Terminal.ClientTerminal(_identity, columns, (name, argument) => Zenith.Apps.TerminalWindow.OpenApp?.Invoke(name, argument) ?? false);
+            _terminals.Add(terminal); return terminal;
+        }
+    }
     private readonly object _gate = new();
     // A window opens with the client's first frame, or empty if that takes too long.
     private const long FirstFrameMilliseconds = 500;
@@ -38,6 +50,11 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
         {
             if (_stopped) { return; }
             if (Accounts.Generation != _generation) { StopCore(); return; }
+            for (int i = _terminals.Count - 1; i >= 0; i--)
+            {
+                _terminals[i].Tick();
+                if (_terminals[i].Closed) { _terminals.RemoveAt(i); }
+            }
             long now = System.Diagnostics.Stopwatch.GetTimestamp();
             for (int i = 0; i < _pending.Count; i++)
             {
@@ -50,7 +67,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
         }
     }
     private void StopCore()
-    { _stopped = true; foreach (var s in _surfaces) { s.Dispose(); } _surfaces.Clear(); _pending.Clear(); }
+    { _stopped = true; foreach (var t in _terminals) { t.Close(); t.Tick(); } _terminals.Clear(); foreach (var s in _surfaces) { s.Dispose(); } _surfaces.Clear(); _pending.Clear(); }
     public void Stop() { lock (_gate) { StopCore(); } }
 
     private sealed class ClientWindow : Window

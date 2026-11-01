@@ -42,7 +42,7 @@ missing or failing Polaris falls back to, and local console and serial are uncha
 |---|---|---|
 | Native programs get 8 MiB of address space, 7.7 MiB of it a full-size frame | No room for scrollback | Raise the bound behind a new package capability |
 | Each process page allocates 8 KiB for alignment | Twice the memory for every native program | Allocate aligned pages |
-| A running native program blocks `reboot`, `poweroff` and package work | With Polaris open, you could not run them from it | Let idle interactive clients ask to close instead of blocking |
+| A running native program blocks `reboot`, `poweroff` and package work | With Polaris open, you could not run them from it | A program holding a terminal session stops counting; other apps, such as Meridian, still block |
 | The UI library has no monospace font, and a program is at most 256 KiB | Glyphs must fit the image | Hack atlas of ASCII, Latin-1 and box drawing |
 | One native program runs at a time on the raw entry gate | A busy child slows Polaris drawing | Measure in P3; output is batched per frame |
 
@@ -50,7 +50,7 @@ missing or failing Polaris falls back to, and local console and serial are uncha
 
 1. **P1 session extraction:** move the session out of `TerminalWindow`, with no visible change. Every gate
    that types into Terminal covers it.
-2. **P2 session service:** the system calls, the memory bound and the blocking rule, with a test client.
+2. **P2 session service:** calls 630..635, 32 MiB images behind `zenith-native-memory-abi`, aligned page runs and the blocking rule. `gui-probe --terminal` drives a session in the graphics gate, including a hidden prompt.
 3. **P3 single pane:** the zenith-polaris package with grid, scrollback, selection, clipboard, and smooth
    scrolling, opened from the launcher when installed.
 4. **P4 tabs and layouts:** several sessions, up to eight, with Tall, Columns and Rows.

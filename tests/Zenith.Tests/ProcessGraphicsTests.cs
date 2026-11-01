@@ -13,6 +13,71 @@ public sealed class ProcessGraphicsTests
         public ProcessSurface Open(int width, int height, string title, int format = 1)
         { var s = new ProcessSurface(width, height, title, format); Surfaces.Add(s); return s; }
     }
+    private sealed class FakeTerminal : IProcessTerminal
+    {
+        public int Keys, Columns; public bool Closed;
+        public void Key(int code, int modifiers, int extra) => Keys++;
+        public int Read(Span<byte> destination) { destination[0] = 65; return 1; }
+        public byte[] State() => new byte[24];
+        public void Resize(int columns) => Columns = columns;
+        public void Close() => Closed = true;
+    }
+    private sealed class FakeTerminalHost : IProcessTerminalHost
+    {
+        public readonly List<FakeTerminal> Opened = new();
+        public IProcessTerminal? OpenTerminal(int columns) { var t = new FakeTerminal(); Opened.Add(t); return t; }
+    }
+    [Fact]
+    public void TerminalSessionsAreBoundedCheckedAndEndWithTheProgram()
+    {
+        var host = new FakeTerminalHost(); var t = new ProcessTerminals();
+        Assert.Equal(-22, t.Open(host, 5));
+        Assert.Equal(-19, t.Open(null, 80));
+        int first = t.Open(host, 80);
+        Assert.Equal(ProcessTerminals.FirstHandle, first);
+        for (int i = 1; i < ProcessTerminals.MaximumSessions; i++) { Assert.True(t.Open(host, 80) > 0); }
+        Assert.Equal(-24, t.Open(host, 80));
+        Assert.Equal(-9, t.Key(first - 1, new byte[12]));
+        Assert.Equal(-9, t.Key(first + ProcessTerminals.MaximumSessions, new byte[12]));
+        Assert.Equal(-22, t.Key(first, new byte[11]));
+        Assert.Equal(0, t.Key(first, new byte[12]));
+        Assert.Equal(1, host.Opened[0].Keys);
+        Assert.Equal(-22, t.Resize(first, 5));
+        Assert.Equal(0, t.Resize(first, 100));
+        Assert.Equal(0, t.Close(first));
+        Assert.True(host.Opened[0].Closed);
+        Assert.Equal(-9, t.Close(first));
+        Assert.Null(t.State(first));
+        Assert.Equal(first, t.Open(host, 80));                         // the slot is free again
+        t.Dispose();
+        Assert.All(host.Opened, o => Assert.True(o.Closed));           // nothing outlives the program
+        Assert.Equal(-19, t.Open(host, 80));
+    }
+    [Fact]
+    public void TerminalStateNeverSplitsACharacterAndIsBounded()
+    {
+        byte[] state = ProcessTerminalState.Encode(true, true, false, false, true, 3, new string('é', 600), "", "/root");
+        Assert.Equal(ProcessTerminalState.Busy | ProcessTerminalState.Secret | ProcessTerminalState.Dropped, BinaryPrimitives.ReadInt32LittleEndian(state.AsSpan(4)));
+        int prompt = BinaryPrimitives.ReadInt32LittleEndian(state.AsSpan(12));
+        Assert.Equal(512, prompt);
+        Assert.Equal(0, BinaryPrimitives.ReadInt32LittleEndian(state.AsSpan(16)));
+        Assert.True(state.Length <= ProcessTerminals.StateBytes);
+        Assert.Equal("/root", System.Text.Encoding.UTF8.GetString(state, 24 + prompt, 5));
+    }
+    [Fact]
+    public void ClientProgramsStopBlockingOnlyWhileAlive()
+    {
+        var table = new ProcessTable();
+        int client = table.Start("polaris", 0, () => { }), tool = table.Start("cat", 0, () => { });
+        Assert.Equal(2, table.BlockingCount);
+        table.MarkClient(client); table.MarkClient(client);            // marking twice counts once
+        Assert.Equal(1, table.BlockingCount);
+        Assert.Equal(2, table.ActiveCount);                            // it still takes a program slot
+        table.Complete(client, 0);
+        Assert.Equal(1, table.BlockingCount);
+        table.Complete(tool, 0);
+        Assert.Equal(0, table.BlockingCount);
+    }
     [Fact]
     public void FramePacerGivesAnAnimatingClientTheWholeInterval()
     {

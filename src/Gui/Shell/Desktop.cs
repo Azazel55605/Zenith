@@ -140,6 +140,7 @@ internal sealed class Desktop
 
     /// <summary>What is on screen, for the crossfade when this session ends.</summary>
     public int[] FramePixels => _frame.Pixels;
+    public bool TerminalBusy => _nativeClients.TerminalBusy;
 
     public void Tick()
     {

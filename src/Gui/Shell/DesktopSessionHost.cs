@@ -25,6 +25,7 @@ internal sealed class DesktopSessionHost : ISessionHost
     public bool CanStop => StopBlocker(null) is null;
     public string? StopBlocker(CommandShell? requester)
     {
+        if (_desktop.TerminalBusy) { return "A terminal command is still running."; }
         foreach (var window in _desktop.Windows.Windows)
         {
             if (window.IsClosed) { continue; }

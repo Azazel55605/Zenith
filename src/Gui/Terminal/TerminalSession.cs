@@ -54,9 +54,11 @@ internal sealed class TerminalSession : IOutput
     private string? _readReply;
     private bool _readEof;
 
-    public TerminalSession(Credentials identity, int columns, Func<string, string?, bool> openApp)
+    /// <param name="sink">Where output goes for a client that keeps its own grid; without one, <see cref="Buffer"/>.</param>
+    public TerminalSession(Credentials identity, int columns, Func<string, string?, bool> openApp, Action<string>? sink = null)
     {
         _openApp = openApp;
+        _sink = sink;
         _shell = new Shell(this);
         string user = Accounts.Service?.Name(identity.Uid) ?? (identity.IsRoot ? "root" : "nobody");
         _shell.SetIdentity(identity, user, identity.IsRoot ? "/root" : "/home/" + user);
@@ -71,17 +73,27 @@ internal sealed class TerminalSession : IOutput
 
         if (File.Exists("/etc/motd"))
         {
-            _buffer.Write(File.ReadAllText("/etc/motd"));
+            Emit(File.ReadAllText("/etc/motd"));
         }
 
-        _buffer.Write("\n");
-        if (Accounts.Error is string error) { _buffer.Write("Accounts unavailable: " + error + "\n"); }
+        Emit("\n");
+        if (Accounts.Error is string error) { Emit("Accounts unavailable: " + error + "\n"); }
         else if (Accounts.Service is not null && identity.IsRoot && !Accounts.Service.HasPasswords)
-        { _buffer.Write("Initial root setup: run passwd root, then passwd user and login user.\n"); }
-        else if (identity.Uid == 65534) { _buffer.Write("Use login USER to authenticate.\n"); }
+        { Emit("Initial root setup: run passwd root, then passwd user and login user.\n"); }
+        else if (identity.Uid == 65534) { Emit("Use login USER to authenticate.\n"); }
     }
 
     public TerminalBuffer Buffer => _buffer;
+    private readonly Action<string>? _sink;
+    private bool _sinkAtLineStart = true;
+    private void Emit(string text)
+    {
+        if (text.Length == 0) { return; }
+        if (_sink is null) { _buffer.Write(text); return; }
+        _sinkAtLineStart = text[^1] == '\n';
+        _sink(text);
+    }
+    private bool AtLineStart => _sink is null ? _buffer.CursorColumn == 0 : _sinkAtLineStart;
     public Credentials Identity => _shell.Identity;
     public string WorkingDirectory => _shell.WorkingDirectory;
     public bool IsBusy => _jobRunning;
@@ -149,7 +161,7 @@ internal sealed class TerminalSession : IOutput
 
         if (output.Length > 0)
         {
-            _buffer.Write(output);
+            Emit(output);
             _newOutput = true;
         }
 
@@ -166,9 +178,9 @@ internal sealed class TerminalSession : IOutput
             _job = null;
 
             // Keep the prompt on its own line even if the command's output did not end in one.
-            if (_buffer.CursorColumn != 0)
+            if (!AtLineStart)
             {
-                _buffer.Write("\n");
+                Emit("\n");
             }
 
             _prompt = _shell.Prompt;
@@ -376,14 +388,14 @@ internal sealed class TerminalSession : IOutput
                 }
                 else
                 {
-                    _buffer.Write(CurrentPrompt + _input + Ansi.Dim("^C") + "\n");
+                    Emit(CurrentPrompt + _input + Ansi.Dim("^C") + "\n");
                     _pendingScript.Clear();
                 }
 
                 ResetInput();
                 break;
             case ConsoleKeyEx.L:
-                _buffer.Clear();
+                if (_sink is null) { _buffer.Clear(); } else { Emit(Ansi.ClearScreen); }
                 break;
             case ConsoleKeyEx.U:
                 ResetInput();
@@ -433,7 +445,7 @@ internal sealed class TerminalSession : IOutput
     /// </summary>
     private void Accept(string line)
     {
-        _buffer.Write(CurrentPrompt + line + "\n");
+        Emit(CurrentPrompt + line + "\n");
         string text = _pendingScript.Length > 0 ? _pendingScript + "\n" + line : line;
         _pendingScript.Clear();
 
@@ -520,7 +532,7 @@ internal sealed class TerminalSession : IOutput
         else if (candidates.Count > 1)
         {
             // Ambiguous: show the options under the current line, like bash's double-Tab.
-            _buffer.Write(CurrentPrompt + _input + "\n" + string.Join("  ", candidates) + "\n");
+            Emit(CurrentPrompt + _input + "\n" + string.Join("  ", candidates) + "\n");
         }
     }
 

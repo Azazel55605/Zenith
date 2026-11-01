@@ -27,6 +27,7 @@ internal static class BootstrapComponents
         new("zenith-session-host", "1.0", "trusted login/session host; kernel-linked"),
 #if !ARCH_ARM64
         new("zenith-native-fs-abi", "1.0", "read-only native filesystem calls"),
+        new("zenith-native-memory-abi", "1.0", "program images up to 32 MiB of address space"),
         new("zenith-native-settings-abi", "1.0", "typed system appearance settings with revision checks"),
         new("zenith-native-interactive-abi", "1.0", "owned live-window quota renewal and bounded revocation cleanup"),
         new("zenith-native-system-info-abi", "1.0", "bounded read-only running system metadata"),

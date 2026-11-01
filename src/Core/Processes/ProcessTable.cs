@@ -17,6 +17,7 @@ internal sealed class ProcessTable
         public ProcessState State;
         public int? Status;
         public bool StopRequested;
+        public bool Client;
         public Action? Stop = stop;
         public ProcessInfo Snapshot() => new(Pid, Name, Uid, State, Status, StopRequested);
     }
@@ -35,6 +36,17 @@ internal sealed class ProcessTable
         ? "A system update is running. Try again when it finishes."
         : "Too many programs are running. Close one and try again.";
     public int ActiveCount { get { lock (_gate) { return _active; } } }
+    /// <summary>Programs that power and package work must wait for. A terminal client holds no files and its
+    /// commands run as programs of their own, so it does not count once it has marked itself.</summary>
+    public int BlockingCount { get { lock (_gate) { return _active - _clients; } } }
+    private int _clients;
+    public void MarkClient(int pid)
+    {
+        lock (_gate)
+        {
+            if (_entries.TryGetValue(pid, out var entry) && entry.State != ProcessState.Exited && !entry.Client) { entry.Client = true; _clients++; }
+        }
+    }
     public int Start(string name, uint uid, Action stop)
     {
         if (name.Length is < 1 or > 64) { throw new ArgumentException("invalid process name"); }
@@ -62,7 +74,7 @@ internal sealed class ProcessTable
         {
             if (!_entries.TryGetValue(pid, out var entry) || entry.State == ProcessState.Exited) { return; }
             entry.State = ProcessState.Exited; entry.Status = status & 255;
-            entry.Stop = null; _active--; _exited.Enqueue(pid);
+            entry.Stop = null; _active--; if (entry.Client) { _clients--; } _exited.Enqueue(pid);
             while (_exited.Count > _history) { _entries.Remove(_exited.Dequeue()); }
         }
     }

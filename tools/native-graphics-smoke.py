@@ -32,6 +32,8 @@ def main():
     gui_texts = [
         ('native run gui-probe --probe | logger','G_PROBE'),
         ('native run gui-probe --exit | logger','G_EXIT'),
+        ('native run gui-probe --terminal | logger','G_TERMINAL'),
+        ('native run gui-probe --terminal-hold > /tmp/hold & sleep 4; pkg verify > /dev/null; echo G_HOLD_PKG=$? | logger; wait','G_HOLD'),
         ('native run gui-probe --fault','G_FAULT'),
         ('native run gui-probe --probe | logger','G_AFTER_FAULT'),
         ('native run gui-probe | logger','G_INTERACTIVE'),
@@ -87,6 +89,9 @@ def main():
         assert m.wait('desktop ready (installed)',timeout=180);gui=True;time.sleep(2)
         status('native run gui-probe --probe | logger','G_PROBE')
         status('native run gui-probe --exit | logger','G_EXIT')
+        terminal=status('native run gui-probe --terminal | logger','G_TERMINAL')
+        assert 'TERMINAL_PROBE_OK' in terminal and 'user: TERMINAL_LOG' in terminal and 'HIDDENWORD' not in terminal,terminal[-500:]
+        print('PASS terminal client sessions',flush=True)
         status('native run gui-probe --fault','G_FAULT',139)
         status('native run gui-probe --probe | logger','G_AFTER_FAULT')
         # Actual pixels and focused input through WindowManager, not synthetic
@@ -136,6 +141,10 @@ def main():
         status('su user; export USER=root; native run gui-probe --probe','G_OTHER_UID',1)
         monitor_command(monitor,'sendkey ctrl-alt-t 30');time.sleep(1)
         status('native run gui-probe --probe','G_SESSION_UID')
+        # Last, because a background job keeps its number for good and the steps above use %1.
+        hold=command('native run gui-probe --terminal-hold > /tmp/hold & sleep 4; pkg verify > /dev/null; echo G_HOLD_PKG=$? | logger; wait; echo G_HOLD=$? | logger','user: G_HOLD=')
+        assert 'user: G_HOLD_PKG=0' in hold,'a terminal client still blocks package work: '+hold[-300:]
+        print('PASS a terminal client does not block package work',flush=True)
         command('poweroff','all filesystems unmounted');m.process.wait(timeout=30)
         import boot_image
         state=boot_image.verify(m.disk)

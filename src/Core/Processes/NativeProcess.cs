@@ -65,7 +65,7 @@ internal sealed unsafe class NativeProcess
         try { files?.Dispose(); Monitor.Exit(s_serviceGate); }
         catch { Monitor.Exit(s_serviceGate); throw; }
     }
-    public static bool IsRunning => Processes.ActiveCount != 0;
+    public static bool IsRunning => Processes.BlockingCount != 0;
     private NativeProcess()
     {
         _hhdm = Limine.HHDM.Response == null ? 0 : Limine.HHDM.Response->Offset;
@@ -84,7 +84,22 @@ internal sealed unsafe class NativeProcess
         if (raw == null) { throw new OutOfMemoryException(); }
         _allocations.Add((nint)raw); new Span<byte>(raw, bytes).Clear(); return raw;
     }
-    private byte* Page() => (byte*)(((ulong)Allocate(8192) + 4095) & ~4095UL);
+    // Pages come from aligned runs: aligning each one alone wasted as much memory as it used.
+    private const int ArenaPages = 64;
+    private byte* _arena;
+    private int _arenaLeft;
+    private byte* Page()
+    {
+        if (_arenaLeft == 0)
+        {
+            _arena = (byte*)(((ulong)Allocate((ArenaPages + 1) * 4096) + 4095) & ~4095UL);
+            _arenaLeft = ArenaPages;
+        }
+        byte* page = _arena;
+        _arena += 4096;
+        _arenaLeft--;
+        return page;
+    }
     private ulong Physical(void* address)
     {
         ulong value = (ulong)address;
@@ -134,6 +149,39 @@ internal sealed unsafe class NativeProcess
     {
         try
         {
+            if (c.Call == 630)
+            {
+                if (c.Arg0 > int.MaxValue || c.Arg1 != 0 || c.Arg2 != 0) { return -22; }
+                if (!graphics.Live) { return -19; }
+                int terminal = graphics.Terminals.Open(graphics.TerminalHost, (int)c.Arg0);
+                if (terminal > 0) { Processes.MarkClient((int)c.Pid); }
+                return terminal;
+            }
+            if (c.Call == 631)
+            {
+                if (c.Arg2 != ProcessTerminals.KeyBytes) { return -22; }
+                if (!Valid(c.Arg1, ProcessTerminals.KeyBytes, false)) { return -14; }
+                return graphics.Terminals.Key((long)c.Arg0, ReadUser(c.Arg1, ProcessTerminals.KeyBytes));
+            }
+            if (c.Call == 632)
+            {
+                if (c.Arg2 is < 1 or > ProcessTerminals.MaximumRead) { return -22; }
+                if (!Valid(c.Arg1, (int)c.Arg2, true)) { return -14; }
+                byte[] output = new byte[(int)c.Arg2];
+                int read = graphics.Terminals.Read((long)c.Arg0, output);
+                if (read > 0) { Transfer(c.Arg1, output.AsSpan(0, read).ToArray(), true); }
+                return read;
+            }
+            if (c.Call == 633)
+            {
+                if (c.Arg2 != ProcessTerminals.StateBytes) { return -22; }
+                if (!Valid(c.Arg1, ProcessTerminals.StateBytes, true)) { return -14; }
+                byte[]? state = graphics.Terminals.State((long)c.Arg0);
+                if (state is null) { return -9; }
+                Transfer(c.Arg1, state, true); return state.Length;
+            }
+            if (c.Call == 634) { return c.Arg1 > int.MaxValue || c.Arg2 != 0 ? -22 : graphics.Terminals.Resize((long)c.Arg0, (int)c.Arg1); }
+            if (c.Call == 635) { return c.Arg1 != 0 || c.Arg2 != 0 ? -22 : graphics.Terminals.Close((long)c.Arg0); }
             if (c.Call == 629)
             {
                 if (c.Arg0 > int.MaxValue || c.Arg2 != 24) { return -22; }
@@ -552,11 +600,11 @@ internal sealed unsafe class NativeProcess
                     if (status == DeviceInterruptYield) { continue; }
                     if (status != 4096) { break; }
                     if (cancelled()) { status = 130; break; }
-                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615 or 628 or 629) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
+                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615 or 628 or 629 or >= 630 and <= 635) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
                     var caller = Zenith.Core.Security.CredentialContext.Enter(identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
                     // while waiting for a peer. Mutations and transport setup stay serialized.
-                    bool standard = context.Call is 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    bool standard = context.Call is 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {

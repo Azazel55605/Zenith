@@ -52,6 +52,17 @@ _Static_assert(sizeof(struct zenith_resize_request)==24,"resize acknowledgement"
 static inline long zenith_gui_resize_enable(long handle){return zenith_call(614,(unsigned long)handle,1,0);}
 /* Opt in to pointer motion (event 11; x=y=-1 on leave). Older kernels return -38. */
 #define Z_GUI_MOVE 11
+/* Terminal sessions (kernel 0.0.41): a kernel-owned shell with the caller's credentials. Needs a live surface. */
+struct zenith_terminal_key { int code,modifiers,extra; };
+static inline long zenith_terminal_open(int columns){return zenith_call(630,(unsigned long)columns,0,0);}
+static inline long zenith_terminal_key(long handle,const struct zenith_terminal_key *k){return zenith_call(631,(unsigned long)handle,(unsigned long)k,sizeof(*k));}
+static inline long zenith_terminal_read(long handle,char *buffer,unsigned long capacity){return zenith_call(632,(unsigned long)handle,(unsigned long)buffer,capacity);}
+#define Z_TERMINAL_STATE_BYTES 4096
+enum { Z_TERMINAL_BUSY=1,Z_TERMINAL_SECRET=2,Z_TERMINAL_RAW=4,Z_TERMINAL_EXIT=8,Z_TERMINAL_DROPPED=16 };
+/* version,flags,cursor,prompt bytes,input bytes,directory bytes, then that UTF-8 text in order */
+static inline long zenith_terminal_state(long handle,void *buffer){return zenith_call(633,(unsigned long)handle,(unsigned long)buffer,Z_TERMINAL_STATE_BYTES);}
+static inline long zenith_terminal_resize(long handle,int columns){return zenith_call(634,(unsigned long)handle,(unsigned long)columns,0);}
+static inline long zenith_terminal_close(long handle){return zenith_call(635,(unsigned long)handle,0,0);}
 /* Asks the desktop to crossfade this rectangle from the last frame into the next present,
  * the new content rising `rise` pixels into place. -38 before kernel 0.0.38. */
 struct zenith_gui_fade_request { int x,y,width,height,rise,reserved; };

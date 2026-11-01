@@ -21,6 +21,18 @@ class Tests(unittest.TestCase):
             self.assertEqual(['qemu','-accel',mode,'-cpu','max','-drive','file=scratch.img'],a.arguments(args,mode))
         self.assertEqual(2,args.count('-accel'))
 
+    def test_vm_gets_a_private_monitor_other_programs_do_not(self):
+        original=types.SimpleNamespace(**vars(subprocess));child=Mock();child.poll=Mock(return_value=0);original.Popen=Mock(return_value=child)
+        module=types.SimpleNamespace(subprocess=original)
+        a.install(module,'auto')
+        module.subprocess.Popen(['qemu-img','create'])
+        original.Popen.assert_called_with(['qemu-img','create'])
+        self.assertIs(child,module.subprocess.Popen(['qemu-system-x86_64','-m','1G'],stdout=17))
+        argv=original.Popen.call_args.args[0]
+        self.assertEqual(['qemu-system-x86_64','-m','1G','-monitor'],argv[:4])
+        self.assertTrue(argv[4].startswith('unix:') and argv[4].endswith(',server,nowait'))
+        self.assertEqual(17,original.Popen.call_args.kwargs['stdout'])
+
     def test_bad_policy_and_incomplete_arguments_refused(self):
         with self.assertRaises(ValueError): a.arguments(['qemu'],'whatever')
         with self.assertRaises(ValueError): a.arguments(['qemu','-accel'],'tcg')

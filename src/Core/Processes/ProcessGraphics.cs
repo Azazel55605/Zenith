@@ -264,6 +264,8 @@ internal sealed class ProcessGraphics : IDisposable
     /// <summary>Per renewal minute; above what <see cref="FramePacer"/> allows, so only a stale budget can reach it.</summary>
     public const int MaximumPresents = 7200;
     public FramePacer Pacer { get; } = new();
+    public ProcessTerminals Terminals { get; } = new();
+    public IProcessTerminalHost? TerminalHost => _host as IProcessTerminalHost;
     private readonly IProcessGraphicsHost? _host;
     private ProcessSurface? _surface;
     private int _handle, _opens, _presents;
@@ -309,5 +311,5 @@ internal sealed class ProcessGraphics : IDisposable
         if (handle != _handle || _surface is null) { return -9; }
         _surface.Dispose(); _surface = null; return 0;
     }
-    public void Dispose() { _disposed = true; _surface?.Dispose(); _surface = null; }
+    public void Dispose() { _disposed = true; Terminals.Dispose(); _surface?.Dispose(); _surface = null; }
 }
