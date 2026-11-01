@@ -113,6 +113,8 @@ internal sealed class Desktop
     /// <summary>Opens a registered app by (case-insensitive) name, passing it an optional argument such as a file path.</summary>
     public bool OpenApp(string name, string? argument)
     {
+        // Always the built-in terminal: the way back when an installed Polaris does not work.
+        if (string.Equals(name, RecoveryTerminal, System.StringComparison.OrdinalIgnoreCase)) { Windows.Open(new TerminalWindow()); return true; }
         foreach (AppInfo app in AppRegistry.Apps)
         {
             if (string.Equals(app.Name, name, System.StringComparison.OrdinalIgnoreCase))
@@ -140,6 +142,7 @@ internal sealed class Desktop
 
     /// <summary>What is on screen, for the crossfade when this session ends.</summary>
     public int[] FramePixels => _frame.Pixels;
+    private const string RecoveryTerminal = "recovery-terminal";
     public bool TerminalBusy => _nativeClients.TerminalBusy;
 
     public void Tick()
@@ -484,7 +487,11 @@ internal sealed class Desktop
         {
             if ((key.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) == (ConsoleModifiers.Control | ConsoleModifiers.Alt))
             {
-                if (key.Key == ConsoleKeyEx.T) { OpenApp("Terminal", null); return; }
+                if (key.Key == ConsoleKeyEx.T)
+                {
+                    OpenApp((key.Modifiers & ConsoleModifiers.Shift) != 0 ? RecoveryTerminal : "Terminal", null);
+                    return;
+                }
                 if (key.Key == ConsoleKeyEx.L) { Zenith.Core.Sessions.SessionRuntime.RequestLogout(); return; }
             }
             if (key.Key == ConsoleKeyEx.F11 && Windows.Focused is Window focused) { Windows.ToggleFullscreen(focused); return; }

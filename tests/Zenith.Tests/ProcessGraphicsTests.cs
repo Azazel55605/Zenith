@@ -21,6 +21,8 @@ public sealed class ProcessGraphicsTests
         public byte[] State() => new byte[24];
         public void Resize(int columns) => Columns = columns;
         public void Close() => Closed = true;
+        public void Copy(string text) { }
+        public void Paste() { }
     }
     private sealed class FakeTerminalHost : IProcessTerminalHost
     {

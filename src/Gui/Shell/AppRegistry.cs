@@ -28,7 +28,7 @@ internal static class AppRegistry
     public static readonly List<AppInfo> Apps = new()
     {
         new AppInfo("Welcome", "Getting started", _ => new WelcomeWindow(), "desktop-tools", "welcome"),
-        new AppInfo("Terminal", "Command line shell", _ => new TerminalWindow()),
+        new AppInfo("Terminal", "Command line shell", _ => new TerminalWindow(), "polaris"),
         new AppInfo("Files", "Browse and manage files", path => new FileManagerWindow(path)),
         new AppInfo("Editor", "Edit text files", path => new EditorWindow(path)),
         new AppInfo("Sunrise", "Install Zenith", _ => new InstallerWindow()),
@@ -39,7 +39,7 @@ internal static class AppRegistry
     /// <summary>The icon of a registered app; window titles may add to the app's name.</summary>
     public static string IconFor(string title)
     {
-        if (title.Contains("Terminal")) { return "terminal"; }
+        if (title.Contains("Terminal") || title.Contains("Polaris")) { return "terminal"; }
         if (title.Contains("Files")) { return "folder"; }
         if (title.Contains("Editor")) { return "file-text"; }
         if (title.Contains("Welcome")) { return "hand"; }
@@ -50,5 +50,5 @@ internal static class AppRegistry
     }
 
     public static bool Exists(string name)
-        => Apps.Exists(app => string.Equals(app.Name, name, StringComparison.OrdinalIgnoreCase));
+        => string.Equals(name, "recovery-terminal", StringComparison.OrdinalIgnoreCase) || Apps.Exists(app => string.Equals(app.Name, name, StringComparison.OrdinalIgnoreCase));
 }

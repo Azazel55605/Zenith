@@ -10,6 +10,8 @@ internal interface IProcessTerminal
     int Read(Span<byte> destination);
     byte[] State();
     void Resize(int columns);
+    void Copy(string text);
+    void Paste();
     void Close();
 }
 
@@ -63,6 +65,20 @@ internal sealed class ProcessTerminals : IDisposable
         if (session is null) { return -9; }
         if (columns is < MinimumColumns or > MaximumColumns) { return -22; }
         session.Resize(columns);
+        return 0;
+    }
+
+    public int Copy(long handle, string text)
+    {
+        if (Find(handle) is not { } session) { return -9; }
+        session.Copy(text);
+        return 0;
+    }
+
+    public int Paste(long handle)
+    {
+        if (Find(handle) is not { } session) { return -9; }
+        session.Paste();
         return 0;
     }
 

@@ -109,6 +109,7 @@
     "generate": "native",
     "program": "settings"
   },
+  "zenith-polaris": {"kind": "data", "name": "zenith-polaris", "repository": "core", "payload": "obj/packages/zenith-polaris", "program": "polaris", "generate": "native"},
   "zenith-desktop-tools": {
     "kind": "data",
     "name": "zenith-desktop-tools",

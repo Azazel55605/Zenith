@@ -26,6 +26,10 @@ def main():
         package('build-native','zenith-gui-probe',version,source,keep/('bundle-'+version),'--repo','extra')
         manifest=(keep/('bundle-'+version)/'manifest.tsv').read_text();assert 'requires\tzenith-native-graphics-abi\t1.0\n' in manifest
         package('seal',keep/('bundle-'+version),keep/'keys/private.pem',served/(version+'.zpk'))
+    subprocess.run([sys.executable,str(ROOT/'tools/build-userland.py'),str(keep/'polaris'),'--program','polaris','--version','0.1.0'],check=True)
+    package('build-native','zenith-polaris','0.1.0',keep/'polaris',keep/'bundle-polaris')
+    manifest=(keep/'bundle-polaris/manifest.tsv').read_text();assert 'requires\tzenith-native-terminal-session-abi\t1.0\n' in manifest and 'requires\tzenith-native-memory-abi\t1.0\n' in manifest
+    package('seal',keep/'bundle-polaris',keep/'keys/private.pem',served/'polaris.zpk')
     # Store executable test text during serial setup. Graphical interaction
     # launches only short lowercase paths: do not depend on long shifted labels
     # surviving synthetic keyboard injection while the compositor is rendering.
@@ -45,6 +49,8 @@ def main():
         ('native run gui-probe --probe','G_SESSION_UID'),
         ('native run gui-probe --terminal | logger','G_TERMINAL'),
         ('native run gui-probe --terminal-hold > /tmp/hold & sleep 4; pkg verify > /dev/null; echo G_HOLD_PKG=$? | logger; wait','G_HOLD'),
+        ('pkg install /root/polaris.zpk','G_POLARIS_PKG'),
+        ('echo POLARIS_ALIVE | logger','G_POLARIS'),
     ]
     quota='native run gui-probe > /tmp/g2 & native run gui-probe > /tmp/g3 & native run gui-probe > /tmp/g4 & native run gui-probe > /tmp/g5 & sleep 5; native run gui-probe --probe; echo G_LIMIT=$? | logger; kill %2; kill %3; kill %4; kill %5; wait; echo G_DRAIN=$? | logger'
     texts=[text+'; echo '+label+'=$? | logger' for text,label in gui_texts]
@@ -81,6 +87,7 @@ def main():
         status('pkg trust /root/key.pem '+hashlib.sha256(key).hexdigest(),'G_TRUST')
         for v in ('0.1.0','0.1.1'):status('fetch '+url+'/'+v+'.zpk /root/'+v+'.zpk','G_FETCH_'+v.replace('.',''))
         for name in scripts.values():status('fetch '+url+'/'+name+' /root/'+name,'G_SCRIPT_'+name)
+        status('fetch '+url+'/polaris.zpk /root/polaris.zpk','G_FETCH_POLARIS')
         status('pkg install /root/0.1.0.zpk','G_PACKAGE')
         status('native run gui-probe --bounds | logger','G_BOUNDS')
         status('native run gui-probe --probe','G_HEADLESS',1)
@@ -145,6 +152,14 @@ def main():
         hold=command('native run gui-probe --terminal-hold > /tmp/hold & sleep 4; pkg verify > /dev/null; echo G_HOLD_PKG=$? | logger; wait; echo G_HOLD=$? | logger','user: G_HOLD=')
         assert 'user: G_HOLD_PKG=0' in hold,'a terminal client still blocks package work: '+hold[-300:]
         print('PASS a terminal client does not block package work',flush=True)
+        # The real app: opened as the Terminal, typed into, and able to power off with itself open.
+        status('pkg install /root/polaris.zpk','G_POLARIS_PKG');time.sleep(.5)
+        off=len(m.log());monitor_command(monitor,'sendkey ctrl-alt-t 30')
+        assert m.wait('native surface opened 640x480',off,30),'Polaris did not open as the Terminal'
+        time.sleep(1.5);status('echo POLARIS_ALIVE | logger','G_POLARIS')
+        assert 'user: POLARIS_ALIVE' in m.log()[off:],'Polaris command output'
+        time.sleep(.5);monitor_command(monitor,'screendump '+str(keep/'polaris.ppm'))
+        print('PASS Polaris opens as the Terminal and runs commands',flush=True)
         command('poweroff','all filesystems unmounted');m.process.wait(timeout=30)
         import boot_image
         state=boot_image.verify(m.disk)

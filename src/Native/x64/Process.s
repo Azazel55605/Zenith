@@ -373,7 +373,7 @@ z_forward:
 z_syscall:
     cmp $613, %rax
     jb 10f
-    cmp $635, %rax
+    cmp $637, %rax
     jbe z_service
 10:
     cmp $612, %rax

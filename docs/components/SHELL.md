@@ -51,8 +51,13 @@ missing or failing Polaris falls back to, and local console and serial are uncha
 1. **P1 session extraction:** move the session out of `TerminalWindow`, with no visible change. Every gate
    that types into Terminal covers it.
 2. **P2 session service:** calls 630..635, 32 MiB images behind `zenith-native-memory-abi`, aligned page runs and the blocking rule. `gui-probe --terminal` drives a session in the graphics gate, including a hidden prompt.
-3. **P3 single pane:** the zenith-polaris package with grid, scrollback, selection, clipboard, and smooth
-   scrolling, opened from the launcher when installed.
+3. **P3 single pane:** the zenith-polaris package with scrollback that reflows, selection, clipboard and
+   smooth scrolling. Installed, it is what the launcher, Ctrl+Alt+T and `open Terminal` give you. Ctrl+Alt+Shift+T
+   and `open recovery-terminal` always give the built-in one. The kernel keeps the clipboard: calls 636 and 637 set
+   it and paste it into the client's own session, so a client cannot read it, and neither works at a hidden prompt.
+   Limits: ASCII glyphs only, others show `?`; solid background, no materials; a fixed "Polaris" title; 1 MiB cells
+   of scrollback; plain PgUp and PgDn scroll, as in the built-in one. Selection and clipboard have host tests only
+   for the model, not a VM check. Terminal windows the desktop opens itself at first boot stay built-in.
 4. **P4 tabs and layouts:** several sessions, up to eight, with Tall, Columns and Rows.
 5. **P5 navigation:** find bar, profiles, prompt marks, hints and the scrollback rail. Inline images are not planned yet.
 

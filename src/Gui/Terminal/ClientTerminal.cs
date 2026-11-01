@@ -26,7 +26,8 @@ internal sealed class ClientTerminal : IProcessTerminal
     private readonly List<KeyEvent> _taken = new();
     private byte[] _state = new byte[24];
     private int _columns;
-    private bool _dropped, _closed;
+    private bool _dropped, _closed, _paste;
+    private string? _copy;
 
     public ClientTerminal(Credentials identity, int columns, Func<string, string?, bool> openApp)
     {
@@ -71,16 +72,19 @@ internal sealed class ClientTerminal : IProcessTerminal
 
     public byte[] State() { lock (_gate) { return _state; } }
     public void Resize(int columns) { lock (_gate) { _columns = columns; } }
+    public void Copy(string text) { lock (_gate) { _copy = text; } }
+    public void Paste() { lock (_gate) { _paste = true; } }
     public void Close() { lock (_gate) { _closed = true; _keys.Clear(); } }
 
     /// <summary>On the desktop thread: applies keys, runs the session and publishes its state.</summary>
     public void Tick()
     {
         int columns;
-        bool closed;
+        bool closed, paste;
+        string? copy;
         lock (_gate)
         {
-            closed = _closed; columns = _columns;
+            closed = _closed; columns = _columns; paste = _paste; copy = _copy; _paste = false; _copy = null;
             _taken.Clear();
             while (_keys.Count > 0) { _taken.Add(_keys.Dequeue()); }
         }
@@ -92,6 +96,9 @@ internal sealed class ClientTerminal : IProcessTerminal
             if (_session.RawActive) { _session.KeyRaw(key); }
             else if (!(_session.SecretRead && key.Key is ConsoleKeyEx.Tab or ConsoleKeyEx.UpArrow or ConsoleKeyEx.DownArrow)) { _session.Key(key); }
         }
+        // Never into or out of a hidden prompt.
+        if (copy is not null && !_session.SecretRead) { Clipboard.Text = copy; }
+        if (paste && !_session.SecretRead && !_session.RawActive) { _session.Paste(Clipboard.Text); }
         _session.Sync(columns);
         bool dropped;
         lock (_gate) { dropped = _dropped; _dropped = false; }

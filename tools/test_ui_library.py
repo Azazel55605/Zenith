@@ -16,12 +16,19 @@ class UiLibraryTests(unittest.TestCase):
         # PackageManifest.MaximumFileBytes is enforced by installed kernels too.
         limit = int(re.search(r'MaximumFileBytes = (\d+)', (ROOT/'src/Core/Packages/PackageManifest.cs').read_text()).group(1))
         with tempfile.TemporaryDirectory(prefix='zenith-ui-size-') as directory:
-            for program in ('ui-gallery', 'settings', 'desktop-tools'):
+            for program in ('ui-gallery', 'settings', 'desktop-tools', 'polaris'):
                 dest = Path(directory)/program
                 subprocess.run([sys.executable, '-B', str(ROOT/'tools/build-userland.py'), str(dest), '--program', program],
                                check=True, stdout=subprocess.DEVNULL)
                 size = (dest/'usr/share/zenith/native'/(program + '.elf')).stat().st_size
                 self.assertLessEqual(size, limit - 32768, f'{program}.elf leaves under 32 KiB package headroom: {size}')
+
+    def test_polaris_scrollback_with_sanitizers(self):
+        with tempfile.TemporaryDirectory(prefix='zenith-polaris-') as directory:
+            exe = Path(directory)/'term-test'
+            subprocess.run(['gcc','-std=c11','-Wall','-Wextra','-Werror','-O1','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer',
+                            str(ROOT/'userland/polaris/test_term.c'),str(ROOT/'userland/polaris/term.c'),'-o',str(exe)],check=True)
+            subprocess.run([str(exe)],check=True,timeout=30)
 
     def test_settings_units_with_sanitizers(self):
         with tempfile.TemporaryDirectory(prefix='zenith-settings-units-') as directory:

@@ -6,15 +6,17 @@ import hashlib
 import math
 ROOT = Path(__file__).resolve().parents[1]
 
-def build(output):
+def build(output, mono=False):
     try:
         from PIL import Image, ImageDraw, ImageFont
     except ImportError as error:
         raise SystemExit('UI atlas generation requires Python Pillow; install it for this build interpreter') from error
     lines = ['/* Generated Inter A8 atlases; see Resources/Fonts licenses. */', '#include "ui.h"']
-    for name, face, size in [('body', 'Regular', 14), ('label', 'SemiBold', 14),
-                             ('heading', 'SemiBold', 24), ('caption', 'Regular', 12)]:
-        path = ROOT / ('Resources/Fonts/Inter-' + face + '.ttf')
+    faces = [('body', 'Inter-Regular', 14), ('label', 'Inter-SemiBold', 14),
+             ('heading', 'Inter-SemiBold', 24), ('caption', 'Inter-Regular', 12)]
+    if mono: faces.append(('mono', 'Hack-Regular', 14))
+    for name, face, size in faces:
+        path = ROOT / ('Resources/Fonts/' + face + '.ttf')
         font = ImageFont.truetype(str(path), size, layout_engine=ImageFont.Layout.BASIC)
         ascent, descent = font.getmetrics()
         width = max(font.getbbox(chr(c))[2] for c in range(32, 127)) + 3
@@ -50,4 +52,6 @@ def build(output):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('output', type=Path)
-    build(parser.parse_args().output)
+    parser.add_argument('--mono', action='store_true', help='also rasterize the Hack terminal face')
+    arguments = parser.parse_args()
+    build(arguments.output, arguments.mono)
