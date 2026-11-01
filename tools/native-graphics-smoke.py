@@ -32,8 +32,6 @@ def main():
     gui_texts = [
         ('native run gui-probe --probe | logger','G_PROBE'),
         ('native run gui-probe --exit | logger','G_EXIT'),
-        ('native run gui-probe --terminal | logger','G_TERMINAL'),
-        ('native run gui-probe --terminal-hold > /tmp/hold & sleep 4; pkg verify > /dev/null; echo G_HOLD_PKG=$? | logger; wait','G_HOLD'),
         ('native run gui-probe --fault','G_FAULT'),
         ('native run gui-probe --probe | logger','G_AFTER_FAULT'),
         ('native run gui-probe | logger','G_INTERACTIVE'),
@@ -45,6 +43,8 @@ def main():
         ('native run gui-probe --probe','G_UPGRADED_PROBE'),
         ('su user; export USER=root; native run gui-probe --probe','G_OTHER_UID'),
         ('native run gui-probe --probe','G_SESSION_UID'),
+        ('native run gui-probe --terminal | logger','G_TERMINAL'),
+        ('native run gui-probe --terminal-hold > /tmp/hold & sleep 4; pkg verify > /dev/null; echo G_HOLD_PKG=$? | logger; wait','G_HOLD'),
     ]
     quota='native run gui-probe > /tmp/g2 & native run gui-probe > /tmp/g3 & native run gui-probe > /tmp/g4 & native run gui-probe > /tmp/g5 & sleep 5; native run gui-probe --probe; echo G_LIMIT=$? | logger; kill %2; kill %3; kill %4; kill %5; wait; echo G_DRAIN=$? | logger'
     texts=[text+'; echo '+label+'=$? | logger' for text,label in gui_texts]
