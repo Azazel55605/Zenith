@@ -28,42 +28,19 @@ namespace Zenith.Apps;
 /// <see cref="Update"/>. Lines entered while a command runs are queued, like type-ahead.
 /// </para>
 /// </summary>
-internal sealed class TerminalWindow : Window, IOutput
+internal sealed class TerminalWindow : Window
 {
     private const int FontSize = 14;
     private const int Padding = 10;
 
-    private readonly TerminalBuffer _buffer;
-    private readonly Shell _shell;
-    private readonly TerminalInputChannel _nativeInput;
-    private int _inputGeneration;
-    private volatile bool _secretRead;
-    private volatile bool _secretPrepared;
+    private readonly TerminalSession _session;
     private readonly int _cellWidth;
     private readonly int _cellHeight;
     private int _rows;
     private int _columns;
-    private bool _columnsChanged;
-    private readonly StringBuilder _input = new();
-    private int _cursor;
-    private int _historyIndex;
-    private string _historyDraft = "";
     private int _scroll;   // lines scrolled back from the bottom
     private bool _caretVisible = true;
-
-    // Shared with the worker thread; guarded by _sync.
-    private readonly object _sync = new();
-    private readonly StringBuilder _pendingOutput = new();
-    private readonly Queue<(string Name, string? Argument, Credentials Identity)> _pendingApps = new();
-    private bool _exitRequested;
-
-    private Thread? _job;
-    private volatile bool _jobRunning;
-    private readonly TerminalTypeAhead _typeAhead = new();
-    private string _prompt;
-
-    // A multi-line command being entered (shown with the continuation prompt).
-    private readonly StringBuilder _pendingScript = new();
+    private TerminalBuffer _buffer => _session.Buffer;
 
     // What the last frame showed: one entry per visible row, and whether that row's logical line
     // continues on the next row (a wrap, not a line break). Mouse selection works on these rows.
@@ -71,80 +48,37 @@ internal sealed class TerminalWindow : Window, IOutput
     private (int Row, int Column)? _selectionAnchor;
     private (int Row, int Column) _selectionHead;
 
-    // `read` waiting for a line from the user; guarded by _sync.
-    private bool _readRequested;
-    private string? _readReply;
-    private bool _readEof;
-
     public TerminalWindow() : base("Terminal", 740, 470)
     {
         _cellWidth = Fonts.Mono.GetGlyph('M', FontSize).Advance;
         _cellHeight = Fonts.Mono.GetLineHeight(FontSize);
         UpdateGeometry();
 
-        _buffer = new TerminalBuffer();
-        _shell = new Shell(this);
-        string user = Accounts.Service?.Name(Identity.Uid) ?? (Identity.IsRoot ? "root" : "nobody");
-        _shell.SetIdentity(Identity, user, Identity.IsRoot ? "/root" : "/home/" + user);
-        _shell.Set("COLUMNS", _columns.ToString());
-        _shell.ExitRequested += () => { lock (_sync) { _exitRequested = true; } };
-        _shell.OpenApp = QueueOpenApp;
-        _shell.ReadInputLine = ReadLineForShell;
-        _shell.ReadSecret = ReadSecretForShell;
-        _nativeInput = new TerminalInputChannel(() => ReadLineForShell(""), Write, () => _shell.CancelForeground());
-        _shell.NativeTerminal = _nativeInput;
-        _prompt = _shell.Prompt;
-
-        if (File.Exists("/etc/motd"))
-        {
-            _buffer.Write(File.ReadAllText("/etc/motd"));
-        }
-
-        _buffer.Write("\n");
-        if (Accounts.Error is string error) { _buffer.Write("Accounts unavailable: " + error + "\n"); }
-        else if (Accounts.Service is not null && Identity.IsRoot && !Accounts.Service.HasPasswords)
-        { _buffer.Write("Initial root setup: run passwd root, then passwd user and login user.\n"); }
-        else if (Identity.Uid == 65534) { _buffer.Write("Use login USER to authenticate.\n"); }
+        _session = new TerminalSession(Identity, _columns, (name, argument) => OpenApp?.Invoke(name, argument) ?? false);
     }
 
     /// <summary>Opens a desktop app by name; set once by the desktop.</summary>
     public static Func<string, string?, bool>? OpenApp { get; set; }
 
     /// <summary>Whether a command line is running.</summary>
-    public override bool AllowMaterials => !_secretRead;
-    public bool IsBusy => _jobRunning;
-    public bool HasBackgroundJobs => _shell.HasBackgroundJobs;
-    public bool OwnsShell(Shell shell) => ReferenceEquals(_shell, shell);
-    public void PrepareSessionEnd()
-    {
-        _shell.CancelSession();
-        lock (_sync) { _pendingApps.Clear(); }
-    }
+    public override bool AllowMaterials => !_session.SecretRead;
+    public bool IsBusy => _session.IsBusy;
+    public bool HasBackgroundJobs => _session.HasBackgroundJobs;
+    public bool OwnsShell(Shell shell) => _session.OwnsShell(shell);
+    public void PrepareSessionEnd() => _session.Cancel();
     public override void Close()
     {
-        _shell.CancelSession();
-        lock (_sync) { _pendingApps.Clear(); }
+        _session.Cancel();
         base.Close();
     }
     public override void EndSession()
     {
-        _shell.CancelSession();
-        lock (_sync) { _pendingApps.Clear(); }
+        _session.Cancel();
         Close();
-    }
-
-    // IOutput: everything the shell and its commands print lands here, from the worker thread.
-    public void Write(string text)
-    {
-        lock (_sync)
-        {
-            _pendingOutput.Append(text);
-        }
     }
 
     public override bool Update()
     {
-        SyncNativeInput();
         SyncWithJob();
 
         bool visible = !IsFocused || Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 2) % 2 == 0;
@@ -154,159 +88,15 @@ internal sealed class TerminalWindow : Window, IOutput
         return changed;
     }
 
-    /// <summary>Moves the worker's output and requests onto the GUI thread; finishes a completed job.</summary>
     private void SyncWithJob()
     {
-        if (_columnsChanged && !IsBusy)
+        _session.Sync(_columns);
+        if (_session.TakeRowsMoved()) { _selectionAnchor = null; }   // the rows it referred to have moved
+        if (_session.ExitRequested) { Close(); return; }
+        if (_session.TakeJobFinished())
         {
-            _shell.Set("COLUMNS", _columns.ToString());
-            _columnsChanged = false;
-        }
-
-        string output;
-        if (_secretRead && !_secretPrepared)
-        {
-            ResetInput(); _typeAhead.Clear(); _selectionAnchor = null; _secretPrepared = true;
-        }
-        else if (!_secretRead && _secretPrepared)
-        {
-            ResetInput(); _typeAhead.Clear(); _secretPrepared = false;
-        }
-        (string Name, string? Argument, Credentials Identity)[] apps;
-        bool exit;
-        lock (_sync)
-        {
-            output = _pendingOutput.ToString();
-            _pendingOutput.Clear();
-            apps = _pendingApps.ToArray();
-            _pendingApps.Clear();
-            exit = _exitRequested;
-        }
-
-        if (output.Length > 0)
-        {
-            _buffer.Write(output);
-            _selectionAnchor = null;   // the rows it referred to have moved
-        }
-
-        foreach (var (name, argument, caller) in apps)
-        {
-            using var identity = CredentialContext.Enter(caller);
-            OpenApp?.Invoke(name, argument);
-        }
-
-        if (exit)
-        {
-            Close();
-            return;
-        }
-
-        if (_job is not null && !_jobRunning)
-        {
-            _job = null;
-
-            // Keep the prompt on its own line even if the command's output did not end in one.
-            if (_buffer.CursorColumn != 0)
-            {
-                _buffer.Write("\n");
-            }
-
-            _prompt = _shell.Prompt;
-            Identity = _shell.Identity;
-            _historyIndex = _shell.History.Count;
-            Title = "Terminal — " + _shell.WorkingDirectory;
-            _buffer.Changed = true;
-
-            if (_typeAhead.TryTakeCommand(out string command))
-            {
-                Accept(command);
-            }
-        }
-        else if (_job is not null && (!_secretRead || _secretPrepared) && _typeAhead.HasPending)
-        {
-            _typeAhead.TryAnswer(AnswerRead);
-        }
-    }
-
-    private string CurrentPrompt => _pendingScript.Length > 0 ? _shell.ContinuationPrompt : _prompt;
-
-    /// <summary>
-    /// Called by <c>read</c> on the worker thread: waits for the user's next line (Enter), end of
-    /// input (Ctrl+D) or Ctrl+C. The GUI thread answers through <see cref="AnswerRead"/>.
-    /// </summary>
-    private string? ReadLineForShell(string prompt)
-    {
-        if (prompt.Length > 0)
-        {
-            Write(prompt);
-        }
-
-        lock (_sync)
-        {
-            _readRequested = true;
-            _readReply = null;
-            _readEof = false;
-        }
-
-        while (true)
-        {
-            lock (_sync)
-            {
-                if (_readReply is not null || _readEof)
-                {
-                    string? reply = _readEof ? null : _readReply;
-                    _readRequested = false;
-                    _readReply = null;
-                    _readEof = false;
-                    return reply;
-                }
-            }
-
-            if (_shell.IsCancelled)
-            {
-                lock (_sync)
-                {
-                    _readRequested = false;
-                }
-
-                return null;
-            }
-
-            Thread.Sleep(20);
-        }
-    }
-
-    private string? ReadSecretForShell(string prompt)
-    {
-        _secretRead = true;
-        try
-        {
-            while (!_secretPrepared && !_shell.IsCancelled) { Thread.Sleep(20); }
-            return _shell.IsCancelled ? null : ReadLineForShell(prompt);
-        }
-        finally { _secretRead = false; }
-    }
-
-    /// <summary>Hands a line (or end of input, when null) to a waiting <c>read</c>; returns false if none is waiting.</summary>
-    private bool AnswerRead(string? line)
-    {
-        lock (_sync)
-        {
-            if (!_readRequested || _readReply is not null || _readEof)
-            {
-                return false;
-            }
-
-            if (line is null)
-            {
-                _readEof = true;
-            }
-            else
-            {
-                _readReply = line;
-            }
-
-            return true;
+            Identity = _session.Identity;
+            Title = "Terminal — " + _session.WorkingDirectory;
         }
     }
 
@@ -314,9 +104,7 @@ internal sealed class TerminalWindow : Window, IOutput
 
     protected override void OnResized()
     {
-        int columns = _columns;
         UpdateGeometry();
-        _columnsChanged |= columns != _columns;
         _scroll = 0;
         _selectionAnchor = null;
         _buffer.Changed = true;
@@ -396,21 +184,6 @@ internal sealed class TerminalWindow : Window, IOutput
         return text.ToString();
     }
 
-    /// <summary>Types the clipboard into the input; each line break submits a line, as if typed.</summary>
-    private void Paste()
-    {
-        string[] lines = Clipboard.Text.Replace("\r\n", "\n").Split('\n');
-        for (int i = 0; i < lines.Length; i++)
-        {
-            _input.Insert(_cursor, lines[i]);
-            _cursor += lines[i].Length;
-            if (i < lines.Length - 1)
-            {
-                Submit();
-            }
-        }
-    }
-
     public override void OnScroll(int delta)
     {
         _selectionAnchor = null;
@@ -418,23 +191,16 @@ internal sealed class TerminalWindow : Window, IOutput
         _buffer.Changed = true;
     }
 
-    private void SyncNativeInput()
-    {
-        int generation = _nativeInput.Generation;
-        if (_inputGeneration == generation) { return; }
-        ResetInput(); _typeAhead.Clear(); _selectionAnchor = null; _inputGeneration = generation;
-    }
-
     public override void OnKey(KeyEvent key)
     {
-        using var identity = CredentialContext.Enter(_shell.Identity);
-        SyncNativeInput();
-        if (_nativeInput.RawActive)
+        using var identity = CredentialContext.Enter(_session.Identity);
+        _session.SyncNativeInput();
+        if (_session.RawActive)
         {
-            _nativeInput.Receive(TerminalKeyEncoding.Encode(key.Key.ToString(), key.KeyChar, (key.Modifiers & ConsoleModifiers.Control) != 0 && !((key.Modifiers & ConsoleModifiers.Alt) != 0 && key.KeyChar >= ' ')));
-            _buffer.Changed = true; return;
+            _session.KeyRaw(key);
+            return;
         }
-        if (_secretRead && key.Key is ConsoleKeyEx.Tab or ConsoleKeyEx.UpArrow or ConsoleKeyEx.DownArrow) { return; }
+        if (_session.SecretRead && key.Key is ConsoleKeyEx.Tab or ConsoleKeyEx.UpArrow or ConsoleKeyEx.DownArrow) { return; }
         bool control = (key.Modifiers & ConsoleModifiers.Control) != 0;
         if (key.Key != ConsoleKeyEx.PageUp && key.Key != ConsoleKeyEx.PageDown)
         {
@@ -443,7 +209,7 @@ internal sealed class TerminalWindow : Window, IOutput
 
         if (control && (key.Modifiers & ConsoleModifiers.Shift) != 0 && key.Key is ConsoleKeyEx.C or ConsoleKeyEx.V)
         {
-            if (_secretRead) { return; }
+            if (_session.SecretRead) { return; }
             // Ctrl+Shift+C/V: the terminal clipboard keys (plain Ctrl+C interrupts).
             if (key.Key == ConsoleKeyEx.C)
             {
@@ -455,7 +221,7 @@ internal sealed class TerminalWindow : Window, IOutput
             }
             else
             {
-                Paste();
+                _session.Paste(Clipboard.Text);
             }
 
             _buffer.Changed = true;
@@ -463,246 +229,9 @@ internal sealed class TerminalWindow : Window, IOutput
         }
 
         _selectionAnchor = null;
-
-        if (control && !((key.Modifiers & ConsoleModifiers.Alt) != 0 && key.KeyChar >= ' '))
-        {
-            HandleControl(key.Key);
-            return;
-        }
-
-        switch (key.Key)
-        {
-            case ConsoleKeyEx.Enter:
-                Submit();
-                break;
-            case ConsoleKeyEx.Backspace:
-                if (_cursor > 0)
-                {
-                    _input.Remove(--_cursor, 1);
-                }
-
-                break;
-            case ConsoleKeyEx.Delete:
-                if (_cursor < _input.Length)
-                {
-                    _input.Remove(_cursor, 1);
-                }
-
-                break;
-            case ConsoleKeyEx.LeftArrow:
-                _cursor = Math.Max(0, _cursor - 1);
-                break;
-            case ConsoleKeyEx.RightArrow:
-                _cursor = Math.Min(_input.Length, _cursor + 1);
-                break;
-            case ConsoleKeyEx.Home:
-                _cursor = 0;
-                break;
-            case ConsoleKeyEx.End:
-                _cursor = _input.Length;
-                break;
-            case ConsoleKeyEx.UpArrow:
-                RecallHistory(-1);
-                break;
-            case ConsoleKeyEx.DownArrow:
-                RecallHistory(+1);
-                break;
-            case ConsoleKeyEx.Tab:
-                Complete();
-                break;
-            case ConsoleKeyEx.PageUp:
-                OnScroll(_rows / 3);
-                break;
-            case ConsoleKeyEx.PageDown:
-                OnScroll(-_rows / 3);
-                break;
-            default:
-                if (key.KeyChar >= ' ')
-                {
-                    _input.Insert(_cursor++, key.KeyChar);
-                }
-
-                break;
-        }
-
-        _buffer.Changed = true;
-    }
-
-    private void HandleControl(ConsoleKeyEx key)
-    {
-        switch (key)
-        {
-            case ConsoleKeyEx.C:
-                if (IsBusy)
-                {
-                    _typeAhead.Clear();
-                    _shell.CancelForeground();
-                    Write(Ansi.Dim("^C") + "\n");
-                }
-                else
-                {
-                    _buffer.Write(CurrentPrompt + _input + Ansi.Dim("^C") + "\n");
-                    _pendingScript.Clear();
-                }
-
-                ResetInput();
-                break;
-            case ConsoleKeyEx.L:
-                _buffer.Clear();
-                break;
-            case ConsoleKeyEx.U:
-                ResetInput();
-                break;
-            case ConsoleKeyEx.A:
-                _cursor = 0;
-                break;
-            case ConsoleKeyEx.E:
-                _cursor = _input.Length;
-                break;
-            case ConsoleKeyEx.D:
-                if (_input.Length == 0 && IsBusy)
-                {
-                    _typeAhead.EndInput();   // preserve EOF behind an unconsumed line
-                }
-                else if (_input.Length == 0 && _pendingScript.Length == 0)
-                {
-                    Close();
-                }
-
-                break;
-        }
-
-        _buffer.Changed = true;
-    }
-
-    private void Submit()
-    {
-        string line = _input.ToString();
-        _input.Clear();
-        _cursor = 0;
-
-        if (IsBusy)
-        {
-            Write((_secretRead ? string.Empty : line) + "\n");
-            _typeAhead.Enqueue(line);
-
-            return;
-        }
-
-        Accept(line);
-    }
-
-    /// <summary>
-    /// Takes a line at the prompt: echoes it, and either waits for more lines (an unfinished
-    /// <c>if</c>, loop, quote, or trailing <c>|</c>) or runs the whole command on a worker thread.
-    /// </summary>
-    private void Accept(string line)
-    {
-        _buffer.Write(CurrentPrompt + line + "\n");
-        string text = _pendingScript.Length > 0 ? _pendingScript + "\n" + line : line;
-        _pendingScript.Clear();
-
-        if (!Shell.IsComplete(text))
-        {
-            _pendingScript.Append(text);
-            return;
-        }
-
-        if (text.Trim().Length > 0)
-        {
-            Run(text);
-        }
-    }
-
-    /// <summary>Runs a complete command on a worker thread.</summary>
-    private void Run(string line)
-    {
-        _jobRunning = true;
-        _job = new Thread(() =>
-        {
-            using var credentials = CredentialContext.Enter(_shell.Identity);
-            // Explicit: Cosmos can skip unwind-finally, which would leave this Terminal busy forever.
-            try { _shell.Execute(line); }
-            catch (Exception e) { Zenith.Core.Log.Write("terminal", "command failed: " + e.Message); }
-            _jobRunning = false;
-        });
-        _job.Start();
-    }
-
-    private void ResetInput()
-    {
-        _input.Clear();
-        _cursor = 0;
-        if (!IsBusy)
-        {
-            _historyIndex = _shell.History.Count;
-        }
-    }
-
-    private void RecallHistory(int direction)
-    {
-        if (IsBusy)
-        {
-            return;   // the worker may be appending to the history
-        }
-
-        List<string> history = _shell.History;
-        if (_historyIndex == history.Count && direction < 0)
-        {
-            _historyDraft = _input.ToString();
-        }
-        int index = Math.Clamp(_historyIndex + direction, 0, history.Count);
-        if (index == _historyIndex)
-        {
-            return;
-        }
-
-        _historyIndex = index;
-        _input.Clear();
-        if (index < history.Count)
-        {
-            _input.Append(history[index]);
-        }
-        else { _input.Append(_historyDraft); }
-
-        _cursor = _input.Length;
-    }
-
-    private void Complete()
-    {
-        if (IsBusy)
-        {
-            return;   // completion reads the shell's working directory, which the worker owns
-        }
-
-        string before = _input.ToString(0, _cursor);
-        string insert = _shell.Complete(before, out List<string> candidates);
-        if (insert.Length > 0)
-        {
-            _input.Insert(_cursor, insert);
-            _cursor += insert.Length;
-        }
-        else if (candidates.Count > 1)
-        {
-            // Ambiguous: show the options under the current line, like bash's double-Tab.
-            _buffer.Write(CurrentPrompt + _input + "\n" + string.Join("  ", candidates) + "\n");
-        }
-    }
-
-    /// <summary>Called by <c>open</c> on the worker thread: checks the name, then leaves the opening to the GUI thread.</summary>
-    private bool QueueOpenApp(string name, string? argument)
-    {
-        if (!AppRegistry.Exists(name))
-        {
-            return false;
-        }
-
-        lock (_sync)
-        {
-            _pendingApps.Enqueue((name, argument, CredentialContext.Current));
-        }
-
-        return true;
+        if (!control && key.Key == ConsoleKeyEx.PageUp) { OnScroll(_rows / 3); return; }
+        if (!control && key.Key == ConsoleKeyEx.PageDown) { OnScroll(-_rows / 3); return; }
+        _session.Key(key);
     }
 
     public override bool AllowBackgroundMaterials => true;
@@ -715,14 +244,14 @@ internal sealed class TerminalWindow : Window, IOutput
         // continued by the shell prompt and the input. Lines are wrapped here, at the current
         // width, so resizing the window reflows everything. While a command runs there is no
         // shell prompt, just whatever is being typed.
-        string prompt = IsBusy ? string.Empty : CurrentPrompt;
+        string prompt = _session.DisplayPrompt;
         List<Cell> tail = _buffer.Line(_buffer.LineCount - 1);
         var inputLine = new TerminalBuffer();
         inputLine.AppendCells(tail);
-        inputLine.Write(prompt + (_secretRead ? new string('*', _input.Length) : _input.ToString()));
+        inputLine.Write(prompt + (_session.SecretRead ? new string('*', _session.InputLength) : _session.InputText));
         List<Cell> input = inputLine.Line(0);
 
-        int caretIndex = tail.Count + Ansi.Strip(prompt).Length + _cursor;
+        int caretIndex = tail.Count + Ansi.Strip(prompt).Length + _session.Cursor;
         int inputRows = Math.Max(TerminalBuffer.RowCount(input, _columns), caretIndex / _columns + 1);
 
         int total = inputRows;

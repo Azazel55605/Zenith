@@ -5,7 +5,7 @@ Work owners: **A1/A2/X1–X4** in the [master roadmap](ROADMAP.md). This page is
 > Product requirements and feasibility: future app/tool ideas are not shipped packages. Current work: [Sessions/desktop](components/SESSIONS-DESKTOP.md) and [Userland](components/USERLAND.md).
 
 Requirements/names only. [ROADMAP](ROADMAP.md) owns A1/A2, X1–X4 and priorities.
-Names other than Meridian and existing deployed commands remain proposals; package
+Names other than Meridian, Polaris and existing deployed commands remain proposals; package
 identities must be finalized separately from UI requirements.
 
 ## Naming policy proposal
@@ -22,6 +22,7 @@ package: small session controls may belong to the desktop/session package initia
 | Sunset | Logout, shutdown and restart controls | Part of the session suite initially |
 | Horizon | File manager | zenith-horizon |
 | Aurora | Graphical text/code editor | zenith-aurora |
+| Polaris (chosen Terminal name) | Terminal; [design](components/SHELL.md#polaris-design) and [concept](design/terminal-concept.svg) | zenith-polaris |
 | Meridian (chosen Settings name) | System Settings; [ordered plan](MERIDIAN-PLAN.md) | Existing zenith-settings retained initially; rename/migration separate |
 | Orbit | Graphical package/update browser | zenith-orbit |
 | Observatory | System/process/resource monitor | zenith-observatory |

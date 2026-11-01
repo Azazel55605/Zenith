@@ -20,6 +20,42 @@ exercised; shell evaluation and privileged operations remain trusted.
 - [ ] Test busy/jobs, account changes, session stop, crash/close and independent update
   across graphical, local text and serial paths. No arbitrary privileged command RPC.
 
+### Polaris design
+
+Polaris is the native Terminal, a mix of Konsole and kitty. [Concept](../design/terminal-concept.svg).
+
+**The boundary.** The shell stays in the kernel, and there is no fork/exec, so a client cannot start one.
+A kernel-owned terminal session holds the shell, its job thread, type-ahead, hidden input and output. The
+client sends key events and receives output. This is not a command service: a session runs with the
+caller's credentials and takes the same keys a person would type, so it grants nothing the caller lacks.
+
+**Line editing stays in the session.** Prompt, history, completion, multi-line input, type-ahead and
+hidden prompts already work there and are the risky part. The client gets the prompt, edit text and
+cursor as state, never the text of a hidden prompt, and owns only the grid, scrollback, selection and chrome.
+
+**Recovery.** The kernel Terminal window stays, as a host of the same session code. It remains what a
+missing or failing Polaris falls back to, and local console and serial are unchanged.
+
+**Problems to solve, found in the current kernel:**
+
+| Limit | Effect on Polaris | Plan |
+|---|---|---|
+| Native programs get 8 MiB of address space, 7.7 MiB of it a full-size frame | No room for scrollback | Raise the bound behind a new package capability |
+| Each process page allocates 8 KiB for alignment | Twice the memory for every native program | Allocate aligned pages |
+| A running native program blocks `reboot`, `poweroff` and package work | With Polaris open, you could not run them from it | Let idle interactive clients ask to close instead of blocking |
+| The UI library has no monospace font, and a program is at most 256 KiB | Glyphs must fit the image | Hack atlas of ASCII, Latin-1 and box drawing |
+| One native program runs at a time on the raw entry gate | A busy child slows Polaris drawing | Measure in P3; output is batched per frame |
+
+**Stages**, each qualified separately:
+
+1. **P1 session extraction:** move the session out of `TerminalWindow`, with no visible change. Every gate
+   that types into Terminal covers it.
+2. **P2 session service:** the system calls, the memory bound and the blocking rule, with a test client.
+3. **P3 single pane:** the zenith-polaris package with grid, scrollback, selection, clipboard, and smooth
+   scrolling, opened from the launcher when installed.
+4. **P4 tabs and layouts:** several sessions, up to eight, with Tall, Columns and Rows.
+5. **P5 navigation:** find bar, profiles, prompt marks, hints and the scrollback rail. Inline images are not planned yet.
+
 ## H1 / N1 / X2 — Related work
 
 Sustained PS/2/relative-input and home-network behavior need measured regression
