@@ -85,9 +85,12 @@ def main():
             report=[line for line in m.raw_log()[off:].splitlines() if found.search(line)][0];print(report,flush=True)
             assert 'ended=Finished' in report or 'ended=OverBudget' in report,report
             time.sleep(.5)
+        def fps():
+            # Wait for its last line, or the next caller would read the rest of this output as its own.
+            off=len(m.raw_log());m.type('fps | logger\n');assert m.wait_for('last motion: ',30,off),'fps output'
+            return m.raw_log()[off:].splitlines()
         def top():
-            off=len(m.raw_log());m.type('fps | logger\n');assert m.wait_for('pill: ',30,off),'top window'
-            words=[line for line in m.raw_log()[off:].splitlines() if 'pill: ' in line][0].split('top window: ')[1].split()
+            words=[line for line in fps() if 'pill: ' in line][0].split('top window: ')[1].split()
             return [int(v) for v in words[:4]],[int(v) for v in words[5:9]]
         played(lambda:m.type('{ctrl-alt-t}'),'Opened');time.sleep(1)
         (x,y,w,h),pill=top()
@@ -104,8 +107,7 @@ def main():
         command('settings set animations normal; logger ANIMATIONS_ON','user: ANIMATIONS_ON')
         print('PASS animations off keeps window changes immediate',flush=True)
         def bar():
-            off=len(m.raw_log());m.type('fps | logger\n');assert m.wait_for('last motion: ',30,off),'taskbar state'
-            lines=m.raw_log()[off:].splitlines()
+            lines=fps()
             words=[l for l in lines if 'taskbar: ' in l][0].split('taskbar: ')[1].split()
             size=[l for l in lines if 'display: ' in l][0].split()[-1].split('x')
             return words[0],words[1]=='shown=1',int(words[2].split('=')[1]),[int(words[3]),int(words[4])],[int(v) for v in size],words[5]=='docked=1'
