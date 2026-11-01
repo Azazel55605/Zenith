@@ -5,7 +5,7 @@ Work owners: **A1/A2/X1–X4** in the [master roadmap](ROADMAP.md). This page is
 > Product requirements and feasibility: future app/tool ideas are not shipped packages. Current work: [Sessions/desktop](components/SESSIONS-DESKTOP.md) and [Userland](components/USERLAND.md).
 
 Requirements/names only. [ROADMAP](ROADMAP.md) owns A1/A2, X1–X4 and priorities.
-Names other than Meridian, Polaris and existing deployed commands remain proposals; package
+Names marked chosen are operator-approved; other names remain proposals; package
 identities must be finalized separately from UI requirements.
 
 ## Naming policy proposal
@@ -19,15 +19,15 @@ package: small session controls may belong to the desktop/session package initia
 | Proposed name | Purpose | Example package identity |
 |---|---|---|
 | Sunrise (implemented installer) | Guided disk/account installation; native wizard pending U4 | zenith-sunrise (future separate package) |
-| Sunset | Logout, shutdown and restart controls | Part of the session suite initially |
-| Horizon | File manager | zenith-horizon |
-| Aurora | Graphical text/code editor | zenith-aurora |
+| Sunset (chosen) | Lock, log out, restart and shut down popup; [concept](design/sunset-concept.svg) | Part of the session suite initially |
+| Horizon (chosen) | File manager; [concept](design/files-concept.svg) | zenith-horizon |
+| Aurora (chosen) | Graphical text/code editor; [concept](design/editor-concept.svg) | zenith-aurora |
 | Polaris (chosen Terminal name) | Terminal; [design](components/SHELL.md#polaris-design) and [concept](design/terminal-concept.svg) | zenith-polaris |
 | Meridian (chosen Settings name) | System Settings; [ordered plan](MERIDIAN-PLAN.md) | Existing zenith-settings retained initially; rename/migration separate |
-| Orbit | Graphical package/update browser | zenith-orbit |
-| Observatory | System/process/resource monitor | zenith-observatory |
-| Beacon | Network status/configuration and diagnostics | zenith-beacon |
-| Prism | Theme/appearance tools and asset collections | Part of Settings or zenith-prism |
+| Orbit (chosen) | Graphical package and update manager; [concept](design/orbit-concept.svg) | zenith-orbit |
+| Observatory (chosen) | System, process and resource monitor; [concept](design/observatory-concept.svg) | zenith-observatory |
+| Beacon (chosen) | Network status, configuration, history and diagnostics; [concept](design/beacon-concept.svg) | zenith-beacon |
+| Prism (chosen) | Keyboard launcher with apps, calculator and search, beside the start menu; [concept](design/prism-concept.svg). Theming and appearance belong to Meridian | zenith-prism |
 
 Package descriptions and searchable keywords must expose familiar terms such as
 Files, Editor, Settings and Updates. Prefer functionally useful first-party tools;

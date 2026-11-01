@@ -1,0 +1,278 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1900" viewBox="0 0 1440 1900">
+<rect x="0" y="0" width="1440" height="1900" rx="0" fill="#151619"/>
+<text x="48" y="55" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="28" font-weight="600" xml:space="preserve">Zenith / Observatory concept</text>
+<text x="48" y="86" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">Proposal, not running UI · reference: Windows Task Manager and Mission Center · uses the accepted neutral surfaces, 8/12 radii, Inter and Hack</text>
+<text x="48" y="126" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Dark · Performance</text>
+<rect x="48" y="148" width="1344" height="700" rx="12" fill="#202125" stroke="#45474F"/>
+<rect x="49" y="149" width="1342" height="43" rx="11" fill="#25262B"/>
+<g transform="translate(64 162) scale(0.6666666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.500a2 2 0 0 0-1.900 1.500l-2.300 8.400a.2.2 0 0 1-.4 0L9.100 2.100a.2.2 0 0 0-.4 0l-2.300 8.400A2 2 0 0 1 4.500 12H2"/></g>
+<text x="88" y="176" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">Observatory</text>
+<g transform="translate(1280 162) scale(.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(1316 162) scale(.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(1352 162) scale(.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<rect x="60" y="206" width="190" height="34" rx="6" fill="#2C3B3D"/>
+<rect x="61" y="214" width="3" height="18" rx="1" fill="#7ECAC7"/>
+<g transform="translate(72 215) scale(0.6666666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.500a2 2 0 0 0-1.900 1.500l-2.300 8.400a.2.2 0 0 1-.4 0L9.100 2.100a.2.2 0 0 0-.4 0l-2.300 8.400A2 2 0 0 1 4.500 12H2"/></g>
+<text x="98" y="228" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Performance</text>
+<g transform="translate(72 253) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></g>
+<text x="98" y="266" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Apps</text>
+<text x="240" y="266" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">7</text>
+<g transform="translate(72 291) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></g>
+<text x="98" y="304" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Processes</text>
+<text x="240" y="304" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">23</text>
+<g transform="translate(72 329) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/></g>
+<text x="98" y="342" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Services</text>
+<text x="240" y="342" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">11</text>
+<g transform="translate(72 367) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></g>
+<text x="98" y="380" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">History</text>
+<rect x="262" y="200" width="1118" height="636" rx="12" fill="#25262B"/>
+<rect x="274" y="212" width="262" height="104" rx="10" fill="#2C3B3D" stroke="#7ECAC7"/>
+<g transform="translate(286 224) scale(0.6666666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></g>
+<text x="310" y="237" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">CPU</text>
+<text x="524" y="237" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="end" xml:space="preserve">41%</text>
+<text x="286" y="304" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">2 of 4 cores busy</text>
+<path d="M286.0 272.4 L292.1 271.9 L298.2 268.5 L304.3 268.8 L310.4 268.7 L316.5 268.0 L322.6 270.5 L328.7 270.4 L334.8 269.4 L340.9 267.1 L347.0 270.3 L353.1 271.9 L359.2 275.2 L365.3 272.7 L371.4 271.1 L377.5 274.8 L383.6 270.9 L389.7 267.2 L395.8 266.0 L401.9 265.1 L408.1 267.8 L414.2 271.7 L420.3 271.5 L426.4 275.0 L432.5 277.5 L438.6 279.5 L444.7 283.3 L450.8 283.6 L456.9 284.0 L463.0 281.3 L469.1 281.1 L475.2 280.0 L481.3 280.0 L487.4 278.7 L493.5 279.0 L499.6 280.8 L505.7 276.8 L511.8 272.9 L517.9 270.1 L524.0 268.5 L524.0 288 L286.0 288 Z" fill="#7ECAC7" fill-opacity=".18"/>
+<path d="M286.0 272.4 L292.1 271.9 L298.2 268.5 L304.3 268.8 L310.4 268.7 L316.5 268.0 L322.6 270.5 L328.7 270.4 L334.8 269.4 L340.9 267.1 L347.0 270.3 L353.1 271.9 L359.2 275.2 L365.3 272.7 L371.4 271.1 L377.5 274.8 L383.6 270.9 L389.7 267.2 L395.8 266.0 L401.9 265.1 L408.1 267.8 L414.2 271.7 L420.3 271.5 L426.4 275.0 L432.5 277.5 L438.6 279.5 L444.7 283.3 L450.8 283.6 L456.9 284.0 L463.0 281.3 L469.1 281.1 L475.2 280.0 L481.3 280.0 L487.4 278.7 L493.5 279.0 L499.6 280.8 L505.7 276.8 L511.8 272.9 L517.9 270.1 L524.0 268.5" fill="none" stroke="#7ECAC7" stroke-width="1.5" stroke-linejoin="round"/>
+<rect x="274" y="324" width="262" height="104" rx="10" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(286 336) scale(0.6666666666666666)" fill="none" stroke="#B6A0FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 19v-3"/><path d="M10 19v-3"/><path d="M14 19v-3"/><path d="M18 19v-3"/><path d="M8 11V9"/><path d="M16 11V9"/><path d="M12 11V9"/><path d="M2 15h20"/><path d="M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1.100a2 2 0 0 0 0 3.800V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-5.100a2 2 0 0 0 0-3.800z"/></g>
+<text x="310" y="349" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Memory</text>
+<text x="524" y="349" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="end" xml:space="preserve">1.8 / 4 GiB</text>
+<text x="286" y="416" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">45% · 310 MiB cache</text>
+<path d="M286.0 384.2 L292.1 382.9 L298.2 381.6 L304.3 384.5 L310.4 388.4 L316.5 389.4 L322.6 391.2 L328.7 388.7 L334.8 387.2 L340.9 386.4 L347.0 385.9 L353.1 384.6 L359.2 387.5 L365.3 387.9 L371.4 390.6 L377.5 387.4 L383.6 390.9 L389.7 388.4 L395.8 391.8 L401.9 390.3 L408.1 391.6 L414.2 392.3 L420.3 389.6 L426.4 393.5 L432.5 396.0 L438.6 392.7 L444.7 392.6 L450.8 395.9 L456.9 392.0 L463.0 388.4 L469.1 391.5 L475.2 392.1 L481.3 395.0 L487.4 396.0 L493.5 395.0 L499.6 396.0 L505.7 394.4 L511.8 396.0 L517.9 396.0 L524.0 393.5 L524.0 400 L286.0 400 Z" fill="#B6A0FF" fill-opacity=".18"/>
+<path d="M286.0 384.2 L292.1 382.9 L298.2 381.6 L304.3 384.5 L310.4 388.4 L316.5 389.4 L322.6 391.2 L328.7 388.7 L334.8 387.2 L340.9 386.4 L347.0 385.9 L353.1 384.6 L359.2 387.5 L365.3 387.9 L371.4 390.6 L377.5 387.4 L383.6 390.9 L389.7 388.4 L395.8 391.8 L401.9 390.3 L408.1 391.6 L414.2 392.3 L420.3 389.6 L426.4 393.5 L432.5 396.0 L438.6 392.7 L444.7 392.6 L450.8 395.9 L456.9 392.0 L463.0 388.4 L469.1 391.5 L475.2 392.1 L481.3 395.0 L487.4 396.0 L493.5 395.0 L499.6 396.0 L505.7 394.4 L511.8 396.0 L517.9 396.0 L524.0 393.5" fill="none" stroke="#B6A0FF" stroke-width="1.5" stroke-linejoin="round"/>
+<rect x="274" y="436" width="262" height="104" rx="10" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(286 448) scale(0.6666666666666666)" fill="none" stroke="#E6C47A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12H2"/><path d="M5.500 5.100 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.500-6.900A2 2 0 0 0 16.800 4H7.200a2 2 0 0 0-1.700 1.100z"/><path d="M6 16h.01"/><path d="M10 16h.01"/></g>
+<text x="310" y="461" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Disk</text>
+<text x="524" y="461" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="end" xml:space="preserve">3.1 MB/s</text>
+<text x="286" y="528" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">ext2 · nvme0</text>
+<path d="M286.0 497.9 L292.1 496.4 L298.2 495.0 L304.3 492.2 L310.4 494.7 L316.5 496.8 L322.6 499.7 L328.7 501.9 L334.8 500.0 L340.9 503.0 L347.0 502.7 L353.1 505.0 L359.2 506.6 L365.3 507.2 L371.4 504.5 L377.5 503.6 L383.6 507.5 L389.7 508.0 L395.8 508.0 L401.9 505.0 L408.1 502.6 L414.2 500.1 L420.3 497.5 L426.4 495.5 L432.5 491.9 L438.6 489.6 L444.7 491.5 L450.8 488.7 L456.9 488.8 L463.0 486.8 L469.1 486.3 L475.2 486.9 L481.3 487.9 L487.4 488.5 L493.5 490.0 L499.6 493.1 L505.7 490.5 L511.8 488.1 L517.9 484.2 L524.0 484.0 L524.0 512 L286.0 512 Z" fill="#E6C47A" fill-opacity=".18"/>
+<path d="M286.0 497.9 L292.1 496.4 L298.2 495.0 L304.3 492.2 L310.4 494.7 L316.5 496.8 L322.6 499.7 L328.7 501.9 L334.8 500.0 L340.9 503.0 L347.0 502.7 L353.1 505.0 L359.2 506.6 L365.3 507.2 L371.4 504.5 L377.5 503.6 L383.6 507.5 L389.7 508.0 L395.8 508.0 L401.9 505.0 L408.1 502.6 L414.2 500.1 L420.3 497.5 L426.4 495.5 L432.5 491.9 L438.6 489.6 L444.7 491.5 L450.8 488.7 L456.9 488.8 L463.0 486.8 L469.1 486.3 L475.2 486.9 L481.3 487.9 L487.4 488.5 L493.5 490.0 L499.6 493.1 L505.7 490.5 L511.8 488.1 L517.9 484.2 L524.0 484.0" fill="none" stroke="#E6C47A" stroke-width="1.5" stroke-linejoin="round"/>
+<rect x="274" y="548" width="262" height="104" rx="10" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(286 560) scale(0.6666666666666666)" fill="none" stroke="#8BCBA4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="9" y="2" width="6" height="6" rx="1"/><path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/><path d="M12 12V8"/></g>
+<text x="310" y="573" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Network</text>
+<text x="524" y="573" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="end" xml:space="preserve">↓ 8.2 ↑ 0.4 Mb/s</text>
+<text x="286" y="640" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">enp0s3</text>
+<path d="M286.0 611.1 L292.1 609.5 L298.2 608.3 L304.3 604.8 L310.4 606.6 L316.5 608.6 L322.6 606.7 L328.7 605.4 L334.8 607.0 L340.9 605.5 L347.0 606.4 L353.1 604.1 L359.2 607.2 L365.3 609.4 L371.4 606.2 L377.5 607.3 L383.6 609.2 L389.7 606.8 L395.8 605.8 L401.9 608.6 L408.1 608.2 L414.2 606.8 L420.3 609.5 L426.4 608.3 L432.5 611.3 L438.6 612.6 L444.7 616.0 L450.8 618.3 L456.9 614.5 L463.0 615.3 L469.1 611.3 L475.2 611.8 L481.3 611.0 L487.4 608.0 L493.5 606.5 L499.6 609.6 L505.7 608.9 L511.8 607.8 L517.9 610.4 L524.0 613.6 L524.0 624 L286.0 624 Z" fill="#8BCBA4" fill-opacity=".18"/>
+<path d="M286.0 611.1 L292.1 609.5 L298.2 608.3 L304.3 604.8 L310.4 606.6 L316.5 608.6 L322.6 606.7 L328.7 605.4 L334.8 607.0 L340.9 605.5 L347.0 606.4 L353.1 604.1 L359.2 607.2 L365.3 609.4 L371.4 606.2 L377.5 607.3 L383.6 609.2 L389.7 606.8 L395.8 605.8 L401.9 608.6 L408.1 608.2 L414.2 606.8 L420.3 609.5 L426.4 608.3 L432.5 611.3 L438.6 612.6 L444.7 616.0 L450.8 618.3 L456.9 614.5 L463.0 615.3 L469.1 611.3 L475.2 611.8 L481.3 611.0 L487.4 608.0 L493.5 606.5 L499.6 609.6 L505.7 608.9 L511.8 607.8 L517.9 610.4 L524.0 613.6" fill="none" stroke="#8BCBA4" stroke-width="1.5" stroke-linejoin="round"/>
+<rect x="274" y="660" width="262" height="104" rx="10" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(286 672) scale(0.6666666666666666)" fill="none" stroke="#8BAAFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></g>
+<text x="310" y="685" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Display</text>
+<text x="524" y="685" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="end" xml:space="preserve">58 fps</text>
+<text x="286" y="752" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">worst 19 ms</text>
+<path d="M286.0 716.3 L292.1 720.2 L298.2 718.3 L304.3 721.0 L310.4 717.1 L316.5 721.0 L322.6 718.0 L328.7 716.5 L334.8 713.7 L340.9 709.7 L347.0 711.7 L353.1 713.0 L359.2 711.4 L365.3 713.1 L371.4 715.0 L377.5 717.2 L383.6 714.3 L389.7 711.3 L395.8 709.0 L401.9 711.2 L408.1 708.0 L414.2 708.0 L420.3 710.1 L426.4 710.5 L432.5 711.1 L438.6 714.5 L444.7 714.0 L450.8 715.1 L456.9 714.6 L463.0 711.1 L469.1 710.0 L475.2 710.7 L481.3 708.0 L487.4 708.0 L493.5 708.1 L499.6 708.0 L505.7 711.8 L511.8 714.7 L517.9 717.3 L524.0 713.8 L524.0 736 L286.0 736 Z" fill="#8BAAFF" fill-opacity=".18"/>
+<path d="M286.0 716.3 L292.1 720.2 L298.2 718.3 L304.3 721.0 L310.4 717.1 L316.5 721.0 L322.6 718.0 L328.7 716.5 L334.8 713.7 L340.9 709.7 L347.0 711.7 L353.1 713.0 L359.2 711.4 L365.3 713.1 L371.4 715.0 L377.5 717.2 L383.6 714.3 L389.7 711.3 L395.8 709.0 L401.9 711.2 L408.1 708.0 L414.2 708.0 L420.3 710.1 L426.4 710.5 L432.5 711.1 L438.6 714.5 L444.7 714.0 L450.8 715.1 L456.9 714.6 L463.0 711.1 L469.1 710.0 L475.2 710.7 L481.3 708.0 L487.4 708.0 L493.5 708.1 L499.6 708.0 L505.7 711.8 L511.8 714.7 L517.9 717.3 L524.0 713.8" fill="none" stroke="#8BAAFF" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="554" y="236" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="24" font-weight="600" xml:space="preserve">CPU</text>
+<text x="618" y="236" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">AMD Ryzen 9 · 4 cores</text>
+<rect x="1192" y="212" width="176" height="32" rx="8" fill="#2A2C31" stroke="#45474F"/>
+<rect x="1194" y="214" width="56" height="28" rx="6" fill="#2C3B3D"/>
+<text x="1222" y="233" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle" xml:space="preserve">1 min</text>
+<text x="1280" y="233" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="middle" xml:space="preserve">10 min</text>
+<text x="1338" y="233" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="middle" xml:space="preserve">1 h</text>
+<rect x="554" y="260" width="814" height="250" rx="8" fill="#202125" stroke="#45474F"/>
+<rect x="554" y="326" width="814" height="1" rx="0" fill="#45474F" fill-opacity=".45"/>
+<rect x="554" y="386" width="814" height="1" rx="0" fill="#45474F" fill-opacity=".45"/>
+<rect x="554" y="446" width="814" height="1" rx="0" fill="#45474F" fill-opacity=".45"/>
+<path d="M554.0 415.3 L563.1 413.4 L572.3 419.0 L581.4 414.5 L590.6 409.1 L599.7 427.9 L608.9 448.9 L618.0 434.3 L627.2 444.7 L636.3 456.2 L645.5 434.8 L654.6 436.1 L663.8 421.5 L672.9 422.6 L682.0 416.6 L691.2 431.6 L700.3 425.8 L709.5 409.9 L718.6 408.9 L727.8 398.5 L736.9 391.1 L746.1 409.9 L755.2 398.8 L764.4 394.8 L773.5 403.4 L782.7 423.7 L791.8 407.9 L800.9 409.1 L810.1 399.6 L819.2 383.2 L828.4 374.0 L837.5 355.8 L846.7 360.3 L855.8 350.0 L865.0 352.4 L874.1 350.0 L883.3 350.0 L892.4 367.4 L901.6 383.1 L910.7 395.3 L919.8 375.2 L929.0 378.0 L938.1 372.5 L947.3 381.1 L956.4 380.8 L965.6 385.7 L974.7 392.2 L983.9 388.5 L993.0 384.9 L1002.2 367.4 L1011.3 359.5 L1020.4 350.0 L1029.6 350.0 L1038.7 350.0 L1047.9 350.0 L1057.0 364.6 L1066.2 350.0 L1075.3 350.0 L1084.5 350.0 L1093.6 350.0 L1102.8 350.0 L1111.9 362.5 L1121.1 350.0 L1130.2 350.0 L1139.3 359.3 L1148.5 378.1 L1157.6 362.9 L1166.8 350.0 L1175.9 367.8 L1185.1 354.8 L1194.2 358.7 L1203.4 373.7 L1212.5 382.6 L1221.7 371.0 L1230.8 354.9 L1240.0 374.6 L1249.1 369.7 L1258.2 389.3 L1267.4 379.9 L1276.5 387.2 L1285.7 370.7 L1294.8 350.0 L1304.0 350.0 L1313.1 350.0 L1322.3 358.2 L1331.4 376.5 L1340.6 372.2 L1349.7 392.4 L1358.9 405.5 L1368.0 409.5 L1368.0 506 L554.0 506 Z" fill="#7ECAC7" fill-opacity=".18"/>
+<path d="M554.0 415.3 L563.1 413.4 L572.3 419.0 L581.4 414.5 L590.6 409.1 L599.7 427.9 L608.9 448.9 L618.0 434.3 L627.2 444.7 L636.3 456.2 L645.5 434.8 L654.6 436.1 L663.8 421.5 L672.9 422.6 L682.0 416.6 L691.2 431.6 L700.3 425.8 L709.5 409.9 L718.6 408.9 L727.8 398.5 L736.9 391.1 L746.1 409.9 L755.2 398.8 L764.4 394.8 L773.5 403.4 L782.7 423.7 L791.8 407.9 L800.9 409.1 L810.1 399.6 L819.2 383.2 L828.4 374.0 L837.5 355.8 L846.7 360.3 L855.8 350.0 L865.0 352.4 L874.1 350.0 L883.3 350.0 L892.4 367.4 L901.6 383.1 L910.7 395.3 L919.8 375.2 L929.0 378.0 L938.1 372.5 L947.3 381.1 L956.4 380.8 L965.6 385.7 L974.7 392.2 L983.9 388.5 L993.0 384.9 L1002.2 367.4 L1011.3 359.5 L1020.4 350.0 L1029.6 350.0 L1038.7 350.0 L1047.9 350.0 L1057.0 364.6 L1066.2 350.0 L1075.3 350.0 L1084.5 350.0 L1093.6 350.0 L1102.8 350.0 L1111.9 362.5 L1121.1 350.0 L1130.2 350.0 L1139.3 359.3 L1148.5 378.1 L1157.6 362.9 L1166.8 350.0 L1175.9 367.8 L1185.1 354.8 L1194.2 358.7 L1203.4 373.7 L1212.5 382.6 L1221.7 371.0 L1230.8 354.9 L1240.0 374.6 L1249.1 369.7 L1258.2 389.3 L1267.4 379.9 L1276.5 387.2 L1285.7 370.7 L1294.8 350.0 L1304.0 350.0 L1313.1 350.0 L1322.3 358.2 L1331.4 376.5 L1340.6 372.2 L1349.7 392.4 L1358.9 405.5 L1368.0 409.5" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linejoin="round"/>
+<text x="562" y="280" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="400" xml:space="preserve">100%</text>
+<text x="1360" y="502" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="end" xml:space="preserve">now</text>
+<text x="562" y="502" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="400" xml:space="preserve">60 s ago</text>
+<rect x="554" y="520" width="198" height="86" rx="8" fill="#202125" stroke="#45474F"/>
+<path d="M560.0 565.2 L564.8 561.6 L569.5 556.5 L574.3 549.0 L579.1 553.6 L583.8 551.0 L588.6 549.0 L593.4 549.0 L598.2 549.0 L602.9 555.3 L607.7 557.0 L612.5 549.0 L617.2 556.6 L622.0 560.1 L626.8 551.4 L631.5 552.4 L636.3 558.0 L641.1 561.5 L645.8 553.7 L650.6 556.8 L655.4 558.2 L660.2 555.8 L664.9 549.9 L669.7 550.1 L674.5 558.1 L679.2 556.7 L684.0 565.6 L688.8 573.4 L693.5 579.4 L698.3 575.6 L703.1 579.8 L707.8 576.1 L712.6 582.6 L717.4 590.0 L722.2 597.0 L726.9 593.0 L731.7 586.2 L736.5 591.5 L741.2 596.6 L746.0 597.0 L746.0 600 L560.0 600 Z" fill="#7ECAC7" fill-opacity=".18"/>
+<path d="M560.0 565.2 L564.8 561.6 L569.5 556.5 L574.3 549.0 L579.1 553.6 L583.8 551.0 L588.6 549.0 L593.4 549.0 L598.2 549.0 L602.9 555.3 L607.7 557.0 L612.5 549.0 L617.2 556.6 L622.0 560.1 L626.8 551.4 L631.5 552.4 L636.3 558.0 L641.1 561.5 L645.8 553.7 L650.6 556.8 L655.4 558.2 L660.2 555.8 L664.9 549.9 L669.7 550.1 L674.5 558.1 L679.2 556.7 L684.0 565.6 L688.8 573.4 L693.5 579.4 L698.3 575.6 L703.1 579.8 L707.8 576.1 L712.6 582.6 L717.4 590.0 L722.2 597.0 L726.9 593.0 L731.7 586.2 L736.5 591.5 L741.2 596.6 L746.0 597.0" fill="none" stroke="#7ECAC7" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="562" y="536" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" xml:space="preserve">Core 0</text>
+<text x="744" y="536" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="end" xml:space="preserve">62%</text>
+<rect x="760" y="520" width="198" height="86" rx="8" fill="#202125" stroke="#45474F"/>
+<path d="M766.0 579.4 L770.8 575.8 L775.5 573.2 L780.3 573.6 L785.1 579.1 L789.8 573.4 L794.6 567.5 L799.4 567.3 L804.2 567.2 L808.9 572.3 L813.7 581.8 L818.5 584.3 L823.2 582.6 L828.0 590.9 L832.8 585.3 L837.5 590.4 L842.3 595.5 L847.1 597.0 L851.8 587.4 L856.6 582.9 L861.4 575.7 L866.2 573.4 L870.9 582.4 L875.7 585.7 L880.5 585.7 L885.2 593.1 L890.0 584.4 L894.8 586.9 L899.5 593.6 L904.3 587.5 L909.1 594.7 L913.8 586.5 L918.6 587.4 L923.4 586.4 L928.2 589.4 L932.9 589.7 L937.7 595.7 L942.5 597.0 L947.2 590.0 L952.0 595.1 L952.0 600 L766.0 600 Z" fill="#7ECAC7" fill-opacity=".18"/>
+<path d="M766.0 579.4 L770.8 575.8 L775.5 573.2 L780.3 573.6 L785.1 579.1 L789.8 573.4 L794.6 567.5 L799.4 567.3 L804.2 567.2 L808.9 572.3 L813.7 581.8 L818.5 584.3 L823.2 582.6 L828.0 590.9 L832.8 585.3 L837.5 590.4 L842.3 595.5 L847.1 597.0 L851.8 587.4 L856.6 582.9 L861.4 575.7 L866.2 573.4 L870.9 582.4 L875.7 585.7 L880.5 585.7 L885.2 593.1 L890.0 584.4 L894.8 586.9 L899.5 593.6 L904.3 587.5 L909.1 594.7 L913.8 586.5 L918.6 587.4 L923.4 586.4 L928.2 589.4 L932.9 589.7 L937.7 595.7 L942.5 597.0 L947.2 590.0 L952.0 595.1" fill="none" stroke="#7ECAC7" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="768" y="536" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" xml:space="preserve">Core 1</text>
+<text x="950" y="536" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="end" xml:space="preserve">18%</text>
+<rect x="965" y="520" width="198" height="86" rx="8" fill="#202125" stroke="#45474F"/>
+<path d="M971.0 564.2 L975.8 571.1 L980.5 580.3 L985.3 570.7 L990.1 576.7 L994.8 584.0 L999.6 581.1 L1004.4 584.1 L1009.2 576.6 L1013.9 581.8 L1018.7 572.9 L1023.5 576.4 L1028.2 574.5 L1033.0 566.2 L1037.8 562.6 L1042.5 554.5 L1047.3 550.5 L1052.1 559.1 L1056.8 551.8 L1061.6 550.1 L1066.4 553.7 L1071.2 559.7 L1075.9 553.0 L1080.7 551.4 L1085.5 549.0 L1090.2 549.0 L1095.0 549.0 L1099.8 549.0 L1104.5 549.0 L1109.3 549.0 L1114.1 553.6 L1118.8 549.0 L1123.6 552.6 L1128.4 549.0 L1133.2 549.0 L1137.9 549.0 L1142.7 555.9 L1147.5 549.6 L1152.2 549.0 L1157.0 555.0 L1157.0 600 L971.0 600 Z" fill="#7ECAC7" fill-opacity=".18"/>
+<path d="M971.0 564.2 L975.8 571.1 L980.5 580.3 L985.3 570.7 L990.1 576.7 L994.8 584.0 L999.6 581.1 L1004.4 584.1 L1009.2 576.6 L1013.9 581.8 L1018.7 572.9 L1023.5 576.4 L1028.2 574.5 L1033.0 566.2 L1037.8 562.6 L1042.5 554.5 L1047.3 550.5 L1052.1 559.1 L1056.8 551.8 L1061.6 550.1 L1066.4 553.7 L1071.2 559.7 L1075.9 553.0 L1080.7 551.4 L1085.5 549.0 L1090.2 549.0 L1095.0 549.0 L1099.8 549.0 L1104.5 549.0 L1109.3 549.0 L1114.1 553.6 L1118.8 549.0 L1123.6 552.6 L1128.4 549.0 L1133.2 549.0 L1137.9 549.0 L1142.7 555.9 L1147.5 549.6 L1152.2 549.0 L1157.0 555.0" fill="none" stroke="#7ECAC7" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="973" y="536" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" xml:space="preserve">Core 2</text>
+<text x="1155" y="536" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="end" xml:space="preserve">47%</text>
+<rect x="1170" y="520" width="198" height="86" rx="8" fill="#202125" stroke="#45474F"/>
+<path d="M1176.0 564.8 L1180.8 556.2 L1185.5 549.0 L1190.3 557.0 L1195.1 555.2 L1199.8 556.7 L1204.6 556.1 L1209.4 563.2 L1214.2 569.1 L1218.9 570.2 L1223.7 575.5 L1228.5 576.4 L1233.2 585.5 L1238.0 593.5 L1242.8 589.5 L1247.5 591.0 L1252.3 590.7 L1257.1 586.2 L1261.8 588.9 L1266.6 597.0 L1271.4 591.6 L1276.2 589.9 L1280.9 586.8 L1285.7 584.5 L1290.5 575.5 L1295.2 578.1 L1300.0 573.1 L1304.8 575.6 L1309.5 574.2 L1314.3 571.2 L1319.1 574.7 L1323.8 582.7 L1328.6 583.2 L1333.4 579.0 L1338.2 577.3 L1342.9 578.3 L1347.7 575.5 L1352.5 581.6 L1357.2 587.8 L1362.0 591.2 L1362.0 600 L1176.0 600 Z" fill="#7ECAC7" fill-opacity=".18"/>
+<path d="M1176.0 564.8 L1180.8 556.2 L1185.5 549.0 L1190.3 557.0 L1195.1 555.2 L1199.8 556.7 L1204.6 556.1 L1209.4 563.2 L1214.2 569.1 L1218.9 570.2 L1223.7 575.5 L1228.5 576.4 L1233.2 585.5 L1238.0 593.5 L1242.8 589.5 L1247.5 591.0 L1252.3 590.7 L1257.1 586.2 L1261.8 588.9 L1266.6 597.0 L1271.4 591.6 L1276.2 589.9 L1280.9 586.8 L1285.7 584.5 L1290.5 575.5 L1295.2 578.1 L1300.0 573.1 L1304.8 575.6 L1309.5 574.2 L1314.3 571.2 L1319.1 574.7 L1323.8 582.7 L1328.6 583.2 L1333.4 579.0 L1338.2 577.3 L1342.9 578.3 L1347.7 575.5 L1352.5 581.6 L1357.2 587.8 L1362.0 591.2" fill="none" stroke="#7ECAC7" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="1178" y="536" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" xml:space="preserve">Core 3</text>
+<text x="1360" y="536" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="end" xml:space="preserve">36%</text>
+<text x="554" y="638" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Utilization</text>
+<text x="554" y="662" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="18" font-weight="600" xml:space="preserve">41%</text>
+<text x="825" y="638" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Processes</text>
+<text x="825" y="662" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="18" font-weight="600" xml:space="preserve">23</text>
+<text x="1097" y="638" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Threads</text>
+<text x="1097" y="662" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="18" font-weight="600" xml:space="preserve">61</text>
+<text x="554" y="696" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Uptime</text>
+<text x="554" y="720" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="18" font-weight="600" xml:space="preserve">3 h 12 min</text>
+<text x="825" y="696" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Frame budget</text>
+<text x="825" y="720" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="18" font-weight="600" xml:space="preserve">16 ms</text>
+<text x="1097" y="696" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Temperature</text>
+<text x="1097" y="720" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="18" font-weight="600" xml:space="preserve">Not reported</text>
+<text x="554" y="770" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Top now</text>
+<text x="612" y="770" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Polaris 18% · Compositor 11% · pkg 9%</text>
+<rect x="0" y="880" width="1440" height="1020" rx="0" fill="#E9EAEE"/>
+<text x="48" y="916" fill="#202126" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Light · Processes</text>
+<rect x="48" y="938" width="1344" height="700" rx="12" fill="#F6F7F9" stroke="#CFD1D8"/>
+<rect x="49" y="939" width="1342" height="43" rx="11" fill="#EFF0F3"/>
+<g transform="translate(64 952) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.500a2 2 0 0 0-1.900 1.500l-2.300 8.400a.2.2 0 0 1-.4 0L9.100 2.100a.2.2 0 0 0-.4 0l-2.300 8.400A2 2 0 0 1 4.500 12H2"/></g>
+<text x="88" y="966" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">Observatory</text>
+<g transform="translate(1280 952) scale(.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(1316 952) scale(.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(1352 952) scale(.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<g transform="translate(72 1005) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.500a2 2 0 0 0-1.900 1.500l-2.300 8.400a.2.2 0 0 1-.4 0L9.100 2.100a.2.2 0 0 0-.4 0l-2.300 8.400A2 2 0 0 1 4.500 12H2"/></g>
+<text x="98" y="1018" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Performance</text>
+<g transform="translate(72 1043) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></g>
+<text x="98" y="1056" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Apps</text>
+<text x="240" y="1056" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">7</text>
+<rect x="60" y="1072" width="190" height="34" rx="6" fill="#D7E9E8"/>
+<rect x="61" y="1080" width="3" height="18" rx="1" fill="#197571"/>
+<g transform="translate(72 1081) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></g>
+<text x="98" y="1094" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Processes</text>
+<text x="240" y="1094" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">23</text>
+<g transform="translate(72 1119) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/></g>
+<text x="98" y="1132" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Services</text>
+<text x="240" y="1132" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">11</text>
+<g transform="translate(72 1157) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></g>
+<text x="98" y="1170" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">History</text>
+<rect x="262" y="990" width="1118" height="636" rx="12" fill="#FFFFFF"/>
+<g transform="translate(286 1011) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.3-4.3"/><circle cx="11" cy="11" r="8"/></g>
+<rect x="274" y="1002" width="320" height="34" rx="8" fill="#F6F7F9" stroke="#CFD1D8"/>
+<g transform="translate(284 1011) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.3-4.3"/><circle cx="11" cy="11" r="8"/></g>
+<text x="310" y="1024" fill="#6E727C" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Filter processes</text>
+<rect x="1142" y="1002" width="110" height="34" rx="8" fill="#F6F7F9" stroke="#CFD1D8"/>
+<text x="1197.0" y="1024.0" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">Details</text>
+<rect x="1260" y="1002" width="110" height="34" rx="8" fill="#F6DEDF"/>
+<text x="1315" y="1024" fill="#B3363A" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">End process</text>
+<text x="286" y="1064" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Name</text>
+<text x="574" y="1064" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">PID</text>
+<text x="644" y="1064" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">User</text>
+<text x="744" y="1064" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">State</text>
+<text x="874" y="1064" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">CPU</text>
+<text x="1034" y="1064" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Memory</text>
+<text x="1174" y="1064" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Disk</text>
+<text x="1264" y="1064" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Started</text>
+<rect x="274" y="1074" width="1094" height="1" rx="0" fill="#CFD1D8"/>
+<rect x="274" y="1080" width="1094" height="40" rx="6" fill="#D7E9E8"/>
+<rect x="275" y="1090" width="3" height="20" rx="1" fill="#197571"/>
+<g transform="translate(286 1092) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></g>
+<text x="310" y="1105" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">polaris</text>
+<text x="574" y="1105" fill="#5C606B" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">41</text>
+<text x="644" y="1105" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">azazel</text>
+<text x="744" y="1105" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Waiting</text>
+<rect x="874" y="1095" width="100" height="8" rx="4" fill="#F6F7F9"/>
+<rect x="874" y="1095" width="54" height="8" rx="4" fill="#197571"/>
+<text x="984" y="1105" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">18%</text>
+<text x="1034" y="1105" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">14 MiB</text>
+<text x="1174" y="1105" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">0</text>
+<text x="1264" y="1105" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">14:02</text>
+<g transform="translate(286 1134) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></g>
+<text x="310" y="1147" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">sh</text>
+<text x="574" y="1147" fill="#5C606B" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">42</text>
+<text x="644" y="1147" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">azazel</text>
+<text x="744" y="1147" fill="#277347" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Running</text>
+<rect x="874" y="1137" width="100" height="8" rx="4" fill="#F6F7F9"/>
+<rect x="874" y="1137" width="6" height="8" rx="4" fill="#197571"/>
+<text x="984" y="1147" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">2%</text>
+<text x="1034" y="1147" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">2 MiB</text>
+<text x="1174" y="1147" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">0</text>
+<text x="1264" y="1147" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">14:02</text>
+<g transform="translate(286 1176) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.7Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></g>
+<text x="310" y="1189" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">pkg update</text>
+<text x="574" y="1189" fill="#5C606B" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">57</text>
+<text x="644" y="1189" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">root</text>
+<text x="744" y="1189" fill="#277347" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Running</text>
+<rect x="874" y="1179" width="100" height="8" rx="4" fill="#F6F7F9"/>
+<rect x="874" y="1179" width="27" height="8" rx="4" fill="#197571"/>
+<text x="984" y="1189" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">9%</text>
+<text x="1034" y="1189" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">6 MiB</text>
+<text x="1174" y="1189" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">2.8 MB/s</text>
+<text x="1264" y="1189" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">17:11</text>
+<g transform="translate(286 1218) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/></g>
+<text x="310" y="1231" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">settings</text>
+<text x="574" y="1231" fill="#5C606B" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">33</text>
+<text x="644" y="1231" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">azazel</text>
+<text x="744" y="1231" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Waiting</text>
+<rect x="874" y="1221" width="100" height="8" rx="4" fill="#F6F7F9"/>
+<rect x="874" y="1221" width="3" height="8" rx="4" fill="#197571"/>
+<text x="984" y="1231" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">1%</text>
+<text x="1034" y="1231" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">9 MiB</text>
+<text x="1174" y="1231" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">0</text>
+<text x="1264" y="1231" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">15:40</text>
+<g transform="translate(286 1260) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9h20"/></g>
+<text x="310" y="1273" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">desktop-tools</text>
+<text x="574" y="1273" fill="#5C606B" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">29</text>
+<text x="644" y="1273" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">azazel</text>
+<text x="744" y="1273" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Waiting</text>
+<rect x="874" y="1263" width="100" height="8" rx="4" fill="#F6F7F9"/>
+<rect x="874" y="1263" width="2" height="8" rx="4" fill="#197571"/>
+<text x="984" y="1273" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">0%</text>
+<text x="1034" y="1273" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">8 MiB</text>
+<text x="1174" y="1273" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">0</text>
+<text x="1264" y="1273" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">14:01</text>
+<g transform="translate(286 1302) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8l6 6v12a2 2 0 0 1-2 2z"/><path d="M14 2v6h6"/></g>
+<text x="310" y="1315" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">aurora</text>
+<text x="574" y="1315" fill="#5C606B" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">38</text>
+<text x="644" y="1315" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">azazel</text>
+<text x="744" y="1315" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Waiting</text>
+<rect x="874" y="1305" width="100" height="8" rx="4" fill="#F6F7F9"/>
+<rect x="874" y="1305" width="3" height="8" rx="4" fill="#197571"/>
+<text x="984" y="1315" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">1%</text>
+<text x="1034" y="1315" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">11 MiB</text>
+<text x="1174" y="1315" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">12 KB/s</text>
+<text x="1264" y="1315" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">16:20</text>
+<g transform="translate(286 1344) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></g>
+<text x="310" y="1357" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">cat</text>
+<text x="574" y="1357" fill="#5C606B" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">58</text>
+<text x="644" y="1357" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">azazel</text>
+<text x="744" y="1357" fill="#886010" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Stopping</text>
+<rect x="874" y="1347" width="100" height="8" rx="4" fill="#F6F7F9"/>
+<rect x="874" y="1347" width="2" height="8" rx="4" fill="#197571"/>
+<text x="984" y="1357" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">0%</text>
+<text x="1034" y="1357" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">1 MiB</text>
+<text x="1174" y="1357" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">0</text>
+<text x="1264" y="1357" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">17:13</text>
+<rect x="274" y="1388" width="1094" height="226" rx="10" fill="#F6F7F9" stroke="#CFD1D8"/>
+<g transform="translate(288 1402) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></g>
+<text x="312" y="1415" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">polaris · PID 41</text>
+<text x="288" y="1444" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Package</text>
+<text x="364" y="1444" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">zenith-polaris 0.1.0, signed</text>
+<text x="288" y="1466" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Runs as</text>
+<text x="364" y="1466" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">azazel, 2 terminal sessions, 1 window</text>
+<text x="288" y="1488" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Open files</text>
+<text x="364" y="1488" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">None</text>
+<text x="288" y="1510" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Threads</text>
+<text x="364" y="1510" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">3</text>
+<text x="288" y="1532" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Waiting on</text>
+<text x="364" y="1532" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Window events</text>
+<text x="288" y="1554" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Children</text>
+<text x="364" y="1554" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">sh (42), cat (58)</text>
+<rect x="774" y="1444" width="520" height="1" rx="0" fill="#CFD1D8" fill-opacity=".45"/>
+<rect x="774" y="1484" width="520" height="1" rx="0" fill="#CFD1D8" fill-opacity=".45"/>
+<rect x="774" y="1524" width="520" height="1" rx="0" fill="#CFD1D8" fill-opacity=".45"/>
+<path d="M774.0 1533.2 L781.5 1524.4 L789.1 1531.5 L796.6 1527.6 L804.1 1535.6 L811.7 1540.4 L819.2 1530.8 L826.8 1536.4 L834.3 1533.7 L841.8 1534.5 L849.4 1535.4 L856.9 1535.5 L864.4 1541.4 L872.0 1535.0 L879.5 1542.9 L887.0 1548.0 L894.6 1556.0 L902.1 1556.0 L909.7 1556.0 L917.2 1548.3 L924.7 1550.6 L932.3 1556.0 L939.8 1556.0 L947.3 1546.6 L954.9 1554.9 L962.4 1552.6 L969.9 1555.0 L977.5 1551.9 L985.0 1555.0 L992.6 1551.3 L1000.1 1551.4 L1007.6 1548.5 L1015.2 1540.8 L1022.7 1539.2 L1030.2 1546.1 L1037.8 1554.5 L1045.3 1545.9 L1052.8 1546.1 L1060.4 1552.0 L1067.9 1543.4 L1075.4 1541.9 L1083.0 1537.5 L1090.5 1530.2 L1098.1 1534.3 L1105.6 1537.1 L1113.1 1529.8 L1120.7 1536.8 L1128.2 1531.8 L1135.7 1539.5 L1143.3 1535.8 L1150.8 1532.0 L1158.3 1523.3 L1165.9 1516.7 L1173.4 1516.6 L1181.0 1522.5 L1188.5 1529.2 L1196.0 1528.6 L1203.6 1528.4 L1211.1 1536.7 L1218.6 1528.9 L1226.2 1528.8 L1233.7 1524.9 L1241.2 1530.3 L1248.8 1535.2 L1256.3 1544.6 L1263.9 1547.6 L1271.4 1552.1 L1278.9 1553.5 L1286.5 1555.9 L1294.0 1549.5 L1294.0 1564 L774.0 1564 Z" fill="#197571" fill-opacity=".18"/>
+<path d="M774.0 1533.2 L781.5 1524.4 L789.1 1531.5 L796.6 1527.6 L804.1 1535.6 L811.7 1540.4 L819.2 1530.8 L826.8 1536.4 L834.3 1533.7 L841.8 1534.5 L849.4 1535.4 L856.9 1535.5 L864.4 1541.4 L872.0 1535.0 L879.5 1542.9 L887.0 1548.0 L894.6 1556.0 L902.1 1556.0 L909.7 1556.0 L917.2 1548.3 L924.7 1550.6 L932.3 1556.0 L939.8 1556.0 L947.3 1546.6 L954.9 1554.9 L962.4 1552.6 L969.9 1555.0 L977.5 1551.9 L985.0 1555.0 L992.6 1551.3 L1000.1 1551.4 L1007.6 1548.5 L1015.2 1540.8 L1022.7 1539.2 L1030.2 1546.1 L1037.8 1554.5 L1045.3 1545.9 L1052.8 1546.1 L1060.4 1552.0 L1067.9 1543.4 L1075.4 1541.9 L1083.0 1537.5 L1090.5 1530.2 L1098.1 1534.3 L1105.6 1537.1 L1113.1 1529.8 L1120.7 1536.8 L1128.2 1531.8 L1135.7 1539.5 L1143.3 1535.8 L1150.8 1532.0 L1158.3 1523.3 L1165.9 1516.7 L1173.4 1516.6 L1181.0 1522.5 L1188.5 1529.2 L1196.0 1528.6 L1203.6 1528.4 L1211.1 1536.7 L1218.6 1528.9 L1226.2 1528.8 L1233.7 1524.9 L1241.2 1530.3 L1248.8 1535.2 L1256.3 1544.6 L1263.9 1547.6 L1271.4 1552.1 L1278.9 1553.5 L1286.5 1555.9 L1294.0 1549.5" fill="none" stroke="#197571" stroke-width="2" stroke-linejoin="round"/>
+<text x="774" y="1580" fill="#6E727C" font-family="Inter, sans-serif" font-size="11" font-weight="400" xml:space="preserve">CPU, last 60 s</text>
+<text x="48" y="1666" fill="#202126" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Performance</text>
+<text x="48" y="1692" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Cards for CPU, memory, disk, network and display, each with</text>
+<text x="48" y="1710" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">a live graph; the selected one fills the main view.</text>
+<text x="48" y="1736" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Per-core graphs, and 1 min, 10 min and 1 h ranges from a</text>
+<text x="48" y="1754" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">bounded history.</text>
+<text x="48" y="1780" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Graphs move smoothly with the shared frame clock, and never</text>
+<text x="48" y="1798" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">redraw more than the data needs.</text>
+<text x="496" y="1666" fill="#202126" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Apps and processes</text>
+<text x="496" y="1692" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Apps groups windows with their processes, for people who</text>
+<text x="496" y="1710" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">only want to close something.</text>
+<text x="496" y="1736" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Processes is a sortable, filterable table with real states,</text>
+<text x="496" y="1754" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">including Stopping.</text>
+<text x="496" y="1780" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">End process asks politely first, the same way the shell</text>
+<text x="496" y="1798" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">does, and says when a program holds unsaved work.</text>
+<text x="944" y="1666" fill="#202126" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Added beyond the brief</text>
+<text x="944" y="1692" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">History: what used memory or CPU an hour ago, kept on disk</text>
+<text x="944" y="1710" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">within a fixed size.</text>
+<text x="944" y="1736" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Display card: frame times from the compositor, already</text>
+<text x="944" y="1754" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">measured by fps.</text>
+<text x="944" y="1780" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Top now under the graph, so a spike has an answer without</text>
+<text x="944" y="1798" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">changing page.</text>
+<text x="48" y="1866" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Requires: per-process CPU and memory counters, a disk rate source and a services model; today only a process list and cooperative stop exist. Sample values are illustrative.</text>
+</svg>

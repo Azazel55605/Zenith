@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1570" viewBox="0 0 1440 1570">
+<rect x="0" y="0" width="1440" height="1570" rx="0" fill="#151619"/>
+<text x="48" y="55" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="28" font-weight="600" xml:space="preserve">Zenith / Prism concept</text>
+<text x="48" y="86" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">Proposal, not running UI · reference: Raycast, Vicinae and KRunner · a keyboard launcher, separate from the start menu · uses the accepted surfaces, 8/12 radii, Inter and Hack</text>
+<text x="48" y="126" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Dark</text>
+<rect x="48" y="146" width="1344" height="540" rx="14" fill="#20283A"/>
+<rect x="76" y="176" width="640" height="444" rx="14" fill="#25262B" stroke="#45474F"/>
+<g transform="translate(94 193) scale(0.9166666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.3-4.3"/><circle cx="11" cy="11" r="8"/></g>
+<text x="128" y="211" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="18" font-weight="400" xml:space="preserve">mer</text>
+<rect x="162" y="194" width="2" height="22" rx="0" fill="#7ECAC7"/>
+<rect x="642" y="194" width="56" height="20" rx="10" fill="#2A2C31"/>
+<text x="670.0" y="208" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">All</text>
+<rect x="76" y="232" width="640" height="1" rx="0" fill="#45474F"/>
+<text x="94" y="254" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Applications</text>
+<rect x="84" y="262" width="624" height="44" rx="8" fill="#2C3B3D"/>
+<rect x="85" y="273" width="3" height="22" rx="1" fill="#7ECAC7"/>
+<rect x="96" y="268" width="32" height="32" rx="8" fill="#2A2C31"/>
+<g transform="translate(103 275) scale(0.75)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/></g>
+<text x="140" y="281" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">Meridian</text>
+<text x="140" y="298" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">System settings</text>
+<rect x="654" y="274" width="42" height="20" rx="5" fill="#202125" stroke="#45474F"/>
+<text x="675" y="288" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Enter</text>
+<text x="94" y="326" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Settings pages</text>
+<rect x="96" y="340" width="32" height="32" rx="8" fill="#2A2C31"/>
+<g transform="translate(103 347) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/></g>
+<text x="140" y="353" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">Taskbar</text>
+<text x="140" y="370" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Meridian › Windows</text>
+<rect x="96" y="386" width="32" height="32" rx="8" fill="#2A2C31"/>
+<g transform="translate(103 393) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/></g>
+<text x="140" y="399" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">Animations</text>
+<text x="140" y="416" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Meridian › Style</text>
+<text x="94" y="444" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Files</text>
+<rect x="96" y="458" width="32" height="32" rx="8" fill="#2A2C31"/>
+<g transform="translate(103 465) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8l6 6v12a2 2 0 0 1-2 2z"/><path d="M14 2v6h6"/></g>
+<text x="140" y="471" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">meridian-plan.md</text>
+<text x="140" y="488" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">~/Zenith/docs</text>
+<text x="94" y="516" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Actions</text>
+<rect x="96" y="530" width="32" height="32" rx="8" fill="#2A2C31"/>
+<g transform="translate(103 537) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></g>
+<text x="140" y="543" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">Run &quot;mer&quot; in Polaris</text>
+<text x="140" y="560" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Command</text>
+<rect x="76" y="580" width="640" height="1" rx="0" fill="#45474F"/>
+<text x="94" y="605" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Enter open</text>
+<text x="172" y="605" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Ctrl+K more actions</text>
+<text x="308" y="605" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Tab filter</text>
+<text x="698" y="605" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="end" xml:space="preserve">Prism</text>
+<rect x="732" y="176" width="640" height="274" rx="14" fill="#25262B" stroke="#45474F"/>
+<g transform="translate(750 193) scale(0.9166666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.3-4.3"/><circle cx="11" cy="11" r="8"/></g>
+<text x="784" y="211" fill="#F1F2F4" font-family="Hack, monospace" font-size="18" font-weight="400" xml:space="preserve">12 * (4 + 3)</text>
+<rect x="917" y="194" width="2" height="22" rx="0" fill="#7ECAC7"/>
+<rect x="1298" y="194" width="56" height="20" rx="10" fill="#2A2C31"/>
+<text x="1326.0" y="208" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">All</text>
+<rect x="732" y="232" width="640" height="1" rx="0" fill="#45474F"/>
+<rect x="740" y="236" width="624" height="44" rx="8" fill="#2C3B3D"/>
+<rect x="741" y="247" width="3" height="22" rx="1" fill="#7ECAC7"/>
+<rect x="752" y="242" width="32" height="32" rx="8" fill="#2A2C31"/>
+<g transform="translate(759 249) scale(0.75)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/></g>
+<text x="796" y="255" fill="#F1F2F4" font-family="Hack, monospace" font-size="14" font-weight="600" xml:space="preserve">12 * (4 + 3) = 84</text>
+<text x="796" y="272" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Calculator · Enter copies the result</text>
+<rect x="1310" y="248" width="42" height="20" rx="5" fill="#202125" stroke="#45474F"/>
+<text x="1331" y="262" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Enter</text>
+<text x="750" y="300" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Also</text>
+<rect x="752" y="314" width="32" height="32" rx="8" fill="#2A2C31"/>
+<g transform="translate(759 321) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></g>
+<text x="796" y="327" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">Run &quot;12 * (4 + 3)&quot; in Polaris</text>
+<text x="796" y="344" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Command</text>
+<rect x="752" y="360" width="32" height="32" rx="8" fill="#2A2C31"/>
+<g transform="translate(759 367) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.3-4.3"/><circle cx="11" cy="11" r="8"/></g>
+<text x="796" y="373" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">Search files for &quot;12 * (4 + 3)&quot;</text>
+<text x="796" y="390" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Horizon</text>
+<rect x="732" y="410" width="640" height="1" rx="0" fill="#45474F"/>
+<text x="750" y="435" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Enter open</text>
+<text x="828" y="435" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Ctrl+K more actions</text>
+<text x="964" y="435" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Tab filter</text>
+<text x="1354" y="435" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="end" xml:space="preserve">Prism</text>
+<rect x="0" y="710" width="1440" height="850" rx="0" fill="#E9EAEE"/>
+<text x="48" y="746" fill="#202126" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Light · equal coverage</text>
+<rect x="48" y="766" width="1344" height="540" rx="14" fill="#C9D4DE"/>
+<rect x="76" y="796" width="640" height="444" rx="14" fill="#EFF0F3" stroke="#CFD1D8"/>
+<g transform="translate(94 813) scale(0.9166666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.3-4.3"/><circle cx="11" cy="11" r="8"/></g>
+<text x="128" y="831" fill="#202126" font-family="Inter, sans-serif" font-size="18" font-weight="400" xml:space="preserve">mer</text>
+<rect x="162" y="814" width="2" height="22" rx="0" fill="#197571"/>
+<rect x="642" y="814" width="56" height="20" rx="10" fill="#F6F7F9"/>
+<text x="670.0" y="828" fill="#5C606B" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">All</text>
+<rect x="76" y="852" width="640" height="1" rx="0" fill="#CFD1D8"/>
+<text x="94" y="874" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Applications</text>
+<rect x="84" y="882" width="624" height="44" rx="8" fill="#D7E9E8"/>
+<rect x="85" y="893" width="3" height="22" rx="1" fill="#197571"/>
+<rect x="96" y="888" width="32" height="32" rx="8" fill="#F6F7F9"/>
+<g transform="translate(103 895) scale(0.75)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/></g>
+<text x="140" y="901" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">Meridian</text>
+<text x="140" y="918" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">System settings</text>
+<rect x="654" y="894" width="42" height="20" rx="5" fill="#F6F7F9" stroke="#CFD1D8"/>
+<text x="675" y="908" fill="#5C606B" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Enter</text>
+<text x="94" y="946" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Settings pages</text>
+<rect x="96" y="960" width="32" height="32" rx="8" fill="#F6F7F9"/>
+<g transform="translate(103 967) scale(0.75)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/></g>
+<text x="140" y="973" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">Taskbar</text>
+<text x="140" y="990" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Meridian › Windows</text>
+<rect x="96" y="1006" width="32" height="32" rx="8" fill="#F6F7F9"/>
+<g transform="translate(103 1013) scale(0.75)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/></g>
+<text x="140" y="1019" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">Animations</text>
+<text x="140" y="1036" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Meridian › Style</text>
+<text x="94" y="1064" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Files</text>
+<rect x="96" y="1078" width="32" height="32" rx="8" fill="#F6F7F9"/>
+<g transform="translate(103 1085) scale(0.75)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8l6 6v12a2 2 0 0 1-2 2z"/><path d="M14 2v6h6"/></g>
+<text x="140" y="1091" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">meridian-plan.md</text>
+<text x="140" y="1108" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">~/Zenith/docs</text>
+<text x="94" y="1136" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Actions</text>
+<rect x="96" y="1150" width="32" height="32" rx="8" fill="#F6F7F9"/>
+<g transform="translate(103 1157) scale(0.75)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></g>
+<text x="140" y="1163" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">Run &quot;mer&quot; in Polaris</text>
+<text x="140" y="1180" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Command</text>
+<rect x="76" y="1200" width="640" height="1" rx="0" fill="#CFD1D8"/>
+<text x="94" y="1225" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Enter open</text>
+<text x="172" y="1225" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Ctrl+K more actions</text>
+<text x="308" y="1225" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Tab filter</text>
+<text x="698" y="1225" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="end" xml:space="preserve">Prism</text>
+<rect x="732" y="796" width="640" height="274" rx="14" fill="#EFF0F3" stroke="#CFD1D8"/>
+<g transform="translate(750 813) scale(0.9166666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.3-4.3"/><circle cx="11" cy="11" r="8"/></g>
+<text x="784" y="831" fill="#202126" font-family="Hack, monospace" font-size="18" font-weight="400" xml:space="preserve">12 * (4 + 3)</text>
+<rect x="917" y="814" width="2" height="22" rx="0" fill="#197571"/>
+<rect x="1298" y="814" width="56" height="20" rx="10" fill="#F6F7F9"/>
+<text x="1326.0" y="828" fill="#5C606B" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">All</text>
+<rect x="732" y="852" width="640" height="1" rx="0" fill="#CFD1D8"/>
+<rect x="740" y="856" width="624" height="44" rx="8" fill="#D7E9E8"/>
+<rect x="741" y="867" width="3" height="22" rx="1" fill="#197571"/>
+<rect x="752" y="862" width="32" height="32" rx="8" fill="#F6F7F9"/>
+<g transform="translate(759 869) scale(0.75)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/></g>
+<text x="796" y="875" fill="#202126" font-family="Hack, monospace" font-size="14" font-weight="600" xml:space="preserve">12 * (4 + 3) = 84</text>
+<text x="796" y="892" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Calculator · Enter copies the result</text>
+<rect x="1310" y="868" width="42" height="20" rx="5" fill="#F6F7F9" stroke="#CFD1D8"/>
+<text x="1331" y="882" fill="#5C606B" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Enter</text>
+<text x="750" y="920" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Also</text>
+<rect x="752" y="934" width="32" height="32" rx="8" fill="#F6F7F9"/>
+<g transform="translate(759 941) scale(0.75)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></g>
+<text x="796" y="947" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">Run &quot;12 * (4 + 3)&quot; in Polaris</text>
+<text x="796" y="964" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Command</text>
+<rect x="752" y="980" width="32" height="32" rx="8" fill="#F6F7F9"/>
+<g transform="translate(759 987) scale(0.75)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.3-4.3"/><circle cx="11" cy="11" r="8"/></g>
+<text x="796" y="993" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">Search files for &quot;12 * (4 + 3)&quot;</text>
+<text x="796" y="1010" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Horizon</text>
+<rect x="732" y="1030" width="640" height="1" rx="0" fill="#CFD1D8"/>
+<text x="750" y="1055" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Enter open</text>
+<text x="828" y="1055" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Ctrl+K more actions</text>
+<text x="964" y="1055" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Tab filter</text>
+<text x="1354" y="1055" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="end" xml:space="preserve">Prism</text>
+<text x="48" y="1336" fill="#202126" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">What it finds</text>
+<text x="48" y="1362" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Apps, open windows, settings pages, files and commands, all</text>
+<text x="48" y="1380" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">ranked in one list as you type.</text>
+<text x="48" y="1406" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">A calculator and unit conversion answer inline, with no</text>
+<text x="48" y="1424" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">extra step.</text>
+<text x="48" y="1450" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Recent choices rank higher. All of it stays local; nothing</text>
+<text x="48" y="1468" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">leaves the machine.</text>
+<text x="496" y="1336" fill="#202126" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">How it behaves</text>
+<text x="496" y="1362" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Meta or Alt+Space opens it, configurable in Meridian. Esc or</text>
+<text x="496" y="1380" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">a click away closes it.</text>
+<text x="496" y="1406" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Every row works from the keyboard. Ctrl+K lists more</text>
+<text x="496" y="1424" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">actions, such as Open with, Copy path or Run as root.</text>
+<text x="496" y="1450" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Tab narrows to one kind of result. A leading &gt; runs a</text>
+<text x="496" y="1468" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">command in Polaris.</text>
+<text x="944" y="1336" fill="#202126" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Where it fits</text>
+<text x="944" y="1362" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Useful everywhere, and especially in a future window-manager</text>
+<text x="944" y="1380" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">mode with no panel.</text>
+<text x="944" y="1406" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">It sits beside the start menu and does not replace it.</text>
+<text x="944" y="1432" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Opens in 120 ms at a fixed spot in the upper third, and</text>
+<text x="944" y="1450" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">grows downward so the search field never moves.</text>
+<text x="48" y="1552" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Requires: Meta key support, a global shortcut setting, a bounded file index or live search, and a bounded expression evaluator. Run as root goes through the normal authentication.</text>
+<text x="48" y="1574" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Prism was the theme tools name; theming and appearance now belong to Meridian. Names and samples are illustrative.</text>
+</svg>

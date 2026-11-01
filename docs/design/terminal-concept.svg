@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1960" viewBox="0 0 1440 1960">
 <rect x="0" y="0" width="1440" height="1960" rx="0" fill="#151619"/>
-<text x="48" y="55" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="28" font-weight="600" xml:space="preserve">Zenith / Terminal concept</text>
+<text x="48" y="55" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="28" font-weight="600" xml:space="preserve">Zenith / Polaris concept</text>
 <text x="48" y="86" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">Proposal, not running UI · reference: KDE Konsole and kitty · uses the accepted neutral surfaces, 8/12 radii, Inter and Hack</text>
 <text x="48" y="126" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Dark</text>
 <rect x="48" y="148" width="1344" height="700" rx="12" fill="#202125" stroke="#45474F"/>
