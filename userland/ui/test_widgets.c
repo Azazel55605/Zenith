@@ -176,9 +176,35 @@ static void stage3_tests(void){
     m.x=395;m.y=200;zui_event(&u,&m);zui_scroll_begin(&u,&s,(struct zui_rect){100,100,300,200});zui_scroll_end(&u,&s,1000);
     assert(px[110*800+391]!=0x123456);
 }
+static void motion_tests(void){
+    struct zui u;assert(zui_init(&u,px,800,600));
+    struct zui_rect view={100,100,300,200};struct zui_scroll s={0};
+    /* Without motion, the offset lands at once. */
+    zui_scroll_begin(&u,&s,view);zui_scroll_end(&u,&s,1000);s.offset=120;
+    assert(zui_scroll_begin(&u,&s,view)==100-120);zui_scroll_end(&u,&s,1000);assert(!u.animating);
+    /* With motion, the drawn position follows without overshoot, whatever the frame time. */
+    int steps[]={1,16,33,500};
+    for(int k=0;k<4;k++){
+        zui_scroll_jump(&s,0);u.motion_percent=100;s.smooth=1;s.offset=400;
+        int last=0,frames=0;long now=u.now;
+        do{
+            now+=steps[k];zui_motion_frame(&u,now);
+            int top=zui_scroll_begin(&u,&s,view);zui_scroll_end(&u,&s,1000);
+            assert(top==100-s.visual&&s.visual>last&&s.visual<=400&&s.offset==400);
+            assert(u.animating==(s.visual!=400));last=s.visual;
+        }while(u.animating&&++frames<1000);
+        assert(s.visual==400&&frames<300);
+    }
+    assert(u.frame_ms==50);                                             /* a long pause is not animation time */
+    /* A row's hit area is where it is drawn, not where the scroll is going. */
+    s.offset=0;zui_motion_frame(&u,u.now+16);assert(zui_scroll_begin(&u,&s,view)==100-s.visual&&s.visual>0);zui_scroll_end(&u,&s,1000);
+    /* The target stays valid when content shrinks mid-motion. */
+    zui_scroll_jump(&s,800);s.offset=0;zui_motion_frame(&u,u.now+16);zui_scroll_begin(&u,&s,view);zui_scroll_end(&u,&s,100);assert(s.visual==0&&s.offset==0);
+}
 int main(void){
     stage3_tests();
     scroll_tests();
+    motion_tests();
     list_tests();
     combo_tests();
     form_tests();

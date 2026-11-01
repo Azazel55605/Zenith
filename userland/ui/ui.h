@@ -37,7 +37,15 @@ struct zui {
     int foreground,material_count,full_background;
     int theme_preview; /* theme differs from the host's, whose tint would mismatch: no materials */
     struct zenith_material_region materials[8];
+    /* Frame clock. 0 percent (the default) means no motion: everything lands at once. */
+    int motion_percent,frame_ms,animating;long now;
 };
+/* Monotonic milliseconds, or negative on kernels without the clock (no motion there). */
+long zui_motion_clock(void);
+/* Animation duration percent for the system's style.animations choice. */
+int zui_motion_percent(unsigned int choice);
+/* Starts a drawn frame at this time. Widgets set animating when they need another. */
+void zui_motion_frame(struct zui *ui,long now);
 /* Returns 0 for invalid dimensions/buffer; caller supplies width*height pixels. */
 int zui_init(struct zui *ui,unsigned int *pixels,int width,int height);
 int zui_resize(struct zui *ui,int width,int height,unsigned long capacity);

@@ -25,4 +25,5 @@ static long package_icon(const char *name,unsigned char *out,unsigned long capac
     zenith_call(3,(unsigned long)fd,0,0);
     return r<0?r:(long)total;
 }
+long zui_motion_clock(void){return zenith_call(628,0,0,0);}
 void zui_icons_use_packages(void){zui_icon_source(package_icon);}

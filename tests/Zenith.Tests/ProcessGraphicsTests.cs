@@ -14,6 +14,20 @@ public sealed class ProcessGraphicsTests
         { var s = new ProcessSurface(width, height, title, format); Surfaces.Add(s); return s; }
     }
     [Fact]
+    public void FramePacerGivesAnAnimatingClientTheWholeInterval()
+    {
+        var pacer = new FramePacer();
+        Assert.Equal(16, pacer.EmptyPoll());                          // idle clients keep waiting
+        Assert.Equal(0, pacer.Present(1000));                         // a frame after a pause goes at once
+        Assert.Equal(0, pacer.EmptyPoll());                           // the poll after a present does not wait again...
+        Assert.Equal(16, pacer.EmptyPoll());                          // ...but the next one does
+        Assert.Equal(10, pacer.Present(1006));                        // only what is left of the interval
+        Assert.Equal(0, pacer.EmptyPoll());
+        Assert.Equal(16, pacer.Present(1016));                        // presents alone can never beat the interval
+        Assert.Equal(16, pacer.Present(1016));
+    }
+
+    [Fact]
     public void PointerMotionIsOptInCoalescedAndNeverDisplacesInput()
     {
         var h = new Host(); using var g = new ProcessGraphics(h);
@@ -93,7 +107,7 @@ public sealed class ProcessGraphicsTests
     {
         var host = new Host(); using var graphics = new ProcessGraphics(host);
         int handle = graphics.Open(160, 100, "interactive"); byte[] pixels = new byte[64000];
-        for (int i = 0; i < 3600; i++) { Assert.Equal(0, graphics.Present(handle, pixels)); }
+        for (int i = 0; i < ProcessGraphics.MaximumPresents; i++) { Assert.Equal(0, graphics.Present(handle, pixels)); }
         Assert.Equal(-27, graphics.Size(handle));
         var profile = new ProcessInteractive(); Assert.Equal(0, profile.Enable(graphics.OwnsLive(handle), 0));
         Assert.True(profile.Advance(graphics.Live, 60000, out bool renew)); Assert.True(renew);

@@ -8,7 +8,7 @@ namespace Zenith.Gui.Shell;
 /// the old session's last frame exists only until the next session draws, and is wiped after use.</summary>
 internal static class SessionDisplay
 {
-    private const long FadeMicros = 220_000, SlowFrameMicros = 33_333;
+    private const long FadeMicros = 220_000, WelcomeFadeMicros = 420_000, SlowFrameMicros = 33_333;
     private const ulong ReservePages = 4096;
     private static Canvas? s_screen;
     private static int[]? s_fade;
@@ -31,8 +31,9 @@ internal static class SessionDisplay
         s_fade = null;
     }
 
-    /// <summary>Fades from the kept frame to this one, always ending on it. Slow frames cut it short.</summary>
-    public static void FadeTo(int[] frame, int width, int height)
+    /// <summary>Fades from the kept frame to this one, always ending on it. Slow frames cut it short. Signing in only
+    /// removes a card from the same wallpaper, so <paramref name="welcome"/> takes longer and eases both ways to be seen.</summary>
+    public static void FadeTo(int[] frame, int width, int height, bool welcome = false)
     {
         int[]? from = s_fade;
         s_fade = null;
@@ -43,12 +44,13 @@ internal static class SessionDisplay
         if (from is not null && from.Length == frame.Length)
         {
             int[] mix = new int[frame.Length];
-            long duration = FadeMicros * Zenith.Core.Configuration.SystemConfiguration.Settings.AnimationPercent / 100;
+            long duration = (welcome ? WelcomeFadeMicros : FadeMicros) * Zenith.Core.Configuration.SystemConfiguration.Settings.AnimationPercent / 100;
             long start = Now();
             while ((elapsed = Now() - start) < duration)
             {
                 long frameStart = Now();
-                PixelBlend.Mix(from, frame, mix, MotionCurve.EaseOut(MotionCurve.Linear(elapsed, duration)) * 255 / MotionCurve.One);
+                int linear = MotionCurve.Linear(elapsed, duration);
+                PixelBlend.Mix(from, frame, mix, (welcome ? MotionCurve.EaseInOut(linear) : MotionCurve.EaseOut(linear)) * 255 / MotionCurve.One);
                 screen.DrawArray(mix, 0, 0, width, height);
                 screen.Display();
                 long took = Now() - frameStart;

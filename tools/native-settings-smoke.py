@@ -66,6 +66,7 @@ def main():
         'n':'native run settings --version | logger; echo S_VERSION=$? | logger',
         'k':'native run settings --page input.keyboard | logger; echo S_KEYBOARD=$? | logger',
         't':'native run settings --page locale.time | logger; echo S_TIMEZONE=$? | logger',
+        's':'settings set animations off; native run settings --page style.colors | logger; echo S_MOTION_OFF=$? | logger; settings set animations normal; echo S_MOTION_ON=$? | logger',
         'x':'native run settings --page windows.taskbar | logger; echo S_TASKBAR=$? | logger',
         'o':'settings show | logger; native run settings --system-show | logger; echo S_SHARED=$? | logger',
         'r':'native run settings --system-set keyboard us; native run settings --system-set timezone UTC; native run settings --system-set session headless; settings set taskbar dock-maximized; echo S_SHARED_RESTORE=$? | logger',
@@ -204,11 +205,15 @@ def main():
         (cx,cy),_=observer.position();monitor_command(monitor,f'mouse_move {x+614-cx} {y+120-cy}');time.sleep(.3)
         before=frame('wheel-before',background('202125'))[2]
         def row(rgb,w,py):return rgb[(py*w+x+300)*3:(py*w+x+600)*3]
-        monitor_command(monitor,'mouse_move 0 0 1')
+        wheel_off=len(m.log());monitor_command(monitor,'mouse_move 0 0 1')
         frame('wheel-notch',lambda w,h,rgb:row(rgb,w,y+300)!=row(before,w,y+300) and all(row(rgb,w,y+r)==row(before,w,y+r+40) for r in range(200,340,4)))
         monitor_command(monitor,'sendkey home 30')
         frame('wheel-home',lambda w,h,rgb:row(rgb,w,y+300)==row(before,w,y+300))
+        assert m.wait('MERIDIAN_SCROLL frames=',wheel_off,5),'wheel did not report motion'
+        time.sleep(.2);moved=re.search(r'MERIDIAN_SCROLL frames=(\d+) ms=(\d+)',m.log()[wheel_off:])
+        assert moved and int(moved[1])>=3,'wheel did not animate'
         print('PASS one wheel notch scrolls one step',flush=True)
+        print('scroll motion: '+moved[0],flush=True)
         # Scroll the form by keyboard to reach the effects rows (40 px per Down).
         for _ in range(6):monitor_command(monitor,'sendkey down 30');time.sleep(.05)
         frame('effects-visible',lambda w,h,rgb:color_at(rgb,w,x+530,y+209)==bytes.fromhex('45474f'))
@@ -261,6 +266,15 @@ def main():
             print('PASS '+marker,flush=True)
             return off
         desktop_script('l','user: S_LEVEL=0')
+        # With animations off a scroll lands at once and nothing reports motion.
+        motion_off=desktop_script('s','MERIDIAN_FOCUSED');time.sleep(.5)
+        still=frame('motion-off-before',lambda w,h,rgb:True)[2]
+        monitor_command(monitor,'sendkey pgdn 30')
+        frame('motion-off-scrolled',lambda w,h,rgb:rgb!=still)
+        time.sleep(.5);monitor_command(monitor,'sendkey ctrl-q 30')
+        assert m.wait('user: S_MOTION_ON=0',motion_off,30),'motion-off Meridian exit'
+        assert 'MERIDIAN_SCROLL' not in m.log()[motion_off:] and 'ClientFade' not in m.log()[motion_off:],'animations off still animated'
+        print('PASS animations off scrolls at once',flush=True)
         frame('terminal-background',lambda w,h,rgb:color_at(rgb,w,1028,570)!=bytes.fromhex('202125') and max(color_at(rgb,w,1028,570))<160)
         print('PASS trusted Terminal whole background with translucent text-free margins',flush=True)
         # No credentials are submitted or retained: check the real hidden-read state,
@@ -348,6 +362,8 @@ def main():
         login.monitor_type(monitor,'bluetooth')
         off=len(m.log());monitor_command(monitor,'sendkey ret 30')
         assert m.wait('MERIDIAN_PAGE devices.bluetooth',off,10),'settings search did not open WIP destination'
+        assert m.wait('motion: ClientFade frames=',off,5),'page switch did not fade'
+        print('page motion: '+re.search(r'ClientFade frames=\d+ elapsed=\d+ ended=\w+',m.log()[off:])[0],flush=True)
         frame('meridian-wip',lambda w,h,rgb:any(bytes.fromhex('2a2c31')*336 in rgb[row*w*3:(row+1)*w*3] for row in range(h)))
         off=len(m.log());click(x+582,y-22)
         assert m.wait('MERIDIAN_RESIZED',off,20),'maximize acknowledgement'

@@ -150,7 +150,7 @@ internal sealed class Desktop
             ComposeScene();
             _frame.CopyFrom(_scene);
             DrawCursor();
-            SessionDisplay.FadeTo(_frame.Pixels, _frame.Width, _frame.Height);
+            SessionDisplay.FadeTo(_frame.Pixels, _frame.Width, _frame.Height, welcome: true);
             _sceneDirty = false;
         }
 

@@ -2,23 +2,36 @@
 static int clampi(long v,int lo,int hi){return v<lo?lo:v>hi?hi:(int)v;}
 static int inside(struct zui_rect r,int x,int y){return x>=r.x&&y>=r.y&&x-r.x<r.w&&y-r.y<r.h;}
 int zui_scroll_maximum(const struct zui_scroll *s){return s->content>s->rect.h?s->content-s->rect.h:0;}
+void zui_scroll_jump(struct zui_scroll *s,int offset){s->offset=s->visual=offset;}
+/* Closes a fraction of the distance that depends only on the time passed, so a slow frame
+ * covers more ground instead of stretching the motion. Never overshoots. */
+static void scroll_follow(struct zui *u,struct zui_scroll *s){
+    if(u->motion_percent<=0){s->smooth=0;s->visual=s->offset;return;}
+    if(!s->smooth){s->smooth=1;s->visual=s->offset;return;}
+    long left=(long)s->offset-s->visual;if(!left)return;
+    long tau=40L*u->motion_percent/100,step=left*u->frame_ms/(u->frame_ms+tau);
+    if(step>-2&&step<2)step=left<0?-2:2;
+    if((left<0&&step<left)||(left>0&&step>left))step=left;
+    s->visual+=(int)step;
+    if(s->visual!=s->offset)u->animating=1;
+}
 static struct zui_rect thumb(const struct zui_scroll *s){
     int max=zui_scroll_maximum(s);if(!max)return (struct zui_rect){0,0,0,0};
     int h=clampi((long)s->rect.h*s->rect.h/s->content,24,s->rect.h);
-    int y=s->rect.y+(int)((long)(s->rect.h-h)*s->offset/max);
+    int y=s->rect.y+(int)((long)(s->rect.h-h)*clampi(s->smooth?s->visual:s->offset,0,max)/max);
     return (struct zui_rect){s->rect.x+s->rect.w-8,y,6,h};
 }
 int zui_scroll_begin(struct zui *u,struct zui_scroll *s,struct zui_rect r){
-    s->rect=r;s->saved_clip=u->clip;
+    scroll_follow(u,s);s->rect=r;s->saved_clip=u->clip;
     long x0=r.x>u->clip.x?r.x:u->clip.x,y0=r.y>u->clip.y?r.y:u->clip.y;
     long x1=(long)r.x+r.w,y1=(long)r.y+r.h,cx1=(long)u->clip.x+u->clip.w,cy1=(long)u->clip.y+u->clip.h;
     if(x1>cx1)x1=cx1;
     if(y1>cy1)y1=cy1;
     u->clip=x1>x0&&y1>y0?(struct zui_rect){(int)x0,(int)y0,(int)(x1-x0),(int)(y1-y0)}:(struct zui_rect){0,0,0,0};
-    return r.y-s->offset;
+    return r.y-s->visual;
 }
 void zui_scroll_end(struct zui *u,struct zui_scroll *s,int content){
-    s->content=content<0?0:content;s->offset=clampi(s->offset,0,zui_scroll_maximum(s));
+    s->content=content<0?0:content;s->offset=clampi(s->offset,0,zui_scroll_maximum(s));s->visual=clampi(s->visual,0,zui_scroll_maximum(s));
     struct zui_rect t=thumb(s);
     int over=u->hover_supported&&u->pointer_x>=s->rect.x+s->rect.w-12&&inside(s->rect,u->pointer_x,u->pointer_y);
     if(over||s->dragging){t.x-=2;t.w+=2;}
@@ -42,7 +55,7 @@ int zui_scroll_event(struct zui *u,struct zui_scroll *s,const struct zenith_gui_
         else if(inside(track,e->x,e->y))s->offset=clampi((long)s->offset+(e->y<t.y?-s->rect.h:s->rect.h),0,max);
     }else if(e->type==Z_GUI_DRAG&&s->dragging){
         struct zui_rect t=thumb(s);int travel=s->rect.h-t.h;
-        if(travel>0)s->offset=clampi(s->drag_offset+(long)(e->y-s->drag_y)*max/travel,0,max);
+        if(travel>0)s->visual=s->offset=clampi(s->drag_offset+(long)(e->y-s->drag_y)*max/travel,0,max);
     }else if(e->type==Z_GUI_UP||e->type==Z_GUI_RESET||e->type==Z_GUI_FOCUS)s->dragging=0;
     if(s->offset!=old)u->dirty=1;
     return s->offset!=old;
@@ -55,7 +68,7 @@ void zui_list_draw(struct zui *u,struct zui_list *l,struct zui_rect r,int count,
     if(l->selected<0)l->selected=0;
     int top=zui_scroll_begin(u,&l->scroll,r);
     l->first_control=u->count;l->visible_controls=0;
-    for(int i=l->scroll.offset/h;i<l->count;i++){
+    for(int i=l->scroll.visual/h;i<l->count;i++){
         int y=top+3+i*h;if(y>=r.y+r.h)break;
         struct zui_list_item it;if(!items(ctx,i,&it))continue;
         struct zui_rect row={r.x+3,y,r.w-15,h-4};
@@ -124,7 +137,7 @@ int zui_combo_event(struct zui *u,struct zui_combo *c,const struct zenith_gui_ev
         int focused=u->focus>=0&&u->focus<u->count&&u->controls[u->focus].id==c->id;
         if((e->type==Z_GUI_UP&&inside(c->field,e->x,e->y))||(e->type==Z_GUI_KEY&&e->extra==2&&focused)){
             /* Content height is unknown until the next draw; scroll_end clamps this. */
-            c->open=1;c->popup.selected=c->value;c->popup.scroll.offset=c->value>3?(c->value-3)*40:0;u->dirty=1;
+            c->open=1;c->popup.selected=c->value;zui_scroll_jump(&c->popup.scroll,c->value>3?(c->value-3)*40:0);u->dirty=1;
         }
         return 0;
     }

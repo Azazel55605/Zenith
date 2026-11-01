@@ -52,6 +52,12 @@ _Static_assert(sizeof(struct zenith_resize_request)==24,"resize acknowledgement"
 static inline long zenith_gui_resize_enable(long handle){return zenith_call(614,(unsigned long)handle,1,0);}
 /* Opt in to pointer motion (event 11; x=y=-1 on leave). Older kernels return -38. */
 #define Z_GUI_MOVE 11
+/* Asks the desktop to crossfade this rectangle from the last frame into the next present,
+ * the new content rising `rise` pixels into place. -38 before kernel 0.0.38. */
+struct zenith_gui_fade_request { int x,y,width,height,rise,reserved; };
+static inline long zenith_gui_fade(long handle,int x,int y,int width,int height,int rise){
+    struct zenith_gui_fade_request r={x,y,width,height,rise,0};return zenith_call(629,(unsigned long)handle,(unsigned long)&r,sizeof(r));
+}
 static inline long zenith_gui_pointer_motion(long handle){return zenith_call(627,(unsigned long)handle,1,0);}
 static inline long zenith_gui_viewport(long handle,struct zenith_viewport *v){return zenith_call(613,(unsigned long)handle,(unsigned long)v,sizeof(*v));}
 static inline long zenith_gui_resize_accept(long handle,const struct zenith_viewport *v){

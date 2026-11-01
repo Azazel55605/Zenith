@@ -18,5 +18,13 @@ internal static class MotionCurve
         return One - (int)(rest * rest * rest / (One * One));
     }
 
+    /// <summary>Cubic ease-in-out: starts and settles gently, so the middle of the change is what shows.</summary>
+    public static int EaseInOut(int linear)
+    {
+        if (linear < One / 2) { return (int)(4L * linear * linear * linear / (One * One)); }
+        long rest = One - linear;
+        return One - (int)(4L * rest * rest * rest / (One * One));
+    }
+
     public static int Lerp(int from, int to, int progress) => from + (int)((long)(to - from) * progress / One);
 }

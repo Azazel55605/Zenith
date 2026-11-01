@@ -63,6 +63,42 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
         private readonly MaterialCache? _composition;
         private readonly ProcessMaterialRegion[] _effective = new ProcessMaterialRegion[ProcessMaterialRegion.MaximumRegions];
         private int _materialCount;
+        // A client's page change: the old frame fades into the live one. Buffers stay for the window's life.
+        private const long FadeMicros = 150_000;
+        private const ulong FadeReservePages = 4096;
+        private int[]? _fadeFrom, _fadeMix;
+        private (int X, int Y, int Width, int Height, int Rise) _fade;
+        private bool _fading;
+        private long _fadeStart, _fadeDuration;
+        private int _fadeFrames;
+        private static long Micros => System.Diagnostics.Stopwatch.GetTimestamp() / Math.Max(1, System.Diagnostics.Stopwatch.Frequency / 1_000_000);
+        private void BeginFade((int X, int Y, int Width, int Height, int Rise) fade)
+        {
+            int percent = Zenith.Core.Configuration.SystemConfiguration.Settings.AnimationPercent;
+            if (percent == 0) { return; }
+            if (_fadeFrom?.Length != _frame.Length)
+            {
+                if (Cosmos.Kernel.System.Diagnostics.MemoryInfo.FreePages < (ulong)(_frame.Length * sizeof(int) * 2 / 4096) + FadeReservePages) { return; }
+                _fadeFrom = new int[_frame.Length]; _fadeMix = new int[_frame.Length];
+            }
+            Array.Copy(_frame, _fadeFrom, _frame.Length);
+            _fade = fade; _fadeDuration = FadeMicros * percent / 100; _fadeStart = Micros; _fadeFrames = 0; _fading = true;
+        }
+        private void AdvanceFade()
+        {
+            long elapsed = Micros - _fadeStart;
+            if (elapsed >= _fadeDuration) { EndFade("Finished"); return; }
+            int shown = Zenith.Gui.Motion.MotionCurve.EaseOut(Zenith.Gui.Motion.MotionCurve.Linear(elapsed, _fadeDuration)) * 256 / Zenith.Gui.Motion.MotionCurve.One;
+            Array.Copy(_frame, _fadeMix!, _frame.Length);
+            Zenith.Gui.Motion.PixelBlend.MixRegion(_fadeFrom!, _frame, _fadeMix!, _frameWidth, _fade.X, _fade.Y, _fade.Width, _fade.Height, _fade.Rise * (256 - shown) / 256, shown);
+            _fadeFrames++;
+        }
+        private void EndFade(string ended)
+        {
+            if (!_fading) { return; }
+            _fading = false;
+            Zenith.Core.Log.Write("motion", "ClientFade frames=" + _fadeFrames + " elapsed=" + (Micros - _fadeStart) + " ended=" + ended);
+        }
         public ClientWindow(ProcessSurface surface, Credentials identity) : base(surface.Title, surface.Width, surface.Height + TitleBarHeight)
         { _surface = surface; Identity = identity; _frameWidth = surface.Width; _frameHeight = surface.Height; _frame = new int[surface.Width * surface.Height]; if (surface.Format == 2) { _composition = new(1920000); } }
         public override bool UnifiedChrome => _surface.Resizable;
@@ -81,10 +117,15 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
             var size = _surface.FrameSize;
             if (size.Width != _frameWidth || size.Height != _frameHeight)
             {
-                _frame = new int[size.Width * size.Height]; Array.Fill(_frame, (int)(Theme.WindowBackground | 0xff000000U)); _frameWidth = size.Width; _frameHeight = size.Height; _materialCount = 0; changed = true;
+                _frame = new int[size.Width * size.Height]; EndFade("Resized"); Array.Fill(_frame, (int)(Theme.WindowBackground | 0xff000000U)); _frameWidth = size.Width; _frameHeight = size.Height; _materialCount = 0; changed = true;
             }
-            if (IsMinimized || !_surface.CopyFrame(_frame, false, _materials, out int count)) { return changed; }
-            _materialCount = count; return true;
+            if (IsMinimized) { EndFade("Minimized"); return changed; }
+            if (_surface.TakeFade() is { } fade) { BeginFade(fade); }
+            bool copied = _surface.CopyFrame(_frame, false, _materials, out int count);
+            if (copied) { _materialCount = count; }
+            if (!_fading) { return copied || changed; }
+            AdvanceFade();
+            return true;
         }
         public override void CaptureBackdrop(Surface surface, Rect content)
         {
@@ -117,7 +158,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
             { surface.FillRect(content, Theme.WindowBackground); return; }
             if (_composition is not null)
             {
-                _composition.Composition.Compose(_frame, surface.Pixels, surface.Width, surface.Height, content, _effective, _materialCount,
+                _composition.Composition.Compose(_fading ? _fadeMix! : _frame, surface.Pixels, surface.Width, surface.Height, content, _effective, _materialCount,
                     Theme.Panel, Theme.Raised, Theme.Panel, Theme.Raised);
                 return;
             }
@@ -125,19 +166,20 @@ internal sealed class NativeClientHost : IProcessGraphicsHost
             for (int y = clipped.Y; y < clipped.Bottom; y++)
             {
                 int start = (y - content.Y) * _surface.Width + clipped.X - content.X;
-                Array.Copy(_frame, start, surface.Pixels, y * surface.Width + clipped.X, clipped.W);
+                Array.Copy(_fading ? _fadeMix! : _frame, start, surface.Pixels, y * surface.Width + clipped.X, clipped.W);
             }
         }
         protected override void OnFocusChanged(bool focused) => _surface.Send(new(2, focused ? 1 : 0, 0, 0, 0, 0));
-        public override void OnMouseDown(int x, int y) => Pointer(4, x, y);
+        public override void OnMouseDown(int x, int y) { EndFade("Input"); Pointer(4, x, y); }
         public override void OnMouseUp(int x, int y) => Pointer(5, x, y);
         public override void OnMouseDrag(int x, int y) => Pointer(6, x, y);
         public override void OnPointerMove(int x, int y) => _surface.SendPointerMove(Math.Clamp(x, 0, _surface.Width - 1), Math.Clamp(y, 0, _surface.Height - 1));
         public override void OnPointerLeave() => _surface.SendPointerLeave();
         private void Pointer(int type, int x, int y) => _surface.Send(new(type, 1, Math.Clamp(x, 0, _surface.Width - 1), Math.Clamp(y, 0, _surface.Height - 1), 0, 0));
-        public override void OnScrollAt(int delta, int x, int y) => _surface.Send(new(8, Math.Clamp(delta, -120, 120), Math.Clamp(x, 0, Content.W-1), Math.Clamp(y, 0, Content.H-1), 0, 0));
+        public override void OnScrollAt(int delta, int x, int y) { EndFade("Input"); _surface.Send(new(8, Math.Clamp(delta, -120, 120), Math.Clamp(x, 0, Content.W-1), Math.Clamp(y, 0, Content.H-1), 0, 0)); }
         public override void OnKey(KeyEvent key)
         {
+            EndFade("Input");
             int special = key.Key switch
             {
                 ConsoleKeyEx.Escape => 1, ConsoleKeyEx.Enter => 2, ConsoleKeyEx.Backspace => 3,

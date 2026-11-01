@@ -177,10 +177,56 @@ have no fade yet.
 
 The login gate checks confirmation and cancellation, and that both fades ran.
 
+## Stage 6: inside applications
+
+**Why scrolling was slow.** A native frame waited twice: 16 ms in the present, then 16 ms in the
+empty poll after it, so a client topped out near 30 frames per second whatever it drew. Meridian
+also re-read its settings on every draw, spending a general call budget of 4096 per minute.
+The scheduling point every 16 service calls tested the general call counter, which graphics calls
+do not advance, so whenever it rested on a multiple of 16 every poll and present slept. Under a burst
+of wheel input that held a client at about 3 frames per second for up to 18 s. It now counts all calls.
+
+**Pacing.** A present now waits only for what is left of its 16 ms interval, and the first empty
+poll after a present does not wait. An idle client still sleeps 16 ms per poll, and presents can
+never beat the interval, so no client gains anything by spinning. No ABI change: this helps every
+existing client, and the present budget doubles to 7200 per minute so pacing can't reach it.
+
+**Clock.** Call 628 returns monotonic milliseconds. It counts against the graphics budget and takes
+no service gate. Kernels before 0.0.38 return -38, and the toolkit then has no motion.
+
+**Toolkit frame clock.** `motion_percent` in `struct zui` defaults to 0, which is the old behavior,
+so clients opt in. A client calls `zui_motion_frame` before drawing, and widgets set `animating` when
+they need another frame. A pause counts as at most 50 ms of animation time.
+
+**Smooth scrolling.** `offset` stays the logic's position and `visual` follows it. Each frame closes
+a share of the distance that depends only on the time passed, about 160 ms for a notch, so a slow
+machine covers more ground per frame instead of scrolling slower. Controls register at the drawn
+position, so a click always hits what is under the pointer. Dragging the thumb and replaced content
+do not animate.
+
+**Page transitions.** Meridian asks for one with call 629 before presenting the new page, and the
+desktop crossfades over 150 ms. A new page rises 10 px into place; a changed sidebar only fades. The
+compositor already keeps the client's frames, so the client needs no extra memory, where a client-side
+fade would cost about 30 MiB: native address space is 8 MiB and each page is allocated at double size.
+The desktop keeps two more frames per window that has faded. Frames presented during the fade become its
+target, so hover still shows. A press, key or wheel turn ends it at once, and the client has the real page
+from the start, so input is never lost. Older kernels refuse the call and the page appears at once. It
+logs as `ClientFade`.
+
+The system's animation choice scales both, and Off disables both. Frames in motion skip the settings
+refresh. Meridian prints `MERIDIAN_SCROLL` with frames and milliseconds, and the settings gate checks
+that and `ClientFade`, along with Off.
+
+**Sign-in fade.** It removes one card from the same wallpaper, so 220 ms of ease-out barely showed.
+It now takes 420 ms, easing both ways. The logout fade stays as it was.
+
+**Limits.** Terminal, Files and Editor are kernel windows that scroll by whole lines or rows and
+keep doing so. Welcome and System keep line scrolling, since their text is laid out by lines, but
+gain the faster pacing. Popups and dialogs have no animation.
+
 ## Later stages
 
-Each gets its own design before work starts.
+This gets its own design before work starts.
 
-6. **Inside applications:** a toolkit frame clock, page transitions and smooth scrolling.
 7. **Boot and shutdown:** logo and progress once graphics is up, diagnostics still
    reachable; a short shutdown fade that can never delay power-off.

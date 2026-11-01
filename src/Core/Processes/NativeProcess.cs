@@ -129,10 +129,19 @@ internal sealed unsafe class NativeProcess
     }
     private readonly ProcessInteractive _interactive = new();
     private static long MonotonicMilliseconds => System.Diagnostics.Stopwatch.GetTimestamp() / (System.Diagnostics.Stopwatch.Frequency / 1000);
+    private static void Pace(int milliseconds) { if (milliseconds > 0) { Thread.Sleep(milliseconds); } }
     private long Service(ref Context c, ProcessFiles files, ProcessNetwork network, ProcessGraphics graphics, ref int readBytes)
     {
         try
         {
+            if (c.Call == 629)
+            {
+                if (c.Arg0 > int.MaxValue || c.Arg2 != 24) { return -22; }
+                if (!Valid(c.Arg1, 24, false)) { return -14; }
+                return graphics.RequestFade((int)c.Arg0, ReadUser(c.Arg1, 24));
+            }
+            if (c.Call == 628)
+            { return c.Arg0 != 0 || c.Arg1 != 0 || c.Arg2 != 0 ? -22 : MonotonicMilliseconds; }
             if (c.Call == 627)
             { return c.Arg0 > int.MaxValue || c.Arg1 != 1 || c.Arg2 != 0 ? -22 : graphics.EnablePointerMotion((int)c.Arg0); }
             if (c.Call == 614)
@@ -272,7 +281,7 @@ internal sealed unsafe class NativeProcess
                 byte[] regions = regionBytes == 0 ? Array.Empty<byte>() : ReadUser(frame.Regions, regionBytes);
                 if (!ProcessMaterialRegion.TryRead(regions, frame.Count, out var materialRegions)) { return -22; }
                 int result = graphics.PresentMaterials((int)c.Arg0, ReadGraphics(frame.Pixels, size), materialRegions);
-                Thread.Sleep(16); return result;
+                Pace(graphics.Pacer.Present(MonotonicMilliseconds)); return result;
             }
             if (c.Call == 601)
             {
@@ -282,7 +291,7 @@ internal sealed unsafe class NativeProcess
                 if (c.Arg2 != (ulong)size) { return -22; }
                 if (!Valid(c.Arg1, size, false)) { return -14; }
                 int result = graphics.Present((int)c.Arg0, ReadGraphics(c.Arg1, size));
-                Thread.Sleep(16); return result;
+                Pace(graphics.Pacer.Present(MonotonicMilliseconds)); return result;
             }
             if (c.Call == 602)
             {
@@ -291,7 +300,7 @@ internal sealed unsafe class NativeProcess
                 if (!Valid(c.Arg1, ProcessGraphicsEvent.Bytes, true)) { return -14; }
                 var e = graphics.Poll((int)c.Arg0);
                 if (e is null) { return -9; }
-                if (e.Value.Type == 0) { Thread.Sleep(16); }
+                if (e.Value.Type == 0) { Pace(graphics.Pacer.EmptyPoll()); }
                 Transfer(c.Arg1, e.Value.Encode(), true); return e.Value.Type == 0 ? 0 : 1;
             }
             if (c.Call == 603)
@@ -527,6 +536,7 @@ internal sealed unsafe class NativeProcess
                     UserFp = process.Page()
                 };
                 int status; int calls = 0, networkCalls = 0, graphicsCalls = 0, readBytes = 0;
+                uint serviced = 0; // every kind of call: the budget counters above stand still for the others
                 Processes.SetState(pid, ProcessState.Running);
                 do
                 {
@@ -542,11 +552,11 @@ internal sealed unsafe class NativeProcess
                     if (status == DeviceInterruptYield) { continue; }
                     if (status != 4096) { break; }
                     if (cancelled()) { status = 130; break; }
-                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
+                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615 or 628 or 629) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
                     var caller = Zenith.Core.Security.CredentialContext.Enter(identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
                     // while waiting for a peer. Mutations and transport setup stay serialized.
-                    bool standard = context.Call is 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    bool standard = context.Call is 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {
@@ -563,7 +573,7 @@ internal sealed unsafe class NativeProcess
                     }
                     // Give console/cancellation workers a scheduling point during
                     // syscall-heavy loops; Thread.Yield is a stub in Cosmos 3.0.89.
-                    if ((calls & 15) == 0) { Thread.Sleep(1); }
+                    if ((++serviced & 15) == 0) { Thread.Sleep(1); }
                 } while (true);
                 GC.KeepAlive(s_roots);
                 ulong fault = context.Fault;

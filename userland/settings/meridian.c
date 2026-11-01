@@ -45,26 +45,28 @@ static void remember(struct meridian *a,int page){
 /* Adopt a navigation state; a new page starts at its top with fresh transient state. */
 static void adopt(struct meridian *a,const struct meridian_nav *next){
     int changed=next->page!=a->page;
+    if(next->mode!=a->nav.mode||next->category!=a->nav.category)a->fade_request|=FADE_SIDEBAR;
+    if(changed)a->fade_request|=FADE_PAGE;
     a->nav=*next;a->page=next->page;
     if(a->nav.mode!=NAV_SEARCH&&a->query[0]){a->query[0]=0;zui_input_init(&a->search,a->query,sizeof(a->query));}
     if(changed){
-        a->page_scroll.offset=0;a->combo.open=0;a->ui.focus=a->ui.pressed=-1;
+        zui_scroll_jump(&a->page_scroll,0);a->combo.open=0;a->ui.focus=a->ui.pressed=-1;
         remember(a,a->page);refresh_information(a);
     }
     a->ui.dirty=1;
 }
 static void clear_search(struct meridian *a){
     a->query[0]=0;zui_input_init(&a->search,a->query,sizeof(a->query));nav_search(&a->nav,"");
-    a->search_focus=0;a->sidebar.scroll.offset=0;a->ui.dirty=1;
+    a->search_focus=0;zui_scroll_jump(&a->sidebar.scroll,0);a->ui.dirty=1;
 }
 int meridian_open(struct meridian *a,const char *id){
     if(binding_any_changed(&a->bindings))return 0;
     struct meridian_nav next=a->nav;if(!nav_open(&next,id))return 0;
-    adopt(a,&next);a->sidebar.scroll.offset=0;return 1;
+    adopt(a,&next);zui_scroll_jump(&a->sidebar.scroll,0);return 1;
 }
 int meridian_resize(struct meridian *a,int w,int h,unsigned long capacity){
     if(w<600||h<480||!zui_resize(&a->ui,w,h,capacity))return 0;
-    a->combo.open=0;return 1;
+    a->combo.open=0;a->fade_request=a->fade_ready=0;return 1;
 }
 int meridian_init(struct meridian *a,unsigned int *pixels,struct settings_backend backend,const char *page){
     *a=(struct meridian){0};
@@ -235,11 +237,23 @@ static int index_of(const struct zui *u,int id){
     for(int i=0;i<u->count;i++)if(u->controls[i].id==id&&u->controls[i].enabled)return i;
     return -1;
 }
+/* What changed fades: the page rises into place, while a changed sidebar only crossfades,
+ * and the rise stays inside the rounded corners. */
+static void fade_plan(struct meridian *a,struct zui_workspace w){
+    if(!a->fade_request)return;
+    struct zui_rect c=w.content;
+    a->fade_ready=1;a->fade_rise=0;
+    if(a->fade_request==FADE_PAGE){a->fade_rect=(struct zui_rect){c.x+12,c.y+12,c.w-24,c.h-24};a->fade_rise=10;}
+    else if(a->fade_request==FADE_SIDEBAR)a->fade_rect=w.sidebar;
+    else a->fade_rect=(struct zui_rect){0,0,a->ui.width,a->ui.height};
+    a->fade_request=0;
+}
 void meridian_draw(struct meridian *a){
     struct zui *u=&a->ui;
     int focus=u->focus>=0&&u->focus<u->count?u->controls[u->focus].id:0,pressed=u->pressed>=0&&u->pressed<u->count?u->controls[u->pressed].id:0;
     u->count=0;
     struct zui_workspace w=zui_workspace_begin(u,sidebar_width(a));
+    fade_plan(a,w);
     draw_sidebar(a,u,w.sidebar);
     draw_page(a,u,w.content);
     zui_clip(u,(struct zui_rect){0,0,u->width,u->height});
@@ -268,13 +282,13 @@ static void confirm(struct meridian *a,int pending){
 static void request_row(struct meridian *a,int row){
     struct meridian_nav next=a->nav;nav_activate(&next,row);
     if(next.page!=a->page&&binding_changed(&a->bindings,page_kind(a))){a->pending_row=row;confirm(a,PENDING_ROW);return;}
-    if(next.mode!=a->nav.mode||next.category!=a->nav.category)a->sidebar.scroll.offset=0;
+    if(next.mode!=a->nav.mode||next.category!=a->nav.category)zui_scroll_jump(&a->sidebar.scroll,0);
     adopt(a,&next);
 }
 static void request_page(struct meridian *a,int page){
     if(page!=a->page&&binding_changed(&a->bindings,page_kind(a))){a->pending_page=page;confirm(a,PENDING_PAGE);return;}
     struct meridian_nav next=a->nav;nav_open(&next,meridian_pages[page].id);
-    a->sidebar.scroll.offset=0;adopt(a,&next);
+    zui_scroll_jump(&a->sidebar.scroll,0);adopt(a,&next);
 }
 static void close_request(struct meridian *a){
     if(binding_any_changed(&a->bindings))confirm(a,PENDING_CLOSE);else a->closing=1;
@@ -291,7 +305,7 @@ static void resolve(struct meridian *a,int button){
 static void back(struct meridian *a){
     a->ui.focus=-1;
     if(a->nav.mode==NAV_SEARCH)clear_search(a);
-    else if(a->nav.mode==NAV_PAGES){nav_back(&a->nav);a->sidebar.scroll.offset=0;}
+    else if(a->nav.mode==NAV_PAGES){a->fade_request|=FADE_SIDEBAR;nav_back(&a->nav);zui_scroll_jump(&a->sidebar.scroll,0);}
     a->ui.dirty=1;
 }
 static void colors_action(struct meridian *a,int id){
@@ -335,7 +349,7 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     if(a->search_focus&&e->type==Z_GUI_KEY&&e->extra!=4){
         if(e->extra==1)clear_search(a);
         else if(e->extra==2){a->search_focus=0;if(a->nav.mode==NAV_SEARCH&&a->nav.result_count)request_row(a,1);}
-        else if(zui_input_event(&a->search,e)){nav_search(&a->nav,a->query);a->sidebar.scroll.offset=0;}
+        else if(zui_input_event(&a->search,e)){nav_search(&a->nav,a->query);zui_scroll_jump(&a->sidebar.scroll,0);}
         u->dirty=1;sync_theme(a);return;
     }
     if(e->type==Z_GUI_KEY&&e->extra==4)a->search_focus=0;

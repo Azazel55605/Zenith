@@ -49,6 +49,7 @@ internal sealed class ProcessSurface : IDisposable
     private int[] _pixels;
     private ProcessMaterialRegion[] _materials = Array.Empty<ProcessMaterialRegion>();
     public int Format { get; }
+    private (int X, int Y, int Width, int Height, int Rise)? _fade;
     private bool _dirty = true, _closed, _disposed, _unsaved, _closeIntent, _presented;
     private bool _pointerMotion, _movePending;
     private int _moveX, _moveY;
@@ -122,7 +123,7 @@ internal sealed class ProcessSurface : IDisposable
             if (width != _requestedWidth || height != _requestedHeight || BinaryPrimitives.ReadUInt64LittleEndian(request[16..]) != _sizeGeneration) { return -11; }
             if (width == Width && height == Height) { return 0; }
             var pixels = new int[width * height]; Array.Fill(pixels, unchecked((int)0xff000000));
-            Width = width; Height = height; _pixels = pixels; _materials = Array.Empty<ProcessMaterialRegion>(); _dirty = false;
+            _fade = null; Width = width; Height = height; _pixels = pixels; _materials = Array.Empty<ProcessMaterialRegion>(); _dirty = false;
             return 0;
         }
     }
@@ -155,6 +156,28 @@ internal sealed class ProcessSurface : IDisposable
             for (int i = 0; i < _pixels.Length; i++)
             { _pixels[i] = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(i * 4)); }
             _materials = (ProcessMaterialRegion[])regions.Clone(); _dirty = _presented = true; return 0;
+        }
+    }
+    /// <summary>Asks for the next presented frame to crossfade from the current one. Validated and fixed-size.</summary>
+    public int RequestFade(ReadOnlySpan<byte> request)
+    {
+        int x = BinaryPrimitives.ReadInt32LittleEndian(request), y = BinaryPrimitives.ReadInt32LittleEndian(request[4..]);
+        int width = BinaryPrimitives.ReadInt32LittleEndian(request[8..]), height = BinaryPrimitives.ReadInt32LittleEndian(request[12..]);
+        int rise = BinaryPrimitives.ReadInt32LittleEndian(request[16..]), reserved = BinaryPrimitives.ReadInt32LittleEndian(request[20..]);
+        lock (_gate)
+        {
+            if (_closed || _disposed) { return -32; }
+            if (reserved != 0 || rise is < 0 or > 64 || x < 0 || y < 0 || width < 1 || height < 1 || width > Width - x || height > Height - y) { return -22; }
+            _fade = (x, y, width, height, rise); return 0;
+        }
+    }
+    /// <summary>The fade asked for, once its frame has been presented; a later request replaces an earlier one.</summary>
+    public (int X, int Y, int Width, int Height, int Rise)? TakeFade()
+    {
+        lock (_gate)
+        {
+            if (!_dirty || _fade is null) { return null; }
+            var fade = _fade; _fade = null; return fade;
         }
     }
     public bool CopyFrame(int[] destination, bool force)
@@ -209,9 +232,38 @@ internal sealed class ProcessSurface : IDisposable
     public void Dispose() { lock (_gate) { _disposed = true; _closed = true; _events.Clear(); _pixels = Array.Empty<int>(); _materials = Array.Empty<ProcessMaterialRegion>(); } }
 }
 
+/// <summary>Paces a client's frames: at most one present per interval, and the empty poll right after a
+/// present does not wait again, so an animating client gets the whole interval instead of half of it.</summary>
+internal sealed class FramePacer
+{
+    public const int IntervalMilliseconds = 16;
+    private long _next = long.MinValue;
+    private bool _presented;
+
+    /// <summary>How long a present arriving at this time waits.</summary>
+    public int Present(long now)
+    {
+        int delay = _next > now ? (int)Math.Min(_next - now, IntervalMilliseconds) : 0;
+        _next = now + delay + IntervalMilliseconds;
+        _presented = true;
+        return delay;
+    }
+
+    /// <summary>How long a poll that found nothing waits.</summary>
+    public int EmptyPoll()
+    {
+        if (!_presented) { return IntervalMilliseconds; }
+        _presented = false;
+        return 0;
+    }
+}
+
 internal sealed class ProcessGraphics : IDisposable
 {
     public const int MaximumCalls = 65536;
+    /// <summary>Per renewal minute; above what <see cref="FramePacer"/> allows, so only a stale budget can reach it.</summary>
+    public const int MaximumPresents = 7200;
+    public FramePacer Pacer { get; } = new();
     private readonly IProcessGraphicsHost? _host;
     private ProcessSurface? _surface;
     private int _handle, _opens, _presents;
@@ -235,19 +287,20 @@ internal sealed class ProcessGraphics : IDisposable
     public int EnablePointerMotion(int handle) => handle != _handle || _surface is null ? -9 : _surface.EnablePointerMotion();
     public byte[]? Viewport(int handle) => handle != _handle || _surface is null || _surface.Ended ? null : _surface.Viewport();
     public int AcceptResize(int handle, ReadOnlySpan<byte> request) => handle != _handle || _surface is null ? -9 : _surface.AcceptResize(request);
+    public int RequestFade(int handle, ReadOnlySpan<byte> request) => handle != _handle || _surface is null ? -9 : _surface.RequestFade(request);
     public int Dirty(int handle, bool dirty) => handle != _handle || _surface is null ? -9 : _surface.SetDirty(dirty);
-    public int Size(int handle) => handle != _handle || _surface is null ? -9 : _presents >= 3600 ? -27 : _surface.Bytes;
+    public int Size(int handle) => handle != _handle || _surface is null ? -9 : _presents >= MaximumPresents ? -27 : _surface.Bytes;
     public int Present(int handle, byte[] pixels)
     {
         if (handle != _handle || _surface is null) { return -9; }
-        if (++_presents > 3600) { return -27; }
+        if (++_presents > MaximumPresents) { return -27; }
         return _surface.Present(pixels);
     }
     public bool SupportsMaterials => !_disposed && _host is not null;
     public int PresentMaterials(int handle, byte[] pixels, ProcessMaterialRegion[] regions)
     {
         if (handle != _handle || _surface is null) { return -9; }
-        if (++_presents > 3600) { return -27; }
+        if (++_presents > MaximumPresents) { return -27; }
         return _surface.PresentMaterials(pixels, regions);
     }
     public ProcessGraphicsEvent? Poll(int handle) => handle == _handle && _surface is not null ? _surface.Poll() : null;

@@ -114,6 +114,15 @@ public class TaskbarTests
     public void CrossfadeEndsExactlyOnEachFrame()
     {
         int[] from = { unchecked((int)0xff102030) }, to = { unchecked((int)0xffa0b0c0) }, output = new int[1];
+        int[] sheetFrom = { 1, 1, 1, 1, unchecked((int)0x80FF0000), 1, 1, 1, 1 }, sheetTo = { 2, 2, 2, 2, unchecked((int)0x400000FF), 2, 2, 2, 2 }, sheetOut = new int[9];
+        PixelBlend.MixRegion(sheetFrom, sheetTo, sheetOut, 3, 1, 1, 1, 1, 0, 0);
+        Assert.Equal(sheetFrom[4], sheetOut[4]);                       // the start is exactly the old frame, alpha included
+        Assert.Equal(0, sheetOut[0]);                                  // nothing outside the rectangle is touched
+        PixelBlend.MixRegion(sheetFrom, sheetTo, sheetOut, 3, 1, 1, 1, 1, 0, 256);
+        Assert.Equal(sheetTo[4], sheetOut[4]);                         // the end is exactly the new frame
+        PixelBlend.MixRegion(sheetFrom, sheetTo, sheetOut, 3, 0, 1, 3, 2, 1, 256);
+        Assert.Equal(sheetTo[4], sheetOut[7]);                         // risen content comes from one row up
+        Assert.Equal(sheetTo[4], sheetOut[4]);                         // and the top row repeats above itself
         PixelBlend.Mix(from, to, output, 0);
         Assert.Equal(from[0], output[0]);
         PixelBlend.Mix(from, to, output, 255);

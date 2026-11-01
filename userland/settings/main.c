@@ -7,6 +7,8 @@ static unsigned int scope_info;
 static int material_surface;
 static long present(void){
     struct zui *u=meridian_ui(&shell);
+    /* Kernels before 0.0.38 refuse this and the frame simply appears. */
+    if(shell.fade_ready){struct zui_rect f=shell.fade_rect;zenith_gui_fade(handle,f.x,f.y,f.w,f.h,shell.fade_rise);shell.fade_ready=0;}
     return material_surface?zenith_gui_present_material(handle,pixels,(unsigned long)u->width*u->height*4,u->materials,u->material_count):zenith_gui_present(handle,pixels,(unsigned long)u->width*u->height*4);
 }
 static void print(const char *s);
@@ -217,8 +219,13 @@ int main(int argc,char **argv){
     shell.ui.hover_supported=zenith_gui_pointer_motion(handle)==0; /* -38 on older kernels */
     meridian_system_services(&shell,zenith_system_settings_read,zenith_system_settings_save);
     meridian_information_services(&shell,zenith_settings_information_read);
-    meridian_refresh(&shell);meridian_draw(&shell);
+    meridian_refresh(&shell);
+    long motion_clock=zui_motion_clock();
+    if(motion_clock>=0){shell.ui.now=motion_clock;shell.ui.motion_percent=zui_motion_percent(shell.bindings.preferences.animation);}
+    print("MERIDIAN_MOTION percent=");number((unsigned long)shell.ui.motion_percent);print("\n");
+    meridian_draw(&shell);
     if(present()<0){zenith_gui_close(handle);return 1;}
+    long motion_start=0;unsigned long motion_frames=0;
     print("SETTINGS_READY\nMERIDIAN_PAGE ");print(meridian_pages[shell.page].id);print("\n");int result=0;
     struct zenith_gui_event deferred={0};int have_deferred=0;
     for(unsigned int i=0;!shell.closing;i++){
@@ -240,12 +247,26 @@ int main(int argc,char **argv){
         if(r){meridian_event(&shell,&e);if(e.type==Z_GUI_FOCUS&&e.code)print("MERIDIAN_FOCUSED\n");}
         if(previous_page!=shell.page){print("MERIDIAN_PAGE ");print(meridian_pages[shell.page].id);print("\n");}
         if(previous_mode!=NAV_CATEGORIES&&shell.nav.mode==NAV_CATEGORIES)print("MERIDIAN_PAGE navigation\n");
-        if((i&31)==0)meridian_refresh(&shell);
+        if((i&31)==0){meridian_refresh(&shell);if(motion_clock>=0)shell.ui.motion_percent=zui_motion_percent(shell.bindings.preferences.animation);}
         if(!edited&&binding_any_changed(&shell.bindings))print("SETTINGS_UNSAVED\n");
         if(!prompt&&shell.dialog.open)print("SETTINGS_DISCARD_PROMPT\n");
         if(shell.bindings.preferences.revision!=preference_revision)print("SYSTEM_SETTINGS_REVISION_CHANGED\n");
         if(shell.colors.state.revision!=rev)print("SETTINGS_REVISION_CHANGED\n");
-        if(meridian_ui(&shell)->dirty&&!shell.closing){meridian_refresh(&shell);meridian_draw(&shell);if(present()<0){result=1;break;}}
+        struct zui *u=meridian_ui(&shell);
+        if(shell.closing)continue;
+        int following=u->animating||(u->dirty&&r&&e.type==Z_GUI_SCROLL);
+        if(!u->dirty&&!following)continue;
+        if(u->motion_percent)zui_motion_frame(u,zui_motion_clock());
+        /* Refreshing costs service calls from a limited budget; frames in motion skip it. */
+        if(!following)meridian_refresh(&shell);
+        meridian_draw(&shell);
+        if(present()<0){result=1;break;}
+        if(u->animating&&!motion_frames)motion_start=u->now;
+        if(u->animating||motion_frames)motion_frames++;
+        if(motion_frames&&!u->animating){
+            print("MERIDIAN_SCROLL frames=");number(motion_frames);print(" ms=");number((unsigned long)(u->now-motion_start));print("\n");
+            motion_frames=0;
+        }
     }
     zenith_gui_close(handle);print("SETTINGS_EXIT\n");return result;
 }

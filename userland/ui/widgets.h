@@ -11,7 +11,11 @@
 
 /* Vertical scroll area. Wheel: -code/2 px per event, clamped to +/-120. The overlay
  * scrollbar appears only on overflow; the thumb drags and the track pages. */
-struct zui_scroll { struct zui_rect rect,saved_clip; int offset,content,dragging,drag_y,drag_offset; };
+/* offset is where the area is going; with motion on, visual follows it and is what is drawn,
+ * so hit areas always match the pixels. Without motion they are equal. */
+struct zui_scroll { struct zui_rect rect,saved_clip; int offset,content,dragging,drag_y,drag_offset,visual,smooth; };
+/* Moves without animating, for content that was replaced. */
+void zui_scroll_jump(struct zui_scroll *s,int offset);
 /* Clips to rect (within the current clip) and returns the y of content row 0. */
 int zui_scroll_begin(struct zui *ui,struct zui_scroll *s,struct zui_rect rect);
 /* Records content height, clamps offset, draws the scrollbar and restores the clip. */

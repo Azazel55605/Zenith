@@ -48,13 +48,17 @@ No client-chosen screen position or privileged decoration flags exist.
 Pixels are tightly packed row-major XRGB8888, four bytes per pixel, stride width*4.
 The high byte is ignored and forced opaque. The complete buffer is copied into
 owned compositor storage; no mutable client pages remain mapped into the display.
-Presentation pauses the caller for 16 ms and permits at most 3600 calls per
-invocation. The GUI service request budget is 65536, separate from ordinary file
+Presentation waits for what is left of a 16 ms interval since the last present and permits
+at most 7200 calls per invocation. The GUI service request budget is 65536, separate from ordinary file
 and network budgets. Existing native CPU/context limits still apply. This is a
 bounded first client profile, not an unlimited application runtime.
 
 Poll never waits holding the native filesystem service gate. Empty polls yield
-for 16 ms. Its 24-byte event contains six signed i32 fields:
+for 16 ms, except the first one after a present, so an animating client gets the whole interval.
+Call **628** `(0, 0, 0)` returns monotonic milliseconds (kernels before 0.0.38 return -38).
+Call **629** `(handle, request, 24)` asks the desktop to crossfade a rectangle from the last frame into
+the next present: six i32 fields `x, y, width, height, rise, reserved`, rise 0..64, reserved 0, rectangle
+inside the surface (`-22` otherwise). It is purely visual; the system's animation choice can skip it. Its 24-byte event contains six signed i32 fields:
 `type, code, x, y, modifiers, extra`.
 
 | Type | Meaning |

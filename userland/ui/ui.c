@@ -12,6 +12,11 @@ static struct zui_rect intersect(struct zui_rect a,struct zui_rect b){
     if(right<=x||bottom<=y)return (struct zui_rect){0,0,0,0};
     return (struct zui_rect){(int)x,(int)y,(int)(right-x),(int)(bottom-y)};
 }
+int zui_motion_percent(unsigned int choice){return choice==1?60:choice==2?150:choice==3?0:100;}
+/* A long pause between frames must not count as animation time: the next change would jump. */
+void zui_motion_frame(struct zui *u,long now){
+    long d=now-u->now;u->frame_ms=d<1?1:d>50?50:(int)d;u->now=now;u->animating=0;
+}
 int zui_init(struct zui *u,unsigned int *p,int w,int h){
     if(!u||!p||w<1||h<1||w>1920||h>1000)return 0;
     *u=(struct zui){0};u->pixels=p;u->width=w;u->height=h;

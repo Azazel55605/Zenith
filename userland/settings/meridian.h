@@ -8,6 +8,7 @@
 /* Shell over the navigation model, page bindings and shared widgets. Control ids:
  * 1,2 mode; 10-15 accent; 50-54 effects; 60,61 scope; 100+ sidebar rows; 900+ footer;
  * 950+ dialog; 1002 search; 2004 combo, 2100+ its rows; 3000+ page links. */
+enum { FADE_PAGE=1,FADE_SIDEBAR=2 };
 struct meridian {
     struct zui ui;
     struct settings_app colors;
@@ -26,6 +27,8 @@ struct meridian {
     long (*information_read)(unsigned int,struct zenith_settings_information *);
     char public_information[4096];unsigned int public_kind;int public_error;
     char information[4096];
+    /* What the next present should crossfade from the last one; fade_ready when set. */
+    int fade_request,fade_ready,fade_rise;struct zui_rect fade_rect;
 };
 int meridian_init(struct meridian *app,unsigned int *pixels,struct settings_backend backend,const char *page);
 int meridian_resize(struct meridian *app,int width,int height,unsigned long capacity);

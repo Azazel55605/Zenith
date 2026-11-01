@@ -47,6 +47,8 @@ struct and the toolkit never allocates.
   caches (64 names, 128 KiB, 16 KiB per file) and a missing icon draws nothing.
 - **Scroll area:** clip to a viewport, wheel (40 px per notch, at most one viewport per event), thumb drag,
   track paging, `zui_scroll_reveal`; the overlay scrollbar shows only on overflow.
+- **Motion:** off unless a client sets `motion_percent`. `zui_motion_frame` starts a frame, a scroll area then
+  follows its offset smoothly and sets `animating` while it needs more frames. See [stage 6](components/MOTION.md#stage-6-inside-applications).
 - **List view:** lazy item source, only visible rows registered, single selection,
   Up/Down/Home/End skipping disabled rows, first-letter type-ahead; navigation
   controls carry an optional icon, detail line and chevron suppression.
