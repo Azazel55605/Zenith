@@ -49,6 +49,58 @@ internal sealed class MaterialPolicy
         { if (Readable(tint, text, opacity) && Readable(tint, secondary, opacity)) { return 255 - (255 - opacity) * (int)translucency / 100; } }
         return 255;
     }
+    // Linear light for each sRGB channel value, so measuring a backdrop costs a table lookup per pixel.
+    private static readonly double[] s_linear = BuildLinear();
+    private static double[] BuildLinear()
+    {
+        var table = new double[256];
+        for (int i = 0; i < 256; i++) { double x = i / 255.0; table[i] = x <= .04045 ? x / 12.92 : Math.Pow((x + .055) / 1.055, 2.4); }
+        return table;
+    }
+    /// <summary>Relative luminance of an RGB value, 0 for black to 1 for white.</summary>
+    public static double Luminance(int color) => .2126 * s_linear[(color >> 16) & 255] + .7152 * s_linear[(color >> 8) & 255] + .0722 * s_linear[color & 255];
+    private static int Gray(double luminance)
+    {
+        int v = 0;
+        while (v < 255 && s_linear[v + 1] <= luminance) { v++; }
+        return unchecked((int)0xff000000) | v << 16 | v << 8 | v;
+    }
+
+    private sealed record AdaptedMemo(uint Tint, uint Text, uint Secondary, int Effect, uint Translucency, int Low, int High, int Value);
+    private static readonly AdaptedMemo?[] Adapted = new AdaptedMemo[64];
+    private static int s_adaptedSlot;
+    /// <summary>The opacity for a backdrop whose blurred luminance runs from <paramref name="low"/> to <paramref name="high"/>:
+    /// the least that keeps both text colors at 4.5:1 against everything actually behind, scaled by translucency like
+    /// <see cref="Opacity"/>. It never exceeds <paramref name="worst"/>, the clamp that assumes any backdrop at all.</summary>
+    public static int AdaptedOpacity(int worst, uint tint, uint text, uint secondary, int effect, uint translucency, double low, double high)
+    {
+        if (effect == 0 || worst >= 255) { return worst; }
+        translucency = Math.Min(translucency, 100);
+        // Rounded outward to 1/64, so the answer is never laxer than the measurement and memoizes well.
+        int lowStep = Math.Clamp((int)Math.Floor(low * 64), 0, 64), highStep = Math.Clamp((int)Math.Ceiling(high * 64), lowStep, 64);
+        foreach (var item in Adapted)
+        {
+            if (item is not null && item.Tint == tint && item.Text == text && item.Secondary == secondary && item.Effect == effect
+                && item.Translucency == translucency && item.Low == lowStep && item.High == highStep) { return Math.Min(item.Value, worst); }
+        }
+        int dark = Gray(lowStep / 64.0), light = Gray(highStep / 64.0), floor = 255;
+        for (int opacity = effect == 2 ? 145 : 170; opacity <= 255; opacity += 2)
+        {
+            if (ReadableOver(tint, text, opacity, dark, light) && ReadableOver(tint, secondary, opacity, dark, light)) { floor = opacity; break; }
+        }
+        int result = 255 - (255 - floor) * (int)translucency / 100;
+        int slot = System.Threading.Interlocked.Increment(ref s_adaptedSlot) & 63;
+        System.Threading.Volatile.Write(ref Adapted[slot], new AdaptedMemo(tint, text, secondary, effect, translucency, lowStep, highStep, result));
+        return Math.Min(result, worst);
+    }
+    private static bool ReadableOver(uint tint, uint foreground, int opacity, int darkBackdrop, int lightBackdrop)
+    {
+        uint dark = (uint)RoundedComposition.Blend((int)tint, darkBackdrop, opacity);
+        uint light = (uint)RoundedComposition.Blend((int)tint, lightBackdrop, opacity);
+        double low = Math.Min(Light(dark), Light(light)), high = Math.Max(Light(dark), Light(light)), ink = Light(foreground);
+        if (ink >= low && ink <= high) { return false; }
+        return (Math.Max(ink, ink < low ? low : high) + .05) / (Math.Min(ink, ink < low ? low : high) + .05) >= 4.5;
+    }
     private static bool Readable(uint tint, uint foreground, int opacity)
     {
         uint dark = (uint)RoundedComposition.Blend((int)tint, unchecked((int)0xff000000), opacity);

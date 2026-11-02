@@ -46,7 +46,9 @@ struct zui {
 long zui_motion_clock(void);
 /* Animation duration percent for the system's style.animations choice. */
 int zui_motion_percent(unsigned int choice);
-/* The system's choices, read through the native ABI and applied here; both return 1 if anything changed. */
+/* The system's choices, read through the native ABI and applied here; both return 1 if anything changed.
+ * Appearance follows the person's own scope when they have one, and sets full_background when they chose
+ * transparency for whole app backgrounds. Nothing here decides whether a window may be transparent. */
 int zui_apply_appearance(struct zui *ui);
 int zui_apply_motion(struct zui *ui,long clock);
 /* Adopts the host's viewport size. Returns 1 when the size changed, 0 when it did not, negative on failure. */
@@ -68,6 +70,8 @@ void zui_clip(struct zui *ui,struct zui_rect rect);
 void zui_fill(struct zui *ui,struct zui_rect rect,unsigned int color);
 void zui_round_alpha(struct zui *ui,struct zui_rect rect,int radius,unsigned int color,unsigned int opacity);
 void zui_round(struct zui *ui,struct zui_rect rect,int radius,unsigned int color);
+/* A one-pixel rounded border, antialiased, leaving the inside untouched. */
+void zui_round_outline(struct zui *ui,struct zui_rect rect,int radius,unsigned int color);
 /* Up to 4096 UTF-8 input bytes per call. Unsupported/malformed characters render '?'. No shaping yet. */
 void zui_text(struct zui *ui,int x,int y,const char *text,unsigned long bytes,
               const struct zui_font *font,unsigned int color);

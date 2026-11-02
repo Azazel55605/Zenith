@@ -17,6 +17,11 @@ internal sealed class MaterialComposition
     public MaterialComposition(int capacity = ProcessMaterialRegion.MaximumArea, bool blur = true, int sampleScale = 1)
     { _sampleScale = sampleScale is 1 or 4 ? sampleScale : throw new ArgumentOutOfRangeException(nameof(sampleScale)); _source = new int[capacity]; _scratch = blur ? new int[capacity] : Array.Empty<int>(); _filtered = blur ? new int[capacity] : _source; }
     private int _count = -1;
+    // The blurred backdrop's luminance range per region, which decides how much of it may show.
+    private readonly double[] _low = new double[ProcessMaterialRegion.MaximumRegions], _high = new double[ProcessMaterialRegion.MaximumRegions];
+    private int OpacityFor(int index, ProcessMaterialRegion r, uint tint)
+        => r.Opacity > 0 ? MaterialPolicy.AdaptedOpacity(r.Opacity, tint, Theme.TextPrimary, Theme.TextSecondary, r.Effect,
+            MaterialResources.Policy.Translucency, _low[index], _high[index]) : r.Effect == 1 ? 220 : 210;
     private int[] _row = Array.Empty<int>(), _coarse = Array.Empty<int>();
     public int BlurRebuilds { get; private set; }
 
@@ -78,6 +83,13 @@ internal sealed class MaterialComposition
                 Blur(_scratch, _filtered, offset, sampledWidth, sampledHeight, false); BlurRebuilds++;
             }
             else if (r.Effect != 0) { Array.Copy(_source, offset, _filtered, offset, area); }
+            double low = 1, high = 0;
+            if (r.Effect != 0)
+            {
+                for (int k = offset; k < offset + area; k++)
+                { double l = MaterialPolicy.Luminance(_filtered[k]); if (l < low) { low = l; } if (l > high) { high = l; } }
+            }
+            _low[i] = r.Effect != 0 ? low : 0; _high[i] = r.Effect != 0 ? high : 1;
             offset += area;
         }
     }
@@ -133,7 +145,7 @@ internal sealed class MaterialComposition
             var r = regions[i]; uint tint = r.Role == 1 ? fallback : r.Role == 3 ? navigation : r.Role == 5 ? popover : panel;
             Rect rect = new(content.X + r.X, content.Y + r.Y, r.Width, r.Height);
             Rect visible = rect.Intersect(clip);
-            int opacity = r.Opacity > 0 ? r.Opacity : r.Effect == 1 ? 220 : 210;
+            int opacity = OpacityFor(i, r, tint);
             bool cached = painted is not null && r.Effect != 0;
             if (!cached && _row.Length < r.Width) { _row = new int[r.Width]; }
             if (r.Effect == 0 && visible.H > 0) { Array.Fill(_row, (int)(tint | 0xff000000U), 0, r.Width); }
@@ -183,7 +195,7 @@ internal sealed class MaterialComposition
             var r = regions[i]; uint tint = r.Role == 1 ? fallback : r.Role == 3 ? navigation : r.Role == 5 ? popover : panel;
             if (r.Effect != 0)
             {
-                int opacity = r.Opacity > 0 ? r.Opacity : r.Effect == 1 ? 220 : 210;
+                int opacity = OpacityFor(i, r, tint);
                 for (int py = 0; py < r.Height; py++) { MaterialRow(offset, r, py, tint, opacity, _painted, at); at += r.Width; }
             }
             offset += SampleLength(r.Width, _sampleScale) * SampleLength(r.Height, _sampleScale);

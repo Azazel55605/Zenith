@@ -55,7 +55,7 @@ internal sealed class ProcessSurface : IDisposable
     private int _moveX, _moveY;
     public bool Unsaved { get { lock (_gate) { return _unsaved; } } }
     public ProcessSurface(int width, int height, string title, int format = 1)
-    { Width = width; Height = height; Title = title; Format = format; _pixels = new int[width * height];
+    { Width = width; Height = height; _title = title; Format = format; _pixels = new int[width * height];
       if (format == 2) { Array.Fill(_pixels, unchecked((int)0xff000000)); } }
     public int Width { get; private set; }
     public int Height { get; private set; }
@@ -128,7 +128,17 @@ internal sealed class ProcessSurface : IDisposable
         }
     }
     public (int Width, int Height) FrameSize { get { lock (_gate) { return (Width, Height); } } }
-    public string Title { get; }
+    private string _title;
+    public string Title { get { lock (_gate) { return _title; } } }
+    /// <summary>A title the client sets later, such as the running command: bounded, and never control or direction characters.</summary>
+    public int SetTitle(string title)
+    {
+        if (title.Length is < 1 or > 80) { return -22; }
+        foreach (char c in title)
+        { if (c < ' ' || c is >= '\u007f' and < '\u00a0' || c is >= '\u200b' and <= '\u200f' || c is >= '\u202a' and <= '\u202e' || c is >= '\u2066' and <= '\u2069' || char.IsSurrogate(c)) { return -22; } }
+        lock (_gate) { if (_closed || _disposed) { return -32; } _title = title; }
+        return 0;
+    }
     public int Bytes => Width * Height * 4;
     public bool Ended { get { lock (_gate) { return _closed || _disposed; } } }
     public bool HasPresented { get { lock (_gate) { return _presented; } } }
@@ -289,6 +299,7 @@ internal sealed class ProcessGraphics : IDisposable
     public int EnablePointerMotion(int handle) => handle != _handle || _surface is null ? -9 : _surface.EnablePointerMotion();
     public byte[]? Viewport(int handle) => handle != _handle || _surface is null || _surface.Ended ? null : _surface.Viewport();
     public int AcceptResize(int handle, ReadOnlySpan<byte> request) => handle != _handle || _surface is null ? -9 : _surface.AcceptResize(request);
+    public int SetTitle(int handle, string title) => handle != _handle || _surface is null ? -9 : _surface.SetTitle(title);
     public int RequestFade(int handle, ReadOnlySpan<byte> request) => handle != _handle || _surface is null ? -9 : _surface.RequestFade(request);
     public int Dirty(int handle, bool dirty) => handle != _handle || _surface is null ? -9 : _surface.SetDirty(dirty);
     public int Size(int handle) => handle != _handle || _surface is null ? -9 : _presents >= MaximumPresents ? -27 : _surface.Bytes;

@@ -111,6 +111,22 @@ void zui_round(struct zui *u,struct zui_rect r,int radius,unsigned int c){
         else if(coverage)*pixel=u->foreground?over(*pixel,c,coverage):blend(*pixel,c,coverage);
     }
 }
+void zui_round_outline(struct zui *u,struct zui_rect r,int radius,unsigned int color){
+    if(r.w<3||r.h<3)return;
+    radius=max(1,min(radius,min(r.w,r.h)/2));radius=min(radius,32);
+    struct zui_rect b=intersect(r,u->clip);color&=0xffffff;
+    for(int y=b.y;y<b.y+b.h;y++)for(int x=b.x;x<b.x+b.w;x++){
+        int px=x-r.x,py=y-r.y,dx=min(px,r.w-1-px),dy=min(py,r.h-1-py);
+        unsigned int outer,inner;
+        if(dx<radius&&dy<radius){
+            outer=corner_coverage(dx,dy,radius);
+            inner=dx<1||dy<1?0:(dx-1<radius-1&&dy-1<radius-1?corner_coverage(dx-1,dy-1,radius-1):255);
+        }else{outer=255;inner=dx<1||dy<1?0:255;}
+        unsigned int a=outer>inner?outer-inner:0;
+        if(!a)continue;
+        unsigned int *p=&u->pixels[y*u->width+x];*p=u->foreground?over(*p,color,a):blend(*p,color,a);
+    }
+}
 void zui_round_alpha(struct zui *u,struct zui_rect r,int radius,unsigned int color,unsigned int opacity){
     if(r.w<=0||r.h<=0)return;
     if(opacity>255)opacity=255;

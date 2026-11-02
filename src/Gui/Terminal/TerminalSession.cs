@@ -94,6 +94,10 @@ internal sealed class TerminalSession : IOutput
         _sink(text);
     }
     private bool AtLineStart => _sink is null ? _buffer.CursorColumn == 0 : _sinkAtLineStart;
+    // Prompt marks for clients (OSC 133): where each command starts, and its status and time when it ends.
+    // The built-in window has no use for them, so it never gets them.
+    private long _commandStarted;
+    private void Mark(string mark) { if (_sink is not null) { _sink("\u001b]133;" + mark + "\u0007"); } }
     public Credentials Identity => _shell.Identity;
     public string WorkingDirectory => _shell.WorkingDirectory;
     public bool IsBusy => _jobRunning;
@@ -183,6 +187,7 @@ internal sealed class TerminalSession : IOutput
                 Emit("\n");
             }
 
+            Mark("D;" + _shell.LastStatus + ";" + (Stopwatch.GetTimestamp() - _commandStarted) * 1000 / Stopwatch.Frequency);
             _prompt = _shell.Prompt;
             _historyIndex = _shell.History.Count;
             _jobFinished = true;
@@ -451,6 +456,7 @@ internal sealed class TerminalSession : IOutput
     /// </summary>
     private void Accept(string line)
     {
+        if (_pendingScript.Length == 0) { Mark("A"); }
         Emit(CurrentPrompt + line + "\n");
         string text = _pendingScript.Length > 0 ? _pendingScript + "\n" + line : line;
         _pendingScript.Clear();
@@ -470,6 +476,7 @@ internal sealed class TerminalSession : IOutput
     /// <summary>Runs a complete command on a worker thread.</summary>
     private void Run(string line)
     {
+        _commandStarted = Stopwatch.GetTimestamp();
         _jobRunning = true;
         _job = new Thread(() =>
         {

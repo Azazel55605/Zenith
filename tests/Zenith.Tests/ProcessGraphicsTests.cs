@@ -81,6 +81,18 @@ public sealed class ProcessGraphicsTests
         Assert.Equal(0, table.BlockingCount);
     }
     [Fact]
+    public void ClientTitlesAreBoundedAndCannotHideTheirDirection()
+    {
+        var surface = new ProcessSurface(160, 100, "start", 1);
+        Assert.Equal(0, surface.SetTitle("pkg update \u2014 /root \u2014 Polaris"));
+        Assert.Equal("pkg update \u2014 /root \u2014 Polaris", surface.Title);
+        foreach (var bad in new[] { "", new string('x', 81), "a\nb", "\u0085", "a\u202eb", "a\u2066b", "a\u200bb", "\ud800" })
+        { Assert.Equal(-22, surface.SetTitle(bad)); }
+        Assert.Equal("pkg update \u2014 /root \u2014 Polaris", surface.Title);
+        surface.Dispose();
+        Assert.Equal(-32, surface.SetTitle("after"));
+    }
+    [Fact]
     public void FramePacerGivesAnAnimatingClientTheWholeInterval()
     {
         var pacer = new FramePacer();

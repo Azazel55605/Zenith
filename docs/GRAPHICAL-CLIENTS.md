@@ -57,6 +57,7 @@ Poll never waits holding the native filesystem service gate. Empty polls yield
 for 16 ms, except the first one after a present, so an animating client gets the whole interval.
 Call **628** `(0, 0, 0)` returns monotonic milliseconds (kernels before 0.0.38 return -38).
 Calls **630..635** give a client a kernel-owned [terminal session](components/SHELL.md#polaris-design): open `(columns, 0, 0)`, key `(handle, record, 12)`, read `(handle, buffer, 1..65536)`, state `(handle, buffer, 4096)`, resize `(handle, columns, 0)` and close `(handle, 0, 0)`. Open needs a live surface and allows 8 sessions, 20..512 columns. The session has the caller's credentials and takes only keys. A hidden prompt's text never appears in its state. Calls **636** `(handle, text, 1..65536)` and **637** `(handle, 0, 0)` set the clipboard and paste it into that session, without letting the client read it. Once a program opens a session, it stops blocking power and package work, because it holds no files and its commands run as programs of their own.
+Call **638** `(handle, title, 1..320 bytes)` sets the window and taskbar title: 1..80 characters of valid UTF-8, without control, zero-width or direction-override characters (`-22`). Client terminal sessions mark commands in their output with OSC 133: `ESC ] 133 ; A BEL` where a command's prompt line starts, and `ESC ] 133 ; D ; status ; milliseconds BEL` when it ends. The built-in Terminal never receives them.
 Call **629** `(handle, request, 24)` asks the desktop to crossfade a rectangle from the last frame into
 the next present: six i32 fields `x, y, width, height, rise, reserved`, rise 0..64, reserved 0, rectangle
 inside the surface (`-22` otherwise). It is purely visual; the system's animation choice can skip it. Its 24-byte event contains six signed i32 fields:
@@ -204,7 +205,11 @@ coverage; legacy rendering is unchanged. On an explicit foreground target, ordin
 clearing its coverage. Failed declarations keep the opaque fallback. Controls,
 status/credential/document planes remain opaque; do not reinterpret finished RGB.
 
-The host clamps every requested region through the shared desktop policy:
+The host clamps every requested region through the shared desktop policy. Since kernel 0.0.43 the contrast clamp uses
+the backdrop actually behind each region: after capture and blur it measures the darkest and lightest luminance there,
+and uses the least opacity that keeps both text colors at 4.5:1 against that range, scaled by the translucency
+setting. It is never more transparent than that, and never less than the old clamp, which assumed any backdrop at all,
+so a dark wallpaper shows through and a bright mixed one stays as readable as before.
 transparency off gives solid; blur off gives tint; resource/work/contrast limits
 may further reduce the effect. The saved preference is unchanged. See
 [policy and budgets](DESIGN-LANGUAGE.md#user-preference-and-fallback-rules) and

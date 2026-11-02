@@ -51,6 +51,9 @@ def main():
         ('native run gui-probe --terminal-hold > /tmp/hold & sleep 4; pkg verify > /dev/null; echo G_HOLD_PKG=$? | logger; wait','G_HOLD'),
         ('pkg install /root/polaris.zpk','G_POLARIS_PKG'),
         ('echo POLARIS_ALIVE | logger','G_POLARIS'),
+        ('settings set materials background-blur','G_MATERIALS'),
+        ('ls /usr/share/zenith/native; false','G_FAILED'),
+        ('settings set translucency 100','G_TRANSLUCENT'),
     ]
     quota='native run gui-probe > /tmp/g2 & native run gui-probe > /tmp/g3 & native run gui-probe > /tmp/g4 & native run gui-probe > /tmp/g5 & sleep 5; native run gui-probe --probe; echo G_LIMIT=$? | logger; kill %2; kill %3; kill %4; kill %5; wait; echo G_DRAIN=$? | logger'
     texts=[text+'; echo '+label+'=$? | logger' for text,label in gui_texts]
@@ -167,6 +170,17 @@ def main():
         monitor_command(monitor,'sendkey ctrl-shift-w 30');time.sleep(.5);monitor_command(monitor,'sendkey ctrl-shift-w 30');time.sleep(1);status('echo POLARIS_ALIVE | logger','G_POLARIS')
         time.sleep(.5);monitor_command(monitor,'screendump '+str(keep/'polaris.ppm'))
         print('PASS Polaris opens as the Terminal and runs commands',flush=True)
+        # The concept's look: whole-window material, prompt marks, find and hints. Screenshots for review.
+        status('settings set materials background-blur','G_MATERIALS');time.sleep(2)
+        status('settings set translucency 100','G_TRANSLUCENT');time.sleep(3)
+        status('ls /usr/share/zenith/native; false','G_FAILED',1);time.sleep(1)
+        monitor_command(monitor,'screendump '+str(keep/'polaris-marks.ppm'))
+        monitor_command(monitor,'sendkey ctrl-shift-f 30');time.sleep(.5);login.monitor_type(monitor,'polaris');time.sleep(1)
+        monitor_command(monitor,'screendump '+str(keep/'polaris-find.ppm'));monitor_command(monitor,'sendkey esc 30');time.sleep(.5)
+        monitor_command(monitor,'sendkey ctrl-shift-h 30');time.sleep(1)
+        monitor_command(monitor,'screendump '+str(keep/'polaris-hints.ppm'));monitor_command(monitor,'sendkey esc 30');time.sleep(.5)
+        status('echo POLARIS_ALIVE | logger','G_POLARIS')
+        print('PASS Polaris marks, find and hints leave the shell working',flush=True)
         command('poweroff','all filesystems unmounted');m.process.wait(timeout=30)
         import boot_image
         state=boot_image.verify(m.disk)

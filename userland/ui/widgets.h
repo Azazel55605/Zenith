@@ -14,6 +14,9 @@
 /* offset is where the area is going; with motion on, visual follows it and is what is drawn,
  * so hit areas always match the pixels. Without motion they are equal. */
 struct zui_scroll { struct zui_rect rect,saved_clip; int offset,content,dragging,drag_y,drag_offset,visual,smooth; };
+/* Ticks on the scroll rail at content positions, such as search hits or errors. Call after zui_scroll_end. */
+struct zui_scroll_mark { int position; unsigned int color; };
+void zui_scroll_marks(struct zui *ui,const struct zui_scroll *scroll,const struct zui_scroll_mark *marks,int count);
 /* Moves without animating, for content that was replaced. */
 void zui_scroll_jump(struct zui_scroll *s,int offset);
 /* Clips to rect (within the current clip) and returns the y of content row 0. */
@@ -78,7 +81,7 @@ void zui_dialog_draw(struct zui *ui,const struct zui_dialog *d);
 int zui_dialog_event(struct zui *ui,struct zui_dialog *d,const struct zenith_gui_event *e);
 /* A row of closable tabs with a new-tab button. Stateless apart from the areas of the last draw. */
 #define ZUI_MAX_TABS 8
-struct zui_tab { const char *label; int mark; }; /* mark: a dot saying the tab has news */
+struct zui_tab { const char *label; int mark; const char *icon; }; /* mark: a dot saying the tab has news */
 struct zui_tabs { struct zui_rect tab[ZUI_MAX_TABS],close[ZUI_MAX_TABS],add; int count; };
 void zui_tabs_draw(struct zui *ui,struct zui_tabs *tabs,struct zui_rect rect,const struct zui_tab *items,int count,int active,int can_add);
 /* On a release: i+1 chose tab i, -(i+1) closed tab i, ZUI_TABS_ADD asked for a new one, 0 nothing. */

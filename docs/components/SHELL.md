@@ -65,7 +65,14 @@ missing or failing Polaris falls back to, and local console and serial are uncha
    launcher says Polaris once installed. Pasting never runs anything: line breaks stay in the edit line, shown as a mark,
    until Enter, and control characters are dropped. The built-in Terminal shares this. Viewport, appearance and motion
    helpers moved into the toolkit, where Polaris uses them; Meridian and Welcome adopt them at their next release.
-5. **P5 navigation:** find bar, profiles, prompt marks, hints and the scrollback rail. Inline images are not planned yet.
+5. **P5 navigation and the concept's look:** a find bar in the focused pane (Ctrl+Shift+F; Aa, Prompts only, Prev and
+   Next, Enter and Shift+Enter, Esc), prompt marks from OSC 133 with each command's status and time beside its prompt,
+   a scrollback rail with ticks for prompts, failures and hits, and keyboard hints (Ctrl+Shift+H) that put a letter on
+   each path or link in view: the letter types it at the prompt, Shift copies it, nothing ever runs. The window title
+   follows the running command and directory (call 638). Panes are inset and rounded with an accent border on the
+   focused one, and a status bar shows layout, size and scrollback. With whole-background materials chosen, the window
+   is one content material and panes keep only the toolkit's light tint; a hidden prompt in view keeps it solid.
+   Not built: profiles, inline images, regular expressions in find, and opening a hint directly.
 
 ## H1 / N1 / X2 — Related work
 

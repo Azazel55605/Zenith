@@ -1,16 +1,17 @@
 #include "term.h"
 static struct pt_line *line_at(const struct pterm *t,unsigned int i){return &t->lines[(t->first_line+i)%t->line_capacity];}
 void pt_clear(struct pterm *t){
-    t->first_line=0;t->line_count=1;t->next_cell=0;t->column=0;t->lines[0]=(struct pt_line){0,0};t->changed=1;
+    t->first_line=0;t->line_count=1;t->next_cell=0;t->column=0;t->lines[0]=(struct pt_line){0,0,0,0,0};t->changed=1;
+    t->has_prompt=0;
 }
 int pt_init(struct pterm *t,struct pt_cell *cells,unsigned int cell_capacity,struct pt_line *lines,unsigned int line_capacity){
     if(!t||!cells||!lines||cell_capacity<16||line_capacity<2)return 0;
     t->cells=cells;t->cell_capacity=cell_capacity;t->lines=lines;t->line_capacity=line_capacity;
-    t->color=t->bold=0;t->escape=0;t->parameter_count=0;t->utf8=0;t->utf8_left=0;
+    t->color=t->bold=0;t->escape=0;t->parameter_count=0;t->utf8=0;t->utf8_left=0;t->osc_length=0;t->dropped=0;
     pt_clear(t);return 1;
 }
 /* Cells live in a ring; a line never wraps around it, which keeps every line contiguous. */
-static void drop_first(struct pterm *t){t->first_line=(t->first_line+1)%t->line_capacity;t->line_count--;}
+static void drop_first(struct pterm *t){t->first_line=(t->first_line+1)%t->line_capacity;t->line_count--;t->dropped++;}
 static int overlaps(const struct pterm *t,unsigned int from,unsigned int to){
     /* Lines fill the ring in order, so the oldest with any cells is the next to be overwritten. */
     for(unsigned int i=0;i+1<t->line_count;i++){
@@ -24,7 +25,7 @@ static void new_line(struct pterm *t){
     unsigned int start=last->start+last->length;
     if(t->line_count==t->line_capacity)drop_first(t);
     t->line_count++;
-    *line_at(t,t->line_count-1)=(struct pt_line){start,0};
+    *line_at(t,t->line_count-1)=(struct pt_line){start,0,0,0,0};
     t->column=0;t->next_cell=start;
 }
 static void put(struct pterm *t,struct pt_cell c){
@@ -68,12 +69,32 @@ static void control(struct pterm *t,char final){
         t->changed=1;
     }
 }
+static unsigned long number(const char *s,int *at){unsigned long v=0;while(s[*at]>='0'&&s[*at]<='9'){if(v<100000000UL)v=v*10+(unsigned long)(s[*at]-'0');(*at)++;}return v;}
+/* OSC 133: A starts a prompt line, D;status;ms ends that line's command. Others are ignored. */
+static void osc(struct pterm *t){
+    const char *s=t->osc;
+    if(t->osc_length<5||s[0]!='1'||s[1]!='3'||s[2]!='3'||s[3]!=';')return;
+    if(s[4]=='A'){t->prompt=t->dropped+t->line_count-1;t->has_prompt=1;line_at(t,t->line_count-1)->mark=PT_PROMPT;return;}
+    if(s[4]!='D'||!t->has_prompt||t->prompt<t->dropped)return;
+    int at=5;unsigned long status=0,ms=0;
+    if(s[at]==';'){at++;status=number(s,&at);}
+    if(s[at]==';'){at++;ms=number(s,&at);}
+    struct pt_line *l=line_at(t,(unsigned int)(t->prompt-t->dropped));
+    l->mark=PT_DONE;l->status=(unsigned char)(status>255?255:status);l->ms=(unsigned int)ms;t->changed=1;
+}
 static void character(struct pterm *t,unsigned int c){
     struct pt_cell cell={(unsigned short)(c>0xffff?'?':c),t->color,t->bold};
     put(t,cell);
 }
 static void byte(struct pterm *t,unsigned char b){
+    if(t->escape==3){
+        if(b==0x07||b==0x1b){t->osc[t->osc_length]=0;osc(t);t->escape=b==0x1b?4:0;return;}
+        if(t->osc_length<(int)sizeof(t->osc)-1)t->osc[t->osc_length++]=(char)b;
+        return;
+    }
+    if(t->escape==4){t->escape=0;if(b=='\\')return;}
     if(t->escape==1){
+        if(b==']'){t->escape=3;t->osc_length=0;return;}
         if(b=='['){t->escape=2;t->parameter_count=0;for(int i=0;i<8;i++)t->parameters[i]=0;return;}
         t->escape=0;return;
     }
@@ -108,6 +129,13 @@ static void byte(struct pterm *t,unsigned char b){
     if(b>=0x20&&b<0x7f)character(t,b);
 }
 void pt_write(struct pterm *t,const char *bytes,unsigned long count){for(unsigned long i=0;i<count;i++)byte(t,(unsigned char)bytes[i]);}
+int pt_mark(const struct pterm *t,unsigned int line,int *status,unsigned int *ms){
+    if(line>=t->line_count)return 0;
+    const struct pt_line *l=line_at(t,line);
+    if(status)*status=l->status;
+    if(ms)*ms=l->ms;
+    return l->mark;
+}
 unsigned int pt_length(const struct pterm *t,unsigned int line){return line<t->line_count?line_at(t,line)->length:0;}
 struct pt_cell pt_cell_at(const struct pterm *t,unsigned int line,unsigned int column){
     if(line>=t->line_count||column>=line_at(t,line)->length)return (struct pt_cell){' ',0,0};

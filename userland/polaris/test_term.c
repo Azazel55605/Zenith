@@ -46,5 +46,14 @@ int main(void){
     pt_clear(&t);static char huge[20000];memset(huge,'z',sizeof huge);pt_write(&t,huge,sizeof huge);
     assert(t.line_count>=1);for(unsigned int i=0;i<t.line_count;i++)assert(pt_length(&t,i)<=PT_MAX_LINE);
     W("\nend");same(&t,t.line_count-1,"end");
+    /* Prompt marks: a command's line learns its status and time, however the sequence is split. */
+    pt_clear(&t);W("\x1b]133;A\x07$ false\n");W("out\n");W("\x1b]13");W("3;D;1;42\x07$ ");
+    {int st=0;unsigned int ms=0;assert(pt_mark(&t,0,&st,&ms)==PT_DONE&&st==1&&ms==42);assert(!pt_mark(&t,1,0,0));}
+    same(&t,0,"$ false");same(&t,1,"out");same(&t,2,"$ ");
+    W("\x1b]133;A\x1b\\$ sleep\n");assert(pt_mark(&t,2,0,0)==PT_PROMPT);           /* ST ends it too */
+    W("\x1b]0;a window title\x07x");same(&t,3,"x");                                  /* other OSC ignored */
+    /* A prompt line that scrolled away is not marked by a late D. */
+    pt_clear(&t);W("\x1b]133;A\x07$ long\n");for(int i=0;i<100;i++)W("line\n");W("\x1b]133;D;0;5\x07");
+    for(unsigned int i=0;i<t.line_count;i++)assert(pt_mark(&t,i,0,0)!=PT_DONE);
     puts("PASS Polaris scrollback: lines, escapes, UTF-8, wrapping and bounded rings");return 0;
 }

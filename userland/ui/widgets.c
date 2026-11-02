@@ -38,6 +38,15 @@ void zui_scroll_end(struct zui *u,struct zui_scroll *s,int content){
     if(t.h)zui_round_alpha(u,t,3,u->theme.secondary,s->dragging?220:over?190:140);
     u->clip=s->saved_clip;
 }
+void zui_scroll_marks(struct zui *u,const struct zui_scroll *s,const struct zui_scroll_mark *m,int count){
+    if(s->content<=0||s->rect.h<=0)return;
+    struct zui_rect saved=u->clip;zui_clip(u,s->rect);
+    for(int i=0;i<count;i++){
+        long y=(long)s->rect.y+(long)m[i].position*(s->rect.h-3)/(s->content>s->rect.h?s->content:s->rect.h);
+        zui_fill(u,(struct zui_rect){s->rect.x+s->rect.w-9,(int)y,8,2},m[i].color);
+    }
+    u->clip=saved;
+}
 void zui_scroll_reveal(struct zui_scroll *s,int top,int height){
     if(top<s->offset)s->offset=top;
     else if((long)top+height>(long)s->offset+s->rect.h)s->offset=top+height-s->rect.h;
@@ -238,12 +247,14 @@ void zui_tabs_draw(struct zui *u,struct zui_tabs *t,struct zui_rect r,const stru
     for(int i=0;i<count;i++,x+=w){
         struct zui_rect tab={x,y,w-4,h},close={x+w-4-26,y+(h-16)/2,16,16};
         t->tab[i]=tab;t->close[i]=close;
-        if(i==active){zui_round(u,tab,8,u->theme.raised);zui_round(u,(struct zui_rect){tab.x+8,tab.y+h-3,tab.w-16,2},1,u->theme.accent);}
+        if(i==active){zui_round(u,tab,8,u->theme.surface);zui_round_outline(u,tab,8,u->theme.border);}
+        int lx=tab.x+10;
+        if(items[i].icon&&zui_icon(u,items[i].icon,lx,y+(h-16)/2,16,i==active?ZUI_ICON_NORMAL:ZUI_ICON_TEXT))lx+=24;
         unsigned long n=len256(items[i].label);
-        int limit=tab.w-(items[i].mark?56:42);
+        int limit=tab.x+tab.w-(items[i].mark?56:42)-lx;
         struct zui_rect saved=u->clip;
-        zui_clip(u,(struct zui_rect){tab.x+10,tab.y,limit,h});
-        zui_text(u,tab.x+10,y+(h-zui_body.height)/2,items[i].label,n,i==active?&zui_label:&zui_body,i==active?u->theme.text:u->theme.secondary);
+        zui_clip(u,(struct zui_rect){lx,tab.y,limit>0?limit:0,h});
+        zui_text(u,lx,y+(h-zui_body.height)/2,items[i].label,n,i==active?&zui_label:&zui_body,i==active?u->theme.text:u->theme.secondary);
         u->clip=saved;
         if(items[i].mark)zui_round(u,(struct zui_rect){close.x-14,y+h/2-4,8,8},4,u->theme.accent);
         zui_icon(u,"x",close.x,close.y,16,ZUI_ICON_TEXT);

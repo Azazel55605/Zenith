@@ -66,6 +66,9 @@ static inline long zenith_terminal_close(long handle){return zenith_call(635,(un
 /* The clipboard stays in the kernel: a client can set it, and paste it into its own session, without reading it. */
 static inline long zenith_terminal_copy(long handle,const char *text,unsigned long bytes){return zenith_call(636,(unsigned long)handle,(unsigned long)text,bytes);}
 static inline long zenith_terminal_paste(long handle){return zenith_call(637,(unsigned long)handle,0,0);}
+/* Sets the window and taskbar title: 1..80 characters of UTF-8, no control or direction characters.
+ * -38 before kernel 0.0.43. */
+static inline long zenith_gui_set_title(long handle,const char *title,unsigned long bytes){return zenith_call(638,(unsigned long)handle,(unsigned long)title,bytes);}
 /* Asks the desktop to crossfade this rectangle from the last frame into the next present,
  * the new content rising `rise` pixels into place. -38 before kernel 0.0.38. */
 struct zenith_gui_fade_request { int x,y,width,height,rise,reserved; };

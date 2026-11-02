@@ -13,6 +13,33 @@ public class MaterialPolicyTests
         var policy=new MaterialPolicy();policy.Begin(7,0);Assert.Equal(0,policy.Effect(2,0xff25262b,0xfff1f2f4,0xffb4b7c0,100));
     }
     [Fact]
+    public void MeasuredBackdropsAllowMoreTransparencyButNeverLessContrast()
+    {
+        const uint tint=0xff25262b,text=0xfff1f2f4,secondary=0xffb4b7c0;
+        int worst=MaterialPolicy.Opacity(tint,text,secondary,2,100);
+        int dark=MaterialPolicy.AdaptedOpacity(worst,tint,text,secondary,2,100,.01,.06);
+        int anything=MaterialPolicy.AdaptedOpacity(worst,tint,text,secondary,2,100,0,1);
+        Assert.True(dark<worst,"a dark wallpaper may show through more than any backdrop could");
+        Assert.Equal(worst,anything);                                      // the full range is the old clamp exactly
+        Assert.True(MaterialPolicy.AdaptedOpacity(worst,tint,text,secondary,2,100,.9,1)<=worst);
+        Assert.Equal(255,MaterialPolicy.AdaptedOpacity(255,tint,text,secondary,2,100,0,.01));   // solid stays solid
+        Assert.Equal(worst,MaterialPolicy.AdaptedOpacity(worst,tint,text,secondary,0,100,0,.01)); // no material, no change
+        // Translucency still scales it, and lower settings stay more opaque.
+        Assert.True(MaterialPolicy.AdaptedOpacity(MaterialPolicy.Opacity(tint,text,secondary,2,40),tint,text,secondary,2,40,.01,.06)>dark);
+        // Contrast holds against the measured extremes: text over the composited darkest and lightest backdrop.
+        static double L(int c){double Ch(int s){double x=((c>>s)&255)/255.0;return x<=.04045?x/12.92:System.Math.Pow((x+.055)/1.055,2.4);}return .2126*Ch(16)+.7152*Ch(8)+.0722*Ch(0);}
+        foreach(var (low,high) in new[]{(.01,.06),(.2,.3),(.5,.9)})
+        {
+            int floor=MaterialPolicy.AdaptedOpacity(255-1,tint,text,secondary,2,100,low,high);
+            foreach(double b in new[]{low,high})
+            {
+                int v=(int)System.Math.Round(255*System.Math.Pow(b,1/2.2));int backdrop=unchecked((int)0xff000000)|v<<16|v<<8|v;
+                double mixed=L(RoundedComposition.Blend(unchecked((int)tint),backdrop,floor)),ink=L(unchecked((int)secondary));
+                Assert.True((System.Math.Max(ink,mixed)+.05)/(System.Math.Min(ink,mixed)+.05)>=4.4,$"contrast at {low}..{high}");
+            }
+        }
+    }
+    [Fact]
     public void FullViewportBlurUsesBoundedSampledWorkAndCache()
     {
         var policy = new MaterialPolicy(); policy.Begin(7);

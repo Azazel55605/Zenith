@@ -30,11 +30,19 @@ static long package_icon(const char *name,unsigned char *out,unsigned long capac
 long zui_motion_clock(void){return zenith_call(628,0,0,0);}
 void zui_icons_use_packages(void){zui_icon_source(package_icon);}
 int zui_apply_appearance(struct zui *u){
-    struct zenith_appearance a={0};
-    if(zenith_appearance_read(&a)||a.version!=1)return 0;
-    unsigned int surface=u->theme.surface,accent=u->theme.accent;
+    struct zenith_appearance a={0};struct zenith_scoped_appearance scoped={0};struct zenith_material_settings materials={0};
+    int personal=zenith_scoped_appearance_read(1,&scoped)==0,background=0;
+    if(personal)a=scoped.appearance;
+    else if(zenith_appearance_read(&a))return 0;
+    if(a.version!=1||a.active_mode>1||a.active_accent>5)return 0;
+    if(personal)background=(scoped.materials.saved&5)==5;
+    else if(!zenith_material_settings_read(&materials))background=(materials.saved&5)==5;
+    unsigned int surface=u->theme.surface,accent=u->theme.accent;int was=u->full_background;
     zui_appearance(u,(int)a.active_mode,(int)a.active_accent);
-    if(surface==u->theme.surface&&accent==u->theme.accent)return 0;
+    const unsigned int *p=a.palette[a.active_mode][a.active_accent];
+    u->theme=(struct zui_theme){p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]};
+    u->full_background=background;
+    if(surface==u->theme.surface&&accent==u->theme.accent&&was==background)return 0;
     u->dirty=1;return 1;
 }
 int zui_apply_motion(struct zui *u,long clock){

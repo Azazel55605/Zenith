@@ -178,7 +178,7 @@ static void stage3_tests(void){
 }
 static void tabs_tests(void){
     struct zui u;assert(zui_init(&u,px,800,600));
-    struct zui_tabs t;struct zui_tab items[3]={{"one",0},{"two",1},{"a very long tab name that must not leave its tab",0}};
+    struct zui_tabs t;struct zui_tab items[3]={{"one",0,"terminal"},{"two",1,0},{"a very long tab name that must not leave its tab",0,0}};
     zui_tabs_draw(&u,&t,(struct zui_rect){0,0,800,40},items,3,1,1);
     assert(t.count==3&&t.tab[0].x+t.tab[0].w<=t.tab[1].x&&t.add.w==24);
     struct zenith_gui_event up=ev(Z_GUI_UP,1,t.tab[1].x+2,t.tab[1].y+2,0);assert(zui_tabs_event(&t,&up)==2);
@@ -187,11 +187,25 @@ static void tabs_tests(void){
     up.x=790;up.y=20;assert(!zui_tabs_event(&t,&up));
     struct zenith_gui_event down=ev(Z_GUI_DOWN,1,t.add.x+2,t.add.y+2,0);assert(!zui_tabs_event(&t,&down));
     /* No new tab when full, and never more tabs than fit. */
-    struct zui_tab many[ZUI_MAX_TABS+2];for(int i=0;i<ZUI_MAX_TABS+2;i++)many[i]=(struct zui_tab){"t",0};
+    struct zui_tab many[ZUI_MAX_TABS+2];for(int i=0;i<ZUI_MAX_TABS+2;i++)many[i]=(struct zui_tab){"t",0,0};
     zui_tabs_draw(&u,&t,(struct zui_rect){0,0,800,40},many,ZUI_MAX_TABS+2,0,0);
     assert(t.count==ZUI_MAX_TABS&&t.add.w==0);
     up.x=0;up.y=0;assert(!zui_tabs_event(&t,&up)||t.add.w);
     for(int i=0;i<ZUI_MAX_TABS;i++)assert(t.tab[i].x+t.tab[i].w<=800);
+}
+static void outline_and_marks_tests(void){
+    struct zui u;assert(zui_init(&u,px,800,600));
+    for(int i=0;i<800*600;i++)px[i]=0x101010;
+    zui_round_outline(&u,(struct zui_rect){10,10,100,50},8,0xffffff);
+    assert(px[10*800+60]==0xffffff&&px[59*800+60]==0xffffff&&px[35*800+10]==0xffffff&&px[35*800+109]==0xffffff);
+    assert(px[35*800+60]==0x101010&&px[11*800+60]==0x101010);                /* inside untouched */
+    assert(px[10*800+10]!=0xffffff);                                          /* corners are rounded */
+    struct zui_scroll s={0};struct zui_rect view={100,100,300,200};zui_scroll_begin(&u,&s,view);zui_scroll_end(&u,&s,2000);
+    for(int i=0;i<800*600;i++)px[i]=0;
+    struct zui_scroll_mark m[2]={{0,0x00ff00},{1999,0xff0000}};zui_scroll_marks(&u,&s,m,2);
+    int top=0,bottom=0;for(int y=100;y<300;y++)for(int x=100;x<400;x++){if(px[y*800+x]==0x00ff00&&y<110)top=1;if(px[y*800+x]==0xff0000&&y>285)bottom=1;}
+    assert(top&&bottom);
+    for(int y=0;y<600;y++)for(int x=0;x<800;x++)if(px[y*800+x])assert(x>=100&&x<400&&y>=100&&y<300);
 }
 static void motion_tests(void){
     struct zui u;assert(zui_init(&u,px,800,600));
@@ -223,6 +237,7 @@ int main(void){
     scroll_tests();
     motion_tests();
     tabs_tests();
+    outline_and_marks_tests();
     list_tests();
     combo_tests();
     form_tests();

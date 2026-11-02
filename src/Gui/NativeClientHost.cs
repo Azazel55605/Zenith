@@ -131,6 +131,8 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
         {
             if (_surface.Ended) { _composition?.Dispose();base.Close(); Zenith.Core.Log.Write("graphics", "native surface retired"); return true; }
             bool changed = _wasResizable != _surface.Resizable; _wasResizable = _surface.Resizable;
+            string title = _surface.Title;
+            if (title != Title) { Title = title; changed = true; }
             var size = _surface.FrameSize;
             if (size.Width != _frameWidth || size.Height != _frameHeight)
             {

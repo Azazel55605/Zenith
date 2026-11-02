@@ -45,6 +45,10 @@ static int terminal_probe(int hold){
     if(zenith_terminal_key(t+1000,(struct zenith_terminal_key*)pixels)!=-9)return 15;
     type_keys(t,"echo TERMINAL_OUT\n");
     if(term_wait(t,"TERMINAL_OUT\n",Z_TERMINAL_BUSY,0))return 16;
+    /* Each command is marked: where its prompt starts, then its status and time. */
+    if(!contains(term_out,term_len,"\033]133;A\007")||!contains(term_out,term_len,"\033]133;D;0;"))return 35;
+    if(zenith_gui_set_title(h,"probe \xe2\x80\x94 title",15)!=0)return 36;
+    if(zenith_gui_set_title(h,"bad\ntitle",9)!=-22||zenith_gui_set_title(h,"\xe2\x80\xae",3)!=-22||zenith_gui_set_title(h,"\xc3",1)!=-22)return 37;
     /* A command's own output and its exit both come through; the shell really ran it. */
     term_len=0;type_keys(t,"echo TERMINAL_LOG | logger\n");
     if(term_wait(t,0,Z_TERMINAL_BUSY,1)&&term_len==0){}
