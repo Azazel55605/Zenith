@@ -45,8 +45,10 @@ static int terminal_probe(int hold){
     if(zenith_terminal_key(t+1000,(struct zenith_terminal_key*)pixels)!=-9)return 15;
     type_keys(t,"echo TERMINAL_OUT\n");
     if(term_wait(t,"TERMINAL_OUT\n",Z_TERMINAL_BUSY,0))return 16;
-    /* Each command is marked: where its prompt starts, then its status and time. */
-    if(!contains(term_out,term_len,"\033]133;A\007")||!contains(term_out,term_len,"\033]133;D;0;"))return 35;
+    /* Each command is marked: where its prompt starts, then its status and time. The end mark is written as the
+     * command finishes, so it can arrive just after the state says the shell is idle: wait for it. */
+    if(term_wait(t,"\033]133;D;0;",0,0))return 35;
+    if(!contains(term_out,term_len,"\033]133;A\007"))return 38;
     if(zenith_gui_set_title(h,"probe \xe2\x80\x94 title",15)!=0)return 36;
     if(zenith_gui_set_title(h,"bad\ntitle",9)!=-22||zenith_gui_set_title(h,"\xe2\x80\xae",3)!=-22||zenith_gui_set_title(h,"\xc3",1)!=-22)return 37;
     /* A command's own output and its exit both come through; the shell really ran it. */
@@ -93,7 +95,12 @@ static int terminal_probe(int hold){
 }
 int main(int argc,char **argv) {
     const char *mode=argc>1?argv[1]:"--interactive";
-    if(same(mode,"--terminal"))return terminal_probe(0);
+    if(same(mode,"--terminal")){
+        int failed=terminal_probe(0);
+        /* The caller pipes this to a log, where only the last command's status survives: say which check failed. */
+        if(failed){char text[40]="TERMINAL_PROBE_FAILED 00\n";text[22]=(char)('0'+failed/10%10);text[23]=(char)('0'+failed%10);print(text);}
+        return failed;
+    }
     if(same(mode,"--terminal-hold"))return terminal_probe(1);
     if(same(mode,"--version")){print("gui-probe " SUNBEAM_VERSION "\n");return 0;}
     if(same(mode,"--bounds")) {
