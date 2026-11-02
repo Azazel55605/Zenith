@@ -298,18 +298,20 @@ internal sealed class TerminalSession : IOutput
         _buffer.Changed = true;
     }
 
-    /// <summary>Inserts text as if typed; each line break submits a line.</summary>
+    /// <summary>The mark an edit line shows for a pasted line break, which is one character like any other.</summary>
+    public const char LineBreakMark = '\u00b6';
+    /// <summary>What to show for the edit line: the text with its line breaks visible.</summary>
+    public string DisplayInput => _input.ToString().Replace('\n', LineBreakMark);
+
+    /// <summary>Inserts text into the edit line. Pasting never runs anything: line breaks stay in the line,
+    /// visibly, until the person presses Enter, and other control characters are dropped.</summary>
     public void Paste(string text)
     {
-        string[] lines = text.Replace("\r\n", "\n").Split('\n');
-        for (int i = 0; i < lines.Length; i++)
+        foreach (char c in text.Replace("\r\n", "\n").Replace('\r', '\n'))
         {
-            _input.Insert(_cursor, lines[i]);
-            _cursor += lines[i].Length;
-            if (i < lines.Length - 1)
-            {
-                Submit();
-            }
+            char value = c == '\t' ? ' ' : c;
+            if (value != '\n' && (value < ' ' || value == '\u007f')) { continue; }
+            _input.Insert(_cursor++, value);
         }
     }
 
@@ -430,8 +432,12 @@ internal sealed class TerminalSession : IOutput
 
         if (IsBusy)
         {
-            Write((_secretRead ? string.Empty : line) + "\n");
-            _typeAhead.Enqueue(line);
+            // A running command reads a line at a time, also from a pasted block.
+            foreach (string part in line.Split('\n'))
+            {
+                Write((_secretRead ? string.Empty : part) + "\n");
+                _typeAhead.Enqueue(part);
+            }
 
             return;
         }

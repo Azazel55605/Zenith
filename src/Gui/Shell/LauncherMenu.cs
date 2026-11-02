@@ -87,7 +87,7 @@ internal sealed class LauncherMenu
             { surface.DrawTextCentered(app.Name.Substring(0, 1), Fonts.SemiBold, 15, Theme.Accent, icon, true); }
 
             int textX = icon.Right + 12;
-            surface.DrawText(app.Name, Fonts.SemiBold, Theme.TextTitle, Theme.TextPrimary, textX, item.Y + 6);
+            surface.DrawText(app.DisplayName, Fonts.SemiBold, Theme.TextTitle, Theme.TextPrimary, textX, item.Y + 6);
             surface.DrawText(app.Description, Fonts.Regular, Theme.TextSmall, Theme.TextSecondary, textX, item.Y + 24);
 
             AppInfo captured = app;

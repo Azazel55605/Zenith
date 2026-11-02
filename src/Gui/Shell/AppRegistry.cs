@@ -15,6 +15,10 @@ internal sealed class AppInfo
     }
 
     public string? Native { get; }
+    /// <summary>The name to show: an installed native app goes by its own name.</summary>
+    public string DisplayName => Name == "Terminal" && Native is string native
+        && Zenith.Core.Packages.NativePackageSource.State("/usr/share/zenith/native/" + native + ".elf") == Zenith.Core.Packages.PackagePathState.Occupied
+            ? "Polaris" : Name;
     public string? Action { get; }
     public string Name { get; }
     public string Description { get; }
@@ -50,5 +54,5 @@ internal static class AppRegistry
     }
 
     public static bool Exists(string name)
-        => string.Equals(name, "recovery-terminal", StringComparison.OrdinalIgnoreCase) || Apps.Exists(app => string.Equals(app.Name, name, StringComparison.OrdinalIgnoreCase));
+        => string.Equals(name, "recovery-terminal", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "Polaris", StringComparison.OrdinalIgnoreCase) || Apps.Exists(app => string.Equals(app.Name, name, StringComparison.OrdinalIgnoreCase));
 }

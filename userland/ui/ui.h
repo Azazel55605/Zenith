@@ -11,6 +11,8 @@ struct zui_theme { unsigned int surface,raised,subtle,border,text,secondary,acce
  * boxes[4*g] = x,y,w,h within the cell; pixels+offsets[g] holds w*h coverage bytes. */
 struct zui_font { unsigned short width,height,ascent; const unsigned char *advance,*pixels,*boxes; const unsigned int *offsets; };
 extern const struct zui_font zui_body,zui_label,zui_heading,zui_caption;
+/* Hack, for terminals. Only in programs built with the mono atlas. */
+extern const struct zui_font zui_mono;
 struct zui_rect { int x,y,w,h; };
 /* Stable surface intent; current XRGB painting is always opaque. Candidate means
  * future host-negotiated composition is possible, never authority to sample it. */
@@ -44,6 +46,11 @@ struct zui {
 long zui_motion_clock(void);
 /* Animation duration percent for the system's style.animations choice. */
 int zui_motion_percent(unsigned int choice);
+/* The system's choices, read through the native ABI and applied here; both return 1 if anything changed. */
+int zui_apply_appearance(struct zui *ui);
+int zui_apply_motion(struct zui *ui,long clock);
+/* Adopts the host's viewport size. Returns 1 when the size changed, 0 when it did not, negative on failure. */
+int zui_apply_viewport(struct zui *ui,long handle,unsigned long capacity);
 /* Starts a drawn frame at this time. Widgets set animating when they need another. */
 void zui_motion_frame(struct zui *ui,long now);
 /* Returns 0 for invalid dimensions/buffer; caller supplies width*height pixels. */

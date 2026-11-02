@@ -1,5 +1,6 @@
 """Explicit QEMU accelerator policy for unchanged tagged validation harnesses."""
 import os
+import pathlib
 import re
 import shutil
 import socket
@@ -50,6 +51,20 @@ def steady_vcpu(path, running, interval=0.1):
             time.sleep(interval)
     finally:
         if connection is not None: connection.close()
+
+
+def crash_report(directory):
+    """The guest's own crash text from any serial log under a run's evidence, or None.
+
+    A kernel that halts looks like a timeout to a harness waiting for output, so a failed run says so.
+    """
+    for path in sorted(pathlib.Path(directory).rglob('*serial*.log')):
+        try: text = path.read_bytes().decode('utf-8', 'replace')
+        except OSError: continue
+        at = text.rfind('CPU EXCEPTION')
+        if at >= 0 and 'System halted' in text[at:]:
+            return str(path) + ':\n' + text[max(0, text.rfind('\n', 0, at)):at + 1400]
+    return None
 
 
 def is_vm(args):

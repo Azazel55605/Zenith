@@ -228,3 +228,39 @@ int zui_dialog_event(struct zui *u,struct zui_dialog *d,const struct zenith_gui_
     if(id>d->base_id&&id<=d->base_id+d->count){d->open=0;u->dirty=1;return id-d->base_id;}
     return 0;
 }
+void zui_tabs_draw(struct zui *u,struct zui_tabs *t,struct zui_rect r,const struct zui_tab *items,int count,int active,int can_add){
+    if(count>ZUI_MAX_TABS)count=ZUI_MAX_TABS;
+    if(count<0)count=0;
+    t->count=count;
+    int room=r.w-44,w=count?room/count:0;
+    if(w>190)w=190;
+    int h=r.h-8,y=r.y+4,x=r.x+4;
+    for(int i=0;i<count;i++,x+=w){
+        struct zui_rect tab={x,y,w-4,h},close={x+w-4-26,y+(h-16)/2,16,16};
+        t->tab[i]=tab;t->close[i]=close;
+        if(i==active){zui_round(u,tab,8,u->theme.raised);zui_round(u,(struct zui_rect){tab.x+8,tab.y+h-3,tab.w-16,2},1,u->theme.accent);}
+        unsigned long n=len256(items[i].label);
+        int limit=tab.w-(items[i].mark?56:42);
+        struct zui_rect saved=u->clip;
+        zui_clip(u,(struct zui_rect){tab.x+10,tab.y,limit,h});
+        zui_text(u,tab.x+10,y+(h-zui_body.height)/2,items[i].label,n,i==active?&zui_label:&zui_body,i==active?u->theme.text:u->theme.secondary);
+        u->clip=saved;
+        if(items[i].mark)zui_round(u,(struct zui_rect){close.x-14,y+h/2-4,8,8},4,u->theme.accent);
+        zui_icon(u,"x",close.x,close.y,16,ZUI_ICON_TEXT);
+    }
+    t->add=can_add?(struct zui_rect){x+4,y+(h-24)/2,24,24}:(struct zui_rect){0,0,0,0};
+    if(can_add){
+        int cx=t->add.x+12,cy=t->add.y+12;
+        zui_fill(u,(struct zui_rect){cx-6,cy-1,12,2},u->theme.secondary);
+        zui_fill(u,(struct zui_rect){cx-1,cy-6,2,12},u->theme.secondary);
+    }
+}
+int zui_tabs_event(const struct zui_tabs *t,const struct zenith_gui_event *e){
+    if(e->type!=Z_GUI_UP)return 0;
+    if(inside(t->add,e->x,e->y))return ZUI_TABS_ADD;
+    for(int i=0;i<t->count;i++){
+        if(inside(t->close[i],e->x,e->y))return -(i+1);
+        if(inside(t->tab[i],e->x,e->y))return i+1;
+    }
+    return 0;
+}

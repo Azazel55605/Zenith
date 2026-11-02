@@ -58,10 +58,13 @@ missing or failing Polaris falls back to, and local console and serial are uncha
    Limits: ASCII glyphs only, others show `?`; solid background, no materials; a fixed "Polaris" title; 1 MiB cells
    of scrollback; plain PgUp and PgDn scroll, as in the built-in one. Selection and clipboard have host tests only
    for the model, not a VM check. Terminal windows the desktop opens itself at first boot stay built-in.
-4. **P4 tabs and layouts:** several sessions, up to eight, with Tall, Columns and Rows.
-   Also from operator testing of 0.1.0: the launcher should say Polaris once it is installed, not Terminal. Pasting
-   text with line breaks must not run it: it stays editable until Enter, as multi-line paste. This also applies to the
-   built-in Terminal, which shares the session code. Move the helpers listed under the toolkit gaps into `userland/ui`.
+4. **P4 tabs and layouts:** up to eight shells, with up to four panes in a tab, in Tall, Columns or Rows. Ctrl+Shift+T
+   opens a tab, Ctrl+Shift+E splits, Ctrl+Shift+W closes, Ctrl+Shift+L changes layout, Ctrl+Shift+Up and Down move between
+   panes, and Ctrl+Tab between tabs. Each shell keeps 256 KiB cells of scrollback (1 MiB of memory), a quarter of P3's.
+   Sessions out of view are read less often, because reads count against a budget. From operator testing of 0.1.0: the
+   launcher says Polaris once installed. Pasting never runs anything: line breaks stay in the edit line, shown as a mark,
+   until Enter, and control characters are dropped. The built-in Terminal shares this. Viewport, appearance and motion
+   helpers moved into the toolkit, where Polaris uses them; Meridian and Welcome adopt them at their next release.
 5. **P5 navigation:** find bar, profiles, prompt marks, hints and the scrollback rail. Inline images are not planned yet.
 
 ## H1 / N1 / X2 — Related work

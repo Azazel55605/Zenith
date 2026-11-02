@@ -98,6 +98,7 @@ def main():
         status('native run gui-probe --exit | logger','G_EXIT')
         terminal=status('native run gui-probe --terminal | logger','G_TERMINAL')
         assert 'TERMINAL_PROBE_OK' in terminal and 'user: TERMINAL_LOG' in terminal and 'HIDDENWORD' not in terminal,terminal[-500:]
+        assert terminal.find('user: PASTE_ONE')>=0 and terminal.find('user: PASTE_ONE')<terminal.find('user: PASTE_TWO'),'pasted lines run together, in order, only on Enter'
         print('PASS terminal client sessions',flush=True)
         status('native run gui-probe --fault','G_FAULT',139)
         status('native run gui-probe --probe | logger','G_AFTER_FAULT')
@@ -158,6 +159,12 @@ def main():
         assert m.wait('native surface opened 640x480',off,30),'Polaris did not open as the Terminal'
         time.sleep(1.5);status('echo POLARIS_ALIVE | logger','G_POLARIS')
         assert 'user: POLARIS_ALIVE' in m.log()[off:],'Polaris command output'
+        # Tabs and panes: each shell is separate, and closing one leaves the others working.
+        monitor_command(monitor,'sendkey ctrl-shift-t 30');time.sleep(1);status('echo POLARIS_ALIVE | logger','G_POLARIS')
+        monitor_command(monitor,'sendkey ctrl-shift-e 30');time.sleep(1);status('echo POLARIS_ALIVE | logger','G_POLARIS')
+        time.sleep(.5);monitor_command(monitor,'screendump '+str(keep/'polaris-panes.ppm'))
+        monitor_command(monitor,'sendkey ctrl-shift-l 30');time.sleep(.5)
+        monitor_command(monitor,'sendkey ctrl-shift-w 30');time.sleep(.5);monitor_command(monitor,'sendkey ctrl-shift-w 30');time.sleep(1);status('echo POLARIS_ALIVE | logger','G_POLARIS')
         time.sleep(.5);monitor_command(monitor,'screendump '+str(keep/'polaris.ppm'))
         print('PASS Polaris opens as the Terminal and runs commands',flush=True)
         command('poweroff','all filesystems unmounted');m.process.wait(timeout=30)

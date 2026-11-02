@@ -248,7 +248,7 @@ internal sealed class TerminalWindow : Window
         List<Cell> tail = _buffer.Line(_buffer.LineCount - 1);
         var inputLine = new TerminalBuffer();
         inputLine.AppendCells(tail);
-        inputLine.Write(prompt + (_session.SecretRead ? new string('*', _session.InputLength) : _session.InputText));
+        inputLine.Write(prompt + (_session.SecretRead ? new string('*', _session.InputLength) : _session.DisplayInput));
         List<Cell> input = inputLine.Line(0);
 
         int caretIndex = tail.Count + Ansi.Strip(prompt).Length + _session.Cursor;

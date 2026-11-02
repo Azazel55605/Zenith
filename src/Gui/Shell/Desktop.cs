@@ -115,6 +115,7 @@ internal sealed class Desktop
     {
         // Always the built-in terminal: the way back when an installed Polaris does not work.
         if (string.Equals(name, RecoveryTerminal, System.StringComparison.OrdinalIgnoreCase)) { Windows.Open(new TerminalWindow()); return true; }
+        if (string.Equals(name, "Polaris", System.StringComparison.OrdinalIgnoreCase)) { name = "Terminal"; }
         foreach (AppInfo app in AppRegistry.Apps)
         {
             if (string.Equals(app.Name, name, System.StringComparison.OrdinalIgnoreCase))

@@ -103,7 +103,7 @@ internal sealed class ClientTerminal : IProcessTerminal
         bool dropped;
         lock (_gate) { dropped = _dropped; _dropped = false; }
         byte[] state = ProcessTerminalState.Encode(_session.IsBusy, _session.SecretRead, _session.RawActive, _session.ExitRequested, dropped,
-            _session.Cursor, _session.DisplayPrompt, _session.SecretRead ? string.Empty : _session.InputText, _session.WorkingDirectory);
+            _session.Cursor, _session.DisplayPrompt, _session.SecretRead ? string.Empty : _session.DisplayInput, _session.WorkingDirectory);
         lock (_gate) { _state = state; }
     }
 

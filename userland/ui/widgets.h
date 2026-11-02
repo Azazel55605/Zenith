@@ -76,4 +76,12 @@ struct zui_dialog { int open,base_id; const char *title,*message,*labels[3]; int
 void zui_dialog_draw(struct zui *ui,const struct zui_dialog *d);
 /* Returns the chosen button number (1..count) and closes, else 0. */
 int zui_dialog_event(struct zui *ui,struct zui_dialog *d,const struct zenith_gui_event *e);
+/* A row of closable tabs with a new-tab button. Stateless apart from the areas of the last draw. */
+#define ZUI_MAX_TABS 8
+struct zui_tab { const char *label; int mark; }; /* mark: a dot saying the tab has news */
+struct zui_tabs { struct zui_rect tab[ZUI_MAX_TABS],close[ZUI_MAX_TABS],add; int count; };
+void zui_tabs_draw(struct zui *ui,struct zui_tabs *tabs,struct zui_rect rect,const struct zui_tab *items,int count,int active,int can_add);
+/* On a release: i+1 chose tab i, -(i+1) closed tab i, ZUI_TABS_ADD asked for a new one, 0 nothing. */
+enum { ZUI_TABS_ADD=1000 };
+int zui_tabs_event(const struct zui_tabs *tabs,const struct zenith_gui_event *event);
 #endif

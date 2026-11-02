@@ -176,6 +176,23 @@ static void stage3_tests(void){
     m.x=395;m.y=200;zui_event(&u,&m);zui_scroll_begin(&u,&s,(struct zui_rect){100,100,300,200});zui_scroll_end(&u,&s,1000);
     assert(px[110*800+391]!=0x123456);
 }
+static void tabs_tests(void){
+    struct zui u;assert(zui_init(&u,px,800,600));
+    struct zui_tabs t;struct zui_tab items[3]={{"one",0},{"two",1},{"a very long tab name that must not leave its tab",0}};
+    zui_tabs_draw(&u,&t,(struct zui_rect){0,0,800,40},items,3,1,1);
+    assert(t.count==3&&t.tab[0].x+t.tab[0].w<=t.tab[1].x&&t.add.w==24);
+    struct zenith_gui_event up=ev(Z_GUI_UP,1,t.tab[1].x+2,t.tab[1].y+2,0);assert(zui_tabs_event(&t,&up)==2);
+    up.x=t.close[2].x+2;up.y=t.close[2].y+2;assert(zui_tabs_event(&t,&up)==-3);   /* close wins over its tab */
+    up.x=t.add.x+2;up.y=t.add.y+2;assert(zui_tabs_event(&t,&up)==ZUI_TABS_ADD);
+    up.x=790;up.y=20;assert(!zui_tabs_event(&t,&up));
+    struct zenith_gui_event down=ev(Z_GUI_DOWN,1,t.add.x+2,t.add.y+2,0);assert(!zui_tabs_event(&t,&down));
+    /* No new tab when full, and never more tabs than fit. */
+    struct zui_tab many[ZUI_MAX_TABS+2];for(int i=0;i<ZUI_MAX_TABS+2;i++)many[i]=(struct zui_tab){"t",0};
+    zui_tabs_draw(&u,&t,(struct zui_rect){0,0,800,40},many,ZUI_MAX_TABS+2,0,0);
+    assert(t.count==ZUI_MAX_TABS&&t.add.w==0);
+    up.x=0;up.y=0;assert(!zui_tabs_event(&t,&up)||t.add.w);
+    for(int i=0;i<ZUI_MAX_TABS;i++)assert(t.tab[i].x+t.tab[i].w<=800);
+}
 static void motion_tests(void){
     struct zui u;assert(zui_init(&u,px,800,600));
     struct zui_rect view={100,100,300,200};struct zui_scroll s={0};
@@ -205,6 +222,7 @@ int main(void){
     stage3_tests();
     scroll_tests();
     motion_tests();
+    tabs_tests();
     list_tests();
     combo_tests();
     form_tests();

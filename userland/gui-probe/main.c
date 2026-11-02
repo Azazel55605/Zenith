@@ -64,6 +64,21 @@ static int terminal_probe(int hold){
     int ok=0;for(int i=0;i<200&&!ok;i++){long s=zenith_terminal_state(t,term_state);if(s>=24&&term_state[4]==3&&term_state[2]==3)ok=1;struct zenith_gui_event e;zenith_gui_poll(h,&e);}
     if(!ok)return 23;
     struct zenith_terminal_key u={'u',2,0};zenith_terminal_key(t,&u);
+    /* Pasting never runs anything: line breaks wait, visibly, for Enter, and control characters are gone. */
+    static const char pasted[]="echo PASTE_ONE | logger\n\033echo PASTE_TWO | logger\n";
+    if(zenith_terminal_copy(t,pasted,sizeof(pasted)-1))return 28;
+    for(int i=0;i<60;i++){struct zenith_gui_event e;zenith_gui_poll(h,&e);}
+    term_len=0;if(zenith_terminal_paste(t))return 29;
+    ok=0;for(int i=0;i<300&&!ok;i++){long s=zenith_terminal_state(t,term_state);if(s>=24&&term_state[4]>40)ok=1;struct zenith_gui_event e;zenith_gui_poll(h,&e);}
+    if(!ok)return 30;
+    for(int i=0;i<200;i++){struct zenith_gui_event e;zenith_gui_poll(h,&e);long n=zenith_terminal_read(t,term_out+term_len,sizeof(term_out)-(unsigned long)term_len-1);if(n>0)term_len+=n;}
+    long ps=zenith_terminal_state(t,term_state);
+    if(ps<24||(term_state[1]&Z_TERMINAL_BUSY)||term_len)return 31;                  /* nothing ran */
+    {const char *input=(const char *)term_state+24+term_state[3];
+     if(!contains(input,term_state[4],"\xc2\xb6")||contains(input,term_state[4],"\033"))return 32;}
+    type_keys(t,"\n");
+    if(term_wait(t,"PASTE_TWO",0,0))return 33;
+    if(term_wait(t,0,Z_TERMINAL_BUSY,0))return 34;
     if(zenith_terminal_resize(t,100))return 24;
     if(zenith_terminal_resize(t,5)!=-22)return 25;
     print("TERMINAL_PROBE_OK\n");

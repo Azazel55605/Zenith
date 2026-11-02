@@ -2,6 +2,7 @@
 import importlib.util
 from pathlib import Path
 import subprocess
+import tempfile
 import types
 import unittest
 from unittest.mock import Mock
@@ -32,6 +33,16 @@ class Tests(unittest.TestCase):
         self.assertEqual(['qemu-system-x86_64','-m','1G','-monitor'],argv[:4])
         self.assertTrue(argv[4].startswith('unix:') and argv[4].endswith(',server,nowait'))
         self.assertEqual(17,original.Popen.call_args.kwargs['stdout'])
+
+    def test_a_crashed_guest_is_reported_from_its_serial_log(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertIsNone(a.crash_report(directory))
+            log=Path(directory)/'installed';log.mkdir();log=log/'serial.log'
+            log.write_bytes(b'[zenith] fine\n')
+            self.assertIsNone(a.crash_report(directory))
+            log.write_bytes(b'[zenith] fine\n=====\nCPU EXCEPTION: Page Fault (#PF)\n  RIP: 0x0\nSystem halted.\n')
+            report=a.crash_report(directory)
+            self.assertIn('Page Fault',report);self.assertIn('RIP: 0x0',report);self.assertNotIn('fine',report)
 
     def test_bad_policy_and_incomplete_arguments_refused(self):
         with self.assertRaises(ValueError): a.arguments(['qemu'],'whatever')

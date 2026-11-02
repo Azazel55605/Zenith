@@ -91,6 +91,10 @@ def run_harness(script):
         input_profile.install_monitor(sys.modules['recovery_console'])
     started = time.monotonic()
     try: runpy.run_path(str(script), run_name='__main__')
+    except BaseException:
+        report = accelerator.crash_report(sys.argv[1]) if len(sys.argv) > 1 else None
+        if report: print('[validation] the guest kernel crashed; this is not a test timeout: ' + report, flush=True)
+        raise
     finally:
         importlib.machinery.SourceFileLoader.exec_module = original_exec
         subprocess.run = original_run
