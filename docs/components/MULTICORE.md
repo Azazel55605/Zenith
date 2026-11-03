@@ -42,24 +42,36 @@ adapter regressions and the full AP-enabled process/64-pipeline gate passed on t
 frozen C2 kernel. This establishes the execution-state foundation, not managed SMP.
 
 [Implementation, lock/credential audit and evidence](../archive/2026-11-03/per-cpu-execution-state.md).
-Managed scheduler state, raw foreground processes, services and the UI still admit
-only the BSP. A native reschedule IPI does not dispatch a managed thread. Per-CPU
-scheduler timer calibration, roots/GC barriers, exception-chain/TLS ownership and
-pinned managed dispatch must be qualified together in C3 before AP admission;
-C4 owns migration and general concurrent services.
+General scheduler dispatch, raw foreground processes, services and UI mutation
+still admit only the BSP. A native reschedule IPI does not dispatch a managed
+thread. C3 qualifies permanent pinned owners and their roots/GC, exception and
+TLS boundary below; C4 owns general scheduling, migration and concurrent services.
 
 ## C3 — Heap safety, then pinned managed work
 
-1. Cross-CPU allocation publication. `AllocationPublicationFixup.cs` currently
-   excludes BSP preemption using local IRQ masking, which does not exclude another
-   CPU. Preserve its object-header and array-length publication contracts.
-2. Stop-the-world epoch, register/stack root acknowledgements, failure policy and
-   safe resume. Existing conservative-root normalization is not a GC barrier.
-3. Pressure/fault/cancel tests with all participating CPU stacks, pinned/interior
-   references and allocation during collection requests.
-4. Pinned managed threads and explicitly owned jobs first. Publish complete frames
-   on the UI owner; compare equal-work output, process latency and responsive input
-   at 1/2/4 CPUs. Keep migration disabled.
+**Local foundation complete; distributor/installed acceptance pending.** The
+sealed pinned-job boundary includes shared publication/heap/metadata ownership,
+native stopped-root epochs, permanent TLS/TLAB/exception owners, managed frame
+jobs and a BSP-owned `fps cpu` preview. General scheduling/migration remain C4.
+413 controller tests, 846 host tests, 46 existing runtime regressions, 106 CPU
+checks, full C3 graphical/safety acceptance and the complete AP-enabled process
+sequence passed. [Frozen evidence and limits](../archive/2026-11-03/pinned-managed-workers.md).
+[Runtime contract](../MULTICORE.md#c3-pinned-managed-compute).
+
+1. Six object-header/length publication entries and seven unmanaged heap/page
+   entries share recursive native ownership with IRQ preservation.
+2. Native stop epochs require current register/work-stack acknowledgements before
+   mark/sweep. Missing roots refuse collection; admitted collector failures keep
+   the world stopped. Completed collections alone resume mutators.
+3. Pinned/interior references, allocation pressure, deferred requests, exceptions,
+   cancellation, failed APs and shutdown are exercised at 1/2/4 CPUs. Cold metadata
+   construction publishes keys last; UART/early-GOP output stays BSP-owned.
+4. Permanent pinned owners run fixed managed jobs without policy dispatch or
+   migration. Complete frame copies return to the UI owner. `fps cpu` presents an
+   independently checked frame; equal-work timings include dispatch and copying.
+   The full process gate keeps managed AP roots live through its fault/pipeline
+   sequence before checking reuse. A separate identical-payload 1/2/4-CPU
+   pipeline comparison records CLI latency with parked managed roots.
 
 Use `fps reset`, `fps bench`/`fps motion` and `fps` compose/present counters to
 separate composition from presentation. Compare identical resolution, effects,
@@ -68,7 +80,8 @@ performance result; the native pixel pilot is not the full GUI workload either.
 
 ## C4 — Migration and broad concurrency
 
-Migration/load balancing follows C2/C3. Audit credentials, service concurrency,
+Migration/load balancing follows C2/C3. Apply the pinned-job boundary to measured
+compositor/app workloads before broad migration. Audit credentials, service concurrency, centralized interrupt ownership,
 real I/O contention and recovery before considering default managed SMP.
 
 ## Source and acceptance

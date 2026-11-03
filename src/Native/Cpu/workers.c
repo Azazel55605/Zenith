@@ -23,7 +23,7 @@ struct task_state { u32 reserved; u64 rsp[3]; u64 reserved2; u64 ist[7]; u64 res
 struct gate { u16 low, selector; u8 ist, flags; u16 mid; u32 high, reserved; } __attribute__((packed));
 struct job {
     u64 token, state, cancel, released, kind, count, seed, rounds;
-    u64 start, end, result;
+    u64 start, end, result, managed_phase, managed_release;
     u32 pixels[PIXELS];
 };
 struct cpu {
@@ -39,8 +39,9 @@ struct cpu {
     u32 lock, head, tail, current;
     u64 ring[JOBS];
     struct job jobs[JOBS];
-    u8 work_stack[16384] __attribute__((aligned(16)));
+    u8 work_stack[262144] __attribute__((aligned(16)));
     u8 irq_stack[8192] __attribute__((aligned(16)));
+    u8 gc_stack[8192] __attribute__((aligned(16)));
     u8 fault_stack[8192] __attribute__((aligned(16)));
 } __attribute__((aligned(64)));
 _Static_assert(__builtin_offsetof(struct cpu, stack)==8, "AP stack ABI");
@@ -51,16 +52,20 @@ _Static_assert(__builtin_offsetof(struct cpu, idtr)==90, "AP IDT ABI");
 _Static_assert(sizeof(struct task_state)==104, "x64 TSS layout");
 static struct cpu cpus[CPUS];
 static struct gate idt[256] __attribute__((aligned(16)));
-static u64 count, hhdm, stopping, sequence;
+static u64 count, hhdm, stopping, sequence, managed_callback, completion_signals;
 #ifdef ZENITH_CPU_HOST_TEST
 static u64 host_pause, host_seen;
 #endif
 #ifndef ZENITH_CPU_HOST_TEST
+extern u64 zenith_gc_managed_enter(void);
+extern u64 zenith_gc_managed_leave(void);
+extern void zenith_gc_fail_stop(void);
 extern u64 zenith_execution_test(void);
 extern void zenith_cpu_ap_entry(void);
 extern void zenith_cpu_wake_entry(void);
 extern void zenith_cpu_reschedule_entry(void);
 extern void zenith_cpu_timer_entry(void);
+extern void zenith_gc_stop_entry(void);
 extern void zenith_cpu_spurious_entry(void);
 extern u64 zenith_cpu_fault_entries[256];
 extern u64 zenith_cpu_mp_response(void);
@@ -119,8 +124,12 @@ static int signal_cpu(struct cpu *c,u32 vector) {
     (void)vector; __atomic_fetch_add(&c->wakes,1,__ATOMIC_RELAXED);
     return 1;
 #else
-    struct cpu *b=&cpus[0];
-    /* x2APIC WRMSR may pass earlier memory stores. Publish queue/stop state before
+    u32 sender=zenith_cpu_logical_id();
+    if(sender>=count) return 0;
+    struct cpu *b=&cpus[sender];
+    /* The ICR belongs to the executing sender, including AP->BSP completion
+     * notifications. Never assume the BSP's APIC mode/base describes this CPU.
+     * x2APIC WRMSR may pass earlier memory stores. Publish queue/stop state before
      * the doorbell, even on machines where a plain WRMSR is not serializing. */
     __asm__ volatile("mfence":::"memory");
     if (b->x2) {
@@ -155,7 +164,8 @@ static void configure(struct cpu *c,u64 id,u64 cr3) {
     c->gdtr=(struct descriptor){39,(u64)c->gdt};
     c->idtr=(struct descriptor){4095,(u64)idt};
     c->tss.rsp[0]=c->stack; c->tss.ist[0]=(u64)(c->irq_stack+sizeof(c->irq_stack));
-    c->tss.ist[1]=(u64)(c->fault_stack+sizeof(c->fault_stack)); c->tss.iomap=104;
+    c->tss.ist[1]=(u64)(c->fault_stack+sizeof(c->fault_stack));
+    c->tss.ist[2]=(u64)(c->gc_stack+sizeof(c->gc_stack)); c->tss.iomap=104;
     c->current=JOBS;
 }
 u64 zenith_cpu_detected(void) {
@@ -177,6 +187,7 @@ u64 zenith_cpu_initialize(u64 offset) {
     make_gate(WAKE,(u64)zenith_cpu_wake_entry,1);
     make_gate(0xf3,(u64)zenith_cpu_reschedule_entry,1);
     make_gate(0xf4,(u64)zenith_cpu_timer_entry,1);
+    make_gate(0xf5,(u64)zenith_gc_stop_entry,3);
     make_gate(255,(u64)zenith_cpu_spurious_entry,1);
     configure(&cpus[0],r->bsp,root());
     u64 base=msr(0x1b); cpus[0].x2=(base>>10)&1; cpus[0].apic_base=hhdm+(base&0xfffff000ULL);
@@ -255,7 +266,7 @@ static struct cpu *lookup(u64 token,struct job **out) {
 u64 zenith_cpu_enqueue(u64 index,u64 kind,u64 n,u64 seed,u64 rounds,u64 held) {
     u64 f=irq_off(),token=0;
     if (identity()!=cpus[0].actual||LOAD(stopping)||index==0||index>=count||
-        kind<1||kind>4||!n||n>(kind==1?100000000ULL:PIXELS)||!rounds||rounds>128) goto end;
+        kind<1||kind>5||(kind==5&&!LOAD(managed_callback))||!n||n>(kind==1?100000000ULL:PIXELS)||!rounds||rounds>128) goto end;
     struct cpu *c=&cpus[index];
     if (!lock_cpu(c)) goto end;
     u64 state=LOAD(c->state);
@@ -266,7 +277,7 @@ u64 zenith_cpu_enqueue(u64 index,u64 kind,u64 n,u64 seed,u64 rounds,u64 held) {
     struct job *j=&c->jobs[i];
     token=(++sequence<<6)|(index*JOBS+i);
     j->token=token; j->cancel=0; j->released=!held; j->kind=kind; j->count=n;
-    j->seed=seed; j->rounds=rounds; j->start=j->end=j->result=0;
+    j->seed=seed; j->rounds=rounds; j->start=j->end=j->result=j->managed_phase=j->managed_release=0;
     STORE(j->state,QUEUED);
     c->ring[c->tail%JOBS]=token; STORE(c->tail,c->tail+1);
 unlock:
@@ -290,6 +301,7 @@ u64 zenith_cpu_job(u64 token,u64 field) {
         if (field==1) v=LOAD(j->result);
         if (field==2) v=LOAD(j->start);
         if (field==3) v=LOAD(j->end);
+        if (field==4) v=LOAD(j->managed_phase);
         unlock_cpu(c);
     }
     irq_restore(f); return v;
@@ -303,16 +315,46 @@ u64 zenith_cpu_control(u64 token,u64 action) {
     if (!c) goto end;
     if (action==0&&LOAD(j->state)<=RUNNING) { STORE(j->cancel,1); ok=1; }
     if (action==1&&LOAD(j->state)<=RUNNING) { STORE(j->released,1); ok=1; }
+    if (action==3&&j->kind==5&&LOAD(j->state)==RUNNING) { STORE(j->managed_release,1);ok=1; }
     if (action==2&&LOAD(j->state)>=DONE) { STORE(j->state,FREE); ok=1; }
     unlock_cpu(c);
-    if (ok&&action<2) wake(c);
+    if (ok&&action!=2) wake(c);
 end:
     irq_restore(f); return ok;
+}
+/* Short BSP-owned compute waits keep the current thread until an ordinary
+ * completion interrupt (with the existing BSP timer as a fallback), rather than enqueueing a
+ * 1ms sleep that only runs again after an entire scheduler quantum. No spin,
+ * no AP managed scheduler callback and no change to general sleep semantics. */
+u64 zenith_cpu_wait_interrupt(u64 token) {
+    u64 flags=irq_off();struct job *j;struct cpu *c=lookup(token,&j);
+    if(!c||identity()!=cpus[0].actual) {if(c)unlock_cpu(c);irq_restore(flags);return 0;}
+    u64 terminal=LOAD(j->state)>=DONE;unlock_cpu(c);
+#ifndef ZENITH_CPU_HOST_TEST
+    if(!terminal&&(flags&0x200))__asm__ volatile("sti; hlt; cli":::"memory");
+#endif
+    irq_restore(flags);return terminal||((flags&0x200)!=0);
 }
 u64 zenith_cpu_pixel(u64 token,u64 index) {
     u64 f=irq_off(),v=0; struct job *j; struct cpu *c=lookup(token,&j);
     if (c) { if (LOAD(j->state)==DONE&&j->kind==2&&index<j->count) v=j->pixels[index]; unlock_cpu(c); }
     irq_restore(f); return v;
+}
+/* Trusted C3 frame bridge. A private managed frame is copied only after its
+ * computation completes; BSP readers require terminal success and exact length.
+ * No pointer/reference is retained in a descriptor or exposed to clients. */
+u64 zenith_cpu_managed_pixels(u64 token,u32 *buffer,u64 length,u64 publish) {
+    u64 flags=irq_off(),ok=0;struct job *j;struct cpu *c=lookup(token,&j);
+    if(c) {
+        if(buffer&&length==j->count&&length<=PIXELS&&j->kind==5&&j->rounds==4&&
+            ((publish==1&&c->actual==identity()&&LOAD(j->state)==RUNNING)||
+             (publish==0&&cpus[0].actual==identity()&&LOAD(j->state)==DONE))) {
+            for(u64 i=0;i<length;i++) {if(publish)j->pixels[i]=buffer[i];else buffer[i]=j->pixels[i];}
+            ok=1;
+        }
+        unlock_cpu(c);
+    }
+    irq_restore(flags);return ok;
 }
 static int cancelled(struct job *j) { return LOAD(stopping)||LOAD(j->cancel); }
 static u32 blend(u32 p,u32 round) {
@@ -356,6 +398,16 @@ static void execute(struct job *j) {
             if ((p&255)==0&&cancelled(j)) goto complete;
             result=(result^j->pixels[p])*0x100000001b3ULL;
         }
+    } else if (j->kind==5) {
+#ifndef ZENITH_CPU_HOST_TEST
+        if (!zenith_gc_managed_enter()) { STORE(j->state,FAULTED);return; }
+        __asm__ volatile("sti":::"memory");
+        result=((u64(*)(u64,u64,u64,u64,u64))LOAD(managed_callback))
+            (zenith_cpu_logical_id(),j->count,j->seed,j->rounds,j->token);
+        __asm__ volatile("cli":::"memory");
+        if (!zenith_gc_managed_leave()) zenith_gc_fail_stop();
+        if (result==~0ULL) { STORE(j->end,ticks());STORE(j->result,result);STORE(j->state,FAULTED);return; }
+#endif
     } else if (j->kind==4) {
 #ifndef ZENITH_CPU_HOST_TEST
         result=zenith_execution_test() | ((u64)zenith_cpu_logical_id()<<32);
@@ -417,10 +469,113 @@ __attribute__((noreturn)) void zenith_cpu_worker(struct cpu *c) {
             sleep_worker(c); continue;
         }
         while (!LOAD(j->released)&&!cancelled(j)) sleep_worker(c);
-        execute(j); __atomic_fetch_add(&c->completed,1,__ATOMIC_RELAXED); c->current=JOBS;
+        /* A terminal publication lets BSP reap/reuse this descriptor. Capture
+         * the notification kind while RUNNING still owns it; never reread job
+         * fields after execute() publishes terminal state. */
+        int managed=j->kind==5;
+        execute(j);
+        if(managed)signal_cpu(&cpus[0],0xf6);
+        __atomic_fetch_add(&c->completed,1,__ATOMIC_RELAXED); c->current=JOBS;
     }
 }
 #endif
+#ifndef ZENITH_CPU_HOST_TEST
+u64 zenith_cpu_gc_notify(u64 mask) {
+    u64 sent=0;
+    for (u32 i=1;i<count;i++)
+        if ((mask&(1ULL<<i))&&!LOAD(cpus[i].halted)&&signal_cpu(&cpus[i],0xf5)) sent|=1ULL<<i;
+    return sent;
+}
+void zenith_cpu_gc_eoi(void) {
+    u32 cpu=zenith_cpu_logical_id();
+    if (cpu>0&&cpu<count) apic_write(&cpus[cpu],0xb0,0);
+}
+#endif
+#ifndef ZENITH_CPU_HOST_TEST
+extern void irq246_stub(void);
+extern void zenith_cpu_completion_entry(void);
+/* Reserve an otherwise unused BSP vector only when the pinned original gate
+ * matches exactly. Never overwrite an unknown handler or introduce a managed
+ * callback on an AP. The native doorbell just wakes a halted BSP waiter. */
+static int install_completion(void) {
+    u64 flags=irq_off();struct descriptor table;u16 selector;
+    __asm__ volatile("sidt %0":"=m"(table));
+    __asm__ volatile("mov %%cs,%0":"=r"(selector));
+    int ok=0;
+    if(table.address&&table.limit==4095) {
+        struct gate *gate=&((struct gate*)table.address)[0xf6];
+        u64 original=(u64)gate->low|((u64)gate->mid<<16)|((u64)gate->high<<32);
+        if(original==(u64)irq246_stub&&gate->selector==selector&&gate->flags==0x8e&&gate->ist==0) {
+            u64 address=(u64)zenith_cpu_completion_entry;
+            gate->low=(u16)address;gate->mid=(u16)(address>>16);gate->high=(u32)(address>>32);
+            __asm__ volatile("mfence":::"memory");ok=1;
+        } else if(original==(u64)zenith_cpu_completion_entry&&gate->selector==selector&&gate->flags==0x8e&&gate->ist==0)ok=1;
+    }
+    irq_restore(flags);return ok;
+}
+void zenith_cpu_completion_eoi(void) {
+    __atomic_fetch_add(&completion_signals,1,__ATOMIC_RELAXED);
+    apic_write(&cpus[0],0xb0,0);
+}
+#endif
+/* A single trusted kernel UCO entry, registered once on the BSP after its
+ * permanent scheduler/TLS/TLAB owners exist. This is not a client callback API. */
+u64 zenith_cpu_managed_callback(u64 address) {
+    if (identity()!=cpus[0].actual||LOAD(stopping)||!count||address<0xffff800000000000ULL) return 0;
+    u64 existing=LOAD(managed_callback);
+    if (existing&&existing!=address) return 0;
+#ifndef ZENITH_CPU_HOST_TEST
+    if(!install_completion())return 0;
+#endif
+    STORE(managed_callback,address);return 1;
+}
+u64 zenith_cpu_managed_trace(u64 token,u64 phase) {
+    u64 flags=irq_off(),ok=0;struct job *j;struct cpu *c=lookup(token,&j);
+    if(c) {if(c->actual==identity()&&j->kind==5&&LOAD(j->state)==RUNNING) {STORE(j->managed_phase,phase);ok=1;}unlock_cpu(c);}
+    irq_restore(flags);return ok;
+}
+u64 zenith_cpu_managed_checkpoint(u64 token) {
+    u64 flags=irq_off();struct job *j;struct cpu *c=lookup(token,&j);
+    if (!c) {irq_restore(flags);return 0;}
+    int valid=c->actual==identity()&&j->kind==5&&LOAD(j->state)==RUNNING;
+    if(valid)STORE(j->managed_phase,100);
+    unlock_cpu(c);
+    if(!valid){irq_restore(flags);return 0;}
+    while(!LOAD(j->managed_release)&&!cancelled(j)) {
+#ifndef ZENITH_CPU_HOST_TEST
+        park();
+#else
+        pause_cpu();
+#endif
+    }
+    u64 ok=!cancelled(j);irq_restore(flags);return ok;
+}
+/* Permanent descriptor storage, borrowed only until this callback returns.
+ * The trusted managed loop reads this atomic word; it never retains/publishes it.
+ * Stop also sets every job cancel word before waiting for halt acknowledgement. */
+u64 zenith_cpu_managed_fault(u64 token) {
+    u64 flags=irq_off(),valid=0;struct job *j;struct cpu *c=lookup(token,&j);
+    if(c){valid=c->actual==identity()&&j->kind==5&&j->rounds==6&&LOAD(j->state)==RUNNING;unlock_cpu(c);}
+    if(valid) {
+#ifndef ZENITH_CPU_HOST_TEST
+        __asm__ volatile("ud2");
+#endif
+    }
+    irq_restore(flags);return 0;
+}
+u64 zenith_cpu_managed_cancel_word(u64 token) {
+    u64 flags=irq_off(),address=0;struct job *j;struct cpu *c=lookup(token,&j);
+    if(c) {if(c->actual==identity()&&j->kind==5&&LOAD(j->state)==RUNNING)address=(u64)&j->cancel;unlock_cpu(c);}
+    irq_restore(flags);return address;
+}
+u64 zenith_cpu_managed_cancelled(u64 token) {
+    u64 f=irq_off(),result=1;struct job *j;struct cpu *c=lookup(token,&j);
+    if(c) {
+        if (c->actual==identity()&&j->kind==5&&LOAD(j->state)==RUNNING) result=cancelled(j);
+        unlock_cpu(c);
+    }
+    irq_restore(f);return result;
+}
 u64 zenith_cpu_reschedule(u64 index) {
     u64 flags=irq_off(),ok=0;
     if (identity()==cpus[0].actual&&!LOAD(stopping)&&index>0&&index<count&&
@@ -429,7 +584,10 @@ u64 zenith_cpu_reschedule(u64 index) {
 }
 void zenith_cpu_stop(void) {
     u64 f=irq_off(); STORE(stopping,1);
-    for (u32 i=1;i<count;i++) if (!LOAD(cpus[i].halted)) wake(&cpus[i]);
+    for (u32 i=1;i<count;i++) {
+        for(u32 j=0;j<JOBS;j++)STORE(cpus[i].jobs[j].cancel,1);
+        if(!LOAD(cpus[i].halted))wake(&cpus[i]);
+    }
     irq_restore(f);
 }
 u64 zenith_cpu_field(u64 index,u64 field) {
@@ -444,6 +602,9 @@ u64 zenith_cpu_field(u64 index,u64 field) {
         case 15:return LOAD(c->fault_stack_ok); case 16:return LOAD(c->irq_stack_errors);
         case 17:return LOAD(c->ipi_errors); case 18:return c->x2;
         case 19:return LOAD(c->timer_ticks); case 20:return LOAD(c->reschedules);
+        case 21:return (u64)c->work_stack;case 22:return sizeof(c->work_stack);
+        case 23:return (u64)c->gc_stack;case 25:return LOAD(completion_signals);
+        case 24:return sizeof(c->gc_stack);
         default:return 0;
     }
 }

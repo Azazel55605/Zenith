@@ -60,10 +60,23 @@ def adapt(source):
         if name in source: raise RuntimeError('Shared IRQ scratch reference remains: '+name)
     return '// Zenith C2: signature-checked per-CPU IRQ state; see docs/MULTICORE.md\n'+source
 
+def adapt_exceptions(source):
+    expected='db1d8dc08fc54d055e330fb3184d1ccd8c291b95e1b1427b008a3dd2634f3db5'
+    if hashlib.sha256(source.encode()).hexdigest()!=expected:
+        raise RuntimeError('Cosmos 3.0.89 exception source changed; refusing CPU-chain adaptation')
+    if source.count('    lea     rax, [rip + __cosmos_exinfo_stack_head]')!=2 or source.count('    lea     r11, [rip + __cosmos_exinfo_stack_head]')!=1:
+        raise RuntimeError('Cosmos exception chain access contract changed')
+    source=source.replace('    lea     rax, [rip + __cosmos_exinfo_stack_head]',
+                          '    call    zenith_execution_exception_slot')
+    source=source.replace('    lea     r11, [rip + __cosmos_exinfo_stack_head]',
+                          '    push    rax\n    call    zenith_execution_exception_slot\n    mov     r11, rax\n    pop     rax')
+    source=source.replace('.global __cosmos_exinfo_stack_head\n__cosmos_exinfo_stack_head: .quad 0','')
+    return '// Zenith C3: CPU-owned exception chain for pinned execution.\n'+source
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('source',type=Path);p.add_argument('output',type=Path);a=p.parse_args()
-    result=adapt(a.source.read_text())
+    result=(adapt_exceptions if a.source.name=='ExceptionHandling.s' else adapt)(a.source.read_text())
     a.output.parent.mkdir(parents=True,exist_ok=True)
     if not a.output.exists() or a.output.read_text()!=result:a.output.write_text(result)
 if __name__=='__main__':main()

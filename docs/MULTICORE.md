@@ -8,26 +8,29 @@ contract; [component steps](components/MULTICORE.md) own implementation detail.
 The x64 boot argument `smp=native` starts **isolated native workers**. Ordinary
 boots leave them disabled. Up to eight CPUs including the BSP participate; Limine
 MP revision 0 supplies topology and AP entry. Legacy APIC IDs above 255 are excluded.
-This is not managed SMP: managed scheduling, GC, device/filesystem services, the
+C3 adds explicitly admitted pinned managed compute jobs. General managed scheduling, GC collection, device/filesystem services, the
 trusted UI owner and the protected foreground application bridge stay on the BSP.
 Additional vCPUs alone do not distribute ordinary application work.
 
 The AP runtime is `src/Native/Cpu/workers.c`, entered through
-`src/Native/x64/CpuWorkers.s`. It never allocates, enters managed code, retains GC
-references, invokes application syscalls, writes UART or accesses disks/network.
+`src/Native/x64/CpuWorkers.s`. The native runtime never allocates or retains GC references, invokes application
+syscalls, writes UART or accesses disks/network. C3 may register one trusted
+managed callback after its permanent owners and GC protocol are ready; ordinary
+native jobs do not enter that callback.
 `tools/build-cpu.py` builds freestanding general-registers-only code, with no red
 zone or host-library dependency. Import and instruction regressions are host-tested.
 Nothing edits the installed Cosmos packages or sibling upstream checkout.
 
 ## CPU ownership and interrupt-driven idle
 
-Each AP has a permanent 16 KiB work stack, private GDT/TSS, 8 KiB interrupt stack
-(IST1) and 8 KiB fault stack (IST2). Its IDT uses a shared immutable native table.
+Each AP has a permanent 256 KiB work stack, private GDT/TSS, 8 KiB interrupt stack
+(IST1), 8 KiB fault stack (IST2) and 8 KiB GC stop stack (IST3). Its IDT uses a shared immutable native table.
 APs share the BSP kernel CR3 but never the managed scheduler/interrupt dispatch.
 Their local device/timer LVT entries are masked. Wake vector `0xf1` and spurious
 vector `0xff` have native-only handlers; the spurious path issues no EOI.
 
-AP code runs with IF clear. Empty queues and held jobs recheck their predicates
+Native AP queue code runs with IF clear. The admitted managed callback runs with
+IF enabled so a native stop IPI can capture its roots. Empty queues and held jobs recheck their predicates
 with IF clear, then use **`sti; hlt; cli`**. The STI interrupt shadow includes HLT:
 a publication/IPI in the check-to-sleep window stays pending and wakes the halted
 worker. Pending notifications may coalesce; queue/release/cancel/stop state is
@@ -125,7 +128,7 @@ immutable tags retain their original harness behavior. All existing independent
 storage/package/UI gates remain mandatory; no successful result is manufactured.
 
 [Local evidence and limits](archive/2026-11-03/native-worker-queues.md).
-Managed AP threads, allocator/GC barriers and migration remain **C2–C4**.
+C3 extends this foundation as described below; migration remains **C4**.
 
 ## C2 execution-state boundary
 
@@ -153,3 +156,80 @@ is written. Existing raw process serialization remains required. The
 [C2 audit](archive/2026-11-03/per-cpu-execution-state.md) records locks, credentials,
 TLS, exception-chain and GC restrictions; C3 must satisfy these before it admits
 managed APs. The ARM64 path remains uniprocessor and has no new AP admission.
+
+## C3 pinned managed compute
+
+Activation remains `smp=native`; it does not distribute arbitrary apps, services,
+raw process entry or UI objects. Only a fixed kernel-owned compute entry can be
+registered. Scalar job descriptors never retain a managed reference or delegate.
+The BSP prewarms supported code and registers a permanent pinned scheduler owner
+for every AP, with private thread-static storage, exception chain and TLAB. Those
+owners never enter the general scheduler policy or migrate. Its bootstrap now
+creates **one real BSP idle owner**, instead of the pinned runtime's dormant
+physical-count idle records. Physical topology reporting remains unchanged.
+
+All six allocation/header publication entries and seven unmanaged heap/page
+entries share a recursive native ownership gate with IRQ preservation. Heap
+reservation alone is insufficient: method tables and array lengths must be visible
+before another CPU can collect. The BSP is the sole collector. It selects active
+managed participants under that gate, issues a new stop epoch and requires every
+participant's register/work-stack acknowledgement for that exact epoch. The native
+F5 handler uses IST3 and never enters managed code. Publication waiters with IF
+clear cooperate through an explicit native poll instead of blocking the collector.
+The scanner uses those validated snapshots, not the BSP's current RSP for an AP.
+Resume follows a fully completed collection. A collector exception after admission
+may have changed mark/free metadata: it keeps the heap locked, quarantines stopped
+APs through their fault ISTs and fail-stops the BSP; it never resumes mutators.
+
+Unknown CPU identity, missing/invalid snapshots or a failed stop notification
+refuse collection **before mark/sweep**. A faulted AP's storage and roots remain
+reserved; collection stays refused until reboot rather than freeing unobserved
+references. A fault while owning the heap gate may require fail-stop; no attempt
+repairs an interrupted allocator. Managed job exceptions can instead be caught,
+reported and reaped without retiring that owner. Native exception links and catch
+scratch are per registered thread, including BSP workers across preemption. Shared
+exception-name metadata is serialized with publication ownership and publishes a
+cache key only after its resolver is complete. Its constructors may not leave a
+visible placeholder on failure. All early serial/GOP writers remain BSP-owned;
+an unhandled AP dispatch failure uses the private native fault path.
+
+AP-requested collection is deferred to the BSP pump. Fixed jobs are bounded and
+can report allocation failure; this is not a general AP OOM/retry scheduler.
+No AP code may create threads, block on managed monitors, call device/filesystem
+services, acquire another owner's mutable state or mutate the UI. GC remains
+nonmoving/conservative. Baseline x87/SSE preservation does not imply AVX support.
+
+Managed image jobs use private arrays, then copy a complete tile into descriptor-
+owned native storage. BSP reads require terminal success and exact dimensions;
+cancelled, partial, faulted and stale-token frames are unavailable. Only the BSP
+assembles a complete display frame and opens/paints its diagnostic window. The
+`fps cpu` request runs on the UI tick; the AP never owns a Window or Surface.
+This is a measured pilot, not parallelization of the entire compositor.
+
+Short compute waits use a native-only BSP F6 completion doorbell and an
+interrupt-shadow-safe predicate/HLT path. Registration requires the original
+pinned IRQ246 gate to match before replacement. The handler preserves GPRs, uses
+no FP or managed code, acknowledges APIC and returns without scheduler dispatch.
+The existing BSP timer is a fallback, not a fabricated completion acknowledgement.
+Ordinary sleeps retain their semantics. A callback borrows its permanent cancel
+word only until return; shutdown publishes cancellation before waiting for halt.
+
+Diagnostics (root, opt-in):
+
+- `cpu managed-test`: retained chains, interior/POH references, allocation with
+  repeated collection epochs, TLS/credential isolation, exceptions, cancellation
+  and live BSP FP state across completion interrupts.
+- `cpu managed-image-test`: identical pixels and work at 1/2/4 CPUs, with elapsed
+  time including dispatch, completion waits and complete-frame copying.
+- `fps cpu`: display a complete managed frame through the trusted UI owner.
+- `cpu managed-hold` / `cpu managed-release`: park a retained-root diagnostic
+  batch while BSP services run, then verify and reap it. Poweroff cancels it.
+- `cpu managed-fault-test`: **disposable boots only**. Permanently faults an AP,
+  proves missing roots refuse collection, and checks BSP/healthy sibling operation.
+  Shut down or reboot afterward; normal reclamation remains unavailable.
+
+The mandatory `native-managed-smoke.py` gate checks equal-work frames, actual
+rendered pixels against an independent scalar oracle, focused input and shutdown.
+The process gate retains managed AP roots through its foreground process and
+64-pipeline/fault sequence. Distributor/installed, KVM/VMware and physical evidence
+remain separate from local TCG observations.

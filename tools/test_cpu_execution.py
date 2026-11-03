@@ -33,6 +33,12 @@ class ExecutionTests(unittest.TestCase):
 zenith_cpu_mp_response:
     lea response(%rip),%rax
     ret
+.globl host_unaligned_exception_slot
+host_unaligned_exception_slot:
+    call zenith_execution_exception_slot
+    ret
+.globl zenith_exception_head
+zenith_exception_head: xor %eax,%eax; ret
 .globl zenith_cpu_timer_probe
 zenith_cpu_timer_probe: xor %eax,%eax; ret
 .globl _native_set_context_switch_sp
@@ -65,6 +71,22 @@ response: .quad 0
         self.assertIn(' U zenith_execution_slot',self.symbols)
         for symbol in ('irq0_stub','irq255_stub','_native_get_context_switch_sp','_native_x64_get_last_error_code'):
             self.assertIn(symbol,self.symbols)
+
+    def test_exception_source_drift_refused_and_global_chain_removed(self):
+        source=SOURCE.with_name('ExceptionHandling.s');original=source.read_text()
+        changed=adapter.adapt_exceptions(original)
+        code='\n'.join(line.split('//',1)[0] for line in changed.splitlines())
+        self.assertNotIn('__cosmos_exinfo_stack_head',code)
+        self.assertEqual(changed.count('call    zenith_execution_exception_slot'),3)
+        self.assertEqual(source.read_text(),original)
+        with self.assertRaisesRegex(RuntimeError,'exception source changed'):
+            adapter.adapt_exceptions(original+'\n')
+
+    def test_exception_slot_saves_fp_at_both_native_stack_alignments(self):
+        self.lib.zenith_execution_exception_slot.restype=ct.c_void_p
+        self.lib.host_unaligned_exception_slot.restype=ct.c_void_p
+        self.assertIsNone(self.lib.zenith_execution_exception_slot())
+        self.assertIsNone(self.lib.host_unaligned_exception_slot())
 
     def test_slot_is_stable_and_cache_line_aligned(self):
         if hasattr(os,'sched_getaffinity'):

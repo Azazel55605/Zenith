@@ -218,3 +218,41 @@ zenith_execution_fp_preempt_test:
     pop %rbx
     ret
 .size zenith_execution_fp_preempt_test,.-zenith_execution_fp_preempt_test
+
+.text
+# Preserve every caller register and FP state around the allocation-free managed
+# getter. The returned address belongs to the registered scheduler thread, not
+# merely its CPU, so BSP preemption cannot splice two exception chains together.
+.globl zenith_execution_exception_slot
+zenith_execution_exception_slot:
+    push %rbx
+    push %rcx
+    push %rdx
+    push %rsi
+    push %rdi
+    push %r8
+    push %r9
+    push %r10
+    push %r11
+    pushfq
+    # EH sites are not all ordinary ABI call boundaries. Align dynamically and
+    # retain the exact saved-register stack before calling the managed getter.
+    mov %rsp,%r11
+    and $-16,%rsp
+    sub $528,%rsp
+    mov %r11,512(%rsp)
+    fxsave64 (%rsp)
+    call zenith_exception_head
+    fxrstor64 (%rsp)
+    mov 512(%rsp),%rsp
+    popfq
+    pop %r11
+    pop %r10
+    pop %r9
+    pop %r8
+    pop %rdi
+    pop %rsi
+    pop %rdx
+    pop %rcx
+    pop %rbx
+    ret

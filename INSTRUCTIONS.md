@@ -114,22 +114,36 @@ never infer current failures from old release logs or claim a menu stub is a bac
 - Opt-in x64 `smp=native` starts isolated native integer workers (docs/MULTICORE.md).
   The x64 IDT loader must preserve IF: Cosmos 3.0.89's premature STI is redirected
   in signature-checked build copies. Keep installed UEFI startup/IRQ-state checks.
-  Managed scheduling/GC, drivers and the foreground process bridge stay on the BSP.
-  APs own static queues, private GDT/TSS/work/IST stacks and owned pixel buffers,
-  never managed objects or UART. Keep the IF-clear predicate recheck / STI-HLT
+  General managed scheduling, collection, drivers and the foreground process bridge
+  stay on the BSP. APs own static queues, private GDT/TSS/work/IST stacks and owned
+  pixel buffers. C3 admits only a fixed trusted managed entry after the complete
+  runtime contract is sealed: permanent pinned TLS/TLAB/exception owners, shared
+  allocation/heap/metadata ownership and acknowledged native stopped-root epochs.
+  No AP may mutate the UI, use UART/early GOP, perform device/service calls, create
+  arbitrary threads or migrate. Frames cross back only as complete owned copies.
+  Keep the IF-clear predicate recheck / STI-HLT
   wake protocol, fenced targeted IPIs, bounded admission and generation-token
   ownership. Completed jobs retain capacity until reaped; failed queues stay
   reserved. Cancellation completion is distinct from checksum success; stop admission
   permanently and require AP halt acknowledgement before disk shutdown. Preserve
   default-disabled boots and 1/2/4-CPU acceptance; do not enable
-  managed AP execution before per-CPU context and GC synchronization are implemented.
+  general managed AP execution from CPU count alone. Preserve the mandatory CPU
+  and managed gates, including cold exception dispatch, pinned/interior roots,
+  repeated real collection, fault/cancel, exact rendered frames and input.
   C2 adapts only signature-checked build copies of x64 IRQ code: CPU-local switch
   and error slots, stack-local return temporary and full baseline 512-byte FXSAVE.
   Keep native frame offsets, managed ThreadContext initialization/layout and both
   IRQ scheduler RSP derivations synchronized. Preserve hardware logical CPU IDs,
   early non-BSP raw-process refusal and read-only diagnostics for old/new frames.
   Native AP timer/reschedule handlers must not enter managed code; periodic managed
-  dispatch remains blocked on C3 allocation/GC, TLS and exception ownership.
+  dispatch and migration remain C4; C3 supplies ownership only for fixed pinned jobs.
+  Metadata cache keys publish after complete construction under the shared gate.
+  A missing root acknowledgement refuses collection before marking/sweeping; a
+  collector failure after admission keeps the world stopped and fail-stops rather
+  than resuming on partially changed heap metadata. Shared early serial/GOP writes
+  stay BSP-only, and unhandled AP failures use the private native fault IST.
+  The BSP completion doorbell must match the pinned original vector before install;
+  choose APIC mode/base from the executing sender, including AP-to-BSP delivery.
 - GUI input must periodically drain registered mice before sampling coordinates,
   even if a virtio notification was missed. Keep polling IRQ-scoped on the BSP,
   restore prior flags on success/exception, bound virtio drains to 64 events and

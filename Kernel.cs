@@ -68,6 +68,7 @@ public class Kernel : Sys.Kernel
                 Log.Write("memory", "pressure collection: free pages " + before + " -> " + MemoryInfo.FreePages);
             }
 
+            Zenith.Core.Multiprocessing.ManagedCpuJobs.PumpRequests();
             Zenith.Core.Network.NetworkService.Tick();
             if (!SessionDisplay.ServeFarewell()) { SessionRuntime.Tick(); }
         }

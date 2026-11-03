@@ -59,6 +59,7 @@ internal sealed class Desktop
     private volatile bool _motionTestRequested;
     private string? _motionName;
     private volatile bool _benchRequested;
+    private volatile bool _cpuPreviewRequested;
     private const int BenchFrames = 30;
 
     public Desktop(Canvas screen)
@@ -85,13 +86,17 @@ internal sealed class Desktop
 
         TerminalWindow.OpenApp = OpenApp;
         FileManagerWindow.OpenApp = OpenApp;
-        CommandShell.Register(new Command("fps", "fps [reset|motion|bench]", "Show compositor statistics", c =>
+        CommandShell.Register(new Command("fps", "fps [reset|motion|bench|cpu]", "Show compositor statistics", c =>
         {
             if (c.Args.Length == 1 && c.Args[0] == "reset") { FrameStats.ResetWindow(); return 0; }
             // The desktop tick owns the windows, so the test runs there and reports to the log.
             if (c.Args.Length == 1 && c.Args[0] == "motion") { _motionTestRequested = true; return 0; }
+            if (c.Args.Length == 1 && c.Args[0] == "cpu")
+            {
+                GuardedFilesystem.RequireRoot(); _cpuPreviewRequested = true; return 0;
+            }
             if (c.Args.Length == 1 && c.Args[0] == "bench") { _benchRequested = true; return 0; }
-            if (c.Args.Length != 0) { return c.Fail("usage: fps [reset|motion|bench]"); }
+            if (c.Args.Length != 0) { return c.Fail("usage: fps [reset|motion|bench|cpu]"); }
             c.WriteLine("frames presented: " + FrameStats.Frames + ", scene composes: " + FrameStats.SceneComposes);
             c.WriteLine("last compose: " + FrameStats.LastComposeMicros + " us, last present: " + FrameStats.LastPresentMicros + " us");
             c.WriteLine("display: " + _screen.Name + " " + _screen.Width + "x" + _screen.Height);
@@ -209,6 +214,18 @@ internal sealed class Desktop
             _sceneDirty = true;
         }
 
+        if (_cpuPreviewRequested)
+        {
+            _cpuPreviewRequested = false;
+            try
+            {
+                uint[] pixels = Zenith.Core.Multiprocessing.CpuWorkers.RenderManagedPreview(out int cpus, out long micros);
+                Windows.Open(new CpuFramePreview(pixels, cpus, micros));
+                Zenith.Core.Log.Write("cpu", "UI owner published complete managed frame; cpus=" + cpus + " elapsed-us=" + micros);
+                _sceneDirty = true;
+            }
+            catch (System.Exception error) { Zenith.Core.Log.Write("cpu", "frame preview refused: " + error.Message); }
+        }
         if (_benchRequested) { _benchRequested = false; RunBench(); _sceneDirty = true; }
         if (_motionTestRequested) { _motionTestRequested = false; StartMotionTest(); }
         StartTransition();

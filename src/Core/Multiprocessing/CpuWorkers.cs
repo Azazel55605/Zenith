@@ -13,6 +13,7 @@ internal static class CpuWorkers
 {
     private static readonly object s_gate = new();
     private static int s_count;
+    private static ulong[]? s_heldManaged;
     private static volatile bool s_stopping;
     [DllImport("*", EntryPoint = "zenith_cpu_detected"), SuppressGCTransition]
     private static extern ulong Detected();
@@ -59,6 +60,7 @@ internal static class CpuWorkers
         do
         {
             if (ready()) { return true; }
+            ManagedCpuJobs.PumpRequests();
             Thread.Sleep(1);
         } while (Stopwatch.GetTimestamp() < deadline);
         return false;
@@ -102,10 +104,23 @@ internal static class CpuWorkers
         if (!ok) { throw new InvalidOperationException(failure); }
     }
 
-    private static void Finished(ulong token, ulong expected = 3)
+    [DllImport("*", EntryPoint = "zenith_cpu_wait_interrupt"), SuppressGCTransition]
+    private static extern ulong WaitInterrupt(ulong token);
+
+    private static void Finished(ulong token, ulong expected = 3, bool shortCompute = false)
     {
         Require(token != 0, "native queue admission refused");
-        Require(Wait(() => Job(token, 0) >= 3), "native job completion timeout");
+        if (shortCompute)
+        {
+            long deadline = Stopwatch.GetTimestamp() + 5 * Stopwatch.Frequency;
+            while (Job(token, 0) < 3 && Stopwatch.GetTimestamp() < deadline)
+            {
+                ManagedCpuJobs.PumpRequests();
+                if (WaitInterrupt(token) == 0) Thread.Sleep(1);
+            }
+            Require(Job(token, 0) >= 3, "short compute completion timeout");
+        }
+        else Require(Wait(() => Job(token, 0) >= 3), "native job completion timeout");
         ulong state = Job(token, 0);
         Require(expected == 0 ? state == 3 || state == 4 : state == expected, "native job completion status mismatch");
     }
@@ -122,7 +137,7 @@ internal static class CpuWorkers
         if (RuntimeInformation.ProcessArchitecture != Architecture.X64) { return c.Fail("native CPU workers require x86_64"); }
         if (c.Args.Length == 0 || (c.Args.Length == 1 && c.Args[0] == "status"))
         {
-            c.WriteLine("detected=" + Detected() + " native-workers=" + s_count + " stopping=" + s_stopping + " managed-cpus=1");
+            c.WriteLine("detected=" + Detected() + " native-workers=" + s_count + " stopping=" + s_stopping + " managed-cpus=1 pinned-ap-owners=" + (ManagedCpuJobs.Ready ? Math.Max(0, s_count - 1) : 0));
             c.WriteLine("initial-idt-interrupts-enabled=" + ((InitialIdtFlags() & 0x200) != 0));
             c.WriteLine("Experimental workers require boot argument smp=native; idle=interrupt queue-capacity=8.");
             for (int i = 1; i < s_count; i++)
@@ -149,7 +164,7 @@ internal static class CpuWorkers
         if (c.Args.Length > 2 || (c.Args.Length == 2 && c.Args[0] != "test")) { return c.Fail(Usage); }
         string action = c.Args[0];
         if (action != "test" && action != "cancel-test" && action != "queue-test" && action != "idle-test"
-            && action != "state-test" && action != "image-test" && action != "fault-test" && action != "stop-test") { return c.Fail(Usage); }
+            && action != "managed-test" && action != "managed-fault-test" && action != "managed-image-test" && action != "managed-hold" && action != "managed-release" && action != "state-test" && action != "image-test" && action != "fault-test" && action != "stop-test") { return c.Fail(Usage); }
         ulong iterations = 2000000;
         if (c.Args.Length == 2 && (!ulong.TryParse(c.Args[1], out iterations) || iterations < 1 || iterations > 10000000))
         { return c.Fail("iterations must be 1..10000000"); }
@@ -157,11 +172,16 @@ internal static class CpuWorkers
         int status;
         try
         {
-            if (s_count == 0 || s_stopping || (s_count < 2 && action != "image-test")) { status = c.Fail("native workers unavailable; boot with smp=native"); }
+            if (s_count == 0 || s_stopping || (s_count < 2 && action != "image-test" && action != "managed-image-test")) { status = c.Fail("native workers unavailable; boot with smp=native"); }
             else
             {
                 switch (action)
                 {
+                    case "managed-hold": ManagedHold(c); break;
+                    case "managed-release": ManagedRelease(c); break;
+                    case "managed-image-test": ManagedImageTest(c); break;
+                    case "managed-fault-test": ManagedFaultTest(c); break;
+                    case "managed-test": ManagedTest(c); break;
                     case "state-test": StateTest(c); break;
                     case "queue-test": QueueTest(c); break;
                     case "idle-test": IdleTest(c); break;
@@ -187,7 +207,7 @@ internal static class CpuWorkers
         return status;
     }
 
-    private const string Usage = "cpu status | irq-test | fp-test | test [iterations] | cancel-test | state-test | queue-test | idle-test | image-test | fault-test | stop-test";
+    private const string Usage = "cpu status | irq-test | fp-test | managed-test | managed-fault-test | managed-image-test | managed-hold | managed-release | test [iterations] | cancel-test | state-test | queue-test | idle-test | image-test | fault-test | stop-test";
 
     private static void Batch(CommandContext c, ulong n, bool cancel)
     {
@@ -214,6 +234,240 @@ internal static class CpuWorkers
             Require(Control(token, 2) == 1, "batch reap refused");
         }
         c.WriteLine(cancel ? "native CPU cancellation verified; workers reusable" : "native CPU results verified; overlap=" + (latestStart < earliestEnd) + "; managed-cpus=1");
+    }
+
+    private static void ManagedHold(CommandContext c)
+    {
+        Require(s_heldManaged is null, "managed diagnostic batch already held");
+        ManagedCpuJobs.Initialize((ulong)s_count);
+        var tokens = new ulong[s_count]; s_heldManaged = tokens;
+        for (int cpu = 1; cpu < s_count; cpu++)
+        {
+            tokens[cpu] = Enqueue((ulong)cpu, 5, 4096, 17, 1, 0);
+            Require(tokens[cpu] != 0, "managed hold admission");
+        }
+        Require(Wait(() =>
+        {
+            for (int cpu = 1; cpu < s_count; cpu++) if (Job(tokens[cpu], 4) != 100) return false;
+            return true;
+        }), "managed hold readiness");
+        c.WriteLine("managed roots parked on APs; BSP services remain available");
+    }
+
+    private static void ManagedRelease(CommandContext c)
+    {
+        ulong[] tokens = s_heldManaged ?? throw new InvalidOperationException("no managed diagnostic batch held");
+        for (int cpu = 1; cpu < s_count; cpu++) Require(Control(tokens[cpu], 3) == 1, "managed hold release");
+        ulong expected = 0xcbf29ce484222325UL;
+        for (ulong i = 0; i < 4096; i++) expected = (expected ^ (byte)(17 + i)) * 0x100000001b3UL;
+        for (int cpu = 1; cpu < s_count; cpu++)
+        {
+            Finished(tokens[cpu]); Require(Job(tokens[cpu], 1) == expected, "managed roots survived BSP service pressure");
+            Require(Control(tokens[cpu], 2) == 1, "managed hold reap");
+        }
+        s_heldManaged = null; c.WriteLine("managed AP roots survived BSP services; owners reusable");
+    }
+
+    /// <summary>Trusted UI-owner diagnostic. APs return complete private tiles;
+    /// only the BSP stitches and hands the completed frame to a window.</summary>
+    internal static uint[] RenderManagedPreview(out int cpus, out long micros)
+    {
+        if (RuntimeInformation.ProcessArchitecture != Architecture.X64) throw new PlatformNotSupportedException("managed CPU preview requires x86_64");
+        if (!Monitor.TryEnter(s_gate)) throw new InvalidOperationException("CPU diagnostics are busy");
+        if (s_count == 0 || s_stopping || s_heldManaged is not null)
+        {
+            Monitor.Exit(s_gate);
+            throw new InvalidOperationException("preview requires idle smp=native workers");
+        }
+        try
+        {
+            ManagedCpuJobs.Initialize((ulong)s_count);
+            cpus = Math.Min(4, s_count);
+            uint[] frame = new uint[128 * 128]; ulong[] tokens = new ulong[cpus];
+            long start = Stopwatch.GetTimestamp();
+            for (int tile = 0; tile < 4;)
+            {
+                int batch = Math.Min(cpus, 4 - tile);
+                for (int i = 1; i < batch; i++)
+                {
+                    tokens[i] = Enqueue((ulong)i, 5, 4096, (ulong)(tile + i), 4, 0);
+                    Require(tokens[i] != 0, "preview tile admission");
+                }
+                for (int i = 0; i < batch; i++)
+                {
+                    uint[] pixels;
+                    if (i == 0) pixels = ManagedCpuJobs.BuildImage(4096, (uint)tile);
+                    else
+                    {
+                        Finished(tokens[i], shortCompute: true);
+                        pixels = new uint[4096]; ManagedCpuJobs.CopyFrame(tokens[i], pixels);
+                        Require(Control(tokens[i], 2) == 1, "preview tile reap");
+                    }
+                    int index = tile + i, x = (index % 2) * 64, y = (index / 2) * 64;
+                    for (int row = 0; row < 64; row++) Array.Copy(pixels, row * 64, frame, (y + row) * 128 + x, 64);
+                }
+                tile += batch;
+            }
+            micros = (Stopwatch.GetTimestamp() - start) * 1000000 / Stopwatch.Frequency;
+            Monitor.Exit(s_gate); return frame;
+        }
+        catch
+        {
+            // Preserve accepted descriptor ownership on an unexpected failure.
+            s_stopping = true; StopNative(); Monitor.Exit(s_gate); throw;
+        }
+    }
+
+    private static void ManagedImageTest(CommandContext c)
+    {
+        ManagedCpuJobs.Initialize((ulong)s_count);
+        const int tiles = 12, pixels = 4096;
+        // Warm the full-sized path equally before timing. Multi-CPU safety
+        // checks must not give only those cases a translated/allocated head start.
+        _ = ManagedCpuJobs.BuildImage(pixels, 0);
+        uint[] warm = new uint[pixels];
+        for (int cpu = 1; cpu < s_count; cpu++)
+        {
+            ulong token = Enqueue((ulong)cpu, 5, pixels, 0, 4, 0);
+            Finished(token, shortCompute: true); ManagedCpuJobs.CopyFrame(token, warm);
+            Require(Control(token, 2) == 1, "managed warm-up reap");
+        }
+        CollectManaged();
+        uint[][] frames = new uint[tiles][];
+        ulong[] tokens = new ulong[s_count];
+        ulong[] hashes = new ulong[tiles];
+        ulong signals = Field(0, 25);
+        long start = Stopwatch.GetTimestamp();
+        for (int tile = 0; tile < tiles;)
+        {
+            int batch = Math.Min(s_count, tiles - tile);
+            for (int i = 1; i < batch; i++)
+            {
+                tokens[i] = Enqueue((ulong)i, 5, pixels, (ulong)(tile + i), 4, 0);
+                Require(tokens[i] != 0, "managed image admission");
+            }
+            frames[tile] = ManagedCpuJobs.BuildImage(pixels, (uint)tile);
+            for (int i = 1; i < batch; i++)
+            {
+                ulong token = tokens[i]; Finished(token, shortCompute: true);
+                hashes[tile + i] = Job(token, 1);
+                frames[tile + i] = new uint[pixels]; ManagedCpuJobs.CopyFrame(token, frames[tile + i]);
+                Require(Control(token, 2) == 1, "managed frame reap");
+            }
+            tile += batch;
+        }
+        long micros = (Stopwatch.GetTimestamp() - start) * 1000000 / Stopwatch.Frequency;
+        ulong hash = 0xcbf29ce484222325UL;
+        for (uint tile = 0; tile < tiles; tile++)
+        {
+            ulong tileHash = 0xcbf29ce484222325UL;
+            for (uint p = 0; p < pixels; p++)
+            {
+                uint value = 0xff000000 | ((tile * 33 + p * 17) & 0xffffff);
+                for (uint r = 0; r < 32; r++) value = Blend(value, r + tile);
+                Require(frames[tile][p] == value, "managed complete-frame pixel mismatch");
+                tileHash = (tileHash ^ value) * 0x100000001b3UL;
+            }
+            Require(hashes[tile] == 0 || hashes[tile] == tileHash, "managed frame checksum mismatch");
+            hash = (hash ^ tileHash) * 0x100000001b3UL;
+        }
+        Require(s_count == 1 || Field(0, 25) > signals, "BSP native completion interrupt acknowledgement");
+        c.WriteLine("managed image verified; tiles=12 pixels=4096 rounds=32 cpus=" + s_count + " elapsed-us=" + micros + " hash=" + hash.ToString("x"));
+    }
+
+    private static void ManagedFaultTest(CommandContext c)
+    {
+        ManagedCpuJobs.Initialize((ulong)s_count);
+        ulong cpu = (ulong)(s_count - 1), token = Enqueue(cpu, 5, 1, 17, 6, 0);
+        Require(token != 0 && Wait(() => Job(token, 4) == 100), "managed fault checkpoint");
+        GC.Collect(); Require(Control(token, 3) == 1, "managed fault release");
+        Require(Wait(() => Field(cpu, 12) == 1 && Job(token, 0) == 5), "managed fault containment");
+        Require(Field(cpu, 11) == 6 && Field(cpu, 15) == 1, "managed fault private IST");
+        ulong epochs = ManagedCpuJobs.State(2), refused = ManagedCpuJobs.State(3);
+        byte[] survivor = new byte[1024]; survivor[42] = 117;
+        GC.Collect();
+        Require(ManagedCpuJobs.State(2) == epochs && ManagedCpuJobs.State(3) > refused && survivor[42] == 117,
+            "missing managed AP acknowledgement must refuse collection before sweep");
+        Require(Enqueue(cpu, 5, 1, 17, 2, 0) == 0 && Control(token, 2) == 0, "faulted managed storage quarantined");
+        for (int other = 1; other < s_count - 1; other++)
+        {
+            ulong healthy = Enqueue((ulong)other, 5, 1, 17, 2, 0); Finished(healthy);
+            Require(Job(healthy, 1) == (17UL ^ ((ulong)other << 32)), "healthy managed owner after sibling fault");
+            Require(Control(healthy, 2) == 1, "healthy managed result reap");
+        }
+        c.WriteLine("managed AP fault quarantined; missing roots refuse collection without sweeping; BSP and siblings available");
+    }
+
+    private static void CollectManaged()
+    {
+        ulong before=ManagedCpuJobs.State(2),refused=ManagedCpuJobs.State(3);
+        GC.Collect();
+        Require(ManagedCpuJobs.State(2)>before&&ManagedCpuJobs.State(3)==refused,
+            "healthy managed collection must actually stop/scan/resume every participant");
+    }
+
+    private static void ManagedTest(CommandContext c)
+    {
+        ManagedCpuJobs.Initialize((ulong)s_count);
+        ulong deferred = ManagedCpuJobs.State(4);
+        ulong[] tokens = new ulong[s_count];
+        for (ulong cpu = 1; cpu < (ulong)s_count; cpu++)
+        {
+            tokens[cpu] = Enqueue(cpu, 5, 4096, 17, 3, 1);
+            Require(tokens[cpu] != 0, "pinned managed job admission");
+        }
+        for (int cpu = 1; cpu < s_count; cpu++) Require(Control(tokens[cpu], 1) == 1, "pinned managed job release");
+        Require(Wait(() =>
+        {
+            for (int cpu = 1; cpu < s_count; cpu++) if (Job(tokens[cpu], 4) != 100) return false;
+            return true;
+        }), "managed retained-root checkpoints; phase=" + Job(tokens[1], 4) + " state=" + Job(tokens[1], 0) + " result=" + Job(tokens[1], 1) + " fault=" + Field(1, 11));
+        Require(ManagedCpuJobs.State(4) >= deferred + (ulong)(s_count - 1), "AP collection requests deferred to BSP");
+        Require(ManagedCpuJobs.State(6) == ((1UL << s_count) - 2), "managed AP participant identity");
+        for (int pass = 0; pass < 4; pass++) { CollectManaged(); Thread.Sleep(1); }
+        for (int cpu = 1; cpu < s_count; cpu++) Require(Control(tokens[cpu], 3) == 1, "managed checkpoint release");
+        for (int pass = 0; pass < 8; pass++) { CollectManaged(); Thread.Sleep(1); }
+        ulong expected = 0xcbf29ce484222325UL;
+        for (ulong i = 0; i < 4096; i++) expected = (expected ^ (byte)(17 + i)) * 0x100000001b3UL;
+        for (int cpu = 1; cpu < s_count; cpu++)
+        {
+            ulong token = tokens[cpu]; Require(Wait(() => Job(token, 0) >= 3), "pinned managed completion");
+            Require(Job(token, 0) == 3 && Job(token, 1) == expected, "pinned managed roots/checksum/TLS/credentials");
+            Require(Control(token, 2) == 1, "pinned managed reap");
+        }
+        // Contained and reported exceptions must leave each permanent owner
+        // reusable, without borrowing BSP credentials or another AP's EH chain.
+        for (ulong operation = 2; operation <= 5; operation += 3)
+        {
+            for (int cpu = 1; cpu < s_count; cpu++) tokens[cpu] = Enqueue((ulong)cpu, 5, 1, (ulong)(31 + cpu), operation, 0);
+            for (int cpu = 1; cpu < s_count; cpu++)
+            {
+                ulong token = tokens[cpu]; Require(token != 0 && Wait(() => Job(token, 0) >= 3), "managed exception completion");
+                Require(operation == 2 ? Job(token, 0) == 3 && Job(token, 1) == ((ulong)(31 + cpu) ^ ((ulong)cpu << 32))
+                    : Job(token, 0) == 5 && Job(token, 1) == ulong.MaxValue, "managed per-owner exception state");
+                Require(Control(token, 2) == 1, "managed exception reap");
+            }
+        }
+        ulong signals = Field(0, 25), fpToken = Enqueue(1, 5, 4096, 17, 4, 0);
+        Require(fpToken != 0 && FpPreemptTest() == 1, "BSP FP state through native completion doorbell");
+        Finished(fpToken); Require(Field(0, 25) > signals, "completion IPI delivery during FP probe");
+        Require(Control(fpToken, 2) == 1, "FP completion probe reap");
+        for (int cpu = 1; cpu < s_count; cpu++) tokens[cpu] = Enqueue((ulong)cpu, 5, 4096, 17, 1, 0);
+        Require(Wait(() =>
+        {
+            for (int cpu = 1; cpu < s_count; cpu++) if (Job(tokens[cpu], 4) != 100) return false;
+            return true;
+        }), "managed cancellation checkpoints");
+        GC.Collect();
+        for (int cpu = 1; cpu < s_count; cpu++) Require(Control(tokens[cpu], 0) == 1, "managed cancellation request");
+        for (int cpu = 1; cpu < s_count; cpu++)
+        {
+            ulong token = tokens[cpu]; Require(Wait(() => Job(token, 0) >= 3) && Job(token, 0) == 4, "managed cancellation acknowledgement");
+            Require(Control(token, 2) == 1, "managed cancellation reap");
+        }
+        GC.Collect(); Require(ManagedCpuJobs.State(6) == 0, "managed participants retired");
+        c.WriteLine("pinned managed allocation, stopped roots, TLS and identity verified; gc-epochs=" + ManagedCpuJobs.State(2));
+        c.WriteLine("managed pinned/interior roots, deferred collection, exceptions and cancellation verified");
     }
 
     private static void StateTest(CommandContext c)

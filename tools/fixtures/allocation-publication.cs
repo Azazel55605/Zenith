@@ -27,6 +27,11 @@ using(var assembly=AssemblyDefinition.ReadAssembly(source))
     }
     Bridge(cpu.Methods.Single(m=>m.Name=="SaveIrqAndDisable"),nameof(Hooks.Save));
     Bridge(cpu.Methods.Single(m=>m.Name=="RestoreIrq"),nameof(Hooks.Restore));
+    var collector=module.GetType("Cosmos.Kernel.Core.Memory.GarbageCollector.GarbageCollector");
+    foreach(var method in collector.Methods.Where(m=>m.Name is "_zenith_gc_enter" or "_zenith_gc_exit"))
+        Bridge(method,method.Name.EndsWith("enter")?nameof(Hooks.Enter):nameof(Hooks.Exit));
+    var fatal=collector.Methods.SingleOrDefault(m=>m.Name=="_zenith_gc_fail_stop");
+    if(fatal is not null)Bridge(fatal,nameof(Hooks.Fatal));
     var allocate=memory.Methods.Single(m=>m.Name=="AllocObject");
     allocate.Body=new Mono.Cecil.Cil.MethodBody(allocate);
     var body=allocate.Body.GetILProcessor();body.Emit(OpCodes.Ldarg_0);
@@ -91,10 +96,15 @@ unsafe
 public static unsafe class Hooks
 {
     public static bool Enabled=true,Exposed,Published,Array,Throw;
+    public static int Depth;
+    public static void Fatal() => throw new Exception("publication failed closed on host");
+    public static ulong Enter() { if(Enabled)throw new InvalidOperationException("gate entered with IRQs enabled");Depth++;return 1; }
+    public static ulong Exit() { if(Depth!=1)throw new InvalidOperationException("publication ownership mismatch");Depth--;return 1; }
     public static nint Expected,Allocated;
     public static ulong Save() { ulong previous=Enabled?0x200UL:0;Enabled=false;return previous; }
     public static void Restore(ulong flags)
     {
+        if(Depth!=0)throw new InvalidOperationException("publication gate leaked across IRQ restore");
         if(Allocated!=0)Published=*(nint*)Allocated==Expected&&(!Array||*(int*)(Allocated+8)==10);
         Enabled=(flags&0x200)!=0;
     }

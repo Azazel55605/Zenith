@@ -6,6 +6,8 @@ Start with [current status](../ROADMAP.md#state-and-evidence) or [active work](.
 
 ## Investigation records
 
+- [2026-11-03 pinned managed workers](2026-11-03/pinned-managed-workers.md): sealed allocation/metadata ownership, stopped-root GC epochs, fixed managed jobs, complete-frame UI publication and frozen local qualification.
+
 - [2026-10-28 stranded virtio input](2026-10-28/virtio-mouse-drain.md): exact-emulator/quota reproduction, pending DMA buffers, bounded periodic drain and candidate qualification.
 
 - [2026-10-28 parallel native validation](2026-10-28/parallel-native-validation.md): bounded workers, protected shared-tool use, exact-input retry receipts and measured four-gate execution.

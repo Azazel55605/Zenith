@@ -29,7 +29,12 @@
     <ItemGroup><_ZenithIrqSource Include="@(AsmFiles)" Condition="'%(Filename)%(Extension)' == 'Interrupts.s'" /></ItemGroup>
     <Error Condition="'@(_ZenithIrqSource->Count())' != '1'" Text="Expected one pinned Cosmos interrupt source" />
     <Exec Command="python3 &quot;$(MSBuildProjectDirectory)/tools/adapt-cpu-interrupts.py&quot; &quot;@(_ZenithIrqSource)&quot; &quot;$(IntermediateOutputPath)/cosmos/cpu/Interrupts.s&quot;" />
+    <ItemGroup><_ZenithEhSource Include="@(AsmFiles)" Condition="'%(Filename)%(Extension)' == 'ExceptionHandling.s'" /></ItemGroup>
+    <Error Condition="'@(_ZenithEhSource->Count())' != '1'" Text="Expected one pinned Cosmos exception source" />
+    <Exec Command="python3 &quot;$(MSBuildProjectDirectory)/tools/adapt-cpu-interrupts.py&quot; &quot;@(_ZenithEhSource)&quot; &quot;$(IntermediateOutputPath)/cosmos/cpu/ExceptionHandling.s&quot;" />
     <ItemGroup>
+      <AsmFiles Remove="@(_ZenithEhSource)" />
+      <AsmFiles Include="$(IntermediateOutputPath)/cosmos/cpu/ExceptionHandling.s" />
       <AsmFiles Remove="@(_ZenithIrqSource)" />
       <AsmFiles Include="$(IntermediateOutputPath)/cosmos/cpu/Interrupts.s" />
     </ItemGroup>
@@ -51,6 +56,7 @@
     <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.HAL.X64.dll&quot;" />
     <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.Core.X64.dll&quot;" />
     <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.Core.dll&quot;" />
+    <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.dll&quot;" />
     <Exec Command="dotnet &quot;$(MSBuildProjectDirectory)/tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll&quot; &quot;$(IntermediateOutputPath)/cosmos/ref/Cosmos.Kernel.HAL.dll&quot;" />
   </Target>
 

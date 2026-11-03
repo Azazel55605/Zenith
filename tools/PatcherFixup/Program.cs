@@ -40,6 +40,7 @@ void QuietTrace(MethodDefinition method, string firstText, string lastText)
     foreach (var instruction in range.Skip(2)) { instruction.OpCode = OpCodes.Nop; instruction.Operand = null; }
     changed = true;
 }
+if (assembly.Name.Name == "Cosmos.Kernel") { changed |= BootCpuFixup.Apply(module); }
 if (assembly.Name.Name == "Zenith") { changed |= MousePollingFixup.BindMain(module, resolver); }
 if (assembly.Name.Name == "Cosmos.Kernel.System") { changed |= MousePollingFixup.System(module, resolver); }
 if (assembly.Name.Name == "Cosmos.Kernel.HAL") { changed |= MousePollingFixup.Hal(module); }
@@ -47,6 +48,9 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
 {
     changed |= AllocationPublicationFixup.Apply(module);
     changed |= ConservativeRootFixup.Apply(module);
+    changed |= GcBarrierFixup.Apply(module);
+    changed |= PinnedCpuFixup.Apply(module);
+    changed |= ExceptionStateFixup.Apply(module);
     changed |= SchedulerDispatchFixup.Apply(module);
     changed |= CpuIdentityFixup.Apply(module);
     changed |= FpContextFixup.Core(module);
@@ -60,7 +64,7 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
         || pages.Parameters[1].ParameterType.FullName != "System.UInt64"
         || pages.Parameters[2].ParameterType.FullName != "System.Boolean")
     { throw new InvalidOperationException("Cosmos allocator signature changed"); }
-    QuietTrace(pages, "[PageAllocator] AllocPages - Type: ", "\n");
+    QuietTrace(allocator.Methods.SingleOrDefault(m => m.Name == "_zenithHeap_AllocPages") ?? pages, "[PageAllocator] AllocPages - Type: ", "\n");
     var condition = module.GetType("Cosmos.Kernel.Core.Scheduler.ConditionVariable");
     var wait = condition.Methods.Single(m => m.Name == "Wait");
     foreach (string prefix in new[] { "[CV] Wait BEGIN thread=", "[CV] Wait WOKE thread=", "[CV] Wait END thread=" })
@@ -169,6 +173,7 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
     Console.WriteLine("Quieted pinned per-allocation success trace; allocator/error paths retained");
     Console.WriteLine("Quieted pinned monitor wait/wake success traces; synchronization retained");
 }
+if (assembly.Name.Name == "Cosmos.Kernel.Core") { changed |= RuntimeHeapFixup.Apply(module); changed |= RuntimeMetadataFixup.Apply(module); changed |= RuntimeSerialOwnershipFixup.Apply(module); changed |= PinnedCpuFixup.Seal(module); }
 if (assembly.Name.Name == "Cosmos.Kernel.Core.X64")
 {
     changed |= FpContextFixup.X64(module);

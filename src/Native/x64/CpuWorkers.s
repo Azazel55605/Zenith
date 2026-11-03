@@ -114,6 +114,23 @@ zenith_cpu_timer_entry:
     pop %rax
     add $8,%rsp
     iretq
+# BSP-only completion doorbell. Its sole C callee is freestanding and compiled
+# general-registers-only; no FP register or managed/scheduler state is touched.
+# Hardware saves flags/CS/RIP; preserve all GPRs and align either stack entry.
+.globl zenith_cpu_completion_entry
+zenith_cpu_completion_entry:
+    cld
+.irp reg,rax,rbx,rcx,rdx,rsi,rdi,rbp,r8,r9,r10,r11,r12,r13,r14,r15
+    push %\reg
+.endr
+    mov %rsp,%rbx
+    and $-16,%rsp
+    call zenith_cpu_completion_eoi
+    mov %rbx,%rsp
+.irp reg,r15,r14,r13,r12,r11,r10,r9,r8,rbp,rdi,rsi,rdx,rcx,rbx,rax
+    pop %\reg
+.endr
+    iretq
 .globl zenith_cpu_spurious_entry
 zenith_cpu_spurious_entry:
     # Spurious APIC delivery sets no ISR bit: do not issue EOI.

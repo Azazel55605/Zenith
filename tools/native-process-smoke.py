@@ -46,6 +46,8 @@ try:
     boot('installed',disk)
     status('cpu irq-test | logger','N_IDT_IRQ_STATE')
     if cpu_workers: status('cpu test 10000000 | logger','N_CPUS_START')
+    managed_workers=cpu_workers and not terminal_only and (ROOT/'src/Core/Multiprocessing/ManagedCpuJobs.cs').exists()
+    if managed_workers: status('cpu managed-hold | logger','N_MANAGED_ROOTS_HELD')
     status('fetch '+url+'/key.pem /root/key.pem','N_KEY');status('pkg trust /root/key.pem '+hashlib.sha256(key).hexdigest(),'N_TRUST')
     status('fetch '+url+'/sunbeam.zpk /root/sunbeam.zpk','N_FETCH');status('pkg install /root/sunbeam.zpk','N_PACKAGE')
     for name in ('zenith-fonts','zenith-man-pages'):
@@ -187,6 +189,7 @@ try:
         status('cd /root','N_FS_RETURN')
 
         status('cpu irq-test | logger','N_IDT_AFTER_FAULTS')
+        if managed_workers: status('cpu managed-release | logger','N_MANAGED_ROOTS_RELEASED')
         if cpu_workers: status('cpu test 10000000 | logger','N_CPUS_AFTER_FAULTS')
         status('fetch '+url+'/sunbeam-2.zpk /root/sunbeam-2.zpk','N_FETCH_UPGRADE')
         status('pkg install /root/sunbeam-2.zpk','N_UPGRADE')
