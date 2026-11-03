@@ -50,6 +50,15 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 
 ## Current focus and execution order
 
+**2026-11-03 — selected work: C1 → C2 → C3.** Polaris U3 is operator
+confirmed; the next engineering focus is useful multicore execution on the four-vCPU
+VM. Start with native worker cancellation/quiescence and interrupt-driven wakeup,
+then per-CPU execution state, then allocation/GC barriers and pinned managed work.
+Do not enable managed AP execution by merely increasing the scheduler CPU count.
+Drawing/process latency needs separate measured workloads: CPU count alone is not
+a performance result. [Implementation sequence and acceptance](components/MULTICORE.md).
+
+
 **Operator follow-up for installed 0.0.26:** rapid wheel navigation and movement
 can freeze the VM (no panic reported). Root cause found 2026-10-29: device IRQs dropped during native user windows; see H1. U1/D3
 own reproduction, bounded redraw/input handling and continued host responsiveness.
@@ -181,7 +190,7 @@ The M0–M10 names in that guide are Meridian phases, not separate project miles
 
 | ID | State | Dependency-ordered work and exit |
 |---|---|---|
-| C1 | partial | Native integer AP workers exist opt-in. Add cancellable queues, safe wake/IPI, per-CPU interrupt stacks and shutdown quiescence instead of idle polling. |
+| C1 | in progress | Opt-in native integer workers. First slice adds bounded cooperative cancellation, reusable worker checks and acknowledged stop before disk shutdown; 61 local 1/2/4-CPU checks and the full native-process gate with active workers passed ([evidence](components/MULTICORE.md#c1-lifecycle-validation-local-2026-11-03)). Remaining: cancellable queues, safe wake/IPI and per-CPU interrupt stacks to replace idle polling. |
 | C2 | planned | Per-CPU scheduler/current context/GDT/TSS/FP/timer and lock audit after C1. No managed AP execution yet. |
 | C3 | planned | Cross-CPU allocation, GC stop/root barriers, then pinned managed threads; require pressure/fault/cancel evidence before migration/load balancing. |
 | C4 | planned | Migration, credential/service concurrency, real I/O contention and recovery at 1/2/4+ CPUs; only then consider default managed SMP. [Detailed contract](MULTICORE.md). |

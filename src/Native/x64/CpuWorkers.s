@@ -23,6 +23,8 @@
 .Lcount: .skip 8
 .Literations: .skip 8
 .Lgo: .skip 8
+.Lcancel: .skip 8
+.Lstop: .skip 8
 .text
 .globl zenith_cpu_detected
 .type zenith_cpu_detected, @function
@@ -142,17 +144,26 @@ zenith_cpu_initialize:
     mov %rbx, 48(%r12)
     movq $3, (%r12)
 .Lap_idle:
+    cmpq $0, .Lstop(%rip)
+    jne .Lap_stopped
     pause
     cmpq $1, (%r12)
     jne .Lap_idle
     movq $2, (%r12)
 .Lap_barrier:
+    cmpq $0, .Lstop(%rip)
+    jne .Lap_stopped
     pause
     cmpq $0, .Lgo(%rip)
     je .Lap_barrier
     call .Lwork
     movq $3, (%r12)
     jmp .Lap_idle
+.Lap_stopped:
+    movq $5, (%r12)
+    cli
+1:  hlt
+    jmp 1b
 .Lap_fault:
     cli
     movq $4, (%r12)
@@ -163,6 +174,7 @@ zenith_cpu_initialize:
 .globl zenith_cpu_submit
 .type zenith_cpu_submit, @function
 zenith_cpu_submit:
+    movq $0, .Lcancel(%rip)
     mov %rdi, .Literations(%rip)
     movq $0, .Lgo(%rip)
     lea .Lslots+64(%rip), %rdx
@@ -188,7 +200,10 @@ zenith_cpu_execute:
     ret
 .size zenith_cpu_execute, .-zenith_cpu_execute
 
+# A cancellation checkpoint occurs at entry and at most every 256 iterations.
+# Slot+56 is completion: 0=complete, 1=cancelled (checksum then not valid).
 .Lwork:
+    movq $0, 56(%r12)
     lfence
     rdtsc
     shl $32, %rdx
@@ -197,10 +212,19 @@ zenith_cpu_execute:
     movabs $0xcbf29ce484222325, %rax
     movabs $0x100000001b3, %rbx
     mov .Literations(%rip), %rcx
+    cmpq $0, .Lcancel(%rip)
+    jne .Lwork_cancelled
 1:  xor %rcx, %rax
     imul %rbx, %rax
     dec %rcx
+    jz .Lwork_done
+    test $255, %ecx
     jnz 1b
+    cmpq $0, .Lcancel(%rip)
+    je 1b
+.Lwork_cancelled:
+    movq $1, 56(%r12)
+.Lwork_done:
     mov %rax, 40(%r12)
     lfence
     rdtsc
@@ -215,7 +239,7 @@ zenith_cpu_field:
     xor %eax, %eax
     cmp $8, %rdi
     jae 1f
-    cmp $7, %rsi
+    cmp $8, %rsi
     jae 1f
     shl $6, %rdi
     lea .Lslots(%rip), %rdx
@@ -223,4 +247,19 @@ zenith_cpu_field:
     mov (%rdx,%rsi,8), %rax
 1:  ret
 .size zenith_cpu_field, .-zenith_cpu_field
+# BSP-only publication. Slots/stacks stay reserved even if acknowledgement times out.
+.globl zenith_cpu_cancel
+.type zenith_cpu_cancel, @function
+zenith_cpu_cancel:
+    movq $1, .Lcancel(%rip)
+    ret
+.size zenith_cpu_cancel, .-zenith_cpu_cancel
+
+.globl zenith_cpu_stop
+.type zenith_cpu_stop, @function
+zenith_cpu_stop:
+    movq $1, .Lcancel(%rip)
+    movq $1, .Lstop(%rip)
+    ret
+.size zenith_cpu_stop, .-zenith_cpu_stop
 .section .note.GNU-stack,"",@progbits

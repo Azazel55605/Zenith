@@ -116,7 +116,9 @@ never infer current failures from old release logs or claim a menu stub is a bac
   in signature-checked build copies. Keep installed UEFI startup/IRQ-state checks.
   Managed scheduling/GC, drivers and the foreground process bridge stay on the BSP.
   APs own static stacks/tables, never managed objects or UART, and currently poll
-  when idle. Preserve default-disabled boots and 1/2/4-CPU acceptance; do not enable
+  when idle. Cancellation completion is distinct from checksum success; stop admission
+  permanently and require AP halt acknowledgement before disk shutdown. Preserve
+  default-disabled boots and 1/2/4-CPU acceptance; do not enable
   managed AP execution before per-CPU context and GC synchronization are implemented.
 - GUI input must periodically drain registered mice before sampling coordinates,
   even if a virtio notification was missed. Keep polling IRQ-scoped on the BSP,

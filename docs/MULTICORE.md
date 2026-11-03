@@ -45,7 +45,18 @@ CPUID/APIC identity, checksum and completion, then reports per-CPU TSC intervals
 and their overlap. TSC interval overlap is a QEMU diagnostic, not a portable
 cross-platform clock synchronization or performance guarantee. Startup, readiness
 and completion waits have five-second managed deadlines; failure disables future
-jobs. There is no arbitrary task/function-pointer submission API.
+jobs. `cpu cancel-test` cancels at the ready barrier and verifies cancelled completion
+on all participants; normal tests afterward must prove slots remain reusable.
+The integer loop checks cancellation at entry and every 256 iterations. Completion
+status is separate from the checksum; cancelled checksums are never accepted as work.
+There is no arbitrary task/function-pointer submission API.
+
+Poweroff/reboot permanently closes worker admission and requests cooperative stop.
+APs acknowledge only after leaving their job/barrier, then halt with interrupts
+masked. Every started AP must acknowledge within five seconds before filesystem
+shutdown proceeds. A fault or missing acknowledgement refuses the power action;
+worker stacks/tables remain reserved. If filesystem shutdown subsequently fails,
+workers stay stopped and the ordinary BSP recovery shell remains available.
 
 **Idle APs poll with `pause` and consume host CPU.** This is why activation is
 explicit and defaults remain unchanged. Boot without `smp=native` to avoid that

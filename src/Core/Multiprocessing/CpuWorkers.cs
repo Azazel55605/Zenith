@@ -14,6 +14,7 @@ internal static class CpuWorkers
     private static readonly object s_gate = new();
     private static int s_count;
     private static bool s_failed;
+    private static bool s_stopping;
     [DllImport("*", EntryPoint = "zenith_cpu_detected"), SuppressGCTransition]
     private static extern ulong Detected();
     [DllImport("*", EntryPoint = "zenith_cpu_initialize"), SuppressGCTransition]
@@ -24,6 +25,32 @@ internal static class CpuWorkers
     private static extern void Submit(ulong iterations);
     [DllImport("*", EntryPoint = "zenith_cpu_execute"), SuppressGCTransition]
     private static extern void Execute();
+
+    [DllImport("*", EntryPoint = "zenith_cpu_cancel"), SuppressGCTransition]
+    private static extern void CancelNative();
+    [DllImport("*", EntryPoint = "zenith_cpu_stop"), SuppressGCTransition]
+    private static extern void StopNative();
+
+    // The BSP owns submission. Permanently close admission before touching disks.
+    // Never reclaim AP-owned stacks, including after a fault or missing acknowledgement.
+    public static void Quiesce()
+    {
+        if (RuntimeInformation.ProcessArchitecture != Architecture.X64 || s_count == 0) { return; }
+        Monitor.Enter(s_gate);
+        try
+        {
+            s_stopping = true;
+            StopNative();
+            if (!Wait(5)) { throw new InvalidOperationException("native CPU workers failed to quiesce; power change refused"); }
+        }
+        catch
+        {
+            Monitor.Exit(s_gate);
+            throw;
+        }
+        Monitor.Exit(s_gate);
+        Log.Write("cpu", "native workers quiesced=" + s_count);
+    }
 
     [DllImport("*", EntryPoint = "zenith_initial_idt_flags"), SuppressGCTransition]
     private static extern ulong InitialIdtFlags();
@@ -63,7 +90,7 @@ internal static class CpuWorkers
         if (RuntimeInformation.ProcessArchitecture != Architecture.X64) { return c.Fail("native CPU workers require x86_64"); }
         if (c.Args.Length == 0 || (c.Args.Length == 1 && c.Args[0] == "status"))
         {
-            c.WriteLine("detected=" + Detected() + " native-workers=" + s_count + " failed=" + s_failed + " managed-cpus=1");
+            c.WriteLine("detected=" + Detected() + " native-workers=" + s_count + " stopping=" + s_stopping + " failed=" + s_failed + " managed-cpus=1");
             c.WriteLine("initial-idt-interrupts-enabled=" + ((InitialIdtFlags() & 0x200) != 0));
             c.WriteLine("Experimental workers require boot argument smp=native; idle APs currently poll.");
             return 0;
@@ -75,19 +102,21 @@ internal static class CpuWorkers
             c.WriteLine("IDT interrupt-state preservation failures=" + result);
             return result == 0 ? 0 : 1;
         }
-        if (c.Args.Length > 2 || c.Args[0] != "test") { return c.Fail("cpu status | irq-test | test [iterations]"); }
+        bool cancelTest = c.Args.Length == 1 && c.Args[0] == "cancel-test";
+        if (c.Args.Length > 2 || (c.Args[0] != "test" && !cancelTest)) { return c.Fail("cpu status | irq-test | test [iterations] | cancel-test"); }
         GuardedFilesystem.RequireRoot();
         ulong iterations = 2000000;
         if (c.Args.Length == 2 && !ulong.TryParse(c.Args[1], out iterations)) { return c.Fail("invalid iteration count"); }
         if (iterations < 1 || iterations > 10000000) { return c.Fail("iterations must be 1..10000000"); }
         lock (s_gate)
         {
-            if (s_count < 2 || s_failed) { return c.Fail("at least two ready native workers required; boot with smp=native"); }
+            if (s_count < 2 || s_failed || s_stopping) { return c.Fail("at least two ready native workers required; boot with smp=native"); }
             if (!Wait(3)) { s_failed = true; return c.Fail("native workers unavailable"); }
             Submit(iterations);
-            if (!Wait(2)) { s_failed = true; return c.Fail("native worker barrier failed; workers disabled"); }
+            if (!Wait(2)) { CancelNative(); s_failed = true; return c.Fail("native worker barrier failed; workers disabled"); }
+            if (cancelTest) { CancelNative(); }
             Execute();
-            if (!Wait(3)) { s_failed = true; return c.Fail("native worker completion failed; workers disabled"); }
+            if (!Wait(3)) { CancelNative(); s_failed = true; return c.Fail("native worker completion failed; workers disabled"); }
             ulong expected = 0xcbf29ce484222325;
             for (ulong i = iterations; i > 0; i--) { expected = unchecked((expected ^ i) * 0x100000001b3); }
             ulong latestStart = 0, earliestEnd = ulong.MaxValue;
@@ -96,9 +125,10 @@ internal static class CpuWorkers
                 ulong index = (ulong)i, start = Field(index, 3), end = Field(index, 4);
                 ulong id = Field(index, 2), actual = Field(index, 6), result = Field(index, 5);
                 c.WriteLine("worker=" + i + " apic=" + id + " actual=" + actual + " start=" + start + " end=" + end + " result=" + result.ToString("x"));
-                if (id != actual || result != expected || start >= end) { s_failed = true; return c.Fail("native worker result/identity mismatch"); }
+                if (id != actual || Field(index, 7) != (cancelTest ? 1UL : 0UL) || (!cancelTest && result != expected) || start >= end) { s_failed = true; return c.Fail("native worker result/identity mismatch"); }
                 latestStart = Math.Max(latestStart, start); earliestEnd = Math.Min(earliestEnd, end);
             }
+            if (cancelTest) { c.WriteLine("native CPU cancellation verified; workers reusable"); return 0; }
             c.WriteLine("native CPU results verified; overlap=" + (latestStart < earliestEnd) + "; managed-cpus=1");
             return 0;
         }

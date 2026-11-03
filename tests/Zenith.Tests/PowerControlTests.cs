@@ -15,6 +15,23 @@ namespace Zenith.Tests
             try { Assert.Throws<InvalidOperationException>(() => Zenith.Core.PowerControl.PowerOff()); Assert.Equal(0, Cosmos.Kernel.System.Power.Calls); }
             finally { Zenith.Core.Processes.NativeProcess.IsRunning = false; }
         }
+        [Fact]
+        public void WorkerQuiescenceFailurePreventsDiskAndHardwareShutdown()
+        {
+            Cosmos.Kernel.System.Power.Calls = 0;
+            Zenith.Core.Multiprocessing.CpuWorkers.Failure = new InvalidOperationException("AP did not stop");
+            Zenith.Core.Storage.SystemMounts.Failure = new IOException("disk shutdown must not run");
+            try
+            {
+                Assert.Throws<InvalidOperationException>(() => Zenith.Core.PowerControl.PowerOff());
+                Assert.Equal(0, Cosmos.Kernel.System.Power.Calls);
+            }
+            finally
+            {
+                Zenith.Core.Multiprocessing.CpuWorkers.Failure = null;
+                Zenith.Core.Storage.SystemMounts.Failure = null;
+            }
+        }
         [Theory]
         [InlineData(false)]
         [InlineData(true)]
@@ -60,4 +77,13 @@ namespace Cosmos.Kernel.System
 namespace Zenith.Core.Boot
 {
     internal static class NativeAcpiPower { public static string Describe() => "acpi: test"; public static void PowerOff() { } }
+}
+
+namespace Zenith.Core.Multiprocessing
+{
+    internal static class CpuWorkers
+    {
+        public static Exception? Failure;
+        public static void Quiesce() { if (Failure is not null) { throw Failure; } }
+    }
 }

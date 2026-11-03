@@ -49,12 +49,14 @@ def main():
                     check(machine.wait(marker,offset,90),label+' '+marker)
                     raw=machine.log()[offset:]
                     return raw+'\n'+h.efi.smoke.COSMOS_NOISE.sub('',raw)
-                raw=command('cpu status | logger','managed-cpus=1')
+                raw=command('cpu status | logger; echo CPU_STATUS=$? | logger','user: CPU_STATUS=0')
                 check('initial-idt-interrupts-enabled=False' in raw,label+' initial IDT keeps interrupts masked')
                 command('cpu irq-test | logger; echo IRQ_TEST=$? | logger','user: IRQ_TEST=0')
                 check('IDT interrupt-state preservation failures=0' in machine.log(),label+' IDT preserves masked and enabled states')
                 check('detected='+str(cpus)+' native-workers='+str(cpus if enabled else 0) in raw,label+' detected/started CPUs')
                 if enabled and cpus > 1:
+                    command('cpu cancel-test | logger; echo CPU_CANCEL=$? | logger','user: CPU_CANCEL=0')
+                    check('native CPU cancellation verified; workers reusable' in machine.log(),label+' cancellation barrier')
                     for run in range(2):
                         raw=command('cpu test 10000000 | logger; echo CPU_TEST=$? | logger','user: CPU_TEST=0')
                         ids=re.findall(r'user: worker=(\d+) apic=(\d+) actual=(\d+)',raw)
@@ -67,7 +69,9 @@ def main():
                 else:
                     command('cpu test; echo CPU_REFUSED=$? | logger','user: CPU_REFUSED=1')
                 command('echo cpu-shell-alive | logger','user: cpu-shell-alive')
-                command('poweroff','all filesystems unmounted')
+                raw=command('poweroff','all filesystems unmounted')
+                if enabled:
+                    check('native workers quiesced='+str(cpus) in raw,label+' AP stop acknowledged before unmount')
                 check(machine.process.wait(timeout=30)==0,label+' clean poweroff')
             finally: machine.stop()
     print('RESULT: '+str(checks)+' native CPU checks passed',flush=True)
