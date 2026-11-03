@@ -1,0 +1,264 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1900" viewBox="0 0 1440 1900">
+<rect x="0" y="0" width="1440" height="1900" rx="0" fill="#151619"/>
+<text x="48" y="55" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="28" font-weight="600" xml:space="preserve">Zenith / Equinox concept</text>
+<text x="48" y="86" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="14" font-weight="400" xml:space="preserve">Proposal, not running UI · a partition manager in the spirit of GParted and KDE Partition Manager, own layout · accepted neutral surfaces, 8/12 radii, Inter and Hack</text>
+<text x="48" y="126" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Dark · A disk, now and after</text>
+<rect x="48" y="148" width="1344" height="700" rx="12" fill="#202125" stroke="#45474F"/>
+<rect x="49" y="149" width="1342" height="43" rx="11" fill="#25262B"/>
+<g transform="translate(64 162) scale(0.6666666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12H2"/><path d="M5.500 5.100 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.500-6.900A2 2 0 0 0 16.800 4H7.200a2 2 0 0 0-1.700 1.100z"/><path d="M6 16h.01"/><path d="M10 16h.01"/></g>
+<text x="88" y="176" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">Equinox</text>
+<g transform="translate(1280 162) scale(.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(1316 162) scale(.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(1352 162) scale(.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<text x="68" y="226" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Disks</text>
+<rect x="60" y="236" width="190" height="34" rx="6" fill="#2C3B3D"/>
+<rect x="61" y="244" width="3" height="18" rx="1" fill="#7ECAC7"/>
+<g transform="translate(72 245) scale(0.6666666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12H2"/><path d="M5.500 5.100 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.500-6.900A2 2 0 0 0 16.800 4H7.200a2 2 0 0 0-1.700 1.100z"/><path d="M6 16h.01"/><path d="M10 16h.01"/></g>
+<text x="98" y="258" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">System disk</text>
+<text x="240" y="258" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">64 GiB</text>
+<g transform="translate(72 283) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 7v4"/><path d="M14 7v4"/><path d="M6 11h12v4a6 6 0 0 1-12 0z"/><path d="M8 3h8v4H8z"/></g>
+<text x="98" y="296" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">USB stick</text>
+<text x="240" y="296" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">16 GiB</text>
+<text x="68" y="332" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Changes</text>
+<g transform="translate(72 351) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></g>
+<text x="98" y="364" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Plan</text>
+<text x="240" y="364" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">2</text>
+<g transform="translate(72 389) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.800 9.800 0 0 0-6.700 2.700L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></g>
+<text x="98" y="402" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">History</text>
+<rect x="262" y="200" width="1118" height="636" rx="12" fill="#25262B"/>
+<text x="282" y="240" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="24" font-weight="600" xml:space="preserve">System disk</text>
+<text x="282" y="264" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">NVMe · 64.0 GiB · GPT · /dev/nvme0n1 · the running system</text>
+<defs><pattern id="freeD" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#2A2C31"/><rect width="3" height="8" fill="#45474F" fill-opacity=".7"/></pattern></defs>
+<text x="282" y="296" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Now</text>
+<rect x="335" y="280" width="32" height="46" rx="6" fill="#8BAAFF" fill-opacity=".22"/>
+<rect x="335" y="320" width="9" height="5" rx="2" fill="#8BAAFF" fill-opacity=".9"/>
+<rect x="335.5" y="280.5" width="31" height="45" rx="6" fill="none" stroke="#8BAAFF"/>
+<g transform="translate(344.0 296.0) scale(0.5833333333333334)" fill="none" stroke="#8BAAFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></g>
+<rect x="369" y="280" width="389" height="46" rx="6" fill="#7ECAC7" fill-opacity=".22"/>
+<rect x="369" y="320" width="109" height="5" rx="2" fill="#7ECAC7" fill-opacity=".9"/>
+<rect x="369.5" y="280.5" width="388" height="45" rx="6" fill="none" stroke="#7ECAC7"/>
+<text x="380" y="301.0" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Zenith  ·  ext2</text>
+<text x="380" y="318.0" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" xml:space="preserve">40.0 GiB, 11.2 GiB used</text>
+<rect x="760" y="280" width="231" height="46" rx="6" fill="url(#freeD)"/>
+<text x="771" y="301.0" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Free</text>
+<text x="771" y="318.0" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" xml:space="preserve">23.9 GiB</text>
+<text x="282" y="358" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">After</text>
+<rect x="335" y="342" width="32" height="46" rx="6" fill="#8BAAFF" fill-opacity=".22"/>
+<rect x="335" y="382" width="9" height="5" rx="2" fill="#8BAAFF" fill-opacity=".9"/>
+<rect x="335.5" y="342.5" width="31" height="45" rx="6" fill="none" stroke="#8BAAFF"/>
+<g transform="translate(344.0 358.0) scale(0.5833333333333334)" fill="none" stroke="#8BAAFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></g>
+<rect x="369" y="342" width="311" height="46" rx="6" fill="#7ECAC7" fill-opacity=".22"/>
+<rect x="369" y="382" width="109" height="5" rx="2" fill="#7ECAC7" fill-opacity=".9"/>
+<rect x="369.5" y="342.5" width="310" height="45" rx="6" fill="none" stroke="#7ECAC7"/>
+<text x="380" y="363.0" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Zenith  ·  ext2</text>
+<text x="380" y="380.0" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" xml:space="preserve">32.0 GiB, 11.2 GiB used</text>
+<rect x="682" y="342" width="309" height="46" rx="6" fill="#B6A0FF" fill-opacity=".22"/>
+<rect x="682.5" y="342.5" width="308" height="45" rx="6" fill="none" stroke="#B6A0FF" stroke-dasharray="5 4"/>
+<text x="693" y="363.0" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Data  ·  ext2</text>
+<text x="693" y="380.0" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" xml:space="preserve">31.9 GiB, new</text>
+<text x="282" y="418" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Partition</text>
+<text x="412" y="418" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Filesystem</text>
+<text x="512" y="418" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Size</text>
+<text x="662" y="418" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Used</text>
+<text x="752" y="418" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Mounted at</text>
+<text x="872" y="418" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Label</text>
+<rect x="282" y="428" width="710" height="1" rx="0" fill="#45474F"/>
+<rect x="282" y="452" width="10" height="10" rx="3" fill="#8BAAFF"/>
+<text x="300" y="463" fill="#F1F2F4" font-family="Hack, monospace" font-size="12" font-weight="400" xml:space="preserve">nvme0n1p1</text>
+<text x="412" y="463" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">FAT32</text>
+<text x="512" y="463" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">128 MiB</text>
+<text x="662" y="463" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">34 MiB</text>
+<text x="752" y="463" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">/boot/efi</text>
+<text x="872" y="463" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">EFI system</text>
+<g transform="translate(972 450) scale(0.6666666666666666)" fill="none" stroke="#8A8E98" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></g>
+<rect x="274" y="482" width="726" height="40" rx="8" fill="#2C3B3D"/>
+<rect x="282" y="496" width="10" height="10" rx="3" fill="#7ECAC7"/>
+<text x="300" y="507" fill="#F1F2F4" font-family="Hack, monospace" font-size="12" font-weight="400" xml:space="preserve">nvme0n1p2</text>
+<text x="412" y="507" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">ext2</text>
+<text x="512" y="507" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">40.0 → 32.0 GiB</text>
+<text x="662" y="507" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">11.2 GiB</text>
+<text x="752" y="507" fill="#F1F2F4" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">/</text>
+<text x="872" y="507" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Zenith</text>
+<rect x="282" y="540" width="10" height="10" rx="3" fill="#B6A0FF"/>
+<rect x="300" y="535" width="44" height="20" rx="10" fill="#2A2C31"/>
+<text x="322.0" y="549" fill="#B6A0FF" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">New</text>
+<text x="412" y="551" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">ext2</text>
+<text x="512" y="551" fill="#B6A0FF" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">31.9 GiB</text>
+<text x="662" y="551" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">—</text>
+<text x="752" y="551" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Not mounted</text>
+<text x="872" y="551" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Data</text>
+<rect x="282" y="578" width="228" height="62" rx="10" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(296 592) scale(0.6666666666666666)" fill="none" stroke="#8BCBA4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></g>
+<text x="322" y="605" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">ext2 check: clean</text>
+<text x="322" y="624" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Zenith, 2 min ago</text>
+<rect x="522" y="578" width="228" height="62" rx="10" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(536 592) scale(0.6666666666666666)" fill="none" stroke="#8BCBA4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.500 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.500-1.200 6.200-2.700a1.200 1.200 0 0 1 1.600 0C14.500 3.800 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></g>
+<text x="562" y="605" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">GPT copies match</text>
+<text x="562" y="624" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Primary and backup</text>
+<rect x="762" y="578" width="228" height="62" rx="10" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(776 592) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></g>
+<text x="802" y="605" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Aligned to 1 MiB</text>
+<text x="802" y="624" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">All partitions</text>
+<rect x="282" y="658" width="710" height="100" rx="10" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(296 674) scale(0.6666666666666666)" fill="none" stroke="#8BAAFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></g>
+<text x="322" y="687" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">The EFI partition is protected</text>
+<text x="322" y="708" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Zenith boots from it. Equinox shows it and checks it, but will not shrink,</text>
+<text x="322" y="726" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">move or format it on the disk you started from.</text>
+<text x="322" y="746" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Right-click a partition for its actions; every action lands in the plan first.</text>
+<rect x="1006" y="212" width="362" height="612" rx="12" fill="#202125" stroke="#45474F"/>
+<text x="1024" y="242" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Your plan</text>
+<text x="1350" y="242" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">Nothing written yet</text>
+<rect x="1006" y="254" width="362" height="1" rx="0" fill="#45474F"/>
+<rect x="1024" y="274" width="22" height="22" rx="11" fill="#2C3B3D"/>
+<text x="1035" y="290" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle" xml:space="preserve">1</text>
+<text x="1058" y="289" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Shrink Zenith to 32.0 GiB</text>
+<text x="1058" y="309" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Check, then shrink ext2, then the table</text>
+<rect x="1058" y="316" width="104" height="20" rx="10" fill="#3B3426"/>
+<text x="1110.0" y="330" fill="#E6C47A" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Runs at restart</text>
+<rect x="1024" y="340" width="22" height="22" rx="11" fill="#2C3B3D"/>
+<text x="1035" y="356" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle" xml:space="preserve">2</text>
+<text x="1058" y="355" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Create Data, ext2, 31.9 GiB</text>
+<text x="1058" y="375" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">In the space the shrink frees</text>
+<rect x="1006" y="410" width="362" height="1" rx="0" fill="#45474F"/>
+<g transform="translate(1024 428) scale(0.6666666666666666)" fill="none" stroke="#8BCBA4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.500 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.500-1.200 6.200-2.700a1.200 1.200 0 0 1 1.600 0C14.500 3.800 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></g>
+<text x="1050" y="441" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">11.2 GiB in use fits in 32.0 GiB</text>
+<g transform="translate(1024 458) scale(0.6666666666666666)" fill="none" stroke="#E6C47A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></g>
+<text x="1050" y="471" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Zenith is mounted: step 1 runs from</text>
+<text x="1050" y="501" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">the live system, about 4 min</text>
+<g transform="translate(1024 518) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.100 0-2-.9-2-2V4c0-1.100.9-2 2-2h10c1.100 0 2 .9 2 2"/></g>
+<text x="1050" y="531" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Partition table saved before writing</text>
+<g transform="translate(1024 548) scale(0.6666666666666666)" fill="none" stroke="#E6C47A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></g>
+<text x="1050" y="561" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Restarts once, then comes back here</text>
+<rect x="1024" y="578" width="326" height="70" rx="8" fill="#2A2C31"/>
+<text x="1036" y="602" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">If it fails</text>
+<text x="1036" y="624" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">The table is written last: a step that fails</text>
+<text x="1036" y="640" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">leaves the old layout, and History says why.</text>
+<rect x="1024" y="708" width="326" height="38" rx="8" fill="#7ECAC7"/>
+<text x="1187.0" y="732.0" fill="#202125" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">Apply plan</text>
+<rect x="1024" y="756" width="326" height="34" rx="8" fill="#2A2C31" stroke="#45474F"/>
+<text x="1187.0" y="778.0" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">See the exact commands</text>
+<text x="1187.0" y="806" fill="#8A8E98" font-family="Hack, monospace" font-size="12" font-weight="400" text-anchor="middle" xml:space="preserve">disk plan show</text>
+<rect x="0" y="880" width="1440" height="1020" rx="0" fill="#E9EAEE"/>
+<text x="48" y="916" fill="#202126" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Light · Resizing, with the limits shown</text>
+<rect x="48" y="938" width="1344" height="700" rx="12" fill="#F6F7F9" stroke="#CFD1D8"/>
+<rect x="49" y="939" width="1342" height="43" rx="11" fill="#EFF0F3"/>
+<g transform="translate(64 952) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12H2"/><path d="M5.500 5.100 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.500-6.900A2 2 0 0 0 16.800 4H7.200a2 2 0 0 0-1.700 1.100z"/><path d="M6 16h.01"/><path d="M10 16h.01"/></g>
+<text x="88" y="966" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">Equinox</text>
+<g transform="translate(1280 952) scale(.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(1316 952) scale(.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(1352 952) scale(.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<text x="68" y="1016" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Disks</text>
+<rect x="60" y="1026" width="190" height="34" rx="6" fill="#D7E9E8"/>
+<rect x="61" y="1034" width="3" height="18" rx="1" fill="#197571"/>
+<g transform="translate(72 1035) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12H2"/><path d="M5.500 5.100 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.500-6.900A2 2 0 0 0 16.800 4H7.200a2 2 0 0 0-1.700 1.100z"/><path d="M6 16h.01"/><path d="M10 16h.01"/></g>
+<text x="98" y="1048" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">System disk</text>
+<text x="240" y="1048" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">64 GiB</text>
+<g transform="translate(72 1073) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 7v4"/><path d="M14 7v4"/><path d="M6 11h12v4a6 6 0 0 1-12 0z"/><path d="M8 3h8v4H8z"/></g>
+<text x="98" y="1086" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">USB stick</text>
+<text x="240" y="1086" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">16 GiB</text>
+<text x="68" y="1122" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="600" xml:space="preserve">Changes</text>
+<g transform="translate(72 1141) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></g>
+<text x="98" y="1154" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Plan</text>
+<text x="240" y="1154" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">2</text>
+<g transform="translate(72 1179) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.800 9.800 0 0 0-6.700 2.700L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></g>
+<text x="98" y="1192" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">History</text>
+<rect x="262" y="990" width="1118" height="636" rx="12" fill="#FFFFFF"/>
+<g transform="translate(282 1008) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 10-5 5 5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></g>
+<text x="306" y="1021" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">System disk</text>
+<text x="282" y="1060" fill="#202126" font-family="Inter, sans-serif" font-size="24" font-weight="600" xml:space="preserve">Resize Zenith</text>
+<text x="282" y="1084" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">nvme0n1p2 · ext2 · mounted at /</text>
+<defs><pattern id="freeL" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#F6F7F9"/><rect width="3" height="8" fill="#CFD1D8" fill-opacity=".7"/></pattern></defs>
+<rect x="283" y="1110" width="32" height="70" rx="6" fill="#3157B7" fill-opacity=".22"/>
+<g transform="translate(292.0 1138.0) scale(0.5833333333333334)" fill="none" stroke="#3157B7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></g>
+<rect x="655" y="1110" width="337" height="70" rx="6" fill="url(#freeL)"/>
+<rect x="317" y="1110" width="337" height="70" rx="6" fill="#197571" fill-opacity=".18"/>
+<rect x="317" y="1110" width="119" height="70" rx="6" fill="#197571" fill-opacity=".5"/>
+<rect x="317.5" y="1110.5" width="336" height="69" rx="6" fill="none" stroke="#197571" stroke-width="2"/>
+<path d="M739 1102 V1188" stroke="#6E727C" stroke-dasharray="3 3"/>
+<text x="739" y="1098" fill="#6E727C" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">was 40.0 GiB</text>
+<rect x="435" y="1184" width="1" height="10" rx="0" fill="#5C606B"/>
+<text x="435" y="1206" fill="#5C606B" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">smallest 11.6 GiB</text>
+<rect x="648" y="1127.0" width="12" height="36" rx="6" fill="#FFFFFF" stroke="#197571"/>
+<rect x="650.5" y="1137.0" width="1" height="16" rx="0" fill="#197571"/>
+<rect x="656.5" y="1137.0" width="1" height="16" rx="0" fill="#197571"/>
+<text x="330" y="1140" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Zenith</text>
+<text x="330" y="1158" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">32.0 GiB</text>
+<text x="669" y="1140" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Freed</text>
+<text x="669" y="1158" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">8.0 GiB</text>
+<text x="753" y="1140" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Already free</text>
+<text x="753" y="1158" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">23.9 GiB</text>
+<text x="282" y="1228" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Free space before</text>
+<rect x="282" y="1236" width="226" height="34" rx="8" fill="#F6F7F9" stroke="#CFD1D8"/>
+<text x="294" y="1258" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">0</text>
+<text x="496" y="1258" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">MiB</text>
+<text x="524" y="1228" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">New size</text>
+<rect x="524" y="1236" width="226" height="34" rx="8" fill="#F6F7F9" stroke="#197571"/>
+<text x="536" y="1258" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">32.0</text>
+<text x="738" y="1258" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">GiB</text>
+<text x="766" y="1228" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Free space after</text>
+<rect x="766" y="1236" width="226" height="34" rx="8" fill="#F6F7F9" stroke="#CFD1D8"/>
+<text x="778" y="1258" fill="#202126" font-family="Hack, monospace" font-size="13" font-weight="400" xml:space="preserve">31.9</text>
+<text x="980" y="1258" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">GiB</text>
+<text x="282" y="1298" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Drag the handle, type a size, or use arrow keys: Shift moves 1 GiB, plain 64 MiB.</text>
+<text x="282" y="1324" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">What limits this</text>
+<g transform="translate(282 1346) scale(0.6666666666666666)" fill="none" stroke="#277347" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></g>
+<text x="308" y="1358" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Smallest: 11.6 GiB</text>
+<text x="308" y="1377" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">The data in use, plus room ext2 needs for its own tables</text>
+<g transform="translate(282 1396) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></g>
+<text x="308" y="1408" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Start stays fixed</text>
+<text x="308" y="1427" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Moving the start copies every block; Equinox offers it as a separate step</text>
+<g transform="translate(282 1446) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></g>
+<text x="308" y="1458" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Snaps to 1 MiB</text>
+<text x="308" y="1477" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">So partitions stay aligned for the disk</text>
+<g transform="translate(282 1496) scale(0.6666666666666666)" fill="none" stroke="#886010" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></g>
+<text x="308" y="1508" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">Mounted at /</text>
+<text x="308" y="1527" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">The shrink runs from the live system at the next restart</text>
+<rect x="1006" y="1002" width="362" height="612" rx="12" fill="#F6F7F9" stroke="#CFD1D8"/>
+<text x="1024" y="1032" fill="#202126" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Partition</text>
+<rect x="1006" y="1044" width="362" height="1" rx="0" fill="#CFD1D8"/>
+<text x="1024" y="1070" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Device</text>
+<text x="1350" y="1070" fill="#202126" font-family="Hack, monospace" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">/dev/nvme0n1p2</text>
+<text x="1024" y="1096" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Type</text>
+<text x="1350" y="1096" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">Linux filesystem</text>
+<text x="1024" y="1122" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">PARTUUID</text>
+<text x="1350" y="1122" fill="#202126" font-family="Hack, monospace" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">3f9c1e02…a71e</text>
+<text x="1024" y="1148" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Sectors</text>
+<text x="1350" y="1148" fill="#202126" font-family="Hack, monospace" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">264192 – 84150271</text>
+<text x="1024" y="1174" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Filesystem</text>
+<text x="1350" y="1174" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">ext2, 4 KiB blocks</text>
+<text x="1024" y="1200" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Label</text>
+<text x="1350" y="1200" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">Zenith</text>
+<text x="1024" y="1226" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Last check</text>
+<text x="1350" y="1226" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">Clean, 2 min ago</text>
+<rect x="1006" y="1256" width="362" height="1" rx="0" fill="#CFD1D8"/>
+<text x="1024" y="1284" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600" xml:space="preserve">Who uses it</text>
+<rect x="1024" y="1298" width="326" height="74" rx="8" fill="#F3E8CF"/>
+<g transform="translate(1036 1312) scale(0.6666666666666666)" fill="none" stroke="#886010" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></g>
+<text x="1062" y="1325" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" xml:space="preserve">This is the running system</text>
+<text x="1062" y="1345" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">214 files open, 3 sessions. Equinox</text>
+<text x="1062" y="1361" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">will not touch it while it is mounted.</text>
+<text x="1024" y="1398" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Other partitions are not changed.</text>
+<rect x="1024" y="1546" width="157" height="38" rx="8" fill="#F6F7F9" stroke="#CFD1D8"/>
+<text x="1102.5" y="1570.0" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">Cancel</text>
+<rect x="1193" y="1546" width="157" height="38" rx="8" fill="#197571"/>
+<text x="1271.5" y="1570.0" fill="#FFFFFF" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">Add to plan</text>
+<text x="1187.0" y="1602" fill="#6E727C" font-family="Hack, monospace" font-size="12" font-weight="400" text-anchor="middle" xml:space="preserve">disk resize nvme0n1p2 32G</text>
+<text x="48" y="1666" fill="#202126" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">The idea: before and after</text>
+<text x="48" y="1692" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Partition tools are scary because you see the result only</text>
+<text x="48" y="1710" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">once it is written. Equinox draws the disk twice: as it is,</text>
+<text x="48" y="1728" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">and as the plan will leave it.</text>
+<text x="48" y="1754" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Every action, from resize to format, joins the plan first.</text>
+<text x="48" y="1772" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Nothing is written until Apply.</text>
+<text x="496" y="1666" fill="#202126" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Safe by default</text>
+<text x="496" y="1692" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Mounted partitions and the EFI partition you booted from are</text>
+<text x="496" y="1710" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">shown, never changed in place. Work on them runs from the</text>
+<text x="496" y="1728" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">live system.</text>
+<text x="496" y="1754" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Each step checks the filesystem first, saves the table and</text>
+<text x="496" y="1772" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">writes it last, so a failure leaves the old layout.</text>
+<text x="944" y="1666" fill="#202126" font-family="Inter, sans-serif" font-size="16" font-weight="600" xml:space="preserve">Same engine as the installer</text>
+<text x="944" y="1692" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">Equinox uses the disk code Sunrise installs with, through a</text>
+<text x="944" y="1710" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">typed service, and lists the shell command behind each step.</text>
+<text x="944" y="1736" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">It reads without root and asks for authentication only when</text>
+<text x="944" y="1754" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" xml:space="preserve">applying. History records each change.</text>
+<text x="48" y="1866" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" xml:space="preserve">Requires: a typed disk service for clients, ext2 shrink and grow, a disk command for the shell, and a way to run a plan from the live system. Today Zenith formats and checks ext2 and FAT32, and only Sunrise writes partitions. Values are illustrative.</text>
+</svg>

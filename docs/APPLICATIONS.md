@@ -28,6 +28,7 @@ package: small session controls may belong to the desktop/session package initia
 | Observatory (chosen) | System, process and resource monitor; [concept](design/observatory-concept.svg) | zenith-observatory |
 | Beacon (chosen) | Network status, configuration, history and diagnostics; [concept](design/beacon-concept.svg) | zenith-beacon |
 | Prism (chosen) | Keyboard launcher with apps, calculator and search, beside the start menu; [concept](design/prism-concept.svg). Theming and appearance belong to Meridian | zenith-prism |
+| Equinox (proposed) | Partition manager: disks, partitions, format, resize, as a plan applied at once, in the spirit of GParted and KDE Partition Manager; [concept](design/equinox-concept.svg) | zenith-equinox |
 
 Package descriptions and searchable keywords must expose familiar terms such as
 Files, Editor, Settings and Updates. Prefer functionally useful first-party tools;

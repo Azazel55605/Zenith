@@ -201,7 +201,7 @@ The M0–M10 names in that guide are Meridian phases, not separate project miles
 
 ## Scope decisions and non-blocking ideas
 
-Concepts exist for [Sunset](design/sunset-concept.svg) and [Prism](design/prism-concept.svg) under W1 and for [Orbit](design/orbit-concept.svg), [Observatory](design/observatory-concept.svg) and [Beacon](design/beacon-concept.svg) below; none is scheduled yet. Optional Doom remains outside the product's main delivery sequence. Orbit/package
+Concepts exist for [Sunset](design/sunset-concept.svg) and [Prism](design/prism-concept.svg) under W1 and for [Orbit](design/orbit-concept.svg), [Observatory](design/observatory-concept.svg), [Beacon](design/beacon-concept.svg) and [Equinox](design/equinox-concept.svg) below; none is scheduled yet. Optional Doom remains outside the product's main delivery sequence. Orbit/package
 browser, Observatory/resource monitor, Beacon/network panel, archive app, screenshots,
 SSH and diagnostic export are proposed additional applications, not approved core
 release blockers. Keep them in [application requirements](APPLICATIONS.md), and add
