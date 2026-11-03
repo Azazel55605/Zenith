@@ -10,6 +10,23 @@ namespace Zenith.Tests;
 
 public class RepositoryTests
 {
+    [Fact]
+    public void IndexListsOnlyEachPackagesNewestVersionsAndStaysReadable()
+    {
+        static RepositoryEntry E(string name, string version) => new("core", name == "zenith-kernel" ? "kernel" : "data", name, version, 1, new string('0', 64), "");
+        var all = new List<RepositoryEntry>();
+        for (int i = 1; i <= 43; i++) { all.Add(E("zenith-kernel", "0.0." + i)); }
+        foreach (string v in new[] { "0.1.0", "0.2.0", "0.3.0", "0.1.1" }) { all.Add(E("zenith-polaris", v)); }
+        all.Add(E("zenith-fonts", "0.1.0"));
+        var kept = RepositoryIndex.Publishable(all);
+        Assert.Equal(new[] { "0.0.43", "0.0.42", "0.0.41" }, kept.Where(e => e.Name == "zenith-kernel").Select(e => e.Version));
+        Assert.Equal(new[] { "0.3.0", "0.2.0", "0.1.1" }, kept.Where(e => e.Name == "zenith-polaris").Select(e => e.Version));
+        Assert.Single(kept, e => e.Name == "zenith-fonts");
+        Assert.Equal(kept.OrderBy(e => e.Name, StringComparer.Ordinal).Select(e => e.Name), kept.Select(e => e.Name));
+        // Far more packages than fit is refused, not cut silently.
+        var many = Enumerable.Range(0, RepositoryIndex.MaximumEntries + 1).Select(i => E("p" + i.ToString("D3"), "1.0.0"));
+        Assert.Contains("index entry limit", Assert.Throws<IOException>(() => RepositoryIndex.Publishable(many)).Message);
+    }
     private sealed class Verifier : IPackageSignatureVerifier
     {
         public bool Verify(byte[] key, byte[] hash, byte[] signature)

@@ -24,6 +24,27 @@ internal sealed record RepositoryIndex(string Repository, ulong Generation, long
     {
         if (Issued > now + 300 || Expires <= now) { throw new IOException("repository metadata expired or clock is incorrect; run pkg refresh"); }
     }
+    /// <summary>Entries an index may hold; installed kernels refuse a longer one.</summary>
+    public const int MaximumEntries = 64;
+    /// <summary>Newest versions listed per package. Older archives stay published at their paths, unlisted.</summary>
+    public const int VersionsPerPackage = 3;
+    /// <summary>The entries to publish: each package's newest <see cref="VersionsPerPackage"/> versions, sorted by
+    /// name, newest first. Throws only when even that would not fit what every installed kernel reads.</summary>
+    public static List<RepositoryEntry> Publishable(IEnumerable<RepositoryEntry> all)
+    {
+        var sorted = new List<RepositoryEntry>(all);
+        sorted.Sort((a, b) => { int name = string.CompareOrdinal(a.Name, b.Name); return name != 0 ? name : PackageVersions.Compare(b.Version, a.Version); });
+        var kept = new List<RepositoryEntry>();
+        string? name = null; int count = 0;
+        foreach (var entry in sorted)
+        {
+            if (entry.Name != name) { name = entry.Name; count = 0; }
+            if (++count <= VersionsPerPackage) { kept.Add(entry); }
+        }
+        if (kept.Count > MaximumEntries) { throw new IOException("index entry limit: " + kept.Count + " entries for " + MaximumEntries + " slots"); }
+        return kept;
+    }
+
     public static string Content(string repository, ulong generation, long issued, long expires, IReadOnlyList<RepositoryEntry> entries)
     {
         var text = new StringBuilder("ZENITH-INDEX\t1\t" + repository + "\t" + generation.ToString(CultureInfo.InvariantCulture)
@@ -54,7 +75,7 @@ internal sealed record RepositoryIndex(string Repository, ulong Generation, long
         {
             string[] f = lines[i].Split('\t');
             if (f.Length != 6 || f[0] is not ("data" or "kernel") || !PackageManifest.ValidName(f[1])
-                || !PackageVersions.Valid(f[2]) || !identities.Add(f[1] + "@" + f[2]) || entries.Count == 64
+                || !PackageVersions.Valid(f[2]) || !identities.Add(f[1] + "@" + f[2]) || entries.Count == MaximumEntries
                 || !int.TryParse(f[3], NumberStyles.None, CultureInfo.InvariantCulture, out int bytes) || bytes < 1
                 || bytes > (f[0] == "kernel" ? KernelPackage.MaximumBytes : SignedPackage.MaximumBytes)
                 || bytes.ToString(CultureInfo.InvariantCulture) != f[3] || !Hex(f[4]))

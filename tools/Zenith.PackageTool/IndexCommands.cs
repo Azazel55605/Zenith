@@ -42,14 +42,15 @@ internal static class IndexCommands
                     entry = new(repository, "data", package.Manifest.Name, package.Manifest.Version, bytes.Length, package.ArchiveDigest, package.ManifestText);
                 }
                 if (Path.GetFullPath(file) != Path.Combine(root, entry.ArchivePath)) { throw new IOException("package is not at its immutable identity path"); }
-                if (entries.Count == 64) { throw new IOException("index entry limit"); } entries.Add(entry);
+                if (entries.Count == 4096) { throw new IOException("index source has too many archives"); } entries.Add(entry);
             }
         }
         SignedCommands.Parents(root);
         if (LinuxFileType.Read(root) != 0x4000) { throw new IOException("linked index publication root refused"); }
         if (repository is not ("core" or "extra")) { throw new IOException("unknown repository"); }
         string directory = Path.Combine(root, repository); if (Directory.Exists(directory)) { Walk(directory); }
-        entries.Sort((a, b) => { int name = string.CompareOrdinal(a.Name, b.Name); return name != 0 ? name : PackageVersions.Compare(b.Version, a.Version); });
+        // Every release adds archives, so list only each package's newest versions: installed kernels read 64.
+        entries = RepositoryIndex.Publishable(entries);
         byte[] content = Encoding.UTF8.GetBytes(RepositoryIndex.Content(repository, ulong.Parse(args[2]), long.Parse(args[3]), long.Parse(args[4]), entries));
         byte[] header = Encoding.ASCII.GetBytes("ZENITH-SIGNED-INDEX\t1\t" + PackagePlanner.Digest(key) + "\t" + content.Length + "\t" + rsa.KeySize / 8 + "\n");
         byte[] signed = new byte[header.Length + content.Length]; header.CopyTo(signed, 0); content.CopyTo(signed, header.Length);
