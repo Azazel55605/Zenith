@@ -52,7 +52,8 @@ def main():
         command(text+'; recovery echo '+label+'=$? | logger','user: '+label+'='+str(code))
     def boot(name,disk=None):
         nonlocal m
-        m=h.Machine(keep/name,disk,network=net,monitor=keep/name/'monitor.sock')
+        multicore=disk is not None and (ROOT/'src/Core/Multiprocessing/CpuWorkers.Process.cs').exists()
+        m=h.Machine(keep/name,disk,argument='smp=native' if multicore else None,cpus=4 if multicore else 1,network=net,monitor=keep/name/'monitor.sock')
         assert m.wait('headless ready',timeout=180),'headless boot'
         assert m.wait('network: online address=10.0.2.15',timeout=90),'DHCP'
     try:

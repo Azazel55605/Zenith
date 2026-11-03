@@ -164,7 +164,7 @@ internal static partial class CpuWorkers
         if (c.Args.Length > 2 || (c.Args.Length == 2 && c.Args[0] != "test")) { return c.Fail(Usage); }
         string action = c.Args[0];
         if (action != "blur-test" && action != "test" && action != "cancel-test" && action != "queue-test" && action != "idle-test"
-            && action != "managed-test" && action != "managed-fault-test" && action != "managed-image-test" && action != "managed-hold" && action != "managed-release" && action != "state-test" && action != "image-test" && action != "fault-test" && action != "stop-test") { return c.Fail(Usage); }
+            && action != "managed-test" && action != "managed-fault-test" && action != "managed-image-test" && action != "managed-hold" && action != "managed-hold-one" && action != "managed-release" && action != "state-test" && action != "image-test" && action != "fault-test" && action != "stop-test") { return c.Fail(Usage); }
         ulong iterations = 2000000;
         if (c.Args.Length == 2 && (!ulong.TryParse(c.Args[1], out iterations) || iterations < 1 || iterations > 10000000))
         { return c.Fail("iterations must be 1..10000000"); }
@@ -179,6 +179,7 @@ internal static partial class CpuWorkers
                 {
                     case "blur-test": BlurTest(c); break;
                     case "managed-hold": ManagedHold(c); break;
+                    case "managed-hold-one": ManagedHold(c, true); break;
                     case "managed-release": ManagedRelease(c); break;
                     case "managed-image-test": ManagedImageTest(c); break;
                     case "managed-fault-test": ManagedFaultTest(c); break;
@@ -237,19 +238,19 @@ internal static partial class CpuWorkers
         c.WriteLine(cancel ? "native CPU cancellation verified; workers reusable" : "native CPU results verified; overlap=" + (latestStart < earliestEnd) + "; managed-cpus=1");
     }
 
-    private static void ManagedHold(CommandContext c)
+    private static void ManagedHold(CommandContext c, bool one = false)
     {
         Require(s_heldManaged is null, "managed diagnostic batch already held");
         ManagedCpuJobs.Initialize((ulong)s_count);
-        var tokens = new ulong[s_count]; s_heldManaged = tokens;
-        for (int cpu = 1; cpu < s_count; cpu++)
+        var tokens = new ulong[one ? Math.Min(2,s_count) : s_count]; s_heldManaged = tokens;
+        for (int cpu = 1; cpu < tokens.Length; cpu++)
         {
             tokens[cpu] = Enqueue((ulong)cpu, 5, 4096, 17, 1, 0);
             Require(tokens[cpu] != 0, "managed hold admission");
         }
         Require(Wait(() =>
         {
-            for (int cpu = 1; cpu < s_count; cpu++) if (Job(tokens[cpu], 4) != 100) return false;
+            for (int cpu = 1; cpu < tokens.Length; cpu++) if (Job(tokens[cpu], 4) != 100) return false;
             return true;
         }), "managed hold readiness");
         c.WriteLine("managed roots parked on APs; BSP services remain available");
@@ -258,10 +259,10 @@ internal static partial class CpuWorkers
     private static void ManagedRelease(CommandContext c)
     {
         ulong[] tokens = s_heldManaged ?? throw new InvalidOperationException("no managed diagnostic batch held");
-        for (int cpu = 1; cpu < s_count; cpu++) Require(Control(tokens[cpu], 3) == 1, "managed hold release");
+        for (int cpu = 1; cpu < tokens.Length; cpu++) Require(Control(tokens[cpu], 3) == 1, "managed hold release");
         ulong expected = 0xcbf29ce484222325UL;
         for (ulong i = 0; i < 4096; i++) expected = (expected ^ (byte)(17 + i)) * 0x100000001b3UL;
-        for (int cpu = 1; cpu < s_count; cpu++)
+        for (int cpu = 1; cpu < tokens.Length; cpu++)
         {
             Finished(tokens[cpu]); Require(Job(tokens[cpu], 1) == expected, "managed roots survived BSP service pressure");
             Require(Control(tokens[cpu], 2) == 1, "managed hold reap");

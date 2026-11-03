@@ -540,6 +540,9 @@ internal sealed unsafe class NativeProcess
         catch (Exception error) { setupError = error.Message; }
         Monitor.Exit(s_serviceGate);
         if (setupError is not null) { return (1, setupError, 0); }
+        uint affinity;
+        try { affinity = ProcessPlacement.Parse(environment); }
+        catch (ArgumentException error) { return (1,error.Message,0); }
         int pid = -1;
         var identity = Zenith.Core.Security.CredentialContext.Current;
         bool maintenance;
@@ -608,9 +611,15 @@ internal sealed unsafe class NativeProcess
                     if (!process._interactive.Advance(graphics!.Live, MonotonicMilliseconds, out bool renew)) { status = 130; break; }
                     if (renew)
                     { calls = graphicsCalls = readBytes = 0; files.RenewBudget(); graphics.RenewBudget(); context.Ticks = 1000; }
-                    Monitor.Enter(s_rawGate);
-                    try { status = (int)RunNative(&context); Monitor.Exit(s_rawGate); }
-                    catch { Monitor.Exit(s_rawGate); throw; }
+                    status = Zenith.Core.Multiprocessing.CpuWorkers.RunProcessSlice((ulong)&context, affinity, cancelled, out int cpu);
+                    if (status == -1)
+                    {
+                        Monitor.Enter(s_rawGate);
+                        try { status = (int)RunNative(&context); Monitor.Exit(s_rawGate); }
+                        catch { Monitor.Exit(s_rawGate); throw; }
+                        cpu = 0;
+                    }
+                    Processes.SetExecution(pid,cpu,affinity);
                     // A device IRQ interrupted the user window and has been delivered
                     // to its managed driver; resume the unchanged frame.
                     if (status == DeviceInterruptYield) { continue; }

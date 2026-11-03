@@ -87,7 +87,8 @@ def main():
         if args.materials:status('settings set materials blur','MATERIAL_ENABLE')
         if args.materials:status('settings set appearance '+('light' if args.material_light else 'dark')+' blue','MATERIAL_THEME')
         disk=shutdown();m=None
-        m=h.Machine(keep/'desktop',disk,'session=de',network=net+['-device','virtio-gpu-pci','-device','virtio-keyboard-pci'],monitor=monitor)
+        multicore=(ROOT/'src/Core/Multiprocessing/CpuWorkers.Process.cs').exists()
+        m=h.Machine(keep/'desktop',disk,'session=de smp=native' if multicore else 'session=de',network=net+['-device','virtio-gpu-pci','-device','virtio-keyboard-pci'],monitor=monitor,cpus=4 if multicore else 1)
         assert m.wait('desktop ready (installed)',timeout=180)
         time.sleep(1);off=len(m.log());login.monitor_type(monitor,'sh /root/'+stem+'-u\n')
         assert m.wait('user: MATERIALS_READY' if args.materials else 'user: UI_READY',off,60),'gallery launch'

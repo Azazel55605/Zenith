@@ -56,7 +56,9 @@ never infer current failures from old release logs or claim a menu stub is a bac
   file writes and Sunbeam tee; new bundles declare zenith-native-io-abi 1.0.
   The stream extension adds live standard descriptors/canonical host input and
   8 KiB byte pipes (eight shell stages/workers, eight native contexts globally).
-  Raw entry stays serialized on the BSP; managed service waits may overlap. New
+  Default raw entry stays serialized on the BSP; opt-in C4 private AP bridges
+  schedule protected user contexts at syscall/timer boundaries. Managed service
+  actors and their captured credentials remain on the BSP; waits may overlap. New
   bundles require zenith-native-stream-abi 1.0. Keep stream/cancel/early-exit tests.
   The CLI extension adds exported envp, an owner-filtered process table,
   cooperative PID cancellation, foreground raw-input leases and four bounded shell
@@ -114,13 +116,15 @@ never infer current failures from old release logs or claim a menu stub is a bac
 - Opt-in x64 `smp=native` starts isolated native integer workers (docs/MULTICORE.md).
   The x64 IDT loader must preserve IF: Cosmos 3.0.89's premature STI is redirected
   in signature-checked build copies. Keep installed UEFI startup/IRQ-state checks.
-  General managed scheduling, collection, drivers and the foreground process bridge
-  stay on the BSP. APs own static queues, private GDT/TSS/work/IST stacks and owned
+  General managed scheduling, collection and drivers stay on the BSP. C4's
+  protected user contexts use private AP bridges and a bounded native ready pool;
+  their managed service actors remain on the BSP. APs own static queues, private GDT/TSS/work/IST stacks and owned
   pixel buffers. C3 admits only a fixed trusted managed entry after the complete
   runtime contract is sealed: permanent pinned TLS/TLAB/exception owners, shared
   allocation/heap/metadata ownership and acknowledged native stopped-root epochs.
   No AP may mutate the UI, use UART/early GOP, perform device/service calls, create
-  arbitrary threads or migrate. Frames cross back only as complete owned copies.
+  arbitrary managed threads. C3 owners never migrate; C4 may transfer only complete
+  Ready user contexts within captured affinity. Frames cross back only as complete owned copies.
   Keep the IF-clear predicate recheck / STI-HLT
   wake protocol, fenced targeted IPIs, bounded admission and generation-token
   ownership. Completed jobs retain capacity until reaped; failed queues stay
@@ -135,8 +139,9 @@ never infer current failures from old release logs or claim a menu stub is a bac
   Keep native frame offsets, managed ThreadContext initialization/layout and both
   IRQ scheduler RSP derivations synchronized. Preserve hardware logical CPU IDs,
   early non-BSP raw-process refusal and read-only diagnostics for old/new frames.
-  Native AP timer/reschedule handlers must not enter managed code; periodic managed
-  dispatch and migration remain C4; C3 supplies ownership only for fixed pinned jobs.
+  Native AP timer/reschedule handlers must not enter managed code. C4 timers return
+  complete user register/FP frames for ready requeueing, never migrate Running
+  frames or kernel TLS/credential scopes. C3 supplies fixed pinned managed owners.
   Metadata cache keys publish after complete construction under the shared gate.
   A missing root acknowledgement refuses collection before marking/sweeping; a
   collector failure after admission keeps the world stopped and fail-stops rather
@@ -153,6 +158,15 @@ never infer current failures from old release logs or claim a menu stub is a bac
   default-disabled boots. Keep the pinned MSI 40–EE range and signature drift
   rejection. Compositor/native gate and actual full-scene pixel comparison remain
   mandatory; bounded task distribution is not general thread/process migration.
+  C4 protected-process admission is a separate generation/affinity pool. Keep
+  exact runnable tickets distinct from retained storage, pool-before-CPU lock
+  ordering, leased-context entry checks, per-CPU GS/IDT/TSS/FP restoration and
+  BSP-only device routing. Reap terminal generations despite transient contention;
+  cancel/await before unwinding any borrowed Context stack. Missing stop/root
+  acknowledgements or poisoned queue metadata fail-stop. Preserve the fresh
+  native-smp gate, 1/2/4-CPU actual execution/overlap and ext2 audits, and the full
+  four-CPU process gate with one parked managed-root owner. Default AP admission
+  remains opt-in until distributor and operator acceptance.
 - GUI input must periodically drain registered mice before sampling coordinates,
   even if a virtio notification was missed. Keep polling IRQ-scoped on the BSP,
   restore prior flags on success/exception, bound virtio drains to 64 events and

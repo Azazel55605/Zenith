@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Zenith.Core.Processes;
 
 internal enum ProcessState { Starting, Running, Waiting, Exited }
-internal sealed record ProcessInfo(int Pid, string Name, uint Uid, ProcessState State, int? Status, bool StopRequested);
+internal sealed record ProcessInfo(int Pid, string Name, uint Uid, ProcessState State, int? Status, bool StopRequested, int Cpu = -1, uint Affinity = 255, int Migrations = 0);
 
 /// <summary>Bounded process metadata, owner-authorized cooperative stop and exit history.</summary>
 internal sealed class ProcessTable
@@ -18,8 +18,10 @@ internal sealed class ProcessTable
         public int? Status;
         public bool StopRequested;
         public bool Client;
+        public int Cpu = -1, Migrations;
+        public uint Affinity = 255;
         public Action? Stop = stop;
-        public ProcessInfo Snapshot() => new(Pid, Name, Uid, State, Status, StopRequested);
+        public ProcessInfo Snapshot() => new(Pid, Name, Uid, State, Status, StopRequested, Cpu, Affinity, Migrations);
     }
     private readonly object _gate = new();
     private readonly Dictionary<int, Entry> _entries = new();
@@ -66,6 +68,19 @@ internal sealed class ProcessTable
         {
             if (_entries.TryGetValue(pid, out var entry) && entry.State != ProcessState.Exited)
             { entry.State = state; }
+        }
+    }
+    public void SetExecution(int pid, int cpu, uint affinity)
+    {
+        if (cpu is < -1 or > 7 || affinity is 0 or > 255 || (cpu >= 0 && (affinity & (1U << cpu)) == 0))
+            throw new ArgumentException("invalid process CPU ownership");
+        lock (_gate)
+        {
+            if (_entries.TryGetValue(pid,out var entry) && entry.State != ProcessState.Exited)
+            {
+                if (entry.Cpu >= 0 && cpu >= 0 && entry.Cpu != cpu) entry.Migrations++;
+                entry.Cpu = cpu; entry.Affinity = affinity;
+            }
         }
     }
     public void Complete(int pid, int status)

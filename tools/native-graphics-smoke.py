@@ -95,7 +95,8 @@ def main():
         status('native run gui-probe --bounds | logger','G_BOUNDS')
         status('native run gui-probe --probe','G_HEADLESS',1)
         command('poweroff','all filesystems unmounted');m.process.wait(timeout=30);disk=m.disk;m.stop();m=None
-        m=h.Machine(keep/'desktop',disk,'session=de',network=net+['-device','virtio-gpu-pci','-device','virtio-keyboard-pci'],monitor=monitor)
+        multicore=(ROOT/'src/Core/Multiprocessing/CpuWorkers.Process.cs').exists()
+        m=h.Machine(keep/'desktop',disk,'session=de smp=native' if multicore else 'session=de',network=net+['-device','virtio-gpu-pci','-device','virtio-keyboard-pci'],monitor=monitor,cpus=4 if multicore else 1)
         assert m.wait('desktop ready (installed)',timeout=180);gui=True;time.sleep(2)
         status('native run gui-probe --probe | logger','G_PROBE')
         status('native run gui-probe --exit | logger','G_EXIT')

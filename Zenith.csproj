@@ -40,6 +40,11 @@
     </ItemGroup>
   </Target>
 
+  <Target Name="BuildZenithProcessBridges" BeforeTargets="BuildAsm" DependsOnTargets="FindAsmSourceFiles" Condition="'$(CosmosArch)' == 'x64'">
+    <Exec Command="python3 &quot;$(MSBuildProjectDirectory)/tools/build-process-bridges.py&quot; &quot;$(IntermediateOutputPath)/cosmos/cpu/ProcessAp.s&quot;" />
+    <ItemGroup><AsmFiles Include="$(IntermediateOutputPath)/cosmos/cpu/ProcessAp.s" /></ItemGroup>
+  </Target>
+
   <Target Name="BuildZenithCpu" BeforeTargets="CheckLinkCache" Condition="'$(CosmosArch)' == 'x64'">
     <Exec Command="python3 &quot;$(MSBuildProjectDirectory)/tools/build-cpu.py&quot; &quot;$(IntermediateOutputPath)/cosmos/cobj&quot;" />
   </Target>

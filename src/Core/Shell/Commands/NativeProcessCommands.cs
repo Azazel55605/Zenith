@@ -13,7 +13,15 @@ internal static class NativeProcessCommands
     {
         add(new Command("ps", "ps", "List native processes visible to the invoking account", c =>
         {
-            if (c.Args.Length != 0) { return c.Fail("usage: ps"); }
+            bool cpus = c.Args.Length == 1 && c.Args[0] == "--cpu";
+            if (c.Args.Length != 0 && !cpus) { return c.Fail("usage: ps [--cpu]"); }
+            if (cpus)
+            {
+                c.WriteLine("PID UID CPU MASK MIGRATIONS PROGRAM");
+                foreach (var p in NativeProcess.Processes.List(c.Shell.Identity.Uid))
+                    c.WriteLine(p.Pid+" "+p.Uid+" "+p.Cpu+" "+p.Affinity+" "+p.Migrations+" "+p.Name);
+                return 0;
+            }
             c.WriteLine("PID UID STATE STATUS PROGRAM");
             foreach (var process in NativeProcess.Processes.List(c.Shell.Identity.Uid))
             { c.WriteLine(process.Pid + " " + process.Uid + " " + process.State.ToString().ToLowerInvariant() + " " + (process.Status?.ToString() ?? "-") + " " + process.Name); }

@@ -36,7 +36,7 @@ struct cpu {
     u64 apic_base, x2;
     u64 parks, wakes, completed, fault, halted, parked, irq_stack_errors, fault_stack_ok, ipi_errors;
     u64 timer_ticks, reschedules;
-    u32 lock, head, tail, current;
+    u32 lock, head, tail, current, raw_task;
     u64 ring[JOBS];
     struct job jobs[JOBS];
     u8 work_stack[262144] __attribute__((aligned(16)));
@@ -59,6 +59,7 @@ static u64 host_pause, host_seen;
 static _Thread_local u64 host_cpu_identity;
 #endif
 #include "blur.h"
+#include "process.h"
 #ifndef ZENITH_CPU_HOST_TEST
 extern u64 zenith_gc_managed_enter(void);
 extern u64 zenith_gc_managed_leave(void);
@@ -177,7 +178,7 @@ static void configure(struct cpu *c,u64 id,u64 cr3) {
     c->tss.rsp[0]=c->stack; c->tss.ist[0]=(u64)(c->irq_stack+sizeof(c->irq_stack));
     c->tss.ist[1]=(u64)(c->fault_stack+sizeof(c->fault_stack));
     c->tss.ist[2]=(u64)(c->gc_stack+sizeof(c->gc_stack)); c->tss.iomap=104;
-    c->current=JOBS;
+    c->current=JOBS; c->raw_task=PROCESSES;
 }
 u64 zenith_cpu_detected(void) {
 #ifdef ZENITH_CPU_HOST_TEST
@@ -258,6 +259,7 @@ __attribute__((noreturn)) void zenith_cpu_fault(struct cpu *c,u64 vector,u64 sta
     c->fault=vector;
     c->fault_stack_ok=stack>=(u64)c->fault_stack&&stack<(u64)(c->fault_stack+sizeof(c->fault_stack));
     if (c->current<JOBS) STORE(c->jobs[c->current].state,FAULTED);
+    process_fault(c);
     STORE(c->state,4);
     STORE(c->halted,1);
     halt();
@@ -281,7 +283,7 @@ static u64 enqueue_work(u64 index,u64 kind,u64 n,u64 seed,u64 rounds,u64 held,in
     struct cpu *c=&cpus[index];
     if (!lock_cpu(c)) goto end;
     u64 state=LOAD(c->state);
-    if ((state!=2&&state!=3)||c->tail-c->head>=JOBS||LOAD(c->halted)) goto unlock;
+    if ((state!=2&&state!=3)||c->tail-c->head>=JOBS||LOAD(c->halted)||LOAD(process_reserved[index])) goto unlock;
     u32 i;
     for (i=0;i<JOBS;i++) if (LOAD(c->jobs[i].state)==FREE) break;
     if (i==JOBS||sequence==0x03ffffffffffffffULL) goto unlock;
@@ -462,6 +464,7 @@ static struct job *claim(struct cpu *c) {
 /* Terminal job publication is part of the stop acknowledgement. A contended
  * lock must not turn into a false halt acknowledgement with queued jobs active. */
 static int quiesce_cpu(struct cpu *c) {
+    if(c->raw_task<PROCESSES||process_pending(c))return 0;
     if (!lock_cpu(c)) return 0;
     for (u32 i=0;i<JOBS;i++)
         if (LOAD(c->jobs[i].state)==QUEUED||LOAD(c->jobs[i].state)==RUNNING) STORE(c->jobs[i].state,CANCELLED);
@@ -482,11 +485,12 @@ __attribute__((noreturn)) void zenith_cpu_worker(struct cpu *c) {
             if (quiesce_cpu(c)) halt();
             continue;
         }
+        if(process_step(c))continue;
         struct job *j=claim(c);
         if (!j) {
             STORE(c->state,3);
             /* Producer cannot clear pending IPI: queue state is authoritative. */
-            if (LOAD(stopping)||LOAD(c->head)!=LOAD(c->tail)) continue;
+            if (LOAD(stopping)||LOAD(c->head)!=LOAD(c->tail)||process_pending(c)) continue;
             sleep_worker(c); continue;
         }
         while (!LOAD(j->released)&&!cancelled(j)) sleep_worker(c);
@@ -647,7 +651,7 @@ u64 zenith_cpu_reschedule(u64 index) {
     irq_restore(flags); return ok;
 }
 void zenith_cpu_stop(void) {
-    u64 f=irq_off(); STORE(stopping,1);
+    u64 f=irq_off(); STORE(stopping,1); process_stop();
     for (u32 i=1;i<count;i++) {
         for(u32 j=0;j<JOBS;j++)STORE(cpus[i].jobs[j].cancel,1);
         if(!LOAD(cpus[i].halted))wake(&cpus[i]);
@@ -688,7 +692,7 @@ void zenith_cpu_host_init(u64 n) {
     host_cpu_identity=0;
     count=n<=CPUS?n:CPUS; stopping=sequence=0; host_pause=host_seen=0;
     for(u32 i=0;i<CPUS;i++)blur_work[i].token=0;
-    blur_cursor=blur_completed=blur_cancelled=0;
+    blur_cursor=blur_completed=blur_cancelled=0; process_reset();
     for (u32 i=0;i<count;i++) { configure(&cpus[i],i,0); cpus[i].actual=i; cpus[i].state=3; }
 }
 void zenith_cpu_host_identity(u64 value) { host_cpu_identity=value; }
@@ -707,3 +711,5 @@ u64 zenith_cpu_host_step(u64 index) {
     execute(j); __atomic_fetch_add(&c->completed,1,__ATOMIC_RELAXED); c->current=JOBS; STORE(c->state,3); return 1;
 }
 #endif
+
+#include "process.inc"

@@ -448,6 +448,35 @@ int main(int argc, char **argv, char **envp) {
         while(end>1 && value[end-1]=='/')end--;
         if(zenith_write(value,end)<0){return 1;}print("\n");return 0;
     }
+    if(same(argv[1],"--smp-state")) { extern int zenith_smp_state(void);return zenith_smp_state(); }
+    if(same(argv[1],"--smp-probe")) {
+        unsigned long uid=(unsigned long)zenith_call(102,0,0,0),pid=(unsigned long)zenith_call(39,0,0,0);
+        unsigned int observed=0,owners[64];
+        for(unsigned int i=0;i<64;i++) {
+            unsigned int a=1,b,c,d;__asm__ volatile("cpuid":"+a"(a),"=b"(b),"=c"(c),"=d"(d));
+            unsigned int cpu=b>>24;owners[i]=cpu;if(cpu<32)observed|=1U<<cpu;
+            if((unsigned long)zenith_call(102,0,0,0)!=uid||(unsigned long)zenith_call(39,0,0,0)!=pid)return 1;
+            /* Sample after each single broker boundary. Printing three pieces
+             * between samples aliases a three-AP rotation and can hide moves. */
+            if(zenith_call(400,1,0,0)<0)return 1;
+        }
+        for(unsigned int i=0;i<64;i++){print("SMP_CPU=");number(owners[i]);print("\n");}
+        print("SMP_UID=");number(uid);print(" SMP_CPUS=");number(observed);print("\n");return 0;
+    }
+    if(same(argv[1],"--smp-work")) {
+        unsigned int lo,hi,a=1,b,c,d;
+        __asm__ volatile("cpuid":"+a"(a),"=b"(b),"=c"(c),"=d"(d));unsigned int cpu=b>>24;
+        __asm__ volatile("lfence;rdtsc":"=a"(lo),"=d"(hi)::"memory");unsigned long start=((unsigned long)hi<<32)|lo;
+        volatile unsigned long value=0xcbf29ce484222325UL;
+        /* Long enough for separately loaded jobs to overlap even on fast KVM.
+         * Repeat the independently checked recurrence, with a known final hash. */
+        for(unsigned int round=0;round<16;round++) {
+            value=0xcbf29ce484222325UL;
+            for(unsigned long i=0;i<20000000;i++)value=(value^i)*0x100000001b3UL;
+        }
+        __asm__ volatile("lfence;rdtsc":"=a"(lo),"=d"(hi)::"memory");unsigned long end=((unsigned long)hi<<32)|lo;
+        print("SMP_WORK cpu=");number(cpu);print(" start=");number(start);print(" end=");number(end);print(" hash=");number(value);print("\n");return 0;
+    }
     if(same(argv[1],"--cpu-state")) {
         unsigned int mxcsr=0x3f80;unsigned short control=0x077f;
         __asm__ volatile("fldcw %0; ldmxcsr %1" : : "m"(control), "m"(mxcsr) : "memory");

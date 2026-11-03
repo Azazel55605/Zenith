@@ -53,8 +53,9 @@ static int terminal_probe(int hold){
     if(zenith_gui_set_title(h,"bad\ntitle",9)!=-22||zenith_gui_set_title(h,"\xe2\x80\xae",3)!=-22||zenith_gui_set_title(h,"\xc3",1)!=-22)return 37;
     /* A command's own output and its exit both come through; the shell really ran it. */
     term_len=0;type_keys(t,"echo TERMINAL_LOG | logger\n");
-    if(term_wait(t,0,Z_TERMINAL_BUSY,1)&&term_len==0){}
-    if(term_wait(t,0,Z_TERMINAL_BUSY,0))return 17;
+    /* A fast command may finish before the next state query. Observe its
+     * durable completion mark, never require catching a transient Busy edge. */
+    if(term_wait(t,"\033]133;D;0;",Z_TERMINAL_BUSY,0))return 17;
     /* A hidden prompt raises the flag and its text never reaches the client. */
     term_len=0;type_keys(t,"passwd\n");
     if(term_wait(t,0,Z_TERMINAL_SECRET,1))return 18;

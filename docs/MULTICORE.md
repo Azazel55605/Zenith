@@ -8,13 +8,15 @@ contract; [component steps](components/MULTICORE.md) own implementation detail.
 The x64 boot argument `smp=native` starts **isolated native workers**. Ordinary
 boots leave them disabled. Up to eight CPUs including the BSP participate; Limine
 MP revision 0 supplies topology and AP entry. Legacy APIC IDs above 255 are excluded.
-C3 adds explicitly admitted pinned managed compute jobs. General managed scheduling, GC collection, device/filesystem services, the
-trusted UI owner and the protected foreground application bridge stay on the BSP.
-Additional vCPUs alone do not distribute ordinary application work.
+C3 adds explicitly admitted pinned managed compute jobs. C4 admits protected user
+contexts through private AP bridges and a native ready pool. General managed
+scheduling, GC collection, device/filesystem service actors and the trusted UI
+owner stay on the BSP. Additional vCPUs alone do not activate this execution path.
 
 The AP runtime is `src/Native/Cpu/workers.c`, entered through
-`src/Native/x64/CpuWorkers.s`. The native runtime never allocates or retains GC references, invokes application
-syscalls, writes UART or accesses disks/network. C3 may register one trusted
+`src/Native/x64/CpuWorkers.s`. The native queue/bridge runtime never allocates or
+retains GC references, dispatches managed services, writes UART or accesses
+disks/network. C3 may register one trusted
 managed callback after its permanent owners and GC protocol are ready; ordinary
 native jobs do not enter that callback.
 `tools/build-cpu.py` builds freestanding general-registers-only code, with no red
@@ -25,8 +27,9 @@ Nothing edits the installed Cosmos packages or sibling upstream checkout.
 
 Each AP has a permanent 256 KiB work stack, private GDT/TSS, 8 KiB interrupt stack
 (IST1), 8 KiB fault stack (IST2) and 8 KiB GC stop stack (IST3). Its IDT uses a shared immutable native table.
-APs share the BSP kernel CR3 but never the managed scheduler/interrupt dispatch.
-Their local device/timer LVT entries are masked. Wake vector `0xf1` and spurious
+AP workers share the BSP kernel CR3; protected user windows install their private
+address spaces. APs never enter managed scheduler/driver interrupt dispatch.
+Their local device/timer LVT entries are masked while idle. Wake vector `0xf1` and spurious
 vector `0xff` have native-only handlers; the spurious path issues no EOI.
 
 Native AP queue code runs with IF clear. The admitted managed callback runs with
@@ -35,7 +38,8 @@ with IF clear, then use **`sti; hlt; cli`**. The STI interrupt shadow includes H
 a publication/IPI in the check-to-sleep window stays pending and wakes the halted
 worker. Pending notifications may coalesce; queue/release/cancel/stop state is
 authoritative, so workers drain work without requiring one interrupt per job.
-There is no periodic AP timer or idle polling fallback. Register-preserving wake
+There is no periodic idle timer or polling fallback; C4 arms one-shot timers only
+for active user execution quanta. Register-preserving wake
 handlers use IST1, issue EOI and return to the worker. Stack-bound errors are counted.
 
 BSP queue mutations preserve incoming IF. The xAPIC ICR pair is IRQ-scoped and
@@ -45,8 +49,8 @@ Intel dispatch serialization. Failed
 notifications are counted and never establish job completion or halt acknowledgement.
 The implemented register protocol follows the
 [Intel SDM, section 11.12.3](https://cdrdv2-public.intel.com/819710/252046-sdm-change-document.pdf#page=315).
-The local acceptance below exercises QEMU/TCG; KVM, VMware and physical acceptance
-remain separate observations.
+The C1 acceptance below exercises QEMU/TCG; later sections record C4 KVM/TCG
+qualification. VMware and physical acceptance remain separate observations.
 
 ## Bounded jobs, cancellation and failures
 
@@ -151,7 +155,7 @@ completion. They establish local delivery, not an elapsed-time calibration.
 A stop request wakes/disarms a waiting timer probe. Native reschedule IPIs record
 acknowledgement on IST1 and never invoke managed scheduler callbacks.
 
-The protected process bridge refuses non-BSP entry before any shared bridge state
+The BSP fallback process bridge refuses non-BSP entry before any shared bridge state
 is written. Existing raw process serialization remains required. The
 [C2 audit](archive/2026-11-03/per-cpu-execution-state.md) records locks, credentials,
 TLS, exception-chain and GC restrictions; C3 must satisfy these before it admits
@@ -275,8 +279,47 @@ the UI owner and restores its original state. `fps` includes AP tile/fallback co
 The mandatory native-compositor-smoke gate requires both ordinary and fullscreen
 scenes at 1/2/4 CPUs, exact pixels, focused public input and clean shutdown.
 
-General queue migration, per-CPU protected processes, driver/service concurrency
-and real installed I/O contention remain the rest of C4, as ordered in the
-[component sequence](components/MULTICORE.md#c4--migration-and-broad-concurrency).
-Default boots do not activate AP work, and this change makes no whole-application
-multicore performance or external hypervisor/physical qualification claim.
+## C4 protected application execution
+
+The [component sequence](components/MULTICORE.md#c4--migration-and-broad-concurrency)
+records the protected-context scheduler and its qualification. General managed
+kernel threads stay on the BSP; C4 schedules independently packaged user contexts
+over seven private AP bridges instead. This avoids transferring kernel TLS,
+credential scopes or managed service stacks. C3's permanent managed owners remain
+pinned and explicitly participate in stopped-root GC epochs. Raw user execution
+contains no managed heap references; its BSP actor and private unmanaged process
+pages remain rooted until terminal publication.
+
+The pool lock precedes per-CPU queue locks. Eight descriptor generations cover
+Queued, Running and retained terminal storage. Ready transfers move exact runnable
+tickets and leases together, honour affinity and FIFO order, and exclude native
+compute/managed jobs already leasing a target. A one-shot local AP timer yields a
+complete resumable frame each quantum. The next ready admission can select another
+permitted CPU; no Running frame moves. F1 wakes/cancels, F3 reschedules, F4 supplies
+the budget/quantum, and F6 reports completion to the BSP. A late F5 stop interrupt
+does not register a raw user context as a managed mutator.
+
+Every AP bridge has its own saved CR3, selectors/bases, GDT/TSS/IDT, interrupt
+stack and kernel FP image. Native GS and private fault/GC IST ownership are restored
+before the native IDT is exposed again. User faults return contained status 139.
+Unexpected kernel/device faults quarantine the AP; damaged pool metadata fails
+closed. Running or queued cancellation cannot free invocation memory before a
+terminal/halted witness. Reaping retries transient contention; faulted owners keep
+their reserved descriptors. Shutdown disarms timers and waits for all owners.
+
+Filesystem, network and graphical operations remain individually owned BSP
+services with captured credentials and invocation-local handles. Peer reads and
+stream waits may overlap; namespace mutations, transport setup, package operations
+and UI mutation retain their existing exclusion. This is a service-broker
+architecture, not permission to run every existing driver on an AP.
+
+`ZENITH_CPU_MASK` and `ps --cpu` are documented in [NATIVE-PROGRAMS](NATIVE-PROGRAMS.md).
+`native-smp-smoke.py` is a mandatory fresh release gate alongside the CPU,
+managed-root, compositor and full process gates. It installs signed test programs,
+checks register/FP migration, pinned-affinity simultaneous work and filesystem/
+network contention at 1/2/4 CPUs, fault/timeout/cancel cleanup, disabled fallback,
+clean shutdown and independent ext2 audits. The full process gate holds roots on
+one AP while other APs execute the pipeline/permission/upgrade sequence.
+
+Default boots do not activate AP work. Hypervisor/physical and operator installed
+acceptance remain distinct from local disposable-QEMU evidence.

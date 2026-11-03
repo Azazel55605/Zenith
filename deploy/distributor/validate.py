@@ -13,6 +13,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 # Keep this list common to CI, local pre-tag validation and server pre-build tests.
 CONTROLLER_TESTS = (
+    "test_process_scheduler.py", "test_process_bridges.py", "test_process_broker.py",
     "test_guest_compositor.py", "test_cpu_blur.py", "test_compositor_bridge.py", "test_interrupt_leases.py", "test_cpu_workers.py", "test_cpu_execution.py", "test_gc_barrier.py", "test_runtime_metadata.py", "test_cpu_bootstrap.py", "test_cpu_frame.py", "test_guest_auth.py", "test_validation_status.py", "test_validation_profile.py",
     "test_validation_diagnostics.py", "test_validation_scheduler.py", "test_native_pipeline_replay.py",
     "test_validation_accelerator.py", "test_validation_input.py", "test_desktop_frame.py", "test_validation_pointer.py", "test_maximize_input_replay.py", "test_guest_graphics.py", "test_graphical_replay.py", "test_distributor_validation.py",

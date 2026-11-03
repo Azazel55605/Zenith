@@ -80,7 +80,8 @@ def main():
     def status(text,label,code=0,timeout=180):command(text+'; echo '+label+'=$? | logger','user: '+label+'='+str(code),timeout)
     def boot(name,disk=None):
         nonlocal m
-        m=h.Machine(keep/name,disk,network=['-netdev','user,id=net0','-device','e1000e,netdev=net0'])
+        multicore=disk is not None and (ROOT/'src/Core/Multiprocessing/CpuWorkers.Process.cs').exists()
+        m=h.Machine(keep/name,disk,argument='smp=native' if multicore else None,cpus=4 if multicore else 1,network=['-netdev','user,id=net0','-device','e1000e,netdev=net0'])
         assert m.wait('headless ready',timeout=180),'boot';assert m.wait('network: online address=10.0.2.15',timeout=90),'DHCP'
     try:
         boot('live');status('session set-default headless','NET_SESSION');status('install sata0 --yes','NET_INSTALL',timeout=600)

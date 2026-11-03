@@ -41,6 +41,8 @@ static long zenith_isatty(unsigned long fd) { return isatty(fd); }
 static long zenith_write(const void *p, unsigned long n) { return write(1,p,n); }
 static void zenith_exit(int code) { exit(code); }
 static long zenith_identity(long n) { return n==39?getpid():n==102?getuid():getgid(); }
+/* Privileged register round-trip is qualified in the actual guest gate. */
+int zenith_smp_state(void) { return 95; }
 static long zenith_call(long n, unsigned long a, unsigned long b, unsigned long c) {
     long r=-1;
     if(n==0)r=read(a,(void *)b,c);

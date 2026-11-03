@@ -81,11 +81,27 @@ def main():
         'y':'native run settings --settings-info network | logger; native run settings --settings-info accounts | logger; echo S_PUBLIC_INFO=$? | logger',
     }
     for name,text in scripts.items():(served/name).write_text(text+'\n')
+    io_started=threading.Event();io_release=threading.Event();io_finished=threading.Event()
     class Handler(http.server.SimpleHTTPRequestHandler):
         def log_message(self,*args):pass
+        def do_GET(self):
+            if self.path!='/contention':return super().do_GET()
+            length=1048576;self.send_response(200);self.send_header('Content-Length',str(length));self.end_headers()
+            io_started.set();sent=0;limit=time.monotonic()+300
+            try:
+                # Keep real network reads and installed-file writes active until
+                # the UI owner has presented an acknowledged material frame.
+                while sent<length and not io_release.is_set() and time.monotonic()<limit:
+                    n=min(128,length-sent);self.wfile.write(b'x'*n);self.wfile.flush();sent+=n;time.sleep(.1)
+                self.wfile.write(b'x'*(length-sent));self.wfile.flush();io_finished.set()
+            except (BrokenPipeError,ConnectionResetError):pass
     server=http.server.ThreadingHTTPServer(('127.0.0.1',0),functools.partial(Handler,directory=str(served)))
     threading.Thread(target=server.serve_forever,daemon=True).start()
     net=['-netdev','user,id=n','-device','e1000e,netdev=n'];url='http://10.0.2.2:'+str(server.server_port)
+    if (ROOT/'src/Core/Multiprocessing/CpuWorkers.Process.cs').exists():
+        scripts['io']='fetch '+url+'/contention /root/c4-contention; echo S_CONTENTION=$? | logger'
+        scripts['u']='sh /root/io & '+scripts['u']+'; wait'
+        for name in ('io','u'):(served/name).write_text(scripts[name]+'\n')
     monitor=keep/'monitor.sock';m=None
     def serial(text,marker,timeout=300):
         off=len(m.log());m.send(text+'\r')
@@ -134,7 +150,8 @@ def main():
             serial('native run settings --show','SETTINGS saved=dark/violet')
             status('native run settings --set light teal','S_REBOOT_SETUP')
             disk=shutdown();m=None
-        m=h.Machine(keep/'desktop',disk,'session=de',network=net+['-device','virtio-gpu-pci','-device','virtio-keyboard-pci'],monitor=monitor)
+        multicore=(ROOT/'src/Core/Multiprocessing/CpuWorkers.Process.cs').exists()
+        m=h.Machine(keep/'desktop',disk,'session=de smp=native' if multicore else 'session=de',network=net+['-device','virtio-gpu-pci','-device','virtio-keyboard-pci'],monitor=monitor,cpus=4 if multicore else 1)
         assert m.wait('desktop ready (installed)',timeout=180)
         time.sleep(1);off=len(m.log());login.monitor_type(monitor,'sh /root/u\n')
         assert m.wait('user: SETTINGS_READY',off,60),'Settings launch'
@@ -235,6 +252,10 @@ def main():
             bar=color_at(rgb,w,w-240,h-28)
             return max(bar)<128 and bar!=bytes.fromhex('25262b') and color_at(rgb,w,x+500,y-1)!=bytes.fromhex('45474f')
         width,height,rgb=frame('materials-applied',material_frame)
+        if multicore:
+            assert io_started.is_set() and not io_finished.is_set(),'network/file contention did not overlap native UI rendering'
+            io_release.set()
+            print('PASS native UI input/apply/material composition during installed network/file contention',flush=True)
         assert color_at(rgb,width,x+224,y+12)!=bytes.fromhex('202125'),'inset detail corner is square'
         assert color_at(rgb,width,x+250,y+14)==bytes.fromhex('202125'),'inner corner changed the content layout'
         print('PASS taskbar material, seamless chrome and rounded detail inset',flush=True)
@@ -268,6 +289,7 @@ def main():
         done=len(m.log());monitor_command(monitor,'sendkey ctrl-q 30')
         try:assert m.wait('user: S_UI=0',done,30),'close key while dragging and shell return'
         finally:profile.monitor_text(monitor,'mouse_button 0')
+        if multicore:assert m.wait('user: S_CONTENTION=0',0,120),'concurrent installed download failed'
         print('PASS close during title drag and released pointer ownership',flush=True)
         def desktop_script(name,marker,timeout=60):
             time.sleep(.5);off=len(m.log());login.monitor_type(monitor,'sh /root/'+name+'\n')
@@ -438,8 +460,12 @@ def main():
                 chunk=src.read(min(remaining,1048576));assert chunk;dst.write(chunk);remaining-=len(chunk)
         audit=subprocess.run(['e2fsck','-fn',str(root)],capture_output=True)
         (keep/'e2fsck.log').write_bytes(audit.stdout+audit.stderr);assert audit.returncode==0,'ext2 audit'
+        if multicore:
+            content=subprocess.run(['debugfs','-R','cat /root/c4-contention',str(root)],capture_output=True,check=True).stdout
+            assert content==b'x'*1048576,'concurrent download contents changed on installed root'
         print('PASS Settings save/apply/reboot, independent upgrade, permissions and ext2 audit',flush=True)
     finally:
+        io_release.set()
         if m is not None:m.stop()
         server.shutdown();server.server_close()
 if __name__=='__main__':main()

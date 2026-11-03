@@ -8,7 +8,8 @@ from guest_auth import COMPLETION_SECONDS
 spec=importlib.util.spec_from_file_location('h',ROOT/'tools/headless-smoke.py');h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
 cpu_workers='--cpu-workers' in sys.argv[2:] or ('--bsp-only' not in sys.argv[2:] and (ROOT/'src/Native/Cpu/workers.c').exists())
 if '--cpu-workers' in sys.argv[2:] and '--bsp-only' in sys.argv[2:]: raise SystemExit('choose --cpu-workers or --bsp-only')
-print('Native process CPU policy: '+('two CPUs with isolated AP queues' if cpu_workers else 'BSP only'),flush=True)
+process_cpus=4 if cpu_workers and (ROOT/'src/Core/Multiprocessing/CpuWorkers.Process.cs').exists() else 2 if cpu_workers else 1
+print('Native process CPU policy: '+str(process_cpus)+' CPUs; protected execution plus pinned-root contention',flush=True)
 terminal_only='--terminal-only' in sys.argv[2:]
 if any(arg not in ('--cpu-workers','--bsp-only','--terminal-only') for arg in sys.argv[2:]): raise SystemExit('usage: native-process-smoke.py KEEP [--cpu-workers|--bsp-only] [--terminal-only]')
 keep=Path(sys.argv[1]);keep.mkdir(parents=True,exist_ok=True)
@@ -33,7 +34,7 @@ url='http://10.0.2.2:'+str(server.server_port);m=None
 net=['-netdev','user,id=net0','-device','e1000e,netdev=net0']
 def boot(name,disk=None):
     global m
-    m=h.Machine(keep/name,disk,argument='smp=native' if disk and cpu_workers else None,network=net,cpus=2 if cpu_workers else 1,monitor=keep/name/'monitor.sock')
+    m=h.Machine(keep/name,disk,argument='smp=native' if disk and cpu_workers else None,network=net,cpus=process_cpus,monitor=keep/name/'monitor.sock')
     assert m.wait('headless ready',timeout=180),'boot '+name
     assert m.wait('network: online address=10.0.2.15',timeout=60),'DHCP '+name
     print('PASS boot '+name,flush=True)
@@ -47,7 +48,7 @@ try:
     status('cpu irq-test | logger','N_IDT_IRQ_STATE')
     if cpu_workers: status('cpu test 10000000 | logger','N_CPUS_START')
     managed_workers=cpu_workers and not terminal_only and (ROOT/'src/Core/Multiprocessing/ManagedCpuJobs.cs').exists()
-    if managed_workers: status('cpu managed-hold | logger','N_MANAGED_ROOTS_HELD')
+    if managed_workers: status('cpu '+('managed-hold-one' if process_cpus>2 else 'managed-hold')+' | logger','N_MANAGED_ROOTS_HELD')
     status('fetch '+url+'/key.pem /root/key.pem','N_KEY');status('pkg trust /root/key.pem '+hashlib.sha256(key).hexdigest(),'N_TRUST')
     status('fetch '+url+'/sunbeam.zpk /root/sunbeam.zpk','N_FETCH');status('pkg install /root/sunbeam.zpk','N_PACKAGE')
     for name in ('zenith-fonts','zenith-man-pages'):
@@ -248,7 +249,7 @@ try:
         print('PASS independent persistent native write contents and ext2 audit',flush=True)
         clean_disk=m.disk;m.stop()
     monitor=keep/'gui-monitor.sock'
-    m=h.Machine(keep/'desktop',clean_disk,'session=de smp=native' if cpu_workers else 'session=de',network=net+['-device','virtio-gpu-pci','-device','virtio-keyboard-pci'],monitor=monitor,vga='none',cpus=2 if cpu_workers else 1)
+    m=h.Machine(keep/'desktop',clean_disk,'session=de smp=native' if cpu_workers else 'session=de',network=net+['-device','virtio-gpu-pci','-device','virtio-keyboard-pci'],monitor=monitor,vga='none',cpus=process_cpus)
     for font in ('Inter-Regular.ttf','Inter-SemiBold.ttf','Hack-Regular.ttf'):
         assert m.wait('fonts: loaded packaged '+font,timeout=180),'packaged font '+font
     assert m.wait('login ready',timeout=180),'installed login uses packaged fonts'

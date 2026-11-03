@@ -93,11 +93,11 @@ adds user segments and a TSS with a permanent interrupt stack, and temporarily
 installs raw interrupt handlers. Kernel-origin interrupts forward to original
 handlers. User faults terminate with status 139 and a CPU vector; the shell resumes.
 Code pages are read-only, data/stack pages are NX and kernel mappings are supervisor
-only. CPU setup without NX, with LA57, incompatible IDT/GDT/IST layout, or migration
-to another CPU is refused with status 95. ARM64 execution is not implemented.
+only. CPU setup without NX, with LA57 or incompatible IDT/GDT/IST layout is refused
+with status 95. ARM64 execution is not implemented.
 
 Up to eight bounded invocation contexts can wait on managed streams on the BSP.
-A shared entry gate serializes every raw user window on its original CPU. During its raw user
+The default BSP bridge serializes raw user windows. During its raw user
 window the managed scheduler does not run; timer IRQs are acknowledged and supply a
 budget of 1000 interrupts. A loop terminates with status 124. Every other device
 IRQ leaves the window unacknowledged: the bridge saves a resumable user frame,
@@ -114,8 +114,8 @@ requests; this is cooperative cancellation, not a general signal mechanism.
 
 The GDT/TSS intentionally remain kernel-owned after the first invocation. This is
 needed because the firmware task descriptor is not a restorable application task.
-The unreleased CLI extension adds bounded shell jobs/wait and owned cooperative
-process cancellation. There is no fork/exec family or general preemptive process scheduler,
+The CLI extension adds bounded shell jobs/wait and owned cooperative
+process cancellation. There is no fork/exec family,
 general network/server syscall, general IPC, dynamic linking,
 C# app runtime or on-system GCC/Python/Bash port. Before migrating net-tools,
 fs-tools or desktop clients, add those interfaces and repeat permission/resource,
@@ -129,8 +129,22 @@ execute-from-data, invalid output pointers and infinite loops, then uses the she
 again. It upgrades the signed executable under the same kernel, checks ordinary
 user identity, verifies the package DB and independently audits the ext2 volume.
 
-The [multicore foundation](MULTICORE.md) adds opt-in kernel-owned integer workers
-without scheduling this foreground process bridge on secondary CPUs.
+With x64 **`smp=native`**, C4 adds a protected execution scheduler over private AP
+bridges. User contexts may move at complete syscall/reschedule/timer boundaries;
+Running frames and managed service stacks never migrate. AP one-shot timers end
+each compute quantum, preserving the full GPR/x87/MXCSR/XMM state and remaining
+execution budget. Managed services retain captured identity/cwd and BSP ownership;
+APs do not call the VFS, network drivers, package manager or UI directly. Unknown
+AP device interrupts quarantine the owner instead of entering a BSP driver.
+
+`ZENITH_CPU_MASK` selects allowed owners by logical CPU bit (decimal 1..255 or
+hex `0x01`..`0xff`). The default 255 permits BSP fallback; an AP-only mask refuses
+unavailable owners rather than silently expanding. `ps --cpu` lists the last
+execution owner, affinity and migration count with the existing UID filtering.
+Native queues retain terminal generations until reaping. Cancellation/exception
+cleanup awaits an AP stop witness before releasing its borrowed context, and
+missing acknowledgement fails closed. Default boots remain BSP-only; arbitrary
+managed kernel-thread migration remains disabled. See the [runtime contract](MULTICORE.md).
 
 ## Filesystem services
 
