@@ -299,9 +299,10 @@ sudo usermod -aG kvm zenith-release
 The next systemd service invocation gets the new groups; a manual retry needs a
 fresh login. Do not interrupt the current build to apply this. If KVM still fails,
 check nested virtualization/CPU exposure in the TrueNAS VM configuration before
-adding cores. The existing harness tries KVM then falls back to TCG, using one vCPU
-per guest. Extra distributor vCPUs mainly help compilation; native gates run
-sequentially to avoid contention and retain their existing timing assumptions.
+adding cores. Auto acceleration may fall back from KVM to TCG. Most native
+guests use one vCPU; C1 adds a 1/2/4-vCPU native queue matrix and enables two vCPUs
+for the process gate. Independent gates run concurrently within the configured
+host budget; see [parallel gates](#parallel-gates-and-faster-retries).
 Doctor now shows release-account groups and device accessibility, but the probe
 is needed to distinguish permissions from unusable nested acceleration.
 
@@ -546,9 +547,11 @@ QEMU/filesystem/TLS tools, firmware, an invalid accelerator policy or unavailabl
 forced KVM fail before compilation. Auto policy may still fall back to TCG; its
 actual selected backend remains recorded by native metrics.
 
-CI now runs the same four release gates through this entry point, retains the
-existing extra native CPU-worker coverage, and waits for host/controller jobs
-before building the ISO. Kernel tags also trigger CI. Evidence and failures stay
+CI runs the same release gate plan through this entry point and waits for
+host/controller jobs before building the ISO. C1 source trees include eleven
+native gates: the CPU matrix is mandatory and process containment runs with AP
+workers. CI does not repeat those two gates afterward. Older immutable source
+tags retain their original plan. Kernel tags also trigger CI. Evidence and failures stay
 under `--keep`, including retained guest disks/transcripts and phase metrics;
 fixture private key directories are excluded from CI artifacts. Do not replace
 full acceptance with blind retries, ever-growing timeouts or optional signing

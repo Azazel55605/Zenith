@@ -300,6 +300,7 @@ def native_checks(work):
         if (REPO / "tools/native-graphics-smoke.py").exists(): checks.append(("g", "native-graphics-smoke.py"))
         if (REPO / "tools/native-network-smoke.py").exists(): checks.append(("n", "native-network-smoke.py"))
         if (REPO / "tools/native-cli-smoke.py").exists(): checks.append(("c", "native-cli-smoke.py"))
+        if (REPO / "src/Native/Cpu/workers.c").exists(): checks.append(("p", "native-cpu-smoke.py"))
         # Older immutable kernel tags predate this ABI and its harness.
         if (REPO / "tools/native-process-smoke.py").exists(): checks.append(("u", "native-process-smoke.py"))
         # Run the expensive crash/recovery matrix last. A repository regression

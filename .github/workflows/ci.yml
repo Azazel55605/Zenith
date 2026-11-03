@@ -128,6 +128,7 @@ jobs:
           QEMU: /usr/bin/qemu-system-x86_64
         run: python3 -B tools/package-smoke.py smoke-packages
 
+      # Includes the C1 CPU matrix and AP-enabled process gate, once each.
       - name: Distributor release acceptance (login, repository, native, recovery)
         timeout-minutes: 90
         env:
@@ -147,18 +148,6 @@ jobs:
           python3 -B tools/test_allocation_publication_fixup.py
           python3 -B tools/test_mouse_poll_fixup.py
           python3 -B tools/idt-boot-smoke.py smoke-idt
-
-      - name: Experimental native CPU workers (1/2/4 CPUs)
-        timeout-minutes: 10
-        env:
-          QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 -B tools/native-cpu-smoke.py smoke-cpu
-
-      - name: Protected native executable packages
-        timeout-minutes: 20
-        env:
-          QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 -B deploy/distributor/validation-runner.py tools/native-process-smoke.py smoke-native --cpu-workers
 
       - name: VMware-profile DHCP receive lab (Ethernet unicast and broadcast)
         env:
@@ -195,7 +184,6 @@ jobs:
             smoke-security/
             smoke-foundation/
             smoke-idt/
-            smoke-cpu/
             smoke-headless/
             smoke-install/
             smoke-guided-gui/
@@ -203,9 +191,7 @@ jobs:
             smoke-network/
             smoke-packages/
             smoke-kernel/
-            smoke-native/
             !smoke-release/**/keys/**
-            !smoke-native/keys/**
             !smoke-kernel/keys/**
             !smoke-packages/keys/**
 

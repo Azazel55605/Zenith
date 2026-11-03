@@ -149,8 +149,9 @@ class ReleaseTests(unittest.TestCase):
         self.assertTrue((work / "native/u/evidence.txt").exists())
         self.assertTrue((work / "native/a/evidence.txt").exists())
         self.assertTrue(all(not path.parent.exists() for path in calls))
-        self.assertEqual(['s','r','a','v','m','g','n','c','u','k'],[path.name for path in calls])
+        self.assertEqual(['s','r','a','v','m','g','n','c','p','u','k'],[path.name for path in calls])
         self.assertTrue((work / 'native/c/evidence.txt').exists())
+        self.assertTrue((work / 'native/p/evidence.txt').exists())
 
     def test_old_tags_without_login_gate_keep_existing_acceptance(self):
         work = self.repo / "old-tag-native"; work.mkdir()

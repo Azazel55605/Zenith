@@ -473,8 +473,10 @@ See [MULTICORE](MULTICORE.md) before adding virtual CPUs or enabling `smp=native
 After the Release build, run `python3 -B tools/native-cpu-smoke.py /tmp/zn-cpu`
 and `python3 -B deploy/distributor/validation-runner.py tools/native-process-smoke.py /tmp/zn-native --cpu-workers`.
 These use disposable ISO/disk clones and never modify an installed VM. Idle native
-APs currently poll; managed runtime/GC work stays on the BSP. CI covers the 1/2/4
-CPU worker boundary and native application containment with workers enabled.
+APs use bounded native queues, private IST stacks and interrupt-driven HLT idle;
+managed runtime/GC work stays on the BSP. The common release plan includes the
+1/2/4-CPU worker gate and enables workers in native application containment. CI
+runs those gates through release acceptance without duplicate extra runs.
 
 ## Installed boot interrupt handoff
 
@@ -610,7 +612,8 @@ ancestor/symlink permissions, stale/limited handles and exit/fault/timeout/Ctrl+
 cleanup. It also exercises malformed user stack pointers on both syscall and timer
 entry so interrupt return cannot turn an application fault into a kernel fault.
 Run `tools/native-process-smoke.py` through validation-runner as above, adding
-`--cpu-workers` for opt-in 2-vCPU acceptance. The same signed executable upgrade
+`--cpu-workers` for explicit 2-vCPU acceptance. C1 source trees enable that mode
+by default; `--bsp-only` is a focused comparison, not full C1 acceptance. The same signed executable upgrade
 still runs under an unchanged kernel, followed by independent ext2 auditing.
 New native bundles declare the filesystem capability; upgrade/confirm the kernel
 before upgrading Sunbeam 0.2.0. Existing release gates are retained.

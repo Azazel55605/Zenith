@@ -1,99 +1,128 @@
 # Multicore foundation
 
-Work owners: **C1–C4** in the [master roadmap](ROADMAP.md). This page is a contract/procedure, not a separate work tracker.
+Work owners: **C1–C4** in the [master roadmap](ROADMAP.md). This is the execution
+contract; [component steps](components/MULTICORE.md) own implementation detail.
 
-> Experimental native worker reference. Managed multicore remains planned. Work steps: [Multicore](components/MULTICORE.md).
+## Activation and boundary
 
+The x64 boot argument `smp=native` starts **isolated native workers**. Ordinary
+boots leave them disabled. Up to eight CPUs including the BSP participate; Limine
+MP revision 0 supplies topology and AP entry. Legacy APIC IDs above 255 are excluded.
+This is not managed SMP: managed scheduling, GC, device/filesystem services, the
+trusted UI owner and the protected foreground application bridge stay on the BSP.
+Additional vCPUs alone do not distribute ordinary application work.
 
-The first slice is **experimental native integer workers**, selected only by the
-x64 boot argument `smp=native`. Default boots still run managed work on one CPU.
-This does not enable multicore managed threads or parallel native application
-processes. The distributor can expose additional vCPUs, but ordinary kernel,
-network/filesystem and package execution still uses the bootstrap CPU (BSP).
+The AP runtime is `src/Native/Cpu/workers.c`, entered through
+`src/Native/x64/CpuWorkers.s`. It never allocates, enters managed code, retains GC
+references, invokes application syscalls, writes UART or accesses disks/network.
+`tools/build-cpu.py` builds freestanding general-registers-only code, with no red
+zone or host-library dependency. Import and instruction regressions are host-tested.
+Nothing edits the installed Cosmos packages or sibling upstream checkout.
 
-## Implemented boundary
+## CPU ownership and interrupt-driven idle
 
-A local Limine MP revision-0 request discovers processors without changing the
-Cosmos dependency or upstream checkout. At most eight CPUs, including the BSP,
-participate; legacy APIC IDs above 255 are excluded from this prototype. The BSP
-publishes each secondary processor's kernel-owned context before releasing its
-entry address. See the [Limine MP protocol](https://github.com/limine-bootloader/limine-protocol/blob/trunk/PROTOCOL.md)
-and [request layouts](https://github.com/limine-bootloader/limine-protocol/blob/trunk/include/limine.h).
+Each AP has a permanent 16 KiB work stack, private GDT/TSS, 8 KiB interrupt stack
+(IST1) and 8 KiB fault stack (IST2). Its IDT uses a shared immutable native table.
+APs share the BSP kernel CR3 but never the managed scheduler/interrupt dispatch.
+Their local device/timer LVT entries are masked. Wake vector `0xf1` and spurious
+vector `0xff` have native-only handlers; the spurious path issues no EOI.
 
-Each AP switches to its own 16 KiB static kernel stack, the captured BSP kernel
-page-table root and a private worker descriptor/interrupt environment. The GDT and
-IDT tables are shared immutable native tables; fault handling records that worker
-as failed and halts it. These workers remain in ring 0 with interrupts disabled;
-there is no TSS/ring transition, scheduler callback or managed entry on an AP.
-They never allocate managed objects, access disks/network/UART, invoke application
-syscalls or hold GC references. Limine bootloader memory is not reclaimed by the
-current Cosmos usable-memory allocator. Contexts/stacks/tables remain kernel-owned
-for the whole boot; failed or timed-out workers are not restarted.
+AP code runs with IF clear. Empty queues and held jobs recheck their predicates
+with IF clear, then use **`sti; hlt; cli`**. The STI interrupt shadow includes HLT:
+a publication/IPI in the check-to-sleep window stays pending and wakes the halted
+worker. Pending notifications may coalesce; queue/release/cancel/stop state is
+authoritative, so workers drain work without requiring one interrupt per job.
+There is no periodic AP timer or idle polling fallback. Register-preserving wake
+handlers use IST1, issue EOI and return to the worker. Stack-bound errors are counted.
 
-`cpu status` reports detected and started CPUs, the managed CPU count and whether
-interrupts were enabled at the initial IDT load. Root `cpu irq-test` reloads the
-current valid IDT under both IF states and verifies each state is preserved.
-Cosmos 3.0.89 unconditionally enabled interrupts at IDT installation; a
-signature-checked build-copy import now selects Zenith's IF-preserving loader.
-Platform/system initialization still explicitly enables interrupts before storage
-I/O. This prevents the early window during legacy PIC remapping that produced a
-reported fatal vector 0 on installed nested-KVM boot.
-Root can run `cpu test [iterations]` (default 2,000,000; range 1..10,000,000).
-A serialized native job computes the same bounded integer checksum on each AP
-and the BSP. A readiness barrier precedes release. The command checks actual
-CPUID/APIC identity, checksum and completion, then reports per-CPU TSC intervals
-and their overlap. TSC interval overlap is a QEMU diagnostic, not a portable
-cross-platform clock synchronization or performance guarantee. Startup, readiness
-and completion waits have five-second managed deadlines; failure disables future
-jobs. `cpu cancel-test` cancels at the ready barrier and verifies cancelled completion
-on all participants; normal tests afterward must prove slots remain reusable.
-The integer loop checks cancellation at entry and every 256 iterations. Completion
-status is separate from the checksum; cancelled checksums are never accepted as work.
-There is no arbitrary task/function-pointer submission API.
+BSP queue mutations preserve incoming IF. The xAPIC ICR pair is IRQ-scoped and
+serialized with the BSP producer; its delivery-status wait is bounded. An MFENCE
+orders publication before the doorbell; the x2APIC WRMSR path adds LFENCE for
+Intel dispatch serialization. Failed
+notifications are counted and never establish job completion or halt acknowledgement.
+The implemented register protocol follows the
+[Intel SDM, section 11.12.3](https://cdrdv2-public.intel.com/819710/252046-sdm-change-document.pdf#page=315).
+The local acceptance below exercises QEMU/TCG; KVM, VMware and physical acceptance
+remain separate observations.
 
-Poweroff/reboot permanently closes worker admission and requests cooperative stop.
-APs acknowledge only after leaving their job/barrier, then halt with interrupts
-masked. Every started AP must acknowledge within five seconds before filesystem
-shutdown proceeds. A fault or missing acknowledgement refuses the power action;
-worker stacks/tables remain reserved. If filesystem shutdown subsequently fails,
-workers stay stopped and the ordinary BSP recovery shell remains available.
+## Bounded jobs, cancellation and failures
 
-**Idle APs poll with `pause` and consume host CPU.** This is why activation is
-explicit and defaults remain unchanged. Boot without `smp=native` to avoid that
-cost. This slice proves independent execution and ownership, not an efficient
-production scheduler. The existing protected foreground process bridge stays on
-the BSP and retains its singleton descriptor/context contract.
+Each AP has eight fixed job descriptors and a bounded FIFO. **Completed results
+still consume capacity until explicitly reaped.** A generation-bearing token owns
+one descriptor until terminal completion. Stale tokens cannot cancel, start, read
+or reap a replacement. Admission rejects a full/stopped/failed queue and unsupported
+kind/size/round limits. No arbitrary code pointer or caller-owned managed buffer can
+be submitted. Scalar arguments are copied before publication.
 
-## Acceptance
+The current typed jobs are:
 
-After building a Release ISO:
+- Bounded integer checksum work, up to 100,000,000 iterations internally; the
+  ordinary `cpu test` command retains its 1..10,000,000 limit.
+- An owned opaque pixel-buffer blend pilot, up to 4,096 pixels and 128 passes.
+  Each descriptor owns its fixed native buffer. Only completed pixels may be read
+  on the BSP; queued/running/cancelled data is never returned as successful output.
+  Its independent scalar checks and equal-work timings do not make the existing
+  managed compositor multicore.
+- A root-only diagnostic fault job, used to prove AP fault containment.
+
+Cancellation is checked at entry and at most every 256 checksum/pixel iterations.
+Queued jobs are consumed as cancelled; claimed held jobs wake for start/cancel/stop.
+A completion that wins a cancellation race remains successful only with its full
+result. Host mid-loop cancellation checks use an explicit test-only checkpoint,
+not an assumption about thread scheduling speed.
+Cancellation during execution publishes a distinct terminal status; a partial
+checksum/frame is never successful output. Terminal publication precedes reaping.
+The BSP reference workload uses separate storage and is not an AP queue participant.
+
+A fault enters IST2, records the vector/current job and acknowledges permanent halt.
+A reaped token stays invalid even after a subsequent AP fault.
+A failed queue and all its storage remain reserved; valid outstanding tokens report
+fault and cannot be reused. Healthy sibling queues remain usable. BSP lock waits
+are bounded and reject failed APs, including a fault inside a critical section;
+there is no attempt to repair or restart a partially modified failed queue.
+
+Unexpected diagnostic-owner aborts close admission and request stop rather than
+stranding accepted work or replaying it. Poweroff/reboot permanently closes
+admission, requests cancellation/stop and wakes
+parked APs before disk teardown. Every started AP must acknowledge stopped or
+fault-contained halt within five seconds. Missing acknowledgement refuses the power
+action. A later filesystem flush failure leaves workers stopped while BSP recovery
+remains available. Static worker stacks, descriptors, tables and buffers are never
+reclaimed during the boot. Limine bootloader memory is not reclaimed either.
+
+## Diagnostics and acceptance
+
+Root-only commands: `cpu irq-test`, `cpu test [iterations]`, `cpu cancel-test`,
+`cpu queue-test`, `cpu idle-test`, `cpu image-test`, `cpu fault-test`, `cpu stop-test`.
+`cpu status` reports detected/started CPUs, managed CPU count, stop state and per-AP
+park/wake/completion/fault/interrupt-stack/IPI counters. `fault-test` permanently
+retires the last participating AP; `stop-test` permanently stops the pool. Use disposable test boots.
+
+The original IDT IF-preservation adaptation remains required. `cpu status` reports
+the initial IDT IF state; `cpu irq-test` reloads a valid IDT under both IF states.
+Do not reintroduce Cosmos 3.0.89's premature STI during BSP/PIC initialization.
 
 ```sh
-python3 -B tools/native-cpu-smoke.py /tmp/zn-native-cpu
-python3 -B tools/native-process-smoke.py /tmp/zn-native-process --cpu-workers
+ZENITH_VALIDATION_ACCELERATOR=tcg python3 -B deploy/distributor/validation-runner.py \
+  tools/native-cpu-smoke.py obj/NEW_CPU_RUN
+PATH="$PATH:/usr/sbin:/sbin" ZENITH_VALIDATION_ACCELERATOR=tcg \
+  python3 -B deploy/distributor/validation-runner.py \
+  tools/native-process-smoke.py obj/NEW_PROCESS_RUN --cpu-workers
 ```
 
-The first harness clones the ISO and adds the opt-in argument only to that clone.
-It boots 1/2/4-vCPU disposable guests plus a default-disabled four-CPU guest,
-checks distinct CPU identities, repeated correct concurrent results, limits,
-refusals, shell responsiveness and clean poweroff. The second installs a signed
-native text package on disposable ext2 with active AP workers, repeats contained
-application faults/timeouts and verifies workers afterward. It also checks native
-upgrades, credentials, manuals/fonts, desktop rendering and independent ext2 audit.
-Actual KVM/VMware and physical multiprocessor acceptance remain separate.
+The CPU gate clones the ISO, boots 1/2/4-vCPU opt-in and four-vCPU disabled guests,
+verifies queues, cancellation, 200 publish/park cycles per participating AP, every
+pilot pixel against an independent scalar reference, equal-work image results,
+idle park counters/actual host CPU use, fault isolation and acknowledged poweroff.
+CPU commands save their own exit status before logging captured output; a logger
+pipeline cannot turn a failed CPU assertion into success. Idle measurement requires Linux `/proc` and a direct QEMU PID, not a launcher/container
+process whose CPU counters do not belong to the guest emulator.
 
-## Next slices
+For source trees containing this C1 runtime, the full release plan includes the CPU
+gate and the native-process gate defaults to two CPUs with native workers enabled.
+`--bsp-only` is a focused comparison, not a replacement for that full gate. Older
+immutable tags retain their original harness behavior. All existing independent
+storage/package/UI gates remain mandatory; no successful result is manufactured.
 
-1. Replace idle polling with a per-CPU interrupt stack and safe wakeup/IPI protocol.
-   Add bounded queues, job cancellation and clean quiescence before shutdown.
-2. Make scheduler interrupt/context state per-CPU: current thread, stacks, GDT/TSS,
-   FP state, timer and reschedule IPIs. Cosmos currently returns CPU 0 and shares
-   context-switch globals. Additional QEMU CPUs alone cannot change that.
-3. Establish allocation and GC synchronization: stop all participating managed
-   CPUs, preserve register/stack roots and resume safely. Local IRQ masking is
-   insufficient for this barrier.
-4. Enable pinned managed threads first, then migration/load balancing. Audit
-   credential context, locks, drivers, filesystem/package transactions and the
-   existing foreground process bridge before distributing those operations.
-5. Verify 1/2/4-CPU fault, GC, contention, I/O and reboot/recovery workloads. Only
-   then make multicore application scheduling part of the ordinary boot path.
+[Local evidence and limits](archive/2026-11-03/native-worker-queues.md).
+Managed AP threads, allocator/GC barriers and migration remain **C2–C4**.

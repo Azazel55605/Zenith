@@ -6,9 +6,11 @@ ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'tools'))
 from guest_pipeline import check as check_pipeline, check_stderr
 from guest_auth import COMPLETION_SECONDS
 spec=importlib.util.spec_from_file_location('h',ROOT/'tools/headless-smoke.py');h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
-cpu_workers='--cpu-workers' in sys.argv[2:]
+cpu_workers='--cpu-workers' in sys.argv[2:] or ('--bsp-only' not in sys.argv[2:] and (ROOT/'src/Native/Cpu/workers.c').exists())
+if '--cpu-workers' in sys.argv[2:] and '--bsp-only' in sys.argv[2:]: raise SystemExit('choose --cpu-workers or --bsp-only')
+print('Native process CPU policy: '+('two CPUs with isolated AP queues' if cpu_workers else 'BSP only'),flush=True)
 terminal_only='--terminal-only' in sys.argv[2:]
-if any(arg not in ('--cpu-workers','--terminal-only') for arg in sys.argv[2:]): raise SystemExit('usage: native-process-smoke.py KEEP [--cpu-workers] [--terminal-only]')
+if any(arg not in ('--cpu-workers','--bsp-only','--terminal-only') for arg in sys.argv[2:]): raise SystemExit('usage: native-process-smoke.py KEEP [--cpu-workers|--bsp-only] [--terminal-only]')
 keep=Path(sys.argv[1]);keep.mkdir(parents=True,exist_ok=True)
 tool=ROOT/'tools/Zenith.PackageTool/bin/Release/net10.0/Zenith.PackageTool.dll'
 def run(*args):subprocess.run(['dotnet',str(tool),*map(str,args)],check=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
