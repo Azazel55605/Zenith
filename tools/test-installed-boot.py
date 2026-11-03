@@ -27,7 +27,7 @@ def firmware():
 
 
 class InstalledMachine(smoke.Machine):
-    def __init__(self, iso, workdir, initial_disk=None, memory=512):
+    def __init__(self, iso, workdir, initial_disk=None, memory=512, keyboard="virtio"):
         self.workdir = workdir
         self.serial = workdir / "serial.log"
         self._gc_offset = 0
@@ -43,7 +43,8 @@ class InstalledMachine(smoke.Machine):
             "-accel", "kvm", "-accel", "tcg", "-cpu", "max", "-display", "none", "-no-reboot",
             "-serial", f"file:{self.serial}", "-monitor", f"unix:{self.monitor},server,nowait",
             "-vga", "none", "-device", "virtio-gpu-pci",
-            "-device", "virtio-keyboard-pci", "-device", "virtio-mouse-pci",
+            *(["-device", "virtio-keyboard-pci"] if keyboard == "virtio" else []),
+            "-device", "virtio-mouse-pci",
             "-drive", f"if=pflash,format=raw,readonly=on,file={code}",
             "-drive", f"if=pflash,format=raw,file={private_vars}",
             "-drive", f"file={self.disk},format=raw,if=none,id=disk0",

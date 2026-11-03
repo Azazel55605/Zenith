@@ -70,8 +70,10 @@ a performance result. [Implementation sequence and acceptance](components/MULTIC
 running before publication. CI's rolling runner moved to Ubuntu 26.04 and the
 Cosmos 3.0.89 linker could not load `libxml2.so.2`; CI is now pinned to Ubuntu
 24.04 with that dependency installed and the actual linker checked before build.
-The CI repair changes the build environment only; kernel/runtime sources remain
-the C4 implementation at `5924c3f`. Tags await successful qualification.
+The installed-UEFI CI harness now accepts the shared boot helper's keyboard
+argument and preserves its device selection; a host regression covers both
+keyboard profiles. These repairs leave kernel/runtime sources at the C4
+implementation in `5924c3f`. Tags await successful qualification.
 
 
 **Operator follow-up for installed 0.0.26:** rapid wheel navigation and movement

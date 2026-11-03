@@ -34,6 +34,23 @@ class SerialMatchingTests(unittest.TestCase):
         self.assertFalse(self.matches("user: proc-write=0\n", "user: proc-write=1"))
 
 
+class InstalledBootTests(unittest.TestCase):
+    def test_shared_boot_constructor_and_keyboard_selection(self):
+        import sys
+        with patch.dict(sys.modules, {"ext2_fixture": Mock()}):
+            spec = importlib.util.spec_from_file_location("installed_boot", Path(__file__).with_name("test-installed-boot.py"))
+            installed = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(installed)
+        for keyboard in ("virtio", "ps2"):
+            with self.subTest(keyboard=keyboard), tempfile.TemporaryDirectory() as directory:
+                workdir = Path(directory)
+                with patch.object(installed.shutil, "copyfile"), patch.object(installed, "firmware", return_value=("code.fd", "vars.fd")), patch.object(installed.subprocess, "Popen") as popen:
+                    installed.InstalledMachine(Path(), workdir, workdir / "source.img", 512, keyboard)
+                arguments = popen.call_args.args[0]
+                self.assertEqual("virtio-keyboard-pci" in arguments, keyboard == "virtio")
+                self.assertIn("virtio-mouse-pci", arguments)
+
+
 class HeadlessSerialMatchingTests(unittest.TestCase):
     def test_captured_shutdown_message_interleaving(self):
         spec = importlib.util.spec_from_file_location("headless_test", Path(__file__).with_name("headless-smoke.py"))
