@@ -17,7 +17,7 @@ def build_one(out,name):
     out.mkdir(parents=True,exist_ok=True)
     source=ROOT/('src/Native/Cpu/'+name+'.c')
     target=out/('cpu-'+name+'.o')
-    if not target.exists() or target.stat().st_mtime<max(source.stat().st_mtime,Path(__file__).stat().st_mtime):
+    if not target.exists() or target.stat().st_mtime<max(source.stat().st_mtime, (source.parent/"blur.h").stat().st_mtime, Path(__file__).stat().st_mtime):
         # A killed/failed compiler must not replace a known complete object with
         # a partial file that appears newer than its source on the next build.
         with tempfile.NamedTemporaryFile(prefix='.cpu-',suffix='.tmp',dir=out,delete=False) as f:

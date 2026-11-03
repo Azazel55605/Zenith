@@ -122,13 +122,22 @@ class AcceptanceTests(unittest.TestCase):
     def test_controller_tests_use_running_checkout_and_required_authentication_regressions(self):
         with patch.object(validate.subprocess, 'run') as run:
             validate.controller_tests()
+        self.assertEqual(['dotnet','restore',str(ROOT/'Zenith.csproj'),'-r','linux-x64','--nologo'],run.call_args_list[0].args[0])
+        self.assertEqual(['dotnet','build',str(ROOT/'tools/PatcherFixup'),'-c','Release','--nologo'],run.call_args_list[1].args[0])
         args, kwargs = run.call_args
+        self.assertIn('tools/test_interrupt_leases.py',args[0])
+        self.assertIn('tools/test_compositor_bridge.py',args[0])
         self.assertIn('tools/test_guest_auth.py', args[0])
         self.assertIn('tools/test_release_acceptance.py', args[0])
         self.assertIn('tools/test_distributor_poll.py', args[0])
         self.assertIn('tools/test_distributor_release.py', args[0])
         self.assertEqual(ROOT, kwargs['cwd'])
         self.assertTrue(kwargs['env']['PYTHONPATH'].startswith(str(ROOT / 'tools')))
+
+    def test_controller_preparation_failure_never_runs_tests_against_stale_adapter(self):
+        with patch.object(validate.subprocess,'run',side_effect=subprocess.CalledProcessError(1,'restore')) as run:
+            with self.assertRaises(subprocess.CalledProcessError):validate.controller_tests()
+        self.assertEqual(run.call_count,1)
 
     def test_old_tag_cannot_replace_current_controller_test_command(self):
         with patch.object(release, 'REPO', self.root), patch.object(release, 'phase') as phase:

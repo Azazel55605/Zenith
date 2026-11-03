@@ -1,5 +1,6 @@
 using System;
 using Zenith.Core.Processes;
+using Zenith.Core.Multiprocessing;
 
 namespace Zenith.Gui.Graphics;
 
@@ -7,7 +8,6 @@ namespace Zenith.Gui.Graphics;
 /// painting the window, never after/including its foreground. No client readback.</summary>
 internal sealed class MaterialComposition
 {
-    private const int BlurRadius = 4;
     private readonly int _sampleScale;
     public static int SampleLength(int length, int scale) => (length + scale - 1) / scale;
     private readonly int[] _source;
@@ -17,6 +17,7 @@ internal sealed class MaterialComposition
     public MaterialComposition(int capacity = ProcessMaterialRegion.MaximumArea, bool blur = true, int sampleScale = 1)
     { _sampleScale = sampleScale is 1 or 4 ? sampleScale : throw new ArgumentOutOfRangeException(nameof(sampleScale)); _source = new int[capacity]; _scratch = blur ? new int[capacity] : Array.Empty<int>(); _filtered = blur ? new int[capacity] : _source; }
     private int _count = -1;
+    private int _blurRevision = -1;
     // The blurred backdrop's luminance range per region, which decides how much of it may show.
     private readonly double[] _low = new double[ProcessMaterialRegion.MaximumRegions], _high = new double[ProcessMaterialRegion.MaximumRegions];
     private int OpacityFor(int index, ProcessMaterialRegion r, uint tint)
@@ -42,7 +43,8 @@ internal sealed class MaterialComposition
     /// <param name="backdropUnchanged">The caller knows the pixels under these regions match the last capture.</param>
     public void Capture(int[] scene, int width, int height, Rect content, ProcessMaterialRegion[] regions, int count, uint fallback, bool backdropUnchanged = false)
     {
-        bool changed = _count != count; int offset = 0;
+        int revision = CpuWorkers.BlurRevision;
+        bool changed = _count != count || _blurRevision != revision; int offset = 0;
         for (int i = 0; i < count; i++) { changed |= _previous[i] != regions[i]; }
         if (backdropUnchanged && !changed) { _stable = true; return; }
         for (int i = 0; i < count; i++)
@@ -69,6 +71,7 @@ internal sealed class MaterialComposition
             offset += sampledWidth * sampledHeight;
         }
         _count = count;
+        _blurRevision = revision;
         _stable = !changed;
         if (!changed) { return; }
         ReleasePainted();
@@ -79,8 +82,12 @@ internal sealed class MaterialComposition
             int area = sampledWidth * sampledHeight;
             if (r.Effect == 2)
             {
-                Blur(_source, _scratch, offset, sampledWidth, sampledHeight, true);
-                Blur(_scratch, _filtered, offset, sampledWidth, sampledHeight, false); BlurRebuilds++;
+                if (!CpuWorkers.TryBlur(_source, _filtered, offset, sampledWidth, sampledHeight))
+                {
+                    BoxBlur.Pass(_source, _scratch, offset, sampledWidth, sampledHeight, true);
+                    BoxBlur.Pass(_scratch, _filtered, offset, sampledWidth, sampledHeight, false);
+                }
+                BlurRebuilds++;
             }
             else if (r.Effect != 0) { Array.Copy(_source, offset, _filtered, offset, area); }
             double low = 1, high = 0;
@@ -91,31 +98,6 @@ internal sealed class MaterialComposition
             }
             _low[i] = r.Effect != 0 ? low : 0; _high[i] = r.Effect != 0 ? high : 1;
             offset += area;
-        }
-    }
-
-    // Separable box diffusion, O(area), clamped to this region's captured rectangle.
-    // Client sizes/radii never become loop budgets or arbitrary sampling offsets.
-    private static void Blur(int[] source, int[] target, int offset, int width, int height, bool horizontal)
-    {
-        int lines = horizontal ? height : width, length = horizontal ? width : height;
-        for (int line = 0; line < lines; line++)
-        {
-            int start = offset + (horizontal ? line * width : line), step = horizontal ? 1 : width;
-            int red = 0, green = 0, blue = 0;
-            for (int k = -BlurRadius; k <= BlurRadius; k++)
-            {
-                int color = source[start + Math.Clamp(k, 0, length - 1) * step];
-                red += (color >> 16) & 255; green += (color >> 8) & 255; blue += color & 255;
-            }
-            for (int p = 0; p < length; p++)
-            {
-                target[start + p * step] = unchecked((int)0xff000000) | ((red + 4) / 9 << 16) | ((green + 4) / 9 << 8) | (blue + 4) / 9;
-                int remove = source[start + Math.Clamp(p - BlurRadius, 0, length - 1) * step];
-                int add = source[start + Math.Clamp(p + BlurRadius + 1, 0, length - 1) * step];
-                red += ((add >> 16) & 255) - ((remove >> 16) & 255);
-                green += ((add >> 8) & 255) - ((remove >> 8) & 255); blue += (add & 255) - (remove & 255);
-            }
         }
     }
 

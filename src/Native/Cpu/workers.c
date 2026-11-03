@@ -53,9 +53,12 @@ _Static_assert(sizeof(struct task_state)==104, "x64 TSS layout");
 static struct cpu cpus[CPUS];
 static struct gate idt[256] __attribute__((aligned(16)));
 static u64 count, hhdm, stopping, sequence, managed_callback, completion_signals;
+static int cancelled(struct job *j);
 #ifdef ZENITH_CPU_HOST_TEST
 static u64 host_pause, host_seen;
+static _Thread_local u64 host_cpu_identity;
 #endif
+#include "blur.h"
 #ifndef ZENITH_CPU_HOST_TEST
 extern u64 zenith_gc_managed_enter(void);
 extern u64 zenith_gc_managed_leave(void);
@@ -84,7 +87,7 @@ static inline void pause_cpu(void) { __asm__ volatile("pause":::"memory"); }
 static inline u64 ticks(void) { u32 lo,hi; __asm__ volatile("lfence; rdtsc":"=a"(lo),"=d"(hi)::"memory"); return (u64)hi<<32|lo; }
 static u64 identity(void) {
 #ifdef ZENITH_CPU_HOST_TEST
-    return 0;
+    return host_cpu_identity;
 #else
     u32 a=1,b,c,d; __asm__ volatile("cpuid":"+a"(a),"=b"(b),"=c"(c),"=d"(d)); return b>>24;
 #endif
@@ -94,7 +97,7 @@ static u64 identity(void) {
  * Unknown CPUs fail closed; never silently alias the BSP scheduler state. */
 u32 zenith_cpu_logical_id(void) {
 #ifdef ZENITH_CPU_HOST_TEST
-    return 0;
+    return (u32)host_cpu_identity;
 #else
     if (msr(0x1b)&0x100) return 0;
     u64 id=identity();
@@ -119,6 +122,14 @@ static void apic_write(struct cpu *c,u32 offset,u32 value) {
     if (c->x2) wrmsr(0x800+offset/16,value); else *(volatile u32*)(c->apic_base+offset)=value;
 }
 #endif
+/* Shared with the signature-checked central InterruptManager adapter. Static
+ * native leases apply at boot, not just after the first worker registration.
+ * The pinned MSI allocator stops at EE. 256 admits its BSP registry operation;
+ * it is never a vector. No AP can mutate global routing/handler ownership. */
+u64 zenith_cpu_irq_registration_allowed(u64 vector) {
+    if(zenith_cpu_logical_id()!=0)return 0;
+    return vector==256||(vector<256&&vector!=0xf1&&vector!=0xf3&&vector!=0xf4&&vector!=0xf5&&vector!=0xf6);
+}
 static int signal_cpu(struct cpu *c,u32 vector) {
 #ifdef ZENITH_CPU_HOST_TEST
     (void)vector; __atomic_fetch_add(&c->wakes,1,__ATOMIC_RELAXED);
@@ -263,10 +274,10 @@ static struct cpu *lookup(u64 token,struct job **out) {
 }
 /* All exported queue mutations are BSP-only and retain incoming IF. A caller
  * cannot submit code pointers or managed memory. Scalar arguments are copied now. */
-u64 zenith_cpu_enqueue(u64 index,u64 kind,u64 n,u64 seed,u64 rounds,u64 held) {
+static u64 enqueue_work(u64 index,u64 kind,u64 n,u64 seed,u64 rounds,u64 held,int blur) {
     u64 f=irq_off(),token=0;
     if (identity()!=cpus[0].actual||LOAD(stopping)||index==0||index>=count||
-        kind<1||kind>5||(kind==5&&!LOAD(managed_callback))||!n||n>(kind==1?100000000ULL:PIXELS)||!rounds||rounds>128) goto end;
+        kind<1||kind>(blur?6ULL:5ULL)||(kind==5&&!LOAD(managed_callback))||!n||n>(kind==1?100000000ULL:kind==6?BLUR_W*BLUR_H:PIXELS)||!rounds||rounds>128) goto end;
     struct cpu *c=&cpus[index];
     if (!lock_cpu(c)) goto end;
     u64 state=LOAD(c->state);
@@ -285,6 +296,9 @@ unlock:
     if (token) wake(c);
 end:
     irq_restore(f); return token;
+}
+u64 zenith_cpu_enqueue(u64 index,u64 kind,u64 n,u64 seed,u64 rounds,u64 held) {
+    return enqueue_work(index,kind,n,seed,rounds,held,0);
 }
 u64 zenith_cpu_job(u64 token,u64 field) {
     u64 f=irq_off(),v=0; struct job *j;
@@ -316,7 +330,10 @@ u64 zenith_cpu_control(u64 token,u64 action) {
     if (action==0&&LOAD(j->state)<=RUNNING) { STORE(j->cancel,1); ok=1; }
     if (action==1&&LOAD(j->state)<=RUNNING) { STORE(j->released,1); ok=1; }
     if (action==3&&j->kind==5&&LOAD(j->state)==RUNNING) { STORE(j->managed_release,1);ok=1; }
-    if (action==2&&LOAD(j->state)>=DONE) { STORE(j->state,FREE); ok=1; }
+    if (action==2&&LOAD(j->state)>=DONE) {
+        if(j->kind==6&&blur_work[(token&63)/JOBS].token==token)blur_work[(token&63)/JOBS].token=0;
+        STORE(j->state,FREE); ok=1;
+    }
     unlock_cpu(c);
     if (ok&&action!=2) wake(c);
 end:
@@ -398,6 +415,10 @@ static void execute(struct job *j) {
             if ((p&255)==0&&cancelled(j)) goto complete;
             result=(result^j->pixels[p])*0x100000001b3ULL;
         }
+    } else if (j->kind==6) {
+        blur_execute(j);
+        if(LOAD(j->state)==FAULTED)return;
+        __atomic_fetch_add(cancelled(j)?&blur_cancelled:&blur_completed,1,__ATOMIC_RELAXED);
     } else if (j->kind==5) {
 #ifndef ZENITH_CPU_HOST_TEST
         if (!zenith_gc_managed_enter()) { STORE(j->state,FAULTED);return; }
@@ -472,9 +493,9 @@ __attribute__((noreturn)) void zenith_cpu_worker(struct cpu *c) {
         /* A terminal publication lets BSP reap/reuse this descriptor. Capture
          * the notification kind while RUNNING still owns it; never reread job
          * fields after execute() publishes terminal state. */
-        int managed=j->kind==5;
+        int notify=j->kind==5||j->kind==6;
         execute(j);
-        if(managed)signal_cpu(&cpus[0],0xf6);
+        if(notify)signal_cpu(&cpus[0],0xf6);
         __atomic_fetch_add(&c->completed,1,__ATOMIC_RELAXED); c->current=JOBS;
     }
 }
@@ -518,6 +539,49 @@ void zenith_cpu_completion_eoi(void) {
     apic_write(&cpus[0],0xb0,0);
 }
 #endif
+/* Kernel-private compositor admission: select a healthy idle owner, rotating
+ * ties. Never queue latency-sensitive work behind a held managed/service test.
+ * Dimensions are bounded before touching source; callers supply validated arrays.
+ * Copy a complete immutable halo while IF is masked, then release exactly once. */
+u64 zenith_cpu_blur_submit(const u32 *source,u64 width,u64 height,u64 x,u64 y,u64 w,u64 h) {
+    u64 flags=irq_off(),token=0;
+    if(identity()!=cpus[0].actual||LOAD(stopping)||count<2||!source||!width||!height||
+        width>4096||height>4096||!w||w>BLUR_W||!h||h>BLUR_H||x>=width||y>=height||w>width-x||h>height-y)goto end;
+#ifndef ZENITH_CPU_HOST_TEST
+    if(!install_completion())goto end;
+#endif
+    for(u32 attempt=0;attempt<count-1;attempt++) {
+        u32 cpu=1+(u32)((blur_cursor+attempt)%(count-1));struct cpu *c=&cpus[cpu];
+        if(LOAD(c->state)!=3||LOAD(c->halted)||LOAD(c->head)!=LOAD(c->tail)||blur_work[cpu].token)continue;
+        struct blur_work *b=&blur_work[cpu];b->width=(u32)w;b->height=(u32)h;
+        for(u32 dy=0;dy<h+8;dy++)for(u32 dx=0;dx<w+8;dx++) {
+            long long sx=(long long)x+dx-4,sy=(long long)y+dy-4;
+            if(sx<0)sx=0;if(sy<0)sy=0;
+            if((u64)sx>=width)sx=(long long)width-1;if((u64)sy>=height)sy=(long long)height-1;
+            b->source[dy*(w+8)+dx]=source[sy*width+sx];
+        }
+        token=enqueue_work(cpu,6,w*h,0,1,1,1);
+        if(!token)continue;
+        b->token=token;blur_cursor=cpu;
+        if(!zenith_cpu_control(token,1)) {zenith_cpu_control(token,0);token=0;}
+        break;
+    }
+end:
+    irq_restore(flags);return token;
+}
+u64 zenith_cpu_blur_copy(u64 token,u32 *target,u64 length) {
+    u64 flags=irq_off(),ok=0;struct job *j;struct cpu *c=lookup(token,&j);
+    if(c) {
+        struct blur_work *b=&blur_work[(token&63)/JOBS];
+        if(identity()==cpus[0].actual&&target&&b->token==token&&j->kind==6&&
+            length==j->count&&LOAD(j->state)==DONE&&!LOAD(stopping)) {
+            for(u64 i=0;i<length;i++)target[i]=b->output[i];
+            ok=1;
+        }
+        unlock_cpu(c);
+    }
+    irq_restore(flags);return ok;
+}
 /* A single trusted kernel UCO entry, registered once on the BSP after its
  * permanent scheduler/TLS/TLAB owners exist. This is not a client callback API. */
 u64 zenith_cpu_managed_callback(u64 address) {
@@ -605,6 +669,7 @@ u64 zenith_cpu_field(u64 index,u64 field) {
         case 21:return (u64)c->work_stack;case 22:return sizeof(c->work_stack);
         case 23:return (u64)c->gc_stack;case 25:return LOAD(completion_signals);
         case 24:return sizeof(c->gc_stack);
+        case 26:return LOAD(blur_completed);case 27:return LOAD(blur_cancelled);
         default:return 0;
     }
 }
@@ -620,9 +685,13 @@ u64 zenith_cpu_bsp(u64 kind,u64 n,u64 seed,u64 rounds) {
 void zenith_cpu_host_init(u64 n) {
     /* Each test loads a fresh library or resets it with no active host workers. */
     u8 *p=(u8*)cpus; for (u64 i=0;i<sizeof(cpus);i++) p[i]=0;
+    host_cpu_identity=0;
     count=n<=CPUS?n:CPUS; stopping=sequence=0; host_pause=host_seen=0;
+    for(u32 i=0;i<CPUS;i++)blur_work[i].token=0;
+    blur_cursor=blur_completed=blur_cancelled=0;
     for (u32 i=0;i<count;i++) { configure(&cpus[i],i,0); cpus[i].actual=i; cpus[i].state=3; }
 }
+void zenith_cpu_host_identity(u64 value) { host_cpu_identity=value; }
 void zenith_cpu_host_pause(u64 value) { STORE(host_seen,0); STORE(host_pause,value); }
 u64 zenith_cpu_host_seen(void) { return LOAD(host_seen); }
 void zenith_cpu_host_state(u64 index,u64 state,u64 halted) {

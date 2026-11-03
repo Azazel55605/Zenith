@@ -144,6 +144,15 @@ never infer current failures from old release logs or claim a menu stub is a bac
   stay BSP-only, and unhandled AP failures use the private native fault IST.
   The BSP completion doorbell must match the pinned original vector before install;
   choose APIC mode/base from the executing sender, including AP-to-BSP delivery.
+  C4's production blur consumer admits immutable, clamped-halo native tiles only.
+  Preserve exact two-pass rounding, region bounds, retained generation ownership,
+  busy/scalar fallback and unpublished complete-region reconstruction on failure.
+  No AP receives a Surface, credential, scene pointer or managed array reference.
+  Central IRQ registration/allocation/freeing remain BSP-owned; reserved native
+  F1/F3/F4/F5/F6 vectors must be refused before the registry lock/body, including
+  default-disabled boots. Keep the pinned MSI 40–EE range and signature drift
+  rejection. Compositor/native gate and actual full-scene pixel comparison remain
+  mandatory; bounded task distribution is not general thread/process migration.
 - GUI input must periodically drain registered mice before sampling coordinates,
   even if a virtio notification was missed. Keep polling IRQ-scoped on the BSP,
   restore prior flags on success/exception, bound virtio drains to 64 events and

@@ -53,6 +53,7 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
     changed |= ExceptionStateFixup.Apply(module);
     changed |= SchedulerDispatchFixup.Apply(module);
     changed |= CpuIdentityFixup.Apply(module);
+    changed |= InterruptLeaseFixup.Apply(module);
     changed |= FpContextFixup.Core(module);
     changed |= ThreadStartFixup.Apply(module);
     changed |= SchedulerTicketsFixup.Apply(module);

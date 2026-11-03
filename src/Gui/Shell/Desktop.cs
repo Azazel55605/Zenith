@@ -3,6 +3,7 @@ using Cosmos.Kernel.System.Keyboard;
 using Cosmos.Kernel.System.Mouse;
 using Zenith.Apps;
 using Zenith.Core.Shell;
+using Zenith.Core.Multiprocessing;
 using Zenith.Core.Security;
 using Zenith.Gui.Graphics;
 using Zenith.Gui.Motion;
@@ -59,6 +60,8 @@ internal sealed class Desktop
     private volatile bool _motionTestRequested;
     private string? _motionName;
     private volatile bool _benchRequested;
+    private volatile bool _parallelBenchRequested;
+    private volatile bool _parallelBenchFullscreen;
     private volatile bool _cpuPreviewRequested;
     private const int BenchFrames = 30;
 
@@ -86,8 +89,13 @@ internal sealed class Desktop
 
         TerminalWindow.OpenApp = OpenApp;
         FileManagerWindow.OpenApp = OpenApp;
-        CommandShell.Register(new Command("fps", "fps [reset|motion|bench|cpu]", "Show compositor statistics", c =>
+        CommandShell.Register(new Command("fps", "fps [reset|motion|bench|cpu|parallel-bench|parallel on|off]", "Show compositor statistics", c =>
         {
+            if (c.Args.Length == 2 && c.Args[0] == "parallel" && (c.Args[1] == "on" || c.Args[1] == "off"))
+            {
+                GuardedFilesystem.RequireRoot(); CpuWorkers.ParallelBlur = c.Args[1] == "on";
+                c.WriteLine(CpuWorkers.BlurStatus); return 0;
+            }
             if (c.Args.Length == 1 && c.Args[0] == "reset") { FrameStats.ResetWindow(); return 0; }
             // The desktop tick owns the windows, so the test runs there and reports to the log.
             if (c.Args.Length == 1 && c.Args[0] == "motion") { _motionTestRequested = true; return 0; }
@@ -96,13 +104,16 @@ internal sealed class Desktop
                 GuardedFilesystem.RequireRoot(); _cpuPreviewRequested = true; return 0;
             }
             if (c.Args.Length == 1 && c.Args[0] == "bench") { _benchRequested = true; return 0; }
-            if (c.Args.Length != 0) { return c.Fail("usage: fps [reset|motion|bench|cpu]"); }
+            if (c.Args.Length >= 1 && c.Args[0] == "parallel-bench" && (c.Args.Length == 1 || (c.Args.Length == 2 && c.Args[1] == "fullscreen")))
+            { GuardedFilesystem.RequireRoot(); _parallelBenchFullscreen = c.Args.Length == 2; _parallelBenchRequested = true; return 0; }
+            if (c.Args.Length != 0) { return c.Fail("usage: fps [reset|motion|bench|cpu|parallel-bench|parallel on|off]"); }
             c.WriteLine("frames presented: " + FrameStats.Frames + ", scene composes: " + FrameStats.SceneComposes);
             c.WriteLine("last compose: " + FrameStats.LastComposeMicros + " us, last present: " + FrameStats.LastPresentMicros + " us");
             c.WriteLine("display: " + _screen.Name + " " + _screen.Width + "x" + _screen.Height);
             c.WriteLine("since reset: " + FrameStats.SceneFrames + " scene frames, average " + FrameStats.AverageFrameMicros + " us, worst " + FrameStats.MaxFrameMicros + " us");
             c.WriteLine("worst compose: " + FrameStats.MaxComposeMicros + " us, worst present: " + FrameStats.MaxPresentMicros + " us");
             c.WriteLine("over 16 ms: " + FrameStats.FramesOver16Ms + ", over 33 ms: " + FrameStats.FramesOver33Ms);
+            c.WriteLine(CpuWorkers.BlurStatus);
             c.WriteLine("windows: " + Windows.Windows.Count + ", materials: " + MaterialResources.Policy.Effective);
             if (Windows.Top is Window top)
             {
@@ -227,6 +238,7 @@ internal sealed class Desktop
             catch (System.Exception error) { Zenith.Core.Log.Write("cpu", "frame preview refused: " + error.Message); }
         }
         if (_benchRequested) { _benchRequested = false; RunBench(); _sceneDirty = true; }
+        if (_parallelBenchRequested) { _parallelBenchRequested = false; RunParallelBench(_parallelBenchFullscreen); _sceneDirty = true; }
         if (_motionTestRequested) { _motionTestRequested = false; StartMotionTest(); }
         StartTransition();
         if (_motion.Active || _motionName is not null)
@@ -488,6 +500,54 @@ internal sealed class Desktop
         string dragPhases = FrameStats.TakePhases(BenchFrames);
         Zenith.Core.Log.Write("compose", "bench windows=" + Windows.Windows.Count + " materials=" + MaterialResources.Policy.Effective + " verify=" + differ
             + " full=" + full + " [" + fullPhases + "] top=" + top + " [" + topPhases + "] drag=" + drag + " [" + dragPhases + "]");
+    }
+
+    /// <summary>Compare actual whole-scene composition with identical inputs and
+    /// cold material captures. All windows and presentation remain on this thread.</summary>
+    private void RunParallelBench(bool fullscreen)
+    {
+        bool saved = CpuWorkers.ParallelBlur;
+        Window? resized = fullscreen && Windows.Top is Window top && top.CanResize && !top.IsFullscreen ? top : null;
+        if (resized is not null) { Windows.ToggleFullscreen(resized); }
+        try
+        {
+            void Compose(bool parallel)
+            {
+                CpuWorkers.ParallelBlur = parallel;
+                _lowerValid = false; Windows.InvalidateLower(); ComposeScene();
+            }
+            Compose(false); Compose(true); // Equal full-path warm-up.
+            Compose(false);
+            int[] baseline = new int[_scene.Pixels.Length];
+            System.Array.Copy(_scene.Pixels, baseline, baseline.Length);
+            long tiles = CpuWorkers.BlurTiles;
+            Compose(true);
+            if (Windows.Top is Window visible)
+            {
+                Rect b = visible.Bounds;
+                Zenith.Core.Log.Write("compose", "parallel viewport=" + b.X + "," + b.Y + "," + b.W + "," + b.H);
+            }
+            int differ = 0;
+            for (int i = 0; i < baseline.Length; i++) { if (baseline[i] != _scene.Pixels[i]) { differ++; } }
+            long Time(bool parallel)
+            {
+                long start = FrameStats.Now;
+                for (int i = 0; i < 3; i++) { Compose(parallel); }
+                return (Micros(FrameStats.Now) - Micros(start)) / 3;
+            }
+            long scalar = Time(false), distributed = Time(true);
+            Zenith.Core.Log.Write("compose", "parallel bench verify=" + differ + " scalar-us=" + scalar + " parallel-us=" + distributed
+                + " ap-tiles=" + (CpuWorkers.BlurTiles - tiles) + " materials=" + MaterialResources.Policy.Effective);
+            Zenith.Core.Log.Write("compose", CpuWorkers.BlurStatus);
+            CpuWorkers.ParallelBlur = saved;
+            if (resized is not null) { Windows.ToggleFullscreen(resized); }
+        }
+        catch
+        {
+            CpuWorkers.ParallelBlur = saved;
+            if (resized is not null) { Windows.ToggleFullscreen(resized); }
+            throw;
+        }
     }
 
     /// <summary>Identifies the control under the pointer; a change means hover highlights need redrawing.</summary>

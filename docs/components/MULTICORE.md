@@ -80,9 +80,44 @@ performance result; the native pixel pilot is not the full GUI workload either.
 
 ## C4 — Migration and broad concurrency
 
-Migration/load balancing follows C2/C3. Apply the pinned-job boundary to measured
-compositor/app workloads before broad migration. Audit credentials, service concurrency, centralized interrupt ownership,
-real I/O contention and recovery before considering default managed SMP.
+**In progress; the first production consumer and central IRQ ownership are locally qualified.**
+MaterialComposition now shares one exact radius-four filter across client materials,
+trusted window chrome/backgrounds and the taskbar. Larger changed regions distribute
+private clamped-halo tiles to healthy idle APs, with BSP participation and rotating
+owner selection. Complete results are reaped by generation; no window, scene pointer,
+credential or managed reference migrates. Small, disabled, busy and unsupported paths
+retain scalar rendering. Failed work reserves its storage and disables further blur
+admission; the BSP reconstructs the complete scalar region before painting.
+
+The signature-checked copied central interrupt registry now rejects AP registration,
+allocation and freeing before its lock/body. F1/F3/F4/F5/F6 are native CPU leases;
+MSI allocation remains inside the verified 40–EE range. This reserves ownership;
+it does not implement multi-destination device routing or a general IRQ scheduler.
+
+[Implementation, measurement and local qualification](../archive/2026-11-03/parallel-material-composition.md).
+`cpu blur-test`, `fps parallel-bench [fullscreen]`, `fps parallel on|off` and `fps`
+report exact-filter work and actual scene timings/counters. Performance results
+must include scene size, effects, CPU count and accelerator.
+
+The remaining C4 sequence is required before calling this work ID complete:
+
+1. Give each general scheduler queue one CPU owner and define atomic Ready-thread
+   transfer/stealing, affinity and ordering against block/wake/exit. Never migrate
+   a Running frame, a raw-process window or C3's permanent pinned owners. Preserve
+   exact ticket accounting, FP state and GC epoch membership during transfers.
+2. Replace the protected process bridge's single raw context/TSS/IDT save area with
+   per-CPU ownership and explicit device/timer routing. Keep its current BSP refusal
+   until first-entry, yield/resume, fault, cancellation and teardown pass per CPU.
+3. Admit services individually after their captured credential, mutable state and
+   lock/IRQ audit. CredentialContext is thread-local, but that alone does not make
+   VFS, network drivers, UI, package transactions or global configuration AP-safe.
+4. Exercise real installed filesystem/network contention, accounts and private
+   handles together with rendering at 1/2/4+ CPUs. Include blocked/failed targets,
+   pending GC, session teardown, shutdown and recovery; preserve exact old roots
+   and disposable-disk/ext2 audits. Local CPU-only completion is insufficient.
+5. Compare repeated application/process latency and composition/presentation against
+   equal BSP workloads. Default managed SMP may be considered only after the full
+   safety matrix plus distributor/installed evidence; CPU count is not admission.
 
 ## Source and acceptance
 

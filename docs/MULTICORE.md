@@ -233,3 +233,50 @@ rendered pixels against an independent scalar oracle, focused input and shutdown
 The process gate retains managed AP roots through its foreground process and
 64-pipeline/fault sequence. Distributor/installed, KVM/VMware and physical evidence
 remain separate from local TCG observations.
+
+## C4 production material computation and IRQ leases
+
+The first production consumer uses native immutable snapshots rather than migrating
+managed UI objects. MaterialComposition invokes CpuWorkers.TryBlur for changed
+sampled regions of at least 16384 pixels and two or more tiles. Each AP owns one
+256×64 tile payload until its terminal generation is reaped. The BSP copies a
+four-pixel clamped halo from the whole region, not the tile boundary, then releases
+the descriptor exactly once. Horizontal and vertical sums round at the same pass
+boundaries as the scalar filter. No source array/pointer is retained in the native
+payload; output is readable only after terminal success with the exact length.
+
+Idle-owner selection rotates ties and skips busy, held, stopped, failed and retained
+payloads. The BSP computes one tile while APs work. This is bounded load distribution,
+not general thread migration. UI ownership, frame publication, credentials and
+services remain on the BSP. A nonblocking producer gate prevents an unrelated CPU
+diagnostic from blocking a frame's admission. Cancellation, timeout or failed copy
+quarantines blur admission; accepted nonterminal buffers remain reserved, and the
+caller overwrites the entire unpublished region through its scalar path. Failed
+partial tiles never become an observable frame. Shutdown still requires native
+halt acknowledgements. Allocation pressure also falls back without reusing a live
+AP payload. Source and destination must be distinct, validated arrays.
+
+The x64 copied InterruptManager is the central registry: SetHandler, AllocateVector
+and FreeVector refuse AP entry before taking its global lock. Native CPU vectors
+F1/F3/F4/F5/F6 are reserved from managed registration/freeing from boot onward,
+including boots without worker activation. The exact pinned MSI allocator is
+verified to stay within 40–EE. BSP timer EF and spurious FF retain their owners.
+This lease check complements the native completion gate's original-handler/selector/
+flags/IST validation; it does not silently overwrite an existing route.
+
+`fps parallel on|off` is a root diagnostic switch, not a persisted user preference.
+Its revision invalidates material captures so comparisons really use the selected
+filter, while geometry, contrast, sampling and material preferences stay unchanged.
+`cpu blur-test` verifies every pixel of an odd-sized region and guards, and reports
+median elapsed time over five warmed samples including dispatch/waits/copying.
+`fps parallel-bench` compares actual complete scene pixels and cold-capture timings;
+its optional `fullscreen` argument temporarily resizes the top supported window on
+the UI owner and restores its original state. `fps` includes AP tile/fallback counts.
+The mandatory native-compositor-smoke gate requires both ordinary and fullscreen
+scenes at 1/2/4 CPUs, exact pixels, focused public input and clean shutdown.
+
+General queue migration, per-CPU protected processes, driver/service concurrency
+and real installed I/O contention remain the rest of C4, as ordered in the
+[component sequence](components/MULTICORE.md#c4--migration-and-broad-concurrency).
+Default boots do not activate AP work, and this change makes no whole-application
+multicore performance or external hypervisor/physical qualification claim.

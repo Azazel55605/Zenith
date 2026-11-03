@@ -9,7 +9,7 @@ using Zenith.Core.Shell;
 namespace Zenith.Core.Multiprocessing;
 
 /// <summary>C1 native-only AP queues; all managed callers/GC/UI ownership stay on BSP.</summary>
-internal static class CpuWorkers
+internal static partial class CpuWorkers
 {
     private static readonly object s_gate = new();
     private static int s_count;
@@ -163,7 +163,7 @@ internal static class CpuWorkers
         }
         if (c.Args.Length > 2 || (c.Args.Length == 2 && c.Args[0] != "test")) { return c.Fail(Usage); }
         string action = c.Args[0];
-        if (action != "test" && action != "cancel-test" && action != "queue-test" && action != "idle-test"
+        if (action != "blur-test" && action != "test" && action != "cancel-test" && action != "queue-test" && action != "idle-test"
             && action != "managed-test" && action != "managed-fault-test" && action != "managed-image-test" && action != "managed-hold" && action != "managed-release" && action != "state-test" && action != "image-test" && action != "fault-test" && action != "stop-test") { return c.Fail(Usage); }
         ulong iterations = 2000000;
         if (c.Args.Length == 2 && (!ulong.TryParse(c.Args[1], out iterations) || iterations < 1 || iterations > 10000000))
@@ -172,11 +172,12 @@ internal static class CpuWorkers
         int status;
         try
         {
-            if (s_count == 0 || s_stopping || (s_count < 2 && action != "image-test" && action != "managed-image-test")) { status = c.Fail("native workers unavailable; boot with smp=native"); }
+            if (s_count == 0 || s_stopping || (s_count < 2 && action != "blur-test" && action != "image-test" && action != "managed-image-test")) { status = c.Fail("native workers unavailable; boot with smp=native"); }
             else
             {
                 switch (action)
                 {
+                    case "blur-test": BlurTest(c); break;
                     case "managed-hold": ManagedHold(c); break;
                     case "managed-release": ManagedRelease(c); break;
                     case "managed-image-test": ManagedImageTest(c); break;
@@ -207,7 +208,7 @@ internal static class CpuWorkers
         return status;
     }
 
-    private const string Usage = "cpu status | irq-test | fp-test | managed-test | managed-fault-test | managed-image-test | managed-hold | managed-release | test [iterations] | cancel-test | state-test | queue-test | idle-test | image-test | fault-test | stop-test";
+    private const string Usage = "cpu status | blur-test | irq-test | fp-test | managed-test | managed-fault-test | managed-image-test | managed-hold | managed-release | test [iterations] | cancel-test | state-test | queue-test | idle-test | image-test | fault-test | stop-test";
 
     private static void Batch(CommandContext c, ulong n, bool cancel)
     {

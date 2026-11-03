@@ -17,6 +17,7 @@ internal static class PinnedCpuFixup
             ||!manager.Methods.Any(m=>m.Name=="_zenithAttachPinnedCpus")
             ||!manager.Methods.Any(m=>m.Name=="_zenithExceptionHead")
             ||!module.GetType("Cosmos.Kernel.Core.Runtime.StackTraceMetadata").Methods.Any(m=>m.Name=="_zenithMetadataNames")
+            ||!module.GetType("Cosmos.Kernel.Core.CPU.InterruptManager").Methods.Any(m=>m.Name=="_zenithIrqRegistrationAllowed")
             ||!module.GetType("Cosmos.Kernel.Core.IO.Serial").Methods.Any(m=>m.Name=="_zenithSerialCpu"))
             throw new InvalidOperationException("Incomplete C3 runtime ownership contract");
         if(gc.Methods.Any(m=>m.Name=="_zenithC3Contract"))return false;

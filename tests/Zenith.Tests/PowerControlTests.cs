@@ -83,6 +83,8 @@ namespace Zenith.Core.Multiprocessing
 {
     internal static class CpuWorkers
     {
+        public static bool TryBlur(int[] source, int[] target, int offset, int width, int height) => false;
+        public static int BlurRevision => 0;
         public static Exception? Failure;
         public static void Quiesce() { if (Failure is not null) { throw Failure; } }
     }

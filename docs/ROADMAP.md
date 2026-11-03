@@ -50,14 +50,15 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 
 ## Current focus and execution order
 
-**2026-11-03 — selected work: C1 → C2 → C3.** Polaris U3 is operator
+**2026-11-03 — selected work: C4 after C1–C3.** Polaris U3 is operator
 confirmed; the next engineering focus is useful multicore execution on the four-vCPU
 VM. C1 native queues, private IST stacks, wake/IPI, cancellation and quiescence are
 locally complete ([evidence](archive/2026-11-03/native-worker-queues.md)). C2's
 execution-state foundation is locally complete ([evidence](archive/2026-11-03/per-cpu-execution-state.md));
 C3 now has locally qualified pinned managed jobs, GC/root barriers and complete-frame
-UI handoff ([evidence](archive/2026-11-03/pinned-managed-workers.md)). C4 owns
-measured app/compositor integration and broader scheduling.
+UI handoff ([evidence](archive/2026-11-03/pinned-managed-workers.md)). C4 now has locally qualified production material computation and centralized IRQ
+ownership ([evidence](archive/2026-11-03/parallel-material-composition.md)); general
+queue/process migration and service concurrency remain required exits under C4.
 Do not enable managed AP execution by merely increasing the scheduler CPU count.
 Drawing/process latency needs separate measured workloads: CPU count alone is not
 a performance result. [Implementation sequence and acceptance](components/MULTICORE.md).
@@ -197,7 +198,7 @@ The M0–M10 names in that guide are Meridian phases, not separate project miles
 | C1 | local, complete; installed verification pending | Opt-in eight-slot native AP queues, private GDT/TSS/interrupt/fault stacks, race-free wake/IPI/HLT, queued/running cancellation, stale-token rejection and acknowledged shutdown. Native pixel pilot matches scalar output and scales in local 1/2/4-CPU tests. [Evidence and limits](archive/2026-11-03/native-worker-queues.md); Q2/H1 own distributor and installed acceptance. Ordinary managed apps still use the BSP. |
 | C2 | local foundation complete; installed verification pending | Hardware logical CPU identity, CPU-local IRQ switch/error state, full baseline FP context, native AP timer/reschedule paths and early process ownership refusal. 106 CPU checks and full AP-enabled process gate passed. [Audit and evidence](archive/2026-11-03/per-cpu-execution-state.md). General managed AP dispatch remains C4; C3 admits only its qualified fixed jobs. |
 | C3 | local foundation complete; distributor/installed acceptance pending | Sealed allocation/heap/metadata ownership, stopped-root GC epochs, per-thread TLS/exception state and fixed pinned managed jobs. 1/2/4-CPU pressure/fault/cancel, exact rendered frames/input and full AP-enabled process qualification passed; four-CPU frame pilot was 2.58× its one-CPU case in local TCG. [Evidence and limits](archive/2026-11-03/pinned-managed-workers.md). Q2/H1 own external acceptance; general scheduling remains C4. |
-| C4 | planned | Measured compositor/app consumers of pinned jobs, then migration, centralized IRQ ownership, credential/service concurrency, real I/O contention and recovery at 1/2/4+ CPUs; only then consider default managed SMP. [Detailed contract](MULTICORE.md). |
+| C4 | in progress | Production material blur and BSP-owned IRQ leases passed local KVM/TCG 1/2/4-CPU qualification, held-root fallback/reuse and full installed process regression. Remaining migration/credential/service/I/O/recovery exits are recorded in the [component sequence](components/MULTICORE.md#c4--migration-and-broad-concurrency). General thread/application migration and default managed SMP remain disabled. |
 | X1 | partial | Host cross-SDK exists in freestanding form; finish documented startup/headers/libc subset/compiler runtime and supported-API matrix; install/upgrade a real independent program. |
 | X2 | planned, later | PTY/terminal capabilities + libc source audit → nano/reduced Vim proof; optional Bash requires subprocess/pipe/signal/POSIX compatibility beyond the existing custom shell. |
 | X3 | planned, later | Deliberately scoped Python REPL/import/file I/O first, then modules backed by implemented APIs. No implied PyPI/subprocess/thread support. |
