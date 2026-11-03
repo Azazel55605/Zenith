@@ -28,21 +28,25 @@ was 2.14× faster than its one-CPU case in local TCG; ordinary apps remain BSP-o
 Installed/VMware, KVM and physical observations belong to Q2/H1, not assumed proof
 from additional QEMU vCPUs. No release has been published for C1 yet.
 
-## C2 — Per-CPU execution state (next)
+## C2 — Per-CPU execution state
 
-Before enabling any managed AP entry, adapt the pinned Cosmos **3.0.89** runtime
-in signature-checked build copies; leave installed packages and upstream unchanged.
+**Local foundation complete; distributor/installed acceptance pending.** The pinned Cosmos build copies
+now use hardware logical CPU identity, CPU-local IRQ switch/error slots and
+stack-local return temporaries. Both IRQ scheduler callbacks translate logical
+identity. Full baseline FP state is preserved with a matching 512-byte native save
+area and managed thread layout/initialization. APs own their initial FP environment,
+private tables/stacks, diagnostic one-shot timer and native reschedule interrupts.
+The process bridge rejects non-BSP ownership before touching shared state.
+Local exit evidence: 106 CPU checks, 382 controller tests, 846 host tests, 46 runtime
+adapter regressions and the full AP-enabled process/64-pipeline gate passed on the
+frozen C2 kernel. This establishes the execution-state foundation, not managed SMP.
 
-1. CPU identity/current thread and scheduler ownership. `GetCurrentCpuId` is still
-   CPU-zero-only; per-CPU containers alone do not establish dispatch.
-2. Interrupt-return switch state. The built ELF still has single global
-   `_context_switch_target_rsp` and `_context_switch_is_new_thread` symbols. Move
-   those with scheduler/current-thread state, not independently.
-3. Managed/native process kernel stacks, GDT/TSS, FP ownership, local timer and
-   reschedule IPI paths. `src/Native/x64/Process.s` and `NativeProcess` still serialize
-   raw foreground entry; additional native workers must not share that context.
-4. Lock/IRQ/current-credential audit. Prove CPU identity/register/FP/interrupt
-   behavior on each CPU. Keep managed AP execution disabled until C3 is ready.
+[Implementation, lock/credential audit and evidence](../archive/2026-11-03/per-cpu-execution-state.md).
+Managed scheduler state, raw foreground processes, services and the UI still admit
+only the BSP. A native reschedule IPI does not dispatch a managed thread. Per-CPU
+scheduler timer calibration, roots/GC barriers, exception-chain/TLS ownership and
+pinned managed dispatch must be qualified together in C3 before AP admission;
+C4 owns migration and general concurrent services.
 
 ## C3 — Heap safety, then pinned managed work
 

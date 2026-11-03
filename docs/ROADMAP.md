@@ -53,8 +53,9 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 **2026-11-03 — selected work: C1 → C2 → C3.** Polaris U3 is operator
 confirmed; the next engineering focus is useful multicore execution on the four-vCPU
 VM. C1 native queues, private IST stacks, wake/IPI, cancellation and quiescence are
-locally complete ([evidence](archive/2026-11-03/native-worker-queues.md)). Continue
-with C2 per-CPU execution state, then C3 allocation/GC barriers and pinned managed work.
+locally complete ([evidence](archive/2026-11-03/native-worker-queues.md)). C2's
+execution-state foundation is locally complete ([evidence](archive/2026-11-03/per-cpu-execution-state.md));
+continue with C3 allocation/GC barriers and pinned managed work.
 Do not enable managed AP execution by merely increasing the scheduler CPU count.
 Drawing/process latency needs separate measured workloads: CPU count alone is not
 a performance result. [Implementation sequence and acceptance](components/MULTICORE.md).
@@ -192,7 +193,7 @@ The M0–M10 names in that guide are Meridian phases, not separate project miles
 | ID | State | Dependency-ordered work and exit |
 |---|---|---|
 | C1 | local, complete; installed verification pending | Opt-in eight-slot native AP queues, private GDT/TSS/interrupt/fault stacks, race-free wake/IPI/HLT, queued/running cancellation, stale-token rejection and acknowledged shutdown. Native pixel pilot matches scalar output and scales in local 1/2/4-CPU tests. [Evidence and limits](archive/2026-11-03/native-worker-queues.md); Q2/H1 own distributor and installed acceptance. Ordinary managed apps still use the BSP. |
-| C2 | planned | Per-CPU scheduler/current context/GDT/TSS/FP/timer and lock audit after C1. No managed AP execution yet. |
+| C2 | local foundation complete; installed verification pending | Hardware logical CPU identity, CPU-local IRQ switch/error state, full baseline FP context, native AP timer/reschedule paths and early process ownership refusal. 106 CPU checks and full AP-enabled process gate passed. [Audit and evidence](archive/2026-11-03/per-cpu-execution-state.md). Managed AP admission remains blocked on C3. |
 | C3 | planned | Cross-CPU allocation, GC stop/root barriers, then pinned managed threads; require pressure/fault/cancel evidence before migration/load balancing. |
 | C4 | planned | Migration, credential/service concurrency, real I/O contention and recovery at 1/2/4+ CPUs; only then consider default managed SMP. [Detailed contract](MULTICORE.md). |
 | X1 | partial | Host cross-SDK exists in freestanding form; finish documented startup/headers/libc subset/compiler runtime and supported-API matrix; install/upgrade a real independent program. |

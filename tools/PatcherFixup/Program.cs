@@ -48,6 +48,8 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
     changed |= AllocationPublicationFixup.Apply(module);
     changed |= ConservativeRootFixup.Apply(module);
     changed |= SchedulerDispatchFixup.Apply(module);
+    changed |= CpuIdentityFixup.Apply(module);
+    changed |= FpContextFixup.Core(module);
     changed |= ThreadStartFixup.Apply(module);
     changed |= SchedulerTicketsFixup.Apply(module);
     changed |= MonitorTimeoutFixup.ApplyCondition(module);
@@ -169,6 +171,8 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
 }
 if (assembly.Name.Name == "Cosmos.Kernel.Core.X64")
 {
+    changed |= FpContextFixup.X64(module);
+    changed |= CpuIdentityFixup.X64(module);
     // Released load_idt unconditionally STI's before PIC/APIC setup. During PIC
     // ICW remapping a pending IRQ0 can then arrive as vector 0 and halt the boot.
     // Preserve the caller's IF instead; the system initializer explicitly enables

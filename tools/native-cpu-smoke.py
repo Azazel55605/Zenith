@@ -61,6 +61,8 @@ def main():
                                    'user: '+name+'='+str(code))
                 raw=cpu('cpu status','CPU_STATUS')
                 check('initial-idt-interrupts-enabled=False' in raw,label+' initial IDT keeps interrupts masked')
+                cpu('cpu fp-test','FP_TEST')
+                check('FP interrupt preemption x87/MXCSR/XMM=True' in machine.log(),label+' full baseline FP interrupt preservation')
                 cpu('cpu irq-test','IRQ_TEST')
                 check('IDT interrupt-state preservation failures=0' in machine.log(),label+' IDT preserves masked and enabled states')
                 check('detected='+str(cpus)+' native-workers='+str(cpus if enabled else 0) in raw,label+' detected/started CPUs')
@@ -70,6 +72,8 @@ def main():
                     check(result is not None,label+' equal-work native pixel pilot')
                     image_times[cpus]=dict(microseconds=int(result[2]),hash=result[3])
                 if enabled and cpus > 1:
+                    cpu('cpu state-test','CPU_STATE')
+                    check('CPU-local switch slots and FP interrupt state verified; managed CPUs=1' in machine.log(),label+' per-CPU execution-state probe')
                     cpu('cpu queue-test','CPU_QUEUE')
                     cpu('cpu idle-test','CPU_IDLE')
                     def cpu_time():

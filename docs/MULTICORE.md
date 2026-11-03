@@ -126,3 +126,30 @@ storage/package/UI gates remain mandatory; no successful result is manufactured.
 
 [Local evidence and limits](archive/2026-11-03/native-worker-queues.md).
 Managed AP threads, allocator/GC barriers and migration remain **C2–C4**.
+
+## C2 execution-state boundary
+
+Copied Cosmos 3.0.89 IRQ code is adapted only after its complete source SHA256
+matches. CPU-local switch targets/new-thread flags/exception scratch use 64-byte
+native slots indexed by the supported legacy APIC identity; the return temporary
+is thread-stack-local. The accessor preserves incoming IF and does not depend on
+GS, which protected user entry clears. Scheduler and IRQ dispatch use logical CPU
+identity, including a nonzero physical BSP ID; unknown CPUs never alias CPU zero.
+
+The native IRQ frame and managed ThreadContext use a matching 512-byte FXSAVE area
+with valid initial x87/MXCSR state. This preserves baseline x87/MMX/SSE, not AVX.
+`cpu fp-test` checks non-default FP controls and live x87/XMM values through actual
+BSP interrupt returns. `cpu state-test` checks each AP's identity/switch state,
+FP state through an AP-local timer interrupt, and targeted reschedule delivery.
+Neither command enables managed AP execution.
+
+AP diagnostic timers use their own one-shot vector and are masked before job
+completion. They establish local delivery, not an elapsed-time calibration.
+A stop request wakes/disarms a waiting timer probe. Native reschedule IPIs record
+acknowledgement on IST1 and never invoke managed scheduler callbacks.
+
+The protected process bridge refuses non-BSP entry before any shared bridge state
+is written. Existing raw process serialization remains required. The
+[C2 audit](archive/2026-11-03/per-cpu-execution-state.md) records locks, credentials,
+TLS, exception-chain and GC restrictions; C3 must satisfy these before it admits
+managed APs. The ARM64 path remains uniprocessor and has no new AP admission.

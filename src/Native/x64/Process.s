@@ -4,6 +4,17 @@
 .globl zenith_process_run
 .type zenith_process_run,@function
 zenith_process_run:
+    # The raw bridge is deliberately BSP-only until C3. Check before saving any
+    # selector/context/stack in global bridge storage, including on first entry.
+    push %rdi
+    call zenith_execution_process_allowed
+    pop %rdi
+    test %eax,%eax
+    jnz .Lprocess_owner_ok
+    movq $95,64(%rdi)
+    movq $5,96(%rdi)
+    ret
+.Lprocess_owner_ok:
     push %rbp
     push %rbx
     push %r12

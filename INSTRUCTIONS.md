@@ -123,6 +123,13 @@ never infer current failures from old release logs or claim a menu stub is a bac
   permanently and require AP halt acknowledgement before disk shutdown. Preserve
   default-disabled boots and 1/2/4-CPU acceptance; do not enable
   managed AP execution before per-CPU context and GC synchronization are implemented.
+  C2 adapts only signature-checked build copies of x64 IRQ code: CPU-local switch
+  and error slots, stack-local return temporary and full baseline 512-byte FXSAVE.
+  Keep native frame offsets, managed ThreadContext initialization/layout and both
+  IRQ scheduler RSP derivations synchronized. Preserve hardware logical CPU IDs,
+  early non-BSP raw-process refusal and read-only diagnostics for old/new frames.
+  Native AP timer/reschedule handlers must not enter managed code; periodic managed
+  dispatch remains blocked on C3 allocation/GC, TLS and exception ownership.
 - GUI input must periodically drain registered mice before sampling coordinates,
   even if a virtio notification was missed. Keep polling IRQ-scoped on the BSP,
   restore prior flags on success/exception, bound virtio drains to 64 events and

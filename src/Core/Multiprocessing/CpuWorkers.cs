@@ -37,6 +37,12 @@ internal static class CpuWorkers
     [DllImport("*", EntryPoint = "zenith_idt_irq_test"), SuppressGCTransition]
     private static extern int IdtIrqTest();
 
+    [DllImport("*", EntryPoint = "zenith_cpu_reschedule"), SuppressGCTransition]
+    private static extern ulong Reschedule(ulong cpu);
+
+    [DllImport("*", EntryPoint = "zenith_execution_fp_preempt_test"), SuppressGCTransition]
+    private static extern ulong FpPreemptTest();
+
     public static unsafe void Initialize()
     {
         if (RuntimeInformation.ProcessArchitecture != Architecture.X64) { return; }
@@ -128,6 +134,12 @@ internal static class CpuWorkers
             return 0;
         }
         GuardedFilesystem.RequireRoot();
+        if (c.Args.Length == 1 && c.Args[0] == "fp-test")
+        {
+            bool ok = FpPreemptTest() == 1;
+            c.WriteLine("FP interrupt preemption x87/MXCSR/XMM=" + ok);
+            return ok ? 0 : 1;
+        }
         if (c.Args.Length == 1 && c.Args[0] == "irq-test")
         {
             int result = IdtIrqTest();
@@ -137,7 +149,7 @@ internal static class CpuWorkers
         if (c.Args.Length > 2 || (c.Args.Length == 2 && c.Args[0] != "test")) { return c.Fail(Usage); }
         string action = c.Args[0];
         if (action != "test" && action != "cancel-test" && action != "queue-test" && action != "idle-test"
-            && action != "image-test" && action != "fault-test" && action != "stop-test") { return c.Fail(Usage); }
+            && action != "state-test" && action != "image-test" && action != "fault-test" && action != "stop-test") { return c.Fail(Usage); }
         ulong iterations = 2000000;
         if (c.Args.Length == 2 && (!ulong.TryParse(c.Args[1], out iterations) || iterations < 1 || iterations > 10000000))
         { return c.Fail("iterations must be 1..10000000"); }
@@ -150,6 +162,7 @@ internal static class CpuWorkers
             {
                 switch (action)
                 {
+                    case "state-test": StateTest(c); break;
                     case "queue-test": QueueTest(c); break;
                     case "idle-test": IdleTest(c); break;
                     case "image-test": ImageTest(c); break;
@@ -174,7 +187,7 @@ internal static class CpuWorkers
         return status;
     }
 
-    private const string Usage = "cpu status | irq-test | test [iterations] | cancel-test | queue-test | idle-test | image-test | fault-test | stop-test";
+    private const string Usage = "cpu status | irq-test | fp-test | test [iterations] | cancel-test | state-test | queue-test | idle-test | image-test | fault-test | stop-test";
 
     private static void Batch(CommandContext c, ulong n, bool cancel)
     {
@@ -201,6 +214,23 @@ internal static class CpuWorkers
             Require(Control(token, 2) == 1, "batch reap refused");
         }
         c.WriteLine(cancel ? "native CPU cancellation verified; workers reusable" : "native CPU results verified; overlap=" + (latestStart < earliestEnd) + "; managed-cpus=1");
+    }
+
+    private static void StateTest(CommandContext c)
+    {
+        for (ulong cpu = 1; cpu < (ulong)s_count; cpu++)
+        {
+            ulong token = Enqueue(cpu, 4, 1, 0, 1, 0);
+            Require(token != 0, "execution-state job admission");
+            Require(Wait(() => Job(token, 0) >= 3), "execution-state completion");
+            Require(Job(token, 0) == 3 && Job(token, 1) == ((cpu << 32) | 1), "CPU-local identity/switch and FP interrupt state");
+            Require(Field(cpu, 19) > 0, "AP-local one-shot timer delivery");
+            ulong before = Field(cpu, 20);
+            Require(Reschedule(cpu) == 1, "targeted native reschedule IPI admission");
+            Require(Wait(() => Field(cpu, 20) == before + 1), "targeted native reschedule IPI acknowledgement");
+            Require(Control(token, 2) == 1, "execution-state result ownership");
+        }
+        c.WriteLine("CPU-local switch slots and FP interrupt state verified; managed CPUs=1");
     }
 
     private static void QueueTest(CommandContext c)

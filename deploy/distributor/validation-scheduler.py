@@ -46,10 +46,13 @@ def metadata(elf):
     getter=PREFIX+'SchedulerManager__get_CurrentCpuState'
     slot='__GCSTATICS'+PREFIX+'SchedulerManager'
     code=subprocess.run(['objdump','-d','--disassemble='+getter,str(elf)],capture_output=True,text=True,timeout=3,check=True).stdout
-    # The exact x64 getter loads GC statics, then the CPU array, then element 0.
+    # Verify the statics/CPU-array load. C2 indexes that array with a hardware
+    # logical ID; inspection below still refuses more than one managed CPU.
     match=re.search(r'mov\s+0x[0-9a-f]+\(%rip\),%rax\s+#\s+([0-9a-f]+) <'+re.escape(slot)+r'>\n'
-                    r'[^\n]*mov\s+0x([0-9a-f]+)\(%rax\),%rax',code)
+                    r'[^\n]*mov\s+0x([0-9a-f]+)\(%rax\),%(rax|rbx)',code)
     if not match or int(match[1],16)!=symbols.get(slot): raise ValueError('unverified scheduler static getter')
+    if match[3]=='rbx' and not ('<zenith_cpu_logical_id>' in code and '0x10(%rbx,%rax,8),%rax' in code):
+        raise ValueError('unverified logical CPU array lookup')
     cpu_offset=int(match[2],16)
     if cpu_offset%8 or not 8<=cpu_offset<=128: raise ValueError('invalid scheduler static offset')
     text=subprocess.run(['readelf','--debug-dump=info',str(elf)],capture_output=True,text=True,timeout=5,check=True).stdout
@@ -66,8 +69,11 @@ def observe(monitor,elf,read_words):
         if len(parts)==3 and parts[1] in ('t','T'): code_rows.append((int(parts[0],16),parts[2]))
     addresses=[p for p,n in code_rows]
     context_code=subprocess.run(['objdump','-d','--disassemble='+PREFIX+'ThreadContext__Initialize',str(elf)],capture_output=True,text=True,timeout=3,check=True).stdout
-    context_verified=all(pattern in context_code for pattern in (
-        '48 89 b7 98 01 00 00', '48 89 87 50 01 00 00', '4c 89 87 b0 01 00 00'))
+    fp_area=None
+    for area,tag in ((256,'01'),(512,'02')):
+        if all(pattern in context_code for pattern in (
+            '48 89 b7 98 '+tag+' 00 00', '48 89 87 50 '+tag+' 00 00', '4c 89 87 b0 '+tag+' 00 00')):
+            fp_area=area
     def location(pc):
         i=bisect.bisect_right(addresses,pc)-1
         if not 0<=i<len(code_rows)-1: return None
@@ -131,12 +137,12 @@ def observe(monitor,elf,read_words):
                     flags=field(pointer,thread,'<Flags>k__BackingField',2),
                     runtime_ns=field(pointer,thread,'<TotalRuntime>k__BackingField'),
                     wake_deadline=field(pointer,thread,'<WakeupTime>k__BackingField'))
-        if context_verified:
+        if fp_area is not None:
             low=field(pointer,thread,'<StackBase>k__BackingField');size=field(pointer,thread,'<StackSize>k__BackingField')
             sp=field(pointer,thread,'<StackPointer>k__BackingField');high=low+size
             # Root/idle stacks may have no owned allocation. Never follow those.
-            if 0<size<=2*1024*1024 and low<=sp<=high-448:
-                frame=scalar(sp+336);pc=scalar(sp+408)
+            if 0<size<=2*1024*1024 and low<=sp<=high-(fp_area+192):
+                frame=scalar(sp+fp_area+80);pc=scalar(sp+fp_area+152)
                 frames=[];initial=location(pc)
                 if initial: frames.append(initial)
                 for _ in range(depth):

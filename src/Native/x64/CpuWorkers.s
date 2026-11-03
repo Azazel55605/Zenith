@@ -41,6 +41,19 @@ zenith_cpu_ap_entry:
     wrmsr
     mov $24,%ax
     ltr %ax
+    # Each AP owns its FP environment; never inherit a bootloader lazy-FP trap.
+    mov %cr0,%rax
+    and $-13,%rax
+    or $2,%rax
+    mov %rax,%cr0
+    mov %cr4,%rax
+    or $0x600,%rax
+    mov %rax,%cr4
+    fninit
+    sub $16,%rsp
+    movl $0x1f80,(%rsp)
+    ldmxcsr (%rsp)
+    add $16,%rsp
     lidt 90(%r12)
     mov %r12,%rdi
     call zenith_cpu_worker
@@ -51,6 +64,16 @@ zenith_cpu_ap_entry:
 # register; C is built general-registers-only and never touches FP/SIMD state.
 .globl zenith_cpu_wake_entry
 zenith_cpu_wake_entry:
+    pushq $0xf1
+    jmp .Lnative_interrupt
+.globl zenith_cpu_reschedule_entry
+zenith_cpu_reschedule_entry:
+    pushq $0xf3
+    jmp .Lnative_interrupt
+.globl zenith_cpu_timer_entry
+zenith_cpu_timer_entry:
+    pushq $0xf4
+.Lnative_interrupt:
     cld
     push %rax
     push %rbx
@@ -67,6 +90,7 @@ zenith_cpu_wake_entry:
     push %r13
     push %r14
     push %r15
+    mov 120(%rsp),%rdx
     mov %rsp,%rsi
     mov %rsp,%rbx
     and $-16,%rsp
@@ -88,6 +112,7 @@ zenith_cpu_wake_entry:
     pop %rcx
     pop %rbx
     pop %rax
+    add $8,%rsp
     iretq
 .globl zenith_cpu_spurious_entry
 zenith_cpu_spurious_entry:

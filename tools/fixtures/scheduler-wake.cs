@@ -11,6 +11,18 @@ string host = Path.Combine(Path.GetDirectoryName(args[0])!, "host-" + Path.GetFi
 using (var source = AssemblyDefinition.ReadAssembly(args[0]))
 {
     var module = source.MainModule;
+    // Host tests run real scheduler logic but cannot execute the hardware CPU
+    // identity P/Invoke. Substitute only that leaf, as with privileged IRQ I/O.
+    var schedulerIdentity = module.GetType("Cosmos.Kernel.Core.Scheduler.SchedulerManager")
+        .Methods.FirstOrDefault(m => m.Name == "_zenithCurrentCpuId");
+    if (schedulerIdentity is not null)
+    {
+        schedulerIdentity.PInvokeInfo = null; schedulerIdentity.IsPInvokeImpl = false;
+        schedulerIdentity.ImplAttributes = Mono.Cecil.MethodImplAttributes.IL | Mono.Cecil.MethodImplAttributes.Managed;
+        schedulerIdentity.Body = new Mono.Cecil.Cil.MethodBody(schedulerIdentity);
+        schedulerIdentity.Body.Instructions.Add(Instruction.Create(OpCodes.Ldc_I4_0));
+        schedulerIdentity.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
+    }
     var native = module.GetType("Cosmos.Kernel.Core.Bridge.CpuNative");
     var flags = new FieldDefinition("_hostIrqFlags", Mono.Cecil.FieldAttributes.Public | Mono.Cecil.FieldAttributes.Static, module.TypeSystem.UInt64);
     native.Fields.Add(flags);

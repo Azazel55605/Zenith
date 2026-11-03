@@ -97,6 +97,16 @@ class QueueTests(unittest.TestCase):
         self.assertNotIn((fp+16,1),self.reads);self.assertNotIn('534543',str(row))
         self.assertEqual('saved_context_not_live_backtrace',row['context_kind'])
 
+    def test_full_fp_context_uses_verified_larger_offsets(self):
+        self.tools[1]=SimpleNamespace(stdout='48 89 b7 98 02 00 00\n48 89 87 50 02 00 00\n4c 89 87 b0 02 00 00')
+        low=0xffff800000300000;sp=low+0x100;fp=low+0x800
+        self.put(self.ready+40,low);self.put(self.ready+48,4096);self.put(self.ready+24,sp)
+        self.put(sp+592,fp);self.put(sp+664,0xffffffff80002001)
+        self.put(fp,0);self.put(fp+8,0xffffffff80003010)
+        row=self.observe()['queue'][0]
+        self.assertEqual(['waiter','caller'],[f['symbol'] for f in row['saved_frames']])
+        self.assertNotIn((sp+336,1),self.reads);self.assertNotIn((sp+408,1),self.reads)
+
     def test_unverified_context_layout_does_not_read_stack(self):
         self.tools[1]=SimpleNamespace(stdout='changed native ABI')
         low=0xffff800000300000;self.put(self.ready+40,low);self.put(self.ready+48,4096);self.put(self.ready+24,low)

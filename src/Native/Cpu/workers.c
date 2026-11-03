@@ -35,6 +35,7 @@ struct cpu {
     struct task_state tss;
     u64 apic_base, x2;
     u64 parks, wakes, completed, fault, halted, parked, irq_stack_errors, fault_stack_ok, ipi_errors;
+    u64 timer_ticks, reschedules;
     u32 lock, head, tail, current;
     u64 ring[JOBS];
     struct job jobs[JOBS];
@@ -55,8 +56,11 @@ static u64 count, hhdm, stopping, sequence;
 static u64 host_pause, host_seen;
 #endif
 #ifndef ZENITH_CPU_HOST_TEST
+extern u64 zenith_execution_test(void);
 extern void zenith_cpu_ap_entry(void);
 extern void zenith_cpu_wake_entry(void);
+extern void zenith_cpu_reschedule_entry(void);
+extern void zenith_cpu_timer_entry(void);
 extern void zenith_cpu_spurious_entry(void);
 extern u64 zenith_cpu_fault_entries[256];
 extern u64 zenith_cpu_mp_response(void);
@@ -80,6 +84,19 @@ static u64 identity(void) {
     u32 a=1,b,c,d; __asm__ volatile("cpuid":"+a"(a),"=b"(b),"=c"(c),"=d"(d)); return b>>24;
 #endif
 }
+/* Scheduler identity is hardware-derived even before C1 bring-up. Native APs
+ * have logical identities but no managed scheduler state/heap admission yet.
+ * Unknown CPUs fail closed; never silently alias the BSP scheduler state. */
+u32 zenith_cpu_logical_id(void) {
+#ifdef ZENITH_CPU_HOST_TEST
+    return 0;
+#else
+    if (msr(0x1b)&0x100) return 0;
+    u64 id=identity();
+    for (u32 i=1;i<count;i++) if (cpus[i].apic==id) return i;
+    return 0xffffffffU;
+#endif
+}
 /* A failed AP may have faulted inside a critical section: never wait forever or
  * recover its partially updated queue. Only its own fault handler proves halt. */
 static int lock_cpu(struct cpu *c) {
@@ -97,9 +114,9 @@ static void apic_write(struct cpu *c,u32 offset,u32 value) {
     if (c->x2) wrmsr(0x800+offset/16,value); else *(volatile u32*)(c->apic_base+offset)=value;
 }
 #endif
-static int wake(struct cpu *c) {
+static int signal_cpu(struct cpu *c,u32 vector) {
 #ifdef ZENITH_CPU_HOST_TEST
-    __atomic_fetch_add(&c->wakes,1,__ATOMIC_RELAXED);
+    (void)vector; __atomic_fetch_add(&c->wakes,1,__ATOMIC_RELAXED);
     return 1;
 #else
     struct cpu *b=&cpus[0];
@@ -110,12 +127,12 @@ static int wake(struct cpu *c) {
         /* Intel SDM 11.12.3 requires MFENCE;LFENCE before non-serializing
          * x2APIC WRMSR (MFENCE alone is insufficient on Intel). */
         __asm__ volatile("lfence":::"memory");
-        wrmsr(0x830,(c->apic<<32)|WAKE); return 1;
+        wrmsr(0x830,(c->apic<<32)|vector); return 1;
     }
     for (u32 n=0;n<100000;n++) {
         if (!(apic_read(b,0x300)&0x1000)) {
             apic_write(b,0x310,(u32)c->apic<<24);
-            apic_write(b,0x300,WAKE);
+            apic_write(b,0x300,vector);
             return 1;
         }
         pause_cpu();
@@ -124,6 +141,7 @@ static int wake(struct cpu *c) {
     return 0;
 #endif
 }
+static int wake(struct cpu *c) { return signal_cpu(c,WAKE); }
 static void make_gate(u32 vector,u64 address,u8 ist) {
     idt[vector]=(struct gate){(u16)address,8,ist,0x8e,(u16)(address>>16),(u32)(address>>32),0};
 }
@@ -157,6 +175,8 @@ u64 zenith_cpu_initialize(u64 offset) {
     if (!r||!r->count||!hhdm||(msr(0x1b)&0x800)==0||r->bsp>255) return 0;
     for (u32 i=0;i<256;i++) make_gate(i,zenith_cpu_fault_entries[i],2);
     make_gate(WAKE,(u64)zenith_cpu_wake_entry,1);
+    make_gate(0xf3,(u64)zenith_cpu_reschedule_entry,1);
+    make_gate(0xf4,(u64)zenith_cpu_timer_entry,1);
     make_gate(255,(u64)zenith_cpu_spurious_entry,1);
     configure(&cpus[0],r->bsp,root());
     u64 base=msr(0x1b); cpus[0].x2=(base>>10)&1; cpus[0].apic_base=hhdm+(base&0xfffff000ULL);
@@ -192,9 +212,25 @@ void zenith_cpu_ap_configure(struct cpu *c) {
     apic_write(c,0x80,0); apic_write(c,0xf0,0x100|255);
     STORE(c->actual,identity()); STORE(c->state,3);
 }
-void zenith_cpu_interrupt(struct cpu *c,u64 stack) {
+void zenith_cpu_interrupt(struct cpu *c,u64 stack,u64 vector) {
     if (stack<(u64)c->irq_stack||stack>=(u64)(c->irq_stack+sizeof(c->irq_stack))) __atomic_fetch_add(&c->irq_stack_errors,1,__ATOMIC_RELAXED);
-    __atomic_fetch_add(&c->wakes,1,__ATOMIC_RELAXED); apic_write(c,0xb0,0);
+    if (vector==WAKE) __atomic_fetch_add(&c->wakes,1,__ATOMIC_RELAXED);
+    if (vector==0xf3) __atomic_fetch_add(&c->reschedules,1,__ATOMIC_RELAXED);
+    if (vector==0xf4) __atomic_fetch_add(&c->timer_ticks,1,__ATOMIC_RELAXED);
+    apic_write(c,0xb0,0);
+}
+/* A one-shot AP-local timer diagnostic, not scheduler admission or a periodic
+ * polling source. Its absolute frequency is deliberately not used as a clock.
+ * Stop wakes the parked probe and disarms it, preserving C1 bounded shutdown. */
+u64 zenith_cpu_timer_probe(void) {
+    u32 id=zenith_cpu_logical_id();
+    if (!id||id>=count) return 0;
+    struct cpu *c=&cpus[id]; u64 before=LOAD(c->timer_ticks);
+    apic_write(c,0x3e0,3); /* Divide by 16. */
+    apic_write(c,0x320,0xf4); apic_write(c,0x380,100000);
+    while (LOAD(c->timer_ticks)==before&&!LOAD(stopping)) park();
+    apic_write(c,0x320,0x10000|0xf2); apic_write(c,0x380,0);
+    return LOAD(c->timer_ticks)!=before;
 }
 __attribute__((noreturn)) void zenith_cpu_fault(struct cpu *c,u64 vector,u64 stack) {
     c->fault=vector;
@@ -219,7 +255,7 @@ static struct cpu *lookup(u64 token,struct job **out) {
 u64 zenith_cpu_enqueue(u64 index,u64 kind,u64 n,u64 seed,u64 rounds,u64 held) {
     u64 f=irq_off(),token=0;
     if (identity()!=cpus[0].actual||LOAD(stopping)||index==0||index>=count||
-        kind<1||kind>3||!n||n>(kind==1?100000000ULL:PIXELS)||!rounds||rounds>128) goto end;
+        kind<1||kind>4||!n||n>(kind==1?100000000ULL:PIXELS)||!rounds||rounds>128) goto end;
     struct cpu *c=&cpus[index];
     if (!lock_cpu(c)) goto end;
     u64 state=LOAD(c->state);
@@ -320,6 +356,12 @@ static void execute(struct job *j) {
             if ((p&255)==0&&cancelled(j)) goto complete;
             result=(result^j->pixels[p])*0x100000001b3ULL;
         }
+    } else if (j->kind==4) {
+#ifndef ZENITH_CPU_HOST_TEST
+        result=zenith_execution_test() | ((u64)zenith_cpu_logical_id()<<32);
+#else
+        result=1;
+#endif
     } else {
 #ifndef ZENITH_CPU_HOST_TEST
         __asm__ volatile("ud2");
@@ -379,6 +421,12 @@ __attribute__((noreturn)) void zenith_cpu_worker(struct cpu *c) {
     }
 }
 #endif
+u64 zenith_cpu_reschedule(u64 index) {
+    u64 flags=irq_off(),ok=0;
+    if (identity()==cpus[0].actual&&!LOAD(stopping)&&index>0&&index<count&&
+        (LOAD(cpus[index].state)==2||LOAD(cpus[index].state)==3)) ok=signal_cpu(&cpus[index],0xf3);
+    irq_restore(flags); return ok;
+}
 void zenith_cpu_stop(void) {
     u64 f=irq_off(); STORE(stopping,1);
     for (u32 i=1;i<count;i++) if (!LOAD(cpus[i].halted)) wake(&cpus[i]);
@@ -395,6 +443,7 @@ u64 zenith_cpu_field(u64 index,u64 field) {
         case 13:return LOAD(c->tail)-LOAD(c->head); case 14:return LOAD(c->parked);
         case 15:return LOAD(c->fault_stack_ok); case 16:return LOAD(c->irq_stack_errors);
         case 17:return LOAD(c->ipi_errors); case 18:return c->x2;
+        case 19:return LOAD(c->timer_ticks); case 20:return LOAD(c->reschedules);
         default:return 0;
     }
 }

@@ -679,3 +679,9 @@ close and validates persisted file contents before normal teardown. The common
 native gate plan includes it when present in the immutable source tree. The
 Settings gate additionally checks native client bottom-corner masking. These
 checks establish current trusted app styling, not independent native app migration.
+
+C2 extends the CPU gate with `cpu fp-test` (full baseline x87/MXCSR/XMM state through
+real BSP interrupt returns) and `cpu state-test` (per-AP logical identity, local
+switch state, timer/FP preservation, raw process-entry refusal and reschedule IPI).
+The matching frame and build-copy contracts are in [MULTICORE](MULTICORE.md).
+These diagnostics do not enable managed AP scheduling; C3 owns its admission.

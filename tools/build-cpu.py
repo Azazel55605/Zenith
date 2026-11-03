@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 ROOT=Path(__file__).resolve().parents[1]
 ALLOWED={'zenith_cpu_ap_entry','zenith_cpu_mp_response','zenith_cpu_wake_entry',
-         'zenith_cpu_spurious_entry','zenith_cpu_fault_entries'}
+         'zenith_cpu_spurious_entry','zenith_cpu_fault_entries','zenith_execution_test','zenith_cpu_reschedule_entry','zenith_cpu_timer_entry'}
 
 def check_imports(target):
     imports=subprocess.check_output(['nm','-u',str(target)],text=True)

@@ -43,7 +43,7 @@ class CpuWorkerNativeTests(unittest.TestCase):
     def step(self,cpu=1):return self.lib.zenith_cpu_host_step(cpu)
     def control(self,t,a):return self.lib.zenith_cpu_control(t,a)
     def test_bounds_fail_closed(self):
-        for args in [(0,1,1,0,1,0),(4,1,1,0,1,0),(1,0,1,0,1,0),(1,4,1,0,1,0),(1,1,0,0,1,0),(1,1,100000001,0,1,0),(1,2,4097,0,1,0),(1,2,1,0,129,0),(1,2,1,0,0,0)]:
+        for args in [(0,1,1,0,1,0),(4,1,1,0,1,0),(1,0,1,0,1,0),(1,5,1,0,1,0),(1,1,0,0,1,0),(1,1,100000001,0,1,0),(1,2,4097,0,1,0),(1,2,1,0,129,0),(1,2,1,0,0,0)]:
             self.assertEqual(self.lib.zenith_cpu_enqueue(*args),0,args)
         self.assertEqual(self.state(0),0);self.assertEqual(self.control(1<<40,0),0)
     def test_unready_worker_refuses_admission(self):

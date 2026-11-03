@@ -23,6 +23,18 @@
     <Exec Command="python3 &quot;$(MSBuildProjectDirectory)/tools/patcher-cache.py&quot; &quot;$(IntermediateOutputPath)/cosmos&quot;" />
   </Target>
 
+  <!-- Replace only the pinned IRQ input in the build's item list. Installed
+       Cosmos sources remain untouched. FindAsmSourceFiles owns discovery. -->
+  <Target Name="AdaptZenithCpuInterrupts" BeforeTargets="BuildAsm" DependsOnTargets="FindAsmSourceFiles" Condition="'$(CosmosArch)' == 'x64'">
+    <ItemGroup><_ZenithIrqSource Include="@(AsmFiles)" Condition="'%(Filename)%(Extension)' == 'Interrupts.s'" /></ItemGroup>
+    <Error Condition="'@(_ZenithIrqSource->Count())' != '1'" Text="Expected one pinned Cosmos interrupt source" />
+    <Exec Command="python3 &quot;$(MSBuildProjectDirectory)/tools/adapt-cpu-interrupts.py&quot; &quot;@(_ZenithIrqSource)&quot; &quot;$(IntermediateOutputPath)/cosmos/cpu/Interrupts.s&quot;" />
+    <ItemGroup>
+      <AsmFiles Remove="@(_ZenithIrqSource)" />
+      <AsmFiles Include="$(IntermediateOutputPath)/cosmos/cpu/Interrupts.s" />
+    </ItemGroup>
+  </Target>
+
   <Target Name="BuildZenithCpu" BeforeTargets="CheckLinkCache" Condition="'$(CosmosArch)' == 'x64'">
     <Exec Command="python3 &quot;$(MSBuildProjectDirectory)/tools/build-cpu.py&quot; &quot;$(IntermediateOutputPath)/cosmos/cobj&quot;" />
   </Target>
