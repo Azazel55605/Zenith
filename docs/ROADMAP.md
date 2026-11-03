@@ -65,6 +65,14 @@ Do not enable managed AP execution by merely increasing the scheduler CPU count.
 Drawing/process latency needs separate measured workloads: CPU count alone is not
 a performance result. [Implementation sequence and acceptance](components/MULTICORE.md).
 
+**C4 release preparation (Q2):** candidates are `kernel/v0.0.44`,
+`sunbeam-tools/v0.7.0` and `zenith-gui-probe/v0.2.0`. Fresh Release acceptance is
+running before publication. CI's rolling runner moved to Ubuntu 26.04 and the
+Cosmos 3.0.89 linker could not load `libxml2.so.2`; CI is now pinned to Ubuntu
+24.04 with that dependency installed and the actual linker checked before build.
+The CI repair changes the build environment only; kernel/runtime sources remain
+the C4 implementation at `5924c3f`. Tags await successful qualification.
+
 
 **Operator follow-up for installed 0.0.26:** rapid wheel navigation and movement
 can freeze the VM (no panic reported). Root cause found 2026-10-29: device IRQs dropped during native user windows; see H1. U1/D3
