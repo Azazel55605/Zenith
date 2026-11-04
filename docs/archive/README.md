@@ -6,6 +6,8 @@ Start with [current status](../ROADMAP.md#state-and-evidence) or [active work](.
 
 ## Investigation records
 
+- [2026-11-04 installed CPU return and GC faults](2026-11-04/installed-cpu-return-and-gc.md): VMware serial evidence, local return-frame reproduction, selector rebinding and suspended boot/UI roots.
+
 - [2026-11-04 primary display settings](2026-11-04/primary-display-settings.md): driver audit, protected transactions, integer scaling and local qualification boundaries.
 
 - [2026-11-04 C4 release and CI qualification](2026-11-04/c4-release-and-ci.md): published source/tags, complete hosted coverage, artifact hashes, parallel jobs and operator boundaries.

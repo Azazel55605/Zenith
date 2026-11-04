@@ -5,7 +5,7 @@ import hashlib
 from pathlib import Path
 import re
 ROOT=Path(__file__).resolve().parents[1]
-SOURCE_SHA='fc1ea12a013098a47689f78b0b0b87497879c2454f8d44addbb550e47ce44949'
+SOURCE_SHA='c241499e4e75cf1f20a2ca464313d8c782575606f0456f19382c93f993d14595'
 
 def once(s,a,b):
     if s.count(a)!=1:raise RuntimeError('process bridge source contract changed: '+a[:70])

@@ -155,6 +155,15 @@ Local C4 exit evidence:
 
 [Frozen artifacts, test counts, measurements and limits](../archive/2026-11-03/protected-process-migration.md).
 
+### Installed 0.0.44 follow-up
+
+The distributor build succeeded, but VMware CPU diagnostics exposed stale user
+selectors across GDT growth and missing suspended BSP boot/UI roots during worker
+collection. Both are repaired locally, with refused diagnostic admissions retried
+without replaying accepted work. [Evidence and final candidate checks](../archive/2026-11-04/installed-cpu-return-and-gc.md).
+Q2/H1 owns new-release and installed VMware confirmation; the previous CI result
+does not establish that acceptance.
+
 ## Source and acceptance
 
 [Managed bridge](../../src/Core/Multiprocessing/CpuWorkers.cs),

@@ -178,4 +178,33 @@ class CpuWorkerNativeTests(unittest.TestCase):
         # as well before x2APIC WRMSR. Check actual emitted instructions.
         self.assertRegex(asm,r'(?s)\bmfence\b.{0,500}\blfence\b.{0,500}\bwrmsr\b')
 
+class DiagnosticAdmissionTests(unittest.TestCase):
+    def test_actual_diagnostic_helper_retries_only_refused_work(self):
+        source=(ROOT/'src/Core/Multiprocessing/CpuWorkers.cs').read_text()
+        start=source.index('    private static ulong DiagnosticEnqueue(')
+        method=source[start:source.index('    private static void Batch(',start)]
+        with tempfile.TemporaryDirectory(prefix='zn-diagnostic-admit-') as folder:
+            d=Path(folder)
+            (d/'check.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings></PropertyGroup></Project>')
+            (d/'Program.cs').write_text('using System;\nstatic class Probe {\n'+method+'''
+static int calls,accepted,refusals;
+static ulong Enqueue(ulong cpu,ulong kind,ulong count,ulong seed,ulong rounds,ulong held) {
+    if(cpu!=2||kind!=5||count!=4096||seed!=17||rounds!=3||held!=1)throw new Exception("arguments changed");
+    calls++;if(calls<=refusals)return 0;accepted++;return 42;
+}
+static bool Wait(Func<bool> ready){for(int i=0;i<4;i++)if(ready())return true;return false;}
+static void Require(bool ok,string message){if(!ok)throw new InvalidOperationException(message);}
+static void Main(){
+    refusals=2;if(DiagnosticEnqueue(2,5,4096,17,3,1)!=42||calls!=3||accepted!=1)throw new Exception("refusal retry");
+    calls=accepted=refusals=0;if(DiagnosticEnqueue(2,5,4096,17,3,1)!=42||calls!=1||accepted!=1)throw new Exception("accepted replay");
+    calls=accepted=0;refusals=99;
+    try{DiagnosticEnqueue(2,5,4096,17,3,1);throw new Exception("missing refusal");}catch(InvalidOperationException){}
+    if(calls!=4||accepted!=0)throw new Exception("timeout admitted work");
+    Console.WriteLine("PASS refused retries, one accepted operation and bounded admission failure");
+}}
+''')
+            result=subprocess.run(['dotnet','run','--project',str(d/'check.csproj'),'-c','Release','--nologo'],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+            self.assertIn('PASS refused retries',result.stdout)
+
 if __name__=='__main__':unittest.main()

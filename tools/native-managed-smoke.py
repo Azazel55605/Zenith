@@ -122,6 +122,14 @@ def main():
                 recovery_console.monitor_command(monitor,'sendkey ctrl-alt-shift-t 50')
                 observer=policy.RenderedMouse(monitor,policy.monitor_text)
                 guest_cpu_frame.prompt(observer,terminal)
+                if count > 1:
+                    # Collection from a command worker must retain locals on
+                    # the suspended boot/UI stack, not only allocated stacks.
+                    for attempt in range(3):
+                        off=len(m.log());login.monitor_type(monitor,'cpu managed-test | logger\n')
+                        assert m.wait('user: managed pinned/interior roots, deferred collection, exceptions and cancellation verified',off,timeout=90),'GUI managed collection '+str(attempt)
+                        guest_cpu_frame.prompt(observer,terminal)
+                    print('PASS repeated command-worker GC with live recovery Terminal: '+str(count)+' CPUs',flush=True)
                 # One deliberate button-free move away from the future frame;
                 # never correct motion from screenshot deltas or replay a click.
                 recovery_console.monitor_command(monitor,'mouse_move -2048 -2048')

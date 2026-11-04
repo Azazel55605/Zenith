@@ -86,6 +86,19 @@ runners, caches downloads and preserves independent failed-job retries; no guest
 gate is omitted. [Recorded qualification and hashes](archive/2026-11-04/c4-release-and-ci.md).
 The distributor's build/sign/publish and actual four-vCPU installed verification
 remain Q2/H1; `smp=native` remains opt-in.
+**C4 installed VMware blocker (2026-11-04):** distributor 0.0.44 built
+successfully. The ordinary CPU test passes with Polaris closed, but managed-test
+still halts in the recovery terminal. Serial and local replay establish two
+faults: stale user CS/SS after kernel GDT growth, and omitted suspended BSP
+boot/UI stack roots during worker collection. Selector rebinding, a bounded
+boot-stack scanner and retry of refused (never accepted) diagnostic enqueues
+are implemented and locally verified: 498 controller tests, 106 native CPU checks,
+72 graphical checks and the full 1/2/4-CPU managed suite. Full clean-source release
+qualification and a new kernel are required before installed retesting.
+[Diagnosis and acceptance](archive/2026-11-04/installed-cpu-return-and-gc.md).
+Q2/H1 multicore acceptance remains blocked until the repaired candidate is
+qualified and retested on VMware; retain opt-in.
+
 C4 distributor follow-up (2026-11-04): repeated `CPU_TEST` observations can match
 old results because universal-newline log snapshots supplied shorter offsets to
 the raw UART incremental reader. Current controller policy and direct helpers
@@ -183,7 +196,7 @@ changes; put smaller implementation steps in the linked component, using the sam
 | H2 | planned | Audio playback/capture/mixer/device inventory and removable-device broker, then meters/stream routing and safe automount. Requires bounded buffers, stable identities and permissions; tests need real supported devices. |
 | H3 | planned, later | True suspend/resume, Bluetooth, printers and specialized accessibility. Define each scope/driver dependency first; WIP pages stay visible. Never count a menu or VM-only demo as device support. |
 | Q1 | verification | Confirm 0.0.25 distributor result and [Appearance installed procedure](testing/SETTINGS-VM-TEST.md); retain current release immutability. |
-| Q2 | C4 tags published; distributor/installed acceptance pending | `kernel/v0.0.44`, `sunbeam-tools/v0.7.0` and `zenith-gui-probe/v0.2.0` are tagged at CI-qualified `8502029`. All 28 fresh VM gates and the aggregate passed in 33m 27s; local fresh Release acceptance also passed all 14 mandatory native gates. Parallel CI shares one source-bound build, caches downloads and verifies every result ([qualification](archive/2026-11-04/c4-release-and-ci.md), [contract](DEVELOPMENT.md#ci-and-releases)). Distributor rebuild/sign/publication and installed-VM observations remain separate under Q2/H1. |
+| Q2 | 0.0.44 built/installed; multicore correction local | `kernel/v0.0.44`, `sunbeam-tools/v0.7.0` and `zenith-gui-probe/v0.2.0` are tagged at CI-qualified `8502029`. All 28 fresh VM gates and the aggregate passed in 33m 27s; local fresh Release acceptance also passed all 14 mandatory native gates. Parallel CI shares one source-bound build, caches downloads and verifies every result ([qualification](archive/2026-11-04/c4-release-and-ci.md), [contract](DEVELOPMENT.md#ci-and-releases)). Operator confirms distributor 0.0.44 built and is installed; CPU diagnostics exposed the return/GC faults described above. Their repaired candidate has local targeted qualification; new release and VMware acceptance remain Q2/H1. |
 | Q3 | continuous; parallel controller local | [Parallel native validation and exact retry receipts](archive/2026-10-28/parallel-native-validation.md) locally implemented; four actual gates pass concurrently. Default up to four, configurable up to eight within CPU/RAM budget; distributor timing pending.  Measure boot/app responsiveness, idle memory/CPU, transfer/build phase times and stability across repeated workflows. Keep CI/controller/toolchain drift checks, fault injection and installed evidence distinct; enforce supported-profile performance budgets before claiming product readiness. |
 
 ## Meridian — every requested destination

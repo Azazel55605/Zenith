@@ -52,6 +52,8 @@ def main():
         ('native run gui-probe --terminal-hold > /tmp/hold & sleep 4; pkg verify > /dev/null; echo G_HOLD_PKG=$? | logger; wait','G_HOLD'),
         ('pkg install /root/polaris.zpk','G_POLARIS_PKG'),
         ('echo POLARIS_ALIVE | logger','G_POLARIS'),
+        ('cpu test 10000000','G_POLARIS_CPU'),
+        ('cpu managed-test','G_POLARIS_MANAGED'),
         ('settings set materials background-blur','G_MATERIALS'),
         ('ls /usr/share/zenith/native; false','G_FAILED'),
         ('settings set translucency 100','G_TRANSLUCENT'),
@@ -164,6 +166,14 @@ def main():
         assert m.wait('native surface opened 640x480',off,30),'Polaris did not open as the Terminal'
         time.sleep(1.5);status('echo POLARIS_ALIVE | logger','G_POLARIS')
         assert 'user: POLARIS_ALIVE' in m.log()[off:],'Polaris command output'
+        if multicore:
+            # The first managed worker initialization can grow the BSP's GDT
+            # while Polaris has a suspended user frame. Both command completion
+            # and a subsequent native round trip must survive selector rebinding.
+            status('cpu test 10000000','G_POLARIS_CPU')
+            status('cpu managed-test','G_POLARIS_MANAGED')
+            status('echo POLARIS_ALIVE | logger','G_POLARIS')
+            print('PASS Polaris resumes across native/managed CPU diagnostics and GDT growth',flush=True)
         # Tabs and panes: each shell is separate, and closing one leaves the others working.
         monitor_command(monitor,'sendkey ctrl-shift-t 30');time.sleep(1);status('echo POLARIS_ALIVE | logger','G_POLARIS')
         monitor_command(monitor,'sendkey ctrl-shift-e 30');time.sleep(1);status('echo POLARIS_ALIVE | logger','G_POLARIS')

@@ -59,6 +59,33 @@ identity: .long 0
             self.assertIn('cmp $640, %rax\n    je p'+str(cpu)+'_z_service',bridge)
             self.assertIn('cmp $641, %rax\n    je p'+str(cpu)+'_z_service',bridge)
 
+    def test_resumed_frames_rebind_selectors_after_kernel_gdt_growth(self):
+        # Execute the real copy/selector-rebind instructions without privileged
+        # IRET/FXRSTOR. Every other saved field must survive unchanged, including
+        # the user flags and stack; neither a stale selector nor a source-frame
+        # edit is permitted. Cover BSP and all generated private AP bridges.
+        source=[]
+        for cpu in range(8):
+            prefix='' if cpu==0 else 'p'+str(cpu)+'_'
+            bridge=self.source if cpu==0 else b.variant(self.source,cpu)
+            block=bridge.split(prefix+'z_resume_user:\n',1)[1].split('    mov 184(%rbx), %rax',1)[0]
+            source.append('.text\n.globl host_resume_'+str(cpu)+'\nhost_resume_'+str(cpu)+':\n'
+                'push %rbx\nmov %rdi,%rbx\nmov %rsp,%r8\n'+block+
+                'mov %rsp,%rax\nmov %r8,%rsp\npop %rbx\nret\n.data\n'+prefix+'z_user_cs: .word '+str(0x4b+cpu*16)+'\n'+
+                prefix+'z_user_ss: .word '+str(0x53+cpu*16)+'\n.bss\n.balign 16\n'+prefix+'z_interrupt_stack: .zero 69632\n')
+        d=Path(self.temp.name);asm=d/'resume.s';asm.write_text('\n'.join(source)+'\n.section .note.GNU-stack,"",@progbits\n')
+        subprocess.run(['clang','-shared',str(asm),'-o',str(d/'resume.so')],check=True)
+        lib=c.CDLL(str(d/'resume.so'))
+        for cpu in range(8):
+            frame=(c.c_uint64*22)(*[0x100+i for i in range(22)])
+            frame[17]=0x40482b;frame[18]=0x2b;frame[19]=0x246;frame[20]=0x7ffefde8;frame[21]=0x33
+            before=list(frame);context=(c.c_uint64*24)();context[21]=0x75;context[22]=c.addressof(frame)
+            call=getattr(lib,'host_resume_'+str(cpu));call.argtypes=[c.c_void_p];call.restype=c.c_void_p
+            result=(c.c_uint64*22).from_address(call(context))
+            expected=before.copy();expected[14]=0x75;expected[18]=0x4b+cpu*16;expected[21]=0x53+cpu*16
+            self.assertEqual(list(result),expected)
+            before[14]=0x75;self.assertEqual(list(frame),before)
+
     def test_source_drift_is_rejected_and_bsp_source_remains_identical(self):
         with self.assertRaisesRegex(RuntimeError,'source changed'):b.variant(self.source+'\n',1)
         self.assertEqual(hashlib.sha256((ROOT/'src/Native/x64/Process.s').read_bytes()).hexdigest(),b.SOURCE_SHA)

@@ -49,6 +49,7 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
     changed |= AllocationPublicationFixup.Apply(module);
     changed |= ConservativeRootFixup.Apply(module);
     changed |= GcBarrierFixup.Apply(module);
+    changed |= SuspendedBootStackFixup.Apply(module);
     changed |= PinnedCpuFixup.Apply(module);
     changed |= ExceptionStateFixup.Apply(module);
     changed |= SchedulerDispatchFixup.Apply(module);

@@ -299,6 +299,12 @@ permitted CPU; no Running frame moves. F1 wakes/cancels, F3 reschedules, F4 supp
 the budget/quantum, and F6 reports completion to the BSP. A late F5 stop interrupt
 does not register a raw user context as a managed mutator.
 
+A suspended native frame retains user instruction/stack/flag state, while its
+CS/SS selectors are rebound to the resumed bridge's current private descriptors.
+The kernel GDT can grow during managed-owner initialization. Worker-triggered
+collection also scans the suspended BSP boot/UI stack within its recorded bounds,
+even though that thread has no allocated StackBase/StackSize.
+
 Every AP bridge has its own saved CR3, selectors/bases, GDT/TSS/IDT, interrupt
 stack and kernel FP image. Native GS and private fault/GC IST ownership are restored
 before the native IDT is exposed again. User faults return contained status 139.

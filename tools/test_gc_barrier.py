@@ -156,6 +156,15 @@ class ManagedBarrierFixupTests(unittest.TestCase):
         result=self.run_mode('throw');self.assertIn('fatal=collector',result);self.assertIn('body=1 end=0 irq=0',result);self.assertIn('aborts=1',result)
     def test_stopped_root_scanner_executes_valid_il_and_skips_absent_cpus(self):
         self.assertIn('body=0 end=0 irq=512 roots=7',self.run_mode('scan'))
+    def test_suspended_boot_ui_stack_is_scanned_without_an_allocated_stack(self):
+        self.assertIn('ranges=1 start=4128 limit=8192',self.run_mode('boot-valid'))
+    def test_boot_stack_fallback_does_not_scan_other_threads_or_current_cpu_stack(self):
+        for mode in ('boot-other','boot-ap','boot-running'):
+            self.assertIn('ranges=0',self.run_mode(mode))
+    def test_invalid_suspended_boot_stack_bounds_fail_before_reading_memory(self):
+        for mode in ('boot-low','boot-high','boot-unaligned'):
+            result=self.run_mode(mode)
+            self.assertIn('fatal=boot-bounds',result);self.assertIn('ranges=0',result)
     def test_unmanaged_heap_uses_same_gate_and_restores_irq(self):
         result=self.run_mode('heap')
         self.assertIn('result=7',result);self.assertIn('irq=512 roots=0 enters=1 exits=1',result)
@@ -173,5 +182,12 @@ class ManagedBarrierFixupTests(unittest.TestCase):
         before=self.copy.read_bytes()
         result=subprocess.run(['dotnet',str(self.tool),str(self.copy)],capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stderr);self.assertEqual(before,self.copy.read_bytes())
+    def test_missing_suspended_boot_stack_scan_is_rejected_on_reapplication(self):
+        self.run_mode('break-boot-contract')
+        broken=Path(str(self.copy)+'.incomplete.dll');before=broken.read_bytes()
+        result=subprocess.run(['dotnet',str(self.tool),str(broken)],capture_output=True,text=True)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('Incomplete suspended boot-stack root adaptation',result.stderr)
+        self.assertEqual(before,broken.read_bytes())
 
 if __name__=='__main__':unittest.main()

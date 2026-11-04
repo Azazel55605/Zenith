@@ -211,10 +211,21 @@ internal static partial class CpuWorkers
 
     private const string Usage = "cpu status | blur-test | irq-test | fp-test | managed-test | managed-fault-test | managed-image-test | managed-hold | managed-release | test [iterations] | cancel-test | state-test | queue-test | idle-test | image-test | fault-test | stop-test";
 
+    // A live protected application may briefly retain this AP. Retry only a
+    // refused admission (token zero), never an accepted operation. Production
+    // queues retain their nonblocking busy/fallback semantics.
+    private static ulong DiagnosticEnqueue(ulong cpu, ulong kind, ulong count, ulong seed, ulong rounds, ulong held)
+    {
+        ulong token = 0;
+        Require(Wait(() => (token = Enqueue(cpu, kind, count, seed, rounds, held)) != 0),
+            "diagnostic queue admission unavailable");
+        return token;
+    }
+
     private static void Batch(CommandContext c, ulong n, bool cancel)
     {
         ulong[] tokens = new ulong[s_count];
-        for (int i = 1; i < s_count; i++) { tokens[i] = Enqueue((ulong)i, 1, n, 0, 1, 1); Require(tokens[i] != 0, "batch refused"); }
+        for (int i = 1; i < s_count; i++) { tokens[i] = DiagnosticEnqueue((ulong)i, 1, n, 0, 1, 1); Require(tokens[i] != 0, "batch refused"); }
         Require(Wait(() =>
         {
             for (int i = 1; i < s_count; i++) { if (Job(tokens[i], 0) != 2) { return false; } }
@@ -415,7 +426,7 @@ internal static partial class CpuWorkers
         ulong[] tokens = new ulong[s_count];
         for (ulong cpu = 1; cpu < (ulong)s_count; cpu++)
         {
-            tokens[cpu] = Enqueue(cpu, 5, 4096, 17, 3, 1);
+            tokens[cpu] = DiagnosticEnqueue(cpu, 5, 4096, 17, 3, 1);
             Require(tokens[cpu] != 0, "pinned managed job admission");
         }
         for (int cpu = 1; cpu < s_count; cpu++) Require(Control(tokens[cpu], 1) == 1, "pinned managed job release");
@@ -441,7 +452,7 @@ internal static partial class CpuWorkers
         // reusable, without borrowing BSP credentials or another AP's EH chain.
         for (ulong operation = 2; operation <= 5; operation += 3)
         {
-            for (int cpu = 1; cpu < s_count; cpu++) tokens[cpu] = Enqueue((ulong)cpu, 5, 1, (ulong)(31 + cpu), operation, 0);
+            for (int cpu = 1; cpu < s_count; cpu++) tokens[cpu] = DiagnosticEnqueue((ulong)cpu, 5, 1, (ulong)(31 + cpu), operation, 0);
             for (int cpu = 1; cpu < s_count; cpu++)
             {
                 ulong token = tokens[cpu]; Require(token != 0 && Wait(() => Job(token, 0) >= 3), "managed exception completion");
@@ -450,11 +461,11 @@ internal static partial class CpuWorkers
                 Require(Control(token, 2) == 1, "managed exception reap");
             }
         }
-        ulong signals = Field(0, 25), fpToken = Enqueue(1, 5, 4096, 17, 4, 0);
+        ulong signals = Field(0, 25), fpToken = DiagnosticEnqueue(1, 5, 4096, 17, 4, 0);
         Require(fpToken != 0 && FpPreemptTest() == 1, "BSP FP state through native completion doorbell");
         Finished(fpToken); Require(Field(0, 25) > signals, "completion IPI delivery during FP probe");
         Require(Control(fpToken, 2) == 1, "FP completion probe reap");
-        for (int cpu = 1; cpu < s_count; cpu++) tokens[cpu] = Enqueue((ulong)cpu, 5, 4096, 17, 1, 0);
+        for (int cpu = 1; cpu < s_count; cpu++) tokens[cpu] = DiagnosticEnqueue((ulong)cpu, 5, 4096, 17, 1, 0);
         Require(Wait(() =>
         {
             for (int cpu = 1; cpu < s_count; cpu++) if (Job(tokens[cpu], 4) != 100) return false;

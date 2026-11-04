@@ -249,6 +249,15 @@ z_resume_user:
     mov %rdi, %rsp
     mov $22, %ecx
     rep movsq
+    # A managed service may install a larger kernel GDT while this invocation
+    # is suspended (for example, first managed-AP initialization). Its saved
+    # CS/SS indices then name different descriptors in our rebuilt private GDT.
+    # Bind only the copied return frame to this bridge's current user segments;
+    # preserve RIP, RFLAGS, RSP and all invocation-owned register/FP state.
+    movzwq z_user_cs(%rip), %rax
+    mov %rax, 144(%rsp)
+    movzwq z_user_ss(%rip), %rax
+    mov %rax, 168(%rsp)
     mov 184(%rbx), %rax
     fxrstor64 (%rax)
     pop %r15

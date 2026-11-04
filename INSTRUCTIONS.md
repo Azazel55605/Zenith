@@ -163,7 +163,12 @@ never infer current failures from old release logs or claim a menu stub is a bac
   ordering, leased-context entry checks, per-CPU GS/IDT/TSS/FP restoration and
   BSP-only device routing. Reap terminal generations despite transient contention;
   cancel/await before unwinding any borrowed Context stack. Missing stop/root
-  acknowledgements or poisoned queue metadata fail-stop. Preserve the fresh
+  acknowledgements or poisoned queue metadata fail-stop. Rebind resumed user CS/SS
+  to the current private GDT after kernel GDT growth;
+  never reuse suspended selector indices across rebuilt tables. Preserve suspended
+  BSP boot/UI stack roots when a worker collects: zero allocated StackBase/Size
+  does not mean an empty boot stack. Bound saved SP by recorded boot-stack limits
+  and fail-stop before scanning invalid bounds. Preserve the fresh
   native-smp gate, 1/2/4-CPU actual execution/overlap and ext2 audits, and the full
   four-CPU process gate with one parked managed-root owner. Default AP admission
   remains opt-in until distributor and operator acceptance.
