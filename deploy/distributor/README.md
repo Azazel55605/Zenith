@@ -56,7 +56,7 @@ Then install as the VM administrator:
 ```sh
 sudo apt-get update
 sudo apt-get install -y git ca-certificates wget curl python3 python3-pil nginx util-linux \
-  gcc clang binutils openssl e2fsprogs dosfstools mtools parted qemu-system-x86 ovmf \
+  gcc clang binutils openssl e2fsprogs dosfstools mtools parted xorriso qemu-system-x86 ovmf \
   dotnet-sdk-10.0
 sudo adduser --disabled-password --gecos '' zenith-release
 sudo install -d -o zenith-release -g zenith-release -m 0755 /srv/zenith /srv/zenith/packages
@@ -65,6 +65,11 @@ sudo install -d -o zenith-release -g zenith-release -m 0755 /srv/zenith /srv/zen
 The dependency list follows Zenith's actual CI/toolchain; QEMU/OVMF/filesystem
 tools support native release validation. CPU virtualization/nested KVM is optional
 for TCG validation; do not assume the template exposes usable `/dev/kvm`.
+
+Existing distributor VMs also need `xorriso` for the native CPU/managed/compositor
+gates that prepare bootable test ISOs. Install it explicitly rather than relying
+on a previous Cosmos tool installation: `sudo apt-get install -y xorriso`.
+Verify with `xorriso -version`, then retry the failed build in the dashboard.
 
 Debian places `e2fsck` and `debugfs` in `/usr/sbin`, which may be absent from an
 ordinary user's PATH even when e2fsprogs is installed. The build script adds the

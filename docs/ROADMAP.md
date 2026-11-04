@@ -74,6 +74,8 @@ runners, caches downloads and preserves independent failed-job retries; no guest
 gate is omitted. [Recorded qualification and hashes](archive/2026-11-04/c4-release-and-ci.md).
 The distributor's build/sign/publish and actual four-vCPU installed verification
 remain Q2/H1; `smp=native` remains opt-in.
+Distributor setup now explicitly installs `xorriso`; existing VMs need that
+package before retrying the new ISO-editing gates.
 
 **Operator follow-up for installed 0.0.26:** rapid wheel navigation and movement
 can freeze the VM (no panic reported). Root cause found 2026-10-29: device IRQs dropped during native user windows; see H1. U1/D3
