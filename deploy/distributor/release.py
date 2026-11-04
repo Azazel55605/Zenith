@@ -256,7 +256,7 @@ def adapter_checks(work, references=None):
 def native_prerequisites():
     global _NATIVE_FIRMWARE
     commands = (os.environ.get("QEMU", "qemu-system-x86_64"), "dotnet", "gcc", "clang", "ld",
-                "e2fsck", "debugfs", "mke2fs", "mcopy", "fsck.fat", "openssl")
+                "e2fsck", "debugfs", "mke2fs", "mcopy", "fsck.fat", "openssl", "xorriso")
     missing = [command for command in commands if shutil.which(command) is None]
     if missing: raise ValueError("missing native validation tools: " + ", ".join(missing))
     if (REPO / "tools/native-settings-smoke.py").exists():

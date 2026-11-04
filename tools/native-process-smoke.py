@@ -9,7 +9,7 @@ spec=importlib.util.spec_from_file_location('h',ROOT/'tools/headless-smoke.py');
 cpu_workers='--cpu-workers' in sys.argv[2:] or ('--bsp-only' not in sys.argv[2:] and (ROOT/'src/Native/Cpu/workers.c').exists())
 if '--cpu-workers' in sys.argv[2:] and '--bsp-only' in sys.argv[2:]: raise SystemExit('choose --cpu-workers or --bsp-only')
 process_cpus=4 if cpu_workers and (ROOT/'src/Core/Multiprocessing/CpuWorkers.Process.cs').exists() else 2 if cpu_workers else 1
-print('Native process CPU policy: '+str(process_cpus)+' CPUs; protected execution plus pinned-root contention',flush=True)
+print('Native process CPU policy: 1 CPU live setup; '+str(process_cpus)+' CPUs installed; protected execution plus pinned-root contention',flush=True)
 terminal_only='--terminal-only' in sys.argv[2:]
 if any(arg not in ('--cpu-workers','--bsp-only','--terminal-only') for arg in sys.argv[2:]): raise SystemExit('usage: native-process-smoke.py KEEP [--cpu-workers|--bsp-only] [--terminal-only]')
 keep=Path(sys.argv[1]);keep.mkdir(parents=True,exist_ok=True)
@@ -34,16 +34,18 @@ url='http://10.0.2.2:'+str(server.server_port);m=None
 net=['-netdev','user,id=net0','-device','e1000e,netdev=net0']
 def boot(name,disk=None):
     global m
-    m=h.Machine(keep/name,disk,argument='smp=native' if disk and cpu_workers else None,network=net,cpus=process_cpus,monitor=keep/name/'monitor.sock')
+    # The live ISO does not activate AP workers. Keep its setup single-CPU;
+    # the installed test still boots all four CPUs with smp=native for C4 coverage.
+    m=h.Machine(keep/name,disk,argument='smp=native' if disk and cpu_workers else None,network=net,cpus=process_cpus if disk else 1,monitor=keep/name/'monitor.sock')
     assert m.wait('headless ready',timeout=180),'boot '+name
     assert m.wait('network: online address=10.0.2.15',timeout=60),'DHCP '+name
     print('PASS boot '+name,flush=True)
-def command(text,marker):
-    offset=len(m.log());m.send(text+'\r');assert m.wait(marker,offset,timeout=120),text+' missing '+marker
+def command(text,marker,timeout=120):
+    offset=len(m.log());m.send(text+'\r');assert m.wait(marker,offset,timeout=timeout),text+' missing '+marker
     print('PASS '+marker,flush=True)
-def status(text,marker,code=0):command(text+'; echo '+marker+'=$? | logger','user: '+marker+'='+str(code))
+def status(text,marker,code=0,timeout=120):command(text+'; echo '+marker+'=$? | logger','user: '+marker+'='+str(code),timeout)
 try:
-    boot('live');status('session set-default headless','N_SESSION');status('install sata0 --yes','N_INSTALL');command('poweroff','all filesystems unmounted');m.process.wait(timeout=30);disk=m.disk;m.stop()
+    boot('live');status('session set-default headless','N_SESSION');status('install sata0 --yes','N_INSTALL',timeout=300);command('poweroff','all filesystems unmounted');m.process.wait(timeout=30);disk=m.disk;m.stop()
     boot('installed',disk)
     status('cpu irq-test | logger','N_IDT_IRQ_STATE')
     if cpu_workers: status('cpu test 10000000 | logger','N_CPUS_START')

@@ -20,6 +20,15 @@ def monitor_type(path, text, german=False):
         # text is injected faster. Never replay a truncated command or password.
         time.sleep(.09)
 
+
+def german_slash(machine, monitor):
+    # Bare echo output can be embedded in an upstream scheduler line, then
+    # erased by its noise filter. Keep the actual German Shift+7 injection,
+    # but observe a complete logger record instead of sleeping and stripping.
+    off=len(machine.log());monitor_type(monitor,'logger ')
+    monitor_command(monitor,'sendkey shift-7 30');monitor_command(monitor,'sendkey ret 30')
+    return machine.wait('user: /\n',off,60)
+
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('keep',type=Path);a=p.parse_args()
     keep=a.keep.resolve();keep.mkdir(parents=True,exist_ok=True)
@@ -142,9 +151,7 @@ def main():
         command('echo HISTORY_OK | logger','user: HISTORY_OK',True)
         off=len(m.log());monitor_command(keep/'monitor.sock','sendkey up 30');monitor_command(keep/'monitor.sock','sendkey ret 30');check(m.wait('user: HISTORY_OK',off,60),'local history recalls command')
         status('settings set keyboard de','LOGIN_DE',True)
-        off=len(m.log());monitor_type(keep/'monitor.sock','echo ');monitor_command(keep/'monitor.sock','sendkey shift-7 30');monitor_command(keep/'monitor.sock','sendkey ret 30');time.sleep(1)
-        cleaned=h.efi.smoke.COSMOS_NOISE.sub('',m.log()[off:])
-        check(re.search(r'(?:^|\r?\n)/\r?\n',cleaned) is not None,'German Shift+7 yields slash output')
+        check(german_slash(m,keep/'monitor.sock'),'German Shift+7 yields slash output')
         command('settings set keyboard us','saved keyboard',True,german=True)
         status('fetch '+url+'/zenith-theme-default-0.1.1.zpk /tmp/theme-new.zpk','LOGIN_UP_FETCH',True)
         status('pkg install /tmp/theme-new.zpk','LOGIN_UPGRADE',True)

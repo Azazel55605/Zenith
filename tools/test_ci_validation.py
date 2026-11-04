@@ -1,10 +1,12 @@
 """CI fan-out must retain complete coverage and exact-source artifact binding."""
 import importlib.util
+import ast
 import json
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('ci_validation_test', ROOT / 'tools/ci-validation.py')
@@ -13,6 +15,34 @@ spec.loader.exec_module(ci)
 
 
 class PlanTests(unittest.TestCase):
+    def test_iso_editor_is_preflighted_on_fresh_guest_runners(self):
+        with patch.object(ci.release.shutil,'which',side_effect=lambda name: None if name=='xorriso' else '/tool'):
+            with self.assertRaisesRegex(ValueError,'missing native validation tools: xorriso'):
+                ci.release.native_prerequisites()
+    def test_process_setup_uses_one_cpu_but_installed_c4_keeps_four(self):
+        tree = ast.parse((ROOT / 'tools/native-process-smoke.py').read_text())
+        boot = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'boot')
+        machine = Mock(); machine.wait.return_value = True
+        transport = SimpleNamespace(Machine=Mock(return_value=machine))
+        scope = dict(h=transport, keep=Path('/fixture'), cpu_workers=True, process_cpus=4, net=[])
+        exec(compile(ast.Module(body=[boot], type_ignores=[]), '<actual process boot>', 'exec'), scope)
+        scope['boot']('live')
+        self.assertEqual(1, transport.Machine.call_args.kwargs['cpus'])
+        self.assertIsNone(transport.Machine.call_args.kwargs['argument'])
+        scope['boot']('installed', Path('/fixture/disk.img'))
+        self.assertEqual(4, transport.Machine.call_args.kwargs['cpus'])
+        self.assertEqual('smp=native', transport.Machine.call_args.kwargs['argument'])
+
+    def test_login_keyboard_check_waits_for_fresh_complete_structured_output(self):
+        spec = importlib.util.spec_from_file_location('ci_login_check', ROOT / 'tools/login-session-smoke.py')
+        login = importlib.util.module_from_spec(spec); spec.loader.exec_module(login)
+        machine = Mock(); machine.log.return_value = 'old user: /\n'; machine.wait.return_value = False
+        with patch.object(login, 'monitor_type') as typing, patch.object(login, 'monitor_command') as keys:
+            self.assertFalse(login.german_slash(machine, Path('/monitor')))
+        typing.assert_called_once_with(Path('/monitor'), 'logger ')
+        self.assertEqual(['sendkey shift-7 30', 'sendkey ret 30'], [call.args[1] for call in keys.call_args_list])
+        machine.wait.assert_called_once_with('user: /\n', len('old user: /\n'), 60)
+
     def test_native_matrix_is_exact_distributor_plan_with_expensive_gates_first(self):
         gates = [row['gate'] for row in ci.matrix('native')['include']]
         self.assertCountEqual(gates, [key for key, _ in ci.release.native_gate_plan()])

@@ -74,7 +74,11 @@ fixtures are repaired; security and foundation now pass locally and in CI.
 **CI duration:** replacing the serial VM chain with one shared, hash-bound build,
 independently scheduled native/legacy gates and a complete-coverage aggregate.
 Download caches and smaller successful evidence uploads reduce setup/retention
-work; no guest pass is cached or gate omitted. Tags await the final CI aggregate.
+work; no guest pass is cached or gate omitted. The first hosted fan-out exposed an
+implicit `xorriso` dependency, UART/pasted-command observation races and the
+process install's generic command budget; explicit prerequisites and bounded
+completion witnesses address these without changing the kernel. Tags await the
+corrected final CI aggregate.
 
 
 

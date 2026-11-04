@@ -17,6 +17,17 @@ def records(text):
     return RECORD.findall(TRACE.sub('', text))
 
 
+def terminal_paste(machine, offset, timeout=60):
+    # The probe's own exit status does not join its terminal session's queued
+    # shell commands. Observe the last pasted command, without injecting it again.
+    if not machine.wait('user: PASTE_TWO\n', offset, timeout):
+        raise RuntimeError('pasted terminal commands did not complete')
+    raw = machine.log()[offset:]
+    first, second = raw.find('user: PASTE_ONE\n'), raw.find('user: PASTE_TWO\n')
+    if first < 0 or second <= first: raise RuntimeError('pasted terminal commands completed out of order')
+    return raw
+
+
 def check(machine, monitor, keep, start):
     input_profile.install_monitor(recovery_console)
     global monitor_command

@@ -1,7 +1,24 @@
 import unittest
-from guest_graphics import records
+from guest_graphics import records, terminal_paste
+from unittest.mock import Mock
 
 class GraphicsRecordTests(unittest.TestCase):
+    def test_probe_exit_does_not_substitute_for_pasted_command_completion(self):
+        old='user: PASTE_TWO\n'; new='user: PASTE_ONE\nuser: G_TERMINAL=0\n'
+        machine=Mock();machine.log.return_value=old+new
+        def complete(marker,offset,timeout):
+            self.assertEqual(('user: PASTE_TWO\n',len(old),60),(marker,offset,timeout))
+            machine.log.return_value+='user: PASTE_TWO\n';return True
+        machine.wait.side_effect=complete
+        self.assertEqual(new+'user: PASTE_TWO\n',terminal_paste(machine,len(old)))
+        machine.wait.assert_called_once()
+    def test_missing_or_reversed_pasted_output_still_fails(self):
+        machine=Mock();machine.wait.return_value=False
+        with self.assertRaisesRegex(RuntimeError,'did not complete'):terminal_paste(machine,0)
+        machine.wait.return_value=True
+        for raw in ('user: PASTE_TWO\n','user: PASTE_TWO\nuser: PASTE_ONE\n'):
+            machine.log.return_value=raw
+            with self.assertRaisesRegex(RuntimeError,'out of order'):terminal_paste(machine,0)
     def test_public_records_survive_known_trace_interruption(self):
         text='[zenith] [ 1.0] user: GUI_PO[LAPIC] Timer tick 1\nINTER\n[zenith] [ 1.1] user: GUI_[SCHED] Tick 2\nKEY\n'
         self.assertEqual(['GUI_POINTER','GUI_KEY'],records(text))

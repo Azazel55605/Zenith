@@ -3,6 +3,7 @@
 import functools, hashlib, http.server, importlib.util, subprocess, sys, threading, time
 from pathlib import Path
 from recovery_console import monitor_command
+from guest_graphics import terminal_paste
 ROOT=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location('h',ROOT/'tools/headless-smoke.py');h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
 spec=importlib.util.spec_from_file_location('login',ROOT/'tools/login-session-smoke.py');login=importlib.util.module_from_spec(spec);spec.loader.exec_module(login)
@@ -100,9 +101,9 @@ def main():
         assert m.wait('desktop ready (installed)',timeout=180);gui=True;time.sleep(2)
         status('native run gui-probe --probe | logger','G_PROBE')
         status('native run gui-probe --exit | logger','G_EXIT')
-        terminal=status('native run gui-probe --terminal | logger','G_TERMINAL')
+        terminal_start=len(m.log());status('native run gui-probe --terminal | logger','G_TERMINAL')
+        terminal=terminal_paste(m,terminal_start)
         assert 'TERMINAL_PROBE_OK' in terminal and 'user: TERMINAL_LOG' in terminal and 'HIDDENWORD' not in terminal,terminal[-500:]
-        assert terminal.find('user: PASTE_ONE')>=0 and terminal.find('user: PASTE_ONE')<terminal.find('user: PASTE_TWO'),'pasted lines run together, in order, only on Enter'
         print('PASS terminal client sessions',flush=True)
         status('native run gui-probe --fault','G_FAULT',139)
         status('native run gui-probe --probe | logger','G_AFTER_FAULT')

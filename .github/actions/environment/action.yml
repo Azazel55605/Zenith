@@ -23,7 +23,7 @@ runs:
       env:
         GUEST: ${{ inputs.guest }}
       run: |
-        packages=(gcc clang binutils e2fsprogs openssl python3-pil libxml2)
+        packages=(gcc clang binutils e2fsprogs openssl python3-pil libxml2 xorriso)
         if [[ "$GUEST" == true ]]; then
           packages+=(qemu-system-x86 dosfstools ovmf mtools parted)
         fi
@@ -38,6 +38,7 @@ runs:
         nproc
         free -h
         /usr/bin/qemu-system-x86_64 --version | head -n 1
+        xorriso -version
     - uses: actions/cache@v4
       if: inputs.cosmos == 'true'
       id: cosmos-tools

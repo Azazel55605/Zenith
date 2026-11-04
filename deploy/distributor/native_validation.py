@@ -87,7 +87,7 @@ def identity(repo, controller, commit, firmware):
     common['native_validation.py'] = digest(Path(__file__))
     common['guest_auth.py'] = digest(controller.parents[1]/'tools/guest_auth.py')
     tools = {}
-    for name in (os.environ.get('QEMU','qemu-system-x86_64'),'dotnet','gcc','clang','ld','as','nm','e2fsck','debugfs','mke2fs','mcopy','fsck.fat','openssl'):
+    for name in (os.environ.get('QEMU','qemu-system-x86_64'),'dotnet','gcc','clang','ld','as','nm','e2fsck','debugfs','mke2fs','mcopy','fsck.fat','openssl','xorriso'):
         path = shutil.which(name)
         if path is None: raise ValueError('tool unavailable: '+name)
         tools[name] = dict(path=str(Path(path).resolve()), sha256=digest(path))
