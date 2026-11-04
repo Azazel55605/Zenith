@@ -59,6 +59,8 @@ def run_harness(script):
                 return subprocess.CompletedProcess(command,0,empty if kwargs.get('capture_output') else None,empty if kwargs.get('capture_output') else None)
         return original_run(command,*args,**kwargs)
     subprocess.run = run
+    spec = importlib.util.spec_from_file_location('validation_output', Path(__file__).with_name('validation-output.py'))
+    output = importlib.util.module_from_spec(spec); spec.loader.exec_module(output)
     original_exec = importlib.machinery.SourceFileLoader.exec_module
     instances = []
     headless = script.parent / 'headless-smoke.py'
@@ -80,6 +82,7 @@ def run_harness(script):
         if script.name == 'native-graphics-smoke.py' and Path(loader.path).name == 'recovery_console.py':
             input_profile.install_monitor(module)
         if Path(loader.path).resolve() == headless.resolve():
+            output.install(module.Machine)
             accelerator.install(module)
             network.install(module.Machine, instances)
             status.install(module.Machine)

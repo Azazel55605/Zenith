@@ -58,7 +58,12 @@ class Machine:
                     if not data: break
                     file.write(data); file.flush()
         self.reader = threading.Thread(target=collect, daemon=True); self.reader.start()
-    def log(self): return self.serial.read_text(errors="replace") if self.serial.exists() else ""
+    def log(self):
+        if not self.serial.exists(): return ""
+        # wait() indexes decoded raw UART text. Preserve CRLF so callers supply
+        # offsets in that same coordinate space, including repeated status labels.
+        with self.serial.open("r", encoding="utf-8", errors="replace", newline="") as stream:
+            return stream.read()
     def wait(self, marker, offset=0, timeout=180):
         deadline = time.monotonic() + timeout
         position = 0; pending = ''; first = True

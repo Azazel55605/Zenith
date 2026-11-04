@@ -15,6 +15,31 @@ spec.loader.exec_module(ci)
 
 
 class PlanTests(unittest.TestCase):
+    def test_raw_uart_offsets_cannot_match_previous_repeated_cpu_status(self):
+        spec=importlib.util.spec_from_file_location('cpu_offset_headless',ROOT/'tools/headless-smoke.py')
+        h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
+        with tempfile.TemporaryDirectory() as temporary:
+            m=object.__new__(h.Machine);m.serial=Path(temporary)/'serial.log'
+            old=('old trace\r\n'*200)+'user: CPU_TEST=0\r\n'
+            m.serial.write_bytes(old.encode());offset=len(m.log())
+            self.assertEqual(len(old),offset)
+            m.process=SimpleNamespace(poll=lambda:None)
+            self.assertFalse(m.wait('user: CPU_TEST=0',offset,timeout=.01))
+            with m.serial.open('ab') as f:f.write(b'user: worker=3 apic=3 actual=3\r\nuser: CPU_TEST=0\r\n')
+            self.assertTrue(m.wait('user: CPU_TEST=0',offset,timeout=.05))
+            self.assertIn('worker=3 apic=3 actual=3',m.log()[offset:])
+
+    def test_current_controller_repairs_immutable_tag_log_offsets(self):
+        spec=importlib.util.spec_from_file_location('cpu_offset_policy',ROOT/'deploy/distributor/validation-output.py')
+        policy=importlib.util.module_from_spec(spec);spec.loader.exec_module(policy)
+        class OldMachine:
+            def log(self):return self.serial.read_text()
+        policy.install(OldMachine)
+        with tempfile.TemporaryDirectory() as temporary:
+            m=OldMachine();m.serial=Path(temporary)/'serial.log'
+            data=b'a\r\nuser: CPU_TEST=0\r\n';m.serial.write_bytes(data)
+            self.assertEqual(data.decode(),m.log())
+
     def test_iso_editor_is_preflighted_on_fresh_guest_runners(self):
         with patch.object(ci.release.shutil,'which',side_effect=lambda name: None if name=='xorriso' else '/tool'):
             with self.assertRaisesRegex(ValueError,'missing native validation tools: xorriso'):

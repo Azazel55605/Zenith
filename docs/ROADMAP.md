@@ -74,6 +74,11 @@ runners, caches downloads and preserves independent failed-job retries; no guest
 gate is omitted. [Recorded qualification and hashes](archive/2026-11-04/c4-release-and-ci.md).
 The distributor's build/sign/publish and actual four-vCPU installed verification
 remain Q2/H1; `smp=native` remains opt-in.
+C4 distributor follow-up (2026-11-04): repeated `CPU_TEST` observations can match
+old results because universal-newline log snapshots supplied shorter offsets to
+the raw UART incremental reader. Current controller policy and direct helpers
+now preserve CRLF; regression checks retain exact CPU identity/overlap assertions.
+The tagged kernel is unchanged. Local TCG acceptance passes all 106 CPU checks; focused distributor verification is pending. [Diagnosis and evidence](archive/2026-11-04/cpu-gate-uart-offsets.md).
 Distributor setup now explicitly installs `xorriso`; existing VMs need that
 package before retrying the new ISO-editing gates.
 
