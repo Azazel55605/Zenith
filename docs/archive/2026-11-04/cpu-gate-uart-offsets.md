@@ -26,3 +26,11 @@ Validation on 2026-11-04:
   Local evidence: `obj/cpu-offset-native.log`, `/tmp/zn-cpu-offset-fixed`.
 - Local run used the working display-candidate kernel; CPU implementation is
   unchanged from C4. Exact distributor 0.0.44 verification remains pending.
+
+Follow-up: the first wrapper replaced in-memory transports as well as file-backed
+UARTs, breaking four controller fixtures that intentionally have no serial file.
+The wrapper now preserves their original `log()` and installs idempotently. This
+is a controller integration correction; real UART normalization is unchanged.
+An isolated copy containing only this correction passed the **complete 486-test
+controller suite** in 112.022 seconds, including documentation and publication
+failure tests. Evidence: `/tmp/zenith-cpu-controller-fix-final.log`.

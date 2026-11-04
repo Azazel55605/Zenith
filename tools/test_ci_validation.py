@@ -29,6 +29,15 @@ class PlanTests(unittest.TestCase):
             self.assertTrue(m.wait('user: CPU_TEST=0',offset,timeout=.05))
             self.assertIn('worker=3 apic=3 actual=3',m.log()[offset:])
 
+    def test_raw_uart_policy_preserves_in_memory_transport_and_is_idempotent(self):
+        spec=importlib.util.spec_from_file_location('cpu_offset_memory_policy',ROOT/'deploy/distributor/validation-output.py')
+        policy=importlib.util.module_from_spec(spec);spec.loader.exec_module(policy)
+        class MemoryMachine:
+            def log(self):return 'memory transport'
+        policy.install(MemoryMachine);first=MemoryMachine.log;policy.install(MemoryMachine)
+        self.assertIs(first,MemoryMachine.log)
+        self.assertEqual('memory transport',MemoryMachine().log())
+
     def test_current_controller_repairs_immutable_tag_log_offsets(self):
         spec=importlib.util.spec_from_file_location('cpu_offset_policy',ROOT/'deploy/distributor/validation-output.py')
         policy=importlib.util.module_from_spec(spec);spec.loader.exec_module(policy)

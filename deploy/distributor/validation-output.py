@@ -10,4 +10,14 @@ def serial_log(machine):
 
 
 def install(machine_type):
-    machine_type.log = serial_log
+    if getattr(machine_type, '_zenith_raw_serial_log', False):
+        return
+    original_log = machine_type.log
+    def log(machine):
+        # In-memory/custom transports supply their own snapshots and offsets;
+        # only file-backed UART machines use the raw incremental file reader.
+        if getattr(machine, 'serial', None) is None:
+            return original_log(machine)
+        return serial_log(machine)
+    machine_type.log = log
+    machine_type._zenith_raw_serial_log = True
