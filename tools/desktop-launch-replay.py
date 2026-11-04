@@ -95,11 +95,11 @@ def main():
                 deadline=time.monotonic()+20
                 while True:
                     data=mouse.capture(keep/'launcher.ppm');w,ht,rgb=policy.frame_pixels(data)
-                    point=((ht-480)*w+250)*3
+                    point=((ht-(480+46*((ROOT/'src/Gui/Shell/AppRegistry.cs').read_text().count('new AppInfo(')-7)))*w+250)*3
                     if rgb[point:point+3]==bytes.fromhex('2a2c31'):break
                     if time.monotonic()>=deadline:raise RuntimeError('launcher menu not presented')
                     time.sleep(.05)
-                move(130,height-480+row*46);off=len(m.log())
+                move(130,height-(480+46*((ROOT/'src/Gui/Shell/AppRegistry.cs').read_text().count('new AppInfo(')-7))+row*46);off=len(m.log())
                 transport(monitor,'mouse_button 1')
                 try:require('native surface opened 600x480',off)
                 finally:transport(monitor,'mouse_button 0')

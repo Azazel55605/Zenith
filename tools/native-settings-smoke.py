@@ -419,12 +419,14 @@ def main():
             assert m.wait('native surface retired',off,30),'native launcher window retirement'
             time.sleep(.5)
         # Test the actual start menu too: shell `open` must not be the only
-        # route to signed applications. The fixed test desktop has seven apps.
+        # route to signed applications. Rows 0 and 5 are Welcome and System.
+        # The start menu grows upward by 46 px per registered app; the layout below was measured with seven.
+        menu_top=480+46*((ROOT/'src/Gui/Shell/AppRegistry.cs').read_text().count('new AppInfo(')-7)
         _,(screen_width,screen_height)=observer.position()
         for row in (0,5):
             click(32,screen_height-32)
-            frame('launcher',lambda w,h,rgb:color_at(rgb,w,250,h-480)==bytes.fromhex('2a2c31'))
-            launched=len(m.log());target=(130,screen_height-480+row*46)
+            frame('launcher',lambda w,h,rgb:color_at(rgb,w,250,h-menu_top)==bytes.fromhex('2a2c31'))
+            launched=len(m.log());target=(130,screen_height-menu_top+row*46)
             (cx,cy),_=observer.position()
             monitor_command(monitor,f'mouse_move {target[0]-cx} {target[1]-cy}')
             # Menu actions fire on press. Window admission acknowledges that
