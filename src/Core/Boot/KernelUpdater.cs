@@ -29,7 +29,10 @@ internal sealed class KernelUpdater
     public const string EspInventory = EspPrefix + "/boot/zenith/manifest.tsv";
     private readonly IKernelUpdateStore _store;
     private readonly Guid _root, _esp;
-    public KernelUpdater(IKernelUpdateStore store, Guid root, Guid esp) { _store = store; _root = root; _esp = esp; }
+    private readonly string _options;
+    /// <param name="options">Carried boot opt-ins (see <see cref="BootLayout.Carried"/>); every menu this writes keeps them.</param>
+    public KernelUpdater(IKernelUpdateStore store, Guid root, Guid esp, string options = "")
+    { _store = store; _root = root; _esp = esp; _options = BootLayout.Carried(options); }
     private string Text(string path, int maximum = 4096) => new UTF8Encoding(false, true).GetString(_store.Read(path, maximum));
     private void Text(string path, string text) => _store.Write(path, Encoding.UTF8.GetBytes(text));
     private void Bind(KernelUpdateState state)
@@ -69,17 +72,17 @@ internal sealed class KernelUpdater
         // Payloads already flushed. Metadata first, menu last; journal stays through all phases.
         Text(StatePath, state.Serialize());
         Text(RootInventory, state.Inventory()); Text(EspInventory, state.Inventory()); _store.Sync();
-        Text(MenuPath, state.Menu()); _store.Sync();
+        Text(MenuPath, state.Menu(_options)); _store.Sync();
         // Limine can prefer the secondary search path even when the primary exists.
         // Retain the old secondary through the primary gap, then commit both menus.
-        Text(FallbackMenu, state.Menu()); _store.Sync();
+        Text(FallbackMenu, state.Menu(_options)); _store.Sync();
     }
     private void Begin(KernelUpdateState before, string? candidate = null)
     {
         Text(Journal, "ZENITH-KERNEL-UNDO\t1\ncandidate\t" + (candidate ?? "-") + "\n" + before.Serialize()); _store.Sync();
         _store.Directory(EspPrefix + "/boot/limine");
         // Limine's secondary search path remains bootable during root-menu rename gaps.
-        Text(FallbackMenu, before.Menu()); _store.Sync();
+        Text(FallbackMenu, before.Menu(_options)); _store.Sync();
     }
     private void End() { _store.Delete(Journal); _store.Sync(); }
     public KernelUpdateState CheckCandidate(KernelPackage package, string running)
@@ -128,7 +131,7 @@ internal sealed class KernelUpdater
         var before = KernelUpdateState.Parse(journal[start..]); Bind(before);
         if (candidate == before.Current.Id || candidate == before.Previous?.Id || candidate == before.Retired?.Id) { throw new IOException("undo candidate overlaps retained generation"); }
         Verify(before.Current); if (before.Previous is not null) { Verify(before.Previous); } VerifyEfi(before);
-        _store.RecoverWrites(); Publish(before); Text(FallbackMenu, before.Menu()); _store.Sync();
+        _store.RecoverWrites(); Publish(before); Text(FallbackMenu, before.Menu(_options)); _store.Sync();
         if (candidate != "-")
         {
             _store.Delete(EspPrefix + BootLayout.KernelPath(candidate));
@@ -156,8 +159,8 @@ internal sealed class KernelUpdater
         Idle(); var state = Status();
         if (state.Previous is null) { throw new IOException("no retained previous kernel"); }
         Verify(state.Previous); VerifyEfi(state); Begin(state);
-        Text(FallbackMenu, BootLayout.Configuration(state.Root, state.Previous.Id)); _store.Sync();
+        Text(FallbackMenu, BootLayout.Configuration(state.Root, state.Previous.Id, null, _options)); _store.Sync();
         var rolled = state with { Current = state.Previous, Previous = state.Retired, Retired = state.Current, Pending = false };
-        Publish(rolled); Text(FallbackMenu, rolled.Menu()); _store.Sync(); End();
+        Publish(rolled); Text(FallbackMenu, rolled.Menu(_options)); _store.Sync(); End();
     }
 }

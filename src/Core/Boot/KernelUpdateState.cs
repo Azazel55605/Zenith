@@ -27,7 +27,7 @@ internal sealed record KernelUpdateState(Guid Root, Guid Esp, string EfiId, int 
         + "\nretired\t" + (Retired?.Serialize() ?? "-") + "\npending\t" + (Pending ? "yes" : "no") + "\nhigh-water\t" + HighWater + "\n";
     public string Inventory() => BootLayout.Inventory(Root, Esp, Current.Id, EfiId, Current.Bytes, EfiBytes)
         .Replace("previous\t-\n", "previous\t" + (Previous?.Id ?? "-") + "\n");
-    public string Menu() => BootLayout.Configuration(Root, Current.Id, Previous?.Id);
+    public string Menu(string options = "") => BootLayout.Configuration(Root, Current.Id, Previous?.Id, options);
     public static KernelUpdateState Parse(string text)
     {
         var f = Fields(text, "ZENITH-GENERATIONS\t1", 9);

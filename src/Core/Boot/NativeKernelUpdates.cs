@@ -122,7 +122,7 @@ internal static class NativeKernelUpdates
     }
     private static int s_busy;
     public static bool IsRunning => Volatile.Read(ref s_busy) != 0;
-    private static KernelUpdater Open(NativeKernelUpdateStore store)
+    private static unsafe KernelUpdater Open(NativeKernelUpdateStore store)
     {
         if (SystemMounts.Mode != BootMode.Installed || SystemMounts.RootPartition is null || SystemMounts.BootPartition is null || SystemMounts.RootId is null
             || !new VfsFileMetadata().TryRead("/", out var stat) || !stat.UnixAttributes) { throw new IOException("kernel updates require an installed ext2 root and validated EFI partition"); }
@@ -142,7 +142,8 @@ internal static class NativeKernelUpdates
             if (mount.MountPoint == "/boot/efi") { espMounted = true; }
         }
         if (!espMounted) { throw new IOException("validated EFI partition is not mounted at /boot/efi"); }
-        return new(store, SystemMounts.RootId.Value, esp);
+        // Keep opt-ins such as smp=native that this kernel was booted with.
+        return new(store, SystemMounts.RootId.Value, esp, Marshal.PtrToStringUTF8((IntPtr)Limine.Cmdline) ?? "");
     }
     private static int Mutation(Func<int> operation, bool fromPackageService = false)
     {

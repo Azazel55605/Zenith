@@ -39,6 +39,19 @@ public sealed class BootLayoutTests
         Assert.Throws<IOException>(() => BootLayout.KernelPath(current + "\n"));
     }
     [Fact]
+    public void MenuCarriesOnlyAllowedOptInsAndKeepsRescueClean()
+    {
+        Guid root = Guid.NewGuid(); string current = new('a', 64), previous = new('b', 64);
+        Assert.Equal("smp=native", BootLayout.Carried("root=PARTUUID=" + root + " kernel=" + current + " smp=native session=headless"));
+        Assert.Equal("", BootLayout.Carried("root=live smp=nativeish display=safe"));
+        string menu = BootLayout.Configuration(root, current, previous, "smp=native");
+        Assert.Contains(" kernel=" + current + " smp=native\n", menu); Assert.Contains(" kernel=" + previous + " smp=native\n", menu);
+        Assert.Contains("cmdline: root=live session=headless\n", menu); Assert.DoesNotContain("headless smp", menu);
+        Assert.Equal(BootLayout.Configuration(root, current, previous), BootLayout.Configuration(root, current, previous, " "));
+        Assert.Throws<IOException>(() => BootLayout.Configuration(root, current, null, "session=headless"));
+        Assert.Throws<IOException>(() => BootLayout.Configuration(root, current, null, "smp=native\nroot=live"));
+    }
+    [Fact]
     public void BootPayloadChecksRejectWrongArchitecturesAndMalformedHeaders()
     {
         byte[] kernel = new byte[64]; kernel[0] = 0x7f; kernel[1] = (byte)'E'; kernel[2] = (byte)'L'; kernel[3] = (byte)'F'; kernel[4] = 2; kernel[5] = 1; kernel[18] = 62;

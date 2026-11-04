@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using Zenith.Core.Security;
@@ -46,23 +47,35 @@ internal static class BootLayout
             || bytes[offset + 2] != 0 || bytes[offset + 3] != 0 || bytes[offset + 4] != 0x64 || bytes[offset + 5] != 0x86)
         { throw new IOException("invalid x64 PE/COFF installer module"); }
     }
-    public static string Configuration(Guid root, string current, string? previous = null)
+    /// <summary>Boot opt-ins a rewritten menu keeps when the running kernel was booted with them.</summary>
+    public static readonly string[] CarriedOptions = { "smp=native" };
+    public static string Carried(string arguments)
+    {
+        var tokens = arguments.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var kept = new List<string>();
+        foreach (string option in CarriedOptions) { if (Array.IndexOf(tokens, option) >= 0) { kept.Add(option); } }
+        return string.Join(" ", kept);
+    }
+    public static string Configuration(Guid root, string current, string? previous = null, string options = "")
     {
         if (root == Guid.Empty) { throw new IOException("root partition UUID missing"); }
+        foreach (string option in options.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        { if (Array.IndexOf(CarriedOptions, option) < 0) { throw new IOException("boot option is not carried: " + option); } }
+        options = string.Join(" ", options.Split(' ', StringSplitOptions.RemoveEmptyEntries));
         _ = KernelPath(current);
         if (previous is not null) { _ = KernelPath(previous); if (previous == current) { throw new IOException("duplicate kernel generation"); } }
         var result = new StringBuilder("timeout: 5\n\n");
-        Entry(result, "Zenith", root, current);
-        if (previous is not null) { Entry(result, "Zenith previous kernel", root, previous); }
+        Entry(result, "Zenith", root, current, options);
+        if (previous is not null) { Entry(result, "Zenith previous kernel", root, previous, options); }
         result.Append("/Zenith rescue (RAM root)\n    protocol: limine\n    path: boot():")
             .Append(KernelPath(previous ?? current)).Append("\n    cmdline: root=live session=headless\n");
         return result.ToString();
     }
-    private static void Entry(StringBuilder text, string title, Guid root, string id)
+    private static void Entry(StringBuilder text, string title, Guid root, string id, string options)
     {
         text.Append('/').Append(title).Append("\n    protocol: limine\n    path: boot():")
             .Append(KernelPath(id)).Append("\n    cmdline: root=PARTUUID=").Append(root.ToString("D"))
-            .Append(" kernel=").Append(id).Append('\n');
+            .Append(" kernel=").Append(id).Append(options.Length == 0 ? "" : " " + options).Append('\n');
     }
     public static string Inventory(Guid root, Guid esp, string kernel, string efi, int kernelBytes, int efiBytes)
     {

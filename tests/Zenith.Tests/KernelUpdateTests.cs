@@ -66,6 +66,17 @@ public sealed class KernelUpdateTests
         Assert.Equal(updater.Status().Menu(), Encoding.UTF8.GetString(store.Files[KernelUpdater.FallbackMenu]));
     }
     [Fact]
+    public void UpgradeAndRollbackKeepTheRunningKernelsOptIns()
+    {
+        var (store, _, before) = Fixture(); var updater = new KernelUpdater(store, Root, Esp, "root=PARTUUID=" + Root + " smp=native");
+        var candidate = Candidate(2, "1.0.0"); updater.Install(candidate, before.Current.Id, () => { }, _ => { });
+        foreach (string menu in new[] { KernelUpdater.MenuPath, KernelUpdater.FallbackMenu })
+        { Assert.Equal(updater.Status().Menu("smp=native"), Encoding.UTF8.GetString(store.Files[menu])); }
+        Assert.Contains("kernel=" + candidate.Id + " smp=native", Encoding.UTF8.GetString(store.Files[KernelUpdater.MenuPath]));
+        updater.Confirm(candidate.Id); updater.Rollback();
+        Assert.Contains("kernel=" + before.Current.Id + " smp=native", Encoding.UTF8.GetString(store.Files[KernelUpdater.FallbackMenu]));
+    }
+    [Fact]
     public void RollbackPreservesHighWaterAndNextUpgradeReclaimsOnlyThirdKernel()
     {
         var (store, updater, before) = Fixture(); var one = Candidate(2, "1.0.0"); updater.Install(one, before.Current.Id, () => { }, _ => { });

@@ -97,7 +97,9 @@ are implemented and locally verified: 498 controller tests, 106 native CPU check
 qualification and a new kernel are required before installed retesting.
 [Diagnosis and acceptance](archive/2026-11-04/installed-cpu-return-and-gc.md).
 Q2/H1 multicore acceptance remains blocked until the repaired candidate is
-qualified and retested on VMware; retain opt-in.
+qualified and retested on VMware; retain opt-in. Kernel updates and rollbacks
+now keep `smp=native` on the menu when the running kernel was booted with it
+(local, host-tested); before, every update silently dropped the opt-in.
 
 C4 distributor follow-up (2026-11-04): repeated `CPU_TEST` observations can match
 old results because universal-newline log snapshots supplied shorter offsets to
