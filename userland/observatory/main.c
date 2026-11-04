@@ -446,6 +446,7 @@ int main(int argc,char **argv){
         }
         if(e.type==Z_GUI_CLOSE||e.type==Z_GUI_CLOSE_INTENT){done=1;continue;}
         if(e.type==Z_GUI_RESET){update_appearance();continue;}
+        if(e.type==Z_GUI_FOCUS&&e.code)print("OBSERVATORY_FOCUSED\n");
         if(confirm.open){
             int choice=zui_dialog_event(&ui,&confirm,&e);
             if(choice==2)end_selected();

@@ -195,7 +195,12 @@ def main():
         def observatory(text,label,shot):
             off=len(m.log());status(text,label)
             assert 'user: OBSERVATORY_READY' in m.log()[off:],'Observatory did not open: '+m.log()[off:][-400:]
-            monitor_command(monitor,'screendump '+str(keep/shot));monitor_command(monitor,'sendkey esc 30');time.sleep(1.5)
+            # Keys reach the focused window only: wait until Observatory has focus, and
+            # after Esc until its surface is retired, before typing into Polaris again.
+            assert m.wait('user: OBSERVATORY_FOCUSED',off,60),'Observatory never took focus'
+            monitor_command(monitor,'screendump '+str(keep/shot))
+            closed=len(m.log());monitor_command(monitor,'sendkey esc 30')
+            assert m.wait('native surface retired',closed,60),'Observatory did not close on Esc'
             status('echo POLARIS_ALIVE | logger','G_POLARIS')
         observatory('native run observatory | logger & sleep 8; true','G_OBSERVATORY','observatory.ppm')
         print('PASS Observatory shows performance and closes',flush=True)
