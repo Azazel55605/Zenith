@@ -45,6 +45,10 @@ def run_harness(script):
     spec = importlib.util.spec_from_file_location('validation_input', Path(__file__).with_name('validation-input.py'))
     input_profile = importlib.util.module_from_spec(spec); spec.loader.exec_module(input_profile)
     input_profile.DIAGNOSTIC_ELF = script.parent.parent / 'output-x64/Zenith.elf'
+    spec = importlib.util.spec_from_file_location('validation_graphics', Path(__file__).with_name('validation-graphics.py'))
+    graphics = importlib.util.module_from_spec(spec); spec.loader.exec_module(graphics)
+    spec = importlib.util.spec_from_file_location('graphics_terminal_observation', Path(__file__).with_name('validation-terminal.py'))
+    graphics_terminal = importlib.util.module_from_spec(spec); spec.loader.exec_module(graphics_terminal)
     original_run = subprocess.run
     prebuilt = os.environ.get('ZENITH_NATIVE_PREBUILT_SHA256')
     root = os.environ.get('ZENITH_NATIVE_PREBUILT_ROOT')
@@ -81,6 +85,7 @@ def run_harness(script):
             print('Validation input policy: controller observed-motion-v3 (read-only failure capture)', flush=True)
         if script.name == 'native-graphics-smoke.py' and Path(loader.path).name == 'recovery_console.py':
             input_profile.install_monitor(module)
+            graphics.install_monitor(module, instances, input_profile, graphics_terminal)
         if Path(loader.path).resolve() == headless.resolve():
             output.install(module.Machine)
             accelerator.install(module)
@@ -92,6 +97,7 @@ def run_harness(script):
     importlib.machinery.SourceFileLoader.exec_module = execute
     if script.name == 'native-graphics-smoke.py' and 'recovery_console' in sys.modules:
         input_profile.install_monitor(sys.modules['recovery_console'])
+        graphics.install_monitor(sys.modules['recovery_console'], instances, input_profile, graphics_terminal)
     started = time.monotonic()
     try: runpy.run_path(str(script), run_name='__main__')
     except BaseException:

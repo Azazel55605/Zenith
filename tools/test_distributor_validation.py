@@ -147,6 +147,23 @@ class ValidationTests(unittest.TestCase):
         subprocess.run([sys.executable,'-B',str(ROOT/'deploy/distributor/validation-runner.py'),str(harness),str(self.destination)],check=True)
         self.assertIn('old helper',helper.read_text())
 
+    def test_graphics_tag_monitor_keeps_current_handoff_policy_on_reinstall(self):
+        (self.root/'recovery_console.py').write_text('def monitor_command(path,text): return "original:"+text\n')
+        (self.root/'validation-input.py').write_text('def install_monitor(module): raise RuntimeError("tagged policy")\n')
+        harness=self.root/'native-graphics-smoke.py'
+        harness.write_text('''import importlib.util
+from pathlib import Path
+import recovery_console
+first=recovery_console.monitor_command
+assert first._zenith_observatory_handoff and first._zenith_rendered_mouse
+spec=importlib.util.spec_from_file_location('tagged_input',Path(__file__).with_name('validation-input.py'))
+policy=importlib.util.module_from_spec(spec);spec.loader.exec_module(policy)
+policy.install_monitor(recovery_console)
+assert recovery_console.monitor_command is first
+assert first('unused.sock','sendkey a 30')=='original:sendkey a 30'
+''')
+        subprocess.run([sys.executable,'-B',str(ROOT/'deploy/distributor/validation-runner.py'),str(harness),str(self.destination)],check=True)
+
     def test_parallel_harness_reuses_only_hash_verified_prebuilt_tool(self):
         build=self.root/'prebuilt';project=build/'tools/Zenith.PackageTool';binary=project/'bin/Release/net10.0/Zenith.PackageTool.dll';binary.parent.mkdir(parents=True);binary.write_bytes(b'prebuilt fixture')
         commands=self.root/'commands';commands.mkdir();dotnet=commands/'dotnet';dotnet.write_text('#!/bin/sh\necho REAL_BUILD_ATTEMPT\nexit 9\n');dotnet.chmod(0o755)

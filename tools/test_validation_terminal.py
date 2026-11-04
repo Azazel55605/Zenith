@@ -21,6 +21,16 @@ def frame(rect=None, public=True):
     stream=io.BytesIO();image.save(stream,format='PPM');return stream.getvalue()
 
 class TerminalTests(unittest.TestCase):
+    def test_public_prompt_on_blue_tinted_recovery_background(self):
+        for public in (True,False):
+            image=Image.open(io.BytesIO(frame((50,70,51,87),public=public))).convert('RGB')
+            pixels=image.load()
+            for y in range(image.height):
+                for x in range(image.width):
+                    if pixels[x,y]==(40,40,40):pixels[x,y]=(28,32,48)
+            out=io.BytesIO();image.save(out,format='PPM')
+            self.assertEqual(terminal.public_prompt(out.getvalue(),(50,70,52,88)),public)
+
     def test_unavailable_registry_records_only_vm_identity_without_typing(self):
         for count in (0,2):
             with tempfile.TemporaryDirectory() as directory:

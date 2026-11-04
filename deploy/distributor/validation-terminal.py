@@ -51,7 +51,9 @@ def public_prompt(ppm, box):
     for offset in range(0,len(pixels),3):
         r,g,b = pixels[offset:offset+3]; x = offset//3 % width
         if g-r > 20 and g-b > 10: green.append(x)
-        if b-g > 15 and b-r > 15: blue.append(x)
+        # Recovery Terminal backgrounds can themselves be blue-tinted. Only
+        # foreground-bright pixels are evidence of the public cwd text.
+        if b > 96 and b-g > 15 and b-r > 15: blue.append(x)
     return (len(green) >= 12 and len(blue) >= 3 and
             max(green)-min(green) >= 2*height and
             min(blue) > max(green) and min(blue) >= width-4*height)

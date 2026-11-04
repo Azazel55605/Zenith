@@ -60,3 +60,14 @@ Each is qualified separately.
 
 Not planned: temperature (no sensor driver), killing a program that ignores its
 stop request (cancellation is cooperative throughout Zenith).
+
+## U7/Q2 graphics-fixture handoff
+
+The 0.0.45 test launches Observatory from Polaris. A launch command completing
+is not a window-retirement acknowledgement: server teardown took three seconds,
+while the tagged helper waited only 1.5s. Current distributor input policy waits
+for host admission before one Escape, then observes retirement and the focused
+public shell prompt. This works with the unchanged tagged client, without its
+newer optional FOCUSED diagnostic. The focused no-build replay and exact source/
+binary boundaries are recorded in [the evidence](../archive/2026-11-04/observatory-handoff.md);
+the master U7/Q2 entries own server acceptance.

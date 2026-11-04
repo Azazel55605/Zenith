@@ -6,6 +6,8 @@ Start with [current status](../ROADMAP.md#state-and-evidence) or [active work](.
 
 ## Investigation records
 
+- [2026-11-04 Observatory handoff](2026-11-04/observatory-handoff.md): immutable 0.0.45 graphics-fixture retirement race, rendered Polaris acknowledgement and no-build replay.
+
 - [2026-11-04 installed CPU return and GC faults](2026-11-04/installed-cpu-return-and-gc.md): VMware serial evidence, local return-frame reproduction, selector rebinding and suspended boot/UI roots.
 
 - [2026-11-04 primary display settings](2026-11-04/primary-display-settings.md): driver audit, protected transactions, integer scaling and local qualification boundaries.

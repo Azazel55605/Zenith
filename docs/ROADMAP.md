@@ -102,6 +102,14 @@ now keep `smp=native` on the menu when the running kernel was booted with it
 (local, host-tested); before, every update silently dropped the opt-in.
 The repairs and the carried opt-in are qualified at `fde3f9a` and tagged
 `kernel/v0.0.45`; the VMware retest with `smp=native` is pending.
+**0.0.45 graphics-gate follow-up (U7/Q2):** server evidence shows Observatory
+retired three seconds after its launch status, beyond the tagged helper's 1.5s
+sleep. The following Polaris command could be lost during teardown. Current
+controller policy now observes host admission, one Escape, surface retirement
+and a focused rendered public prompt, including both Observatory views. No tagged
+kernel/client or result assertion changes. The exact server fixture passes all
+40 unchanged tagged desktop checks and its ext2 audit locally; all 517 controller
+tests pass. Distributor-host confirmation remains pending; [evidence and replay](archive/2026-11-04/observatory-handoff.md).
 
 C4 distributor follow-up (2026-11-04): repeated `CPU_TEST` observations can match
 old results because universal-newline log snapshots supplied shorter offsets to
