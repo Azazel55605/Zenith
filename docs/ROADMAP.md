@@ -66,19 +66,16 @@ Drawing/process latency needs separate measured workloads: CPU count alone is no
 a performance result. [Implementation sequence and acceptance](components/MULTICORE.md).
 
 **C4 release preparation (Q2):** candidates are `kernel/v0.0.44`,
-`sunbeam-tools/v0.7.0` and `zenith-gui-probe/v0.2.0`. Fresh Release acceptance is
-running before publication. CI's rolling runner moved to Ubuntu 26.04 and the
-Cosmos 3.0.89 linker could not load `libxml2.so.2`; CI is now pinned to Ubuntu
-24.04 with that dependency installed and the actual linker checked before build.
-The installed-UEFI CI harness now accepts the shared boot helper's keyboard
-argument and preserves its device selection; a host regression covers both
-keyboard profiles. All 14 fresh native Release gates passed in the pinned
-checkout at `c4f7b65` (469 controller and 853 host tests); CI additionally exposed
-the legacy security fixture's anonymous-shell expectation after password setup.
-That fixture now waits for the greeter, refuses a desktop before authentication,
-then verifies the persisted user and shadow denial after login. These repairs
-leave kernel/runtime sources at the C4 implementation in `5924c3f`. Tags await
-successful qualification.
+`sunbeam-tools/v0.7.0` and `zenith-gui-probe/v0.2.0`. All 14 fresh native Release
+gates passed in the pinned checkout at `c4f7b65` (469 controller and 853 host
+tests); kernel/runtime sources remain the C4 implementation in `5924c3f`.
+CI's linker runtime, installed-boot keyboard signature and persisted greeter
+fixtures are repaired; security and foundation now pass locally and in CI.
+**CI duration:** replacing the serial VM chain with one shared, hash-bound build,
+independently scheduled native/legacy gates and a complete-coverage aggregate.
+Download caches and smaller successful evidence uploads reduce setup/retention
+work; no guest pass is cached or gate omitted. Tags await the final CI aggregate.
+
 
 
 **Operator follow-up for installed 0.0.26:** rapid wheel navigation and movement
@@ -166,7 +163,7 @@ changes; put smaller implementation steps in the linked component, using the sam
 | H2 | planned | Audio playback/capture/mixer/device inventory and removable-device broker, then meters/stream routing and safe automount. Requires bounded buffers, stable identities and permissions; tests need real supported devices. |
 | H3 | planned, later | True suspend/resume, Bluetooth, printers and specialized accessibility. Define each scope/driver dependency first; WIP pages stay visible. Never count a menu or VM-only demo as device support. |
 | Q1 | verification | Confirm 0.0.25 distributor result and [Appearance installed procedure](testing/SETTINGS-VM-TEST.md); retain current release immutability. |
-| Q2 | focused launcher repair confirmed; full distributor retry pending | The operator's focused Settings and repaired materials gates passed; the status parser fix was verified against the failed server log. The subsequent parallel run fails at start-menu client retirement, matching the retained local failure: its weak shared-colour predicate accepted Terminal screenshots before the native app appeared. [Strict native-frame witness and no-build launcher replay](archive/2026-10-29/launcher-frame-readiness.md) locally pass 40 half/quarter-CPU launches, all 347 controller regressions and the full unchanged Settings desktop sequence. The operator confirmed the five-cycle launcher probe passes on the distributor (2026-10-29). Preserve 0.0.28 and retry the normal parallel release pipeline with the current controller. Earlier VM-registry selection and installed wheel/drag acceptance remain open; do not infer release acceptance from standalone successes. |
+| Q2 | C4 locally qualified; parallel CI and distributor acceptance pending | All 14 fresh native Release gates, 469 controller and 853 host tests passed locally. CI runner/runtime and legacy boot/greeter fixtures are repaired. The CI optimization shares one source-bound kernel across isolated native/legacy jobs, caches downloads and requires complete fresh gate receipts before the aggregate check can pass ([workflow](../.github/workflows/ci.yml), [contract](DEVELOPMENT.md#ci-and-releases)). Publish the selected C4 tags only after that aggregate; distributor and installed-VM evidence remain separate under Q2/H1. Earlier launcher/input repairs and operator probes remain in the [qualification archive](archive/2026-10-29/launcher-frame-readiness.md). |
 | Q3 | continuous; parallel controller local | [Parallel native validation and exact retry receipts](archive/2026-10-28/parallel-native-validation.md) locally implemented; four actual gates pass concurrently. Default up to four, configurable up to eight within CPU/RAM budget; distributor timing pending.  Measure boot/app responsiveness, idle memory/CPU, transfer/build phase times and stability across repeated workflows. Keep CI/controller/toolchain drift checks, fault injection and installed evidence distinct; enforce supported-profile performance budgets before claiming product readiness. |
 
 ## Meridian — every requested destination

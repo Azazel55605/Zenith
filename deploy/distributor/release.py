@@ -283,7 +283,34 @@ def native_prerequisites():
     print("Native prerequisites ready; accelerator policy=" + policy, flush=True)
 
 
-def native_checks(work):
+def native_gate_plan():
+    checks = [("r", "repository-smoke.py")]
+    if (REPO / "tools/native-settings-smoke.py").exists(): checks.append(("a", "native-settings-smoke.py"))
+    if (REPO / "tools/system-app-style-smoke.py").exists(): checks.append(("v", "system-app-style-smoke.py"))
+    if (REPO / "tools/native-materials-smoke.py").exists(): checks.append(("m", "native-materials-smoke.py"))
+    if (REPO / "tools/native-graphics-smoke.py").exists(): checks.append(("g", "native-graphics-smoke.py"))
+    if (REPO / "tools/native-network-smoke.py").exists(): checks.append(("n", "native-network-smoke.py"))
+    if (REPO / "tools/native-cli-smoke.py").exists(): checks.append(("c", "native-cli-smoke.py"))
+    if (REPO / "src/Native/Cpu/workers.c").exists(): checks.append(("p", "native-cpu-smoke.py"))
+    if (REPO / "src/Core/Multiprocessing/ManagedCpuJobs.cs").exists(): checks.append(("j", "native-managed-smoke.py"))
+    if (REPO / "src/Core/Multiprocessing/CpuWorkers.Blur.cs").exists(): checks.append(("b", "native-compositor-smoke.py"))
+    if (REPO / "src/Core/Multiprocessing/CpuWorkers.Process.cs").exists(): checks.append(("q", "native-smp-smoke.py"))
+    # Older immutable kernel tags predate this ABI and its harness.
+    if (REPO / "tools/native-process-smoke.py").exists(): checks.append(("u", "native-process-smoke.py"))
+    # Run the expensive crash/recovery matrix last. A repository regression
+    # should fail before repeating that matrix; every gate remains mandatory.
+    checks.append(("k", "kernel-update-smoke.py"))
+    # Catch display/login transport regressions before the much longer
+    # full-sized kernel delivery and crash-recovery sequence. No gate omitted.
+    if (REPO / "tools/login-session-smoke.py").exists(): checks.insert(0, ("s", "login-session-smoke.py"))
+    return checks
+
+
+def native_checks(work, gate=None):
+    checks = native_gate_plan()
+    if gate is not None:
+        checks = [check for check in checks if check[0] == gate]
+        if len(checks) != 1: raise ValueError("unknown native gate: " + str(gate))
     # AF_UNIX paths are limited to 107 pathname bytes on Linux. Use an actual
     # short directory: repository-smoke resolves its keep path, so a symlink
     # alias to the deeply nested release workspace would not fix it.
@@ -293,25 +320,6 @@ def native_checks(work):
     except (OSError, ValueError): print("Native workspace registration unavailable; automatic orphan cleanup will skip it", flush=True)
     print("Native workspace: " + str(directory) + "; retained afterward at " + str(work / "native"), flush=True)
     try:
-        checks = [("r", "repository-smoke.py")]
-        if (REPO / "tools/native-settings-smoke.py").exists(): checks.append(("a", "native-settings-smoke.py"))
-        if (REPO / "tools/system-app-style-smoke.py").exists(): checks.append(("v", "system-app-style-smoke.py"))
-        if (REPO / "tools/native-materials-smoke.py").exists(): checks.append(("m", "native-materials-smoke.py"))
-        if (REPO / "tools/native-graphics-smoke.py").exists(): checks.append(("g", "native-graphics-smoke.py"))
-        if (REPO / "tools/native-network-smoke.py").exists(): checks.append(("n", "native-network-smoke.py"))
-        if (REPO / "tools/native-cli-smoke.py").exists(): checks.append(("c", "native-cli-smoke.py"))
-        if (REPO / "src/Native/Cpu/workers.c").exists(): checks.append(("p", "native-cpu-smoke.py"))
-        if (REPO / "src/Core/Multiprocessing/ManagedCpuJobs.cs").exists(): checks.append(("j", "native-managed-smoke.py"))
-        if (REPO / "src/Core/Multiprocessing/CpuWorkers.Blur.cs").exists(): checks.append(("b", "native-compositor-smoke.py"))
-        if (REPO / "src/Core/Multiprocessing/CpuWorkers.Process.cs").exists(): checks.append(("q", "native-smp-smoke.py"))
-        # Older immutable kernel tags predate this ABI and its harness.
-        if (REPO / "tools/native-process-smoke.py").exists(): checks.append(("u", "native-process-smoke.py"))
-        # Run the expensive crash/recovery matrix last. A repository regression
-        # should fail before repeating that matrix; every gate remains mandatory.
-        checks.append(("k", "kernel-update-smoke.py"))
-        # Catch display/login transport regressions before the much longer
-        # full-sized kernel delivery and crash-recovery sequence. No gate omitted.
-        if (REPO / "tools/login-session-smoke.py").exists(): checks.insert(0, ("s", "login-session-smoke.py"))
         base = None; cache = None; input_hash = None
         try:
             base,input_hash = native_validation.identity(REPO,CONTROLLER,source_commit(),_NATIVE_FIRMWARE)

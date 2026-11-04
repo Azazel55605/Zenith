@@ -525,6 +525,12 @@ repository, native programs and kernel crash/recovery. It neither signs nor
 publishes nor creates a tag. The default mode requires a clean committed candidate and refuses source changes
 during acceptance. Confirm CI on that candidate before tagging it.
 
+CI builds one source-bound ISO/ELF and fans the mandatory native plan and legacy
+fixtures out to isolated runners. Its final `Build ISO + smoke test` check verifies
+every expected gate's source/artifact result; individual matrix passes are not
+complete qualification. Download caches never substitute for guest acceptance.
+See [CI and releases](../../docs/DEVELOPMENT.md#ci-and-releases).
+
 For CI or an explicitly prebuilt candidate, add `--existing` to test `output-x64`
 without rebuilding the kernel. This still runs controller/host tests, builds the
 package tool and runs every native gate. `artifacts.json` records the ISO/ELF

@@ -232,11 +232,30 @@ launch configuration (GDB via QEMU), described in `docs/cosmos/articles/user/deb
 
 ## CI and releases
 
-`.github/workflows/ci.yml` runs on every push and pull request:
-1. host unit tests
-2. ISO build with the Cosmos toolchain
-3. the QEMU smoke test (KVM on GitHub's runners); logs and the final screenshot are uploaded
-   as the `smoke-test-logs` artifact
+`.github/workflows/ci.yml` runs on every main push, pull request and kernel tag.
+Host/controller tests run first; the kernel and its runtime adapters are then built
+and checked once. Every VM job downloads that same ISO/ELF and verifies both hashes
+and the source commit before and after its gate.
+
+The native matrix comes from `release.native_gate_plan()`, the distributor's own
+mandatory gate list. Each gate gets an isolated runner/guest, with at most eight
+native and six legacy jobs active at once. The legacy fixtures also run independently;
+only the basic smoke and its disk-only UEFI follow-up share an ordered disk fixture.
+This avoids adding every suite's duration onto one slow runner. Individual gate
+budgets are unchanged; a single gate pass is never complete release acceptance.
+
+The final **Build ISO + smoke test** check requires all host/build/matrix jobs to
+succeed, then verifies a fresh result for every expected native and legacy gate on
+the exact source/ISO/ELF. Missing, duplicate, stale or mismatched results fail it.
+The default local/distributor `validate.py` still runs the entire native plan.
+
+NuGet packages and pinned Cosmos tool downloads are cached; guest passes, built
+kernels and mutable SDK workload state are not. Diagnostics/screenshots are kept as
+`ci-logs-*`; disposable disk images and replay binaries are uploaded as `ci-replay-*`
+only when a gate fails, without its generated private signing keys. This avoids
+compressing/uploading every successful multi-gigabyte fixture. Failed jobs can be
+rerun in GitHub without rebuilding or repeating successful matrix members in that run.
+Superseded main/PR runs are cancelled; tag runs retain their independent evidence.
 
 Pushing a tag `v*` additionally creates a GitHub release with `Zenith.iso` and `Zenith.elf`:
 

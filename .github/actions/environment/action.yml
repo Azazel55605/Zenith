@@ -1,0 +1,61 @@
+name: Zenith test environment
+description: Pinned SDK, download caches and optional isolated QEMU prerequisites
+inputs:
+  guest:
+    description: Install QEMU and firmware for a VM gate
+    default: 'false'
+  cosmos:
+    description: Install the pinned Cosmos kernel build tools
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+    - uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ runner.arch }}-${{ env.COSMOS_VERSION }}-${{ hashFiles('**/*.csproj', 'global.json', 'NuGet.Config', 'Directory.Build.*', 'Directory.Packages.props') }}
+        restore-keys: nuget-${{ runner.os }}-${{ runner.arch }}-${{ env.COSMOS_VERSION }}-
+    - name: Install native dependencies
+      shell: bash
+      env:
+        GUEST: ${{ inputs.guest }}
+      run: |
+        packages=(gcc clang binutils e2fsprogs openssl python3-pil libxml2)
+        if [[ "$GUEST" == true ]]; then
+          packages+=(qemu-system-x86 dosfstools ovmf mtools parted)
+        fi
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends "${packages[@]}"
+    - name: Enable and report guest acceleration
+      if: inputs.guest == 'true'
+      shell: bash
+      run: |
+        if [[ -c /dev/kvm ]]; then sudo chmod a+rw /dev/kvm; fi
+        ls -l /dev/kvm || echo 'KVM unavailable; using existing TCG test budgets'
+        nproc
+        free -h
+        /usr/bin/qemu-system-x86_64 --version | head -n 1
+    - uses: actions/cache@v4
+      if: inputs.cosmos == 'true'
+      id: cosmos-tools
+      with:
+        path: ~/.cosmos/tools
+        key: cosmos-tools-ubuntu-24.04-${{ runner.arch }}-${{ env.COSMOS_VERSION }}-v1
+    - name: Install Cosmos build commands
+      if: inputs.cosmos == 'true'
+      shell: bash
+      run: |
+        dotnet tool install -g Cosmos.Tools --version "$COSMOS_VERSION"
+        dotnet tool install -g Cosmos.Patcher --version "$COSMOS_VERSION"
+        echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+    - name: Download Cosmos tools
+      if: inputs.cosmos == 'true' && steps.cosmos-tools.outputs.cache-hit != 'true'
+      shell: bash
+      run: '"$HOME/.dotnet/tools/cosmos" install -y --tools'
+    - name: Check actual bundled linker
+      if: inputs.cosmos == 'true'
+      shell: bash
+      run: '"$HOME/.cosmos/tools/llvm-tools/bin/ld.lld" --version'

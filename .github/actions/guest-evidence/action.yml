@@ -1,0 +1,33 @@
+name: Retain guest evidence
+description: Upload small diagnostics always and disposable replay binaries only on failure
+inputs:
+  name:
+    description: Unique gate identifier
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: ci-logs-${{ inputs.name }}
+        overwrite: true
+        compression-level: 1
+        path: |
+          obj/ci/**/*.log
+          obj/ci/**/*.json
+          obj/ci/**/*.jsonl
+          obj/ci/**/*.ppm
+          obj/ci/**/*.png
+          !obj/ci/**/keys/**
+    - uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: ci-replay-${{ inputs.name }}
+        overwrite: true
+        compression-level: 1
+        path: |
+          obj/ci/**/*.img
+          obj/ci/**/*.elf
+          obj/ci/**/*.zpk
+          !obj/ci/**/keys/**

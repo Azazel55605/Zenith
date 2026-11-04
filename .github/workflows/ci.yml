@@ -7,21 +7,26 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Superseded branch runs can stop; tag qualification is never cancelled by a
+# later push. No successful guest result is cached between candidates.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
 env:
   COSMOS_VERSION: 3.0.89
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+  QEMU: /usr/bin/qemu-system-x86_64
 
 jobs:
   unit-tests:
     name: Unit tests (host)
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.0.x
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends e2fsprogs clang binutils openssl python3-pil
+      - uses: ./.github/actions/environment
       - run: dotnet test tests/Zenith.Tests --logger "console;verbosity=normal"
       - run: python3 -B tools/test_run_network.py
       - run: python3 -B tools/test_dhcp_capture.py
@@ -40,168 +45,138 @@ jobs:
       - run: python3 -B tools/test_dashboard_setup.py
 
   build:
-    name: Build ISO + smoke test
+    name: Build ISO
     needs: [unit-tests]
-    # Cosmos 3.0.89's bundled LLVM links against libxml2.so.2. The rolling
-    # ubuntu-latest image moved to 26.04 and no longer supplies that ABI.
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      native: ${{ steps.matrix.outputs.native }}
+      legacy: ${{ steps.matrix.outputs.legacy }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: ./.github/actions/environment
         with:
-          dotnet-version: 10.0.x
-
-      - name: Install native toolchain dependencies
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends clang binutils python3-pil libxml2
-
-      - name: Install Cosmos toolchain
-        run: |
-          dotnet tool install -g Cosmos.Tools --version "$COSMOS_VERSION"
-          dotnet tool install -g Cosmos.Patcher --version "$COSMOS_VERSION"
-          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
-          "$HOME/.dotnet/tools/cosmos" install -y --tools
-          "$HOME/.cosmos/tools/llvm-tools/bin/ld.lld" --version
-
-      - name: Build kernel ISO
+          cosmos: 'true'
+      - name: Build kernel ISO once
         run: dotnet publish -c Release -r linux-x64 -o output-x64 --verbosity minimal
-
       - name: Pinned runtime, TCP and boot dependency adapters
         run: python3 -B -m unittest tools/test_tcp_connect_fixup.py tools/test_quiet_fixup.py tools/test_idt_fixup.py tools/test_scheduler_wake_fixup.py tools/test_monitor_timeout_fixup.py tools/test_conservative_roots_fixup.py tools/test_allocation_publication_fixup.py tools/test_mouse_poll_fixup.py
-
+      - name: Bind artifacts and gate matrices to this commit
+        id: matrix
+        run: |
+          python3 -B tools/ci-validation.py seal-build
+          echo "native=$(python3 -B tools/ci-validation.py matrix native)" >> "$GITHUB_OUTPUT"
+          echo "legacy=$(python3 -B tools/ci-validation.py matrix legacy)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: zenith-iso
+          overwrite: true
+          compression-level: 1
+          if-no-files-found: error
           path: |
             output-x64/Zenith.iso
             output-x64/Zenith.elf
+            output-x64/ci-build.json
 
-      - name: Install QEMU
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends qemu-system-x86 e2fsprogs dosfstools ovmf mtools parted openssl
-
-      - name: Enable KVM
-        run: |
-          # GitHub's Linux runners expose /dev/kvm; make it usable without root. If it is not
-          # there, QEMU falls back to TCG (slower, the timeouts below allow for it).
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm || true
-          ls -l /dev/kvm || echo "no KVM, using TCG"
-
-      - name: Smoke test in QEMU
-        # The Cosmos tool bundle puts its own QEMU wrappers first on PATH; use the distro's.
+  native:
+    name: Native / ${{ matrix.name }}
+    needs: [build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix: ${{ fromJSON(needs.build.outputs.native) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/environment
+        with:
+          guest: 'true'
+      - uses: actions/download-artifact@v4
+        with:
+          name: zenith-iso
+          path: output-x64
+      - name: Fresh native gate on the shared kernel
         env:
-          QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 tools/smoke-test.py --timeout 600 --step-timeout 180 --keep smoke
-
-      - name: Boot installed ext2 disk with UEFI (no ISO)
-        env:
-          QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 tools/test-installed-boot.py smoke/installed-disk.img --test-session-override --keep smoke-efi
-
-      - name: Accounts and access regression
-        env:
-          QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 tools/security-smoke.py smoke-security
-
-      - name: Settings, sessions and offline package dry-runs
-        env:
-          QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 tools/foundation-smoke.py smoke-foundation
-
-      - name: Ext2 large workload (512 MiB pressure regression)
-        env:
-          QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 tools/smoke-test.py --timeout 600 --step-timeout 180 --memory 512 --large-ext2-stress --keep smoke-large
-
-      - name: Guided GUI and headless installation
-        timeout-minutes: 30
-        run: |
-          python3 -B tools/guided-install-smoke.py gui smoke-guided-gui
-          python3 -B tools/guided-install-smoke.py headless smoke-guided-headless
-      - name: Self-contained install and RAM rescue
-        timeout-minutes: 15
-        run: python3 -B tools/install-smoke.py smoke-install
-      - name: Serial headless (no GPU, live and installed UEFI)
-        env:
-          QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 tools/headless-smoke.py smoke-headless
-
-      - name: Signed offline package install and recovery
-        env:
-          QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 -B tools/package-smoke.py smoke-packages
-
-      # Includes the C1 CPU matrix and AP-enabled process gate, once each.
-      - name: Distributor release acceptance (login, repository, native, recovery)
-        timeout-minutes: 90
-        env:
-          QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 -B deploy/distributor/validate.py --existing --keep smoke-release
-
-      - name: IDT import adaptation and repeated installed UEFI startup
-        timeout-minutes: 10
-        env:
-          QEMU: /usr/bin/qemu-system-x86_64
-        run: |
-          python3 -B tools/test_idt_fixup.py
-          python3 -B tools/test_quiet_fixup.py
-          python3 -B tools/test_scheduler_wake_fixup.py
-          python3 -B tools/test_monitor_timeout_fixup.py
-          python3 -B tools/test_conservative_roots_fixup.py
-          python3 -B tools/test_allocation_publication_fixup.py
-          python3 -B tools/test_mouse_poll_fixup.py
-          python3 -B tools/idt-boot-smoke.py smoke-idt
-
-      - name: VMware-profile DHCP receive lab (Ethernet unicast and broadcast)
-        env:
-          QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 -B tools/dhcp-receive-smoke.py smoke-dhcp-receive
-
-      - name: Local transfer integrity and throughput benchmark
-        env:
-          QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 -B tools/transfer-bench.py smoke-transfer --disk-mib 16
-
-      - name: German keyboard and history (PS2 and virtio)
-        env:
-          QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 -B tools/keyboard-smoke.py smoke-keyboard
-
-      - name: IPv4 network lab (HTTP/HTTPS, certificates, DNS, NTP)
-        env:
-          QEMU: /usr/bin/qemu-system-x86_64
-        run: python3 -B tools/network-smoke.py smoke-network
-
+          ZENITH_NATIVE_JOBS: '1'
+          ZENITH_VALIDATION_FRESH: '1'
+        run: python3 -B tools/ci-validation.py native '${{ matrix.gate }}' obj/ci/native
       - uses: actions/upload-artifact@v4
+        with:
+          name: ci-result-native-${{ matrix.gate }}
+          overwrite: true
+          if-no-files-found: error
+          path: obj/ci/native/result.json
+      - uses: ./.github/actions/guest-evidence
         if: always()
         with:
-          name: smoke-test-logs
-          path: |
-            smoke-dhcp-receive/
-            smoke-keyboard/
-            smoke-release/
-            smoke-transfer/
-            smoke/
-            smoke-large/
-            smoke-efi/
-            smoke-security/
-            smoke-foundation/
-            smoke-idt/
-            smoke-headless/
-            smoke-install/
-            smoke-guided-gui/
-            smoke-guided-headless/
-            smoke-network/
-            smoke-packages/
-            smoke-kernel/
-            !smoke-release/**/keys/**
-            !smoke-kernel/keys/**
-            !smoke-packages/keys/**
+          name: native-${{ matrix.gate }}
+
+  legacy:
+    name: Guest / ${{ matrix.gate }}
+    needs: [build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix: ${{ fromJSON(needs.build.outputs.legacy) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/environment
+        with:
+          guest: 'true'
+      - uses: actions/download-artifact@v4
+        with:
+          name: zenith-iso
+          path: output-x64
+      - name: Independent guest regression
+        run: python3 -B tools/ci-validation.py legacy '${{ matrix.gate }}' obj/ci/legacy
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ci-result-legacy-${{ matrix.gate }}
+          overwrite: true
+          if-no-files-found: error
+          path: obj/ci/legacy/result.json
+      - uses: ./.github/actions/guest-evidence
+        if: always()
+        with:
+          name: legacy-${{ matrix.gate }}
+
+  qualification:
+    # Preserve the previous required-check name, but only after every matrix
+    # member passes and its source/artifact receipt has been checked.
+    name: Build ISO + smoke test
+    needs: [unit-tests, build, native, legacy]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Refuse failed, cancelled or skipped prerequisites
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          jobs = json.loads(os.environ['RESULTS'])
+          assert all(job['result'] == 'success' for job in jobs.values()), jobs
+          PY
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: zenith-iso
+          path: output-x64
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ci-result-*
+          path: obj/ci/results
+      - name: Verify complete fresh coverage and identical artifacts
+        run: python3 -B tools/ci-validation.py aggregate obj/ci/results
 
   release:
     name: Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [unit-tests, build]
+    needs: [qualification]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
