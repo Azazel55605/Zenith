@@ -472,12 +472,61 @@ static int quiesce_cpu(struct cpu *c) {
     STORE(c->state,5); STORE(c->halted,1);
     return 1;
 }
+/* Idle accounting for Observatory: TSC ticks each logical CPU spent halted.
+ * A halt opens a span; the first managed interrupt dispatch on that CPU (or the
+ * halt's own return) closes it, so time other threads run after a timer switch
+ * is never counted as idle. Per-CPU writers only; readers retry on a change. */
+static u64 idle_halted[CPUS], idle_start[CPUS];
+static void idle_open(u32 cpu) { STORE(idle_start[cpu],ticks()|1); }
+static void idle_close(u32 cpu) {
+    u64 s=__atomic_exchange_n(&idle_start[cpu],0,__ATOMIC_ACQ_REL);
+    if (s) { u64 now=ticks(); __atomic_fetch_add(&idle_halted[cpu],now>s?now-s:0,__ATOMIC_RELEASE); }
+}
+u64 zenith_cpu_idle_ticks(u64 index) {
+    if (index>=CPUS) return 0;
+    for (;;) {
+        u64 s=LOAD(idle_start[index]),h=LOAD(idle_halted[index]),now=ticks();
+        if (LOAD(idle_start[index])==s) return h+(s&&now>s?now-s:0);
+    }
+}
+u64 zenith_cpu_now(void) { return ticks(); }
+/* The 48-byte CPUID brand string, or zero when the CPU has none. */
+u64 zenith_cpu_brand(u32 *out) {
+    u32 a=0x80000000,b,c,d; __asm__ volatile("cpuid":"+a"(a),"=b"(b),"=c"(c),"=d"(d));
+    if (a<0x80000004) return 0;
+    for (u32 leaf=0;leaf<3;leaf++) {
+        u32 r[4]={0x80000002+leaf,0,0,0};
+        __asm__ volatile("cpuid":"+a"(r[0]),"=b"(r[1]),"=c"(r[2]),"=d"(r[3]));
+        for (u32 i=0;i<4;i++) out[leaf*4+i]=r[i];
+    }
+    return 48;
+}
+/* Without workers only the BSP runs managed code: skip the identity MSR read. */
+static u32 idle_cpu(void) { return LOAD(count)>1?zenith_cpu_logical_id():0; }
+/* Managed interrupt dispatch entry (adapted X64InterruptController.Dispatch). */
+void zenith_cpu_irq_account(void) {
+    u32 cpu=idle_cpu(); if (cpu<CPUS) idle_close(cpu);
+}
 #ifndef ZENITH_CPU_HOST_TEST
+/* Replaces the runtime's plain HLT (_native_cpu_halt) for every managed halt. */
+void zenith_cpu_halt_counted(void) {
+    u32 cpu=idle_cpu();
+    if (cpu>=CPUS) { __asm__ volatile("hlt":::"memory"); return; }
+    u64 f=irq_off(); idle_open(cpu);
+    /* STI's interrupt shadow covers HLT: an interrupt pending since the CLI wakes it. */
+    if (f&0x200) __asm__ volatile("sti; hlt":::"memory"); else __asm__ volatile("hlt":::"memory");
+    idle_close(cpu);
+}
 static void sleep_worker(struct cpu *c) {
     /* IF is clear throughout observation. A targeted IPI after the recheck stays
      * pending until STI; its interrupt shadow includes HLT. No periodic polling. */
-    __atomic_fetch_add(&c->parks,1,__ATOMIC_RELAXED); STORE(c->parked,1); park(); STORE(c->parked,0);
+    u32 cpu=(u32)(c-cpus);
+    __atomic_fetch_add(&c->parks,1,__ATOMIC_RELAXED); STORE(c->parked,1); idle_open(cpu); park(); idle_close(cpu); STORE(c->parked,0);
 }
+#else
+void zenith_cpu_host_idle(u64 cpu,u64 open) { if (cpu<CPUS) { if (open) idle_open((u32)cpu); else idle_close((u32)cpu); } }
+#endif
+#ifndef ZENITH_CPU_HOST_TEST
 __attribute__((noreturn)) void zenith_cpu_worker(struct cpu *c) {
     zenith_cpu_ap_configure(c);
     for (;;) {
@@ -693,6 +742,7 @@ void zenith_cpu_host_init(u64 n) {
     count=n<=CPUS?n:CPUS; stopping=sequence=0; host_pause=host_seen=0;
     for(u32 i=0;i<CPUS;i++)blur_work[i].token=0;
     blur_cursor=blur_completed=blur_cancelled=0; process_reset();
+    for(u32 i=0;i<CPUS;i++)idle_halted[i]=idle_start[i]=0;
     for (u32 i=0;i<count;i++) { configure(&cpus[i],i,0); cpus[i].actual=i; cpus[i].state=3; }
 }
 void zenith_cpu_host_identity(u64 value) { host_cpu_identity=value; }

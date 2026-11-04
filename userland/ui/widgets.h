@@ -87,4 +87,10 @@ void zui_tabs_draw(struct zui *ui,struct zui_tabs *tabs,struct zui_rect rect,con
 /* On a release: i+1 chose tab i, -(i+1) closed tab i, ZUI_TABS_ADD asked for a new one, 0 nothing. */
 enum { ZUI_TABS_ADD=1000 };
 int zui_tabs_event(const struct zui_tabs *tabs,const struct zenith_gui_event *event);
+/* Area graph of percentages 0..100, oldest first: value i is values[i*stride], 255 is a gap
+ * (no data). The newest value sits at the right edge and capacity slots span the width, so a
+ * short history grows in from the right. grid draws quarter lines in the theme's border color. */
+void zui_graph(struct zui *ui,struct zui_rect rect,const unsigned char *values,int stride,int count,int capacity,unsigned int color,int grid);
+/* A thin rounded meter, 0..100 percent of its width filled with color over the subtle track. */
+void zui_meter(struct zui *ui,struct zui_rect rect,int percent,unsigned int color);
 #endif

@@ -11,6 +11,25 @@ internal static class NativeProcessCommands
 {
     public static void Register(Action<Command> add)
     {
+        add(new Command("top", "top", "CPU, memory and frame sample, as Observatory sees it", c =>
+        {
+            if (c.Args.Length != 0) { return c.Fail("usage: top"); }
+            byte[] s = Zenith.Core.Monitoring.KernelMonitor.Instance.Snapshot(NativeProcess.Processes.ActiveCount);
+            uint cpus = BitConverter.ToUInt32(s, 4), detected = BitConverter.ToUInt32(s, 8), samples = BitConverter.ToUInt32(s, 12);
+            ulong total = BitConverter.ToUInt64(s, 24), free = BitConverter.ToUInt64(s, 32);
+            int end = Array.IndexOf(s, (byte)0, 128); string model = System.Text.Encoding.ASCII.GetString(s, 128, (end < 0 ? 192 : end) - 128);
+            c.WriteLine("cpu: " + (model.Length == 0 ? "unknown" : model) + ", " + cpus + " in use of " + detected + " detected");
+            if (samples == 0) { c.WriteLine("no sample yet; run top again in a second"); }
+            else
+            {
+                var line = new System.Text.StringBuilder("busy: total " + s[64 + 8] + "%");
+                for (int i = 0; i < Math.Min(8, (int)cpus); i++) { line.Append(" cpu" + i + "=" + (s[64 + i] == 255 ? "offline" : s[64 + i] + "%")); }
+                c.WriteLine(line.ToString());
+            }
+            c.WriteLine("memory: " + (total - free) / 1048576 + " MiB used of " + total / 1048576 + " MiB");
+            c.WriteLine("programs: " + BitConverter.ToUInt32(s, 40) + ", frames/s: " + BitConverter.ToUInt32(s, 44) + ", average frame " + BitConverter.ToUInt32(s, 48) + " us, worst " + BitConverter.ToUInt32(s, 52) + " us");
+            return 0;
+        }));
         add(new Command("ps", "ps", "List native processes visible to the invoking account", c =>
         {
             bool cpus = c.Args.Length == 1 && c.Args[0] == "--cpu";

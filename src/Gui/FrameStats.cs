@@ -20,6 +20,12 @@ internal static class FrameStats
     public static long FramesOver16Ms { get; private set; }
     public static long FramesOver33Ms { get; private set; }
     public static long AverageFrameMicros => SceneFrames == 0 ? 0 : TotalFrameMicros / SceneFrames;
+    // Observatory's view: never reset by fps, and the worst frame since Observatory last asked.
+    public static long LifetimeSceneFrames { get; private set; }
+    public static long LifetimeFrameMicros { get; private set; }
+    private static long s_monitorWorst;
+    public static (long Presented, long Scenes, long Micros, long Worst) TakeMonitorFrames()
+    { long worst = s_monitorWorst; s_monitorWorst = 0; return (Frames, LifetimeSceneFrames, LifetimeFrameMicros, worst); }
 
     public static long Now => Stopwatch.GetTimestamp();
 
@@ -42,6 +48,7 @@ internal static class FrameStats
     public static void AddSceneFrame(long micros)
     {
         SceneFrames++; TotalFrameMicros += micros; MaxFrameMicros = Math.Max(MaxFrameMicros, micros);
+        LifetimeSceneFrames++; LifetimeFrameMicros += micros; s_monitorWorst = Math.Max(s_monitorWorst, micros);
         if (micros > 16_667) { FramesOver16Ms++; }
         if (micros > 33_333) { FramesOver33Ms++; }
     }

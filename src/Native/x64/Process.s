@@ -391,10 +391,12 @@ z_forward:
     pop %rax
     ret
 z_syscall:
+    # 640/641 display, 642..644 Observatory monitor.
     cmp $640, %rax
-    je z_service
-    cmp $641, %rax
-    je z_service
+    jb 11f
+    cmp $644, %rax
+    jbe z_service
+11:
     cmp $613, %rax
     jb 10f
     cmp $638, %rax

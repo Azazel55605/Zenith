@@ -42,6 +42,19 @@ class CpuWorkerNativeTests(unittest.TestCase):
     def state(self,t):return self.lib.zenith_cpu_job(t,0)
     def step(self,cpu=1):return self.lib.zenith_cpu_host_step(cpu)
     def control(self,t,a):return self.lib.zenith_cpu_control(t,a)
+    def test_idle_ticks_count_closed_and_open_halts_per_cpu(self):
+        # Observatory's halted-time counters: per CPU, monotonic, an open halt included.
+        idle=self.lib.zenith_cpu_idle_ticks;idle.argtypes=[ct.c_uint64];idle.restype=ct.c_uint64
+        span=self.lib.zenith_cpu_host_idle;span.argtypes=[ct.c_uint64,ct.c_uint64];span.restype=None
+        account=self.lib.zenith_cpu_irq_account;account.argtypes=[];account.restype=None
+        self.assertEqual((idle(0),idle(1),idle(8)),(0,0,0))
+        span(1,1);time.sleep(.01);opened=idle(1);time.sleep(.01);later=idle(1)
+        self.assertGreater(opened,0);self.assertGreater(later,opened);self.assertEqual(idle(0),0)
+        span(1,0);closed=idle(1);time.sleep(.01);self.assertEqual(idle(1),closed);self.assertGreaterEqual(closed,later)
+        span(1,0);self.assertEqual(idle(1),closed)  # closing twice adds nothing
+        # Interrupt dispatch closes the span of the CPU it runs on (host identity 0 here).
+        span(0,1);time.sleep(.005);account();first=idle(0);time.sleep(.005);self.assertEqual(idle(0),first);self.assertGreater(first,0)
+        self.lib.zenith_cpu_host_init(4);self.assertEqual(idle(1),0)
     def test_bounds_fail_closed(self):
         for args in [(0,1,1,0,1,0),(4,1,1,0,1,0),(1,0,1,0,1,0),(1,5,1,0,1,0),(1,1,0,0,1,0),(1,1,100000001,0,1,0),(1,2,4097,0,1,0),(1,2,1,0,129,0),(1,2,1,0,0,0)]:
             self.assertEqual(self.lib.zenith_cpu_enqueue(*args),0,args)

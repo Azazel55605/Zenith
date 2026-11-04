@@ -407,6 +407,14 @@ and the [native HTTP profile](archive/2026-10-26/native-network-clients.md#nativ
 are the owning contract. Native client algorithms are independently packaged in
 zenith-net-tools; privileged configuration/trust and drivers remain kernel services.
 
+## System monitor
+
+`zenith-native-monitor-abi` 1.0 adds calls 642 (system snapshot), 643 (the
+caller's programs; root sees all) and 644 (owner-authorized cooperative stop of
+another program). They take no service gate and count toward the renewable
+general call budget. Layouts and the measured CPU idle accounting are in
+[Observatory](components/OBSERVATORY.md#native-abi-zenith-native-monitor-abi-10).
+
 ## Graphical clients
 
 Calls 600..603 add versioned owned software surfaces, copied opaque presentation

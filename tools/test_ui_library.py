@@ -16,7 +16,7 @@ class UiLibraryTests(unittest.TestCase):
         # PackageManifest.MaximumFileBytes is enforced by installed kernels too.
         limit = int(re.search(r'MaximumFileBytes = (\d+)', (ROOT/'src/Core/Packages/PackageManifest.cs').read_text()).group(1))
         with tempfile.TemporaryDirectory(prefix='zenith-ui-size-') as directory:
-            for program in ('ui-gallery', 'settings', 'desktop-tools', 'polaris'):
+            for program in ('ui-gallery', 'settings', 'desktop-tools', 'polaris', 'observatory'):
                 dest = Path(directory)/program
                 subprocess.run([sys.executable, '-B', str(ROOT/'tools/build-userland.py'), str(dest), '--program', program],
                                check=True, stdout=subprocess.DEVNULL)

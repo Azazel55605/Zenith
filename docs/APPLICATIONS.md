@@ -25,7 +25,7 @@ package: small session controls may belong to the desktop/session package initia
 | Polaris (chosen Terminal name) | Terminal; [design](components/SHELL.md#polaris-design) and [concept](design/terminal-concept.svg) | zenith-polaris |
 | Meridian (chosen Settings name) | System Settings; [ordered plan](MERIDIAN-PLAN.md) | Existing zenith-settings retained initially; rename/migration separate |
 | Orbit (chosen) | Graphical package and update manager; [concept](design/orbit-concept.svg) | zenith-orbit |
-| Observatory (chosen) | System, process and resource monitor; [concept](design/observatory-concept.svg) | zenith-observatory |
+| Observatory (chosen, U7) | System, process and resource monitor; [concept](design/observatory-concept.svg), [design and stages](components/OBSERVATORY.md) | zenith-observatory |
 | Beacon (chosen) | Network status, configuration, history and diagnostics; [concept](design/beacon-concept.svg) | zenith-beacon |
 | Prism (chosen) | Keyboard launcher with apps, calculator and search, beside the start menu; [concept](design/prism-concept.svg). Theming and appearance belong to Meridian | zenith-prism |
 | Equinox (proposed) | Partition manager: disks, partitions, format, resize, as a plan applied at once, in the spirit of GParted and KDE Partition Manager; [concept](design/equinox-concept.svg) | zenith-equinox |

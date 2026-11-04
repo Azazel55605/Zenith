@@ -232,7 +232,38 @@ static void motion_tests(void){
     /* The target stays valid when content shrinks mid-motion. */
     zui_scroll_jump(&s,800);s.offset=0;zui_motion_frame(&u,u.now+16);zui_scroll_begin(&u,&s,view);zui_scroll_end(&u,&s,100);assert(s.visual==0&&s.offset==0);
 }
+/* Graph: newest value at the right edge, a gap for 255, nothing outside its rect. */
+static void graph_tests(void){
+    struct zui u;assert(zui_init(&u,px,800,600));
+    u.theme.border=0x00ff00;
+    unsigned int bg=0x000000,line=0xffffff;
+    zui_fill(&u,(struct zui_rect){0,0,800,600},bg);
+    unsigned char v[4]={0,100,255,50};
+    struct zui_rect r={100,100,301,101};
+    zui_graph(&u,r,v,1,4,4,line,0);
+    for(int y=0;y<600;y++)for(int x=0;x<800;x++)if(x<r.x||x>=r.x+r.w||y<r.y||y>=r.y+r.h)assert(px[y*800+x]==bg);
+    /* x=100 holds value 1 (100%): its line pixel sits at the top row. */
+    assert(px[(r.y+1)*800+r.x+100]==line);
+    /* The gap between slots 1..3 (value 255) is left empty. */
+    for(int y=r.y;y<r.y+r.h;y++)assert(px[y*800+r.x+200]==bg);
+    /* The newest value (50%) sits at the right edge, half way up. */
+    int found=0;for(int y=r.y;y<r.y+r.h;y++)if(px[y*800+r.x+r.w-1]==line){found=y;break;}
+    assert(found>=r.y+r.h/2-2&&found<=r.y+r.h/2+2);
+    /* A short history grows in from the right: the left part is untouched. */
+    zui_fill(&u,(struct zui_rect){0,0,800,600},bg);
+    unsigned char one[2]={80,80};zui_graph(&u,r,one,1,2,4,line,0);
+    for(int y=r.y;y<r.y+r.h;y++)assert(px[y*800+r.x+150]==bg);
+    /* Stride reads interleaved samples; values over 100 clamp. */
+    unsigned char rows2[8]={200,9,200,9,200,9,200,9};zui_fill(&u,(struct zui_rect){0,0,800,600},bg);
+    zui_graph(&u,r,rows2,2,4,4,line,0);assert(px[(r.y+1)*800+r.x+50]==line);
+    /* Meter fills its share and keeps a dot at zero. */
+    u.theme.subtle=0x111111;zui_fill(&u,(struct zui_rect){0,0,800,600},bg);
+    zui_meter(&u,(struct zui_rect){10,10,100,6},50,line);
+    assert(px[13*800+30]==line&&px[13*800+90]==0x111111);
+    zui_meter(&u,(struct zui_rect){10,30,100,6},0,line);assert(px[33*800+13]==line);
+}
 int main(void){
+    graph_tests();
     stage3_tests();
     scroll_tests();
     motion_tests();

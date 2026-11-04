@@ -17,6 +17,19 @@ internal static partial class CpuWorkers
     private static volatile bool s_stopping;
     [DllImport("*", EntryPoint = "zenith_cpu_detected"), SuppressGCTransition]
     private static extern ulong Detected();
+    [DllImport("*", EntryPoint = "zenith_cpu_idle_ticks"), SuppressGCTransition]
+    private static extern ulong IdleTicksNative(ulong cpu);
+    [DllImport("*", EntryPoint = "zenith_cpu_now"), SuppressGCTransition]
+    private static extern ulong NowNative();
+    /// <summary>Logical CPUs doing work: the BSP alone unless smp=native started workers.</summary>
+    public static int Online => Math.Max(1, s_count);
+    /// <summary>Logical CPUs firmware reported, used or not.</summary>
+    public static int DetectedCpus => (int)Math.Min(64UL, Detected());
+    /// <summary>A worker that faulted or stopped is out of service (always false for the BSP).</summary>
+    public static bool OutOfService(int cpu) => cpu > 0 && (cpu >= s_count || Field((ulong)cpu, 11) != 0 || Field((ulong)cpu, 0) >= 4);
+    /// <summary>TSC ticks this CPU spent halted, and the TSC now (same clock on every CPU).</summary>
+    public static ulong IdleTicks(int cpu) => IdleTicksNative((ulong)cpu);
+    public static ulong Now => NowNative();
     [DllImport("*", EntryPoint = "zenith_cpu_initialize"), SuppressGCTransition]
     private static extern ulong InitializeNative(ulong hhdm);
     [DllImport("*", EntryPoint = "zenith_cpu_field"), SuppressGCTransition]

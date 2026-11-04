@@ -275,3 +275,38 @@ int zui_tabs_event(const struct zui_tabs *t,const struct zenith_gui_event *e){
     }
     return 0;
 }
+
+void zui_graph(struct zui *ui,struct zui_rect r,const unsigned char *values,int stride,int count,int capacity,unsigned int color,int grid){
+    if(r.w<4||r.h<4||capacity<2||stride<1)return;
+    if(count>capacity){values+=(count-capacity)*stride;count=capacity;}
+    if(grid)for(int i=1;i<4;i++)zui_round_alpha(ui,(struct zui_rect){r.x,r.y+r.h*i/4,r.w,1},0,ui->theme.border,110);
+    if(count<1)return;
+    /* Fixed point: slot s sits at x = r.x + (r.w-1)*(s+capacity-count)/(capacity-1). */
+    int previous=-1;
+    for(int x=0;x<r.w;x++){
+        /* Position along the history in 1/256 slots. */
+        long at=(long)x*(capacity-1)*256/(r.w-1)-(long)(capacity-count)*256;
+        if(at<0)continue;
+        int s=(int)(at>>8),f=(int)(at&255);
+        /* On an exact sample, never read the neighbour: a point next to a gap still draws. */
+        unsigned int a=values[s*stride],b=f&&s+1<count?values[(s+1)*stride]:a;
+        if(a==255||b==255){previous=-1;continue;}
+        if(a>100)a=100;
+        if(b>100)b=100;
+        int v=(int)((a*(256-f)+b*f)/256);
+        int y=r.y+r.h-1-(r.h-2)*v/100;
+        zui_round_alpha(ui,(struct zui_rect){r.x+x,y,1,r.y+r.h-y},0,color,60);
+        int top=previous<0?y:(previous<y?previous:y),bottom=previous<0?y:(previous>y?previous:y);
+        int span=bottom-top+2;if(top+span>r.y+r.h)span=r.y+r.h-top;
+        zui_round_alpha(ui,(struct zui_rect){r.x+x,top,1,span},0,color,255);
+        previous=y;
+    }
+}
+void zui_meter(struct zui *ui,struct zui_rect r,int percent,unsigned int color){
+    if(r.w<2||r.h<2)return;
+    if(percent<0)percent=0;
+    if(percent>100)percent=100;
+    zui_round(ui,r,r.h/2,ui->theme.subtle);
+    int w=r.w*percent/100;
+    zui_round(ui,(struct zui_rect){r.x,r.y,w<r.h?r.h:w,r.h},r.h/2,color);
+}

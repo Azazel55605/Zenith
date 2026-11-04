@@ -264,6 +264,28 @@ internal sealed unsafe class NativeProcess
                 if(!Valid(c.Arg1,4096,true)) { return -14; }
                 try { Transfer(c.Arg1,NativeSettingsInformation.Snapshot((uint)c.Arg0),true);return 0; } catch { return -5; }
             }
+            // Observatory: system sample, the caller's processes (root: all), and a polite stop.
+            if (c.Call == 642)
+            {
+                if (c.Arg1 != Zenith.Core.Monitoring.SystemMonitor.SnapshotBytes || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, Zenith.Core.Monitoring.SystemMonitor.SnapshotBytes, true)) { return -14; }
+                Transfer(c.Arg0, Zenith.Core.Monitoring.KernelMonitor.Instance.Snapshot(Processes.ActiveCount), true); return 0;
+            }
+            if (c.Call == 643)
+            {
+                if (c.Arg1 != Zenith.Core.Monitoring.ProcessMonitor.Bytes || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, Zenith.Core.Monitoring.ProcessMonitor.Bytes, true)) { return -14; }
+                var accounts = Zenith.Core.Security.Accounts.Service;
+                Transfer(c.Arg0, Zenith.Core.Monitoring.ProcessMonitor.Snapshot(Processes.List((uint)c.Uid),
+                    uid => accounts?.Name(uid) ?? (uid == 0 ? "root" : uid.ToString())), true);
+                return 0;
+            }
+            if (c.Call == 644)
+            {
+                if (c.Arg0 is 0 or > int.MaxValue || c.Arg1 != 0 || c.Arg2 != 0) { return -22; }
+                if (c.Arg0 == c.Pid) { return -22; }
+                return Processes.RequestStop((int)c.Arg0, (uint)c.Uid);
+            }
             if(c.Call == 640)
             {
                 if(c.Arg1 != ProcessDisplaySettings.SnapshotBytes || c.Arg2 != 0) { return -22; }
@@ -642,7 +664,7 @@ internal sealed unsafe class NativeProcess
                     var caller = Zenith.Core.Security.CredentialContext.Enter(identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
                     // while waiting for a peer. Mutations and transport setup stay serialized.
-                    bool standard = context.Call is 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    bool standard = context.Call is 642 or 643 or 644 or 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {

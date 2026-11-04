@@ -31,6 +31,10 @@ def main():
     package('build-native','zenith-polaris','0.1.0',keep/'polaris',keep/'bundle-polaris')
     manifest=(keep/'bundle-polaris/manifest.tsv').read_text();assert 'requires\tzenith-native-terminal-session-abi\t1.0\n' in manifest and 'requires\tzenith-native-memory-abi\t1.0\n' in manifest
     package('seal',keep/'bundle-polaris',keep/'keys/private.pem',served/'polaris.zpk')
+    subprocess.run([sys.executable,str(ROOT/'tools/build-userland.py'),str(keep/'observatory'),'--program','observatory','--version','0.1.0'],check=True)
+    package('build-native','zenith-observatory','0.1.0',keep/'observatory',keep/'bundle-observatory')
+    manifest=(keep/'bundle-observatory/manifest.tsv').read_text();assert 'requires\tzenith-native-monitor-abi\t1.0\n' in manifest
+    package('seal',keep/'bundle-observatory',keep/'keys/private.pem',served/'observatory.zpk')
     # Store executable test text during serial setup. Graphical interaction
     # launches only short lowercase paths: do not depend on long shifted labels
     # surviving synthetic keyboard injection while the compositor is rendering.
@@ -55,6 +59,9 @@ def main():
         ('cpu test 10000000','G_POLARIS_CPU'),
         ('cpu managed-test','G_POLARIS_MANAGED'),
         ('settings set materials background-blur','G_MATERIALS'),
+        ('pkg install /root/observatory.zpk','G_OBSERVATORY_PKG'),
+        ('native run observatory | logger & sleep 8; true','G_OBSERVATORY'),
+        ('native run observatory processes | logger & sleep 8; true','G_OBSERVATORY_PROCESSES'),
         ('ls /usr/share/zenith/native; false','G_FAILED'),
         ('settings set translucency 100','G_TRANSLUCENT'),
     ]
@@ -94,6 +101,7 @@ def main():
         for v in ('0.1.0','0.1.1'):status('fetch '+url+'/'+v+'.zpk /root/'+v+'.zpk','G_FETCH_'+v.replace('.',''))
         for name in scripts.values():status('fetch '+url+'/'+name+' /root/'+name,'G_SCRIPT_'+name)
         status('fetch '+url+'/polaris.zpk /root/polaris.zpk','G_FETCH_POLARIS')
+        status('fetch '+url+'/observatory.zpk /root/observatory.zpk','G_FETCH_OBSERVATORY')
         status('pkg install /root/0.1.0.zpk','G_PACKAGE')
         status('native run gui-probe --bounds | logger','G_BOUNDS')
         status('native run gui-probe --probe','G_HEADLESS',1)
@@ -182,6 +190,15 @@ def main():
         monitor_command(monitor,'sendkey ctrl-shift-w 30');time.sleep(.5);monitor_command(monitor,'sendkey ctrl-shift-w 30');time.sleep(1);status('echo POLARIS_ALIVE | logger','G_POLARIS')
         time.sleep(.5);monitor_command(monitor,'screendump '+str(keep/'polaris.ppm'))
         print('PASS Polaris opens as the Terminal and runs commands',flush=True)
+        # Observatory reads the monitor ABI: its window opens, samples arrive, and Esc closes it.
+        status('pkg install /root/observatory.zpk','G_OBSERVATORY_PKG')
+        def observatory(text,label,shot):
+            off=len(m.log());status(text,label)
+            assert 'user: OBSERVATORY_READY' in m.log()[off:],'Observatory did not open: '+m.log()[off:][-400:]
+            monitor_command(monitor,'screendump '+str(keep/shot));monitor_command(monitor,'sendkey esc 30');time.sleep(1.5)
+            status('echo POLARIS_ALIVE | logger','G_POLARIS')
+        observatory('native run observatory | logger & sleep 8; true','G_OBSERVATORY','observatory.ppm')
+        print('PASS Observatory shows performance and closes',flush=True)
         # The concept's look: whole-window material, prompt marks, find and hints. Screenshots for review.
         status('settings set materials background-blur','G_MATERIALS');time.sleep(2)
         status('settings set translucency 100','G_TRANSLUCENT');time.sleep(3)
@@ -193,6 +210,8 @@ def main():
         monitor_command(monitor,'screendump '+str(keep/'polaris-hints.ppm'));monitor_command(monitor,'sendkey esc 30');time.sleep(.5)
         status('echo POLARIS_ALIVE | logger','G_POLARIS')
         print('PASS Polaris marks, find and hints leave the shell working',flush=True)
+        observatory('native run observatory processes | logger & sleep 8; true','G_OBSERVATORY_PROCESSES','observatory-processes.ppm')
+        print('PASS Observatory lists programs with materials on',flush=True)
         command('poweroff','all filesystems unmounted');m.process.wait(timeout=30)
         import boot_image
         state=boot_image.verify(m.disk)

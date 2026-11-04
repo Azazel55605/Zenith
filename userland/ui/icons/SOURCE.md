@@ -8,3 +8,6 @@ Help uses `circle-question-mark` (formerly `circle-help` upstream).
 
 Launcher tiles use `hand` (Welcome), `terminal`, `folder` (Files), `file-text`
 (Editor), `sunrise`, `monitor` (System), `sliders-horizontal` (Meridian) and `package`.
+
+Observatory uses `activity` (its own tile and Performance), `cpu`, `memory-stick`
+and `list` (Processes).
