@@ -47,13 +47,14 @@ legacy forced-opaque pixels and an explicit foreground/material extension with
 shared host policy. Meridian now has atomic transparency/blur preferences;
 [desktop integration](archive/2026-10-28/desktop-material-integration.md) records
 local qualification. It still has
-bounded lifetime/request budgets, no display scaling/text-composition protocol and no
-shared dynamic native font loading. UI text atlases currently cover ASCII.
+bounded lifetime/request budgets and no shared dynamic native font loading.
+Integer display scaling magnifies the completed UI; it does not add fractional
+text rasterization or Unicode. UI text atlases currently cover ASCII.
 
-Resolution and scaling are the first substantial new system-service priority.
-Current display bootstrap obtains a canvas; it does not supply a Zenith-owned
-mode enumeration/change/rollback contract. Driver support must be measured before
-showing a mode as selectable. Audio, Bluetooth, printers, indexing, true screen
+The [primary display service](DISPLAY-SETTINGS.md) supplies driver-bounded mode
+choices, integer scaling and host-owned Keep/Revert. Virtio/GOP remain fixed-mode
+with the pinned drivers. Driver support must be measured before showing a mode
+as selectable. Audio, Bluetooth, printers, indexing, true screen
 locking and suspend must remain WIP until their service/driver foundations exist.
 
 ## WIP and capability behavior
@@ -156,7 +157,7 @@ separate design decision, not frozen by this plan.
 ## High-priority feature contracts
 
 **Display:** discover actual modes and capabilities. Use a trusted, independent
-confirmation timeout (proposed 15 seconds), restore on timeout/client crash, and
+confirmation timeout (implemented as 15 seconds), restore on timeout/client crash, and
 persist only an explicitly kept configuration. A crashed settings client cannot
 own the only revert timer. Keep headless/recovery access and a known-good boot
 configuration. Resolution is not UI scaling: font metrics, hit testing, cursor,

@@ -10,9 +10,33 @@ internal static class ConfigurationCommands
 {
     public static void Register(Action<Command> add)
     {
+        add(new Command("display", "display [test WIDTH HEIGHT SCALE | keep | revert]", "Primary display modes and guarded preview", Display));
         add(new Command("settings", "settings [show | set keyboard|timezone|session|animations|taskbar|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]", "Shared system settings", Settings));
         add(new Command("session", "session [status | list | set-default MODE | switch MODE]", "Select a session or return to login", Session));
     }
+    private static int Display(CommandContext c)
+    {
+        var service=SystemConfiguration.Display;var state=service.Snapshot(DisplayService.Now);
+        if(c.Args.Length==0)
+        {
+            c.WriteLine("DISPLAY "+state.Driver+" "+state.Current.Width+"x"+state.Current.Height+" scale="+state.Current.Scale+" phase="+state.Phase+" seconds="+state.Seconds+" error="+state.Error);
+            for(int i=0;i<state.Modes.Length;i++) { var m=state.Modes[i];c.WriteLine(i+": "+m.Width+"x"+m.Height+(m.Width>=1600&&m.Height>=1200?" scale=1,2":" scale=1")); }
+            return 0;
+        }
+        long result;
+        if(c.Args.Length==4 && c.Args[0]=="test" && int.TryParse(c.Args[1],out int w) && int.TryParse(c.Args[2],out int h) && uint.TryParse(c.Args[3],out uint scale))
+        {
+            uint index=uint.MaxValue;
+            for(int i=0;i<state.Modes.Length;i++) { if(state.Modes[i].Width==w && state.Modes[i].Height==h) { index=(uint)i;break; } }
+            result=service.Request((int)Zenith.Core.Security.CredentialContext.Current.Uid,0,1,index,scale,state.Revision,0);
+        }
+        else if(c.Args.Length==1 && (c.Args[0]=="keep" || c.Args[0]=="revert"))
+        { result=service.Request((int)Zenith.Core.Security.CredentialContext.Current.Uid,0,c.Args[0]=="keep"?2U:3U,0,0,state.Revision,state.Token); }
+        else { return c.Fail("usage: display [test WIDTH HEIGHT SCALE | keep | revert]"); }
+        if(result!=0) { return c.Fail("display request refused ("+result+")"); }
+        c.WriteLine("Display request queued; previews revert after 15 seconds unless kept.");return 0;
+    }
+
     private static int Settings(CommandContext c)
     {
         var settings = SystemConfiguration.Settings;

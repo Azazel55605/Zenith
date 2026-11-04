@@ -26,6 +26,10 @@ hover exclusion, missing geometry, delayed correct presentation and read-only
 frozen failure. The retained healthy local guest baseline is accepted; shifting
 it by the server's measured three pixels is rejected. The complete isolated **491-test controller suite** passes in 103.430 seconds.
 A real four-vCPU TCG Settings guest passes the unchanged exact wheel-step and
-animation checks with the repaired baseline guard; the remainder of that gate
-is continuing. Evidence: `/tmp/zenith-wheel-controller-final.log` and
+animation checks with the repaired baseline guard. That run reached final disk
+verification but failed its exact kernel hash check because local publication
+replaced output-x64 during the run. It is not a complete gate pass; the final
+regression uses fixed artifacts and passes in 289.996 seconds
+(`obj/display-settings-final.log`), including final kernel identity and ext2 audit.
+Evidence: `/tmp/zenith-wheel-controller-final.log` and
 `obj/wheel-settings-regression.log`. Distributor verification remains required.

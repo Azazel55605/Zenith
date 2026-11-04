@@ -26,6 +26,7 @@ These expand the roadmap's IDs; they do not define competing priorities.
 - [Testing procedures](testing/README.md): kernel-first operator checklists; results
   are linked from the master roadmap, not separately tracked here.
 - [Architecture](ARCHITECTURE.md): actual runtime boundaries.
+- [Primary display settings](DISPLAY-SETTINGS.md): resolution, integer scale, Keep/Revert and recovery.
 - [Native Appearance](NATIVE-SETTINGS.md): currently functional Colors service/client.
 - [Accepted specimen](design/system-specimen.svg): visual target; compare real widgets
   using the [design parity/material rules](DESIGN-LANGUAGE.md).

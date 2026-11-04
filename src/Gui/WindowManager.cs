@@ -50,7 +50,7 @@ internal sealed class WindowManager
     private readonly List<LowerWindow> _lower = new();
     private bool _lowerDirty = true;
     private Rect _workArea;
-    private readonly Rect _screen;
+    private Rect _screen;
     private int _cascade;
     private WindowTransition? _transition;
 
@@ -88,6 +88,26 @@ internal sealed class WindowManager
         }
     }
 
+    public void SetDisplayArea(Rect screen, Rect work)
+    {
+        _screen=screen; _workArea=work; _dragging=null; _contentDrag=null; _pointerWindow?.OnPointerLeave(); _pointerWindow=null;
+        _lastTitleClick=null; _transition=null; _lowerDirty=true;
+        foreach(Window w in _windows)
+        {
+            w.BackdropStamp=-1; w.ChromeMaterial.Dispose();
+            var max=w.MaximumSize; var min=w.MinimumSize;
+            Rect b=w.Bounds;
+            int width=w.IsFullscreen?Math.Min(screen.W,max.Width):w.IsMaximized?Math.Min(work.W,max.Width):w.CanResize?Math.Max(min.Width,Math.Min(b.W,work.W)):b.W;
+            int height=w.IsFullscreen?Math.Min(screen.H,max.Height==int.MaxValue?screen.H:max.Height-Window.TitleBarHeight):w.IsMaximized?Math.Min(work.H,max.Height):w.CanResize?Math.Max(min.Height,Math.Min(b.H,work.H)):b.H;
+            int x=Math.Clamp(b.X,0,Math.Max(0,work.W-width)),y=Math.Clamp(b.Y,0,Math.Max(0,work.H-height));
+            w.SetBounds(new Rect(w.IsFullscreen||w.IsMaximized?0:x,w.IsFullscreen||w.IsMaximized?0:y,width,height));
+            Rect restore=w.RestoreBounds;
+            w.RestoreBounds=new Rect(Math.Clamp(restore.X,0,Math.Max(0,work.W-restore.W)),Math.Clamp(restore.Y,0,Math.Max(0,work.H-restore.H)),restore.W,restore.H);
+            Rect windowed=w.WindowedBounds;
+            w.WindowedBounds=new Rect(Math.Clamp(windowed.X,0,Math.Max(0,work.W-windowed.W)),Math.Clamp(windowed.Y,0,Math.Max(0,work.H-windowed.H)),windowed.W,windowed.H);
+        }
+    }
+
     public bool HasTransition => _transition is not null;
 
     /// <summary>Open windows, bottom to top.</summary>
@@ -106,7 +126,7 @@ internal sealed class WindowManager
         int x = _workArea.X + (_workArea.W - window.Bounds.W) / 2 + _cascade;
         int y = _workArea.Y + (_workArea.H - window.Bounds.H) / 2 + _cascade;
         _cascade = (_cascade + 28) % 140;
-        window.SetBounds(new Rect(Math.Max(x, 0), Math.Max(y, 0), window.Bounds.W, window.Bounds.H));
+        window.SetBounds(new Rect(Math.Clamp(x, 0, Math.Max(0, _workArea.W-window.Bounds.W)), Math.Clamp(y, 0, Math.Max(0, _workArea.H-window.Bounds.H)), window.Bounds.W, window.Bounds.H));
 
         _windows.Add(window);
         _opened.Add(window);

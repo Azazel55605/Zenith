@@ -286,6 +286,7 @@ def native_prerequisites():
 def native_gate_plan():
     checks = [("r", "repository-smoke.py")]
     if (REPO / "tools/native-settings-smoke.py").exists(): checks.append(("a", "native-settings-smoke.py"))
+    if (REPO / "tools/native-display-smoke.py").exists(): checks.append(("d", "native-display-smoke.py"))
     if (REPO / "tools/system-app-style-smoke.py").exists(): checks.append(("v", "system-app-style-smoke.py"))
     if (REPO / "tools/native-materials-smoke.py").exists(): checks.append(("m", "native-materials-smoke.py"))
     if (REPO / "tools/native-graphics-smoke.py").exists(): checks.append(("g", "native-graphics-smoke.py"))

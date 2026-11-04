@@ -41,7 +41,7 @@ not indiscriminately journalled. Session stop revokes surfaces and invocations.
 - [x] U1/D2: opt-in bounded client resize/maximize, stable sidebar/detail workspaces
   and drag keyboard routing; continuous title/sidebar materials and reduced-grid
   whole-background blur remove the stacked rectangular content underlay; [targeted tests and unresolved operator freeze](../archive/2026-10-28/meridian-workspace-input.md).
-- [ ] D2: real display modes, scaling and crash-safe Keep/Revert.
+- [x] D2 primary slice: driver-bounded display modes, integer scaling and host-owned Keep/Revert; installed/device acceptance remains Q2/H1.
 - [x] S1: typed root-only keyboard/time-zone system-default catalogues and saves,
   stale revision checks, explicit save/discard and CLI parity.
 - [x] S1 shared stage: per-UID profiles, live default inheritance/reset, searchable
@@ -77,3 +77,16 @@ need explicit trusted lifecycle/device support. Keep recovery until these exits 
 [graphics/lifetime/metadata](../GRAPHICAL-CLIENTS.md), [app requirements](../APPLICATIONS.md).
 [Current local foundation](../archive/2026-10-27/meridian-shell.md); Q1/Q2 in the
 master roadmap own actual publication/installed evidence.
+
+### M2/D2 display transaction
+
+Implemented primary slice (2026-11-04): primary-output catalogue comes from the
+pinned driver audit, with VMware framebuffer/register limits. Virtio/GOP stay
+fixed-mode. UI-owner requests prepare new logical buffers before mode changes;
+old buffers survive until Keep/Revert. Integer 100/200% scales the completed UI
+and maps physical input into logical coordinates (minimum 800x600 logical).
+The host owns the 15-second preview and client-exit/session rollback. Kept settings
+use `/etc/zenith/display.conf`; `display=safe` ignores them during recovery boot.
+[Contract](../DISPLAY-SETTINGS.md), [local evidence](../archive/2026-11-04/primary-display-settings.md).
+Installed VMware/device acceptance remains Q2/H1; orientation/refresh, fractional
+scale and multi-output support remain D2.

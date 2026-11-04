@@ -90,7 +90,7 @@ def install(machine_type, elf=None, harness=None):
             if outcome == 'failed' and isinstance(failure, dict):
                 row['failure'] = failure
             after = resources(machine)
-            graphical_handoff = harness in ('native-settings-smoke.py','native-materials-smoke.py','ui-gallery-smoke.py','native-graphics-smoke.py')
+            graphical_handoff = harness in ('native-display-smoke.py','native-settings-smoke.py','native-materials-smoke.py','ui-gallery-smoke.py','native-graphics-smoke.py')
             if outcome == 'failed' and (diagnostics.PIPELINE.fullmatch(row['label']) or graphical_handoff):
                 try:
                     if graphical_handoff:

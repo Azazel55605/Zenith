@@ -54,7 +54,7 @@ internal sealed class LoginSessionHost : ISessionHost
                 if (valid) { if (line.StartsWith("TITLE=", StringComparison.Ordinal)) { _title = value; } else { _subtitle = value; } }
             }
         }
-        MouseManager.SetScreenSize(screen.Width, screen.Height);
+        SessionDisplay.ConfigurePointer();
     }
     private const int CardWidth = 420, CardHeight = 396, Padding = 28, PowerWidth = 120, ConfirmWidth = 440, ConfirmHeight = 52;
     private Rect Card

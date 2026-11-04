@@ -180,3 +180,56 @@ zenith_interrupts_off:
     cli
     ret
 .section .note.GNU-stack,"",@progbits
+
+# Read one SVGA indexed register through the matching PCI I/O BAR. BSP only;
+# preserve the index and interrupt flags. No mode writes, allocation or driver reset.
+.text
+.globl zenith_svga_register
+.type zenith_svga_register, @function
+zenith_svga_register:
+    pushfq
+    cli
+    mov $0x80000000, %ecx
+.Lsvga_probe:
+    mov %ecx, %eax
+    mov $0xcf8, %dx
+    outl %eax, %dx
+    mov $0xcfc, %dx
+    inl %dx, %eax
+    cmp $0x040515ad, %eax
+    je .Lsvga_bar
+    add $0x100, %ecx
+    cmp $0x81000000, %ecx
+    jb .Lsvga_probe
+    xor %eax, %eax
+    popfq
+    ret
+.Lsvga_bar:
+    or $0x10, %ecx
+    mov %ecx, %eax
+    mov $0xcf8, %dx
+    outl %eax, %dx
+    mov $0xcfc, %dx
+    inl %dx, %eax
+    test $1, %eax
+    jz .Lsvga_absent
+    and $0xfffc, %eax
+    mov %ax, %dx
+    inl %dx, %eax
+    mov %eax, %r8d
+    mov %edi, %eax
+    outl %eax, %dx
+    add $1, %dx
+    inl %dx, %eax
+    mov %eax, %r9d
+    sub $1, %dx
+    mov %r8d, %eax
+    outl %eax, %dx
+    mov %r9d, %eax
+    popfq
+    ret
+.Lsvga_absent:
+    xor %eax, %eax
+    popfq
+    ret
+.size zenith_svga_register, .-zenith_svga_register

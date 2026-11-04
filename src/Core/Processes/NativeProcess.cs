@@ -57,6 +57,7 @@ internal sealed unsafe class NativeProcess
         if (released) { return; }
         released = true;
         lock (s_rootsGate) { s_roots.Remove(pid); }
+        Zenith.Core.Configuration.SystemConfiguration.Display.Abandon(pid);
         Processes.Complete(pid, status);
     }
     private static void CloseFiles(ProcessFiles? files)
@@ -262,6 +263,18 @@ internal sealed unsafe class NativeProcess
                 if(c.Arg0 is < 1 or > 2 || c.Arg2 != 4096) { return -22; }
                 if(!Valid(c.Arg1,4096,true)) { return -14; }
                 try { Transfer(c.Arg1,NativeSettingsInformation.Snapshot((uint)c.Arg0),true);return 0; } catch { return -5; }
+            }
+            if(c.Call == 640)
+            {
+                if(c.Arg1 != ProcessDisplaySettings.SnapshotBytes || c.Arg2 != 0) { return -22; }
+                if(!Valid(c.Arg0,ProcessDisplaySettings.SnapshotBytes,true)) { return -14; }
+                Transfer(c.Arg0,ProcessDisplaySettings.Snapshot(Zenith.Core.Configuration.SystemConfiguration.Display,Zenith.Core.Configuration.DisplayService.Now,(int)c.Pid),true); return 0;
+            }
+            if(c.Call == 641)
+            {
+                if(c.Arg1 != ProcessDisplaySettings.RequestBytes || c.Arg2 != 0) { return -22; }
+                if(!Valid(c.Arg0,ProcessDisplaySettings.RequestBytes,false)) { return -14; }
+                return ProcessDisplaySettings.Request(Zenith.Core.Configuration.SystemConfiguration.Display,ReadUser(c.Arg0,ProcessDisplaySettings.RequestBytes),(int)c.Uid,(int)c.Pid);
             }
             if(c.Call == 625)
             {

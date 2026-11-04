@@ -30,6 +30,15 @@ static long information_read(unsigned int kind,struct zenith_settings_informatio
     const char *text=kind==1?"address=10.0.2.15\ngateway=10.0.2.2\n":"user uid=1000\n";
     s->length=(unsigned int)strlen(text);strcpy(s->text,text);return 0;
 }
+static struct zenith_display display;
+static int display_actions;
+static long read_display(struct zenith_display *s){*s=display;return 0;}
+static long change_display(unsigned int action,unsigned int mode,unsigned int scale,unsigned long revision,unsigned long token){
+    assert(revision==display.revision);display_actions++;
+    if(action==1){assert(mode==1&&scale==2&&!token);display.phase=1;display.flags|=4;display.token=77;}
+    else {assert(token==77);display.phase=0;display.flags&=~4U;if(action==2){display.width=1600;display.height=1200;display.scale=2;}}
+    display.revision++;return 0;
+}
 static struct meridian app;
 static unsigned int pixels[1920*1000];
 static void draw(void){meridian_draw(&app);}
@@ -155,6 +164,21 @@ int main(int argc,char **argv){
     settings_reset(&app.colors);meridian_refresh(&app);draw();
     assert(app.colors.mode==live_mode&&app.ui.material_count>0);
     app.ui.foreground=0;material_saved=0;meridian_refresh(&app);
+    /* The real display binding starts a host preview; the shared modal stays in
+       the viewport even when the form itself scrolls. Keep and Escape use tokens. */
+    display=(struct zenith_display){.version=1,.flags=3,.revision=1,.width=1024,.height=768,.scale=1,.mode_count=2,.driver="VMWareSVGAII",.modes={{1024,768},{1600,1200}}};
+    app.bindings.display_read=read_display;app.bindings.display_save=change_display;
+    meridian_refresh(&app);assert(meridian_open(&app,"display.configuration"));draw();
+    assert(enabled(2004));key(0,4,1);key(0,2,0);key(0,11,0);key(0,2,0);
+    assert(binding_choice(&app.bindings,BIND_DISPLAY)==2&&dirty);key(0,4,0);key(0,2,0);
+    assert(display.phase==1&&dirty&&display_actions==1);
+    display.phase=2;display.seconds=15;display.revision++;meridian_refresh(&app);draw();
+    assert(app.display_dialog.open&&enabled(4101)&&enabled(4102));
+    struct zui_rect keep=zui_control_area(&app.ui,find_id(4101));assert(keep.y>=0&&keep.y+keep.h<=app.ui.height);
+    click_id(4101);meridian_refresh(&app);draw();assert(!display.phase&&!dirty&&!app.display_dialog.open&&display_actions==2);
+    display.phase=2;display.flags|=4;display.seconds=9;display.token=77;display.revision++;meridian_refresh(&app);draw();
+    key(0,1,0);meridian_refresh(&app);draw();assert(!display.phase&&display_actions==3);
+
     if(argc==2){
         const char *shots[]={"quick.overview","style.colors","input.keyboard","network.connections","devices.bluetooth"};
         for(int s=0;s<5;s++){

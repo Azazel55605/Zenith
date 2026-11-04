@@ -29,6 +29,7 @@ internal static class BootstrapComponents
         new("zenith-native-fs-abi", "1.0", "read-only native filesystem calls"),
         new("zenith-native-terminal-session-abi", "1.0", "kernel-owned shell sessions for terminal clients"),
         new("zenith-native-memory-abi", "1.0", "program images up to 32 MiB of address space"),
+        new("zenith-native-display-abi", "1.0", "host-owned primary display preview, rollback and integer scale"),
         new("zenith-native-settings-abi", "1.0", "typed system appearance settings with revision checks"),
         new("zenith-native-interactive-abi", "1.0", "owned live-window quota renewal and bounded revocation cleanup"),
         new("zenith-native-system-info-abi", "1.0", "bounded read-only running system metadata"),

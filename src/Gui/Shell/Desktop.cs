@@ -25,16 +25,16 @@ namespace Zenith.Gui.Shell;
 /// </summary>
 internal sealed class Desktop
 {
-    private readonly Canvas _screen;
-    private readonly Surface _wallpaper;
-    private readonly Surface _lower;   // wallpaper and every window below the top one
-    private readonly Surface _scene;   // everything but the cursor
-    private readonly Surface _frame;   // scene + cursor, what is on screen
+    private Canvas _screen;
+    private Surface _wallpaper;
+    private Surface _lower;   // wallpaper and every window below the top one
+    private Surface _scene;   // everything but the cursor
+    private Surface _frame;   // scene + cursor, what is on screen
     private readonly Input _input = new();
     private NativeAppLauncher _apps = new();
     private NativeClientHost _nativeClients;
-    private readonly Taskbar _taskbar;
-    private readonly LauncherMenu _launcher;
+    private Taskbar _taskbar;
+    private LauncherMenu _launcher;
     private long _lowerStamp;
     private bool _lowerValid;
     private (int BlurArea, uint Reason) _lowerSpent;
@@ -84,8 +84,8 @@ internal sealed class Desktop
         _taskbar = new Taskbar(w, h, Windows);
         _launcher = new LauncherMenu(_taskbar.Bounds, OpenApp);
 
-        MouseManager.SetScreenSize(w, h);
-        MouseManager.SetPosition(w / 2, h / 2);
+        SessionDisplay.ConfigurePointer();
+        MouseManager.SetPosition(w * SessionDisplay.Scale / 2, h * SessionDisplay.Scale / 2);
 
         TerminalWindow.OpenApp = OpenApp;
         FileManagerWindow.OpenApp = OpenApp;
@@ -153,6 +153,42 @@ internal sealed class Desktop
         return false;
     }
 
+    internal sealed class DisplayFrames
+    {
+        public readonly Surface Wallpaper, Lower, Scene, Frame;
+        public readonly Taskbar Bar;
+        public readonly LauncherMenu Launcher;
+        public readonly System.Collections.Generic.List<(Window Window,Rect Bounds,Rect Restore,Rect Windowed,bool Maximized,bool Fullscreen)> Geometry=new();
+        public DisplayFrames(int width,int height,WindowManager windows,System.Func<string,string?,bool> open)
+        {
+            Wallpaper=new Surface(width,height); Lower=new Surface(width,height); Scene=new Surface(width,height); Frame=new Surface(width,height);
+            Zenith.Gui.Graphics.Wallpaper.Render(Wallpaper); Bar=new Taskbar(width,height,windows); Launcher=new LauncherMenu(Bar.Bounds,open);
+        }
+        public DisplayFrames(Desktop desktop)
+        {
+            Wallpaper=desktop._wallpaper; Lower=desktop._lower; Scene=desktop._scene; Frame=desktop._frame;
+            Bar=desktop._taskbar; Launcher=desktop._launcher;
+            foreach(Window w in desktop.Windows.Windows) { Geometry.Add((w,w.Bounds,w.RestoreBounds,w.WindowedBounds,w.IsMaximized,w.IsFullscreen)); }
+        }
+    }
+    internal DisplayFrames PrepareDisplay(int width,int height) => new(width,height,Windows,OpenApp);
+    internal DisplayFrames CaptureDisplay() => new(this);
+    internal void UseDisplay(Canvas screen,DisplayFrames frames)
+    {
+        _motion.Interrupt(); _motionBase=null; _screen=screen;
+        _wallpaper=frames.Wallpaper; _lower=frames.Lower; _scene=frames.Scene; _frame=frames.Frame;
+        int w=screen.Width,h=screen.Height;
+        Windows.SetDisplayArea(new Rect(0,0,w,h),new Rect(0,0,w,h-Theme.TaskbarHeight-2*Theme.TaskbarMargin));
+        foreach(var item in frames.Geometry)
+        {
+            if(item.Window.IsClosed) { continue; }
+            item.Window.IsMaximized=item.Maximized; item.Window.IsFullscreen=item.Fullscreen;
+            item.Window.RestoreBounds=item.Restore; item.Window.WindowedBounds=item.Windowed; item.Window.SetBounds(item.Bounds);
+        }
+        _taskbar=frames.Bar; _launcher=frames.Launcher;
+        _barMode=(TaskbarMode)(-1); _lowerValid=false; _sceneDirty=true; _cursorDirty=true; _hoverKey=-1;
+        Zenith.Core.Processes.NativeSystemInformation.Display(w+"x"+h+" logical, scale="+SessionDisplay.Scale);
+    }
     public WindowManager Windows { get; }
 
     public void StopClients() { _taskbar.Dispose(); Zenith.Core.Configuration.SystemConfiguration.Appearance.ReportMaterials(0, 0, 2); _apps.Stop(); _nativeClients.Stop(); Zenith.Core.Processes.NativeSystemInformation.Display("No graphical session"); }

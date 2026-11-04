@@ -26,11 +26,33 @@ void binding_init(struct meridian_bindings *b,struct settings_app *colors,long (
     *b=(struct meridian_bindings){0};b->colors=colors;b->read=read;b->save=save;b->dirty=dirty;binding_refresh(b);
 }
 int binding_of(const char *id){
-    return same(id,"style.colors")?BIND_COLORS:same(id,"input.keyboard")?BIND_KEYBOARD:same(id,"locale.time")?BIND_TIMEZONE:
+    return same(id,"display.configuration")?BIND_DISPLAY:same(id,"style.colors")?BIND_COLORS:same(id,"input.keyboard")?BIND_KEYBOARD:same(id,"locale.time")?BIND_TIMEZONE:
         same(id,"system.session")?BIND_SESSION:same(id,"style.animations")?BIND_ANIMATIONS:same(id,"windows.taskbar")?BIND_TASKBAR:BIND_NONE;
 }
 static int preference_changed(const struct meridian_bindings *b,int f){return b->ready&&b->choice[f]!=saved(&b->preferences,f);}
+static char *digits(char *s,unsigned int v){char d[10];int n=0;do{d[n++]=(char)('0'+v%10);v/=10;}while(v);while(n)*s++=d[--n];return s;}
+static int display_saved(const struct meridian_bindings *b){
+    for(unsigned int i=0;i<b->display_count;i++){unsigned int m=b->display_modes[i];if(b->display.modes[m].width==b->display.width&&b->display.modes[m].height==b->display.height&&b->display_scales[i]==b->display.scale)return (int)i;}
+    return -1;
+}
+static void display_refresh(struct meridian_bindings *b){
+    if(!b->display_read)return;
+    struct zenith_display s={0};
+    if(b->display_read(&s)||s.version!=1||s.mode_count>24||s.phase>2||s.scale<1||s.scale>2){b->display_ready=0;return;}
+    int old_saved=display_saved(b),draft=b->display.revision&&((int)b->display_choice!=old_saved||(b->display.phase&&(b->display.flags&4)));
+    int ended=b->display.phase&&!s.phase;
+    b->display=s;b->display_ready=1;b->display_count=0;
+    for(unsigned int m=0;m<s.mode_count;m++)for(unsigned int scale=1;scale<=2;scale++){
+        unsigned int w=s.modes[m].width,h=s.modes[m].height;
+        if(w<800*scale||h<600*scale||w%scale||h%scale||w>3840||h>2400)continue;
+        unsigned int i=b->display_count++;b->display_modes[i]=m;b->display_scales[i]=scale;
+        char *t=b->display_labels[i];t=digits(t,w);*t++=' ';*t++='x';*t++=' ';t=digits(t,h);*t++=' ';*t++='(';t=digits(t,scale*100);*t++='%';*t++=')';*t=0;
+    }
+    if(!draft||ended){int saved=display_saved(b);b->display_choice=saved<0?0:(unsigned int)saved;b->display_revision=s.revision;}
+    if(ended){b->display_message=s.error?"Display change failed; previous mode restored.":"Display is ready.";if(b->dirty)b->dirty(binding_any_changed(b));}
+}
 void binding_refresh(struct meridian_bindings *b){
+    display_refresh(b);
     if(!b->read)return;
     struct zenith_system_settings s;
     if(b->read(&s)||!valid(&s)){b->ready=0;b->message="Settings service unavailable; edits kept.";return;}
@@ -41,31 +63,41 @@ void binding_refresh(struct meridian_bindings *b){
     if(!drafts){b->revision=s.revision;if(b->message&&same(b->message,"Settings service unavailable; edits kept."))b->message=0;}
 }
 int binding_changed(const struct meridian_bindings *b,int kind){
+    if(kind==BIND_DISPLAY)return b->display.revision&&((b->display.phase&&(b->display.flags&4))||(int)b->display_choice!=display_saved(b));
     if(kind==BIND_COLORS)return b->colors&&b->colors->edited;
     int f=field(kind);return f&&preference_changed(b,f);
 }
 int binding_any_changed(const struct meridian_bindings *b){
-    for(int k=BIND_COLORS;k<=BIND_TASKBAR;k++)if(binding_changed(b,k))return 1;
+    for(int k=BIND_COLORS;k<=BIND_DISPLAY;k++)if(binding_changed(b,k))return 1;
     return 0;
 }
 int binding_has_defaults(int kind){return kind==BIND_COLORS;}
 int binding_at_defaults(const struct meridian_bindings *b,int kind){return kind!=BIND_COLORS||!b->colors||settings_at_defaults(b->colors);}
 int binding_choice_count(const struct meridian_bindings *b,int kind){
+    if(kind==BIND_DISPLAY)return b->display_ready?(int)b->display_count:0;
     int f=field(kind);if(!f||!b->ready)return 0;
     if(f>=3&&b->preferences.version!=2)return 0;
     return (int)(f==1?b->preferences.keyboard_count:f==2?b->preferences.zone_count:f==3?b->preferences.session_count:f==4?b->preferences.animation_count:b->preferences.taskbar_count);
 }
 const char *binding_choice_name(const struct meridian_bindings *b,int kind,unsigned int i){
+    if(kind==BIND_DISPLAY)return i<b->display_count?b->display_labels[i]:"";
     int f=field(kind);if(i>=(unsigned int)binding_choice_count(b,kind))return "";
     return f==1?b->preferences.keyboards[i]:f==2?b->preferences.zones[i]:f==3?b->preferences.sessions[i]:f==4?b->preferences.animations[i]:b->preferences.taskbars[i];
 }
-unsigned int binding_choice(const struct meridian_bindings *b,int kind){int f=field(kind);return f?b->choice[f]:0;}
+unsigned int binding_choice(const struct meridian_bindings *b,int kind){if(kind==BIND_DISPLAY)return b->display_choice;int f=field(kind);return f?b->choice[f]:0;}
 int binding_writable(const struct meridian_bindings *b,int kind){
+    if(kind==BIND_DISPLAY)return b->display_ready&&(b->display.flags&2)&&!b->display.phase&&b->display_count>0;
     if(kind==BIND_COLORS)return b->colors&&b->colors->have_state&&!!(b->colors->state.flags&Z_SETTINGS_WRITABLE);
     return b->ready&&!!(b->preferences.flags&2)&&binding_choice_count(b,kind)>0;
 }
 static long mark(struct meridian_bindings *b){return b->dirty?b->dirty(binding_any_changed(b)):0;}
 int binding_choose(struct meridian_bindings *b,int kind,unsigned int choice){
+    if(kind==BIND_DISPLAY){
+        if(!binding_writable(b,kind))return -13;
+        if(choice>=b->display_count)return -22;
+        unsigned int old=b->display_choice;b->display_choice=choice;
+        if(mark(b)){b->display_choice=old;return -5;}b->display_message=0;return 0;
+    }
     int f=field(kind);if(!f)return -22;
     if(!binding_writable(b,kind))return -13;
     if(choice>=(unsigned int)binding_choice_count(b,kind))return -22;
@@ -74,6 +106,13 @@ int binding_choose(struct meridian_bindings *b,int kind,unsigned int choice){
     b->message=0;return 0;
 }
 long binding_apply(struct meridian_bindings *b,int kind){
+    if(kind==BIND_DISPLAY){
+        if(b->display.phase)return -16;
+        if(!binding_changed(b,kind))return 0;
+        unsigned int i=b->display_choice;long r=b->display_save?b->display_save(1,b->display_modes[i],b->display_scales[i],b->display_revision,0):-38;
+        b->display_message=r==-11?"Display changed elsewhere. Reset to reload.":r?"Cannot preview this display mode.":"Preparing preview. Confirm within 15 seconds.";
+        display_refresh(b);return r?r:-16; /* navigation waits for Keep/Revert */
+    }
     if(kind==BIND_COLORS)return b->colors?settings_apply(b->colors):0;
     int f=field(kind);if(!f||!binding_changed(b,kind))return 0;
     long r=b->save?b->save((unsigned int)f,b->choice[f],b->revision):-38;
@@ -84,6 +123,10 @@ long binding_apply(struct meridian_bindings *b,int kind){
     const char *message=b->message;binding_refresh(b);b->message=message;mark(b);return 0;
 }
 void binding_reset(struct meridian_bindings *b,int kind){
+    if(kind==BIND_DISPLAY){
+        if(b->display.phase){if(b->display_save)b->display_save(3,0,0,b->display.revision,b->display.token);return;}
+        int saved=display_saved(b);b->display_choice=saved<0?0:(unsigned int)saved;b->display_revision=b->display.revision;b->display_message=0;mark(b);return;
+    }
     if(kind==BIND_COLORS){if(b->colors)settings_reset(b->colors);return;}
     int f=field(kind);if(!f)return;
     b->choice[f]=saved(&b->preferences,f);b->message=0;binding_refresh(b);mark(b);

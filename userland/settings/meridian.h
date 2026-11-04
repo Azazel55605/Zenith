@@ -17,7 +17,8 @@ struct meridian {
     struct zui_list sidebar;
     struct zui_scroll page_scroll;
     struct zui_combo combo;
-    struct zui_dialog dialog;
+    struct zui_dialog dialog,display_dialog;
+    char display_countdown[64];
     struct zui_input search;
     char query[64];
     int page,search_focus,closing;

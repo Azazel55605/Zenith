@@ -37,6 +37,7 @@ internal sealed class DesktopSessionHost : ISessionHost
     }
     public void Stop()
     {
+        DisplayController.Detach();
         SessionDisplay.LiveFrame = null;
         SessionDisplay.KeepFrame(_desktop.FramePixels);
         Zenith.Core.Processes.NativeProcessGraphics.Register(null);
@@ -55,6 +56,7 @@ internal sealed class DesktopSessionHost : ISessionHost
     {
         NativeAppearance.Reload();
         _desktop = new Desktop(SessionDisplay.Screen);
+        DisplayController.Attach(_desktop);
         SessionDisplay.LiveFrame = _desktop.FramePixels;
         using var session = CredentialContext.Enter(Accounts.Session);
         if (SystemMounts.Mode == BootMode.Live || Accounts.Service is null || !Accounts.Service.HasPasswords)
@@ -64,5 +66,5 @@ internal sealed class DesktopSessionHost : ISessionHost
         }
         Log.Write("kernel", "desktop ready (" + (SystemMounts.Mode == BootMode.Live ? "live" : "installed") + ")");
     }
-    public void Tick() { NativeAppearance.ApplyPending(); _desktop.Tick(); }
+    public void Tick() { DisplayController.Tick(); NativeAppearance.ApplyPending(); _desktop.Tick(); }
 }

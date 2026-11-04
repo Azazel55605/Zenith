@@ -53,6 +53,12 @@ identity: .long 0
             for name in ('z_context','z_saved_rsp','z_old_cr3','z_old_idtr','z_tss','z_user_fp','z_old_fp'):
                 self.assertTrue('p'+str(cpu)+'_'+name in self.symbols,name)
         self.assertNotIn(' zenith_process_run\n',self.symbols)
+    def test_display_requests_yield_to_bsp_services_on_every_private_bridge(self):
+        for cpu in range(1,8):
+            bridge=b.variant(self.source,cpu)
+            self.assertIn('cmp $640, %rax\n    je p'+str(cpu)+'_z_service',bridge)
+            self.assertIn('cmp $641, %rax\n    je p'+str(cpu)+'_z_service',bridge)
+
     def test_source_drift_is_rejected_and_bsp_source_remains_identical(self):
         with self.assertRaisesRegex(RuntimeError,'source changed'):b.variant(self.source+'\n',1)
         self.assertEqual(hashlib.sha256((ROOT/'src/Native/x64/Process.s').read_bytes()).hexdigest(),b.SOURCE_SHA)

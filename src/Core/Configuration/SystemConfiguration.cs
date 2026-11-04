@@ -7,11 +7,13 @@ namespace Zenith.Core.Configuration;
 
 internal static class SystemConfiguration
 {
+    public static DisplayService Display { get; private set; } = null!;
     public static SettingsService Settings { get; private set; } = null!;
     public static PersonalAppearanceService PersonalAppearance { get; private set; } = null!;
     public static AppearanceService Appearance { get; private set; } = null!;
     public static void Initialize()
     {
+        Display = new DisplayService(new NativeSettingsStore());
         Appearance = new AppearanceService(new NativeSettingsStore());
         string? appearanceError = Appearance.Load();
         if (appearanceError is not null) { Log.Write("appearance", appearanceError); }

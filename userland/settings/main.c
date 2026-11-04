@@ -93,7 +93,39 @@ static int settings_information(const char *name){
     if(r||state.version!=1||state.kind!=kind||state.length>=sizeof(state.text))return 1;
     state.text[state.length]=0;print(state.text);print("\nSETTINGS_INFORMATION_OK\n");return 0;
 }
+static int display_show(void){
+    struct zenith_display s={0};if(zenith_display_read(&s)||s.version!=1)return 1;
+    print("DISPLAY_NATIVE ");print(s.driver);print(" ");number(s.width);print("x");number(s.height);print(" scale=");number(s.scale);print(" phase=");number(s.phase);print(" writable=");number(!!(s.flags&2));print("\n");return 0;
+}
+static unsigned int decimal(const char *s){unsigned int n=0;while(*s>='0'&&*s<='9'){if(n>10000)return 0;n=n*10+(unsigned int)(*s++-'0');}return *s?0:n;}
+static int display_test(char **args){
+    struct zenith_display s={0};if(zenith_display_read(&s)||s.version!=1||s.mode_count>24)return 1;
+    unsigned int w=decimal(args[2]),h=decimal(args[3]),scale=decimal(args[4]),m=~0U;
+    if(!same(args[5],"keep")&&!same(args[5],"exit")&&!same(args[5],"timeout"))return 2;
+    for(unsigned int i=0;i<s.mode_count;i++)if(s.modes[i].width==w&&s.modes[i].height==h)m=i;
+    long r=zenith_display_change(1,m,scale,s.revision,0);if(r){print("DISPLAY_REFUSED code=");number((unsigned long)-r);print("\n");return 1;}
+    long start=zenith_call(628,0,0,0);int requested=0;
+    while(zenith_call(628,0,0,0)-start<25000){
+        if(zenith_display_read(&s))return 1;
+        if(s.phase==2&&!requested){
+            print("DISPLAY_PREVIEW\n");if(same(args[5],"exit"))return 0;
+            if(same(args[5],"keep")&&zenith_display_change(2,0,0,s.revision,s.token))return 1;
+            requested=1;
+        }
+        if(!s.phase&&requested){print("DISPLAY_FINISHED\n");return s.error?1:0;}
+    }
+    return 1;
+}
 static int bounds(void){
+    struct zenith_display ds={0};long dr=zenith_display_read(&ds);
+    if(dr!=-38){
+        if(dr||ds.version!=1||ds.mode_count>24)return 80;
+        if(zenith_call(640,(unsigned long)&ds,511,0)!=-22)return 81;
+        if(zenith_call(640,(unsigned long)"readonly",512,0)!=-14)return 82;
+        if(zenith_call(641,0xffff800000000000UL,40,0)!=-14)return 83;
+        struct zenith_display_request dq={1,1,ds.revision,0,0,1,1};
+        if(zenith_call(641,(unsigned long)&dq,sizeof(dq),0)!=-22)return 84;
+    }
     struct zenith_appearance before={0},after={0};
     if(zenith_appearance_read(&before))return 1;
     if(zenith_call(610,(unsigned long)&after,sizeof(after)-1,0)!=-22)return 2;
@@ -155,6 +187,8 @@ static int bounds(void){
     print("SETTINGS_BOUNDS_OK\n");return 0;
 }
 int main(int argc,char **argv){
+    if(argc==2&&same(argv[1],"--display"))return display_show();
+    if(argc==6&&same(argv[1],"--display-test"))return display_test(argv);
     if(argc==2&&same(argv[1],"--version")){print("settings " SUNBEAM_VERSION "\n");return 0;}
     if(argc==2&&same(argv[1],"--show"))return show();
     if((argc==2&&same(argv[1],"--system-show"))||(argc==4&&same(argv[1],"--system-set")))return system_preferences(argc,argv);
@@ -218,6 +252,7 @@ int main(int argc,char **argv){
     if(zenith_gui_resize_enable(handle)<0){zenith_gui_close(handle);print("settings: viewport service required\n");return 1;}
     shell.ui.hover_supported=zenith_gui_pointer_motion(handle)==0; /* -38 on older kernels */
     meridian_system_services(&shell,zenith_system_settings_read,zenith_system_settings_save);
+    shell.bindings.display_read=zenith_display_read; shell.bindings.display_save=zenith_display_change;
     meridian_information_services(&shell,zenith_settings_information_read);
     meridian_refresh(&shell);
     long motion_clock=zui_motion_clock();
@@ -225,7 +260,7 @@ int main(int argc,char **argv){
     print("MERIDIAN_MOTION percent=");number((unsigned long)shell.ui.motion_percent);print("\n");
     meridian_draw(&shell);
     if(present()<0){zenith_gui_close(handle);return 1;}
-    long motion_start=0;unsigned long motion_frames=0;
+    long motion_start=0;unsigned long motion_frames=0;unsigned int display_phase=0;
     print("SETTINGS_READY\nMERIDIAN_PAGE ");print(meridian_pages[shell.page].id);print("\n");int result=0;
     struct zenith_gui_event deferred={0};int have_deferred=0;
     for(unsigned int i=0;!shell.closing;i++){
@@ -259,6 +294,7 @@ int main(int argc,char **argv){
         if(u->motion_percent)zui_motion_frame(u,zui_motion_clock());
         /* Refreshing costs service calls from a limited budget; frames in motion skip it. */
         if(!following)meridian_refresh(&shell);
+        if(shell.bindings.display.phase!=display_phase){display_phase=shell.bindings.display.phase;print("DISPLAY_STATE phase=");number(display_phase);print("\n");}
         meridian_draw(&shell);
         if(present()<0){result=1;break;}
         if(u->animating&&!motion_frames)motion_start=u->now;

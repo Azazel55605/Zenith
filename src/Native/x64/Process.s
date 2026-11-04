@@ -382,6 +382,10 @@ z_forward:
     pop %rax
     ret
 z_syscall:
+    cmp $640, %rax
+    je z_service
+    cmp $641, %rax
+    je z_service
     cmp $613, %rax
     jb 10f
     cmp $638, %rax

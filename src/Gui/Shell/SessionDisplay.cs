@@ -12,7 +12,19 @@ internal static class SessionDisplay
     private const ulong ReservePages = 4096;
     private static Canvas? s_screen;
     private static int[]? s_fade;
-    public static Canvas Screen => s_screen ??= Canvas.GetFullScreen();
+    public static Canvas Screen
+    {
+        get { s_screen ??= DisplayController.Initialize(); DisplayController.LoadPreferences(); return s_screen; }
+    }
+    public static void ReplaceScreen(Canvas screen) { DropFrame(); s_screen=screen; }
+    public static int Scale { get; set; } = 1;
+    public static void ConfigurePointer()
+    {
+        int width=Screen.Width*Scale,height=Screen.Height*Scale;
+        Cosmos.Kernel.System.Mouse.MouseManager.SetScreenSize(width,height);
+        Cosmos.Kernel.System.Mouse.MouseManager.SetPosition(System.Math.Clamp(Cosmos.Kernel.System.Mouse.MouseManager.X,0,width-1),
+            System.Math.Clamp(Cosmos.Kernel.System.Mouse.MouseManager.Y,0,height-1));
+    }
 
     public static bool FadePending => s_fade is not null;
 

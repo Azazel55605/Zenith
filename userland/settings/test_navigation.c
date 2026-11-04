@@ -24,6 +24,30 @@ static long prefs_mark(int d){prefs_dirty=d;return 0;}
 static struct zenith_appearance look;
 static long look_read(struct zenith_appearance *s,unsigned int *m,unsigned int *e,unsigned int *v,unsigned int *r,unsigned int *l){*s=look;*m=*e=0;*v=7;*r=0;*l=40;return 0;}
 static long look_save(unsigned int m,unsigned int a,unsigned int e,unsigned int l,unsigned long rev){(void)e;(void)l;if(rev!=look.revision)return -11;look.mode=m;look.accent=a;look.revision++;return 0;}
+static struct zenith_display ds;
+static long display_read(struct zenith_display *s){*s=ds;return 0;}
+static long display_save(unsigned int action,unsigned int mode,unsigned int scale,unsigned long revision,unsigned long token){
+    if(!(ds.flags&2))return -13;
+    if(revision!=ds.revision)return -11;
+    if(action==1){assert(mode<ds.mode_count);ds.phase=1;ds.token=99;ds.revision++;ds.flags|=4;(void)scale;return 0;}
+    assert(token==99);ds.phase=0;ds.flags&=~4U;ds.revision++;return 0;
+}
+static void display_tests(void){
+    struct meridian_bindings b;binding_init(&b,0,0,0,prefs_mark);
+    ds=(struct zenith_display){.version=1,.flags=3,.revision=1,.width=1024,.height=768,.scale=1,.mode_count=2,.driver="VMWareSVGAII",.modes={{1024,768},{1920,1200}}};
+    b.display_read=display_read;b.display_save=display_save;binding_refresh(&b);
+    assert(binding_of("display.configuration")==BIND_DISPLAY);
+    assert(binding_choice_count(&b,BIND_DISPLAY)==3&&!strcmp(binding_choice_name(&b,BIND_DISPLAY,2),"1920 x 1200 (200%)"));
+    assert(!binding_choose(&b,BIND_DISPLAY,2)&&prefs_dirty&&binding_any_changed(&b));
+    ds.revision++;binding_refresh(&b);assert(binding_apply(&b,BIND_DISPLAY)==-11&&binding_changed(&b,BIND_DISPLAY));
+    binding_reset(&b,BIND_DISPLAY);assert(!binding_any_changed(&b)&&!prefs_dirty);
+    assert(!binding_choose(&b,BIND_DISPLAY,2));assert(binding_apply(&b,BIND_DISPLAY)==-16&&ds.phase==1);
+    ds.phase=2;ds.seconds=15;ds.revision++;binding_refresh(&b);
+    assert(!binding_writable(&b,BIND_DISPLAY)&&binding_changed(&b,BIND_DISPLAY));
+    binding_reset(&b,BIND_DISPLAY);binding_refresh(&b);assert(!binding_any_changed(&b)&&!prefs_dirty);
+    ds.flags=1;binding_refresh(&b);assert(!binding_writable(&b,BIND_DISPLAY)&&binding_choose(&b,BIND_DISPLAY,1)==-13);
+    ds.mode_count=25;binding_refresh(&b);assert(!b.display_ready&&!binding_choice_count(&b,BIND_DISPLAY));
+}
 static unsigned int pixels[600*480];
 static void binding_tests(void){
     prefs=(struct zenith_system_settings){.version=1,.flags=3,.revision=1,.keyboard_count=2,.zone_count=2,.current_zone="UTC",.keyboards={"us","de"},.zones={"UTC","Europe/Berlin"}};
@@ -64,7 +88,7 @@ static void binding_tests(void){
     prefs.keyboard_count=99;binding_refresh(&b);assert(!b.ready&&b.message);  /* malformed service data */
 }
 int main(void){
-    binding_tests();
+    binding_tests();display_tests();
     struct meridian_nav n;nav_init(&n,0);
     assert(n.mode==NAV_CATEGORIES&&n.page==find("quick.overview")&&nav_row_count(&n)==10);
     /* every page appears in exactly one category list */

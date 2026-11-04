@@ -1,10 +1,11 @@
 #ifndef ZENITH_MERIDIAN_BINDINGS_H
 #define ZENITH_MERIDIAN_BINDINGS_H
 #include "app.h"
+#include "../include/zenith_display.h"
 #include "../include/zenith_system_settings.h"
 /* One draft contract for every editable Meridian page. A page is changed while its
  * draft differs from saved state; the window's unsaved flag covers all pages. */
-enum { BIND_NONE=0,BIND_COLORS=1,BIND_KEYBOARD=2,BIND_TIMEZONE=3,BIND_SESSION=4,BIND_ANIMATIONS=5,BIND_TASKBAR=6 };
+enum { BIND_NONE=0,BIND_COLORS=1,BIND_KEYBOARD=2,BIND_TIMEZONE=3,BIND_SESSION=4,BIND_ANIMATIONS=5,BIND_TASKBAR=6,BIND_DISPLAY=7 };
 struct meridian_bindings {
     struct settings_app *colors;
     struct zenith_system_settings preferences; int ready;
@@ -13,6 +14,12 @@ struct meridian_bindings {
     long (*dirty)(int value);
     unsigned int choice[6];      /* system preference drafts, fields 1..5 */
     unsigned long revision;      /* revision the drafts are based on */
+    struct zenith_display display; int display_ready;
+    unsigned int display_choice,display_count,display_modes[48],display_scales[48];
+    unsigned long display_revision; char display_labels[48][40];
+    long (*display_read)(struct zenith_display *);
+    long (*display_save)(unsigned int,unsigned int,unsigned int,unsigned long,unsigned long);
+    const char *display_message;
     const char *message;
 };
 void binding_init(struct meridian_bindings *b,struct settings_app *colors,long (*read)(struct zenith_system_settings *),

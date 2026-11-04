@@ -13,3 +13,11 @@ zenith_has_display:
     mov w0, #0
     ret
 .size zenith_has_display, .-zenith_has_display
+
+.text
+.global zenith_svga_register
+.type zenith_svga_register, %function
+zenith_svga_register:
+    mov w0, #0
+    ret
+.size zenith_svga_register, .-zenith_svga_register
