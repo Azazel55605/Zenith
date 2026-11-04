@@ -72,8 +72,13 @@ Cosmos 3.0.89 linker could not load `libxml2.so.2`; CI is now pinned to Ubuntu
 24.04 with that dependency installed and the actual linker checked before build.
 The installed-UEFI CI harness now accepts the shared boot helper's keyboard
 argument and preserves its device selection; a host regression covers both
-keyboard profiles. These repairs leave kernel/runtime sources at the C4
-implementation in `5924c3f`. Tags await successful qualification.
+keyboard profiles. All 14 fresh native Release gates passed in the pinned
+checkout at `c4f7b65` (469 controller and 853 host tests); CI additionally exposed
+the legacy security fixture's anonymous-shell expectation after password setup.
+That fixture now waits for the greeter, refuses a desktop before authentication,
+then verifies the persisted user and shadow denial after login. These repairs
+leave kernel/runtime sources at the C4 implementation in `5924c3f`. Tags await
+successful qualification.
 
 
 **Operator follow-up for installed 0.0.26:** rapid wheel navigation and movement

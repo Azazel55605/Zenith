@@ -25,8 +25,8 @@ def check(machine, command, expected, timeout=180):
     failures += not passed
     return passed
 
-def boot(label, initial=None):
-    machine, _ = smoke.boot(ROOT / "output-x64/Zenith.iso", 600, label, initial)
+def boot(label, initial=None, ready_marker="kernel: desktop ready"):
+    machine, _ = smoke.boot(ROOT / "output-x64/Zenith.iso", 600, label, initial, ready_marker=ready_marker)
     if machine is None:
         raise RuntimeError("guest did not boot: " + label)
     time.sleep(2)
@@ -73,11 +73,18 @@ try:
 finally:
     machine.stop(); shutil.copyfile(machine.serial,keep / "setup.log"); shutil.rmtree(machine.workdir)
 
-machine = boot("security persisted", disk)
+machine = boot("security persisted", disk, "session: login ready")
 try:
-    check(machine,"whoami | logger","user: nobody")
+    # Configured accounts now stop at the graphical greeter, with no shell or
+    # desktop until authentication. The old anonymous-shell expectation could
+    # never reach its prompt and spent three boot timeouts here.
+    if "kernel: desktop ready" in machine.log():
+        raise RuntimeError("desktop started before persisted authentication")
+    check(machine,"user\tUser-Test-42\n","desktop ready (installed)")
+    machine.command("sendkey ctrl-alt-t 30")
+    time.sleep(1)
+    check(machine,"id | logger","uid=1000(user) gid=1000")
     check(machine,"cat /etc/shadow; echo shadow-denied=$? | logger","user: shadow-denied=1")
-    check(machine,"login user\n{delay}User-Test-42\n{delay}{delay}id | logger","uid=1000(user) gid=1000")
     check(machine,"cat /home/user/owned | logger","user: mine")
     check(machine,"su root\n{delay}Root-Test-42\n{delay}poweroff","all filesystems unmounted")
     machine.wait_exit(15)

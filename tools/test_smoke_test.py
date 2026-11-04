@@ -35,6 +35,15 @@ class SerialMatchingTests(unittest.TestCase):
 
 
 class InstalledBootTests(unittest.TestCase):
+    def test_configured_guest_can_wait_for_greeter_without_desktop(self):
+        machine = Mock()
+        machine.log.return_value = "[zenith] session: login ready; selection=de\n"
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(smoke.tempfile, "mkdtemp", return_value=directory), patch.object(smoke, "Machine", return_value=machine):
+                actual, attempts = smoke.boot(Path(), 1, "configured accounts", ready_marker="session: login ready")
+        self.assertIs(actual, machine)
+        self.assertEqual(attempts, 1)
+
     def test_shared_boot_constructor_and_keyboard_selection(self):
         import sys
         with patch.dict(sys.modules, {"ext2_fixture": Mock()}):

@@ -326,7 +326,7 @@ class Machine:
 BOOT_ATTEMPTS = 3
 
 
-def boot(iso: Path, timeout: float, label: str, initial_disk: Path | None = None, memory: int = 512, keyboard: str = "virtio"):
+def boot(iso: Path, timeout: float, label: str, initial_disk: Path | None = None, memory: int = 512, keyboard: str = "virtio", ready_marker: str = "kernel: desktop ready"):
     """
     Boots a fresh VM until the desktop is up, retrying when the kernel faults during early
     init. Cosmos 3.0.89 occasionally takes a general-protection fault while setting up the
@@ -339,7 +339,7 @@ def boot(iso: Path, timeout: float, label: str, initial_disk: Path | None = None
         start = time.time()
         while time.time() - start < timeout:
             log = machine.log()
-            if "kernel: desktop ready" in log:
+            if ready_marker in log:
                 return machine, attempt
             if "FATAL: Exception" in log or machine.process.poll() is not None:
                 break
