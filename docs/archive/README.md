@@ -6,6 +6,8 @@ Start with [current status](../ROADMAP.md#state-and-evidence) or [active work](.
 
 ## Investigation records
 
+- [2026-11-04 C4 release and CI qualification](2026-11-04/c4-release-and-ci.md): published source/tags, complete hosted coverage, artifact hashes, parallel jobs and operator boundaries.
+
 - [2026-11-03 parallel material composition](2026-11-03/parallel-material-composition.md): production private blur tiles, central IRQ ownership, exact real-scene comparisons and the remaining C4 migration boundary.
 
 - [2026-11-03 pinned managed workers](2026-11-03/pinned-managed-workers.md): sealed allocation/metadata ownership, stopped-root GC epochs, fixed managed jobs, complete-frame UI publication and frozen local qualification.

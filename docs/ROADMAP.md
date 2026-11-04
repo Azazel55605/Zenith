@@ -65,22 +65,15 @@ Do not enable managed AP execution by merely increasing the scheduler CPU count.
 Drawing/process latency needs separate measured workloads: CPU count alone is not
 a performance result. [Implementation sequence and acceptance](components/MULTICORE.md).
 
-**C4 release preparation (Q2):** candidates are `kernel/v0.0.44`,
-`sunbeam-tools/v0.7.0` and `zenith-gui-probe/v0.2.0`. All 14 fresh native Release
-gates passed in the pinned checkout at `c4f7b65` (469 controller and 853 host
-tests); kernel/runtime sources remain the C4 implementation in `5924c3f`.
-CI's linker runtime, installed-boot keyboard signature and persisted greeter
-fixtures are repaired; security and foundation now pass locally and in CI.
-**CI duration:** replacing the serial VM chain with one shared, hash-bound build,
-independently scheduled native/legacy gates and a complete-coverage aggregate.
-Download caches and smaller successful evidence uploads reduce setup/retention
-work; no guest pass is cached or gate omitted. The first hosted fan-out exposed an
-implicit `xorriso` dependency, UART/pasted-command observation races and the
-process install's generic command budget; explicit prerequisites and bounded
-completion witnesses address these without changing the kernel. Tags await the
-corrected final CI aggregate.
-
-
+**2026-11-04 — C4 release tags published:** `kernel/v0.0.44`,
+`sunbeam-tools/v0.7.0` and `zenith-gui-probe/v0.2.0` point to qualified commit
+`8502029`. [Final CI](https://github.com/Azazel55605/Zenith/actions/runs/41824046258)
+passed all 14 native and 14 system-integration gates plus the complete-coverage
+aggregate in **33m 27s**. CI now shares one source/hash-bound build across isolated
+runners, caches downloads and preserves independent failed-job retries; no guest
+gate is omitted. [Recorded qualification and hashes](archive/2026-11-04/c4-release-and-ci.md).
+The distributor's build/sign/publish and actual four-vCPU installed verification
+remain Q2/H1; `smp=native` remains opt-in.
 
 **Operator follow-up for installed 0.0.26:** rapid wheel navigation and movement
 can freeze the VM (no panic reported). Root cause found 2026-10-29: device IRQs dropped during native user windows; see H1. U1/D3
@@ -167,7 +160,7 @@ changes; put smaller implementation steps in the linked component, using the sam
 | H2 | planned | Audio playback/capture/mixer/device inventory and removable-device broker, then meters/stream routing and safe automount. Requires bounded buffers, stable identities and permissions; tests need real supported devices. |
 | H3 | planned, later | True suspend/resume, Bluetooth, printers and specialized accessibility. Define each scope/driver dependency first; WIP pages stay visible. Never count a menu or VM-only demo as device support. |
 | Q1 | verification | Confirm 0.0.25 distributor result and [Appearance installed procedure](testing/SETTINGS-VM-TEST.md); retain current release immutability. |
-| Q2 | C4 locally qualified; parallel CI and distributor acceptance pending | All 14 fresh native Release gates, 469 controller and 853 host tests passed locally. CI runner/runtime and legacy boot/greeter fixtures are repaired. The CI optimization shares one source-bound kernel across isolated native/legacy jobs, caches downloads and requires complete fresh gate receipts before the aggregate check can pass ([workflow](../.github/workflows/ci.yml), [contract](DEVELOPMENT.md#ci-and-releases)). Publish the selected C4 tags only after that aggregate; distributor and installed-VM evidence remain separate under Q2/H1. Earlier launcher/input repairs and operator probes remain in the [qualification archive](archive/2026-10-29/launcher-frame-readiness.md). |
+| Q2 | C4 tags published; distributor/installed acceptance pending | `kernel/v0.0.44`, `sunbeam-tools/v0.7.0` and `zenith-gui-probe/v0.2.0` are tagged at CI-qualified `8502029`. All 28 fresh VM gates and the aggregate passed in 33m 27s; local fresh Release acceptance also passed all 14 mandatory native gates. Parallel CI shares one source-bound build, caches downloads and verifies every result ([qualification](archive/2026-11-04/c4-release-and-ci.md), [contract](DEVELOPMENT.md#ci-and-releases)). Distributor rebuild/sign/publication and installed-VM observations remain separate under Q2/H1. |
 | Q3 | continuous; parallel controller local | [Parallel native validation and exact retry receipts](archive/2026-10-28/parallel-native-validation.md) locally implemented; four actual gates pass concurrently. Default up to four, configurable up to eight within CPU/RAM budget; distributor timing pending.  Measure boot/app responsiveness, idle memory/CPU, transfer/build phase times and stability across repeated workflows. Keep CI/controller/toolchain drift checks, fault injection and installed evidence distinct; enforce supported-profile performance budgets before claiming product readiness. |
 
 ## Meridian — every requested destination
@@ -216,7 +209,7 @@ The M0–M10 names in that guide are Meridian phases, not separate project miles
 | C1 | local, complete; installed verification pending | Opt-in eight-slot native AP queues, private GDT/TSS/interrupt/fault stacks, race-free wake/IPI/HLT, queued/running cancellation, stale-token rejection and acknowledged shutdown. Native pixel pilot matches scalar output and scales in local 1/2/4-CPU tests. [Evidence and limits](archive/2026-11-03/native-worker-queues.md); Q2/H1 own distributor and installed acceptance. Ordinary managed apps still use the BSP. |
 | C2 | local foundation complete; installed verification pending | Hardware logical CPU identity, CPU-local IRQ switch/error state, full baseline FP context, native AP timer/reschedule paths and early process ownership refusal. 106 CPU checks and full AP-enabled process gate passed. [Audit and evidence](archive/2026-11-03/per-cpu-execution-state.md). General managed AP dispatch remains C4; C3 admits only its qualified fixed jobs. |
 | C3 | local foundation complete; distributor/installed acceptance pending | Sealed allocation/heap/metadata ownership, stopped-root GC epochs, per-thread TLS/exception state and fixed pinned managed jobs. 1/2/4-CPU pressure/fault/cancel, exact rendered frames/input and full AP-enabled process qualification passed; four-CPU frame pilot was 2.58× its one-CPU case in local TCG. [Evidence and limits](archive/2026-11-03/pinned-managed-workers.md). Q2/H1 own external acceptance; general scheduling remains C4. |
-| C4 | local implementation complete; distributor/installed acceptance pending | Private per-CPU protected bridges, timer quanta, affinity/ready transfer, exact tickets and safe cancellation/reaping are qualified. All 14 mandatory native gates passed on one frozen kernel; 1/2/4-CPU installed I/O/process coverage, eight-CPU and TCG checks, full 64-pipeline/GC-root contention, graphical teardown, recovery and independent ext2 audits passed. Services and arbitrary managed kernel threads retain BSP ownership; `smp=native` stays opt-in. [Evidence, measurements and architecture decision](archive/2026-11-03/protected-process-migration.md). Q2/H1 own external acceptance. |
+| C4 | local and CI qualification complete; distributor/installed acceptance pending | Private per-CPU protected bridges, timer quanta, affinity/ready transfer, exact tickets and safe cancellation/reaping are qualified. All 14 mandatory native gates passed on one frozen kernel; 1/2/4-CPU installed I/O/process coverage, eight-CPU and TCG checks, full 64-pipeline/GC-root contention, graphical teardown, recovery and independent ext2 audits passed. Services and arbitrary managed kernel threads retain BSP ownership; `smp=native` stays opt-in. [Evidence, measurements and architecture decision](archive/2026-11-03/protected-process-migration.md). [C4 release/CI qualification](archive/2026-11-04/c4-release-and-ci.md) is tagged as kernel 0.0.44; Q2/H1 own external acceptance. |
 | X1 | partial | Host cross-SDK exists in freestanding form; finish documented startup/headers/libc subset/compiler runtime and supported-API matrix; install/upgrade a real independent program. |
 | X2 | planned, later | PTY/terminal capabilities + libc source audit → nano/reduced Vim proof; optional Bash requires subprocess/pipe/signal/POSIX compatibility beyond the existing custom shell. |
 | X3 | planned, later | Deliberately scoped Python REPL/import/file I/O first, then modules backed by implemented APIs. No implied PyPI/subprocess/thread support. |

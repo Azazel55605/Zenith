@@ -4,6 +4,11 @@
 
 The work IDs below expand the master tracker. [Runtime contract](../MULTICORE.md).
 
+C1–C4 are jointly CI-qualified and tagged as `kernel/v0.0.44` at `8502029`.
+[Release and CI evidence](../archive/2026-11-04/c4-release-and-ci.md) records the
+complete fresh gate matrix. Distributor publication and installed-VM acceptance
+remain separate under Q2/H1.
+
 ## C1 — Native worker foundation
 
 **Local implementation complete; distributor/installed acceptance pending.**
@@ -26,7 +31,7 @@ Local exit evidence: 94 CPU checks, 371 controller tests, 846 host tests and the
 AP-enabled process/64-pipeline gate passed. The final four-CPU native pixel pilot
 was 2.14× faster than its one-CPU case in local TCG; ordinary apps were BSP-only at the C1 boundary.
 Installed/VMware, KVM and physical observations belong to Q2/H1, not assumed proof
-from additional QEMU vCPUs. No release has been published for C1 yet.
+from additional QEMU vCPUs. C1 is included in the tagged C4 release above.
 
 ## C2 — Per-CPU execution state
 
@@ -80,7 +85,7 @@ performance result; the native pixel pilot is not the full GUI workload either.
 
 ## C4 — Migration and broad concurrency
 
-**Local implementation complete; distributor/installed acceptance remains Q2/H1.**
+**Local and CI qualification complete; distributor/installed acceptance remains Q2/H1.**
 MaterialComposition now shares one exact radius-four filter across client materials,
 trusted window chrome/backgrounds and the taskbar. Larger changed regions distribute
 private clamped-halo tiles to healthy idle APs, with BSP participation and rotating
@@ -141,8 +146,8 @@ Local C4 exit evidence:
 4. All 14 mandatory native gates pass against one frozen ELF/ISO, including the
    four-CPU 64-pipeline/parked-managed-root sequence, graphical/terminal session
    teardown, signed upgrades, interruption/recovery and independent disk audits.
-   Thirteen passed in the fresh combined plan; a corrected CPU-sampling fixture
-   was requalified independently, retaining its failed logs.
+   Subsequent fresh Release acceptance passed the complete combined plan without
+   reuse; final CI repeated every native gate on one shared source-bound build.
 5. Repeated identical CPU work proves overlap on three APs. The compositor gate
    independently compares exact ordinary/fullscreen scene pixels and timings.
    These establish local concurrency, not universal application speedup. Default
