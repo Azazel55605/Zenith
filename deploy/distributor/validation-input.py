@@ -154,6 +154,34 @@ def cursor_position(ppm):
     return found[0], (width, height)
 
 
+def settings_form_home(ppm, reference, light):
+    """Observe the fixed Settings form at Home, excluding the hovered accent row.
+
+    An unchanged screenshot is not completion: a slow client can present the
+    same intermediate animation frame twice. These text/control rows have a
+    unique position at Home; the later harness still checks the full 40px shift.
+    """
+    width,height,rgb = frame_pixels(ppm)
+    rw,rh,top = frame_pixels(reference); lw,lh,initial = frame_pixels(light)
+    if (rw,rh)!=(width,height) or (lw,lh)!=(width,height): return False
+    colors=tuple(map(bytes.fromhex,('3157b7','7042be','ae325d','886010','277347','197571')))
+    def pixel(data,x,y):return data[(y*width+x)*3:(y*width+x)*3+3]
+    for scan in range(303,height):
+        line=initial[scan*width*3:(scan+1)*width*3];at=line.find(colors[0]*32)
+        if at<720 or at%3:continue
+        x,y=at//3-240,scan-303
+        if x+640>width or y+480>height:continue
+        if pixel(initial,x+400,y+18)!=bytes.fromhex('f6f7f9') or not all(pixel(initial,x+244+44*j,y+305)==color for j,color in enumerate(colors)):continue
+        # The pointer used to dismiss Cancel hovers over the accent row. Keep
+        # its transient hover paint outside the Home witness, just as the
+        # wheel test keeps the resting pointer outside its comparison strips.
+        for row in range(200,281,4):
+            begin=((y+row)*width+x+300)*3;end=begin+300*3
+            if rgb[begin:end]!=top[begin:end]:return False
+        return True
+    return False
+
+
 DIAGNOSTIC_ELF = None
 
 
@@ -163,6 +191,21 @@ class RenderedMouse:
         self.snapshot = self.monitor.parent / 'input-observation.ppm'
     def capture(self, path):
         path=Path(path)
+        if path.name=='wheel-before.ppm':
+            import time,json
+            reference=path.with_name('form-top.ppm').read_bytes();light=path.with_name('light.ppm').read_bytes()
+            deadline=time.monotonic()+20
+            while True:
+                data=self._capture_once(path)
+                if settings_form_home(data,reference,light):
+                    if not getattr(self,'_settings_home_acknowledged',False):
+                        print('PASS rendered Settings form at Home before wheel baseline',flush=True)
+                        self._settings_home_acknowledged=True
+                    return data
+                if time.monotonic()>=deadline:
+                    (path.parent/'wheel-home-failure.json').write_text(json.dumps(dict(expected='exact Settings form Home position',screenshot=str(path),observation_only=True),indent=2)+'\n')
+                    raise RuntimeError('Settings form did not reach Home before wheel baseline')
+                time.sleep(.05)
         if path.name not in DESKTOP_FRAMES: return self._capture_once(path)
         import time,json
         deadline=time.monotonic()+20

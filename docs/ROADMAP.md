@@ -79,6 +79,10 @@ old results because universal-newline log snapshots supplied shorter offsets to
 the raw UART incremental reader. Current controller policy and direct helpers
 now preserve CRLF; regression checks retain exact CPU identity/overlap assertions.
 The tagged kernel is unchanged. Local TCG acceptance passes all 106 CPU checks; focused distributor verification is pending. [Diagnosis and evidence](archive/2026-11-04/cpu-gate-uart-offsets.md).
+C4 settings gate follow-up (2026-11-04): retained pixels prove the wheel reached
+40px, while its Home baseline was captured 3px early. The controller now observes
+the exact Home controls before measuring; the original 40px and animation checks
+remain unchanged. [Evidence and validation](archive/2026-11-04/settings-wheel-baseline.md).
 Distributor setup now explicitly installs `xorriso`; existing VMs need that
 package before retrying the new ISO-editing gates.
 

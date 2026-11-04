@@ -165,4 +165,50 @@ class RenderedMouseTests(unittest.TestCase):
             mouse.command('mouse_move -383 -263')
         self.assertEqual(['mouse_move -383 -263'],calls);wait.assert_called_once_with((313,180))
 
+class SettingsHomeTests(unittest.TestCase):
+    @staticmethod
+    def frames(shift=0):
+        width,height=1000,800;x,y=100,100
+        top=bytearray(width*height*3);light=bytearray(top)
+        def put(image,px,py,color):image[(py*width+px)*3:(py*width+px)*3+3]=bytes.fromhex(color)
+        light[((y+303)*width+x+240)*3:((y+303)*width+x+272)*3]=bytes.fromhex('3157b7')*32
+        for j,color in enumerate(('3157b7','7042be','ae325d','886010','277347','197571')):put(light,x+244+44*j,y+305,color)
+        put(light,x+400,y+18,'f6f7f9')
+        for row in range(150,400):
+            start=((y+row)*width+x+300)*3;top[start:start+900]=bytes((row%251,41,99))*300
+        image=bytearray(top)
+        for row in range(150,400):
+            dst=((y+row)*width+x+300)*3;src=((y+row+shift)*width+x+300)*3;image[dst:dst+900]=top[src:src+900]
+        header=b'P6\n1000 800\n255\n'
+        return header+image,header+top,header+light
+    def test_three_pixel_intermediate_frame_is_not_home(self):
+        self.assertFalse(profile.settings_form_home(*self.frames(3)))
+        self.assertTrue(profile.settings_form_home(*self.frames()))
+    def test_hover_and_other_windows_do_not_define_home(self):
+        image,top,light=self.frames();a,b=bytearray(image),bytearray(top);header=len(b'P6\n1000 800\n255\n')
+        start=header+((100+292)*1000+400)*3;a[start:start+900]=b'\xff'*900
+        a[header:header+3]=b'\xff\xff\xff'
+        self.assertTrue(profile.settings_form_home(bytes(a),bytes(b),light))
+    def test_missing_geometry_and_changed_screen_are_refused(self):
+        image,top,light=self.frames();self.assertFalse(profile.settings_form_home(image,top,top))
+        self.assertFalse(profile.settings_form_home(image,top,b'P6\n1 1\n255\n'+b'\0'*3))
+    def test_capture_waits_read_only_without_replaying_wheel(self):
+        import tempfile,time
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'wheel-before.ppm';wrong,top,light=self.frames(3);right,_,_=self.frames()
+            path.with_name('form-top.ppm').write_bytes(top);path.with_name('light.ppm').write_bytes(light)
+            calls=[];observer=profile.RenderedMouse(path.with_name('monitor.sock'),lambda *args:calls.append(args))
+            with patch.object(observer,'_capture_once',side_effect=[wrong,wrong,right]) as capture,patch.object(time,'sleep'):
+                self.assertEqual(right,observer.capture(path));self.assertEqual(3,capture.call_count)
+            self.assertEqual([],calls)
+    def test_frozen_intermediate_frame_fails_without_input(self):
+        import tempfile,time
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'wheel-before.ppm';wrong,top,light=self.frames(3)
+            path.with_name('form-top.ppm').write_bytes(top);path.with_name('light.ppm').write_bytes(light)
+            calls=[];observer=profile.RenderedMouse(path.with_name('monitor.sock'),lambda *args:calls.append(args))
+            with patch.object(observer,'_capture_once',return_value=wrong),patch.object(time,'monotonic',side_effect=[0,21]),patch.object(time,'sleep'):
+                with self.assertRaisesRegex(RuntimeError,'did not reach Home'):observer.capture(path)
+            self.assertEqual([],calls)
+
 if __name__=='__main__':unittest.main()
