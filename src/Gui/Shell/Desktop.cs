@@ -285,6 +285,7 @@ internal sealed class Desktop
         if ((_motion.Active || _motionName is not null || _sceneDirty) && !due) { _framePending = true; return; }
         if (_motion.Active || _motionName is not null)
         {
+            _composeAll = true;   // motion frames bypass the scene; the frame after them composes everything
             if (DrawMotionFrame())
             {
                 _sceneDirty = false;
@@ -710,7 +711,9 @@ internal sealed class Desktop
         long topKey = TopKey(top), barKey = BarKey();
         Rect barArea = _taskbar.Shown ? _taskbar.Bounds.Inflate(Theme.ShadowSize + 8) : new Rect(0, 0, 0, 0);
         bool overlays = withoutTop || _launcher.IsOpen || _taskbar.OverflowOpen || Zenith.Core.Sessions.SessionRuntime.Message is not null;
-        bool structural = !appearance || !_lowerValid || top != _lastTop || !Windows.LowerStructureUnchanged();
+        // After an animation or a pass without the top window, the scene does not hold a finished
+        // frame: compose everything once.
+        bool structural = _composeAll || !appearance || !_lowerValid || top != _lastTop || !Windows.LowerStructureUnchanged();
         if (structural || overlays)
         {
             // Everything: the scene below the top window (when it changed), the top window, the shell.
@@ -759,6 +762,7 @@ internal sealed class Desktop
             }
         }
         _lastTop = top; _lastTopKey = topKey; _lastTopRect = topArea; _lastBarKey = barKey; _lastBarRect = barArea; _barChanged = false;
+        _composeAll = withoutTop;
         if (_composeDamage.IsEmpty) { FrameStats.RecordCompose(start); return; }
 
         long shell = FrameStats.Now;
@@ -826,7 +830,7 @@ internal sealed class Desktop
     private Rect _composeDamage, _lastTopRect, _lastBarRect;
     private Window? _lastTop;
     private long _lastTopKey, _lastBarKey;
-    private bool _barChanged;
+    private bool _barChanged, _composeAll;
     /// <summary>Everything that changes how the top window looks: place, state, hover, content.</summary>
     private long TopKey(Window? top)
     {
