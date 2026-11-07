@@ -238,6 +238,7 @@ internal sealed class WindowManager
             if (!w.IsClosed && (!w.IsMinimized || w.UpdateWhenMinimized) && w.Update())
             {
                 changed = true;
+                w.ContentVersion++;
                 if (!w.IsMinimized && w != Top) { _lowerDirty = true; w.ContentChanged = true; }
             }
 
@@ -516,15 +517,95 @@ internal sealed class WindowManager
             _lower.Add(new LowerWindow(w, button));
             w.BackdropUnchanged = sameScene && w.BackdropStamp == sceneKey && SameRect(w.BackdropBounds, w.Bounds) && !ChangedUnder(w.Bounds);
             w.BackdropStamp = sceneKey; w.BackdropBounds = w.Bounds; w.BackdropGeneration = _generation;
-            DrawWindow(surface, w, w == hovered ? mouseX : -1, mouseY);
+            DrawWindow(surface, surface, w, w == hovered ? mouseX : -1, mouseY);
             // A window that looks different changes the backdrop of every window above it.
             if (!same || w.ContentChanged || !w.BackdropUnchanged) { _changed.Add(w.Bounds.Inflate(Theme.ShadowSize + 2)); }
             w.ContentChanged = false; w.BackdropUnchanged = false;
         }
     }
 
+    /// <summary>The title-bar button the pointer is over in this window (0 when none or dragging).</summary>
+    public int HoverButton(Window w, int x, int y) => _dragging is null && HitTest(x, y, includeResizeMargin: false) == w ? ButtonAt(w, x, y) : 0;
+
+    /// <summary>Marks a window as having drawn new content, as its Update would (benchmark).</summary>
+    public void MarkChanged(Window w)
+    {
+        w.ContentVersion++;
+        if (!w.IsMinimized && w != Top) { _lowerDirty = true; w.ContentChanged = true; }
+    }
+
+    /// <summary>Area a window changes on screen, shadow included.</summary>
+    public static Rect AreaOf(Window w) => w.IsFullscreen ? w.Bounds : w.Bounds.Inflate(Theme.ShadowSize + 8);
+
+    /// <summary>The same lower windows in the same order as the cached lower scene: then only what
+    /// changed needs drawing again, see <see cref="LowerDamage"/>.</summary>
+    public bool LowerStructureUnchanged()
+    {
+        Window? top = Top; int at = 0;
+        foreach (Window w in _windows)
+        {
+            if (w.IsMinimized || w == top) { continue; }
+            if (at == _lower.Count || _lower[at].Window != w) { return false; }
+            at++;
+        }
+        return at == _lower.Count;
+    }
+
+    /// <summary>What changed in the lower scene since it was drawn: windows that moved, changed state
+    /// (old and new area) or drew new content. Empty when nothing did.</summary>
+    public Rect LowerDamage(int mouseX, int mouseY)
+    {
+        Window? hovered = _dragging is null ? HitTest(mouseX, mouseY, includeResizeMargin: false) : null;
+        Rect damage = new(0, 0, 0, 0);
+        for (int i = 0; i < _lower.Count; i++)
+        {
+            Window w = _lower[i].Window;
+            if (!_lower[i].Shows(w, w == hovered ? ButtonAt(w, mouseX, mouseY) : 0)) { damage = damage.Union(_lower[i].Bounds.Inflate(Theme.ShadowSize + 8)).Union(AreaOf(w)); }
+            else if (w.ContentChanged) { damage = damage.Union(AreaOf(w)); }
+        }
+        return damage;
+    }
+
+    /// <summary>Draws the lower scene again inside <paramref name="damage"/> only, over the wallpaper.
+    /// A translucent window over the damage is drawn whole (its blur reads everything behind it),
+    /// so the damage grows to cover it; the caller presents the grown rectangle.</summary>
+    public void DrawLowerPartial(Surface surface, Surface wallpaper, ref Rect damage, int mouseX, int mouseY, long sceneKey)
+    {
+        Window? top = Top, hovered = _dragging is null ? HitTest(mouseX, mouseY, includeResizeMargin: false) : null;
+        if (MaterialResources.Policy.Effective != 0)
+        {
+            for (bool grew = true; grew;)
+            {
+                grew = false;
+                foreach (LowerWindow entry in _lower)
+                {
+                    Rect area = AreaOf(entry.Window), hit = area.Intersect(damage), joined = damage.Union(area);
+                    if (hit.W > 0 && hit.H > 0 && (joined.W != damage.W || joined.H != damage.H || joined.X != damage.X || joined.Y != damage.Y)) { damage = joined; grew = true; }
+                }
+            }
+        }
+        damage = damage.Intersect(surface.Bounds);
+        _changed.Clear(); _changed.Add(damage); _generation++; _sceneKey = sceneKey;
+        surface.CopyRect(wallpaper, damage);
+        surface.BaseClip = damage; MaterialComposition.Limit = damage;
+        for (int i = 0; i < _lower.Count; i++)
+        {
+            Window w = _lower[i].Window;
+            int button = w == hovered ? ButtonAt(w, mouseX, mouseY) : 0;
+            _lower[i] = new LowerWindow(w, button);
+            Rect hit = AreaOf(w).Intersect(damage);
+            if (hit.W <= 0 || hit.H <= 0) { w.ContentChanged = false; continue; }
+            w.BackdropUnchanged = w.BackdropStamp == sceneKey && SameRect(w.BackdropBounds, w.Bounds) && !ChangedUnder(w.Bounds);
+            w.BackdropStamp = sceneKey; w.BackdropBounds = w.Bounds; w.BackdropGeneration = _generation;
+            DrawWindow(surface, surface, w, w == hovered ? mouseX : -1, mouseY);
+            w.ContentChanged = false; w.BackdropUnchanged = false;
+        }
+        surface.BaseClip = surface.Bounds; MaterialComposition.Limit = MaterialComposition.Unlimited;
+        _lowerDirty = false;
+    }
+
     /// <summary>Draws the top window; <paramref name="stamp"/> names the lower scene already on the surface.</summary>
-    public void DrawTop(Surface surface, int mouseX, int mouseY, long sceneKey)
+    public void DrawTop(Surface surface, Surface backdrop, int mouseX, int mouseY, long sceneKey)
     {
         Window? top = Top;
         if (top is null) { return; }
@@ -533,7 +614,7 @@ internal sealed class WindowManager
             && (top.BackdropGeneration == _generation || (top.BackdropGeneration == _generation - 1 && !ChangedUnder(top.Bounds)));
         top.BackdropStamp = sceneKey; top.BackdropBounds = top.Bounds; top.BackdropGeneration = _generation;
         bool hovered = _dragging is null && HitTest(mouseX, mouseY, includeResizeMargin: false) == top;
-        DrawWindow(surface, top, hovered ? mouseX : -1, mouseY);
+        DrawWindow(surface, backdrop, top, hovered ? mouseX : -1, mouseY);
         top.BackdropUnchanged = false;
     }
 
@@ -548,15 +629,17 @@ internal sealed class WindowManager
 
     private static int ButtonAt(Window w, int x, int y) => w.CloseButton.Contains(x, y) ? 1 : w.MaximizeButton.Contains(x, y) ? 2 : w.MinimizeButton.Contains(x, y) ? 3 : 0;
 
-    private static void DrawWindow(Surface surface, Window w, int mouseX, int mouseY)
+    /// <param name="backdrop">Where material captures read what is behind the window: the surface itself for
+    /// lower windows, the cached lower scene for the top one (the scene may still hold its last frame).</param>
+    private static void DrawWindow(Surface surface, Surface backdrop, Window w, int mouseX, int mouseY)
     {
-        if (w.IsFullscreen) { DrawFullscreen(surface, w); return; }
+        if (w.IsFullscreen) { DrawFullscreen(surface, backdrop, w); return; }
         Rect b = w.Bounds;
         int radius = w.IsMaximized ? 0 : Theme.WindowRadius;
         Rect chrome = new(b.X, b.Y, b.W, Window.TitleBarHeight + Theme.WindowRadius);
         long phase = FrameStats.Now;
-        w.ChromeMaterial.Capture(surface, chrome, 0, Theme.Panel, w.AllowMaterials, w.BackdropUnchanged);
-        w.CaptureBackdrop(surface, w.Content);
+        w.ChromeMaterial.Capture(backdrop, chrome, 0, Theme.Panel, w.AllowMaterials, w.BackdropUnchanged);
+        w.CaptureBackdrop(backdrop, w.Content);
         FrameStats.BackdropTicks += FrameStats.Now - phase; phase = FrameStats.Now;
         if (!w.IsMaximized)
         {
@@ -573,9 +656,11 @@ internal sealed class WindowManager
         w.ChromeMaterial.Paint(surface, chrome, Theme.Panel);
         if (!w.UnifiedChrome && ((MaterialResources.Policy.Effective & 1) == 0 || !w.AllowMaterials))
         { surface.FillRect(new Rect(b.X, title.Bottom - 1, b.W, 1), Theme.TitleDivider); }
-        surface.Clip = new Rect(title.X + 14, title.Y, w.MinimizeButton.X - title.X - 20, title.H);
+        // Lay out in the title box itself: the clip may be cut down to a partial compose's damage.
+        Rect titleBox = new(title.X + 14, title.Y, w.MinimizeButton.X - title.X - 20, title.H);
+        surface.Clip = titleBox;
         surface.DrawTextCentered(w.Title, Fonts.SemiBold, Theme.TextTitle,
-            w.IsFocused ? Theme.TextPrimary : Theme.TextSecondary, surface.Clip, false);
+            w.IsFocused ? Theme.TextPrimary : Theme.TextSecondary, titleBox, false);
         surface.ResetClip();
 
         DrawTitleButton(surface, w.MinimizeButton, TitleIcon.Minimize, mouseX, mouseY, Theme.Hover, w.IsFocused);
@@ -603,10 +688,10 @@ internal sealed class WindowManager
         FrameStats.ChromeTicks += FrameStats.Now - phase;
     }
 
-    private static void DrawFullscreen(Surface surface, Window w)
+    private static void DrawFullscreen(Surface surface, Surface backdrop, Window w)
     {
         long phase = FrameStats.Now;
-        w.CaptureBackdrop(surface, w.Content);
+        w.CaptureBackdrop(backdrop, w.Content);
         FrameStats.BackdropTicks += FrameStats.Now - phase; phase = FrameStats.Now;
         surface.FillRect(w.Bounds, Theme.WindowBackground);
         surface.Clip = w.Content;

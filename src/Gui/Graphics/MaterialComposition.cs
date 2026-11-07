@@ -33,6 +33,10 @@ internal sealed class MaterialComposition
     private int _paintedBytes;
     private uint _paintedFallback, _paintedPanel, _paintedNavigation, _paintedPopover;
     public bool HasPaintedCache => _paintedValid;
+    /// <summary>Painting and composing change only pixels inside this (a partial compose's damaged
+    /// rectangle; the compositor is the only, single-threaded caller). Captures are not limited.</summary>
+    public static readonly Rect Unlimited = new(0, 0, int.MaxValue / 2, int.MaxValue / 2);
+    public static Rect Limit { get; set; } = Unlimited;
 
     public void ReleasePainted()
     {
@@ -117,7 +121,7 @@ internal sealed class MaterialComposition
     public void Paint(int[] target, int width, int height, Rect content,
         ProcessMaterialRegion[] regions, int count, uint fallback, uint panel, uint navigation, uint popover, bool clear)
     {
-        Rect clip = content.Intersect(new Rect(0, 0, width, height));
+        Rect clip = content.Intersect(new Rect(0, 0, width, height)).Intersect(Limit);
         if (clear)for (int y = clip.Y; y < clip.Bottom; y++)
         { Array.Fill(target, (int)(fallback | 0xff000000U), y * width + clip.X, clip.W); }
         int[]? painted = _stable ? Painted(regions, count, fallback, panel, navigation, popover) : null;
@@ -190,7 +194,7 @@ internal sealed class MaterialComposition
         ProcessMaterialRegion[] regions, int count, uint fallback, uint panel, uint navigation, uint popover)
     {
         Paint(target, width, height, content, regions, count, fallback, panel, navigation, popover, true);
-        Rect clip = content.Intersect(new Rect(0, 0, width, height));
+        Rect clip = content.Intersect(new Rect(0, 0, width, height)).Intersect(Limit);
         for (int y = clip.Y; y < clip.Bottom; y++)
         {
             for (int x = clip.X; x < clip.Right; x++)

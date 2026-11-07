@@ -27,12 +27,13 @@ internal sealed class RoundedComposition
     }
 
     public void Capture(int[] pixels, int width, int height, Rect bounds, int radius, int corners = 15)
-        => Visit(pixels, width, height, bounds, radius, false, corners);
+        => Visit(pixels, width, height, bounds, radius, false, corners, new Rect(0, 0, width, height));
 
-    public void Composite(int[] pixels, int width, int height, Rect bounds, int radius, int corners = 15)
-        => Visit(pixels, width, height, bounds, radius, true, corners);
+    /// <param name="limit">Only pixels inside it change (a partial compose's damaged rectangle).</param>
+    public void Composite(int[] pixels, int width, int height, Rect bounds, int radius, int corners = 15, Rect? limit = null)
+        => Visit(pixels, width, height, bounds, radius, true, corners, limit ?? new Rect(0, 0, width, height));
 
-    private void Visit(int[] pixels, int width, int height, Rect bounds, int radius, bool composite, int corners)
+    private void Visit(int[] pixels, int width, int height, Rect bounds, int radius, bool composite, int corners, Rect limit)
     {
         if (width <= 0 || height <= 0 || (long)width * height != pixels.Length)
         { throw new ArgumentException("Invalid composition surface"); }
@@ -50,6 +51,7 @@ internal sealed class RoundedComposition
                     int index = (int)py * width + (int)px;
                     int slot = (corner * MaximumRadius + y) * MaximumRadius + x;
                     if (!composite) { _backdrop[slot] = pixels[index]; continue; }
+                    if (!limit.Contains((int)px, (int)py)) { continue; }
                     int coverage = Coverage(x, y, radius);
                     pixels[index] = Blend(pixels[index], _backdrop[slot], coverage);
                 }

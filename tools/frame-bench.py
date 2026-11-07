@@ -26,6 +26,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('keep', type=Path)
     parser.add_argument('--mode', action='append', default=None, help='WIDTHxHEIGHTxSCALE, repeatable')
+    parser.add_argument('--materials', action='store_true', help='blur and full translucency on')
     parser.add_argument('--apps', type=Path, help='served directory with key.pem, polaris.zpk and observatory.zpk: open both with blur on')
     args = parser.parse_args()
     args.keep.mkdir(parents=True, exist_ok=False)
@@ -54,6 +55,8 @@ def main():
         assert machine.wait_for('bench windows=', 60, offset), 'bench result'
         bench = [l for l in machine.raw_log()[offset:].splitlines() if 'bench windows=' in l][-1]
         print('   compose ' + bench.split('compose: ')[-1], flush=True)
+        for l in machine.raw_log()[offset:].splitlines():
+            if 'partial differs at' in l: print('   ' + l.split('compose: ')[-1], flush=True)
         offset = len(machine.raw_log())
         machine.type('fps | logger\n')
         machine.wait_for('last compose', 20, offset); time.sleep(1)
@@ -62,6 +65,8 @@ def main():
         time.sleep(1)
 
     try:
+        if args.materials:
+            machine.type('settings set materials background-blur; settings set translucency 100\n'); time.sleep(3)
         if args.apps:
             import functools, hashlib, http.server, threading
             handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(args.apps))
