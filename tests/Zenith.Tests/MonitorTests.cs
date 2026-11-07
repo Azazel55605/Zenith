@@ -53,6 +53,7 @@ public class MonitorTests
         Assert.Equal(60u, BinaryPrimitives.ReadUInt32LittleEndian(snapshot.AsSpan(44)));
         Assert.Equal(4000u, BinaryPrimitives.ReadUInt32LittleEndian(snapshot.AsSpan(48)));
         Assert.Equal(19000u, BinaryPrimitives.ReadUInt32LittleEndian(snapshot.AsSpan(52)));
+        f.Milliseconds = 1400; Assert.Equal(400u, BinaryPrimitives.ReadUInt32LittleEndian(m.Snapshot(3).AsSpan(60)));
         Assert.StartsWith("Test CPU @ 1 GHz\0", Encoding.ASCII.GetString(snapshot, 128, 64));
     }
 

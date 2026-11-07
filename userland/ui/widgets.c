@@ -277,6 +277,9 @@ int zui_tabs_event(const struct zui_tabs *t,const struct zenith_gui_event *e){
 }
 
 void zui_graph(struct zui *ui,struct zui_rect r,const unsigned char *values,int stride,int count,int capacity,unsigned int color,int grid){
+    zui_graph_phase(ui,r,values,stride,count,capacity,color,grid,0);
+}
+void zui_graph_phase(struct zui *ui,struct zui_rect r,const unsigned char *values,int stride,int count,int capacity,unsigned int color,int grid,int phase){
     if(r.w<4||r.h<4||capacity<2||stride<1)return;
     if(count>capacity){values+=(count-capacity)*stride;count=capacity;}
     if(grid)for(int i=1;i<4;i++)zui_round_alpha(ui,(struct zui_rect){r.x,r.y+r.h*i/4,r.w,1},0,ui->theme.border,110);
@@ -285,9 +288,12 @@ void zui_graph(struct zui *ui,struct zui_rect r,const unsigned char *values,int 
     int previous=-1;
     for(int x=0;x<r.w;x++){
         /* Position along the history in 1/256 slots. */
-        long at=(long)x*(capacity-1)*256/(r.w-1)-(long)(capacity-count)*256;
+        if(phase<0)phase=0;
+        if(phase>255)phase=255;
+        long at=(long)x*(capacity-1)*256/(r.w-1)-(long)(capacity-count)*256+phase;
         if(at<0)continue;
         int s=(int)(at>>8),f=(int)(at&255);
+        if(s>=count-1){s=count-1;f=0;}
         /* On an exact sample, never read the neighbour: a point next to a gap still draws. */
         unsigned int a=values[s*stride],b=f&&s+1<count?values[(s+1)*stride]:a;
         if(a==255||b==255){previous=-1;continue;}

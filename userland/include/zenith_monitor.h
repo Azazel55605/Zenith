@@ -12,7 +12,7 @@ struct zenith_monitor_sample { unsigned char cpu[8],total,memory,reserved[6]; };
 struct zenith_monitor {
     unsigned int version,cpus,detected,samples;
     unsigned long uptime_ms,memory_total,memory_free;
-    unsigned int programs,frames_per_second,frame_average_us,frame_worst_us,interval_ms,reserved0;
+    unsigned int programs,frames_per_second,frame_average_us,frame_worst_us,interval_ms,sample_age_ms; /* age: 0 on kernels before 0.0.46 */
     struct zenith_monitor_sample latest;
     unsigned char reserved1[48];
     char processor[64];

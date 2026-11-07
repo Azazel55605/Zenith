@@ -33,7 +33,9 @@ dispatch, a few microseconds per interrupt.
 | 644 | PID | Asks the program to stop; `-13` for another account's program, `-3` when it already ended, `-22` for itself |
 
 A sample is one byte per CPU (0..100, 255 offline), the average and memory in
-use. The kernel samples at most once a second, from the desktop tick or a read,
+use. Offset 60 holds the newest sample's age in milliseconds (0 before kernel
+0.0.46), so a client can glide its graphs in step with sampling (`zui_graph_phase`,
+only while animations are on). The kernel samples at most once a second, from the desktop tick or a read,
 and keeps two minutes. Layouts are in `userland/include/zenith_monitor.h` and
 `src/Core/Monitoring/`. `top` prints the same snapshot in the shell.
 

@@ -42,6 +42,10 @@ struct zui {
     /* Frame clock. 0 percent (the default) means no motion: everything lands at once. */
     int motion_percent,frame_ms,animating;long now;
 };
+/* After a window call failed: 1 when the person closed the window (title-bar X) meanwhile.
+ * The host ends the surface at once, so a present or viewport call in flight fails; that is a
+ * normal exit, not an error for the launcher to report. */
+int zui_window_closed(long handle);
 /* Monotonic milliseconds, or negative on kernels without the clock (no motion there). */
 long zui_motion_clock(void);
 /* Animation duration percent for the system's style.animations choice. */

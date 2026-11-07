@@ -70,14 +70,14 @@ int main(int argc,char **argv){
             for(int i=0;i<ui.count;i++)if(ui.controls[i].enabled){if(ui.controls[i].id==focus)ui.focus=i;if(ui.controls[i].id==pressed)ui.pressed=i;}
             zui_clip(&ui,(struct zui_rect){0,0,ui.width,ui.height});zui_update_hover(&ui);zui_draw_controls(&ui);ui.dirty=0;
             long r=material?zenith_gui_present_material(handle,pixels,(unsigned long)ui.width*ui.height*4,ui.materials,ui.material_count):zenith_gui_present(handle,pixels,(unsigned long)ui.width*ui.height*4);
-            if(r<0){result=1;break;}
+            if(r<0){result=zui_window_closed(handle)?0:1;break;}
         }
         struct zenith_gui_event e={0};long r=zenith_gui_poll(handle,&e);if(r<0){result=1;break;}if(!r)continue;
         if(e.type==Z_GUI_RESIZE){
             struct zenith_viewport v={0};
-            if(zenith_gui_viewport(handle,&v)||v.width<600||v.height<480||v.width>1920||v.height>1000){result=1;break;}
+            if(zenith_gui_viewport(handle,&v)||v.width<600||v.height<480||v.width>1920||v.height>1000){result=zui_window_closed(handle)?0:1;break;}
             long accepted=zenith_gui_resize_accept(handle,&v);if(accepted==-11)continue;
-            if(accepted||!zui_resize(&ui,v.width,v.height,1920*1000)){result=1;break;}continue;
+            if(accepted||!zui_resize(&ui,v.width,v.height,1920*1000)){result=zui_window_closed(handle)?0:1;break;}continue;
         }
         if(e.type==Z_GUI_CLOSE||e.type==Z_GUI_CLOSE_INTENT||(e.type==Z_GUI_KEY&&e.extra==1&&ui.window_focused)){done=1;continue;}
         if(e.type==Z_GUI_FOCUS&&e.code)print("DESKTOP_FOCUSED\n");

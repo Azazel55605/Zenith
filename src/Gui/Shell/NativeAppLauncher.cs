@@ -40,7 +40,13 @@ internal sealed class NativeAppLauncher
                 if (result.Status != 0 && result.Status != 130)
                 { failure = result.Error.Length > 0 ? result.Error : "Application exited with status " + result.Status; }
             }
-            catch { failure = "Application could not be started."; }
+            catch (Exception e)
+            {
+                failure = "Application could not be started.";
+                Zenith.Core.Log.Write("launcher", program + " failed: " + e.GetType().Name + ": " + e.Message);
+            }
+            if (failure is not null) { Zenith.Core.Log.Write("launcher", program + " notice: " + failure); }
+            else { Zenith.Core.Log.Write("launcher", program + " ended"); }
             streams.Close(); invocation.Stop.Close();
             lock (_gate) { invocation.Error = failure; invocation.Done = true; }
         }).Start();

@@ -39,6 +39,8 @@ internal sealed class WindowManager
         private readonly string _title;
         private readonly int _button;
         public LowerWindow(Window w, int button) { _window = w; _bounds = w.Bounds; _focused = w.IsFocused; _maximized = w.IsMaximized; _fullscreen = w.IsFullscreen; _title = w.Title; _button = button; }
+        public Window Window => _window;
+        public Rect Bounds => _bounds;
         public bool Shows(Window w, int button) => _window == w && SameRect(_bounds, w.Bounds) && _focused == w.IsFocused && _maximized == w.IsMaximized && _fullscreen == w.IsFullscreen && _title == w.Title && _button == button;
     }
 
@@ -49,6 +51,18 @@ internal sealed class WindowManager
     // What the cached scene below the top window shows; any difference means drawing it again.
     private readonly List<LowerWindow> _lower = new();
     private bool _lowerDirty = true;
+    // Blur caching across lower-scene redraws: screen areas that look different from the last
+    // redraw, and which redraw that was. A window keeps its blurred backdrop when its key and
+    // bounds are the same and no changed area reaches under it.
+    private readonly List<Rect> _changed = new();
+    private long _sceneKey = -1, _generation;
+    private const int ChangeMargin = 24;
+    private bool ChangedUnder(Rect bounds)
+    {
+        Rect area = bounds.Inflate(ChangeMargin);
+        foreach (Rect c in _changed) { Rect hit = c.Intersect(area); if (hit.W > 0 && hit.H > 0) { return true; } }
+        return false;
+    }
     private Rect _workArea;
     private Rect _screen;
     private int _cascade;
@@ -224,7 +238,7 @@ internal sealed class WindowManager
             if (!w.IsClosed && (!w.IsMinimized || w.UpdateWhenMinimized) && w.Update())
             {
                 changed = true;
-                if (!w.IsMinimized && w != Top) { _lowerDirty = true; }
+                if (!w.IsMinimized && w != Top) { _lowerDirty = true; w.ContentChanged = true; }
             }
 
             if (w.IsClosed)
@@ -477,27 +491,47 @@ internal sealed class WindowManager
         return at == _lower.Count;
     }
 
-    /// <summary>Draws the windows below the top one and remembers what they looked like.</summary>
-    public void DrawLower(Surface surface, int mouseX, int mouseY)
+    /// <summary>Draws the windows below the top one and remembers what they looked like.
+    /// <paramref name="sceneKey"/> changes whenever the wallpaper or appearance does: then every
+    /// window blurs its backdrop again. Otherwise only windows over a changed area do.</summary>
+    public void DrawLower(Surface surface, int mouseX, int mouseY, long sceneKey)
     {
         Window? top = Top, hovered = _dragging is null ? HitTest(mouseX, mouseY, includeResizeMargin: false) : null;
+        _changed.Clear(); _generation++;
+        bool sameScene = sceneKey == _sceneKey; _sceneKey = sceneKey;
+        // Windows that left the lower scene (closed, minimized, raised) reveal what was under them.
+        foreach (LowerWindow old in _lower)
+        {
+            Window w = old.Window;
+            if (w.IsClosed || w.IsMinimized || w == top || !_windows.Contains(w)) { _changed.Add(old.Bounds.Inflate(Theme.ShadowSize + 2)); }
+        }
+        var previous = new List<LowerWindow>(_lower);
         _lower.Clear(); _lowerDirty = false;
         foreach (Window w in _windows)
         {
             if (w.IsMinimized || w == top) { continue; }
-            _lower.Add(new LowerWindow(w, w == hovered ? ButtonAt(w, mouseX, mouseY) : 0));
-            w.BackdropStamp = -1;
+            int button = w == hovered ? ButtonAt(w, mouseX, mouseY) : 0;
+            bool same = false;
+            foreach (LowerWindow old in previous) { if (old.Shows(w, button)) { same = true; break; } }
+            _lower.Add(new LowerWindow(w, button));
+            w.BackdropUnchanged = sameScene && w.BackdropStamp == sceneKey && SameRect(w.BackdropBounds, w.Bounds) && !ChangedUnder(w.Bounds);
+            w.BackdropStamp = sceneKey; w.BackdropBounds = w.Bounds; w.BackdropGeneration = _generation;
             DrawWindow(surface, w, w == hovered ? mouseX : -1, mouseY);
+            // A window that looks different changes the backdrop of every window above it.
+            if (!same || w.ContentChanged || !w.BackdropUnchanged) { _changed.Add(w.Bounds.Inflate(Theme.ShadowSize + 2)); }
+            w.ContentChanged = false; w.BackdropUnchanged = false;
         }
     }
 
     /// <summary>Draws the top window; <paramref name="stamp"/> names the lower scene already on the surface.</summary>
-    public void DrawTop(Surface surface, int mouseX, int mouseY, long stamp)
+    public void DrawTop(Surface surface, int mouseX, int mouseY, long sceneKey)
     {
         Window? top = Top;
         if (top is null) { return; }
-        top.BackdropUnchanged = top.BackdropStamp == stamp && SameRect(top.BackdropBounds, top.Bounds);
-        top.BackdropStamp = stamp; top.BackdropBounds = top.Bounds;
+        // Same scene and place, and either no lower redraw since, or one that changed nothing under it.
+        top.BackdropUnchanged = top.BackdropStamp == sceneKey && sceneKey == _sceneKey && SameRect(top.BackdropBounds, top.Bounds)
+            && (top.BackdropGeneration == _generation || (top.BackdropGeneration == _generation - 1 && !ChangedUnder(top.Bounds)));
+        top.BackdropStamp = sceneKey; top.BackdropBounds = top.Bounds; top.BackdropGeneration = _generation;
         bool hovered = _dragging is null && HitTest(mouseX, mouseY, includeResizeMargin: false) == top;
         DrawWindow(surface, top, hovered ? mouseX : -1, mouseY);
         top.BackdropUnchanged = false;
@@ -521,7 +555,7 @@ internal sealed class WindowManager
         int radius = w.IsMaximized ? 0 : Theme.WindowRadius;
         Rect chrome = new(b.X, b.Y, b.W, Window.TitleBarHeight + Theme.WindowRadius);
         long phase = FrameStats.Now;
-        w.ChromeMaterial.Capture(surface, chrome, 0, Theme.Panel, w.AllowMaterials);
+        w.ChromeMaterial.Capture(surface, chrome, 0, Theme.Panel, w.AllowMaterials, w.BackdropUnchanged);
         w.CaptureBackdrop(surface, w.Content);
         FrameStats.BackdropTicks += FrameStats.Now - phase; phase = FrameStats.Now;
         if (!w.IsMaximized)

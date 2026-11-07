@@ -149,15 +149,16 @@ internal sealed class Surface : Canvas
     /// </summary>
     public void DrawShadow(Rect r, int radius, int size, int maxAlpha, int offsetY)
     {
+        if (size <= 0 || radius < 0 || radius > 255 || size > 255 || maxAlpha is < 0 or > 255) { return; }
         Rect s = r.Offset(0, offsetY);
         Rect area = s.Inflate(size).Intersect(_clip);
         Rect interior = s.Inflate(-radius);
-        float halfW = s.W / 2f, halfH = s.H / 2f;
-        float cx = s.X + halfW, cy = s.Y + halfH;
+        var mask = ShadowMask.For(s, radius, size, maxAlpha);
 
         for (int y = area.Y; y < area.Bottom; y++)
         {
             bool rowInInterior = y >= interior.Y && y < interior.Bottom;
+            int iy = mask.Row(y);
             for (int x = area.X; x < area.Right; x++)
             {
                 if (rowInInterior && x >= interior.X && x < interior.Right)
@@ -165,20 +166,7 @@ internal sealed class Surface : Canvas
                     x = interior.Right - 1;
                     continue;
                 }
-
-                // Signed distance from the pixel center to the rounded rectangle.
-                float qx = MathF.Abs(x + 0.5f - cx) - halfW + radius;
-                float qy = MathF.Abs(y + 0.5f - cy) - halfH + radius;
-                float ox = MathF.Max(qx, 0f), oy = MathF.Max(qy, 0f);
-                float distance = MathF.Sqrt(ox * ox + oy * oy) + MathF.Min(MathF.Max(qx, qy), 0f) - radius;
-
-                float t = 1f - distance / size;
-                if (t <= 0f)
-                {
-                    continue;
-                }
-
-                int a = (int)(maxAlpha * MathF.Min(t * t, 1f));
+                int a = mask.Alpha(x, iy);
                 if (a > 0)
                 {
                     BlendPixel(y * Width + x, 0xFF000000, a);

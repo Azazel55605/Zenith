@@ -275,7 +275,7 @@ int main(int argc,char **argv){
                 e.code+=next.code;
             }
         }
-        if((r>0&&e.type==Z_GUI_RESIZE)||(i&31)==0){if(!viewport()){result=1;break;}}
+        if((r>0&&e.type==Z_GUI_RESIZE)||(i&31)==0){if(!viewport()){result=zui_window_closed(handle)?0:1;break;}}
         if(r<0){result=1;break;}
         int previous_page=shell.page,previous_mode=shell.nav.mode;
         int edited=binding_any_changed(&shell.bindings),prompt=shell.dialog.open;unsigned long rev=shell.colors.state.revision,preference_revision=shell.bindings.preferences.revision;
@@ -296,7 +296,7 @@ int main(int argc,char **argv){
         if(!following)meridian_refresh(&shell);
         if(shell.bindings.display.phase!=display_phase){display_phase=shell.bindings.display.phase;print("DISPLAY_STATE phase=");number(display_phase);print("\n");}
         meridian_draw(&shell);
-        if(present()<0){result=1;break;}
+        if(present()<0){result=zui_window_closed(handle)?0:1;break;}
         if(u->animating&&!motion_frames)motion_start=u->now;
         if(u->animating||motion_frames)motion_frames++;
         if(motion_frames&&!u->animating){

@@ -95,6 +95,8 @@ internal sealed class SystemMonitor
             BinaryPrimitives.WriteUInt32LittleEndian(b[48..], _average);
             BinaryPrimitives.WriteUInt32LittleEndian(b[52..], _worst);
             BinaryPrimitives.WriteUInt32LittleEndian(b[56..], IntervalMs);
+            // How old the newest sample is, so a client can glide its graph in step with sampling.
+            BinaryPrimitives.WriteUInt32LittleEndian(b[60..], _count == 0 ? 0 : (uint)Math.Clamp(_sources.Milliseconds - _sampled, 0, 60000));
             _latest.CopyTo(b[64..]);
             byte[] name = Encoding.ASCII.GetBytes(_sources.Processor);
             name.AsSpan(0, Math.Min(63, name.Length)).CopyTo(b[128..]);

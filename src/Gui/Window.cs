@@ -53,6 +53,9 @@ internal abstract class Window
     /// <summary>The lower scene this window last captured its materials from, or -1 when unknown.</summary>
     internal long BackdropStamp { get; set; } = -1;
     internal Rect BackdropBounds { get; set; }
+    internal long BackdropGeneration { get; set; } = -1;
+    /// <summary>Set when Update reported new content while the window was below the top one.</summary>
+    internal bool ContentChanged { get; set; }
     /// <summary>Set by the window manager for one draw when that lower scene has not changed.</summary>
     protected internal bool BackdropUnchanged { get; internal set; }
 

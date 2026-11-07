@@ -91,6 +91,9 @@ int zui_tabs_event(const struct zui_tabs *tabs,const struct zenith_gui_event *ev
  * (no data). The newest value sits at the right edge and capacity slots span the width, so a
  * short history grows in from the right. grid draws quarter lines in the theme's border color. */
 void zui_graph(struct zui *ui,struct zui_rect rect,const unsigned char *values,int stride,int count,int capacity,unsigned int color,int grid);
+/* The same graph scrolled left by phase/256 of a sample, so it can glide between samples
+ * instead of jumping once a second; the newest value holds flat to the right edge. */
+void zui_graph_phase(struct zui *ui,struct zui_rect rect,const unsigned char *values,int stride,int count,int capacity,unsigned int color,int grid,int phase);
 /* A thin rounded meter, 0..100 percent of its width filled with color over the subtle track. */
 void zui_meter(struct zui *ui,struct zui_rect rect,int percent,unsigned int color);
 #endif

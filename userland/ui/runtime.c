@@ -61,3 +61,7 @@ int zui_apply_viewport(struct zui *u,long handle,unsigned long capacity){
     if(r||!zui_resize(u,(int)v.width,(int)v.height,capacity))return -1;
     u->dirty=1;return 1;
 }
+int zui_window_closed(long handle){
+    struct zenith_gui_event e={0};
+    return zenith_gui_poll(handle,&e)>0&&e.type==Z_GUI_CLOSE;
+}

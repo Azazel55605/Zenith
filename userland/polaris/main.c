@@ -706,7 +706,7 @@ int main(int argc,char **argv){
             if(now_ms/500!=last_blink){last_blink=now_ms/500;int on=last_blink%2==0;if(on!=caret_on){caret_on=on;ui.dirty=1;}}
             if(ui.dirty||ui.animating){int moving=ui.animating;zui_motion_frame(&ui,now_ms);if(moving)ui.dirty=1;}
         }
-        if(ui.dirty){draw();if(present()<0){result=1;break;}}
+        if(ui.dirty){draw();if(present()<0){result=zui_window_closed(handle)?0:1;break;}}
     }
 end:
     for(int i=0;i<MAX_PANES;i++)if(panes[i].used)zenith_terminal_close(panes[i].session);

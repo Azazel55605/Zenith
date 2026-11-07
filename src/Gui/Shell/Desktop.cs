@@ -35,7 +35,6 @@ internal sealed class Desktop
     private NativeClientHost _nativeClients;
     private Taskbar _taskbar;
     private LauncherMenu _launcher;
-    private long _lowerStamp;
     private bool _lowerValid;
     private (int BlurArea, uint Reason) _lowerSpent;
     private uint _lowerMaterials, _lowerTranslucency, _lowerPanel, _lowerBackground, _lowerBorder, _lowerFocused, _lowerText, _lowerAccent;
@@ -527,6 +526,15 @@ internal sealed class Desktop
         int differ = 0;
         for (int i = 0; i < _motionBase.Length; i++) { if (_motionBase[i] != _scene.Pixels[i]) { differ++; } }
 
+        // Cold: a new scene key, so every window blurs again. Full: the lower windows are redrawn
+        // (as when one of them updates) but keep blurs nothing changed under. Both must match exactly.
+        long cold = Run(() => { _lowerValid = false; });
+        string coldPhases = FrameStats.TakePhases(BenchFrames);
+        _lowerValid = false; ComposeScene();
+        System.Array.Copy(_scene.Pixels, _motionBase, _motionBase.Length);
+        Windows.InvalidateLower(); ComposeScene();
+        int cached = 0;
+        for (int i = 0; i < _motionBase.Length; i++) { if (_motionBase[i] != _scene.Pixels[i]) { cached++; } }
         long full = Run(Windows.InvalidateLower);
         string fullPhases = FrameStats.TakePhases(BenchFrames);
         long top = Run(static () => { });
@@ -535,7 +543,7 @@ internal sealed class Desktop
         long drag = Run(() => { Windows.NudgeTop(step); step = -step; });
         string dragPhases = FrameStats.TakePhases(BenchFrames);
         Zenith.Core.Log.Write("compose", "bench windows=" + Windows.Windows.Count + " materials=" + MaterialResources.Policy.Effective + " verify=" + differ
-            + " full=" + full + " [" + fullPhases + "] top=" + top + " [" + topPhases + "] drag=" + drag + " [" + dragPhases + "]");
+            + " cached-differs=" + cached + " cold=" + cold + " [" + coldPhases + "] full=" + full + " [" + fullPhases + "] top=" + top + " [" + topPhases + "] drag=" + drag + " [" + dragPhases + "]");
     }
 
     /// <summary>Compare actual whole-scene composition with identical inputs and
@@ -652,13 +660,16 @@ internal sealed class Desktop
     {
         long start = FrameStats.Now;
         MaterialResources.Policy.Begin(NativeAppearance.Current.Materials, NativeAppearance.Current.Translucency);
-        if (!LowerStillValid())
+        // A new scene key makes every window blur its backdrop again; otherwise windows keep
+        // their blur unless something under them changed.
+        bool appearance = AppearanceStillValid();
+        if (!appearance) { _sceneKey++; }
+        if (!appearance || !Windows.LowerUnchanged(_input.X, _input.Y))
         {
             _scene.CopyFrom(_wallpaper);
-            Windows.DrawLower(_scene, _input.X, _input.Y);
+            Windows.DrawLower(_scene, _input.X, _input.Y, _sceneKey);
             _lower.CopyFrom(_scene);
             _lowerSpent = MaterialResources.Policy.Spent;
-            _lowerStamp++;
             _lowerValid = true;
             RememberLowerAppearance();
         }
@@ -667,7 +678,7 @@ internal sealed class Desktop
             _scene.CopyFrom(_lower);
             MaterialResources.Policy.Restore(_lowerSpent);
         }
-        if (!withoutTop) { Windows.DrawTop(_scene, _input.X, _input.Y, _lowerStamp); }
+        if (!withoutTop) { Windows.DrawTop(_scene, _input.X, _input.Y, _sceneKey); }
 
         long shell = FrameStats.Now;
         _taskbar.LauncherOpen = _launcher.IsOpen;
@@ -691,11 +702,11 @@ internal sealed class Desktop
     }
     private int WidthForMessage() => 520;
 
-    private bool LowerStillValid() => _lowerValid
+    private long _sceneKey;
+    private bool AppearanceStillValid() => _lowerValid
         && _lowerMaterials == MaterialResources.Policy.Requested && _lowerTranslucency == MaterialResources.Policy.Translucency
         && _lowerPanel == Theme.Panel && _lowerBackground == Theme.WindowBackground && _lowerBorder == Theme.WindowBorder
-        && _lowerFocused == Theme.WindowBorderFocused && _lowerText == Theme.TextPrimary && _lowerAccent == Theme.Accent
-        && Windows.LowerUnchanged(_input.X, _input.Y);
+        && _lowerFocused == Theme.WindowBorderFocused && _lowerText == Theme.TextPrimary && _lowerAccent == Theme.Accent;
 
     private void RememberLowerAppearance()
     {

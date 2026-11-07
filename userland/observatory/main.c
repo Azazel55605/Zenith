@@ -61,6 +61,12 @@ static void panel(struct zui_rect r,int selected){
     zui_round_outline(&ui,r,10,selected?ui.theme.accent:ui.theme.border);
 }
 
+/* ---------- Smooth graphs: between samples the history glides left instead of stepping once a
+ * second. Only with animations on (the system's motion choice); otherwise phase stays 0. */
+static long sampled_at=-1,frame_clock=-1;
+static int graph_phase;
+static void zui_graph_smooth(struct zui *u,struct zui_rect r,const unsigned char *v,int s,int c,int cap,unsigned int col,int g){zui_graph_phase(u,r,v,s,c,cap,col,g,graph_phase);}
+static int smooth(void){return ui.motion_percent>0&&frame_clock>=0&&sampled_at>=0;}
 /* ---------- Data. */
 static struct zenith_monitor monitor;
 static int have_monitor;
@@ -70,18 +76,25 @@ static int have_processes;
 /* Display history is client-side: the kernel reports the last second only. */
 static unsigned char frames_history[Z_MONITOR_HISTORY];
 static int frames_count;
-static unsigned long last_frame_sample;
+static unsigned char previous_list[4096];
+static unsigned long previous_uptime;
+/* Polled four times a second; redraws only when a new sample or a changed program list arrived. */
 static void refresh(void){
     have_monitor=zenith_monitor_read(&monitor)==0&&monitor.version==1&&monitor.samples<=Z_MONITOR_HISTORY;
+    int had=have_processes;
     have_processes=zenith_process_list_read(list_page)==0&&processes->version==1&&processes->count<=63;
-    /* The kernel samples at most once a second; keep one display point per sample. */
-    if(have_monitor&&monitor.samples&&monitor.uptime_ms>=last_frame_sample+900){
+    int changed=had!=have_processes;
+    for(int i=0;i<4096;i++)if(list_page[i]!=previous_list[i]){changed=1;previous_list[i]=list_page[i];}
+    /* A new kernel sample: its time moved by most of a second. Old kernels report age 0. */
+    unsigned long sample_time=have_monitor?monitor.uptime_ms-monitor.sample_age_ms:0;
+    if(have_monitor&&monitor.samples&&sample_time>=previous_uptime+(monitor.sample_age_ms?500:900)){
         unsigned int fps=monitor.frames_per_second>60?60:monitor.frames_per_second;
         if(frames_count==Z_MONITOR_HISTORY){for(int i=1;i<Z_MONITOR_HISTORY;i++)frames_history[i-1]=frames_history[i];frames_count--;}
         frames_history[frames_count++]=(unsigned char)(fps*100/60);
-        last_frame_sample=monitor.uptime_ms;
+        previous_uptime=sample_time;changed=1;
+        if(frame_clock>=0)sampled_at=frame_clock-(long)monitor.sample_age_ms;
     }
-    ui.dirty=1;
+    if(changed)ui.dirty=1;
 }
 static int busy_cores(void){int n=0;for(unsigned int i=0;i<monitor.cpus&&i<8;i++)if(monitor.latest.cpu[i]!=Z_MONITOR_OFFLINE&&monitor.latest.cpu[i]>=50)n++;return n;}
 
@@ -94,6 +107,7 @@ static void update_appearance(void){
     struct zenith_material_settings material_state={0};
     if(personal)ui.full_background=(scoped.materials.saved&5)==5;
     else if(!zenith_material_settings_read(&material_state))ui.full_background=(material_state.saved&5)==5;
+    long clock=zui_motion_clock();if(clock>=0)zui_apply_motion(&ui,clock);
     ui.dirty=1;
 }
 
@@ -123,23 +137,25 @@ static void draw_card(int index,struct zui_rect r,int compact){
     card_rects[index]=r;panel(r,card==index);
     zui_icon(&ui,icons[index],r.x+12,r.y+12,16,ZUI_ICON_NORMAL);
     text(r.x+36,r.y+12,titles[index],&zui_label,ui.theme.text);
-    /* Compact cards put the value under the title: side by side they collide at 640 px. */
-    struct zui_rect g=compact?(struct zui_rect){r.x+12,r.y+52,r.w-24,r.h-58}:(struct zui_rect){r.x+12,r.y+38,r.w-24,38};
     if(index==CARD_CPU){
         o=num(value,monitor.latest.total);put(o,"%");
         o=num(caption,(unsigned long)busy_cores());o=put(o," of ");o=num(o,monitor.cpus);put(o,monitor.cpus==1?" CPU busy":" CPUs busy");
-        zui_graph(&ui,g,&monitor.history[0].total,16,(int)monitor.samples,60,color,0);
     }else if(index==CARD_MEMORY){
         if(compact){o=num(value,monitor.latest.memory);put(o,"%");}
         else{o=size_text(value,monitor.memory_total-monitor.memory_free);o=put(o," / ");size_text(o,monitor.memory_total);}
         o=num(caption,monitor.latest.memory);put(o,"% in use");
-        zui_graph(&ui,g,&monitor.history[0].memory,16,(int)monitor.samples,60,color,0);
     }else{
         o=num(value,monitor.frames_per_second);put(o," fps");
         o=put(caption,"worst ");o=num(o,(monitor.frame_worst_us+500)/1000);put(o," ms");
-        zui_graph(&ui,g,frames_history,1,frames_count,60,color,0);
     }
-    if(compact)text(r.x+12,r.y+32,value,&zui_label,ui.theme.text);else text_right(r.x+r.w-12,r.y+12,value,&zui_label,ui.theme.text);
+    /* The value sits beside the title when both fit, otherwise under it; the graph takes what is left. */
+    int beside=!compact&&36+zui_measure(titles[index],length(titles[index]),&zui_label)+16+zui_measure(value,length(value),&zui_label)<=r.w-12;
+    if(beside)text_right(r.x+r.w-12,r.y+12,value,&zui_label,ui.theme.text);else text(r.x+12,r.y+32,value,&zui_label,ui.theme.text);
+    int top=beside?r.y+38:r.y+52,low=compact?r.y+r.h-6:r.y+r.h-30;
+    struct zui_rect g={r.x+12,top,r.w-24,low-top};
+    if(index==CARD_CPU)zui_graph_smooth(&ui,g,&monitor.history[0].total,16,(int)monitor.samples,60,color,0);
+    else if(index==CARD_MEMORY)zui_graph_smooth(&ui,g,&monitor.history[0].memory,16,(int)monitor.samples,60,color,0);
+    else zui_graph_smooth(&ui,g,frames_history,1,frames_count,60,color,0);
     if(!compact)text(r.x+12,r.y+r.h-24,caption,&zui_caption,ui.theme.secondary);
 }
 static void draw_performance(struct zui_rect c){
@@ -175,9 +191,9 @@ static void draw_performance(struct zui_rect c){
     struct zui_rect graph={mx,gy,mw,gh};panel(graph,0);
     unsigned int color=card==CARD_CPU?ui.theme.accent:card==CARD_MEMORY?memory_color():display_color();
     struct zui_rect inner={graph.x+1,graph.y+24,graph.w-2,graph.h-48};
-    if(card==CARD_CPU)zui_graph(&ui,inner,&monitor.history[0].total,16,(int)monitor.samples,Z_MONITOR_HISTORY,color,1);
-    else if(card==CARD_MEMORY)zui_graph(&ui,inner,&monitor.history[0].memory,16,(int)monitor.samples,Z_MONITOR_HISTORY,color,1);
-    else zui_graph(&ui,inner,frames_history,1,frames_count,Z_MONITOR_HISTORY,color,1);
+    if(card==CARD_CPU)zui_graph_smooth(&ui,inner,&monitor.history[0].total,16,(int)monitor.samples,Z_MONITOR_HISTORY,color,1);
+    else if(card==CARD_MEMORY)zui_graph_smooth(&ui,inner,&monitor.history[0].memory,16,(int)monitor.samples,Z_MONITOR_HISTORY,color,1);
+    else zui_graph_smooth(&ui,inner,frames_history,1,frames_count,Z_MONITOR_HISTORY,color,1);
     text(graph.x+10,graph.y+6,card==CARD_DISPLAY?"60 fps":"100%",&zui_caption,ui.theme.secondary);
     text(graph.x+10,graph.y+graph.h-20,"2 min ago",&zui_caption,ui.theme.secondary);
     text_right(graph.x+graph.w-10,graph.y+graph.h-20,"now",&zui_caption,ui.theme.secondary);
@@ -189,9 +205,12 @@ static void draw_performance(struct zui_rect c){
             char label[16],pct[8];o=put(label,"CPU ");num(o,(unsigned long)i);
             int v=monitor.latest.cpu[i];
             if(v==Z_MONITOR_OFFLINE)put(pct,"off");else{o=num(pct,(unsigned long)v);put(o,"%");}
+            /* Narrow tiles (many CPUs) stack the share under the name instead of colliding with it. */
+            int fits=zui_measure(label,length(label),&zui_caption)+12+zui_measure(pct,length(pct),&zui_caption)<=t.w-20;
             text(t.x+10,t.y+8,label,&zui_caption,ui.theme.secondary);
-            text_right(t.x+t.w-10,t.y+8,pct,&zui_caption,ui.theme.text);
-            zui_graph(&ui,(struct zui_rect){t.x+6,t.y+30,t.w-12,t.h-36},&monitor.history[0].cpu[i],16,(int)monitor.samples,60,color,0);
+            if(fits)text_right(t.x+t.w-10,t.y+8,pct,&zui_caption,ui.theme.text);else text(t.x+10,t.y+24,pct,&zui_caption,ui.theme.text);
+            int gt=fits?30:44;
+            zui_graph_smooth(&ui,(struct zui_rect){t.x+6,t.y+gt,t.w-12,t.h-gt-6},&monitor.history[0].cpu[i],16,(int)monitor.samples,60,color,0);
         }
         sy+=cores_h+16;
     }else sy+=4;
@@ -429,19 +448,26 @@ int main(int argc,char **argv){
     print("OBSERVATORY_READY\n");
     long last=zui_motion_clock();int polls=0,result=0,done=0;
     while(!done){
-        long now=zui_motion_clock();
-        if((now>=0&&now-last>=1000)||(now<0&&++polls>=200)){last=now;polls=0;refresh();}
+        long now=zui_motion_clock();frame_clock=now;
+        if((now>=0&&now-last>=250)||(now<0&&++polls>=200)){last=now;polls=0;refresh();}
+        /* About 30 frames a second while gliding, and only on the Performance page. */
+        static long drawn=-1;
+        if(smooth()&&page_shown==PAGE_PERFORMANCE&&now-drawn>=33){
+            long into=now-sampled_at;graph_phase=into<=0?0:into>=1000?255:(int)(into*256/1000);
+            ui.dirty=1;
+        }
+        if(ui.dirty)drawn=now;
         if(ui.dirty){
             draw();
             long r=material?zenith_gui_present_material(handle,pixels,(unsigned long)ui.width*ui.height*4,ui.materials,ui.material_count):zenith_gui_present(handle,pixels,(unsigned long)ui.width*ui.height*4);
-            if(r<0){result=1;break;}
+            if(r<0){result=zui_window_closed(handle)?0:1;break;}
         }
         struct zenith_gui_event e={0};long r=zenith_gui_poll(handle,&e);if(r<0){result=1;break;}if(!r)continue;
         if(e.type==Z_GUI_RESIZE){
             struct zenith_viewport v={0};
-            if(zenith_gui_viewport(handle,&v)||v.width<MIN_W||v.height<MIN_H||v.width>MAX_W||v.height>MAX_H){result=1;break;}
+            if(zenith_gui_viewport(handle,&v)||v.width<MIN_W||v.height<MIN_H||v.width>MAX_W||v.height>MAX_H){result=zui_window_closed(handle)?0:1;break;}
             long accepted=zenith_gui_resize_accept(handle,&v);if(accepted==-11)continue;
-            if(accepted||!zui_resize(&ui,v.width,v.height,MAX_W*MAX_H)){result=1;break;}
+            if(accepted||!zui_resize(&ui,v.width,v.height,MAX_W*MAX_H)){result=zui_window_closed(handle)?0:1;break;}
             continue;
         }
         if(e.type==Z_GUI_CLOSE||e.type==Z_GUI_CLOSE_INTENT){done=1;continue;}
