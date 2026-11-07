@@ -51,5 +51,13 @@ internal readonly struct ShadowMask
     }
 
     public int Row(int y) => Math.Clamp((int)MathF.Floor(MathF.Abs(y + 0.5f - _cy) - _halfH + _radius), -1, _n - 2) + 1;
+    /// <summary>Column indexes for x0..x0+count, computed once per shadow instead of per pixel.</summary>
+    public void Columns(int x0, Span<int> output)
+    {
+        for (int i = 0; i < output.Length; i++)
+            output[i] = Math.Clamp((int)MathF.Floor(MathF.Abs(x0 + i + 0.5f - _cx) - _halfW + _radius), -1, _n - 2) + 1;
+    }
+    public int Width => _n;
+    public byte[] Table => _table;
     public int Alpha(int x, int row) => _table[row * _n + Math.Clamp((int)MathF.Floor(MathF.Abs(x + 0.5f - _cx) - _halfW + _radius), -1, _n - 2) + 1];
 }

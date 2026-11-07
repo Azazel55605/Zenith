@@ -560,7 +560,7 @@ internal sealed class WindowManager
         FrameStats.BackdropTicks += FrameStats.Now - phase; phase = FrameStats.Now;
         if (!w.IsMaximized)
         {
-            surface.DrawShadow(b, radius, Theme.ShadowSize, w.IsFocused ? Theme.ShadowAlpha : Theme.ShadowAlpha / 2, 6);
+            surface.DrawShadow(b, radius, Theme.ShadowSize, w.IsFocused ? Theme.ShadowAlpha : Theme.ShadowAlpha / 2, 6, covered: true);
         }
 
         // Compose the completed rectangular client only once against the real

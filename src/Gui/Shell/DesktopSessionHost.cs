@@ -13,6 +13,8 @@ namespace Zenith.Gui.Shell;
 /// <summary>The temporary floating desktop, isolated behind the session lifecycle.</summary>
 internal sealed class DesktopSessionHost : ISessionHost
 {
+    public bool FramePending => _desktop is not null && _desktop.FramePending;
+
     [DllImport("*", EntryPoint = "zenith_has_display")]
     [SuppressGCTransition]
     private static extern int HasPciDisplay();

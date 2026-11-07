@@ -14,6 +14,8 @@ namespace Zenith.Gui.Shell;
 
 internal sealed class LocalConsoleHost : ISessionHost
 {
+    public bool FramePending => false;
+
     private SerialTerminal _terminal = null!;
     private readonly TerminalBuffer _buffer = new();
     private Surface _surface = null!;

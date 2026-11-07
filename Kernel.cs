@@ -79,7 +79,9 @@ public class Kernel : Sys.Kernel
 
         // Sleep until the next interrupt: a mouse or keyboard IRQ wakes the loop at once,
         // the timer tick at the latest, instead of polling on a fixed Thread.Sleep.
-        Sys.Power.Halt();
+        // While the desktop paces an animation or drag, run the loop again instead of waiting for
+        // the next timer tick (10 ms), which capped frames and made motion feel slow.
+        if (!SessionRuntime.FramePending) { Sys.Power.Halt(); }
     }
 
     private static void ReportPanic(Exception exception)

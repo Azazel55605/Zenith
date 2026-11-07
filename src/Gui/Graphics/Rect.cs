@@ -28,6 +28,15 @@ internal readonly struct Rect
 
     public Rect Inflate(int d) => new(X - d, Y - d, W + 2 * d, H + 2 * d);
 
+    /// <summary>The smallest rectangle covering both; an empty side is ignored.</summary>
+    public Rect Union(Rect other)
+    {
+        if (IsEmpty) { return other; }
+        if (other.IsEmpty) { return this; }
+        int x = Math.Min(X, other.X), y = Math.Min(Y, other.Y);
+        return new(x, y, Math.Max(Right, other.Right) - x, Math.Max(Bottom, other.Bottom) - y);
+    }
+
     public Rect Intersect(Rect other)
     {
         int x0 = Math.Max(X, other.X);

@@ -7,6 +7,8 @@ namespace Zenith.Core.Sessions;
 
 internal sealed class HeadlessSessionHost : ISessionHost
 {
+    public bool FramePending => false;
+
     private SerialTerminal _terminal = null!;
     private int _generation;
     public bool CanStop => !_terminal.Busy && !_terminal.Shell.HasBackgroundJobs;

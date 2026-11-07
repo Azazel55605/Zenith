@@ -12,6 +12,8 @@ internal sealed class DisplayCanvas : Canvas
     private readonly int[] _pixels;
     public DisplayCanvas(Canvas physical, DisplayLayout layout) : base(new Mode(layout.LogicalWidth,layout.LogicalHeight,ColorDepth.ColorDepth32))
     { _physical=physical; _scale=layout.Scale; _pixels=new int[layout.Width*layout.Height]; }
+    public Canvas Physical => _physical;
+    public int Scale => _scale;
     public override string Name => _physical.Name;
     public override int RefreshRate => _physical.RefreshRate;
     public override void DrawPoint(int color,int x,int y)

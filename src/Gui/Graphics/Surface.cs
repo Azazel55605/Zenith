@@ -147,33 +147,46 @@ internal sealed class Surface : Canvas
     /// Draws a soft drop shadow around a rounded rectangle. Only the ring outside the
     /// rectangle's flat interior is touched, since the caller paints over the rest.
     /// </summary>
-    public void DrawShadow(Rect r, int radius, int size, int maxAlpha, int offsetY)
+    /// <param name="covered">The caller paints <paramref name="r"/> opaquely afterwards (windows): skip the
+    /// shadow under it, except the rounded corners where it shows.</param>
+    public void DrawShadow(Rect r, int radius, int size, int maxAlpha, int offsetY, bool covered = false)
     {
         if (size <= 0 || radius < 0 || radius > 255 || size > 255 || maxAlpha is < 0 or > 255) { return; }
         Rect s = r.Offset(0, offsetY);
         Rect area = s.Inflate(size).Intersect(_clip);
         Rect interior = s.Inflate(-radius);
         var mask = ShadowMask.For(s, radius, size, maxAlpha);
-
+        if (area.W <= 0 || area.H <= 0) { return; }
+        if (_shadowColumns.Length < area.W) { _shadowColumns = new int[area.W]; }
+        Span<int> columns = _shadowColumns.AsSpan(0, area.W);
+        mask.Columns(area.X, columns);
+        byte[] table = mask.Table; int n = mask.Width;
+        int[] pixels = Pixels;
         for (int y = area.Y; y < area.Bottom; y++)
         {
             bool rowInInterior = y >= interior.Y && y < interior.Bottom;
-            int iy = mask.Row(y);
+            int skipFrom = rowInInterior ? interior.X : int.MaxValue, skipTo = rowInInterior ? interior.Right : int.MinValue;
+            if (covered && y >= r.Y && y < r.Bottom)
+            {
+                bool middle = y >= r.Y + radius && y < r.Bottom - radius;
+                int from = middle ? r.X : r.X + radius, to = middle ? r.Right : r.Right - radius;
+                if (from < to && (skipFrom > skipTo || from <= skipTo && to >= skipFrom)) { skipFrom = Math.Min(from, skipFrom); skipTo = Math.Max(to, skipTo == int.MinValue ? to : skipTo); }
+            }
+            int rowBase = mask.Row(y) * n, line = y * Width;
             for (int x = area.X; x < area.Right; x++)
             {
-                if (rowInInterior && x >= interior.X && x < interior.Right)
-                {
-                    x = interior.Right - 1;
-                    continue;
-                }
-                int a = mask.Alpha(x, iy);
-                if (a > 0)
-                {
-                    BlendPixel(y * Width + x, 0xFF000000, a);
-                }
+                if (x >= skipFrom && x < skipTo) { x = skipTo - 1; continue; }
+                int a = table[rowBase + columns[x - area.X]];
+                if (a == 0) { continue; }
+                // BlendPixel with black, inlined: the same integer result.
+                int at = line + x;
+                if (a >= 255) { Pixels[at] = unchecked((int)0xFF000000); continue; }
+                int dst = pixels[at], inv = 255 - a;
+                pixels[at] = unchecked((int)0xFF000000) | (((dst >> 16) & 0xFF) * inv / 255 << 16) | (((dst >> 8) & 0xFF) * inv / 255 << 8) | ((dst & 0xFF) * inv / 255);
             }
         }
     }
+    private int[] _shadowColumns = Array.Empty<int>();
 
     /// <summary>Draws a single line of text with its top-left at (<paramref name="x"/>, <paramref name="y"/>).</summary>
     public void DrawText(string text, FontFace font, int size, uint color, int x, int y)

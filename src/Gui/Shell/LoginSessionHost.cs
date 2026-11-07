@@ -12,6 +12,8 @@ namespace Zenith.Gui.Shell;
 
 internal sealed class LoginSessionHost : ISessionHost
 {
+    public bool FramePending => false;
+
     private readonly LoginPrompt _login = new((name, password) => Accounts.Service?.Authenticate(name, password));
     private readonly StringBuilder _name = new();
     private readonly StringBuilder _password = new();

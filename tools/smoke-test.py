@@ -211,7 +211,8 @@ class Machine:
             "-display", "none", "-no-reboot",
             "-serial", f"file:{self.serial}",
             "-monitor", f"unix:{self.monitor},server,nowait",
-            "-vga", "none", "-device", "virtio-gpu-pci",
+            # ZENITH_SMOKE_VGA=vmware measures the VMware SVGA II path (frame benchmarks).
+            *(["-vga", "vmware"] if os.environ.get("ZENITH_SMOKE_VGA") == "vmware" else ["-vga", "none", "-device", "virtio-gpu-pci"]),
             *(["-device", "virtio-keyboard-pci"] if keyboard == "virtio" else []), "-device", "virtio-mouse-pci",
             "-cdrom", str(iso), "-boot", "order=d",
             "-drive", f"file={self.disk},format=raw,if=none,id=disk0", "-device", "ide-hd,drive=disk0,bus=ide.0,unit=0",

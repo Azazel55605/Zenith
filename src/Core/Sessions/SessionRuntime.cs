@@ -16,6 +16,8 @@ internal interface ISessionHost
     string? StopBlocker(CommandShell? requester);
     void Stop();
     void BeginStop();
+    /// <summary>A frame is due or being paced: the kernel loop should run again instead of halting.</summary>
+    bool FramePending { get; }
 }
 
 internal static class SessionRuntime
@@ -75,6 +77,7 @@ internal static class SessionRuntime
         s_host = s_factory(mode); s_host.Start();
         Log.Write("session", "authenticated session started: " + SessionModes.Name(mode));
     }
+    public static bool FramePending => s_host?.FramePending == true;
     public static void Tick()
     {
         s_host?.Tick();

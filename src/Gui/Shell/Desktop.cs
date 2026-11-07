@@ -276,12 +276,18 @@ internal sealed class Desktop
         if (_parallelBenchRequested) { _parallelBenchRequested = false; RunParallelBench(_parallelBenchFullscreen); _sceneDirty = true; }
         if (_motionTestRequested) { _motionTestRequested = false; StartMotionTest(); }
         StartTransition();
+        _framePending = false;
+        // Pace frames instead of sleeping between them: the kernel loop does not halt while a
+        // frame is due, and a frame is never drawn sooner than the frame interval after the last.
+        bool due = FrameStats.Now - _lastPresent >= FrameInterval;
+        if ((_motion.Active || _motionName is not null || _sceneDirty) && !due) { _framePending = true; return; }
         if (_motion.Active || _motionName is not null)
         {
             if (DrawMotionFrame())
             {
                 _sceneDirty = false;
                 _cursorDirty = false;
+                _framePending = true;
                 return;
             }
             _sceneDirty = true;
@@ -290,17 +296,23 @@ internal sealed class Desktop
         if (_sceneDirty)
         {
             long frameStart = FrameStats.Now;
+            Rect oldCursor = Cursor.Bounds(_cursorX, _cursorY);
             ComposeScene();
-            _frame.CopyFrom(_scene);
+            // Only what changed goes to the screen: the top window's old and new area when the
+            // scene below it is unchanged, otherwise everything. The old cursor is restored too.
+            Rect damage = SceneDamage().Union(oldCursor).Union(Cursor.Bounds(_input.X, _input.Y)).Intersect(_scene.Bounds);
+            _frame.CopyRect(_scene, damage);
             DrawCursor();
-            Present();
+            Present(damage);
             FrameStats.RecordSceneFrame(frameStart);
+            _framePending = true;   // drags and animations usually draw again next tick
         }
         else if (_cursorDirty)
         {
-            _frame.CopyRect(_scene, Cursor.Bounds(_cursorX, _cursorY));
+            Rect old = Cursor.Bounds(_cursorX, _cursorY);
+            _frame.CopyRect(_scene, old);
             DrawCursor();
-            Present();
+            Present(old.Union(Cursor.Bounds(_cursorX, _cursorY)));
         }
 
         _sceneDirty = false;
@@ -664,7 +676,8 @@ internal sealed class Desktop
         // their blur unless something under them changed.
         bool appearance = AppearanceStillValid();
         if (!appearance) { _sceneKey++; }
-        if (!appearance || !Windows.LowerUnchanged(_input.X, _input.Y))
+        _lowerRedrawn = !appearance || !Windows.LowerUnchanged(_input.X, _input.Y);
+        if (_lowerRedrawn)
         {
             _scene.CopyFrom(_wallpaper);
             Windows.DrawLower(_scene, _input.X, _input.Y, _sceneKey);
@@ -722,11 +735,35 @@ internal sealed class Desktop
         Cursor.Draw(_frame, _cursorX, _cursorY);
     }
 
-    private void Present()
+    private void Present() => Present(_frame.Bounds);
+    private void Present(Rect damage)
     {
         long start = FrameStats.Now;
-        _screen.DrawArray(_frame.Pixels, 0, 0, _frame.Width, _frame.Height);
-        _screen.Display();
+        _presenter.Present(_screen, _frame.Pixels, _frame.Width, _frame.Height, damage);
+        _lastPresent = FrameStats.Now;
         FrameStats.RecordPresent(start);
+    }
+
+    private readonly FramePresenter _presenter = new();
+    private long _lastPresent;
+    private bool _framePending;
+    // Up to 240 frames a second while something moves; idle frames cost nothing.
+    private static readonly long FrameInterval = System.Diagnostics.Stopwatch.Frequency / 240;
+    private Rect _lastTopArea, _lastBarArea;
+    private bool _lowerRedrawn;
+    /// <summary>True while a frame is due or being paced: the kernel loop keeps running instead of halting.</summary>
+    public bool FramePending => _framePending;
+
+    /// <summary>What the last ComposeScene changed on screen.</summary>
+    private Rect SceneDamage()
+    {
+        Window? top = Windows.Top;
+        Rect topArea = top is null ? new Rect(0, 0, 0, 0) : top.IsFullscreen ? top.Bounds : top.Bounds.Inflate(Theme.ShadowSize + 8);
+        Rect previous = _lastTopArea; _lastTopArea = topArea;
+        if (_lowerRedrawn) { _lastBarArea = _taskbar.Shown ? _taskbar.Bounds.Inflate(Theme.ShadowSize + 8) : new Rect(0, 0, 0, 0); }
+        if (_lowerRedrawn || top is null || _launcher.IsOpen || _taskbar.OverflowOpen || Zenith.Core.Sessions.SessionRuntime.Message is not null)
+        { return _scene.Bounds; }
+        Rect bar = _taskbar.Shown ? _taskbar.Bounds.Inflate(Theme.ShadowSize + 8) : new Rect(0, 0, 0, 0), lastBar = _lastBarArea; _lastBarArea = bar;
+        return topArea.Union(previous).Union(bar).Union(lastBar);
     }
 }
