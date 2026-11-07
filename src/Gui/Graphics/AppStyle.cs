@@ -31,6 +31,53 @@ internal static class AppStyle
         surface.Clip = clip;
     }
 
+    public const int CheckboxSize = 20;
+    /// <summary>A checkbox row: a rounded box, filled with the accent and an antialiased check mark
+    /// when checked, then the label. <paramref name="row"/> is the whole clickable row.</summary>
+    public static void Checkbox(Surface surface, Rect row, string label, bool isChecked, bool focused = false)
+    {
+        var box = new Rect(row.X, row.Y + (row.H - CheckboxSize) / 2, CheckboxSize, CheckboxSize);
+        if (focused) { surface.StrokeRoundRect(box.Inflate(3), 8, Theme.Accent); }
+        if (isChecked)
+        {
+            surface.FillRoundRect(box, 5, Theme.Accent | 0xff000000U);
+            CheckMark(surface, box, Theme.OnAccent);
+        }
+        else
+        {
+            surface.FillRoundRect(box, 5, Theme.Raised | 0xff000000U);
+            surface.StrokeRoundRect(box, 5, Theme.TextSecondary);
+        }
+        surface.DrawTextCentered(label, Fonts.Regular, Theme.TextBody, Theme.TextPrimary,
+            new Rect(box.Right + 12, row.Y, row.W - CheckboxSize - 12, row.H), false);
+    }
+
+    // Two strokes, 2 px wide, with coverage from each pixel centre's distance to the nearer stroke.
+    private static void CheckMark(Surface surface, Rect box, uint color)
+    {
+        float s = box.W / 20f;
+        float ax = box.X + 5 * s, ay = box.Y + 10.5f * s, bx = box.X + 8.5f * s, by = box.Y + 14f * s, cx = box.X + 15 * s, cy = box.Y + 6.5f * s;
+        float half = 1.1f * s;
+        Rect clip = surface.Clip;
+        for (int y = box.Y; y < box.Bottom; y++)
+            for (int x = box.X; x < box.Right; x++)
+            {
+                if (!clip.Contains(x, y)) { continue; }
+                float px = x + 0.5f, py = y + 0.5f;
+                float d = MathF.Min(Distance(px, py, ax, ay, bx, by), Distance(px, py, bx, by, cx, cy));
+                float coverage = Math.Clamp(half + 0.5f - d, 0f, 1f);
+                if (coverage > 0) { surface.BlendPixel(y * surface.Width + x, color, (int)(coverage * 255)); }
+            }
+    }
+
+    private static float Distance(float px, float py, float ax, float ay, float bx, float by)
+    {
+        float dx = bx - ax, dy = by - ay;
+        float t = Math.Clamp(((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy), 0f, 1f);
+        float ex = px - (ax + t * dx), ey = py - (ay + t * dy);
+        return MathF.Sqrt(ex * ex + ey * ey);
+    }
+
     public static void NavigationRow(Surface surface, Rect bounds, string label, bool selected)
     {
         if (selected)

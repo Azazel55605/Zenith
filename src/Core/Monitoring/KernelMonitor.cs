@@ -28,6 +28,25 @@ internal static class KernelMonitor
         public long Milliseconds => Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 1000);
         public ulong MemoryTotal => MemoryInfo.TotalPages * 4096UL;
         public ulong MemoryFree => MemoryInfo.FreePages * 4096UL;
+        private ulong _installed;
+        public unsafe ulong MemoryInstalled
+        {
+            get
+            {
+                if (_installed != 0) { return _installed; }
+                var response = Cosmos.Kernel.Boot.Limine.Limine.MemoryMap.Response;
+                if (response == null) { return 0; }
+                ulong sum = 0;
+                for (ulong i = 0; i < response->EntryCount; i++)
+                {
+                    var entry = response->Entries[i];
+                    if (entry->Type is Cosmos.Kernel.Boot.Limine.LimineMemmapType.Usable or Cosmos.Kernel.Boot.Limine.LimineMemmapType.AcpiReclaimable
+                        or Cosmos.Kernel.Boot.Limine.LimineMemmapType.BootloaderReclaimable or Cosmos.Kernel.Boot.Limine.LimineMemmapType.KernelAndModules)
+                    { sum += entry->Length; }
+                }
+                return _installed = sum;
+            }
+        }
         public (long Presented, long Scenes, long Micros, long Worst) TakeFrames() => Frames?.Invoke() ?? (0, 0, 0, 0);
         public unsafe string Processor
         {

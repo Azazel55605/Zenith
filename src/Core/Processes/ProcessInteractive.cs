@@ -6,6 +6,8 @@ namespace Zenith.Core.Processes;
 internal sealed class ProcessInteractive
 {
     public const long WindowMilliseconds = 60000, CleanupMilliseconds = 2000;
+    /// <summary>Scheduler quanta (10 ms) a live window app may run per renewal window: the whole minute, with headroom.</summary>
+    public const int LiveQuantaPerWindow = 6500;
     private bool _enabled;
     private long _window, _ended = -1;
     public bool Enabled => _enabled;

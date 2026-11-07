@@ -20,6 +20,7 @@ public class MonitorTests
         public long Milliseconds { get; set; }
         public ulong MemoryTotal { get; set; } = 4UL << 30;
         public ulong MemoryFree { get; set; } = 3UL << 30;
+        public ulong MemoryInstalled { get; set; } = 6UL << 30;
         public (long, long, long, long) Frame = (0, 0, 0, 0);
         public bool OutOfService(int cpu) => Broken.Contains(cpu);
         public ulong IdleTicks(int cpu) => Idle[cpu];
@@ -49,6 +50,7 @@ public class MonitorTests
         Assert.Equal(4u, BinaryPrimitives.ReadUInt32LittleEndian(snapshot.AsSpan(8)));
         Assert.Equal(1u, BinaryPrimitives.ReadUInt32LittleEndian(snapshot.AsSpan(12)));
         Assert.Equal(1000UL, BinaryPrimitives.ReadUInt64LittleEndian(snapshot.AsSpan(16)));
+        Assert.Equal(6UL << 30, BinaryPrimitives.ReadUInt64LittleEndian(snapshot.AsSpan(112)));
         Assert.Equal(3u, BinaryPrimitives.ReadUInt32LittleEndian(snapshot.AsSpan(40)));
         Assert.Equal(60u, BinaryPrimitives.ReadUInt32LittleEndian(snapshot.AsSpan(44)));
         Assert.Equal(4000u, BinaryPrimitives.ReadUInt32LittleEndian(snapshot.AsSpan(48)));

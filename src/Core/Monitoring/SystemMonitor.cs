@@ -15,6 +15,8 @@ internal interface IMonitorSources
     long Milliseconds { get; }
     ulong MemoryTotal { get; }
     ulong MemoryFree { get; }
+    /// <summary>RAM the firmware reports, used by Zenith or not (the allocator uses one region).</summary>
+    ulong MemoryInstalled { get; }
     /// <summary>Presented frames, scene frames and their total time since boot, and the worst frame since the last call.</summary>
     (long Presented, long Scenes, long Micros, long Worst) TakeFrames();
     string Processor { get; }
@@ -98,6 +100,7 @@ internal sealed class SystemMonitor
             // How old the newest sample is, so a client can glide its graph in step with sampling.
             BinaryPrimitives.WriteUInt32LittleEndian(b[60..], _count == 0 ? 0 : (uint)Math.Clamp(_sources.Milliseconds - _sampled, 0, 60000));
             _latest.CopyTo(b[64..]);
+            BinaryPrimitives.WriteUInt64LittleEndian(b[112..], Math.Max(_sources.MemoryInstalled, _sources.MemoryTotal));
             byte[] name = Encoding.ASCII.GetBytes(_sources.Processor);
             name.AsSpan(0, Math.Min(63, name.Length)).CopyTo(b[128..]);
             // Oldest first, so a client can draw left to right without reordering.

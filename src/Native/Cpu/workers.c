@@ -490,6 +490,22 @@ u64 zenith_cpu_idle_ticks(u64 index) {
     }
 }
 u64 zenith_cpu_now(void) { return ticks(); }
+#ifndef ZENITH_CPU_HOST_TEST
+/* Self-interrupt on the scheduler's timer vector (0xEF): the kernel loop runs as the scheduler's
+ * idle thread, so a thread it wakes would otherwise wait for the next 10 ms tick. Interrupt exit
+ * switches to it at once. Works with or without smp=native (reads this CPU's APIC directly). */
+u64 zenith_cpu_reschedule_self(u64 offset) {
+    u64 base=msr(0x1b);
+    if (!(base&0x800)) return 0;
+    if (base&0x400) { wrmsr(0x83f,0xef); return 1; }
+    if (!offset) return 0;
+    volatile u32 *apic=(volatile u32*)(offset+(base&0xfffff000ULL));
+    for (u32 n=0;n<100000&&(apic[0x300/4]&0x1000);n++) pause_cpu();
+    __asm__ volatile("mfence":::"memory");
+    apic[0x300/4]=0x40000|0xef;   /* destination shorthand: self */
+    return 1;
+}
+#endif
 /* The 48-byte CPUID brand string, or zero when the CPU has none. */
 u64 zenith_cpu_brand(u32 *out) {
     u32 a=0x80000000,b,c,d; __asm__ volatile("cpuid":"+a"(a),"=b"(b),"=c"(c),"=d"(d));

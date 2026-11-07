@@ -26,7 +26,7 @@ internal static class NativeProcessCommands
                 for (int i = 0; i < Math.Min(8, (int)cpus); i++) { line.Append(" cpu" + i + "=" + (s[64 + i] == 255 ? "offline" : s[64 + i] + "%")); }
                 c.WriteLine(line.ToString());
             }
-            c.WriteLine("memory: " + (total - free) / 1048576 + " MiB used of " + total / 1048576 + " MiB");
+            c.WriteLine("memory: " + (total - free) / 1048576 + " MiB used of " + total / 1048576 + " MiB usable, " + BitConverter.ToUInt64(s, 112) / 1048576 + " MiB installed");
             c.WriteLine("programs: " + BitConverter.ToUInt32(s, 40) + ", frames/s: " + BitConverter.ToUInt32(s, 44) + ", average frame " + BitConverter.ToUInt32(s, 48) + " us, worst " + BitConverter.ToUInt32(s, 52) + " us");
             return 0;
         }));

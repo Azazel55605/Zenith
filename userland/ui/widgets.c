@@ -284,12 +284,15 @@ void zui_graph_phase(struct zui *ui,struct zui_rect r,const unsigned char *value
     if(count>capacity){values+=(count-capacity)*stride;count=capacity;}
     if(grid)for(int i=1;i<4;i++)zui_round_alpha(ui,(struct zui_rect){r.x,r.y+r.h*i/4,r.w,1},0,ui->theme.border,110);
     if(count<1)return;
-    /* Fixed point: slot s sits at x = r.x + (r.w-1)*(s+capacity-count)/(capacity-1). */
-    int previous=-1;
+    /* Fixed point: slot s sits at x = r.x + (r.w-1)*(s+capacity-count)/(capacity-1).
+     * The line is antialiased: vertical positions are kept in 1/256 px and each pixel row gets
+     * the share of the 2 px line (or of the climb between columns) it covers. */
+    if(phase<0)phase=0;
+    if(phase>255)phase=255;
+    const long half=256,top_limit=(long)r.y<<8,bottom_limit=(long)(r.y+r.h)<<8;
+    long previous=-1;
     for(int x=0;x<r.w;x++){
         /* Position along the history in 1/256 slots. */
-        if(phase<0)phase=0;
-        if(phase>255)phase=255;
         long at=(long)x*(capacity-1)*256/(r.w-1)-(long)(capacity-count)*256+phase;
         if(at<0)continue;
         int s=(int)(at>>8),f=(int)(at&255);
@@ -299,12 +302,20 @@ void zui_graph_phase(struct zui *ui,struct zui_rect r,const unsigned char *value
         if(a==255||b==255){previous=-1;continue;}
         if(a>100)a=100;
         if(b>100)b=100;
-        int v=(int)((a*(256-f)+b*f)/256);
-        int y=r.y+r.h-1-(r.h-2)*v/100;
-        zui_round_alpha(ui,(struct zui_rect){r.x+x,y,1,r.y+r.h-y},0,color,60);
-        int top=previous<0?y:(previous<y?previous:y),bottom=previous<0?y:(previous>y?previous:y);
-        int span=bottom-top+2;if(top+span>r.y+r.h)span=r.y+r.h-top;
-        zui_round_alpha(ui,(struct zui_rect){r.x+x,top,1,span},0,color,255);
+        long v256=(long)a*(256-f)+(long)b*f;                     /* value x 256 */
+        long y=((long)(r.y+r.h-1)<<8)-(long)(r.h-2)*v256/100;     /* line centre, 1/256 px */
+        int fill=(int)(y>>8)+1;
+        if(fill<r.y+r.h)zui_round_alpha(ui,(struct zui_rect){r.x+x,fill,1,r.y+r.h-fill},0,color,60);
+        long lo=(previous<0||previous>y?y:previous)-half,hi=(previous<0||previous<y?y:previous)+half;
+        if(lo<top_limit)lo=top_limit;
+        if(hi>bottom_limit)hi=bottom_limit;
+        for(long row=lo>>8;(row<<8)<hi;row++){
+            long from=row<<8,to=from+256;
+            if(from<lo)from=lo;
+            if(to>hi)to=hi;
+            unsigned int cover=(unsigned int)((to-from)*255/256);
+            if(cover)zui_round_alpha(ui,(struct zui_rect){r.x+x,(int)row,1,1},0,color,cover>=254?255:cover);
+        }
         previous=y;
     }
 }

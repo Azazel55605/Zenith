@@ -179,8 +179,19 @@ internal sealed class PackageManager
         }
         ValidateSet(next); Commit(old, next, changes, cancel);
     }
+    private static int s_committing;
+    /// <summary>Installed files are being replaced right now. Launches wait only for this, not for a
+    /// whole pkg run: a launch verifies the program's digest, so an overlap fails safely anyway.</summary>
+    public static bool Committing => System.Threading.Volatile.Read(ref s_committing) != 0;
     private void Commit(List<InstalledPackage> old, List<InstalledPackage> next,
         Dictionary<string, (byte[]? Data, ushort Mode)> changes, Action cancel, Action<string>? progress = null)
+    {
+        System.Threading.Interlocked.Increment(ref s_committing);
+        try { CommitFiles(old, next, changes, cancel, progress); }
+        finally { System.Threading.Interlocked.Decrement(ref s_committing); }
+    }
+    private void CommitFiles(List<InstalledPackage> old, List<InstalledPackage> next,
+        Dictionary<string, (byte[]? Data, ushort Mode)> changes, Action cancel, Action<string>? progress)
     {
         if (changes.Count > 1024) { throw new IOException("transaction file limit"); }
         byte[] before = Serialize(old), after = Serialize(next); int bytes = 0;

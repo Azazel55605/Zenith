@@ -95,15 +95,29 @@ public sealed class ProcessGraphicsTests
     [Fact]
     public void FramePacerGivesAnAnimatingClientTheWholeInterval()
     {
-        var pacer = new FramePacer();
-        Assert.Equal(16, pacer.EmptyPoll());                          // idle clients keep waiting
+        var pacer = new FramePacer(); const int idle = FramePacer.IdleMilliseconds, interval = FramePacer.IntervalMilliseconds;
+        Assert.Equal(idle, pacer.EmptyPoll());                        // idle clients wait (an event wakes them sooner)
         Assert.Equal(0, pacer.Present(1000));                         // a frame after a pause goes at once
         Assert.Equal(0, pacer.EmptyPoll());                           // the poll after a present does not wait again...
-        Assert.Equal(16, pacer.EmptyPoll());                          // ...but the next one does
-        Assert.Equal(10, pacer.Present(1006));                        // only what is left of the interval
+        Assert.Equal(idle, pacer.EmptyPoll());                        // ...but the next one does
+        Assert.Equal(interval - 2, pacer.Present(1002));              // only what is left of the interval
         Assert.Equal(0, pacer.EmptyPoll());
-        Assert.Equal(16, pacer.Present(1016));                        // presents alone can never beat the interval
-        Assert.Equal(16, pacer.Present(1016));
+        Assert.Equal(interval, pacer.Present(1000 + interval));       // presents alone can never beat the interval
+        Assert.Equal(interval, pacer.Present(1000 + interval));
+    }
+
+    [Fact]
+    public void AnIdlePollWakesAsSoonAsInputArrives()
+    {
+        var surface = new ProcessSurface(160, 100, "wake", 1);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        surface.WaitForEvent(30); Assert.True(watch.ElapsedMilliseconds >= 20);        // nothing pending: waits
+        var sender = new System.Threading.Thread(() => { System.Threading.Thread.Sleep(50); surface.Send(new(3, 'a', 0, 0, 0, 0)); });
+        watch.Restart(); sender.Start(); surface.WaitForEvent(5000);
+        Assert.True(watch.ElapsedMilliseconds < 2000, "woke after " + watch.ElapsedMilliseconds + " ms"); sender.Join();
+        watch.Restart(); surface.WaitForEvent(5000); Assert.True(watch.ElapsedMilliseconds < 100);  // pending event: no wait
+        Assert.Equal(3, surface.Poll().Type);
+        surface.Dispose(); watch.Restart(); surface.WaitForEvent(5000); Assert.True(watch.ElapsedMilliseconds < 100);
     }
 
     [Fact]

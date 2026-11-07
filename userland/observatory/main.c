@@ -181,7 +181,12 @@ static void draw_performance(struct zui_rect c){
     static const char *titles[CARDS]={"CPU","Memory","Display"};
     char sub[128],*o=sub;
     if(card==CARD_CPU){o=put(o,monitor.processor[0]?monitor.processor:"Processor");o=put(o,", ");o=num(o,monitor.cpus);o=put(o,monitor.cpus==1?" CPU in use":" CPUs in use");}
-    else if(card==CARD_MEMORY){o=size_text(o,monitor.memory_total);put(o," installed");}
+    else if(card==CARD_MEMORY){
+        /* Installed comes from the firmware; Zenith's allocator may use only its largest region. */
+        unsigned long installed=monitor.memory_installed>monitor.memory_total?monitor.memory_installed:monitor.memory_total;
+        o=size_text(o,installed);o=put(o," installed");
+        if(installed>monitor.memory_total+(64UL<<20)){o=put(o,", ");o=size_text(o,monitor.memory_total);put(o," usable by Zenith");}
+    }
     else put(o,"Frames the desktop composed");
     text(mx,my,titles[card],&zui_heading,ui.theme.text);
     text(mx+zui_measure(titles[card],length(titles[card]),&zui_heading)+14,my+10,sub,&zui_caption,ui.theme.secondary);
@@ -229,8 +234,9 @@ static void draw_performance(struct zui_rect c){
     }else if(card==CARD_MEMORY){
         size_text(a,monitor.memory_total-monitor.memory_free);size_text(b,monitor.memory_free);size_text(cc,monitor.memory_total);
         o=num(d,monitor.latest.memory);put(o,"%");num(e,monitor.programs);duration_text(f,monitor.uptime_ms);
-        stat(mx,sy,"In use",a);stat(mx+col,sy,"Free",b);stat(mx+2*col,sy,"Installed",cc);
-        stat(mx,sy+48,"Share in use",d);stat(mx+col,sy+48,"Programs",e);stat(mx+2*col,sy+48,"Uptime",f);
+        size_text(f,monitor.memory_installed>monitor.memory_total?monitor.memory_installed:monitor.memory_total);
+        stat(mx,sy,"In use",a);stat(mx+col,sy,"Free",b);stat(mx+2*col,sy,"Installed",f);
+        stat(mx,sy+48,"Share in use",d);stat(mx+col,sy+48,"Programs",e);stat(mx+2*col,sy+48,"Usable by Zenith",cc);
     }else{
         o=num(a,monitor.frames_per_second);put(o," fps");
         o=num(b,monitor.frame_average_us/1000);*o++='.';o=num(o,monitor.frame_average_us%1000/100);put(o," ms");

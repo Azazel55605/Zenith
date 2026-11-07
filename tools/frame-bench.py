@@ -26,6 +26,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('keep', type=Path)
     parser.add_argument('--mode', action='append', default=None, help='WIDTHxHEIGHTxSCALE, repeatable')
+    parser.add_argument('--apps', type=Path, help='served directory with key.pem, polaris.zpk and observatory.zpk: open both with blur on')
     args = parser.parse_args()
     args.keep.mkdir(parents=True, exist_ok=False)
     os.environ['ZENITH_SMOKE_VGA'] = 'vmware'
@@ -61,6 +62,25 @@ def main():
         time.sleep(1)
 
     try:
+        if args.apps:
+            import functools, hashlib, http.server, threading
+            handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(args.apps))
+            handler.log_message = lambda *a: None
+            server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), handler)
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+            url = 'http://10.0.2.2:' + str(server.server_port)
+            digest = hashlib.sha256((args.apps / 'key.pem').read_bytes()).hexdigest()
+            for command in ['fetch ' + url + '/key.pem /root/key.pem', 'pkg trust /root/key.pem ' + digest,
+                            'fetch ' + url + '/polaris.zpk /root/p.zpk', 'fetch ' + url + '/observatory.zpk /root/o.zpk',
+                            'pkg install /root/p.zpk | logger', 'pkg install /root/o.zpk | logger',
+                            'settings set materials background-blur', 'settings set translucency 100']:
+                offset = len(machine.raw_log()); machine.type(command + '; echo B_DONE=$? | logger\n')
+                machine.wait_for('user: B_DONE=', 120, offset)
+                out = [l for l in machine.raw_log()[offset:].splitlines() if 'user:' in l or 'pkg' in l.lower() or 'error' in l.lower()]
+                assert any('user: B_DONE=0' in l for l in out), command + ': ' + ' | '.join(out[-12:])
+            machine.type('native run observatory &\n'); time.sleep(4)
+            machine.type('{ctrl-alt-t}'); time.sleep(4)
+            machine.screenshot(args.keep / 'apps.ppm')
         for mode in args.mode or ['1280x800x1']:
             width, height, scale = mode.split('x')
             if mode != '1280x800x1':

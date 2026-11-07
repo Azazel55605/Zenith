@@ -63,6 +63,18 @@ internal static class NetworkService
             finally { lock (s_gate) { s_busy = false; } }
         }).Start();
     }
+    // Receivers wait here instead of a fixed sleep: the kernel loop pulses after it sees new frames
+    // (IRQ or polled) and hands the CPU over, so a reader resumes as soon as data arrives; a missed
+    // pulse costs one bounded timeout. Measured download speed is limited elsewhere: managed
+    // processing of each received frame costs about 0.85 ms (QEMU e1000e, 2026-11-07).
+    private static readonly object s_data = new();
+    private static int s_seenFrames;
+    public static void WaitForData(int milliseconds)
+    {
+        // Unconditional: returning early on unseen frames could spin a receiver while the kernel
+        // loop that counts them (the scheduler's idle thread) never gets to run.
+        lock (s_data) { Monitor.Wait(s_data, milliseconds); }
+    }
     public static void Tick()
     {
         // Cosmos exposes a restoring scope. Dispose explicitly on failure too:
@@ -70,6 +82,8 @@ internal static class NetworkService
         var interrupts = Cosmos.Kernel.Core.Scheduler.SchedulerManager.MaskInterrupts();
         try { E1000ReceiveFilter.Poll(); interrupts.Dispose(); }
         catch { interrupts.Dispose(); throw; }
+        int frames = Zenith.Core.Network.Transport.EthernetIngress.Received;
+        if (frames != Volatile.Read(ref s_seenFrames)) { lock (s_data) { Volatile.Write(ref s_seenFrames, frames); Monitor.PulseAll(s_data); } Zenith.Core.Processes.WakeSignal.Request(); }
         if (!s_invalidConfiguration && Configuration.Mode == "dhcp" && s_renewAt != 0 && Stopwatch.GetTimestamp() >= s_renewAt)
         { StartBackground(); }
     }
@@ -369,7 +383,7 @@ internal static class NetworkService
                 if (available > 0) { return _socket.Receive(buffer, 0, Math.Min(buffer.Length, available), SocketFlags.None); }
                 if (!_socket.Connected) { return 0; }
                 if (idle.ElapsedMilliseconds > 30000) { throw new IOException("native TCP read timed out after 30s"); }
-                Thread.Sleep(1);
+                WaitForData(10);
             }
         }
         public int Write(byte[] buffer)
@@ -484,7 +498,7 @@ internal static class NetworkService
                             HttpDownload.CheckTimeout(idle.ElapsedMilliseconds, total.ElapsedMilliseconds, decoder.Received, decoder.Length, maximum);
                             // Drain queued bytes immediately. Sleeping after each productive
                             // read throttles local transfers to one small window per tick.
-                            if (!decoder.Done && !progressed) { Thread.Sleep(1); }
+                            if (!decoder.Done && !progressed) { WaitForData(10); }
                         }
                         decoder.Complete(); report("fetch progress " + decoder.Received + "/" + decoder.Length); cancel(); if (!file.TryFlush()) { throw new IOException("download flush failed"); } received = decoder.Received;
                     }

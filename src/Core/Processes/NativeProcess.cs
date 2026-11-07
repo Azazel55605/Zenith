@@ -245,7 +245,12 @@ internal sealed unsafe class NativeProcess
                 return ProcessAppearance.Save(Zenith.Core.Configuration.SystemConfiguration.Appearance, ReadUser(c.Arg0, ProcessAppearance.RequestBytes));
             }
             if (c.Call == 605)
-            { return c.Arg0 > int.MaxValue || c.Arg1 != 1 || c.Arg2 != 0 ? -22 : _interactive.Enable(graphics.OwnsLive((int)c.Arg0), MonotonicMilliseconds); }
+            {
+                if (c.Arg0 > int.MaxValue || c.Arg1 != 1 || c.Arg2 != 0) { return -22; }
+                int enabled = _interactive.Enable(graphics.OwnsLive((int)c.Arg0), MonotonicMilliseconds);
+                if (enabled == 0) { c.Ticks = Math.Max(c.Ticks, (ulong)ProcessInteractive.LiveQuantaPerWindow); }
+                return enabled;
+            }
             if (c.Call == 604)
             { return c.Arg0 > int.MaxValue || c.Arg1 > 1 || c.Arg2 != 0 ? -22 : graphics.Dirty((int)c.Arg0, c.Arg1 != 0); }
             if (c.Call == 600)
@@ -399,7 +404,7 @@ internal sealed unsafe class NativeProcess
                 if (!Valid(c.Arg1, ProcessGraphicsEvent.Bytes, true)) { return -14; }
                 var e = graphics.Poll((int)c.Arg0);
                 if (e is null) { return -9; }
-                if (e.Value.Type == 0) { Pace(graphics.Pacer.EmptyPoll()); }
+                if (e.Value.Type == 0) { graphics.WaitForEvent((int)c.Arg0, graphics.Pacer.EmptyPoll()); }
                 Transfer(c.Arg1, e.Value.Encode(), true); return e.Value.Type == 0 ? 0 : 1;
             }
             if (c.Call == 603)
@@ -583,7 +588,8 @@ internal sealed unsafe class NativeProcess
         bool maintenance;
         lock (Installer.MaintenanceGate)
         {
-            maintenance = Installer.IsRunning || Zenith.Core.Shell.Commands.PackageCommands.IsRunning
+            // A pkg download or check no longer blocks launches; only the file commit does.
+            maintenance = Installer.IsRunning || Zenith.Core.Packages.PackageManager.Committing
                 || Zenith.Core.Boot.NativeKernelUpdates.IsRunning;
             if (!maintenance) { pid = Processes.Start(name, identity.Uid, requestStop ?? (() => { })); }
         }
@@ -645,7 +651,10 @@ internal sealed unsafe class NativeProcess
                     if (cancelled()) { status = 130; break; }
                     if (!process._interactive.Advance(graphics!.Live, MonotonicMilliseconds, out bool renew)) { status = 130; break; }
                     if (renew)
-                    { calls = graphicsCalls = readBytes = 0; files.RenewBudget(); graphics.RenewBudget(); context.Ticks = 1000; }
+                    // A live window app may use its CPU for the whole minute: it is on screen and closing
+                    // it stops it. 1000 quanta (10 s a minute) killed apps that keep drawing, such as
+                    // Observatory's gliding graphs, with status 124. Windowless programs keep the watchdog.
+                    { calls = graphicsCalls = readBytes = 0; files.RenewBudget(); graphics.RenewBudget(); context.Ticks = ProcessInteractive.LiveQuantaPerWindow; }
                     status = Zenith.Core.Multiprocessing.CpuWorkers.RunProcessSlice((ulong)&context, affinity, cancelled, out int cpu);
                     if (status == -1)
                     {

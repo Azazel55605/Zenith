@@ -101,7 +101,7 @@ internal sealed unsafe class TlsConnection : IDisposable
             { if (count <= 0 || NativePush(p, (nuint)count) != count) { throw new IOException("TLS receive queue exceeded or closed"); } }
         }
         else if (!_socket.Connected) { throw new IOException("TLS transport closed unexpectedly"); }
-        else { Thread.Sleep(10); }
+        else { NetworkService.WaitForData(10); }
     }
     public void Dispose() { if (_active) { Close(); _active = false; } }
     [DllImport("*", EntryPoint = "zenith_tls_open")]

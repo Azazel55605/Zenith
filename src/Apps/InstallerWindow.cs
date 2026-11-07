@@ -84,7 +84,7 @@ internal sealed class InstallerWindow : Window
                     Text(surface, "Hostname: " + _values[0] + "   User: " + _values[1], x, y + 70, 14);
                     Text(surface, "Your live session remains separate from the target.", x, y + 102, 14);
                     Text(surface, "This cannot be cancelled once disk writing starts.", x, y + 134, 14);
-                    Text(surface, (_erase ? "[x]" : "[ ]") + " I understand that this disk will be erased (Space)", x, y + 182, 14);
+                    AppStyle.Checkbox(surface, new Rect(x, y + 172, width, 36), "I understand that this disk will be erased (Space)", _erase, true);
                     break;
                 case Step.Installing:
                     Text(surface, "Installing... keep this VM running.", x, y, 18);

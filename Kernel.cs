@@ -81,6 +81,8 @@ public class Kernel : Sys.Kernel
         // the timer tick at the latest, instead of polling on a fixed Thread.Sleep.
         // While the desktop paces an animation or drag, run the loop again instead of waiting for
         // the next timer tick (10 ms), which capped frames and made motion feel slow.
+        // Let a thread this pass woke (download, native app input) run now, not at the next tick.
+        Zenith.Core.Multiprocessing.KernelHandoff.Apply();
         if (!SessionRuntime.FramePending) { Sys.Power.Halt(); }
     }
 

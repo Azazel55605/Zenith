@@ -14,7 +14,9 @@ struct zenith_monitor {
     unsigned long uptime_ms,memory_total,memory_free;
     unsigned int programs,frames_per_second,frame_average_us,frame_worst_us,interval_ms,sample_age_ms; /* age: 0 on kernels before 0.0.46 */
     struct zenith_monitor_sample latest;
-    unsigned char reserved1[48];
+    unsigned char reserved1[32];
+    unsigned long memory_installed; /* RAM the firmware reports; 0 before kernel 0.0.47 */
+    unsigned char reserved1b[8];
     char processor[64];
     unsigned char reserved2[64];
     struct zenith_monitor_sample history[Z_MONITOR_HISTORY];
@@ -23,6 +25,7 @@ struct zenith_monitor {
 _Static_assert(sizeof(struct zenith_monitor)==4096,"monitor snapshot ABI");
 _Static_assert(__builtin_offsetof(struct zenith_monitor,latest)==64,"monitor latest ABI");
 _Static_assert(__builtin_offsetof(struct zenith_monitor,processor)==128,"monitor processor ABI");
+_Static_assert(__builtin_offsetof(struct zenith_monitor,memory_installed)==112,"monitor installed ABI");
 _Static_assert(__builtin_offsetof(struct zenith_monitor,history)==256,"monitor history ABI");
 enum { Z_PROCESS_STARTING=0,Z_PROCESS_RUNNING=1,Z_PROCESS_WAITING=2,Z_PROCESS_EXITED=3 };
 enum { Z_PROCESS_STOP_REQUESTED=1,Z_PROCESS_HAS_EXITED=2 };

@@ -1,3 +1,4 @@
+using System.Threading;
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
@@ -84,7 +85,7 @@ internal sealed class ProcessSurface : IDisposable
         lock (_gate)
         {
             if (!_pointerMotion || _closed || _disposed) { return; }
-            _moveX = x; _moveY = y; _movePending = true;
+            _moveX = x; _moveY = y; _movePending = true; Monitor.PulseAll(_gate); WakeSignal.Request();
         }
     }
     public void SendPointerLeave() => SendPointerMove(-1, -1);
@@ -94,7 +95,7 @@ internal sealed class ProcessSurface : IDisposable
         {
             if (!Resizable || _closed || _disposed || width < 600 || height < 480 || width > MaximumWidth || height > MaximumHeight
                 || (width == _requestedWidth && height == _requestedHeight) || _sizeGeneration == ulong.MaxValue) { return; }
-            _requestedWidth = width; _requestedHeight = height; _sizeGeneration++; _resizeEvent = true;
+            _requestedWidth = width; _requestedHeight = height; _sizeGeneration++; _resizeEvent = true; Monitor.PulseAll(_gate); WakeSignal.Request();
         }
     }
     public byte[] Viewport()
@@ -216,6 +217,18 @@ internal sealed class ProcessSurface : IDisposable
                 _events.Clear(); _events.Enqueue(new(7, 0, 0, 0, 0, 0));
             }
             _events.Enqueue(e);
+            Monitor.PulseAll(_gate); WakeSignal.Request();
+        }
+    }
+    /// <summary>An idle client's poll waits here: any event, resize, move or close wakes it at
+    /// once instead of after a fixed sleep, so input reaches a native app without delay.</summary>
+    public void WaitForEvent(int milliseconds)
+    {
+        if (milliseconds <= 0) { return; }
+        lock (_gate)
+        {
+            if (_closed || _disposed || _closeIntent || _resizeEvent || _events.Count > 0 || _movePending) { return; }
+            Monitor.Wait(_gate, milliseconds);
         }
     }
     public ProcessGraphicsEvent Poll()
@@ -235,18 +248,21 @@ internal sealed class ProcessSurface : IDisposable
     {
         lock (_gate)
         {
-            if (_unsaved && !_disposed) { _closeIntent = true; return false; }
-            _closed = true; _events.Clear(); return true;
+            if (_unsaved && !_disposed) { _closeIntent = true; Monitor.PulseAll(_gate); WakeSignal.Request(); return false; }
+            _closed = true; _events.Clear(); Monitor.PulseAll(_gate); WakeSignal.Request(); return true;
         }
     }
-    public void Dispose() { lock (_gate) { _disposed = true; _closed = true; _events.Clear(); _pixels = Array.Empty<int>(); _materials = Array.Empty<ProcessMaterialRegion>(); } }
+    public void Dispose() { lock (_gate) { _disposed = true; _closed = true; _events.Clear(); _pixels = Array.Empty<int>(); _materials = Array.Empty<ProcessMaterialRegion>(); Monitor.PulseAll(_gate); WakeSignal.Request(); } }
 }
 
 /// <summary>Paces a client's frames: at most one present per interval, and the empty poll right after a
 /// present does not wait again, so an animating client gets the whole interval instead of half of it.</summary>
 internal sealed class FramePacer
 {
-    public const int IntervalMilliseconds = 16;
+    /// <summary>Presents at most every 4 ms (240 a second), the desktop's own frame limit.</summary>
+    public const int IntervalMilliseconds = 4;
+    /// <summary>An idle client wakes this often without an event, for its own timers (caret, refresh).</summary>
+    public const int IdleMilliseconds = 16;
     private long _next = long.MinValue;
     private bool _presented;
 
@@ -262,7 +278,7 @@ internal sealed class FramePacer
     /// <summary>How long a poll that found nothing waits.</summary>
     public int EmptyPoll()
     {
-        if (!_presented) { return IntervalMilliseconds; }
+        if (!_presented) { return IdleMilliseconds; }
         _presented = false;
         return 0;
     }
@@ -272,7 +288,7 @@ internal sealed class ProcessGraphics : IDisposable
 {
     public const int MaximumCalls = 65536;
     /// <summary>Per renewal minute; above what <see cref="FramePacer"/> allows, so only a stale budget can reach it.</summary>
-    public const int MaximumPresents = 7200;
+    public const int MaximumPresents = 16000;
     public FramePacer Pacer { get; } = new();
     public ProcessTerminals Terminals { get; } = new();
     public IProcessTerminalHost? TerminalHost => _host as IProcessTerminalHost;
@@ -317,6 +333,7 @@ internal sealed class ProcessGraphics : IDisposable
         return _surface.PresentMaterials(pixels, regions);
     }
     public ProcessGraphicsEvent? Poll(int handle) => handle == _handle && _surface is not null ? _surface.Poll() : null;
+    public void WaitForEvent(int handle, int milliseconds) { if (handle == _handle) { _surface?.WaitForEvent(milliseconds); } }
     public int Close(int handle)
     {
         if (handle != _handle || _surface is null) { return -9; }
