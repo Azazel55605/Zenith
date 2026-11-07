@@ -21,3 +21,10 @@ zenith_svga_register:
     mov w0, #0
     ret
 .size zenith_svga_register, .-zenith_svga_register
+.text
+.global zenith_vmware_screen_size
+.type zenith_vmware_screen_size, %function
+zenith_vmware_screen_size:
+    mov w0, #0
+    ret
+.size zenith_vmware_screen_size, .-zenith_vmware_screen_size

@@ -13,6 +13,8 @@ internal static class DisplayController
 {
     [DllImport("*", EntryPoint="zenith_svga_register")]
     [SuppressGCTransition] private static extern uint Register(uint index);
+    [DllImport("*", EntryPoint="zenith_vmware_screen_size")]
+    [SuppressGCTransition] private static extern uint HostScreenSize();
     private static Canvas s_physical=null!;
     private static DisplayLayout[] s_modes=Array.Empty<DisplayLayout>();
     private static DisplayLayout s_layout;
@@ -22,10 +24,20 @@ internal static class DisplayController
     private static Canvas? s_previousCanvas;
     private static DisplayLayout s_previousLayout;
     private static bool s_preferencesLoaded;
+    private static DisplayLayout s_boot;
+    /// <summary>VMware SVGA keeps a mode across a restart, while the firmware and bootloader draw for
+    /// their own: put the boot mode back before restart or power-off.</summary>
+    private static void RestoreBootMode()
+    {
+        if(s_physical is null || (s_physical.Width==s_boot.Width && s_physical.Height==s_boot.Height)) { return; }
+        SetHardware(s_boot);
+        Zenith.Core.Log.Write("display","restored boot mode "+s_boot.Width+"x"+s_boot.Height+" for firmware");
+    }
     public static Canvas Initialize()
     {
         s_physical=Canvas.GetFullScreen(); s_driver=s_physical.Name;
-        s_layout=new(s_physical.Width,s_physical.Height,1);
+        s_layout=new(s_physical.Width,s_physical.Height,1); s_boot=s_layout;
+        Zenith.Core.PowerControl.BeforeFirmware=RestoreBootMode;
         var modes=new List<DisplayLayout> {s_layout};
         // ApplyMode in the pinned VMware canvases changes hardware. Bound its
         // advertised list by the actual register limits and framebuffer memory.
@@ -48,6 +60,8 @@ internal static class DisplayController
         s_preferencesLoaded=true;
         DisplayLayout? saved=SystemConfiguration.Display.Saved();
         if(SafeBoot()) { saved=null; }
+        // Nothing kept yet: fit the host's screen (VMware reports it) instead of the firmware's mode.
+        else if(saved is null && AutomaticLayout() is DisplayLayout automatic) { saved=automatic; Zenith.Core.Log.Write("display","automatic "+automatic.Width+"x"+automatic.Height+" scale="+automatic.Scale); }
         // Boot has no old application state to preserve. Unsupported saved modes
         // fall back to firmware/current mode, retaining the file for diagnosis.
         if(saved is DisplayLayout wanted && wanted.Usable && HasMode(wanted))
@@ -74,6 +88,24 @@ internal static class DisplayController
         string line=Marshal.PtrToStringUTF8((IntPtr)Cosmos.Kernel.Boot.Limine.Limine.Cmdline)??"";
         foreach(string word in line.Split(' ')) { if(word=="display=safe") { return true; } }
         return false;
+    }
+    /// <summary>The largest supported mode within the host's screen, with an integer scale that keeps
+    /// about 900 logical lines or more (4K gets 200%). Null off VMware or for implausible sizes.</summary>
+    private static DisplayLayout? AutomaticLayout()
+    {
+        if(!s_driver.StartsWith("VMWare",StringComparison.OrdinalIgnoreCase)) { return null; }
+        uint size=HostScreenSize(); int w=(int)(size>>16),h=(int)(size&0xffff);
+        if(size==0xffffffff || w<640 || h<480 || w>16384 || h>16384) { return null; }
+        DisplayLayout best=default; bool found=false;
+        foreach(var mode in s_modes)
+        {
+            if(mode.Width>w || mode.Height>h) { continue; }
+            if(!found || (long)mode.Width*mode.Height>(long)best.Width*best.Height) { best=mode; found=true; }
+        }
+        if(!found) { return null; }
+        int scale=Math.Clamp(best.Height/900,1,4);
+        var layout=new DisplayLayout(best.Width,best.Height,scale);
+        return layout.Usable?layout:new DisplayLayout(best.Width,best.Height,1);
     }
     private static bool HasMode(DisplayLayout layout)
     { foreach(var mode in s_modes) { if(mode.Width==layout.Width && mode.Height==layout.Height) { return true; } } return false; }

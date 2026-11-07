@@ -233,3 +233,20 @@ zenith_svga_register:
     popfq
     ret
 .size zenith_svga_register, .-zenith_svga_register
+# VMware backdoor GETSCREENSIZE (command 15): the host's display or window size as
+# (width<<16)|height. Elsewhere the port reads as all ones; callers validate the result.
+.text
+.globl zenith_vmware_screen_size
+.type zenith_vmware_screen_size, @function
+zenith_vmware_screen_size:
+    push %rbx
+    mov $0x564d5868, %eax
+    xor %ebx, %ebx
+    not %ebx
+    mov $15, %ecx
+    mov $0x5658, %edx
+    inl %dx, %eax
+    pop %rbx
+    ret
+.size zenith_vmware_screen_size, .-zenith_vmware_screen_size
+.section .note.GNU-stack,"",@progbits

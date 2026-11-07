@@ -16,6 +16,9 @@ internal static class PowerControl
 
     /// <summary>A last look on screen, given what is happening. Bounded, and only ever after the disks are safe.</summary>
     public static Action<string>? Farewell { get; set; }
+    /// <summary>Last step before firmware takes over: hand devices back as the firmware left them
+    /// (the display returns to its boot mode, so the bootloader and boot screen are not skewed).</summary>
+    public static Action? BeforeFirmware { get; set; }
 
     public static void Reboot() => Shutdown(Power.Reboot, "rebooting", false);
     public static void PowerOff() => Shutdown(FirmwarePowerOff, "powering off", true);
@@ -43,6 +46,8 @@ internal static class PowerControl
             SystemMounts.Shutdown();
             try { Farewell?.Invoke(powerOff ? "Shutting down" : "Restarting"); }
             catch (Exception e) { Log.Write("power", "farewell skipped: " + e.Message); }
+            try { BeforeFirmware?.Invoke(); }
+            catch (Exception e) { Log.Write("power", "device hand-back skipped: " + e.Message); }
             power();
         }
         catch
