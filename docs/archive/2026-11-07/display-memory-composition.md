@@ -65,7 +65,15 @@ continues to compare exact pixels. Packet handling/download throughput is separa
 
 ## Validation boundary
 
-Local validation is in progress. Host tests cover 1080p/4K material acceptance,
+Local validation is in progress. 887 host tests and 535 controller tests pass.
+The controlled candidate workload triggers three debt collections within 24 s;
+the final forced collection returns use to 122256 KiB against a 123068 KiB
+starting baseline. The first matrix passed 81 login/session checks, then exposed
+an omitted assembly admission range for calls 645/646 before Settings launched.
+The BSP whitelist and all seven derived private bridges now admit those calls;
+the source hash was updated only after auditing this boundary-only change.
+Early Settings bounds checks and 45 bridge/queue regressions cover the repair.
+Host tests cover 1080p/4K material acceptance,
 resize refusal, boot-resolution preservation and time-zone-independent correction.
 Production native queue and C# bridge tests compare exact alpha pixels, clipped
 strides, source immutability, guard bytes and bounded fallback. The graphics gate

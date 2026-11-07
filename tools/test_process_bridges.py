@@ -54,10 +54,10 @@ identity: .long 0
                 self.assertTrue('p'+str(cpu)+'_'+name in self.symbols,name)
         self.assertNotIn(' zenith_process_run\n',self.symbols)
     def test_display_and_monitor_requests_yield_to_bsp_services_on_every_private_bridge(self):
-        # 640/641 display and 642..644 Observatory monitor, one inclusive range.
+        # Display, monitor and owned framebuffer services, one inclusive range.
         for cpu in range(1,8):
             bridge=b.variant(self.source,cpu)
-            self.assertIn('cmp $640, %rax\n    jb 11f\n    cmp $644, %rax\n    jbe p'+str(cpu)+'_z_service\n11:',bridge)
+            self.assertIn('cmp $640, %rax\n    jb 11f\n    cmp $646, %rax\n    jbe p'+str(cpu)+'_z_service\n11:',bridge)
 
     def test_resumed_frames_rebind_selectors_after_kernel_gdt_growth(self):
         # Execute the real copy/selector-rebind instructions without privileged

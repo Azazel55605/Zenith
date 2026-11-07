@@ -174,6 +174,8 @@ static int bounds(void){
     if(zenith_call(625,0xffff800000000000UL,4096,0)!=-14)return 46;
     if(zenith_call(626,0xffff800000000000UL,32,0)!=-14)return 47;
     if(zenith_gui_viewport(20001,&viewport_state)!=-9)return 26;
+    if(zenith_gui_buffer(4)!=-22)return 54; /* no live surface: must reach the BSP service */
+    if(zenith_gui_resize_refuse(20001)!=-9)return 55;
     long motion=zenith_gui_pointer_motion(20001);
     if(motion!=-9&&motion!=-38)return 48;
     if(motion==-9&&zenith_call(627,20001,2,0)!=-22)return 49;
