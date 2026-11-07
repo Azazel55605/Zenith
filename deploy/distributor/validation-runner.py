@@ -49,6 +49,9 @@ def run_harness(script):
     graphics = importlib.util.module_from_spec(spec); spec.loader.exec_module(graphics)
     spec = importlib.util.spec_from_file_location('graphics_terminal_observation', Path(__file__).with_name('validation-terminal.py'))
     graphics_terminal = importlib.util.module_from_spec(spec); spec.loader.exec_module(graphics_terminal)
+    spec = importlib.util.spec_from_file_location('validation_login', Path(__file__).with_name('validation-login.py'))
+    login_input = importlib.util.module_from_spec(spec); spec.loader.exec_module(login_input)
+    login_handoff = script.name == 'login-session-smoke.py' and 'motion: SessionFade frames=' in script.read_text()
     original_run = subprocess.run
     prebuilt = os.environ.get('ZENITH_NATIVE_PREBUILT_SHA256')
     root = os.environ.get('ZENITH_NATIVE_PREBUILT_ROOT')
@@ -86,6 +89,8 @@ def run_harness(script):
         if script.name == 'native-graphics-smoke.py' and Path(loader.path).name == 'recovery_console.py':
             input_profile.install_monitor(module)
             graphics.install_monitor(module, instances, input_profile, graphics_terminal)
+        if login_handoff and Path(loader.path).name == 'recovery_console.py':
+            login_input.install_monitor(module, instances, input_profile, graphics_terminal)
         if Path(loader.path).resolve() == headless.resolve():
             output.install(module.Machine)
             accelerator.install(module)
@@ -98,6 +103,8 @@ def run_harness(script):
     if script.name == 'native-graphics-smoke.py' and 'recovery_console' in sys.modules:
         input_profile.install_monitor(sys.modules['recovery_console'])
         graphics.install_monitor(sys.modules['recovery_console'], instances, input_profile, graphics_terminal)
+    if login_handoff and 'recovery_console' in sys.modules:
+        login_input.install_monitor(sys.modules['recovery_console'], instances, input_profile, graphics_terminal)
     started = time.monotonic()
     try: runpy.run_path(str(script), run_name='__main__')
     except BaseException:

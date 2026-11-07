@@ -47,6 +47,16 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual('failed',row['outcome']);self.assertEqual('S_LEVEL',row['label'])
         self.assertNotIn('private',json.dumps(row))
 
+    def test_login_timeout_captures_public_handoff_state_without_passing(self):
+        failed=self.machine(False,harness='login-session-smoke.py')
+        with patch.object(profile.diagnostics,'capture',return_value=failed.directory/'pipeline-stall.json') as capture:
+            self.assertFalse(failed.wait('user: LOGIN_META_REMOVE=0'))
+        self.assertEqual('LOGIN_HANDOFF',capture.call_args.args[1])
+        self.assertEqual(failed.directory.parent,capture.call_args.args[0].directory)
+        row=json.loads((failed.directory/'wait-times.jsonl').read_text())
+        self.assertEqual(('LOGIN_META_REMOVE','failed'),(row['label'],row['outcome']))
+        self.assertNotIn('private',json.dumps(row))
+
     def test_gallery_shutdown_failure_captures_from_parent_monitor_without_passing(self):
         for harness in ('native-materials-smoke.py','ui-gallery-smoke.py'):
             failed=self.machine(False,harness=harness)

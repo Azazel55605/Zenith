@@ -51,6 +51,16 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 ## Current focus and execution order
 
 
+**2026-11-08 — Q3/W1: distributor 0.0.48 login Terminal handoff.**
+The server times out at `LOGIN_META_REMOVE`; its retained image is an authenticated
+Desktop without a Terminal. The fixture sent its one opening shortcut before the
+initial input drain/welcome fade finished. Controller policy now observes the
+fade before that shortcut and a focused public prompt before command typing;
+credentials, kernel, tagged fixture and result assertions remain unchanged.
+Local unchanged-0.0.48 login acceptance passes all 81 checks; distributor retry
+remains required. [Evidence and repair](archive/2026-11-08/login-terminal-handoff.md).
+
+
 **2026-11-07 — 0.0.48 release tags; distributor and installed acceptance pending.**
 Published `kernel/v0.0.48`, `zenith-settings/v0.10.2`,
 `zenith-observatory/v0.3.1`, `zenith-polaris/v0.3.3` and

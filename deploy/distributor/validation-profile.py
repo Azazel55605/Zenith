@@ -90,14 +90,14 @@ def install(machine_type, elf=None, harness=None):
             if outcome == 'failed' and isinstance(failure, dict):
                 row['failure'] = failure
             after = resources(machine)
-            graphical_handoff = harness in ('native-display-smoke.py','native-settings-smoke.py','native-materials-smoke.py','ui-gallery-smoke.py','native-graphics-smoke.py')
+            graphical_handoff = harness in ('native-display-smoke.py','native-settings-smoke.py','native-materials-smoke.py','ui-gallery-smoke.py','native-graphics-smoke.py','login-session-smoke.py')
             if outcome == 'failed' and (diagnostics.PIPELINE.fullmatch(row['label']) or graphical_handoff):
                 try:
                     if graphical_handoff:
                         from types import SimpleNamespace
                         keep=machine.directory.parent
                         snapshot=diagnostics.capture(SimpleNamespace(directory=keep),
-                                                     dict(zip(('native-settings-smoke.py','native-graphics-smoke.py'),('MERIDIAN_INPUT','GRAPHICS_COMMAND'))).get(harness,'GALLERY_INPUT'),elf)
+                                                     {'native-settings-smoke.py':'MERIDIAN_INPUT','native-graphics-smoke.py':'GRAPHICS_COMMAND','login-session-smoke.py':'LOGIN_HANDOFF'}.get(harness,'GALLERY_INPUT'),elf)
                         spec=importlib.util.spec_from_file_location('wait_failure_input',Path(__file__).with_name('validation-input.py'))
                         input_policy=importlib.util.module_from_spec(spec);spec.loader.exec_module(input_policy)
                         try:input_policy.RenderedMouse(keep/'monitor.sock',input_policy.monitor_text).capture(keep/'wait-failure.ppm')

@@ -74,7 +74,11 @@ The greeter's look, power confirmation and crossfades are designed in
 `tools/login-session-smoke.py` checks installed authentication, user credentials,
 busy/unsaved logout refusal, repeated DE/local-console login, history/German input,
 visible signed styling upgrade under the same kernel, meta removal and independent
-ext2 audit. It checks that credentials are absent from serial logs. The native ELF
+ext2 audit. It checks that credentials are absent from serial logs. The current
+controller observes the completed welcome fade before the fixture’s Terminal
+shortcut, then a focused public shell prompt before sending its next command.
+This preserves the authentication input drain and never replays a shortcut or
+package operation. The native ELF
 gate authenticates before checking font rendering, and the server includes the
 login harness when present in the pinned tag. See PROGRESS for exact results and
 operator acceptance limits. The sections below retain the design/delivery context.

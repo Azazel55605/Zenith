@@ -139,6 +139,36 @@ class ValidationTests(unittest.TestCase):
             harness.write_bytes((ROOT/'tools/native-materials-smoke.py').read_bytes())
         subprocess.run([sys.executable,'-B',str(ROOT/'deploy/distributor/validation-runner.py'),str(harness),str(self.root/'keep')],check=True)
 
+    def test_direct_login_harness_receives_current_terminal_handoff(self):
+        (self.root/'recovery_console.py').write_text("def monitor_command(*a): raise AssertionError('shortcut dispatched before readiness')\n")
+        (self.root/'headless-smoke.py').write_text("from pathlib import Path\nfrom types import SimpleNamespace\nclass Machine:\n"
+            " def __init__(self,directory,monitor=None): self.directory=directory;self.serial=None;self.process=SimpleNamespace(poll=lambda:None)\n"
+            " def log(self): raise LookupError('current-login-controller-selected-gui')\n"
+            " def wait(self,*a,**k): return True\n def send(self,*a): pass\n def stop(self): pass\n")
+        harness=self.root/'login-session-smoke.py'
+        harness.write_text("# motion: SessionFade frames= is required by this immutable fixture\n"
+            "from recovery_console import monitor_command\nimport importlib.util,sys\nfrom pathlib import Path\n"
+            "s=importlib.util.spec_from_file_location('tag_h',Path(__file__).with_name('headless-smoke.py'));h=importlib.util.module_from_spec(s);s.loader.exec_module(h)\n"
+            "keep=Path(sys.argv[1]);h.Machine(keep/'gui',monitor=keep/'monitor.sock')\n"
+            "try:monitor_command(keep/'monitor.sock','sendkey ctrl-alt-t 30')\n"
+            "except LookupError as e:assert str(e)=='current-login-controller-selected-gui'\n"
+            "else:raise AssertionError('current login policy was bypassed')\n")
+        before=harness.read_bytes()
+        for preload in (False,True):
+            with self.subTest(preload=preload):
+                command=[sys.executable,'-B',str(ROOT/'deploy/distributor/validation-runner.py'),str(harness),str(self.root/'keep')]
+                if preload:
+                    code="import sys,runpy;sys.path.insert(0,"+repr(str(self.root))+");import recovery_console;sys.argv="+repr(command[2:])+";runpy.run_path(sys.argv[0],run_name='__main__')"
+                    command=[sys.executable,'-B','-c',code]
+                subprocess.run(command,check=True)
+                self.assertEqual(before,harness.read_bytes())
+
+    def test_legacy_login_without_session_fades_keeps_its_original_transport(self):
+        (self.root/'recovery_console.py').write_text("def monitor_command(*a): return 'legacy-input'\n")
+        harness=self.root/'login-session-smoke.py'
+        harness.write_text("from recovery_console import monitor_command\nassert monitor_command('unused','sendkey ctrl-alt-t 30')=='legacy-input'\n")
+        subprocess.run([sys.executable,'-B',str(ROOT/'deploy/distributor/validation-runner.py'),str(harness),str(self.root/'keep')],check=True)
+
     def test_tagged_input_helper_uses_current_controller_policy(self):
         helper=self.root/'validation-input.py'
         helper.write_text("class RenderedMouse: pass\ndef install_monitor(module): raise RuntimeError('old helper')\ndef install(machine): pass\n")

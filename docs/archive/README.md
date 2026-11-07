@@ -6,6 +6,8 @@ Start with [current status](../ROADMAP.md#state-and-evidence) or [active work](.
 
 ## Investigation records
 
+- [2026-11-08 login Terminal handoff](2026-11-08/login-terminal-handoff.md): distributor 0.0.48 startup-input race, observed public readiness and unchanged-kernel login qualification.
+
 - [2026-11-07 display, memory and composition follow-up](2026-11-07/display-memory-composition.md): installed regressions, on-demand framebuffers, UTC source, boot display and private AP foreground tiles.
 
 - [2026-11-04 Observatory handoff](2026-11-04/observatory-handoff.md): immutable 0.0.45 graphics-fixture retirement race, rendered Polaris acknowledgement and no-build replay.
