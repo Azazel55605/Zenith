@@ -60,8 +60,8 @@ internal sealed class ProcessSurface : IDisposable
       if (format == 2) { Array.Fill(_pixels, unchecked((int)0xff000000)); } }
     public int Width { get; private set; }
     public int Height { get; private set; }
-    // Matches the toolkit's ZUI_MAX_WIDTH x ZUI_MAX_HEIGHT: fills 1080p and 1440p at 100%, 4K at 200%.
-    public const int MaximumWidth = 2560, MaximumHeight = 1600;
+    // Matches the toolkit's ZUI_MAX_WIDTH x ZUI_MAX_HEIGHT: fills 1080p and 1200p at 100%, 4K at 200%.
+    public const int MaximumWidth = 1920, MaximumHeight = 1200;
     private int _requestedWidth, _requestedHeight;
     private ulong _sizeGeneration;
     private bool _resizeEvent;
