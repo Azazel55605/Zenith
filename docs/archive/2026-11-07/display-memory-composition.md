@@ -127,3 +127,20 @@ Protocol references: [VMware GETTIMEFULL](https://github.com/vmware/open-vm-tool
 QEMU's VMware-SVGA device caps its advertised mode at 2368x1770; 4K physical SVGA
 validation therefore remains a VMware/device acceptance check, distinct from 4K
 buffer/validation tests.
+
+## 0.0.48 release qualification
+
+The subsequent fresh full pre-tag acceptance passes on source `2e93304`, using
+the same ELF/ISO hashes as the repaired candidate. All 15 mandatory VM gates pass
+in one run with successful-result reuse disabled and seven workers admitted by
+the host CPU/RAM budget. The run also passes 887 host tests, 536 controller tests
+and eight copied-runtime adapter checks. Evidence: `/var/tmp/zenith-048-pretag`;
+controller output: `/tmp/zenith-048-pretag.log`. This resolves the previous
+all-in-one batch acceptance gap without changing or hiding its failed fixture.
+
+The release set is `kernel/v0.0.48`, `zenith-settings/v0.10.2`,
+`zenith-observatory/v0.3.1`, `zenith-polaris/v0.3.3` and
+`zenith-desktop-tools/v0.4.3`, all at qualified source `2e93304`. The four native
+payloads also build at these exact release versions and their manifests require
+`zenith-native-framebuffer-abi` 1.0. Tags request the distributor build/sign/publish
+pipeline; they do not claim delivery or installed VMware acceptance.

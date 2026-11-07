@@ -50,6 +50,17 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 
 ## Current focus and execution order
 
+
+**2026-11-07 — 0.0.48 release tags; distributor and installed acceptance pending.**
+Published `kernel/v0.0.48`, `zenith-settings/v0.10.2`,
+`zenith-observatory/v0.3.1`, `zenith-polaris/v0.3.3` and
+`zenith-desktop-tools/v0.4.3` at qualified source `2e93304`. A fresh unsigned
+acceptance run passes all 15 mandatory VM gates together, 887 host tests,
+536 controller tests and eight runtime-adapter checks. Matching native clients
+require framebuffer ABI 1.0 from the new kernel. Build/sign/delivery and installed
+VMware clock, Limine/splash, physical 4K and long-duration memory checks remain
+external acceptance. [Qualification and scope](archive/2026-11-07/display-memory-composition.md#0048-release-qualification).
+
 **2026-11-07 — 0.0.47 installed regressions (Q3/M2/D2/S3, locally qualified).**
 Operator reports fresh idle growth (~386 MiB/5 minutes), native toolkit apps exiting
 on 1080p maximize, incorrect VMware clock and low-resolution/misaligned Limine.
