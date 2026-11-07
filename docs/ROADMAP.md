@@ -50,6 +50,18 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 
 ## Current focus and execution order
 
+**2026-11-07 — Rendering overhaul (R1 local).** The kernel loop halted after every
+pass until the next 10 ms tick and presented the whole screen for every change. R1:
+paced frames (up to 240/s, halting only when idle), damage-only presents, row-copy
+integer scaling, cached window blurs, cheaper shadows, instant wake of native apps
+and of threads the kernel loop hands work to (`KernelHandoff`). VMware SVGA window
+animation 123 -> 196 fps (1280x800), 109 -> 159 fps (1600x1200 at 200%); measure with
+`tools/frame-bench.py`. Next: R2 compose only damaged regions and cache window
+content; R3 spread composition over AP workers. Also local: VMware first-boot
+autofit, boot mode restored before restart, Observatory CPU watchdog fix, launches
+during pkg downloads. Open: TCP receive costs about 0.85 ms per frame (downloads ~2
+MiB/s in QEMU), Cosmos uses only the largest memory region.
+
 **2026-11-04 — M2/D2 primary display implementation; local qualification.**
 Audit of the pinned 3.0.89 assemblies confirms VMware SVGA changes modes; Virtio
 and GOP currently ignore requested dimensions. Bounded actual primary
