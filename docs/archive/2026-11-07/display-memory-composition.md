@@ -65,12 +65,17 @@ continues to compare exact pixels. Packet handling/download throughput is separa
 
 ## Validation boundary
 
-Local validation is in progress. 887 host tests and 535 controller tests pass.
-The controlled candidate workload triggers three debt collections within 24 s;
-the final forced collection returns use to 122196 KiB against a 123008 KiB
-starting baseline on the repaired ELF. Three real guest full-scene comparisons
-are pixel-identical: scalar 25.5–26.7 ms, parallel 21.2–25.2 ms (6–17% faster),
-with separate positive AP blur and foreground-composition counters. The first matrix passed 81 login/session checks, then exposed
+Source `d03b4b6` is locally qualified: 887 host tests, 536 controller tests,
+eight runtime-adapter tests and all 15 individual mandatory VM gates pass.
+The controlled candidate workload triggers three debt collections within 18 s of load;
+the final forced collection returns use to 122220 KiB against a 123044 KiB
+starting baseline on the final repaired ELF. Three pre-runtime-repair guest
+full-scene comparisons are pixel-identical
+(scalar 25.5–26.7 ms, parallel 21.2–25.2 ms). The final ELF also passes three exact
+comparisons with positive AP blur/composition counters; timings under concurrent
+qualification vary (scalar 22.1–31.5 ms, parallel 21.5–25.2 ms). This does not
+establish a consistent performance gain on the installed VMware profile. The
+first matrix passed 81 login/session checks, then exposed
 an omitted assembly admission range for calls 645/646 before Settings launched.
 The BSP whitelist and all seven derived private bridges now admit those calls;
 the source hash was updated only after auditing this boundary-only change.
@@ -84,7 +89,7 @@ The fresh matrix then exposed a title-gesture bug: a completed drag remained
 eligible as the first title double-click. A quick second grab maximized Meridian
 while the fixture was testing close-during-drag; separating the gestures made that
 check pass. Actual pointer motion beyond four pixels now clears title-click
-history. The original unmodified regression is being rerun against this repair.
+history. The original unmodified Settings regression passes against this repair.
 
 The graphics gate then caught a real post-collection fault in runtime enum/reflection
 metadata. The pinned `FreeWeakHandles` recycled weak/dependent slots while their
@@ -99,7 +104,23 @@ focused runtime/GC/replay checks pass. The graphics gate now forces a collection
 before Polaris launch. Subsequent qualification evidence uses disk-backed
 `/var/tmp` storage after completed disposable fixtures filled the host's `/tmp`.
 This storage interruption is distinct from the captured guest page fault.
-No distributor, installed VMware or successor-release acceptance is claimed yet.
+The final native qualification used one frozen ELF:
+`e3cd34317ce413c4bb8b5caee9f462ed163519e22f927469979ffe598255d8ba`.
+The all-in-one run stopped on a setup HTTP fetch returning status 1 before the SMP
+workload. Its already-running gates finished; a fresh full SMP fixture passed,
+and the seven not-yet-started gates passed separately. This is evidence for all
+15 individual gates, not a claim that the original all-in-one run succeeded.
+The original failure is retained. The separate graphics regression passes all 87
+checks after forced collection, and an additional 1080p VMware-SVGA test maximizes
+and closes Settings, desktop-tools, Observatory and Polaris with whole-app blur
+both disabled and enabled. The real 4K backing-buffer probe passes.
+
+Evidence is in `/var/tmp/zenith-047-qualified`, `/var/tmp/zenith-047-pending`,
+`/tmp/zenith-047-smp-recheck.log` and the hash manifest
+`/var/tmp/zenith-047-results.json`. No distributor, installed VMware or successor-
+release acceptance is claimed. Actual 4K physical SVGA, VMware host clock, Limine
+menu/splash and long-duration installed idle-memory observations remain Q2/H1
+operator acceptance checks.
 
 Protocol references: [VMware GETTIMEFULL](https://github.com/vmware/open-vm-tools/blob/master/open-vm-tools/services/plugins/timeSync/timeSync.c),
 [Limine v10 configuration](https://github.com/Limine-Bootloader/Limine/blob/v10.x/CONFIG.md).

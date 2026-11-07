@@ -50,27 +50,29 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 
 ## Current focus and execution order
 
-**2026-11-07 — 0.0.47 installed regressions (Q3/M2/D2/S3, in progress).**
+**2026-11-07 — 0.0.47 installed regressions (Q3/M2/D2/S3, locally qualified).**
 Operator reports fresh idle growth (~386 MiB/5 minutes), native toolkit apps exiting
 on 1080p maximize, incorrect VMware clock and low-resolution/misaligned Limine.
-Local pressure replay reclaims ~303 MiB and 4.95 million objects: allocation debt
-must trigger collection before physical exhaustion. Fix the mismatched material
-area limit, replace static client framebuffer sizing with invocation-owned growth
-and graceful resource refusal, use guarded VMware host UTC rather than deriving
-the RTC zone from personal formatting, and carry boot display preferences through
-menu publication. [Implementation and evidence](archive/2026-11-07/display-memory-composition.md).
-Then qualify R3 parallel rendering with exact pixels, bounded
-allocation, actual AP execution and one-CPU fallback. Network packet/download
-throughput remains separate. No successor release or installed acceptance claimed.
+Local pressure replay reclaims ~303 MiB and 4.95 million objects. Allocation debt
+now triggers collection before physical exhaustion, with corrected weak-handle
+ownership. The follow-up corrects material-area admission, replaces static client
+framebuffer sizing with invocation-owned growth and resource refusal, samples
+guarded VMware host UTC independently of personal formatting, and carries boot
+display preferences through menu publication. [Implementation and evidence](archive/2026-11-07/display-memory-composition.md).
+The frozen follow-up `d03b4b6` passes 887 host, 536 controller and all 15
+individual mandatory VM gates; a failed SMP setup download passed a fresh isolated
+recheck. Phase 3 rendering has exact-pixel, actual-AP and one-CPU fallback
+evidence. Network packet/download throughput remains separate. No successor release or installed acceptance claimed.
 
 **2026-11-07 — Rendering overhaul (phases 1–2 published).** Kernel 0.0.47
 at `b280c08` contains paced frames, damage-only presents/composition, integer
 scaling, retained blur and content caches. The operator confirms installation
 and better performance; the reported memory, VMware clock/boot and native maximize
 failures remain distinct acceptance gaps. The current follow-up above adds private
-AP foreground tiles (phase 3) alongside the existing parallel blur path. Three
-local whole-scene comparisons are pixel-identical and measured 6–17% faster on
-that guest; this is not installed VMware performance acceptance. Use
+AP foreground tiles (phase 3) alongside the existing parallel blur path. Local
+whole-scene comparisons are pixel-identical. Final timings vary under
+concurrent qualification load (scalar 22.1–31.5 ms, parallel 21.5–25.2 ms); no
+consistent speedup or installed VMware performance acceptance is claimed. Use
 `fps parallel-bench` and `tools/frame-bench.py` for reproducible measurements.
 Open: TCP receive costs about 0.85 ms per frame (downloads ~2 MiB/s in QEMU),
 Cosmos uses only the largest memory region. Network throughput remains separate.
@@ -206,7 +208,7 @@ changes; put smaller implementation steps in the linked component, using the sam
 |---|---|---|
 | G1 | local, complete | One tracker; obsolete guides consolidated and open items mapped. [Audit and checks](archive/2026-10-27/documentation-and-material-contract.md) complete; future agents follow [maintenance](MAINTAINING.md). |
 | D1 | local; installed verification pending | [Shared visual parity](DESIGN-LANGUAGE.md): neutral segments, antialiased swatches/switches, label/help rows, restrained navigation and completed-window rounded masks implemented. Remaining system windows share the design; [quality follow-up](archive/2026-10-28/smooth-edges-and-system-apps.md). Both modes/six accents and draft/permission behavior locally qualified; [evidence](archive/2026-10-28/shared-widget-parity.md). Q2 owns installed confirmation; U1/D2 own richer widgets/hover transport, Unicode and scale; D3 owns effects. |
-| D2 | partial | Bounded native client resize/maximize and [primary display transactions](DISPLAY-SETTINGS.md) implemented: driver-bounded VMware modes, integer 100/200% complete-UI scaling, root-only shared GUI/CLI, host-owned Keep/Revert, timeout/client-exit rollback, persistence and safe boot. Local QEMU qualification is separate from Q2/H1 installed driver/input acceptance. Orientation/refresh, fractional scale and multiple outputs remain open. |
+| D2 | partial | Native clients now grow private framebuffers rather than reserve a fixed 1920x1200 maximum; low-level byte/dimension budgets remain. Bounded resize/maximize and [primary display transactions](DISPLAY-SETTINGS.md) implemented: driver-bounded VMware modes, integer 100/200% complete-UI scaling, root-only shared GUI/CLI, host-owned Keep/Revert, timeout/client-exit rollback, persistence and safe boot. Local QEMU qualification is separate from Q2/H1 installed driver/input acceptance. Orientation/refresh, fractional scale and multiple outputs remain open. |
 | D3 | software implementation local; device acceptance pending | System-wide whole-app materials for native/trusted app bodies, a contrast-clamped translucency level, compatible preferences and adaptive tint/blur caches locally tested. Explicit format-2 foreground/regions, cached tint/box diffusion, atomic saved/effective/available preferences, Meridian controls/sidebar and host chrome/taskbar integrated. Shared contrast, 8 MiB cache and per-frame work budgets fall back without changing preferences/layout. [Contract](GRAPHICAL-CLIENTS.md#opt-in-material-frames-d3-first-slice), [local evidence](archive/2026-10-28/desktop-material-integration.md). Q2: installed on/off/light/dark/overlap acceptance and sustained performance; D2: resize/scale qualification. Hardware/GPU acceleration is not implemented. Protected credentials remain solid. |
 | U1 | partial | A single wheel notch scrolled 0 px in toolkit clients (`-code/2` truncation); fixed at 40 px per notch with host and native-gate checks, released as `zenith-settings/v0.6.0` and `zenith-desktop-tools/v0.4.0`. A previewed colour mode now paints opaque surfaces instead of host materials (local). The BSP-only raw fallback retains its older CPU-loop budget; C4 adds local AP timer quanta for opt-in protected apps ([audit](archive/2026-10-30/system-audit.md)). Owned viewport generation/acknowledgement, pane-aware saturated wheel handling and drag keyboard routing locally tested; operator freeze root cause found under H1. Accepted [behavior design](MERIDIAN-BEHAVIOR.md): scroll area, list view, combo box, form layout, footer, dialog, Lucide icons and opt-in hover ABI. Stage 1 (toolkit primitives, [plan](components/USERLAND-UI-STAGE1.md)) is local: sanitizer host tests, the UI gallery smoke (15 checks) and Settings gate (96 checks) pass on kernel 0.0.29; UI programs fit the package file limit with headroom. Icons are a system-wide `zenith-icons` package and remaining trusted apps share the workspace layout (Files and Editor excluded). Stage 3 (opt-in pointer motion, hover and Page Up/Down) is local; [evidence](archive/2026-10-30/meridian-stage2.md). [Shared native UI/runtime](components/USERLAND.md): lists, fields, selectors, sliders, dialogs, multiline text, clipboard, resizing/hover, runtime fonts/Unicode/IME; long-duration quota and teardown acceptance beyond old invocation limits. Existing profile renewal alone is not full long-lived-app qualification. |
 | U2 | native migration planned | [Concept](design/editor-concept.svg) proposed, based on Kate. Shared-design Editor is locally implemented; native extraction still needs: bounded UTF-8/LF/CRLF, selection/clipboard, undo/redo/search, safe staged save/save-as and external-change checks. Depends on U1 + caller-scoped files/dialogs; prove permission/out-of-space/cancel/dirty-close and independent update. |
@@ -235,7 +237,7 @@ changes; put smaller implementation steps in the linked component, using the sam
 | H3 | planned, later | True suspend/resume, Bluetooth, printers and specialized accessibility. Define each scope/driver dependency first; WIP pages stay visible. Never count a menu or VM-only demo as device support. |
 | Q1 | verification | Confirm 0.0.25 distributor result and [Appearance installed procedure](testing/SETTINGS-VM-TEST.md); retain current release immutability. |
 | Q2 | 0.0.44 built/installed; multicore correction local | `kernel/v0.0.44`, `sunbeam-tools/v0.7.0` and `zenith-gui-probe/v0.2.0` are tagged at CI-qualified `8502029`. All 28 fresh VM gates and the aggregate passed in 33m 27s; local fresh Release acceptance also passed all 14 mandatory native gates. Parallel CI shares one source-bound build, caches downloads and verifies every result ([qualification](archive/2026-11-04/c4-release-and-ci.md), [contract](DEVELOPMENT.md#ci-and-releases)). Operator confirms distributor 0.0.44 built and is installed; CPU diagnostics exposed the return/GC faults described above. Their repaired candidate has local targeted qualification; new release and VMware acceptance remain Q2/H1. |
-| Q3 | continuous; parallel controller local | [Parallel native validation and exact retry receipts](archive/2026-10-28/parallel-native-validation.md) locally implemented; four actual gates pass concurrently. Default up to four, configurable up to eight within CPU/RAM budget; distributor timing pending.  Measure boot/app responsiveness, idle memory/CPU, transfer/build phase times and stability across repeated workflows. Keep CI/controller/toolchain drift checks, fault injection and installed evidence distinct; enforce supported-profile performance budgets before claiming product readiness. |
+| Q3 | continuous; parallel controller local | [Parallel native validation and exact retry receipts](archive/2026-10-28/parallel-native-validation.md) locally implemented; four actual gates pass concurrently. Default up to four, configurable up to eight within CPU/RAM budget; distributor timing pending. The [0.0.47 follow-up](archive/2026-11-07/display-memory-composition.md) adds locally qualified allocation-debt collection and weak-handle ownership repairs; installed-duration acceptance remains open. Measure boot/app responsiveness, idle memory/CPU, transfer/build phase times and stability across repeated workflows. Keep CI/controller/toolchain drift checks, fault injection and installed evidence distinct; enforce supported-profile performance budgets before claiming product readiness. |
 
 ## Meridian — every requested destination
 
