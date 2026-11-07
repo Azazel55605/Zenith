@@ -56,6 +56,8 @@ internal abstract class Window
     internal long BackdropGeneration { get; set; } = -1;
     /// <summary>Set when Update reported new content while the window was below the top one.</summary>
     internal bool ContentChanged { get; set; }
+    /// <summary>Counts Update calls that reported new content: the compositor redraws a window whose count moved.</summary>
+    internal int ContentVersion { get; set; }
     /// <summary>Set by the window manager for one draw when that lower scene has not changed.</summary>
     protected internal bool BackdropUnchanged { get; internal set; }
 

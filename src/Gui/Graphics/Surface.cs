@@ -20,7 +20,7 @@ internal sealed class Surface : Canvas
     {
         Pixels = GetBuffer()!;
         Bounds = new Rect(0, 0, width, height);
-        _clip = Bounds;
+        _base = Bounds; _clip = Bounds;
     }
 
     /// <summary>Row-major ARGB pixels, <c>Width * Height</c> long.</summary>
@@ -32,21 +32,30 @@ internal sealed class Surface : Canvas
     public Rect Clip
     {
         get => _clip;
-        set => _clip = value.Intersect(Bounds);
+        set => _clip = value.Intersect(_base);
+    }
+
+    private Rect _base;
+    /// <summary>The outermost clip: a partial compose limits every drawing call, and every later
+    /// <see cref="Clip"/>, to the damaged rectangle. The whole surface otherwise.</summary>
+    public Rect BaseClip
+    {
+        get => _base;
+        set { _base = value.Intersect(Bounds); _clip = _base; }
     }
 
     public void CaptureWindowCorners(Rect bounds, int radius)
         => _roundedComposition.Capture(Pixels, Width, Height, bounds, radius);
 
     public void CompositeWindowCorners(Rect bounds, int radius)
-        => _roundedComposition.Composite(Pixels, Width, Height, bounds, radius);
+        => _roundedComposition.Composite(Pixels, Width, Height, bounds, radius, 15, _base);
 
     public void CaptureContentCorner(Rect bounds, int radius)
         => _contentCorner.Capture(Pixels, Width, Height, bounds, radius, 1);
     public void CompositeContentCorner(Rect bounds, int radius)
-        => _contentCorner.Composite(Pixels, Width, Height, bounds, radius, 1);
+        => _contentCorner.Composite(Pixels, Width, Height, bounds, radius, 1, _base);
 
-    public void ResetClip() => _clip = Bounds;
+    public void ResetClip() => _clip = _base;
 
     // The Canvas text and shape routines all funnel through DrawPoint, so clipping here
     // clips them too.

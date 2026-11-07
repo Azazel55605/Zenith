@@ -516,8 +516,9 @@ internal sealed class EditorWindow : Window
         surface.DrawTextCentered(position, Fonts.Regular, Theme.TextSmall, Theme.TextSecondary,
             new Rect(bar.Right - positionWidth - 12, bar.Y, positionWidth, bar.H), false);
 
-        surface.Clip = new Rect(bar.X + 12, bar.Y, bar.W - positionWidth - 36, bar.H);
-        surface.DrawTextCentered(_message, Fonts.Regular, Theme.TextSmall, Theme.TextSecondary, surface.Clip, false);
+        Rect messageBox = new(bar.X + 12, bar.Y, bar.W - positionWidth - 36, bar.H);
+        surface.Clip = messageBox;
+        surface.DrawTextCentered(_message, Fonts.Regular, Theme.TextSmall, Theme.TextSecondary, messageBox, false);
         surface.Clip = new Rect(bar.X + 1, bar.Y, bar.W - 2, bar.H);
     }
 }

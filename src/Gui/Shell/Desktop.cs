@@ -255,7 +255,9 @@ internal sealed class Desktop
 
         // The recompose at the end of an animation catches up on everything else.
         if (interrupts) { _motion.Interrupt(); }
-        if (Windows.Update() | _taskbar.Update())
+        bool barUpdated = _taskbar.Update();
+        _barChanged |= barUpdated;
+        if (Windows.Update() | barUpdated)
         {
             _sceneDirty = true;
         }
@@ -300,7 +302,7 @@ internal sealed class Desktop
             ComposeScene();
             // Only what changed goes to the screen: the top window's old and new area when the
             // scene below it is unchanged, otherwise everything. The old cursor is restored too.
-            Rect damage = SceneDamage().Union(oldCursor).Union(Cursor.Bounds(_input.X, _input.Y)).Intersect(_scene.Bounds);
+            Rect damage = _composeDamage.Union(oldCursor).Union(Cursor.Bounds(_input.X, _input.Y)).Intersect(_scene.Bounds);
             _frame.CopyRect(_scene, damage);
             DrawCursor();
             Present(damage);
@@ -549,12 +551,39 @@ internal sealed class Desktop
         for (int i = 0; i < _motionBase.Length; i++) { if (_motionBase[i] != _scene.Pixels[i]) { cached++; } }
         long full = Run(Windows.InvalidateLower);
         string fullPhases = FrameStats.TakePhases(BenchFrames);
+        // Partial composes (R2): a top window and a lower window drawing new content. Each must leave
+        // exactly the pixels a full compose of the same state leaves.
+        int PartialDiffers(System.Action change)
+        {
+            change(); ComposeScene();
+            System.Array.Copy(_scene.Pixels, _motionBase, _motionBase.Length);
+            _lowerValid = false; ComposeScene();
+            int n = 0, x0 = int.MaxValue, y0 = int.MaxValue, x1 = -1, y1 = -1;
+            for (int i = 0; i < _motionBase.Length; i++)
+            {
+                if (_motionBase[i] == _scene.Pixels[i]) { continue; }
+                n++; int x = i % _scene.Width, y = i / _scene.Width;
+                x0 = Math.Min(x0, x); y0 = Math.Min(y0, y); x1 = Math.Max(x1, x); y1 = Math.Max(y1, y);
+            }
+            if (n > 0) { Zenith.Core.Log.Write("compose", "partial differs at " + x0 + "," + y0 + " .. " + x1 + "," + y1 + " windows=" + string.Join("|", System.Linq.Enumerable.Select(Windows.Windows, w => w.Title + "@" + w.Bounds.X + "," + w.Bounds.Y + "," + w.Bounds.W + "," + w.Bounds.H)) + " bar=" + _taskbar.Bounds.X + "," + _taskbar.Bounds.Y + "," + _taskbar.Bounds.W + "," + _taskbar.Bounds.H); }
+            return n;
+        }
+        Window? topWindow = Windows.Top, lowerWindow = null;
+        foreach (Window w in Windows.Windows) { if (w != topWindow && !w.IsMinimized) { lowerWindow = w; } }
+        int topDiffers = topWindow is null ? -1 : PartialDiffers(() => Windows.MarkChanged(topWindow));
+        int lowerDiffers = lowerWindow is null ? -1 : PartialDiffers(() => Windows.MarkChanged(lowerWindow));
+        ComposeScene();
+        long partialTop = topWindow is null ? 0 : Run(() => Windows.MarkChanged(topWindow));
+        string partialTopPhases = FrameStats.TakePhases(BenchFrames);
+        long partialLower = lowerWindow is null ? 0 : Run(() => Windows.MarkChanged(lowerWindow));
+        string partialLowerPhases = FrameStats.TakePhases(BenchFrames);
         long top = Run(static () => { });
         string topPhases = FrameStats.TakePhases(BenchFrames);
         int step = 1;
         long drag = Run(() => { Windows.NudgeTop(step); step = -step; });
         string dragPhases = FrameStats.TakePhases(BenchFrames);
         Zenith.Core.Log.Write("compose", "bench windows=" + Windows.Windows.Count + " materials=" + MaterialResources.Policy.Effective + " verify=" + differ
+            + " partial-differs=" + topDiffers + "/" + lowerDiffers + " partial-top=" + partialTop + " [" + partialTopPhases + "] partial-lower=" + partialLower + " [" + partialLowerPhases + "]"
             + " cached-differs=" + cached + " cold=" + cold + " [" + coldPhases + "] full=" + full + " [" + fullPhases + "] top=" + top + " [" + topPhases + "] drag=" + drag + " [" + dragPhases + "]");
     }
 
@@ -676,26 +705,66 @@ internal sealed class Desktop
         // their blur unless something under them changed.
         bool appearance = AppearanceStillValid();
         if (!appearance) { _sceneKey++; }
-        _lowerRedrawn = !appearance || !Windows.LowerUnchanged(_input.X, _input.Y);
-        if (_lowerRedrawn)
+        Window? top = Windows.Top;
+        Rect topArea = top is null ? new Rect(0, 0, 0, 0) : WindowManager.AreaOf(top);
+        long topKey = TopKey(top), barKey = BarKey();
+        Rect barArea = _taskbar.Shown ? _taskbar.Bounds.Inflate(Theme.ShadowSize + 8) : new Rect(0, 0, 0, 0);
+        bool overlays = withoutTop || _launcher.IsOpen || _taskbar.OverflowOpen || Zenith.Core.Sessions.SessionRuntime.Message is not null;
+        bool structural = !appearance || !_lowerValid || top != _lastTop || !Windows.LowerStructureUnchanged();
+        if (structural || overlays)
         {
-            _scene.CopyFrom(_wallpaper);
-            Windows.DrawLower(_scene, _input.X, _input.Y, _sceneKey);
-            _lower.CopyFrom(_scene);
-            _lowerSpent = MaterialResources.Policy.Spent;
-            _lowerValid = true;
-            RememberLowerAppearance();
+            // Everything: the scene below the top window (when it changed), the top window, the shell.
+            _lowerRedrawn = !appearance || !_lowerValid || !Windows.LowerUnchanged(_input.X, _input.Y);
+            if (_lowerRedrawn)
+            {
+                _scene.CopyFrom(_wallpaper);
+                Windows.DrawLower(_scene, _input.X, _input.Y, _sceneKey);
+                _lower.CopyFrom(_scene);
+                _lowerSpent = MaterialResources.Policy.Spent;
+                _lowerValid = true;
+                RememberLowerAppearance();
+            }
+            else
+            {
+                _scene.CopyFrom(_lower);
+                MaterialResources.Policy.Restore(_lowerSpent);
+            }
+            if (!withoutTop) { Windows.DrawTop(_scene, _lower, _input.X, _input.Y, _sceneKey); }
+            _composeDamage = _scene.Bounds;
         }
         else
         {
-            _scene.CopyFrom(_lower);
+            // Only what changed: lower windows that changed, the top window if it did, the bar if it
+            // did or the damage reaches it. The scene keeps last frame's pixels everywhere else.
+            Rect damage = new(0, 0, 0, 0);
+            if (!Windows.LowerUnchanged(_input.X, _input.Y))
+            {
+                // An empty damage still records the new lower state (input reached a lower window).
+                damage = Windows.LowerDamage(_input.X, _input.Y);
+                Windows.DrawLowerPartial(_lower, _wallpaper, ref damage, _input.X, _input.Y, _sceneKey);
+            }
             MaterialResources.Policy.Restore(_lowerSpent);
+            _lowerRedrawn = false;
+            if (topKey != _lastTopKey) { damage = damage.Union(topArea).Union(_lastTopRect); }
+            if (barKey != _lastBarKey || _barChanged) { damage = damage.Union(barArea).Union(_lastBarRect); }
+            Rect barHit = barArea.Intersect(damage);
+            if (barHit.W > 0 && barHit.H > 0) { damage = damage.Union(barArea); }
+            damage = damage.Intersect(_scene.Bounds);
+            _composeDamage = damage;
+            if (!damage.IsEmpty)
+            {
+                _scene.BaseClip = damage; MaterialComposition.Limit = damage;
+                _scene.CopyRect(_lower, damage);
+                Windows.DrawTop(_scene, _lower, _input.X, _input.Y, _sceneKey);
+            }
         }
-        if (!withoutTop) { Windows.DrawTop(_scene, _input.X, _input.Y, _sceneKey); }
+        _lastTop = top; _lastTopKey = topKey; _lastTopRect = topArea; _lastBarKey = barKey; _lastBarRect = barArea; _barChanged = false;
+        if (_composeDamage.IsEmpty) { FrameStats.RecordCompose(start); return; }
 
         long shell = FrameStats.Now;
         _taskbar.LauncherOpen = _launcher.IsOpen;
-        if (_taskbar.Shown) { _taskbar.Draw(_scene, _input.X, _input.Y); }
+        Rect barTouch = (_taskbar.Shown ? _taskbar.Bounds.Inflate(Theme.ShadowSize + 8) : new Rect(0, 0, 0, 0)).Intersect(_composeDamage);
+        if (_taskbar.Shown && barTouch.W > 0 && barTouch.H > 0) { _taskbar.Draw(_scene, _input.X, _input.Y); }
         else { _taskbar.Layout(); }
         if (Zenith.Core.Sessions.SessionRuntime.Message is string message)
         {
@@ -709,6 +778,7 @@ internal sealed class Desktop
         if (_taskbar.Shown) { _taskbar.DrawOverflowList(_scene, _input.X, _input.Y); }
 
         FrameStats.ShellTicks += FrameStats.Now - shell;
+        _scene.BaseClip = _scene.Bounds; MaterialComposition.Limit = MaterialComposition.Unlimited;
         var policy = MaterialResources.Policy;
         Zenith.Core.Configuration.SystemConfiguration.Appearance.ReportMaterials(7, policy.Effective, policy.Reason);
         FrameStats.RecordCompose(start);
@@ -749,21 +819,30 @@ internal sealed class Desktop
     private bool _framePending;
     // Up to 240 frames a second while something moves; idle frames cost nothing.
     private static readonly long FrameInterval = System.Diagnostics.Stopwatch.Frequency / 240;
-    private Rect _lastTopArea, _lastBarArea;
     private bool _lowerRedrawn;
     /// <summary>True while a frame is due or being paced: the kernel loop keeps running instead of halting.</summary>
     public bool FramePending => _framePending;
 
-    /// <summary>What the last ComposeScene changed on screen.</summary>
-    private Rect SceneDamage()
+    private Rect _composeDamage, _lastTopRect, _lastBarRect;
+    private Window? _lastTop;
+    private long _lastTopKey, _lastBarKey;
+    private bool _barChanged;
+    /// <summary>Everything that changes how the top window looks: place, state, hover, content.</summary>
+    private long TopKey(Window? top)
     {
-        Window? top = Windows.Top;
-        Rect topArea = top is null ? new Rect(0, 0, 0, 0) : top.IsFullscreen ? top.Bounds : top.Bounds.Inflate(Theme.ShadowSize + 8);
-        Rect previous = _lastTopArea; _lastTopArea = topArea;
-        if (_lowerRedrawn) { _lastBarArea = _taskbar.Shown ? _taskbar.Bounds.Inflate(Theme.ShadowSize + 8) : new Rect(0, 0, 0, 0); }
-        if (_lowerRedrawn || top is null || _launcher.IsOpen || _taskbar.OverflowOpen || Zenith.Core.Sessions.SessionRuntime.Message is not null)
-        { return _scene.Bounds; }
-        Rect bar = _taskbar.Shown ? _taskbar.Bounds.Inflate(Theme.ShadowSize + 8) : new Rect(0, 0, 0, 0), lastBar = _lastBarArea; _lastBarArea = bar;
-        return topArea.Union(previous).Union(bar).Union(lastBar);
+        if (top is null) { return 0; }
+        Rect b = top.Bounds;
+        int hover = Windows.HoverButton(top, _input.X, _input.Y);
+        return HashCode.Combine(HashCode.Combine(b.X, b.Y, b.W, b.H), top.IsFocused, top.IsMaximized, top.IsFullscreen, top.Title, top.ContentVersion, hover);
+    }
+    /// <summary>Everything that changes how the bar looks besides its own updates: windows' titles,
+    /// focus and minimized state (pills), its shape, and the pointer while over it.</summary>
+    private long BarKey()
+    {
+        var hash = new HashCode();
+        hash.Add(_taskbar.Shown); hash.Add(_taskbar.Docked); hash.Add(_taskbar.Bounds.Y);
+        foreach (Window w in Windows.Windows) { hash.Add(w.Title); hash.Add(w.IsFocused); hash.Add(w.IsMinimized); }
+        if (_taskbar.Bounds.Inflate(Theme.TaskbarMargin).Contains(_input.X, _input.Y)) { hash.Add(_input.X); hash.Add(_input.Y); }
+        return hash.ToHashCode();
     }
 }
