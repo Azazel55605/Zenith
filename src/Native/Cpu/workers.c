@@ -490,6 +490,13 @@ u64 zenith_cpu_idle_ticks(u64 index) {
     }
 }
 u64 zenith_cpu_now(void) { return ticks(); }
+/* CPUID 0x40000000 hypervisor vendor: 1 for "VMwareVMware", else 0 (KVM, TCG, bare metal). */
+u64 zenith_cpu_vmware(void) {
+    u32 a=1,b,c,d; __asm__ volatile("cpuid":"+a"(a),"=b"(b),"=c"(c),"=d"(d));
+    if (!(c&(1u<<31))) return 0;
+    a=0x40000000; __asm__ volatile("cpuid":"+a"(a),"=b"(b),"=c"(c),"=d"(d));
+    return b==0x61774d56u&&c==0x4d566572u&&d==0x65726177u; /* "VMwa" "reVM" "ware" */
+}
 #ifndef ZENITH_CPU_HOST_TEST
 /* Self-interrupt on the scheduler's timer vector (0xEF): the kernel loop runs as the scheduler's
  * idle thread, so a thread it wakes would otherwise wait for the next 10 ms tick. Interrupt exit

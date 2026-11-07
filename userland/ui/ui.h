@@ -5,6 +5,10 @@
  * are legacy XRGB or explicitly initialized premultiplied foreground planes. */
 #define ZUI_API_VERSION 1
 #define ZUI_MAX_CONTROLS 128
+/* Largest window content a client draws: 2560x1600 fills a 1080p or 1440p screen at 100% and
+ * 4K at 200%. A full frame is 16 MiB: clients need zenith-native-memory-abi. */
+#define ZUI_MAX_WIDTH 2560
+#define ZUI_MAX_HEIGHT 1600
 #define ZUI_MAX_TEXT_BYTES 4096
 struct zui_theme { unsigned int surface,raised,subtle,border,text,secondary,accent,on_accent; };
 /* width/height/ascent describe the glyph cell. Each glyph stores only its ink box:

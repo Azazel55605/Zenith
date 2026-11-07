@@ -21,7 +21,7 @@ struct pane {
 struct tab { int panes[TAB_PANES],count,active,layout,news; char label[64]; };
 struct match { unsigned int line,column; };
 struct hint { unsigned int line,column,length; char text[256]; };
-static unsigned int pixels[1920*1000];
+static unsigned int pixels[ZUI_MAX_WIDTH*ZUI_MAX_HEIGHT];
 static struct pt_cell pool_cells[MAX_PANES][CELLS];static struct pt_line pool_lines[MAX_PANES][LINES];
 static struct pt_cell edit_cells[8192];static struct pt_line edit_lines[8];
 static struct pterm edit;
@@ -549,7 +549,7 @@ static void control(int id,int *done){
 }
 static void handle_event(const struct zenith_gui_event *e,int *done){
     if(e->type==Z_GUI_CLOSE||e->type==Z_GUI_CLOSE_INTENT){*done=1;return;}
-    if(e->type==Z_GUI_RESIZE){if(zui_apply_viewport(&ui,handle,1920*1000)<0)*done=2;return;}
+    if(e->type==Z_GUI_RESIZE){if(zui_apply_viewport(&ui,handle,ZUI_MAX_WIDTH*ZUI_MAX_HEIGHT)<0)*done=2;return;}
     if(e->type==Z_GUI_MOVE){zui_event(&ui,e);return;}
     if(e->type==Z_GUI_FOCUS||e->type==Z_GUI_RESET){
         zui_event(&ui,e);

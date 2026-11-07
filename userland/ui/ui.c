@@ -18,13 +18,13 @@ void zui_motion_frame(struct zui *u,long now){
     long d=now-u->now;u->frame_ms=d<1?1:d>50?50:(int)d;u->now=now;u->animating=0;
 }
 int zui_init(struct zui *u,unsigned int *p,int w,int h){
-    if(!u||!p||w<1||h<1||w>1920||h>1000)return 0;
+    if(!u||!p||w<1||h<1||w>ZUI_MAX_WIDTH||h>ZUI_MAX_HEIGHT)return 0;
     *u=(struct zui){0};u->pixels=p;u->width=w;u->height=h;
     u->clip=(struct zui_rect){0,0,w,h};u->focus=-1;u->pressed=-1;u->hover=-1;u->pointer_x=u->pointer_y=-1;
     zui_appearance(u,0,0);return 1;
 }
 int zui_resize(struct zui *u,int w,int h,unsigned long capacity){
-    if(w<1||h<1||w>1920||h>1000||(unsigned long)w*h>capacity)return 0;
+    if(w<1||h<1||w>ZUI_MAX_WIDTH||h>ZUI_MAX_HEIGHT||(unsigned long)w*h>capacity)return 0;
     u->width=w;u->height=h;u->clip=(struct zui_rect){0,0,w,h};u->material_count=0;u->dirty=1;return 1;
 }
 int zui_scroll_step(int value,int delta,int maximum){
@@ -66,7 +66,7 @@ int zui_material_surface(struct zui *u,struct zui_rect r,int radius,int role,int
         struct zenith_material_region *p=&u->materials[i];area+=(long)p->w*p->h;
         if(r.x<p->x+p->w&&p->x<r.x+r.w&&r.y<p->y+p->h&&p->y<r.y+r.h)return 0;
     }
-    if(area>(u->full_background?1920000:131072))return 0;
+    if(area>(u->full_background?ZUI_MAX_WIDTH*ZUI_MAX_HEIGHT:131072))return 0;
     u->materials[u->material_count++]=(struct zenith_material_region){r.x,r.y,r.w,r.h,radius,role,effect,0};return 1;
 }
 static unsigned int over(unsigned int bg,unsigned int fg,unsigned int a){

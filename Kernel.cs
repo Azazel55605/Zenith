@@ -30,6 +30,7 @@ public class Kernel : Sys.Kernel
             SessionRuntime.DesktopAvailable = () => hasDisplay;
             SessionRuntime.LoginFactory = mode => new LoginSessionHost(mode);
             Zenith.Core.Multiprocessing.CpuWorkers.Initialize();
+            Zenith.Core.Time.SystemClock.HardwareClockIsLocal = HardwareClockIsLocal(CommandLine());
             SessionDisplay.MarkSessionThread();
             PowerControl.Farewell = SessionDisplay.Farewell;
             bool bootScreen = hasDisplay && BootScreen.Wanted(CommandLine());
@@ -100,6 +101,26 @@ public class Kernel : Sys.Kernel
             catch (Exception drawing) { Log.Write("panic", "graphical reporting failed: " + drawing.Message); }
         }
         SerialPanic.Show(exception);
+    }
+
+#if !ARCH_ARM64
+    [System.Runtime.InteropServices.DllImport("*", EntryPoint = "zenith_cpu_vmware"), System.Runtime.InteropServices.SuppressGCTransition]
+    private static extern ulong RunningOnVmware();
+#endif
+    /// <summary>VMware keeps the virtual RTC in host local time; QEMU and most firmware keep UTC.
+    /// <c>rtc=utc</c> or <c>rtc=local</c> on the boot line overrides the guess.</summary>
+    private static bool HardwareClockIsLocal(string arguments)
+    {
+        foreach (string word in arguments.Split(' '))
+        {
+            if (word == "rtc=local") { return true; }
+            if (word == "rtc=utc") { return false; }
+        }
+#if !ARCH_ARM64
+        return RunningOnVmware() != 0;
+#else
+        return false;
+#endif
     }
 
     private static unsafe string CommandLine()

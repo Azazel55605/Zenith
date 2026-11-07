@@ -7,8 +7,8 @@
 #include "../include/zenith_settings.h"
 #include "../include/zenith_monitor.h"
 
-#define MAX_W 1920
-#define MAX_H 1000
+#define MAX_W ZUI_MAX_WIDTH
+#define MAX_H ZUI_MAX_HEIGHT
 #define MIN_W 600
 #define MIN_H 480
 static unsigned int pixels[MAX_W*MAX_H];

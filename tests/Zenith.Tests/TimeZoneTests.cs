@@ -79,6 +79,22 @@ public class TimeZoneTests
     }
 
     [Fact]
+    public void LocalTimeHardwareClockIsConvertedToUtc()
+    {
+        Assert.True(SystemClock.TrySetZone("Europe/Berlin"));
+        try
+        {
+            SystemClock.HardwareClockIsLocal = true;
+            // Winter (CET, +1) and summer (CEST, +2): the RTC shows Berlin wall-clock time.
+            Assert.Equal(new DateTime(2026, 11, 7, 17, 0, 0), SystemClock.HardwareToUtc(new DateTime(2026, 11, 7, 18, 0, 0)));
+            Assert.Equal(new DateTime(2026, 7, 1, 10, 0, 0), SystemClock.HardwareToUtc(new DateTime(2026, 7, 1, 12, 0, 0)));
+            SystemClock.HardwareClockIsLocal = false;
+            Assert.Equal(new DateTime(2026, 11, 7, 18, 0, 0), SystemClock.HardwareToUtc(new DateTime(2026, 11, 7, 18, 0, 0)));
+        }
+        finally { SystemClock.HardwareClockIsLocal = false; SystemClock.TrySetZone("UTC"); }
+    }
+
+    [Fact]
     public void SystemClock_FormatsLikeDate()
     {
         Assert.Equal("Mon Oct  5 14:07:09 CEST 2026", SystemClock.Format(new DateTime(2026, 10, 5, 14, 7, 9), "CEST"));

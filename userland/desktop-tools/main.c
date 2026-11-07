@@ -2,7 +2,7 @@
 #include "../ui/widgets.h"
 #include "../ui/text.h"
 #include "../include/zenith_settings.h"
-static unsigned int pixels[1920*1000];
+static unsigned int pixels[ZUI_MAX_WIDTH*ZUI_MAX_HEIGHT];
 static struct zui ui;
 static char information[4096];
 static int material;
@@ -75,9 +75,9 @@ int main(int argc,char **argv){
         struct zenith_gui_event e={0};long r=zenith_gui_poll(handle,&e);if(r<0){result=1;break;}if(!r)continue;
         if(e.type==Z_GUI_RESIZE){
             struct zenith_viewport v={0};
-            if(zenith_gui_viewport(handle,&v)||v.width<600||v.height<480||v.width>1920||v.height>1000){result=zui_window_closed(handle)?0:1;break;}
+            if(zenith_gui_viewport(handle,&v)||v.width<600||v.height<480||v.width>ZUI_MAX_WIDTH||v.height>ZUI_MAX_HEIGHT){result=zui_window_closed(handle)?0:1;break;}
             long accepted=zenith_gui_resize_accept(handle,&v);if(accepted==-11)continue;
-            if(accepted||!zui_resize(&ui,v.width,v.height,1920*1000)){result=zui_window_closed(handle)?0:1;break;}continue;
+            if(accepted||!zui_resize(&ui,v.width,v.height,ZUI_MAX_WIDTH*ZUI_MAX_HEIGHT)){result=zui_window_closed(handle)?0:1;break;}continue;
         }
         if(e.type==Z_GUI_CLOSE||e.type==Z_GUI_CLOSE_INTENT||(e.type==Z_GUI_KEY&&e.extra==1&&ui.window_focused)){done=1;continue;}
         if(e.type==Z_GUI_FOCUS&&e.code)print("DESKTOP_FOCUSED\n");

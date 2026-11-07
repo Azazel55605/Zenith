@@ -1,5 +1,5 @@
 #include "meridian.h"
-static unsigned int pixels[1920*1000];
+static unsigned int pixels[ZUI_MAX_WIDTH*ZUI_MAX_HEIGHT];
 static struct meridian shell;
 static long handle=-1;
 static int selected_scope=-1;
@@ -13,10 +13,10 @@ static long present(void){
 }
 static void print(const char *s);
 static int viewport(void){
-    struct zenith_viewport v={0};if(zenith_gui_viewport(handle,&v)||v.version!=1||!(v.flags&1)||v.width<600||v.height<480||v.width>1920||v.height>1000)return 0;
+    struct zenith_viewport v={0};if(zenith_gui_viewport(handle,&v)||v.version!=1||!(v.flags&1)||v.width<600||v.height<480||v.width>ZUI_MAX_WIDTH||v.height>ZUI_MAX_HEIGHT)return 0;
     if(v.width==(unsigned int)shell.ui.width&&v.height==(unsigned int)shell.ui.height)return 1;
     long r=zenith_gui_resize_accept(handle,&v);if(r==-11)return 1;if(r)return 0;
-    if(!meridian_resize(&shell,v.width,v.height,1920*1000))return 0;
+    if(!meridian_resize(&shell,v.width,v.height,ZUI_MAX_WIDTH*ZUI_MAX_HEIGHT))return 0;
     print("MERIDIAN_RESIZED\n");return 1;
 }
 static int same(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return *a==*b;}
@@ -244,7 +244,7 @@ int main(int argc,char **argv){
     material_surface=zenith_material_settings_read(&material_state)==0&&(material_state.version==1||material_state.version==2)&&!material_state.reserved&&
         zenith_gui_material_caps(&caps)==0&&caps.version==2&&(caps.features&3)==3;
     /* 640x480 is the largest surface the host admits at open; maximize goes beyond it. */
-    if(!meridian_resize(&shell,640,480,1920*1000))return 1;
+    if(!meridian_resize(&shell,640,480,ZUI_MAX_WIDTH*ZUI_MAX_HEIGHT))return 1;
     handle=material_surface?zenith_gui_open_material(640,480,"Meridian",8):zenith_gui_open(640,480,"Meridian",8);
     if(material_surface)shell.ui.foreground=1;
     if(handle<0){print("settings: graphical session required; use --show or --set\n");return 1;}

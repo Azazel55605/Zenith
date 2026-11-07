@@ -12,7 +12,19 @@ internal static class SystemClock
     public static TimeZoneInfoLite Zone { get; private set; } = TimeZones.Utc;
 
     /// <summary>Overridable for tests; the real clock otherwise.</summary>
-    public static Func<DateTime> UtcSource { get; set; } = () => DateTime.UtcNow;
+    public static Func<DateTime> UtcSource { get; set; } = () => HardwareToUtc(DateTime.UtcNow);
+
+    /// <summary>The hardware clock keeps local time (VMware does by default), not UTC.</summary>
+    public static bool HardwareClockIsLocal { get; set; }
+
+    /// <summary>The RTC value as UTC: unchanged for a UTC clock; for a local-time clock, minus the zone's
+    /// offset at that moment. Around a DST change the local hour is ambiguous; the standard offset wins.</summary>
+    public static DateTime HardwareToUtc(DateTime rtc)
+    {
+        if (!HardwareClockIsLocal) { return rtc; }
+        DateTime guess = rtc - Zone.StandardOffset;
+        return rtc - Zone.OffsetAt(guess);
+    }
 
     public static DateTime UtcNow => DateTime.SpecifyKind(UtcSource(), DateTimeKind.Utc);
     public static void Synchronize(DateTime utc)
