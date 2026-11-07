@@ -67,8 +67,10 @@ continues to compare exact pixels. Packet handling/download throughput is separa
 
 Local validation is in progress. 887 host tests and 535 controller tests pass.
 The controlled candidate workload triggers three debt collections within 24 s;
-the final forced collection returns use to 122256 KiB against a 123068 KiB
-starting baseline. The first matrix passed 81 login/session checks, then exposed
+the final forced collection returns use to 122196 KiB against a 123008 KiB
+starting baseline on the repaired ELF. Three real guest full-scene comparisons
+are pixel-identical: scalar 25.5–26.7 ms, parallel 21.2–25.2 ms (6–17% faster),
+with separate positive AP blur and foreground-composition counters. The first matrix passed 81 login/session checks, then exposed
 an omitted assembly admission range for calls 645/646 before Settings launched.
 The BSP whitelist and all seven derived private bridges now admit those calls;
 the source hash was updated only after auditing this boundary-only change.
@@ -78,6 +80,11 @@ resize refusal, boot-resolution preservation and time-zone-independent correctio
 Production native queue and C# bridge tests compare exact alpha pixels, clipped
 strides, source immutability, guard bytes and bounded fallback. The graphics gate
 requires real production AP composition and the 4K private-buffer probe.
+The fresh matrix then exposed a title-gesture bug: a completed drag remained
+eligible as the first title double-click. A quick second grab maximized Meridian
+while the fixture was testing close-during-drag; separating the gestures made that
+check pass. Actual pointer motion beyond four pixels now clears title-click
+history. The original unmodified regression is being rerun against this repair.
 No distributor, installed VMware or successor-release acceptance is claimed yet.
 
 Protocol references: [VMware GETTIMEFULL](https://github.com/vmware/open-vm-tools/blob/master/open-vm-tools/services/plugins/timeSync/timeSync.c),

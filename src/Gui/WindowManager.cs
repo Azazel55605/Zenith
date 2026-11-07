@@ -386,6 +386,9 @@ internal sealed class WindowManager
     {
         Window w = _dragging!;
         int dx = x - _dragStartX, dy = y - _dragStartY;
+        // A title drag is a completed gesture, not the first click of a double
+        // click. Otherwise a quick second grab unexpectedly maximizes the app.
+        if (Math.Abs(dx) > 4 || Math.Abs(dy) > 4) { _lastTitleClick = null; }
 
         if (_edges == Edges.None)
         {
