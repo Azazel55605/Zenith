@@ -1,5 +1,5 @@
 #include "meridian.h"
-static unsigned int pixels[ZUI_MAX_WIDTH*ZUI_MAX_HEIGHT];
+static unsigned int pixels[640*480];
 static struct meridian shell;
 static long handle=-1;
 static int selected_scope=-1;
@@ -9,14 +9,14 @@ static long present(void){
     struct zui *u=meridian_ui(&shell);
     /* Kernels before 0.0.38 refuse this and the frame simply appears. */
     if(shell.fade_ready){struct zui_rect f=shell.fade_rect;zenith_gui_fade(handle,f.x,f.y,f.w,f.h,shell.fade_rise);shell.fade_ready=0;}
-    return material_surface?zenith_gui_present_material(handle,pixels,(unsigned long)u->width*u->height*4,u->materials,u->material_count):zenith_gui_present(handle,pixels,(unsigned long)u->width*u->height*4);
+    return material_surface?zenith_gui_present_material(handle,u->pixels,(unsigned long)u->width*u->height*4,u->materials,u->material_count):zenith_gui_present(handle,u->pixels,(unsigned long)u->width*u->height*4);
 }
 static void print(const char *s);
 static int viewport(void){
-    struct zenith_viewport v={0};if(zenith_gui_viewport(handle,&v)||v.version!=1||!(v.flags&1)||v.width<600||v.height<480||v.width>ZUI_MAX_WIDTH||v.height>ZUI_MAX_HEIGHT)return 0;
-    if(v.width==(unsigned int)shell.ui.width&&v.height==(unsigned int)shell.ui.height)return 1;
-    long r=zenith_gui_resize_accept(handle,&v);if(r==-11)return 1;if(r)return 0;
-    if(!meridian_resize(&shell,v.width,v.height,ZUI_MAX_WIDTH*ZUI_MAX_HEIGHT))return 0;
+    int r=zui_apply_viewport(&shell.ui,handle,640*480);
+    if(r<0)return 0;
+    if(!r)return 1;
+    if(!meridian_resize(&shell,shell.ui.width,shell.ui.height,ZUI_MAX_PIXELS))return 0;
     print("MERIDIAN_RESIZED\n");return 1;
 }
 static int same(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return *a==*b;}
@@ -244,7 +244,7 @@ int main(int argc,char **argv){
     material_surface=zenith_material_settings_read(&material_state)==0&&(material_state.version==1||material_state.version==2)&&!material_state.reserved&&
         zenith_gui_material_caps(&caps)==0&&caps.version==2&&(caps.features&3)==3;
     /* 640x480 is the largest surface the host admits at open; maximize goes beyond it. */
-    if(!meridian_resize(&shell,640,480,ZUI_MAX_WIDTH*ZUI_MAX_HEIGHT))return 1;
+    if(!meridian_resize(&shell,640,480,640*480))return 1;
     handle=material_surface?zenith_gui_open_material(640,480,"Meridian",8):zenith_gui_open(640,480,"Meridian",8);
     if(material_surface)shell.ui.foreground=1;
     if(handle<0){print("settings: graphical session required; use --show or --set\n");return 1;}

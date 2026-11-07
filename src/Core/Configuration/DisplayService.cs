@@ -7,12 +7,13 @@ namespace Zenith.Core.Configuration;
 internal readonly record struct DisplayLayout(int Width, int Height, int Scale)
 {
     public static bool FitsVmware(DisplayLayout mode, uint maxWidth, uint maxHeight, uint vramBytes, uint offset)
-        => mode.Usable && mode.Width <= 1920 && mode.Height <= 1200 && mode.Width <= maxWidth && mode.Height <= maxHeight
+        => mode.Usable && mode.Width <= maxWidth && mode.Height <= maxHeight
             && (ulong)mode.Width*(ulong)mode.Height*8+offset <= vramBytes;
     public int LogicalWidth => Width / Scale;
     public int LogicalHeight => Height / Scale;
     public bool Usable => Scale is 1 or 2 && Width >= 800 * Scale && Height >= 600 * Scale
-        && Width <= 3840 && Height <= 2400 && Width % Scale == 0 && Height % Scale == 0;
+        && Width <= 16384 && Height <= 16384 && (long)Width * Height <= 32 * 1024 * 1024
+        && Width % Scale == 0 && Height % Scale == 0;
 }
 internal readonly record struct DisplayState(DisplayLayout Current, ulong Revision, ulong Token, int Phase,
     int Seconds, int Error, string Driver, DisplayLayout[] Modes, bool Active, bool Persistent, int Owner);

@@ -420,7 +420,9 @@ static void execute(struct job *j) {
     } else if (j->kind==6) {
         blur_execute(j);
         if(LOAD(j->state)==FAULTED)return;
-        __atomic_fetch_add(cancelled(j)?&blur_cancelled:&blur_completed,1,__ATOMIC_RELAXED);
+        struct blur_work *b=&blur_work[(j->token&63)/JOBS];
+        __atomic_fetch_add(b->operation==1?(cancelled(j)?&compose_cancelled:&compose_completed)
+            :(cancelled(j)?&blur_cancelled:&blur_completed),1,__ATOMIC_RELAXED);
     } else if (j->kind==5) {
 #ifndef ZENITH_CPU_HOST_TEST
         if (!zenith_gc_managed_enter()) { STORE(j->state,FAULTED);return; }
@@ -496,6 +498,16 @@ u64 zenith_cpu_vmware(void) {
     if (!(c&(1u<<31))) return 0;
     a=0x40000000; __asm__ volatile("cpuid":"+a"(a),"=b"(b),"=c"(c),"=d"(d));
     return b==0x61774d56u&&c==0x4d566572u&&d==0x65726177u; /* "VMwa" "reVM" "ware" */
+}
+/* VMware backdoor GETTIMEFULL (46): UTC Unix seconds in ESI:EDX;
+ * EAX remains the magic on success. Never touch the port off VMware.
+ * Protocol: open-vm-tools timeSync.c, TimeSyncReadHost. */
+u64 zenith_vmware_utc_seconds(void) {
+    if (!zenith_cpu_vmware()) return 0;
+    u32 a=0x564d5868,b=0,c=46,d=0x5658,hi=0;
+    __asm__ volatile("inl %%dx, %%eax":"+a"(a),"+b"(b),"+c"(c),"+d"(d),"+S"(hi)::"memory");
+    if (a!=0x564d5868 || hi!=0 || d<946684800u || d>4102444800u || b>=1000000u) return 0;
+    return d;
 }
 #ifndef ZENITH_CPU_HOST_TEST
 /* Self-interrupt on the scheduler's timer vector (0xEF): the kernel loop runs as the scheduler's
@@ -629,7 +641,7 @@ u64 zenith_cpu_blur_submit(const u32 *source,u64 width,u64 height,u64 x,u64 y,u6
     for(u32 attempt=0;attempt<count-1;attempt++) {
         u32 cpu=1+(u32)((blur_cursor+attempt)%(count-1));struct cpu *c=&cpus[cpu];
         if(LOAD(c->state)!=3||LOAD(c->halted)||LOAD(c->head)!=LOAD(c->tail)||blur_work[cpu].token)continue;
-        struct blur_work *b=&blur_work[cpu];b->width=(u32)w;b->height=(u32)h;
+        struct blur_work *b=&blur_work[cpu];b->width=(u32)w;b->height=(u32)h;b->operation=0;
         for(u32 dy=0;dy<h+8;dy++)for(u32 dx=0;dx<w+8;dx++) {
             long long sx=(long long)x+dx-4,sy=(long long)y+dy-4;
             if(sx<0)sx=0;if(sy<0)sy=0;
@@ -640,6 +652,27 @@ u64 zenith_cpu_blur_submit(const u32 *source,u64 width,u64 height,u64 x,u64 y,u6
         if(!token)continue;
         b->token=token;blur_cursor=cpu;
         if(!zenith_cpu_control(token,1)) {zenith_cpu_control(token,0);token=0;}
+        break;
+    }
+end:
+    irq_restore(flags);return token;
+}
+/* Same generation/ownership channel, different fixed integer operation. Only
+ * immutable private foreground/background tiles cross to an AP. */
+u64 zenith_cpu_compose_submit(const u32 *fg,u64 fs,const u32 *bg,u64 bs,u64 w,u64 h) {
+    u64 flags=irq_off(),token=0;
+    if(!count||identity()!=cpus[0].actual||LOAD(stopping)||!fg||!bg||count<2||!w||w>BLUR_W||!h||h>BLUR_H||fs<w||bs<w||fs>16384||bs>16384)goto end;
+    for(u32 attempt=0;attempt<count-1;attempt++) {
+        u32 cpu=1+(u32)((blur_cursor+attempt)%(count-1));struct cpu *c=&cpus[cpu];
+        if(LOAD(c->state)!=3||LOAD(c->halted)||LOAD(c->head)!=LOAD(c->tail)||blur_work[cpu].token)continue;
+        struct blur_work *b=&blur_work[cpu];b->width=(u32)w;b->height=(u32)h;b->operation=1;
+        for(u32 y=0;y<h;y++)for(u32 x=0;x<w;x++) {
+            b->source[y*w+x]=fg[y*fs+x];b->horizontal[y*w+x]=bg[y*bs+x];
+        }
+        token=enqueue_work(cpu,6,w*h,0,1,1,1);
+        if(!token)continue;
+        b->token=token;blur_cursor=cpu;
+        if(!zenith_cpu_control(token,1)){zenith_cpu_control(token,0);token=0;}
         break;
     }
 end:
@@ -746,6 +779,7 @@ u64 zenith_cpu_field(u64 index,u64 field) {
         case 23:return (u64)c->gc_stack;case 25:return LOAD(completion_signals);
         case 24:return sizeof(c->gc_stack);
         case 26:return LOAD(blur_completed);case 27:return LOAD(blur_cancelled);
+        case 28:return LOAD(compose_completed);case 29:return LOAD(compose_cancelled);
         default:return 0;
     }
 }

@@ -11,7 +11,7 @@
 #define MAX_H ZUI_MAX_HEIGHT
 #define MIN_W 600
 #define MIN_H 480
-static unsigned int pixels[MAX_W*MAX_H];
+static unsigned int pixels[640*480];
 static struct zui ui;
 static long handle;
 static int material;
@@ -465,15 +465,12 @@ int main(int argc,char **argv){
         if(ui.dirty)drawn=now;
         if(ui.dirty){
             draw();
-            long r=material?zenith_gui_present_material(handle,pixels,(unsigned long)ui.width*ui.height*4,ui.materials,ui.material_count):zenith_gui_present(handle,pixels,(unsigned long)ui.width*ui.height*4);
+            long r=material?zenith_gui_present_material(handle,ui.pixels,(unsigned long)ui.width*ui.height*4,ui.materials,ui.material_count):zenith_gui_present(handle,ui.pixels,(unsigned long)ui.width*ui.height*4);
             if(r<0){result=zui_window_closed(handle)?0:1;break;}
         }
         struct zenith_gui_event e={0};long r=zenith_gui_poll(handle,&e);if(r<0){result=1;break;}if(!r)continue;
         if(e.type==Z_GUI_RESIZE){
-            struct zenith_viewport v={0};
-            if(zenith_gui_viewport(handle,&v)||v.width<MIN_W||v.height<MIN_H||v.width>MAX_W||v.height>MAX_H){result=zui_window_closed(handle)?0:1;break;}
-            long accepted=zenith_gui_resize_accept(handle,&v);if(accepted==-11)continue;
-            if(accepted||!zui_resize(&ui,v.width,v.height,MAX_W*MAX_H)){result=zui_window_closed(handle)?0:1;break;}
+            if(zui_apply_viewport(&ui,handle,640*480)<0){result=zui_window_closed(handle)?0:1;break;}
             continue;
         }
         if(e.type==Z_GUI_CLOSE||e.type==Z_GUI_CLOSE_INTENT){done=1;continue;}

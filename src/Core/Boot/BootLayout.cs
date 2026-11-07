@@ -48,7 +48,7 @@ internal static class BootLayout
         { throw new IOException("invalid x64 PE/COFF installer module"); }
     }
     /// <summary>Boot opt-ins a rewritten menu keeps when the running kernel was booted with them.</summary>
-    public static readonly string[] CarriedOptions = { "smp=native" };
+    public static readonly string[] CarriedOptions = { "smp=native", "rtc=utc", "rtc=local" };
     public static string Carried(string arguments)
     {
         var tokens = arguments.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
@@ -69,13 +69,43 @@ internal static class BootLayout
         if (previous is not null) { Entry(result, "Zenith previous kernel", root, previous, options); }
         result.Append("/Zenith rescue (RAM root)\n    protocol: limine\n    path: boot():")
             .Append(KernelPath(previous ?? current)).Append("\n    cmdline: root=live session=headless\n");
-        return result.ToString();
+        return WithDisplay(result.ToString(), 1920, 1080);
     }
     private static void Entry(StringBuilder text, string title, Guid root, string id, string options)
     {
         text.Append('/').Append(title).Append("\n    protocol: limine\n    path: boot():")
             .Append(KernelPath(id)).Append("\n    cmdline: root=PARTUUID=").Append(root.ToString("D"))
             .Append(" kernel=").Append(id).Append(options.Length == 0 ? "" : " " + options).Append('\n');
+    }
+    public static string WithDisplay(string menu, int width, int height)
+    {
+        if (width is < 640 or > 16384 || height is < 480 or > 16384 || menu.Length > 32768)
+        { throw new IOException("invalid boot display preference"); }
+        string mode = width + "x" + height;
+        var text = new StringBuilder("interface_resolution: " + mode + "\n");
+        foreach (string line in menu.Split('\n'))
+        {
+            string option = line.TrimStart();
+            if (option.StartsWith("interface_resolution:", StringComparison.OrdinalIgnoreCase)
+                || option.StartsWith("resolution:", StringComparison.OrdinalIgnoreCase)) { continue; }
+            text.Append(line).Append('\n');
+            if (option.Equals("protocol: limine", StringComparison.OrdinalIgnoreCase))
+            { text.Append("    resolution: ").Append(mode).Append("x32\n"); }
+        }
+        return text.ToString().TrimEnd('\n') + "\n";
+    }
+    public static string PreserveDisplay(string oldMenu, string newMenu)
+    {
+        foreach (string line in oldMenu.Split('\n'))
+        {
+            string option = line.Trim();
+            const string prefix = "interface_resolution:";
+            if (!option.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) { continue; }
+            string[] size = option[prefix.Length..].Trim().Split('x');
+            if (size.Length == 2 && int.TryParse(size[0], out int w) && int.TryParse(size[1], out int h)
+                && w is >= 640 and <= 16384 && h is >= 480 and <= 16384) { return WithDisplay(newMenu, w, h); }
+        }
+        return newMenu;
     }
     public static string Inventory(Guid root, Guid esp, string kernel, string efi, int kernelBytes, int efiBytes)
     {

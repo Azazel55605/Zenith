@@ -116,6 +116,19 @@ int main(int argc,char **argv) {
     }
     long h=open_surface();
     if(h<0){print("GUI_UNAVAILABLE\n");return 1;}
+    if(same(mode,"--buffer-probe")) {
+        if(zenith_gui_buffer(0)!=-22||zenith_gui_buffer(128UL*1024*1024+1)!=-22)return 32;
+        long small=zenith_gui_buffer(sizeof(pixels));if(small<0)return 33;
+        unsigned int *p=(unsigned int *)small;p[0]=0xff39bca3;
+        const unsigned long area=3840UL*2160;
+        long large=zenith_gui_buffer(area*4);if(large!=small)return 34;
+        p=(unsigned int *)large;
+        if(p[0]!=0xff39bca3||p[area-1]!=0)return 35;
+        p[area-1]=0xff6b8cff;
+        if(zenith_gui_present(h,p+area-320*200,sizeof(pixels)))return 36;
+        if(zenith_gui_resize_refuse(h+1)!=-9)return 37;
+        zenith_gui_close(h);print("GUI_BUFFER_PROBE_OK\n");return 0;
+    }
     draw(0x6b8cff);
     if(zenith_gui_present(h,pixels,sizeof(pixels))!=0)return 2;
     print("GUI_PRESENTED\n");

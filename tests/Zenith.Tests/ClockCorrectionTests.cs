@@ -3,6 +3,7 @@ using Zenith.Core.Network.Transport;
 
 namespace Zenith.Tests;
 
+[Collection("Clock state")]
 public sealed class ClockCorrectionTests
 {
     [Fact]

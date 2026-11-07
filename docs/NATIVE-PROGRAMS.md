@@ -423,3 +423,21 @@ for exact layouts, session admission, quotas, unsaved/interactive extensions and
 The opt-in material extension uses format 2 plus calls 606/607 for validated
 premultiplied foreground/host regions; ABI 1 stays opaque. D3 remains partial
 until user policy, fallback and broad qualification are complete. gui-probe is a validation client; independent Settings and selected app frontends now exist. Compositor/session isolation remains U6, not a completed consequence of these calls.
+
+## On-demand private framebuffer ABI
+
+`zenith-native-framebuffer-abi` 1.0 adds call 645 `(byteCount, 0, 0)`: grow one
+invocation-owned, zero-initialized, writable/NX framebuffer mapping and return its
+user address. It requires a live owned surface, preserves its address and prior
+pixels when growing, and is released with the invocation. Sizes above 128 MiB,
+zero sizes and reserved arguments are refused; physical admission retains a
+32 MiB reserve. A failed grow does not acknowledge or change a viewport.
+
+Call 646 `(surfaceHandle, 0, 0)` declines a pending resize, retaining the current
+frame and restoring windowed geometry instead of ending the application. New
+toolkit clients negotiate dynamic capacity when enabling resize; legacy clients
+retain the previous viewport bounds. The toolkit's initial static frame is only
+640x480; larger frames use the service. The area bound is 32 Mi pixels with 16384
+per-axis arithmetic guards, and actual display/VRAM/RAM admission remains required.
+
+See the [implementation evidence and acceptance boundaries](archive/2026-11-07/display-memory-composition.md).

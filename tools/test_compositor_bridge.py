@@ -14,8 +14,8 @@ class CompositorBridgeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='zn-compositor-bridge-') as temporary:
             work=Path(temporary);native=work/'queues.so'
             subprocess.run(['clang','-shared','-fPIC','-O2','-std=c11','-ffreestanding','-fno-builtin','-DZENITH_CPU_HOST_TEST',str(ROOT/'src/Native/Cpu/workers.c'),'-o',str(native)],check=True)
-            sources=[ROOT/'tools/fixtures/compositor-bridge.cs',ROOT/'src/Core/Multiprocessing/BoxBlur.cs',ROOT/'src/Core/Multiprocessing/CpuWorkers.Blur.cs']
-            (work/'test.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><AllowUnsafeBlocks>true</AllowUnsafeBlocks><Nullable>enable</Nullable><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup><ItemGroup>'+''.join('<Compile Include="'+str(p)+'" />' for p in sources)+'</ItemGroup></Project>')
+            sources=[ROOT/'tools/fixtures/compositor-bridge.cs',ROOT/'src/Core/Multiprocessing/BoxBlur.cs',ROOT/'src/Core/Multiprocessing/CpuWorkers.Blur.cs',ROOT/'src/Core/Multiprocessing/CpuWorkers.Compose.cs']
+            (work/'test.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><AllowUnsafeBlocks>true</AllowUnsafeBlocks><Nullable>enable</Nullable><NuGetAudit>false</NuGetAudit><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup><ItemGroup>'+''.join('<Compile Include="'+str(p)+'" />' for p in sources)+'</ItemGroup></Project>')
             result=subprocess.run(['dotnet','run','--project',str(work/'test.csproj'),'-c','Release','--',str(native)],capture_output=True,text=True,timeout=120)
             self.assertEqual(result.returncode,0,result.stdout+result.stderr)
             self.assertIn('PASS C4 production C# bridge',result.stdout)

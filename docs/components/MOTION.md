@@ -244,3 +244,12 @@ session thread and gives up after a bound. Two slow frames, too little memory, a
 session all skip it. It logs as `Farewell`. The disks are already unmounted, so that line reaches serial only.
 
 The login gate checks the boot screen and its fade. The system-app gate checks the shutdown fade and its bound.
+
+## Rendering follow-up: private foreground tiles
+
+Q3/C4 extend the same master-tracked rendering work: fixed integer foreground
+composition joins blur on private AP snapshots. UI mutation, material preparation,
+ordering and device publication remain on the BSP. Exact clipped-region results
+are published only after every tile completes; small/busy/single-CPU paths retain
+the scalar implementation. The 0.0.47 regression fixes, resource budgets and
+qualification boundaries are recorded in the [follow-up evidence](../archive/2026-11-07/display-memory-composition.md).

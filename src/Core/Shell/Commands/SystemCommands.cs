@@ -45,7 +45,7 @@ internal static class SystemCommands
         add(new Command("date", "date [-u]", "Print the date and time (-u: in UTC)", Date));
         add(new Command("timedatectl", "timedatectl [status | list-timezones | set-timezone zone]", "Show or set the time zone", Timedatectl));
         add(new Command("uptime", "uptime", "Time since boot", Uptime));
-        add(new Command("free", "free", "Show memory usage", Free));
+        add(new Command("free", "free [--gc | --collect]", "Show memory usage and collector diagnostics", Free));
         add(new Command("df", "df", "Show filesystem space usage", Df));
         add(new Command("mount", "mount [[-t fat|ext2] partition mountpoint]", "Show mounts, or mount a FAT/ext2 partition", Mount));
         add(new Command("mkfs.ext2", "mkfs.ext2 partition [--yes] [-L label]", "Format an unmounted secondary partition as ext2", MkfsExt2));
@@ -212,6 +212,7 @@ internal static class SystemCommands
                 TimeSpan offset = SystemClock.Zone.OffsetAt(utc);
                 c.WriteLine("      Local time: " + SystemClock.Format(SystemClock.ToLocal(utc), SystemClock.Abbreviation));
                 c.WriteLine("  Universal time: " + SystemClock.Format(utc, "UTC"));
+                c.WriteLine("    Clock source: " + SystemClock.Source);
                 c.WriteLine("       Time zone: " + SystemClock.Zone.Name + " (" + SystemClock.Abbreviation + ", "
                     + (offset < TimeSpan.Zero ? "-" : "+") + SystemClock.Pad2(Math.Abs(offset.Hours)) + SystemClock.Pad2(Math.Abs(offset.Minutes)) + ")");
                 return 0;
@@ -240,11 +241,20 @@ internal static class SystemCommands
 
     private static int Free(CommandContext c)
     {
+        if (c.Args.Length > 1 || (c.Args.Length == 1 && c.Args[0] is not ("--gc" or "--collect"))) { return c.Fail("usage: free [--gc | --collect]"); }
+        if (c.Args.Length == 1 && c.Args[0] == "--collect")
+        {
+            GuardedFilesystem.RequireRoot();
+            int before = MemoryInfo.TotalCollections, freed = MemoryInfo.Collect();
+            c.WriteLine("GC collections: " + before + " -> " + MemoryInfo.TotalCollections + "; objects freed: " + freed);
+        }
         const ulong PageSize = 4096;
         ulong total = MemoryInfo.TotalPages * PageSize / 1024;
         ulong free = MemoryInfo.FreePages * PageSize / 1024;
         c.WriteLine("            total        used        free");
         c.WriteLine("Mem: " + (total + "K").PadLeft(12) + ((total - free) + "K").PadLeft(12) + (free + "K").PadLeft(12));
+        if (c.Args.Length == 1)
+        { c.WriteLine("GC collections: " + MemoryInfo.TotalCollections + "; objects freed: " + MemoryInfo.TotalObjectsFreed + "; allocated bytes: " + GC.GetTotalAllocatedBytes(false)); }
         return 0;
     }
 

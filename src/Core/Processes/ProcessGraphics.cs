@@ -60,8 +60,12 @@ internal sealed class ProcessSurface : IDisposable
       if (format == 2) { Array.Fill(_pixels, unchecked((int)0xff000000)); } }
     public int Width { get; private set; }
     public int Height { get; private set; }
-    // Matches the toolkit's ZUI_MAX_WIDTH x ZUI_MAX_HEIGHT: fills 1080p and 1200p at 100%, 4K at 200%.
-    public const int MaximumWidth = 1920, MaximumHeight = 1200;
+    // Protocol/overflow bounds, not a desktop size. Actual admission also uses a
+    // byte budget, so 4K/8K need no per-application build-time framebuffer.
+    public const int MaximumWidth = 16384, MaximumHeight = 16384;
+    public const int MaximumPixels = 32 * 1024 * 1024;
+    public bool DynamicFramebuffer { get; private set; }
+    public void EnableFramebuffer() { lock (_gate) { DynamicFramebuffer = true; } }
     private int _requestedWidth, _requestedHeight;
     private ulong _sizeGeneration;
     private bool _resizeEvent;
@@ -95,7 +99,7 @@ internal sealed class ProcessSurface : IDisposable
         lock (_gate)
         {
             if (!Resizable || _closed || _disposed || width < 600 || height < 480 || width > MaximumWidth || height > MaximumHeight
-                || (width == _requestedWidth && height == _requestedHeight) || _sizeGeneration == ulong.MaxValue) { return; }
+                || (long)width * height > MaximumPixels || (width == _requestedWidth && height == _requestedHeight) || _sizeGeneration == ulong.MaxValue) { return; }
             _requestedWidth = width; _requestedHeight = height; _sizeGeneration++; _resizeEvent = true; Monitor.PulseAll(_gate); WakeSignal.Request();
         }
     }
@@ -109,8 +113,8 @@ internal sealed class ProcessSurface : IDisposable
             BinaryPrimitives.WriteInt32LittleEndian(b.AsSpan(8), Resizable ? _requestedWidth : Width);
             BinaryPrimitives.WriteInt32LittleEndian(b.AsSpan(12), Resizable ? _requestedHeight : Height);
             BinaryPrimitives.WriteUInt64LittleEndian(b.AsSpan(16), _sizeGeneration);
-            BinaryPrimitives.WriteInt32LittleEndian(b.AsSpan(24), MaximumWidth);
-            BinaryPrimitives.WriteInt32LittleEndian(b.AsSpan(28), MaximumHeight);
+            BinaryPrimitives.WriteInt32LittleEndian(b.AsSpan(24), DynamicFramebuffer ? MaximumWidth : 1920);
+            BinaryPrimitives.WriteInt32LittleEndian(b.AsSpan(28), DynamicFramebuffer ? MaximumHeight : 1200);
             return b;
         }
     }
@@ -129,6 +133,17 @@ internal sealed class ProcessSurface : IDisposable
             return 0;
         }
     }
+    private bool _resizeRefused;
+    public int RefuseResize()
+    {
+        lock (_gate)
+        {
+            if (_closed || _disposed) { return -32; }
+            _requestedWidth = Width; _requestedHeight = Height;
+            _resizeRefused = true; _resizeEvent = false; return 0;
+        }
+    }
+    public bool TakeResizeRefusal() { lock (_gate) { bool value = _resizeRefused; _resizeRefused = false; return value; } }
     public (int Width, int Height) FrameSize { get { lock (_gate) { return (Width, Height); } } }
     private string _title;
     public string Title { get { lock (_gate) { return _title; } } }
@@ -316,6 +331,8 @@ internal sealed class ProcessGraphics : IDisposable
     public int EnablePointerMotion(int handle) => handle != _handle || _surface is null ? -9 : _surface.EnablePointerMotion();
     public byte[]? Viewport(int handle) => handle != _handle || _surface is null || _surface.Ended ? null : _surface.Viewport();
     public int AcceptResize(int handle, ReadOnlySpan<byte> request) => handle != _handle || _surface is null ? -9 : _surface.AcceptResize(request);
+    public int RefuseResize(int handle) => handle != _handle || _surface is null ? -9 : _surface.RefuseResize();
+    public void EnableFramebuffer() => _surface?.EnableFramebuffer();
     public int SetTitle(int handle, string title) => handle != _handle || _surface is null ? -9 : _surface.SetTitle(title);
     public int RequestFade(int handle, ReadOnlySpan<byte> request) => handle != _handle || _surface is null ? -9 : _surface.RequestFade(request);
     public int Dirty(int handle, bool dirty) => handle != _handle || _surface is null ? -9 : _surface.SetDirty(dirty);

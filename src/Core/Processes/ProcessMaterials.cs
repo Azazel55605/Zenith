@@ -62,7 +62,7 @@ internal readonly record struct ProcessMaterialRegion(int X, int Y, int Width, i
                 || (long)r.Y + r.Height > height || r.Radius < 0 || r.Radius > MaximumRadius
                 || r.Radius > Math.Min(r.Width, r.Height) / 2 || ((r.Role is < 3 or > 5) && !(background && r.Role == 1)) || r.Effect is < 0 or > 2 || r.Opacity != 0) { return false; }
             area += (long)r.Width * r.Height;
-            if (area > (background ? 1920000 : MaximumArea)) { return false; }
+            if (area > (background ? Math.Min((long)width * height, ProcessSurface.MaximumPixels) : MaximumArea)) { return false; }
             for (int j = 0; j < i; j++)
             {
                 var other = regions[j];

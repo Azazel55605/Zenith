@@ -106,6 +106,22 @@ internal sealed class NativeKernelUpdateStore : IKernelUpdateStore
 
 internal static class NativeKernelUpdates
 {
+    public static void SaveDisplay(int width, int height)
+    {
+        if (SystemMounts.Mode != BootMode.Installed) { return; }
+        Mutation(() =>
+        {
+            var store = new NativeKernelUpdateStore(); _ = Open(store).Status();
+            foreach (string path in new[] { KernelUpdater.FallbackMenu, KernelUpdater.MenuPath })
+            {
+                if (!store.Exists(path)) { continue; }
+                string before = Encoding.UTF8.GetString(store.Read(path, 32768));
+                string after = BootLayout.WithDisplay(before, width, height);
+                if (before != after) { store.Write(path, Encoding.UTF8.GetBytes(after)); store.Sync(); }
+            }
+            return 0;
+        }, allowClients: true);
+    }
     // Opt-in boot flags only used by disposable power-cut tests, never normal update behavior.
     internal static unsafe void TestCheckpoint(string phase)
     {
@@ -145,12 +161,12 @@ internal static class NativeKernelUpdates
         // Keep opt-ins such as smp=native that this kernel was booted with.
         return new(store, SystemMounts.RootId.Value, esp, Marshal.PtrToStringUTF8((IntPtr)Limine.Cmdline) ?? "");
     }
-    private static int Mutation(Func<int> operation, bool fromPackageService = false)
+    private static int Mutation(Func<int> operation, bool fromPackageService = false, bool allowClients = false)
     {
         GuardedFilesystem.RequireRoot();
         lock (Installer.MaintenanceGate)
         {
-            if (Installer.IsRunning || Zenith.Core.Processes.NativeProcess.IsRunning || (!fromPackageService && Zenith.Core.Shell.Commands.PackageCommands.IsRunning) || Interlocked.CompareExchange(ref s_busy, 1, 0) != 0)
+            if (Installer.IsRunning || (!allowClients && Zenith.Core.Processes.NativeProcess.IsRunning) || (!fromPackageService && Zenith.Core.Shell.Commands.PackageCommands.IsRunning) || Interlocked.CompareExchange(ref s_busy, 1, 0) != 0)
             { throw new IOException("system installation/update busy"); }
         }
         try { int result = operation(); Interlocked.Exchange(ref s_busy, 0); return result; }

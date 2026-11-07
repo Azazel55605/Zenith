@@ -117,11 +117,12 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
             Zenith.Core.Log.Write("motion", "ClientFade frames=" + _fadeFrames + " elapsed=" + (Micros - _fadeStart) + " ended=" + ended);
         }
         public ClientWindow(ProcessSurface surface, Credentials identity) : base(surface.Title, surface.Width, surface.Height + TitleBarHeight)
-        { _surface = surface; Identity = identity; _frameWidth = surface.Width; _frameHeight = surface.Height; _frame = new int[surface.Width * surface.Height]; if (surface.Format == 2) { _composition = new(1920000); } }
+        { _surface = surface; Identity = identity; _frameWidth = surface.Width; _frameHeight = surface.Height; _frame = new int[surface.Width * surface.Height]; if (surface.Format == 2) { _composition = new(ProcessSurface.MaximumPixels); } }
         public override bool UnifiedChrome => _surface.Resizable;
         public override bool CanResize => _surface.Resizable;
         public override (int Width, int Height) MinimumSize => (600, 480 + TitleBarHeight);
-        public override (int Width, int Height) MaximumSize => (ProcessSurface.MaximumWidth, ProcessSurface.MaximumHeight + TitleBarHeight);
+        public override (int Width, int Height) MaximumSize => _surface.DynamicFramebuffer
+            ? (ProcessSurface.MaximumWidth, ProcessSurface.MaximumHeight + TitleBarHeight) : (1920, 1200 + TitleBarHeight);
         protected override void OnResized() => _surface.RequestResize(Content.W, Content.H);
         public override bool UpdateWhenMinimized => true;
         public override bool HasUnsavedChanges => _surface.Unsaved;
@@ -129,6 +130,12 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
         public override void EndSession() { _composition?.Dispose();_surface.Dispose(); base.Close(); }
         public override bool Update()
         {
+            if (_surface.TakeResizeRefusal())
+            {
+                IsMaximized = IsFullscreen = false;
+                SetBounds(new Rect(Bounds.X, Bounds.Y, _frameWidth, _frameHeight + TitleBarHeight));
+                return true;
+            }
             if (_surface.Ended) { _composition?.Dispose();base.Close(); Zenith.Core.Log.Write("graphics", "native surface retired"); return true; }
             bool changed = _wasResizable != _surface.Resizable; _wasResizable = _surface.Resizable;
             string title = _surface.Title;

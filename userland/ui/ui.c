@@ -24,7 +24,7 @@ int zui_init(struct zui *u,unsigned int *p,int w,int h){
     zui_appearance(u,0,0);return 1;
 }
 int zui_resize(struct zui *u,int w,int h,unsigned long capacity){
-    if(w<1||h<1||w>ZUI_MAX_WIDTH||h>ZUI_MAX_HEIGHT||(unsigned long)w*h>capacity)return 0;
+    if(w<1||h<1||w>ZUI_MAX_WIDTH||h>ZUI_MAX_HEIGHT||(unsigned long)w*h>ZUI_MAX_PIXELS||(unsigned long)w*h>capacity)return 0;
     u->width=w;u->height=h;u->clip=(struct zui_rect){0,0,w,h};u->material_count=0;u->dirty=1;return 1;
 }
 int zui_scroll_step(int value,int delta,int maximum){
@@ -66,7 +66,7 @@ int zui_material_surface(struct zui *u,struct zui_rect r,int radius,int role,int
         struct zenith_material_region *p=&u->materials[i];area+=(long)p->w*p->h;
         if(r.x<p->x+p->w&&p->x<r.x+r.w&&r.y<p->y+p->h&&p->y<r.y+r.h)return 0;
     }
-    if(area>(u->full_background?ZUI_MAX_WIDTH*ZUI_MAX_HEIGHT:131072))return 0;
+    if((unsigned long)area>(u->full_background?ZUI_MAX_PIXELS:131072))return 0;
     u->materials[u->material_count++]=(struct zenith_material_region){r.x,r.y,r.w,r.h,radius,role,effect,0};return 1;
 }
 static unsigned int over(unsigned int bg,unsigned int fg,unsigned int a){

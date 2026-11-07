@@ -7,6 +7,21 @@ namespace Zenith.Tests;
 
 public sealed class ProcessGraphicsTests
 {
+    [Fact]
+    public void ResizeRefusalKeepsThePresentedViewportAndDoesNotEndTheClient()
+    {
+        using var surface = new ProcessSurface(640, 480, "refusal", 2);
+        Assert.Equal(0, surface.EnableResize());
+        surface.RequestResize(3840, 2160);
+        Assert.Equal(0, surface.RefuseResize());
+        Assert.Equal((640, 480), surface.FrameSize);
+        Assert.True(surface.TakeResizeRefusal());
+        Assert.False(surface.TakeResizeRefusal());
+        Assert.False(surface.Ended);
+        surface.RequestResize(3840, 2160);
+        byte[] viewport = surface.Viewport();
+        Assert.Equal(3840, BinaryPrimitives.ReadInt32LittleEndian(viewport.AsSpan(8)));
+    }
     private sealed class Host : IProcessGraphicsHost
     {
         public readonly List<ProcessSurface> Surfaces = new();

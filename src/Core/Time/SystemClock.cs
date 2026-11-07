@@ -16,6 +16,7 @@ internal static class SystemClock
 
     /// <summary>The hardware clock keeps local time (VMware does by default), not UTC.</summary>
     public static bool HardwareClockIsLocal { get; set; }
+    public static string Source { get; set; } = "RTC (UTC unless rtc=local is explicit)";
 
     /// <summary>The RTC value as UTC: unchanged for a UTC clock; for a local-time clock, minus the zone's
     /// offset at that moment. Around a DST change the local hour is ambiguous; the standard offset wins.</summary>

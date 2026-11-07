@@ -7,6 +7,20 @@ namespace Zenith.Tests;
 
 public sealed class BootLayoutTests
 {
+    [Fact]
+    public void BootDisplayPreferenceSurvivesMenuPublicationWithoutChangingIdentity()
+    {
+        Guid root = Guid.NewGuid(); string current = new('a', 64), next = new('b', 64);
+        string before = BootLayout.WithDisplay(BootLayout.Configuration(root, current), 3840, 2160);
+        string after = BootLayout.PreserveDisplay(before, BootLayout.Configuration(root, next, current, "rtc=utc"));
+        Assert.Contains("interface_resolution: 3840x2160\n", after);
+        Assert.Equal(3, after.Split("    resolution: 3840x2160x32\n").Length - 1);
+        Assert.Contains("kernel=" + next + " rtc=utc\n", after);
+        Assert.Contains("root=PARTUUID=" + root, after);
+        Assert.Equal(after, BootLayout.WithDisplay(after, 3840, 2160));
+        Assert.Throws<IOException>(() => BootLayout.WithDisplay(after, int.MaxValue, 1080));
+        Assert.Equal("rtc=utc", BootLayout.Carried("root=live rtc=utc"));
+    }
     [Theory]
     [InlineData("root=live", true)]
     [InlineData("root=auto", false)]

@@ -50,6 +50,19 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 
 ## Current focus and execution order
 
+**2026-11-07 — 0.0.47 installed regressions (Q3/M2/D2/S3, in progress).**
+Operator reports fresh idle growth (~386 MiB/5 minutes), native toolkit apps exiting
+on 1080p maximize, incorrect VMware clock and low-resolution/misaligned Limine.
+Local pressure replay reclaims ~303 MiB and 4.95 million objects: allocation debt
+must trigger collection before physical exhaustion. Fix the mismatched material
+area limit, replace static client framebuffer sizing with invocation-owned growth
+and graceful resource refusal, use guarded VMware host UTC rather than deriving
+the RTC zone from personal formatting, and carry boot display preferences through
+menu publication. [Implementation and evidence](archive/2026-11-07/display-memory-composition.md).
+Then qualify R3 parallel rendering with exact pixels, bounded
+allocation, actual AP execution and one-CPU fallback. Network packet/download
+throughput remains separate. No successor release or installed acceptance claimed.
+
 **2026-11-07 — Rendering overhaul (R1 local).** The kernel loop halted after every
 pass until the next 10 ms tick and presented the whole screen for every change. R1:
 paced frames (up to 240/s, halting only when idle), damage-only presents, row-copy

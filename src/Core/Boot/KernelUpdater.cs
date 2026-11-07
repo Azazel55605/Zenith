@@ -34,7 +34,12 @@ internal sealed class KernelUpdater
     public KernelUpdater(IKernelUpdateStore store, Guid root, Guid esp, string options = "")
     { _store = store; _root = root; _esp = esp; _options = BootLayout.Carried(options); }
     private string Text(string path, int maximum = 4096) => new UTF8Encoding(false, true).GetString(_store.Read(path, maximum));
-    private void Text(string path, string text) => _store.Write(path, Encoding.UTF8.GetBytes(text));
+    private void Text(string path, string text)
+    {
+        if ((path == MenuPath || path == FallbackMenu) && _store.Exists(MenuPath))
+        { text = BootLayout.PreserveDisplay(Encoding.UTF8.GetString(_store.Read(MenuPath, 32768)), text); }
+        _store.Write(path, Encoding.UTF8.GetBytes(text));
+    }
     private void Bind(KernelUpdateState state)
     {
         if (state.Root != _root || state.Esp != _esp || _root == Guid.Empty || _esp == Guid.Empty) { throw new IOException("boot metadata does not match mounted root/ESP UUIDs"); }

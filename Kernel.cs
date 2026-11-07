@@ -31,6 +31,7 @@ public class Kernel : Sys.Kernel
             SessionRuntime.LoginFactory = mode => new LoginSessionHost(mode);
             Zenith.Core.Multiprocessing.CpuWorkers.Initialize();
             Zenith.Core.Time.SystemClock.HardwareClockIsLocal = HardwareClockIsLocal(CommandLine());
+            InitializePlatformClock(CommandLine());
             SessionDisplay.MarkSessionThread();
             PowerControl.Farewell = SessionDisplay.Farewell;
             bool bootScreen = hasDisplay && BootScreen.Wanted(CommandLine());
@@ -62,7 +63,7 @@ public class Kernel : Sys.Kernel
             }
 
             if (_memoryPressure.ShouldCollect(MemoryInfo.TotalPages, MemoryInfo.FreePages,
-                Stopwatch.GetTimestamp(), Stopwatch.Frequency))
+                Stopwatch.GetTimestamp(), Stopwatch.Frequency, (ulong)GC.GetTotalAllocatedBytes(false), MemoryInfo.TotalCollections))
             {
                 ulong before = MemoryInfo.FreePages;
                 MemoryInfo.Collect();
@@ -103,12 +104,8 @@ public class Kernel : Sys.Kernel
         SerialPanic.Show(exception);
     }
 
-#if !ARCH_ARM64
-    [System.Runtime.InteropServices.DllImport("*", EntryPoint = "zenith_cpu_vmware"), System.Runtime.InteropServices.SuppressGCTransition]
-    private static extern ulong RunningOnVmware();
-#endif
-    /// <summary>VMware keeps the virtual RTC in host local time; QEMU and most firmware keep UTC.
-    /// <c>rtc=utc</c> or <c>rtc=local</c> on the boot line overrides the guess.</summary>
+    /// <summary>RTC basis is explicit; hypervisor identity is not a time zone.
+    /// VMware's separate host UTC clock is preferred unless an RTC override is supplied.</summary>
     private static bool HardwareClockIsLocal(string arguments)
     {
         foreach (string word in arguments.Split(' '))
@@ -117,9 +114,27 @@ public class Kernel : Sys.Kernel
             if (word == "rtc=utc") { return false; }
         }
 #if !ARCH_ARM64
-        return RunningOnVmware() != 0;
+        return false; // Hypervisor identity does not specify the RTC's time zone.
 #else
         return false;
+#endif
+    }
+
+#if !ARCH_ARM64
+    [System.Runtime.InteropServices.DllImport("*", EntryPoint = "zenith_vmware_utc_seconds"), System.Runtime.InteropServices.SuppressGCTransition]
+    private static extern ulong VmwareUtcSeconds();
+#endif
+    private static void InitializePlatformClock(string arguments)
+    {
+#if !ARCH_ARM64
+        foreach (string word in arguments.Split(' '))
+        { if (word is "rtc=utc" or "rtc=local") { return; } }
+        ulong seconds = VmwareUtcSeconds();
+        if (seconds != 0)
+        {
+            Zenith.Core.Time.SystemClock.Synchronize(DateTime.UnixEpoch.AddSeconds(seconds));
+            Zenith.Core.Time.SystemClock.Source = "VMware host UTC (unauthenticated)";
+        }
 #endif
     }
 

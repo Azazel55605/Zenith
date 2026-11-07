@@ -25,7 +25,8 @@ public class DisplayServiceTests
         Assert.True(DisplayLayout.FitsVmware(new(1600,1200,1),3840,2400,16*1024*1024,0));
         Assert.False(DisplayLayout.FitsVmware(new(1920,1200,1),3840,2400,16*1024*1024,0));
         Assert.False(DisplayLayout.FitsVmware(new(1600,1200,1),1280,1024,64*1024*1024,0));
-        Assert.False(DisplayLayout.FitsVmware(new(3840,2400,1),3840,2400,128*1024*1024,0));
+        Assert.True(DisplayLayout.FitsVmware(new(3840,2400,1),3840,2400,128*1024*1024,0));
+        Assert.False(DisplayLayout.FitsVmware(new(3840,2160,1),3840,2400,32*1024*1024,0));
     }
     [Fact] public void PreviewDoesNotSaveAndTimeoutRestoresWithoutClient()
     {

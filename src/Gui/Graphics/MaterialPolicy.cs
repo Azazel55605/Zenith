@@ -120,19 +120,26 @@ internal sealed class MaterialPolicy
 internal static class MaterialResources
 {
     public const int MaximumBytes = 8 * 1024 * 1024;
+    public static int BudgetBytes { get; private set; } = MaximumBytes;
     public static int UsedBytes { get; private set; }
     public static bool ReserveBytes(int bytes)
     {
-        if (bytes > MaximumBytes - UsedBytes || bytes < -UsedBytes) { return false; }
+        if (bytes > BudgetBytes - UsedBytes || bytes < -UsedBytes) { return false; }
         UsedBytes += bytes; return true;
     }
     public static void ReleaseBytes(int bytes) { UsedBytes -= bytes; }
     // Finished pixels only save time, so running out of this budget costs speed and nothing else.
     public const int MaximumPaintedBytes = 16 * 1024 * 1024;
+    public static int PaintedBudgetBytes { get; private set; } = MaximumPaintedBytes;
+    public static void Configure(ulong physicalBytes)
+    {
+        BudgetBytes = (int)Math.Clamp(physicalBytes / 32, (ulong)MaximumBytes, 128UL * 1024 * 1024);
+        PaintedBudgetBytes = (int)Math.Clamp(physicalBytes / 64, (ulong)MaximumPaintedBytes, 64UL * 1024 * 1024);
+    }
     public static int PaintedBytes { get; private set; }
     public static bool ReservePainted(int bytes)
     {
-        if (bytes > MaximumPaintedBytes - PaintedBytes) { return false; }
+        if (bytes < 0 || bytes > PaintedBudgetBytes - PaintedBytes) { return false; }
         PaintedBytes += bytes; return true;
     }
     public static void ReleasePainted(int bytes) { PaintedBytes -= bytes; }

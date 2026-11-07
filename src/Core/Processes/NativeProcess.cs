@@ -42,6 +42,21 @@ internal sealed unsafe class NativeProcess
     private ulong* _root;
     private byte[]? _processSnapshot;
     private byte[]? _graphicsTransfer;
+    private const ulong FramebufferAddress = 0x10000000;
+    private int _framebufferPages, _framebufferRange = -1;
+    private long Framebuffer(ref Context c, ulong bytes)
+    {
+        if (bytes == 0 || bytes > (ulong)ProcessSurface.MaximumPixels * 4) { return -22; }
+        int pages = (int)((bytes + 4095) / 4096);
+        if (pages > _framebufferPages && Cosmos.Kernel.System.Diagnostics.MemoryInfo.FreePages < (ulong)(pages - _framebufferPages) + 8192) { return -12; }
+        for (; _framebufferPages < pages; _framebufferPages++)
+        { Map(FramebufferAddress + (ulong)_framebufferPages * 4096, Page(), true, false); }
+        var range = new ProcessMemoryRange(FramebufferAddress, FramebufferAddress + (ulong)_framebufferPages * 4096, true);
+        if (_framebufferRange < 0) { _framebufferRange = _ranges.Count; _ranges.Add(range); }
+        else { _ranges[_framebufferRange] = range; }
+        c.Regions[c.Count - 1] = new Region { Start = range.Start, End = range.End };
+        return (long)FramebufferAddress;
+    }
     private byte[] ReadGraphics(ulong address, int size)
     {
         if (_graphicsTransfer is null || _graphicsTransfer.Length != size) { _graphicsTransfer = new byte[size]; }
@@ -150,6 +165,16 @@ internal sealed unsafe class NativeProcess
     {
         try
         {
+            // One invocation-owned NX framebuffer arena, grown on demand and
+            // freed with every other native allocation on exit/fault/cancel.
+            if (c.Call == 645)
+            {
+                if (c.Arg1 != 0 || c.Arg2 != 0 || !graphics.Live) { return -22; }
+                long address = Framebuffer(ref c, c.Arg0);
+                if (address > 0) { graphics.EnableFramebuffer(); }
+                return address;
+            }
+            if (c.Call == 646) { return c.Arg0 > int.MaxValue || c.Arg1 != 0 || c.Arg2 != 0 ? -22 : graphics.RefuseResize((int)c.Arg0); }
             if (c.Call == 638)
             {
                 if (c.Arg0 > int.MaxValue || c.Arg2 is < 1 or > 320) { return -22; }
@@ -222,7 +247,15 @@ internal sealed unsafe class NativeProcess
             {
                 if (c.Arg0 > int.MaxValue || c.Arg2 != 24) { return -22; }
                 if (!Valid(c.Arg1, 24, false)) { return -14; }
-                return graphics.AcceptResize((int)c.Arg0, ReadUser(c.Arg1, 24));
+                byte[] request = ReadUser(c.Arg1, 24);
+                int w = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(request.AsSpan(8));
+                int h = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(request.AsSpan(12));
+                if (w < 600 || h < 480 || w > ProcessSurface.MaximumWidth || h > ProcessSurface.MaximumHeight
+                    || (long)w * h > ProcessSurface.MaximumPixels) { return -22; }
+                // New surface + host frame + transfer buffer, retaining the old
+                // ones until the frame handoff. Refuse before changing the viewport.
+                if (Cosmos.Kernel.System.Diagnostics.MemoryInfo.FreePages < (ulong)w * (ulong)h * 12 / 4096 + 8192) { return -12; }
+                return graphics.AcceptResize((int)c.Arg0, request);
             }
             if (c.Call == 612)
             {
@@ -599,7 +632,7 @@ internal sealed unsafe class NativeProcess
         try
         {
             if (cancelled()) { Release(pid, ref released, 130); return (130, "", 0); }
-            process = new NativeProcess(); process.Initialize(); var regions = new Region[image.Segments.Count + 1]; int region = 0;
+            process = new NativeProcess(); process.Initialize(); var regions = new Region[image.Segments.Count + 2]; int region = 0;
             foreach (var segment in image.Segments)
             {
                 process._ranges.Add(new(segment.Address, segment.Address + (ulong)(segment.Pages * 4096), (segment.Flags & 2) != 0));

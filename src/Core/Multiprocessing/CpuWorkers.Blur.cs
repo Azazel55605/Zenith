@@ -30,7 +30,7 @@ internal static partial class CpuWorkers
     private static bool s_blurFailed;
     private static long s_blurFrames, s_blurTiles, s_blurFallbacks;
     internal static string BlurStatus => "parallel blur=" + ParallelBlur + " frames=" + s_blurFrames
-        + " ap-tiles=" + s_blurTiles + " fallbacks=" + s_blurFallbacks + " quarantined=" + s_blurFailed;
+        + " ap-tiles=" + s_blurTiles + " fallbacks=" + s_blurFallbacks + " quarantined=" + s_blurFailed + "; " + ComposeStatus;
 
     /// <summary>Pure radius-four computation over immutable snapshots. The BSP
     /// publishes no filtered region until this method returns success; on a

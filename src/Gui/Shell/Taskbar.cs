@@ -60,11 +60,15 @@ internal sealed class Taskbar
 
     /// <summary>Set by the desktop so the launcher button shows its pressed state.</summary>
     public bool LauncherOpen { get; set; }
+    private long _clockMinute = long.MinValue;
 
     /// <summary>Refreshes the clock text; returns true when it changed.</summary>
     public bool Update()
     {
         DateTime now = SystemClock.Now;
+        long minute = now.Ticks / TimeSpan.TicksPerMinute;
+        if (minute == _clockMinute) { return false; }
+        _clockMinute = minute;
         string time = Pad2(now.Hour) + ":" + Pad2(now.Minute);
         if (time == _time)
         {

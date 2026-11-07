@@ -64,6 +64,8 @@ def main():
         ('native run observatory processes | logger & sleep 8; true','G_OBSERVATORY_PROCESSES'),
         ('ls /usr/share/zenith/native; false','G_FAILED'),
         ('settings set translucency 100','G_TRANSLUCENT'),
+        ('native run gui-probe --buffer-probe | logger','G_BUFFER'),
+        ('fps | logger','G_RENDER_STATS'),
     ]
     quota='native run gui-probe > /tmp/g2 & native run gui-probe > /tmp/g3 & native run gui-probe > /tmp/g4 & native run gui-probe > /tmp/g5 & sleep 5; native run gui-probe --probe; echo G_LIMIT=$? | logger; kill %2; kill %3; kill %4; kill %5; wait; echo G_DRAIN=$? | logger'
     texts=[text+'; echo '+label+'=$? | logger' for text,label in gui_texts]
@@ -110,6 +112,7 @@ def main():
         m=h.Machine(keep/'desktop',disk,'session=de smp=native' if multicore else 'session=de',network=net+['-device','virtio-gpu-pci','-device','virtio-keyboard-pci'],monitor=monitor,cpus=4 if multicore else 1)
         assert m.wait('desktop ready (installed)',timeout=180);gui=True;time.sleep(2)
         status('native run gui-probe --probe | logger','G_PROBE')
+        status('native run gui-probe --buffer-probe | logger','G_BUFFER')
         status('native run gui-probe --exit | logger','G_EXIT')
         terminal_start=len(m.log());status('native run gui-probe --terminal | logger','G_TERMINAL')
         terminal=terminal_paste(m,terminal_start)
@@ -204,6 +207,11 @@ def main():
             status('echo POLARIS_ALIVE | logger','G_POLARIS')
         observatory('native run observatory | logger & sleep 8; true','G_OBSERVATORY','observatory.ppm')
         print('PASS Observatory shows performance and closes',flush=True)
+        raw=status('fps | logger','G_RENDER_STATS')
+        if multicore:
+            import re
+            assert re.search(r'parallel compose frames=[1-9][0-9]* ap-tiles=[1-9][0-9]*',raw),'production AP composition did not execute'
+            assert 'quarantined=True' not in raw,'production compositor quarantined'
         # The concept's look: whole-window material, prompt marks, find and hints. Screenshots for review.
         status('settings set materials background-blur','G_MATERIALS');time.sleep(2)
         status('settings set translucency 100','G_TRANSLUCENT');time.sleep(3)

@@ -56,9 +56,18 @@ int zui_apply_viewport(struct zui *u,long handle,unsigned long capacity){
     struct zenith_viewport v={0};
     if(zenith_gui_viewport(handle,&v)||v.version!=1||!(v.flags&1)||v.width<600||v.height<480||v.width>ZUI_MAX_WIDTH||v.height>ZUI_MAX_HEIGHT)return -1;
     if(v.width==(unsigned int)u->width&&v.height==(unsigned int)u->height)return 0;
+    unsigned int *pixels=u->pixels;
+    if((unsigned long)v.width*v.height>ZUI_MAX_PIXELS){zenith_gui_resize_refuse(handle);return 0;}
+    if((unsigned long)v.width*v.height>capacity){
+        long buffer=zenith_gui_buffer((unsigned long)v.width*v.height*4);
+        if(buffer<0){zenith_gui_resize_refuse(handle);return 0;}
+        pixels=(unsigned int *)buffer;
+    }
     long r=zenith_gui_resize_accept(handle,&v);
     if(r==-11)return 0;
-    if(r||!zui_resize(u,(int)v.width,(int)v.height,capacity))return -1;
+    if(r){zenith_gui_resize_refuse(handle);return 0;}
+    u->pixels=pixels;
+    if(!zui_resize(u,(int)v.width,(int)v.height,ZUI_MAX_PIXELS))return -1;
     u->dirty=1;return 1;
 }
 int zui_window_closed(long handle){

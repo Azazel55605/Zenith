@@ -29,14 +29,24 @@ internal static class DisplayController
     /// their own: put the boot mode back before restart or power-off.</summary>
     private static void RestoreBootMode()
     {
-        if(s_physical is null || (s_physical.Width==s_boot.Width && s_physical.Height==s_boot.Height)) { return; }
+        if(s_physical is null || !s_driver.StartsWith("VMWare",StringComparison.OrdinalIgnoreCase)
+            || (s_physical.Width==s_boot.Width && s_physical.Height==s_boot.Height)) { return; }
+        if (!DisplayLayout.FitsVmware(s_boot, Register(4), Register(5), Register(15), Register(14))) { return; }
         SetHardware(s_boot);
         Zenith.Core.Log.Write("display","restored boot mode "+s_boot.Width+"x"+s_boot.Height+" for firmware");
     }
-    public static Canvas Initialize()
+    public static unsafe Canvas Initialize()
     {
         s_physical=Canvas.GetFullScreen(); s_driver=s_physical.Name;
+        Zenith.Gui.Graphics.MaterialResources.Configure(MemoryInfo.TotalPages * 4096UL);
         s_layout=new(s_physical.Width,s_physical.Height,1); s_boot=s_layout;
+        var firmware = Cosmos.Kernel.Boot.Limine.Limine.Framebuffer.Response;
+        if (firmware != null && firmware->FramebufferCount > 0)
+        {
+            var fb = firmware->Framebuffers[0];
+            if (fb->Width is >= 640 and <= 16384 && fb->Height is >= 480 and <= 16384)
+            { s_boot = new((int)fb->Width, (int)fb->Height, 1); }
+        }
         Zenith.Core.PowerControl.BeforeFirmware=RestoreBootMode;
         var modes=new List<DisplayLayout> {s_layout};
         // ApplyMode in the pinned VMware canvases changes hardware. Bound its
@@ -44,6 +54,18 @@ internal static class DisplayController
         if(s_driver.StartsWith("VMWare",StringComparison.OrdinalIgnoreCase))
         {
             uint maxW=Register(4),maxH=Register(5),vram=Register(15),offset=Register(14);
+            // The pinned driver keeps a mutable per-canvas list behind this
+            // read-only view, and validates SetMode against it. Extend only with
+            // dimensions which the actual device and both VRAM planes support.
+            if (s_physical.AvailableModes is List<Mode> catalogue)
+            {
+                foreach (var size in new[] { (2560,1440), (2560,1600), (3440,1440), (3840,2160), (3840,2400), (5120,1440), (5120,2880), (7680,4320) })
+                {
+                    var candidate = new DisplayLayout(size.Item1, size.Item2, 1);
+                    var mode = new Mode(size.Item1, size.Item2, ColorDepth.ColorDepth32);
+                    if (DisplayLayout.FitsVmware(candidate,maxW,maxH,vram,offset) && !catalogue.Contains(mode)) { catalogue.Add(mode); }
+                }
+            }
             foreach(var mode in s_physical.AvailableModes)
             {
                 var m=new DisplayLayout(mode.Width,mode.Height,1);
@@ -51,7 +73,12 @@ internal static class DisplayController
                 if(modes.Count<24) { modes.Add(m); }
             }
         }
-        s_modes=modes.ToArray(); return s_physical;
+        s_modes=modes.ToArray();
+        // The splash precedes VFS/settings initialization. Fit it now; applying
+        // saved desktop preferences later must not be the first mode change.
+        if (!SafeBoot() && AutomaticLayout() is DisplayLayout initial)
+        { SetHardware(initial); s_layout = initial; SessionDisplay.Scale = initial.Scale; }
+        return s_layout.Scale == 1 ? s_physical : new DisplayCanvas(s_physical, s_layout);
     }
     public static void LoadPreferences()
     {
@@ -82,6 +109,7 @@ internal static class DisplayController
         SessionDisplay.Scale=s_layout.Scale;
         SystemConfiguration.Display.Attach(s_driver,s_layout,s_modes,null,null);
         if(s_layout.Scale==1) { SessionDisplay.ReplaceScreen(s_physical); }
+        RememberBootDisplay();
     }
     private static unsafe bool SafeBoot()
     {
@@ -103,7 +131,7 @@ internal static class DisplayController
             if(!found || (long)mode.Width*mode.Height>(long)best.Width*best.Height) { best=mode; found=true; }
         }
         if(!found) { return null; }
-        int scale=Math.Clamp(best.Height/900,1,4);
+        int scale=Math.Clamp(best.Height/900,1,2);
         var layout=new DisplayLayout(best.Width,best.Height,scale);
         return layout.Usable?layout:new DisplayLayout(best.Width,best.Height,1);
     }
@@ -165,7 +193,12 @@ internal static class DisplayController
         Zenith.Core.Log.Write("display","preview "+layout.Width+"x"+layout.Height+" scale="+layout.Scale); return true;
     }
     private static void Finish(bool kept)
-    { if(kept) { s_previous?.Bar.Dispose(); } s_previous=null; s_previousCanvas=null; Zenith.Core.Log.Write("display",kept?"kept":"restored"); }
+    { if(kept) { s_previous?.Bar.Dispose(); RememberBootDisplay(); } s_previous=null; s_previousCanvas=null; Zenith.Core.Log.Write("display",kept?"kept":"restored"); }
+    private static void RememberBootDisplay()
+    {
+        try { Zenith.Core.Boot.NativeKernelUpdates.SaveDisplay(s_layout.Width, s_layout.Height); }
+        catch (Exception e) { Zenith.Core.Log.Write("display", "boot menu preference not saved: " + e.Message); }
+    }
     public static void Tick() => SystemConfiguration.Display.Tick(Zenith.Core.Configuration.DisplayService.Now);
     public static void Detach()
     { SystemConfiguration.Display.Detach(Zenith.Core.Configuration.DisplayService.Now); s_desktop=null; }

@@ -5,6 +5,19 @@ namespace Zenith.Tests;
 public class MemoryPressurePolicyTests
 {
     [Fact]
+    public void AllocationDebtCollectsBeforeLargeRamIsExhaustedAndExternalGcResetsDebt()
+    {
+        var policy = new MemoryPressurePolicy();
+        ulong budget = MemoryPressurePolicy.AllocationBudget;
+        Assert.False(policy.ShouldCollect(4_000_000, 3_000_000, 0, 1000, 100, 0));
+        Assert.True(policy.ShouldCollect(4_000_000, 3_000_000, 1, 1000, 100 + budget, 0));
+        Assert.False(policy.ShouldCollect(4_000_000, 3_000_000, 999, 1000, 100 + budget, 0));
+        Assert.True(policy.ShouldCollect(4_000_000, 3_000_000, 1001, 1000, 100 + budget, 0));
+        Assert.False(policy.ShouldCollect(4_000_000, 3_000_000, 2001, 1000, 100 + budget, 1));
+        Assert.False(policy.ShouldCollect(4_000_000, 3_000_000, 3001, 1000, 99 + 2 * budget, 1));
+        Assert.True(policy.ShouldCollect(4_000_000, 3_000_000, 3001, 1000, 100 + 2 * budget, 1));
+    }
+    [Fact]
     public void KeepsAReserveForNativeAllocations()
     {
         var policy = new MemoryPressurePolicy();

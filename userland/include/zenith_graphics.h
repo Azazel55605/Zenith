@@ -49,7 +49,15 @@ struct zenith_viewport { unsigned int version,flags,width,height; unsigned long 
 struct zenith_resize_request { unsigned int version,flags,width,height; unsigned long generation; };
 _Static_assert(sizeof(struct zenith_viewport)==32,"viewport snapshot");
 _Static_assert(sizeof(struct zenith_resize_request)==24,"resize acknowledgement");
-static inline long zenith_gui_resize_enable(long handle){return zenith_call(614,(unsigned long)handle,1,0);}
+static inline long zenith_gui_resize_enable(long handle){
+    long r=zenith_call(614,(unsigned long)handle,1,0);if(r<0)return r;
+    /* Negotiate dynamic capacity before the host can offer a larger viewport. */
+    r=zenith_call(645,4,0,0);return r<0?r:0;
+}
+/* Framebuffer ABI 1: grow one private invocation-owned NX buffer. Negative on
+ * resource refusal; no old pixels or viewport are changed by refusal. */
+static inline long zenith_gui_buffer(unsigned long bytes){return zenith_call(645,bytes,0,0);}
+static inline long zenith_gui_resize_refuse(long handle){return zenith_call(646,(unsigned long)handle,0,0);}
 /* Opt in to pointer motion (event 11; x=y=-1 on leave). Older kernels return -38. */
 #define Z_GUI_MOVE 11
 /* Terminal sessions (kernel 0.0.41): a kernel-owned shell with the caller's credentials. Needs a live surface. */

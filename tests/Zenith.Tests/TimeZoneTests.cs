@@ -3,8 +3,38 @@ using Zenith.Core.Time;
 
 namespace Zenith.Tests;
 
+[CollectionDefinition("Clock state", DisableParallelization = true)]
+public sealed class ClockStateCollection { }
+
+[Collection("Clock state")]
 public class TimeZoneTests
 {
+    [Fact]
+    public void HostUtcCorrectionIsIndependentOfSelectedDisplayZone()
+    {
+        var previousSource = SystemClock.UtcSource;
+        long previousCorrection = Zenith.Core.Network.Transport.ClockCorrection.Ticks;
+        DateTime raw = new(2026, 11, 7, 22, 11, 20, DateTimeKind.Utc);
+        DateTime host = new(2026, 11, 7, 20, 11, 20, DateTimeKind.Utc);
+        try
+        {
+            SystemClock.UtcSource = () => new DateTime(Zenith.Core.Network.Transport.ClockCorrection.Adjust(raw.Ticks), DateTimeKind.Utc);
+            Assert.True(SystemClock.TrySetZone("UTC"));
+            SystemClock.Synchronize(host);
+            Assert.Equal(host, SystemClock.UtcNow);
+            Assert.True(SystemClock.TrySetZone("Europe/Berlin"));
+            Assert.Equal(host, SystemClock.UtcNow);
+            Assert.Equal(host.AddHours(1).Ticks, SystemClock.Now.Ticks);
+            SystemClock.Synchronize(host.AddSeconds(30));
+            Assert.Equal(host.AddSeconds(30), SystemClock.UtcNow);
+        }
+        finally
+        {
+            Zenith.Core.Network.Transport.ClockCorrection.Synchronize(raw.Ticks + previousCorrection,
+                Zenith.Core.Network.Transport.ClockCorrection.Adjust(raw.Ticks));
+            SystemClock.UtcSource = previousSource; SystemClock.TrySetZone("UTC");
+        }
+    }
     private static DateTime Utc(int y, int mo, int d, int h, int mi = 0) => new(y, mo, d, h, mi, 0, DateTimeKind.Utc);
 
     private static TimeZoneInfoLite Zone(string name)

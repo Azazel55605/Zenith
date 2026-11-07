@@ -324,7 +324,7 @@ internal static class NetworkService
         byte[] nonce = Random(8); DateTime time = default; var timer = Stopwatch.StartNew();
         Exchange(NtpWire.Request(nonce), ResolveCore(host, cancel), port, cancel, reply =>
         { try { time = NtpWire.Parse(reply, nonce); return true; } catch (Exception e) { if (e is not IOException) { throw; } return false; } });
-        cancel(); SystemClock.Synchronize(time); s_time = "synchronized via " + host + " (unauthenticated; RTT=" + timer.ElapsedMilliseconds + "ms)";
+        cancel(); SystemClock.Synchronize(time); SystemClock.Source = "NTP " + host + " (unauthenticated)"; s_time = "synchronized via " + host + " (unauthenticated; RTT=" + timer.ElapsedMilliseconds + "ms)";
         Log.Write("network", s_time);
     }
     private static Socket ConnectCore(string host, int port, Action cancel)

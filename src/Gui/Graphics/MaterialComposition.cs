@@ -168,7 +168,7 @@ internal sealed class MaterialComposition
         { return _painted; }
         long pixels = 0;
         for (int i = 0; i < count; i++) { if (regions[i].Effect != 0) { pixels += (long)regions[i].Width * regions[i].Height; } }
-        if (pixels == 0 || pixels > MaterialResources.MaximumPaintedBytes / sizeof(int)) { return null; }
+        if (pixels == 0 || pixels > MaterialResources.PaintedBudgetBytes / sizeof(int)) { return null; }
         if (_painted is null || _painted.Length != pixels)
         {
             ReleasePainted();
@@ -195,6 +195,8 @@ internal sealed class MaterialComposition
     {
         Paint(target, width, height, content, regions, count, fallback, panel, navigation, popover, true);
         Rect clip = content.Intersect(new Rect(0, 0, width, height)).Intersect(Limit);
+        if (!clip.IsEmpty && CpuWorkers.TryCompose(frame, (clip.Y - content.Y) * content.W + clip.X - content.X,
+            content.W, target, clip.Y * width + clip.X, width, clip.W, clip.H)) { return; }
         for (int y = clip.Y; y < clip.Bottom; y++)
         {
             for (int x = clip.X; x < clip.Right; x++)

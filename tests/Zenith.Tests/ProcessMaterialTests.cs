@@ -128,7 +128,9 @@ public class ProcessMaterialTests
         Assert.False(ProcessMaterialRegion.Validate(regions,600,480));
         Assert.True(ProcessMaterialRegion.Validate(regions,600,480,true));
         Assert.False(ProcessMaterialRegion.Validate(new[]{regions[0] with {Role=2}},600,480,true));
-        Assert.False(ProcessMaterialRegion.Validate(new[]{new ProcessMaterialRegion(0,0,1920,1001,0,1,2)},1920,1001,true));
+        Assert.True(ProcessMaterialRegion.Validate(new[]{new ProcessMaterialRegion(0,0,1920,1040,0,1,2)},1920,1040,true));
+        Assert.True(ProcessMaterialRegion.Validate(new[]{new ProcessMaterialRegion(0,0,3840,2160,0,1,2)},3840,2160,true));
+        Assert.False(ProcessMaterialRegion.Validate(new[]{new ProcessMaterialRegion(0,0,16384,16384,0,1,2)},16384,16384,true));
         using var surface=new ProcessSurface(600,480,"background",2);var pixels=new byte[600*480*4];
         Assert.Equal(-22,surface.PresentMaterials(pixels,regions));Assert.Equal(0,surface.EnableResize());
         Assert.Equal(0,surface.PresentMaterials(pixels,regions));var copy=new int[600*480];

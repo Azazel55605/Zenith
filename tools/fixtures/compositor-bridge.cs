@@ -4,6 +4,8 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Zenith.Core.Multiprocessing;
 
+namespace Cosmos.Kernel.System.Diagnostics { internal static class MemoryInfo { internal static ulong FreePages = 1000000; } }
+
 namespace Zenith.Core.Shell
 {
     internal sealed class CommandContext { internal void WriteLine(string text) { } }
@@ -83,6 +85,44 @@ internal static class Program
                 other.Start(); Check(other.Join(2000), "busy producer blocked UI");
                 Check(busy == false, "concurrent producer admitted");
             }
+            const int cw = 1021, ch = 259, fs = cw + 11, bs = cw + 29, fo = 17, bo = 23;
+            int[] fg = new int[fo + fs * ch + 32], bg = new int[bo + bs * ch + 32];
+            Array.Fill(bg, 0x12345678);
+            for (int y = 0; y < ch; y++) for (int x = 0; x < cw; x++)
+            {
+                int a = (x * 17 + y * 31) % 256;
+                fg[fo + y * fs + x] = (a << 24) | ((x * 7 % (a + 1)) << 16) | ((y * 13 % (a + 1)) << 8) | ((x + y) % (a + 1));
+            }
+            int[] originalFg = (int[])fg.Clone(), composed = (int[])bg.Clone();
+            for (int y = 0; y < ch; y++) for (int x = 0; x < cw; x++)
+            {
+                int f = fg[fo + y * fs + x], at = bo + y * bs + x, a = (int)((uint)f >> 24), b = bg[at];
+                if (a == 255) { composed[at] = f; continue; }
+                if (a == 0) { continue; }
+                uint result = 0xff000000;
+                for (int shift = 0; shift < 24; shift += 8)
+                    result |= (uint)(((f >> shift) & 255) + (((b >> shift) & 255) * (255 - a) + 127) / 255) << shift;
+                composed[at] = (int)result;
+            }
+            for (int frame = 0; frame < 8; frame++)
+            {
+                int[] output = (int[])bg.Clone();
+                Check(CpuWorkers.TryCompose(fg, fo, fs, output, bo, bs, cw, ch), "composition refused");
+                Check(output.AsSpan().SequenceEqual(composed), "composition pixel/guard mismatch");
+                Check(fg.AsSpan().SequenceEqual(originalFg), "composition changed foreground");
+            }
+            CpuWorkers.ParallelBlur = false;
+            Check(!CpuWorkers.TryCompose(fg, fo, fs, bg, bo, bs, cw, ch), "composition ignores off");
+            CpuWorkers.ParallelBlur = true;
+            Check(!CpuWorkers.TryCompose(fg, int.MaxValue, fs, bg, bo, bs, cw, ch), "composition source escape");
+            bool? composeBusy = null;
+            lock (CpuWorkers.Gate)
+            {
+                var other = new Thread(() => composeBusy = CpuWorkers.TryCompose(fg, fo, fs, bg, bo, bs, cw, ch));
+                other.Start(); Check(other.Join(2000), "composition busy blocks UI");
+                Check(composeBusy == false, "composition concurrent producer admitted");
+            }
+            Console.WriteLine("PASS R3 production C# composition: eight exact clipped/strided frames, guards, immutable source and bounded fallback");
             Console.WriteLine("PASS C4 production C# bridge / native queues: 40 complete regions, exact pixels, guards, busy/off/shutdown/CPU/bounds fallback");
         }
         finally { s_stop = true; foreach (Thread thread in threads) thread.Join(); }
