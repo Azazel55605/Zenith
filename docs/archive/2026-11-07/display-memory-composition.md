@@ -85,6 +85,20 @@ eligible as the first title double-click. A quick second grab maximized Meridian
 while the fixture was testing close-during-drag; separating the gestures made that
 check pass. Actual pointer motion beyond four pixels now clears title-click
 history. The original unmodified regression is being rerun against this repair.
+
+The graphics gate then caught a real post-collection fault in runtime enum/reflection
+metadata. The pinned `FreeWeakHandles` recycled weak/dependent slots while their
+owners still retained the handle address, and treated immutable frozen keys as
+unmarked. The copied-runtime adapter now clears dead targets without recycling
+owned slots, recognizes frozen keys as live and handles null targets. Explicit
+owner release still frees a slot. The adapter preserves the existing cleanup
+scope; upstream finalization and `WeakTrackResurrection` remain separate runtime
+limitations. A regression executes the real adapted methods for null, marked,
+unmarked and frozen targets and repeated cleanup of weak/dependent slots; 33
+focused runtime/GC/replay checks pass. The graphics gate now forces a collection
+before Polaris launch. Subsequent qualification evidence uses disk-backed
+`/var/tmp` storage after completed disposable fixtures filled the host's `/tmp`.
+This storage interruption is distinct from the captured guest page fault.
 No distributor, installed VMware or successor-release acceptance is claimed yet.
 
 Protocol references: [VMware GETTIMEFULL](https://github.com/vmware/open-vm-tools/blob/master/open-vm-tools/services/plugins/timeSync/timeSync.c),

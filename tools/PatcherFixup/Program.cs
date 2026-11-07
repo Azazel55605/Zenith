@@ -176,7 +176,7 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
     Console.WriteLine("Quieted pinned per-allocation success trace; allocator/error paths retained");
     Console.WriteLine("Quieted pinned monitor wait/wake success traces; synchronization retained");
 }
-if (assembly.Name.Name == "Cosmos.Kernel.Core") { changed |= RuntimeHeapFixup.Apply(module); changed |= RuntimeMetadataFixup.Apply(module); changed |= RuntimeSerialOwnershipFixup.Apply(module); changed |= PinnedCpuFixup.Seal(module); }
+if (assembly.Name.Name == "Cosmos.Kernel.Core") { changed |= RuntimeHeapFixup.Apply(module); changed |= RuntimeMetadataFixup.Apply(module); changed |= WeakHandleFixup.Apply(module); changed |= RuntimeSerialOwnershipFixup.Apply(module); changed |= PinnedCpuFixup.Seal(module); }
 if (assembly.Name.Name == "Cosmos.Kernel.Core.X64")
 {
     changed |= FpContextFixup.X64(module);

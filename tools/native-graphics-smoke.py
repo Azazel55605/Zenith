@@ -66,6 +66,7 @@ def main():
         ('settings set translucency 100','G_TRANSLUCENT'),
         ('native run gui-probe --buffer-probe | logger','G_BUFFER'),
         ('fps | logger','G_RENDER_STATS'),
+        ('free --collect | logger','G_COLLECT'),
     ]
     quota='native run gui-probe > /tmp/g2 & native run gui-probe > /tmp/g3 & native run gui-probe > /tmp/g4 & native run gui-probe > /tmp/g5 & sleep 5; native run gui-probe --probe; echo G_LIMIT=$? | logger; kill %2; kill %3; kill %4; kill %5; wait; echo G_DRAIN=$? | logger'
     texts=[text+'; echo '+label+'=$? | logger' for text,label in gui_texts]
@@ -173,6 +174,9 @@ def main():
         print('PASS a terminal client does not block package work',flush=True)
         # The real app: opened as the Terminal, typed into, and able to power off with itself open.
         status('pkg install /root/polaris.zpk','G_POLARIS_PKG');time.sleep(.5)
+        # Exercise runtime weak/dependent caches after a real collection before
+        # new native windows and reflection-backed motion diagnostics run.
+        status('free --collect | logger','G_COLLECT')
         off=len(m.log());monitor_command(monitor,'sendkey ctrl-alt-t 30')
         assert m.wait('native surface opened 640x480',off,30),'Polaris did not open as the Terminal'
         time.sleep(1.5);status('echo POLARIS_ALIVE | logger','G_POLARIS')
