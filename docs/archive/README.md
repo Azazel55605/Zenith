@@ -123,3 +123,5 @@ and relative-link rebasing are the only archival edits in this reorganization.
   contention and frozen-artifact qualification.
 
 - [0.0.48 shared Settings opening handoff](2026-11-08/settings-opening-handoff.md).
+
+- [0.0.48 process raw-fault input](2026-11-08/process-raw-fault-input.md).

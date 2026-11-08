@@ -50,6 +50,18 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 
 ## Current focus and execution order
 
+**2026-11-08 — Q3/U1: distributor 0.0.48 raw-fault command delivery.**
+The native-process gate observes `N_GUI_EARLY_RAW_FAULT=2`, not expected 139,
+after successful raw input and a pressure collection. The intended Sunbeam
+fault option cannot return 2; that code is consistent with argument/parse damage,
+but the exact typed command was not retained. A controller candidate observes the
+public prompt and each character of the two public GUI fault commands before
+Enter, retaining their screen image. It never resends input; credentials, local
+console, stream payloads and immediate EOF timing stay unchanged. All 562
+controller tests and the unchanged focused GUI/local terminal gate pass locally;
+distributor confirmation and full process-gate acceptance remain pending. [Evidence](archive/2026-11-08/process-raw-fault-input.md).
+
+
 **2026-11-08 — Q3/U1: distributor 0.0.48 shared Settings input.**
 The Keyboard shared-default check selects `gb` but leaves it unapplied. The
 before-navigation image contains Terminal only; the opening transition is later

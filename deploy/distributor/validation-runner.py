@@ -92,6 +92,8 @@ def run_harness(script):
             terminal.install(module, instances, input_profile,
                              protocol='settings' if script.name == 'native-settings-smoke.py' else 'gallery',
                              replay_endpoint=replay_endpoint if replay_contention else None)
+        if script.name == 'native-process-smoke.py' and Path(loader.path).name == 'login-session-smoke.py':
+            graphics_terminal.install_process(module, instances, input_profile)
         if Path(loader.path).name == 'validation-input.py':
             # Immutable tags keep their assertions and binaries. Input delivery is
             # controller policy, just like authentication and network diagnostics.

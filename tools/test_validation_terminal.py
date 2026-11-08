@@ -222,6 +222,55 @@ class TerminalTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError,'Invalid prepared'):login.monitor_type(path,'sh /root/u\n')
             original.assert_not_called()
 
+class ProcessFaultInputTests(unittest.TestCase):
+    def fixture(self, moving=True):
+        temporary=tempfile.TemporaryDirectory();self.addCleanup(temporary.cleanup)
+        path=Path(temporary.name)/'gui-monitor.sock'
+        machine=SimpleNamespace(directory=path.parent/'desktop',process=SimpleNamespace(poll=lambda:None))
+        position=[50]
+        def typed(path,text,*args,**kwargs):
+            if moving and text!='\n':position[0]+=2
+        original=Mock(side_effect=typed);login=SimpleNamespace(monitor_type=original)
+        observer=Mock(snapshot=path.parent/'observed.ppm')
+        observer.capture.side_effect=lambda *args: frame() if observer.capture.call_count%2 else frame((position[0],70,position[0]+1,87))
+        policy=SimpleNamespace(RenderedMouse=Mock(return_value=observer),monitor_text=Mock())
+        terminal.install_process(login,[machine],policy)
+        return path,machine,login,original,observer,policy
+
+    def test_every_character_is_rendered_and_enter_is_submitted_once(self):
+        path,machine,login,original,observer,policy=self.fixture()
+        text='sunbeam --tty-fault; echo N_GUI_EARLY_RAW_FAULT=$? | logger\n'
+        with patch.object(terminal.time,'sleep'):login.monitor_type(path,text)
+        self.assertEqual(list(text),[call.args[1] for call in original.call_args_list])
+        self.assertEqual(1,sum(call.args[1]=='\n' for call in original.call_args_list))
+        self.assertIn(path.with_name('process-fault-command-N_GUI_EARLY.ppm'),[call.args[0] for call in observer.capture.call_args_list])
+        policy.monitor_text.assert_not_called()
+
+    def test_unacknowledged_character_stops_before_enter_without_replay(self):
+        import itertools
+        path,machine,login,original,observer,policy=self.fixture(moving=False)
+        with patch.object(terminal.time,'sleep'),patch.object(terminal.time,'monotonic',side_effect=itertools.count(0,16)):
+            with self.assertRaisesRegex(RuntimeError,'input not repeated'):
+                login.monitor_type(path,'sunbeam --tty-fault; echo N_GUI_RAW_FAULT=$? | logger\n')
+        original.assert_called_once_with(path,'s')
+        report=json.loads(path.with_name('process-fault-input.json').read_text())
+        self.assertEqual(0,report['acknowledged_characters']);self.assertFalse(report['input_repeated'])
+
+    def test_nonpublic_prompt_never_receives_a_key(self):
+        import itertools
+        path,machine,login,original,observer,policy=self.fixture()
+        observer.capture.side_effect=lambda *args: frame(public=False)
+        with patch.object(terminal.time,'sleep'),patch.object(terminal.time,'monotonic',side_effect=itertools.count(0,16)):
+            with self.assertRaisesRegex(RuntimeError,'public-prompt'):
+                login.monitor_type(path,'sunbeam --tty-fault; echo N_GUI_RAW_FAULT=$? | logger\n')
+        original.assert_not_called()
+
+    def test_credentials_local_console_and_stream_input_are_unchanged(self):
+        path,machine,login,original,observer,policy=self.fixture()
+        for text in ('root\tsynthetic-secret\n','N_GUI_EARLY_INPUT\n','sunbeam --tty-fault; echo N_LOCAL_RAW_FAULT=$? | logger\n'):
+            login.monitor_type(path,text)
+        self.assertEqual(3,original.call_count);observer.capture.assert_not_called()
+
 class SettingsOpeningTests(unittest.TestCase):
     def fixture(self):
         temporary=tempfile.TemporaryDirectory();self.addCleanup(temporary.cleanup)

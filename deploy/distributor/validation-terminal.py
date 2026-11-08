@@ -181,3 +181,57 @@ def install_settings_monitor(module, machines, policy):
     command._zenith_settings_opening = True
     command._zenith_rendered_mouse = getattr(original,'_zenith_rendered_mouse',False)
     module.monitor_command = command
+
+
+def install_process(login, machines, policy):
+    """Acknowledge each public GUI fault-command character without resending input.
+
+    Status 2 means the intended fault did not run. Retain the visible command and
+    pace these two commands by the real caret, including across collection pauses.
+    Credentials, stream payloads and the zero-delay EOF test are untouched.
+    """
+    original = login.monitor_type
+    if getattr(original,'_zenith_process_fault_input',False) is True: return
+    pattern = re.compile(r'sunbeam --tty-fault; echo (N_GUI(?:_EARLY)?)_RAW_FAULT=\$\? \| logger\n')
+    def monitor_type(path, text, *args, **kwargs):
+        match = pattern.fullmatch(text)
+        if match is None: return original(path,text,*args,**kwargs)
+        matches = [m for m in machines if m.directory.parent/'gui-monitor.sock' == Path(path)
+                   and (not hasattr(m,'process') or m.process.poll() is None)]
+        if len(matches) != 1: raise RuntimeError('Process fault input VM unavailable')
+        observer = policy.RenderedMouse(path,policy.monitor_text)
+        phase = 'public-prompt'; acknowledged = 0
+        def caret(prior=None):
+            previous = observer.capture(observer.snapshot); deadline = time.monotonic()+15
+            while True:
+                time.sleep(.05); current = observer.capture(observer.snapshot)
+                box = caret_box(previous,current)
+                if box is not None:
+                    if prior is None and public_prompt(current,box): return box
+                    if prior is not None and box[3]-box[1] == prior[3]-prior[1]:
+                        forward = box[1] == prior[1] and 0 < box[0]-prior[0] <= prior[3]-prior[1]
+                        wrapped = 0 < box[1]-prior[1] <= 2*(prior[3]-prior[1]) and box[0] < prior[0]
+                        if forward or wrapped: return box
+                previous = current
+                if time.monotonic() >= deadline: raise RuntimeError('Process fault input '+phase+' was not rendered; input not repeated')
+        try:
+            position = caret()
+            phase = 'character'
+            for char in text[:-1]:
+                original(path,char,*args,**kwargs)  # Exactly one key; never correct/replay it.
+                position = caret(position); acknowledged += 1
+            observer.capture(Path(path).with_name('process-fault-command-'+match[1]+'.ppm'))
+            print('PASS rendered each public fault-command character before Enter: '+match[1],flush=True)
+            phase = 'submit'
+            return original(path,'\n',*args,**kwargs)
+        except BaseException:
+            report = dict(phase=phase,acknowledged_characters=acknowledged,
+                          input_repeated=False,observation_only=True)
+            try:
+                Path(path).with_name('process-fault-input.json').write_text(json.dumps(report,indent=2)+'\n')
+                observer.capture(Path(path).with_name('process-fault-input-failure.ppm'))
+            except (OSError,RuntimeError,ValueError): pass
+            raise
+    monitor_type._zenith_process_fault_input = True
+    login.monitor_type = monitor_type
+    print('Validation process input policy: public-fault-caret-v1',flush=True)
