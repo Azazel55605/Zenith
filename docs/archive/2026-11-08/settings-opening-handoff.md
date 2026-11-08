@@ -39,3 +39,36 @@ failed before GUI admission; that is not qualification or a distributor defect.
 The distributor's exact binary and timing still require the focused Settings
 replay. Original server evidence and release tags remain unchanged. The controller
 repair does not claim to resolve every open keyboard-loss path.
+
+
+## Prepared replay endpoint lifecycle
+
+The operator's prepared replay at `/var/tmp/zn-settings-di5n68e0/replay` fails
+before the shared-page check: `network/file contention did not overlap native UI
+rendering`. The setup fixture contains `/root/io` with its original temporary
+HTTP server port. The immutable harness regenerates `served/io` with a new port,
+but its prepared path skips setup downloads and launches the stale installed
+script. Its new handler therefore does not observe the contention request. The
+previous fresh-install qualification did not exercise this prepared lifecycle.
+
+For prepared Settings fixtures with contention coverage only, the controller
+captures the current loopback fixture server. After observing a public Terminal
+prompt it uses normal guest `fetch --replace` to refresh `/root/io` on the
+already-copied disposable disk, requires `S_REPLAY_IO_REFRESH=0`, observes the new
+prompt and starts the original `/root/u` once. The endpoint is restricted to the
+fixture's `10.0.2.2` gateway and valid port. No password, account, trust, package,
+result marker or original disk is modified. A failed refresh aborts without
+repeating it. Fresh installs and other fixture scripts keep their original path;
+the server capture is scoped and restored after the harness exits.
+
+Regressions cover refresh-before-launch ordering, the second public prompt,
+failed-refresh refusal, invalid endpoints, other-script isolation and restoration
+of the HTTP server constructor. All 558 controller tests pass, including the
+documentation checks. The actual prepared replay passes under TCG in
+115.708 seconds, including the original overlap assertion, all four shared-page
+Apply/CLI checks, upgrade, permissions, reboot persistence and ext2 audit. Evidence:
+`/var/tmp/zenith-settings-048-prepared-replace/replay`; log:
+`/tmp/settings-048-prepared-replace.log`. The original setup disk SHA256 remains
+`67eed75c1570ff1963e9c62f7a928a18f48d5e1fb3442001db921a089037eb3f`
+after the run. This closes the local prepared-path gap; distributor confirmation
+still requires replay with the server's exact binary and timing.

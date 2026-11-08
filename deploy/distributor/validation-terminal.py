@@ -59,13 +59,14 @@ def public_prompt(ppm, box):
             min(blue) > max(green) and min(blue) >= width-4*height)
 
 
-def install(login, machines, policy, *, protocol='settings'):
+def install(login, machines, policy, *, protocol='settings', replay_endpoint=None):
     if protocol not in ('settings','gallery'): raise ValueError('unknown Terminal handoff protocol')
     scripts = r'sh /root/[a-z]\n' if protocol == 'settings' else r'sh /root/ui[0-9]{3,30}-[up]\n'
     commands = ('passwd root\n','echo S_SECRET_CANCELLED | logger\n') if protocol == 'settings' else ()
     context = 'Settings' if protocol == 'settings' else 'UI gallery'
     original = login.monitor_type
     acknowledged = {}
+    refreshed = set()
     def monitor_type(path, text, *args, **kwargs):
         public = re.fullmatch(scripts, text) or text in commands
         if public:
@@ -107,6 +108,21 @@ def install(login, machines, policy, *, protocol='settings'):
                 raise RuntimeError('Native window changed during Terminal handoff')
             acknowledged[id(machine)] = offset
             print('PASS rendered public Terminal prompt before fixture command', flush=True)
+            if replay_endpoint is not None and protocol == 'settings' and text == 'sh /root/u\n' and id(machine) not in refreshed:
+                endpoint = replay_endpoint()
+                if not re.fullmatch(r'http://10\.0\.2\.2:[1-9][0-9]{0,4}',endpoint) or int(endpoint.rsplit(':',1)[1]) > 65535:
+                    raise RuntimeError('Invalid prepared Settings fixture endpoint')
+                # /root/io on the saved disk points at the previous run's temporary
+                # server. Refresh it through the guest's normal fetch service, on
+                # the disposable clone, before starting the unchanged UI workload.
+                refreshed.add(id(machine)); start = len(machine.log())
+                original(path,'fetch --replace '+endpoint+'/io /root/io; echo S_REPLAY_IO_REFRESH=$? | logger\n',*args,**kwargs)
+                if not machine.wait('user: S_REPLAY_IO_REFRESH=0',start,timeout=60):
+                    raise RuntimeError('Prepared Settings contention script refresh failed; not repeated')
+                print('PASS prepared Settings contention endpoint refreshed through guest',flush=True)
+                # Observe the new public prompt before submitting the original
+                # launch once. No key, download, save or UI operation is retried.
+                return monitor_type(path,text,*args,**kwargs)
         return original(path, text, *args, **kwargs)
     login.monitor_type = monitor_type
 

@@ -59,6 +59,13 @@ save marker and CLI-parity assertion remains unchanged. The full local Settings
 gate passes, including all four shared-page saves, reboot and ext2 audit; the
 distributor replay remains pending. This does not establish a settings-service failure.
 [Investigation](archive/2026-11-08/settings-opening-handoff.md).
+The subsequent prepared replay stopped earlier at contention: its saved `/root/io`
+used the previous HTTP server's temporary port. A replay-only controller repair
+refreshes that public fixture script through the guest before the original launch;
+the real overlap and filesystem assertions remain mandatory. The full prepared
+replay now passes locally in 115.708s, including the original contention and
+shared-page checks; distributor confirmation remains pending.
+
 
 
 

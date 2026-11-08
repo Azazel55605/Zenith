@@ -225,6 +225,20 @@ assert first('unused.sock','sendkey a 30')=='original:sendkey a 30'
         self.assertEqual(0,result.exception.code)
         self.assertEqual(['--prepared',str(newest)],run.call_args.args[0][-2:])
         self.assertEqual(build,run.call_args.kwargs['cwd']);self.assertEqual(b'original',newest.read_bytes())
+    def test_settings_server_capture_is_prepared_only_and_restored(self):
+        class Server:
+            def __init__(self,address,handler):self.server_port=54321
+        harness=self.root/'native-settings-smoke.py';harness.write_text('# S_CONTENTION\n')
+        for prepared in (False,True):
+            def execute(*args,**kwargs):
+                selected=runner.http.server.ThreadingHTTPServer
+                self.assertEqual(prepared,selected is not Server)
+                self.assertEqual(54321,selected(('127.0.0.1',0),None).server_port)
+            with patch.object(sys,'argv',[str(harness),str(self.destination),*(['--prepared','disk.img'] if prepared else [])]),patch.object(runner.http.server,'ThreadingHTTPServer',Server),patch.object(runner.runpy,'run_path',side_effect=execute):
+                runner.run_harness(harness)
+                self.assertIs(Server,runner.http.server.ThreadingHTTPServer)
+        self.assertEqual('# S_CONTENTION\n',harness.read_text())
+
     def test_settings_replay_refuses_missing_fixture(self):
         replay=module('settings_replay_empty',ROOT/'tools/settings-replay.py')
         with patch.object(sys,'argv',['settings-replay','--build',str(self.root)]),patch.object(replay.subprocess,'run') as run:

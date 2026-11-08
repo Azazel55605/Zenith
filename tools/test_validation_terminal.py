@@ -52,14 +52,14 @@ class TerminalTests(unittest.TestCase):
         for other in (plain,frame((50,70,54,87)),frame((50,70,51,75)),frame((50,70,51,110))):
             self.assertFalse(terminal.caret_changed(plain,other))
         self.assertFalse(terminal.caret_changed(caret,caret))
-    def setup_hook(self, log='graphics: native surface opened 600x480\nuser: S_UI=0', retired=True, protocol='settings'):
+    def setup_hook(self, log='graphics: native surface opened 600x480\nuser: S_UI=0', retired=True, protocol='settings', replay_endpoint=None):
         path=Path('/tmp/fixture/monitor.sock')
         machine=SimpleNamespace(directory=path.parent/'desktop',log=Mock(return_value=log),wait=Mock(return_value=retired))
         login=SimpleNamespace(monitor_type=Mock());original=login.monitor_type
         observer=Mock(snapshot=path.parent/'observation.ppm')
         observer.capture.side_effect=[frame(),frame(),frame((50,70,51,87))]
         policy=SimpleNamespace(RenderedMouse=Mock(return_value=observer),monitor_text=Mock())
-        terminal.install(login,[machine],policy,protocol=protocol)
+        terminal.install(login,[machine],policy,protocol=protocol,replay_endpoint=replay_endpoint)
         return path,machine,login,original,observer,policy
 
     def test_gallery_shutdown_observes_retirement_and_delayed_public_prompt_once(self):
@@ -193,6 +193,34 @@ class TerminalTests(unittest.TestCase):
         terminal.install(other,[*stopped,machine],policy)
         with patch.object(terminal.time,'sleep'):other.monitor_type(path,'sh /root/u\n')
         original.assert_called_once_with(path,'sh /root/u\n')
+
+    def test_prepared_contention_refresh_then_new_prompt_then_single_original_launch(self):
+        path,machine,login,original,observer,policy=self.setup_hook(replay_endpoint=lambda:'http://10.0.2.2:54321')
+        observer.capture.side_effect=[frame(),frame((50,70,51,87)),frame(),frame((50,70,51,87))]
+        with patch.object(terminal.time,'sleep'):login.monitor_type(path,'sh /root/u\n')
+        self.assertEqual([('fetch --replace http://10.0.2.2:54321/io /root/io; echo S_REPLAY_IO_REFRESH=$? | logger\n',),('sh /root/u\n',)], [call.args[1:] for call in original.call_args_list])
+        self.assertEqual(4,observer.capture.call_count)
+        self.assertTrue(any(call.args[0]=='user: S_REPLAY_IO_REFRESH=0' for call in machine.wait.call_args_list))
+
+    def test_refresh_failure_does_not_start_ui_or_repeat_download(self):
+        path,machine,login,original,observer,policy=self.setup_hook(replay_endpoint=lambda:'http://10.0.2.2:54321')
+        machine.wait.side_effect=[True,False]
+        with patch.object(terminal.time,'sleep'):
+            with self.assertRaisesRegex(RuntimeError,'refresh failed; not repeated'):login.monitor_type(path,'sh /root/u\n')
+        original.assert_called_once();self.assertIn('fetch --replace http://10.0.2.2:54321/io',original.call_args.args[1])
+
+    def test_replay_does_not_refresh_other_scripts(self):
+        endpoint=Mock(side_effect=AssertionError('not the initial launch'))
+        path,machine,login,original,observer,policy=self.setup_hook(replay_endpoint=endpoint)
+        with patch.object(terminal.time,'sleep'):login.monitor_type(path,'sh /root/k\n')
+        endpoint.assert_not_called();original.assert_called_once_with(path,'sh /root/k\n')
+
+    def test_invalid_endpoint_never_types_a_download_or_launch(self):
+        for endpoint in ('http://evil.example:123','http://10.0.2.2:65536','http://10.0.2.2:0','http://10.0.2.2:123; bad'):
+            path,machine,login,original,observer,policy=self.setup_hook(replay_endpoint=lambda:endpoint)
+            with patch.object(terminal.time,'sleep'):
+                with self.assertRaisesRegex(RuntimeError,'Invalid prepared'):login.monitor_type(path,'sh /root/u\n')
+            original.assert_not_called()
 
 class SettingsOpeningTests(unittest.TestCase):
     def fixture(self):

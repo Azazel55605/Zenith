@@ -5,6 +5,7 @@ import runpy
 import importlib.machinery
 import importlib.util
 import hashlib
+import http.server
 import os
 import shutil
 import subprocess
@@ -52,6 +53,18 @@ def run_harness(script):
     spec = importlib.util.spec_from_file_location('validation_login', Path(__file__).with_name('validation-login.py'))
     login_input = importlib.util.module_from_spec(spec); spec.loader.exec_module(login_input)
     login_handoff = script.name == 'login-session-smoke.py' and 'motion: SessionFade frames=' in script.read_text()
+    original_server = http.server.ThreadingHTTPServer
+    replay_servers = []
+    replay_contention = script.name == 'native-settings-smoke.py' and '--prepared' in sys.argv and 'S_CONTENTION' in script.read_text()
+    if replay_contention:
+        class ReplayServer(original_server):
+            def __init__(self, address, *args, **kwargs):
+                super().__init__(address, *args, **kwargs)
+                if address == ('127.0.0.1', 0): replay_servers.append(self)
+        http.server.ThreadingHTTPServer = ReplayServer
+    def replay_endpoint():
+        if len(replay_servers) != 1: raise RuntimeError('Prepared Settings fixture server unavailable or ambiguous')
+        return 'http://10.0.2.2:'+str(replay_servers[0].server_port)
     original_run = subprocess.run
     prebuilt = os.environ.get('ZENITH_NATIVE_PREBUILT_SHA256')
     root = os.environ.get('ZENITH_NATIVE_PREBUILT_ROOT')
@@ -77,7 +90,8 @@ def run_harness(script):
             spec = importlib.util.spec_from_file_location('validation_terminal', Path(__file__).with_name('validation-terminal.py'))
             terminal = importlib.util.module_from_spec(spec); spec.loader.exec_module(terminal)
             terminal.install(module, instances, input_profile,
-                             protocol='settings' if script.name == 'native-settings-smoke.py' else 'gallery')
+                             protocol='settings' if script.name == 'native-settings-smoke.py' else 'gallery',
+                             replay_endpoint=replay_endpoint if replay_contention else None)
         if Path(loader.path).name == 'validation-input.py':
             # Immutable tags keep their assertions and binaries. Input delivery is
             # controller policy, just like authentication and network diagnostics.
@@ -118,6 +132,7 @@ def run_harness(script):
     finally:
         importlib.machinery.SourceFileLoader.exec_module = original_exec
         subprocess.run = original_run
+        http.server.ThreadingHTTPServer = original_server
         # A failed boot can raise before its harness assigns the machine to the
         # outer cleanup variable. Reap that VM before retaining/removing evidence.
         for machine in instances:
