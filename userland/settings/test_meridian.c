@@ -120,9 +120,9 @@ int main(int argc,char **argv){
     /* System defaults: combo choice, apply, stale revision, reset. */
     meridian_system_services(&app,read_preferences,save_preferences);
     assert(meridian_open(&app,"input.keyboard"));meridian_refresh(&app);draw();
-    click_id(2004);assert(app.combo.open);draw();key(0,8,0);key(0,2,0);
+    key(0,4,1);assert(app.ui.focus==find_id(2004));key(0,2,0);assert(app.combo.open);key(0,8,0);key(0,2,0);
     assert(!app.combo.open&&binding_changed(&app.bindings,BIND_KEYBOARD)&&dirty);
-    click_id(900+ZUI_FOOTER_APPLY);assert(preferences.keyboard==1&&!binding_changed(&app.bindings,BIND_KEYBOARD)&&!dirty);
+    key(0,4,0);assert(app.ui.focus==find_id(900+ZUI_FOOTER_APPLY));key(0,2,0);assert(preferences.keyboard==1&&!binding_changed(&app.bindings,BIND_KEYBOARD)&&!dirty);
     click_id(2004);draw();key(0,7,0);key(0,2,0);assert(binding_changed(&app.bindings,BIND_KEYBOARD));
     preferences.revision++;meridian_refresh(&app);click_id(900+ZUI_FOOTER_APPLY);
     assert(binding_changed(&app.bindings,BIND_KEYBOARD)&&app.bindings.message&&preferences.keyboard==1);

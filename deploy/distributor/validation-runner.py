@@ -89,6 +89,8 @@ def run_harness(script):
         if script.name == 'native-graphics-smoke.py' and Path(loader.path).name == 'recovery_console.py':
             input_profile.install_monitor(module)
             graphics.install_monitor(module, instances, input_profile, graphics_terminal)
+        if script.name == 'native-settings-smoke.py' and Path(loader.path).name == 'recovery_console.py':
+            graphics_terminal.install_settings_monitor(module, instances, input_profile)
         if login_handoff and Path(loader.path).name == 'recovery_console.py':
             login_input.install_monitor(module, instances, input_profile, graphics_terminal)
         if Path(loader.path).resolve() == headless.resolve():
@@ -103,6 +105,8 @@ def run_harness(script):
     if script.name == 'native-graphics-smoke.py' and 'recovery_console' in sys.modules:
         input_profile.install_monitor(sys.modules['recovery_console'])
         graphics.install_monitor(sys.modules['recovery_console'], instances, input_profile, graphics_terminal)
+    if script.name == 'native-settings-smoke.py' and 'recovery_console' in sys.modules:
+        graphics_terminal.install_settings_monitor(sys.modules['recovery_console'], instances, input_profile)
     if login_handoff and 'recovery_console' in sys.modules:
         login_input.install_monitor(sys.modules['recovery_console'], instances, input_profile, graphics_terminal)
     started = time.monotonic()

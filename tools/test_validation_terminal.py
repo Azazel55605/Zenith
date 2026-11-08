@@ -194,4 +194,53 @@ class TerminalTests(unittest.TestCase):
         with patch.object(terminal.time,'sleep'):other.monitor_type(path,'sh /root/u\n')
         original.assert_called_once_with(path,'sh /root/u\n')
 
+class SettingsOpeningTests(unittest.TestCase):
+    def fixture(self):
+        temporary=tempfile.TemporaryDirectory();self.addCleanup(temporary.cleanup)
+        path=Path(temporary.name)/'monitor.sock'
+        machine=SimpleNamespace(directory=path.parent/'desktop',serial=path.parent/'serial.log',
+            log=Mock(return_value='user: MERIDIAN_MOTION percent=100\ngraphics: native surface opened 640x480\nuser: MERIDIAN_PAGE input.keyboard\nuser: MERIDIAN_FOCUSED\n'),wait=Mock(return_value=True))
+        observer=Mock(snapshot=path.parent/'observed.ppm');observer.capture.return_value=frame()
+        policy=SimpleNamespace(RenderedMouse=Mock(return_value=observer),monitor_text=Mock())
+        original=Mock();module=SimpleNamespace(monitor_command=original)
+        terminal.install_settings_monitor(module,[machine],policy)
+        return path,machine,module,original,observer
+
+    def test_opening_and_rendering_precede_single_navigation(self):
+        path,machine,module,original,observer=self.fixture();order=[]
+        machine.wait.side_effect=lambda *args,**kwargs: (order.append('opening') or True)
+        observer.capture.side_effect=lambda *args: (order.append('frame') or frame())
+        original.side_effect=lambda *args: order.append('key')
+        with patch.object(terminal.time,'sleep'):module.monitor_command(path,'sendkey shift-tab 30')
+        self.assertEqual(['opening','frame','frame','key'],order);original.assert_called_once()
+
+    def test_missing_opening_does_not_send_key(self):
+        path,machine,module,original,observer=self.fixture();machine.wait.return_value=False
+        with self.assertRaisesRegex(RuntimeError,'opening did not complete'):module.monitor_command(path,'sendkey shift-tab 30')
+        original.assert_not_called();self.assertFalse(json.loads(path.with_name('settings-opening.json').read_text())['key_attempted'])
+
+    def test_changed_page_does_not_send_key(self):
+        path,machine,module,original,observer=self.fixture()
+        observer.capture.side_effect=lambda *args: (setattr(machine.log,'return_value',machine.log.return_value+'user: MERIDIAN_PAGE locale.time\n') or frame())
+        with patch.object(terminal.time,'sleep'):
+            with self.assertRaisesRegex(RuntimeError,'window changed'):module.monitor_command(path,'sendkey shift-tab 30')
+        original.assert_not_called()
+
+    def test_legacy_and_disabled_animations_keep_original_transport(self):
+        for log in ('graphics: native surface opened 640x480\n','user: MERIDIAN_MOTION percent=0\n'):
+            path,machine,module,original,observer=self.fixture();machine.log.return_value=log
+            module.monitor_command(path,'sendkey shift-tab 30')
+            original.assert_called_once();machine.wait.assert_not_called();observer.capture.assert_not_called()
+
+    def test_other_pages_keep_original_keyboard_transport(self):
+        path,machine,module,original,observer=self.fixture()
+        machine.log.return_value=machine.log.return_value.replace('input.keyboard','style.colors')
+        module.monitor_command(path,'sendkey shift-tab 30')
+        original.assert_called_once();machine.wait.assert_not_called();observer.capture.assert_not_called()
+
+    def test_other_keys_are_unchanged(self):
+        path,machine,module,original,observer=self.fixture()
+        for key in ('ret','tab','down','ctrl-q'):module.monitor_command(path,'sendkey '+key+' 30')
+        self.assertEqual(4,original.call_count);machine.wait.assert_not_called();observer.capture.assert_not_called()
+
 if __name__=='__main__':unittest.main()

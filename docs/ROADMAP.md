@@ -50,6 +50,17 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 
 ## Current focus and execution order
 
+**2026-11-08 — Q3/U1: distributor 0.0.48 shared Settings input.**
+The Keyboard shared-default check selects `gb` but leaves it unapplied. The
+before-navigation image contains Terminal only; the opening transition is later
+interrupted by input. The controller candidate fences the first shared-page
+navigation key on completed opening and a stable rendered frame. Every key,
+save marker and CLI-parity assertion remains unchanged. The full local Settings
+gate passes, including all four shared-page saves, reboot and ext2 audit; the
+distributor replay remains pending. This does not establish a settings-service failure.
+[Investigation](archive/2026-11-08/settings-opening-handoff.md).
+
+
 
 **2026-11-08 — Q3/W1: distributor 0.0.48 login Terminal handoff.**
 The server times out at `LOGIN_META_REMOVE`; its retained image is an authenticated

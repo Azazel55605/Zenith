@@ -121,3 +121,5 @@ and relative-link rebasing are the only archival edits in this reorganization.
 - [2026-11-03 protected process migration](2026-11-03/protected-process-migration.md):
   C4 execution/service ownership, per-CPU bridges, affinity queues, broad installed
   contention and frozen-artifact qualification.
+
+- [0.0.48 shared Settings opening handoff](2026-11-08/settings-opening-handoff.md).

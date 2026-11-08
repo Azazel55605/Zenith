@@ -109,3 +109,59 @@ def install(login, machines, policy, *, protocol='settings'):
             print('PASS rendered public Terminal prompt before fixture command', flush=True)
         return original(path, text, *args, **kwargs)
     login.monitor_type = monitor_type
+
+
+def install_settings_monitor(module, machines, policy):
+    """Do not navigate a shared-settings page while its host is still opening it.
+
+    The immutable fixture's first Shift+Tab follows MERIDIAN_FOCUSED, which is
+    admission rather than presentation. Keep every key and result assertion; fence
+    only that first navigation key on the completed opening and a stable frame.
+    """
+    original = module.monitor_command
+    if getattr(original, '_zenith_settings_opening', False) is True: return
+    pages = ('input.keyboard', 'locale.time', 'windows.taskbar', 'system.session')
+    def command(path, text):
+        if text != 'sendkey shift-tab 30': return original(path, text)
+        matches = [m for m in machines if m.directory.parent/'monitor.sock' == Path(path)
+                   and (not hasattr(m,'process') or m.process.poll() is None)]
+        if len(matches) != 1: raise RuntimeError('Settings opening VM unavailable')
+        machine = matches[0]; raw = machine.log()
+        # Older fixtures do not expose the animation contract. Their input path
+        # remains unchanged; this fence is for the observed animated handoff.
+        motion = re.findall(r'user: MERIDIAN_MOTION percent=(\d+)',raw)
+        if not motion or int(motion[-1]) == 0: return original(path,text)
+        opened = raw.rfind('graphics: native surface opened ')
+        page = raw.rfind('user: MERIDIAN_PAGE ')
+        if opened < 0 or page < 0: raise RuntimeError('Shared Settings page admission missing')
+        current = raw[page:].splitlines()[0].removeprefix('user: MERIDIAN_PAGE ')
+        if current not in pages: return original(path,text)
+        phase = 'opening'; observer = None; attempted = False
+        try:
+            if not machine.wait('motion: Opened ',opened,timeout=30):
+                raise RuntimeError('Shared Settings opening did not complete')
+            phase = 'rendered-frame'
+            observer = policy.RenderedMouse(path,policy.monitor_text)
+            previous = observer.capture(observer.snapshot); deadline = time.monotonic()+15
+            while True:
+                time.sleep(.1); frame = observer.capture(observer.snapshot)
+                if frame == previous: break
+                previous = frame
+                if time.monotonic() >= deadline: raise RuntimeError('Shared Settings frame did not settle')
+            after = machine.log()
+            if after.rfind('graphics: native surface opened ') != opened or after.rfind('user: MERIDIAN_PAGE ') != page or 'native surface retired' in after[opened:]:
+                raise RuntimeError('Shared Settings window changed before navigation')
+            print('PASS shared Settings opening completed before keyboard navigation',flush=True)
+            phase = 'navigation'; attempted = True
+            return original(path,text)  # Once only. Never repeat a key or apply.
+        except BaseException:
+            report = dict(phase=phase,page=current,observation_only=True,key_attempted=attempted)
+            try:
+                Path(path).with_name('settings-opening.json').write_text(json.dumps(report,indent=2)+'\n')
+                if observer: observer.capture(Path(path).with_name('settings-opening-failure.ppm'))
+            except (OSError,RuntimeError,ValueError): pass
+            raise
+    print('Validation shared Settings input policy: opening-frame-v1',flush=True)
+    command._zenith_settings_opening = True
+    command._zenith_rendered_mouse = getattr(original,'_zenith_rendered_mouse',False)
+    module.monitor_command = command
