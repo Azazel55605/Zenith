@@ -70,5 +70,10 @@ Apply/CLI checks, upgrade, permissions, reboot persistence and ext2 audit. Evide
 `/var/tmp/zenith-settings-048-prepared-replace/replay`; log:
 `/tmp/settings-048-prepared-replace.log`. The original setup disk SHA256 remains
 `67eed75c1570ff1963e9c62f7a928a18f48d5e1fb3442001db921a089037eb3f`
-after the run. This closes the local prepared-path gap; distributor confirmation
-still requires replay with the server's exact binary and timing.
+after the run.
+
+On 2026-11-08 the operator confirms the prepared replay passes on the distributor
+after repair `c66c54d`. This establishes the server-side Settings replay result,
+including the previously blocked shared-page and contention checks. Full release
+retry/publication and installed-VM acceptance are separate; this report does not
+establish those outcomes.
