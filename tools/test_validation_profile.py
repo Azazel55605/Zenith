@@ -37,6 +37,23 @@ class ProfileTests(unittest.TestCase):
         row=json.loads((m.directory/'wait-times.jsonl').read_text())
         self.assertEqual(('K_INSTALL','failed'),(row['label'],row['outcome']))
 
+    def test_process_raw_ready_timeout_captures_correct_monitor_and_still_fails(self):
+        failed=self.machine(False,harness='native-process-smoke.py')
+        failed.directory=failed.directory/'desktop';failed.directory.mkdir()
+        with patch.object(profile.diagnostics,'capture',return_value=failed.directory.parent/'pipeline-stall.json') as capture:
+            self.assertFalse(failed.wait('TTY_RAW_READY'))
+        self.assertEqual('PROCESS_INPUT',capture.call_args.args[1])
+        self.assertEqual(failed.directory.parent,capture.call_args.args[0].directory)
+        self.assertEqual(failed.directory.parent/'gui-monitor.sock',capture.call_args.kwargs['monitor'])
+
+    def test_process_authentication_timeout_never_captures_public_input_screen(self):
+        failed=self.machine(False,harness='native-process-smoke.py')
+        failed.directory=failed.directory/'desktop';failed.directory.mkdir()
+        with patch.object(profile.diagnostics,'capture') as capture:
+            self.assertFalse(failed.wait('user: N_GUI_PASSWORD=0'))
+            self.assertFalse(failed.wait('New password: '))
+        capture.assert_not_called()
+
     def test_settings_command_timeout_captures_without_replaying_input(self):
         failed=self.machine(False,harness='native-settings-smoke.py')
         with patch.object(profile.diagnostics,'capture',return_value=failed.directory/'pipeline-stall.json') as capture:

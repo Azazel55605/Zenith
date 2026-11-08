@@ -50,18 +50,17 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 
 ## Current focus and execution order
 
-**2026-11-08 — Q3/U1: distributor 0.0.48 raw-fault command delivery.**
-The native-process gate observes `N_GUI_EARLY_RAW_FAULT=2`, not expected 139,
-after successful raw input and a pressure collection. The intended Sunbeam
-fault option cannot return 2; that code is consistent with argument/parse damage,
-but the exact typed command was not retained. A controller candidate observes the
-public prompt and each character of the two public GUI fault commands before
-Enter, retaining their screen image. It never resends input; credentials, local
-console, stream payloads and immediate EOF timing stay unchanged. All 562
-controller tests and the unchanged focused GUI/local terminal gate pass locally;
-the operator confirms the focused gate also passes on the distributor
-(2026-11-08). Full process-gate retry and installed acceptance remain separate.
-[Evidence](archive/2026-11-08/process-raw-fault-input.md).
+**2026-11-08 — Q3/U1: distributor 0.0.48 public process-command delivery.**
+The fault-only guard passes the focused distributor gate, but the next full run
+stops earlier waiting for `TTY_RAW_READY` after cancellation and a collection.
+There is no retained launch screen or raw-reader status proving why. The current
+candidate acknowledges all six exact public GUI commands for both test labels,
+retaining each before Enter. Payloads, literal controls, credentials, local-console
+transport and zero-delay EOF timing remain unchanged. It parks the pointer once
+without clicking to avoid obscuring carets, and adds read-only final-screen/CPU
+capture for public raw-input timeouts. All 570 controller tests and the focused
+GUI/local gate pass locally. The full native-process gate also passes locally
+in 794.425s, including all 64 stream checks; distributor full retry remains pending. [Evidence](archive/2026-11-08/process-raw-fault-input.md).
 
 
 **2026-11-08 — Q3/U1: distributor 0.0.48 shared Settings input.**

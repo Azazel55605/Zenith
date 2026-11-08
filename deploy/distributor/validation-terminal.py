@@ -183,55 +183,127 @@ def install_settings_monitor(module, machines, policy):
     module.monitor_command = command
 
 
-def install_process(login, machines, policy):
-    """Acknowledge each public GUI fault-command character without resending input.
+def process_command(text):
+    """Exact public command lines; never classify payloads or credentials by prefix."""
+    for label in ('N_GUI','N_GUI_EARLY'):
+        commands = {
+            'logger '+label+'_READY; sunbeam cat | logger; echo '+label+'_EOF=$? | logger\n':'canonical',
+            'logger '+label+'_CANCEL_READY; sunbeam cat | sunbeam cat\n':'cancel',
+            'echo '+label+'_CANCEL=$? | logger\n':'cancel-status',
+            'sunbeam --tty-raw | logger; echo '+label+'_RAW=$? | logger\n':'raw',
+            'sunbeam --tty-fault; echo '+label+'_RAW_FAULT=$? | logger\n':'fault',
+            'sunbeam --tty-bounds; echo '+label+'_TTY_RESTORED=$? | logger\n':'bounds',
+        }
+        if text in commands: return label,commands[text]
+    return None
 
-    Status 2 means the intended fault did not run. Retain the visible command and
-    pace these two commands by the real caret, including across collection pauses.
-    Credentials, stream payloads and the zero-delay EOF test are untouched.
+
+def caret_progress(box, prior):
+    height = prior[3]-prior[1]
+    if box[3]-box[1] != height: return False
+    if box[1] == prior[1]:
+        # At the bottom of a scrolled Terminal a completed wrap keeps the row.
+        return 0 < box[0]-prior[0] <= height or prior[0]-box[0] > 2*height
+    return 0 < box[1]-prior[1] <= 2*height and box[0] < prior[0]
+
+
+def caret_ink(first, second, box):
+    """Calibrate the visible caret from its blink, independently of light/dark mode."""
+    from PIL import Image
+    import io
+    for data in (first,second):
+        img = Image.open(io.BytesIO(data)).convert('RGB')
+        colors = img.crop(box).getcolors(maxcolors=1)
+        if not colors or box[2]+1 >= img.width: continue
+        color = colors[0][1]; background = img.getpixel((box[2]+1,(box[1]+box[3])//2))
+        if sum(abs(a-b) for a,b in zip(color,background)) > 40: return color
+    return None
+
+
+def advanced_caret(data, prior, ink):
+    """Observe a unique moved solid two-pixel caret without waiting for another blink."""
+    from PIL import Image
+    import io
+    img = Image.open(io.BytesIO(data)).convert('RGB'); pixels = img.load()
+    height = prior[3]-prior[1]; candidates = []
+    for y in range(prior[1],min(img.height-height,prior[1]+2*height)+1):
+        for x in range(1,img.width-2):
+            box = (x,y,x+2,y+height)
+            if not caret_progress(box,prior): continue
+            if pixels[x,y] != ink or pixels[x+1,y] != ink: continue
+            if pixels[x-1,y] == ink or pixels[x+2,y] == ink: continue
+            if all(pixels[x,y+d] == ink and pixels[x+1,y+d] == ink for d in range(height)):
+                candidates.append(box)
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def install_process(login, machines, policy):
+    """Render-acknowledged entry of the public GUI terminal-test commands.
+
+    No input is repeated. Payloads, credentials, control bytes and the immediate
+    EOF timing remain on the original transport, as do local-console commands.
     """
     original = login.monitor_type
     if getattr(original,'_zenith_process_fault_input',False) is True: return
-    pattern = re.compile(r'sunbeam --tty-fault; echo (N_GUI(?:_EARLY)?)_RAW_FAULT=\$\? \| logger\n')
+    parked = set()
     def monitor_type(path, text, *args, **kwargs):
-        match = pattern.fullmatch(text)
-        if match is None: return original(path,text,*args,**kwargs)
+        selected = process_command(text)
+        if selected is None: return original(path,text,*args,**kwargs)
+        label,kind = selected
         matches = [m for m in machines if m.directory.parent/'gui-monitor.sock' == Path(path)
                    and (not hasattr(m,'process') or m.process.poll() is None)]
-        if len(matches) != 1: raise RuntimeError('Process fault input VM unavailable')
+        if len(matches) != 1: raise RuntimeError('Process public input VM unavailable')
         observer = policy.RenderedMouse(path,policy.monitor_text)
-        phase = 'public-prompt'; acknowledged = 0
+        phase = 'public-prompt'; acknowledged = 0; ink = None
         def caret(prior=None):
+            nonlocal ink
             previous = observer.capture(observer.snapshot); deadline = time.monotonic()+15
             while True:
+                if prior is not None and ink is not None:
+                    moved = advanced_caret(previous,prior,ink)
+                    if moved is not None: return moved
                 time.sleep(.05); current = observer.capture(observer.snapshot)
                 box = caret_box(previous,current)
                 if box is not None:
-                    if prior is None and public_prompt(current,box): return box
-                    if prior is not None and box[3]-box[1] == prior[3]-prior[1]:
-                        forward = box[1] == prior[1] and 0 < box[0]-prior[0] <= prior[3]-prior[1]
-                        wrapped = 0 < box[1]-prior[1] <= 2*(prior[3]-prior[1]) and box[0] < prior[0]
-                        if forward or wrapped: return box
+                    if prior is None and public_prompt(current,box):
+                        ink = caret_ink(previous,current,box)
+                        if ink is not None: return box
+                    if prior is not None and caret_progress(box,prior): return box
                 previous = current
-                if time.monotonic() >= deadline: raise RuntimeError('Process fault input '+phase+' was not rendered; input not repeated')
+                if time.monotonic() >= deadline: raise RuntimeError('Process public input '+phase+' was not rendered; input not repeated')
         try:
             position = caret()
+            if id(matches[0]) not in parked:
+                # Keyboard-only fixture: one planned move, no click or feedback
+                # correction. The arrow must not obscure a later command caret.
+                (_,y),_ = observer.position()
+                if y > 32:
+                    phase = 'pointer-parking'
+                    # Only the top band matters. Legacy PS/2 may coalesce a
+                    # large move; do not demand an irrelevant exact X coordinate.
+                    policy.monitor_text(path,'mouse_move 0 '+str(-y))
+                    deadline = time.monotonic()+10
+                    while observer.position()[0][1] > 32:
+                        if time.monotonic() >= deadline: raise RuntimeError('Pointer still obscures keyboard-test area; movement not repeated')
+                        time.sleep(.05)
+                    position = caret()
+                parked.add(id(matches[0]))
             phase = 'character'
             for char in text[:-1]:
-                original(path,char,*args,**kwargs)  # Exactly one key; never correct/replay it.
+                original(path,char,*args,**kwargs)  # One key, never corrected or replayed.
                 position = caret(position); acknowledged += 1
-            observer.capture(Path(path).with_name('process-fault-command-'+match[1]+'.ppm'))
-            print('PASS rendered each public fault-command character before Enter: '+match[1],flush=True)
+            observer.capture(Path(path).with_name('process-command-'+label+'-'+kind+'.ppm'))
+            print('PASS rendered public process command before Enter: '+label+' '+kind,flush=True)
             phase = 'submit'
             return original(path,'\n',*args,**kwargs)
         except BaseException:
-            report = dict(phase=phase,acknowledged_characters=acknowledged,
+            report = dict(phase=phase,label=label,command=kind,acknowledged_characters=acknowledged,
                           input_repeated=False,observation_only=True)
             try:
-                Path(path).with_name('process-fault-input.json').write_text(json.dumps(report,indent=2)+'\n')
-                observer.capture(Path(path).with_name('process-fault-input-failure.ppm'))
+                Path(path).with_name('process-input.json').write_text(json.dumps(report,indent=2)+'\n')
+                observer.capture(Path(path).with_name('process-input-failure.ppm'))
             except (OSError,RuntimeError,ValueError): pass
             raise
     monitor_type._zenith_process_fault_input = True
     login.monitor_type = monitor_type
-    print('Validation process input policy: public-fault-caret-v1',flush=True)
+    print('Validation process input policy: public-command-caret-v2',flush=True)

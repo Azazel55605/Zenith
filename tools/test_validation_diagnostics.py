@@ -38,6 +38,13 @@ class DiagnosticTests(unittest.TestCase):
         self.output = output.getvalue()
         return json.loads(result.read_text()) if result else None
 
+    def test_process_input_uses_explicit_gui_monitor(self):
+        monitor=self.directory/'gui-monitor.sock'
+        with patch.object(diagnostics,'registers',return_value={'RIP':'1000','RSP':'2000','RFL':'246'}) as read,patch.object(diagnostics.time,'sleep'):
+            result=diagnostics.capture(self.machine,'PROCESS_INPUT',monitor=monitor)
+        self.assertTrue(json.loads(result.read_text())['observation_only'])
+        self.assertEqual([monitor]*3,[call.args[0] for call in read.call_args_list])
+
     def test_graphics_command_timeout_is_observed(self):
         with patch.object(diagnostics,'registers',return_value={'RIP':'1000','RSP':'2000','RFL':'246'}):
             self.assertEqual(self.capture('GRAPHICS_COMMAND')['label'],'GRAPHICS_COMMAND')

@@ -222,7 +222,7 @@ class TerminalTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError,'Invalid prepared'):login.monitor_type(path,'sh /root/u\n')
             original.assert_not_called()
 
-class ProcessFaultInputTests(unittest.TestCase):
+class ProcessPublicInputTests(unittest.TestCase):
     def fixture(self, moving=True):
         temporary=tempfile.TemporaryDirectory();self.addCleanup(temporary.cleanup)
         path=Path(temporary.name)/'gui-monitor.sock'
@@ -233,9 +233,64 @@ class ProcessFaultInputTests(unittest.TestCase):
         original=Mock(side_effect=typed);login=SimpleNamespace(monitor_type=original)
         observer=Mock(snapshot=path.parent/'observed.ppm')
         observer.capture.side_effect=lambda *args: frame() if observer.capture.call_count%2 else frame((position[0],70,position[0]+1,87))
+        observer.position.return_value=((0,0),(300,200))
         policy=SimpleNamespace(RenderedMouse=Mock(return_value=observer),monitor_text=Mock())
         terminal.install_process(login,[machine],policy)
         return path,machine,login,original,observer,policy
+
+    def test_pointer_is_parked_once_without_click_or_corrective_motion(self):
+        path,machine,login,original,observer,policy=self.fixture()
+        observer.position.side_effect=[((150,100),(300,200)),((150,0),(300,200))]
+        with patch.object(terminal.time,'sleep'):
+            login.monitor_type(path,'sunbeam --tty-raw | logger; echo N_GUI_RAW=$? | logger\n')
+        policy.monitor_text.assert_called_once_with(path,'mouse_move 0 -100')
+        observer.command.assert_not_called()
+
+    def test_all_public_stages_are_selected_exactly(self):
+        templates={
+            'logger {0}_READY; sunbeam cat | logger; echo {0}_EOF=$? | logger\n':'canonical',
+            'logger {0}_CANCEL_READY; sunbeam cat | sunbeam cat\n':'cancel',
+            'echo {0}_CANCEL=$? | logger\n':'cancel-status',
+            'sunbeam --tty-raw | logger; echo {0}_RAW=$? | logger\n':'raw',
+            'sunbeam --tty-fault; echo {0}_RAW_FAULT=$? | logger\n':'fault',
+            'sunbeam --tty-bounds; echo {0}_TTY_RESTORED=$? | logger\n':'bounds',
+        }
+        for label in ('N_GUI','N_GUI_EARLY'):
+            for text,kind in templates.items():
+                self.assertEqual((label,kind),terminal.process_command(text.format(label)))
+        for text in ('N_GUI_EARLY_INPUT\n','root\tpassword\n','echo arbitrary\n','sunbeam --tty-raw | logger; echo N_LOCAL_RAW=$? | logger\n'):
+            self.assertIsNone(terminal.process_command(text))
+
+    def test_visible_caret_acknowledges_without_a_blink_per_character(self):
+        path,machine,login,original,observer,policy=self.fixture();position=[50]
+        def typed(path,text):
+            if text!='\n':position[0]+=2
+        original.side_effect=typed
+        observer.capture.side_effect=lambda *args: frame() if observer.capture.call_count==1 else frame((position[0],70,position[0]+1,87))
+        text='sunbeam --tty-raw | logger; echo N_GUI_EARLY_RAW=$? | logger\n'
+        with patch.object(terminal.time,'sleep'),patch.object(terminal,'caret_box',wraps=terminal.caret_box) as blink:
+            login.monitor_type(path,text)
+        self.assertEqual(1,blink.call_count)
+        self.assertEqual(list(text),[call.args[1] for call in original.call_args_list])
+
+    def test_static_caret_rejects_old_ambiguous_or_short_shapes(self):
+        prior=(50,70,52,88);ink=(90,180,130)
+        self.assertEqual((58,70,60,88),terminal.advanced_caret(frame((58,70,59,87)),prior,ink))
+        self.assertIsNone(terminal.advanced_caret(frame((50,70,51,87)),prior,ink))
+        self.assertIsNone(terminal.advanced_caret(frame((58,70,59,75)),prior,ink))
+        img=Image.open(io.BytesIO(frame((58,70,59,87))));ImageDraw.Draw(img).rectangle((62,70,63,87),fill=ink)
+        data=io.BytesIO();img.save(data,format='PPM')
+        self.assertIsNone(terminal.advanced_caret(data.getvalue(),prior,ink))
+        self.assertEqual((20,88,22,106),terminal.advanced_caret(frame((20,88,21,105)),prior,ink))
+        self.assertEqual((20,70,22,88),terminal.advanced_caret(frame((20,70,21,87)),(200,70,202,88),ink))
+
+    def test_caret_ink_calibration_handles_light_and_dark(self):
+        for background in ((40,40,40),(245,245,245)):
+            first=Image.new('RGB',(100,100),background);second=first.copy()
+            ImageDraw.Draw(second).rectangle((50,50,51,67),fill=(70,110,210))
+            a=io.BytesIO();b=io.BytesIO();first.save(a,format='PPM');second.save(b,format='PPM')
+            self.assertEqual((70,110,210),terminal.caret_ink(a.getvalue(),b.getvalue(),(50,50,52,68)))
+            self.assertIsNone(terminal.caret_ink(a.getvalue(),a.getvalue(),(50,50,52,68)))
 
     def test_every_character_is_rendered_and_enter_is_submitted_once(self):
         path,machine,login,original,observer,policy=self.fixture()
@@ -243,7 +298,7 @@ class ProcessFaultInputTests(unittest.TestCase):
         with patch.object(terminal.time,'sleep'):login.monitor_type(path,text)
         self.assertEqual(list(text),[call.args[1] for call in original.call_args_list])
         self.assertEqual(1,sum(call.args[1]=='\n' for call in original.call_args_list))
-        self.assertIn(path.with_name('process-fault-command-N_GUI_EARLY.ppm'),[call.args[0] for call in observer.capture.call_args_list])
+        self.assertIn(path.with_name('process-command-N_GUI_EARLY-fault.ppm'),[call.args[0] for call in observer.capture.call_args_list])
         policy.monitor_text.assert_not_called()
 
     def test_unacknowledged_character_stops_before_enter_without_replay(self):
@@ -253,7 +308,7 @@ class ProcessFaultInputTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'input not repeated'):
                 login.monitor_type(path,'sunbeam --tty-fault; echo N_GUI_RAW_FAULT=$? | logger\n')
         original.assert_called_once_with(path,'s')
-        report=json.loads(path.with_name('process-fault-input.json').read_text())
+        report=json.loads(path.with_name('process-input.json').read_text())
         self.assertEqual(0,report['acknowledged_characters']);self.assertFalse(report['input_repeated'])
 
     def test_nonpublic_prompt_never_receives_a_key(self):

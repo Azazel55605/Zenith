@@ -90,10 +90,20 @@ def install(machine_type, elf=None, harness=None):
             if outcome == 'failed' and isinstance(failure, dict):
                 row['failure'] = failure
             after = resources(machine)
+            process_input = harness == 'native-process-smoke.py' and machine.directory.name == 'desktop' and (
+                marker == 'TTY_RAW_READY' or re.fullmatch(r'user: N_GUI(?:_EARLY)?_(?:READY|CANCEL_READY|INPUT|EOF=0|CANCEL=130|RAW=0|RAW_FAULT=139|TTY_RESTORED=0)',marker))
             graphical_handoff = harness in ('native-display-smoke.py','native-settings-smoke.py','native-materials-smoke.py','ui-gallery-smoke.py','native-graphics-smoke.py','login-session-smoke.py')
-            if outcome == 'failed' and (diagnostics.PIPELINE.fullmatch(row['label']) or graphical_handoff):
+            if outcome == 'failed' and (diagnostics.PIPELINE.fullmatch(row['label']) or graphical_handoff or process_input):
                 try:
-                    if graphical_handoff:
+                    if process_input:
+                        from types import SimpleNamespace
+                        keep = machine.directory.parent; monitor = keep/'gui-monitor.sock'
+                        snapshot = diagnostics.capture(SimpleNamespace(directory=keep),'PROCESS_INPUT',elf,monitor=monitor)
+                        spec=importlib.util.spec_from_file_location('process_wait_input',Path(__file__).with_name('validation-input.py'))
+                        input_policy=importlib.util.module_from_spec(spec);spec.loader.exec_module(input_policy)
+                        try:input_policy.RenderedMouse(monitor,input_policy.monitor_text).capture(keep/'process-wait-failure.ppm')
+                        except (OSError,RuntimeError,ValueError):pass
+                    elif graphical_handoff:
                         from types import SimpleNamespace
                         keep=machine.directory.parent
                         snapshot=diagnostics.capture(SimpleNamespace(directory=keep),

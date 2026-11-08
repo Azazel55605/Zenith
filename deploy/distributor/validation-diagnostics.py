@@ -19,7 +19,7 @@ import subprocess
 import struct
 import time
 
-PIPELINE = re.compile(r'(?:N_STREAM_(?:BYTES_[0-9]+|FP_BYTES)|MERIDIAN_INPUT|GALLERY_INPUT|GRAPHICS_COMMAND)')
+PIPELINE = re.compile(r'(?:N_STREAM_(?:BYTES_[0-9]+|FP_BYTES)|MERIDIAN_INPUT|GALLERY_INPUT|GRAPHICS_COMMAND|PROCESS_INPUT)')
 scheduler_spec = importlib.util.spec_from_file_location('validation_scheduler', Path(__file__).with_name('validation-scheduler.py'))
 scheduler = importlib.util.module_from_spec(scheduler_spec); scheduler_spec.loader.exec_module(scheduler)
 
@@ -138,11 +138,11 @@ def halt_caller(monitor, sample, elf, rows):
     return dict(return_rip=format(returned,'016x'),symbol=rows[index][1],symbol_offset=returned-rows[index][0])
 
 
-def capture(machine, label, elf=None):
+def capture(machine, label, elf=None, monitor=None):
     if not PIPELINE.fullmatch(label): return None
     directory = Path(machine.directory)
     report = dict(label=label, samples=[], observation_only=True)
-    monitor = directory / 'monitor.sock'
+    monitor = Path(monitor) if monitor is not None else directory / 'monitor.sock'
     for _ in range(3):
         try: report['samples'].append(registers(monitor))
         except (OSError, ValueError):
