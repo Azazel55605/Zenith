@@ -59,7 +59,9 @@ public prompt and each character of the two public GUI fault commands before
 Enter, retaining their screen image. It never resends input; credentials, local
 console, stream payloads and immediate EOF timing stay unchanged. All 562
 controller tests and the unchanged focused GUI/local terminal gate pass locally;
-distributor confirmation and full process-gate acceptance remain pending. [Evidence](archive/2026-11-08/process-raw-fault-input.md).
+the operator confirms the focused gate also passes on the distributor
+(2026-11-08). Full process-gate retry and installed acceptance remain separate.
+[Evidence](archive/2026-11-08/process-raw-fault-input.md).
 
 
 **2026-11-08 — Q3/U1: distributor 0.0.48 shared Settings input.**

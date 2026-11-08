@@ -53,5 +53,10 @@ This focused gate includes graphical/local canonical, raw, fault, bounds and
 hidden-input checks; it does not replace full native-process release acceptance.
 The original server corruption was not reproduced or recovered as an exact typed
 line. The change hardens delivery and preserves evidence for any remaining failure;
-it does not establish the root cause of every keyboard-loss path. Distributor
-confirmation remains pending. Original fixtures and tags are preserved.
+it does not establish the root cause of every keyboard-loss path. Original
+fixtures and tags are preserved.
+
+On 2026-11-08 the operator confirms the focused `--terminal-only` gate passes on
+the distributor after controller repair `547f972`. This establishes server-side
+focused GUI/local terminal acceptance; it does not establish a passing full
+native-process gate, complete release publication or installed-VM acceptance.
