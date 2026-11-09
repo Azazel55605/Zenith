@@ -157,7 +157,8 @@ internal static partial class CpuWorkers
             {
                 ulong x = (ulong)i;
                 c.WriteLine("cpu=" + i + " apic-mode=" + Field(x, 18) + " state=" + Field(x, 0) + " parks=" + Field(x, 8) + " wakes=" + Field(x, 9)
-                    + " completed=" + Field(x, 10) + " fault=" + Field(x, 11) + " irq-stack-errors=" + Field(x, 16) + " ipi-errors=" + Field(x, 17));
+                    + " completed=" + Field(x, 10) + " fault=" + Field(x, 11) + " irq-stack-errors=" + Field(x, 16) + " ipi-errors=" + Field(x, 17)
+                    + (Field(x, 0) >= 4 ? " fault-rip=0x" + Field(x, 30).ToString("x") + " fault-code=0x" + Field(x, 31).ToString("x") + " fault-cr2=0x" + Field(x, 32).ToString("x") + " fault-stack-ok=" + Field(x, 15) : ""));
             }
             return 0;
         }

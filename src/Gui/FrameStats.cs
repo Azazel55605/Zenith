@@ -32,12 +32,22 @@ internal static class FrameStats
     // Where compose time goes, accumulated between TakePhases calls. Sample, blur and range split the
     // backdrop's material captures: averaging the scene, filtering, and the luminance range.
     public static long BackdropTicks, ChromeTicks, ContentTicks, ShellTicks, SampleTicks, BlurTicks, RangeTicks;
+    // Scene composes split by pass (lower windows, top window), for `fps phases`.
+    public static long LowerTicks, TopTicks, ComposeCount, FullComposes;
     public static string TakePhases(int frames)
     {
         long per = Math.Max(1, frames) * Math.Max(1, Stopwatch.Frequency / 1_000_000);
         string text = "backdrop=" + BackdropTicks / per + " chrome=" + ChromeTicks / per + " content=" + ContentTicks / per + " shell=" + ShellTicks / per
             + " sample=" + SampleTicks / per + " blur=" + BlurTicks / per + " range=" + RangeTicks / per;
         BackdropTicks = ChromeTicks = ContentTicks = ShellTicks = SampleTicks = BlurTicks = RangeTicks = 0;
+        return text;
+    }
+    /// <summary>Per compose since the last call: lower pass, top pass and the phases above (microseconds).</summary>
+    public static string TakeComposePhases()
+    {
+        long n = Math.Max(1, ComposeCount), per = n * Math.Max(1, Stopwatch.Frequency / 1_000_000);
+        string text = "composes=" + ComposeCount + " full=" + FullComposes + " lower=" + LowerTicks / per + " top=" + TopTicks / per + " " + TakePhases((int)n);
+        LowerTicks = TopTicks = ComposeCount = FullComposes = 0;
         return text;
     }
 

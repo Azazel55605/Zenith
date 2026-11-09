@@ -37,6 +37,12 @@ struct svga_target {
 
 static u64 svga_presents, svga_refused, svga_waits;
 
+/* One row to the framebuffer with the CPU's string copy (fast-string microcode: whole lines, no
+ * SSE in this object). The fence before NEXT_CMD orders it before the update command. */
+static void svga_row(volatile u32 *out, const u32 *in, u64 n) {
+    __asm__ volatile("rep movsl" : "+D"(out), "+S"(in), "+c"(n) : : "memory");
+}
+
 /* Bytes the producer may still write without NEXT_CMD reaching STOP. */
 static u64 svga_fifo_free(u32 min, u32 max, u32 next, u32 stop) {
     return next >= stop ? (u64)(max - next) + (stop - min) - 4 : (u64)(stop - next) - 4;
@@ -66,7 +72,7 @@ static u64 svga_core(const struct svga_target *t, const u32 *src, u64 stride, u6
         const u32 *line = src + row * stride;
         for (u64 d = 0; d < scale; d++) {
             volatile u32 *out = (volatile u32 *)((volatile u8 *)t->fb + ((y + row) * scale + d) * t->pitch) + x * scale;
-            if (scale == 1) { for (u64 i = 0; i < w; i++) out[i] = line[i]; continue; }
+            if (scale == 1) { svga_row(out, line, w); continue; }
             for (u64 i = 0; i < w; i++) {
                 u32 v = line[i];
                 for (u64 k = 0; k < scale; k++) *out++ = v;

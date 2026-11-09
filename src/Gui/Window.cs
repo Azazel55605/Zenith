@@ -57,6 +57,13 @@ internal abstract class Window
     internal long BackdropGeneration { get; set; } = -1;
     /// <summary>Set when Update reported new content while the window was below the top one.</summary>
     internal bool ContentChanged { get; set; }
+    /// <summary>What the last Update that reported new content changed, relative to the content area;
+    /// null when unknown (the whole window). Set by windows that know, such as native clients.</summary>
+    internal Rect? UpdateDamage { get; set; }
+    /// <summary>Screen area new content changed since the window was last drawn.</summary>
+    internal Rect ContentDamage { get; set; }
+    /// <summary>The last backdrop capture may have changed finished pixels anywhere in the window.</summary>
+    internal virtual bool MaterialWhollyChanged => ChromeMaterial.WholeChanged || _contentMaterial.WholeChanged;
     /// <summary>Counts Update calls that reported new content: the compositor redraws a window whose count moved.</summary>
     internal int ContentVersion { get; set; }
     /// <summary>Set by the window manager for one draw when that lower scene has not changed.</summary>

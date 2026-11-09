@@ -17,6 +17,8 @@ internal static class SessionDisplay
         get { s_screen ??= DisplayController.Initialize(); DisplayController.LoadPreferences(); return s_screen; }
     }
     public static void ReplaceScreen(Canvas screen) { DropFrame(); s_screen=screen; }
+    /// <summary>The device's own pixels, under any integer scale: boot and power screens draw here.</summary>
+    public static Canvas Physical => Screen is DisplayCanvas scaled ? scaled.Physical : Screen;
     public static int Scale { get; set; } = 1;
     public static void ConfigurePointer()
     {
@@ -35,6 +37,21 @@ internal static class SessionDisplay
         if (Zenith.Core.Configuration.SystemConfiguration.Settings.AnimationPercent == 0) { return; }
         if (MemoryInfo.FreePages < (ulong)(pixels.Length * sizeof(int) * 2 / 4096) + ReservePages) { return; }
         s_fade = (int[])pixels.Clone();
+    }
+
+    /// <summary>A frame drawn at the physical size: kept at the logical size, which sessions fade in.</summary>
+    public static void KeepFrame(int[] pixels, int width, int height)
+    {
+        int scale = Scale, logicalWidth = Screen.Width, logicalHeight = Screen.Height;
+        if (width == logicalWidth && height == logicalHeight) { KeepFrame(pixels); return; }
+        DropFrame();
+        if (width != logicalWidth * scale || height != logicalHeight * scale) { return; }
+        if (Zenith.Core.Configuration.SystemConfiguration.Settings.AnimationPercent == 0) { return; }
+        if (MemoryInfo.FreePages < (ulong)(logicalWidth * logicalHeight * sizeof(int) * 2 / 4096) + ReservePages) { return; }
+        var kept = new int[logicalWidth * logicalHeight];
+        for (int y = 0; y < logicalHeight; y++)
+        for (int x = 0; x < logicalWidth; x++) { kept[y * logicalWidth + x] = pixels[(y * scale + scale / 2) * width + x * scale + scale / 2]; }
+        s_fade = kept;
     }
 
     public static void DropFrame()
@@ -140,6 +157,14 @@ internal static class SessionDisplay
             if (slow >= 2) { end = "OverBudget"; break; }
         }
         FramePresenter.PresentFrame(screen, target.Pixels, screen.Width, screen.Height);
+        // The held frame at the device's own resolution, so its text is sharp under a scale.
+        Canvas physical = Physical;
+        if (physical != screen && MemoryInfo.FreePages >= (ulong)(physical.Width * physical.Height * sizeof(int) / 4096) + ReservePages)
+        {
+            var sharp = new Zenith.Gui.Graphics.Surface(physical.Width, physical.Height);
+            BootScreen.Paint(sharp, label, -1, Scale);
+            FramePresenter.PresentFrame(physical, sharp.Pixels, physical.Width, physical.Height);
+        }
         Zenith.Core.Log.Write("motion", "Farewell frames=" + frames + " elapsed=" + elapsed + " worst=" + worst + " ended=" + end);
     }
 

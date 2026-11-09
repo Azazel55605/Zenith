@@ -101,6 +101,8 @@ internal sealed class Desktop
                 c.WriteLine(CpuWorkers.BlurStatus); return 0;
             }
             if (c.Args.Length == 1 && c.Args[0] == "reset") { FrameStats.ResetWindow(); return 0; }
+            if (c.Args.Length == 1 && c.Args[0] == "verify") { _verifyRequested = true; return 0; }
+            if (c.Args.Length == 1 && c.Args[0] == "phases") { c.WriteLine("phases: " + FrameStats.TakeComposePhases()); return 0; }
             // The desktop tick owns the windows, so the test runs there and reports to the log.
             if (c.Args.Length == 1 && c.Args[0] == "motion") { _motionTestRequested = true; return 0; }
             if (c.Args.Length == 1 && c.Args[0] == "cpu")
@@ -203,8 +205,13 @@ internal sealed class Desktop
     private const string RecoveryTerminal = "recovery-terminal";
     public bool TerminalBusy => _nativeClients.TerminalBusy;
 
+    // While an animation plays: desktop ticks and the longest gap between two, for the motion log.
+    private long _lastTickAt, _motionTicks, _motionGap;
     public void Tick()
     {
+        long tickAt = FrameStats.Now;
+        if (_motionName is not null) { _motionTicks++; _motionGap = Math.Max(_motionGap, tickAt - _lastTickAt); }
+        _lastTickAt = tickAt;
         if (SessionDisplay.FadePending)
         {
             _input.Poll();
@@ -281,6 +288,7 @@ internal sealed class Desktop
             catch (System.Exception error) { Zenith.Core.Log.Write("cpu", "frame preview refused: " + error.Message); }
         }
         if (_benchRequested) { _benchRequested = false; RunBench(); _sceneDirty = true; }
+        if (_verifyRequested) { _verifyRequested = false; VerifyScene(); _sceneDirty = true; }
         if (_parallelBenchRequested) { _parallelBenchRequested = false; RunParallelBench(_parallelBenchFullscreen); _sceneDirty = true; }
         if (_motionTestRequested) { _motionTestRequested = false; StartMotionTest(); }
         StartTransition();
@@ -288,7 +296,10 @@ internal sealed class Desktop
         // Pace frames instead of sleeping between them: the kernel loop does not halt while a
         // frame is due, and a frame is never drawn sooner than the frame interval after the last.
         bool due = FrameStats.Now - _lastPresent >= FrameInterval;
-        if ((_motion.Active || _motionName is not null || _sceneDirty) && !due) { _framePending = true; return; }
+        // Only motion the person is watching (an animation, a drag) keeps the loop awake until the frame
+        // is due; other changes (a client's new frame) wait halted for the next interrupt, at most a tick.
+        bool watched = _motion.Active || _motionName is not null || Windows.IsDragging;
+        if ((watched || _sceneDirty) && !due) { _framePending = watched; return; }
         if (_motion.Active || _motionName is not null)
         {
             _composeAll = true;   // motion frames bypass the scene; the frame after them composes everything
@@ -314,7 +325,7 @@ internal sealed class Desktop
             DrawCursor();
             Present(damage);
             FrameStats.RecordSceneFrame(frameStart);
-            _framePending = true;   // drags and animations usually draw again next tick
+            _framePending = Windows.IsDragging;   // a drag usually draws again next tick
         }
         else if (_cursorDirty)
         {
@@ -379,13 +390,15 @@ internal sealed class Desktop
     private bool DrawMotionFrame()
     {
         long start = FrameStats.Now;
+        // Only the layers' old and new places and both pointer positions change between motion frames.
+        _motion.Restore(_frame.Pixels, _frame.Width, _frame.Height, Cursor.Bounds(_cursorX, _cursorY));
         if (!_motion.Render(_frame.Pixels, _frame.Width, _frame.Height, Micros(start)))
         {
             ReportMotion();
             return false;
         }
         DrawCursor();
-        Present();
+        Present(_motion.Damage.Union(Cursor.Bounds(_cursorX, _cursorY)).Intersect(_frame.Bounds));
         _motion.RecordFrame(Micros(FrameStats.Now) - Micros(start));
         return true;
     }
@@ -393,8 +406,9 @@ internal sealed class Desktop
     private void ReportMotion()
     {
         if (_motionName is null) { return; }
-        Zenith.Core.Log.Write("motion", _motionName + " frames=" + _motion.Frames + " elapsed=" + _motion.ElapsedMicros + " worst=" + _motion.WorstFrameMicros + " ended=" + _motion.LastEnd);
-        _motionName = null;
+        Zenith.Core.Log.Write("motion", _motionName + " frames=" + _motion.Frames + " elapsed=" + _motion.ElapsedMicros + " worst=" + _motion.WorstFrameMicros + " ended=" + _motion.LastEnd
+            + " ticks=" + _motionTicks + " longest-gap=" + _motionGap * 1_000_000 / System.Diagnostics.Stopwatch.Frequency);
+        _motionName = null; _motionTicks = 0; _motionGap = 0;
     }
 
     private bool MotionMemory()
@@ -524,6 +538,27 @@ internal sealed class Desktop
         _motionLayer.Capture(_scene.Pixels, _scene.Width, _scene.Height, area);
         _motion.Begin(_motionBase!, _motionLayer, Shrunk(area), area, 0, 255, Micros(FrameStats.Now), MotionTestMicros);
         _motionName = "test";
+    }
+
+    private bool _verifyRequested;
+    /// <summary>The scene as shown against one composed from nothing (every window captures and
+    /// blurs its backdrop again): stale damage or a capture that saw its own window differ.</summary>
+    private void VerifyScene()
+    {
+        ComposeScene();
+        _motionBase ??= new int[_frame.Pixels.Length];
+        System.Array.Copy(_scene.Pixels, _motionBase, _motionBase.Length);
+        _sceneKey++; _lowerValid = false; _composeAll = true;
+        ComposeScene();
+        int n = 0, x0 = int.MaxValue, y0 = int.MaxValue, x1 = -1, y1 = -1, w = _scene.Width;
+        for (int i = 0; i < _motionBase.Length; i++)
+        {
+            if (_motionBase[i] == _scene.Pixels[i]) { continue; }
+            n++; int x = i % w, y = i / w;
+            x0 = Math.Min(x0, x); y0 = Math.Min(y0, y); x1 = Math.Max(x1, x); y1 = Math.Max(y1, y);
+        }
+        Zenith.Core.Log.Write("compose", "verify differs=" + n + (n > 0 ? " at " + x0 + "," + y0 + " .. " + x1 + "," + y1 : "")
+            + " windows=" + string.Join("|", System.Linq.Enumerable.Select(Windows.Windows, v => v.Title + "@" + v.Bounds.X + "," + v.Bounds.Y + "," + v.Bounds.W + "," + v.Bounds.H)));
     }
 
     /// <summary>Times the three kinds of scene change, compares the cached result with a
@@ -724,6 +759,8 @@ internal sealed class Desktop
         {
             // Everything: the scene below the top window (when it changed), the top window, the shell.
             _lowerRedrawn = !appearance || !_lowerValid || !Windows.LowerUnchanged(_input.X, _input.Y);
+            FrameStats.FullComposes++;
+            long lowerStart = FrameStats.Now;
             if (_lowerRedrawn)
             {
                 _scene.CopyFrom(_wallpaper);
@@ -738,7 +775,9 @@ internal sealed class Desktop
                 _scene.CopyFrom(_lower);
                 MaterialResources.Policy.Restore(_lowerSpent);
             }
+            long topStart = FrameStats.Now; FrameStats.LowerTicks += topStart - lowerStart;
             if (!withoutTop) { Windows.DrawTop(_scene, _lower, _input.X, _input.Y, _sceneKey); }
+            FrameStats.TopTicks += FrameStats.Now - topStart;
             _composeDamage = _scene.Bounds;
         }
         else
@@ -746,6 +785,7 @@ internal sealed class Desktop
             // Only what changed: lower windows that changed, the top window if it did, the bar if it
             // did or the damage reaches it. The scene keeps last frame's pixels everywhere else.
             Rect damage = new(0, 0, 0, 0);
+            long lowerStart = FrameStats.Now;
             if (!Windows.LowerUnchanged(_input.X, _input.Y))
             {
                 // An empty damage still records the new lower state (input reached a lower window).
@@ -754,21 +794,39 @@ internal sealed class Desktop
             }
             MaterialResources.Policy.Restore(_lowerSpent);
             _lowerRedrawn = false;
+            // The top window's blur changes around what changed under it; new content only where it differs.
+            damage = Windows.GrowForTop(damage, damage);
             if (topKey != _lastTopKey) { damage = damage.Union(topArea).Union(_lastTopRect); }
+            else if (top is not null && top.ContentVersion != _lastTopVersion)
+            { damage = damage.Union(top.ContentDamage.IsEmpty ? topArea : top.ContentDamage); }
             if (barKey != _lastBarKey || _barChanged) { damage = damage.Union(barArea).Union(_lastBarRect); }
             Rect barHit = barArea.Intersect(damage);
             if (barHit.W > 0 && barHit.H > 0) { damage = damage.Union(barArea); }
             damage = damage.Intersect(_scene.Bounds);
             _composeDamage = damage;
+            long topStart = FrameStats.Now; FrameStats.LowerTicks += topStart - lowerStart;
             if (!damage.IsEmpty)
             {
                 _scene.BaseClip = damage; MaterialComposition.Limit = damage;
                 _scene.CopyRect(_lower, damage);
                 Windows.DrawTop(_scene, _lower, _input.X, _input.Y, _sceneKey);
+                // Its capture changed it everywhere (a new adapted opacity): draw all of it once more.
+                Rect whole = topArea.Intersect(_scene.Bounds);
+                if (Windows.TopWhollyChanged && !whole.IsEmpty && damage.Union(whole) is Rect grown
+                    && (grown.W != damage.W || grown.H != damage.H || grown.X != damage.X || grown.Y != damage.Y))
+                {
+                    damage = grown; _composeDamage = damage;
+                    _scene.BaseClip = damage; MaterialComposition.Limit = damage;
+                    _scene.CopyRect(_lower, damage);
+                    Windows.DrawTop(_scene, _lower, _input.X, _input.Y, _sceneKey);
+                }
             }
+            FrameStats.TopTicks += FrameStats.Now - topStart;
         }
+        _lastTopVersion = top?.ContentVersion ?? 0;
         _lastTop = top; _lastTopKey = topKey; _lastTopRect = topArea; _lastBarKey = barKey; _lastBarRect = barArea; _barChanged = false;
         _composeAll = withoutTop;
+        FrameStats.ComposeCount++;
         if (_composeDamage.IsEmpty) { FrameStats.RecordCompose(start); return; }
 
         long shell = FrameStats.Now;
@@ -836,6 +894,7 @@ internal sealed class Desktop
     private Rect _composeDamage, _lastTopRect, _lastBarRect;
     private Window? _lastTop;
     private long _lastTopKey, _lastBarKey;
+    private int _lastTopVersion;
     private bool _barChanged, _composeAll;
     /// <summary>Everything that changes how the top window looks: place, state, hover, content.</summary>
     private long TopKey(Window? top)
@@ -843,7 +902,7 @@ internal sealed class Desktop
         if (top is null) { return 0; }
         Rect b = top.Bounds;
         int hover = Windows.HoverButton(top, _input.X, _input.Y);
-        return HashCode.Combine(HashCode.Combine(b.X, b.Y, b.W, b.H), top.IsFocused, top.IsMaximized, top.IsFullscreen, top.Title, top.ContentVersion, hover);
+        return HashCode.Combine(HashCode.Combine(b.X, b.Y, b.W, b.H), top.IsFocused, top.IsMaximized, top.IsFullscreen, top.Title, hover);
     }
     /// <summary>Everything that changes how the bar looks besides its own updates: windows' titles,
     /// focus and minimized state (pills), its shape, and the pointer while over it.</summary>

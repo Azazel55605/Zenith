@@ -247,6 +247,8 @@ internal sealed class WindowManager
             {
                 changed = true;
                 w.ContentVersion++;
+                w.ContentDamage = w.ContentDamage.Union(w.UpdateDamage is Rect part && !part.IsEmpty
+                    ? part.Offset(w.Content.X, w.Content.Y).Intersect(w.Content) : AreaOf(w));
                 if (!w.IsMinimized && w != Top) { _lowerDirty = true; w.ContentChanged = true; }
             }
 
@@ -533,7 +535,7 @@ internal sealed class WindowManager
             DrawWindow(surface, surface, w, w == hovered ? mouseX : -1, mouseY);
             // A window that looks different changes the backdrop of every window above it.
             if (!same || w.ContentChanged || !w.BackdropUnchanged) { _changed.Add(w.Bounds.Inflate(Theme.ShadowSize + 2)); }
-            w.ContentChanged = false; w.BackdropUnchanged = false; w.BackdropDirty = new Rect(0, 0, 0, 0);
+            w.ContentChanged = false; w.ContentDamage = new Rect(0, 0, 0, 0); w.BackdropUnchanged = false; w.BackdropDirty = new Rect(0, 0, 0, 0);
         }
     }
 
@@ -543,7 +545,7 @@ internal sealed class WindowManager
     /// <summary>Marks a window as having drawn new content, as its Update would (benchmark).</summary>
     public void MarkChanged(Window w)
     {
-        w.ContentVersion++;
+        w.ContentVersion++; w.ContentDamage = AreaOf(w);
         if (!w.IsMinimized && w != Top) { _lowerDirty = true; w.ContentChanged = true; }
     }
 
@@ -574,63 +576,110 @@ internal sealed class WindowManager
         {
             Window w = _lower[i].Window;
             if (!_lower[i].Shows(w, w == hovered ? ButtonAt(w, mouseX, mouseY) : 0)) { damage = damage.Union(_lower[i].Bounds.Inflate(Theme.ShadowSize + 8)).Union(AreaOf(w)); }
-            else if (w.ContentChanged) { damage = damage.Union(AreaOf(w)); }
+            else if (w.ContentChanged) { damage = damage.Union(w.ContentDamage.IsEmpty ? AreaOf(w) : w.ContentDamage); }
         }
         return damage;
     }
 
     /// <summary>Draws the lower scene again inside <paramref name="damage"/> only, over the wallpaper.
-    /// A translucent window over the damage is drawn whole (its blur reads everything behind it),
-    /// so the damage grows to cover it; the caller presents the grown rectangle.</summary>
+    /// A translucent window over changed pixels changes too, but only within its material's reach of
+    /// them (<see cref="MaterialComposition.Reach"/>): the damage grows by that much, bottom up. A capture
+    /// that changes a window everywhere (new opacity, fresh capture) draws once more over the whole window.
+    /// The caller presents the grown rectangle.</summary>
     public void DrawLowerPartial(Surface surface, Surface wallpaper, ref Rect damage, int mouseX, int mouseY, long sceneKey)
     {
-        Window? top = Top, hovered = _dragging is null ? HitTest(mouseX, mouseY, includeResizeMargin: false) : null;
-        if (MaterialResources.Policy.Effective != 0)
-        {
-            for (bool grew = true; grew;)
-            {
-                grew = false;
-                foreach (LowerWindow entry in _lower)
-                {
-                    Rect area = AreaOf(entry.Window), hit = area.Intersect(damage), joined = damage.Union(area);
-                    if (hit.W > 0 && hit.H > 0 && (joined.W != damage.W || joined.H != damage.H || joined.X != damage.X || joined.Y != damage.Y)) { damage = joined; grew = true; }
-                }
-            }
-        }
-        damage = damage.Intersect(surface.Bounds);
+        Window? hovered = _dragging is null ? HitTest(mouseX, mouseY, includeResizeMargin: false) : null;
         bool sameScene = sceneKey == _sceneKey;
-        _generation++; _sceneKey = sceneKey;
-        surface.CopyRect(wallpaper, damage);
-        surface.BaseClip = damage; MaterialComposition.Limit = damage;
-        // What really changed, bottom up: the damage grows over whole translucent windows, but a window's
-        // backdrop only changed where something below it did (a window that moved, changed state or drew
-        // new content, or a window whose own backdrop changed). The rest is drawn again identically.
-        _below.Clear();
-        if (!sameScene) { _below.Add(damage); }
+        _looks.Clear(); _was.Clear();
         for (int i = 0; i < _lower.Count; i++)
         {
             Window w = _lower[i].Window;
-            int button = w == hovered ? ButtonAt(w, mouseX, mouseY) : 0;
-            bool looks = _lower[i].Shows(w, button);
-            Rect was = _lower[i].Bounds.Inflate(Theme.ShadowSize + 8);
-            _lower[i] = new LowerWindow(w, button);
-            Rect hit = AreaOf(w).Intersect(damage);
-            if (hit.W <= 0 || hit.H <= 0) { w.ContentChanged = false; continue; }
-            bool known = w.BackdropStamp == sceneKey && SameRect(w.BackdropBounds, w.Bounds);
-            Rect dirty = known ? DirtyUnder(w.Bounds.Inflate(ChangeMargin), _below) : w.Bounds;
-            w.BackdropUnchanged = known && dirty.IsEmpty;
-            w.BackdropDirty = known ? dirty : new Rect(0, 0, 0, 0);
-            w.BackdropStamp = sceneKey; w.BackdropBounds = w.Bounds; w.BackdropGeneration = _generation;
-            DrawWindow(surface, surface, w, w == hovered ? mouseX : -1, mouseY);
-            if (!looks) { _below.Add(was); }
-            if (!looks || w.ContentChanged || !dirty.IsEmpty) { _below.Add(AreaOf(w)); }
-            w.ContentChanged = false; w.BackdropUnchanged = false; w.BackdropDirty = new Rect(0, 0, 0, 0);
+            _looks.Add(_lower[i].Shows(w, w == hovered ? ButtonAt(w, mouseX, mouseY) : 0));
+            _was.Add(_lower[i].Bounds.Inflate(Theme.ShadowSize + 8));
+        }
+        damage = GrowForMaterials(damage.Intersect(surface.Bounds), sameScene).Intersect(surface.Bounds);
+        _generation++; _sceneKey = sceneKey;
+        for (int pass = 0; ; pass++)
+        {
+            surface.CopyRect(wallpaper, damage);
+            surface.BaseClip = damage; MaterialComposition.Limit = damage;
+            // What really changed under each window, bottom up: windows that moved or changed state (old
+            // and new area), new content, and the reach of a window whose own backdrop changed.
+            _below.Clear();
+            if (!sameScene) { _below.Add(damage); }
+            Rect whole = new(0, 0, 0, 0);
+            for (int i = 0; i < _lower.Count; i++)
+            {
+                Window w = _lower[i].Window;
+                Rect area = AreaOf(w), hit = area.Intersect(damage);
+                if (hit.W <= 0 || hit.H <= 0) { continue; }
+                bool known = w.BackdropStamp == sceneKey && SameRect(w.BackdropBounds, w.Bounds);
+                Rect dirty = known ? DirtyUnder(w.Bounds.Inflate(ChangeMargin), _below) : w.Bounds;
+                w.BackdropUnchanged = known && dirty.IsEmpty;
+                w.BackdropDirty = known ? dirty : new Rect(0, 0, 0, 0);
+                w.BackdropStamp = sceneKey; w.BackdropBounds = w.Bounds; w.BackdropGeneration = _generation;
+                DrawWindow(surface, surface, w, w == hovered ? mouseX : -1, mouseY);
+                bool wholly = !w.BackdropUnchanged && w.MaterialWhollyChanged;
+                if (!_looks[i]) { _below.Add(_was[i]); _below.Add(area); }
+                else
+                {
+                    if (w.ContentChanged) { _below.Add(w.ContentDamage.IsEmpty ? area : w.ContentDamage); }
+                    if (!dirty.IsEmpty) { _below.Add(wholly ? area : dirty.Inflate(MaterialComposition.Reach).Intersect(area)); }
+                }
+                if (wholly && !Covers(damage, area.Intersect(surface.Bounds))) { whole = whole.Union(area); }
+                w.BackdropUnchanged = false; w.BackdropDirty = new Rect(0, 0, 0, 0);
+            }
+            if (whole.IsEmpty || pass == 1) { break; }
+            damage = GrowForMaterials(damage.Union(whole), sameScene).Intersect(surface.Bounds);
+        }
+        for (int i = 0; i < _lower.Count; i++)
+        {
+            Window w = _lower[i].Window;
+            _lower[i] = new LowerWindow(w, w == hovered ? ButtonAt(w, mouseX, mouseY) : 0);
+            w.ContentChanged = false; w.ContentDamage = new Rect(0, 0, 0, 0);
         }
         _changed.Clear();
         foreach (Rect c in _below) { Rect hit = c.Intersect(damage); if (!hit.IsEmpty) { _changed.Add(hit); } }
         surface.BaseClip = surface.Bounds; MaterialComposition.Limit = MaterialComposition.Unlimited;
         _lowerDirty = false;
     }
+
+    private readonly List<bool> _looks = new();
+    private readonly List<Rect> _was = new();
+    private static bool Covers(Rect outer, Rect inner) => inner.IsEmpty || (inner.X >= outer.X && inner.Y >= outer.Y && inner.Right <= outer.Right && inner.Bottom <= outer.Bottom);
+
+    /// <summary>The damage grown, bottom up, over what each translucent lower window can change: its
+    /// material's reach around everything that changed below it.</summary>
+    private Rect GrowForMaterials(Rect damage, bool sameScene)
+    {
+        if (MaterialResources.Policy.Effective == 0) { return damage; }
+        Rect changed = sameScene ? new Rect(0, 0, 0, 0) : damage;
+        for (int i = 0; i < _lower.Count; i++)
+        {
+            Window w = _lower[i].Window;
+            Rect area = AreaOf(w), under = changed.Intersect(area);
+            if (!under.IsEmpty)
+            {
+                Rect grown = under.Inflate(MaterialComposition.Reach).Intersect(area);
+                damage = damage.Union(grown); changed = changed.Union(grown);
+            }
+            if (!_looks[i]) { changed = changed.Union(_was[i]).Union(area); }
+            else if (w.ContentChanged) { changed = changed.Union(w.ContentDamage.IsEmpty ? area : w.ContentDamage); }
+        }
+        return damage;
+    }
+
+    /// <summary>Grows a partial compose's damage over the top window by its material's reach, where the
+    /// lower scene changed under it.</summary>
+    public Rect GrowForTop(Rect damage, Rect lowerChange)
+    {
+        if (Top is not Window top || MaterialResources.Policy.Effective == 0) { return damage; }
+        Rect area = AreaOf(top), under = lowerChange.Intersect(area);
+        return under.IsEmpty ? damage : damage.Union(under.Inflate(MaterialComposition.Reach).Intersect(area));
+    }
+
+    /// <summary>The top window's last capture changed it everywhere (see <see cref="MaterialComposition.WholeChanged"/>).</summary>
+    public bool TopWhollyChanged => Top is Window top && top.MaterialWhollyChanged;
 
     /// <summary>Draws the top window; <paramref name="stamp"/> names the lower scene already on the surface.</summary>
     public void DrawTop(Surface surface, Surface backdrop, int mouseX, int mouseY, long sceneKey)
@@ -645,7 +694,7 @@ internal sealed class WindowManager
         top.BackdropStamp = sceneKey; top.BackdropBounds = top.Bounds; top.BackdropGeneration = _generation;
         bool hovered = _dragging is null && HitTest(mouseX, mouseY, includeResizeMargin: false) == top;
         DrawWindow(surface, backdrop, top, hovered ? mouseX : -1, mouseY);
-        top.BackdropUnchanged = false; top.BackdropDirty = new Rect(0, 0, 0, 0);
+        top.BackdropUnchanged = false; top.BackdropDirty = new Rect(0, 0, 0, 0); top.ContentDamage = new Rect(0, 0, 0, 0);
     }
 
     /// <summary>Forgets the lower scene, for the benchmark and for pixel comparison.</summary>

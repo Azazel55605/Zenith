@@ -145,11 +145,18 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
             {
                 _frame = new int[size.Width * size.Height]; EndFade("Resized"); Array.Fill(_frame, (int)(Theme.WindowBackground | 0xff000000U)); _frameWidth = size.Width; _frameHeight = size.Height; _materialCount = 0; changed = true;
             }
+            UpdateDamage = null;
             if (IsMinimized) { EndFade("Minimized"); return changed; }
             if (_surface.TakeFade() is { } fade) { BeginFade(fade); }
-            bool copied = _surface.CopyFrame(_frame, false, _materials, out int count);
+            bool copied = _surface.CopyFrame(_frame, false, _materials, out int count, out int left, out int top, out int right, out int bottom);
             if (copied) { _materialCount = count; }
-            if (!_fading) { return copied || changed; }
+            if (!_fading)
+            {
+                if (changed || !copied) { return copied || changed; }
+                if (right <= left || bottom <= top) { return false; }   // the same frame again
+                UpdateDamage = new Rect(left, top, right - left, bottom - top);
+                return true;
+            }
             AdvanceFade();
             return true;
         }
@@ -178,6 +185,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
             }
             _composition.Composition.Capture(surface.Pixels, surface.Width, surface.Height, content, _effective, _materialCount, Theme.WindowBackground, BackdropUnchanged);
         }
+        internal override bool MaterialWhollyChanged => base.MaterialWhollyChanged || _composition?.Composition.WholeChanged == true;
         public override void DrawContent(Surface surface, Rect content)
         {
             if (content.W != _frameWidth || content.H != _frameHeight)

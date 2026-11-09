@@ -32,7 +32,7 @@ internal sealed class MotionPlayer
     public void Begin(int[] baseImage, PixelLayer? layer, Rect from, Rect to, int fromAlpha, int toAlpha, long now, long duration)
     {
         _base = baseImage; _layer = layer; _from = from; _to = to; _fromAlpha = fromAlpha; _toAlpha = toAlpha;
-        _start = now; _duration = duration; _slowFrames = 0; _overlay = null;
+        _start = now; _duration = duration; _slowFrames = 0; _overlay = null; _drawn = new Rect(0, 0, 0, 0); _whole = true;
         Frames = 0; WorstFrameMicros = 0; ElapsedMicros = 0; LastEnd = MotionEnd.None;
         Active = duration > 0;
         if (!Active) { LastEnd = MotionEnd.Finished; }
@@ -44,16 +44,45 @@ internal sealed class MotionPlayer
         _overlay = layer; _overlayFrom = from; _overlayTo = to; _overlayCornerFrom = cornerFrom; _overlayCornerTo = cornerTo;
     }
 
-    /// <summary>Draws the frame for <paramref name="now"/>; false when nothing was drawn because the animation is over.</summary>
+    private Rect _drawn;
+    private bool _whole;
+    /// <summary>What the last <see cref="Render"/> changed in the frame: everything on the first frame, then the
+    /// layers' old and new places and <see cref="Restore"/>d areas.</summary>
+    public Rect Damage { get; private set; }
+
+    private Rect _restored;
+    /// <summary>Before <see cref="Render"/>: puts the base image back over an area the caller drew on since the
+    /// last frame (the pointer); the next frame's damage includes it.</summary>
+    public void Restore(int[] frame, int width, int height, Rect area)
+    {
+        area = area.Intersect(new Rect(0, 0, width, height));
+        if (area.IsEmpty || _base.Length != frame.Length) { return; }
+        for (int y = area.Y; y < area.Bottom; y++) { Array.Copy(_base, y * width + area.X, frame, y * width + area.X, area.W); }
+        _restored = _restored.Union(area);
+    }
+
+    /// <summary>Draws the frame for <paramref name="now"/>; false when nothing was drawn because the animation is over.
+    /// Only the layers' previous and current rectangles are drawn again: the rest of the frame already shows the base.</summary>
     public bool Render(int[] frame, int width, int height, long now)
     {
         if (!Active) { return false; }
         ElapsedMicros = now - _start;
         if (ElapsedMicros >= _duration) { End(MotionEnd.Finished); return false; }
         int p = MotionCurve.EaseOut(MotionCurve.Linear(ElapsedMicros, _duration));
-        Array.Copy(_base, frame, frame.Length);
-        _layer?.Draw(frame, width, height, Between(_from, _to, p), MotionCurve.Lerp(_fromAlpha, _toAlpha, p));
-        _overlay?.Draw(frame, width, height, Between(_overlayFrom, _overlayTo, p), 255, MotionCurve.Lerp(_overlayCornerFrom, _overlayCornerTo, p));
+        Rect layer = _layer is null ? new Rect(0, 0, 0, 0) : Between(_from, _to, p);
+        Rect overlay = _overlay is null ? new Rect(0, 0, 0, 0) : Between(_overlayFrom, _overlayTo, p);
+        Rect now2 = layer.Union(overlay).Intersect(new Rect(0, 0, width, height));
+        if (_whole || _base.Length != frame.Length) { Array.Copy(_base, frame, frame.Length); Damage = new Rect(0, 0, width, height); _whole = false; }
+        else
+        {
+            Rect area = _drawn.Union(now2).Intersect(new Rect(0, 0, width, height));
+            for (int y = area.Y; y < area.Bottom; y++) { Array.Copy(_base, y * width + area.X, frame, y * width + area.X, area.W); }
+            Damage = area.Union(_restored);
+        }
+        _restored = new Rect(0, 0, 0, 0);
+        _layer?.Draw(frame, width, height, layer, MotionCurve.Lerp(_fromAlpha, _toAlpha, p));
+        _overlay?.Draw(frame, width, height, overlay, 255, MotionCurve.Lerp(_overlayCornerFrom, _overlayCornerTo, p));
+        _drawn = now2;
         return true;
     }
 

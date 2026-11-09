@@ -330,4 +330,93 @@ public class ProcessMaterialTests
         MaterialRows.Tint(pixel, 0, output, 0, 1, 0xffa0b0c0, 0);
         Assert.Equal(unchecked((int)0xff102030), output[0]);
     }
+
+    [Fact]
+    public unsafe void PackedOverMatchesThePerChannelFormulaForEveryAlphaAndChannel()
+    {
+        static int Reference(int fg, int bg)
+        {
+            int alpha = (int)((uint)fg >> 24);
+            if (alpha == 255) { return fg; }
+            if (alpha == 0) { return bg; }
+            uint color = 0xff000000;
+            for (int shift = 0; shift < 24; shift += 8)
+            { color |= (uint)(((fg >> shift) & 255) + (((bg >> shift) & 255) * (255 - alpha) + 127) / 255) << shift; }
+            return (int)color;
+        }
+        var fg = new int[256 * 256]; var bg = new int[fg.Length]; var random = new Random(7);
+        for (int alpha = 0; alpha < 256; alpha++)
+        {
+            for (int value = 0; value < 256; value++)
+            {
+                int i = alpha * 256 + value;
+                // Every background channel value; premultiplied foregrounds, plus invalid ones above alpha.
+                int f = random.Next(alpha + 1), g = random.Next(alpha + 1), b = value % 3 == 0 ? random.Next(256) : random.Next(alpha + 1);
+                fg[i] = (int)((uint)alpha << 24 | (uint)f << 16 | (uint)g << 8 | (uint)b);
+                bg[i] = (int)(0xff000000u | (uint)value << 16 | (uint)(255 - value) << 8 | (uint)random.Next(256));
+            }
+        }
+        var output = (int[])bg.Clone();
+        fixed (int* f = fg) fixed (int* o = output) { MaterialComposition.Over(f, o, fg.Length); }
+        for (int i = 0; i < fg.Length; i++) { Assert.Equal(Reference(fg[i], bg[i]), output[i]); }
+    }
+
+    [Fact]
+    public void CopiedFramesReportTheRectangleThatChanged()
+    {
+        var s = new ProcessSurface(160, 100, "damage", 2);
+        var regions = new[] { new ProcessMaterialRegion(0, 0, 80, 100, 0, 3, 2) };
+        byte[] frame = Foreground();
+        int[] pixels = new int[16000]; var copied = new ProcessMaterialRegion[8];
+        Assert.Equal(0, s.PresentMaterials(frame, regions));
+        Assert.True(s.CopyFrame(pixels, false, copied, out _, out int l, out int t, out int r, out int b));
+        Assert.Equal((0, 0, 160, 100), (l, t, r, b));   // a new region list: the whole frame
+        // Two pixels change: the rectangle spans exactly them.
+        frame[(10 * 160 + 30) * 4] = 7; frame[(42 * 160 + 101) * 4 + 1] = 9;
+        Assert.Equal(0, s.PresentMaterials(frame, regions));
+        Assert.True(s.CopyFrame(pixels, false, copied, out _, out l, out t, out r, out b));
+        Assert.Equal((30, 10, 102, 43), (l, t, r, b));
+        Assert.Equal(unchecked((int)0xff000007), pixels[10 * 160 + 30]);
+        Assert.Equal(unchecked((int)0xff000900), pixels[42 * 160 + 101]);
+        // The same frame again is copied but changes nothing; new regions report everything.
+        Assert.Equal(0, s.PresentMaterials(frame, regions));
+        Assert.True(s.CopyFrame(pixels, false, copied, out _, out l, out t, out r, out b));
+        Assert.True(r <= l || b <= t);
+        Assert.Equal(0, s.PresentMaterials(frame, new[] { regions[0] with { Width = 60 } }));
+        Assert.True(s.CopyFrame(pixels, false, copied, out _, out l, out t, out r, out b));
+        Assert.Equal((0, 0, 160, 100), (l, t, r, b));
+    }
+
+    [Fact]
+    public void ForegroundValidationMatchesThePerPixelRule()
+    {
+        static bool Reference(byte[] bytes, int width, ProcessMaterialRegion[] regions)
+        {
+            for (int i = 0; i < bytes.Length; i += 4)
+            {
+                int alpha = bytes[i + 3];
+                if (bytes[i] > alpha || bytes[i + 1] > alpha || bytes[i + 2] > alpha) { return false; }
+                if (alpha == 255) { continue; }
+                int x = i / 4 % width, y = i / 4 / width; bool allowed = false;
+                foreach (var r in regions) { if (r.Contains(x, y)) { allowed = true; break; } }
+                if (!allowed) { return false; }
+            }
+            return true;
+        }
+        var random = new Random(11);
+        var regions = new[] { new ProcessMaterialRegion(0, 0, 40, 30, 0, 3, 2), new ProcessMaterialRegion(30, 20, 50, 40, 4, 4, 2),
+            new ProcessMaterialRegion(100, 10, 20, 80, 0, 4, 1) };
+        for (int round = 0; round < 400; round++)
+        {
+            byte[] frame = Foreground();
+            for (int n = random.Next(1, 6); n > 0; n--)
+            {
+                int at = random.Next(160 * 100) * 4; byte alpha = (byte)random.Next(256);
+                frame[at + 3] = alpha; frame[at] = (byte)random.Next(alpha + 1); frame[at + 1] = (byte)random.Next(alpha + 1);
+                frame[at + 2] = (byte)(random.Next(8) == 0 ? random.Next(256) : random.Next(alpha + 1));
+            }
+            Assert.Equal(Reference(frame, 160, regions), ProcessMaterialRegion.ValidForeground(frame, 160, 100, regions));
+        }
+    }
 }
+

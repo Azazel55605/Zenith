@@ -6,6 +6,7 @@ Start with [current status](../ROADMAP.md#state-and-evidence) or [active work](.
 
 ## Investigation records
 
+- [2026-11-09 rendering phase 4](2026-11-09/rendering-phase4.md): changed-rectangle composition, CPU0 with native programs, motion and present damage, power screens at physical resolution; scheduler starvation and an AP race recorded.
 - [2026-11-09 rendering phase 3](2026-11-09/rendering-phase3.md): VMware present cost, direct SVGA updates, fast and incremental backdrop sampling, and measured results.
 
 - [2026-11-08 login Terminal handoff](2026-11-08/login-terminal-handoff.md): distributor 0.0.48 startup-input race, observed public readiness and unchanged-kernel login qualification.

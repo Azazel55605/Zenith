@@ -49,6 +49,12 @@ internal sealed class MaterialComposition
     /// <summary>Set by the window manager around one window's captures: the only screen pixels under it
     /// that may have changed since its last capture. Empty means unknown (sample everything).</summary>
     public static Rect Dirty { get; set; }
+    /// <summary>How far outside the changed scene a capture can change finished pixels: blur radius
+    /// (four samples), bilinear reconstruction (one more) and block rounding, at quarter scale.</summary>
+    public const int Reach = 32;
+    /// <summary>Set by the last capture when finished pixels may differ anywhere in its regions, not only
+    /// within <see cref="Reach"/> of what changed: a full capture, or a new adapted opacity.</summary>
+    public bool WholeChanged { get; private set; }
     private bool _hasCapture;
     private Rect _lastContent;
     private int _lastWidth, _lastHeight;
@@ -60,6 +66,7 @@ internal sealed class MaterialComposition
         int revision = CpuWorkers.BlurRevision;
         bool changed = _count != count || _blurRevision != revision; int offset = 0;
         for (int i = 0; i < count; i++) { changed |= _previous[i] != regions[i]; }
+        WholeChanged = false;
         if (backdropUnchanged && !changed) { _stable = true; return; }
         // Incremental: the same regions at the same place over the same scene, and the caller knows where
         // the scene changed. Samples outside the dirty area keep their values; any change still blurs again.
@@ -90,6 +97,9 @@ internal sealed class MaterialComposition
         _stable = !changed;
         FrameStats.SampleTicks += FrameStats.Now - probe; probe = FrameStats.Now;
         if (!changed) { return; }
+        // A fresh capture can change any pixel; an incremental one only near the changed samples,
+        // unless the adapted opacity (from the whole region's luminance range) moves below.
+        if (!partial) { WholeChanged = true; }
         ReleasePainted();
         offset = 0;
         for (int i = 0; i < count; i++)
@@ -113,7 +123,9 @@ internal sealed class MaterialComposition
                 for (int k = offset; k < offset + area; k++)
                 { double l = MaterialPolicy.Luminance(_filtered[k]); if (l < low) { low = l; } if (l > high) { high = l; } }
             }
-            _low[i] = r.Effect != 0 ? low : 0; _high[i] = r.Effect != 0 ? high : 1;
+            double newLow = r.Effect != 0 ? low : 0, newHigh = r.Effect != 0 ? high : 1;
+            if (Math.Floor(newLow * 64) != Math.Floor(_low[i] * 64) || Math.Ceiling(newHigh * 64) != Math.Ceiling(_high[i] * 64)) { WholeChanged = true; }
+            _low[i] = newLow; _high[i] = newHigh;
             FrameStats.RangeTicks += FrameStats.Now - probe; probe = FrameStats.Now;
             offset += area;
         }
@@ -264,26 +276,44 @@ internal sealed class MaterialComposition
         return _painted;
     }
 
-    public void Compose(int[] frame, int[] target, int width, int height, Rect content,
+    public unsafe void Compose(int[] frame, int[] target, int width, int height, Rect content,
         ProcessMaterialRegion[] regions, int count, uint fallback, uint panel, uint navigation, uint popover)
     {
         Paint(target, width, height, content, regions, count, fallback, panel, navigation, popover, true);
         Rect clip = content.Intersect(new Rect(0, 0, width, height)).Intersect(Limit);
         if (!clip.IsEmpty && CpuWorkers.TryCompose(frame, (clip.Y - content.Y) * content.W + clip.X - content.X,
             content.W, target, clip.Y * width + clip.X, width, clip.W, clip.H)) { return; }
-        for (int y = clip.Y; y < clip.Bottom; y++)
+        if (clip.IsEmpty) { return; }
+        fixed (int* source = frame)
+        fixed (int* output = target)
         {
-            for (int x = clip.X; x < clip.Right; x++)
-            {
-                int fg = frame[(y - content.Y) * content.W + x - content.X], at = y * width + x;
-                int alpha = (int)((uint)fg >> 24);
-                if (alpha == 255) { target[at] = fg; continue; }
-                if (alpha == 0) { continue; }
-                int bg = target[at]; uint color = 0xff000000;
-                for (int shift = 0; shift < 24; shift += 8)
-                { color |= (uint)(((fg >> shift) & 255) + (((bg >> shift) & 255) * (255 - alpha) + 127) / 255) << shift; }
-                target[at] = (int)color;
-            }
+            for (int y = clip.Y; y < clip.Bottom; y++)
+            { Over(source + (y - content.Y) * content.W + clip.X - content.X, output + y * width + clip.X, clip.W); }
+        }
+    }
+
+    /// <summary>Premultiplied foreground over the target: f + b * (255 - a) / 255 per channel, rounded.
+    /// Red and blue share one multiply in 16-bit lanes; x / 255 rounded is (t + (t >> 8)) >> 8 with
+    /// t = x + 128, exact for every 8-bit product. Channels that would overflow (a client's invalid
+    /// premultiplication) take the per-channel formula, so every result equals it.</summary>
+    internal static unsafe void Over(int* foreground, int* target, int count)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            uint fg = (uint)foreground[i], alpha = fg >> 24;
+            if (alpha == 255) { target[i] = (int)fg; continue; }
+            if (alpha == 0) { continue; }
+            uint bg = (uint)target[i], inverse = 255 - alpha;
+            uint rb = (bg & 0x00FF00FFu) * inverse + 0x00800080u;
+            rb = ((rb + ((rb >> 8) & 0x00FF00FFu)) >> 8) & 0x00FF00FFu;
+            uint g = (bg & 0x0000FF00u) * inverse + 0x00008000u;
+            g = ((g + ((g >> 8) & 0x0000FF00u)) >> 8) & 0x0000FF00u;
+            uint redBlue = (fg & 0x00FF00FFu) + rb, green = (fg & 0x0000FF00u) + g;
+            if (((redBlue & 0x01000100u) | (green & 0x00010000u)) == 0) { target[i] = (int)(0xff000000u | redBlue | green); continue; }
+            uint color = 0xff000000;
+            for (int shift = 0; shift < 24; shift += 8)
+            { color |= (((fg >> shift) & 255) + (((bg >> shift) & 255) * inverse + 127) / 255) << shift; }
+            target[i] = (int)color;
         }
     }
 }

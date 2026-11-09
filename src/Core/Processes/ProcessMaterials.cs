@@ -75,14 +75,30 @@ internal readonly record struct ProcessMaterialRegion(int X, int Y, int Width, i
     public static bool ValidForeground(byte[] bytes, int width, int height, ProcessMaterialRegion[] regions)
     {
         if ((long)width * height * 4 != bytes.Length) { return false; }
-        for (int i = 0; i < bytes.Length; i += 4)
+        // BGRA little-endian: one word is A<<24 | R<<16 | G<<8 | B. Every colour channel at most alpha
+        // (premultiplied), and anything not opaque inside a material region. The region test caches the
+        // interval it found, so a row costs about one comparison a pixel.
+        ReadOnlySpan<uint> pixels = System.Runtime.InteropServices.MemoryMarshal.Cast<byte, uint>(bytes);
+        for (int y = 0; y < height; y++)
         {
-            int alpha = bytes[i + 3];
-            if (bytes[i] > alpha || bytes[i + 1] > alpha || bytes[i + 2] > alpha) { return false; }
-            if (alpha == 255) { continue; }
-            int pixel = i / 4, x = pixel % width, y = pixel / width; bool allowed = false;
-            foreach (var r in regions) { if (r.Contains(x, y)) { allowed = true; break; } }
-            if (!allowed) { return false; }
+            ReadOnlySpan<uint> row = pixels.Slice(y * width, width);
+            int allowedFrom = 0, allowedTo = 0;
+            for (int x = 0; x < row.Length; x++)
+            {
+                uint p = row[x];
+                if (p >= 0xff000000u) { continue; }
+                uint alpha = p >> 24;
+                if ((p & 255) > alpha || ((p >> 8) & 255) > alpha || ((p >> 16) & 255) > alpha) { return false; }
+                if (x >= allowedFrom && x < allowedTo) { continue; }
+                bool allowed = false;
+                foreach (var r in regions)
+                {
+                    if (!r.Contains(x, y)) { continue; }
+                    if (!allowed || r.X + r.Width > allowedTo) { allowedFrom = r.X; allowedTo = r.X + r.Width; }
+                    allowed = true;
+                }
+                if (!allowed) { return false; }
+            }
         }
         return true;
     }

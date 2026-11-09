@@ -50,6 +50,17 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 
 ## Current focus and execution order
 
+**2026-11-09 — Rendering phase 4 (Q3/C4, local).** Operator report on 0.0.49:
+CPU0 about 41% idle, effects off slower. A client's frame redrew its whole window
+and every translucent window over it; composition now follows the rectangle that
+really changed (material reach, whole-window fallback), with an exact faster blend,
+faster frame validation, no post-frame spin, damage-only animation frames and
+physical-resolution boot/power screens. CPU0 with Observatory under Polaris at
+1920x1200 falls from 61-74% to 23-30% in every material mode; `fps verify` exact.
+Open: the desktop (scheduler idle thread) starves while programs run on APs (needs
+a scheduler change), a timing-sensitive AP race, sharp HiDPI (shell, ABI, toolkit),
+VMware 3D. [Evidence](archive/2026-11-09/rendering-phase4.md).
+
 **2026-11-09 — Rendering phase 3 (Q3/C4, local).** Review of 0.0.48: its AP
 foreground tiles never ran for shell windows or Polaris and did not address the
 measured costs. Every VMware present copied the driver's whole VRAM back buffer

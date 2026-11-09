@@ -166,8 +166,8 @@ internal sealed class ProcessSurface : IDisposable
             if (_closed || _disposed) { return -32; }
             if (bytes.Length != Bytes || Format != 1) { return -22; }
             // Opaque XRGB8888, fixed row stride. No shared client/compositor pages.
-            for (int i = 0; i < _pixels.Length; i++)
-            { _pixels[i] = unchecked((int)(BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(i * 4)) | 0xff000000)); }
+            System.Runtime.InteropServices.MemoryMarshal.Cast<byte, int>(bytes).CopyTo(_pixels);
+            for (int i = 0; i < _pixels.Length; i++) { _pixels[i] |= unchecked((int)0xff000000); }
             _dirty = _presented = true; return 0;
         }
     }
@@ -180,8 +180,7 @@ internal sealed class ProcessSurface : IDisposable
                 || !ProcessMaterialRegion.ValidForeground(bytes, Width, Height, regions)) { return -22; }
             // Validate the complete frame before replacing anything. Caller buffers
             // and region arrays are never shared with compositor state.
-            for (int i = 0; i < _pixels.Length; i++)
-            { _pixels[i] = BinaryPrimitives.ReadInt32LittleEndian(bytes.AsSpan(i * 4)); }
+            System.Runtime.InteropServices.MemoryMarshal.Cast<byte, int>(bytes).CopyTo(_pixels);
             _materials = (ProcessMaterialRegion[])regions.Clone(); _dirty = _presented = true; return 0;
         }
     }
@@ -210,13 +209,39 @@ internal sealed class ProcessSurface : IDisposable
     public bool CopyFrame(int[] destination, bool force)
         => CopyFrame(destination, force, null, out _);
     public bool CopyFrame(int[] destination, bool force, ProcessMaterialRegion[]? materials, out int count)
+        => CopyFrame(destination, force, materials, out count, out _, out _, out _, out _);
+    /// <summary>Copies a new frame and reports the rows [<paramref name="top"/>, <paramref name="bottom"/>) and
+    /// columns [<paramref name="left"/>, <paramref name="right"/>) that differ from what
+    /// <paramref name="destination"/> held: clients present whole frames, mostly to change a small part.
+    /// An unchanged frame reports an empty range; changed material regions report the whole frame.</summary>
+    public bool CopyFrame(int[] destination, bool force, ProcessMaterialRegion[]? materials, out int count,
+        out int left, out int top, out int right, out int bottom)
     {
         lock (_gate)
         {
-            count = 0;
+            count = 0; left = top = right = bottom = 0;
             if (_disposed || destination.Length != _pixels.Length || (!_dirty && !force)
                 || (materials is not null && materials.Length < _materials.Length)) { return false; }
-            Array.Copy(_pixels, destination, _pixels.Length);
+            int width = Math.Max(1, Width), rows = _pixels.Length / width;
+            bool regions = materials is not null && !_materials.AsSpan().SequenceEqual(materials.AsSpan(0, _materials.Length));
+            if (regions || rows * width != _pixels.Length) { left = 0; top = 0; right = width; bottom = rows; Array.Copy(_pixels, destination, _pixels.Length); }
+            else
+            {
+                left = width; top = rows; right = 0; bottom = 0;
+                for (int y = 0; y < rows; y++)
+                {
+                    var from = new ReadOnlySpan<int>(_pixels, y * width, width);
+                    var to = new Span<int>(destination, y * width, width);
+                    if (from.SequenceEqual(to)) { continue; }
+                    int first = from.CommonPrefixLength(to), last = width;
+                    while (last > first && from[last - 1] == to[last - 1]) { last--; }
+                    left = Math.Min(left, first); right = Math.Max(right, last);
+                    if (y < top) { top = y; }
+                    bottom = y + 1;
+                    from.Slice(first, last - first).CopyTo(to.Slice(first));
+                }
+                if (bottom == 0) { left = top = 0; }
+            }
             if (materials is not null) { Array.Copy(_materials, materials, _materials.Length); count = _materials.Length; }
             _dirty = false; return true;
         }

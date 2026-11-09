@@ -262,3 +262,14 @@ update command for the rectangle; other drivers keep the driver path. Material
 captures sample only what changed beneath a window since its last capture.
 `fps direct on|off` compares presents; `fps bench` splits the backdrop into
 sample, blur and range. [Evidence](../archive/2026-11-09/rendering-phase3.md).
+
+## Rendering phase 4: what really changed
+
+Native clients present whole frames; the compositor now redraws only the rectangle
+that differs (`ProcessSurface.CopyFrame`), and a translucent window over a change
+only within its material's reach (`MaterialComposition.Reach`), falling back to the
+whole window when a capture changes it everywhere. Animation frames restore and
+present only the layers' old and new places. Boot and power screens draw at the
+physical resolution, sized by screen height. `fps phases` splits composes into
+lower and top passes; `fps verify` compares the scene with one composed from
+nothing. [Evidence](../archive/2026-11-09/rendering-phase4.md).

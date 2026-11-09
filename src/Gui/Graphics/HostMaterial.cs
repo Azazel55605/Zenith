@@ -14,6 +14,7 @@ internal sealed class HostMaterial : IDisposable
     private int _effect;
     private bool _captured;
     public bool Active => _effect != 0;
+    public bool WholeChanged => _effect != 0 && _cache.Composition.WholeChanged;
     public void Capture(Surface surface, Rect bounds, int radius, uint tint, bool allowed = true, bool backdropUnchanged = false)
     {
         _region[0] = new(0, 0, bounds.W, bounds.H, radius, 4, 0);

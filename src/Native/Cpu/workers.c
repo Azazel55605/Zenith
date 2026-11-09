@@ -36,6 +36,7 @@ struct cpu {
     u64 apic_base, x2;
     u64 parks, wakes, completed, fault, halted, parked, irq_stack_errors, fault_stack_ok, ipi_errors;
     u64 timer_ticks, reschedules;
+    u64 fault_rip, fault_code, fault_cr2;   /* the faulting instruction, for `cpu status` */
     u32 lock, head, tail, current, raw_task;
     u64 ring[JOBS];
     struct job jobs[JOBS];
@@ -258,6 +259,13 @@ u64 zenith_cpu_timer_probe(void) {
 __attribute__((noreturn)) void zenith_cpu_fault(struct cpu *c,u64 vector,u64 stack) {
     c->fault=vector;
     c->fault_stack_ok=stack>=(u64)c->fault_stack&&stack<(u64)(c->fault_stack+sizeof(c->fault_stack));
+    if (c->fault_stack_ok) {
+        /* The stub pushed the vector over the CPU's frame: [vector][error code?] rip cs rflags rsp ss. */
+        const u64 *frame=(const u64 *)stack;
+        int code=vector==8||(vector>=10&&vector<=14)||vector==17||vector==21||vector==29||vector==30;
+        u64 cr2; __asm__ volatile("mov %%cr2,%0":"=r"(cr2));
+        c->fault_code=code?frame[1]:0; c->fault_rip=frame[code?2:1]; c->fault_cr2=cr2;
+    }
     if (c->current<JOBS) STORE(c->jobs[c->current].state,FAULTED);
     process_fault(c);
     STORE(c->state,4);
@@ -780,6 +788,7 @@ u64 zenith_cpu_field(u64 index,u64 field) {
         case 24:return sizeof(c->gc_stack);
         case 26:return LOAD(blur_completed);case 27:return LOAD(blur_cancelled);
         case 28:return LOAD(compose_completed);case 29:return LOAD(compose_cancelled);
+        case 30:return LOAD(c->fault_rip);case 31:return LOAD(c->fault_code);case 32:return LOAD(c->fault_cr2);
         default:return 0;
     }
 }

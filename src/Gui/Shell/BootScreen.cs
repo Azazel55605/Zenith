@@ -28,7 +28,8 @@ internal static class BootScreen
     {
         try
         {
-            var screen = SessionDisplay.Screen;
+            // Physical pixels: drawn at the screen's own resolution, not enlarged from the logical size.
+            var screen = SessionDisplay.Physical;
             s_surface = new Surface(screen.Width, screen.Height);
             Shown = true;
             Draw(null);
@@ -54,30 +55,42 @@ internal static class BootScreen
     public static void Finish()
     {
         if (s_surface is null) { return; }
-        SessionDisplay.KeepFrame(s_surface.Pixels);
+        SessionDisplay.KeepFrame(s_surface.Pixels, s_surface.Width, s_surface.Height);
         s_surface = null;
     }
 
     /// <summary>One boot or power frame: logo, then the label and how much of the bar is filled, 0-256.</summary>
-    public static void Paint(Surface surface, string? label, int filled)
+    /// <summary>One boot or power frame: logo, then the label and how much of the bar is filled, 0-256.
+    /// Sizes follow the surface's height (1080 lines draw them at 100%) and never fall below the display
+    /// <paramref name="scale"/> of a physical surface, so the frame looks the same on any screen, matches
+    /// the scaled desktop, and stays sharp at high resolutions.</summary>
+    public static void Paint(Surface surface, string? label, int filled, int scale = 1)
     {
         surface.FillRect(surface.Bounds, Background);
-        int x = surface.Width / 2, y = surface.Height / 2;
-        Logo.Draw(surface, new Rect(x - LogoSize / 2, y - LogoSize - 16, LogoSize, LogoSize));
+        int unit = Math.Clamp(Math.Max(surface.Height * 1000 / 1080, scale * 1000), 1000, 4000);
+        int S(int value) => value * unit / 1000;
+        int x = surface.Width / 2, y = surface.Height / 2, logo = S(LogoSize), barWidth = S(BarWidth), barHeight = Math.Max(BarHeight, S(BarHeight));
+        Logo.Draw(surface, new Rect(x - logo / 2, y - logo - S(16), logo, logo));
         if (label is not null)
-        { surface.DrawTextCentered(label, Fonts.Regular, Theme.TextBody, 0xFFB4B7C0, new Rect(0, y + 8, surface.Width, 24), true); }
+        { surface.DrawTextCentered(label, Fonts.Regular, S(Theme.TextBody), 0xFFB4B7C0, new Rect(0, y + S(8), surface.Width, S(24)), true); }
         if (filled < 0) { return; }
-        Rect bar = new(x - BarWidth / 2, y + 44, BarWidth, BarHeight);
-        surface.FillRoundRect(bar, BarHeight / 2, 0xFF2A2C31);
-        int width = BarWidth * filled / 256;
-        if (width >= BarHeight) { surface.FillRoundRect(new Rect(bar.X, bar.Y, width, BarHeight), BarHeight / 2, Theme.Accent); }
+        Rect bar = new(x - barWidth / 2, y + S(44), barWidth, barHeight);
+        surface.FillRoundRect(bar, barHeight / 2, 0xFF2A2C31);
+        int width = barWidth * filled / 256;
+        if (width >= barHeight) { surface.FillRoundRect(new Rect(bar.X, bar.Y, width, barHeight), barHeight / 2, Theme.Accent); }
     }
 
     private static void Draw(string? label)
     {
-        Paint(s_surface!, label, Math.Min(s_done, Phases) * 256 / Phases);
-        var screen = SessionDisplay.Screen;
-        FramePresenter.PresentFrame(screen, s_surface!.Pixels, s_surface.Width, s_surface.Height);
+        Paint(s_surface!, label, Math.Min(s_done, Phases) * 256 / Phases, SessionDisplay.Scale);
+        var screen = SessionDisplay.Physical;
+        // The mode can change before the first session (saved preferences): draw for the new one.
+        if (screen.Width != s_surface!.Width || screen.Height != s_surface.Height)
+        {
+            s_surface = new Surface(screen.Width, screen.Height);
+            Paint(s_surface, label, Math.Min(s_done, Phases) * 256 / Phases, SessionDisplay.Scale);
+        }
+        FramePresenter.PresentFrame(screen, s_surface.Pixels, s_surface.Width, s_surface.Height);
     }
 
     private static void Stop(string message)
