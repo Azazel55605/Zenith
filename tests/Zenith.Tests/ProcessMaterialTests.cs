@@ -35,6 +35,77 @@ public class ProcessMaterialTests
         Assert.Equal(2,composition.BlurRebuilds);
     }
 
+    private static int[] Noise(int length, uint seed)
+    {
+        int[] pixels = new int[length];
+        for (int i = 0; i < length; i++) { seed = seed * 1664525 + 1013904223; pixels[i] = unchecked((int)(0xff000000 | (seed >> 8))); }
+        return pixels;
+    }
+
+    [Theory]
+    [InlineData(4, -7, -5)]
+    [InlineData(4, 13, 9)]
+    [InlineData(1, -3, 2)]
+    public void SamplesAverageBlocksAndClipToRegionAndScreen(int scale, int left, int top)
+    {
+        const int w = 97, h = 61, rw = 90, rh = 58;
+        const uint fallback = 0xff25262b;
+        int[] scene = Noise(w * h, 7);
+        var region = new[] { new ProcessMaterialRegion(0, 0, rw, rh, 0, 1, 2, 210) };
+        int sw = MaterialComposition.SampleLength(rw, scale), sh = MaterialComposition.SampleLength(rh, scale);
+        var composition = new MaterialComposition(sw * sh, true, scale);
+        composition.Capture(scene, w, h, new(left, top, rw, rh), region, 1, fallback);
+        for (int y = 0; y < sh; y++)
+        for (int x = 0; x < sw; x++)
+        {
+            int red = 0, green = 0, blue = 0, n = 0;
+            for (int dy = 0; dy < scale && y * scale + dy < rh; dy++)
+            for (int dx = 0; dx < scale && x * scale + dx < rw; dx++)
+            {
+                int sx = left + x * scale + dx, sy = top + y * scale + dy;
+                int c = sx < 0 || sy < 0 || sx >= w || sy >= h ? unchecked((int)fallback) : scene[sy * w + sx];
+                red += (c >> 16) & 255; green += (c >> 8) & 255; blue += c & 255; n++;
+            }
+            int expected = unchecked((int)0xff000000) | (red / n << 16) | (green / n << 8) | blue / n;
+            Assert.Equal(expected, composition.SampleAt(y * sw + x));
+        }
+    }
+
+    [Theory]
+    [InlineData(4)]
+    [InlineData(1)]
+    public void IncrementalCaptureMatchesAFullCaptureOfTheChangedScene(int scale)
+    {
+        const int w = 320, h = 200;
+        const uint tint = 0xff25262b;
+        Rect content = new(-9, 11, 300, 180);
+        var region = new[] { new ProcessMaterialRegion(0, 0, content.W, content.H, 0, 1, 2, 210) };
+        int samples = MaterialComposition.SampleLength(content.W, scale) * MaterialComposition.SampleLength(content.H, scale);
+        int[] scene = Noise(w * h, 3), frame = new int[content.W * content.H];
+        var incremental = new MaterialComposition(samples, true, scale);
+        incremental.Capture(scene, w, h, content, region, 1, tint);
+        Rect changed = new(37, 50, 23, 17);
+        int[] update = Noise(changed.W * changed.H, 11);
+        for (int y = 0; y < changed.H; y++) { Array.Copy(update, y * changed.W, scene, (changed.Y + y) * w + changed.X, changed.W); }
+        try
+        {
+            // A dirty area elsewhere samples nothing that changed: the old blur stays.
+            MaterialComposition.Dirty = new Rect(200, 150, 10, 10);
+            incremental.Capture(scene, w, h, content, region, 1, tint);
+            Assert.Equal(1, incremental.BlurRebuilds);
+            MaterialComposition.Dirty = changed;
+            incremental.Capture(scene, w, h, content, region, 1, tint);
+            Assert.Equal(2, incremental.BlurRebuilds);
+        }
+        finally { MaterialComposition.Dirty = new Rect(0, 0, 0, 0); }
+        var full = new MaterialComposition(samples, true, scale);
+        full.Capture(scene, w, h, content, region, 1, tint);
+        int[] a = new int[w * h], b = new int[w * h];
+        incremental.Compose(frame, a, w, h, content, region, 1, tint, tint, tint, tint);
+        full.Compose(frame, b, w, h, content, region, 1, tint, tint, tint, tint);
+        Assert.Equal(b, a);
+    }
+
     [Fact]
     public void NewOpenIsExplicitAndLegacyFormatCannotBecomeTransparent()
     {

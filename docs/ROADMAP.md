@@ -50,6 +50,15 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 
 ## Current focus and execution order
 
+**2026-11-09 — Rendering phase 3 (Q3/C4, local).** Review of 0.0.48: its AP
+foreground tiles never ran for shell windows or Polaris and did not address the
+measured costs. Every VMware present copied the driver's whole VRAM back buffer
+and waited for a full-screen update (about 25 ms, the CPU0 load). Presents now
+write only damaged rows to the visible framebuffer with one SVGA update; backdrop
+sampling is about 4x faster and incremental. Animation at 1024x768 with blur rises
+from 31 to 166 fps (worst frame 33 to 2-4 ms); pixels match full composes.
+[Evidence](archive/2026-11-09/rendering-phase3.md). Installed VMware acceptance pending.
+
 **2026-11-08 — Q3/U1: distributor 0.0.48 public process-command delivery.**
 The fault-only guard passes the focused distributor gate, but the next full run
 stops earlier waiting for `TTY_RAW_READY` after cancellation and a collection.

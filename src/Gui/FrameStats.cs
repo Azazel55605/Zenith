@@ -29,13 +29,15 @@ internal static class FrameStats
 
     public static long Now => Stopwatch.GetTimestamp();
 
-    // Where compose time goes, accumulated between TakePhases calls.
-    public static long BackdropTicks, ChromeTicks, ContentTicks, ShellTicks;
+    // Where compose time goes, accumulated between TakePhases calls. Sample, blur and range split the
+    // backdrop's material captures: averaging the scene, filtering, and the luminance range.
+    public static long BackdropTicks, ChromeTicks, ContentTicks, ShellTicks, SampleTicks, BlurTicks, RangeTicks;
     public static string TakePhases(int frames)
     {
         long per = Math.Max(1, frames) * Math.Max(1, Stopwatch.Frequency / 1_000_000);
-        string text = "backdrop=" + BackdropTicks / per + " chrome=" + ChromeTicks / per + " content=" + ContentTicks / per + " shell=" + ShellTicks / per;
-        BackdropTicks = ChromeTicks = ContentTicks = ShellTicks = 0;
+        string text = "backdrop=" + BackdropTicks / per + " chrome=" + ChromeTicks / per + " content=" + ContentTicks / per + " shell=" + ShellTicks / per
+            + " sample=" + SampleTicks / per + " blur=" + BlurTicks / per + " range=" + RangeTicks / per;
+        BackdropTicks = ChromeTicks = ContentTicks = ShellTicks = SampleTicks = BlurTicks = RangeTicks = 0;
         return text;
     }
 

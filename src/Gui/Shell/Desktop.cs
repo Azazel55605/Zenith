@@ -88,8 +88,13 @@ internal sealed class Desktop
 
         TerminalWindow.OpenApp = OpenApp;
         FileManagerWindow.OpenApp = OpenApp;
-        CommandShell.Register(new Command("fps", "fps [reset|motion|bench|cpu|parallel-bench|parallel on|off]", "Show compositor statistics", c =>
+        CommandShell.Register(new Command("fps", "fps [reset|motion|bench|cpu|parallel-bench|parallel on|off|direct on|off]", "Show compositor statistics", c =>
         {
+            if (c.Args.Length == 2 && c.Args[0] == "direct" && (c.Args[1] == "on" || c.Args[1] == "off"))
+            {
+                GuardedFilesystem.RequireRoot(); FramePresenter.Direct = c.Args[1] == "on"; _sceneDirty = true;
+                c.WriteLine(FramePresenter.Status); return 0;
+            }
             if (c.Args.Length == 2 && c.Args[0] == "parallel" && (c.Args[1] == "on" || c.Args[1] == "off"))
             {
                 GuardedFilesystem.RequireRoot(); CpuWorkers.ParallelBlur = c.Args[1] == "on";
@@ -105,7 +110,7 @@ internal sealed class Desktop
             if (c.Args.Length == 1 && c.Args[0] == "bench") { _benchRequested = true; return 0; }
             if (c.Args.Length >= 1 && c.Args[0] == "parallel-bench" && (c.Args.Length == 1 || (c.Args.Length == 2 && c.Args[1] == "fullscreen")))
             { GuardedFilesystem.RequireRoot(); _parallelBenchFullscreen = c.Args.Length == 2; _parallelBenchRequested = true; return 0; }
-            if (c.Args.Length != 0) { return c.Fail("usage: fps [reset|motion|bench|cpu|parallel-bench|parallel on|off]"); }
+            if (c.Args.Length != 0) { return c.Fail("usage: fps [reset|motion|bench|cpu|parallel-bench|parallel on|off|direct on|off]"); }
             c.WriteLine("frames presented: " + FrameStats.Frames + ", scene composes: " + FrameStats.SceneComposes);
             c.WriteLine("last compose: " + FrameStats.LastComposeMicros + " us, last present: " + FrameStats.LastPresentMicros + " us");
             c.WriteLine("display: " + _screen.Name + " " + _screen.Width + "x" + _screen.Height);
@@ -113,6 +118,7 @@ internal sealed class Desktop
             c.WriteLine("worst compose: " + FrameStats.MaxComposeMicros + " us, worst present: " + FrameStats.MaxPresentMicros + " us");
             c.WriteLine("over 16 ms: " + FrameStats.FramesOver16Ms + ", over 33 ms: " + FrameStats.FramesOver33Ms);
             c.WriteLine(CpuWorkers.BlurStatus);
+            c.WriteLine(FramePresenter.Status);
             c.WriteLine("windows: " + Windows.Windows.Count + ", materials: " + MaterialResources.Policy.Effective);
             if (Windows.Top is Window top)
             {

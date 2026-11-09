@@ -820,3 +820,6 @@ u64 zenith_cpu_host_step(u64 index) {
 #endif
 
 #include "process.inc"
+
+/* Direct SVGA presentation needs irq_off, pause_cpu and the logical CPU id above. */
+#include "svga.h"

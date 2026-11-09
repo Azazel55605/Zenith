@@ -208,6 +208,8 @@ class Machine:
         self.process = subprocess.Popen([
             os.environ.get("QEMU", "qemu-system-x86_64"), "-M", "q35", "-m", str(memory) + "M",
             "-accel", "kvm", "-accel", "tcg", "-cpu", "max",
+            # ZENITH_SMOKE_SMP=N gives the VM N CPUs (the ISO must boot with smp=native to use them).
+            *(["-smp", os.environ["ZENITH_SMOKE_SMP"]] if os.environ.get("ZENITH_SMOKE_SMP") else []),
             "-display", "none", "-no-reboot",
             "-serial", f"file:{self.serial}",
             "-monitor", f"unix:{self.monitor},server,nowait",

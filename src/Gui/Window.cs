@@ -47,7 +47,8 @@ internal abstract class Window
     public virtual bool AllowMaterials => true;
     public virtual bool AllowBackgroundMaterials => false;
     public virtual bool UnifiedChrome => AllowBackgroundMaterials;
-    private readonly HostMaterial _contentMaterial = new(1920000);
+    // An area bound, not an allocation: wide captures sample at a quarter scale (HostMaterial).
+    private readonly HostMaterial _contentMaterial = new(32 * 1024 * 1024);
     internal HostMaterial ChromeMaterial { get; } = new();
 
     /// <summary>The lower scene this window last captured its materials from, or -1 when unknown.</summary>
@@ -60,6 +61,9 @@ internal abstract class Window
     internal int ContentVersion { get; set; }
     /// <summary>Set by the window manager for one draw when that lower scene has not changed.</summary>
     protected internal bool BackdropUnchanged { get; internal set; }
+    /// <summary>Set for one draw when only this part of the scene under the window changed since its last
+    /// capture (screen coordinates); empty when that is unknown.</summary>
+    internal Rect BackdropDirty { get; set; }
 
     /// <summary>The smallest size the user can resize the window to.</summary>
     public virtual (int Width, int Height) MinimumSize => (300, 180);

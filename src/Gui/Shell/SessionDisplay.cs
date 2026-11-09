@@ -63,8 +63,7 @@ internal static class SessionDisplay
                 long frameStart = Now();
                 int linear = MotionCurve.Linear(elapsed, duration);
                 PixelBlend.Mix(from, frame, mix, (welcome ? MotionCurve.EaseInOut(linear) : MotionCurve.EaseOut(linear)) * 255 / MotionCurve.One);
-                screen.DrawArray(mix, 0, 0, width, height);
-                screen.Display();
+                FramePresenter.PresentFrame(screen, mix, width, height);
                 long took = Now() - frameStart;
                 frames++;
                 worst = System.Math.Max(worst, took);
@@ -74,8 +73,7 @@ internal static class SessionDisplay
             System.Array.Clear(mix);
         }
         if (from is not null) { System.Array.Clear(from); }
-        screen.DrawArray(frame, 0, 0, width, height);
-        screen.Display();
+        FramePresenter.PresentFrame(screen, frame, width, height);
         Zenith.Core.Log.Write("motion", "SessionFade frames=" + frames + " elapsed=" + elapsed + " worst=" + worst + " ended=" + end);
     }
 
@@ -134,16 +132,14 @@ internal static class SessionDisplay
         {
             long frameStart = Now();
             PixelBlend.Mix(from, target.Pixels, mix, MotionCurve.EaseOut(MotionCurve.Linear(elapsed, duration)) * 255 / MotionCurve.One);
-            screen.DrawArray(mix, 0, 0, screen.Width, screen.Height);
-            screen.Display();
+            FramePresenter.PresentFrame(screen, mix, screen.Width, screen.Height);
             long took = Now() - frameStart;
             frames++;
             worst = System.Math.Max(worst, took);
             slow = took > SlowFrameMicros ? slow + 1 : 0;
             if (slow >= 2) { end = "OverBudget"; break; }
         }
-        screen.DrawArray(target.Pixels, 0, 0, screen.Width, screen.Height);
-        screen.Display();
+        FramePresenter.PresentFrame(screen, target.Pixels, screen.Width, screen.Height);
         Zenith.Core.Log.Write("motion", "Farewell frames=" + frames + " elapsed=" + elapsed + " worst=" + worst + " ended=" + end);
     }
 

@@ -253,3 +253,12 @@ ordering and device publication remain on the BSP. Exact clipped-region results
 are published only after every tile completes; small/busy/single-CPU paths retain
 the scalar implementation. The 0.0.47 regression fixes, resource budgets and
 qualification boundaries are recorded in the [follow-up evidence](../archive/2026-11-07/display-memory-composition.md).
+
+## Rendering phase 3: presents and backdrops
+
+On VMware SVGA II a frame reaches the screen without the driver's `Display()`:
+only damaged rows go to the visible framebuffer, scaled as written, with one
+update command for the rectangle; other drivers keep the driver path. Material
+captures sample only what changed beneath a window since its last capture.
+`fps direct on|off` compares presents; `fps bench` splits the backdrop into
+sample, blur and range. [Evidence](../archive/2026-11-09/rendering-phase3.md).

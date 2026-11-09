@@ -6,6 +6,8 @@ Start with [current status](../ROADMAP.md#state-and-evidence) or [active work](.
 
 ## Investigation records
 
+- [2026-11-09 rendering phase 3](2026-11-09/rendering-phase3.md): VMware present cost, direct SVGA updates, fast and incremental backdrop sampling, and measured results.
+
 - [2026-11-08 login Terminal handoff](2026-11-08/login-terminal-handoff.md): distributor 0.0.48 startup-input race, observed public readiness and unchanged-kernel login qualification.
 
 - [2026-11-07 display, memory and composition follow-up](2026-11-07/display-memory-composition.md): installed regressions, on-demand framebuffers, UTC source, boot display and private AP foreground tiles.

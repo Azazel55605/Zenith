@@ -57,6 +57,14 @@ internal sealed class WindowManager
     private readonly List<Rect> _changed = new();
     private long _sceneKey = -1, _generation;
     private const int ChangeMargin = 24;
+    /// <summary>The changed parts of the scene under a window, in screen coordinates.</summary>
+    private static Rect DirtyUnder(Rect bounds, List<Rect> changes)
+    {
+        Rect dirty = new(0, 0, 0, 0);
+        foreach (Rect c in changes) { dirty = dirty.Union(c.Intersect(bounds)); }
+        return dirty;
+    }
+    private readonly List<Rect> _below = new();
     private bool ChangedUnder(Rect bounds)
     {
         Rect area = bounds.Inflate(ChangeMargin);
@@ -518,12 +526,14 @@ internal sealed class WindowManager
             bool same = false;
             foreach (LowerWindow old in previous) { if (old.Shows(w, button)) { same = true; break; } }
             _lower.Add(new LowerWindow(w, button));
-            w.BackdropUnchanged = sameScene && w.BackdropStamp == sceneKey && SameRect(w.BackdropBounds, w.Bounds) && !ChangedUnder(w.Bounds);
+            bool known = sameScene && w.BackdropStamp == sceneKey && SameRect(w.BackdropBounds, w.Bounds);
+            w.BackdropUnchanged = known && !ChangedUnder(w.Bounds);
+            w.BackdropDirty = known ? DirtyUnder(w.Bounds, _changed) : new Rect(0, 0, 0, 0);
             w.BackdropStamp = sceneKey; w.BackdropBounds = w.Bounds; w.BackdropGeneration = _generation;
             DrawWindow(surface, surface, w, w == hovered ? mouseX : -1, mouseY);
             // A window that looks different changes the backdrop of every window above it.
             if (!same || w.ContentChanged || !w.BackdropUnchanged) { _changed.Add(w.Bounds.Inflate(Theme.ShadowSize + 2)); }
-            w.ContentChanged = false; w.BackdropUnchanged = false;
+            w.ContentChanged = false; w.BackdropUnchanged = false; w.BackdropDirty = new Rect(0, 0, 0, 0);
         }
     }
 
@@ -588,21 +598,36 @@ internal sealed class WindowManager
             }
         }
         damage = damage.Intersect(surface.Bounds);
-        _changed.Clear(); _changed.Add(damage); _generation++; _sceneKey = sceneKey;
+        bool sameScene = sceneKey == _sceneKey;
+        _generation++; _sceneKey = sceneKey;
         surface.CopyRect(wallpaper, damage);
         surface.BaseClip = damage; MaterialComposition.Limit = damage;
+        // What really changed, bottom up: the damage grows over whole translucent windows, but a window's
+        // backdrop only changed where something below it did (a window that moved, changed state or drew
+        // new content, or a window whose own backdrop changed). The rest is drawn again identically.
+        _below.Clear();
+        if (!sameScene) { _below.Add(damage); }
         for (int i = 0; i < _lower.Count; i++)
         {
             Window w = _lower[i].Window;
             int button = w == hovered ? ButtonAt(w, mouseX, mouseY) : 0;
+            bool looks = _lower[i].Shows(w, button);
+            Rect was = _lower[i].Bounds.Inflate(Theme.ShadowSize + 8);
             _lower[i] = new LowerWindow(w, button);
             Rect hit = AreaOf(w).Intersect(damage);
             if (hit.W <= 0 || hit.H <= 0) { w.ContentChanged = false; continue; }
-            w.BackdropUnchanged = w.BackdropStamp == sceneKey && SameRect(w.BackdropBounds, w.Bounds) && !ChangedUnder(w.Bounds);
+            bool known = w.BackdropStamp == sceneKey && SameRect(w.BackdropBounds, w.Bounds);
+            Rect dirty = known ? DirtyUnder(w.Bounds.Inflate(ChangeMargin), _below) : w.Bounds;
+            w.BackdropUnchanged = known && dirty.IsEmpty;
+            w.BackdropDirty = known ? dirty : new Rect(0, 0, 0, 0);
             w.BackdropStamp = sceneKey; w.BackdropBounds = w.Bounds; w.BackdropGeneration = _generation;
             DrawWindow(surface, surface, w, w == hovered ? mouseX : -1, mouseY);
-            w.ContentChanged = false; w.BackdropUnchanged = false;
+            if (!looks) { _below.Add(was); }
+            if (!looks || w.ContentChanged || !dirty.IsEmpty) { _below.Add(AreaOf(w)); }
+            w.ContentChanged = false; w.BackdropUnchanged = false; w.BackdropDirty = new Rect(0, 0, 0, 0);
         }
+        _changed.Clear();
+        foreach (Rect c in _below) { Rect hit = c.Intersect(damage); if (!hit.IsEmpty) { _changed.Add(hit); } }
         surface.BaseClip = surface.Bounds; MaterialComposition.Limit = MaterialComposition.Unlimited;
         _lowerDirty = false;
     }
@@ -613,12 +638,14 @@ internal sealed class WindowManager
         Window? top = Top;
         if (top is null) { return; }
         // Same scene and place, and either no lower redraw since, or one that changed nothing under it.
-        top.BackdropUnchanged = top.BackdropStamp == sceneKey && sceneKey == _sceneKey && SameRect(top.BackdropBounds, top.Bounds)
-            && (top.BackdropGeneration == _generation || (top.BackdropGeneration == _generation - 1 && !ChangedUnder(top.Bounds)));
+        bool known = top.BackdropStamp == sceneKey && sceneKey == _sceneKey && SameRect(top.BackdropBounds, top.Bounds);
+        top.BackdropUnchanged = known && (top.BackdropGeneration == _generation || (top.BackdropGeneration == _generation - 1 && !ChangedUnder(top.Bounds)));
+        // One lower redraw since the last capture: only what it changed is sampled again.
+        top.BackdropDirty = known && top.BackdropGeneration == _generation - 1 ? DirtyUnder(top.Bounds, _changed) : new Rect(0, 0, 0, 0);
         top.BackdropStamp = sceneKey; top.BackdropBounds = top.Bounds; top.BackdropGeneration = _generation;
         bool hovered = _dragging is null && HitTest(mouseX, mouseY, includeResizeMargin: false) == top;
         DrawWindow(surface, backdrop, top, hovered ? mouseX : -1, mouseY);
-        top.BackdropUnchanged = false;
+        top.BackdropUnchanged = false; top.BackdropDirty = new Rect(0, 0, 0, 0);
     }
 
     /// <summary>Forgets the lower scene, for the benchmark and for pixel comparison.</summary>
@@ -641,8 +668,10 @@ internal sealed class WindowManager
         int radius = w.IsMaximized ? 0 : Theme.WindowRadius;
         Rect chrome = new(b.X, b.Y, b.W, Window.TitleBarHeight + Theme.WindowRadius);
         long phase = FrameStats.Now;
+        MaterialComposition.Dirty = w.BackdropDirty;
         w.ChromeMaterial.Capture(backdrop, chrome, 0, Theme.Panel, w.AllowMaterials, w.BackdropUnchanged);
         w.CaptureBackdrop(backdrop, w.Content);
+        MaterialComposition.Dirty = new Rect(0, 0, 0, 0);
         FrameStats.BackdropTicks += FrameStats.Now - phase; phase = FrameStats.Now;
         if (!w.IsMaximized)
         {
@@ -694,7 +723,9 @@ internal sealed class WindowManager
     private static void DrawFullscreen(Surface surface, Surface backdrop, Window w)
     {
         long phase = FrameStats.Now;
+        MaterialComposition.Dirty = w.BackdropDirty;
         w.CaptureBackdrop(backdrop, w.Content);
+        MaterialComposition.Dirty = new Rect(0, 0, 0, 0);
         FrameStats.BackdropTicks += FrameStats.Now - phase; phase = FrameStats.Now;
         surface.FillRect(w.Bounds, Theme.WindowBackground);
         surface.Clip = w.Content;

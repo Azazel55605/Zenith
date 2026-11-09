@@ -77,8 +77,7 @@ internal static class BootScreen
     {
         Paint(s_surface!, label, Math.Min(s_done, Phases) * 256 / Phases);
         var screen = SessionDisplay.Screen;
-        screen.DrawArray(s_surface!.Pixels, 0, 0, s_surface.Width, s_surface.Height);
-        screen.Display();
+        FramePresenter.PresentFrame(screen, s_surface!.Pixels, s_surface.Width, s_surface.Height);
     }
 
     private static void Stop(string message)

@@ -13,8 +13,9 @@ internal static partial class CpuWorkers
     private static int[]? s_composeOutput;
     private static long s_composeFrames, s_composeTiles, s_composeFallbacks;
     private static bool s_composeFailed;
+    private static long s_composeDeclined;
     internal static string ComposeStatus => "parallel compose frames=" + s_composeFrames
-        + " ap-tiles=" + s_composeTiles + " fallbacks=" + s_composeFallbacks + " quarantined=" + s_composeFailed;
+        + " ap-tiles=" + s_composeTiles + " fallbacks=" + s_composeFallbacks + " quarantined=" + s_composeFailed + " declined=" + s_composeDeclined;
 
     // One retained output for the active production consumer. No target pixels
     // are published until every owned tile is complete, so fallback never blends
@@ -28,7 +29,7 @@ internal static partial class CpuWorkers
             || foregroundStride > 16384 || backgroundStride > 16384 || foregroundOffset < 0 || backgroundOffset < 0
             || (long)foregroundOffset + (long)(height - 1) * foregroundStride + width > foreground.Length
             || (long)backgroundOffset + (long)(height - 1) * backgroundStride + width > background.Length
-            || ReferenceEquals(foreground, background)) { return false; }
+            || ReferenceEquals(foreground, background)) { s_composeDeclined++; return false; }
         if (!Monitor.TryEnter(s_gate)) { s_composeFallbacks++; return false; }
         try
         {

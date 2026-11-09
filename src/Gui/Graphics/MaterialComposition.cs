@@ -33,6 +33,8 @@ internal sealed class MaterialComposition
     private int _paintedBytes;
     private uint _paintedFallback, _paintedPanel, _paintedNavigation, _paintedPopover;
     public bool HasPaintedCache => _paintedValid;
+    /// <summary>One averaged backdrop sample (tests).</summary>
+    internal int SampleAt(int index) => _source[index];
     /// <summary>Painting and composing change only pixels inside this (a partial compose's damaged
     /// rectangle; the compositor is the only, single-threaded caller). Captures are not limited.</summary>
     public static readonly Rect Unlimited = new(0, 0, int.MaxValue / 2, int.MaxValue / 2);
@@ -44,6 +46,14 @@ internal sealed class MaterialComposition
         _paintedBytes = 0; _painted = null; _paintedValid = false;
     }
 
+    /// <summary>Set by the window manager around one window's captures: the only screen pixels under it
+    /// that may have changed since its last capture. Empty means unknown (sample everything).</summary>
+    public static Rect Dirty { get; set; }
+    private bool _hasCapture;
+    private Rect _lastContent;
+    private int _lastWidth, _lastHeight;
+    private uint _lastFallback;
+
     /// <param name="backdropUnchanged">The caller knows the pixels under these regions match the last capture.</param>
     public void Capture(int[] scene, int width, int height, Rect content, ProcessMaterialRegion[] regions, int count, uint fallback, bool backdropUnchanged = false)
     {
@@ -51,32 +61,34 @@ internal sealed class MaterialComposition
         bool changed = _count != count || _blurRevision != revision; int offset = 0;
         for (int i = 0; i < count; i++) { changed |= _previous[i] != regions[i]; }
         if (backdropUnchanged && !changed) { _stable = true; return; }
+        // Incremental: the same regions at the same place over the same scene, and the caller knows where
+        // the scene changed. Samples outside the dirty area keep their values; any change still blurs again.
+        Rect dirty = Dirty;
+        bool partial = !changed && _hasCapture && dirty.W > 0 && dirty.H > 0 && SameRect(content, _lastContent)
+            && width == _lastWidth && height == _lastHeight && fallback == _lastFallback;
+        long probe = FrameStats.Now;
         for (int i = 0; i < count; i++)
         {
             var r = regions[i]; _previous[i] = r;
             int sampledWidth = SampleLength(r.Width, _sampleScale), sampledHeight = SampleLength(r.Height, _sampleScale);
             if (r.Effect == 0) { offset += sampledWidth * sampledHeight; continue; }
-            for (int y = 0; y < sampledHeight; y++)
+            int left = content.X + r.X, top = content.Y + r.Y, x0 = 0, y0 = 0, x1 = sampledWidth, y1 = sampledHeight;
+            if (partial)
             {
-                for (int x = 0; x < sampledWidth; x++)
-                {
-                    int red = 0, green = 0, blue = 0, samples = 0;
-                    for (int dy = 0; dy < _sampleScale && y * _sampleScale + dy < r.Height; dy++)
-                    for (int dx = 0; dx < _sampleScale && x * _sampleScale + dx < r.Width; dx++)
-                    {
-                        int sx = content.X + r.X + x * _sampleScale + dx, sy = content.Y + r.Y + y * _sampleScale + dy;
-                        int color = sx < 0 || sy < 0 || sx >= width || sy >= height ? (int)fallback : scene[sy * width + sx];
-                        red += (color >> 16) & 255; green += (color >> 8) & 255; blue += color & 255; samples++;
-                    }
-                    int colorAverage = unchecked((int)0xff000000) | (red / samples << 16) | (green / samples << 8) | blue / samples;
-                    int slot = offset + y * sampledWidth + x; changed |= _source[slot] != colorAverage; _source[slot] = colorAverage;
-                }
+                Rect hit = dirty.Intersect(new Rect(left, top, r.Width, r.Height));
+                if (hit.W <= 0 || hit.H <= 0) { offset += sampledWidth * sampledHeight; continue; }
+                x0 = (hit.X - left) / _sampleScale; y0 = (hit.Y - top) / _sampleScale;
+                x1 = Math.Min(sampledWidth, (hit.Right - left + _sampleScale - 1) / _sampleScale);
+                y1 = Math.Min(sampledHeight, (hit.Bottom - top + _sampleScale - 1) / _sampleScale);
             }
+            changed |= Sample(scene, width, height, left, top, r, fallback, offset, sampledWidth, x0, y0, x1, y1);
             offset += sampledWidth * sampledHeight;
         }
+        _hasCapture = true; _lastContent = content; _lastWidth = width; _lastHeight = height; _lastFallback = fallback;
         _count = count;
         _blurRevision = revision;
         _stable = !changed;
+        FrameStats.SampleTicks += FrameStats.Now - probe; probe = FrameStats.Now;
         if (!changed) { return; }
         ReleasePainted();
         offset = 0;
@@ -94,6 +106,7 @@ internal sealed class MaterialComposition
                 BlurRebuilds++;
             }
             else if (r.Effect != 0) { Array.Copy(_source, offset, _filtered, offset, area); }
+            FrameStats.BlurTicks += FrameStats.Now - probe; probe = FrameStats.Now;
             double low = 1, high = 0;
             if (r.Effect != 0)
             {
@@ -101,8 +114,69 @@ internal sealed class MaterialComposition
                 { double l = MaterialPolicy.Luminance(_filtered[k]); if (l < low) { low = l; } if (l > high) { high = l; } }
             }
             _low[i] = r.Effect != 0 ? low : 0; _high[i] = r.Effect != 0 ? high : 1;
+            FrameStats.RangeTicks += FrameStats.Now - probe; probe = FrameStats.Now;
             offset += area;
         }
+    }
+
+    private static bool SameRect(Rect a, Rect b) => a.X == b.X && a.Y == b.Y && a.W == b.W && a.H == b.H;
+
+    /// <summary>Averages samples [x0,x1) x [y0,y1) of one region; true when any differs from before. A
+    /// sample whose whole block lies inside the region and on screen (nearly all) takes the fast path: no
+    /// bounds checks, red with blue summed in one word (16 bits a lane holds 16 x 255). Edge samples clip
+    /// to the region and use the fallback off screen. Both give the same averages.</summary>
+    private unsafe bool Sample(int[] scene, int width, int height, int left, int top, ProcessMaterialRegion r, uint fallback,
+        int offset, int sampledWidth, int x0, int y0, int x1, int y1)
+    {
+        int scale = _sampleScale, area = scale * scale;
+        // Full on-screen blocks: columns [fx0, fx1), rows [fy0, fy1).
+        int fx0 = Math.Max(0, (-left + scale - 1) / scale), fy0 = Math.Max(0, (-top + scale - 1) / scale);
+        int fx1 = width - left < 0 ? 0 : Math.Min(r.Width / scale, (width - left) / scale);
+        int fy1 = height - top < 0 ? 0 : Math.Min(r.Height / scale, (height - top) / scale);
+        int fastX0 = Math.Max(x0, fx0), fastX1 = Math.Min(x1, fx1);
+        bool changed = false;
+        fixed (int* pixels = scene)
+        fixed (int* target = _source)
+        {
+            for (int y = y0; y < y1; y++)
+            {
+                bool inner = y >= fy0 && y < fy1 && fastX1 > fastX0;
+                for (int x = x0; x < x1; x++)
+                {
+                    int color;
+                    if (inner && x == fastX0)
+                    {
+                        int* slot = target + offset + y * sampledWidth + x;
+                        int* block = pixels + (top + y * scale) * width + left + x * scale;
+                        for (; x < fastX1; x++, slot++, block += scale)
+                        {
+                            uint redBlue = 0, green = 0;
+                            int* row = block;
+                            for (int dy = 0; dy < scale; dy++, row += width)
+                            {
+                                for (int dx = 0; dx < scale; dx++)
+                                { uint c = (uint)row[dx]; redBlue += c & 0x00FF00FFu; green += (c >> 8) & 255; }
+                            }
+                            color = unchecked((int)0xff000000) | ((int)(redBlue >> 16) / area << 16)
+                                | ((int)green / area << 8) | (int)(redBlue & 0xFFFF) / area;
+                            changed |= *slot != color; *slot = color;
+                        }
+                        x--; continue;
+                    }
+                    int red = 0, greenSum = 0, blue = 0, samples = 0;
+                    for (int dy = 0; dy < scale && y * scale + dy < r.Height; dy++)
+                    for (int dx = 0; dx < scale && x * scale + dx < r.Width; dx++)
+                    {
+                        int sx = left + x * scale + dx, sy = top + y * scale + dy;
+                        int c = sx < 0 || sy < 0 || sx >= width || sy >= height ? (int)fallback : pixels[sy * width + sx];
+                        red += (c >> 16) & 255; greenSum += (c >> 8) & 255; blue += c & 255; samples++;
+                    }
+                    color = unchecked((int)0xff000000) | (red / samples << 16) | (greenSum / samples << 8) | blue / samples;
+                    int at = offset + y * sampledWidth + x; changed |= target[at] != color; target[at] = color;
+                }
+            }
+        }
+        return changed;
     }
 
     // One finished row of a region, before corner coverage. Bilinear reconstruction avoids visible

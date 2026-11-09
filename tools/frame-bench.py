@@ -27,13 +27,27 @@ def main():
     parser.add_argument('keep', type=Path)
     parser.add_argument('--mode', action='append', default=None, help='WIDTHxHEIGHTxSCALE, repeatable')
     parser.add_argument('--materials', action='store_true', help='blur and full translucency on')
+    parser.add_argument('--smp', type=int, default=0, help='CPUs; boots with smp=native so composition can use the APs')
     parser.add_argument('--apps', type=Path, help='served directory with key.pem, polaris.zpk and observatory.zpk: open both with blur on')
     args = parser.parse_args()
     args.keep.mkdir(parents=True, exist_ok=False)
     os.environ['ZENITH_SMOKE_VGA'] = 'vmware'
     smoke = load('frame_smoke', ROOT / 'tools/smoke-test.py')
     load('frame_accel', ROOT / 'deploy/distributor/validation-accelerator.py').install(smoke)
-    machine, _ = smoke.boot(ROOT / 'output-x64/Zenith.iso', 180, 'frame bench')
+    iso = ROOT / 'output-x64/Zenith.iso'
+    if args.smp:
+        import shutil, subprocess
+        os.environ['ZENITH_SMOKE_SMP'] = str(args.smp)
+        conf = args.keep / 'limine.conf'
+        subprocess.run(['xorriso', '-osirrox', 'on', '-indev', str(iso), '-extract', '/boot/limine/limine.conf', str(conf)], check=True, capture_output=True)
+        text = conf.read_text()
+        text, n = re.subn(r'(\n    cmdline: [^\n]*)', r'\1 smp=native', text, count=1)
+        assert n == 1, 'menu cmdline'
+        conf.write_text(text)
+        target = args.keep / 'smp.iso'; shutil.copyfile(iso, target)
+        subprocess.run(['xorriso', '-boot_image', 'any', 'keep', '-dev', str(target), '-map', str(conf), '/boot/limine/limine.conf', '-commit_eject', 'all'], check=True, capture_output=True)
+        iso = target
+    machine, _ = smoke.boot(iso, 180, 'frame bench')
     if not machine:
         raise RuntimeError('desktop boot')
 
@@ -57,6 +71,12 @@ def main():
         print('   compose ' + bench.split('compose: ')[-1], flush=True)
         for l in machine.raw_log()[offset:].splitlines():
             if 'partial differs at' in l: print('   ' + l.split('compose: ')[-1], flush=True)
+        if args.smp:
+            offset = len(machine.raw_log())
+            machine.type('fps parallel-bench\n')
+            assert machine.wait_for('parallel bench verify=', 90, offset), 'parallel bench result'
+            for l in machine.raw_log()[offset:].splitlines():
+                if 'parallel bench' in l or 'parallel blur=' in l: print('   ' + l.split('compose: ')[-1], flush=True)
         offset = len(machine.raw_log())
         machine.type('fps | logger\n')
         machine.wait_for('last compose', 20, offset); time.sleep(1)

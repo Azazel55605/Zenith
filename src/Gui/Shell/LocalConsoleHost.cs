@@ -77,6 +77,6 @@ internal sealed class LocalConsoleHost : ISessionHost
             var cells = visible[line];
             for (int col = 0; col < cells.Count; col++) { _surface.DrawText(cells[col].Char.ToString(), Fonts.Mono, 14, cells[col].Color, 12 + col * cell, 12 + (line - top) * height); }
         }
-        var screen = SessionDisplay.Screen; screen.DrawArray(_surface.Pixels, 0, 0, _surface.Width, _surface.Height); screen.Display();
+        FramePresenter.PresentFrame(SessionDisplay.Screen, _surface.Pixels, _surface.Width, _surface.Height);
     }
 }

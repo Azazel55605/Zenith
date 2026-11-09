@@ -253,7 +253,6 @@ internal sealed class LoginSessionHost : ISessionHost
     private void Present()
     {
         var screen = SessionDisplay.Screen;
-        screen.DrawArray(_frame.Pixels, 0, 0, _frame.Width, _frame.Height);
-        screen.Display();
+        FramePresenter.PresentFrame(screen, _frame.Pixels, _frame.Width, _frame.Height);
     }
 }
