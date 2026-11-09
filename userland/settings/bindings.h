@@ -15,8 +15,8 @@ struct meridian_bindings {
     unsigned int choice[6];      /* system preference drafts, fields 1..5 */
     unsigned long revision;      /* revision the drafts are based on */
     struct zenith_display display; int display_ready;
-    unsigned int display_choice,display_count,display_modes[48],display_scales[48];
-    unsigned long display_revision; char display_labels[48][40];
+    unsigned int display_choice,display_count,display_modes[120],display_scales[120];
+    unsigned long display_revision; char display_labels[120][40];
     long (*display_read)(struct zenith_display *);
     long (*display_save)(unsigned int,unsigned int,unsigned int,unsigned long,unsigned long);
     const char *display_message;

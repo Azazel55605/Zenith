@@ -13,7 +13,7 @@ public class DisplayServiceTests
         public string? Read(string path)=>Text;
         public void Replace(string path,string text) { Writer=CredentialContext.Current.Uid; if(Fail) { throw new IOException(); } Writes++;Text=text; }
     }
-    private static readonly DisplayLayout Boot=new(1280,800,1), Large=new(1920,1200,1);
+    private static readonly DisplayLayout Boot=new(1280,800,100), Large=new(1920,1200,100);
     private static DisplayService Service(Store store,List<DisplayLayout> changes)
     {
         var s=new DisplayService(store);s.Attach("test",Boot,new[]{Boot,Large},m=>{changes.Add(m);return true;},_=>{});return s;
@@ -22,25 +22,25 @@ public class DisplayServiceTests
     { var state=s.Snapshot(now);Assert.Equal(0,s.Request(0,42,1,1,2,state.Revision,0));s.Tick(now); }
     [Fact] public void SvgaCatalogueRequiresFrontAndBackBuffersAndActualLimits()
     {
-        Assert.True(DisplayLayout.FitsVmware(new(1600,1200,1),3840,2400,16*1024*1024,0));
-        Assert.False(DisplayLayout.FitsVmware(new(1920,1200,1),3840,2400,16*1024*1024,0));
-        Assert.False(DisplayLayout.FitsVmware(new(1600,1200,1),1280,1024,64*1024*1024,0));
-        Assert.True(DisplayLayout.FitsVmware(new(3840,2400,1),3840,2400,128*1024*1024,0));
-        Assert.False(DisplayLayout.FitsVmware(new(3840,2160,1),3840,2400,32*1024*1024,0));
+        Assert.True(DisplayLayout.FitsVmware(new(1600,1200,100),3840,2400,16*1024*1024,0));
+        Assert.False(DisplayLayout.FitsVmware(new(1920,1200,100),3840,2400,16*1024*1024,0));
+        Assert.False(DisplayLayout.FitsVmware(new(1600,1200,100),1280,1024,64*1024*1024,0));
+        Assert.True(DisplayLayout.FitsVmware(new(3840,2400,100),3840,2400,128*1024*1024,0));
+        Assert.False(DisplayLayout.FitsVmware(new(3840,2160,100),3840,2400,32*1024*1024,0));
     }
     [Fact] public void PreviewDoesNotSaveAndTimeoutRestoresWithoutClient()
     {
         var store=new Store();var changes=new List<DisplayLayout>();var s=Service(store,changes);Preview(s);
-        Assert.Equal(Large with {Scale=2},s.Snapshot(100).Current);Assert.Equal(15,s.Snapshot(100).Seconds);Assert.Equal(0,store.Writes);
+        Assert.Equal(Large with {Percent=200},s.Snapshot(100).Current);Assert.Equal(15,s.Snapshot(100).Seconds);Assert.Equal(0,store.Writes);
         s.Tick(15099);Assert.Equal(2,s.Snapshot(15099).Phase);s.Tick(15100);Assert.Equal(Boot,s.Snapshot(15100).Current);Assert.Equal(0,store.Writes);
-        Assert.Equal(new[]{Large with{Scale=2},Boot},changes);
+        Assert.Equal(new[]{Large with{Percent=200},Boot},changes);
     }
     [Fact] public void OnlyOwnerWithCurrentTokenCanKeepAndPersistenceLoads()
     {
         var store=new Store();var changes=new List<DisplayLayout>();var s=Service(store,changes);Preview(s);var a=s.Snapshot(100);
         Assert.Equal(-13,s.Request(1000,42,2,0,0,a.Revision,a.Token));Assert.Equal(-11,s.Request(0,43,2,0,0,a.Revision,a.Token));
         Assert.Equal(-11,s.Request(0,42,2,0,0,a.Revision,a.Token+1));Assert.Equal(0,s.Request(0,42,2,0,0,a.Revision,a.Token));
-        Assert.Equal(0,store.Writes);s.Tick(101);Assert.Equal(1,store.Writes);Assert.Equal(Large with{Scale=2},new DisplayService(store).Saved());
+        Assert.Equal(0,store.Writes);s.Tick(101);Assert.Equal(1,store.Writes);Assert.Equal(Large with{Percent=200},new DisplayService(store).Saved());
         Assert.Equal(-11,s.Request(0,42,2,0,0,a.Revision,a.Token));
     }
     [Fact] public void ClientExitCancelsQueuedOrActiveTrial()
@@ -89,6 +89,24 @@ public class DisplayServiceTests
     {
         var store=new Store();var s=new DisplayService(store);s.Attach("fixed",Boot,new[]{Boot,Large},_=>false,_=>{});
         Assert.Equal(0,s.Request(0,42,1,1,1,s.Snapshot(0).Revision,0));s.Tick(0);Assert.Equal(Boot,s.Snapshot(0).Current);Assert.Equal(-5,s.Snapshot(0).Error);Assert.Equal(0,store.Writes);
+    }
+    [Fact] public void FractionalScalesNeedAFilteringBackendAndPersistAsSchemaTwo()
+    {
+        var store=new Store();var plain=Service(store,new());
+        Assert.Equal(-22,plain.Request(0,42,1,1,150,plain.Snapshot(0).Revision,0));
+        var changes=new List<DisplayLayout>();var s=new DisplayService(store);
+        s.Attach("test",Boot,new[]{Boot,Large},m=>{changes.Add(m);return true;},_=>{},fractional:true);
+        Assert.Equal(-22,s.Request(0,42,1,1,110,s.Snapshot(0).Revision,0));   // only 125/150/175
+        Assert.Equal(-22,s.Request(0,42,1,0,175,s.Snapshot(0).Revision,0));   // 1280x800 at 175% is under 800x600 logical
+        Assert.Equal(0,s.Request(0,42,1,1,150,s.Snapshot(0).Revision,0));s.Tick(100);
+        var current=s.Snapshot(100);Assert.Equal(new DisplayLayout(1920,1200,150),current.Current);Assert.Equal(1280,current.Current.LogicalWidth);Assert.Equal(1,current.Current.Scale);
+        var wire=ProcessDisplaySettings.Snapshot(s,100);
+        Assert.Equal(1,BitConverter.ToInt32(wire,32));Assert.Equal(150,BitConverter.ToInt32(wire,320));Assert.NotEqual(0,BitConverter.ToInt32(wire,4)&8);
+        Assert.Equal(0,s.Request(0,42,2,0,0,current.Revision,current.Token));s.Tick(101);
+        Assert.Equal("ZENITH-DISPLAY 2 1920 1200 150\n",store.Text);Assert.Equal(new DisplayLayout(1920,1200,150),new DisplayService(store).Saved());
+        // Integer scales keep the schema earlier kernels read; schema 2 never carries one.
+        Assert.Null(new DisplayService(new Store{Text="ZENITH-DISPLAY 2 1920 1200 200"}).Saved());
+        Assert.Equal(new DisplayLayout(1920,1200,200),new DisplayService(new Store{Text="ZENITH-DISPLAY 1 1920 1200 2"}).Saved());
     }
     [Fact] public void WireContractHasBoundedNamesAndReservedBytes()
     {

@@ -84,16 +84,22 @@ internal sealed class Desktop
         _launcher = new LauncherMenu(_taskbar.Bounds, OpenApp);
 
         SessionDisplay.ConfigurePointer();
-        MouseManager.SetPosition(w * SessionDisplay.Scale / 2, h * SessionDisplay.Scale / 2);
+        MouseManager.SetPosition(SessionDisplay.Physical.Width / 2, SessionDisplay.Physical.Height / 2);
 
         TerminalWindow.OpenApp = OpenApp;
         FileManagerWindow.OpenApp = OpenApp;
-        CommandShell.Register(new Command("fps", "fps [reset|motion|bench|cpu|parallel-bench|parallel on|off|direct on|off]", "Show compositor statistics", c =>
+        CommandShell.Register(new Command("fps", "fps [reset|motion|bench|cpu|parallel-bench|parallel on|off|direct on|off|cursor hardware|software]", "Show compositor statistics", c =>
         {
             if (c.Args.Length == 2 && c.Args[0] == "direct" && (c.Args[1] == "on" || c.Args[1] == "off"))
             {
                 GuardedFilesystem.RequireRoot(); FramePresenter.Direct = c.Args[1] == "on"; _sceneDirty = true;
                 c.WriteLine(FramePresenter.Status); return 0;
+            }
+            if (c.Args.Length == 2 && c.Args[0] == "cursor" && (c.Args[1] == "hardware" || c.Args[1] == "software"))
+            {
+                // The session thread owns the device pointer: the switch takes effect at its next frame.
+                HardwareCursor.Enabled = c.Args[1] == "hardware"; _sceneDirty = true;
+                c.WriteLine(HardwareCursor.Status); return 0;
             }
             if (c.Args.Length == 2 && c.Args[0] == "parallel" && (c.Args[1] == "on" || c.Args[1] == "off"))
             {
@@ -112,7 +118,7 @@ internal sealed class Desktop
             if (c.Args.Length == 1 && c.Args[0] == "bench") { _benchRequested = true; return 0; }
             if (c.Args.Length >= 1 && c.Args[0] == "parallel-bench" && (c.Args.Length == 1 || (c.Args.Length == 2 && c.Args[1] == "fullscreen")))
             { GuardedFilesystem.RequireRoot(); _parallelBenchFullscreen = c.Args.Length == 2; _parallelBenchRequested = true; return 0; }
-            if (c.Args.Length != 0) { return c.Fail("usage: fps [reset|motion|bench|cpu|parallel-bench|parallel on|off|direct on|off]"); }
+            if (c.Args.Length != 0) { return c.Fail("usage: fps [reset|motion|bench|cpu|parallel-bench|parallel on|off|direct on|off|cursor hardware|software]"); }
             c.WriteLine("frames presented: " + FrameStats.Frames + ", scene composes: " + FrameStats.SceneComposes);
             c.WriteLine("last compose: " + FrameStats.LastComposeMicros + " us, last present: " + FrameStats.LastPresentMicros + " us");
             c.WriteLine("display: " + _screen.Name + " " + _screen.Width + "x" + _screen.Height);
@@ -121,6 +127,7 @@ internal sealed class Desktop
             c.WriteLine("over 16 ms: " + FrameStats.FramesOver16Ms + ", over 33 ms: " + FrameStats.FramesOver33Ms);
             c.WriteLine(CpuWorkers.BlurStatus);
             c.WriteLine(FramePresenter.Status);
+            c.WriteLine(HardwareCursor.Status + "; " + Zenith.Core.Input.AbsolutePointer.Status);
             c.WriteLine("windows: " + Windows.Windows.Count + ", materials: " + MaterialResources.Policy.Effective);
             if (Windows.Top is Window top)
             {
@@ -194,7 +201,7 @@ internal sealed class Desktop
         }
         _taskbar=frames.Bar; _launcher=frames.Launcher;
         _barMode=(TaskbarMode)(-1); _lowerValid=false; _sceneDirty=true; _cursorDirty=true; _hoverKey=-1;
-        Zenith.Core.Processes.NativeSystemInformation.Display(w+"x"+h+" logical, scale="+SessionDisplay.Scale);
+        Zenith.Core.Processes.NativeSystemInformation.Display(w+"x"+h+" logical, scale="+SessionDisplay.Percent+"%");
     }
     public WindowManager Windows { get; }
 
@@ -222,6 +229,11 @@ internal sealed class Desktop
             SessionDisplay.FadeTo(_frame.Pixels, _frame.Width, _frame.Height, welcome: true);
             _sceneDirty = false;
         }
+
+        // Between the device pointer and one drawn into frames the whole frame is presented once:
+        // the other kind's pointer must not stay on screen.
+        bool hardwarePointer = HardwareCursor.Active;
+        if (hardwarePointer != _hardwarePointer) { _hardwarePointer = hardwarePointer; _composeAll = true; _sceneDirty = true; }
 
         _nativeClients.Tick(Windows);
         _apps.Tick(Windows);
@@ -895,7 +907,7 @@ internal sealed class Desktop
     private Window? _lastTop;
     private long _lastTopKey, _lastBarKey;
     private int _lastTopVersion;
-    private bool _barChanged, _composeAll;
+    private bool _barChanged, _composeAll, _hardwarePointer;
     /// <summary>Everything that changes how the top window looks: place, state, hover, content.</summary>
     private long TopKey(Window? top)
     {

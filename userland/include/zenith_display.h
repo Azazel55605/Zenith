@@ -1,13 +1,16 @@
 #ifndef ZENITH_DISPLAY_H
 #define ZENITH_DISPLAY_H
 #include "zenith_graphics.h"
-/* Primary output, host-owned 15 second preview; no framebuffer or input access. */
+/* Primary output, host-owned 15 second preview; no framebuffer or input access.
+ * flags: 1 persistent, 2 writable, 4 own preview, 8 percent is valid and requests may name
+ * 125/150/175 (scale = percent; 1 and 2 remain 100% and 200%). scale stays 1 or 2 for older
+ * clients (1 under a fractional percent). */
 struct zenith_display {
     unsigned int version,flags; unsigned long revision,token;
     unsigned int width,height,scale,logical_width,logical_height,phase,seconds;
     int error; unsigned int mode_count,reserved;
     char driver[64]; struct {unsigned int width,height;} modes[24];
-    unsigned char tail[192];
+    unsigned int percent; unsigned char tail[188];
 };
 struct zenith_display_request {
     unsigned int version,action; unsigned long revision,token;

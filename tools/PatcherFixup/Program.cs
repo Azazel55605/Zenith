@@ -19,10 +19,10 @@ foreach (var type in module.GetTypeReferences())
     { type.Scope = module; }
 }
 foreach (var reference in self) { module.AssemblyReferences.Remove(reference); }
-void QuietTrace(MethodDefinition method, string firstText, string lastText)
+void QuietTrace(MethodDefinition method, string firstText, string lastText, Instruction? at = null)
 {
     var code = method.Body.Instructions;
-    var first = code.Single(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == firstText);
+    var first = at ?? code.Single(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == firstText);
     if (first.Next.OpCode == OpCodes.Pop) { return; }
     var last = code.Skip(code.IndexOf(first)).First(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == lastText);
     var end = last.Next;
@@ -51,6 +51,7 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
     changed |= GcBarrierFixup.Apply(module);
     changed |= SuspendedBootStackFixup.Apply(module);
     changed |= IdleAccountingFixup.Core(module);
+    changed |= ParkSwitchFixup.Apply(module);
     changed |= PinnedCpuFixup.Apply(module);
     changed |= ExceptionStateFixup.Apply(module);
     changed |= SchedulerDispatchFixup.Apply(module);
@@ -79,6 +80,44 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
     QuietTrace(scheduler.Methods.Single(m => m.Name == "CheckSleepingThreads"),
         "[SCHED] Waking sleeping thread ", " (time expired)\n");
     QuietTrace(scheduler.Methods.Single(m => m.Name == "ReadyThread"), "[SCHED] Thread ", "\n");
+    // Every monitor pulse and every park traced a line: with program service threads blocking for
+    // their AP slices that is hundreds of COM1 lines a second, each byte a port exit on a VM.
+    QuietTrace(scheduler.Methods.Single(m => m.Name == "BlockThread"), "[SCHED] BlockThread id=", "\n");
+    var signal = condition.Methods.Single(m => m.Name == "Signal");
+    QuietTrace(signal, "[CV] Signal -> ReadyThread id=", "\n");
+    QuietTrace(signal, "[CV] Signal (no waiters)\n", "[CV] Signal (no waiters)\n");
+    // Thread lifecycle successes print from thread context, where a switch can cut a line: a command's
+    // own exit trace then split its status line on the console (failure traces stay).
+    void QuietIn(TypeDefinition type, string first, string last, string? within = null)
+    {
+        var methods = type.Methods.Where(m => m.HasBody && m.Body.Instructions.Any(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == (within ?? first))).ToArray();
+        if (methods.Length != 1) { throw new InvalidOperationException("Cosmos lifecycle trace moved: " + first); }
+        QuietTrace(methods[0], first, last);
+    }
+    QuietIn(scheduler, "[SCHED] Running thread ", "\n");
+    QuietIn(scheduler, "[SCHED] Invoking thread entry\n", "[SCHED] Invoking thread entry\n");
+    QuietIn(scheduler, "[SCHED] Thread entry completed\n", "[SCHED] Thread entry completed\n");
+    {
+        // The exit trace's own "[SCHED] Thread " (the method also reports a thrown exception that way).
+        // Already adapted copies keep only the first literal of a quieted trace.
+        var exiting = scheduler.Methods.SingleOrDefault(m => m.HasBody && m.Body.Instructions.Any(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == " exiting with code "));
+        var code = exiting?.Body.Instructions ?? new Mono.Collections.Generic.Collection<Instruction>();
+        if (exiting is not null)
+        {
+            var suffix = code.Single(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == " exiting with code ");
+            var head = code.Take(code.IndexOf(suffix)).Last(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == "[SCHED] Thread ");
+            QuietTrace(exiting, "[SCHED] Thread ", "\n", head);
+        }
+    }
+    QuietIn(scheduler, "[SCHED] ExitThread: managed exit callback for thread ", "\n");
+    QuietIn(scheduler, "[SCHED] ExitThread: stopping managed thread ", " from another context\n");
+    QuietIn(scheduler, "[SCHED] ExitThread: entering DisableInterruptsScope for thread ", "\n");
+    QuietIn(scheduler, "[SCHED] ExitThread: OnThreadExit done\n", "[SCHED] ExitThread: OnThreadExit done\n");
+    QuietIn(scheduler, "[SCHED] Setting thread exit callback: ", "\n");
+    QuietIn(scheduler, "[SCHED] CreateThread: entering\n", "[SCHED] CreateThread: entering\n");
+    QuietIn(scheduler, "[SCHED] CreateThread: done\n", "[SCHED] CreateThread: done\n");
+    QuietIn(module.GetType("Cosmos.Kernel.Core.Bridge.Interop.libSystemNative")
+        ?? throw new InvalidOperationException("Cosmos thread interop changed"), "[libSystemNative] Thread ", " bytes\n");
     var thread = module.GetType("Cosmos.Kernel.Core.Scheduler.SchedulerThread");
     var states = module.GetType("Cosmos.Kernel.Core.Scheduler.SchedulerThreadState");
     var ready = scheduler.Methods.Single(m => m.Name == "ReadyThread");
@@ -356,6 +395,7 @@ if (assembly.Name.Name == "Cosmos.Kernel.Plugs")
 }
 if (assembly.Name.Name == "Cosmos.Kernel.HAL.X64")
 {
+    changed |= PointerRateFixup.Apply(module);
     // Firmware can supply MAC bytes without an enabled exact-match filter. The
     // fast ReadMacAddress return skipped setting RAH0.AV, losing unicast replies.
     var device = module.GetType("Cosmos.Kernel.HAL.X64.Devices.Network.E1000E")

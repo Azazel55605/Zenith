@@ -20,6 +20,8 @@ namespace Zenith.Core.Multiprocessing
         private static bool s_stopping=false;
         private static int s_count=2;
         internal static int Run(uint mask,Func<bool> cancelled,out int cpu) => RunProcessSlice(1,mask,cancelled,out cpu);
+        // The production wait parks on a monitor pulsed by the kernel loop (CpuWorkers.SliceWait.cs).
+        private static void WaitForSlice(ulong token) { if (ProcessWait(token) == 0) System.Threading.Thread.Sleep(1); }
     }
 }
 internal static class Program

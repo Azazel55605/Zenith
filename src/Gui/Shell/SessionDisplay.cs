@@ -1,3 +1,4 @@
+using System;
 using Cosmos.Kernel.System.Graphics;
 using Zenith.Gui.Motion;
 using MemoryInfo = Cosmos.Kernel.System.Diagnostics.MemoryInfo;
@@ -17,12 +18,15 @@ internal static class SessionDisplay
         get { s_screen ??= DisplayController.Initialize(); DisplayController.LoadPreferences(); return s_screen; }
     }
     public static void ReplaceScreen(Canvas screen) { DropFrame(); s_screen=screen; }
-    /// <summary>The device's own pixels, under any integer scale: boot and power screens draw here.</summary>
+    /// <summary>The device's own pixels, under any scale: boot and power screens draw here.</summary>
     public static Canvas Physical => Screen is DisplayCanvas scaled ? scaled.Physical : Screen;
-    public static int Scale { get; set; } = 1;
+    /// <summary>The display scale in percent (100 = one device pixel per logical pixel).</summary>
+    public static int Percent { get; set; } = 100;
+    /// <summary>A device-pixel coordinate in logical pixels.</summary>
+    public static int ToLogical(int physical) => physical * 100 / Percent;
     public static void ConfigurePointer()
     {
-        int width=Screen.Width*Scale,height=Screen.Height*Scale;
+        Canvas physical=Physical; int width=physical.Width,height=physical.Height;
         Cosmos.Kernel.System.Mouse.MouseManager.SetScreenSize(width,height);
         Cosmos.Kernel.System.Mouse.MouseManager.SetPosition(System.Math.Clamp(Cosmos.Kernel.System.Mouse.MouseManager.X,0,width-1),
             System.Math.Clamp(Cosmos.Kernel.System.Mouse.MouseManager.Y,0,height-1));
@@ -42,15 +46,16 @@ internal static class SessionDisplay
     /// <summary>A frame drawn at the physical size: kept at the logical size, which sessions fade in.</summary>
     public static void KeepFrame(int[] pixels, int width, int height)
     {
-        int scale = Scale, logicalWidth = Screen.Width, logicalHeight = Screen.Height;
+        int percent = Percent, logicalWidth = Screen.Width, logicalHeight = Screen.Height;
         if (width == logicalWidth && height == logicalHeight) { KeepFrame(pixels); return; }
         DropFrame();
-        if (width != logicalWidth * scale || height != logicalHeight * scale) { return; }
+        if (width < logicalWidth * percent / 100 || height < logicalHeight * percent / 100) { return; }
         if (Zenith.Core.Configuration.SystemConfiguration.Settings.AnimationPercent == 0) { return; }
         if (MemoryInfo.FreePages < (ulong)(logicalWidth * logicalHeight * sizeof(int) * 2 / 4096) + ReservePages) { return; }
         var kept = new int[logicalWidth * logicalHeight];
         for (int y = 0; y < logicalHeight; y++)
-        for (int x = 0; x < logicalWidth; x++) { kept[y * logicalWidth + x] = pixels[(y * scale + scale / 2) * width + x * scale + scale / 2]; }
+        for (int x = 0; x < logicalWidth; x++)
+        { kept[y * logicalWidth + x] = pixels[Math.Min(height - 1, (y * percent + percent / 2) / 100) * width + Math.Min(width - 1, (x * percent + percent / 2) / 100)]; }
         s_fade = kept;
     }
 
@@ -133,6 +138,7 @@ internal static class SessionDisplay
 
     private static void PlayFarewell(string label)
     {
+        Zenith.Gui.Graphics.HardwareCursor.Hide();
         int percent = System.Math.Min(100, Zenith.Core.Configuration.SystemConfiguration.Settings.AnimationPercent);
         int[]? from = LiveFrame;
         if (percent == 0 || from is null) { return; }
@@ -162,7 +168,7 @@ internal static class SessionDisplay
         if (physical != screen && MemoryInfo.FreePages >= (ulong)(physical.Width * physical.Height * sizeof(int) / 4096) + ReservePages)
         {
             var sharp = new Zenith.Gui.Graphics.Surface(physical.Width, physical.Height);
-            BootScreen.Paint(sharp, label, -1, Scale);
+            BootScreen.Paint(sharp, label, -1, Percent);
             FramePresenter.PresentFrame(physical, sharp.Pixels, physical.Width, physical.Height);
         }
         Zenith.Core.Log.Write("motion", "Farewell frames=" + frames + " elapsed=" + elapsed + " worst=" + worst + " ended=" + end);

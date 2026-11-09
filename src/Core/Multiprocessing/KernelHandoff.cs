@@ -17,6 +17,28 @@ internal static class KernelHandoff
     private static extern ulong Reschedule(ulong hhdm);
 #endif
 
+#if !ARCH_ARM64
+    [DllImport("*", EntryPoint = "zenith_cpu_park_configure"), SuppressGCTransition]
+    private static extern ulong ParkConfigure(ulong hhdm, ulong enabled);
+#endif
+
+    /// <summary>Whether a parked thread switches away at once (the adapted halt; see ParkSwitchFixup).</summary>
+    public static bool ParkSwitch { get; private set; }
+
+    /// <summary>Turns the park switch on or off; returns how many parks switched so far.</summary>
+    public static unsafe ulong SetParkSwitch(bool enabled)
+    {
+#if !ARCH_ARM64
+        var response = Cosmos.Kernel.Boot.Limine.Limine.HHDM.Response;
+        ParkSwitch = enabled && response != null;
+        // All three scheduler rules: switch away from a parked thread, give the kernel loop a turn
+        // after 6 ms, and hand queued threads the CPU when the loop would halt.
+        return ParkConfigure(response == null ? 0 : response->Offset, ParkSwitch ? 7UL : 0UL);
+#else
+        return 0;
+#endif
+    }
+
     public static unsafe void Apply()
     {
         if (!Zenith.Core.Processes.WakeSignal.Take()) { return; }

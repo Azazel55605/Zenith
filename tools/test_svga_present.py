@@ -36,6 +36,42 @@ class SvgaPresentTests(unittest.TestCase):
         return self.lib.zenith_svga_test_present(self.fb, self.pitch, self.width, self.height, self.fifo, 80,
                                                  src, stride, x, y, w, h, scale)
 
+    def scale(self, src, width, height, x, y, w, h, percent):
+        f = self.lib.zenith_scale_filtered
+        f.argtypes = [ct.POINTER(U32), ct.c_uint64, ct.POINTER(U32), ct.c_uint64, ct.c_uint64, ct.c_uint64, ct.c_uint64,
+                      ct.c_uint64, ct.c_uint64, ct.c_uint64, ct.c_uint64, ct.c_uint64, ct.POINTER(ct.c_uint64)]
+        f.restype = ct.c_uint64
+        dw, dh = width * percent // 100, height * percent // 100
+        out = (U32 * (dw * dh))(); rect = (ct.c_uint64 * 4)()
+        ok = f(out, dw, src, width, height, x, y, w, h, percent, dw, dh, rect)
+        return ok, list(rect), out, dw, dh
+
+    def test_fractional_scale_keeps_flat_colour_and_interpolates_edges(self):
+        width, height = 40, 30
+        flat = (U32 * (width * height))(*([0xff336699] * (width * height)))
+        for percent in (125, 150, 175):
+            ok, rect, out, dw, dh = self.scale(flat, width, height, 0, 0, width, height, percent)
+            self.assertEqual(ok, 1)
+            self.assertEqual(rect, [0, 0, dw, dh])
+            self.assertTrue(all(out[i] == 0xff336699 for i in range(rect[2] * rect[3])), percent)
+        # A horizontal ramp stays monotonic and within its end values.
+        ramp = (U32 * (width * height))(*[0xff000000 | (c * 6) << 16 for r in range(height) for c in range(width)])
+        ok, rect, out, dw, dh = self.scale(ramp, width, height, 0, 0, width, height, 150)
+        row = [(out[5 * rect[2] + c] >> 16) & 255 for c in range(rect[2])]
+        self.assertEqual(row, sorted(row)); self.assertEqual(row[0], 0); self.assertEqual(row[-1], (width - 1) * 6)
+
+    def test_fractional_damage_widens_by_one_logical_pixel_and_stays_inside(self):
+        width, height = 40, 30
+        src = self.source(width, height, width)
+        ok, rect, out, dw, dh = self.scale(src, width, height, 10, 10, 4, 4, 150)
+        self.assertEqual(ok, 1)
+        self.assertEqual(rect, [13, 13, 10, 10])   # logical 9..15 -> device 13..23 (ceil of 22.5)
+        ok, rect, out, dw, dh = self.scale(src, width, height, 36, 26, 4, 4, 125)
+        self.assertEqual(ok, 1); self.assertEqual(rect[0] + rect[2], dw); self.assertEqual(rect[1] + rect[3], dh)
+        for bad in ((0, 0, 0, 4, 150), (39, 0, 2, 4, 150), (0, 0, 4, 4, 100), (0, 0, 4, 4, 400)):
+            ok, *_ = self.scale(src, width, height, *bad)
+            self.assertEqual(ok, 0, bad)
+
     def source(self, w, h, stride):
         return (U32 * (stride * h))(*[(r << 16) | c for r in range(h) for c in range(stride)])
 

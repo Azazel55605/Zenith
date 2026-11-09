@@ -21,6 +21,7 @@ internal static class PanicScreen
 
     public static void Show(Exception exception)
     {
+        try { Zenith.Gui.Graphics.HardwareCursor.Hide(); } catch { }
         string title = exception.GetType().Name + ": " + exception.Message;
         string[] trace = (exception.StackTrace ?? "(no stack trace available)").Split('\n');
 

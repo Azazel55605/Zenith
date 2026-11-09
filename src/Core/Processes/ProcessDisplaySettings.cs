@@ -11,10 +11,13 @@ internal static class ProcessDisplaySettings
     {
         DisplayState s = service.Snapshot(now); byte[] data = new byte[SnapshotBytes]; Span<byte> b = data;
         BinaryPrimitives.WriteUInt32LittleEndian(b,1);
-        BinaryPrimitives.WriteUInt32LittleEndian(b[4..], (s.Persistent ? 1U : 0) | (s.Active && CredentialContext.Current.IsRoot ? 2U : 0) | (s.Phase!=0 && s.Owner==owner ? 4U : 0));
+        // Flag 8: the percent at 320 is current and requests may name 125/150/175 (scale field = percent).
+        BinaryPrimitives.WriteUInt32LittleEndian(b[4..], (s.Persistent ? 1U : 0) | (s.Active && CredentialContext.Current.IsRoot ? 2U : 0) | (s.Phase!=0 && s.Owner==owner ? 4U : 0)
+            | (service.Fractional ? 8U : 0));
+        BinaryPrimitives.WriteUInt32LittleEndian(b[320..], (uint)s.Current.Percent);
         BinaryPrimitives.WriteUInt64LittleEndian(b[8..],s.Revision);
         BinaryPrimitives.WriteUInt64LittleEndian(b[16..],s.Token);
-        int[] values = {s.Current.Width,s.Current.Height,s.Current.Scale,s.Current.Scale > 0 ? s.Current.LogicalWidth : 0,s.Current.Scale > 0 ? s.Current.LogicalHeight : 0,s.Phase,s.Seconds,s.Error,s.Modes.Length};
+        int[] values = {s.Current.Width,s.Current.Height,s.Current.Scale,s.Current.Percent > 0 ? s.Current.LogicalWidth : 0,s.Current.Percent > 0 ? s.Current.LogicalHeight : 0,s.Phase,s.Seconds,s.Error,s.Modes.Length};
         for(int i=0;i<values.Length;i++) { BinaryPrimitives.WriteInt32LittleEndian(b[(24+i*4)..],values[i]); }
         byte[] name = Encoding.ASCII.GetBytes(s.Driver); name.AsSpan(0,Math.Min(63,name.Length)).CopyTo(b[64..]);
         if(s.Modes.Length>24) { throw new InvalidOperationException("display catalogue overflow"); }

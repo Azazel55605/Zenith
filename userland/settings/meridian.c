@@ -204,7 +204,7 @@ static void display_form(struct meridian *a,struct zui *u,struct zui_form *f){
     status(u,f,b->display_message?b->display_message:"Apply previews the mode. Only Keep saves it for the next boot.");
     status(u,f,(b->display.flags&2)?"Administrator display settings for all sessions.":"Read only, inactive desktop or unsupported configuration.");
     if(b->display.mode_count==1)status(u,f,"This driver has no runtime resolution switching.");
-    status(u,f,"WIP: fractional scale, orientation, refresh rate, multiple monitors and brightness.");
+    status(u,f,"125-175% are filtered for now; sharp scaling, orientation, refresh rate, multiple monitors and brightness are WIP.");
 }
 static void lines_form(struct zui *u,struct zui_form *f,const char *s){
     while(*s){

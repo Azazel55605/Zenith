@@ -26,6 +26,7 @@ internal sealed class LocalConsoleHost : ISessionHost
     public void BeginStop() => _terminal.CloseInput();
     public void Start()
     {
+        Zenith.Gui.Graphics.HardwareCursor.Hide();
         SessionDisplay.DropFrame();
         NativeAppearance.Reload();
         var screen = SessionDisplay.Screen;

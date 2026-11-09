@@ -235,7 +235,11 @@ never infer current failures from old release logs or claim a menu stub is a bac
   in the copied-runtime adapter. Keep real-dependency wake/GC regressions and repeated native
   pipeline completion checks. Condition waits must remain parked after unrelated
   interrupts until a signal or timeout actually readies the thread; repeated parks
-  must preserve tickets and IRQ flags. Timed monitor interop must forward the actual
+  must preserve tickets and IRQ flags. A parked (Sleeping/Blocked/Dead) non-idle
+  thread's halt raises the scheduler interrupt so it switches away at once; the idle
+  kernel loop gets the CPU when it has not run for 6 ms and hands queued threads the
+  CPU instead of halting past them (ParkSwitchFixup, `cpu park on|off`). Program slice
+  waits block on a monitor the kernel loop pulses; keep per-wake traces quiet. Timed monitor interop must forward the actual
   timeout/signal Boolean. Monitor adaptations must cover transplanted CoreLib
   bodies, not only the copied source plug assembly. Stride ticket totals must track
   runnable admission independently of thread state: manager callbacks may already

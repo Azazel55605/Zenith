@@ -162,6 +162,18 @@ internal static partial class CpuWorkers
             }
             return 0;
         }
+        if (c.Args[0] == "park" && c.Args.Length <= 2)
+        {
+            if (c.Args.Length == 2)
+            {
+                GuardedFilesystem.RequireRoot();
+                if (c.Args[1] is not ("on" or "off")) { return c.Fail("usage: cpu park [on|off]"); }
+                KernelHandoff.SetParkSwitch(c.Args[1] == "on");
+            }
+            c.WriteLine("park-switch=" + KernelHandoff.ParkSwitch + " switches=" + KernelHandoff.SetParkSwitch(KernelHandoff.ParkSwitch)
+                + " slice-parks=" + SliceParks + " slice-pulses=" + SlicePulses + " doorbell=" + (s_count > 0 ? Field(0, 25) : 0));
+            return 0;
+        }
         GuardedFilesystem.RequireRoot();
         if (c.Args.Length == 1 && c.Args[0] == "fp-test")
         {

@@ -73,7 +73,7 @@ internal static partial class CpuWorkers
                     ProcessFailStop(); throw new InvalidOperationException("native process stop acknowledgement unavailable");
                 }
                 ManagedCpuJobs.PumpRequests();
-                if (ProcessWait(token) == 0) Thread.Sleep(1);
+                WaitForSlice(token);
             }
         }
         catch

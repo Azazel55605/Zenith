@@ -30,6 +30,7 @@ public class Kernel : Sys.Kernel
             SessionRuntime.DesktopAvailable = () => hasDisplay;
             SessionRuntime.LoginFactory = mode => new LoginSessionHost(mode);
             Zenith.Core.Multiprocessing.CpuWorkers.Initialize();
+            Zenith.Core.Multiprocessing.KernelHandoff.SetParkSwitch(!CommandLine().Contains("park=off"));
             Zenith.Core.Time.SystemClock.HardwareClockIsLocal = HardwareClockIsLocal(CommandLine());
             InitializePlatformClock(CommandLine());
             SessionDisplay.MarkSessionThread();
@@ -37,6 +38,7 @@ public class Kernel : Sys.Kernel
             bool bootScreen = hasDisplay && BootScreen.Wanted(CommandLine());
             if (bootScreen) { BootScreen.Begin(); }
             SystemRuntime.Initialize(bootScreen ? BootScreen.Phase : null);
+            if (hasDisplay) { Zenith.Core.Input.AbsolutePointer.Start(CommandLine()); }
             if (bootScreen) { BootScreen.Phase("Starting session"); BootScreen.Finish(); }
             SessionRuntime.Start(SystemConfiguration.Settings.Current.DefaultSession,
                 mode => mode switch
@@ -84,6 +86,7 @@ public class Kernel : Sys.Kernel
         // While the desktop paces an animation or drag, run the loop again instead of waiting for
         // the next timer tick (10 ms), which capped frames and made motion feel slow.
         // Let a thread this pass woke (download, native app input) run now, not at the next tick.
+        Zenith.Core.Multiprocessing.CpuWorkers.PulseSliceWaiters();
         Zenith.Core.Multiprocessing.KernelHandoff.Apply();
         if (!SessionRuntime.FramePending) { Sys.Power.Halt(); }
     }

@@ -18,21 +18,30 @@ The CLI exposes the same transaction for the active graphical desktop:
 ```text
 display
 display test 1600 1200 2
+display test 1920 1200 150
 display keep
 display revert
 ```
 
 Use a listed resolution; the example requires sufficient framebuffer memory.
-Scale is 1 or 2 (100% or 200%). The minimum logical desktop is 800x600. Scaling
-magnifies the completed UI and maps physical pointer coordinates back into logical
-coordinates. It is integer scaling, not fractional DPI or new font rasterization.
+Scale is 1 or 2 (100% or 200%) or a percent: 125, 150 or 175 on VMware SVGA (x64).
+`display` lists the percents each mode supports. The minimum logical desktop is
+800x600. Scaling magnifies the completed UI and maps physical pointer coordinates
+back into logical coordinates. 200% doubles pixels; 125-175% resample the logical
+frame bilinearly while it is presented (`zenith_svga_present_filtered`), so text is
+soft. This is a stopgap: sharp scaling needs the shell to draw at the device's
+resolution, a scale in the client ABI and scaled toolkit atlases (roadmap D2). The
+pointer is drawn sharp at any scale when the device draws it (VMware).
 
 Kept system choices are stored atomically in `/etc/zenith/display.conf`:
 
 ```text
 ZENITH-DISPLAY 1 1600 1200 2
+ZENITH-DISPLAY 2 1920 1200 150
 ```
 
+Integer scales keep schema 1, which earlier kernels read; schema 2 holds only a
+fractional percent (an earlier kernel treats it as unknown and keeps its boot mode).
 Malformed or unknown schemas disable writes instead of being overwritten. An
 unsupported saved mode falls back to the boot display. Add `display=safe` to the
 boot command line to ignore the saved choice without deleting it. Serial/no-GPU
@@ -51,7 +60,7 @@ until confirmation. An unrecoverable hardware restoration error propagates.
 The pinned Virtio GPU and GOP setters ignore requested dimensions, so those
 profiles advertise only their current physical mode. A fixed display can still
 use a supported integer scale. Orientation, refresh rate, brightness, tearing,
-fractional scaling, multiple outputs and night light remain WIP.
+sharp fractional scaling, multiple outputs and night light remain WIP.
 
 ## Protected ABI
 
@@ -59,7 +68,11 @@ fractional scaling, multiple outputs and night light remain WIP.
 and 641 (40-byte request), requiring `zenith-native-display-abi 1.0`. Snapshot
 contains current physical/logical size, scale, bounded driver name, up to 24
 modes, revision, preview token, remaining seconds, permissions and error state.
-Requests carry action, revision, token, mode index and scale. All buffers and
+Requests carry action, revision, token, mode index and scale. Snapshot flag 8
+means the 32-bit percent at offset 320 (formerly reserved tail) is current and a
+request's scale may be a percent (125/150/175); 1 and 2 remain 100% and 200%, and
+the legacy scale field stays 1 or 2 (1 under a fractional percent) so earlier
+Settings releases keep working. All buffers and
 reserved fields are validated. Preview ownership is the captured PID; callers
 cannot confirm or revert another application's trial. Root authority is checked
 at request admission; persistence runs in an explicitly restored trusted scope.

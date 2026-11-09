@@ -31,8 +31,10 @@ int binding_of(const char *id){
 }
 static int preference_changed(const struct meridian_bindings *b,int f){return b->ready&&b->choice[f]!=saved(&b->preferences,f);}
 static char *digits(char *s,unsigned int v){char d[10];int n=0;do{d[n++]=(char)('0'+v%10);v/=10;}while(v);while(n)*s++=d[--n];return s;}
+/* The current scale in percent: kernels without fractional scales report only 1 or 2. */
+static unsigned int display_percent(const struct zenith_display *s){return (s->flags&8)&&s->percent?s->percent:s->scale*100;}
 static int display_saved(const struct meridian_bindings *b){
-    for(unsigned int i=0;i<b->display_count;i++){unsigned int m=b->display_modes[i];if(b->display.modes[m].width==b->display.width&&b->display.modes[m].height==b->display.height&&b->display_scales[i]==b->display.scale)return (int)i;}
+    for(unsigned int i=0;i<b->display_count;i++){unsigned int m=b->display_modes[i];if(b->display.modes[m].width==b->display.width&&b->display.modes[m].height==b->display.height&&b->display_scales[i]==display_percent(&b->display))return (int)i;}
     return -1;
 }
 static void display_refresh(struct meridian_bindings *b){
@@ -42,11 +44,13 @@ static void display_refresh(struct meridian_bindings *b){
     int old_saved=display_saved(b),draft=b->display.revision&&((int)b->display_choice!=old_saved||(b->display.phase&&(b->display.flags&4)));
     int ended=b->display.phase&&!s.phase;
     b->display=s;b->display_ready=1;b->display_count=0;
-    for(unsigned int m=0;m<s.mode_count;m++)for(unsigned int scale=1;scale<=2;scale++){
-        unsigned int w=s.modes[m].width,h=s.modes[m].height;
-        if(w<800*scale||h<600*scale||w%scale||h%scale||w>3840||h>2400)continue;
-        unsigned int i=b->display_count++;b->display_modes[i]=m;b->display_scales[i]=scale;
-        char *t=b->display_labels[i];t=digits(t,w);*t++=' ';*t++='x';*t++=' ';t=digits(t,h);*t++=' ';*t++='(';t=digits(t,scale*100);*t++='%';*t++=')';*t=0;
+    static const unsigned int percents[5]={100,125,150,175,200};
+    for(unsigned int m=0;m<s.mode_count;m++)for(unsigned int k=0;k<5;k++){
+        unsigned int w=s.modes[m].width,h=s.modes[m].height,p=percents[k];
+        if(p!=100&&p!=200&&!(s.flags&8))continue;
+        if(w*100/p<800||h*100/p<600||(p==200&&(w%2||h%2))||w>3840||h>2400||b->display_count>=120)continue;
+        unsigned int i=b->display_count++;b->display_modes[i]=m;b->display_scales[i]=p;
+        char *t=b->display_labels[i];t=digits(t,w);*t++=' ';*t++='x';*t++=' ';t=digits(t,h);*t++=' ';*t++='(';t=digits(t,p);*t++='%';*t++=')';*t=0;
     }
     if(!draft||ended){int saved=display_saved(b);b->display_choice=saved<0?0:(unsigned int)saved;b->display_revision=s.revision;}
     if(ended){b->display_message=s.error?"Display change failed; previous mode restored.":"Display is ready.";if(b->dirty)b->dirty(binding_any_changed(b));}
@@ -109,7 +113,9 @@ long binding_apply(struct meridian_bindings *b,int kind){
     if(kind==BIND_DISPLAY){
         if(b->display.phase)return -16;
         if(!binding_changed(b,kind))return 0;
-        unsigned int i=b->display_choice;long r=b->display_save?b->display_save(1,b->display_modes[i],b->display_scales[i],b->display_revision,0):-38;
+        unsigned int i=b->display_choice;unsigned int p=b->display_scales[i];
+        /* 100% and 200% go as 1 and 2, which every kernel accepts. */
+        long r=b->display_save?b->display_save(1,b->display_modes[i],p==100?1:p==200?2:p,b->display_revision,0):-38;
         b->display_message=r==-11?"Display changed elsewhere. Reset to reload.":r?"Cannot preview this display mode.":"Preparing preview. Confirm within 15 seconds.";
         display_refresh(b);return r?r:-16; /* navigation waits for Keep/Revert */
     }

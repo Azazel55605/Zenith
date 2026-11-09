@@ -518,10 +518,58 @@ u64 zenith_vmware_utc_seconds(void) {
     return d;
 }
 #ifndef ZENITH_CPU_HOST_TEST
+/* VMware absolute pointer (vmmouse) over the backdoor port. Without it VMware feeds the PS/2
+ * mouse relative steps and must grab the host pointer. With it the host reports where its own
+ * pointer is (0..0xFFFF over the screen), the PS/2 packets that still arrive only announce new
+ * data. Protocol: Linux drivers/input/mouse/vmmouse.c (ABSPOINTER_DATA 39, STATUS 40,
+ * COMMAND 41, RESTRICT 86). BSP only, from the desktop's input poll. */
+static void backdoor(u32 *a,u32 *b,u32 *c,u32 *d) {
+    u32 si=0,di=0;
+    __asm__ volatile("inl %%dx, %%eax":"+a"(*a),"+b"(*b),"+c"(*c),"+d"(*d),"+S"(si),"+D"(di)::"memory");
+}
+static u32 vmmouse_cmd(u32 cmd,u32 arg,u32 *b,u32 *c,u32 *d) {
+    u32 a=0x564d5868,bb=arg,cc=cmd,dd=0x5658; backdoor(&a,&bb,&cc,&dd);
+    if (b) *b=bb; if (c) *c=cc; if (d) *d=dd; return a;
+}
+static u64 vmmouse_on, vmmouse_packets, vmmouse_errors;
+u64 zenith_vmmouse_enable(u64 enable, u64 any_hypervisor) {
+    u32 a=1,b,c,d; __asm__ volatile("cpuid":"+a"(a),"=b"(b),"=c"(c),"=d"(d));
+    if (!(c&(1u<<31)) || (!any_hypervisor && !zenith_cpu_vmware())) return 0;
+    if (!enable) { if (vmmouse_on) vmmouse_cmd(41,0xf5,0,0,0); vmmouse_on=0; return 1; }
+    vmmouse_cmd(41,0x45414552,0,0,0);               /* enable: the queue holds one version item */
+    u32 status=vmmouse_cmd(40,0,0,0,0);
+    if ((status&0xffff0000u)==0xffff0000u || (status&0xffff)==0) return 0;
+    if (vmmouse_cmd(39,1,0,0,0)!=0x3442554au) { vmmouse_cmd(41,0xf5,0,0,0); return 0; }
+    vmmouse_cmd(86,1,0,0,0);                         /* only CPL0 may read it (user code runs at CPL3) */
+    vmmouse_cmd(41,0x53424152,0,0,0);               /* request absolute */
+    vmmouse_on=1; return 1;
+}
+/* Drains up to 64 queued packets. out: last absolute x, y; buttons; summed wheel; flags
+ * (1 absolute seen, 2 relative seen); summed relative dx, dy. Returns packets, or -1 on a queue
+ * error (the device is then switched off; the PS/2 path keeps working). */
+long long zenith_vmmouse_poll(int *out) {
+    if (!vmmouse_on || !out) return 0;
+    long long n=0;
+    for (; n<64; n++) {
+        u32 status=vmmouse_cmd(40,0,0,0,0);
+        if ((status&0xffff0000u)==0xffff0000u || (status&0xffff)%4) {
+            vmmouse_errors++; vmmouse_cmd(41,0xf5,0,0,0); vmmouse_on=0; return -1;
+        }
+        if ((status&0xffff)==0) break;
+        u32 x,y,z; u32 flags=vmmouse_cmd(39,4,&x,&y,&z);
+        out[2]=(int)(((flags&0x20)?1:0)|((flags&0x10)?2:0)|((flags&0x08)?4:0));
+        out[3]+=(int)(signed char)(z&0xff);
+        if (flags&0x00010000u) { out[5]+=(int)x; out[6]+=(int)y; out[4]|=2; }
+        else { out[0]=(int)(x&0xffff); out[1]=(int)(y&0xffff); out[4]|=1; }
+        vmmouse_packets++;
+    }
+    return n;
+}
+u64 zenith_vmmouse_counter(u64 which) { return which==0?vmmouse_on:which==1?vmmouse_packets:vmmouse_errors; }
 /* Self-interrupt on the scheduler's timer vector (0xEF): the kernel loop runs as the scheduler's
  * idle thread, so a thread it wakes would otherwise wait for the next 10 ms tick. Interrupt exit
  * switches to it at once. Works with or without smp=native (reads this CPU's APIC directly). */
-u64 zenith_cpu_reschedule_self(u64 offset) {
+static u64 self_reschedule(u64 offset) {
     u64 base=msr(0x1b);
     if (!(base&0x800)) return 0;
     if (base&0x400) { wrmsr(0x83f,0xef); return 1; }
@@ -532,6 +580,7 @@ u64 zenith_cpu_reschedule_self(u64 offset) {
     apic[0x300/4]=0x40000|0xef;   /* destination shorthand: self */
     return 1;
 }
+u64 zenith_cpu_reschedule_self(u64 offset) { return self_reschedule(offset); }
 #endif
 /* The 48-byte CPUID brand string, or zero when the CPU has none. */
 u64 zenith_cpu_brand(u32 *out) {
@@ -559,6 +608,29 @@ void zenith_cpu_halt_counted(void) {
     /* STI's interrupt shadow covers HLT: an interrupt pending since the CLI wakes it. */
     if (f&0x200) __asm__ volatile("sti; hlt":::"memory"); else __asm__ volatile("hlt":::"memory");
     idle_close(cpu);
+}
+/* A managed thread that parks (Sleeping or Blocked: a timed wait, a sleep, a contended lock)
+ * used to halt in place until the next 10 ms timer tick switched away from it, holding the BSP
+ * from every other thread, the kernel loop included. Raising the scheduler's own interrupt with
+ * IF clear leaves it pending; STI's shadow covers HLT, so it is taken at once and its exit
+ * switches to another thread. Resumed later, the thread continues after the HLT and rechecks. */
+/* Policy bits (the adapted scheduler reads them): 1 a parked thread switches away at once,
+ * 2 the kernel loop gets the CPU when it has not run for 6 ms, 4 the kernel loop hands the CPU
+ * to queued threads instead of halting past them. */
+static u64 park_offset, park_enabled, park_switches;
+u64 zenith_cpu_park_configure(u64 offset, u64 policy) {
+    if (offset) STORE(park_offset,offset);
+    STORE(park_enabled,policy&7); return LOAD(park_switches);
+}
+u64 zenith_cpu_park_policy(void) { return LOAD(park_enabled); }
+void zenith_cpu_park_counted(void) {
+    u64 f=irq_off();
+    if ((f&0x200) && idle_cpu()==0 && LOAD(park_enabled) && self_reschedule(LOAD(park_offset))) {
+        __atomic_fetch_add(&park_switches,1,__ATOMIC_RELAXED);
+        __asm__ volatile("sti; hlt":::"memory");
+        return;
+    }
+    irq_restore(f); zenith_cpu_halt_counted();
 }
 static void sleep_worker(struct cpu *c) {
     /* IF is clear throughout observation. A targeted IPI after the recheck stays

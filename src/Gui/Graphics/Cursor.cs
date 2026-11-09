@@ -1,3 +1,5 @@
+using System;
+
 namespace Zenith.Gui.Graphics;
 
 /// <summary>An arrow pointer with a dark outline and a faint drop shadow, hotspot at its tip.</summary>
@@ -31,11 +33,14 @@ internal static class Cursor
     private const uint Fill = 0xFFFFFFFF;
     private const uint Shadow = 0x40000000;
 
-    /// <summary>The pixels the cursor (shadow included) can touch when drawn at (<paramref name="x"/>, <paramref name="y"/>).</summary>
-    public static Rect Bounds(int x, int y) => new(x, y, s_shape[0].Length + 1, s_shape.Length + 2);
+    /// <summary>The pixels the cursor (shadow included) can touch when drawn at (<paramref name="x"/>, <paramref name="y"/>).
+    /// Empty while the device draws the pointer itself: frames never contain it then.</summary>
+    public static Rect Bounds(int x, int y) => HardwareCursor.Active ? new Rect(x, y, 0, 0) : new(x, y, s_shape[0].Length + 1, s_shape.Length + 2);
 
+    /// <summary>Draws the pointer into an on-screen frame, or moves the device's pointer to it.</summary>
     public static void Draw(Surface surface, int x, int y)
     {
+        if (HardwareCursor.Show()) { return; }
         Plot(surface, x + 1, y + 2, Shadow, Shadow);
         Plot(surface, x, y, Outline, Fill);
     }

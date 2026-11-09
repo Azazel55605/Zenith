@@ -178,6 +178,11 @@ int main(int argc,char **argv){
     click_id(4101);meridian_refresh(&app);draw();assert(!display.phase&&!dirty&&!app.display_dialog.open&&display_actions==2);
     display.phase=2;display.flags|=4;display.seconds=9;display.token=77;display.revision++;meridian_refresh(&app);draw();
     key(0,1,0);meridian_refresh(&app);draw();assert(!display.phase&&display_actions==3);
+    /* A kernel with filtered fractional scales (flag 8) offers 125-175% where the logical size stays 800x600 or more. */
+    display=(struct zenith_display){.version=1,.flags=3|8,.revision=9,.width=1600,.height=1200,.scale=1,.percent=150,.mode_count=2,.driver="VMWareSVGAII",.modes={{1024,768},{1600,1200}}};
+    meridian_refresh(&app);assert(app.bindings.display_count==7);   /* 1024x768 at 100/125%, 1600x1200 at 100-200% */
+    assert(!strcmp(app.bindings.display_labels[4],"1600 x 1200 (150%)")&&app.bindings.display_scales[4]==150);
+    display.flags=3;display.revision++;meridian_refresh(&app);assert(app.bindings.display_count==3);
 
     if(argc==2){
         const char *shots[]={"quick.overview","style.colors","input.keyboard","network.connections","devices.bluetooth"};

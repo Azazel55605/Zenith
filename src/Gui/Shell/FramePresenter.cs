@@ -30,6 +30,11 @@ internal sealed class FramePresenter
     private static extern unsafe ulong SvgaPresent(ulong offset, int* source, ulong stride, ulong x, ulong y, ulong w, ulong h, ulong scale);
     [DllImport("*", EntryPoint = "zenith_svga_counter"), SuppressGCTransition]
     private static extern ulong SvgaCounter(ulong which);
+    [DllImport("*", EntryPoint = "zenith_svga_present_filtered"), SuppressGCTransition]
+    private static extern unsafe ulong SvgaPresentFiltered(ulong offset, int* frame, ulong width, ulong height, ulong x, ulong y, ulong w, ulong h, ulong percent);
+    [DllImport("*", EntryPoint = "zenith_scale_filtered"), SuppressGCTransition]
+    private static extern unsafe ulong ScaleFiltered(int* dst, ulong stride, int* frame, ulong width, ulong height, ulong x, ulong y, ulong w, ulong h,
+        ulong percent, ulong deviceWidth, ulong deviceHeight, ulong* rect);
 #endif
     public static string Status
 #if !ARCH_ARM64
@@ -64,6 +69,8 @@ internal sealed class FramePresenter
         damage = damage.Intersect(new Rect(0, 0, width, height));
         if (damage.W <= 0 || damage.H <= 0 || frame.Length < width * height) { return; }
         Canvas target = screen is DisplayCanvas scaled ? scaled.Physical : screen;
+        int percent = screen is DisplayCanvas p ? p.Percent : 100;
+        if (percent is not (100 or 200)) { PresentFiltered(target, frame, width, height, damage, percent); return; }
         int scale = screen is DisplayCanvas s ? s.Scale : 1;
         if (TryDirect(target, frame, width, damage, scale)) { DirectPresents++; s_backStale = true; return; }
         DriverPresents++;
@@ -91,5 +98,41 @@ internal sealed class FramePresenter
         }
         target.DrawArray(_buffer, damage.X * scale, damage.Y * scale, pw, ph);
         target.Display();
+    }
+
+    /// <summary>125/150/175%: the logical frame resampled into device pixels (bilinear, native).</summary>
+    private unsafe void PresentFiltered(Canvas target, int[] frame, int width, int height, Rect damage, int percent)
+    {
+#if ARCH_ARM64
+        throw new NotSupportedException("fractional display scales need the x64 presenter");
+#else
+        if (Direct && target.Name.StartsWith("VMWare", StringComparison.OrdinalIgnoreCase)
+            && Cosmos.Kernel.Boot.Limine.Limine.HHDM.Response is var hhdm && hhdm != null)
+        {
+            fixed (int* pixels = frame)
+            {
+                if (SvgaPresentFiltered(hhdm->Offset, pixels, (ulong)width, (ulong)height, (ulong)damage.X, (ulong)damage.Y,
+                    (ulong)damage.W, (ulong)damage.H, (ulong)percent) == 1)
+                { DirectPresents++; s_backStale = true; return; }
+            }
+        }
+        DriverPresents++;
+        if (s_backStale) { damage = new Rect(0, 0, width, height); s_backStale = false; }
+        int dw = target.Width, dh = target.Height;
+        // The widest device rectangle a logical damage can map to: one logical pixel more on each side.
+        int cw = Math.Min(dw, (damage.W + 3) * percent / 100 + 2), ch = Math.Min(dh, (damage.H + 3) * percent / 100 + 2);
+        if (_buffer.Length < cw * ch) { _buffer = new int[cw * ch]; }
+        ulong* rect = stackalloc ulong[4];
+        fixed (int* output = _buffer)
+        fixed (int* pixels = frame)
+        {
+            if (ScaleFiltered(output, (ulong)cw, pixels, (ulong)width, (ulong)height, (ulong)damage.X, (ulong)damage.Y,
+                (ulong)damage.W, (ulong)damage.H, (ulong)percent, (ulong)dw, (ulong)dh, rect) != 1) { return; }
+        }
+        int rw = (int)rect[2], rh = (int)rect[3];
+        if (rw != cw) { for (int row = 1; row < rh; row++) { Array.Copy(_buffer, row * cw, _buffer, row * rw, rw); } }
+        target.DrawArray(_buffer, (int)rect[0], (int)rect[1], rw, rh);
+        target.Display();
+#endif
     }
 }

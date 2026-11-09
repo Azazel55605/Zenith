@@ -78,7 +78,7 @@ def verify(image, kernel=None):
 
 def override(image, argument, directory):
     # Test harness only: preserve the selected kernel and root identity.
-    if argument not in ('smp=native', 'session=de smp=native', 'session=de', 'session=de display=safe', 'session=de display=safe smp=native', 'session=headless', 'session=invalid', 'root=live session=headless', 'session=headless kernel-test-stop=staged', 'session=headless kernel-test-stop=menu-gap'):
+    if argument not in ('smp=native', 'session=de smp=native', 'session=de', 'session=de display=safe', 'session=de display=safe smp=native', 'session=de smp=native pointer=absolute', 'session=headless', 'session=invalid', 'root=live session=headless', 'session=headless kernel-test-stop=staged', 'session=headless kernel-test-stop=menu-gap'):
         raise ValueError('unsupported test override')
     text = read(image, '/limine.conf').decode('ascii')
     def change(match):

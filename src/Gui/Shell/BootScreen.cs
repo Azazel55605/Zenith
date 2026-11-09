@@ -62,12 +62,12 @@ internal static class BootScreen
     /// <summary>One boot or power frame: logo, then the label and how much of the bar is filled, 0-256.</summary>
     /// <summary>One boot or power frame: logo, then the label and how much of the bar is filled, 0-256.
     /// Sizes follow the surface's height (1080 lines draw them at 100%) and never fall below the display
-    /// <paramref name="scale"/> of a physical surface, so the frame looks the same on any screen, matches
+    /// <paramref name="percent"/> of a physical surface, so the frame looks the same on any screen, matches
     /// the scaled desktop, and stays sharp at high resolutions.</summary>
-    public static void Paint(Surface surface, string? label, int filled, int scale = 1)
+    public static void Paint(Surface surface, string? label, int filled, int percent = 100)
     {
         surface.FillRect(surface.Bounds, Background);
-        int unit = Math.Clamp(Math.Max(surface.Height * 1000 / 1080, scale * 1000), 1000, 4000);
+        int unit = Math.Clamp(Math.Max(surface.Height * 1000 / 1080, percent * 10), 1000, 4000);
         int S(int value) => value * unit / 1000;
         int x = surface.Width / 2, y = surface.Height / 2, logo = S(LogoSize), barWidth = S(BarWidth), barHeight = Math.Max(BarHeight, S(BarHeight));
         Logo.Draw(surface, new Rect(x - logo / 2, y - logo - S(16), logo, logo));
@@ -82,13 +82,13 @@ internal static class BootScreen
 
     private static void Draw(string? label)
     {
-        Paint(s_surface!, label, Math.Min(s_done, Phases) * 256 / Phases, SessionDisplay.Scale);
+        Paint(s_surface!, label, Math.Min(s_done, Phases) * 256 / Phases, SessionDisplay.Percent);
         var screen = SessionDisplay.Physical;
         // The mode can change before the first session (saved preferences): draw for the new one.
         if (screen.Width != s_surface!.Width || screen.Height != s_surface.Height)
         {
             s_surface = new Surface(screen.Width, screen.Height);
-            Paint(s_surface, label, Math.Min(s_done, Phases) * 256 / Phases, SessionDisplay.Scale);
+            Paint(s_surface, label, Math.Min(s_done, Phases) * 256 / Phases, SessionDisplay.Percent);
         }
         FramePresenter.PresentFrame(screen, s_surface.Pixels, s_surface.Width, s_surface.Height);
     }
