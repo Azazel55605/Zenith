@@ -27,6 +27,7 @@
     <Compile Include="../../src/Core/Boot/*.cs" Exclude="../../src/Core/Boot/Native*.cs" LinkBase="Kernel/Boot" />
     <Compile Include="../../src/Core/Storage/GptChecksums.cs" LinkBase="Kernel/Storage" />
     <Compile Include="../../src/Core/Storage/GptIdentity.cs" LinkBase="Kernel/Storage" />
+    <Compile Include="../../src/Core/Storage/DiskLayout.cs" LinkBase="Kernel/Storage" />
     <Compile Include="../../src/Core/Storage/FileSystemProbe.cs" LinkBase="Kernel/Storage" />
     <Compile Include="../../src/Core/Storage/Dev/*.cs" Exclude="../../src/Core/Storage/Dev/DevMount.cs" LinkBase="Kernel/Storage/Dev" />
     <Compile Include="../../src/Core/Storage/Ext2/*.cs" Exclude="../../src/Core/Storage/Ext2/Ext2FilesystemType.cs;../../src/Core/Storage/Ext2/RamExt2FilesystemType.cs" LinkBase="Kernel/Storage/Ext2" />
@@ -49,7 +50,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="../../src/Core/Shell/**/*.cs" Exclude="../../src/Core/Shell/Commands/SystemCommands.cs;../../src/Core/Shell/Commands/AccountCommands.cs;../../src/Core/Shell/Commands/ConfigurationCommands.cs;../../src/Core/Shell/Commands/PackageCommands.cs;../../src/Core/Shell/Commands/NetworkCommands.cs;../../src/Core/Shell/Commands/NativeProcessCommands.cs" LinkBase="Kernel/Shell" />
+    <Compile Include="../../src/Core/Shell/**/*.cs" Exclude="../../src/Core/Shell/Commands/SystemCommands.cs;../../src/Core/Shell/Commands/AccountCommands.cs;../../src/Core/Shell/Commands/ConfigurationCommands.cs;../../src/Core/Shell/Commands/PackageCommands.cs;../../src/Core/Shell/Commands/NetworkCommands.cs;../../src/Core/Shell/Commands/NativeProcessCommands.cs;../../src/Core/Shell/Commands/DiskCommands.cs" LinkBase="Kernel/Shell" />
     <Compile Include="../../src/Core/Security/*.cs" Exclude="../../src/Core/Security/HardwareEntropy.cs;../../src/Core/Security/VfsSecurityPlug.cs;../../src/Core/Security/Accounts.cs;../../src/Core/Security/NativeAccessProbe.cs" LinkBase="Kernel/Security" />
     <Compile Include="../../src/Core/Configuration/*.cs" Exclude="../../src/Core/Configuration/Native*.cs;../../src/Core/Configuration/SystemConfiguration.cs" LinkBase="Kernel/Configuration" />
     <Compile Include="../../src/Core/Sessions/SessionSelection.cs" LinkBase="Kernel/Sessions" />

@@ -40,6 +40,7 @@ internal static class SystemCommands
         AccountCommands.Register(add);
         ConfigurationCommands.Register(add);
         PackageCommands.Register(add);
+        DiskCommands.Register(add);
         NetworkCommands.Register(add);
         add(new Command("accessprobe", "accessprobe directory", "Verify native VFS authorization (root, ext2)", c => { if (c.Args.Length != 1) { return c.Fail("specify an ext2 directory"); } c.WriteLine(NativeAccessProbe.Run(c.Shell.ResolvePath(c.Args[0]))); return 0; }));
         add(new Command("date", "date [-u]", "Print the date and time (-u: in UTC)", Date));

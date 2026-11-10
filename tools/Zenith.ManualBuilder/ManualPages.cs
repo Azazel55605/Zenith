@@ -170,6 +170,8 @@ internal static class ManualPages
             pkg install [--yes] NAME...  plan, confirm, download and install atomically
             pkg update [--yes]         refresh/update installed data and stage newer kernel
             pkg upgrade [--yes]        data-only upgrades from refreshed catalog
+            pkg clean [--dry-run]      remove cached archives and abandoned stages (root)
+            pkg clean auto [on|off]    show or set automatic cleanup (root to change)
             native run NAME [ARGS...]  execute signed installed x86_64 text program
             sunbeam cat [FILE...]     independently packaged file/stdin reader
             sunbeam tee [-a] FILE     stream piped input; -a appends
@@ -207,7 +209,10 @@ internal static class ManualPages
             standard stream transfers are bounded to 1 MiB per invocation. Tail
             retains at most 64 KiB. Writes are not rolled back on failure.
             New CLI interfaces and package coverage: man native-cli.
-            Online indexes are signed.
+            Online indexes are signed. Downloaded archives leave the cache after each
+            completed update/install and periodically (day-old archives, hour-old
+            stages) unless pkg clean auto off; signed indexes stay. Downloads check
+            free root space first.
             System update commits data and boot staging separately, then requires
             explicit reboot/boot confirm. No global root/ESP atomicity or hot reload.
             Recovery covers journaled package changes; ext2 power-loss repair may
@@ -285,14 +290,46 @@ internal static class ManualPages
                 fsck.ext2 PARTITION
 
             DESCRIPTION
-                Check-only; never writes or repairs. Requires Zenith's supported
-                Linux ext2 profile, a partition up to 512 MiB, and at most 65536
-                inodes. Mounted partitions are refused. Checks bitmaps/counters,
+                Check-only; never writes or repairs. Requires one of Zenith's
+                supported Linux ext2 profiles and a partition up to 2 TiB; the
+                check keeps about 64 MiB per TiB in memory and refuses when that
+                exceeds half of free memory. Mounted partitions are refused. Checks bitmaps/counters,
                 block ownership, inode sectors, directory records, dot/parent
                 structure, reachability and link counts. Shows up to 32 errors
                 and a total count. Exit status 0 means checks passed, 1 indicates
                 errors or an unsupported/unavailable volume. This is not a full
                 replacement for host e2fsck; use that for repairs/crash recovery.
+            """),
+        ("disk", """
+            NAME
+                disk - disks, partitions and free space; create, delete, grow
+
+            SYNOPSIS
+                disk [list]
+                disk init DISK [--yes]
+                disk create DISK SIZE|rest [ext2|none] [-L LABEL] [--yes]
+                disk delete PARTITION [--yes]
+                disk grow PARTITION [SIZE|max] [--yes]
+
+            DESCRIPTION
+                list shows each disk, its partitions (start, type, filesystem,
+                mount, root/boot role) and free regions. Edits need root; without
+                --yes they only describe the change. GPT disks of 512-byte sectors
+                only. Partitions start on 1 MiB boundaries and sizes are whole MiB
+                (512M, 20G, 1.5T). Both GPT copies are rewritten after each change,
+                at the disk's real end, so an enlarged virtual disk is fixed too.
+                Disks with a mounted partition are refused, except that create may
+                add a partition in free space of the running system disk (it
+                appears after a restart). init writes a new empty table. create
+                formats ext2 by default. grow extends a partition into the free
+                space after it and then its ext2 volume, after planning both; the
+                root is grown from the rescue entry of the boot menu. Shrinking
+                and moving are not supported.
+
+            EXAMPLES
+                disk list
+                disk create sata1 20G -L DATA --yes
+                disk grow sata0p1 max --yes      (from the rescue system)
             """),
         ("fsprobe", """
             NAME
@@ -322,10 +359,12 @@ internal static class ManualPages
                 mounted/overlapping partitions and the running root disk are
                 refused. Without --yes, no writes occur. LABEL may contain up to
                 16 printable ASCII characters.
-                The supported profile uses 1 KiB blocks, 128-byte inodes and
-                only the filetype feature, with backups in every block group.
-                It creates / and lost+found. Partition sizes must be 1..512 MiB;
-                a final group too small for metadata is rejected before writing.
+                Up to 512 MiB: 1 KiB blocks, 128-byte inodes and only the
+                filetype feature, with backups in every block group. Larger
+                partitions, up to 2 TiB: 4 KiB blocks, sparse_super, large_file
+                (files past 4 GiB) and resize_inode (room for disk grow up to
+                2 TiB). It creates / and lost+found. A final group too small for
+                metadata is rejected (or, at 4 KiB, left off) before writing.
                 Data is not securely wiped. UUID remains unassigned until an
                 entropy source is available. Installation/root discovery still
                 use FAT32; this command does not change the running root.
@@ -434,7 +473,7 @@ internal static class ManualPages
                 dd - copy a bounded number of binary blocks
 
             SYNOPSIS
-                dd if=INPUT of=OUTPUT count=N [bs=N]
+                dd if=INPUT of=OUTPUT count=N [bs=N] [skip=N] [seek=N] [conv=notrunc]
 
             DESCRIPTION
                 Copy up to count input blocks, stopping at EOF. bs is a byte count
@@ -442,8 +481,10 @@ internal static class ManualPages
                 block. count=0 creates/truncates OUTPUT without copying data.
                 INPUT and OUTPUT are required file/device paths. OUTPUT is replaced.
                 Identical paths (including case-only aliases on FAT) are rejected.
-                Numeric operands are decimal only. No stdin/stdout, skip, seek, conv
-                or suffix operands are supported. Ctrl+C cancels between I/O calls.
+                skip=N starts reading N input blocks in; seek=N starts writing N
+                output blocks in (a hole before it is sparse on ext2); conv=notrunc
+                keeps OUTPUT's other bytes. Numeric operands are decimal only. No
+                stdin/stdout or suffix operands. Ctrl+C cancels between I/O calls.
 
             EXAMPLES
                 dd if=/dev/zero of=/tmp/zeros bs=512 count=2

@@ -27,9 +27,12 @@ Unix permissions. Trusted kernel code is not isolated by VFS policy.
   triple-indirect mapping; descriptor updates write one block; a checker at two
   bits per block bounded by free memory; whole-disk installer root. Host tests
   compare with e2fsck/debugfs; `large-ext2-smoke.py` in the release plan.
-- [ ] Existing 512 MiB roots: grow in place or migrate to the 4 KiB profile. A
-  1 KiB root's descriptor table is full at 512 MiB, so growing it relocates group
-  metadata; copying the root to a new 4 KiB partition is the simpler bridge.
+- [x] Growth (2026-11-10, local): the 4 KiB profile reserves descriptor blocks
+  (resize_inode, e2fsprogs layout) and `disk grow` extends a partition and its ext2
+  offline; an enlarged VM disk's root grows from the rescue system.
+- Existing 512 MiB roots are not migrated: a 1 KiB root's descriptor table is full,
+  so growing it would relocate group metadata. The operator chose reinstalling
+  (2026-11-10).
 - [ ] Define crash repair/journal versus generation policy and mutable-data scope.
 - [ ] Extend traversal/symlink/link/rename/held-handle semantics only with auth and
   interruption/concurrent-I/O regression tests.

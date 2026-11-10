@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """The 4 KiB ext2 profile in the guest: format and use a volume over 512 MiB, write and read a
 sparse file past 4 GiB (triple-indirect blocks), check it with fsck.ext2 and the host e2fsprogs,
-then install onto a 2 GiB disk (a 4 KiB root using the whole disk) and boot it."""
+then install onto a 2 GiB disk (a 4 KiB root using the whole disk) and boot it; enlarge that disk and
+grow the root from the live system; and create, delete and grow partitions with `disk`."""
 import argparse
 import importlib.util
 from pathlib import Path
@@ -144,6 +145,108 @@ def main():
     root_volume = keep / 'root.img'
     extract(keep / 'installed/disk.img', root[2], root[3] - root[2] + 1, root_volume)
     host_fsck(root_volume, 'root')
+
+    # Phase 3: the VM disk is enlarged to 4 GiB; the live system grows the installed root into it.
+    enlarged = keep / 'enlarged.img'
+    shutil.copyfile(keep / 'installed/disk.img', enlarged)
+    with enlarged.open('r+b') as stream:
+        stream.truncate(4 * GIB)
+    # An enlarged disk keeps its backup GPT at the old end until the table is rewritten. Firmware and
+    # Limine read the primary table; the harness's own parser insists on both copies, so for this one
+    # boot it reads the primary only (checksums still verified).
+    strict = boot_image.partitions
+    def primary_only(image):
+        import struct, uuid, zlib
+        with Path(image).open('rb') as f:
+            f.seek(512); raw = f.read(512)
+            size, crc = struct.unpack_from('<II', raw, 12)
+            data = bytearray(raw[:size]); data[16:20] = bytes(4)
+            if raw[:8] != b'EFI PART' or zlib.crc32(data) != crc: raise ValueError('primary GPT')
+            table, count, stride, crc = struct.unpack_from('<QIII', raw, 72)
+            f.seek(table * 512); entries = f.read(count * stride)
+            if zlib.crc32(entries) != crc: raise ValueError('primary GPT entries')
+        result = []
+        for off in range(0, len(entries), stride):
+            e = entries[off:off + stride]
+            if e[:16] == bytes(16): continue
+            start, end = struct.unpack_from('<QQ', e, 32)
+            result.append((uuid.UUID(bytes_le=e[:16]), uuid.UUID(bytes_le=e[16:32]), start, end))
+        return result
+    boot_image.partitions = primary_only
+    try:
+        m = h.Machine(keep / 'rescue', enlarged, 'root=live session=headless', verify=False, network=[])
+    finally:
+        boot_image.partitions = strict
+    try:
+        check(m.wait('headless ready', timeout=600), 'rescue system on the enlarged disk')
+        m.wait('[console] ')
+        time.sleep(0.3)
+        output = status(m, 'disk list | logger', 'L_DISKS')
+        check('sata0p1' in output and 'ext2 4K' in output and 'free' in output, 'disk list shows the root and the new free space')
+        status(m, 'disk grow sata0p1 max', 'L_GROW_PREVIEW', 1)
+        output = status(m, 'disk grow sata0p1 max --yes', 'L_GROW', timeout=1200)
+        check('check clean' in output, 'root grown and checked')
+        off(m)
+    finally:
+        m.stop()
+    grown_disk = keep / 'grown.img'
+    shutil.copyfile(keep / 'rescue/disk.img', grown_disk)
+    # The harness pointed this copy's boot menu at the rescue entry; put the installed menu back
+    # (the ESP did not move: only the root partition and the table's backup copy changed).
+    menu = keep / 'limine.conf'
+    menu.write_bytes(boot_image.read(keep / 'installed/disk.img', '/limine.conf'))
+    subprocess.run(['mcopy', '-i', f'{grown_disk}@@{boot_image.esp(grown_disk)[2] * 512}', '-o', str(menu), '::/limine.conf'], check=True)
+    inventory = boot_image.verify(grown_disk, ROOT / 'output-x64/Zenith.elf')
+    root = next(p for p in boot_image.partitions(grown_disk) if str(p[1]) == inventory['root'])
+    check((root[3] - root[2] + 1) * 512 > 3.5 * GIB, 'root partition grown to the disk end (backup GPT moved)')
+    m = h.Machine(keep / 'grown', grown_disk, 'session=headless')
+    try:
+        check(m.wait('headless ready', timeout=600), 'grown root boots')
+        m.wait('[console] ')
+        time.sleep(0.3)
+        step(m, 'cat /root/large-root.txt | logger', 'user: persisted')
+        output = status(m, 'df | logger', 'L_ROOT_DF')
+        sizes = [float(x) for x in re.findall(r'user: \S+\s+(\d+\.\d)G\s.*\s/\s*$', output, re.M)]
+        check(bool(sizes) and sizes[0] > 3.5, 'df shows the larger root')
+        off(m)
+    finally:
+        m.stop()
+    root_volume = keep / 'grown-root.img'
+    extract(keep / 'grown/disk.img', root[2], root[3] - root[2] + 1, root_volume)
+    host_fsck(root_volume, 'grown root')
+
+    # Phase 4: partition tools on a blank 3 GiB disk.
+    tools_disk = keep / 'tools-disk.img'
+    with tools_disk.open('wb') as stream:
+        stream.truncate(3 * GIB)
+    m = h.Machine(keep / 'tools', extra_disks=(tools_disk,), network=[])
+    try:
+        check(m.wait('headless ready', timeout=600), 'live system with a blank disk')
+        m.wait('[console] ')
+        time.sleep(0.3)
+        status(m, 'disk create sata1 1G ext2 --yes', 'T_NO_TABLE', 1)
+        status(m, 'disk init sata1 --yes', 'T_INIT')
+        output = status(m, 'disk create sata1 1G ext2 -L DATA --yes', 'T_CREATE_A')
+        check('sata1p0' in output, 'first partition created and formatted')
+        status(m, 'disk create sata1 512M none --yes', 'T_CREATE_B')
+        output = status(m, 'disk list | logger', 'T_LIST')
+        check('sata1p1' in output and 'ext2 4K "DATA"' in output, 'disk list shows both partitions and the label')
+        status(m, 'mkdir -p /mnt/d && mount -t ext2 sata1p0 /mnt/d && echo kept > /mnt/d/kept.txt', 'T_WRITE')
+        status(m, 'disk delete sata1p1 --yes', 'T_DELETE_MOUNTED', 1)
+        status(m, 'umount /mnt/d', 'T_UMOUNT')
+        status(m, 'disk delete sata1p1 --yes', 'T_DELETE')
+        output = status(m, 'disk grow sata1p0 max --yes', 'T_GROW', timeout=1200)
+        check('check clean' in output, 'partition grown into the freed space')
+        status(m, 'mount -t ext2 sata1p0 /mnt/d && cat /mnt/d/kept.txt | logger && umount /mnt/d', 'T_KEPT')
+        step(m, 'fsck.ext2 sata1p0 | logger', 'user: clean:')
+        off(m)
+    finally:
+        m.stop()
+    parts = boot_image.partitions(keep / 'tools/secondary.img')
+    check(len(parts) == 1 and (parts[0][3] - parts[0][2] + 1) * 512 > 2.9 * GIB, 'host GPT: one partition over the disk, both table copies valid')
+    tools_volume = keep / 'tools-volume.img'
+    extract(keep / 'tools/secondary.img', parts[0][2], parts[0][3] - parts[0][2] + 1, tools_volume)
+    host_fsck(tools_volume, 'tools volume')
     print(f'PASS large ext2: {checks} checks', flush=True)
 
 

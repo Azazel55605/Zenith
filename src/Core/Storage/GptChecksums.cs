@@ -38,8 +38,11 @@ internal static class GptChecksums
         disk.ReadBlock(2, EntryArraySectors, entries);
         uint entriesCrc = Crc32(entries, entries.Length);
 
-        // Primary header: entry-array CRC, then the header CRC computed with its own field zeroed.
+        // Primary header: the backup location and last usable sector at the disk's real end (it may
+        // have been enlarged since the table was written), the entry-array CRC, then the header CRC
+        // computed with its own field zeroed.
         BitConverter.TryWriteBytes(header.AsSpan(32, 8), backupLba);
+        BitConverter.TryWriteBytes(header.AsSpan(48, 8), backupEntriesLba - 1);
         BitConverter.TryWriteBytes(header.AsSpan(88, 4), entriesCrc);
         StampHeaderCrc(header, headerSize);
         disk.WriteBlock(1, 1, header);

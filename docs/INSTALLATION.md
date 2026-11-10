@@ -6,6 +6,7 @@
 
 - [Install workflow](#install-workflow)
 - [Installed structure](#installed-structure)
+- [Enlarging the disk](#enlarging-the-disk)
 - [Kernel packages and reboot activation](#kernel-packages-and-reboot-activation)
 - [Validation](#validation)
 
@@ -78,6 +79,17 @@ menu. This is initial destructive installation, not a power-loss-safe update
 transaction. Failed installation can require repeating installation. Ext2 has no
 journal; unclean shutdown may require host e2fsck before writable mounting.
 Legacy roots remain discoverable, but are not automatically migrated to this layout.
+
+## Enlarging the disk
+
+Roots installed since 2026-11-10 can grow (4 KiB ext2 with room for its descriptor
+table up to 2 TiB). Enlarge the virtual disk, choose the rescue entry in the boot
+menu, then run `disk list` and `disk grow sata0p1 max --yes` (the root's name from the
+list). The command rewrites both GPT copies at the new disk end, extends the root
+partition into the free space after it, grows ext2 offline and checks it. Boot
+normally afterwards. Earlier 512 MiB roots (1 KiB blocks, a full descriptor table)
+cannot grow in place: reinstall. Shrinking and moving partitions are not supported.
+See `man disk`.
 
 ## Kernel packages and reboot activation
 
