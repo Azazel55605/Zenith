@@ -45,7 +45,7 @@ Requested 2026-11-09 after the installed VM ran out of partition space while
   names are kept and reported. A linked or non-directory cache path is refused.
 - [x] One policy for the command, the cleanup after each completed `pkg update`,
   `install`, `upgrade` and `kernel update` (their archives are installed or staged),
-  and a periodic service (two minutes after boot, then every six hours: archives older
+  and a periodic service on its own thread (two minutes after boot, then every six hours: archives older
   than a day, stages older than an hour). `pkg clean auto on|off` persists
   `/etc/zenith/package-cache.conf`; off disables both automatic paths.
 - [x] Every path holds the package service gate: no download, transaction, installer

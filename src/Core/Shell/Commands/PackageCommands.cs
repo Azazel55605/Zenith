@@ -36,8 +36,9 @@ internal static class PackageCommands
             if (Installer.IsRunning || Zenith.Core.Boot.NativeKernelUpdates.IsRunning || Zenith.Core.Processes.NativeProcess.IsRunning || Interlocked.CompareExchange(ref s_busy, 1, 0) != 0)
             { return false; }
         }
-        try { work(); return true; }
-        finally { Interlocked.Exchange(ref s_busy, 0); }
+        // Cosmos does not reliably run finally on unwind: release on both paths explicitly.
+        try { work(); Interlocked.Exchange(ref s_busy, 0); return true; }
+        catch { Interlocked.Exchange(ref s_busy, 0); throw; }
     }
     private static void Mutable()
     {

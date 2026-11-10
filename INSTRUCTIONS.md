@@ -240,7 +240,9 @@ never infer current failures from old release logs or claim a menu stub is a bac
   thread's halt raises the scheduler interrupt so it switches away at once; the idle
   kernel loop gets the CPU when it has not run for 6 ms and hands queued threads the
   CPU instead of halting past them (ParkSwitchFixup, `cpu park on|off`). Program slice
-  waits block on a monitor the kernel loop pulses; keep per-wake traces quiet. Timed monitor interop must forward the actual
+  waits block on a monitor the kernel loop pulses; keep per-wake traces quiet. The kernel
+  loop is the idle thread: work it starts that takes locks or does filesystem I/O (such as
+  the package cache cleanup) runs on its own thread, or it stalls the desktop under load. Timed monitor interop must forward the actual
   timeout/signal Boolean. Monitor adaptations must cover transplanted CoreLib
   bodies, not only the copied source plug assembly. Stride ticket totals must track
   runnable admission independently of thread state: manager callbacks may already
