@@ -40,6 +40,16 @@ internal static class PackageCommands
         try { work(); Interlocked.Exchange(ref s_busy, 0); return true; }
         catch { Interlocked.Exchange(ref s_busy, 0); throw; }
     }
+    /// <summary>Pins a package signing key the caller has already matched to its expected SHA256.</summary>
+    public static void PinKey(byte[] key)
+    {
+        GuardedFilesystem.RequireRoot();
+        if (!NativePackageVerifier.ValidKey(key)) { throw new IOException("invalid RSA public key; existing trust preserved"); }
+        string pem = new UTF8Encoding(false, true).GetString(key);
+        if (!pem.StartsWith("-----BEGIN PUBLIC KEY-----\n", StringComparison.Ordinal) || !pem.TrimEnd().EndsWith("-----END PUBLIC KEY-----", StringComparison.Ordinal))
+        { throw new IOException("expected public SPKI PEM; private keys refused"); }
+        new NativeSettingsStore().Replace(KeyPath, pem);
+    }
     private static void Mutable()
     {
         GuardedFilesystem.RequireRoot();
@@ -95,11 +105,7 @@ internal static class PackageCommands
         {
             GuardedFilesystem.RequireRoot(); byte[] key = store.Read(c.Resolve(c.Args[1]), 4096);
             if (!PackagePlanner.Digest(key).Equals(c.Args[2], StringComparison.OrdinalIgnoreCase)) { throw new IOException("public key fingerprint mismatch"); }
-            if (!NativePackageVerifier.ValidKey(key)) { throw new IOException("invalid RSA public key; existing trust preserved"); }
-            string pem = new UTF8Encoding(false, true).GetString(key);
-            if (!pem.StartsWith("-----BEGIN PUBLIC KEY-----\n", StringComparison.Ordinal) || !pem.TrimEnd().EndsWith("-----END PUBLIC KEY-----", StringComparison.Ordinal))
-            { throw new IOException("expected public SPKI PEM; private keys refused"); }
-            new NativeSettingsStore().Replace(KeyPath, pem); c.WriteLine("package public key pinned; TLS trust is separate"); return 0;
+            PinKey(key); c.WriteLine("package public key pinned; TLS trust is separate"); return 0;
         }
         if (c.Args.Length >= 2 && c.Args[0] == "install")
         {

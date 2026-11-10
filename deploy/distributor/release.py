@@ -190,6 +190,46 @@ def publish(config, release, archive, commit, work, name="zenith-kernel", reposi
     return receipt
 
 
+ISO_STATE = Path.home() / ".local/state/zenith/distributor/iso"
+
+
+def installer_iso(config, release, base, work):
+    """Publishes ROOT/iso/zenith-installer-RELEASE[-N].iso: BASE seeded (tools/seed-iso.py) with the
+    signing key, TLS CA, mirror and the newest published core packages, so an installation needs no
+    manual trust steps. BASE is kept so `release.sh installer` can reseed it with newer packages."""
+    if not config["base_url"].startswith("https://"):
+        print("Installer ISO skipped: the mirror must be HTTPS (release.sh setup https://...)", flush=True); return None
+    _, root, public = paths(config)
+    ISO_STATE.mkdir(parents=True, exist_ok=True)
+    kept = ISO_STATE / ("zenith-" + release + ".iso")
+    if Path(base).resolve() != kept.resolve(): shutil.copyfile(base, kept)
+    command = [sys.executable, "-B", str(REPO / "tools/seed-iso.py"), str(kept), str(work / "installer.iso"),
+               "--package-key", str(public), "--mirror", config["base_url"], "--packages-root", str(root)]
+    if config.get("tls_ca"): command += ["--tls-ca", config["tls_ca"]]
+    phase("Installer ISO", command, work / "installer-iso.log")
+    directory = root / "iso"; directory.mkdir(exist_ok=True)
+    name = "zenith-installer-" + release; suffix = 1
+    while (directory / (name + ("" if suffix == 1 else "-" + str(suffix)) + ".iso")).exists(): suffix += 1
+    name += "" if suffix == 1 else "-" + str(suffix)
+    target = directory / (name + ".iso")
+    staged = root.parent / (".iso-" + name)
+    shutil.copyfile(work / "installer.iso", staged)
+    with staged.open("rb") as file: os.fsync(file.fileno())
+    digest = publisher.digest(staged)
+    os.rename(staged, target)
+    (directory / (name + ".iso.sha256")).write_text(digest + "  " + target.name + "\n")
+    url = config["base_url"] + "/iso/" + target.name
+    print("Installer ISO: " + url + " SHA256=" + digest, flush=True)
+    return url
+
+
+def reseed(config, release):
+    kept = ISO_STATE / ("zenith-" + release + ".iso")
+    if not kept.is_file(): raise ValueError("no kept ISO for kernel " + release + " (only kernels released with installer ISOs have one)")
+    lock, work = locked_work(config)
+    with lock: installer_iso(config, release, kept, work)
+
+
 def locked_work(config=None):
     directory = REPO / "obj/distributor"; directory.mkdir(parents=True, exist_ok=True)
     stack = ExitStack()
@@ -233,6 +273,10 @@ def build(config, release, native=False):
         if source_commit() != commit: raise ValueError("source commit changed before publication; refused")
         publish(config, release, work / "kernel.zpk", commit, work)
         indexes(config, work)
+        # The kernel is published either way; a seeding failure only costs the installer ISO.
+        try: installer_iso(config, release, work / "build/Zenith.iso", work)
+        except (OSError, ValueError, subprocess.SubprocessError) as error:
+            print("Installer ISO not published: " + str(error) + "; retry with release.sh installer " + release, flush=True)
 
 
 def controller_checks(work):
@@ -301,6 +345,7 @@ def native_gate_plan():
     # 4 KiB ext2 profile, files past 4 GiB and a whole-disk installed root (older tags lack it).
     if (REPO / "tools/large-ext2-smoke.py").exists(): checks.append(("x", "large-ext2-smoke.py"))
     if (REPO / "tools/equinox-smoke.py").exists(): checks.append(("e", "equinox-smoke.py"))
+    if (REPO / "tools/installer-seed-smoke.py").exists(): checks.append(("i", "installer-seed-smoke.py"))
     # Run the expensive crash/recovery matrix last. A repository regression
     # should fail before repeating that matrix; every gate remains mandatory.
     checks.append(("k", "kernel-update-smoke.py"))
@@ -538,6 +583,7 @@ def main():
         if name == "data": command.add_argument("source", type=Path)
     commands.add_parser("doctor", help="check configured paths, source and tools")
     commands.add_parser("index", help="sign/activate fresh core and extra repository indexes")
+    commands.add_parser("installer", help="republish a kernel's installer ISO with the newest core packages").add_argument("version", type=version)
     storage = commands.add_parser("storage", help="report build storage; optionally clean obsolete artifacts")
     storage.add_argument("--clean", action="store_true")
     args = parser.parse_args()
@@ -558,6 +604,7 @@ def main():
         elif args.command == "data": data(config, args.name, args.version, args.source, args.repository)
         elif args.command == "verify-data": verify(config, args.version, args.name, args.repository, "data")
         elif args.command == "index": indexes(config)
+        elif args.command == "installer": reseed(config, args.version)
         else:
             paths(config, signing=True); clean(); prerequisites()
             print("Source: " + source_commit()); print("Settings: " + str(CONFIG))

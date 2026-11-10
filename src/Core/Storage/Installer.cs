@@ -152,6 +152,13 @@ internal static class Installer
                 ConfigureProfile(profile);
             }
 
+            if (Packages.NativeSeed.Bundle is not null)
+            {
+                progress("Installing apps from the installer seed");
+                int apps = Packages.NativeSeed.InstallInto(TargetMount, progress);
+                Log.Write("installer", "seed packages installed=" + apps);
+            }
+
             Directory.CreateDirectory(TargetMount + "/var/lib/zenith/boot");
             File.WriteAllText(TargetMount + "/var/lib/zenith/boot/installed.tsv", inventory);
             File.WriteAllText(TargetMount + "/etc/fstab",

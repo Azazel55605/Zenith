@@ -9,14 +9,19 @@
 .Lmodule_request:
     .quad 0xc7b1dd30df4c8b88, 0x0a82e883a194f07b
     .quad 0x3e7e279702be32af, 0xca1c4f3bd1280cee
-    .quad 1, 0, 1, .Lmodule_list
+    .quad 1, 0, 2, .Lmodule_list
 .Lmodule_list:
-    .quad .Lefi_module
+    .quad .Lefi_module, .Lseed_module
 .Lefi_module:
     .quad .Lefi_path, .Lefi_name, 0
+# Optional (flags 0): only installer ISOs built by tools/seed-iso.py carry it.
+.Lseed_module:
+    .quad .Lseed_path, .Lseed_name, 0
 .section .rodata
 .Lefi_path: .asciz "/EFI/BOOT/BOOTX64.EFI"
 .Lefi_name: .asciz "zenith-installer-efi"
+.Lseed_path: .asciz "/boot/zenith-seed.zsd"
+.Lseed_name: .asciz "zenith-seed"
 .text
 .globl zenith_boot_executable
 .type zenith_boot_executable, @function

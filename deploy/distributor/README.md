@@ -297,6 +297,26 @@ download and install in one session. See [kernel updates](../../docs/KERNEL-UPDA
 The explicit sync above covers older running kernels. Once kernel 0.0.5 is loaded,
 normal Zenith reboot/poweroff performs checked sync/unmount/device flushing.
 
+## Installer ISO
+
+Each kernel release also publishes an installer ISO when the configured base URL is
+HTTPS: `/srv/zenith/packages/iso/zenith-installer-VERSION.iso` and its `.sha256`.
+It is the release's ISO plus a seed (`tools/seed-iso.py`) with `~/signing/public.pem`,
+the `--tls-ca` PEM from setup, the base URL as mirror and the newest published
+version of every core package. Installations from it need no `pkg trust`,
+`tls trust` or `pkg mirror` steps and start with the apps installed
+([installation guide](../../docs/INSTALLATION.md#installer-iso-trust-and-apps)).
+
+The release keeps the unseeded ISO under `~/.local/state/zenith/distributor/iso/`.
+After publishing newer app packages, reseed it without rebuilding the kernel:
+
+```sh
+bash deploy/distributor/release.sh installer 0.0.54
+```
+
+This publishes `zenith-installer-0.0.54-2.iso` and so on; earlier ISOs stay. A failed
+seeding step does not fail the kernel release; the log names the retry command.
+
 ## Publish independently installable data packages
 
 For a committed payload directory inside the checkout, use the same saved settings:

@@ -20,6 +20,8 @@ internal static class SystemRuntime
         SystemConfiguration.Initialize();
         phase?.Invoke("Starting network");
         Network.NetworkService.Initialize();
+        // An installer ISO's seed: pin its package key, TLS CA and mirror in the live /etc.
+        Packages.NativeSeed.ApplyLive();
         SystemCommands.Register(CommandShell.Register);
         NativeProcessCommands.Register(CommandShell.Register);
         CommandShell.DefaultMetadata = new VfsFileMetadata();

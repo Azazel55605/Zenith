@@ -59,6 +59,30 @@ Requested 2026-11-09 after the installed VM ran out of partition space while
   reboot on the operator's VM. Local: repository gate (preview/actual agreement,
   archives gone after transactions, auto off/on) and host policy tests.
 
+## PK6 — Installer ISO: trust and apps out of the box
+
+Requested 2026-11-10: every fresh VM needed `pkg trust`, `tls trust` and
+`pkg mirror` by hand, and had none of the apps (Meridian, Polaris, ...) until then.
+Implemented locally 2026-11-10 ([format](../../src/Core/Packages/SeedBundle.cs),
+[boot/installer side](../../src/Core/Packages/NativeSeed.cs), [tool](../../tools/seed-iso.py)).
+
+- [x] An installer ISO carries an optional boot module, `/boot/zenith-seed.zsd`:
+  the package signing key, the TLS CA, the HTTPS mirror and signed packages, each
+  with its SHA256. Plain ISOs and installed disks boot without it.
+- [x] A live boot of a seeded ISO pins the key, CA and mirror in the live `/etc`
+  (each part on its own; the CA waits for the boot's DHCP/NTP to release the TLS
+  context). Sunrise and `install DISK` copy them into the installed root.
+- [x] Sunrise installs every seeded package into the new root in one transaction,
+  verified against the seeded key (`NativePackageStore` rooted at the target).
+  The review lists the packages, the trust fingerprints and a network check
+  (signed core index fetched from the mirror over the seeded TLS trust).
+- [x] `tools/seed-iso.py BASE OUT` seeds an ISO from a served package root (the
+  newest version of each core package) or builds the core recipes from source.
+  The distributor publishes `iso/zenith-installer-VERSION.iso` (and `.sha256`) with
+  each kernel release and `release.sh installer VERSION` reseeds it with newer
+  packages. Gate: `installer-seed-smoke.py` (release plan).
+- [ ] Installed acceptance on the operator's VM with the published installer ISO.
+
 ## Source and operations
 
 [Guest](../../src/Core/Packages), [host tool](../../tools/Zenith.PackageTool),

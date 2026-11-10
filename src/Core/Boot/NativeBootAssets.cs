@@ -42,21 +42,41 @@ internal sealed unsafe class NativeBootAssets
         var file = KernelFile(); var bytes = new ReadOnlySpan<byte>(file->Address, (int)file->Size);
         BootLayout.ValidateKernel(bytes); return BootLayout.Digest(bytes);
     }
+    private static bool Named(BootFile* file, string name)
+    {
+        if (file == null || file->String == null) { return false; }
+        int n = 0;
+        while (n < name.Length && file->String[n] == name[n]) { n++; }
+        return n == name.Length && file->String[n] == 0;
+    }
     public static NativeBootAssets Open()
     {
         var modules = Modules(); BootFile* efi = null;
         if (modules == null || modules->Files == null || modules->Count > 16) { throw new IOException("UEFI installation module unavailable"); }
         for (ulong i = 0; i < modules->Count; i++)
         {
-            var file = modules->Files[i]; if (file == null || file->String == null) { continue; }
-            const string name = "zenith-installer-efi"; int n = 0;
-            while (n < name.Length && file->String[n] == name[n]) { n++; }
-            if (n != name.Length || file->String[n] != 0) { continue; }
+            var file = modules->Files[i];
+            if (!Named(file, "zenith-installer-efi")) { continue; }
             if (efi != null || file->Address == null || file->Size > BootLayout.MaximumEfiBytes || file->Size < 256)
             { throw new IOException("invalid/duplicate UEFI installation module"); }
             efi = file;
         }
         if (efi == null) { throw new IOException("UEFI installation module missing; disk has not been erased"); }
         return new(KernelFile(), efi);
+    }
+    /// <summary>The installer seed the ISO carries (<c>/boot/zenith-seed.zsd</c>), or empty when none:
+    /// the module is optional, so plain ISOs and installed disks boot without it.</summary>
+    public static ReadOnlySpan<byte> Seed()
+    {
+        var modules = Modules();
+        if (modules == null || modules->Files == null || modules->Count > 16) { return default; }
+        for (ulong i = 0; i < modules->Count; i++)
+        {
+            var file = modules->Files[i];
+            if (!Named(file, Zenith.Core.Packages.SeedBundle.ModuleName) || file->Address == null) { continue; }
+            if (file->Size == 0 || file->Size > 64UL * 1024 * 1024) { throw new IOException("installer seed module has an invalid size"); }
+            return new ReadOnlySpan<byte>(file->Address, (int)file->Size);
+        }
+        return default;
     }
 }

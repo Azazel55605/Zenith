@@ -16,6 +16,7 @@ h = i.h; s = h.efi.smoke
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('mode', choices=('gui', 'headless')); p.add_argument('keep', type=Path)
+    p.add_argument('--iso', type=Path, default=ROOT / 'output-x64/Zenith.iso', help='a plain or seeded (tools/seed-iso.py) ISO')
     args = p.parse_args(); args.keep.mkdir(parents=True, exist_ok=True)
     passwords = ['S!' + os.urandom(8).hex(), 'R!' + os.urandom(8).hex()]
     checks = 0
@@ -30,11 +31,16 @@ def main():
     def shutdown(m):
         cmd(m, 'sync; poweroff', 'all filesystems unmounted'); check(m.process.wait(timeout=30) == 0, 'clean poweroff'); m.stop()
     if args.mode == 'gui':
-        m, _ = s.boot(ROOT / 'output-x64/Zenith.iso', 600, 'guided GUI')
+        m, _ = s.boot(args.iso, 600, 'guided GUI')
         if m is None: raise RuntimeError('GUI boot')
         check(True, 'desktop ready')
         try:
             m.type('open Sunrise\n'); check(m.wait_for('Sunrise ready', 120), 'Sunrise launched')
+            # Region: the layout applies live as it is chosen; the time zone is carried to the disk.
+            time.sleep(.5); m.screenshot(args.keep / 'region.ppm')
+            m.type('{down}'); check(m.wait_for('keyboard de', 60), 'German layout applied live')
+            m.type('{up}'); check(m.wait_for('keyboard us', 60), 'US layout restored')
+            m.type('{tab}{down}{ret}'); check(m.wait_for('region keyboard=us timezone=Europe/London', 60), 'region chosen')
             time.sleep(.5); m.screenshot(args.keep / 'disk.ppm')
             m.type('{ret}'); check(m.wait_for('account setup', 120), 'disk selected')
             m.type('{ret}' * 6); check(m.wait_for('Enter both passwords', 120), 'empty credentials refused'); zero(m)
@@ -53,7 +59,7 @@ def main():
             shutil.copyfile(m.disk, args.keep / 'installed.img'); shutil.copyfile(m.serial, args.keep / 'live.log')
         finally: m.stop(); shutil.rmtree(m.workdir, ignore_errors=True)
     else:
-        m = h.Machine(args.keep / 'live')
+        m = h.Machine(args.keep / 'live', iso=args.iso)
         try:
             check(m.wait('headless ready', timeout=600), 'headless live ready')
             def setup(erase):
@@ -75,8 +81,10 @@ def main():
         cmd(m, 'whoami | logger', 'user: nobody')
         cmd(m, 'login pilot', 'Password: '); cmd(m, passwords[0], 'authenticated as pilot')
         cmd(m, 'hostname | logger', 'user: zenith-test')
+        if args.mode == 'gui': cmd(m, 'cat /etc/timezone | logger', 'user: Europe/London')
         cmd(m, 'echo $HOME | logger', 'user: /home/pilot')
-        cmd(m, 'id | logger', 'uid=1000(pilot)')
+        # The built-in id names the user; the native zenith-base-tools id (seeded ISOs) prints numbers.
+        cmd(m, 'id | logger', 'user: uid=1000')
         cmd(m, 'echo persistent > /home/pilot/proof; cat /home/pilot/proof | logger', 'user: persistent')
         cmd(m, 'cat /etc/shadow; echo protected=$? | logger', 'user: protected=1')
         cmd(m, 'test ! -d /home/user && logger no-phantom-home', 'user: no-phantom-home')

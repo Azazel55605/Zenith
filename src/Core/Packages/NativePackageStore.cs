@@ -10,7 +10,13 @@ namespace Zenith.Core.Packages;
 
 internal sealed class NativePackageStore : IPackageStore
 {
-    public PackagePathState State(string path) => NativePackageSource.State(path);
+    private readonly string _root;
+    /// <param name="root">Where the package tree lives: empty for the running system, or the mount
+    /// point of another root (Sunrise installs into the target before it is booted).</param>
+    public NativePackageStore(string root) { _root = root.TrimEnd('/'); }
+    public NativePackageStore() : this("") { }
+    private string Map(string path) => _root + path;
+    public PackagePathState State(string path) => NativePackageSource.State(Map(path));
     private static int Regular(string path, int maximum)
     {
         for (int slash = path.IndexOf('/', 1); slash >= 0; slash = path.IndexOf('/', slash + 1))
@@ -21,6 +27,7 @@ internal sealed class NativePackageStore : IPackageStore
     }
     public byte[] Read(string path, int maximum)
     {
+        path = Map(path);
         int length = Regular(path, maximum);
         using var stream = File.OpenRead(path); byte[] bytes = new byte[length]; int offset = 0;
         try
@@ -38,27 +45,35 @@ internal sealed class NativePackageStore : IPackageStore
     }
     public ushort Mode(string path)
     {
+        path = Map(path);
         if (!new VfsFileMetadata().TryRead(path, out var stat) || !stat.UnixAttributes) { throw new IOException("package mutation requires Unix metadata/ext2"); }
         return (ushort)(stat.Mode & 0xfff);
     }
-    private static void Mutation(string path)
+    private static bool Under(string path, string mount)
+        => mount == "/" || path == mount || path.StartsWith(mount.TrimEnd('/') + "/", StringComparison.Ordinal);
+    /// <summary>The real path of a package mutation; refuses one that would land on another mount
+    /// below this store's root.</summary>
+    private string Mutation(string path)
     {
+        path = Map(path);
+        string own = _root.Length == 0 ? "/" : _root;
         foreach (var mount in VfsManager.Mounts)
         {
-            if (mount.MountPoint != "/" && (path == mount.MountPoint || path.StartsWith(mount.MountPoint.TrimEnd('/') + "/", StringComparison.Ordinal)))
+            if (mount.MountPoint != own && Under(mount.MountPoint, own) && Under(path, mount.MountPoint))
             { throw new IOException("package mutation cannot cross a mount"); }
         }
+        return path;
     }
     public void Directory(string path)
     {
-        Mutation(path);
+        path = Mutation(path);
         if (!VfsManager.TryCreateDirectory(path, (VfsMode)0x1ed)) { throw new IOException("cannot create package directory"); }
     }
     public void Write(string path, byte[] bytes, ushort mode)
     {
-        Mutation(path);
+        path = Mutation(path);
         string temporary = path + ".pkg-new";
-        if (State(temporary) != PackagePathState.Missing) { throw new IOException("occupied package staging path"); }
+        if (NativePackageSource.State(temporary) != PackagePathState.Missing) { throw new IOException("occupied package staging path"); }
         if (!VfsManager.TryCreateFile(temporary, (VfsMode)0x180) || !VfsManager.TryOpenFile(temporary, out var file)) { throw new IOException("cannot stage package file"); }
         try
         {
@@ -66,20 +81,23 @@ internal sealed class NativePackageStore : IPackageStore
             file.Dispose();
             if (!new VfsFileMetadata().SetMode(temporary, mode) || !VfsManager.TryRename(temporary, path)) { throw new IOException("package rename/mode failed"); }
         }
-        catch { file.Dispose(); if (State(temporary) != PackagePathState.Missing) { File.Delete(temporary); } throw; }
+        catch { file.Dispose(); if (NativePackageSource.State(temporary) != PackagePathState.Missing) { File.Delete(temporary); } throw; }
     }
     public void Delete(string path)
-    { Mutation(path); if (State(path) != PackagePathState.Missing) { Regular(path, SignedPackage.MaximumBytes); File.Delete(path); } }
+    {
+        path = Mutation(path);
+        if (NativePackageSource.State(path) != PackagePathState.Missing) { Regular(path, SignedPackage.MaximumBytes); File.Delete(path); }
+    }
     /// <summary>Removes a cache file of any size (kernel archives exceed data packages): same unlinked-
     /// ancestor, regular-file and mount checks as every other package mutation.</summary>
     public void DeleteCached(string path)
-    { Mutation(path); Regular(path, int.MaxValue); File.Delete(path); }
+    { path = Mutation(path); Regular(path, int.MaxValue); File.Delete(path); }
     public void Sync() => SystemMounts.SyncAll();
     public ulong FreeBytes
     {
         get
         {
-            if (!VfsManager.TryStatFs("/", out var stat)) { throw new IOException("cannot determine root free space"); }
+            if (!VfsManager.TryStatFs(_root.Length == 0 ? "/" : _root, out var stat)) { throw new IOException("cannot determine root free space"); }
             return checked(stat.Bavail * stat.BlockSize);
         }
     }

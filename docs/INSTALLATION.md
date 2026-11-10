@@ -5,6 +5,7 @@
 ## On this page
 
 - [Install workflow](#install-workflow)
+- [Installer ISO: trust and apps](#installer-iso-trust-and-apps)
 - [Installed structure](#installed-structure)
 - [Enlarging the disk](#enlarging-the-disk)
 - [Kernel packages and reboot activation](#kernel-packages-and-reboot-activation)
@@ -21,7 +22,9 @@ refused. Use disposable VM disks while hardware acceptance remains pending.
 
 1. Boot the ISO. The normal menu entry uses an existing Zenith root when found;
    select the live rescue entry to force a RAM root.
-2. Open **Sunrise** from the launcher (or `open Sunrise`). Choose a disk, enter
+2. Open **Sunrise** from the launcher (or `open Sunrise`). Choose the keyboard
+   layout and time zone first: the layout applies at once, so the passwords you
+   type next already use it, and both are carried to the installed system. Choose a disk, enter
    hostname, user name, user password and root password with confirmations, then
    review the target and explicitly confirm erasure. Tab/Shift+Tab move through
    fields; Enter advances, Space toggles the erase checkbox, Escape goes back.
@@ -50,6 +53,26 @@ checks both GPT copies, partition identity, boot artifact hashes and menu bindin
 without modifying the image. The old `make-bootable.sh` name delegates to this
 read-only check; it does not upgrade or repair old installations. BIOS installation and hardware/USB
 acceptance remain future work.
+
+## Installer ISO: trust and apps
+
+The distributor publishes an installer ISO with each kernel release:
+`https://MIRROR/iso/zenith-installer-VERSION.iso` (with a `.sha256` file). It is the
+plain ISO plus a seed that carries the package signing key, the TLS CA, the mirror
+and the newest signed core packages: Meridian (Settings), Polaris, Observatory,
+Equinox, the session, theme, fonts, icons, tools and man pages.
+
+- Booting it pins that trust in the live system; the boot log says
+  `installer seed applied: package key ..., mirror ...`.
+- Sunrise's review shows the packages, the key and CA fingerprints and whether the
+  mirror answers with a signed index. Installing works offline.
+- The installed system has the apps and can run `pkg update` straight away: no
+  `pkg trust`, `tls trust` or `pkg mirror` steps.
+
+The seed is as trusted as the ISO: check the ISO's SHA256 when you download it.
+A plain ISO (for example `output-x64/Zenith.iso` from a local build) installs only
+the base system. Seed one yourself with `tools/seed-iso.py`; `--help` shows how to
+use a served package root or build the packages from the checkout with your key.
 
 ## Installed structure
 
