@@ -300,6 +300,7 @@ def native_gate_plan():
     if (REPO / "tools/native-process-smoke.py").exists(): checks.append(("u", "native-process-smoke.py"))
     # 4 KiB ext2 profile, files past 4 GiB and a whole-disk installed root (older tags lack it).
     if (REPO / "tools/large-ext2-smoke.py").exists(): checks.append(("x", "large-ext2-smoke.py"))
+    if (REPO / "tools/equinox-smoke.py").exists(): checks.append(("e", "equinox-smoke.py"))
     # Run the expensive crash/recovery matrix last. A repository regression
     # should fail before repeating that matrix; every gate remains mandatory.
     checks.append(("k", "kernel-update-smoke.py"))

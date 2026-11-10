@@ -149,7 +149,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertTrue((work / "native/u/evidence.txt").exists())
         self.assertTrue((work / "native/a/evidence.txt").exists())
         self.assertTrue(all(not path.parent.exists() for path in calls))
-        self.assertEqual(['s','r','a','d','v','m','g','n','c','p','j','b','q','u','x','k'],[path.name for path in calls])
+        self.assertEqual(['s','r','a','d','v','m','g','n','c','p','j','b','q','u','x','e','k'],[path.name for path in calls])
         self.assertTrue((work / 'native/d/evidence.txt').exists())
         self.assertTrue((work / 'native/c/evidence.txt').exists())
         self.assertTrue((work / 'native/p/evidence.txt').exists())

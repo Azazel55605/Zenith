@@ -64,7 +64,7 @@ acceptance remain future work.
 | Root `/var/lib/zenith/boot/installed.tsv` | Matching initial installation inventory |
 | Root `/etc/fstab` | Root/ESP PARTUUID records and volatile `/tmp` |
 | Installed `/boot/efi` | Mounted ESP for signed kernel updates |
-| Root ext2 | `/etc`, `/home`, `/root`, `/usr`, `/var`; the rest of the disk, up to 2 TiB (4 KiB blocks above 512 MiB) |
+| Root ext2 | `/etc`, `/home`, `/root`, `/usr`, `/var`; the rest of the disk, up to 2 TiB (4 KiB blocks from 64 MiB) |
 
 Root begins after the ESP and uses remaining aligned space up to the current ext2
 limit; larger disks retain unallocated space. `/tmp` remains RAM-backed ext2.

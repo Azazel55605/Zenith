@@ -40,6 +40,7 @@ internal static class BootstrapComponents
         new("zenith-native-system-settings-abi", "1.0", "typed administrator keyboard and time-zone preferences"),
         new("zenith-native-background-abi", "1.0", "versioned whole-background preferences for opted-in clients"),
         new("zenith-native-monitor-abi", "1.0", "CPU, memory and frame samples, the caller's processes and owner-authorized stop"),
+        new("zenith-native-disk-abi", "1.0", "disks, partitions and free space; root-only background partition edits"),
         new("zenith-native-viewport-abi", "1.0", "owned bounded resize/maximize with versioned acknowledgement"),
         new("zenith-native-window-state-abi", "1.0", "owned unsaved state and cancellable chrome close intent"),
         new("zenith-native-graphics-abi", "1.0", "owned private graphical surfaces and routed events"),

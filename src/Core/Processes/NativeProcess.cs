@@ -324,6 +324,19 @@ internal sealed unsafe class NativeProcess
                 if (c.Arg0 == c.Pid) { return -22; }
                 return Processes.RequestStop((int)c.Arg0, (uint)c.Uid);
             }
+            // Equinox: disks and their edits (zenith-native-disk-abi 1.0).
+            if (c.Call == 647)
+            {
+                if (c.Arg1 != ProcessDisks.SnapshotBytes || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, ProcessDisks.SnapshotBytes, true)) { return -14; }
+                Transfer(c.Arg0, ProcessDisks.Snapshot((uint)c.Uid), true); return 0;
+            }
+            if (c.Call == 648)
+            {
+                if (c.Arg1 != ProcessDisks.RequestBytes || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, ProcessDisks.RequestBytes, false)) { return -14; }
+                return ProcessDisks.Request(ReadUser(c.Arg0, ProcessDisks.RequestBytes), (uint)c.Uid);
+            }
             if(c.Call == 640)
             {
                 if(c.Arg1 != ProcessDisplaySettings.SnapshotBytes || c.Arg2 != 0) { return -22; }

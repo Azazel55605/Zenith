@@ -415,6 +415,12 @@ another program). They take no service gate and count toward the renewable
 general call budget. Layouts and the measured CPU idle accounting are in
 [Observatory](components/OBSERVATORY.md#native-abi-zenith-native-monitor-abi-10).
 
+## Disks
+
+`zenith-native-disk-abi` 1.0 adds calls 647 (disks, partitions and free space) and 648 (one
+root-only background edit: new table, create, delete, grow). The rules are the `disk` command's.
+Layouts and errors are in [Equinox](components/EQUINOX.md#native-abi-zenith-native-disk-abi-10).
+
 ## Graphical clients
 
 Calls 600..603 add versioned owned software surfaces, copied opaque presentation

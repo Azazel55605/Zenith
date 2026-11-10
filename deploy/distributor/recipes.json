@@ -118,5 +118,13 @@
     "payload": "obj/packages/zenith-desktop-tools",
     "program": "desktop-tools",
     "generate": "native"
+  },
+  "zenith-equinox": {
+    "kind": "data",
+    "name": "zenith-equinox",
+    "repository": "core",
+    "payload": "obj/packages/zenith-equinox",
+    "program": "equinox",
+    "generate": "native"
   }
 }

@@ -58,7 +58,6 @@ public sealed class Ext2FormatterTests
     [InlineData(8193, 1024)]
     [InlineData(16384, 512)]
     [InlineData(17408, 1024)]
-    [InlineData(270336, 512)] // 33 groups: descriptor table spans two blocks
     public void FormattedVolumesMountAndPassIndependentFsck(int kib, int sector)
     {
         using var disk = new Disk((ulong)kib * 1024, (ulong)sector);

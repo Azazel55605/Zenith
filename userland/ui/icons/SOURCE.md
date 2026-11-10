@@ -11,3 +11,5 @@ Launcher tiles use `hand` (Welcome), `terminal`, `folder` (Files), `file-text`
 
 Observatory uses `activity` (its own tile and Performance), `cpu`, `memory-stick`
 and `list` (Processes).
+
+Equinox uses `hard-drive` (its tile and disks), `list` (Plan) and `clock` (History).

@@ -110,8 +110,10 @@ Kernel rollback shares the root; it does not restore root data or replace the EF
 
 The writable profiles are clean Linux-layout revision-1 ext2 with 128-byte inodes
 and the filetype feature ([geometry](../src/Core/Storage/Ext2/Ext2Geometry.cs)):
-1 KiB blocks with a superblock copy in every group up to 512 MiB (what earlier
-releases format), and 4 KiB blocks with sparse_super and large_file up to 2 TiB.
+1 KiB blocks with a superblock copy in every group (what earlier releases
+formatted up to 512 MiB; Zenith formats it only below 64 MiB, since its descriptor
+table cannot grow), and 4 KiB blocks with sparse_super, large_file and
+resize_inode (room to grow to 2 TiB) from 64 MiB up to 2 TiB.
 Zenith formats 1 MiB..2 TiB and picks the profile by size; other geometry or
 features are rejected. Byte I/O maps direct, single, double and triple-indirect
 blocks: files up to 2 TiB on 4 KiB volumes, below 2 GiB without large_file. The [source record](../src/Core/Storage/Ext2/SOURCE.md)

@@ -189,7 +189,7 @@ bytes: 1..59 inline, 60..1023 in one block. Names reject dot components, slash,
 NUL and more than 255 UTF-8 bytes before allocation. The installed VFS rejects
 `..` inside target paths and caps resolution at eight hops. No hard links or
 permission enforcement is claimed by this slice.
-The formatter writes the 1 KiB profile up to 512 MiB and the 4 KiB profile up to
+The formatter writes the 1 KiB profile below 64 MiB and the 4 KiB profile up to
 2 TiB; preflight rejects a final group too short for metadata (the 4 KiB profile
 leaves a tiny last group off, as mke2fs does). UUID remains unassigned;
 this is not a secure wipe or a journal. Installer/root migration uses the bounded supported profile; installed account/access behavior is described in [ACCOUNTS](ACCOUNTS.md).
@@ -329,7 +329,7 @@ is validated. Open-file deletion uses Cosmos deferred namespace removal; install
 ## Ext2 installation and consistency checks
 
 New installations create a FAT32 ESP (128 MiB) and a Linux-type GPT ext2 root
-over the rest of the disk (up to 2 TiB; 4 KiB blocks above 512 MiB).
+over the rest of the disk (up to 2 TiB; 4 KiB blocks from 64 MiB).
 `tools/large-ext2-smoke.py` covers the 4 KiB profile, a file past 4 GiB and a
 whole-disk installed root. Old FAT roots remain
 recognized. Installer refuses disks with mounted partitions before writing GPT.

@@ -200,7 +200,7 @@ never infer current failures from old release logs or claim a menu stub is a bac
   root and RAM-backed ext2 (1777) for `/tmp`; virtual `/proc` and `/dev` are mounted at boot. Experimental
   secondary ext2 volumes require explicit `mount -t ext2` and a supported-profile
   check. `mkfs.ext2 PARTITION --yes` explicitly formats an unmounted secondary
-  partition (1 MiB..2 TiB; 4 KiB blocks, sparse_super and large_file above 512 MiB,
+  partition (1 MiB..2 TiB; 4 KiB blocks, sparse_super, large_file and resize_inode from 64 MiB,
   the 1 KiB profile below); it refuses mounted volumes and the running root disk.
   The locally adapted driver, upstream revision and allocator fix are
   documented in `src/Core/Storage/Ext2/SOURCE.md`; its BSD notice is retained in

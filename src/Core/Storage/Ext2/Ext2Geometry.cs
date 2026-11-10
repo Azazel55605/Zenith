@@ -12,9 +12,10 @@ namespace Zenith.Core.Storage.Ext2;
 internal readonly record struct Ext2Geometry(uint BlockSize, uint Blocks, uint BlocksPerGroup, uint InodesPerGroup, bool Sparse, uint ReservedGdt = 0)
 {
     public const uint InodeSize = 128;
-    /// <summary>The compact profile (1 KiB blocks, a copy in every group) up to this size: what earlier
-    /// releases format and mount; larger volumes use 4 KiB blocks.</summary>
-    public const ulong CompactMaximumBytes = 512UL * 1024 * 1024;
+    /// <summary>The compact profile (1 KiB blocks, a copy in every group, what releases before 0.0.52
+    /// formatted up to 512 MiB) only for small volumes: its descriptor table cannot grow, so anything
+    /// that may be enlarged later gets the 4 KiB profile with reserved room.</summary>
+    public const ulong CompactMaximumBytes = 64UL * 1024 * 1024;
     public const ulong MaximumBytes = 2UL * 1024 * 1024 * 1024 * 1024;
     /// <summary>Above this the 4 KiB profile spreads fewer inodes per group (one per 32 KiB up to it).</summary>
     public const ulong TargetInodes = 4UL * 1024 * 1024;

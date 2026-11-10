@@ -359,7 +359,7 @@ internal static class ManualPages
                 mounted/overlapping partitions and the running root disk are
                 refused. Without --yes, no writes occur. LABEL may contain up to
                 16 printable ASCII characters.
-                Up to 512 MiB: 1 KiB blocks, 128-byte inodes and only the
+                Below 64 MiB: 1 KiB blocks, 128-byte inodes and only the
                 filetype feature, with backups in every block group. Larger
                 partitions, up to 2 TiB: 4 KiB blocks, sparse_super, large_file
                 (files past 4 GiB) and resize_inode (room for disk grow up to

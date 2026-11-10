@@ -39,6 +39,7 @@ internal static class AppRegistry
         new AppInfo("System", "About this machine", _ => new SystemInfoWindow(), "desktop-tools", "system"),
         new AppInfo("Meridian", "System settings", _ => new AppLaunchNotice("Install the zenith-settings package to open Meridian."), "settings"),
         new AppInfo("Observatory", "CPU, memory and running programs", _ => new AppLaunchNotice("Install the zenith-observatory package to open Observatory."), "observatory"),
+        new AppInfo("Equinox", "Disks and partitions", _ => new AppLaunchNotice("Install the zenith-equinox package to open Equinox."), "equinox"),
     };
 
     /// <summary>The icon of a registered app; window titles may add to the app's name.</summary>
@@ -52,6 +53,7 @@ internal static class AppRegistry
         if (title.Contains("System") || title.Contains("About")) { return "monitor"; }
         if (title.Contains("Meridian") || title.Contains("Settings")) { return "sliders-horizontal"; }
         if (title.Contains("Observatory")) { return "activity"; }
+        if (title.Contains("Equinox")) { return "hard-drive"; }
         return "app-window";
     }
 
