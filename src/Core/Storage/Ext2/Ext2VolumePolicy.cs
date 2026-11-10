@@ -39,6 +39,15 @@ internal static class Ext2VolumePolicy
 
     private static uint Read(ReadOnlySpan<byte> data, int offset) => BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(offset));
 
+    /// <summary>The primary superblock's 1024 bytes, whatever the sector size.</summary>
+    internal static byte[] ReadPrimary(IBlockDevice device)
+    {
+        ulong sector = device.BlockSize, first = 1024 / sector, count = Math.Max(1, 2048 / sector - first);
+        byte[] sectors = new byte[count * sector];
+        device.ReadBlock(first, count, sectors);
+        return sectors.AsSpan((int)(1024 - first * sector), 1024).ToArray();
+    }
+
     internal static string? CheckSuperblock(ReadOnlySpan<byte> data, ulong deviceBytes, bool allowUnclean = false)
     {
         if (data.Length < 1024 || BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(56)) != 0xEF53)
@@ -50,10 +59,10 @@ internal static class Ext2VolumePolicy
         // Journal, extents, checksums and unknown features are refused.
         uint log = Read(data, 24), roCompat = Read(data, 100);
         if (Read(data, 72) != 0 || Read(data, 76) != 1 || (log != 0 && log != 2) || BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(88)) != 128
-            || Read(data, 92) != 0 || Read(data, 96) != 2
+            || (Read(data, 92) & ~Ext2SuperblockLayout.CompatResizeInode) != 0 || Read(data, 96) != 2
             || (roCompat & ~(Ext2SuperblockLayout.RoCompatSparseSuper | Ext2SuperblockLayout.RoCompatLargeFile)) != 0)
         {
-            return "unsupported ext2 profile (requires Linux layout, revision 1, 1 or 4 KiB blocks, 128-byte inodes, filetype, sparse_super/large_file only)";
+            return "unsupported ext2 profile (requires Linux layout, revision 1, 1 or 4 KiB blocks, 128-byte inodes, filetype, sparse_super/large_file/resize_inode only)";
         }
         ushort state = BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(58));
         if (state != 1 && (!allowUnclean || state != 0))

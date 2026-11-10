@@ -34,7 +34,10 @@ public class DeviceCommandTests
     [InlineData("bs=two count=1")]
     [InlineData("count=-1")]
     [InlineData("count=9223372036854775808")]
-    [InlineData("count=1 skip=1")]
+    [InlineData("count=1 skip=-1")]
+    [InlineData("count=1 seek=x")]
+    [InlineData("count=1 conv=sync")]
+    [InlineData("count=1 iflag=direct")]
     [InlineData("count=1 nonsense")]
     [InlineData("bs=1")]
     public void DdRejectsBadOperandsBeforeTruncatingOutput(string args)

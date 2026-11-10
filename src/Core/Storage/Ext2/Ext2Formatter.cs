@@ -61,7 +61,7 @@ internal static class Ext2Formatter
         uint freeBlocks = 0;
         for (uint group = 0; group < groups; group++)
         {
-            uint count = g.GroupBlocks(group), used = g.GroupMetadata(group) + (group == 0 ? 2u : 0u);
+            uint count = g.GroupBlocks(group), used = g.GroupMetadata(group) + (group == 0 ? g.GroupZeroExtra : 0u);
             uint bitmap = g.BlockBitmap(group);
             int offset = (int)(group * 32);
             Put32(descriptors, offset, bitmap);
@@ -91,7 +91,9 @@ internal static class Ext2Formatter
         Put32(superblock, 76, 1);
         Put32(superblock, 84, 11);
         Put16(superblock, 88, (ushort)Ext2Geometry.InodeSize);
+        Put32(superblock, 92, g.Compat);
         Put32(superblock, 96, 2); // filetype
+        Put16(superblock, Ext2SuperblockLayout.ReservedGdtBlocksOffset, (ushort)g.ReservedGdt);
         Put32(superblock, 100, g.RoCompat);
         Encoding.ASCII.GetBytes(label).CopyTo(superblock.AsSpan(120));
 
@@ -104,7 +106,7 @@ internal static class Ext2Formatter
         byte[] blockMap = new byte[bs], inodeMap = new byte[bs];
         for (uint group = 0; group < groups; group++)
         {
-            uint count = g.GroupBlocks(group), used = g.GroupMetadata(group) + (group == 0 ? 2u : 0u);
+            uint count = g.GroupBlocks(group), used = g.GroupMetadata(group) + (group == 0 ? g.GroupZeroExtra : 0u);
             uint bitmap = g.BlockBitmap(group);
             Array.Clear(blockMap); Array.Clear(inodeMap);
             for (uint bit = 0; bit < bs * 8; bit++)
@@ -139,6 +141,10 @@ internal static class Ext2Formatter
         Entry(lost, 0, 11, ".", 12);
         Entry(lost, 12, 2, "..", (ushort)(bs - 12));
         Write(device, bs, rootBlock + 1, lost);
+        if (g.ReservedGdt > 0)
+        {
+            WriteResizeInode(device, g, table, rootBlock + 2, now);
+        }
 
         // Flush complete metadata before publishing backups, then the primary last.
         device.Flush();
@@ -150,6 +156,11 @@ internal static class Ext2Formatter
             }
             uint start = g.GroupStart(group);
             Write(device, bs, start + 1, descriptors);
+            if (group != 0 && g.ReservedGdt > 0)
+            {
+                // Backup copies of the reserved blocks hold nothing until the table grows into them.
+                for (uint i = 0; i < g.ReservedGdt; i++) { Write(device, bs, start + 1 + g.DescriptorBlocks + i, new byte[bs]); }
+            }
             if (group != 0)
             {
                 Put16(superblock, 90, (ushort)group);
@@ -160,6 +171,47 @@ internal static class Ext2Formatter
         Put16(superblock, 90, 0);
         WriteBytes(device, 1024, superblock);
         device.Flush();
+    }
+
+    /// <summary>
+    /// resize_inode (inode 7): a double-indirect table whose entries, from index DescriptorBlocks on,
+    /// are the primary reserved descriptor blocks; each of those lists the block's copies in the backup
+    /// groups. i_size spans the whole double-indirect range. The layout e2fsprogs creates and checks.
+    /// </summary>
+    internal static void WriteResizeInode(IBlockDevice device, Ext2Geometry g, uint table, uint dind, uint now)
+    {
+        uint bs = g.BlockSize, perBlock = bs / 4, backups = 0;
+        byte[] root = new byte[bs], list = new byte[bs];
+        for (uint group = 1; group < g.Groups; group++) { if (g.HasBackup(group)) { backups++; } }
+        for (uint i = 0; i < g.ReservedGdt; i++)
+        {
+            uint primary = g.GroupStart(0) + 1 + g.DescriptorBlocks + i;
+            Put32(root, (int)((g.DescriptorBlocks + i) % perBlock * 4), primary);
+            Array.Clear(list);
+            uint slot = 0;
+            for (uint group = 1; group < g.Groups; group++)
+            {
+                if (g.HasBackup(group)) { Put32(list, (int)(slot++ * 4), primary + group * g.BlocksPerGroup); }
+            }
+            Write(device, bs, primary, list);
+        }
+        Write(device, bs, dind, root);
+        uint perTable = bs / Ext2Geometry.InodeSize;
+        uint tableBlock = table + (Ext2SuperblockLayout.ResizeInode - 1) / perTable;
+        byte[] data = new byte[bs];
+        device.ReadBlock((ulong)tableBlock * (bs / device.BlockSize), bs / device.BlockSize, data);
+        int offset = (int)((Ext2SuperblockLayout.ResizeInode - 1) % perTable * Ext2Geometry.InodeSize);
+        ulong size = ((ulong)perBlock * perBlock + perBlock + 12) * bs;
+        Put16(data, offset, 0x8180);                     // regular file, 0600
+        Put32(data, offset + 4, (uint)size);
+        Put32(data, offset + 8, now);
+        Put32(data, offset + 12, now);
+        Put32(data, offset + 16, now);
+        Put16(data, offset + 26, 1);
+        Put32(data, offset + 28, (1 + g.ReservedGdt * (1 + backups)) * (bs / 512));
+        Put32(data, offset + 40 + 13 * 4, dind);         // i_block[EXT2_DIND_BLOCK]
+        Put32(data, offset + 108, (uint)(size >> 32));   // i_size_high
+        Write(device, bs, tableBlock, data);
     }
 
     private static void WriteDirectoryInode(IBlockDevice device, uint bs, uint table, uint inode, ushort mode, ushort links, uint block, uint now)

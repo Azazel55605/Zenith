@@ -46,8 +46,11 @@ internal sealed class Ext2Checker
                 report = profile; return false;
             }
             if (!Ext2Superblock.TryCreate(device, out var sb)) { report = "invalid ext2 metadata"; return false; }
+            byte[] raw = Ext2VolumePolicy.ReadPrimary(device);
+            uint reserved = (sb.FeatureCompat & Ext2SuperblockLayout.CompatResizeInode) != 0
+                ? BinaryPrimitives.ReadUInt16LittleEndian(raw.AsSpan(Ext2SuperblockLayout.ReservedGdtBlocksOffset)) : 0u;
             var geometry = new Ext2Geometry(sb.BlockSize, sb.BlocksCount, sb.BlocksPerGroup, sb.InodesPerGroup,
-                (sb.FeatureRoCompat & Ext2SuperblockLayout.RoCompatSparseSuper) != 0);
+                (sb.FeatureRoCompat & Ext2SuperblockLayout.RoCompatSparseSuper) != 0, reserved);
             if (sb.FirstIno != 11 || sb.InodeSize != Ext2Geometry.InodeSize || sb.InodesCount != geometry.Inodes
                 || geometry.Groups != sb.GroupsCount || sb.FirstDataBlock != geometry.FirstDataBlock)
             { report = "unsupported inode geometry; no changes made"; return false; }
@@ -106,6 +109,7 @@ internal sealed class Ext2Checker
             for (uint i = count; i < bits; i++) { if (!Bit(bitmap, i)) { Error("unmarked block bitmap padding in group " + group); break; } }
             freeBlocks += groupFree;
             if (groupFree != gd.FreeBlocksCount) { Error("free block count mismatch in group " + group); }
+            // The reserved descriptor blocks after each copy belong to the resize inode, walked below.
             if (g.HasBackup(group)) { for (uint i = 0; i <= g.DescriptorBlocks; i++) { Own(first + i); } }
             Own(gd.BlockBitmap); Own(gd.InodeBitmap);
             for (uint i = 0; i < g.TableBlocks; i++) { Own(gd.InodeTable + i); }
@@ -119,6 +123,7 @@ internal sealed class Ext2Checker
         }
         if (freeBlocks != _sb.FreeBlocksCount || freeInodes != _sb.FreeInodesCount) { Error("superblock free counts mismatch"); }
         for (uint n = 1; n < _sb.FirstIno; n++) { if (!Get(_inodes, n)) { Error("free reserved inode " + n); } }
+        if (_geometry.ReservedGdt > 0) { ResizeInode(); }
         var groupDirs = new uint[_sb.GroupsCount];
         if (!Get(_inodes, 2) || !_sb.ReadInode(2, "/").IsDirectory) { Error("invalid root directory"); }
         for (uint n = 2; n <= _sb.InodesCount; n++)
@@ -167,6 +172,38 @@ internal sealed class Ext2Checker
             }
         }
     }
+    /// <summary>Inode 7 owns the reserved descriptor blocks: a double-indirect table of the primary copies,
+    /// each listing its backups. Only i_block[13] may be set; every block must be where the layout says.</summary>
+    private void ResizeInode()
+    {
+        var node = _sb.ReadInode(Ext2SuperblockLayout.ResizeInode, "");
+        var g = _geometry;
+        uint bs = _sb.BlockSize, perBlock = bs / 4;
+        for (int i = 0; i < 15; i++) { if (i != 13 && node.Block[i] != 0) { Error("resize inode has unexpected blocks"); return; } }
+        uint dind = node.Block[13];
+        if (dind == 0 || !Own(dind)) { Error("resize inode has no table"); return; }
+        byte[] root = new byte[bs], list = new byte[bs];
+        _sb.ReadBlocks(dind, 1, root);
+        ulong owned = 1;
+        for (uint i = 0; i < g.ReservedGdt; i++)
+        {
+            uint primary = g.GroupStart(0) + 1 + g.DescriptorBlocks + i;
+            if (U32(root, (int)((g.DescriptorBlocks + i) % perBlock * 4)) != primary) { Error("resize inode table entry " + i); continue; }
+            if (!Own(primary)) { continue; }
+            owned++;
+            _sb.ReadBlocks(primary, 1, list);
+            uint slot = 0;
+            for (uint group = 1; group < g.Groups; group++)
+            {
+                if (!g.HasBackup(group)) { continue; }
+                uint backup = primary + group * g.BlocksPerGroup;
+                if (U32(list, (int)(slot++ * 4)) != backup) { Error("resize inode backup list " + i); break; }
+                if (Own(backup)) { owned++; }
+            }
+        }
+        if (owned * (bs / 512) != node.Blocks) { Error("resize inode sector count"); }
+    }
+
     private ulong Walk(uint block, int depth)
     {
         if (block == 0 || !Own(block)) { return 0; }

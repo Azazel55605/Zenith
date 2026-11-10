@@ -54,6 +54,12 @@ public class Ext2LargeProfileTests
         Assert.True(Ext2Checker.Check(disk, out string report), report);
         disk.Flush();
         Run("e2fsck", "-f", "-n", disk.Path);
+        // Room for the descriptor table to grow to 2 TiB, the way e2fsprogs reads it.
+        string stats = Run("debugfs", "-R", "stats", disk.Path);
+        Assert.Contains("resize_inode", stats);
+        var geometry = Ext2Geometry.For(bytes)!.Value;
+        Assert.Contains("Reserved GDT blocks:      " + geometry.ReservedGdt, stats);
+        Assert.Equal(128u, geometry.DescriptorBlocks + geometry.ReservedGdt);
     }
 
     [Fact]

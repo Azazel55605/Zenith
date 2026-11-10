@@ -27,6 +27,15 @@ internal static class Ext2SuperblockLayout
     /// <summary>s_feature_ro_compat: files may exceed 2 GiB (i_size_high).</summary>
     public const uint RoCompatLargeFile = 0x2;
 
+    /// <summary>s_feature_compat: reserved descriptor blocks for growth, owned by inode 7.</summary>
+    public const uint CompatResizeInode = 0x10;
+
+    /// <summary>s_reserved_gdt_blocks (u16): descriptor blocks reserved after each table copy.</summary>
+    public const int ReservedGdtBlocksOffset = 206;
+
+    /// <summary>The inode that owns the reserved descriptor blocks.</summary>
+    public const uint ResizeInode = 7;
+
     // Superblock field offsets (little-endian).
 
     /// <summary>Byte offset of s_inodes_count: total inodes in the volume (32-bit).</summary>

@@ -940,10 +940,16 @@ internal sealed class Ext2Superblock : IVfsSuperblock
 
     private void SetCleanState(bool clean)
     {
-        byte[] data = new byte[BlockSize];
-        ReadBlocks(1, 1, data);
-        BitConverter.TryWriteBytes(data.AsSpan(58, 2), (ushort)(clean ? 1 : 0));
-        WriteBlocks(1, 1, data);
+        // The superblock is at byte 1024 whatever the block size: ext2 block 1 with 1 KiB blocks, the
+        // middle of block 0 with 4 KiB blocks (block 1 is then the descriptor table).
+        ulong devBlockSize = _device.BlockSize;
+        ulong sbLba = (ulong)Ext2SuperblockLayout.SuperblockOffset / devBlockSize;
+        ulong sectors = Math.Max(1, ((ulong)Ext2SuperblockLayout.SuperblockOffset + Ext2SuperblockLayout.SuperblockSize + devBlockSize - 1) / devBlockSize - sbLba);
+        byte[] data = new byte[sectors * devBlockSize];
+        _device.ReadBlock(sbLba, sectors, data);
+        int offset = (int)((ulong)Ext2SuperblockLayout.SuperblockOffset - sbLba * devBlockSize);
+        BitConverter.TryWriteBytes(data.AsSpan(offset + Ext2SuperblockLayout.StateOffset, 2), (ushort)(clean ? 1 : 0));
+        _device.WriteBlock(sbLba, sectors, data);
     }
 
     /// <summary>Mark a completed unmount clean, drop caches and flush.</summary>

@@ -6,10 +6,10 @@ namespace Zenith.Core.Storage.Ext2;
 /// <summary>
 /// The block-group layout of a supported ext2 volume, shared by the formatter, the mount policy and
 /// the checker. Each group holds, in order: a superblock and descriptor table copy (every group, or
-/// with sparse_super only groups 0, 1 and powers of 3, 5 and 7), the block bitmap, the inode bitmap
-/// and the inode table; the rest is data. Pure.
+/// with sparse_super only groups 0, 1 and powers of 3, 5 and 7) followed by the reserved descriptor
+/// blocks (resize_inode), the block bitmap, the inode bitmap and the inode table; the rest is data. Pure.
 /// </summary>
-internal readonly record struct Ext2Geometry(uint BlockSize, uint Blocks, uint BlocksPerGroup, uint InodesPerGroup, bool Sparse)
+internal readonly record struct Ext2Geometry(uint BlockSize, uint Blocks, uint BlocksPerGroup, uint InodesPerGroup, bool Sparse, uint ReservedGdt = 0)
 {
     public const uint InodeSize = 128;
     /// <summary>The compact profile (1 KiB blocks, a copy in every group) up to this size: what earlier
@@ -26,6 +26,11 @@ internal readonly record struct Ext2Geometry(uint BlockSize, uint Blocks, uint B
     public uint Inodes => Groups * InodesPerGroup;
     public uint LogBlockSize => BlockSize == 1024 ? 0u : BlockSize == 2048 ? 1u : 2u;
     public uint RoCompat => Sparse ? Ext2SuperblockLayout.RoCompatSparseSuper | Ext2SuperblockLayout.RoCompatLargeFile : 0u;
+    public uint Compat => ReservedGdt > 0 ? Ext2SuperblockLayout.CompatResizeInode : 0u;
+    /// <summary>Descriptor blocks a 2 TiB volume of this block size needs: the growth limit.</summary>
+    public uint MaximumDescriptorBlocks => (uint)(((MaximumBytes / BlockSize + BlocksPerGroup - 1) / BlocksPerGroup * 32 + BlockSize - 1) / BlockSize);
+    /// <summary>Group 0 holds the root and lost+found directory blocks, and the resize inode's table.</summary>
+    public uint GroupZeroExtra => 2 + (ReservedGdt > 0 ? 1u : 0u);
 
     public static bool HasBackup(uint group, bool sparse)
     {
@@ -42,9 +47,9 @@ internal readonly record struct Ext2Geometry(uint BlockSize, uint Blocks, uint B
     public bool HasBackup(uint group) => HasBackup(group, Sparse);
     public uint GroupStart(uint group) => FirstDataBlock + group * BlocksPerGroup;
     public uint GroupBlocks(uint group) => Math.Min(BlocksPerGroup, Blocks - GroupStart(group));
-    /// <summary>Superblock and descriptor copy (when present), both bitmaps and the inode table.</summary>
-    public uint GroupMetadata(uint group) => (HasBackup(group) ? 1 + DescriptorBlocks : 0) + 2 + TableBlocks;
-    public uint BlockBitmap(uint group) => GroupStart(group) + (HasBackup(group) ? 1 + DescriptorBlocks : 0);
+    /// <summary>Superblock, descriptor copy and reserved blocks (when present), both bitmaps and the inode table.</summary>
+    public uint GroupMetadata(uint group) => (HasBackup(group) ? 1 + DescriptorBlocks + ReservedGdt : 0) + 2 + TableBlocks;
+    public uint BlockBitmap(uint group) => GroupStart(group) + (HasBackup(group) ? 1 + DescriptorBlocks + ReservedGdt : 0);
 
     /// <summary>The layout this release formats for a device of <paramref name="bytes"/>, or null when
     /// none fits (too small or too large, or a group too small for its metadata).</summary>
@@ -62,12 +67,16 @@ internal readonly record struct Ext2Geometry(uint BlockSize, uint Blocks, uint B
         uint groups = (blocks + 32767) / 32768;
         uint perGroup = (uint)Math.Clamp(TargetInodes / groups, 256UL, 4096UL) / 32 * 32;
         var large = new Ext2Geometry(4096, blocks, 32768, perGroup, true);
+        // Room for the descriptor table to grow to 2 TiB (resize_inode), at most what one
+        // double-indirect table can list (mke2fs reserves for 1024 times the size, same bound).
+        large = large with { ReservedGdt = Math.Min(large.MaximumDescriptorBlocks - large.DescriptorBlocks, large.BlockSize / 4) };
         // A last group too small for its own metadata and some data is left off, as mke2fs does.
         uint last = large.Groups - 1;
         if (large.GroupBlocks(last) < large.GroupMetadata(last) + 64)
         {
             if (last == 0) { return null; }
             large = large with { Blocks = large.GroupStart(last) };
+            large = large with { ReservedGdt = Math.Min(large.MaximumDescriptorBlocks - large.DescriptorBlocks, large.BlockSize / 4) };
         }
         return large.GroupsFit() ? large : null;
     }
@@ -75,13 +84,14 @@ internal readonly record struct Ext2Geometry(uint BlockSize, uint Blocks, uint B
     /// <summary>Every group can hold its metadata (group 0 also the root and lost+found blocks) and data.</summary>
     public bool GroupsFit()
     {
+        if (ReservedGdt > BlockSize / 4 || DescriptorBlocks + ReservedGdt > MaximumDescriptorBlocks + 1) { return false; }
         if (Blocks <= FirstDataBlock || Groups == 0 || TableBlocks == 0 || InodesPerGroup > BlockSize * 8 || BlocksPerGroup > BlockSize * 8)
         {
             return false;
         }
         for (uint group = 0; group < Groups; group++)
         {
-            if (GroupBlocks(group) <= GroupMetadata(group) + (group == 0 ? 2u : 0u)) { return false; }
+            if (GroupBlocks(group) <= GroupMetadata(group) + (group == 0 ? GroupZeroExtra : 0u)) { return false; }
         }
         return true;
     }
