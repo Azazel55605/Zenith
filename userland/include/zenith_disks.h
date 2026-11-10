@@ -8,7 +8,10 @@
  * delete, grow (sectors 0 = as far as possible). Partitions are named by disk and start
  * sector, which deleting another partition does not change. A request against an older
  * revision is refused (-11); -16 while another edit runs; -13 without root. A positive result
- * is the edit's token: poll 647 until job_token matches and job_state is done or failed. */
+ * is the edit's token: poll 647 until job_token matches and job_state is done or failed.
+ * Extras (extra.version 1, kernel 0.0.54 and later; zero before): bytes in use and the
+ * filesystem's state per partition (by disk and partition index, 0 when unknown) and whether
+ * both GPT copies match. Same capability version: the tail was reserved and zero. */
 #define Z_DISKS 8
 #define Z_DISK_PARTS 16
 #define Z_DISK_FREE 8
@@ -19,6 +22,8 @@ enum { Z_ROLE_NONE=0, Z_ROLE_ROOT=1, Z_ROLE_BOOT=2 };
 enum { Z_DISKS_CAN_EDIT=1 };
 enum { Z_DISK_JOB_IDLE=0, Z_DISK_JOB_RUNNING=1, Z_DISK_JOB_DONE=2, Z_DISK_JOB_FAILED=3 };
 enum { Z_DISK_INIT=1, Z_DISK_CREATE=2, Z_DISK_DELETE=3, Z_DISK_GROW=4 };
+enum { Z_FS_STATE_UNKNOWN=0, Z_FS_STATE_CLEAN=1, Z_FS_STATE_CHECK=2, Z_FS_STATE_IN_USE=3 };
+enum { Z_GPT_UNKNOWN=0, Z_GPT_COPIES_MATCH=1, Z_GPT_COPIES_DIFFER=2 };
 struct zenith_disk_part {
     char name[16];
     unsigned long start,sectors,grow_limit;      /* 512-byte sectors; grow_limit: largest in-place length */
@@ -41,7 +46,13 @@ struct zenith_disks {
     char job_message[160];
     unsigned int disk_count,reserved;
     struct zenith_disk disks[Z_DISKS];
-    unsigned char tail[1528];
+    struct zenith_disks_extra {
+        unsigned int version,reserved;
+        unsigned long used[Z_DISKS][Z_DISK_PARTS];        /* bytes in use */
+        unsigned char state[Z_DISKS][Z_DISK_PARTS];       /* Z_FS_STATE_* */
+        unsigned char gpt[Z_DISKS];                       /* Z_GPT_* */
+        unsigned char tail[360];
+    } extra;
 };
 struct zenith_disk_request {
     unsigned int version,action;
@@ -55,6 +66,7 @@ _Static_assert(sizeof(struct zenith_disk_part)==104,"disk part ABI");
 _Static_assert(sizeof(struct zenith_disk)==1832,"disk ABI");
 _Static_assert(__builtin_offsetof(struct zenith_disks,disks)==200,"disk snapshot header ABI");
 _Static_assert(sizeof(struct zenith_disks)==16384,"disk snapshot ABI");
+_Static_assert(__builtin_offsetof(struct zenith_disks,extra)==14856,"disk snapshot extras ABI");
 _Static_assert(sizeof(struct zenith_disk_request)==72,"disk request ABI");
 static inline long zenith_disks_read(struct zenith_disks *s){return zenith_call(647,(unsigned long)s,sizeof(*s),0);}
 static inline long zenith_disks_request(const struct zenith_disk_request *r){return zenith_call(648,(unsigned long)r,sizeof(*r),0);}

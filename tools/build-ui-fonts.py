@@ -6,6 +6,11 @@ import hashlib
 import math
 ROOT = Path(__file__).resolve().parents[1]
 
+# Printable ASCII, then a few typographic marks the decoder in userland/ui/ui.c maps after it
+# (middle dot, right arrow, em dash, ellipsis), in this order.
+EXTRA = (0xB7, 0x2192, 0x2014, 0x2026)
+CHARS = list(range(32, 127)) + list(EXTRA)
+
 def build(output, mono=False):
     try:
         from PIL import Image, ImageDraw, ImageFont
@@ -19,10 +24,10 @@ def build(output, mono=False):
         path = ROOT / ('Resources/Fonts/' + face + '.ttf')
         font = ImageFont.truetype(str(path), size, layout_engine=ImageFont.Layout.BASIC)
         ascent, descent = font.getmetrics()
-        width = max(font.getbbox(chr(c))[2] for c in range(32, 127)) + 3
+        width = max(font.getbbox(chr(c))[2] for c in CHARS) + 3
         height = ascent + descent
         pixels, advances = bytearray(), []
-        for c in range(32, 127):
+        for c in CHARS:
             image = Image.new('L', (width, height))
             ImageDraw.Draw(image).text((1, ascent), chr(c), font=font, fill=255, anchor='ls')
             pixels.extend(image.tobytes())
@@ -31,7 +36,7 @@ def build(output, mono=False):
         lines.append('static const unsigned char ' + name + '_advance[]={' + ','.join(map(str, advances)) + '};')
         # Store each glyph's ink box only; empty cells (space) keep a zero box.
         ink, boxes, offsets = bytearray(), [], []
-        for g in range(95):
+        for g in range(len(CHARS)):
             cell = pixels[g*width*height:(g+1)*width*height]
             xs = [i % width for i, v in enumerate(cell) if v]; ys = [i // width for i, v in enumerate(cell) if v]
             offsets.append(len(ink))

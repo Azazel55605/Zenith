@@ -14,11 +14,15 @@ internal enum DiskFilesystem { Unknown = 0, Ext2 = 1, Fat32 = 2 }
 internal enum DiskPartitionType { Other = 0, Efi = 1, Linux = 2 }
 internal enum DiskRole { None = 0, Root = 1, Boot = 2 }
 
+/// <summary>A filesystem's own record of its state: clean, needing a check, or mounted (in use).</summary>
+internal enum DiskFsState { Unknown = 0, Clean = 1, NeedsCheck = 2, InUse = 3 }
+
 internal sealed record DiskPartInfo(Partition Partition, string Name, ulong Start, ulong Sectors, DiskPartitionType Type,
-    DiskFilesystem Filesystem, uint BlockSize, string Label, string Mount, DiskRole Role, ulong GrowLimit);
+    DiskFilesystem Filesystem, uint BlockSize, string Label, string Mount, DiskRole Role, ulong GrowLimit,
+    ulong UsedBytes = 0, DiskFsState State = DiskFsState.Unknown);
 
 internal sealed record DiskInfo(IBlockDevice Device, string Name, ulong Sectors, bool Gpt, bool System, bool Mounted,
-    bool Editable, List<DiskPartInfo> Parts, List<DiskRegion> Free);
+    bool Editable, List<DiskPartInfo> Parts, List<DiskRegion> Free, bool GptCopiesMatch = false);
 
 /// <summary>
 /// The disk operations behind <c>disk</c> and the Equinox ABI (zenith-native-disk-abi): one set of
@@ -58,10 +62,12 @@ internal static class DiskService
                 }
                 var (fs, blockSize, label) = Probe(p);
                 var role = ReferenceEquals(p, SystemMounts.RootPartition) ? DiskRole.Root : ReferenceEquals(p, SystemMounts.BootPartition) ? DiskRole.Boot : DiskRole.None;
-                parts.Add(new(p, p.Name, p.StartSector, p.BlockCount, type, fs, blockSize, label, MountOf(p) ?? "", role, growLimit));
+                string? mount = MountOf(p);
+                var (used, state) = Usage(p, fs, mount);
+                parts.Add(new(p, p.Name, p.StartSector, p.BlockCount, type, fs, blockSize, label, mount ?? "", role, growLimit, used, state));
             }
             disks.Add(new(disk, disk.Name, disk.BlockCount, gpt, IsSystemDisk(disk), AnythingMounted(disk), gpt,
-                parts, gpt ? DiskLayout.Free(disk.BlockCount, table) : new List<DiskRegion>()));
+                parts, gpt ? DiskLayout.Free(disk.BlockCount, table) : new List<DiskRegion>(), gpt && GptChecksums.CopiesMatch(disk)));
         }
         return disks;
     }
@@ -90,6 +96,28 @@ internal static class DiskService
     }
 
     private static bool IsSystemDisk(IBlockDevice disk) => ReferenceEquals(SystemMounts.RootPartition?.Host, disk);
+
+    /// <summary>Bytes in use and the filesystem's state: from the mounted filesystem, or for an
+    /// unmounted ext2 volume from its superblock (block counts, and the clean flag a check or a clean
+    /// unmount sets). Zero/unknown when neither applies.</summary>
+    private static (ulong Used, DiskFsState State) Usage(IBlockDevice partition, DiskFilesystem fs, string? mount)
+    {
+        try
+        {
+            if (mount is not null)
+            {
+                if (VfsManager.TryStatFs(mount, out var stat) && stat.Blocks >= stat.Bfree) { return ((stat.Blocks - stat.Bfree) * stat.BlockSize, DiskFsState.InUse); }
+                return (0, DiskFsState.InUse);
+            }
+            if (fs != DiskFilesystem.Ext2) { return (0, DiskFsState.Unknown); }
+            byte[] sb = Ext2VolumePolicy.ReadPrimary(partition);
+            uint log = BitConverter.ToUInt32(sb, 24), blocks = BitConverter.ToUInt32(sb, 4), free = BitConverter.ToUInt32(sb, 12);
+            ushort state = BitConverter.ToUInt16(sb, 58);
+            ulong used = log <= 6 && free <= blocks ? (ulong)(blocks - free) * (1024UL << (int)log) : 0;
+            return (used, state == 1 ? DiskFsState.Clean : DiskFsState.NeedsCheck);
+        }
+        catch { return (0, DiskFsState.Unknown); }
+    }
 
     /// <summary>What a partition holds, from its first sectors only.</summary>
     public static (DiskFilesystem Filesystem, uint BlockSize, string Label) Probe(IBlockDevice partition)

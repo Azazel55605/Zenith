@@ -25,8 +25,8 @@ def main():
     def package(*args): subprocess.run(['dotnet', str(tool), *map(str, args)], check=True, capture_output=True)
     served = keep / 'served'; served.mkdir(); package('keygen', keep / 'keys')
     key = (keep / 'keys/public.pem').read_bytes(); (served / 'key.pem').write_bytes(key)
-    subprocess.run([sys.executable, str(ROOT / 'tools/build-userland.py'), str(keep / 'equinox'), '--program', 'equinox', '--version', '0.1.0'], check=True)
-    package('build-native', 'zenith-equinox', '0.1.0', keep / 'equinox', keep / 'bundle-equinox')
+    subprocess.run([sys.executable, str(ROOT / 'tools/build-userland.py'), str(keep / 'equinox'), '--program', 'equinox', '--version', '0.2.0'], check=True)
+    package('build-native', 'zenith-equinox', '0.2.0', keep / 'equinox', keep / 'bundle-equinox')
     manifest = (keep / 'bundle-equinox/manifest.tsv').read_text()
     assert 'requires\tzenith-native-disk-abi\t1.0\n' in manifest, manifest
     package('seal', keep / 'bundle-equinox', keep / 'keys/private.pem', served / 'equinox.zpk')
@@ -86,6 +86,14 @@ def main():
         checks += 1; print('PASS plan applied through the disk ABI', flush=True)
         output = status('native run equinox --probe | logger', 'E_PROBE_AFTER')
         assert 'EQUINOX_PART sata1p0 2.0 GiB fs=1 label=EQX' in output, output[-800:]
+        # Snapshot extras: both GPT copies agree, the grown volume is clean and reports its use;
+        # the mounted root is in use.
+        assert 'EQUINOX_DISK sata1 2.0 GiB parts=1 free=0 gpt=1' in output, output[-800:]
+        import re
+        part = re.search(r'EQUINOX_PART sata1p0 2\.0 GiB fs=1 label=EQX role=0 used=(\d+) state=(\d)', output)
+        assert part and int(part.group(1)) > 0 and part.group(2) == '1', output[-800:]
+        assert re.search(r'EQUINOX_PART sata0p1 .* role=1 used=[1-9]\d* state=3', output), output[-800:]
+        checks += 1; print('PASS snapshot extras: GPT copies, clean state and use', flush=True)
         # A refused edit is refused before anything runs: the system disk is in use, and non-root is denied.
         output = status('native run equinox --apply-test sata0 | logger', 'E_SYSTEM_REFUSED')
         assert 'EQUINOX_STEP init failed' in output, output[-600:]

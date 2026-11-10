@@ -169,7 +169,8 @@ static unsigned int blend(unsigned int bg,unsigned int fg,unsigned int a){
     for(int s=0;s<24;s+=8)out|=((((bg>>s)&255)*(255-a)+((fg>>s)&255)*a+127)/255)<<s;
     return out;
 }
-/* Consume a bounded UTF-8 sequence; every non-ASCII scalar maps to replacement. */
+/* Consume a bounded UTF-8 sequence. Printable ASCII and the atlas's extra marks (tools/build-ui-fonts.py
+ * EXTRA: middle dot, right arrow, em dash, ellipsis, as 127..130) have glyphs; anything else is '?'. */
 static unsigned int glyph(const char *s,unsigned long n,unsigned long *i){
     unsigned int c=(unsigned char)s[(*i)++];
     if(c<128)return c>=32&&c<=126?c:'?';
@@ -179,7 +180,7 @@ static unsigned int glyph(const char *s,unsigned long n,unsigned long *i){
     if(n-*i<(unsigned long)count)return '?';
     for(int j=0;j<count;j++)if(((unsigned char)s[*i+j]&0xc0)!=0x80)return '?';
     for(int j=0;j<count;j++)v=(v<<6)|((unsigned char)s[(*i)++]&63);
-    (void)v;return '?'; /* Current atlas is printable ASCII; do not claim Unicode fonts. */
+    return v==0xB7?127:v==0x2192?128:v==0x2014?129:v==0x2026?130:'?';
 }
 int zui_measure(const char *s,unsigned long n,const struct zui_font *f){
     if(!s||!f)return 0;

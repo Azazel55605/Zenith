@@ -131,6 +131,11 @@ int main(int argc,char **argv){
     zui_text(&g.ui,INT_MIN,INT_MIN,"offscreen",9,&zui_heading,0xffffff);
     assert(zui_measure("abc",2,&zui_body)==zui_measure("ab",2,&zui_body));
     assert(zui_measure("\xe2\x98\x83",3,&zui_body)==zui_measure("?",1,&zui_body));
+    /* The atlas's extra marks have their own glyphs: middle dot, right arrow, em dash, ellipsis. */
+    assert(zui_measure("\xc2\xb7",2,&zui_body)>0&&zui_measure("\xc2\xb7",2,&zui_body)<zui_measure("?",1,&zui_body));
+    assert(zui_measure("\xe2\x86\x92",3,&zui_body)!=zui_measure("?",1,&zui_body));
+    assert(zui_measure("\xe2\x80\x94",3,&zui_body)>zui_measure("-",1,&zui_body));
+    assert(zui_measure("\xe2\x80\xa6",3,&zui_body)>0);
     assert(zui_measure("\xf0",1,&zui_body)==zui_measure("?",1,&zui_body));
     /* Deterministic event/geometry stress also checks that reset never activates. */
     unsigned int seed=42;

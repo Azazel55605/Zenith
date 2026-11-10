@@ -115,8 +115,9 @@ control IDs are unique and positive. Rectangles must fit the canvas at registrat
 
 Text x/y denotes the top of a line box. The atlas retains a common font baseline,
 with integer advances and antialias blending into opaque surface colors. Each call
-reads at most 4096 bytes; labels use at most 256. The initial atlas covers printable
-ASCII. Unsupported or malformed UTF-8 displays a replacement `?` without treating
+reads at most 4096 bytes; labels use at most 256. The atlas covers printable
+ASCII plus four marks: middle dot (U+00B7), right arrow (U+2192), em dash (U+2014) and
+ellipsis (U+2026). Other unsupported or malformed UTF-8 displays a replacement `?` without treating
 continuation bytes of a complete sequence as separate glyphs. No shaping, IME,
 font fallback or IME support is claimed. Current source adds word-wrapped paragraphs and bounded single-line UTF-8-preserving editing in `text.h`/`text.c`; it does not yet provide a multiline document editor.
 

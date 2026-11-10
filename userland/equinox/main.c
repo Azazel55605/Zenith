@@ -50,7 +50,7 @@ static void refresh(void){
 
 /* ---------- A disk model the plan can change: partitions by start sector, sorted. */
 #define MAX_PARTS 16
-struct part { unsigned long start,sectors; unsigned int type,fs,role,planned; char name[16],label[16],mount[32]; };
+struct part { unsigned long start,sectors; unsigned int type,fs,role,planned; char name[16],label[16],mount[32]; int source; };   /* source: index in the snapshot, -1 when planned */
 struct model { char name[16]; unsigned long sectors; unsigned int flags,count; struct part parts[MAX_PARTS]; };
 static const unsigned long ALIGN=2048,RESERVED=34;
 static unsigned long last_usable(const struct model *m){return m->sectors-RESERVED-1;}
@@ -59,7 +59,7 @@ static void load(struct model *m,const struct zenith_disk *d){
     for(unsigned int i=0;i<m->count;i++){
         const struct zenith_disk_part *p=&d->parts[i];struct part *q=&m->parts[i];
         q->start=p->start;q->sectors=p->sectors;q->type=p->type;q->fs=p->filesystem;q->role=p->role;q->planned=0;
-        copy(q->name,p->name,16);copy(q->label,p->label,16);copy(q->mount,p->mount,32);
+        copy(q->name,p->name,16);copy(q->label,p->label,16);copy(q->mount,p->mount,32);q->source=(int)i;
     }
 }
 static void sort(struct model *m){
@@ -107,8 +107,8 @@ static int simulate(struct model *m,const struct step *s){
     if(s->action==Z_DISK_CREATE){
         struct region r;if(m->count>=MAX_PARTS||!place(m,s->sectors,&r))return 0;
         struct part *p=&m->parts[m->count++];
-        *p=(struct part){r.start,r.sectors,Z_PART_LINUX,s->ext2?Z_FS_EXT2:Z_FS_UNKNOWN,0,1,"new","","" };
-        copy(p->label,s->label,16);sort(m);return 1;
+        *p=(struct part){r.start,r.sectors,Z_PART_LINUX,s->ext2?Z_FS_EXT2:Z_FS_UNKNOWN,0,1,"new","","",-1};
+        p->source=-1;copy(p->label,s->label,16);sort(m);return 1;
     }
     int i=find(m,s->start);if(i<0)return 0;
     if(s->action==Z_DISK_DELETE){for(unsigned int j=(unsigned int)i;j+1<m->count;j++)m->parts[j]=m->parts[j+1];m->count--;return 1;}
@@ -137,27 +137,19 @@ static void command_text(char *o,const struct step *s,const struct model *before
     put(o," --yes");
 }
 
-/* ---------- Navigation: disks, then Plan and History. */
+/* ---------- Layout (docs/design/equinox-concept.svg): sidebar with Disks and Changes; the disk page
+ * with Now/After bars, the partition table, three status cards and a notice; the plan as a panel
+ * on the right when the window is wide enough, otherwise as its own page. */
 static int page;            /* 0..disk_count-1: a disk; disk_count: Plan; disk_count+1: History */
-static struct zui_list sidebar;
-static char nav_labels[Z_DISKS][40],nav_subs[Z_DISKS][40],plan_label[24];
-static int nav_rows(void *context,int i,struct zui_list_item *o){
-    (void)context;int n=have_disks?(int)disks.disk_count:0;
-    if(i<n){
-        char *p=put(nav_labels[i],disks.disks[i].name);p=put(p,"  ");size_text(p,disks.disks[i].sectors);
-        put(nav_subs[i],disks.disks[i].flags&Z_DISK_SYSTEM?"System disk":disks.disks[i].flags&Z_DISK_GPT?"GPT":"No partition table");
-        *o=(struct zui_list_item){"hard-drive",nav_labels[i],nav_subs[i],0,1};return 1;
-    }
-    if(i==n){char *p=put(plan_label,"Plan");if(steps){p=put(p," (");p=num(p,(unsigned long)steps);put(p,")");}*o=(struct zui_list_item){"list",plan_label,0,0,1};return 1;}
-    if(i==n+1){*o=(struct zui_list_item){"clock","History",0,0,1};return 1;}
-    return 0;
-}
-
-/* ---------- State of the disk page. */
+static int wide;
 enum { MODE_DISK=0,MODE_CREATE=1,MODE_GROW=2 };
-static int mode,selected=-1;          /* selected: partition index in the current (planned) model, or -1-region */
-static struct zui_rect now_bar,after_bar,segment_rects[MAX_PARTS*2+2];
-static int segment_ids[MAX_PARTS*2+2],segments;
+#define NONE (-1000)
+static int mode,selected=NONE;        /* selected: partition index in the current (planned) model, -1-region, or NONE */
+static struct zui_rect segment_rects[MAX_PARTS*2+2];static int segment_ids[MAX_PARTS*2+2],segments;
+static struct zui_rect row_rects[MAX_PARTS];static int row_ids[MAX_PARTS],rows;
+static struct zui_rect nav_rects[Z_DISKS+2];static int nav_count,trailing[Z_DISKS+2];
+static struct zui_scroll center_scroll,plan_scroll;
+static int show_commands;
 static char status_line[160];
 static struct zui_combo size_combo;
 static char label_text[16];static struct zui_input label_input;static int label_focus;static struct zui_rect label_rect;
@@ -169,54 +161,88 @@ static void remember(const char *line){
     if(history_count==HISTORY){for(int i=1;i<HISTORY;i++)copy(history[i-1],history[i],176);history_count--;}
     copy(history[history_count++],line,176);
 }
-enum { ID_GROW=100,ID_DELETE=101,ID_CREATE=102,ID_TABLE=103,ID_ADD=104,ID_CANCEL=105,ID_APPLY=106,ID_UNDO=107,ID_CLEAR=108,ID_SIZE=109 };
+enum { ID_GROW=100,ID_DELETE=101,ID_CREATE=102,ID_TABLE=103,ID_ADD=104,ID_CANCEL=105,ID_APPLY=106,ID_UNDO=107,ID_CLEAR=108,ID_SIZE=109,ID_COMMANDS=110 };
+static int applying=-1;           /* index of the step running, or -1 */
+static unsigned long applying_token;
 
-static unsigned int segment_color(const struct part *p){
-    if(p->type==Z_PART_EFI)return light()?0x8A6FD0:0xB09BEB;
+/* ---------- Colours and small drawing helpers. */
+static unsigned int mix(unsigned int a,unsigned int b,int percent){
+    unsigned int r=0;
+    for(int shift=0;shift<24;shift+=8){unsigned int x=a>>shift&255,y=b>>shift&255;r|=((x*(unsigned int)(100-percent)+y*(unsigned int)percent)/100)<<shift;}
+    return r;
+}
+static unsigned int purple(void){return light()?0x7C5CD6:0xB49CF5;}
+static unsigned int efi_color(void){return light()?0x4F6FCF:0x93AAF0;}
+static int is_new(const struct part *p){return p->planned&&p->source<0;}
+static unsigned int part_color(const struct part *p){
+    if(is_new(p))return purple();
+    if(p->type==Z_PART_EFI)return efi_color();
     if(p->fs==Z_FS_EXT2)return ui.theme.accent;
     return light()?0x6E7A8C:0x8C96A8;
 }
-/* One bar: partitions and free space in proportion (each at least 18 px, so small ones stay visible). */
-static void draw_bar(struct zui_rect r,const struct model *m,int record){
-    zui_round(&ui,r,8,ui.theme.subtle);
-    struct region fr[MAX_PARTS+1];int nf=free_regions(m,fr,MAX_PARTS+1);
-    struct { unsigned long start,sectors; int id; } items[MAX_PARTS*2+2];int n=0;
-    for(unsigned int i=0;i<m->count;i++)items[n++]=(typeof(items[0])){m->parts[i].start,m->parts[i].sectors,(int)i};
-    for(int i=0;i<nf;i++)items[n++]=(typeof(items[0])){fr[i].start,fr[i].sectors,-1-i};
-    for(int i=1;i<n;i++)for(int j=i;j>0&&items[j-1].start>items[j].start;j--){typeof(items[0]) t=items[j];items[j]=items[j-1];items[j-1]=t;}
-    int minimum=18,available=r.w-n*minimum-(n>0?n-1:0)*2;if(available<0)available=0;
-    unsigned long total=0;for(int i=0;i<n;i++)total+=items[i].sectors;
-    int x=r.x;
-    if(record)segments=0;
-    for(int i=0;i<n;i++){
-        int w=minimum+(total?(int)((unsigned long)available*items[i].sectors/total):0);
-        if(i==n-1)w=r.x+r.w-x;
-        struct zui_rect s={x,r.y,w,r.h};
-        int sel=record&&items[i].id==selected;
-        if(items[i].id>=0){
-            const struct part *p=&m->parts[items[i].id];
-            zui_round(&ui,s,8,segment_color(p));
-            if(p->planned)zui_round_alpha(&ui,s,8,0xFFFFFF,50);
-            char t[40];put(t,p->label[0]?p->label:p->name);
-            if(zui_measure(t,length(t),&zui_caption)<w-12)text(s.x+8,s.y+r.h/2-8,t,&zui_caption,ui.theme.on_accent);
-        }else if(w>60){char t[24];size_text(t,items[i].sectors);text(s.x+8,s.y+r.h/2-8,t,&zui_caption,ui.theme.secondary);}
-        if(sel)zui_round_outline(&ui,(struct zui_rect){s.x-2,s.y-2,s.w+4,s.h+4},10,ui.theme.text);
-        if(record&&segments<MAX_PARTS*2+2){segment_rects[segments]=s;segment_ids[segments]=items[i].id;segments++;}
-        x+=w+2;
-    }
+static struct zui_rect meet(struct zui_rect a,struct zui_rect b){
+    int x0=a.x>b.x?a.x:b.x,y0=a.y>b.y?a.y:b.y,x1=a.x+a.w<b.x+b.w?a.x+a.w:b.x+b.w,y1=a.y+a.h<b.y+b.h?a.y+a.h:b.y+b.h;
+    return (struct zui_rect){x0,y0,x1>x0?x1-x0:0,y1>y0?y1-y0:0};
 }
+/* Free space: diagonal hatching inside a rounded, faintly filled area. */
+static void hatch(struct zui_rect r,unsigned int color){
+    zui_round(&ui,r,8,mix(ui.theme.surface,ui.theme.subtle,60));
+    struct zui_rect saved=ui.clip;ui.clip=meet(saved,(struct zui_rect){r.x+2,r.y+2,r.w-4,r.h-4});
+    for(int k=-r.h;k<r.w;k+=9)for(int t=0;t<r.h;t++)zui_fill(&ui,(struct zui_rect){r.x+k+r.h-t,r.y+t,1,1},color);
+    ui.clip=saved;
+}
+/* A planned partition: a dashed outline. */
+static void dashed(struct zui_rect r,unsigned int color){
+    for(int x=r.x+8;x<r.x+r.w-8;x+=9){int w=x+5>r.x+r.w-8?r.x+r.w-8-x:5;zui_fill(&ui,(struct zui_rect){x,r.y,w,1},color);zui_fill(&ui,(struct zui_rect){x,r.y+r.h-1,w,1},color);}
+    for(int y=r.y+8;y<r.y+r.h-8;y+=9){int h=y+5>r.y+r.h-8?r.y+r.h-8-y:5;zui_fill(&ui,(struct zui_rect){r.x,y,1,h},color);zui_fill(&ui,(struct zui_rect){r.x+r.w-1,y,1,h},color);}
+}
+static void dot(int x,int y,unsigned int color){zui_round(&ui,(struct zui_rect){x,y,8,8},4,color);}
+static void pill(int x,int y,const char *s,unsigned int color){
+    int w=zui_measure(s,length(s),&zui_caption)+14;
+    zui_round(&ui,(struct zui_rect){x,y,w,20},10,mix(ui.theme.surface,color,22));
+    text(x+7,y+2,s,&zui_caption,color);
+}
+/* Text cut to a width with an ellipsis. */
+static void fit(int x,int y,const char *s,int width,const struct zui_font *f,unsigned int c){
+    char t[96];copy(t,s,sizeof(t));unsigned long n=length(t);
+    if(zui_measure(t,n,f)<=width){text(x,y,t,f,c);return;}
+    while(n>0&&(zui_measure(t,n,f)+zui_measure("\xE2\x80\xA6",3,f)>width||((unsigned char)t[n]&0xC0)==0x80))n--;
+    t[n]=0;put(t+n,"\xE2\x80\xA6");text(x,y,t,f,c);
+}
+
+/* ---------- What the kernel knows beyond the 1.0 fields (extras, kernel 0.0.54 and later). */
+static int extras(void){return have_disks&&disks.extra.version>=1;}
+static unsigned long used_bytes(const struct part *p){
+    if(!extras()||p->source<0||p->source>=Z_DISK_PARTS||page>=(int)disks.disk_count)return 0;
+    return disks.extra.used[page][p->source];
+}
+static unsigned int fs_state(const struct part *p){
+    if(!extras()||p->source<0||p->source>=Z_DISK_PARTS||page>=(int)disks.disk_count)return Z_FS_STATE_UNKNOWN;
+    return disks.extra.state[page][p->source];
+}
+static char *bytes_text(char *o,unsigned long bytes){return size_text(o,(bytes+511)/512);}
 
 static struct model current;          /* the disk with the plan applied: what actions act on */
 static int current_ok;
 static struct region current_free[MAX_PARTS+1];static int current_free_count;
 static const char *filesystem_text(const struct part *p){
-    if(p->type==Z_PART_EFI)return p->fs==Z_FS_FAT32?"EFI, FAT32":"EFI";
-    return p->fs==Z_FS_EXT2?"ext2":p->fs==Z_FS_FAT32?"FAT32":p->planned&&p->fs==Z_FS_UNKNOWN?"unformatted":"unknown";
+    if(p->type==Z_PART_EFI)return p->fs==Z_FS_FAT32?"FAT32":"EFI";
+    return p->fs==Z_FS_EXT2?"ext2":p->fs==Z_FS_FAT32?"FAT32":is_new(p)?"unformatted":"unknown";
+}
+static const char *part_title(const struct part *p){
+    if(p->role==Z_ROLE_ROOT)return "Zenith";
+    if(p->type==Z_PART_EFI)return "EFI system";
+    if(p->label[0])return p->label;
+    return is_new(p)?"New":p->name;
+}
+static const char *disk_title(const struct zenith_disk *d,char *buffer){
+    if(d->flags&Z_DISK_SYSTEM)return "System disk";
+    put(put(buffer,"Disk "),d->name);return buffer;
 }
 /* Why this disk cannot be changed in place, or 0. */
 static const char *protection(const struct zenith_disk *d){
     if(!(d->flags&Z_DISK_GPT))return "This disk has no GPT partition table. Create one to use it with Equinox.";
-    if(d->flags&Z_DISK_SYSTEM)return "This disk runs Zenith. Equinox shows it and may add partitions in free space; grow the root from the rescue entry of the boot menu.";
+    if(d->flags&Z_DISK_SYSTEM)return "Zenith runs from it. Equinox shows it and may add partitions in free space, but changes the running system and its EFI partition only from the rescue entry of the boot menu.";
     if(d->flags&Z_DISK_MOUNTED)return "Partitions on this disk are mounted. Unmount them to change it.";
     return 0;
 }
@@ -246,128 +272,321 @@ static void add_step(unsigned int action,unsigned long start,unsigned long secto
     struct model m;load(&m,&disks.disks[page]);int ok=1;
     for(int i=0;i<=steps&&ok;i++)ok=simulate(&m,&plan[i]);
     if(!ok){put(status_line,"That step does not fit the plan.");return;}
-    steps++;status_line[0]=0;mode=MODE_DISK;selected=-1;
+    steps++;status_line[0]=0;mode=MODE_DISK;selected=NONE;
 }
 
-static void draw_disk(struct zui_rect c){
+/* ---------- Sidebar: Disks (name and size), then Changes (Plan with its step count, History). */
+static void draw_sidebar(struct zui_rect s){
+    int x=s.x+4,w=s.w-8,y=s.y+14,n=have_disks?(int)disks.disk_count:0;
+    nav_count=0;
+    text(x+12,y,"Disks",&zui_caption,ui.theme.secondary);y+=24;
+    static char names[Z_DISKS][24],sizes[Z_DISKS][24];
+    for(int i=0;i<n;i++){
+        const struct zenith_disk *d=&disks.disks[i];
+        const char *title=disk_title(d,names[i]);
+        size_text(sizes[i],d->sectors);
+        trailing[nav_count]=44+zui_measure(title,length(title),&zui_label)+12+zui_measure(sizes[i],length(sizes[i]),&zui_caption)+10<=w;
+        nav_rects[nav_count++]=(struct zui_rect){x,y,w,40};
+        if(zui_add(&ui,10+i,ZUI_NAVIGATION,(struct zui_rect){x,y,w,40},title,page==i,1)){
+            ui.controls[ui.count-1].icon="hard-drive";ui.controls[ui.count-1].no_chevron=1;
+            if(!trailing[nav_count-1])ui.controls[ui.count-1].detail=sizes[i];
+        }
+        y+=44;
+    }
+    if(!n){text(x+12,y,"No disks",&zui_body,ui.theme.secondary);y+=30;}
+    y+=10;text(x+12,y,"Changes",&zui_caption,ui.theme.secondary);y+=24;
+    trailing[nav_count]=1;nav_rects[nav_count++]=(struct zui_rect){x,y,w,40};
+    if(zui_add(&ui,10+n,ZUI_NAVIGATION,(struct zui_rect){x,y,w,40},"Plan",page==n,1)){ui.controls[ui.count-1].icon="list";ui.controls[ui.count-1].no_chevron=1;}
+    y+=44;
+    trailing[nav_count]=1;nav_rects[nav_count++]=(struct zui_rect){x,y,w,40};
+    if(zui_add(&ui,10+n+1,ZUI_NAVIGATION,(struct zui_rect){x,y,w,40},"History",page==n+1,1)){ui.controls[ui.count-1].icon="clock";ui.controls[ui.count-1].no_chevron=1;}
+}
+/* Trailing details (disk sizes, the plan's step count), drawn over the navigation rows. */
+static void draw_sidebar_details(void){
+    int n=have_disks?(int)disks.disk_count:0;
+    for(int i=0;i<nav_count;i++){
+        struct zui_rect r=nav_rects[i];char t[24];t[0]=0;
+        if(!trailing[i])continue;
+        if(i<n)size_text(t,disks.disks[i].sectors);
+        else if(i==n&&steps)num(t,(unsigned long)steps);
+        if(t[0])text_right(r.x+r.w-12,r.y+(r.h-zui_caption.height)/2,t,&zui_caption,ui.theme.secondary);
+    }
+}
+
+/* ---------- The bars: partitions and free space in proportion (small ones stay visible). */
+static void draw_bar(struct zui_rect r,const struct model *m,int record){
+    struct region fr[MAX_PARTS+1];int nf=free_regions(m,fr,MAX_PARTS+1);
+    struct { unsigned long start,sectors; int id; } items[MAX_PARTS*2+2];int n=0;
+    for(unsigned int i=0;i<m->count;i++)items[n++]=(typeof(items[0])){m->parts[i].start,m->parts[i].sectors,(int)i};
+    for(int i=0;i<nf;i++)items[n++]=(typeof(items[0])){fr[i].start,fr[i].sectors,-1-i};
+    for(int i=1;i<n;i++)for(int j=i;j>0&&items[j-1].start>items[j].start;j--){typeof(items[0]) t=items[j];items[j]=items[j-1];items[j-1]=t;}
+    if(!n){hatch(r,mix(ui.theme.surface,ui.theme.secondary,30));text(r.x+12,r.y+r.h/2-8,"No partition table",&zui_caption,ui.theme.secondary);return;}
+    /* EFI partitions are a narrow tile; the rest share the width by size, at least 40 px. */
+    int gap=4,fixed=0,flex=0;unsigned long total=0;
+    for(int i=0;i<n;i++){if(items[i].id>=0&&m->parts[items[i].id].type==Z_PART_EFI)fixed+=34;else{flex++;total+=items[i].sectors;}}
+    int available=r.w-fixed-(n-1)*gap-flex*40;if(available<0)available=0;
+    if(record)segments=0;
+    int x=r.x;
+    for(int i=0;i<n;i++){
+        const struct part *p=items[i].id>=0?&m->parts[items[i].id]:0;
+        int w=p&&p->type==Z_PART_EFI?34:40+(total?(int)((unsigned long)available*items[i].sectors/total):0);
+        if(i==n-1)w=r.x+r.w-x;
+        struct zui_rect s={x,r.y,w,r.h};
+        if(p&&p->type==Z_PART_EFI){
+            zui_round(&ui,s,8,mix(ui.theme.surface,efi_color(),30));zui_round_outline(&ui,s,8,mix(ui.theme.surface,efi_color(),70));
+            zui_icon(&ui,"shield",s.x+(s.w-16)/2,s.y+(s.h-16)/2,16,ZUI_ICON_TEXT);
+        }else if(p){
+            unsigned int color=part_color(p);
+            zui_round(&ui,s,8,mix(ui.theme.surface,color,is_new(p)?14:22));
+            if(is_new(p))dashed(s,color);else zui_round_outline(&ui,s,8,mix(ui.theme.surface,color,p->planned?100:70));
+            char line[64],*o=put(line,part_title(p));o=put(o," \xC2\xB7 ");put(o,filesystem_text(p));
+            char sub[64];o=size_text(sub,p->sectors);
+            unsigned long used=used_bytes(p);
+            if(is_new(p))put(o,", new");else if(used){o=put(o,", ");o=bytes_text(o,used);put(o," used");}
+            if(w>70){fit(s.x+10,s.y+6,line,s.w-20,&zui_label,ui.theme.text);fit(s.x+10,s.y+25,sub,s.w-20,&zui_caption,ui.theme.secondary);}
+            if(used&&!is_new(p)&&w>40){
+                int track=s.w-20;unsigned long size=p->sectors*512;int fill=size?(int)((unsigned long)track*(used>size?size:used)/size):0;
+                zui_fill(&ui,(struct zui_rect){s.x+10,s.y+s.h-6,track,2},mix(ui.theme.surface,color,35));
+                zui_fill(&ui,(struct zui_rect){s.x+10,s.y+s.h-6,fill<2?2:fill,2},color);
+            }
+        }else{
+            hatch(s,mix(ui.theme.surface,ui.theme.secondary,22));
+            if(w>70){char sub[24];size_text(sub,items[i].sectors);text(s.x+10,s.y+6,"Free",&zui_label,ui.theme.text);text(s.x+10,s.y+25,sub,&zui_caption,ui.theme.secondary);}
+        }
+        if(record&&items[i].id==selected)zui_round_outline(&ui,(struct zui_rect){s.x-2,s.y-2,s.w+4,s.h+4},10,ui.theme.text);
+        if(record&&segments<MAX_PARTS*2+2){segment_rects[segments]=s;segment_ids[segments]=items[i].id;segments++;}
+        x+=w+gap;
+    }
+}
+
+/* ---------- Status cards: filesystem state, GPT copies, alignment. */
+static void card(struct zui_rect r,const char *icon,const char *title,const char *sub,unsigned int color){
+    zui_round(&ui,r,8,ui.theme.border);zui_round(&ui,(struct zui_rect){r.x+1,r.y+1,r.w-2,r.h-2},7,mix(ui.theme.surface,ui.theme.raised,50));
+    zui_icon(&ui,icon,r.x+12,r.y+12,16,ZUI_ICON_TEXT);
+    fit(r.x+36,r.y+9,title,r.w-46,&zui_label,color);
+    fit(r.x+36,r.y+29,sub,r.w-46,&zui_caption,ui.theme.secondary);
+}
+static int draw_cards(int x,int y,int w,const struct model *before,const struct zenith_disk *d){
+    int columns=w>=520?3:1,cw=columns==3?(w-24)/3:w,h=52;
+    char t1[48],s1[48],t2[48],s2[48],t3[48],s3[48];unsigned int c1=good(),c2=good(),c3=good();const char *i1="check",*i2="shield",*i3="layout-grid";
+    /* ext2: the first that needs a check, else clean, else in use. */
+    int ext2=0,check=-1,inuse=0;
+    for(unsigned int i=0;i<before->count;i++)if(before->parts[i].fs==Z_FS_EXT2){ext2++;unsigned int st=fs_state(&before->parts[i]);if(st==Z_FS_STATE_CHECK&&check<0)check=(int)i;if(st==Z_FS_STATE_IN_USE)inuse++;}
+    if(!extras()){put(t1,"ext2 state unknown");put(s1,"Update Zenith to see it");c1=ui.theme.secondary;i1="info";}
+    else if(!ext2){put(t1,"No ext2 volumes");put(s1,"Nothing to check");c1=ui.theme.secondary;i1="info";}
+    else if(check>=0){put(t1,"ext2 check needed");put(put(s1,before->parts[check].name)," was not unmounted cleanly");c1=warn();i1="triangle-alert";}
+    else{put(t1,"ext2 check: clean");char *o=num(s1,(unsigned long)ext2);o=put(o,ext2==1?" volume":" volumes");if(inuse)put(o,inuse==ext2?", in use":", some in use");}
+    unsigned int gpt=extras()&&page<(int)disks.disk_count?disks.extra.gpt[page]:Z_GPT_UNKNOWN;
+    if(!(d->flags&Z_DISK_GPT)){put(t2,"No GPT");put(s2,"No partition table");c2=ui.theme.secondary;i2="info";}
+    else if(gpt==Z_GPT_COPIES_MATCH){put(t2,"GPT copies match");put(s2,"Primary and backup");}
+    else if(gpt==Z_GPT_COPIES_DIFFER){put(t2,"GPT copies differ");put(s2,"The next write repairs the backup");c2=warn();i2="triangle-alert";}
+    else{put(t2,"GPT");put(s2,"Copies not checked");c2=ui.theme.secondary;}
+    int misaligned=-1;for(unsigned int i=0;i<before->count;i++)if(before->parts[i].start%ALIGN){misaligned=(int)i;break;}
+    if(!before->count){put(t3,"Aligned to 1 MiB");put(s3,"New partitions are");}
+    else if(misaligned<0){put(t3,"Aligned to 1 MiB");put(s3,"All partitions");}
+    else{put(t3,"Not aligned to 1 MiB");put(s3,before->parts[misaligned].name);c3=warn();i3="triangle-alert";}
+    struct zui_rect r={x,y,cw,h};
+    card(r,i1,t1,s1,c1);
+    if(columns==3){r.x+=cw+12;card(r,i2,t2,s2,c2);r.x+=cw+12;card(r,i3,t3,s3,c3);return h;}
+    r.y+=h+8;card(r,i2,t2,s2,c2);r.y+=h+8;card(r,i3,t3,s3,c3);return 3*h+16;
+}
+
+/* ---------- The partition table: the disk as the plan leaves it, changes marked. */
+static int draw_table(int x,int y,int w,const struct model *before){
+    int full=w>=560;
+    int cols[6];const char *heads[6]={"Partition","Filesystem","Size","Used","Mounted at","Label"};
+    if(full){int p[6]={0,17,32,52,66,84};for(int i=0;i<6;i++)cols[i]=x+w*p[i]/100;}
+    else{int p[6]={0,30,52,0,74,0};for(int i=0;i<6;i++)cols[i]=x+w*p[i]/100;}
+    for(int i=0;i<6;i++)if(full||i==0||i==1||i==2||i==4)text(cols[i]+(i==0?16:0),y,heads[i],&zui_caption,ui.theme.secondary);
+    y+=24;
+    rows=0;
+    if(!current.count){text(x,y+4,"No partitions.",&zui_body,ui.theme.secondary);return 56;}
+    for(unsigned int i=0;i<current.count&&rows<MAX_PARTS;i++){
+        const struct part *p=&current.parts[i];
+        struct zui_rect r={x-8,y,w+16,36};
+        row_rects[rows]=r;row_ids[rows]=(int)i;rows++;
+        if((int)i==selected)zui_round(&ui,r,8,mix(ui.theme.surface,ui.theme.accent,14));
+        int ty=y+(36-zui_body.height)/2,my=y+(36-zui_mono.height)/2;
+        dot(cols[0],y+14,part_color(p));
+        if(is_new(p))pill(cols[0]+16,y+8,"New",purple());
+        else fit(cols[0]+16,my,p->name,cols[1]-cols[0]-24,&zui_mono,ui.theme.text);
+        text(cols[1],ty,filesystem_text(p),&zui_body,ui.theme.text);
+        /* Size: a change reads "before -> after". */
+        int was=-1;for(unsigned int k=0;k<before->count;k++)if(before->parts[k].start==p->start)was=(int)k;
+        char sz[48],*o=sz;
+        if(was>=0&&before->parts[was].sectors!=p->sectors){o=size_text(o,before->parts[was].sectors);o=put(o," \xE2\x86\x92 ");size_text(o,p->sectors);}
+        else size_text(o,p->sectors);
+        fit(cols[2],ty,sz,(full?cols[3]:cols[4])-cols[2]-8,&zui_body,p->planned?(is_new(p)?purple():ui.theme.accent):ui.theme.text);
+        if(full){char u[24];unsigned long used=used_bytes(p);if(used&&!is_new(p))bytes_text(u,used);else put(u,"\xE2\x80\x94");text(cols[3],ty,u,&zui_body,ui.theme.secondary);}
+        fit(cols[4],p->mount[0]?my:ty,p->mount[0]?p->mount:"Not mounted",(full?cols[5]:x+w)-cols[4]-8,p->mount[0]?&zui_mono:&zui_body,p->mount[0]?ui.theme.text:ui.theme.secondary);
+        if(full){fit(cols[5],ty,p->role||p->type==Z_PART_EFI||p->label[0]?part_title(p):"\xE2\x80\x94",x+w-cols[5]-28,&zui_body,p->role||p->type==Z_PART_EFI||p->label[0]?ui.theme.text:ui.theme.secondary);
+            if(p->type==Z_PART_EFI||p->role==Z_ROLE_ROOT)zui_icon(&ui,"shield",x+w-18,y+10,16,ZUI_ICON_TEXT);}
+        y+=38;
+    }
+    return 24+rows*38;
+}
+
+/* ---------- The disk page. */
+static int draw_disk(struct zui_rect area){
     const struct zenith_disk *d=&disks.disks[page];
     struct model before;load(&before,d);
     current_ok=planned_model(page,&current);
     current_free_count=free_regions(&current,current_free,MAX_PARTS+1);
-    int x=c.x+20,w=c.w-40,y=c.y+20;
-    char title[64],*o=put(title,d->name);o=put(o,"  ");size_text(o,d->sectors);
-    zui_icon(&ui,"hard-drive",x,y+2,24,ZUI_ICON_NORMAL);
-    text(x+34,y,title,&zui_heading,ui.theme.text);
-    const char *why=protection(d);
-    y+=44;
-    text(x,y,"Now",&zui_label,ui.theme.secondary);
-    now_bar=(struct zui_rect){x,y+22,w,34};
-    draw_bar(now_bar,&before,disk_steps(d->name)==0);
-    y+=66;
-    if(disk_steps(d->name)){
-        text(x,y,current_ok?"After the plan":"After the plan: a step no longer fits",&zui_label,current_ok?ui.theme.secondary:bad());
-        after_bar=(struct zui_rect){x,y+22,w,34};
-        draw_bar(after_bar,&current,1);
-        y+=66;
-    }else after_bar=(struct zui_rect){0,0,0,0};
-    if(why){zui_paragraph(&ui,(struct zui_rect){x,y,w,40},why,&zui_caption,warn(),0);y+=44;}
-    /* The selection: a partition (in the planned model) or a free region. */
-    if(mode==MODE_DISK){
-        int sel_part=selected>=0&&(unsigned int)selected<current.count,sel_free=selected<0&&-1-selected<current_free_count;
-        int bx=x,by=y;
-        if(sel_part){
-            const struct part *p=&current.parts[selected];
-            char line[120],*q=put(line,p->planned&&same(p->name,"new")?"New partition":p->name);q=put(q,"  ");q=size_text(q,p->sectors);q=put(q,"  ");q=put(q,filesystem_text(p));
-            if(p->label[0]){q=put(q,"  \"");q=put(q,p->label);q=put(q,"\"");}
-            if(p->mount[0]){q=put(q,"  mounted at ");q=put(q,p->mount);}
-            if(p->role==Z_ROLE_ROOT)q=put(q,"  (running system)");
-            text(x,by,line,&zui_label,ui.theme.text);by+=30;
-            int editable=!why||(d->flags&Z_DISK_SYSTEM&&0);
-            int growable=editable&&p->fs==Z_FS_EXT2&&grow_limit(&current,selected)>p->sectors;
-            zui_add(&ui,ID_GROW,ZUI_BUTTON,(struct zui_rect){bx,by,120,34},"Grow",0,growable);
-            zui_add(&ui,ID_DELETE,ZUI_BUTTON,(struct zui_rect){bx+132,by,120,34},"Delete",0,editable&&p->role==Z_ROLE_NONE);
-            by+=46;
-        }else if(sel_free){
-            char line[80],*q=put(line,"Free space  ");size_text(q,current_free[-1-selected].sectors);
-            text(x,by,line,&zui_label,ui.theme.text);by+=30;
-            int creatable=(d->flags&Z_DISK_GPT)&&(!(d->flags&Z_DISK_MOUNTED)||(d->flags&Z_DISK_SYSTEM));
-            zui_add(&ui,ID_CREATE,ZUI_BUTTON,(struct zui_rect){bx,by,180,34},"New partition",0,creatable);
-            by+=46;
-        }else{
-            text(x,by,"Select a partition or free space in the bar.",&zui_body,ui.theme.secondary);by+=30;
-        }
-        zui_add(&ui,ID_TABLE,ZUI_BUTTON,(struct zui_rect){x,by,220,34},"New partition table",0,!(d->flags&(Z_DISK_SYSTEM|Z_DISK_MOUNTED)));
-        by+=46;
-        /* Partition table, as it is now. */
-        if(by+40<c.y+c.h){
-            int cols[5]={x,x+w*20/100,x+w*42/100,x+w*60/100,x+w*80/100};
-            static const char *heads[5]={"Partition","Filesystem","Size","Mounted at","Label"};
-            for(int i=0;i<5;i++)text(cols[i],by,heads[i],&zui_caption,ui.theme.secondary);
-            by+=22;zui_fill(&ui,(struct zui_rect){x,by,w,1},ui.theme.border);by+=6;
-            for(unsigned int i=0;i<before.count&&by+22<c.y+c.h;i++){
-                const struct part *p=&before.parts[i];char sz[24];size_text(sz,p->sectors);
-                text(cols[0],by,p->name,&zui_body,ui.theme.text);text(cols[1],by,filesystem_text(p),&zui_body,ui.theme.text);
-                text(cols[2],by,sz,&zui_body,ui.theme.text);text(cols[3],by,p->mount[0]?p->mount:"-",&zui_body,ui.theme.secondary);
-                text(cols[4],by,p->role==Z_ROLE_ROOT?"Zenith (root)":p->role==Z_ROLE_BOOT?"boot":p->label[0]?p->label:"-",&zui_body,ui.theme.secondary);
-                by+=24;
-            }
-            if(!before.count)text(x,by,"No partitions.",&zui_body,ui.theme.secondary);
-        }
-    }else if(mode==MODE_CREATE){
-        text(x,y,"New partition",&zui_label,ui.theme.text);y+=30;
+    int x=area.x+24,w=area.w-48,y=area.y+20,top=y;
+    char title[32];
+    if(mode!=MODE_DISK){
+        zui_icon(&ui,"arrow-left",x,y+2,16,ZUI_ICON_TEXT);text(x+22,y,disk_title(d,title),&zui_body,ui.theme.secondary);y+=28;
+        const struct part *p=selected>=0&&(unsigned int)selected<current.count?&current.parts[selected]:0;
+        char heading[48];
+        if(mode==MODE_GROW&&p)put(put(heading,"Grow "),part_title(p));else put(heading,"New partition");
+        text(x,y,heading,&zui_heading,ui.theme.text);y+=42;
+    }else{
+        text(x,y,disk_title(d,title),&zui_heading,ui.theme.text);y+=40;
+    }
+    char sub[112],*o=put(sub,d->name);o=put(o," \xC2\xB7 ");o=size_text(o,d->sectors);o=put(o," \xC2\xB7 ");o=put(o,d->flags&Z_DISK_GPT?"GPT":"no partition table");
+    if(d->flags&Z_DISK_SYSTEM)put(o," \xC2\xB7 the running system");else if(d->flags&Z_DISK_MOUNTED)put(o," \xC2\xB7 mounted");
+    text(x,y,sub,&zui_caption,ui.theme.secondary);y+=30;
+    int planned=disk_steps(d->name)>0;
+    /* In an editor, "After" previews the plan with this step added. */
+    struct model preview=current;int previewing=0;
+    if(mode==MODE_CREATE&&selected<0&&-1-selected<current_free_count){
+        struct step s={Z_DISK_CREATE,"",0,chosen_size(),1,"",""};copy(s.disk,d->name,16);copy(s.label,label_text,16);
+        previewing=simulate(&preview,&s);
+    }else if(mode==MODE_GROW&&selected>=0&&(unsigned int)selected<current.count){
+        struct step s={Z_DISK_GROW,"",current.parts[selected].start,0,0,"",""};copy(s.disk,d->name,16);
+        previewing=simulate(&preview,&s);
+    }
+    text(x,y+14,"Now",&zui_label,ui.theme.secondary);
+    draw_bar((struct zui_rect){x+56,y,w-56,46},&before,!planned&&mode==MODE_DISK);y+=56;
+    if(planned||previewing){
+        text(x,y+14,"After",&zui_label,current_ok?ui.theme.accent:bad());
+        draw_bar((struct zui_rect){x+56,y,w-56,46},previewing?&preview:&current,mode==MODE_DISK);y+=56;
+        if(!current_ok){text(x+56,y,"A step no longer fits this disk: review the plan.",&zui_caption,bad());y+=22;}
+    }
+    y+=8;
+    if(mode==MODE_CREATE){
         text(x,y+8,"Size",&zui_body,ui.theme.secondary);
-        zui_combo_draw(&ui,&size_combo,(struct zui_rect){x+120,y,260,34},5,size_rows,0);y+=46;
+        zui_combo_draw(&ui,&size_combo,(struct zui_rect){x+120,y,w-120<300?w-120:300,34},5,size_rows,0);y+=46;
         text(x,y+8,"Label",&zui_body,ui.theme.secondary);
-        label_rect=(struct zui_rect){x+120,y,260,34};zui_input_draw(&ui,label_rect,&label_input,label_focus);y+=46;
-        text(x,y,"Formatted ext2 with room to grow to 2 TiB (1 KiB blocks below 64 MiB).",&zui_caption,ui.theme.secondary);y+=28;
-        zui_add(&ui,ID_ADD,ZUI_BUTTON,(struct zui_rect){x,y,140,34},"Add to plan",0,1);
-        zui_add(&ui,ID_CANCEL,ZUI_BUTTON,(struct zui_rect){x+152,y,120,34},"Cancel",0,1);
+        label_rect=(struct zui_rect){x+120,y,w-120<300?w-120:300,34};zui_input_draw(&ui,label_rect,&label_input,label_focus);y+=50;
+        text(x,y,"What this does",&zui_label,ui.theme.text);y+=28;
+        static const char *icons[3]={"layout-grid","check","shield"};
+        static const char *lines[3][2]={{"Placed in free space","The first free region that fits, starting on a 1 MiB boundary"},
+            {"Formatted ext2","With room to grow to 2 TiB (1 KiB blocks below 64 MiB)"},
+            {"Other partitions are not changed","Only the partition table and the new area are written"}};
+        for(int i=0;i<3;i++){zui_icon(&ui,icons[i],x,y+2,16,ZUI_ICON_TEXT);text(x+26,y,lines[i][0],&zui_label,ui.theme.text);fit(x+26,y+20,lines[i][1],w-26,&zui_caption,ui.theme.secondary);y+=46;}
     }else if(mode==MODE_GROW&&selected>=0&&(unsigned int)selected<current.count){
         const struct part *p=&current.parts[selected];unsigned long limit=grow_limit(&current,selected);
-        char line[120],*q=put(line,"Grow ");q=put(q,p->name);q=put(q," from ");q=size_text(q,p->sectors);q=put(q," to ");size_text(q,limit);
-        text(x,y,line,&zui_label,ui.theme.text);y+=30;
-        zui_paragraph(&ui,(struct zui_rect){x,y,w,60},"It takes all the free space after it. The start stays fixed; the ext2 volume grows after the partition, then is checked.",&zui_body,ui.theme.secondary,0);
-        y+=64;
-        zui_add(&ui,ID_ADD,ZUI_BUTTON,(struct zui_rect){x,y,140,34},"Add to plan",0,1);
-        zui_add(&ui,ID_CANCEL,ZUI_BUTTON,(struct zui_rect){x+152,y,120,34},"Cancel",0,1);
-    }else mode=MODE_DISK;
-    if(status_line[0])text(x,c.y+c.h-28,status_line,&zui_caption,warn());
+        char a[48],b[48];o=put(a,"Largest: ");size_text(o,limit);o=put(b,"From ");o=size_text(o,p->sectors);put(o,": the free space right after it");
+        text(x,y,"What limits this",&zui_label,ui.theme.text);y+=28;
+        const char *icons[4]={"check","arrow-left","layout-grid",p->mount[0]?"triangle-alert":"check"};
+        const char *heads[4]={a,"Start stays fixed","Snaps to 1 MiB",p->mount[0]?"Mounted":"Not mounted"};
+        const char *subs[4]={b,"Moving the start would copy every block; Equinox does not offer it yet","So partitions stay aligned for the disk",
+            p->mount[0]?"Unmount it first, or grow the root from the rescue entry":"The ext2 volume grows after the partition, then is checked"};
+        for(int i=0;i<4;i++){zui_icon(&ui,icons[i],x,y+2,16,ZUI_ICON_TEXT);text(x+26,y,heads[i],&zui_label,i==3&&p->mount[0]?warn():ui.theme.text);fit(x+26,y+20,subs[i],w-26,&zui_caption,ui.theme.secondary);y+=46;}
+    }else{
+        mode=MODE_DISK;
+        y+=draw_table(x,y,w,&before)+10;
+        /* Actions for the selection: they only add steps to the plan. */
+        const char *why=protection(d);
+        int sel_part=selected>=0&&(unsigned int)selected<current.count,sel_free=selected<0&&-1-selected<current_free_count;
+        int bx=x;
+        if(sel_part){
+            const struct part *p=&current.parts[selected];
+            int editable=!why;
+            int growable=editable&&p->fs==Z_FS_EXT2&&grow_limit(&current,selected)>p->sectors;
+            zui_add(&ui,ID_GROW,ZUI_BUTTON,(struct zui_rect){bx,y,110,34},"Grow",0,growable);bx+=120;
+            zui_add(&ui,ID_DELETE,ZUI_BUTTON,(struct zui_rect){bx,y,110,34},"Delete",0,editable&&p->role==Z_ROLE_NONE);bx+=120;
+        }else if(sel_free){
+            int creatable=(d->flags&Z_DISK_GPT)&&(!(d->flags&Z_DISK_MOUNTED)||(d->flags&Z_DISK_SYSTEM));
+            zui_add(&ui,ID_CREATE,ZUI_BUTTON,(struct zui_rect){bx,y,160,34},"New partition",0,creatable);bx+=170;
+        }
+        zui_add(&ui,ID_TABLE,ZUI_BUTTON,(struct zui_rect){bx,y,190,34},"New partition table",0,!(d->flags&(Z_DISK_SYSTEM|Z_DISK_MOUNTED)));
+        static const char hint[]="Select a partition or free space for its actions.";
+        if(!sel_part&&!sel_free&&zui_measure(hint,sizeof(hint)-1,&zui_caption)<=x+w-bx-204)text(bx+204,y+9,hint,&zui_caption,ui.theme.secondary);
+        y+=50;
+        y+=draw_cards(x,y,w,&before,d)+14;
+        if(why){
+            int h=82;
+            zui_round(&ui,(struct zui_rect){x,y,w,h},8,ui.theme.border);zui_round(&ui,(struct zui_rect){x+1,y+1,w-2,h-2},7,mix(ui.theme.surface,ui.theme.raised,50));
+            zui_icon(&ui,"shield",x+14,y+14,16,ZUI_ICON_TEXT);
+            text(x+40,y+12,d->flags&Z_DISK_SYSTEM?"The system disk is protected":!(d->flags&Z_DISK_GPT)?"No partition table":"Mounted partitions",&zui_label,ui.theme.text);
+            zui_paragraph(&ui,(struct zui_rect){x+40,y+34,w-56,44},why,&zui_caption,ui.theme.secondary,0);
+            y+=h+10;
+        }
+        text(x,y,"Every action joins the plan first; nothing is written until Apply.",&zui_caption,ui.theme.secondary);y+=24;
+    }
+    if(status_line[0]&&mode==MODE_DISK){text(x,y,status_line,&zui_caption,warn());y+=24;}
+    return y-top+40;
 }
 
-/* ---------- Plan and History. */
-static int applying=-1;           /* index of the step running, or -1 */
-static unsigned long applying_token;
-static void draw_plan(struct zui_rect c){
-    int x=c.x+20,w=c.w-40,y=c.y+20;
-    text(x,y,"Plan",&zui_heading,ui.theme.text);y+=40;
-    if(!steps){text(x,y,"Nothing planned. Choose a disk, select a partition or free space and pick an action.",&zui_body,ui.theme.secondary);return;}
-    text(x,y,applying>=0?"Applying. Leave Equinox open until it finishes.":"Nothing is written until Apply. The partition table is written before each filesystem change.",&zui_caption,ui.theme.secondary);y+=28;
-    for(int i=0;i<steps&&y+48<c.y+c.h-60;i++){
+/* ---------- The plan: a panel on the right (wide) or its own page (narrow). */
+static const char *step_detail(const struct step *s){
+    if(s->action==Z_DISK_INIT)return "Removes every partition on the disk";
+    if(s->action==Z_DISK_CREATE){
+        for(unsigned int k=0;k<disks.disk_count;k++)if(same(disks.disks[k].name,s->disk)&&(disks.disks[k].flags&Z_DISK_SYSTEM))return "Appears after the next restart";
+        return s->ext2?"Then formatted ext2, ready to grow":"Left unformatted";
+    }
+    if(s->action==Z_DISK_DELETE)return "Its data becomes unreachable";
+    return "The table first, then the ext2 volume, then a check";
+}
+static int draw_plan_body(struct zui_rect p,int full){
+    int x=p.x+18,w=p.w-36,y=p.y+16,top=y;
+    text(x,y,"Your plan",&zui_heading,ui.theme.text);
+    text_right(x+w,y+10,applying>=0?"Applying...":steps?"Nothing written yet":"Empty",&zui_caption,applying>=0?ui.theme.accent:ui.theme.secondary);
+    y+=44;zui_fill(&ui,(struct zui_rect){p.x,y,p.w,1},ui.theme.border);y+=16;
+    if(!steps){
+        y+=zui_paragraph(&ui,(struct zui_rect){x,y,w,80},"Nothing planned. Select a partition or free space on a disk and pick an action: it lands here first.",&zui_body,ui.theme.secondary,0)*(zui_body.height+4)+14;
+    }
+    for(int i=0;i<steps;i++){
         struct model before;int d=-1;
         for(unsigned int k=0;k<disks.disk_count;k++)if(same(disks.disks[k].name,plan[i].disk))d=(int)k;
-        if(d<0){continue;}
+        if(d<0)continue;
         load(&before,&disks.disks[d]);for(int k=0;k<i;k++)simulate(&before,&plan[k]);
-        char n[8],*o=num(n,(unsigned long)i+1);(void)o;
-        zui_round(&ui,(struct zui_rect){x,y,26,26},13,i==applying?ui.theme.accent:ui.theme.raised);
-        text(x+9-(i>=9?4:0),y+5,n,&zui_caption,i==applying?ui.theme.on_accent:ui.theme.text);
-        text(x+38,y+2,plan[i].text,&zui_body,ui.theme.text);
-        char cmd[112];command_text(cmd,&plan[i],&before);text(x+38,y+24,cmd,&zui_caption,ui.theme.secondary);
-        y+=52;
+        char n[8];num(n,(unsigned long)i+1);
+        int running=i==applying;
+        zui_round(&ui,(struct zui_rect){x,y,24,24},12,running?ui.theme.accent:mix(ui.theme.surface,ui.theme.accent,24));
+        text(x+12-zui_measure(n,length(n),&zui_caption)/2,y+4,n,&zui_caption,running?ui.theme.on_accent:ui.theme.text);
+        fit(x+36,y+2,plan[i].text,w-36,&zui_label,ui.theme.text);y+=24;
+        fit(x+36,y,step_detail(&plan[i]),w-36,&zui_caption,ui.theme.secondary);y+=20;
+        if(plan[i].action==Z_DISK_CREATE&&same(step_detail(&plan[i]),"Appears after the next restart")){pill(x+36,y,"Runs at restart",warn());y+=26;}
+        if(show_commands){char cmd[112];command_text(cmd,&plan[i],&before);fit(x+36,y,cmd,w-36,&zui_mono,ui.theme.secondary);y+=22;}
+        y+=12;
     }
-    int by=c.y+c.h-54;
-    zui_add(&ui,ID_APPLY,ZUI_BUTTON,(struct zui_rect){x+w-140,by,140,34},"Apply plan",1,can_edit&&applying<0);
-    zui_add(&ui,ID_UNDO,ZUI_BUTTON,(struct zui_rect){x,by,150,34},"Remove last",0,applying<0);
-    zui_add(&ui,ID_CLEAR,ZUI_BUTTON,(struct zui_rect){x+162,by,120,34},"Clear",0,applying<0);
-    if(!can_edit)text_right(x+w-152,by+9,"Sign in as root to apply changes.",&zui_caption,warn());
-    else if(status_line[0])text_right(x+w-152,by+9,status_line,&zui_caption,warn());
+    zui_fill(&ui,(struct zui_rect){p.x,y,p.w,1},ui.theme.border);y+=16;
+    static const char *icons[4]={"check","shield","file-text","rotate-ccw"};
+    static const char *notes[4]={"Each step is checked first","Mounted partitions stay as they are",
+        "The table first, then the filesystem","A failure stops the plan there"};
+    for(int i=0;i<4;i++){zui_icon(&ui,icons[i],x,y+1,16,ZUI_ICON_TEXT);fit(x+26,y,notes[i],w-26,&zui_caption,ui.theme.text);y+=26;}
+    y+=6;
+    zui_round(&ui,(struct zui_rect){x,y,w,58},8,mix(ui.theme.surface,ui.theme.subtle,70));
+    text(x+12,y+8,"If it fails",&zui_label,ui.theme.text);
+    fit(x+12,y+30,"History says why; nothing after it runs.",w-24,&zui_caption,ui.theme.secondary);y+=72;
+    if(!can_edit){fit(x,y,"Sign in as root to apply changes.",w,&zui_caption,warn());y+=22;}
+    else if(status_line[0]&&!full){fit(x,y,status_line,w,&zui_caption,warn());y+=22;}
+    zui_add(&ui,ID_APPLY,ZUI_BUTTON,(struct zui_rect){x,y,w,36},"Apply plan",1,can_edit&&applying<0&&steps>0);y+=44;
+    zui_add(&ui,ID_COMMANDS,ZUI_BUTTON,(struct zui_rect){x,y,w,34},show_commands?"Hide the exact commands":"See the exact commands",0,steps>0);y+=42;
+    int half=(w-10)/2;
+    zui_add(&ui,ID_UNDO,ZUI_BUTTON,(struct zui_rect){x,y,half,34},"Remove last",0,applying<0&&steps>0);
+    zui_add(&ui,ID_CLEAR,ZUI_BUTTON,(struct zui_rect){x+half+10,y,w-half-10,34},"Clear",0,applying<0&&steps>0);y+=42;
+    return y-top+24;
+}
+static void draw_plan_panel(struct zui_rect p,int full){
+    if(!full){zui_round(&ui,p,10,ui.theme.border);zui_round(&ui,(struct zui_rect){p.x+1,p.y+1,p.w-2,p.h-2},9,ui.theme.surface);}
+    int origin=zui_scroll_begin(&ui,&plan_scroll,p);
+    int height=draw_plan_body((struct zui_rect){p.x,origin,p.w,p.h},full);
+    zui_scroll_end(&ui,&plan_scroll,height);
 }
 static void draw_history(struct zui_rect c){
-    int x=c.x+20,y=c.y+20;
-    text(x,y,"History",&zui_heading,ui.theme.text);y+=40;
+    int x=c.x+24,y=c.y+20,w=c.w-48;
+    text(x,y,"History",&zui_heading,ui.theme.text);y+=46;
     if(!history_count){text(x,y,"Changes applied in this session appear here.",&zui_body,ui.theme.secondary);return;}
-    for(int i=history_count-1;i>=0&&y+24<c.y+c.h;i--){
-        unsigned int color=history[i][0]=='!'?bad():good();
-        zui_paragraph(&ui,(struct zui_rect){x,y,c.w-40,40},history[i]+1,&zui_body,color,0);y+=44;
+    for(int i=history_count-1;i>=0&&y+44<c.y+c.h;i--){
+        int failed=history[i][0]=='!';
+        zui_round(&ui,(struct zui_rect){x,y,w,44},8,mix(ui.theme.surface,ui.theme.raised,50));
+        zui_icon(&ui,failed?"x":"check",x+12,y+14,16,ZUI_ICON_TEXT);
+        fit(x+38,y+13,history[i]+1,w-50,&zui_body,failed?bad():ui.theme.text);
+        y+=52;
     }
 }
 
@@ -413,24 +632,37 @@ static void update_appearance(void){
     ui.dirty=1;
 }
 
-/* ---------- Main loop. */
+/* ---------- Frame. */
 static void draw(void){
     struct zui_workspace w=zui_workspace_begin(&ui,ui.width<800?176:212);struct zui_rect c=w.content;
     int focus=ui.focus>=0&&ui.focus<ui.count?ui.controls[ui.focus].id:0;
     int pressed=ui.pressed>=0&&ui.pressed<ui.count?ui.controls[ui.pressed].id:0;
     ui.count=0;ui.pressed=-1;ui.focus=-1;
-    text(24,24,"Equinox",&zui_label,ui.theme.text);
     int n=have_disks?(int)disks.disk_count:0;
-    sidebar.selected=page;
-    zui_list_draw(&ui,&sidebar,(struct zui_rect){w.sidebar.x,w.sidebar.y+44,w.sidebar.w,w.sidebar.h-44},n+2,nav_rows,0);
+    wide=c.w>=880;
+    draw_sidebar(w.sidebar);
     zui_clip(&ui,c);
-    if(!have_disks){text(c.x+20,c.y+20,"This system does not list disks.",&zui_label,ui.theme.text);
-        text(c.x+20,c.y+44,"Equinox needs a newer Zenith kernel. Update Zenith, then reopen it.",&zui_body,ui.theme.secondary);}
-    else if(page<n)draw_disk(c);
-    else if(page==n)draw_plan(c);
+    if(!have_disks){text(c.x+24,c.y+20,"This system does not list disks.",&zui_label,ui.theme.text);
+        text(c.x+24,c.y+44,"Equinox needs a newer Zenith kernel. Update Zenith, then reopen it.",&zui_body,ui.theme.secondary);}
+    else if(page<n){
+        struct zui_rect center=c;
+        if(wide){center.w=c.w-332;draw_plan_panel((struct zui_rect){c.x+c.w-320,c.y+12,308,c.h-24},0);zui_clip(&ui,c);}
+        int origin=zui_scroll_begin(&ui,&center_scroll,center);
+        int height=draw_disk((struct zui_rect){center.x,origin,center.w,center.h});
+        if(mode!=MODE_DISK){
+            /* The editor's own buttons, below its explanation. */
+            int bx=center.x+24,by=origin+height-16;
+            zui_add(&ui,ID_ADD,ZUI_BUTTON,(struct zui_rect){bx,by,150,36},"Add to plan",1,1);
+            zui_add(&ui,ID_CANCEL,ZUI_BUTTON,(struct zui_rect){bx+162,by,120,36},"Cancel",0,1);
+            height+=60;
+        }
+        zui_scroll_end(&ui,&center_scroll,height);
+    }
+    else if(page==n)draw_plan_panel(c,1);
     else draw_history(c);
     for(int i=0;i<ui.count;i++)if(ui.controls[i].enabled){if(ui.controls[i].id==focus)ui.focus=i;if(ui.controls[i].id==pressed)ui.pressed=i;}
     zui_clip(&ui,(struct zui_rect){0,0,ui.width,ui.height});zui_update_hover(&ui);zui_draw_controls(&ui);
+    draw_sidebar_details();
     if(mode==MODE_CREATE&&page<n)zui_combo_popup(&ui,&size_combo,5,size_rows,0);
     if(confirm.open)zui_dialog_draw(&ui,&confirm);
     ui.dirty=0;
@@ -441,10 +673,17 @@ static void ask(int kind,const char *title,const char *message,const char *yes){
 }
 static void action(int id){
     int n=have_disks?(int)disks.disk_count:0;
+    if(id==ID_UNDO&&steps&&applying<0)steps--;
+    if(id==ID_CLEAR&&applying<0)steps=0;
+    if(id==ID_COMMANDS)show_commands=!show_commands;
+    if(id==ID_APPLY&&steps){
+        char m[200],*o=put(m,"Equinox writes ");o=num(o,(unsigned long)steps);put(o,steps==1?" step now. A failed step stops the plan; earlier steps stay.":" steps now, in order. A failed step stops the plan; earlier steps stay.");
+        ask(3,"Apply the plan?",m,"Apply");
+    }
     if(page<n){
         const struct zenith_disk *d=&disks.disks[page];
-        if(id==ID_CREATE){mode=MODE_CREATE;{struct zui_combo fresh={0};fresh.id=ID_SIZE;size_combo=fresh;}label_text[0]=0;zui_input_init(&label_input,label_text,sizeof(label_text));label_focus=0;}
-        if(id==ID_GROW)mode=MODE_GROW;
+        if(id==ID_CREATE){mode=MODE_CREATE;{struct zui_combo fresh={0};fresh.id=ID_SIZE;size_combo=fresh;}label_text[0]=0;zui_input_init(&label_input,label_text,sizeof(label_text));label_focus=0;center_scroll.offset=0;}
+        if(id==ID_GROW){mode=MODE_GROW;center_scroll.offset=0;}
         if(id==ID_CANCEL)mode=MODE_DISK;
         if(id==ID_DELETE&&selected>=0){
             char m[200],*o=put(m,"Delete ");o=put(o,current.parts[selected].name);put(o,"? Its data becomes unreachable once the plan is applied.");
@@ -454,10 +693,13 @@ static void action(int id){
             char m[200],*o=put(m,"A new, empty partition table on ");o=put(o,d->name);put(o," removes every partition on it once the plan is applied.");
             ask(2,"Add a new partition table to the plan?",m,"Add to plan");
         }
-        if(id==ID_ADD&&mode==MODE_CREATE&&selected<0){
-            unsigned long sectors=chosen_size();char t[112],*o=put(t,"Create ");
-            if(sectors)o=size_text(o,sectors);else o=put(o,"a partition over the free space");
-            o=put(o," on ");o=put(o,d->name);o=put(o,", ext2");if(label_text[0]){o=put(o," \"");o=put(o,label_text);put(o,"\"");}
+        if(id==ID_ADD&&mode==MODE_CREATE&&selected<0&&-1-selected<current_free_count){
+            unsigned long sectors=chosen_size(),shown=sectors;char t[112],*o=put(t,"Create ");
+            /* "All free space" takes the largest region, as the kernel places it. */
+            if(!shown)for(int i=0;i<current_free_count;i++)if(current_free[i].sectors>shown)shown=current_free[i].sectors;
+            o=size_text(o,shown);
+            if(label_text[0]){o=put(o," \"");o=put(o,label_text);o=put(o,"\"");}
+            o=put(o," on ");o=put(o,d->name);put(o,", ext2");
             /* Placement follows the kernel: the first free region that fits, or the largest. The
              * region the person selected is the largest when they chose all of it. */
             add_step(Z_DISK_CREATE,0,sectors,1,label_text,t);
@@ -465,13 +707,6 @@ static void action(int id){
         if(id==ID_ADD&&mode==MODE_GROW&&selected>=0){
             const struct part *p=&current.parts[selected];char t[112],*o=put(t,"Grow ");o=put(o,p->name);o=put(o," to ");size_text(o,grow_limit(&current,selected));
             add_step(Z_DISK_GROW,p->start,0,0,"",t);
-        }
-    }else if(page==n){
-        if(id==ID_UNDO&&steps)steps--;
-        if(id==ID_CLEAR)steps=0;
-        if(id==ID_APPLY&&steps){
-            char m[200],*o=put(m,"Equinox writes ");o=num(o,(unsigned long)steps);put(o,steps==1?" step now. A failed step stops the plan; earlier steps stay.":" steps now, in order. A failed step stops the plan; earlier steps stay.");
-            ask(3,"Apply the plan?",m,"Apply");
         }
     }
     ui.dirty=1;
@@ -489,7 +724,9 @@ static void pointer(const struct zenith_gui_event *e){
     int n=have_disks?(int)disks.disk_count:0;
     if(page>=n)return;
     if(mode==MODE_CREATE){int was=label_focus;label_focus=inside(label_rect,e->x,e->y);if(was!=label_focus)ui.dirty=1;return;}
-    for(int i=0;i<segments;i++)if(inside(segment_rects[i],e->x,e->y)){selected=segment_ids[i];status_line[0]=0;mode=MODE_DISK;ui.dirty=1;return;}
+    if(mode!=MODE_DISK)return;
+    for(int i=0;i<segments;i++)if(inside(segment_rects[i],e->x,e->y)){selected=segment_ids[i];status_line[0]=0;ui.dirty=1;return;}
+    for(int i=0;i<rows;i++)if(inside(row_rects[i],e->x,e->y)){selected=row_ids[i];status_line[0]=0;ui.dirty=1;return;}
 }
 /* ---------- Test entry points (no window): the snapshot, and a fixed plan through the real ABI. */
 static int probe(void){
@@ -499,11 +736,15 @@ static int probe(void){
     for(unsigned int d=0;d<disks.disk_count;d++){
         const struct zenith_disk *k=&disks.disks[d];
         o=put(line,"EQUINOX_DISK ");o=put(o,k->name);o=put(o," ");o=size_text(o,k->sectors);o=put(o," parts=");o=num(o,k->part_count);
-        o=put(o," free=");o=num(o,k->free_count);put(o,k->flags&Z_DISK_SYSTEM?" system\n":"\n");print(line);
+        o=put(o," free=");o=num(o,k->free_count);o=put(o,k->flags&Z_DISK_SYSTEM?" system":"");
+        if(extras()){o=put(o," gpt=");o=num(o,disks.extra.gpt[d]);}
+        put(o,"\n");print(line);
         for(unsigned int i=0;i<k->part_count&&i<Z_DISK_PARTS;i++){
             const struct zenith_disk_part *p=&k->parts[i];
             o=put(line,"EQUINOX_PART ");o=put(o,p->name);o=put(o," ");o=size_text(o,p->sectors);o=put(o," fs=");o=num(o,p->filesystem);
-            o=put(o," label=");o=put(o,p->label);o=put(o," role=");o=num(o,p->role);put(o,"\n");print(line);
+            o=put(o," label=");o=put(o,p->label);o=put(o," role=");o=num(o,p->role);
+            if(extras()){o=put(o," used=");o=num(o,disks.extra.used[d][i]);o=put(o," state=");o=num(o,disks.extra.state[d][i]);}
+            put(o,"\n");print(line);
         }
     }
     return 0;
@@ -555,7 +796,6 @@ int main(int argc,char **argv){
     ui.foreground=material;
     if(zenith_gui_interactive(handle)<0||zenith_gui_resize_enable(handle)<0){zenith_gui_close(handle);return 1;}
     ui.hover_supported=zenith_gui_pointer_motion(handle)==0;
-    sidebar.base_id=10;
     refresh();
     print(have_disks?"EQUINOX_READY\n":"EQUINOX_NO_DISK_ABI\n");
     long last=zui_motion_clock();int polls=0,result=0,done=0;
@@ -582,11 +822,11 @@ int main(int argc,char **argv){
             if(e.type==Z_GUI_KEY&&label_focus&&e.extra!=1&&zui_input_event(&label_input,&e)){ui.dirty=1;continue;}
         }
         if(e.type==Z_GUI_KEY&&e.extra==1&&ui.window_focused){if(mode!=MODE_DISK){mode=MODE_DISK;ui.dirty=1;continue;}done=1;continue;}
+        if(page<n&&zui_scroll_event(&ui,&center_scroll,&e)){ui.dirty=1;continue;}
+        if((page==n||(page<n&&wide))&&zui_scroll_event(&ui,&plan_scroll,&e)){ui.dirty=1;continue;}
         if(e.type==Z_GUI_DOWN||e.type==Z_GUI_UP)pointer(&e);
-        int list=zui_list_event(&ui,&sidebar,&e,nav_rows,0);
-        if(list>0&&list-1!=page){page=list-1;mode=MODE_DISK;selected=-1;status_line[0]=0;ui.dirty=1;continue;}
         int id=zui_event(&ui,&e);
-        if(id>=10&&id<10+n+2&&id-10!=page){page=id-10;mode=MODE_DISK;selected=-1;status_line[0]=0;ui.dirty=1;continue;}
+        if(id>=10&&id<10+n+2&&id-10!=page){page=id-10;mode=MODE_DISK;selected=NONE;status_line[0]=0;center_scroll.offset=0;plan_scroll.offset=0;ui.dirty=1;continue;}
         if(id)action(id);
     }
     zenith_gui_close(handle);return result;

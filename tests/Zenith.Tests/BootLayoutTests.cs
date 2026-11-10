@@ -96,4 +96,29 @@ public sealed class BootLayoutTests
         BitConverter.TryWriteBytes(entries.AsSpan(168), disk.BlockCount); disk.WriteBlock(2, 32, entries); GptChecksums.Complete(disk);
         Assert.Throws<IOException>(() => GptIdentity.Read(disk));
     }
+    [Fact]
+    public void GptCopiesMatchOnlyWhenBothCopiesAreIntactAndAlike()
+    {
+        using var disk = new Ext2FormatterTests.Disk(64UL * 1024 * 1024);
+        Assert.False(GptChecksums.CopiesMatch(disk));
+        byte[] header = new byte[512]; BitConverter.TryWriteBytes(header, 0x5452415020494645UL);
+        BitConverter.TryWriteBytes(header.AsSpan(8), 0x10000u); BitConverter.TryWriteBytes(header.AsSpan(12), 92u);
+        BitConverter.TryWriteBytes(header.AsSpan(24), 1UL); BitConverter.TryWriteBytes(header.AsSpan(72), 2UL);
+        BitConverter.TryWriteBytes(header.AsSpan(80), 128u); BitConverter.TryWriteBytes(header.AsSpan(84), 128u);
+        byte[] entries = new byte[16384]; GptIdentity.EspType.TryWriteBytes(entries); Guid.NewGuid().TryWriteBytes(entries.AsSpan(16));
+        BitConverter.TryWriteBytes(entries.AsSpan(32), 2048UL); BitConverter.TryWriteBytes(entries.AsSpan(40), 4095UL);
+        disk.WriteBlock(1, 1, header); disk.WriteBlock(2, 32, entries); GptChecksums.Complete(disk);
+        Assert.True(GptChecksums.CopiesMatch(disk));
+        // A primary edited without rewriting the backup: both checksum, but the entries differ.
+        BitConverter.TryWriteBytes(entries.AsSpan(40), 8191UL); disk.WriteBlock(2, 32, entries);
+        disk.ReadBlock(1, 1, header); BitConverter.TryWriteBytes(header.AsSpan(88), GptChecksums.Crc32(entries, 16384));
+        BitConverter.TryWriteBytes(header.AsSpan(16), 0u); BitConverter.TryWriteBytes(header.AsSpan(16), GptChecksums.Crc32(header, 92));
+        disk.WriteBlock(1, 1, header);
+        Assert.False(GptChecksums.CopiesMatch(disk));
+        GptChecksums.Complete(disk); Assert.True(GptChecksums.CopiesMatch(disk));
+        // A damaged backup header.
+        byte[] backup = new byte[512]; disk.ReadBlock(disk.BlockCount - 1, 1, backup); backup[100] ^= 1; backup[16] ^= 1;
+        disk.WriteBlock(disk.BlockCount - 1, 1, backup);
+        Assert.False(GptChecksums.CopiesMatch(disk));
+    }
 }

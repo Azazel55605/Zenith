@@ -21,7 +21,7 @@ def main():
         extra=[]
         if args.program in ('ui-gallery','settings','desktop-tools','polaris','observatory','equinox'):
             atlas=Path(temporary)/'ui-fonts.c'
-            subprocess.run([sys.executable,str(ROOT/'tools/build-ui-fonts.py'),str(atlas),*(['--mono'] if args.program=='polaris' else [])],check=True)
+            subprocess.run([sys.executable,str(ROOT/'tools/build-ui-fonts.py'),str(atlas),*(['--mono'] if args.program in ('polaris','equinox') else [])],check=True)
             extra=['-I'+str(ROOT/'userland/ui'),str(ROOT/'userland/ui/ui.c'),str(ROOT/'userland/ui/widgets.c'),
                    *([str(ROOT/'userland/polaris/term.c')] if args.program=='polaris' else [str(ROOT/'userland/ui-gallery/gallery.c')] if args.program=='ui-gallery' else [str(ROOT/'userland/settings/app.c'),str(ROOT/'userland/settings/navigation.c'),str(ROOT/'userland/settings/bindings.c')] if args.program=='settings' else []),str(ROOT/'userland/ui/runtime.c'),str(ROOT/'userland/ui/text.c'),str(atlas)]
             if args.program=='settings':
@@ -35,6 +35,6 @@ def main():
     if args.program in ('ui-gallery','settings','desktop-tools','polaris','observatory','equinox'):
         license_dir=destination/('usr/share/zenith/'+args.program);license_dir.mkdir(parents=True,exist_ok=True)
         shutil.copyfile(ROOT/'Resources/Fonts/LICENSE-Inter.txt',license_dir/'LICENSE-Inter.txt')
-        if args.program=='polaris': shutil.copyfile(ROOT/'Resources/Fonts/LICENSE-Hack.txt',license_dir/'LICENSE-Hack.txt')
+        if args.program in ('polaris','equinox'): shutil.copyfile(ROOT/'Resources/Fonts/LICENSE-Hack.txt',license_dir/'LICENSE-Hack.txt')
     print('Built standalone native program: '+str(output))
 if __name__=='__main__':main()

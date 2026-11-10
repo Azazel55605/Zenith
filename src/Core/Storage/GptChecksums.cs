@@ -58,6 +58,51 @@ internal static class GptChecksums
         disk.Flush();
     }
 
+    /// <summary>Whether the primary and backup GPT are both intact (header and entry CRCs) and list
+    /// the same partitions. Reads 66 sectors; false on any defect or unreadable copy.</summary>
+    public static bool CopiesMatch(IBlockDevice disk)
+    {
+        try
+        {
+            if (disk.BlockSize != SectorSize || disk.BlockCount < 2 * (EntryArraySectors + 2)) { return false; }
+            byte[] primary = new byte[SectorSize];
+            disk.ReadBlock(1, 1, primary);
+            if (!ValidHeader(primary, 1)) { return false; }
+            ulong alternate = BitConverter.ToUInt64(primary, 32);
+            if (alternate >= disk.BlockCount || alternate <= 1) { return false; }
+            byte[] backup = new byte[SectorSize];
+            disk.ReadBlock(alternate, 1, backup);
+            if (!ValidHeader(backup, alternate)) { return false; }
+            uint crc = BitConverter.ToUInt32(primary, 88);
+            if (BitConverter.ToUInt32(backup, 88) != crc || !primary.AsSpan(56, 16).SequenceEqual(backup.AsSpan(56, 16))) { return false; }
+            return EntriesCrc(disk, BitConverter.ToUInt64(primary, 72), primary) == crc
+                && EntriesCrc(disk, BitConverter.ToUInt64(backup, 72), backup) == crc;
+        }
+        catch { return false; }
+    }
+
+    private static bool ValidHeader(byte[] header, ulong lba)
+    {
+        if (header[0] != (byte)'E' || header[1] != (byte)'F' || header[2] != (byte)'I' || header[3] != (byte)' ') { return false; }
+        int size = BitConverter.ToInt32(header, 12);
+        if (size < 92 || size > SectorSize || BitConverter.ToUInt64(header, 24) != lba) { return false; }
+        uint stored = BitConverter.ToUInt32(header, 16);
+        byte[] copy = (byte[])header.Clone();
+        BitConverter.TryWriteBytes(copy.AsSpan(16, 4), 0u);
+        return Crc32(copy, size) == stored;
+    }
+
+    private static uint EntriesCrc(IBlockDevice disk, ulong lba, byte[] header)
+    {
+        uint count = BitConverter.ToUInt32(header, 80), size = BitConverter.ToUInt32(header, 84);
+        if (size < 128 || size > 512 || count == 0 || (ulong)count * size > 128UL * 1024) { return 0; }
+        int bytes = (int)(count * size), sectors = (bytes + SectorSize - 1) / SectorSize;
+        if (lba + (ulong)sectors > disk.BlockCount) { return 0; }
+        byte[] entries = new byte[sectors * SectorSize];
+        disk.ReadBlock(lba, (ulong)sectors, entries);
+        return Crc32(entries, bytes);
+    }
+
     private static void StampHeaderCrc(byte[] header, int headerSize)
     {
         BitConverter.TryWriteBytes(header.AsSpan(16, 4), 0u);

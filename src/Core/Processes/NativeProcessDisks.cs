@@ -6,11 +6,16 @@ using Zenith.Core.Storage;
 namespace Zenith.Core.Processes;
 
 /// <summary>zenith-native-disk-abi 1.0 (userland/include/zenith_disks.h): the 16384-byte snapshot
-/// (647) and the 72-byte edit request (648) over <see cref="DiskService"/>.</summary>
+/// (647) and the 72-byte edit request (648) over <see cref="DiskService"/>. Since kernel 0.0.54 the
+/// snapshot's reserved tail carries extras version 1 (used bytes, filesystem state, GPT copies);
+/// older kernels leave it zero, and clients check extra.version.</summary>
 internal static class ProcessDisks
 {
     public const int SnapshotBytes = 16384, RequestBytes = 72;
     private const int Header = 200, DiskBytes = 1832, PartBytes = 104, MaxDisks = 8, MaxParts = 16, MaxFree = 8;
+    /// <summary>struct zenith_disks_extra: version, reserved, used[8][16], state[8][16], gpt[8].</summary>
+    private const int Extra = Header + MaxDisks * DiskBytes, ExtraUsed = Extra + 8, ExtraState = ExtraUsed + MaxDisks * MaxParts * 8,
+        ExtraGpt = ExtraState + MaxDisks * MaxParts;
 
     public static byte[] Snapshot(uint uid)
     {
@@ -27,6 +32,7 @@ internal static class ProcessDisks
         var disks = DiskService.Describe();
         int count = Math.Min(disks.Count, MaxDisks);
         BinaryPrimitives.WriteUInt32LittleEndian(b[192..], (uint)count);
+        BinaryPrimitives.WriteUInt32LittleEndian(b[Extra..], 1);
         for (int d = 0; d < count; d++)
         {
             var disk = disks[d];
@@ -34,6 +40,7 @@ internal static class ProcessDisks
             Text(o[..16], disk.Name);
             BinaryPrimitives.WriteUInt64LittleEndian(o[16..], disk.Sectors);
             uint flags = (disk.Gpt ? 1u : 0) | (disk.System ? 2u : 0) | (disk.Mounted ? 4u : 0) | (disk.Editable ? 8u : 0);
+            b[ExtraGpt + d] = (byte)(!disk.Gpt ? 0 : disk.GptCopiesMatch ? 1 : 2);
             BinaryPrimitives.WriteUInt32LittleEndian(o[24..], flags);
             int parts = Math.Min(disk.Parts.Count, MaxParts), free = Math.Min(disk.Free.Count, MaxFree);
             BinaryPrimitives.WriteUInt32LittleEndian(o[28..], (uint)parts);
@@ -52,6 +59,8 @@ internal static class ProcessDisks
                 BinaryPrimitives.WriteUInt32LittleEndian(q[52..], (uint)p.Role);
                 Text(q.Slice(56, 16), p.Label);
                 Text(q.Slice(72, 32), p.Mount);
+                BinaryPrimitives.WriteUInt64LittleEndian(b[(ExtraUsed + (d * MaxParts + i) * 8)..], p.UsedBytes);
+                b[ExtraState + d * MaxParts + i] = (byte)p.State;
             }
             for (int i = 0; i < free; i++)
             {
