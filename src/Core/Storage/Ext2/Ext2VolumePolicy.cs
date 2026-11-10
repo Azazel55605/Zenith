@@ -10,14 +10,19 @@ internal static class Ext2VolumePolicy
 {
     public static string? Check(IBlockDevice device, bool allowUnclean = false)
     {
-        if ((device.BlockSize != 512 && device.BlockSize != 1024) || device.BlockCount > ulong.MaxValue / device.BlockSize
-            || device.BlockCount < 2048 / device.BlockSize)
+        if ((device.BlockSize != 512 && device.BlockSize != 1024 && device.BlockSize != 4096)
+            || device.BlockCount > ulong.MaxValue / device.BlockSize || device.BlockCount < 4096 / device.BlockSize)
         {
             return "unsupported ext2 device geometry";
         }
-        byte[] data = new byte[1024];
-        device.ReadBlock(1024 / device.BlockSize, 1024 / device.BlockSize, data);
-        return CheckSuperblock(data, device.BlockCount * device.BlockSize, allowUnclean);
+        // The primary superblock: bytes 1024-2047, whatever the sector size.
+        ulong sector = device.BlockSize, first = 1024 / sector, count = Math.Max(1, 2048 / sector - first);
+        byte[] sectors = new byte[count * sector];
+        device.ReadBlock(first, count, sectors);
+        ReadOnlySpan<byte> data = sectors.AsSpan((int)(1024 - first * sector), 1024);
+        string? result = CheckSuperblock(data, device.BlockCount * device.BlockSize, allowUnclean);
+        if (result is null && (1024u << (int)Read(data, 24)) < device.BlockSize) { return "ext2 block smaller than the device sector"; }
+        return result;
     }
 
     internal static bool CanMount(IBlockDevice device, out string report)
@@ -40,22 +45,29 @@ internal static class Ext2VolumePolicy
         {
             return "not an ext2 filesystem";
         }
-        // Profile deliberately excludes journal, extents, checksums and unknown features.
-        if (Read(data, 72) != 0 || Read(data, 76) != 1 || Read(data, 24) != 0 || BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(88)) != 128
-            || Read(data, 92) != 0 || Read(data, 96) != 2 || Read(data, 100) != 0)
+        // Profiles: 1 KiB or 4 KiB blocks, Linux layout revision 1, 128-byte inodes, filetype as the
+        // only incompatible feature, at most sparse_super and large_file read-only-compatible ones.
+        // Journal, extents, checksums and unknown features are refused.
+        uint log = Read(data, 24), roCompat = Read(data, 100);
+        if (Read(data, 72) != 0 || Read(data, 76) != 1 || (log != 0 && log != 2) || BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(88)) != 128
+            || Read(data, 92) != 0 || Read(data, 96) != 2
+            || (roCompat & ~(Ext2SuperblockLayout.RoCompatSparseSuper | Ext2SuperblockLayout.RoCompatLargeFile)) != 0)
         {
-            return "unsupported ext2 profile (requires Linux layout, revision 1, 1 KiB blocks, 128-byte inodes, filetype only)";
+            return "unsupported ext2 profile (requires Linux layout, revision 1, 1 or 4 KiB blocks, 128-byte inodes, filetype, sparse_super/large_file only)";
         }
         ushort state = BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(58));
         if (state != 1 && (!allowUnclean || state != 0))
         {
             return "ext2 volume is not clean; check it with host e2fsck before mounting";
         }
+        uint blockSize = 1024u << (int)log, bits = blockSize * 8;
         uint blocks = Read(data, 4), perGroup = Read(data, 32), inodes = Read(data, 0), inodesPerGroup = Read(data, 40);
-        if (blocks < 16 || (ulong)blocks * 1024 > deviceBytes || Read(data, 20) != 1
-            || perGroup == 0 || perGroup > 8192 || inodesPerGroup == 0 || inodesPerGroup > 8192
+        if (blocks < 16 || (ulong)blocks * blockSize > deviceBytes || (ulong)blocks * blockSize > Ext2Geometry.MaximumBytes
+            || Read(data, 20) != (log == 0 ? 1u : 0u)
+            || perGroup == 0 || perGroup > bits || inodesPerGroup == 0 || inodesPerGroup > bits
+            || inodesPerGroup * 128 % blockSize != 0
             || inodes < 11 || Read(data, 12) > blocks || Read(data, 16) > inodes
-            || Read(data, 28) != 0 || Read(data, 36) != perGroup)
+            || Read(data, 28) != log || Read(data, 36) != perGroup)
         {
             return "invalid ext2 geometry";
         }

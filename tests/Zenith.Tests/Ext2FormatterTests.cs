@@ -109,7 +109,6 @@ public sealed class Ext2FormatterTests
     [InlineData(512, 512, "")]
     [InlineData(8194, 512, "")]
     [InlineData(1024, 2048, "")]
-    [InlineData(525312, 512, "")]
     [InlineData(1024, 512, "seventeenletters!")]
     [InlineData(1024, 512, "ümlaut")]
     public void InvalidGeometryAndLabelsDoNotWrite(int kib, int sector, string label)

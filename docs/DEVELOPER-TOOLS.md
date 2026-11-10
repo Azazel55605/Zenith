@@ -41,8 +41,9 @@ startup files, binutils, gcc, make, python3, nano, vim and eventually git and SS
 Cross-build packages belong to the Linux development environment; Zenith-native
 packages must be labeled separately with their actual architecture and ABI.
 Do not change the kernel's Cosmos/.NET toolchain merely to offer GCC for user programs.
-The current ext2 profile has a 512 MiB root limit: measure storage/memory needs and
-extend filesystem support before promising a complete on-system SDK.
+New installs use the whole disk (ext2 up to 2 TiB, files up to 2 TiB); existing
+512 MiB roots need migration (roadmap R1). Measure memory needs before promising
+a complete on-system SDK.
 
 Primary references checked on 2026-10-11:
 [GCC build/host/target terminology](https://gcc.gnu.org/onlinedocs/gccint/Configure-Terms.html),

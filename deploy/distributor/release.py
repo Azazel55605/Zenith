@@ -298,6 +298,8 @@ def native_gate_plan():
     if (REPO / "src/Core/Multiprocessing/CpuWorkers.Process.cs").exists(): checks.append(("q", "native-smp-smoke.py"))
     # Older immutable kernel tags predate this ABI and its harness.
     if (REPO / "tools/native-process-smoke.py").exists(): checks.append(("u", "native-process-smoke.py"))
+    # 4 KiB ext2 profile, files past 4 GiB and a whole-disk installed root (older tags lack it).
+    if (REPO / "tools/large-ext2-smoke.py").exists(): checks.append(("x", "large-ext2-smoke.py"))
     # Run the expensive crash/recovery matrix last. A repository regression
     # should fail before repeating that matrix; every gate remains mandatory.
     checks.append(("k", "kernel-update-smoke.py"))

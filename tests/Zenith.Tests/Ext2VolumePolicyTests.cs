@@ -45,7 +45,7 @@ public class Ext2VolumePolicyTests
     }
 
     [Theory]
-    [InlineData(0UL, 100UL)] [InlineData(4096UL, 2048UL)]
+    [InlineData(0UL, 100UL)] [InlineData(2048UL, 4096UL)]
     [InlineData(512UL, 3UL)] [InlineData(512UL, ulong.MaxValue)]
     public void RejectsDeviceGeometryBeforeReading(ulong sectorSize, ulong count)
     {
@@ -68,7 +68,7 @@ public class Ext2VolumePolicyTests
     }
 
     [Theory]
-    [InlineData(72, 1u)] [InlineData(76, 2u)] [InlineData(24, 2u)] [InlineData(88, 256u)]
+    [InlineData(72, 1u)] [InlineData(76, 2u)] [InlineData(24, 1u)] [InlineData(100, 0x4u)] [InlineData(88, 256u)]
     [InlineData(92, 4u)] [InlineData(96, 0x42u)] [InlineData(100, 0x400u)]
     public void RejectsUnsupportedProfiles(int offset, uint value)
     {

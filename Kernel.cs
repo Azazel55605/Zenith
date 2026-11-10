@@ -37,6 +37,8 @@ public class Kernel : Sys.Kernel
             PowerControl.Farewell = SessionDisplay.Farewell;
             bool bootScreen = hasDisplay && BootScreen.Wanted(CommandLine());
             if (bootScreen) { BootScreen.Begin(); }
+            // A whole-volume ext2 check keeps two bits per block in memory: bound it by free memory.
+            Zenith.Core.Storage.Ext2.Ext2Checker.AvailableMemory = () => MemoryInfo.FreePages * 4096 / 2;
             SystemRuntime.Initialize(bootScreen ? BootScreen.Phase : null);
             if (hasDisplay) { Zenith.Core.Input.AbsolutePointer.Start(CommandLine()); }
             if (bootScreen) { BootScreen.Phase("Starting session"); BootScreen.Finish(); }

@@ -85,3 +85,14 @@ read-only Ext2Checker pass. Error-marked/unsupported/inconsistent roots are refu
 no clean-bit rewrite or repair precedes mounting. Secondary CLI mounts retain their
 clean-volume gate. Host tests prove dirty checks make no writes and reject corruption;
 native power-cut acceptance exercises the same boot path.
+
+2026-11-10 (Zenith): a second profile. `Ext2Geometry` describes both layouts for the
+formatter, mount policy and checker: 1 KiB blocks with a copy in every group up to
+512 MiB, and 4 KiB blocks with sparse_super and large_file up to 2 TiB. The block
+mapper now walks single, double and triple-indirect tables with one loop (the old
+note above about triple-indirect I/O is superseded); a zero pointer is "no block"
+explicitly, since block 0 is a valid (superblock) block with 4 KiB blocks. Group
+descriptor updates write only the table block that holds the descriptor. The
+checker keeps bit sets per block and inode instead of per-block owner arrays, is
+generic over block size and backup placement, and refuses volumes whose check
+would exceed its memory budget.

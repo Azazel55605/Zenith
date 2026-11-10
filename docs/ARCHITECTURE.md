@@ -84,7 +84,7 @@ part of a Zenith change. The vendored [reference docs](cosmos/SOURCE.md) are pin
 
 | Mount/resource | Current behavior |
 |---|---|
-| Installed `/` | New installs: supported ext2 root up to 512 MiB; older FAT roots recognized |
+| Installed `/` | New installs: ext2 root over the rest of the disk, up to 2 TiB; older FAT roots recognized |
 | Live `/` | 64 MiB RAM-backed FAT; lost on reboot |
 | `/tmp` | Separate 16 MiB RAM-backed ext2, mode 1777, including installed boots |
 | `/proc` | Read-only `meminfo`, `mounts`, `uptime`, `cmdline`; per-open first-read snapshots |
@@ -108,11 +108,13 @@ Kernel rollback shares the root; it does not restore root data or replace the EF
 
 ### Ext2 contract and recovery boundaries
 
-The writable profile is clean Linux-layout revision-1 ext2, 1 KiB blocks,
-128-byte inodes and the filetype feature only. Zenith formatting is bounded to
-1..512 MiB; unsupported geometry/features are rejected. Byte I/O maps direct,
-single and double-indirect blocks, about 64.26 MiB maximum per regular file;
-triple-indirect I/O is unsupported. The [source record](../src/Core/Storage/Ext2/SOURCE.md)
+The writable profiles are clean Linux-layout revision-1 ext2 with 128-byte inodes
+and the filetype feature ([geometry](../src/Core/Storage/Ext2/Ext2Geometry.cs)):
+1 KiB blocks with a superblock copy in every group up to 512 MiB (what earlier
+releases format), and 4 KiB blocks with sparse_super and large_file up to 2 TiB.
+Zenith formats 1 MiB..2 TiB and picks the profile by size; other geometry or
+features are rejected. Byte I/O maps direct, single, double and triple-indirect
+blocks: files up to 2 TiB on 4 KiB volumes, below 2 GiB without large_file. The [source record](../src/Core/Storage/Ext2/SOURCE.md)
 explains adaptation, upstream revision, license and fixes.
 
 Implemented operations include allocation/reclamation across groups, sparse and
@@ -128,9 +130,11 @@ can require **host e2fsck repair** before writable mounting. Automatic root boot
 audits a dirty supported volume with the bounded read-only checker first and mounts
 it only if consistency passes. It does not clear the flag or repair metadata to
 bypass refusal. Error-marked or inconsistent roots remain refused. There is no journal.
-`fsck.ext2` is a read-only audit of supported unmounted volumes, bounded to
-512 MiB/65536 inodes; it reports at most 32 detailed diagnostics, never repairs,
-and is not a general replacement for e2fsck.
+`fsck.ext2` is a read-only audit of supported unmounted volumes up to 2 TiB. It
+keeps two bits per block and about two bytes per inode in memory (64 MiB per TiB)
+and refuses, without a partial result, when that exceeds half of free memory; it
+reports at most 32 detailed diagnostics, never repairs, and is not a general
+replacement for e2fsck.
 
 Cosmos VFS defers namespace deletion until the last open handle closes. `fsprobe`
 verifies shared I/O and retained data after deletion, then final-close removal.

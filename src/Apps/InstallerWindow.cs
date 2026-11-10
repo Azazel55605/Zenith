@@ -80,7 +80,7 @@ internal sealed class InstallerWindow : Window
                     break;
                 case Step.Confirm:
                     Text(surface, "Erase " + _disks[_selected].Name + " and install Zenith?", x, y, 18);
-                    Text(surface, "128 MiB EFI partition + ext2 root (up to 512 MiB)", x, y + 38, 14);
+                    Text(surface, "128 MiB EFI partition + ext2 root (rest of the disk, up to 2 TiB)", x, y + 38, 14);
                     Text(surface, "Hostname: " + _values[0] + "   User: " + _values[1], x, y + 70, 14);
                     Text(surface, "Your live session remains separate from the target.", x, y + 102, 14);
                     Text(surface, "This cannot be cancelled once disk writing starts.", x, y + 134, 14);

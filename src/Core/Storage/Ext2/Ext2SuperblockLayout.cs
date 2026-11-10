@@ -21,6 +21,12 @@ internal static class Ext2SuperblockLayout
     /// <summary>Superblock magic value identifying an ext2 volume (0xEF53).</summary>
     public const ushort Magic = 0xEF53;
 
+    /// <summary>s_feature_ro_compat: backups only in groups 0, 1 and powers of 3, 5 and 7.</summary>
+    public const uint RoCompatSparseSuper = 0x1;
+
+    /// <summary>s_feature_ro_compat: files may exceed 2 GiB (i_size_high).</summary>
+    public const uint RoCompatLargeFile = 0x2;
+
     // Superblock field offsets (little-endian).
 
     /// <summary>Byte offset of s_inodes_count: total inodes in the volume (32-bit).</summary>

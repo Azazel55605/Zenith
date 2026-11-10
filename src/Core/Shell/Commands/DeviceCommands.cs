@@ -8,14 +8,15 @@ internal static class DeviceCommands
 {
     public static void Register(Action<Command> add)
     {
-        add(new Command("dd", "dd if=input of=output count=N [bs=N]", "Copy a bounded number of binary blocks", Copy));
+        add(new Command("dd", "dd if=input of=output count=N [bs=N] [skip=N] [seek=N] [conv=notrunc]", "Copy a bounded number of binary blocks", Copy));
     }
 
     private static int Copy(CommandContext c)
     {
         string? input = null, output = null;
         int blockSize = 512;
-        long count = -1;
+        long count = -1, skip = 0, seek = 0;
+        bool truncate = true;
         foreach (string arg in c.Args)
         {
             int equal = arg.IndexOf('=');
@@ -34,6 +35,21 @@ internal static class DeviceCommands
                         return c.Fail("bs must be between 1 and 1048576 bytes");
                     }
                     break;
+                case "skip":
+                case "seek":
+                    if (!long.TryParse(value, out long blocks) || blocks < 0)
+                    {
+                        return c.Fail(key + " must be a nonnegative integer");
+                    }
+                    if (key == "skip") { skip = blocks; } else { seek = blocks; }
+                    break;
+                case "conv":
+                    if (value != "notrunc")
+                    {
+                        return c.Fail("conv supports only notrunc");
+                    }
+                    truncate = false;
+                    break;
                 case "count":
                     if (!long.TryParse(value, out count) || count < 0)
                     {
@@ -45,7 +61,11 @@ internal static class DeviceCommands
         }
         if (string.IsNullOrEmpty(input) || string.IsNullOrEmpty(output) || count < 0)
         {
-            return c.Fail("expected if=input of=output count=N [bs=N]");
+            return c.Fail("expected if=input of=output count=N [bs=N] [skip=N] [seek=N] [conv=notrunc]");
+        }
+        if (skip > long.MaxValue / blockSize || seek > long.MaxValue / blockSize)
+        {
+            return c.Fail("skip/seek offset too large");
         }
         string sourcePath = c.Resolve(input), targetPath = c.Resolve(output);
         // Current root filesystems are FAT, so case-only aliases name the same file.
@@ -56,7 +76,10 @@ internal static class DeviceCommands
 
         // Validate all operands and open input before truncating the destination.
         using var source = new FileStream(sourcePath, FileMode.Open, FileAccess.Read);
-        using var target = new FileStream(targetPath, FileMode.Create, FileAccess.Write);
+        // seek leaves a hole before the first output block (sparse on ext2); notrunc keeps the rest.
+        using var target = new FileStream(targetPath, truncate ? FileMode.Create : FileMode.OpenOrCreate, FileAccess.Write);
+        if (skip > 0) { source.Position = skip * blockSize; }
+        if (seek > 0) { target.Position = seek * blockSize; }
         byte[] buffer = new byte[blockSize];
         for (long block = 0; block < count; block++)
         {

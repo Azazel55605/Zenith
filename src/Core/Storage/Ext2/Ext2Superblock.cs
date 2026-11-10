@@ -828,7 +828,8 @@ internal sealed class Ext2Superblock : IVfsSuperblock
 
     private void FreeBlockCore(uint blockNumber)
     {
-        if (blockNumber < FirstDataBlock || blockNumber >= BlocksCount)
+        // Block 0 is "no block" in pointers; with 4 KiB blocks it is also the superblock's block.
+        if (blockNumber == 0 || blockNumber < FirstDataBlock || blockNumber >= BlocksCount)
         {
             return;
         }
@@ -860,12 +861,15 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     /// <param name="groupIndex">Zero-based block group.</param>
     private void UpdateGroupDesc(uint groupIndex)
     {
+        // Only the descriptor table block holding this group: the whole table is 512 KiB at 2 TiB,
+        // and every allocation updates a descriptor.
         uint gdStartBlock = BlockSize == 1024 ? 2u : 1u;
-        uint gdBytes = GroupsCount * (uint)Ext2SuperblockLayout.GroupDescSize;
-        uint gdBlocks = (gdBytes + BlockSize - 1) / BlockSize;
-        byte[] gdBuf = _groupDescriptorBuf ??= new byte[gdBlocks * BlockSize];
-        ReadBlocks(gdStartBlock, gdBlocks, gdBuf);
-        int off = (int)groupIndex * Ext2SuperblockLayout.GroupDescSize;
+        uint byteOffset = groupIndex * (uint)Ext2SuperblockLayout.GroupDescSize;
+        uint tableBlock = gdStartBlock + byteOffset / BlockSize;
+        byte[] gdBuf = _groupDescriptorBuf ??= new byte[BlockSize];
+        if (gdBuf.Length != BlockSize) { gdBuf = _groupDescriptorBuf = new byte[BlockSize]; }
+        ReadBlocks(tableBlock, 1, gdBuf);
+        int off = (int)(byteOffset % BlockSize);
         Ext2GroupDesc gd = _groups[groupIndex];
         BitConverter.TryWriteBytes(gdBuf.AsSpan(off + Ext2SuperblockLayout.GroupDescFreeBlocksCountOffset, 2), gd.FreeBlocksCount);
         BitConverter.TryWriteBytes(gdBuf.AsSpan(off + Ext2SuperblockLayout.GroupDescFreeInodesCountOffset, 2), gd.FreeInodesCount);
@@ -873,7 +877,7 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         BitConverter.TryWriteBytes(gdBuf.AsSpan(off + Ext2SuperblockLayout.GroupDescBlockBitmapOffset, 4), gd.BlockBitmap);
         BitConverter.TryWriteBytes(gdBuf.AsSpan(off + Ext2SuperblockLayout.GroupDescInodeBitmapOffset, 4), gd.InodeBitmap);
         BitConverter.TryWriteBytes(gdBuf.AsSpan(off + Ext2SuperblockLayout.GroupDescInodeTableOffset, 4), gd.InodeTable);
-        WriteBlocks(gdStartBlock, gdBlocks, gdBuf);
+        WriteBlocks(tableBlock, 1, gdBuf);
         UpdateSuperblock();
     }
 
@@ -1064,201 +1068,101 @@ internal sealed class Ext2Superblock : IVfsSuperblock
             return blk;
         }
 
-        logicalBlock -= Ext2InodeLayout.DirectBlockCount;
-
-        if (logicalBlock < perBlock)
+        // Single, double and triple indirect: one walk down the pointer tables. Tables and data
+        // blocks allocated here are zeroed before they are linked in.
+        ulong rest = logicalBlock - Ext2InodeLayout.DirectBlockCount, span = perBlock;
+        int depth = 1, root = Ext2InodeLayout.SingleIndirectIndex;
+        while (rest >= span)
         {
-            uint indir = inode.Block[Ext2InodeLayout.SingleIndirectIndex];
-            if (indir == 0)
-            {
-                if (!allocate)
-                {
-                    return 0;
-                }
-
-                if (!TryAllocateBlock(GroupOfInode(inode.InodeNumber), out uint nb))
-                {
-                    return 0;
-                }
-
-                indir = nb;
-                inode.Block[Ext2InodeLayout.SingleIndirectIndex] = nb;
-                inode.Blocks += BlockSize / 512;
-                byte[] zero = new byte[BlockSize];
-                WriteBlocks(indir, 1, zero);
-                isNew = true;
-            }
-
-            if (indir == 0 || indir >= BlocksCount)
+            rest -= span;
+            if (++depth > 3)
             {
                 return 0;
             }
+            root++;
+            span *= perBlock;
+        }
 
-            if (_indirBuf1 is null || _indirBuf1.Length != BlockSize)
+        uint table = inode.Block[root];
+        if (table == 0)
+        {
+            if (!allocate || !TryAllocateZeroed(inode, out table))
             {
-                _indirBuf1 = new byte[BlockSize];
+                return 0;
             }
+            inode.Block[root] = table;
+        }
 
-            byte[] blockBuf = _indirBuf1;
-            if (_indirCacheData is not null && _indirCacheBlk == indir)
+        for (int level = depth; level >= 1; level--)
+        {
+            if (table == 0 || table < FirstDataBlock || table >= BlocksCount)
             {
-                Buffer.BlockCopy(_indirCacheData, 0, blockBuf, 0, (int)BlockSize);
+                return 0;
             }
-            else
-            {
-                ReadBlocks(indir, 1, blockBuf);
-                if (_indirCacheData is null || _indirCacheData.Length != BlockSize)
-                {
-                    _indirCacheData = new byte[BlockSize];
-                }
-
-                Buffer.BlockCopy(blockBuf, 0, _indirCacheData, 0, (int)BlockSize);
-                _indirCacheBlk = indir;
-            }
-
-            uint entry = BitConverter.ToUInt32(blockBuf.AsSpan((int)logicalBlock * 4, 4));
+            span /= perBlock;
+            int index = (int)(rest / span);
+            rest %= span;
+            byte[] buffer = ReadTable(table, level == depth);
+            uint entry = BitConverter.ToUInt32(buffer.AsSpan(index * 4, 4));
             if (entry >= BlocksCount)
             {
                 return 0;
             }
-
-            if (entry == 0 && allocate)
+            if (entry == 0)
             {
-                if (!TryAllocateBlock(GroupOfInode(inode.InodeNumber), out uint nb))
+                if (!allocate || !TryAllocateZeroed(inode, out entry))
                 {
                     return 0;
                 }
-
-                BitConverter.TryWriteBytes(blockBuf.AsSpan((int)logicalBlock * 4, 4), nb);
-                WriteBlocks(indir, 1, blockBuf);
-                Buffer.BlockCopy(blockBuf, 0, _indirCacheData, 0, (int)BlockSize);
-                _indirCacheBlk = indir;
-                inode.Blocks += BlockSize / 512;
-                byte[] zero = new byte[BlockSize];
-                WriteBlocks(nb, 1, zero);
-                return nb;
+                BitConverter.TryWriteBytes(buffer.AsSpan(index * 4, 4), entry);
+                WriteTable(table, buffer);
             }
-
-            return entry;
+            table = entry;
         }
+        return table;
+    }
 
-        logicalBlock -= perBlock;
-
-        uint perBlockSq = perBlock * perBlock;
-        if (logicalBlock < perBlockSq)
+    /// <summary>A block for the inode's pointer tree or data (the allocator zeroes it), counted in i_blocks.</summary>
+    private bool TryAllocateZeroed(Ext2Inode inode, out uint block)
+    {
+        if (!TryAllocateBlock(GroupOfInode(inode.InodeNumber), out block))
         {
-            uint dindir = inode.Block[Ext2InodeLayout.DoubleIndirectIndex];
-            if (dindir == 0)
-            {
-                if (!allocate)
-                {
-                    return 0;
-                }
-
-                if (!TryAllocateBlock(GroupOfInode(inode.InodeNumber), out uint nb))
-                {
-                    return 0;
-                }
-
-                dindir = nb;
-                inode.Block[Ext2InodeLayout.DoubleIndirectIndex] = nb;
-                inode.Blocks += BlockSize / 512;
-                byte[] zero = new byte[BlockSize];
-                WriteBlocks(dindir, 1, zero);
-            }
-
-            uint firstIdx = logicalBlock / perBlock;
-            uint secondIdx = logicalBlock % perBlock;
-
-            if (dindir == 0 || dindir >= BlocksCount)
-            {
-                return 0;
-            }
-
-            if (_indirBuf1 is null || _indirBuf1.Length != BlockSize)
-            {
-                _indirBuf1 = new byte[BlockSize];
-            }
-
-            byte[] firstBuf = _indirBuf1;
-            if (_indirCacheData is not null && _indirCacheBlk == dindir)
-            {
-                Buffer.BlockCopy(_indirCacheData, 0, firstBuf, 0, (int)BlockSize);
-            }
-            else
-            {
-                ReadBlocks(dindir, 1, firstBuf);
-                if (_indirCacheData is null || _indirCacheData.Length != BlockSize)
-                {
-                    _indirCacheData = new byte[BlockSize];
-                }
-
-                Buffer.BlockCopy(firstBuf, 0, _indirCacheData, 0, (int)BlockSize);
-                _indirCacheBlk = dindir;
-            }
-
-            uint firstBlk = BitConverter.ToUInt32(firstBuf.AsSpan((int)firstIdx * 4, 4));
-            if (firstBlk == 0)
-            {
-                if (!allocate)
-                {
-                    return 0;
-                }
-
-                if (!TryAllocateBlock(GroupOfInode(inode.InodeNumber), out uint nb))
-                {
-                    return 0;
-                }
-
-                firstBlk = nb;
-                BitConverter.TryWriteBytes(firstBuf.AsSpan((int)firstIdx * 4, 4), nb);
-                WriteBlocks(dindir, 1, firstBuf);
-                Buffer.BlockCopy(firstBuf, 0, _indirCacheData, 0, (int)BlockSize);
-                _indirCacheBlk = dindir;
-                inode.Blocks += BlockSize / 512;
-                byte[] zero = new byte[BlockSize];
-                WriteBlocks(firstBlk, 1, zero);
-            }
-
-            if (_indirBuf2 is null || _indirBuf2.Length != BlockSize)
-            {
-                _indirBuf2 = new byte[BlockSize];
-            }
-
-            byte[] secondBuf = _indirBuf2;
-            if (firstBlk == 0 || firstBlk >= BlocksCount)
-            {
-                return 0;
-            }
-
-            ReadBlocks(firstBlk, 1, secondBuf);
-            uint entry = BitConverter.ToUInt32(secondBuf.AsSpan((int)secondIdx * 4, 4));
-            if (entry >= BlocksCount)
-            {
-                return 0;
-            }
-
-            if (entry == 0 && allocate)
-            {
-                if (!TryAllocateBlock(GroupOfInode(inode.InodeNumber), out uint nb))
-                {
-                    return 0;
-                }
-
-                BitConverter.TryWriteBytes(secondBuf.AsSpan((int)secondIdx * 4, 4), nb);
-                WriteBlocks(firstBlk, 1, secondBuf);
-                inode.Blocks += BlockSize / 512;
-                byte[] zero = new byte[BlockSize];
-                WriteBlocks(nb, 1, zero);
-                return nb;
-            }
-
-            return entry;
+            return false;
         }
+        inode.Blocks += BlockSize / 512;
+        return true;
+    }
 
-        // Triple indirect would address gigabytes past the double range;
-        // files that large are out of scope for this driver.
-        return 0;
+    // A table is read, updated and written back within one level of the walk, so one buffer serves
+    // every level below the root; the root table is cached (sequential I/O revisits it).
+    private byte[] ReadTable(uint block, bool root)
+    {
+        if (root)
+        {
+            _indirBuf1 ??= new byte[BlockSize];
+            if (_indirCacheData is not null && _indirCacheBlk == block)
+            {
+                Buffer.BlockCopy(_indirCacheData, 0, _indirBuf1, 0, (int)BlockSize);
+                return _indirBuf1;
+            }
+            ReadBlocks(block, 1, _indirBuf1);
+            _indirCacheData ??= new byte[BlockSize];
+            Buffer.BlockCopy(_indirBuf1, 0, _indirCacheData, 0, (int)BlockSize);
+            _indirCacheBlk = block;
+            return _indirBuf1;
+        }
+        _indirBuf2 ??= new byte[BlockSize];
+        ReadBlocks(block, 1, _indirBuf2);
+        return _indirBuf2;
+    }
+
+    private void WriteTable(uint block, byte[] buffer)
+    {
+        WriteBlocks(block, 1, buffer);
+        if (_indirCacheData is not null && _indirCacheBlk == block)
+        {
+            Buffer.BlockCopy(buffer, 0, _indirCacheData, 0, (int)BlockSize);
+        }
     }
 
     /// <summary>
@@ -1370,19 +1274,22 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         InvalidateIndirCache();
     }
 
-    /// <summary>The block mapper supports direct, single and double indirect data.</summary>
+    /// <summary>Direct, single, double and triple indirect data, bounded by 32-bit logical block numbers
+    /// and i_blocks (512-byte units) and, without the large_file feature, by 2 GiB.</summary>
     internal ulong MaxFileSize
     {
         get
         {
             ulong perBlock = BlockSize / 4;
-            return (12 + perBlock + perBlock * perBlock) * BlockSize;
+            ulong mapped = (12 + perBlock + perBlock * perBlock + perBlock * perBlock * perBlock) * BlockSize;
+            ulong limit = Math.Min(mapped, Math.Min((ulong)uint.MaxValue * BlockSize, (ulong)uint.MaxValue * 512 - 64 * BlockSize));
+            return (FeatureRoCompat & Ext2SuperblockLayout.RoCompatLargeFile) != 0 ? limit : Math.Min(limit, (1UL << 31) - 1);
         }
     }
 
     private void ReleaseInodeBlock(Ext2Inode inode, uint block)
     {
-        if (block < FirstDataBlock || block >= BlocksCount)
+        if (block == 0 || block < FirstDataBlock || block >= BlocksCount)
         {
             return;
         }
@@ -1395,7 +1302,7 @@ internal sealed class Ext2Superblock : IVfsSuperblock
     // must not stop reclamation, and empty indirect tables must themselves be freed.
     private uint PruneIndirect(Ext2Inode inode, uint block, int depth, ulong first, ulong keep)
     {
-        if (block < FirstDataBlock || block >= BlocksCount)
+        if (block == 0 || block < FirstDataBlock || block >= BlocksCount)
         {
             return 0;
         }

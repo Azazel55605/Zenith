@@ -13,15 +13,23 @@ serialized per volume with private metadata buffers; the old inode corruption fi
 has been followed by later operator-installed kernels, so it is not a pending
 0.0.13 deployment blocker.
 
-The root profile remains **512 MiB**; ext2 is not journaled. Dirty-root read-only
+New installs use an ext2 root over the rest of the disk (4 KiB blocks, up to
+2 TiB, files past 4 GiB); roots installed before 2026-11-10 keep their 512 MiB
+1 KiB profile until migrated. ext2 is not journaled. Dirty-root read-only
 checking can refuse writable startup; repairs remain host-side. Parent `..`
 traversal and some general filesystem semantics remain limited. FAT cannot persist
 Unix permissions. Trusted kernel code is not isolated by VFS policy.
 
 ## R1–R3 — Capacity, semantics and recovery
 
-- [ ] Measure a larger profile; change formatter/checker/inode/memory/mapping and
-  installer budgets together. A constant increase is not capacity support.
+- [x] Larger profile (2026-11-10, local): shared geometry; 4 KiB blocks with
+  sparse_super/large_file up to 2 TiB, inodes scaled to about 4 M at 2 TiB;
+  triple-indirect mapping; descriptor updates write one block; a checker at two
+  bits per block bounded by free memory; whole-disk installer root. Host tests
+  compare with e2fsck/debugfs; `large-ext2-smoke.py` in the release plan.
+- [ ] Existing 512 MiB roots: grow in place or migrate to the 4 KiB profile. A
+  1 KiB root's descriptor table is full at 512 MiB, so growing it relocates group
+  metadata; copying the root to a new 4 KiB partition is the simpler bridge.
 - [ ] Define crash repair/journal versus generation policy and mutable-data scope.
 - [ ] Extend traversal/symlink/link/rename/held-handle semantics only with auth and
   interruption/concurrent-I/O regression tests.

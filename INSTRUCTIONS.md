@@ -195,12 +195,13 @@ never infer current failures from old release logs or claim a menu stub is a bac
   requests. Preserve pre-erase asset validation, exact GPT root identity, versioned
   kernel layout and RAM rescue ([INSTALLATION](docs/INSTALLATION.md)). P1 scripts/data
   packages must not gain boot-file writes; kernel activation belongs to P3.
-- Storage uses ext2 for new installed roots (up to 512 MiB), recognizes older FAT
+- Storage uses ext2 for new installed roots (whole disk, up to 2 TiB), recognizes older FAT
   installations, and uses RAM-backed FAT for live
   root and RAM-backed ext2 (1777) for `/tmp`; virtual `/proc` and `/dev` are mounted at boot. Experimental
   secondary ext2 volumes require explicit `mount -t ext2` and a supported-profile
   check. `mkfs.ext2 PARTITION --yes` explicitly formats an unmounted secondary
-  partition (1..512 MiB); it refuses mounted volumes and the running root disk.
+  partition (1 MiB..2 TiB; 4 KiB blocks, sparse_super and large_file above 512 MiB,
+  the 1 KiB profile below); it refuses mounted volumes and the running root disk.
   The locally adapted driver, upstream revision and allocator fix are
   documented in `src/Core/Storage/Ext2/SOURCE.md`; its BSD notice is retained in
   LICENSE and `man licenses`. Keep complete ext2 operations under the per-volume
