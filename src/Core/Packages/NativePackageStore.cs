@@ -70,6 +70,10 @@ internal sealed class NativePackageStore : IPackageStore
     }
     public void Delete(string path)
     { Mutation(path); if (State(path) != PackagePathState.Missing) { Regular(path, SignedPackage.MaximumBytes); File.Delete(path); } }
+    /// <summary>Removes a cache file of any size (kernel archives exceed data packages): same unlinked-
+    /// ancestor, regular-file and mount checks as every other package mutation.</summary>
+    public void DeleteCached(string path)
+    { Mutation(path); Regular(path, int.MaxValue); File.Delete(path); }
     public void Sync() => SystemMounts.SyncAll();
     public ulong FreeBytes
     {

@@ -283,6 +283,23 @@ def main():
         status("pkg install --yes bad-data", "P4_RETRY_GOOD_DOWNLOAD")
         status("test ! -e /usr/share/doc/unavailable.txt", "P4_NO_PARTIAL_INSTALL")
         status("pkg verify", "P4_VERIFY")
+        # Completed transactions leave no archives; pkg clean removes archives and abandoned
+        # stages only, previews exactly that, and keeps the signed indexes.
+        cache = "/var/lib/zenith/pkg/repositories"
+        output = status("ls " + cache, "P4_CACHE_AFTER_TRANSACTIONS")
+        check(".zpk" not in output.replace("ls " + cache, ""), "completed transactions leave no cached archives")
+        planted = cache + "/" + "ab" * 32 + ".zpk"
+        status("cp " + cache + "/core.zri " + planted + "; cp " + cache + "/core.zri " + cache + "/extra.zri.incoming", "P4_CACHE_PLANT")
+        output = status("pkg clean --dry-run", "P4_CACHE_PREVIEW")
+        check("would remove " + "ab" * 32 + ".zpk" in output and "would remove extra.zri.incoming" in output, "cache preview lists archive and stage")
+        status("test -e " + planted + " && test -e " + cache + "/extra.zri.incoming", "P4_CACHE_PREVIEW_KEPT")
+        output = status("pkg clean", "P4_CACHE_CLEAN")
+        check("freed " in output, "cache cleanup reports reclaimed bytes")
+        status("test ! -e " + planted + " && test ! -e " + cache + "/extra.zri.incoming && test -e " + cache + "/core.zri", "P4_CACHE_CLEANED")
+        status("pkg clean auto off", "P4_CACHE_AUTO_OFF")
+        output = status("pkg clean auto", "P4_CACHE_AUTO_STATE")
+        check("cleanup: off" in output, "automatic cleanup can be disabled")
+        status("pkg clean auto on", "P4_CACHE_AUTO_ON")
         status(
             "cp /var/lib/zenith/pkg/repositories/core.zri /var/lib/zenith/pkg/repositories/core.zri.pkg-new",
             "P4_CACHE_STAGE",

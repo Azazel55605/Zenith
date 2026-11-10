@@ -33,27 +33,31 @@ already exist. Old 0.0.13 retry requests are superseded historical investigation
 ## PK5 — Guest cache maintenance
 
 Requested 2026-11-09 after the installed VM ran out of partition space while
-`pkg update` downloaded 0.0.48. Guest package caches have no automatic retention
-policy yet; the distributor's existing artifact cleanup is a separate system.
+`pkg update` downloaded 0.0.48. Implemented locally 2026-11-10
+([policy](../../src/Core/Packages/PackageCachePolicy.cs),
+[cache](../../src/Core/Packages/NativePackageCache.cs),
+[service](../../src/Core/Packages/NativePackageMaintenance.cs)).
 
-- [ ] Add `pkg clean`, including a dry-run/preview and bytes reclaimed. Start with
-  re-downloadable archives below `/var/lib/zenith/pkg/repositories`; define age,
-  size/free-space budgets and explicit protection for pinned offline archives.
-- [ ] Use one cleaner/policy for the CLI and a periodic system service, with
-  configurable cadence and a way to disable automatic cleanup. Keep background
-  work bounded and report failures without blocking the desktop/session.
-- [ ] Coordinate with package/boot maintenance and active downloads. Never remove
-  live staging or transaction files; reclaim abandoned staging only after proving
-  its owner is no longer active. Refuse linked/unexpected cache paths.
-- [ ] Preserve installed payloads/databases, signed repository indexes and their
-  anti-rollback generation floors, trust material, boot generations and recovery
-  state. Cache cleanup is separate from kernel-generation retention (R2).
-- [ ] Preflight download/staging space for `pkg update` and report the failing
-  filesystem, required/available bytes and cleanup guidance for out-of-space
-  failures instead of only `download write failed`.
-- [ ] Validate full-disk recovery, preview/actual cleanup agreement, simultaneous
-  downloads/updates, interrupted cleanup and reboot persistence. Confirm guest
-  behavior on an installed system before marking PK5 accepted.
+- [x] `pkg clean [--dry-run]` removes re-downloadable archives (`DIGEST.zpk`) and
+  abandoned `.incoming`/`.pkg-new` stages in `/var/lib/zenith/pkg/repositories`, and
+  reports each file and the bytes reclaimed; the preview lists exactly the same set.
+  Signed indexes (`.zri`, anti-rollback floors) stay; links, non-files and unknown
+  names are kept and reported. A linked or non-directory cache path is refused.
+- [x] One policy for the command, the cleanup after each completed `pkg update`,
+  `install`, `upgrade` and `kernel update` (their archives are installed or staged),
+  and a periodic service (two minutes after boot, then every six hours: archives older
+  than a day, stages older than an hour). `pkg clean auto on|off` persists
+  `/etc/zenith/package-cache.conf`; off disables both automatic paths.
+- [x] Every path holds the package service gate: no download, transaction, installer
+  or kernel update owns a stage while cleanup runs; a busy service defers the
+  periodic run. Installed payloads, databases, trust, boot generations (R2) and
+  transaction staging outside the cache are not touched.
+- [x] Downloads check root space first (archives plus installed payloads plus 4 MiB),
+  clean the cache automatically when that makes room, and otherwise fail with the
+  filesystem, required and available bytes and guidance.
+- [ ] Installed acceptance: a full root during `pkg update`, interrupted cleanup and
+  reboot on the operator's VM. Local: repository gate (preview/actual agreement,
+  archives gone after transactions, auto off/on) and host policy tests.
 
 ## Source and operations
 

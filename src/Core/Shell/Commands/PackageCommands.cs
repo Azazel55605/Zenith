@@ -17,7 +17,7 @@ internal static class PackageCommands
     private static int s_busy;
     internal static bool IsRunning => Volatile.Read(ref s_busy) != 0;
     public static void Register(Action<Command> add)
-    { add(new Command("pkg", "pkg mirror HTTPS_URL | refresh | update [--yes] | search [TEXT] | plan NAME... | install [--yes] NAME... | upgrade [--yes] | kernel update [--yes] | repos/list/trust/check/remove/verify/recover", "Signed online and offline package management", Run)); }
+    { add(new Command("pkg", "pkg mirror HTTPS_URL | refresh | update [--yes] | search [TEXT] | plan NAME... | install [--yes] NAME... | upgrade [--yes] | kernel update [--yes] | clean [--dry-run] | clean auto [on|off] | repos/list/trust/check/remove/verify/recover", "Signed online and offline package management", Run)); }
     private static int Run(CommandContext c)
     {
         lock (Installer.MaintenanceGate)
@@ -27,6 +27,17 @@ internal static class PackageCommands
         }
         try { int result = Execute(c); Interlocked.Exchange(ref s_busy, 0); return result; }
         catch { Interlocked.Exchange(ref s_busy, 0); throw; }
+    }
+    /// <summary>Runs <paramref name="work"/> as the package service when nothing else holds it; false when busy.</summary>
+    internal static bool TryExclusive(Action work)
+    {
+        lock (Installer.MaintenanceGate)
+        {
+            if (Installer.IsRunning || Zenith.Core.Boot.NativeKernelUpdates.IsRunning || Zenith.Core.Processes.NativeProcess.IsRunning || Interlocked.CompareExchange(ref s_busy, 1, 0) != 0)
+            { return false; }
+        }
+        try { work(); return true; }
+        finally { Interlocked.Exchange(ref s_busy, 0); }
     }
     private static void Mutable()
     {
@@ -40,6 +51,7 @@ internal static class PackageCommands
         if (c.Args.Length > 0 && c.Args[0] == "kernel") { return Zenith.Core.Boot.NativeKernelUpdates.Package(c); }
         var store = new NativePackageStore(); var manager = new PackageManager(store);
         if (c.Args.Length > 0 && c.Args[0] == "update") { Mutable(); return UpdateAll(c, manager); }
+        if (c.Args.Length > 0 && c.Args[0] == "clean") { return Clean(c); }
         if (c.Args.Length == 2 && c.Args[0] == "mirror")
         { Mutable(); NativeRepositories.Mirror(c.Args[1]); c.WriteLine("core/extra mirror saved; run pkg refresh"); return 0; }
         if (c.Args.Length == 1 && c.Args[0] == "refresh")
@@ -126,6 +138,27 @@ internal static class PackageCommands
         foreach (string blocker in plan.Blockers) { c.WriteLine("blocked: " + blocker); }
         c.WriteLine("dry-run only; integrity hashes are not signatures; no files changed"); return plan.Applicable ? 0 : 1;
     }
+    /// <summary>pkg clean [--dry-run] | pkg clean auto [on|off]: re-downloadable archives and abandoned
+    /// stages only; signed indexes, installed files and boot generations stay.</summary>
+    private static int Clean(CommandContext c)
+    {
+        if (c.Args.Length >= 2 && c.Args[1] == "auto")
+        {
+            if (c.Args.Length == 2) { c.WriteLine("automatic package cache cleanup: " + (NativePackageCache.Automatic ? "on" : "off")); return 0; }
+            if (c.Args.Length != 3 || c.Args[2] is not ("on" or "off")) { return c.Fail("pkg clean auto [on|off]"); }
+            Mutable(); NativePackageCache.SetAutomatic(c.Args[2] == "on");
+            c.WriteLine("automatic package cache cleanup: " + c.Args[2]); return 0;
+        }
+        bool dry = c.Args.Length == 2 && c.Args[1] == "--dry-run";
+        if (c.Args.Length != (dry ? 2 : 1)) { return c.Fail("pkg clean [--dry-run] | pkg clean auto [on|off]"); }
+        if (!dry) { Mutable(); }
+        var plan = NativePackageCache.Clean(PackageCacheMode.All, dry, out int failed);
+        foreach (var entry in plan.Remove) { c.WriteLine((dry ? "would remove " : "removed ") + entry.Name + " " + PackageCachePolicy.Human(entry.Bytes)); }
+        foreach (var entry in plan.Kept) { c.WriteLine("kept " + entry.Name + (entry.Symlink ? " (link)" : entry.RegularFile ? " (unknown)" : " (not a file)")); }
+        c.WriteLine((dry ? "would free " : "freed ") + PackageCachePolicy.Human(plan.Bytes) + " in " + (plan.Remove.Count - failed) + " files"
+            + (failed > 0 ? "; " + failed + " could not be removed (see dmesg)" : ""));
+        return failed == 0 ? 0 : 1;
+    }
     private static bool Confirm(CommandContext c, bool yes)
     {
         if (yes) { return true; }
@@ -153,13 +186,15 @@ internal static class PackageCommands
         if (c.Args[0] == "plan") { c.WriteLine("plan only; no downloads or installed changes"); return 0; }
         if (!Confirm(c, yes)) { c.WriteLine("package operation cancelled"); return 0; }
         _ = NativeRepositories.Catalog();
+        NativePackageCache.EnsureSpace(plan, c);
         var packages = new List<SignedPackage>();
         foreach (var entry in plan) { c.Shell.ThrowIfCancelled(); packages.Add(NativeRepositories.Data(entry, c)); }
         _ = NativeRepositories.Catalog();
         var progress = new CommandProgress(c.Out, c.IsTerminal);
         try { manager.Install(packages, c.Shell.ThrowIfCancelled, progress.Report); }
         catch { progress.Finish(); throw; }
-        progress.Finish(); c.WriteLine("package transaction committed: " + packages.Count); return 0;
+        progress.Finish(); c.WriteLine("package transaction committed: " + packages.Count);
+        NativePackageCache.AfterTransaction(c); return 0;
     }
     private static int KernelUpdate(CommandContext c)
     {
@@ -172,11 +207,14 @@ internal static class PackageCommands
         c.WriteLine("Stage zenith-kernel " + entry.Version + "; reboot and boot confirm required");
         if (!Confirm(c, yes)) { c.WriteLine("kernel update cancelled"); return 0; }
         _ = NativeRepositories.Catalog();
+        NativePackageCache.EnsureSpace(new[] { entry }, c);
         string path = NativeRepositories.Download(entry, c);
         _ = NativeRepositories.Catalog();
         int result = Zenith.Core.Boot.NativeKernelUpdates.Package(new CommandContext(c.Shell, c.Name,
             new[] { "kernel", "install", path }, c.Input, c.Out, c.Err, c.IsTerminal));
-        c.WriteLine("Kernel staged. Run reboot, then boot confirm after testing."); return result;
+        c.WriteLine("Kernel staged. Run reboot, then boot confirm after testing.");
+        if (result == 0) { NativePackageCache.AfterTransaction(c); }
+        return result;
     }
 
     private static int UpdateAll(CommandContext c, PackageManager manager)
@@ -192,6 +230,7 @@ internal static class PackageCommands
         foreach (var entry in plan.Data) { c.WriteLine("Update " + entry.Name + " " + entry.Version + " [" + entry.Repository + "] bytes=" + entry.Bytes); }
         if (plan.Kernel is not null) { c.WriteLine("Stage zenith-kernel " + plan.Kernel.Version + "; reboot and boot confirm required"); }
         if (!Confirm(c, yes)) { c.WriteLine("system update cancelled"); return 0; }
+        NativePackageCache.EnsureSpace(plan.Kernel is null ? plan.Data : plan.Data.Append(plan.Kernel), c);
         var packages = new List<SignedPackage>();
         foreach (var entry in plan.Data) { c.Shell.ThrowIfCancelled(); packages.Add(NativeRepositories.Data(entry, c)); }
         string? kernelPath = plan.Kernel is null ? null : NativeRepositories.Download(plan.Kernel, c);
@@ -227,6 +266,7 @@ internal static class PackageCommands
             c.WriteLine("System updated; new kernel activates after reboot. Run boot confirm after testing.");
         }
         else { c.WriteLine("system package updates complete; running kernel unchanged"); }
+        NativePackageCache.AfterTransaction(c);
         return 0;
     }
 }

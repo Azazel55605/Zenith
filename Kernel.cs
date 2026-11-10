@@ -74,6 +74,7 @@ public class Kernel : Sys.Kernel
 
             Zenith.Core.Multiprocessing.ManagedCpuJobs.PumpRequests();
             Zenith.Core.Network.NetworkService.Tick();
+            Zenith.Core.Packages.PackageMaintenance.Tick();
             if (!SessionDisplay.ServeFarewell()) { SessionRuntime.Tick(); }
         }
         catch (Exception e)
