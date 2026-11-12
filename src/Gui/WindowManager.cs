@@ -450,6 +450,27 @@ internal sealed class WindowManager
     }
 
     /// <summary>Which edges a press at (x, y) would resize; none inside the title buttons or for fixed windows.</summary>
+    /// <summary>The pointer's shape at (x, y): the resize direction on an edge or while resizing,
+    /// Move while a window is dragged, a text beam over text content, else the arrow.</summary>
+    public Zenith.Gui.Graphics.CursorShape CursorAt(int x, int y)
+    {
+        if (_dragging is not null) { return _edges == Edges.None ? Zenith.Gui.Graphics.CursorShape.Move : ShapeOf(_edges); }
+        if (_contentDrag is { TextContent: true }) { return Zenith.Gui.Graphics.CursorShape.Text; }
+        Window? hit = HitTest(x, y, true);
+        if (hit is null) { return Zenith.Gui.Graphics.CursorShape.Default; }
+        Edges edges = EdgesAt(hit, x, y);
+        if (edges != Edges.None) { return ShapeOf(edges); }
+        return hit.TextContent && hit.Content.Contains(x, y) ? Zenith.Gui.Graphics.CursorShape.Text : Zenith.Gui.Graphics.CursorShape.Default;
+    }
+
+    private static Zenith.Gui.Graphics.CursorShape ShapeOf(Edges edges) => edges switch
+    {
+        Edges.Left or Edges.Right => Zenith.Gui.Graphics.CursorShape.EwResize,
+        Edges.Top or Edges.Bottom => Zenith.Gui.Graphics.CursorShape.NsResize,
+        Edges.Left | Edges.Top or Edges.Right | Edges.Bottom => Zenith.Gui.Graphics.CursorShape.NwseResize,
+        _ => Zenith.Gui.Graphics.CursorShape.NeswResize,
+    };
+
     private static Edges EdgesAt(Window w, int x, int y)
     {
         if (!w.CanResize || w.IsMaximized || w.IsFullscreen)

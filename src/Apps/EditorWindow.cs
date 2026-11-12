@@ -17,6 +17,7 @@ namespace Zenith.Apps;
 /// </summary>
 internal sealed class EditorWindow : Window
 {
+    public override bool TextContent => true;
     private const int FontSize = 14;
     private const int Padding = 16;
     private const int StatusHeight = 36;

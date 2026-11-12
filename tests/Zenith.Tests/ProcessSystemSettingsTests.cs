@@ -43,16 +43,21 @@ public class ProcessSystemSettingsTests
         Assert.Equal(0U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(3748)));
         Assert.Equal("Zenith (dynamic)",Encoding.UTF8.GetString(data,3752,16));
         Assert.Equal(2U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(4040)));Assert.Equal((byte)'S',data[4048+24]);
-        byte[] request=new byte[32];request[0]=2;request[4]=6;request[8]=1;request[16]=2;    // wallpaper: Midnight
+        byte[] request=new byte[32];request[0]=2;request[4]=6;request[8]=1;request[16]=2;    // wallpaper: Aurora
+        Assert.Equal("aurora",SettingsService.WallpaperNames[2]);Assert.Equal(12,SettingsService.WallpaperNames.Length);
         Assert.Equal(0,ProcessSystemSettings.Save(service,request,true));Assert.Equal(2U,service.Current.Wallpaper);
         request[4]=7;request[8]=2;request[16]=1;                                             // launcher: palette
         Assert.Equal(0,ProcessSystemSettings.Save(service,request,true));Assert.Equal(1U,service.Current.Launcher);
         request[8]=3;request[16]=2;Assert.Equal(-22,ProcessSystemSettings.Save(service,request,true));
-        request[4]=8;request[16]=0;Assert.Equal(-22,ProcessSystemSettings.Save(service,request,true));
+        request[4]=9;request[16]=0;Assert.Equal(-22,ProcessSystemSettings.Save(service,request,true));
         data=ProcessSystemSettings.Snapshot(service,true);
         Assert.Equal(2U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(3748)));Assert.Equal(1U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(4044)));
+        Assert.Equal(2U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(112)));Assert.Equal(0U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(116)));
+        request[4]=8;request[8]=3;request[16]=1;                                             // cursor set: Dark
+        Assert.Equal(0,ProcessSystemSettings.Save(service,request,true));Assert.Equal(1U,service.Current.Cursor);
+        Assert.Equal(1U,BinaryPrimitives.ReadUInt32LittleEndian(ProcessSystemSettings.Snapshot(service,true).AsSpan(116)));
         var reboot=new SettingsService(store,_=>{},_=>{},_=>true);Assert.Empty(reboot.Load());
-        Assert.Equal(2U,reboot.Current.Wallpaper);Assert.Equal(1U,reboot.Current.Launcher);
+        Assert.Equal(2U,reboot.Current.Wallpaper);Assert.Equal(1U,reboot.Current.Launcher);Assert.Equal(1U,reboot.Current.Cursor);
         store.Replace(SettingsService.WallpaperPath,"WALLPAPER=lava\n");
         var broken=new SettingsService(store,_=>{},_=>{},_=>true);Assert.Single(broken.Load());Assert.Equal(0U,broken.Current.Wallpaper);
         using var user=CredentialContext.Enter(new Credentials(1000,1000));

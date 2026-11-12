@@ -1,6 +1,6 @@
 #include "bindings.h"
 static int same(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return *a==*b;}
-static int field(int kind){return kind==BIND_KEYBOARD?1:kind==BIND_TIMEZONE?2:kind==BIND_SESSION?3:kind==BIND_ANIMATIONS?4:kind==BIND_TASKBAR?5:kind==BIND_WALLPAPER?6:kind==BIND_LAUNCHER?7:0;}
+static int field(int kind){return kind==BIND_KEYBOARD?1:kind==BIND_TIMEZONE?2:kind==BIND_SESSION?3:kind==BIND_ANIMATIONS?4:kind==BIND_TASKBAR?5:kind==BIND_WALLPAPER?6:kind==BIND_LAUNCHER?7:kind==BIND_CURSOR?8:0;}
 static int bounded_name(const char *s,int capacity){
     for(int i=0;i<capacity;i++){if(!s[i])return i>0;if((unsigned char)s[i]<32||(unsigned char)s[i]>126)return 0;}
     return 0;
@@ -20,11 +20,12 @@ static int valid(const struct zenith_system_settings *s){
         if(s->wallpaper_count>12||(s->wallpaper_count&&s->wallpaper>=s->wallpaper_count))return 0;
         for(unsigned int i=0;i<s->wallpaper_count;i++)if(!bounded_name(s->wallpapers[i],24))return 0;
         if(s->launcher_count>2||(s->launcher_count&&s->launcher>=s->launcher_count))return 0;
+        if(s->cursor_count>2||(s->cursor_count&&s->cursor>=s->cursor_count))return 0;
         for(unsigned int i=0;i<s->launcher_count;i++)if(!bounded_name(s->launchers[i],24))return 0;
     }
     return 1;
 }
-static unsigned int saved(const struct zenith_system_settings *s,int f){return f==1?s->keyboard:f==2?s->zone:f==3?s->session:f==4?s->animation:f==5?s->taskbar:f==6?s->wallpaper:s->launcher;}
+static unsigned int saved(const struct zenith_system_settings *s,int f){return f==1?s->keyboard:f==2?s->zone:f==3?s->session:f==4?s->animation:f==5?s->taskbar:f==6?s->wallpaper:f==7?s->launcher:s->cursor;}
 void binding_init(struct meridian_bindings *b,struct settings_app *colors,long (*read)(struct zenith_system_settings *),
                   long (*save)(unsigned int,unsigned int,unsigned long),long (*dirty)(int)){
     *b=(struct meridian_bindings){0};b->colors=colors;b->read=read;b->save=save;b->dirty=dirty;binding_refresh(b);
@@ -32,7 +33,7 @@ void binding_init(struct meridian_bindings *b,struct settings_app *colors,long (
 int binding_of(const char *id){
     return same(id,"display.configuration")?BIND_DISPLAY:same(id,"style.colors")?BIND_COLORS:same(id,"input.keyboard")?BIND_KEYBOARD:same(id,"locale.time")?BIND_TIMEZONE:
         same(id,"system.session")?BIND_SESSION:same(id,"style.animations")?BIND_ANIMATIONS:same(id,"windows.taskbar")?BIND_TASKBAR:
-        same(id,"style.wallpaper")?BIND_WALLPAPER:same(id,"workspace.search")?BIND_LAUNCHER:BIND_NONE;
+        same(id,"style.wallpaper")?BIND_WALLPAPER:same(id,"workspace.search")?BIND_LAUNCHER:same(id,"style.cursors")?BIND_CURSOR:BIND_NONE;
 }
 static int preference_changed(const struct meridian_bindings *b,int f){return b->ready&&b->choice[f]!=saved(&b->preferences,f);}
 static char *digits(char *s,unsigned int v){char d[10];int n=0;do{d[n++]=(char)('0'+v%10);v/=10;}while(v);while(n)*s++=d[--n];return s;}
@@ -73,9 +74,9 @@ void binding_refresh(struct meridian_bindings *b){
     if(!b->read)return;
     struct zenith_system_settings s;
     if(b->read(&s)||!valid(&s)){b->ready=0;b->message="Settings service unavailable; edits kept.";return;}
-    int drafts=0;for(int f=1;f<=7;f++)drafts|=preference_changed(b,f);
+    int drafts=0;for(int f=1;f<=8;f++)drafts|=preference_changed(b,f);
     if(drafts&&s.revision!=b->revision)b->message="Changed elsewhere. Reset to reload.";
-    for(int f=1;f<=7;f++)if(!preference_changed(b,f))b->choice[f]=saved(&s,f);
+    for(int f=1;f<=8;f++)if(!preference_changed(b,f))b->choice[f]=saved(&s,f);
     b->preferences=s;b->ready=1;
     if(!drafts){b->revision=s.revision;if(b->message&&same(b->message,"Settings service unavailable; edits kept."))b->message=0;}
 }
@@ -85,7 +86,7 @@ int binding_changed(const struct meridian_bindings *b,int kind){
     int f=field(kind);return f&&preference_changed(b,f);
 }
 int binding_any_changed(const struct meridian_bindings *b){
-    for(int k=BIND_COLORS;k<=BIND_LAUNCHER;k++)if(binding_changed(b,k))return 1;
+    for(int k=BIND_COLORS;k<=BIND_CURSOR;k++)if(binding_changed(b,k))return 1;
     return 0;
 }
 int binding_has_defaults(int kind){return kind==BIND_COLORS;}
@@ -121,13 +122,13 @@ int binding_choice_count(const struct meridian_bindings *b,int kind){
     int f=field(kind);if(!f||!b->ready)return 0;
     if(f>=3&&b->preferences.version!=2)return 0;
     return (int)(f==1?b->preferences.keyboard_count:f==2?b->preferences.zone_count:f==3?b->preferences.session_count:f==4?b->preferences.animation_count:
-        f==5?b->preferences.taskbar_count:f==6?b->preferences.wallpaper_count:b->preferences.launcher_count);
+        f==5?b->preferences.taskbar_count:f==6?b->preferences.wallpaper_count:f==7?b->preferences.launcher_count:b->preferences.cursor_count);
 }
 const char *binding_choice_name(const struct meridian_bindings *b,int kind,unsigned int i){
     if(kind==BIND_DISPLAY)return i<b->resolution_count?b->resolution_labels[i]:"";
     int f=field(kind);if(i>=(unsigned int)binding_choice_count(b,kind))return "";
     return f==1?b->preferences.keyboards[i]:f==2?b->preferences.zones[i]:f==3?b->preferences.sessions[i]:f==4?b->preferences.animations[i]:
-        f==5?b->preferences.taskbars[i]:f==6?b->preferences.wallpapers[i]:b->preferences.launchers[i];
+        f==5?b->preferences.taskbars[i]:f==6?b->preferences.wallpapers[i]:f==7?b->preferences.launchers[i]:i==0?"Meridian Light":"Meridian Dark";
 }
 unsigned int binding_choice(const struct meridian_bindings *b,int kind){if(kind==BIND_DISPLAY)return resolution_of(b,b->display_choice);int f=field(kind);return f?b->choice[f]:0;}
 int binding_writable(const struct meridian_bindings *b,int kind){
@@ -176,7 +177,7 @@ long binding_apply(struct meridian_bindings *b,int kind){
     if(r){b->message=r==-11?"Changed elsewhere. Reset to reload.":r==-13?"Administrator permission required.":"Save failed; edits kept.";return r;}
     b->message=f==3?"Default session saved for next boot.":"System default saved and applied.";
     struct zenith_system_settings s;
-    if(b->read&&!b->read(&s)&&valid(&s)){b->preferences.revision=s.revision;b->preferences.keyboard=s.keyboard;b->preferences.zone=s.zone;b->preferences.session=s.session;b->preferences.animation=s.animation;b->preferences.taskbar=s.taskbar;b->preferences.wallpaper=s.wallpaper;b->preferences.launcher=s.launcher;}
+    if(b->read&&!b->read(&s)&&valid(&s)){b->preferences.revision=s.revision;b->preferences.keyboard=s.keyboard;b->preferences.zone=s.zone;b->preferences.session=s.session;b->preferences.animation=s.animation;b->preferences.taskbar=s.taskbar;b->preferences.wallpaper=s.wallpaper;b->preferences.launcher=s.launcher;b->preferences.cursor=s.cursor;}
     const char *message=b->message;binding_refresh(b);b->message=message;mark(b);return 0;
 }
 void binding_reset(struct meridian_bindings *b,int kind){

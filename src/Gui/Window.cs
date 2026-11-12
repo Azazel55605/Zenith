@@ -43,6 +43,8 @@ internal abstract class Window
 
     /// <summary>Whether the user may resize and maximize the window. Fixed-layout windows say no.</summary>
     public virtual bool CanResize => true;
+    /// <summary>The content is text the pointer edits or selects (the pointer shows a text beam there).</summary>
+    public virtual bool TextContent => false;
     public virtual (int Width, int Height) MaximumSize => (int.MaxValue, int.MaxValue);
     public virtual bool AllowMaterials => true;
     public virtual bool AllowBackgroundMaterials => false;

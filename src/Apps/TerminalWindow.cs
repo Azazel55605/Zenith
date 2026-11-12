@@ -30,6 +30,7 @@ namespace Zenith.Apps;
 /// </summary>
 internal sealed class TerminalWindow : Window
 {
+    public override bool TextContent => true;
     private const int FontSize = 14;
     private const int Padding = 10;
 

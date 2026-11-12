@@ -161,6 +161,7 @@ internal sealed class Desktop
             string user = Accounts.Service?.Name(CredentialContext.Current.Uid) ?? "user";
             string cwd = CredentialContext.Current.IsRoot ? "/root" : "/home/" + user;
             if (!_apps.Launch(native, args.ToArray(), cwd)) { Windows.Open(new AppLaunchNotice("Too many applications are open. Close one and try again.")); }
+            else { _launchingUntil = FrameStats.Now + 4 * System.Diagnostics.Stopwatch.Frequency; _launchingWindows = Windows.Windows.Count; }
         }
         else { Windows.Open(app.Create(arguments is { Length: 1 } ? arguments[0] : null)); }
         return true;
@@ -334,6 +335,9 @@ internal sealed class Desktop
 
             _hoverKey = hover;
         }
+
+        CursorShape shape = PointerShape();
+        if (shape != Cursor.Shape) { Cursor.Shape = shape; _cursorDirty = true; }
 
         // The recompose at the end of an animation catches up on everything else.
         if (interrupts) { _motion.Interrupt(); }
@@ -922,7 +926,18 @@ internal sealed class Desktop
     }
     private int WidthForMessage() => 520;
 
-    private long _sceneKey, _wallpaperKey;
+    private long _sceneKey, _wallpaperKey, _launchingUntil;
+    private int _launchingWindows;
+
+    /// <summary>The pointer's shape now: Working while an app starts (until its window opens), the
+    /// arrow over Prism and the taskbar, else what the window manager says.</summary>
+    private CursorShape PointerShape()
+    {
+        if (_launchingUntil != 0 && (FrameStats.Now > _launchingUntil || Windows.Windows.Count > _launchingWindows)) { _launchingUntil = 0; }
+        if (_launchingUntil != 0) { return CursorShape.Progress; }
+        if (_prism.IsOpen || (_taskbar.Shown && _taskbar.Bounds.Contains(_input.X, _input.Y))) { return CursorShape.Default; }
+        return Windows.CursorAt(_input.X, _input.Y);
+    }
     private bool AppearanceStillValid() => _lowerValid
         && _lowerMaterials == MaterialResources.Policy.Requested && _lowerTranslucency == MaterialResources.Policy.Translucency
         && _lowerPanel == Theme.Panel && _lowerBackground == Theme.WindowBackground && _lowerBorder == Theme.WindowBorder

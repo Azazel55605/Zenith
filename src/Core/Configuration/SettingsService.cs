@@ -15,7 +15,7 @@ internal interface ISettingsStore
 }
 
 internal sealed record SystemSettings(string Keyboard, string TimeZone, SessionMode DefaultSession, uint Animation = 0, uint Taskbar = 0,
-    uint Wallpaper = 0, uint Launcher = 0);
+    uint Wallpaper = 0, uint Launcher = 0, uint Cursor = 0);
 
 /// <summary>Shared validated settings operations. Local /etc state is administrator-owned.</summary>
 internal sealed class SettingsService
@@ -36,10 +36,13 @@ internal sealed class SettingsService
     public const string WallpaperPath = "/etc/zenith/wallpaper.conf";
     /// <summary>Dynamic wallpapers are formulas the compositor draws for the current mode and accent;
     /// solid ones are a plain fill ("solid-accent" follows the accent). At most 12 (ABI).</summary>
-    public static readonly string[] WallpaperNames = { "zenith", "solid-graphite", "solid-midnight", "solid-forest", "solid-plum",
-        "solid-cream", "solid-mist", "solid-sand", "solid-accent" };
-    public static readonly string[] WallpaperLabels = { "Zenith (dynamic)", "Graphite", "Midnight", "Forest", "Plum",
-        "Cream", "Mist", "Sand", "Accent color" };
+    public static readonly string[] WallpaperNames = { "zenith", "dunes", "aurora", "contour", "solid-graphite", "solid-midnight",
+        "solid-forest", "solid-plum", "solid-cream", "solid-mist", "solid-sand", "solid-accent" };
+    public static readonly string[] WallpaperLabels = { "Zenith (dynamic)", "Dunes (dynamic)", "Aurora (dynamic)", "Contour (dynamic)",
+        "Graphite", "Midnight", "Forest", "Plum", "Cream", "Mist", "Sand", "Accent color" };
+    public const string CursorPath = "/etc/zenith/cursor.conf";
+    /// <summary>The Meridian cursor set's variants (docs/design/cursor-concept.svg).</summary>
+    public static readonly string[] CursorNames = { "light", "dark" };
     public const string LauncherPath = "/etc/zenith/launcher.conf";
     public static readonly string[] LauncherNames = { "menu", "palette" };
     public static readonly string[] LauncherLabels = { "Start menu", "Search palette" };
@@ -61,7 +64,7 @@ internal sealed class SettingsService
         lock (_gate)
         {
             var errors = new List<string>();
-            string keymap = "us", zone = "UTC"; SessionMode session = SessionMode.Desktop; uint animation = 0, taskbar = 0, wallpaper = 0, launcher = 0;
+            string keymap = "us", zone = "UTC"; SessionMode session = SessionMode.Desktop; uint animation = 0, taskbar = 0, wallpaper = 0, launcher = 0, cursor = 0;
             try { var fields = Fields(_store.Read(KeyboardPath)); if (fields.TryGetValue("KEYMAP", out string? value)) { keymap = KeyboardLayoutCatalog.Normalize(value) ?? throw new FormatException("unknown KEYMAP"); } }
             catch (Exception e) { errors.Add(KeyboardPath + ": " + e.Message + "; using us"); }
             try { string value = Bound(_store.Read(TimeZonePath) ?? "UTC").Trim(); if (value.Length > 0) { zone = NormalizeZone(value); } }
@@ -76,8 +79,10 @@ internal sealed class SettingsService
             catch (Exception e) { errors.Add(WallpaperPath + ": " + e.Message + "; using zenith"); }
             try { launcher = ReadChoice(_store.Read(LauncherPath), "LAUNCHER", LauncherNames); }
             catch (Exception e) { errors.Add(LauncherPath + ": " + e.Message + "; using menu"); }
+            try { cursor = ReadChoice(_store.Read(CursorPath), "CURSOR", CursorNames); }
+            catch (Exception e) { errors.Add(CursorPath + ": " + e.Message + "; using light"); }
             _keyboard(keymap); _zone(zone);
-            Current = new(keymap, zone, session, animation, taskbar, wallpaper, launcher);
+            Current = new(keymap, zone, session, animation, taskbar, wallpaper, launcher, cursor);
             return errors;
         }
     }
@@ -147,6 +152,7 @@ internal sealed class SettingsService
     }
     public void SetWallpaper(string name) => SetChoice(WallpaperPath, "WALLPAPER", WallpaperNames, name, c => Current = Current with { Wallpaper = c });
     public void SetLauncher(string name) => SetChoice(LauncherPath, "LAUNCHER", LauncherNames, name, c => Current = Current with { Launcher = c });
+    public void SetCursor(string name) => SetChoice(CursorPath, "CURSOR", CursorNames, name, c => Current = Current with { Cursor = c });
     private void SetChoice(string path, string key, string[] names, string name, Action<uint> apply)
     {
         RequireRoot();
@@ -174,8 +180,8 @@ internal sealed class SettingsService
     public int SaveChoice(uint field, uint choice, ulong revision)
     {
         if (!CredentialContext.Current.IsRoot) { return -13; }
-        if (field is < 1 or > 7 || (field == 1 ? choice >= KeyboardLayoutCatalog.Names.Length : field == 2 ? choice >= TimeZones.All.Count : field == 3 ? choice >= SessionChoices.Count
-            : field == 4 ? choice >= AnimationNames.Length : field == 5 ? choice >= TaskbarNames.Length : field == 6 ? choice >= WallpaperNames.Length : choice >= LauncherNames.Length)) { return -22; }
+        if (field is < 1 or > 8 || (field == 1 ? choice >= KeyboardLayoutCatalog.Names.Length : field == 2 ? choice >= TimeZones.All.Count : field == 3 ? choice >= SessionChoices.Count
+            : field == 4 ? choice >= AnimationNames.Length : field == 5 ? choice >= TaskbarNames.Length : field == 6 ? choice >= WallpaperNames.Length : field == 7 ? choice >= LauncherNames.Length : choice >= CursorNames.Length)) { return -22; }
         lock (_gate)
         {
             if (revision != _revision) { return -11; }
@@ -188,7 +194,8 @@ internal sealed class SettingsService
                 else if(field == 4) { SetAnimation(AnimationNames[choice]); }
                 else if(field == 5) { SetTaskbar(TaskbarNames[choice]); }
                 else if(field == 6) { SetWallpaper(WallpaperNames[choice]); }
-                else { SetLauncher(LauncherNames[choice]); }
+                else if(field == 7) { SetLauncher(LauncherNames[choice]); }
+                else { SetCursor(CursorNames[choice]); }
                 return 0;
             }
             catch { return -5; }

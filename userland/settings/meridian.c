@@ -112,6 +112,7 @@ static const char *wip_note(const struct meridian *a,int kind){
     if(kind==BIND_TASKBAR)return "F11 makes the focused window fullscreen; the bar ducks and returns at the bottom screen edge. Work in progress: position and pinned applications.";
     if(kind==BIND_ANIMATIONS)return "Work in progress: per-effect controls, peek and desktop transitions.";
     if(kind==BIND_WALLPAPER)return "Dynamic wallpapers follow light/dark mode and the accent color at once. Work in progress: images, more dynamic designs and scheduling.";
+    if(kind==BIND_CURSOR)return "The Meridian set: Light has a white body, Dark a dark one. Text, links, window edges and busy apps get their own shapes. Work in progress: cursor size and more sets.";
     if(kind==BIND_LAUNCHER)return "Prism: Meta or Alt+Space always opens the search palette. Work in progress: file indexing, more providers, pinned applications and a custom shortcut.";
     if(a->page==0)return "Work in progress: scheduled mode and persistent history.";
     if(a->page==MERIDIAN_ABOUT)return "Work in progress: hardware inventory is planned.";
@@ -178,7 +179,7 @@ static void colors_form(struct meridian *a,struct zui *u,struct zui_form *f){
 static void preference_form(struct meridian *a,struct zui *u,struct zui_form *f,int kind){
     const struct meridian_bindings *b=&a->bindings;int writable=binding_writable(b,kind),count=binding_choice_count(b,kind);
     zui_form_section(u,f,"System default");
-    struct zui_rect r=zui_form_row(u,f,kind==BIND_KEYBOARD?"Keyboard layout":kind==BIND_TIMEZONE?"Time zone":kind==BIND_ANIMATIONS?"Window animations":kind==BIND_TASKBAR?"Taskbar":kind==BIND_WALLPAPER?"Wallpaper":kind==BIND_LAUNCHER?"Taskbar button opens":"Login session",
+    struct zui_rect r=zui_form_row(u,f,kind==BIND_KEYBOARD?"Keyboard layout":kind==BIND_TIMEZONE?"Time zone":kind==BIND_ANIMATIONS?"Window animations":kind==BIND_TASKBAR?"Taskbar":kind==BIND_WALLPAPER?"Wallpaper":kind==BIND_LAUNCHER?"Taskbar button opens":kind==BIND_CURSOR?"Cursor set":"Login session",
         writable?"Administrators change this for all users.":"Read only: sign in as an administrator.",280,36);
     if(count){
         if(!a->combo.open)a->combo.value=(int)binding_choice(b,kind);
@@ -191,7 +192,7 @@ static void preference_form(struct meridian *a,struct zui *u,struct zui_form *f,
     }else text(u,r.x,r.y+10,"Unavailable from the settings service.",&zui_body,u->theme.secondary);
     status(u,f,b->message?b->message:binding_changed(b,kind)?"Unapplied change.":kind==BIND_KEYBOARD?"Applies to keyboard input across sessions immediately.":
         kind==BIND_TIMEZONE?"Changes local time display; the UTC clock is unchanged.":kind==BIND_ANIMATIONS?"Applies to the next window change. Off keeps every change immediate.":kind==BIND_TASKBAR?"Applies immediately. Dock when maximized removes the gap around the bar for a maximized window.":
-        kind==BIND_WALLPAPER?"Applies immediately, here and on the login screen.":kind==BIND_LAUNCHER?"Applies immediately.":"Applies on next boot; the running session is unchanged.");
+        kind==BIND_WALLPAPER?"Applies immediately, here and on the login screen.":kind==BIND_LAUNCHER||kind==BIND_CURSOR?"Applies immediately.":"Applies on next boot; the running session is unchanged.");
 }
 static void display_form(struct meridian *a,struct zui *u,struct zui_form *f){
     struct meridian_bindings *b=&a->bindings;

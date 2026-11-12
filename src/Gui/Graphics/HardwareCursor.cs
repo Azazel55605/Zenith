@@ -31,7 +31,8 @@ internal static class HardwareCursor
 #endif
     private static ulong s_kind, s_moves;
     private static bool s_tried, s_shown;
-    private static int s_x = -1, s_y = -1, s_percent;
+    private static int s_x = -1, s_y = -1, s_percent, s_variant;
+    private static CursorShape s_shape;
 
     /// <summary>The device draws the pointer: frames leave it out.</summary>
     public static bool Active => Ensure();
@@ -43,6 +44,13 @@ internal static class HardwareCursor
     public static bool Show()
     {
         if (!Ensure()) { return false; }
+        if (s_shape != Cursor.Shape || s_variant != Cursor.Variant)
+        {
+            // A new shape or set: define the device's image again at the same scale.
+            s_kind = DefineImage(s_percent);
+            if (s_kind == 0) { return false; }
+            s_shown = false;
+        }
         int x = Input.PhysicalX, y = Input.PhysicalY;
         if (s_shown && x == s_x && y == s_y) { return true; }
         if (!Place(x, y, true)) { s_kind = 0; return false; }
@@ -89,12 +97,15 @@ internal static class HardwareCursor
         if (!screen.Name.StartsWith("VMWare", StringComparison.OrdinalIgnoreCase)) { return 0; }
         var hhdm = Cosmos.Kernel.Boot.Limine.Limine.HHDM.Response;
         if (hhdm == null) { return 0; }
-        uint[] image = PointerImage.Render(percent, out int w, out int h);
+        // The Meridian set at the size nearest above 24 logical pixels at this scale.
+        s_shape = Cursor.Shape; s_variant = Cursor.Variant;
+        int w = CursorImages.SizeFor(Cursor.Size * Math.Clamp(percent, 100, 300) / 100), h = w;
+        uint[] image = CursorImages.Get(s_variant, s_shape, w, out int hotX, out int hotY);
         uint[] scratch = new uint[(w + 31) / 32 * h + w * h];
         fixed (uint* pixels = image)
         fixed (uint* work = scratch)
         {
-            return Define(hhdm->Offset, pixels, (ulong)w, (ulong)h, 0, 0, work, (ulong)scratch.Length);
+            return Define(hhdm->Offset, pixels, (ulong)w, (ulong)h, (ulong)hotX, (ulong)hotY, work, (ulong)scratch.Length);
         }
 #endif
     }
