@@ -1,3 +1,4 @@
+#include <string.h>
 /* Host-only widget contract tests: the same code linked into native clients. */
 #include <assert.h>
 #include <limits.h>
@@ -149,6 +150,30 @@ static void footer_dialog_tests(void){
     d.open=1;u.count=0;zui_add(&u,9,ZUI_BUTTON,(struct zui_rect){0,0,40,40},"behind",0,1);u.focus=0;
     zui_dialog_draw(&u,&d);struct zenith_gui_event enter={Z_GUI_KEY,0,0,0,0,2};
     assert(zui_dialog_event(&u,&d,&enter)==1&&!d.open);
+    /* A press survives the app's redraw between down and up (Equinox: "Add to plan" did nothing),
+     * and so does keyboard focus. Apps rebuild their controls, then draw the dialog. */
+    struct zui_dialog e={1,500,"Add a new partition table to the plan?",
+        "A new, empty partition table on sata1 removes every partition on it once the plan is applied.",{"Add to plan","Cancel"},2};
+    u.count=0;u.focus=u.pressed=-1;zui_add(&u,9,ZUI_BUTTON,(struct zui_rect){0,0,800,600},"behind",0,1);zui_dialog_draw(&u,&e);
+    struct zui_rect ok=u.controls[find(&u,501)].rect;
+    assert(zui_measure("Add to plan",11,&zui_label)<ok.w-16);           /* the label fits its button */
+    struct zui_rect cancel=u.controls[find(&u,502)].rect;
+    assert(ok.y+ok.h<=600&&ok.y>300-80);                               /* below the wrapped message */
+    struct zenith_gui_event press={Z_GUI_DOWN,1,ok.x+5,ok.y+5,0,0},release={Z_GUI_UP,1,ok.x+5,ok.y+5,0,0};
+    assert(zui_dialog_event(&u,&e,&press)==0&&e.open);
+    u.count=0;u.focus=u.pressed=-1;zui_add(&u,9,ZUI_BUTTON,(struct zui_rect){0,0,800,600},"behind",0,1);zui_dialog_draw(&u,&e);
+    assert(zui_dialog_event(&u,&e,&release)==1&&!e.open);
+    e.open=1;u.count=0;u.focus=u.pressed=-1;zui_add(&u,9,ZUI_BUTTON,(struct zui_rect){0,0,800,600},"behind",0,1);zui_dialog_draw(&u,&e);
+    assert(zui_dialog_event(&u,&e,&tab)==0&&u.controls[u.focus].id==502);
+    u.count=0;u.focus=u.pressed=-1;zui_add(&u,9,ZUI_BUTTON,(struct zui_rect){0,0,800,600},"behind",0,1);zui_dialog_draw(&u,&e);
+    assert(u.controls[u.focus].id==502);                               /* focus kept across the redraw */
+    struct zenith_gui_event pc={Z_GUI_DOWN,1,cancel.x+5,cancel.y+5,0,0},uc={Z_GUI_UP,1,cancel.x+5,cancel.y+5,0,0};
+    zui_dialog_event(&u,&e,&pc);assert(zui_dialog_event(&u,&e,&uc)==2&&!e.open);
+    /* The message is wider than the dialog: it wraps to two lines and the dialog grows to hold them
+     * (buttons sit 60 px above its bottom edge; the dialog is centred). */
+    assert(zui_measure(e.message,strlen(e.message),&zui_body)>480-48);
+    int two=132+2*(zui_body.height+4);
+    assert(ok.y==(600-two)/2+two-60);
 }
 static void stage3_tests(void){
     struct zui u;assert(zui_init(&u,px,800,600));u.window_focused=1;u.hover_supported=1;int n=100;

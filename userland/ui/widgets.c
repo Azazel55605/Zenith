@@ -1,4 +1,5 @@
 #include "widgets.h"
+#include "text.h"
 static int clampi(long v,int lo,int hi){return v<lo?lo:v>hi?hi:(int)v;}
 static int inside(struct zui_rect r,int x,int y){return x>=r.x&&y>=r.y&&x-r.x<r.w&&y-r.y<r.h;}
 int zui_scroll_maximum(const struct zui_scroll *s){return s->content>s->rect.h?s->content-s->rect.h:0;}
@@ -196,30 +197,51 @@ int zui_footer(struct zui *u,struct zui_rect b,int base,int help,int changed,int
     if(help)zui_add(u,base+ZUI_FOOTER_HELP,ZUI_BUTTON,(struct zui_rect){b.x+12,y,96,36},"Help",0,1);
     return 56;
 }
+/* The open dialog's pressed and focused buttons, by id, across the app's redraws. */
+static int dialog_base=-1,dialog_pressed,dialog_focus;
+static void dialog_state(const struct zui_dialog *d){if(dialog_base!=d->base_id){dialog_base=d->base_id;dialog_pressed=dialog_focus=0;}}
+static void dialog_closed(struct zui_dialog *d){d->open=0;dialog_base=-1;dialog_pressed=dialog_focus=0;}
 static int dialog_control(const struct zui *u,const struct zui_dialog *d,int index){
     return index>=0&&index<u->count&&u->controls[index].id>d->base_id&&u->controls[index].id<=d->base_id+d->count;
 }
 void zui_dialog_draw(struct zui *u,const struct zui_dialog *d){
     if(!d->open||d->count<1||d->count>3)return;
+    dialog_state(d);
     zui_clip(u,(struct zui_rect){0,0,u->width,u->height});
     zui_round_alpha(u,(struct zui_rect){0,0,u->width,u->height},0,0x000000,120);
-    int w=u->width<440?u->width-24:416,h=168,x=(u->width-w)/2,y=(u->height-h)/2;
+    int w=u->width<504?u->width-24:480,x=(u->width-w)/2;
+    /* Count the message's wrapped lines without drawing (an empty clip), then size the dialog. */
+    struct zui_rect saved=u->clip;u->clip=(struct zui_rect){0,0,0,0};
+    int lines=d->message&&d->message[0]?zui_paragraph(u,(struct zui_rect){0,0,w-48,u->height},d->message,&zui_body,0,0):0;
+    u->clip=saved;
+    int line=zui_body.height+4,limit=(u->height-160)/line;if(limit<1)limit=1;if(lines>limit)lines=limit;
+    int h=132+lines*line,y=(u->height-h)/2;
     zui_surface(u,(struct zui_rect){x,y,w,h},12,ZUI_SURFACE_CONTROL);
     zui_text(u,x+24,y+20,d->title,len256(d->title),&zui_label,u->theme.text);
-    zui_text(u,x+24,y+52,d->message,len256(d->message),&zui_body,u->theme.secondary);
+    if(lines)zui_paragraph(u,(struct zui_rect){x+24,y+52,w-48,lines*line},d->message,&zui_body,u->theme.secondary,0);
+    /* Nothing behind the dialog takes the pointer while it is open. */
+    for(int i=0;i<u->count;i++)u->controls[i].enabled=0;
+    if(u->hover>=0&&u->hover<u->count)u->hover=-1;
     int bx=x+w-24;
     int first=u->count;
     for(int i=d->count-1;i>=0;i--){
-        bx-=104;zui_add(u,d->base_id+i+1,ZUI_BUTTON,(struct zui_rect){bx,y+h-60,96,36},d->labels[i],i==0,1);bx-=8;
+        int bw=zui_measure(d->labels[i],len256(d->labels[i]),&zui_label)+32;if(bw<96)bw=96;
+        bx-=bw;zui_add(u,d->base_id+i+1,ZUI_BUTTON,(struct zui_rect){bx,y+h-60,bw,36},d->labels[i],i==0,1);bx-=8;
     }
     zui_update_hover(u);
     zui_draw_range(u,first,u->count-first);
+    /* The app rebuilt its controls before drawing this: restore the press and focus by id. */
+    for(int i=first;i<u->count;i++){
+        if(dialog_pressed&&u->controls[i].id==dialog_pressed)u->pressed=i;
+        if(dialog_focus&&u->controls[i].id==dialog_focus)u->focus=i;
+    }
     if(!dialog_control(u,d,u->focus))
         for(int i=0;i<u->count;i++)if(u->controls[i].id==d->base_id+1){u->focus=i;break;}
 }
 int zui_dialog_event(struct zui *u,struct zui_dialog *d,const struct zenith_gui_event *e){
     if(!d->open)return 0;
-    if(e->type==Z_GUI_KEY&&e->extra==1){d->open=0;u->dirty=1;return d->count;}
+    dialog_state(d);
+    if(e->type==Z_GUI_KEY&&e->extra==1){dialog_closed(d);u->dirty=1;return d->count;}
     if(e->type==Z_GUI_KEY&&e->extra==4){
         int first=-1;
         for(int i=0;i<u->count;i++)if(dialog_control(u,d,i)){first=i;break;}
@@ -227,14 +249,18 @@ int zui_dialog_event(struct zui *u,struct zui_dialog *d,const struct zenith_gui_
         int next=dialog_control(u,d,u->focus)?u->focus+((e->modifiers&1)?-1:1):first;
         if(next<first)next=first+d->count-1;
         if(next>=first+d->count)next=first;
-        u->focus=next;u->focus_visible=1;u->dirty=1;return 0;
+        u->focus=next;u->focus_visible=1;u->dirty=1;dialog_focus=u->controls[next].id;return 0;
     }
     int id=zui_event(u,e);
-    if(e->type==Z_GUI_DOWN&&!dialog_control(u,d,u->pressed)){
-        u->pressed=-1;
-        for(int i=0;i<u->count;i++)if(u->controls[i].id==d->base_id+1){u->focus=i;break;}
+    if(e->type==Z_GUI_DOWN){
+        if(!dialog_control(u,d,u->pressed)){
+            u->pressed=-1;dialog_pressed=0;
+            for(int i=0;i<u->count;i++)if(u->controls[i].id==d->base_id+1){u->focus=i;break;}
+        }else dialog_pressed=u->controls[u->pressed].id;
+        if(dialog_control(u,d,u->focus))dialog_focus=u->controls[u->focus].id;
     }
-    if(id>d->base_id&&id<=d->base_id+d->count){d->open=0;u->dirty=1;return id-d->base_id;}
+    if(e->type==Z_GUI_UP)dialog_pressed=0;
+    if(id>d->base_id&&id<=d->base_id+d->count){dialog_closed(d);u->dirty=1;return id-d->base_id;}
     return 0;
 }
 void zui_tabs_draw(struct zui *u,struct zui_tabs *t,struct zui_rect r,const struct zui_tab *items,int count,int active,int can_add){

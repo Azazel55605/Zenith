@@ -121,6 +121,8 @@ static int planned_model(int disk,struct model *m){
     return 1;
 }
 static int disk_steps(const char *name){int n=0;for(int i=0;i<steps;i++)if(same(plan[i].disk,name))n++;return n;}
+/* Whether the plan writes a new partition table to this disk (later steps may then use it). */
+static int plans_table(const char *name){for(int i=0;i<steps;i++)if(same(plan[i].disk,name)&&plan[i].action==Z_DISK_INIT)return 1;return 0;}
 /* The disk command a step corresponds to: what Plan shows under "the exact commands". */
 static void command_text(char *o,const struct step *s,const struct model *before){
     if(s->action==Z_DISK_INIT){o=put(o,"disk init ");o=put(o,s->disk);put(o," --yes");return;}
@@ -377,7 +379,8 @@ static int draw_cards(int x,int y,int w,const struct model *before,const struct 
     else if(check>=0){put(t1,"ext2 check needed");put(put(s1,before->parts[check].name)," was not unmounted cleanly");c1=warn();i1="triangle-alert";}
     else{put(t1,"ext2 check: clean");char *o=num(s1,(unsigned long)ext2);o=put(o,ext2==1?" volume":" volumes");if(inuse)put(o,inuse==ext2?", in use":", some in use");}
     unsigned int gpt=extras()&&page<(int)disks.disk_count?disks.extra.gpt[page]:Z_GPT_UNKNOWN;
-    if(!(d->flags&Z_DISK_GPT)){put(t2,"No GPT");put(s2,"No partition table");c2=ui.theme.secondary;i2="info";}
+    if(!(d->flags&Z_DISK_GPT)&&plans_table(d->name)){put(t2,"GPT planned");put(s2,"Written when the plan runs");c2=ui.theme.secondary;i2="info";}
+    else if(!(d->flags&Z_DISK_GPT)){put(t2,"No GPT");put(s2,"No partition table");c2=ui.theme.secondary;i2="info";}
     else if(gpt==Z_GPT_COPIES_MATCH){put(t2,"GPT copies match");put(s2,"Primary and backup");}
     else if(gpt==Z_GPT_COPIES_DIFFER){put(t2,"GPT copies differ");put(s2,"The next write repairs the backup");c2=warn();i2="triangle-alert";}
     else{put(t2,"GPT");put(s2,"Copies not checked");c2=ui.theme.secondary;}
@@ -457,7 +460,14 @@ static int draw_disk(struct zui_rect area){
         previewing=simulate(&preview,&s);
     }
     text(x,y+14,"Now",&zui_label,ui.theme.secondary);
-    draw_bar((struct zui_rect){x+56,y,w-56,46},&before,!planned&&mode==MODE_DISK);y+=56;
+    if(!(d->flags&Z_DISK_GPT)){
+        /* No table yet: nothing to select, only "New partition table". */
+        struct zui_rect r={x+56,y,w-56,46};char t[24];size_text(t,d->sectors);
+        hatch(r,mix(ui.theme.surface,ui.theme.secondary,22));
+        text(r.x+10,r.y+6,"No partition table",&zui_label,ui.theme.text);text(r.x+10,r.y+25,t,&zui_caption,ui.theme.secondary);
+        if(!planned)segments=0;
+    }else draw_bar((struct zui_rect){x+56,y,w-56,46},&before,!planned&&mode==MODE_DISK);
+    y+=56;
     if(planned||previewing){
         text(x,y+14,"After",&zui_label,current_ok?ui.theme.accent:bad());
         draw_bar((struct zui_rect){x+56,y,w-56,46},previewing?&preview:&current,mode==MODE_DISK);y+=56;
@@ -489,6 +499,8 @@ static int draw_disk(struct zui_rect area){
         y+=draw_table(x,y,w,&before)+10;
         /* Actions for the selection: they only add steps to the plan. */
         const char *why=protection(d);
+        int table=(d->flags&Z_DISK_GPT)||plans_table(d->name);
+        if(!(d->flags&Z_DISK_GPT)&&table)why=0;   /* the plan creates the table */
         int sel_part=selected>=0&&(unsigned int)selected<current.count,sel_free=selected<0&&-1-selected<current_free_count;
         int bx=x;
         if(sel_part){
@@ -498,7 +510,7 @@ static int draw_disk(struct zui_rect area){
             zui_add(&ui,ID_GROW,ZUI_BUTTON,(struct zui_rect){bx,y,110,34},"Grow",0,growable);bx+=120;
             zui_add(&ui,ID_DELETE,ZUI_BUTTON,(struct zui_rect){bx,y,110,34},"Delete",0,editable&&p->role==Z_ROLE_NONE);bx+=120;
         }else if(sel_free){
-            int creatable=(d->flags&Z_DISK_GPT)&&(!(d->flags&Z_DISK_MOUNTED)||(d->flags&Z_DISK_SYSTEM));
+            int creatable=table&&(!(d->flags&Z_DISK_MOUNTED)||(d->flags&Z_DISK_SYSTEM));
             zui_add(&ui,ID_CREATE,ZUI_BUTTON,(struct zui_rect){bx,y,160,34},"New partition",0,creatable);bx+=170;
         }
         zui_add(&ui,ID_TABLE,ZUI_BUTTON,(struct zui_rect){bx,y,190,34},"New partition table",0,!(d->flags&(Z_DISK_SYSTEM|Z_DISK_MOUNTED)));
@@ -516,13 +528,16 @@ static int draw_disk(struct zui_rect area){
         }
         text(x,y,"Every action joins the plan first; nothing is written until Apply.",&zui_caption,ui.theme.secondary);y+=24;
     }
-    if(status_line[0]&&mode==MODE_DISK){text(x,y,status_line,&zui_caption,warn());y+=24;}
+    if(status_line[0]&&mode==MODE_DISK&&!wide){text(x,y,status_line,&zui_caption,warn());y+=24;}
     return y-top+40;
 }
 
 /* ---------- The plan: a panel on the right (wide) or its own page (narrow). */
 static const char *step_detail(const struct step *s){
-    if(s->action==Z_DISK_INIT)return "Removes every partition on the disk";
+    if(s->action==Z_DISK_INIT){
+        for(unsigned int k=0;k<disks.disk_count;k++)if(same(disks.disks[k].name,s->disk)&&!(disks.disks[k].flags&Z_DISK_GPT))return "An empty GPT; partitions can follow";
+        return "Removes every partition on the disk";
+    }
     if(s->action==Z_DISK_CREATE){
         for(unsigned int k=0;k<disks.disk_count;k++)if(same(disks.disks[k].name,s->disk)&&(disks.disks[k].flags&Z_DISK_SYSTEM))return "Appears after the next restart";
         return s->ext2?"Then formatted ext2, ready to grow":"Left unformatted";
@@ -690,7 +705,9 @@ static void action(int id){
             ask(1,"Add a deletion to the plan?",m,"Add to plan");
         }
         if(id==ID_TABLE){
-            char m[200],*o=put(m,"A new, empty partition table on ");o=put(o,d->name);put(o," removes every partition on it once the plan is applied.");
+            char m[200],*o;
+            if(d->flags&Z_DISK_GPT){o=put(m,"A new, empty partition table on ");o=put(o,d->name);put(o," removes every partition on it once the plan is applied.");}
+            else{o=put(m,"Equinox writes an empty GPT partition table to ");o=put(o,d->name);put(o," when the plan is applied. Then you can create partitions on it.");}
             ask(2,"Add a new partition table to the plan?",m,"Add to plan");
         }
         if(id==ID_ADD&&mode==MODE_CREATE&&selected<0&&-1-selected<current_free_count){

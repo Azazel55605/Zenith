@@ -74,7 +74,9 @@ int zui_footer(struct zui *ui,struct zui_rect bar,int base_id,int help,int chang
 /* Modal dialog over a dimmed window with two or three buttons (ids base_id+1..count).
  * An overlay: draw it after zui_draw_controls. While open it owns input: focus starts on button 1 and
  * Tab stays within the dialog, Esc chooses the last button (Cancel), and controls
- * behind it cannot activate. */
+ * behind it cannot activate. The message wraps and the dialog grows to fit it. The pressed and
+ * focused buttons are remembered by id (one dialog at a time), so a redraw between a press and
+ * its release, which rebuilds the controls, does not lose the click. */
 struct zui_dialog { int open,base_id; const char *title,*message,*labels[3]; int count; };
 void zui_dialog_draw(struct zui *ui,const struct zui_dialog *d);
 /* Returns the chosen button number (1..count) and closes, else 0. */

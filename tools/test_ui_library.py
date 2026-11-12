@@ -42,7 +42,7 @@ class UiLibraryTests(unittest.TestCase):
                             '-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(ROOT/'userland/ui'),
                             '-I'+str(ROOT/'userland/settings'),str(ROOT/'userland/settings/test_navigation.c'),
                             str(ROOT/'userland/settings/navigation.c'),str(ROOT/'userland/settings/bindings.c'),str(ROOT/'userland/settings/app.c'),generated('build-meridian-pages.py','pages'),
-                            str(ROOT/'userland/ui/ui.c'),str(ROOT/'userland/ui/widgets.c'),
+                            str(ROOT/'userland/ui/ui.c'),str(ROOT/'userland/ui/widgets.c'),str(ROOT/'userland/ui/text.c'),
                             generated('build-ui-fonts.py','fonts'),generated('build-ui-icons.py','icons'),'-o',str(exe)],check=True)
             subprocess.run([str(exe)],check=True,timeout=30)
 
@@ -56,7 +56,7 @@ class UiLibraryTests(unittest.TestCase):
             exe = dest/'widgets-test'
             subprocess.run(['gcc','-std=c11','-Wall','-Wextra','-Werror','-O1','-g',
                             '-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(ROOT/'userland/ui'),
-                            str(ROOT/'userland/ui/test_widgets.c'),str(ROOT/'userland/ui/widgets.c'),
+                            str(ROOT/'userland/ui/test_widgets.c'),str(ROOT/'userland/ui/widgets.c'),str(ROOT/'userland/ui/text.c'),
                             str(ROOT/'userland/ui/ui.c'),generated('build-ui-fonts.py','fonts'),
                             generated('build-ui-icons.py','icons'),'-o',str(exe)],check=True)
             subprocess.run([str(exe)],check=True,timeout=30)
@@ -76,7 +76,7 @@ class UiLibraryTests(unittest.TestCase):
             subprocess.run(['gcc', '-std=c11', '-Wall', '-Wextra', '-Werror', '-O1', '-g',
                             '-fsanitize=address,undefined', '-fno-omit-frame-pointer',
                             '-I'+str(ROOT/'userland/ui'), str(ROOT/'userland/ui/test_ui.c'),
-                            str(ROOT/'userland/ui/ui.c'), str(ROOT/'userland/ui/widgets.c'), str(ROOT/'userland/ui-gallery/gallery.c'),
+                            str(ROOT/'userland/ui/ui.c'), str(ROOT/'userland/ui/widgets.c'), str(ROOT/'userland/ui/text.c'), str(ROOT/'userland/ui-gallery/gallery.c'),
                             str(atlas),str(icons), '-o', str(exe)], check=True)
             subprocess.run([str(exe), directory], check=True, timeout=30)
             def luminance(value):
