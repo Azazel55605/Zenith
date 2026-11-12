@@ -113,7 +113,10 @@ def cursors():
     if _SHAPES is None:
         roots = (Path.cwd(), Path(__file__).resolve().parents[2])
         extra = next((found for found in (meridian_shapes(r / 'src/Gui/Graphics/CursorImages.g.cs') for r in roots) if found), ())
-        _SHAPES = CURSORS + extra
+        # A kernel draws one family: the Meridian set (its arrow plus the other shapes) or, before
+        # 0.0.55, the old arrow. Matching only that family keeps a few edge pixels of the other from
+        # counting as a second pointer.
+        _SHAPES = (CURSORS[1],) + extra if extra else (CURSORS[0],)
     return _SHAPES
 
 

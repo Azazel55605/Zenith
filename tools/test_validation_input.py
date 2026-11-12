@@ -111,9 +111,15 @@ class RenderedMouseTests(unittest.TestCase):
             with patch('time.sleep',side_effect=complete):mouse.command('screendump '+str(path))
             self.assertEqual(['screendump '+str(path)],calls)
     def test_rendered_cursor_is_unique_and_exact(self):
-        self.assertEqual(((10,5),(64,40)),profile.cursor_position(self.image()))
-        for positions in ((),((10,5),(30,5))):
-            with self.assertRaises(RuntimeError):profile.cursor_position(self.image(positions))
+        # Kernels before 0.0.55 draw the old arrow; only that family is matched for them.
+        with patch.object(profile,'_SHAPES',(profile.CURSORS[0],)):
+            self.assertEqual(((10,5),(64,40)),profile.cursor_position(self.image()))
+            for positions in ((),((10,5),(30,5))):
+                with self.assertRaises(RuntimeError):profile.cursor_position(self.image(positions))
+    def test_this_checkout_matches_only_the_meridian_family(self):
+        profile._SHAPES=None
+        self.assertNotIn(profile.CURSORS[0],profile.cursors())
+        with self.assertRaises(RuntimeError):profile.cursor_position(self.image())
     def test_meridian_arrow_is_found_by_its_hotspot(self):
         width,height=64,40;pixels=bytearray(bytes.fromhex('334455')*(width*height))
         for dy,row in enumerate(profile.CURSOR_MERIDIAN):
