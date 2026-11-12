@@ -201,9 +201,11 @@ def cursor_position(ppm):
             i = offset; offset += 1
             if i % 3: continue
             x = (i // 3) % width - ax; y = (i // 3) // width - ay
-            # The bottom edge may cut the pointer off; the rows on screen must still match.
-            if x < 0 or y < 0 or x + span > width: continue
-            if all(pixels[((y+dy)*width+x+dx)*3:((y+dy)*width+x+dx)*3+3] == color for dx,dy,color in pattern if y+dy < height):
+            # A screen edge may cut the pointer off (the hotspot itself stays on screen); the pixels
+            # on screen must still match.
+            if x + hx < 0 or y + hy < 0 or x + hx >= width or y + hy >= height: continue
+            if all(pixels[((y+dy)*width+x+dx)*3:((y+dy)*width+x+dx)*3+3] == color for dx,dy,color in pattern
+                   if 0 <= y+dy < height and 0 <= x+dx < width):
                 found.append((x + hx, y + hy))
     if len(found) != 1: raise RuntimeError('expected one visible graphical cursor, found '+str(len(found)))
     return found[0], (width, height)
