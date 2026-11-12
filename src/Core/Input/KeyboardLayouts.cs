@@ -14,13 +14,13 @@ internal static class KeyboardLayouts
 {
     private static readonly Dictionary<string, (string Description, Func<ScanMapBase> Create)> s_layouts = new()
     {
-        ["us"] = ("English (US), QWERTY", () => new USStandardLayout()),
+        ["us"] = ("English (US), QWERTY", () => new UsLayout()),
         ["de"] = ("German, QWERTZ", () => new GermanKeyboardLayout()),
-        ["fr"] = ("French, AZERTY", () => new FRStandardLayout()),
-        ["es"] = ("Spanish, QWERTY", () => new ESStandardLayout()),
-        ["gb"] = ("English (UK), QWERTY", () => new GBStandardLayout()),
-        ["tr"] = ("Turkish, Q", () => new TRStandardLayout()),
-        ["dvorak"] = ("English (US), Dvorak", () => new USDvorakLayout()),
+        ["fr"] = ("French, AZERTY", () => new FrLayout()),
+        ["es"] = ("Spanish, QWERTY", () => new EsLayout()),
+        ["gb"] = ("English (UK), QWERTY", () => new GbLayout()),
+        ["tr"] = ("Turkish, Q", () => new TrLayout()),
+        ["dvorak"] = ("English (US), Dvorak", () => new DvorakLayout()),
     };
 
     public static string Current { get; private set; } = "us";

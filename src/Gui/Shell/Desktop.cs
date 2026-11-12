@@ -7,6 +7,7 @@ using Zenith.Core.Multiprocessing;
 using Zenith.Core.Security;
 using Zenith.Gui.Graphics;
 using Zenith.Gui.Motion;
+using Zenith.Gui.Shell.Prism;
 using MemoryInfo = Cosmos.Kernel.System.Diagnostics.MemoryInfo;
 using CommandShell = Zenith.Core.Shell.Shell;
 
@@ -34,7 +35,8 @@ internal sealed class Desktop
     private NativeAppLauncher _apps = new();
     private NativeClientHost _nativeClients;
     private Taskbar _taskbar;
-    private LauncherMenu _launcher;
+    private PrismView _prism;
+    private readonly System.Collections.Generic.List<Window> _prismWindows = new();
     private bool _lowerValid;
     private (int BlurArea, uint Reason) _lowerSpent;
     private uint _lowerMaterials, _lowerTranslucency, _lowerPanel, _lowerBackground, _lowerBorder, _lowerFocused, _lowerText, _lowerAccent;
@@ -81,7 +83,7 @@ internal sealed class Desktop
 
         Windows = new WindowManager(new Rect(0, 0, w, h - Theme.TaskbarHeight - 2 * Theme.TaskbarMargin), new Rect(0, 0, w, h));
         _taskbar = new Taskbar(w, h, Windows);
-        _launcher = new LauncherMenu(_taskbar.Bounds, OpenApp);
+        _prism = new PrismView(PrismCandidates, PrismActivate, PrismUser);
 
         SessionDisplay.ConfigurePointer();
         MouseManager.SetPosition(SessionDisplay.Physical.Width / 2, SessionDisplay.Physical.Height / 2);
@@ -141,47 +143,95 @@ internal sealed class Desktop
     }
 
     /// <summary>Opens a registered app by (case-insensitive) name, passing it an optional argument such as a file path.</summary>
-    public bool OpenApp(string name, string? argument)
+    public bool OpenApp(string name, string? argument) => OpenAppWith(name, argument is null ? null : new[] { argument });
+
+    /// <summary>Opens an app by name with extra program arguments (Prism opens a Meridian page
+    /// with "--page", ID). An installed native program runs; otherwise its built-in window.</summary>
+    public bool OpenAppWith(string name, string[]? arguments)
     {
         // Always the built-in terminal: the way back when an installed Polaris does not work.
         if (string.Equals(name, RecoveryTerminal, System.StringComparison.OrdinalIgnoreCase)) { Windows.Open(new TerminalWindow()); return true; }
         if (string.Equals(name, "Polaris", System.StringComparison.OrdinalIgnoreCase)) { name = "Terminal"; }
-        foreach (AppInfo app in AppRegistry.Apps)
+        if (AppRegistry.Find(name) is not AppInfo app) { return false; }
+        if (app.Native is string native && Zenith.Core.Packages.NativePackageSource.State("/usr/share/zenith/native/" + native + ".elf") != Zenith.Core.Packages.PackagePathState.Missing)
         {
-            if (string.Equals(app.Name, name, System.StringComparison.OrdinalIgnoreCase))
+            var args = new System.Collections.Generic.List<string> { native };
+            if (app.Action is not null) { args.Add(app.Action); }
+            if (arguments is not null) { args.AddRange(arguments); }
+            string user = Accounts.Service?.Name(CredentialContext.Current.Uid) ?? "user";
+            string cwd = CredentialContext.Current.IsRoot ? "/root" : "/home/" + user;
+            if (!_apps.Launch(native, args.ToArray(), cwd)) { Windows.Open(new AppLaunchNotice("Too many applications are open. Close one and try again.")); }
+        }
+        else { Windows.Open(app.Create(arguments is { Length: 1 } ? arguments[0] : null)); }
+        return true;
+    }
+
+    /// <summary>What Prism searches: installed apps, open windows, Meridian's pages (when Meridian
+    /// is installed) and the session and power actions this account may use.</summary>
+    private System.Collections.Generic.List<PrismItem> PrismCandidates()
+    {
+        var list = new System.Collections.Generic.List<PrismItem>();
+        foreach (var app in AppRegistry.Visible())
+        { list.Add(new PrismItem(PrismKind.App, app.DisplayName, app.Description, app.Icon ?? AppRegistry.IconFor(app.Name), app.Name, Keywords: app.Description)); }
+        _prismWindows.Clear();
+        foreach (Window window in Windows.Windows)
+        {
+            if (window.IsClosed) { continue; }
+            _prismWindows.Add(window);
+            list.Add(new PrismItem(PrismKind.Window, window.Title, window.IsMinimized ? "Minimized window" : "Open window", window.IconName,
+                (_prismWindows.Count - 1).ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+        if (AppRegistry.Find("Meridian")?.Installed == true) { list.AddRange(PrismSearch.SettingsPages()); }
+        list.AddRange(PrismSearch.Actions(CredentialContext.Current.IsRoot && Zenith.Core.PowerControl.BlockedReason is null));
+        return list;
+    }
+
+    private string PrismUser() => Accounts.Service?.Name(CredentialContext.Current.Uid) ?? (CredentialContext.Current.IsRoot ? "root" : "user");
+
+    private void PrismActivate(PrismItem item)
+    {
+        // A state change between drawing and choosing must not reach the panic path.
+        try
+        {
+            switch (item.Kind)
             {
-                if (app.Native is string native && Zenith.Core.Packages.NativePackageSource.State("/usr/share/zenith/native/" + native + ".elf") != Zenith.Core.Packages.PackagePathState.Missing)
-                {
-                    var args = new System.Collections.Generic.List<string> { native };
-                    if (app.Action is not null) { args.Add(app.Action); }
-                    if (argument is not null) { args.Add(argument); }
-                    string user = Accounts.Service?.Name(CredentialContext.Current.Uid) ?? "user";
-                    string cwd = CredentialContext.Current.IsRoot ? "/root" : "/home/" + user;
-                    if (!_apps.Launch(native, args.ToArray(), cwd)) { Windows.Open(new AppLaunchNotice("Too many applications are open. Close one and try again.")); }
-                }
-                else { Windows.Open(app.Create(argument)); }
-                return true;
+                case PrismKind.App: OpenApp(item.Target, null); break;
+                case PrismKind.Window:
+                    if (int.TryParse(item.Target, out int index) && index >= 0 && index < _prismWindows.Count && !_prismWindows[index].IsClosed)
+                    { Windows.Focus(_prismWindows[index]); }
+                    break;
+                case PrismKind.Setting: OpenAppWith("Meridian", new[] { "--page", item.Target }); break;
+                case PrismKind.Calculator: Zenith.Gui.Clipboard.Text = item.Target; break;
+                case PrismKind.Command:
+                    // The built-in terminal takes typed input; Polaris has no run-a-command option yet.
+                    var terminal = new TerminalWindow(); Windows.Open(terminal);
+                    foreach (char c in item.Target) { terminal.OnKey(new KeyEvent(c, ConsoleKeyEx.NoName, false, false, false, KeyEvent.KeyEventType.Make)); }
+                    terminal.OnKey(new KeyEvent('\n', ConsoleKeyEx.Enter, false, false, false, KeyEvent.KeyEventType.Make));
+                    break;
+                case PrismKind.Action:
+                    if (item.Target == "logout") { Zenith.Core.Sessions.SessionRuntime.RequestLogout(); }
+                    else if (item.Target == "restart") { Zenith.Core.PowerControl.Reboot(); }
+                    else if (item.Target == "shutdown") { Zenith.Core.PowerControl.PowerOff(); }
+                    break;
             }
         }
-
-        return false;
+        catch (System.Exception e) { Zenith.Core.Log.Write("session", "prism action failed: " + e.Message); }
     }
 
     internal sealed class DisplayFrames
     {
         public readonly Surface Wallpaper, Lower, Scene, Frame;
         public readonly Taskbar Bar;
-        public readonly LauncherMenu Launcher;
         public readonly System.Collections.Generic.List<(Window Window,Rect Bounds,Rect Restore,Rect Windowed,bool Maximized,bool Fullscreen)> Geometry=new();
         public DisplayFrames(int width,int height,WindowManager windows,System.Func<string,string?,bool> open)
         {
             Wallpaper=new Surface(width,height); Lower=new Surface(width,height); Scene=new Surface(width,height); Frame=new Surface(width,height);
-            Zenith.Gui.Graphics.Wallpaper.Render(Wallpaper); Bar=new Taskbar(width,height,windows); Launcher=new LauncherMenu(Bar.Bounds,open);
+            Zenith.Gui.Graphics.Wallpaper.Render(Wallpaper); Bar=new Taskbar(width,height,windows);
         }
         public DisplayFrames(Desktop desktop)
         {
             Wallpaper=desktop._wallpaper; Lower=desktop._lower; Scene=desktop._scene; Frame=desktop._frame;
-            Bar=desktop._taskbar; Launcher=desktop._launcher;
+            Bar=desktop._taskbar;
             foreach(Window w in desktop.Windows.Windows) { Geometry.Add((w,w.Bounds,w.RestoreBounds,w.WindowedBounds,w.IsMaximized,w.IsFullscreen)); }
         }
     }
@@ -199,7 +249,7 @@ internal sealed class Desktop
             item.Window.IsMaximized=item.Maximized; item.Window.IsFullscreen=item.Fullscreen;
             item.Window.RestoreBounds=item.Restore; item.Window.WindowedBounds=item.Windowed; item.Window.SetBounds(item.Bounds);
         }
-        _taskbar=frames.Bar; _launcher=frames.Launcher;
+        _taskbar=frames.Bar; _prism.Place(_taskbar.Bounds,screen.Width,screen.Height);
         _barMode=(TaskbarMode)(-1); _lowerValid=false; _sceneDirty=true; _cursorDirty=true; _hoverKey=-1;
         Zenith.Core.Processes.NativeSystemInformation.Display(w+"x"+h+" logical, scale="+SessionDisplay.Percent+"%");
     }
@@ -375,7 +425,7 @@ internal sealed class Desktop
         if (near && !Windows.IsDragging) { _barPointerUntil = now + BarLingerMicros; }
         Window? top = Windows.Top;
         bool fullscreen = top?.IsFullscreen == true, maximized = top?.IsMaximized == true;
-        return (TaskbarPolicy.Shown(mode, fullscreen, maximized, now < _barPointerUntil, _launcher.IsOpen || _taskbar.OverflowOpen),
+        return (TaskbarPolicy.Shown(mode, fullscreen, maximized, now < _barPointerUntil, (_prism.IsOpen && _prism.Mode == PrismView.Layout.Menu) || _taskbar.OverflowOpen),
                 TaskbarPolicy.Docked(mode, fullscreen, maximized));
     }
 
@@ -383,7 +433,7 @@ internal sealed class Desktop
     {
         _taskbar.Shown = shown;
         _taskbar.Docked = docked;
-        _launcher.AlignTo(_taskbar.Bounds);
+        if (_prism.IsOpen) { _prism.Place(_taskbar.Bounds, _scene.Width, _scene.Height); }
     }
 
     /// <summary>Composes without the bar when the bar is about to animate, since it travels above everything else.</summary>
@@ -700,7 +750,7 @@ internal sealed class Desktop
     private long HoverKey()
     {
         int x = _input.X, y = _input.Y;
-        long key = _launcher.IsOpen ? _launcher.HoverKey(x, y) : 0;
+        long key = _prism.IsOpen ? _prism.HoverKey(x, y) : 0;
         key = key * 1024 + _taskbar.HoverKey(x, y);
         return key * 4096 + Windows.HoverKey(x, y);
     }
@@ -721,35 +771,38 @@ internal sealed class Desktop
             if (key.Key == ConsoleKeyEx.F11 && Windows.Focused is Window focused) { Windows.ToggleFullscreen(focused); return; }
             if (key.Key == ConsoleKeyEx.Escape && _taskbar.OverflowOpen) { _taskbar.OverflowOpen = false; return; }
         }
-        bool menuWasOpen = _launcher.IsOpen;
+        // Prism: Alt+Space or Meta opens the palette from anywhere; while open it owns the keyboard
+        // and the next click.
+        foreach (KeyEvent key in _input.Keys)
+        {
+            bool palette = key.Key is ConsoleKeyEx.LWin or ConsoleKeyEx.RWin
+                || (key.Key == ConsoleKeyEx.Spacebar && (key.Modifiers & ConsoleModifiers.Alt) != 0 && (key.Modifiers & ConsoleModifiers.Control) == 0);
+            if (palette)
+            {
+                if (_prism.IsOpen && _prism.Mode == PrismView.Layout.Palette) { _prism.Close(); }
+                else { _prism.Open(PrismView.Layout.Palette, _taskbar.Bounds, _scene.Width, _scene.Height); }
+                return;
+            }
+            if (_prism.IsOpen) { _prism.HandleKey(key); }
+        }
+        bool menuWasOpen = _prism.IsOpen;
         if (menuWasOpen)
         {
-            // While the menu is open it owns the keyboard and the next click.
-            foreach (KeyEvent key in _input.Keys)
-            {
-                if (key.Key == ConsoleKeyEx.Escape)
-                {
-                    _launcher.IsOpen = false;
-                }
-            }
-
-            if (!_input.LeftPressed)
-            {
-                return;
-            }
-
-            _launcher.HandleClick(_input.X, _input.Y);
-            if (!_taskbar.Bounds.Contains(_input.X, _input.Y))
-            {
-                return;
-            }
+            if (!_input.LeftPressed) { return; }
+            _prism.HandleClick(_input.X, _input.Y);
+            if (!_taskbar.Bounds.Contains(_input.X, _input.Y)) { return; }
         }
 
         if (_input.LeftPressed && _taskbar.HandleClick(_input.X, _input.Y, out bool launcherClicked))
         {
             if (launcherClicked)
             {
-                _launcher.IsOpen = !menuWasOpen;
+                if (menuWasOpen) { _prism.Close(); }
+                else
+                {
+                    var layout = Zenith.Core.Configuration.SystemConfiguration.Settings.Current.Launcher == 1 ? PrismView.Layout.Palette : PrismView.Layout.Menu;
+                    _prism.Open(layout, _taskbar.Bounds, _scene.Width, _scene.Height);
+                }
             }
 
             return;
@@ -770,7 +823,7 @@ internal sealed class Desktop
         Rect topArea = top is null ? new Rect(0, 0, 0, 0) : WindowManager.AreaOf(top);
         long topKey = TopKey(top), barKey = BarKey();
         Rect barArea = _taskbar.Shown ? _taskbar.Bounds.Inflate(Theme.ShadowSize + 8) : new Rect(0, 0, 0, 0);
-        bool overlays = withoutTop || _launcher.IsOpen || _taskbar.OverflowOpen || Zenith.Core.Sessions.SessionRuntime.Message is not null;
+        bool overlays = withoutTop || _prism.IsOpen || _taskbar.OverflowOpen || Zenith.Core.Sessions.SessionRuntime.Message is not null;
         // After an animation or a pass without the top window, the scene does not hold a finished
         // frame: compose everything once.
         bool structural = _composeAll || !appearance || !_lowerValid || top != _lastTop || !Windows.LowerStructureUnchanged();
@@ -849,7 +902,7 @@ internal sealed class Desktop
         if (_composeDamage.IsEmpty) { FrameStats.RecordCompose(start); return; }
 
         long shell = FrameStats.Now;
-        _taskbar.LauncherOpen = _launcher.IsOpen;
+        _taskbar.LauncherOpen = _prism.IsOpen && _prism.Mode == PrismView.Layout.Menu;
         Rect barTouch = (_taskbar.Shown ? _taskbar.Bounds.Inflate(Theme.ShadowSize + 8) : new Rect(0, 0, 0, 0)).Intersect(_composeDamage);
         if (_taskbar.Shown && barTouch.W > 0 && barTouch.H > 0) { _taskbar.Draw(_scene, _input.X, _input.Y); }
         else { _taskbar.Layout(); }
@@ -858,10 +911,7 @@ internal sealed class Desktop
             _scene.FillRoundRect(new Rect(12, 12, Math.Min(WidthForMessage(), _scene.Width - 24), 40), 6, Theme.Panel);
             _scene.DrawText(message, Fonts.Regular, 13, Theme.TextPrimary, 24, 24);
         }
-        if (_launcher.IsOpen)
-        {
-            _launcher.Draw(_scene, _input.X, _input.Y);
-        }
+        if (_prism.IsOpen) { _prism.Draw(_scene, _input.X, _input.Y); }
         if (_taskbar.Shown) { _taskbar.DrawOverflowList(_scene, _input.X, _input.Y); }
 
         FrameStats.ShellTicks += FrameStats.Now - shell;

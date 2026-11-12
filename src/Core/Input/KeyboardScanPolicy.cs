@@ -18,6 +18,7 @@ public static class KeyboardScanPolicy
             86 => 0x56, 102 => 0x67, 103 => 0x68, 104 => 0x69,
             105 => 0x6b, 106 => 0x6d, 107 => 0x6f, 108 => 0x70,
             109 => 0x71, 110 => 0x72, 111 => 0x73,
+            125 => 0x5b, 126 => 0x5c,   // Left and right Meta: the layouts map them (Prism opens on Meta)
             _ => scan
         };
     }

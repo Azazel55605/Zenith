@@ -47,5 +47,6 @@ public class KeyboardTests
         Assert.Equal('8', Convert(0x48, num: true).KeyChar);
         Assert.Equal(0x60, KeyboardScanPolicy.Ps2(0x38, true));
         Assert.Equal(0x56, KeyboardScanPolicy.Virtio(0, 86));
+        Assert.Equal(0x5b, KeyboardScanPolicy.Virtio(0, 125)); Assert.Equal(0x5c, KeyboardScanPolicy.Virtio(0, 126));   // Meta
     }
 }

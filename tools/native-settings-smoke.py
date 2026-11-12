@@ -418,25 +418,18 @@ def main():
             off=len(m.log());monitor_command(monitor,'sendkey esc 30')
             assert m.wait('native surface retired',off,30),'native launcher window retirement'
             time.sleep(.5)
-        # Test the actual start menu too: shell `open` must not be the only
-        # route to signed applications. Rows 0 and 5 are Welcome and System.
-        # The start menu grows upward by 46 px per registered app; the layout below was measured with seven.
-        menu_top=480+46*((ROOT/'src/Gui/Shell/AppRegistry.cs').read_text().count('new AppInfo(')-7)
+        # Test the actual start menu (Prism) too: shell `open` must not be the only route to
+        # signed applications. Open it from the taskbar button, type the app's name, press Enter.
+        # Frame names keep the rows Welcome and System had in the earlier fixed menu.
         _,(screen_width,screen_height)=observer.position()
-        for row in (0,5):
+        for row,name in ((0,'welcome'),(5,'system')):
             click(32,screen_height-32)
-            frame('launcher',lambda w,h,rgb:color_at(rgb,w,250,h-menu_top)==bytes.fromhex('2a2c31'))
-            launched=len(m.log());target=(130,screen_height-menu_top+row*46)
-            (cx,cy),_=observer.position()
-            monitor_command(monitor,f'mouse_move {target[0]-cx} {target[1]-cy}')
-            # Menu actions fire on press. Window admission acknowledges that
-            # actual press while startup work is scheduled; do not require a
-            # synthetic one-pixel restore beneath a newly opened window.
-            profile.monitor_text(monitor,'mouse_button 1')
-            try:
-                assert m.wait('native surface opened 600x480',launched,30),'start menu bypassed signed native launch'
-            finally:
-                profile.monitor_text(monitor,'mouse_button 0')
+            frame('launcher',lambda w,h,rgb:color_at(rgb,w,250,h-300)==bytes.fromhex('2a2c31'))
+            launched=len(m.log())
+            for letter in name: monitor_command(monitor,'sendkey '+letter+' 30');time.sleep(.05)
+            monitor_command(monitor,'sendkey ret 30')
+            assert m.wait('native surface opened 600x480',launched,30),'start menu bypassed signed native launch'
+            assert 'prism: open App '+name.capitalize() in m.log()[launched:],'Prism opened another result'
             needle=bytes.fromhex('2a2c31')*94
             frame('launcher-native-'+str(row),lambda w,h,rgb:any(needle in rgb[y*w*3:(y+1)*w*3] for y in range(h)))
             off=len(m.log());monitor_command(monitor,'sendkey esc 30')
