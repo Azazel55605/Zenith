@@ -1,6 +1,6 @@
 #include "meridian.h"
 enum { PENDING_NONE=0,PENDING_CLOSE=1,PENDING_ROW=2,PENDING_PAGE=3 };
-enum { ID_ROWS=100,ID_FOOTER=900,ID_DIALOG=950,ID_SEARCH=1002,ID_COMBO=2004,ID_COMBO_ROWS=2100,ID_LINKS=3000 };
+enum { ID_ROWS=100,ID_FOOTER=900,ID_DIALOG=950,ID_SEARCH=1002,ID_COMBO=2004,ID_SCALE=2006,ID_COMBO_ROWS=2100,ID_SCALE_ROWS=2400,ID_LINKS=3000 };
 static unsigned long length(const char *s){unsigned long n=0;while(n<4096&&s[n])n++;return n;}
 static int same(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return *a==*b;}
 static void text(struct zui *u,int x,int y,const char *s,const struct zui_font *f,unsigned int c){zui_text(u,x,y,s,length(s),f,c);}
@@ -50,7 +50,7 @@ static void adopt(struct meridian *a,const struct meridian_nav *next){
     a->nav=*next;a->page=next->page;
     if(a->nav.mode!=NAV_SEARCH&&a->query[0]){a->query[0]=0;zui_input_init(&a->search,a->query,sizeof(a->query));}
     if(changed){
-        zui_scroll_jump(&a->page_scroll,0);a->combo.open=0;a->ui.focus=a->ui.pressed=-1;
+        zui_scroll_jump(&a->page_scroll,0);a->combo.open=a->scale_combo.open=0;a->ui.focus=a->ui.pressed=-1;
         remember(a,a->page);refresh_information(a);
     }
     a->ui.dirty=1;
@@ -66,13 +66,13 @@ int meridian_open(struct meridian *a,const char *id){
 }
 int meridian_resize(struct meridian *a,int w,int h,unsigned long capacity){
     if(w<600||h<480||!zui_resize(&a->ui,w,h,capacity))return 0;
-    a->combo.open=0;a->fade_request=a->fade_ready=0;return 1;
+    a->combo.open=a->scale_combo.open=0;a->fade_request=a->fade_ready=0;return 1;
 }
 int meridian_init(struct meridian *a,unsigned int *pixels,struct settings_backend backend,const char *page){
     *a=(struct meridian){0};
     if(!settings_init(&a->colors,pixels,backend)||!zui_init(&a->ui,pixels,600,480)||!zui_input_init(&a->search,a->query,sizeof(a->query)))return 0;
     binding_init(&a->bindings,&a->colors,0,0,backend.dirty);
-    a->focus_row=-1;nav_init(&a->nav,0);a->sidebar.base_id=ID_ROWS;a->combo.id=ID_COMBO;a->combo.popup.base_id=ID_COMBO_ROWS;
+    a->focus_row=-1;nav_init(&a->nav,0);a->sidebar.base_id=ID_ROWS;a->combo.id=ID_COMBO;a->combo.popup.base_id=ID_COMBO_ROWS;a->scale_combo.id=ID_SCALE;a->scale_combo.popup.base_id=ID_SCALE_ROWS;
     remember(a,0);
     if(page&&!meridian_open(a,page))return 0;
     sync_theme(a);return 1;
@@ -91,6 +91,11 @@ static int choice_rows(void *c,int i,struct zui_list_item *o){
     if(i<0||i>=binding_choice_count(&a->bindings,kind))return 0;
     *o=(struct zui_list_item){0,binding_choice_name(&a->bindings,kind,(unsigned int)i),0,0,1};return 1;
 }
+static int scale_rows(void *c,int i,struct zui_list_item *o){
+    struct meridian *a=c;
+    if(i<0||i>=binding_scale_count(&a->bindings))return 0;
+    *o=(struct zui_list_item){0,binding_scale_name(&a->bindings,(unsigned int)i),0,0,1};return 1;
+}
 static struct zui_rect search_rect(struct zui_rect s){return (struct zui_rect){s.x+12,s.y+8,s.w-24,34};}
 static void draw_sidebar(struct meridian *a,struct zui *u,struct zui_rect s){
     zui_add(u,ID_SEARCH,ZUI_BUTTON,search_rect(s),"",0,1);
@@ -106,6 +111,8 @@ static const char *wip_note(const struct meridian *a,int kind){
     if(kind==BIND_SESSION)return "Work in progress: session restore and confirmation policy.";
     if(kind==BIND_TASKBAR)return "F11 makes the focused window fullscreen; the bar ducks and returns at the bottom screen edge. Work in progress: position and pinned applications.";
     if(kind==BIND_ANIMATIONS)return "Work in progress: per-effect controls, peek and desktop transitions.";
+    if(kind==BIND_WALLPAPER)return "Dynamic wallpapers follow light/dark mode and the accent color at once. Work in progress: images, more dynamic designs and scheduling.";
+    if(kind==BIND_LAUNCHER)return "Prism: Meta or Alt+Space always opens the search palette. Work in progress: file indexing, more providers, pinned applications and a custom shortcut.";
     if(a->page==0)return "Work in progress: scheduled mode and persistent history.";
     if(a->page==MERIDIAN_ABOUT)return "Work in progress: hardware inventory is planned.";
     if(information_kind(a)==1)return "Work in progress: connection editing and profiles.";
@@ -171,7 +178,7 @@ static void colors_form(struct meridian *a,struct zui *u,struct zui_form *f){
 static void preference_form(struct meridian *a,struct zui *u,struct zui_form *f,int kind){
     const struct meridian_bindings *b=&a->bindings;int writable=binding_writable(b,kind),count=binding_choice_count(b,kind);
     zui_form_section(u,f,"System default");
-    struct zui_rect r=zui_form_row(u,f,kind==BIND_KEYBOARD?"Keyboard layout":kind==BIND_TIMEZONE?"Time zone":kind==BIND_ANIMATIONS?"Window animations":kind==BIND_TASKBAR?"Taskbar":"Login session",
+    struct zui_rect r=zui_form_row(u,f,kind==BIND_KEYBOARD?"Keyboard layout":kind==BIND_TIMEZONE?"Time zone":kind==BIND_ANIMATIONS?"Window animations":kind==BIND_TASKBAR?"Taskbar":kind==BIND_WALLPAPER?"Wallpaper":kind==BIND_LAUNCHER?"Taskbar button opens":"Login session",
         writable?"Administrators change this for all users.":"Read only: sign in as an administrator.",280,36);
     if(count){
         if(!a->combo.open)a->combo.value=(int)binding_choice(b,kind);
@@ -183,7 +190,8 @@ static void preference_form(struct meridian *a,struct zui *u,struct zui_form *f,
         }
     }else text(u,r.x,r.y+10,"Unavailable from the settings service.",&zui_body,u->theme.secondary);
     status(u,f,b->message?b->message:binding_changed(b,kind)?"Unapplied change.":kind==BIND_KEYBOARD?"Applies to keyboard input across sessions immediately.":
-        kind==BIND_TIMEZONE?"Changes local time display; the UTC clock is unchanged.":kind==BIND_ANIMATIONS?"Applies to the next window change. Off keeps every change immediate.":kind==BIND_TASKBAR?"Applies immediately. Dock when maximized removes the gap around the bar for a maximized window.":"Applies on next boot; the running session is unchanged.");
+        kind==BIND_TIMEZONE?"Changes local time display; the UTC clock is unchanged.":kind==BIND_ANIMATIONS?"Applies to the next window change. Off keeps every change immediate.":kind==BIND_TASKBAR?"Applies immediately. Dock when maximized removes the gap around the bar for a maximized window.":
+        kind==BIND_WALLPAPER?"Applies immediately, here and on the login screen.":kind==BIND_LAUNCHER?"Applies immediately.":"Applies on next boot; the running session is unchanged.");
 }
 static void display_form(struct meridian *a,struct zui *u,struct zui_form *f){
     struct meridian_bindings *b=&a->bindings;
@@ -191,10 +199,13 @@ static void display_form(struct meridian *a,struct zui *u,struct zui_form *f){
     if(!b->display_ready){status(u,f,"Display service unavailable.");return;}
     status(u,f,b->display.driver);
     int writable=binding_writable(b,BIND_DISPLAY);
-    struct zui_rect r=zui_form_row(u,f,"Resolution and scale","Scales apps, window controls and the panel.",280,36);
-    if(!a->combo.open)a->combo.value=(int)b->display_choice;
-    zui_combo_draw(u,&a->combo,r,(int)b->display_count,choice_rows,a);
-    for(int i=0;i<u->count;i++)if(u->controls[i].id==ID_COMBO)u->controls[i].enabled=writable;
+    struct zui_rect r=zui_form_row(u,f,"Resolution","The size of the picture the display shows.",280,36);
+    if(!a->combo.open)a->combo.value=(int)binding_choice(b,BIND_DISPLAY);
+    zui_combo_draw(u,&a->combo,r,binding_choice_count(b,BIND_DISPLAY),choice_rows,a);
+    r=zui_form_row(u,f,"Scale","Makes apps, window controls and the panel larger.",280,36);
+    if(!a->scale_combo.open)a->scale_combo.value=(int)binding_scale_choice(b);
+    zui_combo_draw(u,&a->scale_combo,r,binding_scale_count(b),scale_rows,a);
+    for(int i=0;i<u->count;i++)if(u->controls[i].id==ID_COMBO||u->controls[i].id==ID_SCALE)u->controls[i].enabled=writable;
     if(b->display.phase && (b->display.flags&4)){
         status(u,f,b->display.phase==1?"Preparing display preview...":"Keep this display? Reverts automatically after 15 seconds.");
         char timer[40]="Seconds remaining: ";char *t=timer+19;unsigned int v=b->display.seconds;if(v>=10)*t++='1';*t++=(char)('0'+v%10);*t=0;status(u,f,timer);
@@ -282,7 +293,7 @@ void meridian_draw(struct meridian *a){
     draw_sidebar(a,u,w.sidebar);
     draw_page(a,u,w.content);
     zui_clip(u,(struct zui_rect){0,0,u->width,u->height});
-    zui_update_hover(u);if(a->combo.open||a->dialog.open)u->hover=-1;
+    zui_update_hover(u);if(a->combo.open||a->scale_combo.open||a->dialog.open)u->hover=-1;
     u->focus=focus?index_of(u,focus):-1;u->pressed=pressed?index_of(u,pressed):-1;
     if(a->focus_row!=-1){u->focus=index_of(u,ID_ROWS+(a->focus_row==-2?a->sidebar.selected:a->focus_row));a->focus_row=-1;}
     zui_draw_controls(u);
@@ -291,6 +302,7 @@ void meridian_draw(struct meridian *a){
     if(!a->query[0]&&!a->search_focus)text(u,r.x+10,r.y+9,"Search settings",&zui_caption,u->theme.secondary);
     int kind=page_kind(a);
     if(kind>=BIND_KEYBOARD&&a->combo.open)zui_combo_popup(u,&a->combo,binding_choice_count(&a->bindings,kind),choice_rows,a);
+    if(kind==BIND_DISPLAY&&a->scale_combo.open)zui_combo_popup(u,&a->scale_combo,binding_scale_count(&a->bindings),scale_rows,a);
     if(a->bindings.display.phase==2 && (a->bindings.display.flags&4)){
         unsigned int seconds=a->bindings.display.seconds;char *t=a->display_countdown;
         const char *lead="Automatically reverts in ";while(*lead)*t++=*lead++;
@@ -311,7 +323,7 @@ void meridian_draw(struct meridian *a){
     zui_clip(u,(struct zui_rect){0,0,u->width,u->height});u->dirty=0;
 }
 static void confirm(struct meridian *a,int pending){
-    a->pending=pending;a->combo.open=0;
+    a->pending=pending;a->combo.open=a->scale_combo.open=0;
     a->dialog=(struct zui_dialog){1,ID_DIALOG,"Apply changes?","This page has unapplied changes.",{"Apply","Discard","Cancel"},3};
     a->ui.pressed=-1;a->ui.dirty=1;
 }
@@ -368,7 +380,7 @@ static void page_keys(struct meridian *a,const struct zenith_gui_event *e){
 void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     struct zui *u=&a->ui;
     if(e->type==Z_GUI_MOVE){zui_event(u,e);return;}
-    if(e->type==Z_GUI_FOCUS||e->type==Z_GUI_RESET){zui_event(u,e);a->combo.open=0;a->sidebar.scroll.dragging=a->page_scroll.dragging=0;return;}
+    if(e->type==Z_GUI_FOCUS||e->type==Z_GUI_RESET){zui_event(u,e);a->combo.open=a->scale_combo.open=0;a->sidebar.scroll.dragging=a->page_scroll.dragging=0;return;}
     if(e->type==Z_GUI_CLOSE){a->closing=1;return;}
     if(!u->window_focused&&e->type!=Z_GUI_CLOSE_INTENT)return;
     if(a->display_dialog.open){
@@ -380,6 +392,11 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     if(a->dialog.open){int button=zui_dialog_event(u,&a->dialog,e);if(button)resolve(a,button);sync_theme(a);return;}
     if(e->type==Z_GUI_CLOSE_INTENT||(e->type==Z_GUI_KEY&&e->modifiers==2&&(e->code=='q'||e->code=='Q'))){close_request(a);return;}
     int kind=page_kind(a);
+    if(kind==BIND_DISPLAY&&binding_writable(&a->bindings,kind)&&!a->combo.open){
+        int was=a->scale_combo.open,chosen=zui_combo_event(u,&a->scale_combo,e,scale_rows,a);
+        if(chosen){binding_choose_scale(&a->bindings,(unsigned int)chosen-1);u->focus=index_of(u,ID_SCALE);}
+        if(was||a->scale_combo.open){if(a->scale_combo.open!=was)u->pressed=-1;u->dirty=1;return;}
+    }
     if(kind>=BIND_KEYBOARD&&binding_writable(&a->bindings,kind)){
         int was=a->combo.open,chosen=zui_combo_event(u,&a->combo,e,choice_rows,a);
         if(chosen){binding_choose(&a->bindings,kind,(unsigned int)chosen-1);u->focus=index_of(u,ID_COMBO);}

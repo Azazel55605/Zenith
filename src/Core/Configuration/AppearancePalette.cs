@@ -16,7 +16,7 @@ internal sealed class AppearancePalette
     private static AppearancePalette CreateDefault()
     {
         uint[][] bases = { new uint[] { 0x202125, 0x2a2c31, 0x25262b, 0x45474f, 0xf1f2f4, 0xb4b7c0 },
-            new uint[] { 0xfafafb, 0xffffff, 0xeff0f3, 0xcfd1d8, 0x202126, 0x5c606b } };
+            new uint[] { 0xf8f4ec, 0xfffcf6, 0xf0eadf, 0xd9d0c0, 0x27231d, 0x5d564b } };   // cream light (2026-11-12)
         uint[][] accents = { new uint[] { 0x8baaff, 0xb6a0ff, 0xf39db8, 0xe7bb70, 0x8bcba4, 0x7ecac7 },
             new uint[] { 0x3157b7, 0x7042be, 0xae325d, 0x886010, 0x277347, 0x197571 } };
         var colors = new uint[96];

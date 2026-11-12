@@ -77,7 +77,7 @@ internal sealed class Desktop
         _lower = new Surface(w, h);
         _scene = new Surface(w, h);
         _frame = new Surface(w, h);
-        Wallpaper.Render(_wallpaper);
+        Wallpaper.Render(_wallpaper); _wallpaperKey = Wallpaper.Key();
 
         Windows = new WindowManager(new Rect(0, 0, w, h - Theme.TaskbarHeight - 2 * Theme.TaskbarMargin), new Rect(0, 0, w, h));
         _taskbar = new Taskbar(w, h, Windows);
@@ -234,6 +234,13 @@ internal sealed class Desktop
         // the other kind's pointer must not stay on screen.
         bool hardwarePointer = HardwareCursor.Active;
         if (hardwarePointer != _hardwarePointer) { _hardwarePointer = hardwarePointer; _composeAll = true; _sceneDirty = true; }
+        // A new wallpaper choice, light/dark mode or accent redraws the wallpaper now, not at reboot.
+        long wallpaper = Wallpaper.Key();
+        if (wallpaper != _wallpaperKey)
+        {
+            _wallpaperKey = wallpaper; Wallpaper.Render(_wallpaper);
+            _sceneKey++; _lowerValid = false; _composeAll = true; _sceneDirty = true;
+        }
 
         _nativeClients.Tick(Windows);
         _apps.Tick(Windows);
@@ -865,7 +872,7 @@ internal sealed class Desktop
     }
     private int WidthForMessage() => 520;
 
-    private long _sceneKey;
+    private long _sceneKey, _wallpaperKey;
     private bool AppearanceStillValid() => _lowerValid
         && _lowerMaterials == MaterialResources.Policy.Requested && _lowerTranslucency == MaterialResources.Policy.Translucency
         && _lowerPanel == Theme.Panel && _lowerBackground == Theme.WindowBackground && _lowerBorder == Theme.WindowBorder

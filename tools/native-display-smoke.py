@@ -108,13 +108,14 @@ def main():
         assert m.wait('native surface opened 640x480',timeout=30)
         pixels('meridian-display',1600,1200,client=True)
         # Fresh client has no keyboard focus target. Reverse Tab selects the
-        # last enabled control (resolution combo); Home picks the boot mode.
+        # last enabled control (Scale), again the Resolution combo; Home picks the
+        # boot mode, which offers only 100%, so the scale follows.
         changed=len(m.log())
-        for key in ('shift-tab','ret','home','ret'):
+        for key in ('shift-tab','shift-tab','ret','home','ret'):
             command(monitor,'sendkey '+key+' 30');time.sleep(.15)
         assert m.wait('user: SETTINGS_UNSAVED',changed,15),'display draft from real keyboard input'
         trial=len(m.log())
-        for key in ('tab','ret'):
+        for key in ('tab','tab','ret'):
             command(monitor,'sendkey '+key+' 30');time.sleep(.15)
         assert m.wait('display: preview 1024x768 scale=1',trial,15),'Meridian Apply request'
         display_scale=1
@@ -126,7 +127,7 @@ def main():
         assert m.wait('user: DISPLAY_STATE phase=0',trial,10)
         # A second, explicitly requested trial exercises Keep through Meridian.
         trial=len(m.log())
-        for key in ('shift-tab','ret','home','ret','tab','ret'):
+        for key in ('shift-tab','shift-tab','ret','home','ret','tab','tab','ret'):
             command(monitor,'sendkey '+key+' 30');time.sleep(.15)
         assert m.wait('display: preview 1024x768 scale=1',trial,15)
         display_scale=1

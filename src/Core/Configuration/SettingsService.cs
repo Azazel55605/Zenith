@@ -14,7 +14,8 @@ internal interface ISettingsStore
     bool Persistent { get; }
 }
 
-internal sealed record SystemSettings(string Keyboard, string TimeZone, SessionMode DefaultSession, uint Animation = 0, uint Taskbar = 0);
+internal sealed record SystemSettings(string Keyboard, string TimeZone, SessionMode DefaultSession, uint Animation = 0, uint Taskbar = 0,
+    uint Wallpaper = 0, uint Launcher = 0);
 
 /// <summary>Shared validated settings operations. Local /etc state is administrator-owned.</summary>
 internal sealed class SettingsService
@@ -32,6 +33,16 @@ internal sealed class SettingsService
     public const string TaskbarPath = "/etc/zenith/taskbar.conf";
     public static readonly string[] TaskbarNames = { "dock-maximized", "floating", "docked", "maximized", "auto" };
     public static readonly string[] TaskbarLabels = { "Dock when maximized", "Floating", "Docked", "Hide when maximized", "Auto-hide" };
+    public const string WallpaperPath = "/etc/zenith/wallpaper.conf";
+    /// <summary>Dynamic wallpapers are formulas the compositor draws for the current mode and accent;
+    /// solid ones are a plain fill ("solid-accent" follows the accent). At most 12 (ABI).</summary>
+    public static readonly string[] WallpaperNames = { "zenith", "solid-graphite", "solid-midnight", "solid-forest", "solid-plum",
+        "solid-cream", "solid-mist", "solid-sand", "solid-accent" };
+    public static readonly string[] WallpaperLabels = { "Zenith (dynamic)", "Graphite", "Midnight", "Forest", "Plum",
+        "Cream", "Mist", "Sand", "Accent color" };
+    public const string LauncherPath = "/etc/zenith/launcher.conf";
+    public static readonly string[] LauncherNames = { "menu", "palette" };
+    public static readonly string[] LauncherLabels = { "Start menu", "Search palette" };
     private readonly ISettingsStore _store;
     private readonly Action<string> _keyboard;
     private readonly Action<string> _zone;
@@ -50,7 +61,7 @@ internal sealed class SettingsService
         lock (_gate)
         {
             var errors = new List<string>();
-            string keymap = "us", zone = "UTC"; SessionMode session = SessionMode.Desktop; uint animation = 0, taskbar = 0;
+            string keymap = "us", zone = "UTC"; SessionMode session = SessionMode.Desktop; uint animation = 0, taskbar = 0, wallpaper = 0, launcher = 0;
             try { var fields = Fields(_store.Read(KeyboardPath)); if (fields.TryGetValue("KEYMAP", out string? value)) { keymap = KeyboardLayoutCatalog.Normalize(value) ?? throw new FormatException("unknown KEYMAP"); } }
             catch (Exception e) { errors.Add(KeyboardPath + ": " + e.Message + "; using us"); }
             try { string value = Bound(_store.Read(TimeZonePath) ?? "UTC").Trim(); if (value.Length > 0) { zone = NormalizeZone(value); } }
@@ -61,8 +72,12 @@ internal sealed class SettingsService
             catch (Exception e) { errors.Add(MotionPath + ": " + e.Message + "; using normal"); }
             try { taskbar = ReadTaskbar(_store.Read(TaskbarPath)); }
             catch (Exception e) { errors.Add(TaskbarPath + ": " + e.Message + "; using always"); }
+            try { wallpaper = ReadChoice(_store.Read(WallpaperPath), "WALLPAPER", WallpaperNames); }
+            catch (Exception e) { errors.Add(WallpaperPath + ": " + e.Message + "; using zenith"); }
+            try { launcher = ReadChoice(_store.Read(LauncherPath), "LAUNCHER", LauncherNames); }
+            catch (Exception e) { errors.Add(LauncherPath + ": " + e.Message + "; using menu"); }
             _keyboard(keymap); _zone(zone);
-            Current = new(keymap, zone, session, animation, taskbar);
+            Current = new(keymap, zone, session, animation, taskbar, wallpaper, launcher);
             return errors;
         }
     }
@@ -130,12 +145,37 @@ internal sealed class SettingsService
             Current = Current with { Taskbar = (uint)choice }; _revision++;
         }
     }
+    public void SetWallpaper(string name) => SetChoice(WallpaperPath, "WALLPAPER", WallpaperNames, name, c => Current = Current with { Wallpaper = c });
+    public void SetLauncher(string name) => SetChoice(LauncherPath, "LAUNCHER", LauncherNames, name, c => Current = Current with { Launcher = c });
+    private void SetChoice(string path, string key, string[] names, string name, Action<uint> apply)
+    {
+        RequireRoot();
+        int choice = Array.IndexOf(names, name);
+        if (choice < 0) { throw new ArgumentException("unknown " + key.ToLowerInvariant() + " setting"); }
+        lock (_gate)
+        {
+            if (_revision == ulong.MaxValue) { throw new InvalidOperationException("settings revision exhausted"); }
+            string? old = _store.Read(path);
+            _ = ReadChoice(old, key, names); // Never silently downgrade an unknown future schema.
+            _store.Replace(path, Update(old, new Dictionary<string, string> { ["VERSION"] = "1", [key] = name }));
+            apply((uint)choice); _revision++;
+        }
+    }
+    private static uint ReadChoice(string? text, string key, string[] names)
+    {
+        var fields = Fields(text);
+        if (fields.TryGetValue("VERSION", out string? version) && version != "1") { throw new FormatException("unsupported settings VERSION"); }
+        if (!fields.TryGetValue(key, out string? name)) { return 0; }
+        int choice = Array.IndexOf(names, name);
+        return choice >= 0 ? (uint)choice : throw new FormatException("unknown " + key);
+    }
     public IReadOnlyList<SessionMode> SessionChoices
     { get { var result = new List<SessionMode>(); foreach(var mode in new[] { SessionMode.Desktop, SessionMode.Headless, SessionMode.WindowManager }) { if(_available(mode)) { result.Add(mode); } } return result; } }
     public int SaveChoice(uint field, uint choice, ulong revision)
     {
         if (!CredentialContext.Current.IsRoot) { return -13; }
-        if (field is not (1 or 2 or 3 or 4 or 5) || (field == 1 ? choice >= KeyboardLayoutCatalog.Names.Length : field == 2 ? choice >= TimeZones.All.Count : field == 3 ? choice >= SessionChoices.Count : field == 4 ? choice >= AnimationNames.Length : choice >= TaskbarNames.Length)) { return -22; }
+        if (field is < 1 or > 7 || (field == 1 ? choice >= KeyboardLayoutCatalog.Names.Length : field == 2 ? choice >= TimeZones.All.Count : field == 3 ? choice >= SessionChoices.Count
+            : field == 4 ? choice >= AnimationNames.Length : field == 5 ? choice >= TaskbarNames.Length : field == 6 ? choice >= WallpaperNames.Length : choice >= LauncherNames.Length)) { return -22; }
         lock (_gate)
         {
             if (revision != _revision) { return -11; }
@@ -146,7 +186,9 @@ internal sealed class SettingsService
                 else if(field == 2) { SetTimeZone(TimeZones.All[(int)choice].Name); }
                 else if(field == 3) { SetSession(SessionChoices[(int)choice]); }
                 else if(field == 4) { SetAnimation(AnimationNames[choice]); }
-                else { SetTaskbar(TaskbarNames[choice]); }
+                else if(field == 5) { SetTaskbar(TaskbarNames[choice]); }
+                else if(field == 6) { SetWallpaper(WallpaperNames[choice]); }
+                else { SetLauncher(LauncherNames[choice]); }
                 return 0;
             }
             catch { return -5; }

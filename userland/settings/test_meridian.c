@@ -169,8 +169,10 @@ int main(int argc,char **argv){
     display=(struct zenith_display){.version=1,.flags=3,.revision=1,.width=1024,.height=768,.scale=1,.mode_count=2,.driver="VMWareSVGAII",.modes={{1024,768},{1600,1200}}};
     app.bindings.display_read=read_display;app.bindings.display_save=change_display;
     meridian_refresh(&app);assert(meridian_open(&app,"display.configuration"));draw();
-    assert(enabled(2004));key(0,4,1);key(0,2,0);key(0,11,0);key(0,2,0);
-    assert(binding_choice(&app.bindings,BIND_DISPLAY)==2&&dirty);key(0,4,0);key(0,2,0);
+    assert(enabled(2004)&&enabled(2006));key(0,4,1);key(0,4,1);key(0,2,0);key(0,11,0);key(0,2,0);
+    assert(binding_choice(&app.bindings,BIND_DISPLAY)==1&&app.bindings.display_choice==1&&dirty);   /* 1600x1200 at 100% */
+    key(0,4,0);key(0,2,0);key(0,11,0);key(0,2,0);                                                   /* Scale: 200% */
+    assert(binding_scale_choice(&app.bindings)==1&&app.bindings.display_choice==2);key(0,4,0);key(0,2,0);
     assert(display.phase==1&&dirty&&display_actions==1);
     display.phase=2;display.seconds=15;display.revision++;meridian_refresh(&app);draw();
     assert(app.display_dialog.open&&enabled(4101)&&enabled(4102));

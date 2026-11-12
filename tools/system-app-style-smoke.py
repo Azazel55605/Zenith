@@ -42,7 +42,7 @@ def main():
         (cx,cy),_=observer.position();recovery_console.monitor_command(m.monitor,f'mouse_move {x-cx} {y-cy}')
         recovery_console.monitor_command(m.monitor,'mouse_button 1');time.sleep(.15);recovery_console.monitor_command(m.monitor,'mouse_button 0')
     try:
-        for mode,accent,surface in [('dark','8baaff','202125'),('light','3157b7','fafafb')]:
+        for mode,accent,surface in [('dark','8baaff','202125'),('light','3157b7','f8f4ec')]:
             command('settings set appearance '+mode+' blue; logger STYLE_'+mode,'user: STYLE_'+mode)
             observer.capture(args.keep/('terminal-'+mode+'.ppm'))
             m.type('edit /tmp/style-'+mode+'.txt\n')

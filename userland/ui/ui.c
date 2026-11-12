@@ -76,7 +76,7 @@ static unsigned int over(unsigned int bg,unsigned int fg,unsigned int a){
 }
 void zui_appearance(struct zui *u,int light,int accent){
     light=!!light;if(accent<0||accent>5)accent=0;
-    u->theme=light?(struct zui_theme){0xfafafb,0xffffff,0xeff0f3,0xcfd1d8,0x202126,0x5c606b,accents[1][accent],0xffffff}:
+    u->theme=light?(struct zui_theme){0xf8f4ec,0xfffcf6,0xf0eadf,0xd9d0c0,0x27231d,0x5d564b,accents[1][accent],0xffffff}:
         (struct zui_theme){0x202125,0x2a2c31,0x25262b,0x45474f,0xf1f2f4,0xb4b7c0,accents[0][accent],0x202125};
     for(int i=0;i<6;i++)u->swatches[i]=accents[light][i];
     u->dirty=1;

@@ -102,7 +102,7 @@ def main():
                 if time.monotonic()>=deadline:raise RuntimeError('visible frame '+name)
                 time.sleep(.05)
         if args.materials:
-            nav,body,ink,accent=('eff0f3','fafafb','202126','3157b7') if args.material_light else ('25262b','202125','f1f2f4','8baaff')
+            nav,body,ink,accent=('f0eadf','f8f4ec','27231d','3157b7') if args.material_light else ('25262b','202125','f1f2f4','8baaff')
             geometry=[]
             def locate(w,height,rgb):
                 needle=bytes.fromhex(accent)*200
@@ -158,7 +158,7 @@ def main():
             monitor_command(monitor,'sendkey tab 30');time.sleep(.1)
             change=len(m.log());monitor_command(monitor,'sendkey ret 30')
             assert m.wait('user: UI_CHANGED',change,10),'keyboard activation'
-            frame('light',background('fafafb'));print('PASS keyboard light mode',flush=True)
+            frame('light',background('f8f4ec'));print('PASS keyboard light mode',flush=True)
             # Click Teal through actual compositor input; observe both log and accent pixels.
             (cx,cy),_=observer.position();monitor_command(monitor,f'mouse_move {x+260-cx} {y+208-cy}')
             change=len(m.log());monitor_command(monitor,'mouse_button 1');monitor_command(monitor,'mouse_button 0')

@@ -13,6 +13,21 @@ namespace Zenith.Tests;
 public class AppearanceServiceTests
 {
     [Fact]
+    public void ThemePackageCarriesTheCreamLightPaletteAndItPassesContrast()
+    {
+        string conf = System.IO.File.ReadAllText(System.IO.Path.Combine(AppContext.BaseDirectory,
+            "../../../../../packaging/zenith-theme-default/usr/share/zenith/appearance/default/native.conf"));
+        var palette = AppearancePalette.Read(conf);
+        Assert.True(palette.Packaged);
+        for (uint accent = 0; accent < 6; accent++)
+        {
+            Assert.Equal(0xF8F4ECU, palette.Get(1, accent, 0));
+            Assert.Equal(AppearancePalette.Default.Get(1, accent, 0), palette.Get(1, accent, 0));   // compiled default agrees
+            Assert.Equal(AppearancePalette.Default.Get(0, accent, 0), palette.Get(0, accent, 0));   // dark unchanged
+        }
+    }
+
+    [Fact]
     public void TranslucencyPersistsAndLegacySavesPreserveIt()
     {
         using var root=CredentialContext.Enter(Credentials.Root);

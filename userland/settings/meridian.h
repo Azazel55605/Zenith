@@ -7,7 +7,8 @@
 #include "../ui/text.h"
 /* Shell over the navigation model, page bindings and shared widgets. Control ids:
  * 1,2 mode; 10-15 accent; 50-54 effects; 60,61 scope; 100+ sidebar rows; 900+ footer;
- * 950+ dialog; 1002 search; 2004 combo, 2100+ its rows; 3000+ page links. */
+ * 950+ dialog; 1002 search; 2004 combo, 2100+ its rows; 2006 scale combo, 2400+ its rows;
+ * 3000+ page links. */
 enum { FADE_PAGE=1,FADE_SIDEBAR=2 };
 struct meridian {
     struct zui ui;
@@ -16,7 +17,7 @@ struct meridian {
     struct meridian_nav nav;
     struct zui_list sidebar;
     struct zui_scroll page_scroll;
-    struct zui_combo combo;
+    struct zui_combo combo,scale_combo;
     struct zui_dialog dialog,display_dialog;
     char display_countdown[64];
     struct zui_input search;

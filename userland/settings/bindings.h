@@ -5,18 +5,21 @@
 #include "../include/zenith_system_settings.h"
 /* One draft contract for every editable Meridian page. A page is changed while its
  * draft differs from saved state; the window's unsaved flag covers all pages. */
-enum { BIND_NONE=0,BIND_COLORS=1,BIND_KEYBOARD=2,BIND_TIMEZONE=3,BIND_SESSION=4,BIND_ANIMATIONS=5,BIND_TASKBAR=6,BIND_DISPLAY=7 };
+enum { BIND_NONE=0,BIND_COLORS=1,BIND_KEYBOARD=2,BIND_TIMEZONE=3,BIND_SESSION=4,BIND_ANIMATIONS=5,BIND_TASKBAR=6,BIND_DISPLAY=7,BIND_WALLPAPER=8,BIND_LAUNCHER=9 };
 struct meridian_bindings {
     struct settings_app *colors;
     struct zenith_system_settings preferences; int ready;
     long (*read)(struct zenith_system_settings *);
     long (*save)(unsigned int field,unsigned int choice,unsigned long revision);
     long (*dirty)(int value);
-    unsigned int choice[6];      /* system preference drafts, fields 1..5 */
+    unsigned int choice[8];      /* system preference drafts, fields 1..7 */
     unsigned long revision;      /* revision the drafts are based on */
     struct zenith_display display; int display_ready;
     unsigned int display_choice,display_count,display_modes[120],display_scales[120];
     unsigned long display_revision; char display_labels[120][40];
+    /* The page shows resolution and scale separately: the distinct modes of the pairs above,
+     * and the scales a mode offers. Both choose one of the (mode, scale) pairs. */
+    unsigned int resolution_count,resolution_modes[24]; char resolution_labels[24][24]; char scale_labels[5][8];
     long (*display_read)(struct zenith_display *);
     long (*display_save)(unsigned int,unsigned int,unsigned int,unsigned long,unsigned long);
     const char *display_message;
@@ -37,6 +40,11 @@ int binding_writable(const struct meridian_bindings *b,int kind);
 /* Errors: -13 read only, -22 invalid choice, -5 unsaved state not recorded. */
 int binding_choose(struct meridian_bindings *b,int kind,unsigned int choice);
 long binding_apply(struct meridian_bindings *b,int kind);
+/* Display: BIND_DISPLAY's choices are resolutions; these are the scales of the chosen one. */
+int binding_scale_count(const struct meridian_bindings *b);
+const char *binding_scale_name(const struct meridian_bindings *b,unsigned int index);
+unsigned int binding_scale_choice(const struct meridian_bindings *b);
+int binding_choose_scale(struct meridian_bindings *b,unsigned int index);
 void binding_reset(struct meridian_bindings *b,int kind);
 void binding_defaults(struct meridian_bindings *b,int kind);
 #endif

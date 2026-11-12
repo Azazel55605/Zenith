@@ -41,6 +41,14 @@ internal static class ProcessSystemSettings
             BinaryPrimitives.WriteUInt32LittleEndian(b[3616..],(uint)SettingsService.TaskbarLabels.Length);
             BinaryPrimitives.WriteUInt32LittleEndian(b[3620..],state.Taskbar);
             for(int i=0;i<SettingsService.TaskbarLabels.Length;i++) { Put(data,3624+i*24,24,SettingsService.TaskbarLabels[i]); }
+            // The 352-byte tail (0.0.55): wallpaper at 3744 (12 names), launcher mode at 4040 (2 names).
+            if (SettingsService.WallpaperLabels.Length > 12 || SettingsService.LauncherLabels.Length > 2) { throw new InvalidOperationException("settings catalogue exceeds ABI bounds"); }
+            BinaryPrimitives.WriteUInt32LittleEndian(b[3744..],(uint)SettingsService.WallpaperLabels.Length);
+            BinaryPrimitives.WriteUInt32LittleEndian(b[3748..],state.Wallpaper);
+            for(int i=0;i<SettingsService.WallpaperLabels.Length;i++) { Put(data,3752+i*24,24,SettingsService.WallpaperLabels[i]); }
+            BinaryPrimitives.WriteUInt32LittleEndian(b[4040..],(uint)SettingsService.LauncherLabels.Length);
+            BinaryPrimitives.WriteUInt32LittleEndian(b[4044..],state.Launcher);
+            for(int i=0;i<SettingsService.LauncherLabels.Length;i++) { Put(data,4048+i*24,24,SettingsService.LauncherLabels[i]); }
         }
         return data;
     }

@@ -37,11 +37,17 @@ static void display_tests(void){
     ds=(struct zenith_display){.version=1,.flags=3,.revision=1,.width=1024,.height=768,.scale=1,.mode_count=2,.driver="VMWareSVGAII",.modes={{1024,768},{1920,1200}}};
     b.display_read=display_read;b.display_save=display_save;binding_refresh(&b);
     assert(binding_of("display.configuration")==BIND_DISPLAY);
-    assert(binding_choice_count(&b,BIND_DISPLAY)==3&&!strcmp(binding_choice_name(&b,BIND_DISPLAY,2),"1920 x 1200 (200%)"));
-    assert(!binding_choose(&b,BIND_DISPLAY,2)&&prefs_dirty&&binding_any_changed(&b));
+    /* Resolution and scale are separate choices over the same (mode, scale) pairs. */
+    assert(binding_choice_count(&b,BIND_DISPLAY)==2&&!strcmp(binding_choice_name(&b,BIND_DISPLAY,1),"1920 x 1200"));
+    assert(binding_scale_count(&b)==1&&!strcmp(binding_scale_name(&b,0),"100%"));      /* 1024x768 has no 200% */
+    assert(!binding_choose(&b,BIND_DISPLAY,1)&&binding_scale_count(&b)==2&&!strcmp(binding_scale_name(&b,1),"200%"));
+    assert(binding_scale_choice(&b)==0&&prefs_dirty&&binding_any_changed(&b));     /* keeps 100% */
+    assert(!binding_choose_scale(&b,1)&&b.display_choice==2&&binding_scale_choice(&b)==1);
+    assert(!binding_choose(&b,BIND_DISPLAY,0)&&b.display_choice==0);             /* 200% not offered: 100% */
+    assert(binding_choose_scale(&b,1)==-22&&!binding_choose(&b,BIND_DISPLAY,1)&&!binding_choose_scale(&b,1));
     ds.revision++;binding_refresh(&b);assert(binding_apply(&b,BIND_DISPLAY)==-11&&binding_changed(&b,BIND_DISPLAY));
     binding_reset(&b,BIND_DISPLAY);assert(!binding_any_changed(&b)&&!prefs_dirty);
-    assert(!binding_choose(&b,BIND_DISPLAY,2));assert(binding_apply(&b,BIND_DISPLAY)==-16&&ds.phase==1);
+    assert(!binding_choose(&b,BIND_DISPLAY,1)&&!binding_choose_scale(&b,1));assert(binding_apply(&b,BIND_DISPLAY)==-16&&ds.phase==1);
     ds.phase=2;ds.seconds=15;ds.revision++;binding_refresh(&b);
     assert(!binding_writable(&b,BIND_DISPLAY)&&binding_changed(&b,BIND_DISPLAY));
     binding_reset(&b,BIND_DISPLAY);binding_refresh(&b);assert(!binding_any_changed(&b)&&!prefs_dirty);
