@@ -84,6 +84,39 @@ CURSOR_MERIDIAN = (
 CURSORS = ((CURSOR, '101320', (0, 0)), (CURSOR_MERIDIAN, '16181d', (4, 3)))
 
 
+def meridian_shapes(source):
+    """Every Meridian Light shape at 24 px (move, resize, text...) from the generated images: rows
+    of their fully opaque pixels and the hotspot. Empty when the checkout has none (older tags)."""
+    import base64
+    try: text = Path(source).read_text()
+    except OSError: return ()
+    try:
+        table = [int(n) for n in re.findall(r'-?\d+', text[text.index('Table ='):text.index('};', text.index('Table ='))])]
+        runs = base64.b64decode(''.join(re.findall(r'"([A-Za-z0-9+/=]+)"', text[text.index('Runs ='):])))
+    except ValueError: return ()
+    shapes = []
+    for i in range(0, len(table) - 6, 7):
+        variant, shape, size, offset, length, hx, hy = table[i:i + 7]
+        if variant or size != 24 or shape == 0: continue
+        pixels = []
+        for j in range(offset, offset + length, 5): pixels += [int.from_bytes(runs[j + 1:j + 5], 'little')] * runs[j]
+        # Every fully opaque pixel, in its exact colour (premultiplied at full alpha: drawn as is).
+        pattern = tuple((x, y, (p & 0xffffff).to_bytes(3, 'big')) for y in range(24) for x in range(24)
+                        for p in (pixels[y * 24 + x],) if p >> 24 == 255)
+        if len(pattern) >= 8: shapes.append((pattern, None, (hx, hy)))
+    return tuple(shapes)
+
+
+_SHAPES = None
+def cursors():
+    global _SHAPES
+    if _SHAPES is None:
+        roots = (Path.cwd(), Path(__file__).resolve().parents[2])
+        extra = next((found for found in (meridian_shapes(r / 'src/Gui/Graphics/CursorImages.g.cs') for r in roots) if found), ())
+        _SHAPES = CURSORS + extra
+    return _SHAPES
+
+
 class SnapshotIncomplete(RuntimeError):
     pass
 
@@ -146,24 +179,29 @@ def desktop_frame(ppm):
         return dict(content=[x,y,600,480],close=[bx,by,96,34])
 
 
+def _pattern(rows, outline):
+    """Rows of '#' (outline) and '.' (white) as exact pixels; already exact patterns pass through."""
+    if outline is None: return rows
+    return tuple((x, y, bytes.fromhex(outline if c == '#' else 'ffffff')) for y, row in enumerate(rows) for x, c in enumerate(row) if c != ' ')
+
+
 def cursor_position(ppm):
-    """The pointer's hotspot: exactly one drawn arrow, the old 12x19 one or the Meridian Light one."""
+    """The pointer's hotspot: exactly one drawn pointer, the old 12x19 arrow or a Meridian Light shape."""
     width, height, pixels = frame_pixels(ppm)
     found = []
-    for rows, outline, (hx, hy) in CURSORS:
-        pattern = [(x, y, bytes.fromhex(outline if c == '#' else 'ffffff'))
-                   for y, row in enumerate(rows) for x, c in enumerate(row) if c != ' ']
-        # The first white pixel anchors the search: avoid scanning every RGB pixel in Python and
-        # reject unaligned cross-pixel byte matches.
-        ax, ay = next((x, y) for x, y, c in pattern if c == b'\xff\xff\xff')
-        span = max(len(row) for row in rows); offset = 0
+    for rows, outline, (hx, hy) in cursors():
+        pattern = _pattern(rows, outline)
+        # The first white pixel (else the first pixel) anchors the search: avoid scanning every RGB
+        # pixel in Python and reject unaligned cross-pixel byte matches.
+        ax, ay, anchor = next(((x, y, c) for x, y, c in pattern if c == b'\xff\xff\xff'), pattern[0])
+        span = max(x for x, _, _ in pattern) + 1; offset = 0
         while True:
-            offset = pixels.find(b'\xff\xff\xff', offset)
+            offset = pixels.find(anchor, offset)
             if offset < 0: break
             i = offset; offset += 1
             if i % 3: continue
             x = (i // 3) % width - ax; y = (i // 3) // width - ay
-            # The bottom edge may cut the arrow off; the rows on screen must still match.
+            # The bottom edge may cut the pointer off; the rows on screen must still match.
             if x < 0 or y < 0 or x + span > width: continue
             if all(pixels[((y+dy)*width+x+dx)*3:((y+dy)*width+x+dx)*3+3] == color for dx,dy,color in pattern if y+dy < height):
                 found.append((x + hx, y + hy))

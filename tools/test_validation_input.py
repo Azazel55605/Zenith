@@ -120,6 +120,16 @@ class RenderedMouseTests(unittest.TestCase):
             for dx,c in enumerate(row):
                 if c!=' ':at=((2+dy)*width+20+dx)*3;pixels[at:at+3]=bytes.fromhex('16181d' if c=='#' else 'ffffff')
         self.assertEqual(((24,5),(64,40)),profile.cursor_position(b'P6\n64 40\n255\n'+bytes(pixels)))
+    def test_every_meridian_shape_is_known_and_matches_the_images(self):
+        shapes=profile.meridian_shapes(Path(__file__).resolve().parents[1]/'src/Gui/Graphics/CursorImages.g.cs')
+        self.assertEqual(11,len(shapes))                       # all Light shapes but the arrow
+        width,height=64,40
+        for pattern,outline,(hx,hy) in shapes:
+            self.assertIsNone(outline)
+            pixels=bytearray(bytes.fromhex('334455')*(width*height))
+            for dx,dy,color in pattern:
+                if 2+dy<height:at=((2+dy)*width+20+dx)*3;pixels[at:at+3]=color
+            self.assertEqual(((20+hx,2+hy),(64,40)),profile.cursor_position(b'P6\n64 40\n255\n'+bytes(pixels)))
     def test_malformed_snapshot_fails(self):
         for data in (b'',b'P6\n64 40\n255\nshort',b'P6\n999999 40\n255\n'):
             with self.assertRaises((RuntimeError,ValueError)):profile.cursor_position(data)
