@@ -114,6 +114,12 @@ class RenderedMouseTests(unittest.TestCase):
         self.assertEqual(((10,5),(64,40)),profile.cursor_position(self.image()))
         for positions in ((),((10,5),(30,5))):
             with self.assertRaises(RuntimeError):profile.cursor_position(self.image(positions))
+    def test_meridian_arrow_is_found_by_its_hotspot(self):
+        width,height=64,40;pixels=bytearray(bytes.fromhex('334455')*(width*height))
+        for dy,row in enumerate(profile.CURSOR_MERIDIAN):
+            for dx,c in enumerate(row):
+                if c!=' ':at=((2+dy)*width+20+dx)*3;pixels[at:at+3]=bytes.fromhex('16181d' if c=='#' else 'ffffff')
+        self.assertEqual(((24,5),(64,40)),profile.cursor_position(b'P6\n64 40\n255\n'+bytes(pixels)))
     def test_malformed_snapshot_fails(self):
         for data in (b'',b'P6\n64 40\n255\nshort',b'P6\n999999 40\n255\n'):
             with self.assertRaises((RuntimeError,ValueError)):profile.cursor_position(data)

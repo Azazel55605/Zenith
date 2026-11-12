@@ -69,6 +69,19 @@ CURSOR = (
     '#...#..#    ', '#..##..#    ', '#.#  #..#   ', '##   #..#   ',
     '#     #..#  ', '      #..#  ', '       ##   ',
 )
+# The Meridian Light arrow (kernel 0.0.55+, src/Gui/Graphics/CursorImages.g.cs, 24 px): only its
+# fully opaque pixels, which are drawn exactly (white body, #16181D outline); the hotspot is at
+# (4, 3) of these rows. tools/test_validation_input.py checks it against the generated images.
+CURSOR_MERIDIAN = (
+    '                        ', '                        ', '                        ', '    #                   ',
+    '                        ', '                        ', '     .                  ', '     ..                 ',
+    '     ...  #             ', '     ....  #            ', '     ......             ', '     .......            ',
+    '     ........           ', '     .....              ', '     ..... ######       ', '     .                  ',
+    '       ## .             ', '                        ', '    #    # .            ', '                        ',
+    '          #             ', '           #            ',
+)
+# Pattern, outline colour, hotspot within the pattern. Older kernels draw the first.
+CURSORS = ((CURSOR, '101320', (0, 0)), (CURSOR_MERIDIAN, '16181d', (4, 3)))
 
 
 class SnapshotIncomplete(RuntimeError):
@@ -134,22 +147,26 @@ def desktop_frame(ppm):
 
 
 def cursor_position(ppm):
+    """The pointer's hotspot: exactly one drawn arrow, the old 12x19 one or the Meridian Light one."""
     width, height, pixels = frame_pixels(ppm)
-    pattern = [(x, y, bytes.fromhex('101320' if c == '#' else 'ffffff'))
-               for y, row in enumerate(CURSOR) for x, c in enumerate(row) if c != ' ']
-    found = []; offset = 0
-    while True:
-        # First white pixel in the arrow is at (1,2); avoid scanning every RGB
-        # pixel in Python, and reject unaligned cross-pixel byte matches.
-        offset = pixels.find(b'\xff\xff\xff', offset)
-        if offset < 0: break
-        i = offset; offset += 1
-        if i % 3: continue
-        x = (i // 3) % width - 1; y = (i // 3) // width - 2
-        # The bottom edge may cut the arrow off; the rows on screen must still match.
-        if x < 0 or y < 0 or x + 12 > width: continue
-        if all(pixels[((y+dy)*width+x+dx)*3:((y+dy)*width+x+dx)*3+3] == color for dx,dy,color in pattern if y+dy < height):
-            found.append((x, y))
+    found = []
+    for rows, outline, (hx, hy) in CURSORS:
+        pattern = [(x, y, bytes.fromhex(outline if c == '#' else 'ffffff'))
+                   for y, row in enumerate(rows) for x, c in enumerate(row) if c != ' ']
+        # The first white pixel anchors the search: avoid scanning every RGB pixel in Python and
+        # reject unaligned cross-pixel byte matches.
+        ax, ay = next((x, y) for x, y, c in pattern if c == b'\xff\xff\xff')
+        span = max(len(row) for row in rows); offset = 0
+        while True:
+            offset = pixels.find(b'\xff\xff\xff', offset)
+            if offset < 0: break
+            i = offset; offset += 1
+            if i % 3: continue
+            x = (i // 3) % width - ax; y = (i // 3) // width - ay
+            # The bottom edge may cut the arrow off; the rows on screen must still match.
+            if x < 0 or y < 0 or x + span > width: continue
+            if all(pixels[((y+dy)*width+x+dx)*3:((y+dy)*width+x+dx)*3+3] == color for dx,dy,color in pattern if y+dy < height):
+                found.append((x + hx, y + hy))
     if len(found) != 1: raise RuntimeError('expected one visible graphical cursor, found '+str(len(found)))
     return found[0], (width, height)
 
