@@ -136,6 +136,12 @@ class RenderedMouseTests(unittest.TestCase):
             for dx,c in enumerate(row):
                 if c!=' ' and dy-3>=0:at=((dy-3)*width+20+dx)*3;pixels[at:at+3]=bytes.fromhex('16181d' if c=='#' else 'ffffff')
         self.assertEqual(((24,0),(64,40)),profile.cursor_position(b'P6\n64 40\n255\n'+bytes(pixels)))
+    def test_only_the_tip_on_screen_at_the_bottom_edge_is_found(self):
+        width,height=64,40;pixels=bytearray(bytes.fromhex('334455')*(width*height))
+        for dy,row in enumerate(profile.CURSOR_MERIDIAN):
+            for dx,c in enumerate(row):
+                if c!=' ' and 34+dy<height:at=((34+dy)*width+20+dx)*3;pixels[at:at+3]=bytes.fromhex('16181d' if c=='#' else 'ffffff')
+        self.assertEqual(((24,37),(64,40)),profile.cursor_position(b'P6\n64 40\n255\n'+bytes(pixels)))
     def test_malformed_snapshot_fails(self):
         for data in (b'',b'P6\n64 40\n255\nshort',b'P6\n999999 40\n255\n'):
             with self.assertRaises((RuntimeError,ValueError)):profile.cursor_position(data)

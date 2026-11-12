@@ -188,27 +188,30 @@ def _pattern(rows, outline):
 def cursor_position(ppm):
     """The pointer's hotspot: exactly one drawn pointer, the old 12x19 arrow or a Meridian Light shape."""
     width, height, pixels = frame_pixels(ppm)
-    found = []
+    found = set()
     for rows, outline, (hx, hy) in cursors():
         pattern = _pattern(rows, outline)
-        # The first white pixel (else the first pixel) anchors the search: avoid scanning every RGB
-        # pixel in Python and reject unaligned cross-pixel byte matches.
-        ax, ay, anchor = next(((x, y, c) for x, y, c in pattern if c == b'\xff\xff\xff'), pattern[0])
-        span = max(x for x, _, _ in pattern) + 1; offset = 0
-        while True:
-            offset = pixels.find(anchor, offset)
-            if offset < 0: break
-            i = offset; offset += 1
-            if i % 3: continue
-            x = (i // 3) % width - ax; y = (i // 3) // width - ay
-            # A screen edge may cut the pointer off (the hotspot itself stays on screen); the pixels
-            # on screen must still match.
-            if x + hx < 0 or y + hy < 0 or x + hx >= width or y + hy >= height: continue
-            if all(pixels[((y+dy)*width+x+dx)*3:((y+dy)*width+x+dx)*3+3] == color for dx,dy,color in pattern
-                   if 0 <= y+dy < height and 0 <= x+dx < width):
-                found.append((x + hx, y + hy))
+        # Anchors: the first white pixel and the top-most pixel (a pointer at the bottom edge may
+        # show only its tip). Searching for them avoids scanning every RGB pixel in Python; unaligned
+        # cross-pixel byte matches are rejected.
+        anchors = {next(((x, y, c) for x, y, c in pattern if c == b'\xff\xff\xff'), pattern[0]), min(pattern, key=lambda p: (p[1], p[0]))}
+        span = max(x for x, _, _ in pattern) + 1
+        for ax, ay, anchor in anchors:
+            offset = 0
+            while True:
+                offset = pixels.find(anchor, offset)
+                if offset < 0: break
+                i = offset; offset += 1
+                if i % 3: continue
+                x = (i // 3) % width - ax; y = (i // 3) // width - ay
+                # A screen edge may cut the pointer off (the hotspot itself stays on screen); the
+                # pixels on screen must still match.
+                if x + hx < 0 or y + hy < 0 or x + hx >= width or y + hy >= height: continue
+                if all(pixels[((y+dy)*width+x+dx)*3:((y+dy)*width+x+dx)*3+3] == color for dx,dy,color in pattern
+                       if 0 <= y+dy < height and 0 <= x+dx < width):
+                    found.add((x + hx, y + hy))
     if len(found) != 1: raise RuntimeError('expected one visible graphical cursor, found '+str(len(found)))
-    return found[0], (width, height)
+    return next(iter(found)), (width, height)
 
 
 def settings_form_home(ppm, reference, light):
