@@ -3,7 +3,7 @@
 **Design baseline v0.1 accepted by the user on 2026-10-27.** This defines the
 shared visual and interaction language for widgets, Settings and the desktop.
 The current native control set follows the accepted solid specimen: neutral segments, checked swatches, settings rows, navigation and aligned host chrome. Effects and the richer text/widget set remain separate capabilities; see the implementation table below.
-Concepts (proposals): [Aurora](design/editor-concept.svg) · [Horizon](design/files-concept.svg) · [Polaris](design/terminal-concept.svg) · [Sunset](design/sunset-concept.svg) · [Prism](design/prism-concept.svg) · [Orbit](design/orbit-concept.svg) · [Observatory](design/observatory-concept.svg) · [Beacon](design/beacon-concept.svg) · [Equinox](design/equinox-concept.svg) · [Visual specimen](design/system-specimen.svg) · [Master work D1/D3](ROADMAP.md#core-delivery-work)
+Concepts (proposals): [Aurora](design/editor-concept.svg) · [Horizon](design/files-concept.svg) · [Polaris](design/terminal-concept.svg) · [Sunset](design/sunset-concept.svg) · [Prism](design/prism-concept.svg) · [Orbit](design/orbit-concept.svg) · [Observatory](design/observatory-concept.svg) · [Beacon](design/beacon-concept.svg) · [Equinox](design/equinox-concept.svg) · [Cursors](design/cursor-concept.svg) · [Wallpapers](design/wallpaper-concept.svg) · [Visual specimen](design/system-specimen.svg) · [Master work D1/D3](ROADMAP.md#core-delivery-work)
 
 ## Agreed direction
 
