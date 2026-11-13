@@ -8,14 +8,16 @@ namespace Zenith.Core.Processes;
 /// <summary>zenith-native-disk-abi 1.0 (userland/include/zenith_disks.h): the 16384-byte snapshot
 /// (647) and the 72-byte edit request (648) over <see cref="DiskService"/>. Since kernel 0.0.54 the
 /// snapshot's reserved tail carries extras version 1 (used bytes, filesystem state, GPT copies);
-/// older kernels leave it zero, and clients check extra.version.</summary>
+/// older kernels leave it zero, and clients check extra.version. Extras version 2 (0.0.56) adds
+/// mounts: header flag 2 (mount, unmount and at-startup actions 5 to 7 are understood), which
+/// partitions /etc/fstab mounts at startup, and how many of its lines Zenith skips.</summary>
 internal static class ProcessDisks
 {
     public const int SnapshotBytes = 16384, RequestBytes = 72;
     private const int Header = 200, DiskBytes = 1832, PartBytes = 104, MaxDisks = 8, MaxParts = 16, MaxFree = 8;
     /// <summary>struct zenith_disks_extra: version, reserved, used[8][16], state[8][16], gpt[8].</summary>
     private const int Extra = Header + MaxDisks * DiskBytes, ExtraUsed = Extra + 8, ExtraState = ExtraUsed + MaxDisks * MaxParts * 8,
-        ExtraGpt = ExtraState + MaxDisks * MaxParts;
+        ExtraGpt = ExtraState + MaxDisks * MaxParts, ExtraStartup = ExtraGpt + MaxDisks, ExtraSkipped = ExtraStartup + MaxDisks * MaxParts;
 
     public static byte[] Snapshot(uint uid)
     {
@@ -23,7 +25,7 @@ internal static class ProcessDisks
         Span<byte> b = data;
         var job = DiskService.Job;
         BinaryPrimitives.WriteUInt32LittleEndian(b, 1);
-        BinaryPrimitives.WriteUInt32LittleEndian(b[4..], uid == 0 ? 1u : 0u);
+        BinaryPrimitives.WriteUInt32LittleEndian(b[4..], (uid == 0 ? 1u : 0u) | 2u);
         BinaryPrimitives.WriteUInt64LittleEndian(b[8..], DiskService.Revision);
         BinaryPrimitives.WriteUInt32LittleEndian(b[16..], (uint)job.State);
         BinaryPrimitives.WriteUInt32LittleEndian(b[20..], (uint)job.Action);
@@ -32,7 +34,11 @@ internal static class ProcessDisks
         var disks = DiskService.Describe();
         int count = Math.Min(disks.Count, MaxDisks);
         BinaryPrimitives.WriteUInt32LittleEndian(b[192..], (uint)count);
-        BinaryPrimitives.WriteUInt32LittleEndian(b[Extra..], 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(b[Extra..], 2);
+        // A hand-edited fstab that cannot be read shows as nothing at startup, not as an error here.
+        var fstab = new System.Collections.Generic.List<FstabLine>();
+        try { fstab = SystemMounts.ReadFstab(); } catch (Exception) { }
+        BinaryPrimitives.WriteUInt32LittleEndian(b[ExtraSkipped..], (uint)Fstab.Skipped(fstab));
         for (int d = 0; d < count; d++)
         {
             var disk = disks[d];
@@ -61,6 +67,7 @@ internal static class ProcessDisks
                 Text(q.Slice(72, 32), p.Mount);
                 BinaryPrimitives.WriteUInt64LittleEndian(b[(ExtraUsed + (d * MaxParts + i) * 8)..], p.UsedBytes);
                 b[ExtraState + d * MaxParts + i] = (byte)p.State;
+                b[ExtraStartup + d * MaxParts + i] = (byte)(fstab.Count > 0 && DiskService.MountedAtStartup(p.Partition, fstab) ? 1 : 0);
             }
             for (int i = 0; i < free; i++)
             {
@@ -89,17 +96,19 @@ internal static class ProcessDisks
     }
 
     // Request: version 0, action 4, revision 8, disk[16] 16, start 32, sectors 40, filesystem 48,
-    // reserved 52, label[16] 56.
+    // flags 52 (mount actions only: bit 0 = at startup / forget at startup / on), label[16] 56
+    // (for mount: the name under /mnt).
     public static long Request(ReadOnlySpan<byte> b, uint uid)
     {
-        if (b.Length != RequestBytes || BinaryPrimitives.ReadUInt32LittleEndian(b) != 1
-            || BinaryPrimitives.ReadUInt32LittleEndian(b[52..]) != 0) { return -22; }
+        if (b.Length != RequestBytes || BinaryPrimitives.ReadUInt32LittleEndian(b) != 1) { return -22; }
         uint action = BinaryPrimitives.ReadUInt32LittleEndian(b[4..]), filesystem = BinaryPrimitives.ReadUInt32LittleEndian(b[48..]);
+        uint flags = BinaryPrimitives.ReadUInt32LittleEndian(b[52..]);
         string? disk = Field(b.Slice(16, 16)), label = Field(b.Slice(56, 16));
-        if (action is < 1 or > 4 || disk is null || disk.Length == 0 || label is null || filesystem > 1) { return -22; }
+        if (action is < 1 or > 7 || disk is null || disk.Length == 0 || label is null || filesystem > 1) { return -22; }
+        if (flags > (action >= 5 ? 1u : 0u)) { return -22; }
         ulong start = BinaryPrimitives.ReadUInt64LittleEndian(b[32..]), sectors = BinaryPrimitives.ReadUInt64LittleEndian(b[40..]);
         if (sectors != 0 && (sectors % DiskLayout.Alignment != 0 || sectors < DiskLayout.MinimumSectors)) { return -22; }
         return DiskService.Submit(uid, (DiskService.Action)action, BinaryPrimitives.ReadUInt64LittleEndian(b[8..]),
-            disk, start, sectors, filesystem == 1, label);
+            disk, start, sectors, filesystem == 1, label, flags);
     }
 }

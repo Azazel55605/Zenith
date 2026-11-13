@@ -581,6 +581,30 @@ if (assembly.Name.Name == "Cosmos.Kernel.System")
         il.InsertBefore(first, il.Create(OpCodes.Ret)); handle.Body.MaxStackSize = Math.Max(2, handle.Body.MaxStackSize);
         changed = true; Console.WriteLine("Added bounded Ethernet/IPv4 ingress guard");
     }
+    // Observatory's sent rate: before every device Send(byte[], int) in the stack, copy the length
+    // to EthernetEgress.Count. Idempotent: a call already preceded by the count is left alone.
+    var egressType = transportSupport.MainModule.GetType("Zenith.Core.Network.Transport.EthernetEgress")
+        ?? throw new InvalidOperationException("Ethernet egress counter missing");
+    var egressCount = module.ImportReference(egressType.Methods.Single(m => m.Name == "Count"));
+    int sendSites = 0, countedSites = 0;
+    foreach (var type in module.GetTypes())
+    foreach (var method in type.Methods.Where(m => m.HasBody))
+    {
+        foreach (var send in method.Body.Instructions.Where(i => (i.OpCode == OpCodes.Callvirt || i.OpCode == OpCodes.Call)
+            && i.Operand is MethodReference m && m.Name == "Send" && m.DeclaringType.Name is "INetworkDevice" or "NetworkDevice"
+            && m.Parameters.Count == 2 && m.Parameters[0].ParameterType.FullName == "System.Byte[]"
+            && m.Parameters[1].ParameterType.FullName == "System.Int32").ToArray())
+        {
+            sendSites++;
+            if (send.Previous?.Operand is MethodReference before && before.Name == "Count" && before.DeclaringType.Name == "EthernetEgress") { continue; }
+            var il = method.Body.GetILProcessor();
+            il.InsertBefore(send, il.Create(OpCodes.Dup));
+            il.InsertBefore(send, il.Create(OpCodes.Call, egressCount));
+            method.Body.MaxStackSize += 1; countedSites++;
+        }
+    }
+    if (sendSites == 0) { throw new InvalidOperationException("Cosmos network device send contract changed"); }
+    if (countedSites > 0) { changed = true; Console.WriteLine("Counted Ethernet egress at " + countedSites + " device sends"); }
     // The legacy DHCP constructor parses unchecked fixed offsets before Zenith's codec.
     // Deliver the checked UDP envelope directly; Zenith parses BOOTP/options afterward.
     var dhcpHandler = module.GetType("Cosmos.Kernel.System.Network.IPv4.DHCP.DhcpPacket").Methods.Single(m => m.Name == "DHCPHandler");

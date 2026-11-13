@@ -29,8 +29,14 @@ internal static partial class CursorImages
         return s_images[index] ??= Decode(index, size);
     }
 
-    /// <summary>The packaged size nearest above <paramref name="pixels"/> (24, 32 or 48).</summary>
-    public static int SizeFor(int pixels) { foreach (int size in Sizes) { if (size >= pixels) { return size; } } return Sizes[^1]; }
+    /// <summary>The packaged size nearest to <paramref name="pixels"/> (one per display scale: 24, 30,
+    /// 36, 42 and 48); a tie takes the smaller.</summary>
+    public static int SizeFor(int pixels)
+    {
+        int best = Sizes[0];
+        foreach (int size in Sizes) { if (Math.Abs(size - pixels) < Math.Abs(best - pixels)) { best = size; } }
+        return best;
+    }
 
     private static uint[] Decode(int index, int size)
     {

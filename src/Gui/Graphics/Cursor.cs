@@ -6,7 +6,7 @@ namespace Zenith.Gui.Graphics;
 /// The pointer: the Meridian cursor set (docs/design/cursor-concept.svg), Light or Dark from
 /// Meridian › Style › Cursors, in the shape the desktop asks for (<see cref="Shape"/>). Drawn at
 /// 24 logical pixels into frames (the display scaler enlarges it with everything else), or by the
-/// device at 24, 32 or 48 px when it draws the pointer itself.
+/// device at the scale's exact size (24 to 48 px) when it draws the pointer itself.
 /// </summary>
 internal static class Cursor
 {

@@ -386,6 +386,7 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         }
 
         device.ReadBlock(lba, devBlocks, dest);
+        Zenith.Core.Monitoring.IoCounters.Disk(device, devBlocks * devBlockSize, false);
     }
 
     /// <summary>
@@ -439,6 +440,7 @@ internal sealed class Ext2Superblock : IVfsSuperblock
         }
 
         _device.WriteBlock(lba, devBlocks, data);
+        Zenith.Core.Monitoring.IoCounters.Disk(_device, devBlocks * _device.BlockSize, true);
     }
 
     /// <summary>

@@ -2,7 +2,7 @@
 """Rasterizes the accepted Meridian cursor set (tools/design/cursor-concept.py: the shapes,
 hotspots and both variants) into src/Gui/Graphics/CursorImages.g.cs.
 
-Every cursor is drawn at 24, 32 and 48 px (rsvg-convert), premultiplied ARGB, and stored as
+Every cursor is drawn at 24, 30, 36, 42 and 48 px (rsvg-convert), premultiplied ARGB, and stored as
 runs: a byte of repeat count (1..255) then the pixel (little endian), one image after another.
 Run after changing the shapes; the kernel build does not need Python or rsvg."""
 import base64, importlib.util, struct, subprocess, sys, tempfile
@@ -12,7 +12,9 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('concept', ROOT / 'tools/design/cursor-concept.py')
 concept = importlib.util.module_from_spec(spec); spec.loader.exec_module(concept)
-SIZES = (24, 32, 48)
+# One size per display scale (100, 125, 150, 175 and 200 %): the device pointer is drawn at the
+# scale's exact size, never rounded up to a larger image.
+SIZES = (24, 30, 36, 42, 48)
 VARIANTS = ('Light', 'Dark')
 DEFS = '<defs><filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation=".7"/></filter></defs>'
 

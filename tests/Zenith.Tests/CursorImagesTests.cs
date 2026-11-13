@@ -40,7 +40,9 @@ public class CursorImagesTests
         // Hotspots scale with the size.
         CursorImages.Get(0, CursorShape.Text, 48, out int tx, out int ty);
         Assert.Equal((24, 24), (tx, ty));
-        Assert.Equal(24, CursorImages.SizeFor(20)); Assert.Equal(32, CursorImages.SizeFor(30)); Assert.Equal(48, CursorImages.SizeFor(48)); Assert.Equal(48, CursorImages.SizeFor(72));
+        Assert.Equal(24, CursorImages.SizeFor(20)); Assert.Equal(30, CursorImages.SizeFor(30)); Assert.Equal(48, CursorImages.SizeFor(48)); Assert.Equal(48, CursorImages.SizeFor(72));
+        // Every display scale has its exact size: 150 % is 36 px, not the 200 % image.
+        foreach (int percent in new[] { 100, 125, 150, 175, 200 }) { Assert.Equal(24 * percent / 100, CursorImages.SizeFor(24 * percent / 100)); }
         Assert.Throws<ArgumentOutOfRangeException>(() => CursorImages.Get(0, CursorShape.Default, 40, out _, out _));
     }
 }

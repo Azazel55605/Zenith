@@ -62,6 +62,8 @@ def main():
         ('pkg install /root/observatory.zpk','G_OBSERVATORY_PKG'),
         ('native run observatory | logger & sleep 8; true','G_OBSERVATORY'),
         ('native run observatory processes | logger & sleep 8; true','G_OBSERVATORY_PROCESSES'),
+        ('native run observatory --probe | logger','G_OBSERVATORY_PROBE'),
+        ('native run observatory apps | logger & sleep 8; true','G_OBSERVATORY_APPS'),
         ('ls /usr/share/zenith/native; false','G_FAILED'),
         ('settings set translucency 100','G_TRANSLUCENT'),
         ('native run gui-probe --buffer-probe | logger','G_BUFFER'),
@@ -211,6 +213,16 @@ def main():
             status('echo POLARIS_ALIVE | logger','G_POLARIS')
         observatory('native run observatory | logger & sleep 8; true','G_OBSERVATORY','observatory.ppm')
         print('PASS Observatory shows performance and closes',flush=True)
+        # Disk, network and Apps (call 649): the disk has moved bytes, the network has carried the
+        # package fetches, and Polaris's window is listed with the program that owns it.
+        import re
+        raw=status('native run observatory --probe | logger','G_OBSERVATORY_PROBE')
+        assert re.search(r'OBSERVATORY_ACTIVITY disks=[1-9]\d* networks=[1-9]\d* windows=[1-9]',raw),raw[-800:]
+        assert re.search(r'OBSERVATORY_DISK \S+ read=[1-9]\d*',raw),raw[-800:]
+        assert re.search(r'OBSERVATORY_NETWORK eth0 received=[1-9]\d* sent=[1-9]\d* flags=[1-7] address=10\.0\.2\.15',raw),raw[-800:]
+        assert re.search(r'OBSERVATORY_WINDOW pid=[1-9]\d* ',raw),raw[-800:]
+        observatory('native run observatory apps | logger & sleep 8; true','G_OBSERVATORY_APPS','observatory-apps.ppm')
+        print('PASS Observatory reports disks, network and the windows of programs',flush=True)
         raw=status('fps | logger','G_RENDER_STATS')
         if multicore:
             import re

@@ -294,7 +294,7 @@ internal sealed unsafe class NativeProcess
                 if (!Valid(r.Title, r.Length, false)) { return -14; }
                 byte[] title = ReadUser(r.Title, r.Length);
                 foreach (byte value in title) { if (value < 32 || value > 126) { return -22; } }
-                return graphics.Open(r.Width, r.Height, Encoding.ASCII.GetString(title), r.Format);
+                return graphics.Open(r.Width, r.Height, Encoding.ASCII.GetString(title), r.Format, (int)c.Pid);
             }
             if (c.Call == 624)
             {
@@ -323,6 +323,17 @@ internal sealed unsafe class NativeProcess
                 if (c.Arg0 is 0 or > int.MaxValue || c.Arg1 != 0 || c.Arg2 != 0) { return -22; }
                 if (c.Arg0 == c.Pid) { return -22; }
                 return Processes.RequestStop((int)c.Arg0, (uint)c.Uid);
+            }
+            // Observatory: disks, network and the windows of the caller's programs (and the desktop's).
+            if (c.Call == 649)
+            {
+                if (c.Arg1 != Zenith.Core.Monitoring.ActivityMonitor.SnapshotBytes || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, Zenith.Core.Monitoring.ActivityMonitor.SnapshotBytes, true)) { return -14; }
+                var visible = new System.Collections.Generic.HashSet<int>();
+                foreach (var p in Processes.List((uint)c.Uid)) { visible.Add(p.Pid); }
+                var windows = new System.Collections.Generic.List<Zenith.Core.Monitoring.ActivityWindow>();
+                foreach (var w in Zenith.Core.Monitoring.KernelMonitor.Windows) { if (w.Pid == 0 || visible.Contains(w.Pid)) { windows.Add(w); } }
+                Transfer(c.Arg0, Zenith.Core.Monitoring.KernelMonitor.Activity.Snapshot(windows), true); return 0;
             }
             // Equinox: disks and their edits (zenith-native-disk-abi 1.0).
             if (c.Call == 647)
@@ -719,7 +730,7 @@ internal sealed unsafe class NativeProcess
                     var caller = Zenith.Core.Security.CredentialContext.Enter(identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
                     // while waiting for a peer. Mutations and transport setup stay serialized.
-                    bool standard = context.Call is 642 or 643 or 644 or 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 645 or 646 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    bool standard = context.Call is 642 or 643 or 644 or 649 or 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 645 or 646 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {

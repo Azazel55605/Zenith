@@ -78,6 +78,96 @@ internal static class SystemMounts
         DevMount.Initialize();
     }
 
+    /// <summary>The partition's GPT unique GUID (what /etc/fstab names it by, PARTUUID=); null
+    /// on a disk without a valid GPT.</summary>
+    public static Guid? PartitionId(Partition partition)
+    {
+        try
+        {
+            foreach (var identity in GptIdentity.Read(partition.Host))
+            { if (identity.Start == partition.StartSector && identity.Count == partition.BlockCount) { return identity.Id; } }
+        }
+        catch (IOException) { }
+        return null;
+    }
+
+    /// <summary>/etc/fstab as it is now (empty when there is none). Read fresh every time: people
+    /// edit the file by hand too, so Zenith never works from an old copy.</summary>
+    public static List<FstabLine> ReadFstab() => Fstab.Parse(BoundedFile.ReadText(Fstab.Path, 16384));
+
+    /// <summary>Changes /etc/fstab through <paramref name="edit"/>, which sees the current lines and
+    /// returns the new ones. If the file changed between reading and replacing it (saved from an
+    /// editor meanwhile), the edit is made again on the new text, so neither change is lost.</summary>
+    public static void EditFstab(Func<List<FstabLine>, List<FstabLine>> edit)
+    {
+        GuardedFilesystem.RequireRoot();
+        lock (s_fstabGate)
+        {
+            for (int attempt = 0; ; attempt++)
+            {
+                string? before = BoundedFile.ReadText(Fstab.Path, 16384);
+                var lines = edit(Fstab.Parse(before));
+                string after = Fstab.Serialize(lines);
+                if (before is null || before.Length == 0) { after = Fstab.NewFileHeader + after; }
+                if (BoundedFile.ReadText(Fstab.Path, 16384) != before)
+                {
+                    if (attempt < 3) { continue; }
+                    throw new IOException("/etc/fstab keeps changing; try again when it is saved");
+                }
+                if (after == (before ?? "")) { return; }
+                new Zenith.Core.Configuration.NativeSettingsStore().Replace(Fstab.Path, after);
+                return;
+            }
+        }
+    }
+    private static readonly object s_fstabGate = new();
+
+    /// <summary>Mounts what /etc/fstab lists (installed systems; after accounts load, since file
+    /// access checks need them). A line Zenith does not understand, a partition that is missing or a
+    /// check that fails is logged and skipped: a second disk never stops the boot.</summary>
+    public static void MountAtStartup()
+    {
+        if (RootPartition is null) { return; }
+        List<FstabLine> lines;
+        try
+        {
+            if (!new VfsFileMetadata().TryRead(Fstab.Path, out _)) { Log.Write("mounts", "no /etc/fstab; nothing to mount at startup"); return; }
+            lines = ReadFstab();
+        }
+        catch (Exception e) { Log.Write("mounts", "/etc/fstab skipped: " + e.Message); return; }
+        foreach (var line in lines)
+        {
+            if (line.Problem is string problem) { Log.Write("mounts", "/etc/fstab: skipped \"" + line.Text.Trim() + "\": " + problem); continue; }
+            if (line.Entry is not FstabEntry entry || entry.NoAuto || entry.System) { continue; }
+            try
+            {
+                Partition? partition = null;
+                foreach (Partition candidate in StorageManager.Partitions)
+                {
+                    if (entry.Device is string device ? candidate.Name == device : PartitionId(candidate) == entry.Partition) { partition = candidate; break; }
+                }
+                if (partition is null) { Log.Write("mounts", entry.MountPoint + ": partition is not attached; skipped"); continue; }
+                if (!Directory.Exists(entry.MountPoint))
+                {
+                    // Zenith makes its own mount points under /mnt; anywhere else the directory must exist.
+                    if (!entry.MountPoint.StartsWith("/mnt/", StringComparison.Ordinal)) { Log.Write("mounts", entry.MountPoint + ": mount point does not exist; skipped"); continue; }
+                    Directory.CreateDirectory(entry.MountPoint);
+                }
+                string filesystem = entry.Filesystem;
+                if (filesystem == "auto")
+                {
+                    var probed = DiskService.Probe(partition).Filesystem;
+                    filesystem = probed == DiskFilesystem.Ext2 ? Ext2 : probed == DiskFilesystem.Fat32 ? Fat : "";
+                    if (filesystem.Length == 0) { Log.Write("mounts", entry.MountPoint + ": no ext2 or FAT filesystem on " + partition.Name + "; skipped"); continue; }
+                }
+                string? error;
+                lock (s_mountGate) { error = MountCore(partition.Name, entry.MountPoint, filesystem); }
+                Log.Write("mounts", entry.MountPoint + ": " + (error ?? "mounted " + partition.Name + " (" + filesystem + ") at startup"));
+            }
+            catch (Exception e) { Log.Write("mounts", entry.MountPoint + ": " + e.Message); }
+        }
+    }
+
     /// <summary>Flushes every mounted filesystem to its disk (the <c>sync</c> command). Returns how many were synced.</summary>
     public static int SyncAll()
     {

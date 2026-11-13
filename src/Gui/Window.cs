@@ -45,6 +45,8 @@ internal abstract class Window
     public virtual bool CanResize => true;
     /// <summary>The content is text the pointer edits or selects (the pointer shows a text beam there).</summary>
     public virtual bool TextContent => false;
+    /// <summary>The native program that owns the window; 0 for the desktop's own windows.</summary>
+    public virtual int OwnerPid => 0;
     public virtual (int Width, int Height) MaximumSize => (int.MaxValue, int.MaxValue);
     public virtual bool AllowMaterials => true;
     public virtual bool AllowBackgroundMaterials => false;

@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Equinox (zenith-native-disk-abi) on a disposable installed disk: the signed package installs, the
 snapshot lists the disks, a plan runs through the ABI on a blank scratch disk (new table, create,
-create, delete, grow) and a non-root caller is refused; the window opens on the desktop and
-closes on Esc. The host checks the scratch disk's GPT copies and ext2 independently."""
-import functools, hashlib, http.server, importlib.util, subprocess, sys, threading, time
+create, delete, grow) and a non-root caller is refused. Mounts: against a hand-written /etc/fstab,
+the new partition is mounted at /mnt/data and at startup (only its line is added, every other line
+stays byte for byte), the root cannot be unmounted, the startup mount comes back after a restart
+(a line Zenith does not understand is skipped, not fatal), and forgetting it removes only its line.
+The window opens on the desktop and closes on Esc. The host checks the scratch disk's GPT copies
+and ext2 independently."""
+import functools, hashlib, re, http.server, importlib.util, subprocess, sys, threading, time
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
@@ -34,6 +38,11 @@ def main():
     gui_texts = [('native run equinox | logger & sleep 8; true', 'E_WINDOW'), ('echo TERMINAL_ALIVE | logger', 'E_ALIVE'), ('poweroff', None)]
     # Run as another account inside a script, so the console stays root.
     (served / 'user-apply').write_text('su user; export USER=user; native run equinox --apply-test sata1 | logger\n')
+    # Written by a person: comments, odd spacing, a filesystem UUID Zenith does not resolve, a noauto line.
+    fstab = ('# my own notes\n'
+             '/dev/sata9p9   /srv/nothing   ext2   noauto   0 0\n'
+             'UUID=1234-ABCD /mnt/usb vfat defaults 0 0\n')
+    (served / 'fstab').write_text(fstab)
     scripts = {}
     for i, (text, label) in enumerate(gui_texts):
         full = text + ('; echo ' + label + '=$? | logger' if label else '')
@@ -89,7 +98,6 @@ def main():
         # Snapshot extras: both GPT copies agree, the grown volume is clean and reports its use;
         # the mounted root is in use.
         assert 'EQUINOX_DISK sata1 2.0 GiB parts=1 free=0 gpt=1' in output, output[-800:]
-        import re
         part = re.search(r'EQUINOX_PART sata1p0 2\.0 GiB fs=1 label=EQX role=0 used=(\d+) state=(\d)', output)
         assert part and int(part.group(1)) > 0 and part.group(2) == '1', output[-800:]
         assert re.search(r'EQUINOX_PART sata0p1 .* role=1 used=[1-9]\d* state=3', output), output[-800:]
@@ -99,9 +107,41 @@ def main():
         assert 'EQUINOX_STEP init failed' in output, output[-600:]
         output = status('sh /root/user-apply', 'E_USER_REFUSED')
         assert 'refused=13' in output, output[-600:]
+        # Mounts, next to hand-written lines added to the installer's fstab.
+        def fstab_lines(label):
+            out = status('cat /etc/fstab | logger', label)
+            return [line.split('user: ', 1)[1] for line in out.splitlines() if 'user: ' in line and label not in line]
+        installed = fstab_lines('E_FSTAB_INSTALLED')
+        assert any(line.endswith(' / ext2 defaults') for line in installed), installed
+        status('fetch ' + url + '/fstab /root/fstab-extra', 'E_FSTAB_FETCH')
+        status('cat /root/fstab-extra >> /etc/fstab', 'E_FSTAB')
+        expected = installed + fstab.splitlines()
+        assert fstab_lines('E_FSTAB_WRITTEN') == expected
+        output = status('native run equinox --mount-op unmount sata0p1 - 0 | logger', 'E_ROOT_STAYS')
+        assert 'EQUINOX_STEP unmount failed' in output and 'root filesystem' in output, output[-600:]
+        output = status('native run equinox --mount-op mount sata1p0 data 1 | logger', 'E_MOUNT')
+        assert 'EQUINOX_STEP mount done' in output, output[-600:]
+        output = status('native run equinox --probe | logger', 'E_PROBE_MOUNTED')
+        assert re.search(r'EQUINOX_PART sata1p0 .* mount=/mnt/data startup=1', output), output[-800:]
+        status('echo kept > /mnt/data/hello', 'E_WRITE')
+        logged = fstab_lines('E_FSTAB_AFTER_MOUNT')
+        assert logged[:-1] == expected, logged
+        assert re.fullmatch(r'PARTUUID=[0-9a-f-]{36} /mnt/data ext2 defaults 0 2', logged[-1]), logged
+        checks += 1; print('PASS mounted at /mnt/data and at startup; the other fstab lines kept as written', flush=True)
+        command('poweroff', 'all filesystems unmounted'); m.process.wait(timeout=30); disk = m.disk; m.stop(); m = None
+
+        m = h.Machine(keep / 'restart', disk, network=net, extra_disks=(keep / 'setup/secondary.img',)); assert m.wait('headless ready', timeout=180)
+        log = m.log()
+        assert 'mounted sata1p0 (ext2) at startup' in log and 'skipped "UUID=1234-ABCD' in log, log[-2000:]
+        output = status('cat /mnt/data/hello | logger', 'E_STARTUP_MOUNT')
+        assert 'user: kept' in output, output[-400:]
+        output = status('native run equinox --mount-op unmount sata1p0 - 1 | logger', 'E_FORGET')
+        assert 'EQUINOX_STEP unmount done' in output, output[-600:]
+        assert fstab_lines('E_FSTAB_AFTER_FORGET') == expected
+        checks += 1; print('PASS the startup mount returns after a restart; forgetting it removes only its line', flush=True)
         command('poweroff', 'all filesystems unmounted'); m.process.wait(timeout=30); disk = m.disk
         scratch_after = keep / 'scratch-after.img'
-        import shutil; shutil.copyfile(keep / 'setup/secondary.img', scratch_after); m.stop(); m = None
+        import shutil; shutil.copyfile(keep / 'restart/secondary.img', scratch_after); m.stop(); m = None
 
         m = h.Machine(keep / 'desktop', disk, 'session=de', network=net + ['-device', 'virtio-gpu-pci', '-device', 'virtio-keyboard-pci'], monitor=monitor)
         assert m.wait('desktop ready (installed)', timeout=180); gui = True; time.sleep(2)

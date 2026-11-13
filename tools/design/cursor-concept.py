@@ -2,7 +2,7 @@
 """Writes docs/design/cursor-concept.svg: the proposed first Zenith cursor set ("Meridian").
 
 Every shape is drawn on a 24-unit grid with its hotspot; the implementation rasterizes the same
-definitions at 24, 32 and 48 px. Two variants share the shapes: Light (white body, near-black
+definitions at 24, 30, 36, 42 and 48 px (one per display scale). Two variants share the shapes: Light (white body, near-black
 outline) and Dark (near-black body, light outline)."""
 import argparse
 from pathlib import Path

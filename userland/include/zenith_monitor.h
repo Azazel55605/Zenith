@@ -33,6 +33,34 @@ struct zenith_process_entry { int pid; unsigned int uid; unsigned char state,fla
 struct zenith_process_list { unsigned int version,count,total,reserved; struct zenith_process_entry entries[63]; };
 _Static_assert(sizeof(struct zenith_process_entry)==64,"process entry ABI");
 _Static_assert(sizeof(struct zenith_process_list)==4048,"process list ABI");
+/* Call 649 (kernel 0.0.56; older kernels refuse it): disks and network interfaces with bytes since
+ * boot and the latest per-second rates, 120 samples of combined rates oldest first, and the
+ * windows on the desktop with the program that owns each (pid 0: the desktop's own windows; others
+ * only for programs the caller may see). Disk bytes are counted in Zenith's ext2 and raw /dev paths;
+ * network bytes are whole Ethernet frames, all on the primary interface. */
+#define Z_ACTIVITY_DISKS 8
+#define Z_ACTIVITY_NETWORKS 4
+#define Z_ACTIVITY_WINDOWS 24
+enum { Z_NET_LINK_UP=1, Z_NET_READY=2, Z_NET_PRIMARY=4 };
+enum { Z_WINDOW_FOCUSED=1, Z_WINDOW_MINIMIZED=2 };
+struct zenith_activity_disk { char name[16]; unsigned long read,written; unsigned int read_rate,write_rate; unsigned char reserved[8]; };
+struct zenith_activity_network { char name[16]; unsigned long received,sent; unsigned int receive_rate,send_rate,flags; unsigned char address[4],mac[6],reserved[2]; };
+struct zenith_activity_sample { unsigned int read,written,received,sent; };
+struct zenith_activity_window { int pid; unsigned int flags; char title[56]; };
+struct zenith_activity {
+    unsigned int version,disk_count,network_count,samples,window_count,interval_ms,sample_age_ms,reserved;
+    struct zenith_activity_disk disks[Z_ACTIVITY_DISKS];
+    struct zenith_activity_network networks[Z_ACTIVITY_NETWORKS];
+    struct zenith_activity_sample history[Z_MONITOR_HISTORY];
+    struct zenith_activity_window windows[Z_ACTIVITY_WINDOWS];
+};
+_Static_assert(sizeof(struct zenith_activity_disk)==48,"activity disk ABI");
+_Static_assert(sizeof(struct zenith_activity_network)==56,"activity network ABI");
+_Static_assert(__builtin_offsetof(struct zenith_activity,networks)==416,"activity networks ABI");
+_Static_assert(__builtin_offsetof(struct zenith_activity,history)==640,"activity history ABI");
+_Static_assert(__builtin_offsetof(struct zenith_activity,windows)==2560,"activity windows ABI");
+_Static_assert(sizeof(struct zenith_activity)==4096,"activity snapshot ABI");
+static inline long zenith_activity_read(struct zenith_activity *a){return zenith_call(649,(unsigned long)a,sizeof(*a),0);}
 static inline long zenith_monitor_read(struct zenith_monitor *m){return zenith_call(642,(unsigned long)m,sizeof(*m),0);}
 /* The kernel writes a full 4096-byte page: give it one. */
 static inline long zenith_process_list_read(void *page4096){return zenith_call(643,(unsigned long)page4096,4096,0);}

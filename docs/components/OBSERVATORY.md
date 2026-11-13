@@ -31,6 +31,16 @@ dispatch, a few microseconds per interrupt.
 | 642 | 4096-byte buffer, 4096 | System snapshot: CPUs in use and detected, uptime, memory, programs, frames, processor name, latest sample and up to 120 samples, oldest first |
 | 643 | 4096-byte buffer, 4096 | Program list: up to 63 records (PID, UID, state, stop/exit flags, last CPU, allowed CPUs, status, name, account); live programs first |
 | 644 | PID | Asks the program to stop; `-13` for another account's program, `-3` when it already ended, `-22` for itself |
+| 649 | 4096-byte buffer, 4096 | Activity (kernel 0.0.56): up to 8 disks (bytes read and written since boot, the latest rates), up to 4 network interfaces (bytes received and sent, rates, link flags, IPv4 address, MAC), 120 samples of combined rates (oldest first), and up to 24 windows (owning PID, focused/minimized, title) |
+
+Call 649 lists only the windows of programs the caller may see (as 643 does), plus the desktop's
+own windows (PID 0). Disk bytes are counted where Zenith moves blocks: its ext2 driver and raw
+`/dev` reads. RAM disks are left out, and FAT volumes (Cosmos's driver) are not counted yet.
+Network bytes are whole Ethernet frames. Received frames are counted at Zenith's ingress guard.
+Sent frames are counted by a build-time patch that adds a call before every device send in the
+Cosmos stack (15 sites in 3.0.89). The stack does not say which adapter carried a frame, so all
+traffic is reported on the primary interface. Older kernels refuse the call, and Observatory then
+hides the Disk and Network cards and the Apps page.
 
 A sample is one byte per CPU (0..100, 255 offline), the average and memory in
 use. Offset 60 holds the newest sample's age in milliseconds (0 before kernel
@@ -53,7 +63,14 @@ Each is qualified separately.
 3. **O3 Processes (done locally):** a filterable, sortable table (name, PID,
    account, state including Stopping and Exited, last CPU), details for the
    selected program and End process behind a confirmation.
-4. **O4 per-program use, Apps, disk and network:** per-program CPU time and
+4. **O4 Apps, disk and network (done locally, 0.0.56):**
+   - Disk and Network cards: rates with read/write and in/out graphs drawn together, scaled to
+     1, 2 or 5 × 10ⁿ B/s, plus totals, IPv4 and MAC addresses.
+   - An Apps page: every window grouped under the program that owns it, with PID, account, state
+     and CPU, and End app behind the same confirmation as End process.
+   - `--probe` prints the activity snapshot for gates.
+
+   Still open from the original O4: **per-program use**, per-program CPU time and
    memory, which need accounting in the process bridge and page allocator; Apps
    groups windows with their programs; disk and network rate cards need counters
    in the block and network drivers.

@@ -142,7 +142,7 @@ static void command_text(char *o,const struct step *s,const struct model *before
 /* ---------- Layout (docs/design/equinox-concept.svg): sidebar with Disks and Changes; the disk page
  * with Now/After bars, the partition table, three status cards and a notice; the plan as a panel
  * on the right when the window is wide enough, otherwise as its own page. */
-static int page;            /* 0..disk_count-1: a disk; disk_count: Plan; disk_count+1: History */
+static int page;            /* 0..disk_count-1: a disk; disk_count: Plan; disk_count+1: History; disk_count+2: Mounts */
 static int wide;
 enum { MODE_DISK=0,MODE_CREATE=1,MODE_GROW=2 };
 #define NONE (-1000)
@@ -163,7 +163,8 @@ static void remember(const char *line){
     if(history_count==HISTORY){for(int i=1;i<HISTORY;i++)copy(history[i-1],history[i],176);history_count--;}
     copy(history[history_count++],line,176);
 }
-enum { ID_GROW=100,ID_DELETE=101,ID_CREATE=102,ID_TABLE=103,ID_ADD=104,ID_CANCEL=105,ID_APPLY=106,ID_UNDO=107,ID_CLEAR=108,ID_SIZE=109,ID_COMMANDS=110 };
+enum { ID_GROW=100,ID_DELETE=101,ID_CREATE=102,ID_TABLE=103,ID_ADD=104,ID_CANCEL=105,ID_APPLY=106,ID_UNDO=107,ID_CLEAR=108,ID_SIZE=109,ID_COMMANDS=110,
+       ID_MOUNT=111,ID_UNMOUNT=112,ID_STARTUP=113,ID_MOUNT_STARTUP=114 };
 static int applying=-1;           /* index of the step running, or -1 */
 static unsigned long applying_token;
 
@@ -296,6 +297,9 @@ static void draw_sidebar(struct zui_rect s){
         y+=44;
     }
     if(!n){text(x+12,y,"No disks",&zui_body,ui.theme.secondary);y+=30;}
+    trailing[nav_count]=0;nav_rects[nav_count++]=(struct zui_rect){x,y,w,40};
+    if(zui_add(&ui,10+n+2,ZUI_NAVIGATION,(struct zui_rect){x,y,w,40},"Mounts",page==n+2,1)){ui.controls[ui.count-1].icon="folder";ui.controls[ui.count-1].no_chevron=1;}
+    y+=44;
     y+=10;text(x+12,y,"Changes",&zui_caption,ui.theme.secondary);y+=24;
     trailing[nav_count]=1;nav_rects[nav_count++]=(struct zui_rect){x,y,w,40};
     if(zui_add(&ui,10+n,ZUI_NAVIGATION,(struct zui_rect){x,y,w,40},"Plan",page==n,1)){ui.controls[ui.count-1].icon="list";ui.controls[ui.count-1].no_chevron=1;}
@@ -310,7 +314,7 @@ static void draw_sidebar_details(void){
         struct zui_rect r=nav_rects[i];char t[24];t[0]=0;
         if(!trailing[i])continue;
         if(i<n)size_text(t,disks.disks[i].sectors);
-        else if(i==n&&steps)num(t,(unsigned long)steps);
+        else if(i==n+1&&steps)num(t,(unsigned long)steps);   /* rows: disks, Mounts, Plan, History */
         if(t[0])text_right(r.x+r.w-12,r.y+(r.h-zui_caption.height)/2,t,&zui_caption,ui.theme.secondary);
     }
 }
@@ -605,6 +609,140 @@ static void draw_history(struct zui_rect c){
     }
 }
 
+/* ---------- Mounts: every partition with a filesystem, where it is mounted, and whether
+ * /etc/fstab mounts it at startup. Mounting changes no data, so it happens at once (not through
+ * the plan). The root, boot and other system mounts are shown but never unmounted. */
+static int mounts_supported(void){return have_disks&&(disks.flags&Z_DISKS_CAN_MOUNT)&&disks.extra.version>=2;}
+static int mount_sel=-1;                   /* disk*Z_DISK_PARTS+partition, or -1 */
+static unsigned long mount_token;          /* the mount job running, or 0 */
+static char mount_what[96];
+static char mount_name[16];static struct zui_input mount_input;static int mount_focus,mount_startup=1;static struct zui_rect mount_input_rect;
+static struct zui_rect mount_rows[Z_DISKS*Z_DISK_PARTS];static int mount_ids[Z_DISKS*Z_DISK_PARTS],mount_count;
+static struct zui_scroll mounts_scroll;
+static int mountable(const struct zenith_disk_part *p){return p->filesystem==Z_FS_EXT2||p->filesystem==Z_FS_FAT32||p->mount[0];}
+static int system_mount(const struct zenith_disk_part *p){
+    if(p->role==Z_ROLE_ROOT||p->role==Z_ROLE_BOOT)return 1;
+    static const char *system[]={"/","/boot","/boot/efi","/tmp","/proc","/dev"};
+    for(int i=0;i<6;i++)if(same(p->mount,system[i]))return 1;
+    return 0;
+}
+static int at_startup(int d,int i){return mounts_supported()&&disks.extra.startup[d][i];}
+static const struct zenith_disk_part *mount_part(int sel){
+    if(sel<0||!have_disks)return 0;
+    int d=sel/Z_DISK_PARTS,i=sel%Z_DISK_PARTS;
+    if((unsigned int)d>=disks.disk_count||(unsigned int)i>=disks.disks[d].part_count)return 0;
+    return &disks.disks[d].parts[i];
+}
+/* A name for /mnt from the label (or the partition name): letters, digits, '.', '_', '-'. */
+static void suggest_name(const struct zenith_disk_part *p){
+    const char *from=p->label[0]?p->label:p->name;int n=0;
+    for(int k=0;from[k]&&n<15;k++){char c=from[k];
+        if(c>='A'&&c<='Z')c=(char)(c+32);
+        if((c>='a'&&c<='z')||(c>='0'&&c<='9')||c=='_'||c=='-'||(c=='.'&&n>0))mount_name[n++]=c;else if(c==' '&&n>0)mount_name[n++]='-';}
+    mount_name[n]=0;
+    zui_input_init(&mount_input,mount_name,sizeof(mount_name));
+    mount_input.length=mount_input.cursor=(unsigned int)n;
+}
+static void select_mount(int sel){
+    mount_sel=sel;mount_focus=0;mount_startup=1;status_line[0]=0;
+    const struct zenith_disk_part *p=mount_part(sel);
+    if(p)suggest_name(p);
+    ui.dirty=1;
+}
+static void mount_request(unsigned int action,unsigned int flags,const char *what){
+    const struct zenith_disk_part *p=mount_part(mount_sel);
+    if(!p||mount_token)return;
+    int d=mount_sel/Z_DISK_PARTS;
+    struct zenith_disk_request r={1,action,disks.revision,"",p->start,0,Z_FS_UNKNOWN,flags,""};
+    copy(r.disk,disks.disks[d].name,16);
+    if(action==Z_DISK_MOUNT)copy(r.label,mount_name,16);
+    long token=zenith_disks_request(&r);
+    copy(mount_what,what,96);
+    if(token>0){mount_token=(unsigned long)token;status_line[0]=0;ui.dirty=1;return;}
+    char line[176],*o=put(line,"!");o=put(o,what);o=put(o,": ");
+    put(o,token==-13?"administrator permission required":token==-11?"the disks changed meanwhile; try again":token==-16?"another change is running":"refused by this kernel");
+    remember(line);copy(status_line,line+1,160);ui.dirty=1;
+}
+static void poll_mount(void){
+    if(!mount_token||!have_disks||disks.job_token!=mount_token||disks.job_state==Z_DISK_JOB_RUNNING)return;
+    char line[176],*o=put(line,disks.job_state==Z_DISK_JOB_DONE?" ":"!");o=put(o,mount_what);o=put(o,": ");
+    put(o,disks.job_message[0]?disks.job_message:disks.job_state==Z_DISK_JOB_DONE?"done":"failed");
+    remember(line);copy(status_line,line+1,160);mount_token=0;ui.dirty=1;
+}
+static void draw_mounts(struct zui_rect c){
+    int x=c.x+24,w=c.w-48,y=c.y+20;
+    text(x,y,"Mounts",&zui_heading,ui.theme.text);y+=34;
+    if(!mounts_supported()){
+        fit(x,y,"This Zenith kernel does not mount from Equinox. Update Zenith, then reopen Equinox.",w,&zui_body,ui.theme.secondary);
+        mount_count=0;return;
+    }
+    fit(x,y,"Mount a partition under /mnt now, and choose whether /etc/fstab mounts it at every startup.",w,&zui_caption,ui.theme.secondary);y+=20;
+    if(disks.extra.fstab_skipped){
+        char t[120],*o=num(t,disks.extra.fstab_skipped);put(o,disks.extra.fstab_skipped==1?" line of /etc/fstab is not understood and is skipped at startup (kept as written).":" lines of /etc/fstab are not understood and are skipped at startup (kept as written).");
+        fit(x,y,t,w,&zui_caption,warn());y+=20;
+    }
+    if(status_line[0]){fit(x,y,status_line,w,&zui_caption,status_line[0]=='!'?bad():ui.theme.secondary);y+=20;}
+    y+=8;
+    const struct zenith_disk_part *sp=mount_part(mount_sel);
+    int sd=mount_sel/Z_DISK_PARTS,si=mount_sel%Z_DISK_PARTS;
+    int editor=sp&&!system_mount(sp)?(sp->mount[0]?96:132):0;
+    struct zui_rect area={c.x,y,c.w,c.y+c.h-y-(editor?editor+16:12)};
+    int origin=zui_scroll_begin(&ui,&mounts_scroll,area),ry=origin;
+    mount_count=0;
+    for(unsigned int d=0;d<disks.disk_count;d++){
+        const struct zenith_disk *k=&disks.disks[d];
+        for(unsigned int i=0;i<k->part_count&&i<Z_DISK_PARTS;i++){
+            const struct zenith_disk_part *p=&k->parts[i];
+            if(!mountable(p))continue;
+            int id=(int)(d*Z_DISK_PARTS+i);
+            struct zui_rect r={x,ry,w,58};
+            mount_rows[mount_count]=r;mount_ids[mount_count++]=id;
+            int chosen=id==mount_sel;
+            zui_round(&ui,r,10,chosen?mix(ui.theme.raised,ui.theme.accent,82):ui.theme.raised);
+            zui_round_outline(&ui,r,10,chosen?ui.theme.accent:ui.theme.border);
+            zui_icon(&ui,system_mount(p)?"shield":p->mount[0]?"folder":"hard-drive",r.x+14,r.y+12,16,ZUI_ICON_NORMAL);
+            const char *title=p->role==Z_ROLE_ROOT?"Zenith":p->role==Z_ROLE_BOOT?"EFI system":p->label[0]?p->label:p->name;
+            fit(r.x+38,r.y+10,title,w/2-40,&zui_label,ui.theme.text);
+            char info[96],*o=put(info,p->name);o=put(o," \xc2\xb7 ");o=put(o,p->filesystem==Z_FS_EXT2?"ext2":p->filesystem==Z_FS_FAT32?"FAT32":"other");
+            o=put(o," \xc2\xb7 ");size_text(o,p->sectors);
+            fit(r.x+38,r.y+32,info,w/2-40,&zui_caption,ui.theme.secondary);
+            char where[64];
+            if(p->mount[0])put(where,p->mount);else put(where,"Not mounted");
+            text_right(r.x+r.w-14,r.y+10,where,&zui_body,p->mount[0]?ui.theme.text:ui.theme.secondary);
+            const char *note=system_mount(p)?"System \xc2\xb7 stays mounted":at_startup((int)d,(int)i)?"Mounted at startup":"";
+            if(note[0])text_right(r.x+r.w-14,r.y+32,note,&zui_caption,system_mount(p)?ui.theme.secondary:good());
+            ry+=66;
+        }
+    }
+    if(!mount_count){text(x,ry,"No partition holds a filesystem Zenith can mount (ext2 or FAT32).",&zui_body,ui.theme.secondary);ry+=30;}
+    zui_scroll_end(&ui,&mounts_scroll,ry-origin);
+    zui_clip(&ui,c);
+    if(sp&&system_mount(sp)){
+        /* Nothing to do: the reason is on the row. */
+    }else if(sp){
+        struct zui_rect e={x,c.y+c.h-12-editor,w,editor};
+        zui_round(&ui,e,10,mix(ui.theme.surface,ui.theme.raised,50));zui_round_outline(&ui,e,10,ui.theme.border);
+        int ex=e.x+16,ey=e.y+14,busy=mount_token!=0,ok=can_edit&&!busy;
+        if(sp->mount[0]){
+            char t[96],*o=put(t,"Mounted at ");put(o,sp->mount);
+            fit(ex,ey,t,e.w-200,&zui_label,ui.theme.text);
+            zui_add(&ui,ID_UNMOUNT,ZUI_BUTTON,(struct zui_rect){e.x+e.w-136,ey-4,120,34},"Unmount",0,ok);
+            zui_add(&ui,ID_STARTUP,ZUI_TOGGLE,(struct zui_rect){ex,ey+34,e.w-32,36},"Mount here at every startup",at_startup(sd,si),ok);
+        }else{
+            text(ex,ey,"Mount at /mnt/",&zui_label,ui.theme.text);
+            int ix=ex+zui_measure("Mount at /mnt/",14,&zui_label)+6;
+            mount_input_rect=(struct zui_rect){ix,ey-8,180,34};
+            zui_round(&ui,mount_input_rect,8,ui.theme.surface);zui_round_outline(&ui,mount_input_rect,8,mount_focus?ui.theme.accent:ui.theme.border);
+            zui_input_draw(&ui,(struct zui_rect){ix+8,ey-7,164,32},&mount_input,mount_focus);
+            zui_add(&ui,ID_MOUNT,ZUI_BUTTON,(struct zui_rect){e.x+e.w-136,ey-8,120,34},"Mount",1,ok&&mount_name[0]);
+            zui_add(&ui,ID_MOUNT_STARTUP,ZUI_TOGGLE,(struct zui_rect){ex,ey+36,e.w-32,36},"Also mount at every startup",mount_startup,ok);
+            fit(ex,ey+80,"Startup mounts are lines of /etc/fstab; Equinox changes only this partition's line.",e.w-32,&zui_caption,ui.theme.secondary);
+        }
+        if(!can_edit)fit(ex,e.y+e.h-24,"Sign in as root to mount and unmount.",e.w-32,&zui_caption,warn());
+        else if(busy)fit(ex,e.y+e.h-24,"Working...",e.w-32,&zui_caption,ui.theme.secondary);
+    }
+}
+
 /* ---------- Applying: one step at a time; the next waits for the previous to finish. */
 static void start_step(void){
     while(applying>=0&&applying<steps){
@@ -674,6 +812,7 @@ static void draw(void){
         zui_scroll_end(&ui,&center_scroll,height);
     }
     else if(page==n)draw_plan_panel(c,1);
+    else if(page==n+2)draw_mounts(c);
     else draw_history(c);
     for(int i=0;i<ui.count;i++)if(ui.controls[i].enabled){if(ui.controls[i].id==focus)ui.focus=i;if(ui.controls[i].id==pressed)ui.pressed=i;}
     zui_clip(&ui,(struct zui_rect){0,0,ui.width,ui.height});zui_update_hover(&ui);zui_draw_controls(&ui);
@@ -691,6 +830,21 @@ static void action(int id){
     if(id==ID_UNDO&&steps&&applying<0)steps--;
     if(id==ID_CLEAR&&applying<0)steps=0;
     if(id==ID_COMMANDS)show_commands=!show_commands;
+    if(page==n+2){
+        const struct zenith_disk_part *p=mount_part(mount_sel);
+        if(p&&id==ID_MOUNT_STARTUP)mount_startup=!mount_startup;
+        if(p&&id==ID_MOUNT&&mount_name[0]){char t[96],*o=put(t,"Mount ");o=put(o,p->name);o=put(o," at /mnt/");put(o,mount_name);
+            mount_request(Z_DISK_MOUNT,mount_startup?Z_DISK_REQUEST_STARTUP:0,t);}
+        if(p&&id==ID_UNMOUNT){
+            int listed=at_startup(mount_sel/Z_DISK_PARTS,mount_sel%Z_DISK_PARTS);
+            char m[200],*o=put(m,"Programs using files under ");o=put(o,p->mount);
+            put(o,listed?" lose them. It is still mounted at the next startup; turn off Mount at every startup to stop that.":" lose them. Close them first.");
+            char t[64];o=put(t,"Unmount ");o=put(o,p->label[0]?p->label:p->name);put(o,"?");
+            ask(4,t,m,"Unmount");
+        }
+        if(p&&id==ID_STARTUP){int on=!at_startup(mount_sel/Z_DISK_PARTS,mount_sel%Z_DISK_PARTS);char t[96],*o=put(t,on?"Mount ":"Stop mounting ");o=put(o,p->name);put(o," at startup");
+            mount_request(Z_DISK_AT_STARTUP,on?Z_DISK_REQUEST_STARTUP:0,t);}
+    }
     if(id==ID_APPLY&&steps){
         char m[200],*o=put(m,"Equinox writes ");o=num(o,(unsigned long)steps);put(o,steps==1?" step now. A failed step stops the plan; earlier steps stay.":" steps now, in order. A failed step stops the plan; earlier steps stay.");
         ask(3,"Apply the plan?",m,"Apply");
@@ -735,10 +889,18 @@ static void confirmed(void){
     }
     if(confirm_kind==2){char t[112],*o=put(t,"New partition table on ");put(o,disks.disks[page].name);add_step(Z_DISK_INIT,0,0,0,"",t);}
     if(confirm_kind==3){status_line[0]=0;applying=0;start_step();}
+    if(confirm_kind==4){const struct zenith_disk_part *p=mount_part(mount_sel);
+        if(p){char t[96],*o=put(t,"Unmount ");o=put(o,p->name);o=put(o," from ");put(o,p->mount);mount_request(Z_DISK_UNMOUNT,0,t);}}
 }
 static void pointer(const struct zenith_gui_event *e){
     if(e->type!=Z_GUI_DOWN)return;
     int n=have_disks?(int)disks.disk_count:0;
+    if(page==n+2){
+        int was=mount_focus;mount_focus=inside(mount_input_rect,e->x,e->y)&&mount_part(mount_sel)&&!mount_part(mount_sel)->mount[0];
+        if(was!=mount_focus)ui.dirty=1;
+        for(int i=0;i<mount_count;i++)if(inside(mount_rows[i],e->x,e->y)&&mount_ids[i]!=mount_sel){select_mount(mount_ids[i]);return;}
+        return;
+    }
     if(page>=n)return;
     if(mode==MODE_CREATE){int was=label_focus;label_focus=inside(label_rect,e->x,e->y);if(was!=label_focus)ui.dirty=1;return;}
     if(mode!=MODE_DISK)return;
@@ -761,6 +923,8 @@ static int probe(void){
             o=put(line,"EQUINOX_PART ");o=put(o,p->name);o=put(o," ");o=size_text(o,p->sectors);o=put(o," fs=");o=num(o,p->filesystem);
             o=put(o," label=");o=put(o,p->label);o=put(o," role=");o=num(o,p->role);
             if(extras()){o=put(o," used=");o=num(o,disks.extra.used[d][i]);o=put(o," state=");o=num(o,disks.extra.state[d][i]);}
+            if(p->mount[0]){o=put(o," mount=");o=put(o,p->mount);}
+            if(mounts_supported()){o=put(o," startup=");o=num(o,disks.extra.startup[d][i]);}
             put(o,"\n");print(line);
         }
     }
@@ -799,10 +963,24 @@ static int apply_test(const char *disk){
     if(request(Z_DISK_GROW,disk,first,0,0,"","grow-a"))return 1;
     print("EQUINOX_APPLIED\n");return 0;
 }
+/* --mount-op mount|unmount|startup PARTITION NAME 0|1: one mount action through the ABI (tests). */
+static int mount_op(const char *op,const char *partition,const char *name,const char *flag){
+    refresh();if(!have_disks)return 1;
+    for(unsigned int d=0;d<disks.disk_count;d++)for(unsigned int i=0;i<disks.disks[d].part_count&&i<Z_DISK_PARTS;i++){
+        const struct zenith_disk_part *p=&disks.disks[d].parts[i];
+        if(!same(p->name,partition))continue;
+        unsigned int action=same(op,"mount")?Z_DISK_MOUNT:same(op,"unmount")?Z_DISK_UNMOUNT:Z_DISK_AT_STARTUP;
+        struct zenith_disk_request r={1,action,disks.revision,"",p->start,0,Z_FS_UNKNOWN,same(flag,"1")?Z_DISK_REQUEST_STARTUP:0u,""};
+        copy(r.disk,disks.disks[d].name,16);copy(r.label,name,16);
+        return wait_job(zenith_disks_request(&r),op);
+    }
+    print("EQUINOX_STEP no such partition\n");return 1;
+}
 int main(int argc,char **argv){
     if(argc==2&&same(argv[1],"--version")){print("equinox " SUNBEAM_VERSION "\n");return 0;}
     if(argc==2&&same(argv[1],"--probe"))return probe();
     if(argc==3&&same(argv[1],"--apply-test"))return apply_test(argv[2]);
+    if(argc==6&&same(argv[1],"--mount-op"))return mount_op(argv[2],argv[3],argv[4],argv[5]);
     if(argc!=1){print("usage: native run equinox\n");return 2;}
     zui_icons_use_packages();
     zui_init(&ui,pixels,640,480);update_appearance();
@@ -818,8 +996,8 @@ int main(int argc,char **argv){
     long last=zui_motion_clock();int polls=0,result=0,done=0;
     while(!done){
         long now=zui_motion_clock();
-        int interval=applying>=0?150:1000;
-        if((now>=0&&now-last>=interval)||(now<0&&++polls>=200)){last=now;polls=0;refresh();poll_step();}
+        int interval=applying>=0||mount_token?150:1000;
+        if((now>=0&&now-last>=interval)||(now<0&&++polls>=200)){last=now;polls=0;refresh();poll_step();poll_mount();}
         if(ui.dirty){
             draw();
             long r=material?zenith_gui_present_material(handle,ui.pixels,(unsigned long)ui.width*ui.height*4,ui.materials,ui.material_count):zenith_gui_present(handle,ui.pixels,(unsigned long)ui.width*ui.height*4);
@@ -838,12 +1016,23 @@ int main(int argc,char **argv){
             if(size_combo.open){ui.dirty=1;continue;}
             if(e.type==Z_GUI_KEY&&label_focus&&e.extra!=1&&zui_input_event(&label_input,&e)){ui.dirty=1;continue;}
         }
+        if(page==n+2&&mount_focus&&e.type==Z_GUI_KEY){
+            if(e.extra==1){mount_focus=0;ui.dirty=1;continue;}
+            if(e.extra==2){action(ID_MOUNT);continue;}
+            if(zui_input_event(&mount_input,&e)){
+                /* Only the characters a mount name may use. */
+                unsigned int k=0;for(unsigned int j=0;j<mount_input.length;j++){char ch=mount_name[j];if((ch>='a'&&ch<='z')||(ch>='A'&&ch<='Z')||(ch>='0'&&ch<='9')||ch=='_'||ch=='-'||(ch=='.'&&k>0))mount_name[k++]=ch;}
+                if(k!=mount_input.length){mount_name[k]=0;mount_input.length=k;if(mount_input.cursor>k)mount_input.cursor=k;}
+                ui.dirty=1;continue;
+            }
+        }
         if(e.type==Z_GUI_KEY&&e.extra==1&&ui.window_focused){if(mode!=MODE_DISK){mode=MODE_DISK;ui.dirty=1;continue;}done=1;continue;}
         if(page<n&&zui_scroll_event(&ui,&center_scroll,&e)){ui.dirty=1;continue;}
         if((page==n||(page<n&&wide))&&zui_scroll_event(&ui,&plan_scroll,&e)){ui.dirty=1;continue;}
+        if(page==n+2&&zui_scroll_event(&ui,&mounts_scroll,&e)){ui.dirty=1;continue;}
         if(e.type==Z_GUI_DOWN||e.type==Z_GUI_UP)pointer(&e);
         int id=zui_event(&ui,&e);
-        if(id>=10&&id<10+n+2&&id-10!=page){page=id-10;mode=MODE_DISK;selected=NONE;status_line[0]=0;center_scroll.offset=0;plan_scroll.offset=0;ui.dirty=1;continue;}
+        if(id>=10&&id<10+n+3&&id-10!=page){page=id-10;mode=MODE_DISK;selected=NONE;status_line[0]=0;center_scroll.offset=0;plan_scroll.offset=0;ui.dirty=1;continue;}
         if(id)action(id);
     }
     zenith_gui_close(handle);return result;

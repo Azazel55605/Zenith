@@ -414,11 +414,15 @@ caller's programs; root sees all) and 644 (owner-authorized cooperative stop of
 another program). They take no service gate and count toward the renewable
 general call budget. Layouts and the measured CPU idle accounting are in
 [Observatory](components/OBSERVATORY.md#native-abi-zenith-native-monitor-abi-10).
+Kernel 0.0.56 adds call 649 under the same capability. It reports disks and network interfaces
+with totals and per-second rates, two minutes of rates, and the desktop's windows with the
+programs that own them. Clients treat a refusal as "not reported" (older kernels).
 
 ## Disks
 
 `zenith-native-disk-abi` 1.0 adds calls 647 (disks, partitions and free space) and 648 (one
-root-only background edit: new table, create, delete, grow). The rules are the `disk` command's.
+root-only background edit: new table, create, delete, grow; since kernel 0.0.56 also mount,
+unmount and mount at startup through `/etc/fstab`). The rules are the `disk` command's.
 Layouts and errors are in [Equinox](components/EQUINOX.md#native-abi-zenith-native-disk-abi-10).
 
 ## Graphical clients

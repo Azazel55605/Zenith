@@ -1,6 +1,8 @@
-/* Observatory: what the system is doing. Performance (CPU, memory and display, with
- * two minutes of history from the kernel) and Processes (the caller's programs, or
- * everyone's for root, with a polite stop). Reads zenith-native-monitor-abi 1.0. */
+/* Observatory: what the system is doing. Performance (CPU, memory, disk, network and display,
+ * with two minutes of history from the kernel), Apps (the windows on the desktop grouped by the
+ * program that owns them) and Processes (the caller's programs, or everyone's for root, with a
+ * polite stop). Reads zenith-native-monitor-abi 1.0; disk, network and Apps use call 649
+ * (kernel 0.0.56) and are left out on older kernels. */
 #include "../ui/ui.h"
 #include "../ui/widgets.h"
 #include "../ui/text.h"
@@ -28,6 +30,19 @@ static char *size_text(char *o,unsigned long bytes){
     if(bytes>=gib){unsigned long tenths=(bytes*10+gib/2)/gib;o=num(o,tenths/10);if(tenths<1000){*o++='.';o=num(o,tenths%10);}return put(o," GiB");}
     return put(num(o,(bytes+mib/2)/mib)," MiB");
 }
+/* Bytes per second, decimal units as drives and networks are sold: 0 B/s, 840 KB/s, 3.1 MB/s. */
+static char *rate_text(char *o,unsigned long rate){
+    if(rate>=1000000000UL){unsigned long t=(rate+50000000UL)/100000000UL;o=num(o,t/10);*o++='.';o=num(o,t%10);return put(o," GB/s");}
+    if(rate>=1000000UL){unsigned long t=(rate+50000UL)/100000UL;o=num(o,t/10);if(t<1000){*o++='.';o=num(o,t%10);}return put(o," MB/s");}
+    if(rate>=1000UL)return put(num(o,(rate+500)/1000)," KB/s");
+    return put(num(o,rate)," B/s");
+}
+static char *bytes_text(char *o,unsigned long bytes){
+    if(bytes>=1000000000UL){unsigned long t=(bytes+50000000UL)/100000000UL;o=num(o,t/10);*o++='.';o=num(o,t%10);return put(o," GB");}
+    if(bytes>=1000000UL){unsigned long t=(bytes+50000UL)/100000UL;o=num(o,t/10);*o++='.';o=num(o,t%10);return put(o," MB");}
+    if(bytes>=1000UL)return put(num(o,(bytes+500)/1000)," KB");
+    return put(num(o,bytes)," B");
+}
 static char *duration_text(char *o,unsigned long ms){
     unsigned long s=ms/1000,m=s/60,h=m/60,d=h/24;
     if(d){o=put(num(o,d)," d ");return put(num(o,h%24)," h");}
@@ -54,6 +69,10 @@ static unsigned int good(void){return light()?0x277347:0x8BCBA4;}
 static unsigned int warn(void){return light()?0x886010:0xE6C47A;}
 static unsigned int memory_color(void){return light()?0x7042BE:0xB6A0FF;}
 static unsigned int display_color(void){return light()?0x3157B7:0x8BAAFF;}
+static unsigned int disk_color(void){return light()?0x277347:0x8BCBA4;}
+static unsigned int disk_write_color(void){return light()?0x886010:0xE6C47A;}
+static unsigned int net_color(void){return light()?0x1F6F8B:0x7CC7E8;}
+static unsigned int net_out_color(void){return light()?0xA2416B:0xF0A0C0;}
 /* Cards and panels: opaque normally, a light tint when the whole window is a material. */
 static void panel(struct zui_rect r,int selected){
     if(ui.foreground&&ui.full_background&&!ui.theme_preview)zui_round_alpha(&ui,r,10,selected?ui.theme.accent:ui.theme.raised,selected?46:90);
@@ -77,6 +96,33 @@ static int have_processes;
 static unsigned char frames_history[Z_MONITOR_HISTORY];
 static int frames_count;
 static unsigned char previous_list[4096];
+static struct zenith_activity activity,previous_activity;
+static int have_activity;
+/* Rates as 0..100 of the larger of the history's peak and 1 MB/s, for zui_graph. */
+static unsigned char disk_read_history[Z_MONITOR_HISTORY],disk_write_history[Z_MONITOR_HISTORY];
+static unsigned char net_in_history[Z_MONITOR_HISTORY],net_out_history[Z_MONITOR_HISTORY];
+static unsigned long disk_scale,net_scale;
+static unsigned long scale_for(unsigned long peak){
+    unsigned long s=1000000;           /* 1 MB/s, then 2, 5, 10, 20, 50... */
+    while(s<peak){unsigned long n=s*2;if(n>=peak){s=n;break;}n=s*5;if(n>=peak){s=n;break;}s*=10;}
+    return s;
+}
+static void rescale(void){
+    unsigned long dpeak=0,npeak=0;unsigned int n=activity.samples>Z_MONITOR_HISTORY?Z_MONITOR_HISTORY:activity.samples;
+    for(unsigned int i=0;i<n;i++){
+        const struct zenith_activity_sample *h=&activity.history[i];
+        if(h->read>dpeak)dpeak=h->read;
+        if(h->written>dpeak)dpeak=h->written;
+        if(h->received>npeak)npeak=h->received;
+        if(h->sent>npeak)npeak=h->sent;
+    }
+    disk_scale=scale_for(dpeak);net_scale=scale_for(npeak);
+    for(unsigned int i=0;i<n;i++){
+        const struct zenith_activity_sample *h=&activity.history[i];
+        disk_read_history[i]=(unsigned char)(h->read*100/disk_scale);disk_write_history[i]=(unsigned char)(h->written*100/disk_scale);
+        net_in_history[i]=(unsigned char)(h->received*100/net_scale);net_out_history[i]=(unsigned char)(h->sent*100/net_scale);
+    }
+}
 static unsigned long previous_uptime;
 /* Polled four times a second; redraws only when a new sample or a changed program list arrived. */
 static void refresh(void){
@@ -84,6 +130,16 @@ static void refresh(void){
     int had=have_processes;
     have_processes=zenith_process_list_read(list_page)==0&&processes->version==1&&processes->count<=63;
     int changed=had!=have_processes;
+    int had_activity=have_activity;
+    have_activity=zenith_activity_read(&activity)==0&&activity.version==1&&activity.samples<=Z_MONITOR_HISTORY
+        &&activity.disk_count<=Z_ACTIVITY_DISKS&&activity.network_count<=Z_ACTIVITY_NETWORKS&&activity.window_count<=Z_ACTIVITY_WINDOWS;
+    if(have_activity!=had_activity)changed=1;
+    if(have_activity){
+        const unsigned char *a=(const unsigned char *)&activity,*b=(const unsigned char *)&previous_activity;
+        /* The sample age moves on every read: compare everything else. */
+        int differs=0;for(unsigned int i=0;i<sizeof(activity);i++)if(i<24||i>=28)if(a[i]!=b[i]){differs=1;break;}
+        if(differs){previous_activity=activity;rescale();changed=1;}
+    }
     for(int i=0;i<4096;i++)if(list_page[i]!=previous_list[i]){changed=1;previous_list[i]=list_page[i];}
     /* A new kernel sample: its time moved by most of a second. Old kernels report age 0. */
     unsigned long sample_time=have_monitor?monitor.uptime_ms-monitor.sample_age_ms:0;
@@ -111,32 +167,71 @@ static void update_appearance(void){
     ui.dirty=1;
 }
 
-/* ---------- Navigation. */
-enum { PAGE_PERFORMANCE=0,PAGE_PROCESSES=1 };
+/* ---------- Navigation: Performance, Apps (when the kernel lists windows), Processes. */
+enum { PAGE_PERFORMANCE=0,PAGE_PROCESSES=1,PAGE_APPS=2 };
 static int page_shown;
 static struct zui_list sidebar;
+static int nav_count(void){return have_activity?3:2;}
+static int nav_page(int row){return row==0?PAGE_PERFORMANCE:have_activity&&row==1?PAGE_APPS:PAGE_PROCESSES;}
+static int nav_row(int page){return page==PAGE_PERFORMANCE?0:page==PAGE_APPS?1:have_activity?2:1;}
 static int nav_rows(void *context,int i,struct zui_list_item *o){
     (void)context;
-    if(i==0){*o=(struct zui_list_item){"activity","Performance",0,0,1};return 1;}
-    if(i==1){*o=(struct zui_list_item){"list","Processes",0,0,1};return 1;}
-    return 0;
+    if(i>=nav_count())return 0;
+    int page=nav_page(i);
+    if(page==PAGE_PERFORMANCE)*o=(struct zui_list_item){"activity","Performance",0,0,1};
+    else if(page==PAGE_APPS)*o=(struct zui_list_item){"layout-grid","Apps",0,0,1};
+    else *o=(struct zui_list_item){"list","Processes",0,0,1};
+    return 1;
 }
 
 /* ---------- Performance. */
-enum { CARD_CPU=0,CARD_MEMORY=1,CARD_DISPLAY=2,CARDS=3 };
+enum { CARD_CPU=0,CARD_MEMORY=1,CARD_DISK=2,CARD_NETWORK=3,CARD_DISPLAY=4,CARDS=5 };
 static int card;
 static struct zui_rect card_rects[CARDS];
+/* The cards shown, in order: disk and network only when the kernel reports them. */
+static int card_list(int *out){
+    int n=0;out[n++]=CARD_CPU;out[n++]=CARD_MEMORY;
+    if(have_activity){out[n++]=CARD_DISK;out[n++]=CARD_NETWORK;}
+    out[n++]=CARD_DISPLAY;return n;
+}
+static const char *card_titles[CARDS]={"CPU","Memory","Disk","Network","Display"};
+static const char *card_icons[CARDS]={"cpu","memory-stick","hard-drive","network","monitor"};
+static unsigned int card_color(int index){
+    return index==CARD_CPU?ui.theme.accent:index==CARD_MEMORY?memory_color():index==CARD_DISK?disk_color():index==CARD_NETWORK?net_color():display_color();
+}
+static unsigned long disk_rate(int write){unsigned long r=0;for(unsigned int i=0;i<activity.disk_count;i++)r+=write?activity.disks[i].write_rate:activity.disks[i].read_rate;return r;}
+static unsigned long net_rate(int out){unsigned long r=0;for(unsigned int i=0;i<activity.network_count;i++)r+=out?activity.networks[i].send_rate:activity.networks[i].receive_rate;return r;}
+static const struct zenith_activity_network *primary_network(void){
+    for(unsigned int i=0;i<activity.network_count;i++)if(activity.networks[i].flags&Z_NET_PRIMARY)return &activity.networks[i];
+    return activity.network_count?&activity.networks[0]:0;
+}
+static char *address_text(char *o,const unsigned char *a){
+    for(int i=0;i<4;i++){if(i)*o++='.';o=num(o,a[i]);}return o;
+}
 static void stat(int x,int y,const char *label,const char *value){
     text(x,y,label,&zui_caption,ui.theme.secondary);
     text(x,y+18,value,&zui_label,ui.theme.text);
 }
+/* A card's graph: one series, or two (read and write, in and out) over each other. */
+static void card_graph(int index,struct zui_rect g,int capacity,int grid){
+    unsigned int color=card_color(index);
+    if(index==CARD_CPU)zui_graph_smooth(&ui,g,&monitor.history[0].total,16,(int)monitor.samples,capacity,color,grid);
+    else if(index==CARD_MEMORY)zui_graph_smooth(&ui,g,&monitor.history[0].memory,16,(int)monitor.samples,capacity,color,grid);
+    else if(index==CARD_DISK){
+        zui_graph_smooth(&ui,g,disk_read_history,1,(int)activity.samples,capacity,color,grid);
+        zui_graph_smooth(&ui,g,disk_write_history,1,(int)activity.samples,capacity,disk_write_color(),0);
+    }else if(index==CARD_NETWORK){
+        zui_graph_smooth(&ui,g,net_in_history,1,(int)activity.samples,capacity,color,grid);
+        zui_graph_smooth(&ui,g,net_out_history,1,(int)activity.samples,capacity,net_out_color(),0);
+    }else zui_graph_smooth(&ui,g,frames_history,1,frames_count,capacity,color,grid);
+}
 static void draw_card(int index,struct zui_rect r,int compact){
-    static const char *titles[CARDS]={"CPU","Memory","Display"},*icons[CARDS]={"cpu","memory-stick","monitor"};
     char value[48],caption[64],*o;
-    unsigned int color=index==CARD_CPU?ui.theme.accent:index==CARD_MEMORY?memory_color():display_color();
     card_rects[index]=r;panel(r,card==index);
-    zui_icon(&ui,icons[index],r.x+12,r.y+12,16,ZUI_ICON_NORMAL);
-    text(r.x+36,r.y+12,titles[index],&zui_label,ui.theme.text);
+    /* Narrow cards (five in a row) drop the icon and put the value under the title. */
+    int narrow=r.w<150,tx=narrow?r.x+10:r.x+36;
+    if(!narrow)zui_icon(&ui,card_icons[index],r.x+12,r.y+12,16,ZUI_ICON_NORMAL);
+    text(tx,r.y+(narrow?8:12),card_titles[index],&zui_label,ui.theme.text);
     if(index==CARD_CPU){
         o=num(value,monitor.latest.total);put(o,"%");
         o=num(caption,(unsigned long)busy_cores());o=put(o," of ");o=num(o,monitor.cpus);put(o,monitor.cpus==1?" CPU busy":" CPUs busy");
@@ -144,19 +239,37 @@ static void draw_card(int index,struct zui_rect r,int compact){
         if(compact){o=num(value,monitor.latest.memory);put(o,"%");}
         else{o=size_text(value,monitor.memory_total-monitor.memory_free);o=put(o," / ");size_text(o,monitor.memory_total);}
         o=num(caption,monitor.latest.memory);put(o,"% in use");
+    }else if(index==CARD_DISK){
+        rate_text(value,disk_rate(0)+disk_rate(1));
+        o=put(caption,"read ");o=rate_text(o,disk_rate(0));o=put(o," \xc2\xb7 write ");rate_text(o,disk_rate(1));
+    }else if(index==CARD_NETWORK){
+        rate_text(value,net_rate(0)+net_rate(1));
+        o=put(caption,"in ");o=rate_text(o,net_rate(0));o=put(o," \xc2\xb7 out ");rate_text(o,net_rate(1));
     }else{
         o=num(value,monitor.frames_per_second);put(o," fps");
         o=put(caption,"worst ");o=num(o,(monitor.frame_worst_us+500)/1000);put(o," ms");
     }
     /* The value sits beside the title when both fit, otherwise under it; the graph takes what is left. */
-    int beside=!compact&&36+zui_measure(titles[index],length(titles[index]),&zui_label)+16+zui_measure(value,length(value),&zui_label)<=r.w-12;
-    if(beside)text_right(r.x+r.w-12,r.y+12,value,&zui_label,ui.theme.text);else text(r.x+12,r.y+32,value,&zui_label,ui.theme.text);
-    int top=beside?r.y+38:r.y+52,low=compact?r.y+r.h-6:r.y+r.h-30;
-    struct zui_rect g={r.x+12,top,r.w-24,low-top};
-    if(index==CARD_CPU)zui_graph_smooth(&ui,g,&monitor.history[0].total,16,(int)monitor.samples,60,color,0);
-    else if(index==CARD_MEMORY)zui_graph_smooth(&ui,g,&monitor.history[0].memory,16,(int)monitor.samples,60,color,0);
-    else zui_graph_smooth(&ui,g,frames_history,1,frames_count,60,color,0);
+    if(narrow){
+        int vw=zui_measure(value,length(value),&zui_caption);
+        if(vw<=r.w-20)text(tx,r.y+28,value,&zui_caption,ui.theme.secondary);
+        int top=r.y+46,low=r.y+r.h-6;
+        if(low-top>=6)card_graph(index,(struct zui_rect){r.x+8,top,r.w-16,low-top},60,0);
+        return;
+    }
+    int beside=!compact&&36+zui_measure(card_titles[index],length(card_titles[index]),&zui_label)+16+zui_measure(value,length(value),&zui_label)<=r.w-12;
+    int under=!beside&&r.h>=72;
+    if(beside)text_right(r.x+r.w-12,r.y+12,value,&zui_label,ui.theme.text);
+    else if(under)text(r.x+12,r.y+32,value,&zui_label,ui.theme.text);
+    int top=beside?r.y+38:under?r.y+52:r.y+34,low=compact?r.y+r.h-6:r.y+r.h-30;
+    if(low-top>=8)card_graph(index,(struct zui_rect){r.x+12,top,r.w-24,low-top},60,0);
     if(!compact)text(r.x+12,r.y+r.h-24,caption,&zui_caption,ui.theme.secondary);
+}
+/* A legend entry under the main graph: a swatch and its name. */
+static int legend(int x,int y,unsigned int color,const char *label){
+    zui_round(&ui,(struct zui_rect){x,y+4,10,10},3,color);
+    text(x+16,y,label,&zui_caption,ui.theme.secondary);
+    return x+16+zui_measure(label,length(label),&zui_caption)+18;
 }
 static void draw_performance(struct zui_rect c){
     if(!have_monitor){
@@ -164,22 +277,28 @@ static void draw_performance(struct zui_rect c){
         text(c.x+24,c.y+48,"Observatory needs a newer Zenith kernel. Update Zenith, then reopen it.",&zui_body,ui.theme.secondary);
         return;
     }
+    int cards[CARDS],n=card_list(cards);
+    int known=0;for(int i=0;i<n;i++)if(cards[i]==card)known=1;
+    if(!known)card=CARD_CPU;
+    for(int i=0;i<CARDS;i++)card_rects[i]=(struct zui_rect){0,0,0,0};
     /* Wide: cards in a column beside the main view. Narrow (the 640x480 a window opens at):
      * compact cards in a row above it. */
     int compact=c.w<720,x=c.x+12,y=c.y+12,mx,mw,my;
     if(compact){
-        int cw=(c.w-24-2*10)/3,ch=80;
-        for(int i=0;i<CARDS;i++)draw_card(i,(struct zui_rect){x+i*(cw+10),y,cw,ch},1);
+        int gap=8,cw=(c.w-24-(n-1)*gap)/n,ch=80;
+        for(int i=0;i<n;i++)draw_card(cards[i],(struct zui_rect){x+i*(cw+gap),y,cw,ch},1);
         mx=x;mw=c.w-24;my=y+ch+16;
     }else{
-        int cw=c.w>900?262:220,ch=108;
-        for(int i=0;i<CARDS;i++)draw_card(i,(struct zui_rect){x,y+i*(ch+12),cw,ch},0);
+        int cw=c.w>900?262:220,gap=12,ch=(c.h-24-(n-1)*gap)/n;
+        if(ch>108)ch=108;
+        int small=ch<96;
+        for(int i=0;i<n;i++)draw_card(cards[i],(struct zui_rect){x,y+i*(ch+gap),cw,ch},small);
         mx=x+cw+20;mw=c.x+c.w-12-mx;my=c.y+12;
     }
     int bottom=c.y+c.h-12;
     if(mw<200)return;
-    static const char *titles[CARDS]={"CPU","Memory","Display"};
     char sub[128],*o=sub;
+    const struct zenith_activity_network *net=have_activity?primary_network():0;
     if(card==CARD_CPU){o=put(o,monitor.processor[0]?monitor.processor:"Processor");o=put(o,", ");o=num(o,monitor.cpus);o=put(o,monitor.cpus==1?" CPU in use":" CPUs in use");}
     else if(card==CARD_MEMORY){
         /* Installed comes from the firmware; Zenith's allocator may use only its largest region. */
@@ -187,25 +306,41 @@ static void draw_performance(struct zui_rect c){
         o=size_text(o,installed);o=put(o," installed");
         if(installed>monitor.memory_total+(64UL<<20)){o=put(o,", ");o=size_text(o,monitor.memory_total);put(o," usable by Zenith");}
     }
+    else if(card==CARD_DISK){
+        if(!activity.disk_count)put(o,"No disks attached");
+        else for(unsigned int i=0;i<activity.disk_count&&i<4;i++){if(i)o=put(o,", ");o=put(o,activity.disks[i].name);}
+    }
+    else if(card==CARD_NETWORK){
+        if(!net)put(o,"No network adapter");
+        else{o=put(o,net->name);o=put(o,net->flags&Z_NET_LINK_UP?", link up":", link down");}
+    }
     else put(o,"Frames the desktop composed");
-    text(mx,my,titles[card],&zui_heading,ui.theme.text);
-    text(mx+zui_measure(titles[card],length(titles[card]),&zui_heading)+14,my+10,sub,&zui_caption,ui.theme.secondary);
+    text(mx,my,card_titles[card],&zui_heading,ui.theme.text);
+    text(mx+zui_measure(card_titles[card],length(card_titles[card]),&zui_heading)+14,my+10,sub,&zui_caption,ui.theme.secondary);
     int stats_h=compact?100:118,cores=card==CARD_CPU&&monitor.cpus>1?(int)monitor.cpus:0,cores_h=cores?(compact?64:92):0;
-    int gy=my+44,gh=bottom-gy-stats_h-cores_h-(cores?12:0);
+    int legend_h=card==CARD_DISK||card==CARD_NETWORK?22:0;
+    int gy=my+44,gh=bottom-gy-stats_h-cores_h-(cores?12:0)-legend_h;
     if(gh<60)gh=60;
     struct zui_rect graph={mx,gy,mw,gh};panel(graph,0);
-    unsigned int color=card==CARD_CPU?ui.theme.accent:card==CARD_MEMORY?memory_color():display_color();
     struct zui_rect inner={graph.x+1,graph.y+24,graph.w-2,graph.h-48};
-    if(card==CARD_CPU)zui_graph_smooth(&ui,inner,&monitor.history[0].total,16,(int)monitor.samples,Z_MONITOR_HISTORY,color,1);
-    else if(card==CARD_MEMORY)zui_graph_smooth(&ui,inner,&monitor.history[0].memory,16,(int)monitor.samples,Z_MONITOR_HISTORY,color,1);
-    else zui_graph_smooth(&ui,inner,frames_history,1,frames_count,Z_MONITOR_HISTORY,color,1);
-    text(graph.x+10,graph.y+6,card==CARD_DISPLAY?"60 fps":"100%",&zui_caption,ui.theme.secondary);
+    card_graph(card,inner,Z_MONITOR_HISTORY,1);
+    char top_label[32];
+    if(card==CARD_DISK)rate_text(top_label,disk_scale);
+    else if(card==CARD_NETWORK)rate_text(top_label,net_scale);
+    else put(top_label,card==CARD_DISPLAY?"60 fps":"100%");
+    text(graph.x+10,graph.y+6,top_label,&zui_caption,ui.theme.secondary);
     text(graph.x+10,graph.y+graph.h-20,"2 min ago",&zui_caption,ui.theme.secondary);
     text_right(graph.x+graph.w-10,graph.y+graph.h-20,"now",&zui_caption,ui.theme.secondary);
     int sy=gy+gh+12;
+    if(legend_h){
+        int lx=mx;
+        lx=legend(lx,sy-4,card_color(card),card==CARD_DISK?"Read":"Received");
+        legend(lx,sy-4,card==CARD_DISK?disk_write_color():net_out_color(),card==CARD_DISK?"Written":"Sent");
+        sy+=legend_h;
+    }
     if(cores){
-        int n=cores>8?8:cores,gap=10,w=(mw-gap*(n-1))/n;
-        for(int i=0;i<n;i++){
+        int nc=cores>8?8:cores,gap=10,w=(mw-gap*(nc-1))/nc;
+        for(int i=0;i<nc;i++){
             struct zui_rect t={mx+i*(w+gap),sy,w,cores_h};panel(t,0);
             char label[16],pct[8];o=put(label,"CPU ");num(o,(unsigned long)i);
             int v=monitor.latest.cpu[i];
@@ -215,7 +350,7 @@ static void draw_performance(struct zui_rect c){
             text(t.x+10,t.y+8,label,&zui_caption,ui.theme.secondary);
             if(fits)text_right(t.x+t.w-10,t.y+8,pct,&zui_caption,ui.theme.text);else text(t.x+10,t.y+24,pct,&zui_caption,ui.theme.text);
             int gt=fits?30:44;
-            zui_graph_smooth(&ui,(struct zui_rect){t.x+6,t.y+gt,t.w-12,t.h-gt-6},&monitor.history[0].cpu[i],16,(int)monitor.samples,60,color,0);
+            zui_graph_smooth(&ui,(struct zui_rect){t.x+6,t.y+gt,t.w-12,t.h-gt-6},&monitor.history[0].cpu[i],16,(int)monitor.samples,60,card_color(CARD_CPU),0);
         }
         sy+=cores_h+16;
     }else sy+=4;
@@ -233,10 +368,27 @@ static void draw_performance(struct zui_rect c){
             text(mx,sy+96,"Zenith uses one CPU unless it is started with smp=native.",&zui_caption,ui.theme.secondary);
     }else if(card==CARD_MEMORY){
         size_text(a,monitor.memory_total-monitor.memory_free);size_text(b,monitor.memory_free);size_text(cc,monitor.memory_total);
-        o=num(d,monitor.latest.memory);put(o,"%");num(e,monitor.programs);duration_text(f,monitor.uptime_ms);
+        o=num(d,monitor.latest.memory);put(o,"%");num(e,monitor.programs);
         size_text(f,monitor.memory_installed>monitor.memory_total?monitor.memory_installed:monitor.memory_total);
         stat(mx,sy,"In use",a);stat(mx+col,sy,"Free",b);stat(mx+2*col,sy,"Installed",f);
         stat(mx,sy+48,"Share in use",d);stat(mx+col,sy+48,"Programs",e);stat(mx+2*col,sy+48,"Usable by Zenith",cc);
+    }else if(card==CARD_DISK){
+        unsigned long read=0,written=0;
+        for(unsigned int i=0;i<activity.disk_count;i++){read+=activity.disks[i].read;written+=activity.disks[i].written;}
+        rate_text(a,disk_rate(0));rate_text(b,disk_rate(1));num(cc,activity.disk_count);
+        bytes_text(d,read);bytes_text(e,written);duration_text(f,monitor.uptime_ms);
+        stat(mx,sy,"Read",a);stat(mx+col,sy,"Write",b);stat(mx+2*col,sy,"Disks",cc);
+        stat(mx,sy+48,"Read since boot",d);stat(mx+col,sy+48,"Written since boot",e);stat(mx+2*col,sy+48,"Uptime",f);
+        text(mx,sy+96,"Counts ext2 volumes and raw disk access; FAT volumes are not counted yet.",&zui_caption,ui.theme.secondary);
+    }else if(card==CARD_NETWORK){
+        rate_text(a,net_rate(0));rate_text(b,net_rate(1));
+        if(net&&(net->address[0]|net->address[1]|net->address[2]|net->address[3]))address_text(cc,net->address);else put(cc,"None");
+        bytes_text(d,net?net->received:0);bytes_text(e,net?net->sent:0);
+        o=f;
+        if(net){static const char hex[]="0123456789abcdef";for(int i=0;i<6;i++){if(i)*o++=':';*o++=hex[net->mac[i]>>4];*o++=hex[net->mac[i]&15];}*o=0;}
+        else put(f,"-");
+        stat(mx,sy,"Receive",a);stat(mx+col,sy,"Send",b);stat(mx+2*col,sy,"IPv4 address",cc);
+        stat(mx,sy+48,"Received since boot",d);stat(mx+col,sy+48,"Sent since boot",e);stat(mx+2*col,sy+48,"Hardware address",f);
     }else{
         o=num(a,monitor.frames_per_second);put(o," fps");
         o=num(b,monitor.frame_average_us/1000);*o++='.';o=num(o,monitor.frame_average_us%1000/100);put(o," ms");
@@ -383,15 +535,23 @@ static void select_step(int step){
     if(at>=shown)at=shown-1;
     selected_pid=entry(order[at])->pid;zui_scroll_reveal(&rows_scroll,at*40,40);ui.dirty=1;
 }
-static void ask_end(void){
-    const struct zenith_process_entry *s=selected();
+static const struct zenith_process_entry *find_process(int pid){
+    if(!have_processes)return 0;
+    for(unsigned int i=0;i<processes->count;i++)if(entry((int)i)->pid==pid)return entry((int)i);
+    return 0;
+}
+static int end_pid;
+static void ask_end_pid(int pid){
+    const struct zenith_process_entry *s=find_process(pid);
     if(!s||(s->flags&Z_PROCESS_HAS_EXITED)||stopping(s))return;
+    end_pid=pid;
     char *o=put(confirm_title,"End ");o=put(o,s->name);put(o,"?");
     confirm.title=confirm_title;confirm.message="Observatory asks it to stop, as kill does. Unsaved work in it may be lost.";
     confirm.open=1;ui.dirty=1;
 }
+static void ask_end(void){ask_end_pid(selected_pid);}
 static void end_selected(void){
-    const struct zenith_process_entry *s=selected();
+    const struct zenith_process_entry *s=find_process(end_pid);
     if(!s)return;
     long r=zenith_process_stop(s->pid);
     status_line[0]=0;
@@ -401,6 +561,92 @@ static void end_selected(void){
     refresh();
 }
 
+/* ---------- Apps: the desktop's windows grouped by the program that owns them. */
+#define END_APP_BUTTON 81
+#define MAX_APPS 25
+static int app_pids[MAX_APPS],app_count,selected_app=-1;
+static struct zui_rect app_rects[MAX_APPS],apps_area;
+static struct zui_scroll apps_scroll;
+static int app_heights[MAX_APPS];
+static void arrange_apps(void){
+    app_count=0;
+    if(!have_activity)return;
+    /* Programs in the order their first window appears; the desktop's own windows last. */
+    int desktop=0;
+    for(unsigned int i=0;i<activity.window_count;i++){
+        int pid=activity.windows[i].pid;
+        if(pid==0){desktop=1;continue;}
+        int seen=0;for(int k=0;k<app_count;k++)if(app_pids[k]==pid)seen=1;
+        if(!seen&&app_count<MAX_APPS-1)app_pids[app_count++]=pid;
+    }
+    if(desktop)app_pids[app_count++]=0;
+    int found=0;for(int k=0;k<app_count;k++)if(app_pids[k]==selected_app)found=1;
+    if(!found)selected_app=app_count?app_pids[0]:-1;
+}
+static int app_windows(int pid){int n=0;for(unsigned int i=0;i<activity.window_count;i++)if(activity.windows[i].pid==pid)n++;return n;}
+static const char *app_name(int pid){
+    if(pid==0)return "Desktop";
+    const struct zenith_process_entry *p=find_process(pid);
+    return p?p->name:"Program";
+}
+static void draw_apps(struct zui_rect c){
+    if(!have_activity){
+        text(c.x+24,c.y+24,"This system does not list windows.",&zui_label,ui.theme.text);
+        text(c.x+24,c.y+48,"Observatory needs a newer Zenith kernel. Update Zenith, then reopen it.",&zui_body,ui.theme.secondary);
+        return;
+    }
+    arrange_apps();
+    int x=c.x+12,w=c.w-24,y=c.y+12;
+    text(x,y+6,"Apps",&zui_heading,ui.theme.text);
+    char sub[64],*o=num(sub,(unsigned long)app_count);o=put(o,app_count==1?" app, ":" apps, ");o=num(o,activity.window_count);put(o,activity.window_count==1?" window":" windows");
+    text(x+zui_measure("Apps",4,&zui_heading)+14,y+16,sub,&zui_caption,ui.theme.secondary);
+    const struct zenith_process_entry *sp=selected_app>0?find_process(selected_app):0;
+    zui_add(&ui,END_APP_BUTTON,ZUI_BUTTON,(struct zui_rect){x+w-140,y,140,34},"End app",0,sp&&!(sp->flags&Z_PROCESS_HAS_EXITED)&&!stopping(sp));
+    if(status_line[0])text_right(x+w-152,y+9,status_line,&zui_caption,warn());
+    apps_area=(struct zui_rect){x,y+48,w,c.y+c.h-12-(y+48)};
+    zui_scroll_begin(&ui,&apps_scroll,apps_area);
+    int top=apps_area.y-apps_scroll.visual,total=0;
+    for(int k=0;k<app_count;k++){
+        int pid=app_pids[k],windows=app_windows(pid),h=48+windows*26+8;
+        app_heights[k]=h;
+        struct zui_rect r={x,top,w,h};app_rects[k]=r;
+        if(top+h>=apps_area.y&&top<=apps_area.y+apps_area.h){
+            panel(r,pid==selected_app);
+            const struct zenith_process_entry *p=pid?find_process(pid):0;
+            zui_icon(&ui,pid?process_icon(app_name(pid)):"monitor",r.x+14,r.y+15,16,ZUI_ICON_NORMAL);
+            text(r.x+38,r.y+14,app_name(pid),&zui_label,ui.theme.text);
+            char info[96];o=info;
+            if(pid){o=put(o,"PID ");o=num(o,(unsigned long)pid);if(p){o=put(o," \xc2\xb7 ");o=put(o,p->user);o=put(o," \xc2\xb7 ");o=put(o,state_text(p));
+                if(p->cpu>=0&&!(p->flags&Z_PROCESS_HAS_EXITED)){o=put(o," on CPU ");o=num(o,(unsigned long)p->cpu);}}}
+            else put(o,"Built into the desktop");
+            text_right(r.x+r.w-14,r.y+15,info,&zui_caption,ui.theme.secondary);
+            int wy=r.y+44;
+            for(unsigned int i=0;i<activity.window_count;i++){
+                const struct zenith_activity_window *win=&activity.windows[i];
+                if(win->pid!=pid)continue;
+                zui_icon(&ui,"app-window",r.x+38,wy+1,16,ZUI_ICON_TEXT);
+                text(r.x+62,wy,win->title[0]?win->title:"Untitled",&zui_body,win->flags&Z_WINDOW_MINIMIZED?ui.theme.secondary:ui.theme.text);
+                const char *state=win->flags&Z_WINDOW_FOCUSED?"Focused":win->flags&Z_WINDOW_MINIMIZED?"Minimized":"Open";
+                text_right(r.x+r.w-14,wy,state,&zui_caption,win->flags&Z_WINDOW_FOCUSED?good():ui.theme.secondary);
+                wy+=26;
+            }
+        }
+        top+=h+10;total+=h+10;
+    }
+    if(!app_count)text(x+12,apps_area.y+10,"No windows are open.",&zui_body,ui.theme.secondary);
+    zui_scroll_end(&ui,&apps_scroll,total);
+}
+static void select_app_step(int step){
+    if(!app_count)return;
+    int at=-1;for(int k=0;k<app_count;k++)if(app_pids[k]==selected_app)at=k;
+    at=at<0?0:at+step;
+    if(at<0)at=0;
+    if(at>=app_count)at=app_count-1;
+    selected_app=app_pids[at];
+    int y=0;for(int k=0;k<at;k++)y+=app_heights[k]+10;
+    zui_scroll_reveal(&apps_scroll,y,app_heights[at]);ui.dirty=1;
+}
+
 /* ---------- Main loop. */
 static void draw(void){
     struct zui_workspace w=zui_workspace_begin(&ui,ui.width<800?156:196);struct zui_rect c=w.content;
@@ -408,10 +654,11 @@ static void draw(void){
     int pressed=ui.pressed>=0&&ui.pressed<ui.count?ui.controls[ui.pressed].id:0;
     ui.count=0;ui.pressed=-1;ui.focus=-1;
     text(24,24,"Observatory",&zui_label,ui.theme.text);
-    sidebar.selected=page_shown;
-    zui_list_draw(&ui,&sidebar,(struct zui_rect){w.sidebar.x,w.sidebar.y+44,w.sidebar.w,w.sidebar.h-44},2,nav_rows,0);
+    if(page_shown==PAGE_APPS&&!have_activity)page_shown=PAGE_PERFORMANCE;
+    sidebar.selected=nav_row(page_shown);
+    zui_list_draw(&ui,&sidebar,(struct zui_rect){w.sidebar.x,w.sidebar.y+44,w.sidebar.w,w.sidebar.h-44},nav_count(),nav_rows,0);
     zui_clip(&ui,c);
-    if(page_shown==PAGE_PERFORMANCE)draw_performance(c);else draw_processes(c);
+    if(page_shown==PAGE_PERFORMANCE)draw_performance(c);else if(page_shown==PAGE_APPS)draw_apps(c);else draw_processes(c);
     for(int i=0;i<ui.count;i++)if(ui.controls[i].enabled){if(ui.controls[i].id==focus)ui.focus=i;if(ui.controls[i].id==pressed)ui.pressed=i;}
     zui_clip(&ui,(struct zui_rect){0,0,ui.width,ui.height});zui_update_hover(&ui);zui_draw_controls(&ui);
     if(confirm.open)zui_dialog_draw(&ui,&confirm);
@@ -421,6 +668,11 @@ static void pointer(const struct zenith_gui_event *e){
     if(e->type!=Z_GUI_DOWN)return;
     if(page_shown==PAGE_PERFORMANCE){
         for(int i=0;i<CARDS;i++)if(inside(card_rects[i],e->x,e->y)&&card!=i){card=i;ui.dirty=1;}
+        return;
+    }
+    if(page_shown==PAGE_APPS){
+        if(!inside(apps_area,e->x,e->y))return;
+        for(int k=0;k<app_count;k++)if(inside(app_rects[k],e->x,e->y)&&selected_app!=app_pids[k]){selected_app=app_pids[k];status_line[0]=0;ui.dirty=1;}
         return;
     }
     int was=filter_focus;filter_focus=inside(filter_rect,e->x,e->y);
@@ -434,10 +686,23 @@ static void pointer(const struct zenith_gui_event *e){
         if(i>=0&&i<shown){selected_pid=entry(order[i])->pid;status_line[0]=0;ui.dirty=1;}
     }
 }
+/* --probe: the activity snapshot as text (tests; no window). */
+static int probe(void){
+    refresh();
+    if(!have_activity){print("OBSERVATORY_NO_ACTIVITY\n");return 1;}
+    char line[160],*o=put(line,"OBSERVATORY_ACTIVITY disks=");o=num(o,activity.disk_count);o=put(o," networks=");o=num(o,activity.network_count);
+    o=put(o," windows=");o=num(o,activity.window_count);o=put(o," samples=");o=num(o,activity.samples);put(o,"\n");print(line);
+    for(unsigned int i=0;i<activity.disk_count;i++){o=put(line,"OBSERVATORY_DISK ");o=put(o,activity.disks[i].name);o=put(o," read=");o=num(o,activity.disks[i].read);o=put(o," written=");o=num(o,activity.disks[i].written);put(o,"\n");print(line);}
+    for(unsigned int i=0;i<activity.network_count;i++){const struct zenith_activity_network *n=&activity.networks[i];
+        o=put(line,"OBSERVATORY_NETWORK ");o=put(o,n->name);o=put(o," received=");o=num(o,n->received);o=put(o," sent=");o=num(o,n->sent);o=put(o," flags=");o=num(o,n->flags);o=put(o," address=");o=address_text(o,n->address);put(o,"\n");print(line);}
+    for(unsigned int i=0;i<activity.window_count;i++){o=put(line,"OBSERVATORY_WINDOW pid=");o=num(o,(unsigned long)activity.windows[i].pid);o=put(o," ");o=put(o,activity.windows[i].title);put(o,"\n");print(line);}
+    return 0;
+}
 int main(int argc,char **argv){
     if(argc==2&&same(argv[1],"--version")){print("observatory " SUNBEAM_VERSION "\n");return 0;}
-    if(argc!=1&&!(argc==2&&same(argv[1],"processes"))){print("usage: native run observatory [processes]\n");return 2;}
-    if(argc==2)page_shown=PAGE_PROCESSES;
+    if(argc==2&&same(argv[1],"--probe"))return probe();
+    if(argc!=1&&!(argc==2&&(same(argv[1],"processes")||same(argv[1],"apps")))){print("usage: native run observatory [apps|processes]\n");return 2;}
+    if(argc==2)page_shown=same(argv[1],"apps")?PAGE_APPS:PAGE_PROCESSES;
     zui_icons_use_packages();
     /* 640x480 is the largest surface the host admits at open; maximize goes beyond it. */
     zui_init(&ui,pixels,640,480);update_appearance();
@@ -487,6 +752,10 @@ int main(int argc,char **argv){
             if(e.extra!=7&&e.extra!=8&&zui_input_event(&filter,&e)){ui.dirty=1;continue;}
         }
         if(e.type==Z_GUI_KEY&&e.extra==1&&ui.window_focused&&!filter_focus){done=1;continue;}
+        if(e.type==Z_GUI_KEY&&page_shown==PAGE_APPS&&!e.modifiers){
+            if(e.extra==7){select_app_step(-1);continue;}
+            if(e.extra==8){select_app_step(1);continue;}
+        }
         if(e.type==Z_GUI_KEY&&page_shown==PAGE_PROCESSES&&!e.modifiers){
             if(e.extra==7){select_step(-1);continue;}
             if(e.extra==8){select_step(1);continue;}
@@ -494,11 +763,13 @@ int main(int argc,char **argv){
         if(e.type==Z_GUI_KEY&&page_shown==PAGE_PROCESSES&&(e.modifiers&2)&&(e.code=='f'||e.code=='F')){filter_focus=1;ui.dirty=1;continue;}
         if(e.type==Z_GUI_DOWN||e.type==Z_GUI_UP)pointer(&e);
         if(page_shown==PAGE_PROCESSES&&zui_scroll_event(&ui,&rows_scroll,&e))ui.dirty=1;
+        if(page_shown==PAGE_APPS&&zui_scroll_event(&ui,&apps_scroll,&e))ui.dirty=1;
         int list=zui_list_event(&ui,&sidebar,&e,nav_rows,0);
-        if(list>0&&list-1!=page_shown){page_shown=list-1;filter_focus=0;ui.dirty=1;continue;}
+        if(list>0&&nav_page(list-1)!=page_shown){page_shown=nav_page(list-1);filter_focus=0;status_line[0]=0;ui.dirty=1;continue;}
         int action=zui_event(&ui,&e);
         if(action==END_BUTTON)ask_end();
-        if(action>=10&&action<12&&action-10!=page_shown){page_shown=action-10;filter_focus=0;ui.dirty=1;}
+        if(action==END_APP_BUTTON&&selected_app>0)ask_end_pid(selected_app);
+        if(action>=10&&action<10+nav_count()&&nav_page(action-10)!=page_shown){page_shown=nav_page(action-10);filter_focus=0;status_line[0]=0;ui.dirty=1;}
     }
     zenith_gui_close(handle);return result;
 }

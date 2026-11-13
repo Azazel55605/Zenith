@@ -391,10 +391,10 @@ z_forward:
     pop %rax
     ret
 z_syscall:
-    # 640/641 display, 642..644 monitor, 645/646 framebuffer/resize refusal, 647/648 disks.
+    # 640/641 display, 642..644 monitor, 645/646 framebuffer/resize refusal, 647/648 disks, 649 activity.
     cmp $640, %rax
     jb 11f
-    cmp $648, %rax
+    cmp $649, %rax
     jbe z_service
 11:
     cmp $613, %rax

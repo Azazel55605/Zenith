@@ -295,6 +295,7 @@ internal sealed class Desktop
 
         _nativeClients.Tick(Windows);
         _apps.Tick(Windows);
+        PublishWindows();
         if (_generation != Accounts.Generation)
         {
             foreach (var window in Windows.Windows) { if (window is TerminalWindow terminal && terminal.IsBusy) { return; } }
@@ -901,7 +902,9 @@ internal sealed class Desktop
         }
         _lastTopVersion = top?.ContentVersion ?? 0;
         _lastTop = top; _lastTopKey = topKey; _lastTopRect = topArea; _lastBarKey = barKey; _lastBarRect = barArea; _barChanged = false;
-        _composeAll = withoutTop;
+        // Overlays (Prism, the overflow list, a message) are drawn over the scene, not into the lower
+        // layers: the frame after one closes must compose everything to take its pixels away.
+        _composeAll = overlays;
         FrameStats.ComposeCount++;
         if (_composeDamage.IsEmpty) { FrameStats.RecordCompose(start); return; }
 
@@ -925,6 +928,22 @@ internal sealed class Desktop
         FrameStats.RecordCompose(start);
     }
     private int WidthForMessage() => 520;
+
+    private long _windowsPublishedAt;
+    /// <summary>Observatory's Apps page: the windows and their programs, twice a second at most.</summary>
+    private void PublishWindows()
+    {
+        long now = FrameStats.Now;
+        if (now - _windowsPublishedAt < System.Diagnostics.Stopwatch.Frequency / 2) { return; }
+        _windowsPublishedAt = now;
+        var list = new System.Collections.Generic.List<Zenith.Core.Monitoring.ActivityWindow>();
+        foreach (var w in Windows.Windows)
+        {
+            if (w.IsClosed) { continue; }
+            list.Add(new(w.OwnerPid, w.Title, w.IsFocused, w.IsMinimized));
+        }
+        Zenith.Core.Monitoring.KernelMonitor.Windows = list.ToArray();
+    }
 
     private long _sceneKey, _wallpaperKey, _launchingUntil;
     private int _launchingWindows;

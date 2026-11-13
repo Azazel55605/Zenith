@@ -118,6 +118,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
         }
         public ClientWindow(ProcessSurface surface, Credentials identity) : base(surface.Title, surface.Width, surface.Height + TitleBarHeight)
         { _surface = surface; Identity = identity; _frameWidth = surface.Width; _frameHeight = surface.Height; _frame = new int[surface.Width * surface.Height]; if (surface.Format == 2) { _composition = new(ProcessSurface.MaximumPixels); } }
+        public override int OwnerPid => _surface.OwnerPid;
         public override bool UnifiedChrome => _surface.Resizable;
         public override bool CanResize => _surface.Resizable;
         public override (int Width, int Height) MinimumSize => (600, 480 + TitleBarHeight);

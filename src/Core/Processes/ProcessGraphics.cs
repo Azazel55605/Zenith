@@ -50,6 +50,8 @@ internal sealed class ProcessSurface : IDisposable
     private int[] _pixels;
     private ProcessMaterialRegion[] _materials = Array.Empty<ProcessMaterialRegion>();
     public int Format { get; }
+    /// <summary>The program that opened it (Observatory's Apps page groups windows by it).</summary>
+    public int OwnerPid { get; set; }
     private (int X, int Y, int Width, int Height, int Rise)? _fade;
     private bool _dirty = true, _closed, _disposed, _unsaved, _closeIntent, _presented;
     private bool _pointerMotion, _movePending;
@@ -341,7 +343,7 @@ internal sealed class ProcessGraphics : IDisposable
     public bool OwnsLive(int handle) => handle == _handle && Live;
     public void RenewBudget() { _presents = 0; }
     public ProcessGraphics(IProcessGraphicsHost? host) { _host = host; }
-    public int Open(int width, int height, string title, int format = 1)
+    public int Open(int width, int height, string title, int format = 1, int pid = 0)
     {
         if (_disposed) { return -9; }
         if (_host is null) { return -19; }
@@ -350,6 +352,7 @@ internal sealed class ProcessGraphics : IDisposable
         foreach (char c in title) { if (c < ' ' || c > '~') { return -22; } }
         var surface = _host.Open(width, height, title, format);
         if (surface is null) { return -19; }
+        surface.OwnerPid = pid;
         _surface = surface; _handle = 20000 + ++_opens; return _handle;
     }
     public int EnableResize(int handle) => handle != _handle || _surface is null ? -9 : _surface.EnableResize();

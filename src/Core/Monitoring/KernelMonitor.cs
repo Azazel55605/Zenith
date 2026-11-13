@@ -13,6 +13,54 @@ internal static class KernelMonitor
     /// <summary>The desktop sets this to its frame counters; without a desktop there are no frames.</summary>
     public static Func<(long Presented, long Scenes, long Micros, long Worst)>? Frames;
     public static readonly SystemMonitor Instance = new(new Sources());
+    public static readonly ActivityMonitor Activity = new(new ActivitySources());
+    /// <summary>The desktop's windows, republished by its tick (an immutable array: calls read it
+    /// from process threads while the desktop owns the window list).</summary>
+    public static volatile ActivityWindow[] Windows = System.Array.Empty<ActivityWindow>();
+
+    private sealed class ActivitySources : IActivitySources
+    {
+        public long Milliseconds => Stopwatch.GetTimestamp() / (Stopwatch.Frequency / 1000);
+        public System.Collections.Generic.IReadOnlyList<IoDevice> Disks()
+        {
+            var list = new System.Collections.Generic.List<IoDevice>();
+            foreach (var disk in Cosmos.Kernel.System.Storage.StorageManager.Devices)
+            {
+                var (read, written) = IoCounters.Of(disk.Name);
+                list.Add(new IoDevice(disk.Name, read, written));
+            }
+            return list;
+        }
+        public System.Collections.Generic.IReadOnlyList<IoDevice> Networks()
+        {
+            // The stack counts all adapters together; Zenith sends and receives on the primary one.
+            var list = new System.Collections.Generic.List<IoDevice>();
+            var networking = Cosmos.Kernel.System.Network.NetworkManager.Primary;
+            for (int i = 0; i < Cosmos.Kernel.System.Network.NetworkManager.DeviceCount; i++)
+            {
+                var a = Cosmos.Kernel.System.Network.NetworkManager.GetAdapter(i);
+                if (!a.IsValid) { continue; }
+                bool primary = a == networking;
+                uint flags = (a.LinkUp ? ActivityMonitor.LinkUp : 0) | (a.Ready ? ActivityMonitor.Ready : 0) | (primary ? ActivityMonitor.Primary : 0);
+                uint address = 0;
+                var ip = a.IPConfig?.Address;
+                if (ip is not null && ip.IsIpv4) { var bytes = ip.ToBytes(); if (bytes.Length == 4) { address = (uint)(bytes[0] << 24 | bytes[1] << 16 | bytes[2] << 8 | bytes[3]); } }
+                ulong mac = 0;
+                string? text = a.MacAddress?.ToString();
+                if (text is not null)
+                {
+                    foreach (char c in text)
+                    {
+                        int v = c is >= '0' and <= '9' ? c - '0' : c is >= 'a' and <= 'f' ? c - 'a' + 10 : c is >= 'A' and <= 'F' ? c - 'A' + 10 : -1;
+                        if (v >= 0) { mac = (mac << 4) | (uint)v; }
+                    }
+                }
+                list.Add(new IoDevice("eth" + i, primary ? (ulong)Zenith.Core.Network.Transport.EthernetIngress.Bytes : 0,
+                    primary ? (ulong)Zenith.Core.Network.Transport.EthernetEgress.Bytes : 0, flags, address, mac & 0xFFFFFFFFFFFFUL));
+            }
+            return list;
+        }
+    }
 
     [DllImport("*", EntryPoint = "zenith_cpu_brand"), SuppressGCTransition]
     private static extern unsafe ulong Brand(uint* output);

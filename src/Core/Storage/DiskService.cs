@@ -278,10 +278,128 @@ internal static class DiskService
         return null;
     }
 
+    // ---------- Mounts: a partition at /mnt/name, now and optionally at every startup (a line of
+    // /etc/fstab; only that line is touched). System mounts (the root, /boot, /tmp...) never are.
+
+    private static string? SystemMount(Partition target)
+    {
+        if (ReferenceEquals(target, SystemMounts.RootPartition)) { return target.Name + " is the root filesystem; it stays mounted while Zenith runs"; }
+        if (ReferenceEquals(target, SystemMounts.BootPartition)) { return target.Name + " is the boot partition; it stays mounted for kernel updates"; }
+        if (MountOf(target) is string point && Fstab.IsSystem(point)) { return point + " is a system mount; it stays mounted"; }
+        return null;
+    }
+
+    private static string? MountableFilesystem(Partition target, out string filesystem)
+    {
+        var fs = Probe(target).Filesystem;
+        filesystem = fs == DiskFilesystem.Ext2 ? SystemMounts.Ext2 : fs == DiskFilesystem.Fat32 ? SystemMounts.Fat : "";
+        return filesystem.Length == 0 ? target.Name + " holds no filesystem Zenith can mount (ext2 or FAT32)" : null;
+    }
+
+    /// <summary>Why the startup line cannot be written (another line uses the mount point, or the
+    /// file cannot be read), or null.</summary>
+    private static string? FstabRefuses(Guid id, string device, string point, string filesystem)
+    {
+        try { _ = Fstab.With(SystemMounts.ReadFstab(), id, device, point, filesystem); return null; }
+        catch (Exception e) { return "/etc/fstab: " + e.Message; }
+    }
+
+    private static Guid? StartupId(Partition target, out string? refused)
+    {
+        Guid? id = SystemMounts.PartitionId(target);
+        refused = id is null ? "only partitions of a GPT disk can be mounted at startup (/etc/fstab names them by PARTUUID)" : null;
+        return id;
+    }
+
+    public static string? Mount(Partition? target, string name, bool atStartup, bool apply, out string summary)
+    {
+        summary = "";
+        if (target is null) { return "no such partition"; }
+        if (SystemMount(target) is string system) { return system; }
+        if (MountOf(target) is string existing) { return target.Name + " is already mounted at " + existing; }
+        if (Fstab.CheckName(name) is string badName) { return badName; }
+        if (MountableFilesystem(target, out string filesystem) is string none) { return none; }
+        string point = Fstab.PointFor(name);
+        foreach (var mount in VfsManager.Mounts) { if (mount.MountPoint == point) { return point + " is already in use"; } }
+        Guid id = default;
+        if (atStartup)
+        {
+            if (StartupId(target, out string? refused) is not Guid known) { return refused; }
+            id = known;
+            if (FstabRefuses(id, target.Name, point, filesystem) is string taken) { return taken; }
+        }
+        summary = target.Name + " (" + filesystem + ") at " + point + (atStartup ? ", and at every startup" : "");
+        if (!apply) { return null; }
+        if (!System.IO.Directory.Exists(point)) { System.IO.Directory.CreateDirectory(point); }
+        if (SystemMounts.Mount(target.Name, point, filesystem) is string failed) { return failed; }
+        if (atStartup)
+        {
+            // Edited from the file as it is now, not as it was when the request was checked.
+            try { SystemMounts.EditFstab(lines => Fstab.With(lines, id, target.Name, point, filesystem)); }
+            catch (Exception e) { return "mounted " + target.Name + " at " + point + ", but /etc/fstab was not changed: " + e.Message; }
+        }
+        Log.Write("disk", "mounted " + summary);
+        return null;
+    }
+
+    public static string? Unmount(Partition? target, bool forget, bool apply, out string summary)
+    {
+        summary = "";
+        if (target is null) { return "no such partition"; }
+        if (SystemMount(target) is string system) { return system; }
+        if (MountOf(target) is not string point) { return target.Name + " is not mounted"; }
+        Guid? id = SystemMounts.PartitionId(target);
+        bool listed = false;
+        try { listed = id is Guid known && Fstab.Find(SystemMounts.ReadFstab(), known, target.Name) is not null; } catch (Exception) { }
+        summary = target.Name + " from " + point + (forget && listed ? ", and no longer at startup" : "");
+        if (!apply) { return null; }
+        if (SystemMounts.Unmount(point) is string failed) { return failed; }
+        if (forget && id is Guid partition)
+        {
+            try { SystemMounts.EditFstab(lines => Fstab.Without(lines, partition, target.Name)); }
+            catch (Exception e) { return "unmounted " + point + ", but /etc/fstab was not changed: " + e.Message; }
+        }
+        Log.Write("disk", "unmounted " + summary);
+        return null;
+    }
+
+    /// <summary>Mount a mounted partition at every startup where it is now, or stop doing so.</summary>
+    public static string? AtStartup(Partition? target, bool on, bool apply, out string summary)
+    {
+        summary = "";
+        if (target is null) { return "no such partition"; }
+        if (SystemMount(target) is string system) { return system; }
+        if (StartupId(target, out string? refused) is not Guid id) { return refused; }
+        string point = "", filesystem = "";
+        if (on)
+        {
+            if (MountOf(target) is not string mounted) { return "mount " + target.Name + " first; it is then mounted there at every startup"; }
+            if (MountableFilesystem(target, out filesystem) is string none) { return none; }
+            point = mounted;
+            if (FstabRefuses(id, target.Name, point, filesystem) is string taken) { return taken; }
+            summary = target.Name + " at " + point + " at every startup";
+        }
+        else
+        {
+            try { if (Fstab.Find(SystemMounts.ReadFstab(), id, target.Name) is null) { return target.Name + " is not mounted at startup"; } }
+            catch (Exception e) { return "/etc/fstab: " + e.Message; }
+            summary = target.Name + " no longer at startup";
+        }
+        if (!apply) { return null; }
+        if (on) { SystemMounts.EditFstab(lines => Fstab.With(lines, id, target.Name, point, filesystem)); }
+        else { SystemMounts.EditFstab(lines => Fstab.Without(lines, id, target.Name)); }
+        Log.Write("disk", "mount " + summary);
+        return null;
+    }
+
+    /// <summary>Whether /etc/fstab mounts a partition at startup (for the snapshot).</summary>
+    public static bool MountedAtStartup(Partition partition, IReadOnlyList<FstabLine> lines)
+        => SystemMounts.PartitionId(partition) is Guid id && Fstab.Find(lines, id, partition.Name) is FstabEntry e && !e.NoAuto;
+
     // ---------- Background jobs for the ABI: one at a time, run as root on their own thread.
 
     public enum JobState { Idle = 0, Running = 1, Done = 2, Failed = 3 }
-    public enum Action { Init = 1, Create = 2, Delete = 3, Grow = 4 }
+    public enum Action { Init = 1, Create = 2, Delete = 3, Grow = 4, Mount = 5, Unmount = 6, AtStartup = 7 }
     // Job fields have their own lock: an edit holds Gate for its whole run, and clients poll meanwhile.
     private static readonly object s_jobLock = new();
     private static JobState s_jobState;
@@ -294,7 +412,7 @@ internal static class DiskService
     }
 
     /// <summary>Starts an edit in the background; returns its token (positive) or a negative error.</summary>
-    public static long Submit(uint uid, Action action, ulong revision, string disk, ulong start, ulong sectors, bool ext2, string label)
+    public static long Submit(uint uid, Action action, ulong revision, string disk, ulong start, ulong sectors, bool ext2, string label, uint flags = 0)
     {
         if (uid != 0) { return -13; }
         lock (s_jobLock)
@@ -312,6 +430,9 @@ internal static class DiskService
                 Action.Create => Create(disk, sectors == 0 ? null : sectors, ext2, label, false, out _, out _),
                 Action.Delete => Delete(Find(disk, start), false, out _),
                 Action.Grow => Grow(Find(disk, start), sectors == 0 ? null : sectors, false, out _),
+                Action.Mount => Mount(Find(disk, start), label, (flags & 1) != 0, false, out _),
+                Action.Unmount => Unmount(Find(disk, start), (flags & 1) != 0, false, out _),
+                Action.AtStartup => AtStartup(Find(disk, start), (flags & 1) != 0, false, out _),
                 _ => "unknown action",
             };
             ulong token;
@@ -322,14 +443,14 @@ internal static class DiskService
                 if (error is not null) { s_jobState = JobState.Failed; s_jobMessage = error; return (long)token; }
                 s_jobState = JobState.Running; s_jobMessage = "";
             }
-            var worker = new Thread(() => RunJob(token, action, disk, start, sectors, ext2, label));
+            var worker = new Thread(() => RunJob(token, action, disk, start, sectors, ext2, label, flags));
             worker.Start();
             return (long)token;
         }
         finally { Monitor.Exit(Gate); }
     }
 
-    private static void RunJob(ulong token, Action action, string disk, ulong start, ulong sectors, bool ext2, string label)
+    private static void RunJob(ulong token, Action action, string disk, ulong start, ulong sectors, bool ext2, string label, uint flags)
     {
         var root = CredentialContext.Enter(Credentials.Root);
         string? error; string summary = "";
@@ -343,6 +464,9 @@ internal static class DiskService
                     Action.Create => Create(disk, sectors == 0 ? null : sectors, ext2, label, true, out summary, out _),
                     Action.Delete => Delete(Find(disk, start), true, out summary),
                     Action.Grow => Grow(Find(disk, start), sectors == 0 ? null : sectors, true, out summary),
+                    Action.Mount => Mount(Find(disk, start), label, (flags & 1) != 0, true, out summary),
+                    Action.Unmount => Unmount(Find(disk, start), (flags & 1) != 0, true, out summary),
+                    Action.AtStartup => AtStartup(Find(disk, start), (flags & 1) != 0, true, out summary),
                     _ => "unknown action",
                 };
             }

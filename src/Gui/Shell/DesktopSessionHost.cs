@@ -42,6 +42,7 @@ internal sealed class DesktopSessionHost : ISessionHost
         DisplayController.Detach();
         SessionDisplay.LiveFrame = null;
         Zenith.Core.Monitoring.KernelMonitor.Frames = null;
+        Zenith.Core.Monitoring.KernelMonitor.Windows = System.Array.Empty<Zenith.Core.Monitoring.ActivityWindow>();
         SessionDisplay.KeepFrame(_desktop.FramePixels);
         Zenith.Core.Processes.NativeProcessGraphics.Register(null);
         _desktop.StopClients();
@@ -70,5 +71,5 @@ internal sealed class DesktopSessionHost : ISessionHost
         }
         Log.Write("kernel", "desktop ready (" + (SystemMounts.Mode == BootMode.Live ? "live" : "installed") + ")");
     }
-    public void Tick() { DisplayController.Tick(); NativeAppearance.ApplyPending(); _desktop.Tick(); Zenith.Core.Monitoring.KernelMonitor.Instance.Tick(); }
+    public void Tick() { DisplayController.Tick(); NativeAppearance.ApplyPending(); _desktop.Tick(); Zenith.Core.Monitoring.KernelMonitor.Instance.Tick(); Zenith.Core.Monitoring.KernelMonitor.Activity.Tick(); }
 }
