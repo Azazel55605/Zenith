@@ -98,14 +98,14 @@ specification in 2019. Licensing and the driver are a separate decision.
 
 ## Stages
 
-1. **R1 qualify what exists:** a gate with `qemu-xhci` and `usb-storage`, covering:
+1. **RS1 qualify what exists:** a gate with `qemu-xhci` and `usb-storage`, covering:
    - a stick present at boot (listed, mounted, files read and written);
    - hot attach and detach through the QEMU monitor (`device_add` / `device_del`);
    - surprise removal while mounted: no crash, the mount is gone, and the revision moves.
-2. **R2 kernel policy:** removable flags, revision generation, eject, read-only for a volume that
+2. **RS2 kernel policy:** removable flags, revision generation, eject, read-only for a volume that
    is not clean, sync on close and no-exec.
-3. **R3 desktop:** automount for the session user, notifications, the taskbar indicator, and
+3. **RS3 desktop:** automount for the session user, notifications, the taskbar indicator, and
    Equinox Eject.
-4. **R4 formats:** FAT32 formatting in Equinox; exFAT read support after its own decision.
+4. **RS4 formats:** FAT32 formatting in Equinox; exFAT read support after its own decision.
 
 Not planned: NTFS, MTP phones, optical drives, UASP (Cosmos has Bulk-Only Transport only).

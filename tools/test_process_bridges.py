@@ -57,7 +57,7 @@ identity: .long 0
         # Display, monitor and owned framebuffer services, one inclusive range.
         for cpu in range(1,8):
             bridge=b.variant(self.source,cpu)
-            self.assertIn('cmp $640, %rax\n    jb 11f\n    cmp $648, %rax\n    jbe p'+str(cpu)+'_z_service\n11:',bridge)
+            self.assertIn('cmp $640, %rax\n    jb 11f\n    cmp $649, %rax\n    jbe p'+str(cpu)+'_z_service\n11:',bridge)
 
     def test_resumed_frames_rebind_selectors_after_kernel_gdt_growth(self):
         # Execute the real copy/selector-rebind instructions without privileged
