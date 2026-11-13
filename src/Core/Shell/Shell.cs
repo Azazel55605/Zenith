@@ -32,6 +32,8 @@ internal sealed partial class Shell : IExpansionContext
     private const int MaximumPipelineStages = 8;
     public Credentials Identity { get; private set; } = CredentialContext.Current;
     public Func<string, string?>? ReadSecret { get; set; }
+    /// <summary>sudo's remembered authentication, shared by this terminal's shell and its child shells.</summary>
+    public SudoTicket Sudo { get; private set; } = new();
     public void SetIdentity(Credentials identity, string name, string home)
     {
         if (_background) { throw new InvalidOperationException("background jobs cannot change session identity"); }
@@ -39,6 +41,7 @@ internal sealed partial class Shell : IExpansionContext
         {
             if (HasBackgroundJobs) { throw new InvalidOperationException("wait for or stop background jobs before changing account"); }
             ClearCompletedJobs();
+            Sudo.Forget();   // another account must authenticate for itself
         }
         Identity = identity;
         _environment["USER"] = name; _environment["HOME"] = home;
@@ -103,6 +106,7 @@ internal sealed partial class Shell : IExpansionContext
         _positional = new List<string>(parent._positional); _scriptName = parent._scriptName;
         Identity = parent.Identity;
         ReadSecret = parent.ReadSecret;
+        Sudo = parent.Sudo;
         Metadata = parent.Metadata;
         _terminal = parent._terminal;
         foreach (var (name, value) in parent._environment)
@@ -754,6 +758,23 @@ internal sealed partial class Shell : IExpansionContext
             return CallFunction(body, args, input, output);
         }
 
+        return Dispatch(name, args, input, output);
+    }
+
+    /// <summary>Runs <paramref name="words"/> (already expanded) as another identity in a child shell:
+    /// sudo. The child keeps the directory and terminal; functions are not looked up, only commands,
+    /// native programs and scripts.</summary>
+    public int RunAs(Credentials identity, IReadOnlyDictionary<string, string> environment, List<string> words, ShellInput? input, IOutput output)
+    {
+        if (words.Count == 0) { return 0; }
+        var child = new Shell(this) { Identity = identity };
+        foreach (var (name, value) in environment) { child._environment[name] = value; child._exported.Add(name); }
+        using var scope = CredentialContext.Enter(identity);
+        return child.Dispatch(words[0], words.GetRange(1, words.Count - 1), input, output);
+    }
+
+    private int Dispatch(string name, List<string> args, ShellInput? input, IOutput output)
+    {
         if (s_commands.TryGetValue(name, out Command? command))
         {
             return RunCommand(command, name, args, input, output);

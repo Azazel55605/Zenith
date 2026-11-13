@@ -1,13 +1,15 @@
 /* Equinox: disks and partitions. Every disk is drawn twice, as it is and as the plan will leave it;
  * actions only add steps to the plan, and nothing is written until Apply. Apply runs the steps one
  * at a time through zenith-native-disk-abi 1.0 (the same rules as the disk command) and stops at the
- * first that fails. Changes need root; mounted disks and the running system disk are shown, never
+ * first that fails. Changes need root, or an administrator's approval through the Desktop Portal
+ * (Unlock: org.zenith.disks.manage, kept until Equinox closes); mounted disks and the running system disk are shown, never
  * changed in place (the root grows from the rescue system). */
 #include "../ui/ui.h"
 #include "../ui/widgets.h"
 #include "../ui/text.h"
 #include "../include/zenith_settings.h"
 #include "../include/zenith_disks.h"
+#include "../include/zenith_portal.h"
 
 static unsigned int pixels[640*480];
 static struct zui ui;
@@ -46,6 +48,33 @@ static void refresh(void){
     have_disks=zenith_disks_read(&disks)==0&&disks.version==1&&disks.disk_count<=Z_DISKS;
     can_edit=have_disks&&(disks.flags&Z_DISKS_CAN_EDIT);
     if(have_disks&&(disks.revision!=seen||disks.job_token!=token||disks.job_state!=state)){seen=disks.revision;token=disks.job_token;state=disks.job_state;ui.dirty=1;}
+}
+
+/* ---------- Unlock: ask the Desktop Portal for org.zenith.disks.manage. The desktop shows its own
+ * password dialog; once approved the kernel serves the disk calls as root for this Equinox only. */
+static long unlock_handle;
+static char unlock_note[100];
+static void unlock(void){
+    if(unlock_handle>0||can_edit)return;
+    long h=zenith_authorize("Authorize",Z_ACTION_DISKS);
+    if(h>0){unlock_handle=h;unlock_note[0]=0;print("EQUINOX_UNLOCK asked\n");}
+    else copy(unlock_note,h==-38?"This Zenith kernel has no Desktop Portal. Run Equinox as root.":"The request was refused by the kernel.",sizeof(unlock_note));
+    ui.dirty=1;
+}
+static void poll_unlock(void){
+    if(unlock_handle<=0)return;
+    struct zenith_portal_response r;long state=zenith_portal_poll(unlock_handle,&r);
+    if(state<0){unlock_handle=0;ui.dirty=1;return;}
+    if(!Z_PORTAL_FINAL(state))return;
+    zenith_portal_close(unlock_handle);unlock_handle=0;
+    static const char *names[8]={"","pending","shown","approved","denied","cancelled","failed","unavailable"};
+    char line[160],*o=put(line,"EQUINOX_UNLOCK ");o=put(o,names[state]);o=put(o," ");o=put(o,r.message);put(o,"\n");print(line);
+    if(state==Z_PORTAL_APPROVED)unlock_note[0]=0;
+    else if(state==Z_PORTAL_UNAVAILABLE)copy(unlock_note,"No desktop can ask for permission here. Run Equinox with sudo.",sizeof(unlock_note));
+    else if(state==Z_PORTAL_DENIED){char t[100],*q=put(t,"Not allowed: ");copy(q,r.message,sizeof(t)-14);copy(unlock_note,t,sizeof(unlock_note));}
+    else copy(unlock_note,"The request ended without an answer.",sizeof(unlock_note));
+    refresh();ui.dirty=1;
+    print(can_edit?"EQUINOX_EDIT yes\n":"EQUINOX_EDIT no\n");
 }
 
 /* ---------- A disk model the plan can change: partitions by start sector, sorted. */
@@ -164,7 +193,7 @@ static void remember(const char *line){
     copy(history[history_count++],line,176);
 }
 enum { ID_GROW=100,ID_DELETE=101,ID_CREATE=102,ID_TABLE=103,ID_ADD=104,ID_CANCEL=105,ID_APPLY=106,ID_UNDO=107,ID_CLEAR=108,ID_SIZE=109,ID_COMMANDS=110,
-       ID_MOUNT=111,ID_UNMOUNT=112,ID_STARTUP=113,ID_MOUNT_STARTUP=114 };
+       ID_MOUNT=111,ID_UNMOUNT=112,ID_STARTUP=113,ID_MOUNT_STARTUP=114,ID_UNLOCK=115 };
 static int applying=-1;           /* index of the step running, or -1 */
 static unsigned long applying_token;
 
@@ -581,7 +610,10 @@ static int draw_plan_body(struct zui_rect p,int full){
     zui_round(&ui,(struct zui_rect){x,y,w,58},8,mix(ui.theme.surface,ui.theme.subtle,70));
     text(x+12,y+8,"If it fails",&zui_label,ui.theme.text);
     fit(x+12,y+30,"History says why; nothing after it runs.",w-24,&zui_caption,ui.theme.secondary);y+=72;
-    if(!can_edit){fit(x,y,"Sign in as root to apply changes.",w,&zui_caption,warn());y+=22;}
+    if(!can_edit){
+        fit(x,y,unlock_note[0]?unlock_note:unlock_handle>0?"Waiting for permission...":"Applying changes needs an administrator.",w,&zui_caption,warn());y+=22;
+        zui_add(&ui,ID_UNLOCK,ZUI_BUTTON,(struct zui_rect){x,y,w,34},unlock_handle>0?"Waiting...":"Unlock",0,unlock_handle<=0);y+=42;
+    }
     else if(status_line[0]&&!full){fit(x,y,status_line,w,&zui_caption,warn());y+=22;}
     zui_add(&ui,ID_APPLY,ZUI_BUTTON,(struct zui_rect){x,y,w,36},"Apply plan",1,can_edit&&applying<0&&steps>0);y+=44;
     zui_add(&ui,ID_COMMANDS,ZUI_BUTTON,(struct zui_rect){x,y,w,34},show_commands?"Hide the exact commands":"See the exact commands",0,steps>0);y+=42;
@@ -685,7 +717,7 @@ static void draw_mounts(struct zui_rect c){
     y+=8;
     const struct zenith_disk_part *sp=mount_part(mount_sel);
     int sd=mount_sel/Z_DISK_PARTS,si=mount_sel%Z_DISK_PARTS;
-    int editor=sp&&!system_mount(sp)?(sp->mount[0]?96:132):0;
+    int editor=sp&&!system_mount(sp)?(sp->mount[0]?96:132)+(can_edit?0:32):0;   /* + the Unlock row */
     struct zui_rect area={c.x,y,c.w,c.y+c.h-y-(editor?editor+16:12)};
     int origin=zui_scroll_begin(&ui,&mounts_scroll,area),ry=origin;
     mount_count=0;
@@ -738,7 +770,10 @@ static void draw_mounts(struct zui_rect c){
             zui_add(&ui,ID_MOUNT_STARTUP,ZUI_TOGGLE,(struct zui_rect){ex,ey+36,e.w-32,36},"Also mount at every startup",mount_startup,ok);
             fit(ex,ey+80,"Startup mounts are lines of /etc/fstab; Equinox changes only this partition's line.",e.w-32,&zui_caption,ui.theme.secondary);
         }
-        if(!can_edit)fit(ex,e.y+e.h-24,"Sign in as root to mount and unmount.",e.w-32,&zui_caption,warn());
+        if(!can_edit){
+            fit(ex,e.y+e.h-24,unlock_note[0]?unlock_note:unlock_handle>0?"Waiting for permission...":"Mounting needs an administrator.",e.w-170,&zui_caption,warn());
+            zui_add(&ui,ID_UNLOCK,ZUI_BUTTON,(struct zui_rect){e.x+e.w-136,e.y+e.h-32,120,30},unlock_handle>0?"Waiting...":"Unlock",0,unlock_handle<=0);
+        }
         else if(busy)fit(ex,e.y+e.h-24,"Working...",e.w-32,&zui_caption,ui.theme.secondary);
     }
 }
@@ -830,6 +865,7 @@ static void action(int id){
     if(id==ID_UNDO&&steps&&applying<0)steps--;
     if(id==ID_CLEAR&&applying<0)steps=0;
     if(id==ID_COMMANDS)show_commands=!show_commands;
+    if(id==ID_UNLOCK)unlock();
     if(page==n+2){
         const struct zenith_disk_part *p=mount_part(mount_sel);
         if(p&&id==ID_MOUNT_STARTUP)mount_startup=!mount_startup;
@@ -981,7 +1017,8 @@ int main(int argc,char **argv){
     if(argc==2&&same(argv[1],"--probe"))return probe();
     if(argc==3&&same(argv[1],"--apply-test"))return apply_test(argv[2]);
     if(argc==6&&same(argv[1],"--mount-op"))return mount_op(argv[2],argv[3],argv[4],argv[5]);
-    if(argc!=1){print("usage: native run equinox\n");return 2;}
+    int ask_unlock=argc==2&&same(argv[1],"--unlock");
+    if(argc!=1&&!ask_unlock){print("usage: native run equinox [--unlock]\n");return 2;}
     zui_icons_use_packages();
     zui_init(&ui,pixels,640,480);update_appearance();
     struct zenith_material_caps caps={0};struct zenith_material_settings settings={0};
@@ -993,11 +1030,12 @@ int main(int argc,char **argv){
     ui.hover_supported=zenith_gui_pointer_motion(handle)==0;
     refresh();
     print(have_disks?"EQUINOX_READY\n":"EQUINOX_NO_DISK_ABI\n");
+    if(ask_unlock&&have_disks)unlock();
     long last=zui_motion_clock();int polls=0,result=0,done=0;
     while(!done){
         long now=zui_motion_clock();
-        int interval=applying>=0||mount_token?150:1000;
-        if((now>=0&&now-last>=interval)||(now<0&&++polls>=200)){last=now;polls=0;refresh();poll_step();poll_mount();}
+        int interval=applying>=0||mount_token||unlock_handle>0?150:1000;
+        if((now>=0&&now-last>=interval)||(now<0&&++polls>=200)){last=now;polls=0;refresh();poll_step();poll_mount();poll_unlock();}
         if(ui.dirty){
             draw();
             long r=material?zenith_gui_present_material(handle,ui.pixels,(unsigned long)ui.width*ui.height*4,ui.materials,ui.material_count):zenith_gui_present(handle,ui.pixels,(unsigned long)ui.width*ui.height*4);

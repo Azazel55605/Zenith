@@ -106,6 +106,11 @@ applying). Both calls take the service gate and count toward the renewable call 
   the next startup) and "Mount here at every startup". These act at once, outside the plan.
   Mounting changes no data. A disk with a mounted partition cannot be edited until it is
   unmounted.
+- Unlock (0.4.0, kernel 0.0.57): run by an account that is not root, Equinox shows Unlock on the
+  plan panel and in the mount editor. It asks the [Desktop Portal](PORTAL.md) for
+  `org.zenith.disks.manage`; after an administrator's password in the desktop's dialog, this
+  Equinox edits disks and mounts until it closes. A refusal says why; with no desktop to ask, it
+  points to `sudo`. `--unlock` asks at startup.
 - `native run equinox --probe` prints the snapshot; `--apply-test DISK` runs a fixed plan on a
   scratch disk; `--mount-op mount|unmount|startup PARTITION NAME 0|1` runs one mount action
   (gate use).

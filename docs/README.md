@@ -14,6 +14,7 @@ These expand the roadmap's IDs; they do not define competing priorities.
 | [Sessions / desktop / apps](components/SESSIONS-DESKTOP.md) | D1–D3, S1–S5, W1–W3, A1–A2 | [Design](DESIGN-LANGUAGE.md), [Motion](components/MOTION.md), [Meridian contracts](MERIDIAN-PLAN.md), [Meridian behavior design](MERIDIAN-BEHAVIOR.md), [43-page inventory](MERIDIAN-PAGES.md), [app requirements](APPLICATIONS.md) |
 | [Observatory](components/OBSERVATORY.md) | U7 | [Concept](design/observatory-concept.svg), [app requirements](APPLICATIONS.md) |
 | [Equinox](components/EQUINOX.md) | U8 | [Concept](design/equinox-concept.svg), [app requirements](APPLICATIONS.md) |
+| [sudo and the Desktop Portal](components/PORTAL.md) | W4 | [Accounts](ACCOUNTS.md), [native ABI](NATIVE-PROGRAMS.md) |
 | [Shell / terminal](components/SHELL.md) | U3, X2 | [Settings/input/session](SETTINGS-SESSIONS.md), [developer ports](DEVELOPER-TOOLS.md) |
 | [Storage / security](components/STORAGE-SECURITY.md) | R1–R3 | [Accounts](ACCOUNTS.md), [architecture](ARCHITECTURE.md), [future recovery](UPDATE-RECOVERY.md) |
 | [Install / boot / hardware](components/BOOT-RECOVERY.md) | U4, H1, R2–R3 | [Install](INSTALLATION.md), [kernel updates](KERNEL-UPDATES.md) |

@@ -8,7 +8,7 @@
 /* Shell over the navigation model, page bindings and shared widgets. Control ids:
  * 1,2 mode; 10-15 accent; 50-54 effects; 60,61 scope; 100+ sidebar rows; 900+ footer;
  * 950+ dialog; 1002 search; 2004 combo, 2100+ its rows; 2006 scale combo, 2400+ its rows;
- * 3000+ page links. */
+ * 3000+ page links; 4001/4002 display keep/revert; 4003 unlock. */
 enum { FADE_PAGE=1,FADE_SIDEBAR=2 };
 struct meridian {
     struct zui ui;
@@ -29,6 +29,12 @@ struct meridian {
     long (*information_read)(unsigned int,struct zenith_settings_information *);
     char public_information[4096];unsigned int public_kind;int public_error;
     char information[4096];
+    /* Unlock through the Desktop Portal (org.zenith.settings.system); unset in host tests and on
+     * old kernels. authorize returns a handle; authorization_poll returns the state (final ones
+     * close it) and the portal's message. */
+    long (*authorize)(void);
+    long (*authorization_poll)(long handle,char *message,unsigned long size);
+    long unlock_handle;char unlock_note[100];
     /* What the next present should crossfade from the last one; fade_ready when set. */
     int fade_request,fade_ready,fade_rise;struct zui_rect fade_rect;
 };

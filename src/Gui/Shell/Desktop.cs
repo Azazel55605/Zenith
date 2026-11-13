@@ -36,6 +36,7 @@ internal sealed class Desktop
     private NativeClientHost _nativeClients;
     private Taskbar _taskbar;
     private PrismView _prism;
+    private readonly Zenith.Gui.Shell.Portal.PortalHost _portal = new();
     private readonly System.Collections.Generic.List<Window> _prismWindows = new();
     private bool _lowerValid;
     private (int BlurArea, uint Reason) _lowerSpent;
@@ -84,6 +85,7 @@ internal sealed class Desktop
         Windows = new WindowManager(new Rect(0, 0, w, h - Theme.TaskbarHeight - 2 * Theme.TaskbarMargin), new Rect(0, 0, w, h));
         _taskbar = new Taskbar(w, h, Windows);
         _prism = new PrismView(PrismCandidates, PrismActivate, PrismUser);
+        _portal.Attach();
 
         SessionDisplay.ConfigurePointer();
         MouseManager.SetPosition(SessionDisplay.Physical.Width / 2, SessionDisplay.Physical.Height / 2);
@@ -256,7 +258,7 @@ internal sealed class Desktop
     }
     public WindowManager Windows { get; }
 
-    public void StopClients() { _taskbar.Dispose(); Zenith.Core.Configuration.SystemConfiguration.Appearance.ReportMaterials(0, 0, 2); _apps.Stop(); _nativeClients.Stop(); Zenith.Core.Processes.NativeSystemInformation.Display("No graphical session"); }
+    public void StopClients() { _portal.Detach(); _taskbar.Dispose(); Zenith.Core.Configuration.SystemConfiguration.Appearance.ReportMaterials(0, 0, 2); _apps.Stop(); _nativeClients.Stop(); Zenith.Core.Processes.NativeSystemInformation.Display("No graphical session"); }
 
     /// <summary>What is on screen, for the crossfade when this session ends.</summary>
     public int[] FramePixels => _frame.Pixels;
@@ -296,6 +298,8 @@ internal sealed class Desktop
         _nativeClients.Tick(Windows);
         _apps.Tick(Windows);
         PublishWindows();
+        // A portal dialog (a program asking for permission) opens above everything and closes Prism.
+        if (_portal.Tick()) { _sceneDirty = true; _composeAll = true; if (_portal.IsOpen && _prism.IsOpen) { _prism.Close(); } }
         if (_generation != Accounts.Generation)
         {
             foreach (var window in Windows.Windows) { if (window is TerminalWindow terminal && terminal.IsBusy) { return; } }
@@ -755,6 +759,7 @@ internal sealed class Desktop
     private long HoverKey()
     {
         int x = _input.X, y = _input.Y;
+        if (_portal.IsOpen) { return -_portal.HoverKey(x, y); }
         long key = _prism.IsOpen ? _prism.HoverKey(x, y) : 0;
         key = key * 1024 + _taskbar.HoverKey(x, y);
         return key * 4096 + Windows.HoverKey(x, y);
@@ -762,6 +767,8 @@ internal sealed class Desktop
 
     private void HandleInput()
     {
+        // A portal dialog is modal: it takes every key and click until it is answered.
+        if (_portal.IsOpen) { _portal.HandleInput(_input); return; }
         foreach (KeyEvent key in _input.Keys)
         {
             if ((key.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) == (ConsoleModifiers.Control | ConsoleModifiers.Alt))
@@ -828,7 +835,7 @@ internal sealed class Desktop
         Rect topArea = top is null ? new Rect(0, 0, 0, 0) : WindowManager.AreaOf(top);
         long topKey = TopKey(top), barKey = BarKey();
         Rect barArea = _taskbar.Shown ? _taskbar.Bounds.Inflate(Theme.ShadowSize + 8) : new Rect(0, 0, 0, 0);
-        bool overlays = withoutTop || _prism.IsOpen || _taskbar.OverflowOpen || Zenith.Core.Sessions.SessionRuntime.Message is not null;
+        bool overlays = withoutTop || _prism.IsOpen || _portal.IsOpen || _taskbar.OverflowOpen || Zenith.Core.Sessions.SessionRuntime.Message is not null;
         // After an animation or a pass without the top window, the scene does not hold a finished
         // frame: compose everything once.
         bool structural = _composeAll || !appearance || !_lowerValid || top != _lastTop || !Windows.LowerStructureUnchanged();
@@ -920,6 +927,7 @@ internal sealed class Desktop
         }
         if (_prism.IsOpen) { _prism.Draw(_scene, _input.X, _input.Y); }
         if (_taskbar.Shown) { _taskbar.DrawOverflowList(_scene, _input.X, _input.Y); }
+        if (_portal.IsOpen) { _portal.Draw(_scene, _input.X, _input.Y); }
 
         FrameStats.ShellTicks += FrameStats.Now - shell;
         _scene.BaseClip = _scene.Bounds; MaterialComposition.Limit = MaterialComposition.Unlimited;
@@ -954,7 +962,7 @@ internal sealed class Desktop
     {
         if (_launchingUntil != 0 && (FrameStats.Now > _launchingUntil || Windows.Windows.Count > _launchingWindows)) { _launchingUntil = 0; }
         if (_launchingUntil != 0) { return CursorShape.Progress; }
-        if (_prism.IsOpen || (_taskbar.Shown && _taskbar.Bounds.Contains(_input.X, _input.Y))) { return CursorShape.Default; }
+        if (_prism.IsOpen || _portal.IsOpen || (_taskbar.Shown && _taskbar.Bounds.Contains(_input.X, _input.Y))) { return CursorShape.Default; }
         return Windows.CursorAt(_input.X, _input.Y);
     }
     private bool AppearanceStillValid() => _lowerValid

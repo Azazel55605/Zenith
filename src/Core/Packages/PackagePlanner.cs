@@ -41,6 +41,7 @@ internal static class BootstrapComponents
         new("zenith-native-background-abi", "1.0", "versioned whole-background preferences for opted-in clients"),
         new("zenith-native-monitor-abi", "1.0", "CPU, memory and frame samples, the caller's processes and owner-authorized stop"),
         new("zenith-native-disk-abi", "1.0", "disks, partitions and free space; root-only background partition edits"),
+        new("zenith-native-portal-abi", "1.0", "Desktop Portal requests (650-653): org.zenith.portal.Authorization grants until exit"),
         new("zenith-native-viewport-abi", "1.0", "owned bounded resize/maximize with versioned acknowledgement"),
         new("zenith-native-window-state-abi", "1.0", "owned unsaved state and cancellable chrome close intent"),
         new("zenith-native-graphics-abi", "1.0", "owned private graphical surfaces and routed events"),

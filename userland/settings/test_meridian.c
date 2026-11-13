@@ -39,6 +39,9 @@ static long change_display(unsigned int action,unsigned int mode,unsigned int sc
     else {assert(token==77);display.phase=0;display.flags&=~4U;if(action==2){display.width=1600;display.height=1200;display.scale=2;}}
     display.revision++;return 0;
 }
+static long portal_state=2;
+static long fake_authorize(void){return 9;}
+static long fake_poll(long h,char *message,unsigned long size){assert(h==9);snprintf(message,size,"%s",portal_state==4?"dismissed":"authenticated as user");return portal_state;}
 static struct meridian app;
 static unsigned int pixels[1920*1000];
 static void draw(void){meridian_draw(&app);}
@@ -132,7 +135,16 @@ int main(int argc,char **argv){
     key('q',0,2);assert(app.dialog.open&&!app.closing);key(0,1,0);assert(!app.dialog.open&&!app.closing);
     send((struct zenith_gui_event){Z_GUI_CLOSE_INTENT,0,0,0,0,0});assert(app.dialog.open);
     click_label("Discard");assert(app.closing&&!dirty);app.closing=0;
-    preferences.flags=1;meridian_refresh(&app);draw();click_id(2004);assert(!app.combo.open);preferences.flags=3;meridian_refresh(&app);
+    preferences.flags=1;meridian_refresh(&app);draw();click_id(2004);assert(!app.combo.open);
+    assert(find_id(4003)<0);                                            /* no portal: no Unlock */
+    app.authorize=fake_authorize;app.authorization_poll=fake_poll;draw();
+    click_id(4003);assert(app.unlock_handle==9&&!enabled(4003));
+    meridian_refresh(&app);draw();assert(app.unlock_handle==9);       /* still shown */
+    portal_state=4;meridian_refresh(&app);draw();
+    assert(!app.unlock_handle&&strstr(app.unlock_note,"dismissed")&&enabled(4003));
+    portal_state=3;click_id(4003);preferences.flags=3;meridian_refresh(&app);draw();
+    assert(!app.unlock_handle&&!app.unlock_note[0]&&find_id(4003)<0&&enabled(2004));   /* approved: writable */
+    app.authorize=0;app.authorization_poll=0;
     /* Service-backed information pages. */
     meridian_information_services(&app,information_read);
     assert(meridian_open(&app,"network.connections"));meridian_refresh(&app);draw();

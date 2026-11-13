@@ -37,10 +37,16 @@ internal static class Accounts
             foreach (var user in database.Users)
             { if (user.Uid == 1000) { Secure(user.Home, user.Uid, user.Gid, 0x1c0); } }
             Service = new AccountService(store, HardwareEntropy.Source);
+            // Kernels before 0.0.57 had no administrators' group: create it once (the installer's
+            // account joins it, as on a fresh installation). A hand-made wheel group is kept.
+            try { if (Service.EnsureAdministrators()) { Zenith.Core.Log.Write("accounts", "created the wheel administrators group"); } }
+            catch (Exception e) { Zenith.Core.Log.Write("accounts", "wheel group not created: " + e.Message); }
             Session = Service.HasPasswords ? Credentials.Nobody : Credentials.Root;
         }
         catch (Exception e) { Error = e.Message; Service = null; Session = Credentials.Nobody; }
     }
+    /// <summary>Root, or a member of the wheel group (read from the database now).</summary>
+    public static bool IsAdministrator(uint uid) => uid == 0 || (Service?.IsAdministrator(uid) ?? false);
     public static string Home(Credentials identity)
         => Service is null ? "/home/user" : Service.Find(Service.Name(identity.Uid))?.Home ?? "/";
     public static void Login(Credentials identity) { Session = identity; Generation++; }

@@ -20,6 +20,7 @@ internal sealed class AccountDatabase
 {
     private readonly Dictionary<string, UserAccount> _users = new(StringComparer.Ordinal);
     private readonly Dictionary<uint, string[]> _groups = new();
+    private readonly Dictionary<string, uint> _groupIds = new(StringComparer.Ordinal);
     public IReadOnlyCollection<UserAccount> Users => _users.Values;
 
     public AccountDatabase(string passwd, string group, string shadow)
@@ -41,7 +42,7 @@ internal sealed class AccountDatabase
             string[] members = f[3].Length == 0 ? Array.Empty<string>() : f[3].Split(',');
             if (members.Length > 128) { throw new FormatException("too many group members"); }
             foreach (string member in members) { if (!ValidName(member)) { throw new FormatException("invalid group member"); } }
-            _groups.Add(gid, members);
+            _groups.Add(gid, members); _groupIds.Add(f[0], gid);
         }
         var ids = new HashSet<uint>();
         foreach (string line in Lines(passwd))
@@ -80,6 +81,19 @@ internal sealed class AccountDatabase
         return new Credentials(account.Uid, account.Gid, groups.ToArray());
     }
     public bool HasGroup(uint gid) => _groups.ContainsKey(gid);
+    public uint? GroupId(string name) => _groupIds.TryGetValue(name, out uint gid) ? gid : null;
+    public string[] Members(uint gid) => _groups.TryGetValue(gid, out var members) ? members : Array.Empty<string>();
+    public string[] GroupNames(UserAccount account)
+    {
+        var names = new List<string>();
+        foreach (var pair in _groupIds) { if (pair.Value == account.Gid) { names.Add(pair.Key); } }
+        foreach (var pair in _groupIds)
+        {
+            if (pair.Value == account.Gid) { continue; }
+            foreach (string member in _groups[pair.Value]) { if (member == account.Name) { names.Add(pair.Key); break; } }
+        }
+        return names.ToArray();
+    }
     public bool HasUid(uint uid)
     {
         foreach (var user in _users.Values) { if (user.Uid == uid) { return true; } }

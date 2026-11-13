@@ -16,6 +16,7 @@ internal static class SystemRuntime
         SystemMounts.Initialize();
         phase?.Invoke("Loading accounts");
         Accounts.Initialize();
+        Zenith.Core.Portal.Portals.Initialize();
         phase?.Invoke("Mounting disks");
         SystemMounts.MountAtStartup();
         phase?.Invoke("Loading settings");

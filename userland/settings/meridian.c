@@ -1,6 +1,6 @@
 #include "meridian.h"
 enum { PENDING_NONE=0,PENDING_CLOSE=1,PENDING_ROW=2,PENDING_PAGE=3 };
-enum { ID_ROWS=100,ID_FOOTER=900,ID_DIALOG=950,ID_SEARCH=1002,ID_COMBO=2004,ID_SCALE=2006,ID_COMBO_ROWS=2100,ID_SCALE_ROWS=2400,ID_LINKS=3000 };
+enum { ID_ROWS=100,ID_FOOTER=900,ID_DIALOG=950,ID_SEARCH=1002,ID_COMBO=2004,ID_SCALE=2006,ID_COMBO_ROWS=2100,ID_SCALE_ROWS=2400,ID_LINKS=3000,ID_UNLOCK=4003 };
 static unsigned long length(const char *s){unsigned long n=0;while(n<4096&&s[n])n++;return n;}
 static int same(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return *a==*b;}
 static void text(struct zui *u,int x,int y,const char *s,const struct zui_font *f,unsigned int c){zui_text(u,x,y,s,length(s),f,c);}
@@ -77,7 +77,36 @@ int meridian_init(struct meridian *a,unsigned int *pixels,struct settings_backen
     if(page&&!meridian_open(a,page))return 0;
     sync_theme(a);return 1;
 }
+static void copy_note(char *o,const char *s,unsigned long n){unsigned long i=0;for(;i+1<n&&s[i];i++)o[i]=s[i];o[i]=0;}
+/* Asks the desktop for permission to change system settings; the answer arrives in meridian_refresh. */
+static void unlock(struct meridian *a){
+    if(!a->authorize||a->unlock_handle>0)return;
+    long h=a->authorize();
+    if(h>0){a->unlock_handle=h;a->unlock_note[0]=0;}
+    else copy_note(a->unlock_note,h==-38?"This Zenith kernel cannot ask for permission. Run Meridian as root.":"The request was refused.",sizeof(a->unlock_note));
+    a->ui.dirty=1;
+}
+static void poll_unlock(struct meridian *a){
+    if(a->unlock_handle<=0||!a->authorization_poll)return;
+    char message[96];message[0]=0;
+    long state=a->authorization_poll(a->unlock_handle,message,sizeof(message));
+    if(state>=0&&state<3)return;   /* pending or shown */
+    a->unlock_handle=0;a->ui.dirty=1;
+    if(state==3)a->unlock_note[0]=0;
+    else if(state==7)copy_note(a->unlock_note,"No desktop can ask for permission here. Use sudo in a terminal.",sizeof(a->unlock_note));
+    else if(state==4){char t[100]="Not allowed: ";copy_note(t+13,message,sizeof(t)-13);copy_note(a->unlock_note,t,sizeof(a->unlock_note));}
+    else copy_note(a->unlock_note,"The request ended without an answer.",sizeof(a->unlock_note));
+}
+/* Under a read-only system setting: why, and the Unlock button (when the portal is there). */
+static void unlock_row(struct meridian *a,struct zui *u,struct zui_form *f){
+    if(!a->authorize)return;
+    const char *note=a->unlock_note[0]?a->unlock_note:a->unlock_handle>0?"Waiting for permission...":"Changing this needs an administrator.";
+    zui_add(u,ID_UNLOCK,ZUI_BUTTON,(struct zui_rect){f->x,f->y,120,34},a->unlock_handle>0?"Waiting...":"Unlock",0,a->unlock_handle<=0);
+    zui_paragraph(u,(struct zui_rect){f->x+132,f->y+8,f->w-132,24},note,&zui_caption,u->theme.secondary,0);
+    f->y+=46;
+}
 void meridian_refresh(struct meridian *a){
+    poll_unlock(a);
     unsigned long rev=a->colors.state.revision,res=a->colors.state.resources,pref=a->bindings.preferences.revision;unsigned int flags=a->colors.state.flags;
     int ready=a->bindings.ready;
     unsigned long display_revision=a->bindings.display.revision;unsigned int seconds=a->bindings.display.seconds;
@@ -175,6 +204,7 @@ static void colors_form(struct meridian *a,struct zui *u,struct zui_form *f){
     f->y+=8;
     text(u,f->x,f->y,where,&zui_caption,u->theme.secondary);f->y+=20;
     text(u,f->x,f->y,s->message?s->message:state,&zui_caption,u->theme.text);f->y+=20;
+    if(!(s->has_scopes&&s->scope)&&!(s->state.flags&Z_SETTINGS_WRITABLE)){f->y+=8;unlock_row(a,u,f);}
 }
 static void preference_form(struct meridian *a,struct zui *u,struct zui_form *f,int kind){
     const struct meridian_bindings *b=&a->bindings;int writable=binding_writable(b,kind),count=binding_choice_count(b,kind);
@@ -190,6 +220,7 @@ static void preference_form(struct meridian *a,struct zui *u,struct zui_form *f,
             if(binding_choice(b,kind)>=(unsigned int)count)u->controls[field].label=kind==BIND_TIMEZONE?b->preferences.current_zone:b->preferences.current_session;
         }
     }else text(u,r.x,r.y+10,"Unavailable from the settings service.",&zui_body,u->theme.secondary);
+    if(!writable&&count)unlock_row(a,u,f);
     status(u,f,b->message?b->message:binding_changed(b,kind)?"Unapplied change.":kind==BIND_KEYBOARD?"Applies to keyboard input across sessions immediately.":
         kind==BIND_TIMEZONE?"Changes local time display; the UTC clock is unchanged.":kind==BIND_ANIMATIONS?"Applies to the next window change. Off keeps every change immediate.":kind==BIND_TASKBAR?"Applies immediately. Dock when maximized removes the gap around the bar for a maximized window.":
         kind==BIND_WALLPAPER?"Applies immediately, here and on the login screen.":kind==BIND_LAUNCHER||kind==BIND_CURSOR?"Applies immediately.":"Applies on next boot; the running session is unchanged.");
@@ -207,6 +238,7 @@ static void display_form(struct meridian *a,struct zui *u,struct zui_form *f){
     if(!a->scale_combo.open)a->scale_combo.value=(int)binding_scale_choice(b);
     zui_combo_draw(u,&a->scale_combo,r,binding_scale_count(b),scale_rows,a);
     for(int i=0;i<u->count;i++)if(u->controls[i].id==ID_COMBO||u->controls[i].id==ID_SCALE)u->controls[i].enabled=writable;
+    if(!writable)unlock_row(a,u,f);
     if(b->display.phase && (b->display.flags&4)){
         status(u,f,b->display.phase==1?"Preparing display preview...":"Keep this display? Reverts automatically after 15 seconds.");
         char timer[40]="Seconds remaining: ";char *t=timer+19;unsigned int v=b->display.seconds;if(v>=10)*t++='1';*t++=(char)('0'+v%10);*t=0;status(u,f,timer);
@@ -432,6 +464,7 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     if(zui_scroll_event(u,&a->page_scroll,e))return;
     if(e->type==Z_GUI_KEY&&!e->modifiers&&!on_rows)page_keys(a,e);
     int id=zui_event(u,e);
+    if(id==ID_UNLOCK){unlock(a);u->dirty=1;sync_theme(a);return;}
     if(id==ID_SEARCH){a->search_focus=1;u->dirty=1;}
     else if(id==ID_FOOTER+ZUI_FOOTER_APPLY)binding_apply(&a->bindings,kind);
     else if(id==ID_FOOTER+ZUI_FOOTER_RESET)binding_reset(&a->bindings,kind);

@@ -425,6 +425,15 @@ root-only background edit: new table, create, delete, grow; since kernel 0.0.56 
 unmount and mount at startup through `/etc/fstab`). The rules are the `disk` command's.
 Layouts and errors are in [Equinox](components/EQUINOX.md#native-abi-zenith-native-disk-abi-10).
 
+## Desktop Portal
+
+`zenith-native-portal-abi` 1.0 (kernel 0.0.57) adds calls 650 (open a request to a named portal
+interface), 651 (poll it), 652 (close or withdraw it) and 653 (list the interfaces). The desktop
+answers with its own dialog. The first interface, `org.zenith.portal.Authorization`, grants one
+process the disk or system-settings calls as root until it exits. Layouts, states and errors are in
+[sudo and the Desktop Portal](components/PORTAL.md#native-abi-zenith-native-portal-abi-10-kernel-0057).
+Older kernels answer -38.
+
 ## Graphical clients
 
 Calls 600..603 add versioned owned software surfaces, copied opaque presentation

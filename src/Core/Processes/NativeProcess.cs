@@ -72,8 +72,15 @@ internal sealed unsafe class NativeProcess
         if (released) { return; }
         released = true;
         lock (s_rootsGate) { s_roots.Remove(pid); }
+        Zenith.Core.Portal.PortalBroker.ProcessExited(pid);
+        Zenith.Core.Portal.ProcessPrivileges.Drop(pid);
         Zenith.Core.Configuration.SystemConfiguration.Display.Abandon(pid);
         Processes.Complete(pid, status);
+    }
+    private static string ProgramName(int pid)
+    {
+        foreach (var p in Processes.List(0)) { if (p.Pid == pid) { return p.Name; } }
+        return "pid " + pid;
     }
     private static void CloseFiles(ProcessFiles? files)
     {
@@ -335,6 +342,30 @@ internal sealed unsafe class NativeProcess
                 foreach (var w in Zenith.Core.Monitoring.KernelMonitor.Windows) { if (w.Pid == 0 || visible.Contains(w.Pid)) { windows.Add(w); } }
                 Transfer(c.Arg0, Zenith.Core.Monitoring.KernelMonitor.Activity.Snapshot(windows), true); return 0;
             }
+            // Desktop Portal (zenith-native-portal-abi 1.0): open, poll, close, list interfaces.
+            if (c.Call == 650)
+            {
+                if (c.Arg1 != ProcessPortal.RequestBytes || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, ProcessPortal.RequestBytes, false)) { return -14; }
+                var caller = new Zenith.Core.Portal.PortalCaller((int)c.Pid, (uint)c.Uid, (uint)c.Gid, ProgramName((int)c.Pid));
+                return ProcessPortal.Open(ReadUser(c.Arg0, ProcessPortal.RequestBytes), caller);
+            }
+            if (c.Call == 651)
+            {
+                if (c.Arg0 is 0 or > long.MaxValue || c.Arg2 != ProcessPortal.ResponseBytes) { return -22; }
+                if (!Valid(c.Arg1, ProcessPortal.ResponseBytes, true)) { return -14; }
+                var request = Zenith.Core.Portal.PortalBroker.Find((long)c.Arg0, (int)c.Pid);
+                if (request is null) { return -9; }
+                Transfer(c.Arg1, ProcessPortal.Poll(request), true); return (long)request.State;
+            }
+            if (c.Call == 652)
+            { return c.Arg0 is 0 or > long.MaxValue || c.Arg1 != 0 || c.Arg2 != 0 ? -22 : Zenith.Core.Portal.PortalBroker.Close((long)c.Arg0, (int)c.Pid); }
+            if (c.Call == 653)
+            {
+                if (c.Arg1 != ProcessPortal.InfoBytes || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, ProcessPortal.InfoBytes, true)) { return -14; }
+                Transfer(c.Arg0, ProcessPortal.Info(), true); return 0;
+            }
             // Equinox: disks and their edits (zenith-native-disk-abi 1.0).
             if (c.Call == 647)
             {
@@ -383,7 +414,13 @@ internal sealed unsafe class NativeProcess
             {
                 if (c.Arg1 != 48 || c.Arg2 != 0) { return -22; }
                 if (!Valid(c.Arg0,48,false)) { return -14; }
-                return ProcessScopedAppearance.Save(Zenith.Core.Configuration.SystemConfiguration.Appearance,Zenith.Core.Configuration.SystemConfiguration.PersonalAppearance,ReadUser(c.Arg0,48));
+                byte[] scoped = ReadUser(c.Arg0,48);
+                // The system scope (0) runs as root under a system-settings grant; a personal scope never does.
+                bool system = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(scoped.AsSpan(4)) == 0
+                    && Zenith.Core.Portal.ProcessPrivileges.Holds((int)c.Pid, Zenith.Core.Portal.Privilege.SystemSettings);
+                var scope = Zenith.Core.Security.CredentialContext.Enter(system ? Zenith.Core.Security.Credentials.Root : Zenith.Core.Security.CredentialContext.Current);
+                try { long saved = ProcessScopedAppearance.Save(Zenith.Core.Configuration.SystemConfiguration.Appearance,Zenith.Core.Configuration.SystemConfiguration.PersonalAppearance,scoped); scope.Dispose(); return saved; }
+                catch { scope.Dispose(); throw; }
             }
             if (c.Call == 620)
             {
@@ -727,10 +764,15 @@ internal sealed unsafe class NativeProcess
                     if (status != 4096) { break; }
                     if (cancelled()) { status = 130; break; }
                     if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615 or 628 or 629 or >= 630 and <= 638 or 645 or 646) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
-                    var caller = Zenith.Core.Security.CredentialContext.Enter(identity);
+                    // A portal grant serves that area's calls as root for this process alone (uid 0 in the
+                    // context too, which those handlers read); every other call keeps the program's identity.
+                    bool elevated = Zenith.Core.Portal.ProcessPrivileges.Elevates(pid, context.Call, context.Arg0);
+                    ulong ownUid = context.Uid, ownGid = context.Gid;
+                    if (elevated) { context.Uid = 0; context.Gid = 0; }
+                    var caller = Zenith.Core.Security.CredentialContext.Enter(elevated ? Zenith.Core.Security.Credentials.Root : identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
                     // while waiting for a peer. Mutations and transport setup stay serialized.
-                    bool standard = context.Call is 642 or 643 or 644 or 649 or 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 645 or 646 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    bool standard = context.Call is 642 or 643 or 644 or 649 or 651 or 653 or 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 645 or 646 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {
@@ -738,12 +780,12 @@ internal sealed unsafe class NativeProcess
                         context.Result = process.Service(ref context, files, network!, graphics!, ref readBytes);
                         Processes.SetState(pid, ProcessState.Running);
                         if (!standard) { Monitor.Exit(s_serviceGate); }
-                        caller.Dispose();
+                        caller.Dispose(); context.Uid = ownUid; context.Gid = ownGid;
                     }
                     catch
                     {
                         if (!standard) { Monitor.Exit(s_serviceGate); }
-                        caller.Dispose(); throw;
+                        caller.Dispose(); context.Uid = ownUid; context.Gid = ownGid; throw;
                     }
                     // Give console/cancellation workers a scheduling point during
                     // syscall-heavy loops; Thread.Yield is a stub in Cosmos 3.0.89.

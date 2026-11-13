@@ -1,4 +1,5 @@
 #include "meridian.h"
+#include "../include/zenith_portal.h"
 static unsigned int pixels[640*480];
 static struct meridian shell;
 static long handle=-1;
@@ -96,6 +97,17 @@ static int settings_information(const char *name){
 static int display_show(void){
     struct zenith_display s={0};if(zenith_display_read(&s)||s.version!=1)return 1;
     print("DISPLAY_NATIVE ");print(s.driver);print(" ");number(s.width);print("x");number(s.height);print(" scale=");number(s.scale);print(" phase=");number(s.phase);print(" writable=");number(!!(s.flags&2));print("\n");return 0;
+}
+/* Desktop Portal: org.zenith.settings.system for this Meridian until it closes. */
+static long authorize_system(void){long h=zenith_authorize("Authorize",Z_ACTION_SYSTEM_SETTINGS);if(h>0)print("MERIDIAN_UNLOCK asked\n");return h;}
+static long authorization_poll(long h,char *message,unsigned long size){
+    struct zenith_portal_response r;long state=zenith_portal_poll(h,&r);
+    if(state<0||!Z_PORTAL_FINAL(state))return state;
+    unsigned long i=0;for(;i+1<size&&r.message[i];i++)message[i]=r.message[i];message[i]=0;
+    zenith_portal_close(h);
+    static const char *names[8]={"","pending","shown","approved","denied","cancelled","failed","unavailable"};
+    print("MERIDIAN_UNLOCK ");print(names[state]);print(" ");print(message);print("\n");
+    return state;
 }
 static unsigned int decimal(const char *s){unsigned int n=0;while(*s>='0'&&*s<='9'){if(n>10000)return 0;n=n*10+(unsigned int)(*s++-'0');}return *s?0:n;}
 static int display_test(char **args){
@@ -256,6 +268,7 @@ int main(int argc,char **argv){
     meridian_system_services(&shell,zenith_system_settings_read,zenith_system_settings_save);
     shell.bindings.display_read=zenith_display_read; shell.bindings.display_save=zenith_display_change;
     meridian_information_services(&shell,zenith_settings_information_read);
+    {struct zenith_portal_info portal;if(zenith_portal_info(&portal)==0&&portal.version==1){shell.authorize=authorize_system;shell.authorization_poll=authorization_poll;}}
     meridian_refresh(&shell);
     long motion_clock=zui_motion_clock();
     if(motion_clock>=0){shell.ui.now=motion_clock;shell.ui.motion_percent=zui_motion_percent(shell.bindings.preferences.animation);}

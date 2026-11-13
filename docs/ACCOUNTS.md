@@ -51,8 +51,12 @@ without granting caller authority.
 Root creates accounts with `useradd NAME`, which allocates an unused UID/GID from
 1000..65533, a private `/home/NAME`, and a locked shadow entry. `passwd NAME` unlocks
 it. Ordinary users can run `passwd` to change their own password after proving the
-current password. Removing users, group administration and password aging are
-not implemented. UID/GID 65534 and the name nobody are reserved for
+current password. Removing users and password aging are not implemented. Root adds
+and removes group members with `gpasswd -a|-d NAME GROUP`; `groups [NAME]` lists them.
+
+Administrators are root and the `wheel` group. Members use `sudo COMMAND` with their own
+password, and approve Desktop Portal requests (Equinox and Meridian **Unlock**) the same way. See
+[sudo and the Desktop Portal](components/PORTAL.md). UID/GID 65534 and the name nobody are reserved for
 unauthenticated sessions.
 
 Live FAT roots and legacy FAT installations retain a root-only maintenance session.

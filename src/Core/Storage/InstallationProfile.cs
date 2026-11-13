@@ -9,7 +9,8 @@ internal sealed class InstallationProfile
     public string Hostname { get; }
     public string User { get; }
     public string Passwd => "root:x:0:0:root:/root:/bin/sh\n" + User + ":x:1000:1000:" + User + ":/home/" + User + ":/bin/sh\n";
-    public string Group => "root:x:0:\nusers:x:100:" + User + "\n" + User + ":x:1000:\n";
+    // The installing person administers the system: wheel lets them use sudo and approve portal requests.
+    public string Group => "root:x:0:\nwheel:x:10:" + User + "\nusers:x:100:" + User + "\n" + User + ":x:1000:\n";
     public string Shadow { get; }
     private InstallationProfile(string hostname, string user, string rootHash, string userHash)
     {
