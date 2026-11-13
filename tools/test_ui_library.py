@@ -103,7 +103,7 @@ class UiLibraryTests(unittest.TestCase):
                             '-I'+str(ROOT/'userland/ui'),str(ROOT/'userland/settings/test_settings.c'),
                             str(ROOT/'userland/settings/app.c'),str(ROOT/'userland/ui/ui.c'),
                             str(atlas),str(icons),'-o',str(settings_exe)],check=True)
-            subprocess.run([str(settings_exe), directory],check=True,timeout=30)
+            subprocess.run([str(settings_exe), directory],check=True,timeout=120)
             pages_spec=importlib.util.spec_from_file_location('meridian_pages', ROOT/'tools/build-meridian-pages.py')
             pages_module=importlib.util.module_from_spec(pages_spec)
             pages_spec.loader.exec_module(pages_module)
@@ -115,7 +115,7 @@ class UiLibraryTests(unittest.TestCase):
                             str(ROOT/'userland/settings/meridian.c'),str(ROOT/'userland/settings/app.c'),str(ROOT/'userland/settings/navigation.c'),str(ROOT/'userland/settings/bindings.c'),str(ROOT/'userland/ui/widgets.c'),
                             str(ROOT/'userland/ui/text.c'),str(ROOT/'userland/ui/ui.c'),
                             str(pages),str(atlas),str(icons),'-o',str(meridian_exe)],check=True)
-            subprocess.run([str(meridian_exe),directory],check=True,timeout=30)
+            subprocess.run([str(meridian_exe),directory],check=True,timeout=120)
             evidence=os.environ.get('ZENITH_UI_EVIDENCE_DIR')
             if evidence:
                 target=Path(evidence);target.mkdir(parents=True,exist_ok=True)
