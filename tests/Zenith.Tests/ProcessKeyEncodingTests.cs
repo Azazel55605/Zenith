@@ -11,6 +11,9 @@ public class ProcessKeyEncodingTests
     [InlineData('\0', "Enter", 2, '\0')]
     [InlineData('\0', "F", 0, '\0')]
     [InlineData('\0', "F", 6, '\0')]
+    [InlineData('\0', "D2", 2, '2')]
+    [InlineData('\0', "D2", 0, '\0')]
+    [InlineData('\0', "D2", 6, '\0')]
     public void PreservesTextAndSuppliesMissingControlLetter(char text, string key, int modifiers, char expected)
         => Assert.Equal(expected, ProcessKeyEncoding.Text(text, key, modifiers));
 }

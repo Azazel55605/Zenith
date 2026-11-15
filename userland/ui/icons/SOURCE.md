@@ -13,3 +13,9 @@ Observatory uses `activity` (its own tile and Performance), `cpu`, `memory-stick
 and `list` (Processes).
 
 Equinox uses `hard-drive` (its tile and disks), `list` (Plan) and `clock` (History).
+
+Horizon uses `house`, `download`, `folder`, `hard-drive` (places and devices), `arrow-left`,
+`arrow-right`, `arrow-up` (history), `layout-grid` and `list` (views), `panel-right` (information),
+`search` (filter), `file`, `file-text`, `file-code`, `file-archive`, `image`, `link` (items),
+`copy`, `scissors`, `clipboard-paste`, `pencil`, `trash`, `folder-plus`, `refresh-cw`,
+`arrow-down-a-z`, `eye-off` (menu) and `columns-2` (split, HZ2).

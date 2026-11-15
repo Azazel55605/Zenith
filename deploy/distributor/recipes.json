@@ -126,5 +126,13 @@
     "payload": "obj/packages/zenith-equinox",
     "program": "equinox",
     "generate": "native"
+  },
+  "zenith-horizon": {
+    "kind": "data",
+    "name": "zenith-horizon",
+    "repository": "core",
+    "payload": "obj/packages/zenith-horizon",
+    "program": "horizon",
+    "generate": "native"
   }
 }

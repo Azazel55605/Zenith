@@ -20,7 +20,7 @@ package: small session controls may belong to the desktop/session package initia
 |---|---|---|
 | Sunrise (implemented installer) | Guided disk/account installation; native wizard pending U4 | zenith-sunrise (future separate package) |
 | Sunset (chosen) | Lock, log out, restart and shut down popup; [concept](design/sunset-concept.svg) | Part of the session suite initially |
-| Horizon (chosen) | File manager; [concept](design/files-concept.svg) | zenith-horizon |
+| Horizon (chosen) | File manager; [concept](design/files-concept.svg), [design and stages](components/HORIZON.md) | zenith-horizon |
 | Aurora (chosen) | Graphical text/code editor; [concept](design/editor-concept.svg) | zenith-aurora |
 | Polaris (chosen Terminal name) | Terminal; [design](components/SHELL.md#polaris-design) and [concept](design/terminal-concept.svg) | zenith-polaris |
 | Meridian (chosen Settings name) | System Settings; [ordered plan](MERIDIAN-PLAN.md) | Existing zenith-settings retained initially; rename/migration separate |

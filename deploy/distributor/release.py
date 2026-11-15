@@ -347,6 +347,8 @@ def native_gate_plan():
     if (REPO / "tools/equinox-smoke.py").exists(): checks.append(("e", "equinox-smoke.py"))
     # sudo and the Desktop Portal (kernel 0.0.57; older tags lack it).
     if (REPO / "tools/portal-smoke.py").exists(): checks.append(("z", "portal-smoke.py"))
+    # Horizon and zenith-native-files-abi (kernel 0.0.58; older tags lack it).
+    if (REPO / "tools/horizon-smoke.py").exists(): checks.append(("h", "horizon-smoke.py"))
     if (REPO / "tools/installer-seed-smoke.py").exists(): checks.append(("i", "installer-seed-smoke.py"))
     # Run the expensive crash/recovery matrix last. A repository regression
     # should fail before repeating that matrix; every gate remains mandatory.

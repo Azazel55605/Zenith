@@ -460,3 +460,14 @@ retain the previous viewport bounds. The toolkit's initial static frame is only
 per-axis arithmetic guards, and actual display/VRAM/RAM admission remains required.
 
 See the [implementation evidence and acceptance boundaries](archive/2026-11-07/display-memory-composition.md).
+
+## Files service (Horizon)
+
+Kernel 0.0.58 adds `zenith-native-files-abi` 1.0, calls 654 to 658 (`userland/include/zenith_files.h`): a
+folder listing in 32 KiB pages with modification times, local-time offsets, links and item counts; the
+filesystem holding a path (total and available bytes, mount point, type); and copy, move and delete jobs of
+up to 64 items that run in the kernel as the caller, take the native filesystem service gate one step (one
+64 KiB chunk) at a time, ask when a name exists and stop on cancel. Two jobs per program and eight in all;
+a program's jobs are cancelled when it exits. Calls 657 and 658 do not wait for the service gate. Older
+kernels answer -38. Full contract: [Horizon](components/HORIZON.md#native-abi-zenith-native-files-abi-10-kernel-0058).
+

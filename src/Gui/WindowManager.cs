@@ -360,6 +360,13 @@ internal sealed class WindowManager
             }
         }
 
+        if (input.RightPressed && !input.Left && hit is not null && hit.Content.Contains(input.X, input.Y))
+        {
+            Focus(hit);
+            using var identity = Zenith.Core.Security.CredentialContext.Enter(hit.Identity);
+            hit.OnSecondaryPress(input.X - hit.Content.X, input.Y - hit.Content.Y);
+        }
+
         if (input.Scroll != 0 && hit is not null)
         {
             using var identity = Zenith.Core.Security.CredentialContext.Enter(hit.Identity);

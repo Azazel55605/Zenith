@@ -48,6 +48,7 @@ internal static class AppRegistry
         new AppInfo("Meridian", "System settings", _ => new AppLaunchNotice("Install the zenith-settings package to open Meridian."), "settings", builtIn: false),
         new AppInfo("Observatory", "CPU, memory and running programs", _ => new AppLaunchNotice("Install the zenith-observatory package to open Observatory."), "observatory", builtIn: false),
         new AppInfo("Equinox", "Disks and partitions", _ => new AppLaunchNotice("Install the zenith-equinox package to open Equinox."), "equinox", builtIn: false),
+        new AppInfo("Horizon", "Files, folders and transfers", _ => new AppLaunchNotice("Install the zenith-horizon package to open Horizon."), "horizon", builtIn: false),
     };
 
     public const string DescriptorDirectory = "/usr/share/zenith/apps";
@@ -124,7 +125,7 @@ internal static class AppRegistry
     public static string IconFor(string title)
     {
         if (title.Contains("Terminal") || title.Contains("Polaris")) { return "terminal"; }
-        if (title.Contains("Files")) { return "folder"; }
+        if (title.Contains("Files") || title.Contains("Horizon")) { return "folder"; }
         if (title.Contains("Editor")) { return "file-text"; }
         if (title.Contains("Welcome")) { return "hand"; }
         if (title.Contains("Sunrise")) { return "sunrise"; }

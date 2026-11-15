@@ -207,10 +207,20 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
         protected override void OnFocusChanged(bool focused) => _surface.Send(new(2, focused ? 1 : 0, 0, 0, 0, 0));
         public override void OnMouseDown(int x, int y) { EndFade("Input"); Pointer(4, x, y); }
         public override void OnMouseUp(int x, int y) => Pointer(5, x, y);
+        public override void OnSecondaryPress(int x, int y)
+        {
+            if (!_surface.SecondaryPresses) { return; }
+            EndFade("Input"); _surface.Send(new(12, 2, Math.Clamp(x, 0, _surface.Width - 1), Math.Clamp(y, 0, _surface.Height - 1), 0, 0));
+        }
         public override void OnMouseDrag(int x, int y) => Pointer(6, x, y);
         public override void OnPointerMove(int x, int y) => _surface.SendPointerMove(Math.Clamp(x, 0, _surface.Width - 1), Math.Clamp(y, 0, _surface.Height - 1));
         public override void OnPointerLeave() => _surface.SendPointerLeave();
-        private void Pointer(int type, int x, int y) => _surface.Send(new(type, 1, Math.Clamp(x, 0, _surface.Width - 1), Math.Clamp(y, 0, _surface.Height - 1), 0, 0));
+        private void Pointer(int type, int x, int y) => _surface.Send(new(type, 1, Math.Clamp(x, 0, _surface.Width - 1), Math.Clamp(y, 0, _surface.Height - 1), PointerModifiers(), 0));
+        /// <summary>Shift, Control and Alt held during a click, for surfaces using the input extension (627 bit 2);
+        /// others keep receiving 0.</summary>
+        private int PointerModifiers() => !_surface.SecondaryPresses ? 0
+            : (Cosmos.Kernel.System.Keyboard.KeyboardManager.ShiftPressed ? 1 : 0) | (Cosmos.Kernel.System.Keyboard.KeyboardManager.ControlPressed ? 2 : 0)
+            | (Cosmos.Kernel.System.Keyboard.KeyboardManager.AltPressed ? 4 : 0);
         public override void OnScrollAt(int delta, int x, int y) { EndFade("Input"); _surface.Send(new(8, Math.Clamp(delta, -120, 120), Math.Clamp(x, 0, Content.W-1), Math.Clamp(y, 0, Content.H-1), 0, 0)); }
         public override void OnKey(KeyEvent key)
         {
@@ -222,6 +232,14 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
                 ConsoleKeyEx.UpArrow => 7, ConsoleKeyEx.DownArrow => 8, ConsoleKeyEx.Delete => 9,
                 ConsoleKeyEx.Home => 10, ConsoleKeyEx.End => 11, ConsoleKeyEx.PageUp => 12, ConsoleKeyEx.PageDown => 13, _ => 0
             };
+            if (special == 0 && _surface.FunctionKeys)
+            {
+                special = key.Key switch
+                {
+                    ConsoleKeyEx.F1 => 14, ConsoleKeyEx.F2 => 15, ConsoleKeyEx.F3 => 16, ConsoleKeyEx.F4 => 17, ConsoleKeyEx.F5 => 18, ConsoleKeyEx.F6 => 19,
+                    ConsoleKeyEx.F7 => 20, ConsoleKeyEx.F8 => 21, ConsoleKeyEx.F9 => 22, ConsoleKeyEx.F10 => 23, ConsoleKeyEx.F11 => 24, ConsoleKeyEx.F12 => 25, _ => 0
+                };
+            }
             int modifiers = ((key.Modifiers & ConsoleModifiers.Shift) != 0 ? 1 : 0)
                 | ((key.Modifiers & ConsoleModifiers.Control) != 0 ? 2 : 0) | ((key.Modifiers & ConsoleModifiers.Alt) != 0 ? 4 : 0);
             _surface.Send(new(3, ProcessKeyEncoding.Text(key.KeyChar, key.Key.ToString(), modifiers), 0, 0, modifiers, special));

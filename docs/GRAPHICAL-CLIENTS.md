@@ -128,6 +128,13 @@ focus logs alone do not establish that those pixels are visible.
 The first [shared client UI library](USERLAND-UI.md) supplies opaque software
 widgets and Inter text without changing graphics ABI 1.
 
+## Input extension (kernel 0.0.58)
+
+Call 627 `(handle, bits, 0)` accepts 1, 3, 5 or 7. Bit 1 is pointer motion as before. Bit 2 adds right-button
+presses as event **12** (code 2, content-local x/y) and the Shift/Control/Alt state on pointer press, release
+and drag events. Bit 4 adds key extras 14..25 for F1..F12. Older kernels refuse anything but 1 with -22, so
+clients retry with 1. Surfaces that do not opt in see no change.
+
 ## Interactive and metadata contracts
 
 Call **605** `(owned_surface, 1, 0)` opts into interactive ABI 1. It requires a
