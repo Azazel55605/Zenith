@@ -423,8 +423,10 @@ def main():
         # Frame names keep the rows Welcome and System had in the earlier fixed menu.
         _,(screen_width,screen_height)=observer.position()
         for row,name in ((0,'welcome'),(5,'system')):
-            click(32,screen_height-32)
-            frame('launcher',lambda w,h,rgb:color_at(rgb,w,250,h-300)==bytes.fromhex('2a2c31'))
+            # Prism draws on the desktop material now (no single solid colour to look for): wait for it to open.
+            opened=len(m.log());click(32,screen_height-32)
+            assert m.wait('prism: opened menu',opened,30),'start menu did not open'
+            time.sleep(.5)
             launched=len(m.log())
             for letter in name: monitor_command(monitor,'sendkey '+letter+' 30');time.sleep(.05)
             monitor_command(monitor,'sendkey ret 30')
