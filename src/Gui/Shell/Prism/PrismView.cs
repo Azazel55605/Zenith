@@ -276,13 +276,13 @@ internal sealed class PrismView
         s.FillRoundRect(avatar, 15, Theme.AccentSoft);
         s.DrawTextCentered(user.Length > 0 ? char.ToUpperInvariant(user[0]).ToString() : "?", Fonts.SemiBold, Theme.TextBody, Theme.Accent, avatar, true);
         s.DrawText(user, Fonts.SemiBold, Theme.TextBody, Theme.TextPrimary, avatar.Right + 10, r.Y + (r.H - Theme.TextBody) / 2 - 2);
-        string? blocked = !Zenith.Core.Security.CredentialContext.Current.IsRoot ? "root" : Zenith.Core.PowerControl.BlockedReason;
+        // Sunset decides what can be done now and says what is in the way.
         int x = r.Right - 12;
-        foreach (var (label, action, power) in new[] { ("Shut down", "shutdown", true), ("Restart", "restart", true), ("Log out", "logout", false) })
+        foreach (var (label, action) in new[] { ("Leave...", "sunset"), ("Lock", "lock") })
         {
             int w = Fonts.Regular.MeasureString(label, Theme.TextSmall) + 22; x -= w;
             Rect button = new(x, r.Y + (r.H - 30) / 2, w, 30); x -= 6;
-            bool enabled = !power || blocked is null;
+            const bool enabled = true;
             if (enabled && button.Contains(mouseX, mouseY)) { s.FillRoundRect(button, 8, Theme.Hover); }
             s.StrokeRoundRect(button, 8, Theme.PanelBorder);
             s.DrawTextCentered(label, Fonts.Regular, Theme.TextSmall, enabled ? Theme.TextPrimary : Theme.TextMuted, button, true);

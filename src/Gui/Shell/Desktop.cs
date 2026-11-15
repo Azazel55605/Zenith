@@ -24,7 +24,7 @@ namespace Zenith.Gui.Shell;
 /// </list>
 /// Either way the finished frame reaches the display in a single copy.
 /// </summary>
-internal sealed class Desktop
+internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
 {
     private Canvas _screen;
     private Surface _wallpaper;
@@ -37,6 +37,13 @@ internal sealed class Desktop
     private Taskbar _taskbar;
     private PrismView _prism;
     private readonly Zenith.Gui.Shell.Portal.PortalHost _portal = new();
+    private readonly Zenith.Gui.Shell.Sunset.SunsetView _sunset;
+    private readonly Zenith.Gui.Shell.Sunset.LockScreen _lock = new();
+    private const long SunsetOpenMicros = 120_000;
+    // Cosmos reports no key releases: Meta followed within a second by Shift+L counts as Meta+Shift+L.
+    private long _metaAt;
+    private Zenith.Core.Sessions.SunsetAction? _pendingPower;
+    private long _pendingPowerFrame;
     private readonly System.Collections.Generic.List<Window> _prismWindows = new();
     private bool _lowerValid;
     private (int BlurArea, uint Reason) _lowerSpent;
@@ -86,6 +93,7 @@ internal sealed class Desktop
         _taskbar = new Taskbar(w, h, Windows);
         _prism = new PrismView(PrismCandidates, PrismActivate, PrismUser);
         _portal.Attach();
+        _sunset = new Zenith.Gui.Shell.Sunset.SunsetView(this);
 
         SessionDisplay.ConfigurePointer();
         MouseManager.SetPosition(SessionDisplay.Physical.Width / 2, SessionDisplay.Physical.Height / 2);
@@ -185,7 +193,7 @@ internal sealed class Desktop
                 (_prismWindows.Count - 1).ToString(System.Globalization.CultureInfo.InvariantCulture)));
         }
         if (AppRegistry.Find("Meridian")?.Installed == true) { list.AddRange(PrismSearch.SettingsPages()); }
-        list.AddRange(PrismSearch.Actions(CredentialContext.Current.IsRoot && Zenith.Core.PowerControl.BlockedReason is null));
+        list.AddRange(PrismSearch.Actions());
         return list;
     }
 
@@ -212,9 +220,16 @@ internal sealed class Desktop
                     terminal.OnKey(new KeyEvent('\n', ConsoleKeyEx.Enter, false, false, false, KeyEvent.KeyEventType.Make));
                     break;
                 case PrismKind.Action:
-                    if (item.Target == "logout") { Zenith.Core.Sessions.SessionRuntime.RequestLogout(); }
-                    else if (item.Target == "restart") { Zenith.Core.PowerControl.Reboot(); }
-                    else if (item.Target == "shutdown") { Zenith.Core.PowerControl.PowerOff(); }
+                    var host = (Zenith.Gui.Shell.Sunset.ISunsetHost)this;
+                    if (item.Target == "lock" && host.LockUnavailable is null) { host.Act(Zenith.Core.Sessions.SunsetAction.Lock); }
+                    else
+                    {
+                        OpenSunset(item.Target switch
+                        {
+                            "logout" => Zenith.Core.Sessions.SunsetAction.LogOut, "restart" => Zenith.Core.Sessions.SunsetAction.Restart,
+                            "shutdown" => Zenith.Core.Sessions.SunsetAction.ShutDown, _ => Zenith.Core.Sessions.SunsetAction.Lock,
+                        });
+                    }
                     break;
             }
         }
@@ -299,7 +314,10 @@ internal sealed class Desktop
         _apps.Tick(Windows);
         PublishWindows();
         // A portal dialog (a program asking for permission) opens above everything and closes Prism.
-        if (_portal.Tick()) { _sceneDirty = true; _composeAll = true; if (_portal.IsOpen && _prism.IsOpen) { _prism.Close(); } }
+        RunPendingPower();
+        if (_lock.IsLocked) { if (_lock.Tick()) { _lockDirty = true; _sceneDirty = true; } }
+        else if (_portal.Tick()) { _sceneDirty = true; _composeAll = true; if (_portal.IsOpen) { _prism.Close(); _sunset.Close(); } }
+        if (_sunset.Tick(_scene.Width, _scene.Height)) { _sceneDirty = true; }
         if (_generation != Accounts.Generation)
         {
             foreach (var window in Windows.Windows) { if (window is TerminalWindow terminal && terminal.IsBusy) { return; } }
@@ -330,7 +348,7 @@ internal sealed class Desktop
             long hover = HoverKey();
             if (Windows.IsDragging || hover != _hoverKey)
             {
-                _sceneDirty = true;
+                _sceneDirty = true; _lockDirty = true;
                 interrupts |= Windows.IsDragging;
             }
             else
@@ -508,6 +526,7 @@ internal sealed class Desktop
     private void StartTransition()
     {
         WindowTransition? change = Windows.TakeTransition();
+        if (_lock.IsLocked) { return; }
         var (shown, docked) = WantedBar();
         bool wasShown = _taskbar.Shown, wasDocked = _taskbar.Docked;
         bool barMoves = shown != wasShown || (shown && docked != wasDocked);
@@ -759,7 +778,9 @@ internal sealed class Desktop
     private long HoverKey()
     {
         int x = _input.X, y = _input.Y;
+        if (_lock.IsLocked) { return -1_000_000 - _lock.HoverKey(x, y); }
         if (_portal.IsOpen) { return -_portal.HoverKey(x, y); }
+        if (_sunset.IsOpen) { return -2_000_000 - _sunset.HoverKey(x, y); }
         long key = _prism.IsOpen ? _prism.HoverKey(x, y) : 0;
         key = key * 1024 + _taskbar.HoverKey(x, y);
         return key * 4096 + Windows.HoverKey(x, y);
@@ -767,8 +788,22 @@ internal sealed class Desktop
 
     private void HandleInput()
     {
+        // The lock screen takes everything: no shortcut, window or taskbar sees input while it is up.
+        if (_lock.IsLocked)
+        {
+            foreach (KeyEvent key in _input.Keys) { _lock.Key(key); }
+            if (_input.LeftPressed) { _lock.Click(_input.X, _input.Y); }
+            if (_input.Keys.Count > 0 || _input.LeftPressed) { _lockDirty = true; }
+            return;
+        }
         // A portal dialog is modal: it takes every key and click until it is answered.
         if (_portal.IsOpen) { _portal.HandleInput(_input); return; }
+        if (_sunset.IsOpen)
+        {
+            foreach (KeyEvent key in _input.Keys) { if (!_sunset.IsOpen) { break; } _sunset.Key(key, _scene.Width, _scene.Height); }
+            if (_sunset.IsOpen && _input.LeftPressed) { _sunset.Click(_input.X, _input.Y, _scene.Width, _scene.Height); }
+            return;
+        }
         foreach (KeyEvent key in _input.Keys)
         {
             if ((key.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) == (ConsoleModifiers.Control | ConsoleModifiers.Alt))
@@ -779,6 +814,7 @@ internal sealed class Desktop
                     return;
                 }
                 if (key.Key == ConsoleKeyEx.L) { Zenith.Core.Sessions.SessionRuntime.RequestLogout(); return; }
+                if (key.Key == ConsoleKeyEx.Delete) { OpenSunset(Zenith.Core.Sessions.SunsetAction.Lock); return; }
             }
             if (key.Key == ConsoleKeyEx.F11 && Windows.Focused is Window focused) { Windows.ToggleFullscreen(focused); return; }
             if (key.Key == ConsoleKeyEx.Escape && _taskbar.OverflowOpen) { _taskbar.OverflowOpen = false; return; }
@@ -787,13 +823,21 @@ internal sealed class Desktop
         // and the next click.
         foreach (KeyEvent key in _input.Keys)
         {
+            if (key.Key == ConsoleKeyEx.L && (key.Modifiers & ConsoleModifiers.Shift) != 0 && (key.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) == 0
+                && _metaAt != 0 && FrameStats.Now - _metaAt < System.Diagnostics.Stopwatch.Frequency)
+            {
+                _metaAt = 0; _prism.Close(); OpenSunset(Zenith.Core.Sessions.SunsetAction.Lock); return;
+            }
+            if (key.Key is ConsoleKeyEx.LWin or ConsoleKeyEx.RWin) { _metaAt = FrameStats.Now; }
+            else { _metaAt = 0; }
             bool palette = key.Key is ConsoleKeyEx.LWin or ConsoleKeyEx.RWin
                 || (key.Key == ConsoleKeyEx.Spacebar && (key.Modifiers & ConsoleModifiers.Alt) != 0 && (key.Modifiers & ConsoleModifiers.Control) == 0);
             if (palette)
             {
                 if (_prism.IsOpen && _prism.Mode == PrismView.Layout.Palette) { _prism.Close(); }
                 else { _prism.Open(PrismView.Layout.Palette, _taskbar.Bounds, _scene.Width, _scene.Height); }
-                return;
+                // Keys typed with or right after Meta go on: Shift+L may complete Meta+Shift+L, others search.
+                continue;
             }
             if (_prism.IsOpen) { _prism.HandleKey(key); }
         }
@@ -835,7 +879,8 @@ internal sealed class Desktop
         Rect topArea = top is null ? new Rect(0, 0, 0, 0) : WindowManager.AreaOf(top);
         long topKey = TopKey(top), barKey = BarKey();
         Rect barArea = _taskbar.Shown ? _taskbar.Bounds.Inflate(Theme.ShadowSize + 8) : new Rect(0, 0, 0, 0);
-        bool overlays = withoutTop || _prism.IsOpen || _portal.IsOpen || _taskbar.OverflowOpen || Zenith.Core.Sessions.SessionRuntime.Message is not null;
+        if (_lock.IsLocked) { ComposeLocked(start); return; }
+        bool overlays = withoutTop || _prism.IsOpen || _portal.IsOpen || _sunset.IsOpen || _taskbar.OverflowOpen || Zenith.Core.Sessions.SessionRuntime.Message is not null;
         // After an animation or a pass without the top window, the scene does not hold a finished
         // frame: compose everything once.
         bool structural = _composeAll || !appearance || !_lowerValid || top != _lastTop || !Windows.LowerStructureUnchanged();
@@ -927,6 +972,8 @@ internal sealed class Desktop
         }
         if (_prism.IsOpen) { _prism.Draw(_scene, _input.X, _input.Y); }
         if (_taskbar.Shown) { _taskbar.DrawOverflowList(_scene, _input.X, _input.Y); }
+        if (_sunset.IsOpen && !_sunsetCardHidden) { _sunset.Draw(_scene, _input.X, _input.Y); }
+        else if (_sunset.IsOpen) { _scene.FillRect(_scene.Bounds, 0x99000000U); }
         if (_portal.IsOpen) { _portal.Draw(_scene, _input.X, _input.Y); }
 
         FrameStats.ShellTicks += FrameStats.Now - shell;
@@ -936,6 +983,130 @@ internal sealed class Desktop
         FrameStats.RecordCompose(start);
     }
     private int WidthForMessage() => 520;
+
+    private bool _lockDirty = true, _sunsetCardHidden;
+    /// <summary>While locked only the lock screen is drawn, and only when it changed: windows that keep drawing
+    /// behind it cost nothing on screen.</summary>
+    private void ComposeLocked(long start)
+    {
+        _composeAll = true;
+        if (!_lockDirty && _lastLocked) { _composeDamage = new Rect(0, 0, 0, 0); FrameStats.RecordCompose(start); return; }
+        _lockDirty = false; _lastLocked = true;
+        _lock.Draw(_scene, _wallpaper, _input.X, _input.Y);
+        _composeDamage = _scene.Bounds;
+        FrameStats.RecordCompose(start);
+    }
+    private bool _lastLocked;
+
+    // Sunset (docs/components/SUNSET.md).
+    public void OpenSunset(Zenith.Core.Sessions.SunsetAction preferred)
+    {
+        if (_lock.IsLocked || _portal.IsOpen) { return; }
+        _prism.Close();
+        _sunset.Open(preferred, _scene.Width, _scene.Height);
+        _sceneDirty = true; _composeAll = true;
+        // Fades and scales in over the dimmed desktop; Animations Off opens it at once.
+        int percent = Zenith.Core.Configuration.SystemConfiguration.Settings.AnimationPercent;
+        _motion.Interrupt(); ReportMotion();
+        if (percent == 0 || !MotionMemory()) { return; }
+        _sunsetCardHidden = true; ComposeScene(); CopyBase();
+        _sunsetCardHidden = false; ComposeScene();
+        Rect area = _sunset.Card.Inflate(Theme.ShadowSize).Intersect(_scene.Bounds);
+        _motionLayer.Capture(_scene.Pixels, _scene.Width, _scene.Height, area);
+        Rect from = new(area.X + area.W * 3 / 100, area.Y + area.H * 3 / 100, area.W - area.W * 6 / 100, area.H - area.H * 6 / 100);
+        _motion.Begin(_motionBase!, _motionLayer, from, area, 0, 255, Micros(FrameStats.Now), SunsetOpenMicros * percent / 100);
+        _motionName = "SunsetOpened";
+    }
+
+    string Zenith.Gui.Shell.Sunset.ISunsetHost.Who => SessionName();
+    private static string SessionName() => Accounts.Service?.Name(Accounts.Session.Uid) ?? (Accounts.Session.IsRoot ? "root" : "user");
+
+    string? Zenith.Gui.Shell.Sunset.ISunsetHost.LockUnavailable
+    {
+        get
+        {
+            var service = Accounts.Service;
+            if (service is null) { return "accounts are unavailable."; }
+            var account = service.Find(SessionName());
+            return account is null || account.Password is "" or "!" or "*" ? "set a password for " + SessionName() + " to lock the screen." : null;
+        }
+    }
+    string? Zenith.Gui.Shell.Sunset.ISunsetHost.LogoutUnavailable
+        => Accounts.Service is null || !Accounts.Service.HasPasswords ? "set up accounts before logging out." : null;
+    string? Zenith.Gui.Shell.Sunset.ISunsetHost.PowerUnavailable => null;
+
+    /// <summary>What a log out, restart or shut down would lose or interrupt now, with the window that can
+    /// deal with each. The same checks the session makes before it ends.</summary>
+    public System.Collections.Generic.List<Zenith.Core.Sessions.SessionBlocker> Blockers()
+    {
+        var list = new System.Collections.Generic.List<Zenith.Core.Sessions.SessionBlocker>();
+        var busyPids = _nativeClients.BusyTerminalOwners();
+        bool terminal = false;
+        foreach (var window in Windows.Windows)
+        {
+            if (window.IsClosed) { continue; }
+            string owner = window.Title.TrimEnd(' ', '\u2022');
+            if (window.HasUnsavedChanges) { list.Add(new(owner, "has unsaved changes", true, window)); }
+            if (window is TerminalWindow t && (t.IsBusy || t.HasBackgroundJobs))
+            { list.Add(new(owner, "a command is still running", false, window)); terminal = true; }
+            else if (window.OwnerPid != 0 && busyPids.Remove(window.OwnerPid))
+            { list.Add(new(owner, "a command is still running", false, window)); terminal = true; }
+        }
+        if (busyPids.Count > 0) { list.Add(new("Terminal", "a command is still running", false, null)); terminal = true; }
+        if (Zenith.Core.Storage.Installer.IsRunning || Zenith.Core.Shell.Commands.PackageCommands.IsRunning || Zenith.Core.Boot.NativeKernelUpdates.IsRunning)
+        { list.Add(new("System", "an installation or update is running", false, null)); }
+        else if (!terminal && Zenith.Core.Processes.NativeProcess.IsRunning)
+        { list.Add(new("Programs", "a program without a window is still running", false, null)); }
+        return list;
+    }
+
+    string? Zenith.Gui.Shell.Sunset.ISunsetHost.Act(Zenith.Core.Sessions.SunsetAction action)
+    {
+        _sceneDirty = true; _composeAll = true;
+        switch (action)
+        {
+            case Zenith.Core.Sessions.SunsetAction.Lock:
+                _motion.Interrupt(); ReportMotion(); _prism.Close();
+                _lock.Lock(SessionName(), Accounts.Session.Uid); _lockDirty = true; _lastLocked = false;
+                return null;
+            case Zenith.Core.Sessions.SunsetAction.LogOut:
+                return Zenith.Core.Sessions.SessionRuntime.RequestLogout();
+            default:
+                if (Blockers().Count > 0) { return "something started meanwhile."; }
+                if (Zenith.Core.PowerControl.BlockedReason is string blocked) { return blocked; }
+                // One frame without the popup first, so the shutdown fade starts from the desktop.
+                _pendingPower = action; _pendingPowerFrame = FrameStats.Frames;
+                return null;
+        }
+    }
+
+    void Zenith.Gui.Shell.Sunset.ISunsetHost.Show(object target)
+    {
+        if (target is Window window && !window.IsClosed) { Windows.Focus(window); _sceneDirty = true; }
+    }
+
+    private void RunPendingPower()
+    {
+        if (_pendingPower is not Zenith.Core.Sessions.SunsetAction action || FrameStats.Frames <= _pendingPowerFrame) { return; }
+        _pendingPower = null;
+        // The person at the console chose this in the desktop's own popup with nothing in the way; the greeter
+        // offers the same to anyone. Unmounting and powering off are root operations, so the desktop performs
+        // them as root (released explicitly: Cosmos skips finally blocks while unwinding).
+        var root = CredentialContext.Enter(Credentials.Root);
+        try
+        {
+            Zenith.Core.Log.Write("sunset", action == Zenith.Core.Sessions.SunsetAction.Restart ? "restart" : "shut down");
+            if (action == Zenith.Core.Sessions.SunsetAction.Restart) { Zenith.Core.PowerControl.Reboot(); } else { Zenith.Core.PowerControl.PowerOff(); }
+        }
+        catch (System.Exception e)
+        {
+            root.Dispose();
+            Zenith.Core.Log.Write("sunset", "power change failed: " + e.Message);
+            OpenSunset(action);
+            return;
+        }
+        root.Dispose();
+    }
 
     private long _windowsPublishedAt;
     /// <summary>Observatory's Apps page: the windows and their programs, twice a second at most.</summary>
@@ -962,7 +1133,7 @@ internal sealed class Desktop
     {
         if (_launchingUntil != 0 && (FrameStats.Now > _launchingUntil || Windows.Windows.Count > _launchingWindows)) { _launchingUntil = 0; }
         if (_launchingUntil != 0) { return CursorShape.Progress; }
-        if (_prism.IsOpen || _portal.IsOpen || (_taskbar.Shown && _taskbar.Bounds.Contains(_input.X, _input.Y))) { return CursorShape.Default; }
+        if (_lock.IsLocked || _sunset.IsOpen || _prism.IsOpen || _portal.IsOpen || (_taskbar.Shown && _taskbar.Bounds.Contains(_input.X, _input.Y))) { return CursorShape.Default; }
         return Windows.CursorAt(_input.X, _input.Y);
     }
     private bool AppearanceStillValid() => _lowerValid

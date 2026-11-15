@@ -16,6 +16,7 @@ These expand the roadmap's IDs; they do not define competing priorities.
 | [Equinox](components/EQUINOX.md) | U8 | [Concept](design/equinox-concept.svg), [app requirements](APPLICATIONS.md) |
 | [sudo and the Desktop Portal](components/PORTAL.md) | W4 | [Accounts](ACCOUNTS.md), [native ABI](NATIVE-PROGRAMS.md) |
 | [Horizon](components/HORIZON.md) | A1 | [Concept](design/files-concept.svg), [app requirements](APPLICATIONS.md), [native ABI](NATIVE-PROGRAMS.md) |
+| [Sunset](components/SUNSET.md) | U10 | [Concept](design/sunset-concept.svg), [login sessions](LOGIN-SESSIONS.md) |
 | [Shell / terminal](components/SHELL.md) | U3, X2 | [Settings/input/session](SETTINGS-SESSIONS.md), [developer ports](DEVELOPER-TOOLS.md) |
 | [Storage / security](components/STORAGE-SECURITY.md) | R1–R3 | [Accounts](ACCOUNTS.md), [architecture](ARCHITECTURE.md), [future recovery](UPDATE-RECOVERY.md) |
 | [Install / boot / hardware](components/BOOT-RECOVERY.md) | U4, H1, R2–R3 | [Install](INSTALLATION.md), [kernel updates](KERNEL-UPDATES.md) |

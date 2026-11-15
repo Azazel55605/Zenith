@@ -14,12 +14,19 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
     private readonly List<Zenith.Gui.Terminal.ClientTerminal> _terminals = new();
     /// <summary>Whether a client's terminal session has a command or background job a logout would interrupt.</summary>
     public bool TerminalBusy { get { lock (_gate) { foreach (var t in _terminals) { if (!t.Closed && t.Busy) { return true; } } return false; } } }
-    public IProcessTerminal? OpenTerminal(int columns)
+    /// <summary>The programs whose terminal sessions are busy, for Sunset's list of what is in the way.</summary>
+    public HashSet<int> BusyTerminalOwners()
+    {
+        var owners = new HashSet<int>();
+        lock (_gate) { foreach (var t in _terminals) { if (!t.Closed && t.Busy) { owners.Add(t.OwnerPid); } } }
+        return owners;
+    }
+    public IProcessTerminal? OpenTerminal(int columns, int ownerPid)
     {
         lock (_gate)
         {
             if (_stopped || Accounts.Generation != _generation || _terminals.Count >= 16) { return null; }
-            var terminal = new Zenith.Gui.Terminal.ClientTerminal(_identity, columns, (name, argument) => Zenith.Apps.TerminalWindow.OpenApp?.Invoke(name, argument) ?? false);
+            var terminal = new Zenith.Gui.Terminal.ClientTerminal(_identity, columns, ownerPid, (name, argument) => Zenith.Apps.TerminalWindow.OpenApp?.Invoke(name, argument) ?? false);
             _terminals.Add(terminal); return terminal;
         }
     }

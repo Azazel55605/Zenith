@@ -42,7 +42,7 @@ public sealed class ProcessGraphicsTests
     private sealed class FakeTerminalHost : IProcessTerminalHost
     {
         public readonly List<FakeTerminal> Opened = new();
-        public IProcessTerminal? OpenTerminal(int columns) { var t = new FakeTerminal(); Opened.Add(t); return t; }
+        public IProcessTerminal? OpenTerminal(int columns, int ownerPid) { var t = new FakeTerminal(); Opened.Add(t); return t; }
     }
     [Fact]
     public void TerminalSessionsAreBoundedCheckedAndEndWithTheProgram()

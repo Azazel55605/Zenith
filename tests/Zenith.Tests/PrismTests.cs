@@ -103,8 +103,7 @@ public class PrismTests
     [Fact]
     public void ActionsNeedRootForPower()
     {
-        Assert.Equal(new[] { "logout" }, PrismSearch.Actions(false).Select(a => a.Target));
-        Assert.Equal(new[] { "logout", "restart", "shutdown" }, PrismSearch.Actions(true).Select(a => a.Target));
+        Assert.Equal(new[] { "lock", "logout", "restart", "shutdown" }, PrismSearch.Actions().Select(a => a.Target));
     }
 
     [Fact]

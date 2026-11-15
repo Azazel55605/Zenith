@@ -17,7 +17,7 @@ internal interface IProcessTerminal
 
 internal interface IProcessTerminalHost
 {
-    IProcessTerminal? OpenTerminal(int columns);
+    IProcessTerminal? OpenTerminal(int columns, int ownerPid);
 }
 
 /// <summary>The terminal sessions one program holds. Handles and arguments are checked here; sessions end with it.</summary>
@@ -29,14 +29,14 @@ internal sealed class ProcessTerminals : IDisposable
     private bool _disposed;
 
     /// <summary>A handle, or -22 bad columns, -24 too many, -19 no terminal host.</summary>
-    public int Open(IProcessTerminalHost? host, int columns)
+    public int Open(IProcessTerminalHost? host, int columns, int ownerPid = 0)
     {
         if (columns is < MinimumColumns or > MaximumColumns) { return -22; }
         if (_disposed || host is null) { return -19; }
         for (int i = 0; i < _sessions.Length; i++)
         {
             if (_sessions[i] is not null) { continue; }
-            var session = host.OpenTerminal(columns);
+            var session = host.OpenTerminal(columns, ownerPid);
             if (session is null) { return -19; }
             _sessions[i] = session;
             return FirstHandle + i;

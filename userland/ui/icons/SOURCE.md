@@ -19,3 +19,6 @@ Horizon uses `house`, `download`, `folder`, `hard-drive` (places and devices), `
 `search` (filter), `file`, `file-text`, `file-code`, `file-archive`, `image`, `link` (items),
 `copy`, `scissors`, `clipboard-paste`, `pencil`, `trash`, `folder-plus`, `refresh-cw`,
 `arrow-down-a-z`, `eye-off` (menu) and `columns-2` (split, HZ2).
+
+Sunset uses `lock`, `log-out`, `rotate-ccw` and `power` (its four actions), `user` (who is
+signed in), `triangle-alert`, `file`, `terminal`, `check` and `x`.

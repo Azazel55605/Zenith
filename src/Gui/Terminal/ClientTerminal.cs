@@ -29,12 +29,13 @@ internal sealed class ClientTerminal : IProcessTerminal
     private bool _dropped, _closed, _paste;
     private string? _copy;
 
-    public ClientTerminal(Credentials identity, int columns, Func<string, string?, bool> openApp)
+    public ClientTerminal(Credentials identity, int columns, int ownerPid, Func<string, string?, bool> openApp)
     {
-        _columns = columns;
+        _columns = columns; OwnerPid = ownerPid;
         _session = new TerminalSession(identity, columns, openApp, Emit);
     }
 
+    public int OwnerPid { get; }
     public bool Closed { get { lock (_gate) { return _closed; } } }
     /// <summary>Whether a logout would interrupt something.</summary>
     public bool Busy => _session.IsBusy || _session.HasBackgroundJobs;

@@ -186,15 +186,13 @@ internal static class PrismSearch
         { yield return new(PrismKind.Setting, title, "Meridian · " + category, "sliders-horizontal", id, Keywords: category); }
     }
 
-    /// <summary>Power and session actions; <paramref name="root"/> decides whether restart and
-    /// shut down are offered.</summary>
-    public static IEnumerable<PrismItem> Actions(bool root)
+    /// <summary>Session and power actions. Each opens Sunset (Lock directly when it can), which shows what
+    /// would be lost before anything ends.</summary>
+    public static IEnumerable<PrismItem> Actions()
     {
-        yield return new(PrismKind.Action, "Log out", "Session · change user or session", "rotate-ccw", "logout", Keywords: "session sign out user");
-        if (root)
-        {
-            yield return new(PrismKind.Action, "Restart", "Power", "rotate-ccw", "restart", Keywords: "power reboot");
-            yield return new(PrismKind.Action, "Shut down", "Power · power off", "zap", "shutdown", Keywords: "power off halt");
-        }
+        yield return new(PrismKind.Action, "Lock", "Session · lock the screen", "lock", "lock", Keywords: "session screen away");
+        yield return new(PrismKind.Action, "Log out", "Session · change user or session", "log-out", "logout", Keywords: "session sign out user");
+        yield return new(PrismKind.Action, "Restart", "Power", "rotate-ccw", "restart", Keywords: "power reboot");
+        yield return new(PrismKind.Action, "Shut down", "Power · power off", "power", "shutdown", Keywords: "power off halt");
     }
 }

@@ -203,7 +203,7 @@ internal sealed unsafe class NativeProcess
             {
                 if (c.Arg0 > int.MaxValue || c.Arg1 != 0 || c.Arg2 != 0) { return -22; }
                 if (!graphics.Live) { return -19; }
-                int terminal = graphics.Terminals.Open(graphics.TerminalHost, (int)c.Arg0);
+                int terminal = graphics.Terminals.Open(graphics.TerminalHost, (int)c.Arg0, (int)c.Pid);
                 if (terminal > 0) { Processes.MarkClient((int)c.Pid); }
                 return terminal;
             }
