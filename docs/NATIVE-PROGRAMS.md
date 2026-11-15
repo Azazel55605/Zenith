@@ -468,6 +468,7 @@ folder listing in 32 KiB pages with modification times, local-time offsets, link
 filesystem holding a path (total and available bytes, mount point, type); and copy, move and delete jobs of
 up to 64 items that run in the kernel as the caller, take the native filesystem service gate one step (one
 64 KiB chunk) at a time, ask when a name exists and stop on cancel. Two jobs per program and eight in all;
-a program's jobs are cancelled when it exits. Calls 657 and 658 do not wait for the service gate. Older
+a program's jobs are cancelled when it exits. Calls 657 and 658 do not wait for the service gate. Kernel
+0.0.59 adds control command 4, which waits for a job in the kernel, so windowless programs need not spin. Older
 kernels answer -38. Full contract: [Horizon](components/HORIZON.md#native-abi-zenith-native-files-abi-10-kernel-0058).
 

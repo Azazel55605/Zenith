@@ -1164,7 +1164,8 @@ static int job_test(int op,int answer_with,const char *destination,int count,cha
         if((int)s!=j->state){j->state=(int)s;announce_job(j);}
         if(s==Z_JOB_ASKING){if(!answer_with){zenith_job_cancel(j->id);}else zenith_job_answer(j->id,(unsigned int)answer_with);}
         if(Z_JOB_FINAL(s)){zenith_job_forget(j->id);return s==Z_JOB_DONE?0:1;}
-        for(volatile unsigned long i=0;i<2000000;i++){}
+        /* Wait in the kernel: a spin spends this program's CPU budget and slows the job's own thread. */
+        if(zenith_job_wait(j->id,500)<0)for(volatile unsigned long i=0;i<2000000;i++){}
     }
     return 1;
 }

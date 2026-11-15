@@ -37,6 +37,8 @@ static inline long zenith_job_status(long job,struct zenith_job_status *s){retur
 static inline long zenith_job_cancel(long job){return zenith_call(658,(unsigned long)job,1,0);}
 static inline long zenith_job_answer(long job,unsigned int answer){return zenith_call(658,(unsigned long)job,2,answer);}
 static inline long zenith_job_forget(long job){return zenith_call(658,(unsigned long)job,3,0);}
+/* Waits up to ms (1..1000) until the job ends or asks; returns its state. Kernels before 0.0.59 answer -22. */
+static inline long zenith_job_wait(long job,unsigned int ms){return zenith_call(658,(unsigned long)job,4,ms);}
 /* Input extension: 627 with bits 1 (motion), 2 (right-button presses as event 12) and 4 (F1..F12 as extras 14..25). */
 #define Z_GUI_SECONDARY 12
 enum { Z_KEY_F1=14,Z_KEY_F2=15,Z_KEY_F5=18,Z_KEY_F9=22,Z_KEY_F11=24 };

@@ -51,7 +51,7 @@ needs a newer Zenith.
 | 655 filesystem | path, path bytes, 128-byte buffer | The filesystem holding the path: total and available bytes, block size, read-only flag, mount point and type. |
 | 656 start a transfer | request, request bytes (24..8192), 0 | Copy, move or delete up to 64 items. Returns a job id. |
 | 657 transfer status | job id, 512-byte buffer, 512 | The job's state, counts, bytes, current item, message and any question. Returns the state. |
-| 658 transfer control | job id, command, value | Cancel, answer a question, or forget a finished job. |
+| 658 transfer control | job id, command, value | Cancel, answer a question, forget a finished job, or (kernel 0.0.59) wait for it. |
 
 **654 list.**
 - The request is `version` 1, `flags`, `offset`, `path_bytes`, then the path (1..1024 bytes).
@@ -112,6 +112,10 @@ needs a newer Zenith.
 - Command 2 answers a question. The value is 1 skip, 2 replace, 3 keep both (`name (2).ext`) or
   4 merge (folders), plus 256 to apply the answer to every later question of this job.
 - Command 3 forgets a finished job.
+- Command 4 (kernel 0.0.59) waits up to `value` milliseconds (1..1000) until the job ends or asks a
+  question, and returns its state. A program without a window has no other way to wait: a spin
+  between status calls spends its CPU budget (10 seconds) and the processor the job's own thread
+  needs. Kernel 0.0.58 answers -22; `horizon --job` then falls back to spinning.
 
 ## Input extension (kernel 0.0.58)
 
@@ -135,7 +139,9 @@ Call 627 `(handle, bits, 0)` opts in to pointer motion with bit 1, as before.
     question;
   - a context menu.
   - Checked by host tests (job engine, list and status encoding, Ctrl+digit keys) and
-    `tools/horizon-smoke.py` (91 checks, passing locally on 2026-11-15): listing, every transfer outcome,
+    `tools/horizon-smoke.py` (91 checks, passing locally on 2026-11-15; the distributor run of
+    kernel 0.0.58 failed when the spinning `--job` test mode ran out of CPU budget under load, fixed in
+    kernel 0.0.59 and zenith-horizon 0.1.1 by command 4): listing, every transfer outcome,
     permissions for another account, a byte-for-byte host comparison of a copied 3 MiB file, and the
     desktop flows by keyboard plus a right click.
   - Icons come from `zenith-icons` (0.3.0 adds Horizon's); without it, Horizon draws simple shapes so

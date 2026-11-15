@@ -321,4 +321,21 @@ public sealed class FileJobTests : IDisposable
         Assert.Equal("plan.md", Encoding.UTF8.GetString(b, 368, 7));
         Assert.Equal(-9, ProcessFileService.Control(null, 1, 5, 1, 0));
     }
+
+    [Fact]
+    public void WaitReturnsWhenTheJobEndsAndRefusesOutOfRangeTimes()
+    {
+        File.WriteAllBytes(P("big.bin"), new byte[FileJob.Chunk * 8]); Directory.CreateDirectory(P("dest"));
+        long id = FileJobs.Start(_pid, Credentials.Root, FileJobOperation.Copy, 0, P("dest"), new[] { P("big.bin") }, new HostStore(), new object());
+        var job = FileJobs.Find(id, _pid)!;
+        Assert.Equal(-22, ProcessFileService.Control(job, _pid, id, 4, 0));
+        Assert.Equal(-22, ProcessFileService.Control(job, _pid, id, 4, 1001));
+        long state = 0;
+        for (int i = 0; i < 50 && state != (long)FileJobState.Done; i++) { state = ProcessFileService.Control(job, _pid, id, 4, 1000); }
+        Assert.Equal((long)FileJobState.Done, state);
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        Assert.Equal((long)FileJobState.Done, ProcessFileService.Control(job, _pid, id, 4, 1000));
+        Assert.True(watch.ElapsedMilliseconds < 500, "a finished job does not wait");
+        Assert.Equal(0, ProcessFileService.Control(job, _pid, id, 3, 0));
+    }
 }

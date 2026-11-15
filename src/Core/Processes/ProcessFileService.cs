@@ -136,7 +136,10 @@ internal static class ProcessFileService
         return data;
     }
 
-    /// <summary>658: 1 cancel, 2 answer (value 1..4, plus 256 for every later question), 3 forget.</summary>
+    public const ulong MaximumWaitMilliseconds = 1000;
+
+    /// <summary>658: 1 cancel, 2 answer (value 1..4, plus 256 for every later question), 3 forget, 4 wait up to
+    /// value milliseconds (1..1000) until the job ends or asks; returns its state then.</summary>
     public static long Control(FileJob? job, int pid, long id, ulong command, ulong value)
     {
         if (job is null) { return -9; }
@@ -147,6 +150,20 @@ internal static class ProcessFileService
             return job.Answer((FileJobAnswer)(value & 0xff), (value & 256) != 0) ? 0 : -22;
         }
         if (command == 3) { return value != 0 ? -22 : FileJobs.Forget(id, pid); }
+        if (command == 4)
+        {
+            // A windowless program has no other way to wait: spinning spends its CPU budget and the
+            // processor the job's own thread needs. Sleeping here costs neither.
+            if (value is 0 or > MaximumWaitMilliseconds) { return -22; }
+            long until = System.Diagnostics.Stopwatch.GetTimestamp() + (long)value * System.Diagnostics.Stopwatch.Frequency / 1000;
+            while (true)
+            {
+                var state = job.Status.State;
+                if (state is FileJobState.Asking or FileJobState.Done or FileJobState.Failed or FileJobState.Cancelled
+                    || System.Diagnostics.Stopwatch.GetTimestamp() >= until) { return (long)state; }
+                System.Threading.Thread.Sleep(10);
+            }
+        }
         return -22;
     }
 
