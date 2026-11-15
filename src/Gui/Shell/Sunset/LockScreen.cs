@@ -23,6 +23,10 @@ internal sealed class LockScreen
 
     public bool IsLocked { get; private set; }
 
+    // The card blurs the dimmed wallpaper behind it (only the wallpaper is ever behind the lock screen).
+    private readonly HostMaterial _material = new(400 * 280);
+    public void Dispose() => _material.Dispose();
+
     public void Lock(string name, uint uid)
     {
         if (IsLocked) { return; }
@@ -97,8 +101,9 @@ internal sealed class LockScreen
 
         int w = Math.Min(360, s.Width - 32), h = 252;
         Rect card = new((s.Width - w) / 2, top + 150, w, h);
+        _material.Capture(s, card.Intersect(s.Bounds), Theme.WindowRadius, Theme.WindowBackground | 0xff000000U);
         s.DrawShadow(card, Theme.WindowRadius, Theme.ShadowSize, Theme.ShadowAlpha, 6);
-        s.FillRoundRect(card, Theme.WindowRadius, Theme.WindowBackground | 0xff000000U);
+        _material.Paint(s, card.Intersect(s.Bounds), Theme.WindowBackground | 0xff000000U);
         s.StrokeRoundRect(card, Theme.WindowRadius, Theme.WindowBorder);
         Rect avatar = new(card.X + (w - 56) / 2, card.Y + 22, 56, 56);
         s.FillRoundRect(avatar, 28, Theme.AccentSoft);

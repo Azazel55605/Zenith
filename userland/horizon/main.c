@@ -752,14 +752,17 @@ static void crumb_path(char *o,int i){
 static void draw_sidebar(int x,int y,int w,int h){
     (void)h;
     text(x+12,y+4,"Places",&zui_caption,ui.theme.secondary);y+=26;
-    int devices=0;
+    int devices=0,current=-1;
+    /* Root and the system device are both "/": the first entry for the open folder is the active one. */
+    for(int i=0;i<place_count&&current<0;i++)if(same(places[i].path,T()->path))current=i;
     for(int i=0;i<place_count;i++){
         if(places[i].device&&!devices){devices=1;y+=10;text(x+12,y+4,"Devices",&zui_caption,ui.theme.secondary);y+=26;}
-        int active=!places[i].device&&same(places[i].path,T()->path);
+        int active=i==current;
         int row_h=places[i].device&&places[i].total?52:34;
         struct zui_rect r={x,y,w,row_h};
-        if(active){zui_round(&ui,(struct zui_rect){x,y,w,34},8,mix(ui.theme.subtle,ui.theme.accent,18));zui_round(&ui,(struct zui_rect){x+1,y+8,3,18},1,ui.theme.accent);}
-        else if(hover==H_PLACE+i)zui_round(&ui,(struct zui_rect){x,y,w,34},8,mix(ui.theme.subtle,ui.theme.text,7));
+        /* The highlight covers the whole row, usage bar and free space included. */
+        if(active){zui_round(&ui,r,8,mix(ui.theme.subtle,ui.theme.accent,18));zui_round(&ui,(struct zui_rect){x+1,y+(row_h-18)/2,3,18},1,ui.theme.accent);}
+        else if(hover==H_PLACE+i)zui_round(&ui,r,8,mix(ui.theme.subtle,ui.theme.text,7));
         icon(places[i].icon,x+12,y+9,16,ZUI_ICON_NORMAL);
         fit(x+38,y+(34-zui_body.height)/2,places[i].label,w-46,active?&zui_label:&zui_body,ui.theme.text);
         if(places[i].device&&places[i].total){
@@ -805,8 +808,17 @@ static void draw_item_details(int k,int x,int y,int w){
     if(col_perm){char p[16];permissions(p,e->mode);text(col_perm,ty,p,&zui_body,ui.theme.secondary);}
     hit(r,H_ITEM+k);
 }
+/* The window's material surface (the desktop's translucent, blurred background), when the desktop offers it. */
+static int material;
+static int see_through(void){return ui.foreground&&ui.full_background&&!ui.theme_preview;}
+/* The content and information panels: opaque normally, a light tint over the window material when the whole
+ * app background is transparent (as zui's workspace and Observatory's cards do). */
+static void panel(struct zui_rect r){
+    if(see_through())zui_round_alpha(&ui,r,12,ui.theme.surface,40);
+    else zui_round(&ui,r,12,ui.theme.surface);
+}
 static void draw_content(struct zui_rect c){
-    zui_round(&ui,c,12,ui.theme.surface);
+    panel(c);
     hit(c,H_CONTENT);
     struct tab *t=T();
     struct zui_rect inner={c.x+8,c.y+8,c.w-16,c.h-16};
@@ -855,7 +867,7 @@ static void info_row(int x,int y,int w,const char *label,const char *value){
     text(x,y,label,&zui_caption,ui.theme.secondary);fit(x+w-measure(value,&zui_caption)<x+90?x+90:x+w-measure(value,&zui_caption),y,value,w-90,&zui_caption,ui.theme.text);
 }
 static void draw_info(struct zui_rect r){
-    zui_round(&ui,r,12,ui.theme.surface);
+    panel(r);
     int x=r.x+18,w=r.w-36,y=r.y+22;
     unsigned long bytes;int n=selected_count(&bytes);
     const struct entry *e=0;const char *name=0;
@@ -950,7 +962,10 @@ static void draw_menu(void){
     }
 }
 static void dim(void){
-    for(int y=0;y<ui.height;y++)for(int x=0;x<ui.width;x++){unsigned int *p=&ui.pixels[y*ui.width+x];*p=mix(*p,0x000000,light()?30:45);}
+    /* Through zui: on a material frame pixels are premultiplied, and a plain RGB mix there produced colour above
+     * alpha, which the desktop refuses (the present failed and Horizon ended, cancelling its job). */
+    zui_clip(&ui,(struct zui_rect){0,0,ui.width,ui.height});
+    zui_round_alpha(&ui,(struct zui_rect){0,0,ui.width,ui.height},0,0x000000,(light()?30:45)*255/100);
 }
 static struct zui_rect card_rect(int w,int h){return (struct zui_rect){(ui.width-w)/2,(ui.height-h)/2,w,h};}
 static void card(struct zui_rect r){zui_round(&ui,(struct zui_rect){r.x-1,r.y-1,r.w+2,r.h+2},13,ui.theme.border);zui_round(&ui,r,12,ui.theme.surface);hit(r,H_MODAL+99);}
@@ -993,6 +1008,10 @@ static void update_appearance(void){
     int personal=zenith_scoped_appearance_read(1,&scoped)==0;
     if(personal)state=scoped.appearance;
     if((personal||!zenith_appearance_read(&state))&&state.active_mode<2&&state.active_accent<6){const unsigned int *p=state.palette[state.active_mode][state.active_accent];ui.theme=(struct zui_theme){p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]};}
+    /* Whole-app transparency (Meridian > Appearance > Materials), from the person's own scope when they have one. */
+    struct zenith_material_settings material_state={0};
+    if(personal)ui.full_background=(scoped.materials.saved&5)==5;
+    else if(!zenith_material_settings_read(&material_state))ui.full_background=(material_state.saved&5)==5;
     long clock=zui_motion_clock();if(clock>=0)zui_apply_motion(&ui,clock);
     ui.dirty=1;
 }
@@ -1001,15 +1020,27 @@ static void update_appearance(void){
 static void draw(void){
     hit_count=0;ui.count=0;ui.focus=-1;ui.pressed=-1;
     zui_clip(&ui,(struct zui_rect){0,0,ui.width,ui.height});
-    zui_fill(&ui,ui.clip,ui.theme.subtle);
-    draw_tabs();
-    draw_toolbar();
     struct job *j=strip_job();
     long now=clock_ms();
     if(j&&Z_JOB_FINAL(j->state)&&j->state==Z_JOB_DONE&&!j->status.errors&&now>=0&&now-j->finished_at>4000)j->shown=0;
     int strip_on=j&&j->shown;
     int bottom=ui.height-STATUS_H-(strip_on?STRIP_H+8:0);
     int sw=sidebar_w(),iw=info_w();
+    if(ui.foreground){
+        /* A material frame starts transparent: the desktop fills what the regions name with its blurred backdrop. */
+        zui_begin_material_frame(&ui);
+        if(see_through())zui_material_surface(&ui,(struct zui_rect){0,0,ui.width,ui.height},0,ZUI_SURFACE_CONTENT,2);
+        else{
+            zui_fill(&ui,ui.clip,ui.theme.subtle);
+            /* Materials without whole-app transparency: Places is navigation, like a workspace sidebar. */
+            struct zui_rect nav={0,BODY_Y,sw+24,bottom-BODY_Y};
+            if(sw&&zui_material_surface(&ui,nav,0,ZUI_SURFACE_NAVIGATION,2))
+                for(int y=nav.y;y<nav.y+nav.h;y++)for(int x=nav.x;x<nav.x+nav.w;x++)ui.pixels[y*ui.width+x]=0;
+        }
+    }
+    else zui_fill(&ui,ui.clip,ui.theme.subtle);
+    draw_tabs();
+    draw_toolbar();
     if(sw)draw_sidebar(12,BODY_Y,sw,bottom-BODY_Y);
     struct zui_rect c={sw?sw+24:12,BODY_Y,ui.width-(sw?sw+24:12)-12-(iw?iw+12:0),bottom-BODY_Y-4};
     zui_clip(&ui,c);draw_content(c);zui_clip(&ui,(struct zui_rect){0,0,ui.width,ui.height});
@@ -1187,11 +1218,15 @@ int main(int argc,char **argv,char **envp){
     zui_icons_use_packages();
     /* New windows open at most 640x480; the sidebar and information panel appear once it is larger. */
     zui_init(&ui,pixels,640,480);update_appearance();
-    handle=zenith_gui_open(640,480,"Horizon",7);
+    struct zenith_material_caps caps={0};struct zenith_material_settings settings={0};
+    material=!zenith_material_settings_read(&settings)&&!zenith_gui_material_caps(&caps)&&caps.version==2;
+    handle=material?zenith_gui_open_material(640,480,"Horizon",7):zenith_gui_open(640,480,"Horizon",7);
     if(handle<0){print("horizon: graphical session required\n");return 1;}
+    ui.foreground=material;
     if(zenith_gui_interactive(handle)<0||zenith_gui_resize_enable(handle)<0){zenith_gui_close(handle);return 1;}
     ui.hover_supported=zenith_gui_input(handle,7)==0||zenith_gui_pointer_motion(handle)==0;
     open_tab(start,1);find_places();
+    print(material?(ui.full_background?"HORIZON_MATERIAL window\n":"HORIZON_MATERIAL navigation\n"):"HORIZON_MATERIAL none\n");
     print(no_abi?"HORIZON_NO_FILES_ABI\n":"HORIZON_READY\n");
     long last=clock_ms();int polls=0,result=0;
     while(!done){
@@ -1204,7 +1239,8 @@ int main(int argc,char **argv,char **envp){
         if(ui.dirty){
             draw();
             if(reveal_later){reveal_later=0;if(focus_index>=0){reveal(focus_index);draw();}}
-            long r=zenith_gui_present(handle,ui.pixels,(unsigned long)ui.width*ui.height*4);
+            long r=material?zenith_gui_present_material(handle,ui.pixels,(unsigned long)ui.width*ui.height*4,ui.materials,ui.material_count)
+                :zenith_gui_present(handle,ui.pixels,(unsigned long)ui.width*ui.height*4);
             if(r<0){result=zui_window_closed(handle)?0:1;break;}
         }
         struct zenith_gui_event e={0};long r=zenith_gui_poll(handle,&e);if(r<0){result=1;break;}if(!r)continue;

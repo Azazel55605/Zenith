@@ -68,6 +68,8 @@ def main():
         m = h.Machine(keep / 'setup', disk, 'session=headless', network=net); assert m.wait('headless ready', timeout=180)
         for user in ('root', 'user'):
             command('passwd ' + user, 'New password: '); command(secret, 'Repeat password: '); command(secret, 'password updated for ' + user)
+        # Transparency on, so the popup, the lock card and Prism are checked on the desktop material.
+        status('settings set materials background-blur', 'S_MATERIALS')
         command('poweroff', 'all filesystems unmounted'); m.process.wait(timeout=30); disk = m.disk; m.stop(); m = None
 
         m = h.Machine(keep / 'desktop', disk, 'session=de', network=net + ['-device', 'virtio-gpu-pci', '-device', 'virtio-keyboard-pci', '-device', 'virtio-mouse-pci'], monitor=monitor)
@@ -77,6 +79,10 @@ def main():
         check(m.wait('motion: SunsetOpened frames=', 0, 30), 'it fades and scales in')
         shot('sunset')
         press('esc', 'sunset: closed', 'Esc closes it')
+        time.sleep(1)
+        press('meta_l', 'prism: opened palette', 'Meta opens the Prism palette')
+        shot('prism')
+        monitor_command(monitor, 'sendkey esc 30')
         time.sleep(1)
         press('ctrl-alt-delete', 'sunset: opened blockers=0', 'Ctrl+Alt+Delete opens it too')
         off = len(m.log()); monitor_command(monitor, 'sendkey l 30')

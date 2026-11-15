@@ -58,6 +58,11 @@ Requested 2026-11-15: implement Sunset and its functionality.
 - An account without a password cannot lock (the live system, or installs before passwords are set):
   Lock is unavailable and says why.
 
+## Materials
+
+The popup, the lock card and Prism draw on the desktop's own material, like the taskbar: blurred and tinted
+when materials are on, solid otherwise.
+
 ## Motion
 
 - The card fades and scales in over 120 ms above the dimmed desktop (`motion: SunsetOpened`), scaled

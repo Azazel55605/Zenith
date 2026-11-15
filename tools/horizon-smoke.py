@@ -34,7 +34,8 @@ def main():
     package('seal', keep / 'bundle-horizon', keep / 'keys/private.pem', served / 'horizon.zpk')
     big = os.urandom(3 * 1024 * 1024 + 12345); (served / 'big.bin').write_bytes(big)
     (served / 'user-copy').write_text('sudo -n -u user native run horizon --job copy skip /etc /home/user/Documents/plan.md | logger\n')
-    gui = {'g0': 'native run horizon /home/user/Documents | logger & sleep 6; true',
+    # Whole-app transparency on: Horizon draws on the desktop's window material (blurred backdrop).
+    gui = {'g0': 'settings set materials background-blur | logger; native run horizon /home/user/Documents | logger & sleep 6; true',
            'g1': 'poweroff'}
     for name, text in gui.items(): (served / name).write_text(text + '\n')
     class Handler(http.server.SimpleHTTPRequestHandler):
@@ -154,6 +155,7 @@ def main():
             point(x, y); monitor_command(monitor, f'mouse_button {button}'); time.sleep(.15); monitor_command(monitor, 'mouse_button 0')
         time.sleep(2)
         output = typed('sh /root/g0\n', 'user: HORIZON_READY', 'Horizon opens')
+        check('user: HORIZON_MATERIAL window' in m.log(), 'Horizon draws on the window material when app backgrounds are transparent')
         check(m.wait('user: HORIZON_PATH /home/user/Documents 3', 0, 30), 'on the folder it was given')
         check(m.wait('user: HORIZON_FOCUSED', 0, 60), 'and takes focus')
         time.sleep(2); monitor_command(monitor, 'screendump ' + str(keep / 'icons.ppm'))

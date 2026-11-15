@@ -37,6 +37,10 @@ internal sealed class SunsetView
 
     public SunsetView(ISunsetHost host) => _host = host;
 
+    // The card uses the desktop's own material, like the taskbar and Prism (solid when materials are off).
+    private readonly HostMaterial _material = new(560 * 520);
+    public void Dispose() => _material.Dispose();
+
     public bool IsOpen { get; private set; }
     public Rect Card { get; private set; }
 
@@ -161,8 +165,9 @@ internal sealed class SunsetView
         _hits.Clear();
         s.FillRect(s.Bounds, 0x99000000U);
         Rect card = Card;
+        _material.Capture(s, card.Intersect(s.Bounds), Theme.WindowRadius, Theme.WindowBackground | 0xff000000U);
         s.DrawShadow(card, Theme.WindowRadius, Theme.ShadowSize, Theme.ShadowAlpha, 6);
-        s.FillRoundRect(card, Theme.WindowRadius, Theme.WindowBackground | 0xff000000U);
+        _material.Paint(s, card.Intersect(s.Bounds), Theme.WindowBackground | 0xff000000U);
         s.StrokeRoundRect(card, Theme.WindowRadius, Theme.WindowBorder);
         int x = card.X + Pad, y = card.Y + Pad, inner = card.W - 2 * Pad;
 

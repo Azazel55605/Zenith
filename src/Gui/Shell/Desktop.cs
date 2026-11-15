@@ -273,7 +273,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     }
     public WindowManager Windows { get; }
 
-    public void StopClients() { _portal.Detach(); _taskbar.Dispose(); Zenith.Core.Configuration.SystemConfiguration.Appearance.ReportMaterials(0, 0, 2); _apps.Stop(); _nativeClients.Stop(); Zenith.Core.Processes.NativeSystemInformation.Display("No graphical session"); }
+    public void StopClients() { _portal.Detach(); _taskbar.Dispose(); _prism.Dispose(); _sunset.Dispose(); _lock.Dispose(); Zenith.Core.Configuration.SystemConfiguration.Appearance.ReportMaterials(0, 0, 2); _apps.Stop(); _nativeClients.Stop(); Zenith.Core.Processes.NativeSystemInformation.Display("No graphical session"); }
 
     /// <summary>What is on screen, for the crossfade when this session ends.</summary>
     public int[] FramePixels => _frame.Pixels;

@@ -149,6 +149,16 @@ Call 627 `(handle, bits, 0)` opts in to pointer motion with bit 1, as before.
   - New windows open at 640x480 (the desktop's limit for a new surface). Places and the information
     panel appear from 720 and 860 pixels wide, after a resize or maximize; the gate does not yet
     capture that wide layout. A client-requested opening size is a desktop change for later.
+- **zenith-horizon 0.1.2 (with kernel 0.0.60):**
+  - Horizon draws on the desktop's window material when the desktop offers it: with whole-app transparency
+    (Meridian › Appearance › Materials, background) one blurred material covers the window and the content
+    and information panels are light tints over it; otherwise Places is a navigation material. Modal dimming
+    goes through zui, so material frames stay valid premultiplied pixels (a plain RGB mix had made the desktop
+    refuse the frame, which ended Horizon and cancelled its job).
+  - The Places/Devices highlight covers the whole row; a device row's usage bar and free space no longer hang
+    below it. Devices can show as the open folder; when two entries share a path (Root and the system disk)
+    the first one is highlighted.
+  - The gate (92 checks) runs its desktop part with whole-app transparency on.
 - **HZ2:**
   - split view;
   - zoom;

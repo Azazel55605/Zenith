@@ -28,6 +28,10 @@ internal sealed class PrismView
     public PrismView(Func<List<PrismItem>> candidates, Action<PrismItem> activate, Func<string> user)
     { _candidates = candidates; _activate = activate; _user = user; }
 
+    // The menu and palette use the desktop's own material, like the taskbar (solid when materials are off).
+    private readonly HostMaterial _material = new(720 * 600);
+    public void Dispose() => _material.Dispose();
+
     public bool IsOpen { get; private set; }
     public Layout Mode { get; private set; }
     public Rect Bounds { get; private set; }
@@ -137,8 +141,9 @@ internal sealed class PrismView
         // The palette grows downward with its results; the search field never moves.
         if (Mode == Layout.Palette) { Bounds = new Rect(Bounds.X, Bounds.Y, Bounds.W, Math.Min(_maxHeight, 56 + ContentHeight() + 36)); }
         Rect b = Bounds;
+        _material.Capture(surface, b.Intersect(surface.Bounds), 12, Theme.Menu);
         surface.DrawShadow(b, 12, 22, 110, 8);
-        surface.FillRoundRect(b, 12, Theme.Menu);
+        _material.Paint(surface, b.Intersect(surface.Bounds), Theme.Menu);
         surface.StrokeRoundRect(b, 12, Theme.PanelBorder);
         int top = Mode == Layout.Palette ? DrawSearch(surface, new Rect(b.X, b.Y, b.W, 56), false)
             : DrawSearch(surface, new Rect(b.X + Pad, b.Y + Pad, b.W - 2 * Pad, 42), true) + Pad;
