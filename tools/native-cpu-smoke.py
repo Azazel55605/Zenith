@@ -42,9 +42,19 @@ def main():
             subprocess.run(['xorriso','-boot_image','any','keep','-dev',str(iso),
                             '-map',str(conf),'/boot/limine/limine.conf','-commit_eject','all'],
                            stdout=log,stderr=log,check=True)
+            # C5.4: several CPUs boot multicore by default; the disabled case is the smp=off opt-out.
+            off_conf = scratch/'off.conf'; off_iso = scratch/'off.iso'
+            subprocess.run(['xorriso','-osirrox','on','-indev',str(args.iso),'-extract',
+                            '/boot/limine/limine.conf',str(off_conf)],stdout=log,stderr=log,check=True)
+            text, count = re.subn(r'cmdline: root=auto', 'cmdline: root=auto smp=off', off_conf.read_text(), count=1)
+            if count != 1: raise RuntimeError('unexpected live ISO boot configuration')
+            off_conf.write_text(text.replace('timeout: 5','timeout: 0')); shutil.copyfile(args.iso, off_iso)
+            subprocess.run(['xorriso','-boot_image','any','keep','-dev',str(off_iso),
+                            '-map',str(off_conf),'/boot/limine/limine.conf','-commit_eject','all'],
+                           stdout=log,stderr=log,check=True)
         for cpus, enabled in [(1,True),(2,True),(4,True),(4,False)]:
             label = str(cpus) + ('-native' if enabled else '-disabled')
-            machine = h.Machine(args.keep/label, cpus=cpus, iso=iso if enabled else args.iso, network=[])
+            machine = h.Machine(args.keep/label, cpus=cpus, iso=iso if enabled else off_iso, network=[])
             try:
                 check(machine.wait('headless ready',timeout=600),label+' boot')
                 def command(text,marker):

@@ -13,11 +13,17 @@ contexts through private AP bridges and a native ready pool. General managed
 scheduling, GC collection, device/filesystem service actors and the trusted UI
 owner stay on the BSP. Additional vCPUs alone do not activate this execution path.
 
-On an installed system, add `smp=native` to the `Zenith` entry once (Limine's
+**Default (C5.4):** with two or more CPUs and no `smp=` option, x64 boots
+`smp=managed`: the workers above start and general threads, native programs and
+their system-call service run on every CPU ([C5](components/MULTICORE.md#c54-status-local-stress-gate-passed)).
+`smp=off` keeps the single-CPU kernel; `smp=native` keeps the workers with a
+BSP-only scheduler. One CPU starts nothing either way.
+
+On an installed system, add an `smp=` option to the `Zenith` entry once (Limine's
 editor or `/boot/efi/limine.conf`). A kernel update or rollback rewrites the menu
-and keeps `smp=native` on both kernel entries when the running kernel was booted
-with it; booting once without it, then updating, drops it. The RAM-root rescue
-entry never carries it. `BootLayout.CarriedOptions` is the allow-list.
+and keeps `smp=off`, `smp=native` or `smp=managed` on both kernel entries when the
+running kernel was booted with it; booting once without it, then updating, drops it.
+The RAM-root rescue entry never carries it. `BootLayout.CarriedOptions` is the allow-list.
 
 The AP runtime is `src/Native/Cpu/workers.c`, entered through
 `src/Native/x64/CpuWorkers.s`. The native queue/bridge runtime never allocates or

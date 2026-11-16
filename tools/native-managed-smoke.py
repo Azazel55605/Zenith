@@ -46,6 +46,12 @@ def main():
             if n!=1:raise RuntimeError('live ISO configuration changed')
             conf.write_text(content.replace('timeout: 5','timeout: 0'));shutil.copyfile(ROOT/'output-x64/Zenith.iso',iso)
             subprocess.run(['xorriso','-boot_image','any','keep','-dev',str(iso),'-map',str(conf),'/boot/limine/limine.conf','-commit_eject','all'],check=True,stdout=log,stderr=log)
+            # C5.4: several CPUs boot multicore by default; the disabled case is the smp=off opt-out.
+            subprocess.run(['xorriso','-osirrox','on','-indev',str(ROOT/'output-x64/Zenith.iso'),'-extract','/boot/limine/limine.conf',str(t/'off.conf')],check=True,stdout=log,stderr=log)
+            content,n=re.subn('cmdline: root=auto','cmdline: root=auto smp=off',(t/'off.conf').read_text(),count=1)
+            if n!=1:raise RuntimeError('live ISO configuration changed')
+            (t/'off.conf').write_text(content.replace('timeout: 5','timeout: 0'));off_iso=t/'off.iso';shutil.copyfile(ROOT/'output-x64/Zenith.iso',off_iso)
+            subprocess.run(['xorriso','-boot_image','any','keep','-dev',str(off_iso),'-map',str(t/'off.conf'),'/boot/limine/limine.conf','-commit_eject','all'],check=True,stdout=log,stderr=log)
         timings={}
         for count in ([] if a.ui_only else a.cpus):
             folder=a.keep/str(count);monitor=folder/'monitor.sock'
@@ -82,7 +88,7 @@ def main():
             count=max(a.cpus)
             if enabled and count<2:continue
             folder=a.keep/label;monitor=folder/'monitor.sock'
-            m=h.Machine(folder,cpus=count,iso=iso if enabled else ROOT/'output-x64/Zenith.iso',network=[],monitor=monitor)
+            m=h.Machine(folder,cpus=count,iso=iso if enabled else off_iso,network=[],monitor=monitor)
             try:
                 assert m.wait('headless ready',timeout=120),label+' boot'
                 off=len(m.log())
@@ -91,7 +97,7 @@ def main():
                     assert m.wait('user: M_HOLD=0',off,timeout=30),'held shutdown fixture'
                 else:
                     m.send('cpu managed-image-test > /tmp/out; echo M_DISABLED=$? | logger\r')
-                    assert m.wait('user: M_DISABLED=1',off,timeout=30),'default managed AP admission must remain disabled'
+                    assert m.wait('user: M_DISABLED=1',off,timeout=30),'smp=off managed AP admission must remain disabled'
                 off=len(m.log());m.send('poweroff\r')
                 assert m.wait('all filesystems unmounted',off,timeout=60),label+' clean shutdown'
                 assert m.process.wait(timeout=30)==0,label+' poweroff'

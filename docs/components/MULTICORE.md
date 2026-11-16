@@ -269,8 +269,8 @@ guest by `native-smp-smoke.py`. [Audit](../archive/2026-11-15/c5-lock-audit.md).
     the free list) and the GC handle manager (no lock at all) relied on masking; they now take the C3 heap
     gate. A thread exiting on an AP had corrupted the free list (page fault in the sweep).
   - **Idle hand-back.** The policy picks the next thread before it requeues the preempted one, so a lone
-    thread on an AP fell to the idle owner every tick; the AP idle loop now offers the CPU again before
-    halting.
+    thread on an AP fell to the idle owner every tick; the AP idle loop offers the CPU again before
+    halting. That only worked on every other tick (C5.4 below).
   - **Lock hold time.** Periodic tick traces wrote to COM1 under the scheduler lock, and every AP walked
     the thread registry for sleepers each tick. Traces are quiet; only the BSP checks sleepers.
   - **Global allocation gate.** Every allocation took the C3 heap gate, so CPUs took turns allocating. The
@@ -353,6 +353,34 @@ Plan:
 - Left for C5.4's stress gate: programs with an explicit `ZENITH_CPU_MASK` under `smp=managed` keep the
   BSP-owned protocol; one early run measured them slower (about 4.5 s against 2.9 s for the compute work),
   not reproduced since.
+
+### C5.4 status (local, stress gate passed)
+
+- With two or more CPUs and no `smp=` option the kernel boots `smp=managed` (`CpuWorkers.Initialize`
+  reads the bootloader's CPU count first, so a one-CPU boot starts nothing, as before). `smp=off` is the
+  opt-out and `smp=native` keeps the C1 workers with a BSP-only scheduler. Kernel updates carry `smp=off`
+  like the other `smp=` choices.
+- Gates: the four-CPU fallbacks of `native-smp-smoke`, `native-cpu-smoke` and `native-managed-smoke` boot
+  `smp=off`; the C5.3 pass of `native-smp-smoke` boots with no option and checks every CPU dispatches.
+- Stress gate: `tools/smp-stress.py KEEP` runs every native gate (`validate.py --existing`) at 1, 2, 4
+  and 8 CPUs. `ZENITH_TEST_CPUS=N` makes the test harness boot a gate's single-CPU guests with N CPUs,
+  so they run the default multicore kernel; guests that choose their own CPU setup (several CPUs, an
+  `smp=` argument or a gate-built ISO) keep it.
+- **Lone threads keep their AP.** Measured for C5.4: a managed thread on an AP ran 2–5× slower than on the
+  BSP (`cpu threads 1 2000000 compute`: 321–831 ms against 181 ms), and unmasked programs started late.
+  Stride's `OnTick` ends with `return elapsedNs >= quantum`, so a thread alone on its CPU was switched out
+  to the idle owner every quantum; on every other tick the owner then halted until the next tick with the
+  thread ready (parks were about half the ticks). `ManagedDispatchFixup` step 3c keeps the thread when
+  nothing else is queued on that AP; the BSP keeps the original rule for its kernel loop. After it: compute
+  176 ms on an AP; three unmasked compute programs 1.49–1.79 s against 1.38–1.58 s masked.
+- Masked programs under `smp=managed` (once measured slower) are level with `smp=native`: 1.37 s against
+  1.32–1.47 s for three pinned compute programs.
+- Stress gate passed 2026-11-16 under TCG with the fix: every native gate at 1, 2, 4 and 8 CPUs (35.6,
+  36.0, 71.7 and 72.6 min, run side by side); the 8-CPU run logged 187 boots with
+  `managed dispatch=8 enabled=8`.
+- Still open: the VMware run. Follow-up: allocation-heavy managed work is still about 2× slower on an AP
+  (`cpu threads 1 20000 alloc`: 90–106 ms against 39–68 ms on the BSP, no collection involved), which is
+  most of a program's setup (package list, ELF digest) on the placed path.
 
 Rules carried over: Cosmos skips `finally` while unwinding, so every lock taken in kernel code is
 released explicitly on the exception path; a lock left held on one CPU now stalls the others.

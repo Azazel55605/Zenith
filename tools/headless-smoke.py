@@ -18,6 +18,13 @@ efi = importlib.util.module_from_spec(spec); spec.loader.exec_module(efi)
 class Machine:
     def __init__(self, directory, disk=None, argument=None, network=None, extra_disks=(), monitor=None, vga="none", verify=True, cpus=1, iso=None):
         if not isinstance(cpus, int) or not 1 <= cpus <= 8: raise ValueError("test CPU count must be 1..8")
+        # C5.4 stress gate: run a gate's single-CPU guests at this count, so they boot the default multicore
+        # kernel. Guests that choose their CPU setup themselves keep it: several CPUs, an smp= boot argument
+        # or a gate-built ISO (the CPU matrices of the multicore gates).
+        forced = os.environ.get("ZENITH_TEST_CPUS")
+        if forced:
+            if not forced.isdigit() or not 1 <= int(forced) <= 8: raise ValueError("ZENITH_TEST_CPUS must be 1..8")
+            if cpus == 1 and iso is None and "smp=" not in (argument or ""): cpus = int(forced)
         directory.mkdir(parents=True, exist_ok=True)
         self.directory = directory
         self.disk = directory / "disk.img"

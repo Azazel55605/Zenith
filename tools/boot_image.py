@@ -78,13 +78,13 @@ def verify(image, kernel=None):
 
 def override(image, argument, directory):
     # Test harness only: preserve the selected kernel and root identity.
-    if argument not in ('smp=native', 'smp=managed', 'session=de smp=managed', 'session=de smp=native', 'session=de', 'session=de display=safe', 'session=de display=safe smp=native', 'session=de smp=native pointer=absolute', 'session=headless', 'session=invalid', 'root=live session=headless', 'session=headless kernel-test-stop=staged', 'session=headless kernel-test-stop=menu-gap'):
+    if argument not in ('smp=native', 'smp=managed', 'session=de smp=managed', 'session=de smp=native', 'session=de', 'session=de display=safe', 'session=de display=safe smp=native', 'session=de smp=native pointer=absolute', 'session=headless', 'session=headless smp=off', 'session=invalid', 'root=live session=headless', 'session=headless kernel-test-stop=staged', 'session=headless kernel-test-stop=menu-gap'):
         raise ValueError('unsupported test override')
     text = read(image, '/limine.conf').decode('ascii')
     def change(match):
         tokens = match.group(1).split()
         tokens = [t for t in tokens if not t.startswith('session=')]
-        if {'smp=native', 'smp=managed'} & set(argument.split()): tokens = [t for t in tokens if not t.startswith('smp=')]
+        if {'smp=off', 'smp=native', 'smp=managed'} & set(argument.split()): tokens = [t for t in tokens if not t.startswith('smp=')]
         if argument.startswith('root=live'): tokens = [t for t in tokens if not t.startswith(('root=', 'kernel='))]
         return '    cmdline: ' + ' '.join(tokens + argument.split())
     text = re.sub(r'    cmdline: ([^\n]*)', change, text, count=1).replace('timeout: 5', 'timeout: 5' if 'kernel-test-stop' in argument else 'timeout: 0')

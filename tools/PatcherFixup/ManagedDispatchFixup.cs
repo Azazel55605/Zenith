@@ -207,6 +207,39 @@ internal static class ManagedDispatchFixup
             { qi.InsertBefore(start, i); }
         }
 
+        // 3c. On an AP a thread that used its quantum keeps the CPU when nothing else is queued there. Stride's
+        //     final `return elapsedNs >= quantum` switched it out to the AP's idle owner (picked before the thread
+        //     was requeued); the owner then halted until the next tick on every other tick, with the thread ready:
+        //     managed threads on APs ran 2-5x slower than on the BSP (C5.4). The BSP keeps the original rule (its
+        //     idle thread is the kernel loop, which must get the CPU back periodically).
+        {
+            var tick = stride.Methods.Single(m => m.Name == "OnTick" && m.HasBody);
+            var tail = tick.Body.Instructions;
+            int last = tail.Count - 1;
+            // Tail: ldarg.3 (elapsedNs); ldloc quantum; clt.un; ldc.i4.0; ceq; ret
+            if (last < 6 || tail[last].OpCode != OpCodes.Ret || tail[last - 1].OpCode != OpCodes.Ceq || tail[last - 3].OpCode != OpCodes.Clt_Un
+                || tail[last - 5].OpCode != OpCodes.Ldarg_3 || tick.Parameters.Count != 3 || tick.Parameters[0].ParameterType.FullName != stateType.FullName)
+            { throw new InvalidOperationException("Cosmos stride OnTick tail changed"); }
+            var queueRead = tail.FirstOrDefault(i => i.Operand is MethodReference r && r.Name == "get_RunQueue");
+            var countRead = tail.FirstOrDefault(i => i.Operand is MethodReference r && r.Name == "get_Count");
+            var cpuData = queueRead?.Previous;
+            if (queueRead is null || countRead is null || cpuData is null || !(cpuData.OpCode == OpCodes.Ldloc_0 || cpuData.OpCode == OpCodes.Ldloc_S || cpuData.OpCode == OpCodes.Ldloc))
+            { throw new InvalidOperationException("Cosmos stride OnTick run queue read changed"); }
+            var tp = tick.Body.GetILProcessor();
+            // Branches target the tail's first instruction: it becomes the check's first, and the tail is re-added.
+            var head = tail[last - 5];
+            var keep = tp.Create(OpCodes.Ldarg_3);
+            head.OpCode = OpCodes.Ldarg_1; head.Operand = null;
+            var load = Instruction.Create(OpCodes.Nop); load.OpCode = cpuData.OpCode; load.Operand = cpuData.Operand;
+            var check = new[] {
+                tp.Create(OpCodes.Callvirt, module.ImportReference(stateType.Methods.Single(m => m.Name == "get_CpuId"))), tp.Create(OpCodes.Brfalse, keep),
+                load, tp.Create(OpCodes.Callvirt, (MethodReference)queueRead.Operand), tp.Create(OpCodes.Callvirt, (MethodReference)countRead.Operand),
+                tp.Create(OpCodes.Brtrue, keep), tp.Create(OpCodes.Ldc_I4_0), tp.Create(OpCodes.Ret), keep };
+            var at = head;
+            foreach (var i in check) { tp.InsertAfter(at, i); at = i; }
+            tick.Body.MaxStackSize = Math.Max(tick.Body.MaxStackSize, 2);
+        }
+
         // 4. Placement at creation.
         var native = module.Types.First(t => t.Name == "libSystemNative");
         var create = native.Methods.Single(m => m.Name == "SystemNative_CreateThread" && m.HasBody);

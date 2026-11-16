@@ -34,6 +34,9 @@ internal static partial class CpuWorkers
     public static ulong Now => NowNative();
     [DllImport("*", EntryPoint = "zenith_cpu_initialize"), SuppressGCTransition]
     private static extern ulong InitializeNative(ulong hhdm);
+    /// <summary>CPUs the bootloader reported, before any worker starts (0 without an MP response).</summary>
+    [DllImport("*", EntryPoint = "zenith_cpu_detected"), SuppressGCTransition]
+    private static extern ulong ReportedCpus();
     [DllImport("*", EntryPoint = "zenith_cpu_field"), SuppressGCTransition]
     private static extern ulong Field(ulong cpu, ulong field);
     [DllImport("*", EntryPoint = "zenith_cpu_enqueue"), SuppressGCTransition]
@@ -161,8 +164,12 @@ internal static partial class CpuWorkers
         if (RuntimeInformation.ProcessArchitecture != Architecture.X64) { return; }
         string args = Marshal.PtrToStringUTF8((IntPtr)Limine.Cmdline) ?? "";
         string[] options = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        bool managed = Array.IndexOf(options, "smp=managed") >= 0;
-        if (!managed && Array.IndexOf(options, "smp=native") < 0) { return; }
+        bool managed = Array.IndexOf(options, "smp=managed") >= 0, native = Array.IndexOf(options, "smp=native") >= 0;
+        // C5.4: with two or more CPUs and no smp= choice, general threads run on every CPU. smp=off keeps the
+        // single-CPU kernel; smp=native keeps the C1 workers with a BSP-only scheduler. One CPU starts nothing.
+        if (Array.IndexOf(options, "smp=off") >= 0) { return; }
+        if (!managed && !native) { managed = ReportedCpus() >= 2; }
+        if (!managed && !native) { return; }
         s_count = (int)InitializeNative(Limine.HHDM.Response == null ? 0 : Limine.HHDM.Response->Offset);
         bool ready = s_count > 0 && Wait(() => AllWorkers(3));
         if (!managed || !ready || s_count < 2)

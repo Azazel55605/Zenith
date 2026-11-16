@@ -123,16 +123,18 @@ def main():
             results[cpus]=dict(observed=sorted(seen),migration_observed=len(seen)>1,work=measurements)
             audit(poweroff());print('PASS protected CPU placement/migration and containment at '+str(cpus)+' CPUs',flush=True)
         if 4 in a.cpus:
-            m=h.Machine(keep/'disabled',disk,argument='session=headless',network=net,cpus=4)
+            # C5.4: smp=off is the opt-out from the multicore default and keeps every program on the BSP.
+            m=h.Machine(keep/'disabled',disk,argument='session=headless smp=off',network=net,cpus=4)
             assert m.wait('headless ready',timeout=120)
             off=status('native run sunbeam --smp-probe > /root/probe; cat /root/probe | logger','P_DISABLED')
-            assert set(map(int,re.findall(r'user: SMP_CPU=(\d+)',m.log()[off:])))=={0},'default disabled SMP changed'
-            audit(poweroff());print('PASS default-disabled four-CPU fallback',flush=True)
+            assert set(map(int,re.findall(r'user: SMP_CPU=(\d+)',m.log()[off:])))=={0},'smp=off SMP changed'
+            audit(poweroff());print('PASS smp=off four-CPU fallback',flush=True)
         if 4 in a.cpus:
             # C5.3 (smp=managed): a program started without a mask runs with its system-call service on a placed
-            # thread, which enters its AP's process bridge itself; every slice runs on that AP.
-            m=h.Machine(keep/'managed',disk,argument='smp=managed',network=net,cpus=4,monitor=keep/'managed'/'monitor.sock')
-            assert m.wait('headless ready',timeout=120) and 'managed dispatch=4 enabled=4' in m.log(),'smp=managed did not enable every CPU'
+            # thread, which enters its AP's process bridge itself; every slice runs on that AP. C5.4: this is the
+            # default with several CPUs, so the boot names no smp= choice.
+            m=h.Machine(keep/'managed',disk,argument='session=headless',network=net,cpus=4,monitor=keep/'managed'/'monitor.sock')
+            assert m.wait('headless ready',timeout=120) and 'managed dispatch=4 enabled=4' in m.log(),'default boot did not enable every CPU'
             status('native run sunbeam echo PLACED_HELLO > /root/hello; cat /root/hello | logger','P_PLACED_HELLO',timeout=60)
             assert 'user: PLACED_HELLO' in m.log(),'placed program output'
             off=status('native run sunbeam --smp-probe > /root/probe; cat /root/probe | logger','P_PLACED_PROBE',timeout=120)

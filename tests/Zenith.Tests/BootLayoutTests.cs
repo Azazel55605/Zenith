@@ -58,6 +58,7 @@ public sealed class BootLayoutTests
         Guid root = Guid.NewGuid(); string current = new('a', 64), previous = new('b', 64);
         Assert.Equal("smp=native", BootLayout.Carried("root=PARTUUID=" + root + " kernel=" + current + " smp=native session=headless"));
         Assert.Equal("", BootLayout.Carried("root=live smp=nativeish display=safe"));
+        Assert.Equal("smp=off", BootLayout.Carried("root=PARTUUID=" + root + " kernel=" + current + " smp=off"));
         string menu = BootLayout.Configuration(root, current, previous, "smp=native");
         Assert.Contains(" kernel=" + current + " smp=native\n", menu); Assert.Contains(" kernel=" + previous + " smp=native\n", menu);
         Assert.Contains("cmdline: root=live session=headless\n", menu); Assert.DoesNotContain("headless smp", menu);
