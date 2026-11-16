@@ -138,15 +138,19 @@ internal static class GcBarrierFixup
         var stackRoots = gc.Methods.Single(m => m.Name == "ScanStackRoots");
         foreach (var ret in stackRoots.Body.Instructions.Where(i => i.OpCode == OpCodes.Ret).ToArray())
         { ret.OpCode = OpCodes.Call; ret.Operand = scan; stackRoots.Body.GetILProcessor().InsertAfter(ret, Instruction.Create(OpCodes.Ret)); }
-        // Running APs are scanned from native epoch snapshots, never by reading
-        // this CPU's RSP as though it belonged to a different Running thread.
+        // A thread running on an AP is scanned from that AP's native epoch snapshot, never by reading
+        // this CPU's RSP as though it belonged to a different Running thread. Every other AP thread
+        // (preempted, blocked or sleeping under smp=managed) is scanned from its saved context like a
+        // BSP thread: skipping all AP threads freed the live objects of every thread waiting there.
+        // Pinned owners are Running whenever they are not switched out, so C3 is unchanged.
         var thread = module.GetType("Cosmos.Kernel.Core.Scheduler.SchedulerThread");
         var stackScan = gc.Methods.Single(m => m.Name == "ScanThreadStack");
         var ss = stackScan.Body.GetILProcessor(); var originalStart = stackScan.Body.Instructions.First();
         var afterNull = ss.Create(OpCodes.Ldarg_0); var skip = ss.Create(OpCodes.Ret);
         foreach (var i in new[]{ss.Create(OpCodes.Ldarg_0),ss.Create(OpCodes.Brtrue,afterNull),skip,afterNull,
-            ss.Create(OpCodes.Callvirt,thread.Methods.Single(m=>m.Name=="get_CpuId")),ss.Create(OpCodes.Ldc_I4_0),
-            ss.Create(OpCodes.Bne_Un,skip)}) ss.InsertBefore(originalStart, i);
+            ss.Create(OpCodes.Callvirt,thread.Methods.Single(m=>m.Name=="get_CpuId")),ss.Create(OpCodes.Brfalse,originalStart),
+            ss.Create(OpCodes.Ldarg_0),ss.Create(OpCodes.Callvirt,thread.Methods.Single(m=>m.Name=="get_State")),ss.Create(OpCodes.Ldc_I4_2),
+            ss.Create(OpCodes.Beq,skip)}) ss.InsertBefore(originalStart, i);
         foreach (var method in wrappers.Concat(new[] { collect, body, scan, stackRoots, stackScan }))
             foreach (var instruction in method.Body.Instructions)
             {

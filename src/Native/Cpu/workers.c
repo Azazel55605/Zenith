@@ -37,6 +37,9 @@ struct cpu {
     u64 parks, wakes, completed, fault, halted, parked, irq_stack_errors, fault_stack_ok, ipi_errors;
     u64 timer_ticks, reschedules;
     u64 fault_rip, fault_code, fault_cr2;   /* the faulting instruction, for `cpu status` */
+    /* C5.2 (smp=managed): a managed thread is ready here; this CPU's managed table is loaded; it is a
+     * permanent GC participant; counters for `cpu status`. */
+    u64 managed_pending, in_managed, gc_permanent, managed_windows, managed_kicks, managed_ticks;
     u32 lock, head, tail, current, raw_task;
     u64 ring[JOBS];
     struct job jobs[JOBS];
@@ -97,10 +100,24 @@ static u64 identity(void) {
 /* Scheduler identity is hardware-derived even before C1 bring-up. Native APs
  * have logical identities but no managed scheduler state/heap admission yet.
  * Unknown CPUs fail closed; never silently alias the BSP scheduler state. */
+/* C5.2: the logical id lives in IA32_TSC_AUX (id | 0x100) once a CPU programmed it, and RDTSCP reads it
+ * without a VM exit. The allocator asks for the current CPU on every allocation; RDMSR and CPUID both exit
+ * under a hypervisor. A CPU that has not programmed it (reset value 0, no marker) takes the slow path. */
+static u64 rdtscp_ok;
+#ifndef ZENITH_CPU_HOST_TEST
+static void set_logical_aux(u32 id) { if (LOAD(rdtscp_ok)) wrmsr(0xc0000103,(u64)id|0x100); }
+#endif
 u32 zenith_cpu_logical_id(void) {
 #ifdef ZENITH_CPU_HOST_TEST
     return (u32)host_cpu_identity;
 #else
+    /* Before C1 starts workers only the BSP runs (Limine keeps the APs parked): no MSR read at all. */
+    if (!LOAD(count)) return 0;
+    if (LOAD(rdtscp_ok)) {
+        u32 lo,hi,aux; __asm__ volatile("rdtscp":"=a"(lo),"=d"(hi),"=c"(aux));
+        (void)lo; (void)hi;
+        if (aux&0x100) return aux&0xff;
+    }
     if (msr(0x1b)&0x100) return 0;
     u64 id=identity();
     for (u32 i=1;i<count;i++) if (cpus[i].apic==id) return i;
@@ -203,6 +220,9 @@ u64 zenith_cpu_initialize(u64 offset) {
     make_gate(0xf5,(u64)zenith_gc_stop_entry,3);
     make_gate(255,(u64)zenith_cpu_spurious_entry,1);
     configure(&cpus[0],r->bsp,root());
+    { u32 a=0x80000000,b,c2,d; __asm__ volatile("cpuid":"+a"(a),"=b"(b),"=c"(c2),"=d"(d));
+      if (a>=0x80000001) { a=0x80000001; __asm__ volatile("cpuid":"+a"(a),"=b"(b),"=c"(c2),"=d"(d)); if (d&(1u<<27)) STORE(rdtscp_ok,1); } }
+    set_logical_aux(0);
     u64 base=msr(0x1b); cpus[0].x2=(base>>10)&1; cpus[0].apic_base=hhdm+(base&0xfffff000ULL);
     cpus[0].actual=identity(); cpus[0].state=3; count=1;
     for (u64 i=0;i<r->count&&count<CPUS;i++) {
@@ -220,6 +240,7 @@ u64 zenith_cpu_initialize(u64 offset) {
 /* Called after AP assembly has loaded its private GDT/TSS/GS/IDT. */
 #ifndef ZENITH_CPU_HOST_TEST
 void zenith_cpu_ap_configure(struct cpu *c) {
+    set_logical_aux((u32)(c-cpus));
     u64 base=msr(0x1b);
     if (!(base&0x800)) { wrmsr(0x1b,base|0x800); base=msr(0x1b); }
     c->x2=(base>>10)&1; c->apic_base=hhdm+(base&0xfffff000ULL);
@@ -433,12 +454,14 @@ static void execute(struct job *j) {
             :(cancelled(j)?&blur_cancelled:&blur_completed),1,__ATOMIC_RELAXED);
     } else if (j->kind==5) {
 #ifndef ZENITH_CPU_HOST_TEST
-        if (!zenith_gc_managed_enter()) { STORE(j->state,FAULTED);return; }
+        struct cpu *self=&cpus[zenith_cpu_logical_id()<CPUS?zenith_cpu_logical_id():0];
+        int permanent=(int)LOAD(self->gc_permanent);
+        if (!permanent&&!zenith_gc_managed_enter()) { STORE(j->state,FAULTED);return; }
         __asm__ volatile("sti":::"memory");
         result=((u64(*)(u64,u64,u64,u64,u64))LOAD(managed_callback))
             (zenith_cpu_logical_id(),j->count,j->seed,j->rounds,j->token);
         __asm__ volatile("cli":::"memory");
-        if (!zenith_gc_managed_leave()) zenith_gc_fail_stop();
+        if (!permanent&&!zenith_gc_managed_leave()) zenith_gc_fail_stop();
         if (result==~0ULL) { STORE(j->end,ticks());STORE(j->result,result);STORE(j->state,FAULTED);return; }
 #endif
     } else if (j->kind==4) {
@@ -617,6 +640,18 @@ void zenith_cpu_halt_counted(void) {
 /* Policy bits (the adapted scheduler reads them): 1 a parked thread switches away at once,
  * 2 the kernel loop gets the CPU when it has not run for 6 ms, 4 the kernel loop hands the CPU
  * to queued threads instead of halting past them. */
+#define SCHED_VECTOR 0xef
+static struct gate managed_idt[256] __attribute__((aligned(16)));
+static struct descriptor managed_idtr;
+static u64 managed_mode;
+extern u32 zenith_cpu_logical_id(void);
+static u64 self_ipi(struct cpu *c,u32 vector) {
+    if (c->x2) { wrmsr(0x83f,vector); return 1; }
+    for (u32 n=0;n<100000&&(apic_read(c,0x300)&0x1000);n++) pause_cpu();
+    __asm__ volatile("mfence":::"memory");
+    apic_write(c,0x300,0x40000|vector);
+    return 1;
+}
 static u64 park_offset, park_enabled, park_switches;
 u64 zenith_cpu_park_configure(u64 offset, u64 policy) {
     if (offset) STORE(park_offset,offset);
@@ -625,6 +660,13 @@ u64 zenith_cpu_park_configure(u64 offset, u64 policy) {
 u64 zenith_cpu_park_policy(void) { return LOAD(park_enabled); }
 void zenith_cpu_park_counted(void) {
     u64 f=irq_off();
+    u32 me=zenith_cpu_logical_id();
+    if ((f&0x200) && me && me<count && LOAD(managed_mode) && LOAD(cpus[me].in_managed)) {
+        __atomic_fetch_add(&park_switches,1,__ATOMIC_RELAXED);
+        self_ipi(&cpus[me],SCHED_VECTOR);
+        __asm__ volatile("sti; hlt":::"memory");
+        return;
+    }
     if ((f&0x200) && idle_cpu()==0 && LOAD(park_enabled) && self_reschedule(LOAD(park_offset))) {
         __atomic_fetch_add(&park_switches,1,__ATOMIC_RELAXED);
         __asm__ volatile("sti; hlt":::"memory");
@@ -642,6 +684,92 @@ static void sleep_worker(struct cpu *c) {
 void zenith_cpu_host_idle(u64 cpu,u64 open) { if (cpu<CPUS) { if (open) idle_open((u32)cpu); else idle_close((u32)cpu); } }
 #endif
 #ifndef ZENITH_CPU_HOST_TEST
+/* C5.2 (smp=managed): APs also run general managed threads.
+ *
+ * Each AP keeps two interrupt tables. The native table (idt) maps the scheduler vector 0xEF to the
+ * plain wake handler. The managed table is a copy whose 0xEF gate is the BSP's own, the Cosmos IRQ stub
+ * whose LAPIC timer handler schedules for the CPU it runs on. An AP loads the managed table only in a
+ * managed window: from the point its idle owner (this worker loop) gives the CPU to managed threads until
+ * the scheduler switches back to it. Native jobs and protected user slices always run under the native
+ * table, so a managed interrupt never lands in user mode or in native work. */
+/* BSP, once, after C3 attached the pinned AP owners: build the managed table. */
+u64 zenith_cpu_managed_enable(void) {
+    /* Refusals return 1000 + a reason, for the boot log. */
+    if (identity()!=cpus[0].actual) return 1001;
+    if (count<2||LOAD(managed_mode)||LOAD(stopping)) return 1002;
+    struct descriptor bsp; __asm__ volatile("sidt %0":"=m"(bsp));
+    if (!bsp.address||bsp.limit!=4095) return 1003;
+    struct gate *g=(struct gate*)bsp.address;
+    u16 cs; __asm__ volatile("mov %%cs,%0":"=r"(cs));
+    /* The BSP runs on its loader's selectors (Limine: code 0x28); the AP GDT's kernel code selector is 8. The
+     * handler address is the same: the managed gate takes the AP selector. The Cosmos IRQ stub loads no
+     * segment registers, and threads placed on an AP start with CS 8 (ManagedDispatchFixup). */
+    if (g[SCHED_VECTOR].selector!=cs) return 1100+g[SCHED_VECTOR].selector;
+    if (!(g[SCHED_VECTOR].flags&0x80)) return 1004;
+    u64 f=irq_off();
+    for (u32 i=0;i<256;i++) managed_idt[i]=idt[i];
+    managed_idt[SCHED_VECTOR]=g[SCHED_VECTOR];
+    managed_idt[SCHED_VECTOR].ist=0;     /* the managed thread's own stack, like on the BSP */
+    managed_idt[SCHED_VECTOR].selector=8;
+    managed_idtr=(struct descriptor){4095,(u64)managed_idt};
+    make_gate(SCHED_VECTOR,(u64)zenith_cpu_wake_entry,1);
+    __asm__ volatile("mfence":::"memory");
+    STORE(managed_mode,1);
+    irq_restore(f);
+    for (u32 i=1;i<count;i++) wake(&cpus[i]);
+    return count;
+}
+u64 zenith_cpu_managed_mode(void) { return LOAD(managed_mode); }
+/* Thread placement (C5.2). A thread Zenith created to run anywhere asks for exactly PLACE_ANYWHERE
+ * stack bytes (CpuWorkers.StartAnywhere); nothing else uses that size. Such a thread gets an AP that runs
+ * managed threads, round robin, or the BSP when none is ready. Every other thread stays on the BSP. */
+#define PLACE_ANYWHERE 0x41000ULL
+static u64 place_next, placed[CPUS];
+u32 zenith_sched_place(u64 stack) {
+    if (stack!=PLACE_ANYWHERE||!LOAD(managed_mode)) return 0;
+    for (u32 n=0;n+1<count;n++) {
+        u32 cpu=1+(u32)(__atomic_fetch_add(&place_next,1,__ATOMIC_RELAXED)%(count-1));
+        if (LOAD(cpus[cpu].gc_permanent)&&LOAD(cpus[cpu].state)<4) { __atomic_fetch_add(&placed[cpu],1,__ATOMIC_RELAXED); return cpu; }
+    }
+    return 0;
+}
+/* A managed thread became ready on `cpu` (from any CPU): make it look at its run queue now. */
+u64 zenith_cpu_kick(u64 cpu) {
+    if (!LOAD(managed_mode)||cpu>=count) return 0;
+    struct cpu *c=&cpus[cpu];
+    if (cpu==zenith_cpu_logical_id()) return 1;   /* the IRQ exit on this CPU reschedules anyway */
+    if (cpu) STORE(c->managed_pending,1);
+    __atomic_fetch_add(&c->managed_kicks,1,__ATOMIC_RELAXED);
+    return (u64)signal_cpu(c,SCHED_VECTOR);
+}
+/* BSP timer tick: preemption ticks for every AP that is running managed threads. */
+void zenith_cpu_tick_aps(void) {
+    if (!LOAD(managed_mode)||zenith_cpu_logical_id()!=0) return;
+    for (u32 i=1;i<count;i++) {
+        struct cpu *c=&cpus[i];
+        if (LOAD(c->in_managed)) { __atomic_fetch_add(&c->managed_ticks,1,__ATOMIC_RELAXED); signal_cpu(c,SCHED_VECTOR); }
+    }
+}
+/* Give the CPU to managed threads. IF is clear on entry and on return. With `sleep`, wait for the next
+ * interrupt (tick, kick or native wake) under the managed table; without it, raise the scheduler vector
+ * so the run queue is looked at at once. The scheduler may switch to a managed thread inside this
+ * window; this function returns when it switches back to the idle owner. */
+static void managed_window(struct cpu *c,int sleep) {
+    u32 cpu=(u32)(c-cpus);
+    if (!LOAD(c->gc_permanent)) {
+        if (!zenith_gc_managed_enter()) return;   /* not admitted: stay native */
+        STORE(c->gc_permanent,1);
+    }
+    STORE(c->managed_pending,0);
+    __atomic_fetch_add(&c->managed_windows,1,__ATOMIC_RELAXED);
+    __asm__ volatile("lidt %0"::"m"(managed_idtr):"memory");
+    STORE(c->in_managed,1);
+    if (sleep) { idle_open(cpu); __asm__ volatile("sti; hlt; cli":::"memory"); idle_close(cpu); }
+    /* The self-IPI may take a moment to arrive: halt until it does (STI's shadow covers HLT). */
+    else { self_ipi(c,SCHED_VECTOR); __asm__ volatile("sti; hlt; cli":::"memory"); }
+    STORE(c->in_managed,0);
+    __asm__ volatile("lidt %0"::"m"(c->idtr):"memory");
+}
 __attribute__((noreturn)) void zenith_cpu_worker(struct cpu *c) {
     zenith_cpu_ap_configure(c);
     for (;;) {
@@ -649,12 +777,22 @@ __attribute__((noreturn)) void zenith_cpu_worker(struct cpu *c) {
             if (quiesce_cpu(c)) halt();
             continue;
         }
+        if (LOAD(managed_mode)&&LOAD(c->managed_pending)) { managed_window(c,0); continue; }
         if(process_step(c))continue;
         struct job *j=claim(c);
         if (!j) {
             STORE(c->state,3);
             /* Producer cannot clear pending IPI: queue state is authoritative. */
             if (LOAD(stopping)||LOAD(c->head)!=LOAD(c->tail)||process_pending(c)) continue;
+            if (LOAD(managed_mode)) {
+                /* A preempted thread whose queue was empty comes back to the idle owner first (the policy picks
+                 * before it requeues): offer the CPU once more without sleeping, then halt. */
+                managed_window(c,0);
+                if (LOAD(c->managed_pending)||LOAD(stopping)||LOAD(c->head)!=LOAD(c->tail)||process_pending(c)) continue;
+                __atomic_fetch_add(&c->parks,1,__ATOMIC_RELAXED); STORE(c->parked,1);
+                managed_window(c,1);
+                STORE(c->parked,0); continue;
+            }
             sleep_worker(c); continue;
         }
         while (!LOAD(j->released)&&!cancelled(j)) sleep_worker(c);
@@ -861,6 +999,11 @@ u64 zenith_cpu_field(u64 index,u64 field) {
         case 26:return LOAD(blur_completed);case 27:return LOAD(blur_cancelled);
         case 28:return LOAD(compose_completed);case 29:return LOAD(compose_cancelled);
         case 30:return LOAD(c->fault_rip);case 31:return LOAD(c->fault_code);case 32:return LOAD(c->fault_cr2);
+        case 33:return LOAD(c->in_managed);case 34:return LOAD(c->managed_windows);case 35:return LOAD(c->managed_kicks);
+        case 36:return LOAD(c->managed_ticks);case 37:return LOAD(c->gc_permanent);
+#ifndef ZENITH_CPU_HOST_TEST
+        case 38:return LOAD(placed[index]);
+#endif
         default:return 0;
     }
 }

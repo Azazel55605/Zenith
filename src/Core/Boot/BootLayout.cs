@@ -48,7 +48,7 @@ internal static class BootLayout
         { throw new IOException("invalid x64 PE/COFF installer module"); }
     }
     /// <summary>Boot opt-ins a rewritten menu keeps when the running kernel was booted with them.</summary>
-    public static readonly string[] CarriedOptions = { "smp=native", "rtc=utc", "rtc=local" };
+    public static readonly string[] CarriedOptions = { "smp=native", "smp=managed", "rtc=utc", "rtc=local" };
     public static string Carried(string arguments)
     {
         var tokens = arguments.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);

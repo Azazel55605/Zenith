@@ -165,3 +165,12 @@ void zenith_gc_host_init(void) {
 void zenith_gc_host_budget(u64 cycles) { host_budget=cycles; }
 void zenith_gc_host_notify(u64 mask) { host_notify=mask; }
 #endif
+/* C5.2: an AP that runs general managed threads scans the stack of the thread it is running. Called by
+ * the scheduler on that AP, with interrupts masked, when it switches threads: a stop request cannot be
+ * acknowledged in between, so the collector always reads bounds matching the parked stack. */
+u64 zenith_gc_running_stack(u64 low,u64 size) {
+    u32 cpu=cpu_id();
+    if (!cpu||cpu>=CPUS||!low||size<16384||size>1048576||low+size<low) return 0;
+    PUT(roots[cpu].low,low);PUT(roots[cpu].high,low+size);
+    return 1;
+}

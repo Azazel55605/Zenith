@@ -164,6 +164,134 @@ without replaying accepted work. [Evidence and final candidate checks](../archiv
 Q2/H1 owns new-release and installed VMware confirmation; the previous CI result
 does not establish that acceptance.
 
+## C5 — General SMP
+
+**Started 2026-11-15.** Requested by the operator: real multicore for processes in general, not
+only the compositor.
+
+### Where work runs before C5
+
+| Work | CPU |
+|---|---|
+| Native program code between system calls (C4, `smp=native`) | any CPU |
+| Fixed compute jobs (material blur, managed frame pilot) | APs |
+| Every native system call (files, present, events, network, terminal) | BSP: the slice returns, the BSP actor services it, then resubmits |
+| Kernel threads: file jobs, network, package manager, shell, built-in apps | BSP |
+| GC collection, scheduler, drivers, interrupts | BSP |
+
+Measured effect: four CPUs improve whole-scene composition by about 8 % (KVM) and 2–3 % (TCG)
+([evidence](../archive/2026-11-03/parallel-material-composition.md)); a program that makes many
+system calls gains nothing, because each call queues on the BSP.
+
+### What C5 changes
+
+The pinned Cosmos scheduler already has per-CPU states, spinlocks and a CPU id on every thread;
+it is started with exactly one dispatch CPU (`BootCpuFixup`, `PinnedCpuFixup`). C3 made allocation,
+the heap and collection safe with several active CPUs; C4 gives every AP private bridges, timers and
+wake vectors. C5 finishes the step from pinned jobs to general scheduling:
+
+1. **C5.0 Measure.** Per-CPU busy time and, per program, user time versus BSP service time and
+   queueing, at 1/2/4 CPUs, for a file copy, a compute loop, Observatory and Horizon. Kept as the
+   before/after baseline.
+2. **C5.1 Locks.** Every critical section that relies on masking interrupts (14 pinned Cosmos files:
+   scheduler manager, condition variable, mutex, interrupt event, alarm system, timer device, keyboard
+   queue, kernel console, log, heap/GC/TLAB already under the C3 gate) becomes an IRQ-safe spinlock
+   section; the single context-switch slot becomes per CPU. Zenith's own kernel code is audited for
+   the same assumption.
+3. **C5.2 Scheduling on every CPU.** Dispatch count equals the online CPUs. Each AP runs the general
+   scheduler with its own timer tick; a wake on another CPU sends the reschedule vector; an idle CPU
+   takes ready work from a busy one; collection stops every CPU running managed code. Behind
+   `smp=managed` until qualified.
+4. **C5.3 Services follow their program.** A native program's service thread runs on the CPU its
+   code runs on, so system calls no longer cross to the BSP. Kernel threads run anywhere. Drivers and
+   device interrupts stay on the BSP: a call from another CPU queues work and waits for completion.
+5. **C5.4 On by default** with two or more CPUs, `smp=off` to opt out, after a 1/2/4/8-CPU stress
+   gate (all native gates at each count, lock-order and wake races, GC under load) and a VMware run.
+6. **C5.5 Threads in native programs**: several user contexts in one address space, scheduled like
+   any other thread.
+
+### C5.1 status (local)
+
+`src/Native/Cpu/sched.c` is a recursive per-CPU scheduler lock that cooperates with a pending GC
+stop while it spins. `tools/PatcherFixup/SchedulerLockFixup.cs` makes the 9 masked sections of the
+pinned scheduler (`GetBusyCpuTimeNs`, `RegisterThread`, `CreateThread`, `ReadyThread`, `BlockThread`,
+`ExitThread`, `YieldThread`, `MarkSleeping`, thread creation in `libSystemNative`) take it after masking
+and release it before restoring, and wraps the three interrupt-time paths (`OnTimerInterrupt`,
+`ReschedulePendingFromIrq`, `ScheduleFromInterrupt`) whole. `cpu sched` reports acquisitions,
+contention, spins, refusals, nesting depth and the owner. Checked by `tools/test_sched_lock.py` (four
+host threads acting as CPUs) and `tools/test_sched_lock_fixup.py` (IL of an adapted copy), and in the
+guest by `native-smp-smoke.py`. [Audit](../archive/2026-11-15/c5-lock-audit.md).
+
+### C5.2 design
+
+- **One rule for running threads:** a thread runs only on `SchedulerThread.CpuId`. Its CPU changes
+  only while it cannot run: at creation, or after its CPU has switched stacks away from it. A CPU
+  never picks a thread whose context another CPU has not finished saving.
+- **Placement at creation first.** Threads created through Zenith's placement API get the least loaded
+  online CPU; everything else stays on the BSP (desktop/UI owner, drivers, the kernel loop, the raw
+  bridge). Load balancing and migration of running threads come after.
+- **APs schedule through the same path as the BSP.** The LAPIC timer handler (vector 0xEF) only calls
+  `OnTimerInterrupt` for its own logical CPU, and the IRQ stub already keeps per-CPU switch slots (C2).
+  Each AP's permanent pinned owner becomes its idle thread: its native worker loop (native jobs,
+  protected contexts) runs when no managed thread is ready. The stride policy gets per-CPU state for
+  every AP and the dispatch count becomes the online count.
+- **Two interrupt tables per AP.** The native table (today's) maps the new scheduler vector to a
+  handler that only acknowledges it and records a pending tick. The managed table routes it, and
+  0xEF, through the Cosmos IRQ stub. An AP loads the managed table only while it runs managed threads
+  and switches back, with interrupts masked, before it runs a native job or a protected user slice;
+  the C4 one-shot quantum timer is unchanged. A managed interrupt can therefore never land in user
+  mode or in native work.
+- **Ticks and wakes.** The BSP's timer tick sends the scheduler vector to every AP that is in managed
+  mode; its handler runs the AP's `OnTimerInterrupt`. `ReadyThread` for a thread of another CPU marks
+  that CPU and sends the same vector, whose exit reschedules.
+- **GC:** every AP running general threads is a permanent participant; its root bounds follow the
+  thread it is running (updated at each switch); suspended threads are scanned from the registry as
+  on the BSP.
+- **Serial and log:** early UART/GOP writes from APs are dropped (C3 rule); Zenith's log queues AP
+  lines for the BSP so gates and `dmesg` keep them.
+- Behind `smp=managed` until C5.4.
+
+### C5.2 status (local, in progress)
+
+- `smp=managed` (implies the C1 workers) raises the dispatch count to the online CPUs, gives every AP's
+  pinned owner the role of idle thread and builds the managed interrupt tables
+  (`ManagedDispatchFixup`, `zenith_cpu_managed_enable`). Boot log: `cpu: native workers=4 ready=True;
+  managed dispatch=4 enabled=4`.
+- `CpuWorkers.StartAnywhere` places a kernel thread on an AP (round robin) by asking for exactly
+  0x41000 stack bytes; every other thread stays on the BSP. Threads placed on an AP start with the AP's
+  code selector (8); the BSP runs on Limine's 0x28.
+- Root causes found on the way:
+  - **CPU identity cost.** `zenith_cpu_logical_id` (behind `GetCurrentCpuId`, called on every allocation)
+    did an RDMSR, and on APs also a CPUID and a table scan; both exit the VM. It now reads `IA32_TSC_AUX`
+    (id | 0x100) with RDTSCP, and returns 0 without any instruction before the workers start. One managed
+    thread doing allocation-heavy work went from 2.38 s to 0.11 s; default boots benefit too.
+  - **Shared GC state outside allocation entries.** `ReturnAllocContext` (thread exit returns its TLAB to
+    the free list) and the GC handle manager (no lock at all) relied on masking; they now take the C3 heap
+    gate. A thread exiting on an AP had corrupted the free list (page fault in the sweep).
+  - **Idle hand-back.** The policy picks the next thread before it requeues the preempted one, so a lone
+    thread on an AP fell to the idle owner every tick; the AP idle loop now offers the CPU again before
+    halting.
+  - **Lock hold time.** Periodic tick traces wrote to COM1 under the scheduler lock, and every AP walked
+    the thread registry for sleepers each tick. Traces are quiet; only the BSP checks sleepers.
+  - **Global allocation gate.** Every allocation took the C3 heap gate, so CPUs took turns allocating. The
+    TLAB fast path now runs without it (interrupts are masked from reservation to header publication, and
+    a CPU acknowledges a stop only through its stop interrupt or while waiting on the gate); the slow path
+    and pinned allocations keep it.
+  - **Roots of waiting AP threads.** The C3 collector fixup skipped the stack of every thread whose CPU
+    was not 0: on C3 those were only the pinned owners, covered by the stopped AP snapshot. Under
+    `smp=managed` a thread preempted, blocked or sleeping on an AP therefore had no roots at all, and a
+    collection freed its live objects (a closure read back as zero after a long allocation loop; also
+    threads that never finished). An AP thread is now skipped only while it is Running, which the
+    snapshot covers; every other one is scanned from its saved context like a BSP thread.
+  - **Duplicate queue entries.** A thread readied while still its CPU's current thread was queued by
+    the wake and again by its own switch-out. The stride policy's insertion now removes an existing
+    entry for the thread first.
+- Acceptance probe: `cpu threads N [rounds]` runs N allocation-heavy managed threads through
+  `StartAnywhere`, checks every result against a BSP reference and reports the CPUs used.
+
+Rules carried over: Cosmos skips `finally` while unwinding, so every lock taken in kernel code is
+released explicitly on the exception path; a lock left held on one CPU now stalls the others.
+
 ## Source and acceptance
 
 [Managed bridge](../../src/Core/Multiprocessing/CpuWorkers.cs),

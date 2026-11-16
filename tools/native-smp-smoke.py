@@ -112,6 +112,12 @@ def main():
                 assert m.wait('user: P_CANCEL=130',off,30),'running AP cancellation acknowledgement'
                 status('native run sunbeam --smp-state','P_AFTER_CANCEL')
             off=status('ps --cpu | logger','P_PLACEMENT')
+            # C5.1: every masked scheduler section took the SMP lock; none was refused and it is free now.
+            off=status('cpu sched | logger','P_SCHED_LOCK')
+            line=next(l for l in m.log()[off:].splitlines() if 'sched-lock acquired=' in l)
+            fields=dict(x.split('=',1) for x in line.split('sched-lock ',1)[1].split())
+            assert int(fields['acquired'])>0 and fields['refused']=='0' and fields['owner']=='none',line
+            print('PASS scheduler lock '+line.split('sched-lock ',1)[1],flush=True)
             results[cpus]=dict(observed=sorted(seen),migration_observed=len(seen)>1,work=measurements)
             audit(poweroff());print('PASS protected CPU placement/migration and containment at '+str(cpus)+' CPUs',flush=True)
         if 4 in a.cpus:

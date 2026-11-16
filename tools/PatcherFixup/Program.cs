@@ -61,6 +61,9 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
     changed |= ThreadStartFixup.Apply(module);
     changed |= SchedulerTicketsFixup.Apply(module);
     changed |= MonitorTimeoutFixup.ApplyCondition(module);
+    // Last: the fixups above match the original shapes of the scheduler paths this one wraps.
+    changed |= SchedulerLockFixup.Apply(module);
+    changed |= ManagedDispatchFixup.Apply(module);
     var allocator = module.GetType("Cosmos.Kernel.Core.Memory.PageAllocator")
         ?? throw new InvalidOperationException("Cosmos allocator type changed");
     var pages = allocator.Methods.Single(m => m.Name == "AllocPages" && m.Parameters.Count == 3);
@@ -115,6 +118,10 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
     QuietIn(scheduler, "[SCHED] ExitThread: OnThreadExit done\n", "[SCHED] ExitThread: OnThreadExit done\n");
     QuietIn(scheduler, "[SCHED] Setting thread exit callback: ", "\n");
     QuietIn(scheduler, "[SCHED] CreateThread: entering\n", "[SCHED] CreateThread: entering\n");
+    // C5: periodic tick traces run under the SMP scheduler lock; on the BSP each line is a slow COM1 write
+    // while every other CPU spins on that lock. Debug views (`cpu sched`, Observatory) replace them.
+    QuietTrace(scheduler.Methods.Single(m => m.Name == "OnTimerInterrupt"), "[SCHED] Tick ", "\n");
+    QuietTrace(module.GetType("Cosmos.Kernel.Core.Scheduler.Stride.StrideScheduler").Methods.Single(m => m.Name == "OnTick"), "[STRIDE] OnTick: current=", "\n");
     QuietIn(scheduler, "[SCHED] CreateThread: done\n", "[SCHED] CreateThread: done\n");
     QuietIn(module.GetType("Cosmos.Kernel.Core.Bridge.Interop.libSystemNative")
         ?? throw new InvalidOperationException("Cosmos thread interop changed"), "[libSystemNative] Thread ", " bytes\n");
@@ -218,6 +225,7 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
 if (assembly.Name.Name == "Cosmos.Kernel.Core") { changed |= RuntimeHeapFixup.Apply(module); changed |= RuntimeMetadataFixup.Apply(module); changed |= WeakHandleFixup.Apply(module); changed |= RuntimeSerialOwnershipFixup.Apply(module); changed |= PinnedCpuFixup.Seal(module); }
 if (assembly.Name.Name == "Cosmos.Kernel.Core.X64")
 {
+    changed |= ManagedDispatchFixup.Timer(module);
     changed |= FpContextFixup.X64(module);
     changed |= CpuIdentityFixup.X64(module);
     changed |= IdleAccountingFixup.X64(module);

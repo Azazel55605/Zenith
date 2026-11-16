@@ -11,6 +11,8 @@ namespace Zenith.Core.Multiprocessing;
 /// <summary>C1 native-only AP queues; all managed callers/GC/UI ownership stay on BSP.</summary>
 internal static partial class CpuWorkers
 {
+    [System.Runtime.InteropServices.DllImport("*", EntryPoint = "zenith_sched_state"), System.Runtime.InteropServices.SuppressGCTransition]
+    private static extern ulong SchedState(ulong field);
     private static readonly object s_gate = new();
     private static int s_count;
     private static ulong[]? s_heldManaged;
@@ -57,14 +59,127 @@ internal static partial class CpuWorkers
     [DllImport("*", EntryPoint = "zenith_execution_fp_preempt_test"), SuppressGCTransition]
     private static extern ulong FpPreemptTest();
 
+    [DllImport("*", EntryPoint = "zenith_managed_cpu_dispatch"), SuppressGCTransition]
+    private static extern ulong ManagedDispatch();
+    [DllImport("*", EntryPoint = "zenith_cpu_managed_enable"), SuppressGCTransition]
+    private static extern ulong ManagedEnable();
+    private static bool s_managedDispatch;
+    /// <summary>smp=managed is active: threads started through <see cref="StartAnywhere"/> may run on any CPU.</summary>
+    public static bool ManagedDispatchActive => s_managedDispatch;
+    /// <summary>The stack size that asks thread creation for any CPU (src/Native/Cpu/workers.c, PLACE_ANYWHERE).</summary>
+    public const int AnywhereStackBytes = 0x41000;
+
+    /// <summary>Starts a kernel thread that may run on any CPU under smp=managed (the BSP otherwise). Only for
+    /// code that never touches the UI, the framebuffer or device registers directly: those stay on the BSP.</summary>
+    public static Thread StartAnywhere(ThreadStart body, string name)
+    {
+        var thread = new Thread(body, AnywhereStackBytes) { Name = name, IsBackground = true };
+        thread.Start();
+        return thread;
+    }
+
+    [DllImport("*", EntryPoint = "zenith_cpu_logical_id"), SuppressGCTransition]
+    private static extern uint LogicalCpu();
+
+    private sealed class Node { internal Node? Next; internal readonly byte[] Data = new byte[96]; }
+
+    /// <summary>Deterministic managed work: builds and walks short-lived object chains, so it allocates
+    /// (and triggers collections) as well as computes.</summary>
+    private static ulong ThreadWork(ulong rounds)
+    {
+        ulong hash = 0xcbf29ce484222325UL;
+        Node? chain = null; int length = 0;
+        for (ulong i = 0; i < rounds; i++)
+        {
+            var node = new Node { Next = chain }; node.Data[0] = (byte)i; node.Data[95] = (byte)(i * 7);
+            chain = node;
+            if (++length == 64)
+            {
+                for (Node? x = chain; x is not null; x = x.Next) { hash = (hash ^ x.Data[0] ^ ((ulong)x.Data[95] << 8)) * 0x100000001b3UL; }
+                chain = null; length = 0;
+            }
+        }
+        return hash;
+    }
+
+    /// <summary>Deterministic computation without allocation.</summary>
+    private static ulong ComputeWork(ulong rounds)
+    {
+        ulong hash = 0xcbf29ce484222325UL;
+        for (ulong i = 0; i < rounds * 64; i++) { hash = (hash ^ (i * 0x9e3779b97f4a7c15UL)) * 0x100000001b3UL; hash ^= hash >> 29; }
+        return hash;
+    }
+
+    private static int ThreadsTest(CommandContext c, int n, ulong rounds, bool compute)
+    {
+        Func<ulong, ulong> work = compute ? ComputeWork : ThreadWork;
+        ulong expected = work(rounds);
+        var results = new ulong[n]; var placedOn = new int[n]; int done = 0;
+        long start = Stopwatch.GetTimestamp();
+        for (int i = 0; i < n; i++)
+        {
+            int k = i;
+            StartAnywhere(() =>
+            {
+                ulong r = work(rounds);
+                results[k] = r; placedOn[k] = (int)LogicalCpu();
+                Interlocked.Increment(ref done);
+            }, "cpu-threads");
+            Log.Write("cpu", "threads: started " + (k + 1) + "/" + n);
+        }
+        long next = start + Stopwatch.Frequency;
+        long limit = start + 300 * Stopwatch.Frequency;
+        while (Volatile.Read(ref done) < n && Stopwatch.GetTimestamp() < limit)
+        {
+            Thread.Sleep(1);
+            if (Stopwatch.GetTimestamp() >= next)
+            {
+                next += 5 * Stopwatch.Frequency;
+                var state = new System.Text.StringBuilder("threads: done " + Volatile.Read(ref done) + "/" + n);
+                for (int i = 1; i < s_count; i++)
+                {
+                    ulong x = (ulong)i;
+                    state.Append(" cpu" + i + "[s=" + Field(x, 0) + " m=" + Field(x, 33) + " w=" + Field(x, 34) + " k=" + Field(x, 35) + " t=" + Field(x, 36) + " p=" + Field(x, 38)
+                        + (Field(x, 0) >= 4 ? " fault-rip=0x" + Field(x, 30).ToString("x") + " code=0x" + Field(x, 31).ToString("x") + " cr2=0x" + Field(x, 32).ToString("x") : "") + "]");
+                }
+                Log.Write("cpu", state.ToString());
+            }
+        }
+        long micros = (Stopwatch.GetTimestamp() - start) * 1_000_000 / Stopwatch.Frequency;
+        bool finished = Volatile.Read(ref done) == n, ok = finished;
+        for (int i = 0; i < n && ok; i++) { ok = results[i] == expected; }
+        var distinct = new System.Collections.Generic.SortedSet<int>(placedOn);
+        c.WriteLine("cpu-threads mode=" + (compute ? "compute" : "alloc") + " threads=" + n + " rounds=" + rounds + " finished=" + finished + " ok=" + ok + " elapsed-us=" + micros
+            + " cpus=" + string.Join(",", placedOn) + " distinct=" + distinct.Count + " managed-dispatch=" + s_managedDispatch);
+        return ok ? 0 : 1;
+    }
+
     public static unsafe void Initialize()
     {
         if (RuntimeInformation.ProcessArchitecture != Architecture.X64) { return; }
         string args = Marshal.PtrToStringUTF8((IntPtr)Limine.Cmdline) ?? "";
-        if (Array.IndexOf(args.Split(' ', StringSplitOptions.RemoveEmptyEntries), "smp=native") < 0) { return; }
+        string[] options = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        bool managed = Array.IndexOf(options, "smp=managed") >= 0;
+        if (!managed && Array.IndexOf(options, "smp=native") < 0) { return; }
         s_count = (int)InitializeNative(Limine.HHDM.Response == null ? 0 : Limine.HHDM.Response->Offset);
         bool ready = s_count > 0 && Wait(() => AllWorkers(3));
-        Log.Write("cpu", "native workers=" + s_count + " ready=" + ready + "; idle=interrupt; managed scheduler remains BSP-only");
+        if (!managed || !ready || s_count < 2)
+        {
+            Log.Write("cpu", "native workers=" + s_count + " ready=" + ready + "; idle=interrupt; managed scheduler remains BSP-only");
+            return;
+        }
+        // C5.2: the general scheduler dispatches on every CPU. C3 attaches a permanent pinned owner to each AP
+        // (its idle thread), the policy gets per-CPU state, then the APs build their managed interrupt tables.
+        try
+        {
+            ManagedCpuJobs.Initialize((ulong)s_count);
+            ulong dispatch = ManagedDispatch();
+            ulong enabled = dispatch == (ulong)s_count ? ManagedEnable() : 0;
+            s_managedDispatch = enabled == (ulong)s_count;
+            Log.Write("cpu", "native workers=" + s_count + " ready=" + ready + "; managed dispatch=" + dispatch + " enabled=" + enabled
+                + (s_managedDispatch ? "; general threads may run on every CPU" : "; managed scheduler remains BSP-only"));
+        }
+        catch (Exception e) { Log.Write("cpu", "managed dispatch refused: " + e.Message); }
     }
 
     private static bool Wait(Func<bool> ready)
@@ -158,8 +273,16 @@ internal static partial class CpuWorkers
                 ulong x = (ulong)i;
                 c.WriteLine("cpu=" + i + " apic-mode=" + Field(x, 18) + " state=" + Field(x, 0) + " parks=" + Field(x, 8) + " wakes=" + Field(x, 9)
                     + " completed=" + Field(x, 10) + " fault=" + Field(x, 11) + " irq-stack-errors=" + Field(x, 16) + " ipi-errors=" + Field(x, 17)
+                    + (s_managedDispatch ? " managed=" + Field(x, 33) + " windows=" + Field(x, 34) + " kicks=" + Field(x, 35) + " ticks=" + Field(x, 36) + " placed=" + Field(x, 38) : "")
                     + (Field(x, 0) >= 4 ? " fault-rip=0x" + Field(x, 30).ToString("x") + " fault-code=0x" + Field(x, 31).ToString("x") + " fault-cr2=0x" + Field(x, 32).ToString("x") + " fault-stack-ok=" + Field(x, 15) : ""));
             }
+            return 0;
+        }
+        if (c.Args[0] == "sched" && c.Args.Length == 1)
+        {
+            // C5.1: the SMP scheduler lock every masked scheduler section takes.
+            c.WriteLine("sched-lock acquired=" + SchedState(0) + " contended=" + SchedState(1) + " spins=" + SchedState(2)
+                + " refused=" + SchedState(3) + " deepest=" + SchedState(4) + " owner=" + (SchedState(5) == 0 ? "none" : "cpu" + (SchedState(5) - 1)));
             return 0;
         }
         if (c.Args[0] == "park" && c.Args.Length <= 2)
@@ -175,6 +298,17 @@ internal static partial class CpuWorkers
             return 0;
         }
         GuardedFilesystem.RequireRoot();
+        if (c.Args[0] == "threads" && c.Args.Length is >= 2 and <= 4)
+        {
+            // C5.2 acceptance: N managed threads placed anywhere under smp=managed; `alloc` (default) builds short-lived
+            // object chains, `compute` only computes, so it measures scheduling without the (serial) collector.
+            if (!int.TryParse(c.Args[1], out int n) || n < 1 || n > 16) { return c.Fail("usage: cpu threads 1..16 [rounds] [alloc|compute]"); }
+            ulong rounds = 20000;
+            if (c.Args.Length >= 3 && (!ulong.TryParse(c.Args[2], out rounds) || rounds < 1 || rounds > 100000000)) { return c.Fail("rounds must be 1..100000000"); }
+            bool compute = c.Args.Length == 4 && c.Args[3] == "compute";
+            if (c.Args.Length == 4 && !compute && c.Args[3] != "alloc") { return c.Fail("usage: cpu threads 1..16 [rounds] [alloc|compute]"); }
+            return ThreadsTest(c, n, rounds, compute);
+        }
         if (c.Args.Length == 1 && c.Args[0] == "fp-test")
         {
             bool ok = FpPreemptTest() == 1;
@@ -235,7 +369,7 @@ internal static partial class CpuWorkers
         return status;
     }
 
-    private const string Usage = "cpu status | blur-test | irq-test | fp-test | managed-test | managed-fault-test | managed-image-test | managed-hold | managed-release | test [iterations] | cancel-test | state-test | queue-test | idle-test | image-test | fault-test | stop-test";
+    private const string Usage = "cpu status | sched | threads N [rounds] | blur-test | irq-test | fp-test | managed-test | managed-fault-test | managed-image-test | managed-hold | managed-release | test [iterations] | cancel-test | state-test | queue-test | idle-test | image-test | fault-test | stop-test";
 
     // A live protected application may briefly retain this AP. Retry only a
     // refused admission (token zero), never an accepted operation. Production

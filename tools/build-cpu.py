@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 ROOT=Path(__file__).resolve().parents[1]
 ALLOWED={'zenith_cpu_ap_entry','zenith_cpu_mp_response','zenith_cpu_wake_entry',
-         'zenith_cpu_spurious_entry','zenith_cpu_fault_entries','zenith_execution_test','zenith_cpu_reschedule_entry','zenith_cpu_timer_entry','zenith_gc_stop_entry', 'zenith_cpu_logical_id','zenith_gc_poll','zenith_cpu_gc_notify','zenith_gc_managed_enter','zenith_gc_managed_leave','zenith_gc_fail_stop','irq246_stub','zenith_cpu_completion_entry','zenith_cpu_ap_fail_stop','zenith_process_ap_dispatch'}
+         'zenith_cpu_spurious_entry','zenith_cpu_fault_entries','zenith_execution_test','zenith_cpu_reschedule_entry','zenith_cpu_timer_entry','zenith_gc_stop_entry', 'zenith_cpu_logical_id','zenith_gc_poll','zenith_cpu_gc_notify','zenith_gc_managed_enter','zenith_gc_managed_leave','zenith_gc_fail_stop','irq246_stub','zenith_cpu_completion_entry','zenith_cpu_ap_fail_stop','zenith_process_ap_dispatch','zenith_gc_state'}
 
 def check_imports(target):
     imports=subprocess.check_output(['nm','-u',str(target)],text=True)
@@ -35,6 +35,7 @@ def build_one(out,name):
 def build(out):
     build_one(out,'workers')
     build_one(out,'gc')
+    build_one(out,'sched')
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('output',type=Path)
