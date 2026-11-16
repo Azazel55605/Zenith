@@ -15,32 +15,57 @@ static void process_terminal(struct process_task *p,u64 state) {
     if(p->ticket) {if(!LOAD(process_runnable[p->target])) __builtin_trap();STORE(process_runnable[p->target],LOAD(process_runnable[p->target])-1);p->ticket=0;}
     STORE(p->state,state);
 }
+/* C5.3: under smp=managed a program's service thread may run on an AP. That AP owns the invocations it
+ * submits for itself alone (affinity exactly its own bit): it submits, runs (zenith_cpu_process_run_here),
+ * cancels, waits for and reaps them. Every other invocation stays BSP-owned. */
+#ifndef ZENITH_CPU_HOST_TEST
+/* BSP only: records its timer period as the slice quantum. */
+static int process_period_record(void) {
+    u32 initial=apic_read(&cpus[0],0x380),divide=apic_read(&cpus[0],0x3e0);
+    if(initial<1000||initial>0x7fffffff)return 0;
+    process_period_divide=divide;STORE(process_period_count,initial);return 1;
+}
+#endif
+static int process_owner(u64 affinity) {
+    u32 cpu=zenith_cpu_logical_id();
+    if(cpu==0)return 1;
+#ifndef ZENITH_CPU_HOST_TEST
+    if(cpu<count&&LOAD(managed_mode)&&affinity==(1ULL<<cpu))return 1;
+#endif
+    return 0;
+}
 u64 zenith_cpu_process_submit(u64 context,u64 affinity) {
     u64 flags=irq_off(),token=0;
-    if(zenith_cpu_logical_id()!=0||count<2||LOAD(stopping)||!context||!(affinity&254)||affinity>255)goto done;
+    if(!process_owner(affinity)||count<2||LOAD(stopping)||!context||!(affinity&254)||affinity>255)goto done;
 #ifndef ZENITH_CPU_HOST_TEST
-    if(context<0xffff800000000000ULL||!install_completion())goto done;
+    /* The BSP's completion vector serves BSP-owned waits only. */
+    if(context<0xffff800000000000ULL||(zenith_cpu_logical_id()==0&&!install_completion()))goto done;
 #endif
 #ifndef ZENITH_CPU_HOST_TEST
-    if(!process_period_count) {
-        u32 initial=apic_read(&cpus[0],0x380),divide=apic_read(&cpus[0],0x3e0);
-        if(initial<1000||initial>0x7fffffff)goto done;
-        process_period_divide=divide;STORE(process_period_count,initial);
-    }
+    /* The quantum is the BSP timer's period. LAPIC registers are per CPU: only the BSP can read it, so an AP
+     * relies on the value recorded when managed dispatch was enabled (zenith_cpu_managed_enable). */
+    if(!LOAD(process_period_count)&&(zenith_cpu_logical_id()!=0||!process_period_record()))goto done;
 #endif
     if(!process_acquire())goto done;
     u32 slot;
     for(slot=0;slot<PROCESSES;slot++)if(LOAD(process_tasks[slot].state)==FREE)break;
     if(slot==PROCESSES||sequence==0x03ffffffffffffffULL||process_order==~0ULL)goto unlock;
-    u32 best=0;u64 load=~0ULL;
-    for(u32 n=0;n<count-1;n++) {
+    u32 best=0;u64 load=~0ULL,me=zenith_cpu_logical_id();
+    if(me) {
+        /* An AP submits only for itself, from a managed thread: its worker is not idle in the queue sense, but
+         * the slice is free to run here when no native job is queued and no slice is running. */
+        if(!lock_cpu(&cpus[me]))goto unlock;
+        int ready=LOAD(cpus[me].head)==LOAD(cpus[me].tail)&&cpus[me].raw_task>=PROCESSES&&!LOAD(cpus[me].halted);
+        unlock_cpu(&cpus[me]);if(!ready)goto unlock;best=(u32)me;
+    }
+    else for(u32 n=0;n<count-1;n++) {
         u32 cpu=1+(u32)((process_cursor+n)%(count-1));
         if(!(affinity&(1ULL<<cpu))||!lock_cpu(&cpus[cpu]))continue;
         if(process_eligible(cpu)&&LOAD(process_runnable[cpu])<load) {best=cpu;load=LOAD(process_runnable[cpu]);}
         unlock_cpu(&cpus[cpu]);
     }
     if(!best||!lock_cpu(&cpus[best]))goto unlock;
-    if(!process_eligible(best)) {unlock_cpu(&cpus[best]);goto unlock;}
+    if(!me&&!process_eligible(best)) {unlock_cpu(&cpus[best]);goto unlock;}
     struct process_task *p=&process_tasks[slot];
     token=(++sequence<<6)|slot;
     STORE(p->token,token);p->context=context;p->cancel=0;p->affinity=affinity;p->target=best;p->actual=0;
@@ -72,8 +97,7 @@ u64 zenith_cpu_process_field(u64 token,u64 field) {
 }
 u64 zenith_cpu_process_control(u64 token,u64 action) {
     u64 flags=irq_off(),ok=0;
-    if(zenith_cpu_logical_id()!=0)goto done;
-    struct process_task *p=process_find(token);if(!p)goto done;
+    struct process_task *p=process_find(token);if(!p||!process_owner(p->affinity))goto done;
     if(action==0) {
         STORE(p->cancel,1);
         if(process_acquire()) {if(LOAD(p->state)==QUEUED)process_terminal(p,CANCELLED);process_unlock();}
@@ -169,6 +193,48 @@ static int process_step(struct cpu *c) {
     process_terminal(p,(LOAD(p->cancel)||LOAD(stopping))?CANCELLED:DONE);
     c->raw_task=PROCESSES;STORE(c->state,3);process_unlock();
     signal_cpu(&cpus[0],0xf6);return 1;
+}
+/* C5.3: the service thread that submitted `token` for its own AP runs the slice right here, on its own stack,
+ * the way the BSP runs its raw bridge from a managed thread. Returns 1 when it ran (the descriptor is DONE or
+ * CANCELLED, ready to reap), 0 when it did not (another path owns it now; wait as before). The bridge loads
+ * its own IDT and masks managed preemption; a foreign interrupt in user mode yields and is re-delivered on
+ * this stack, so a GC stop parks with this thread's frames. BSP-forwarded scheduler ticks are suspended for
+ * the slice: inside the bridge they would count as the program's quanta. */
+u64 zenith_cpu_process_run_here(u64 token) {
+#ifdef ZENITH_CPU_HOST_TEST
+    (void)token;return 0;
+#else
+    u32 cpu=zenith_cpu_logical_id();
+    if(!cpu||cpu>=count||!LOAD(managed_mode))return 0;
+    struct cpu *c=&cpus[cpu];
+    u64 flags=irq_off();
+    struct process_task *p=process_find(token);
+    if(!p||p->affinity!=(1ULL<<cpu)||!process_acquire()) {irq_restore(flags);return 0;}
+    int claimed=0;
+    if(LOAD(p->state)==QUEUED&&p->target==cpu&&!LOAD(p->cancel)&&!LOAD(stopping)&&lock_cpu(c)) {
+        if(LOAD(c->head)==LOAD(c->tail)&&c->current==JOBS&&c->raw_task>=PROCESSES&&!LOAD(c->halted)) {
+            c->raw_task=(u32)(p-process_tasks);p->actual=cpu;p->start=ticks();STORE(p->state,RUNNING);claimed=1;
+        }
+        unlock_cpu(c);
+    }
+    process_unlock();
+    if(!claimed) {irq_restore(flags);return 0;}
+    u64 forwarded=LOAD(c->in_managed);STORE(c->in_managed,0);
+    u64 result=zenith_process_ap_dispatch(p->context);
+    /* A slice that ended only for its quantum (4097, a resumable frame) goes on here while nothing else wants
+     * this CPU: no kick for a managed thread, no cancel. Each round trip through the managed loop costs a
+     * resubmission under the shared queue lock. Bounded so the service loop still checks in every few
+     * quanta; the program's watchdog counts every quantum inside the bridge. */
+    for(u32 more=0;result==4097&&more<8&&!LOAD(p->cancel)&&!LOAD(stopping)&&!LOAD(c->managed_pending);more++)
+        result=zenith_process_ap_dispatch(p->context);
+    apic_write(c,0x320,0x10000|0xf2);apic_write(c,0x380,0);
+    while(!process_acquire()) {if(LOAD(process_poisoned))zenith_gc_fail_stop();pause_cpu();}
+    p->result=result;p->end=ticks();process_runs++;
+    process_terminal(p,(LOAD(p->cancel)||LOAD(stopping))?CANCELLED:DONE);
+    c->raw_task=PROCESSES;process_unlock();
+    STORE(c->in_managed,forwarded);
+    irq_restore(flags);return 1;
+#endif
 }
 static void process_fault(struct cpu *c) {
     /* Called only on the target's private fault path; no user/kernel body runs

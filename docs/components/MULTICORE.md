@@ -289,6 +289,71 @@ guest by `native-smp-smoke.py`. [Audit](../archive/2026-11-15/c5-lock-audit.md).
 - Acceptance probe: `cpu threads N [rounds]` runs N allocation-heavy managed threads through
   `StartAnywhere`, checks every result against a BSP reference and reports the CPUs used.
 
+### C5.3 design (started 2026-11-16)
+
+Survey of what a system-call service touches when it runs off the BSP:
+
+- **Already safe across CPUs:** `lock`/`Monitor`, `Mutex`, `ConditionVariable` and `InterruptEvent` block
+  and wake through `SpinLock.AcquireIrqSafe`; wakes go to the thread's own CPU and kick it (C5.2). The
+  SATA driver serializes each port with a spinlock and polls for completion; virtio GPU/net, NVMe and
+  xHCI hold IRQ-safe locks. Zenith's log takes a lock around direct UART writes. Zenith kernel code
+  guards shared state with `lock` already (threads are preempted on the BSP today).
+- **Still BSP-only:** the raw BSP bridge (`s_rawGate`), the desktop/UI owner, framebuffer and device
+  registers, the PS/2 keyboard queue and the boot console. Service calls reach them only through
+  queues and locks owned by BSP threads.
+
+Plan:
+
+1. **Run the program where its service runs.** Each AP's process bridge is a generated copy of the
+   BSP's `zenith_process_run`, which the BSP already calls synchronously from a managed thread
+   (`RunNative`). Under `smp=managed`, a native program's run loop moves to a placed thread, and on an
+   AP it enters its own CPU's bridge directly instead of queueing a slice and waiting for the BSP's
+   doorbell. User code and system calls then alternate on one AP with no cross-CPU hand-off.
+2. **Interrupts during user code on an AP.** The BSP bridge already yields a slice for a foreign vector and
+   re-delivers it on the caller's stack, so a GC stop parks with valid kernel bounds. The generated AP
+   bridges did not: they acknowledged and dropped a GC stop (harmless while APs were no GC participants)
+   and faulted the AP on any unexpected vector, including the scheduler tick or kick (0xEF) that
+   `smp=managed` can deliver while a slice runs. A stop now ends the slice and is re-delivered; 0xEF is
+   acknowledged and ignored (a kick also left `managed_pending` set).
+3. **BSP-only work stays queued:** anything listed above as BSP-only keeps its owner thread; a call
+   from an AP waits on the existing lock or queue.
+4. **Measure** with the C5.0 workloads (file copy, compute loop, Observatory, Horizon) at 1/2/4 CPUs.
+
+### C5.3 status (local, done 2026-11-16)
+
+- `NativeProcess.Run` under `smp=managed` runs a program started without `ZENITH_CPU_MASK` on a placed thread
+  (`CpuWorkers.StartAnywhere`, credentials carried over); the caller joins it. An explicit mask keeps the
+  BSP-owned slice protocol and its placement guarantees.
+- On an AP, `RunProcessSlice` submits for that AP alone and runs the slice itself
+  (`zenith_cpu_process_run_here`): it claims the descriptor, suspends BSP-forwarded ticks for the slice
+  (inside the bridge they would count as the program's quanta), enters the AP bridge and publishes the
+  result. An AP owns only invocations whose affinity is exactly its own bit (submit, run, cancel, reap);
+  everything else stays BSP-owned. If the AP's worker took the slice first, the old wait applies.
+- The slice quantum is the BSP timer's period; LAPIC registers are per CPU, so the BSP records it when
+  managed dispatch is enabled (an AP reading `cpus[0]` read its own idle timer and every submission was
+  refused).
+- `cpu status` reports `local-process-slices`. `native-smp-smoke` adds a four-CPU `smp=managed` pass:
+  placed hello and probe (one AP per program), three unmasked programs timed, timeout, fault, local
+  slices counted, no AP fault.
+- A slice that ends only for its quantum is re-entered on the AP, at most 8 quanta in a row, while no kick
+  and no cancel is pending: each round trip through the managed loop cost a resubmission under the shared
+  queue lock (compute work: 2261 slices through the loop before, 571 after).
+- Measured under TCG, four CPUs, same installed disk:
+
+  | Workload | `smp=native` (BSP services calls) | `smp=managed` (service on the AP) |
+  |---|---|---|
+  | one `sunbeam --io-budget` (1 MB in 4 KB writes) | 1.59–1.64 s | 1.29–1.44 s |
+  | three in parallel | 2.71–3.11 s | 1.76–3.01 s |
+  | three `--smp-work` (compute) | 3.42–3.68 s | 3.15–3.65 s |
+
+  Call-heavy programs gain about 20 %; compute work is level (the BSP no longer handles their calls, which
+  is where the BSP-bound programs were losing).
+- `native-settings-smoke` passes in full under `smp=managed` (window app, materials, input, concurrent
+  network I/O, reboot persistence): window programs are placed like any other.
+- Left for C5.4's stress gate: programs with an explicit `ZENITH_CPU_MASK` under `smp=managed` keep the
+  BSP-owned protocol; one early run measured them slower (about 4.5 s against 2.9 s for the compute work),
+  not reproduced since.
+
 Rules carried over: Cosmos skips `finally` while unwinding, so every lock taken in kernel code is
 released explicitly on the exception path; a lock left held on one CPU now stalls the others.
 

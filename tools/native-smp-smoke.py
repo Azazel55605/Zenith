@@ -23,6 +23,8 @@ def main():
     for cpus in a.cpus:
         masks=[1 if cpus==1 else 1<<(1+i%(cpus-1)) for i in range(3)]
         (served/('work'+str(cpus))).write_text('\n'.join('export ZENITH_CPU_MASK='+str(masks[i])+'\nnative run sunbeam --smp-work > /root/w'+str(i)+' &' for i in range(3))+'\nwait\ncat /root/w0 /root/w1 /root/w2 | logger\n')
+    # C5.3: the same three programs without a mask, so smp=managed places each with its service on an AP.
+    (served/'placed').write_text('\n'.join('native run sunbeam --smp-work > /root/w'+str(i)+' &' for i in range(3))+'\nwait\ncat /root/w0 /root/w1 /root/w2 | logger\n')
     (served/'io').write_text('native run sunbeam --smp-work > /root/w0 &\nnative run net-tools fetch '+ 'URL'+'/data /root/download &\nprintf "PRIVATE_IO\\n" | sunbeam tee /root/io | sunbeam cat | logger\nwait\nwc -c /root/download | logger\ncat /root/w0 | logger\n')
     class Handler(http.server.SimpleHTTPRequestHandler):
         def log_message(self,*args):pass
@@ -64,7 +66,7 @@ def main():
         status(fetch+url+'/test.zpk /root/test.zpk','P_FETCH');status('pkg install /root/test.zpk','P_PACKAGE');disk=poweroff()
         m=h.Machine(keep/'extra',disk,network=net);assert m.wait('headless ready',timeout=120)
         status(fetch+url+'/net.zpk /root/net.zpk','P_FETCH_NET');status('pkg install /root/net.zpk','P_NET_PACKAGE')
-        for name in tuple('work'+str(c) for c in a.cpus)+('io',):status(fetch+url+'/'+name+' /root/'+name,'P_SCRIPT_'+name)
+        for name in tuple('work'+str(c) for c in a.cpus)+('io','placed'):status(fetch+url+'/'+name+' /root/'+name,'P_SCRIPT_'+name)
         disk=poweroff()
         results={}
         for cpus in a.cpus:
@@ -126,6 +128,28 @@ def main():
             off=status('native run sunbeam --smp-probe > /root/probe; cat /root/probe | logger','P_DISABLED')
             assert set(map(int,re.findall(r'user: SMP_CPU=(\d+)',m.log()[off:])))=={0},'default disabled SMP changed'
             audit(poweroff());print('PASS default-disabled four-CPU fallback',flush=True)
+        if 4 in a.cpus:
+            # C5.3 (smp=managed): a program started without a mask runs with its system-call service on a placed
+            # thread, which enters its AP's process bridge itself; every slice runs on that AP.
+            m=h.Machine(keep/'managed',disk,argument='smp=managed',network=net,cpus=4,monitor=keep/'managed'/'monitor.sock')
+            assert m.wait('headless ready',timeout=120) and 'managed dispatch=4 enabled=4' in m.log(),'smp=managed did not enable every CPU'
+            status('native run sunbeam echo PLACED_HELLO > /root/hello; cat /root/hello | logger','P_PLACED_HELLO',timeout=60)
+            assert 'user: PLACED_HELLO' in m.log(),'placed program output'
+            off=status('native run sunbeam --smp-probe > /root/probe; cat /root/probe | logger','P_PLACED_PROBE',timeout=120)
+            seen=set(map(int,re.findall(r'user: SMP_CPU=(\d+)',m.log()[off:])))
+            assert seen and len(seen)==1 and seen<={1,2,3},'a placed program runs on one AP: '+str(seen)
+            measurements=[]
+            for round in range(3):
+                start=time.monotonic();status('sh /root/placed','P_PLACED_WORK_'+str(round),timeout=180);measurements.append(time.monotonic()-start)
+            status('native run sunbeam --loop','P_PLACED_TIMEOUT',124,timeout=60)
+            status('native run sunbeam --fault','P_PLACED_FAULT',139)
+            status('native run sunbeam echo AFTER | logger','P_PLACED_AFTER')
+            off=status('cpu status | logger','P_PLACED_STATUS')
+            local=re.search(r'local-process-slices=(\d+)',m.log()[off:])
+            assert local and int(local.group(1))>0,'no slice ran on its service thread\'s AP'
+            assert 'fault=0' in m.log()[off:] and 'state=4' not in m.log()[off:],'an AP faulted under smp=managed'
+            results['managed4']=dict(local_slices=int(local.group(1)),placed_cpu=sorted(seen),work=measurements)
+            audit(poweroff());print('PASS C5.3 placed programs and services on APs: local slices '+local.group(1)+', work '+', '.join('%.2fs'%x for x in measurements),flush=True)
         (keep/'results.json').write_text(json.dumps(results,indent=2)+'\n')
     finally:
         if m is not None and m.process.poll() is None:m.stop()

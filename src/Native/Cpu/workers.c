@@ -706,6 +706,8 @@ u64 zenith_cpu_managed_enable(void) {
      * segment registers, and threads placed on an AP start with CS 8 (ManagedDispatchFixup). */
     if (g[SCHED_VECTOR].selector!=cs) return 1100+g[SCHED_VECTOR].selector;
     if (!(g[SCHED_VECTOR].flags&0x80)) return 1004;
+    /* C5.3: slices submitted from APs use the BSP timer's period as their quantum; only the BSP can read it. */
+    if (!LOAD(process_period_count) && !process_period_record()) return 1005;
     u64 f=irq_off();
     for (u32 i=0;i<256;i++) managed_idt[i]=idt[i];
     managed_idt[SCHED_VECTOR]=g[SCHED_VECTOR];

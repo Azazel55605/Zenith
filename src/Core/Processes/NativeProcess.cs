@@ -689,6 +689,26 @@ internal sealed unsafe class NativeProcess
     }
     public static (int Status, string Error, ulong Fault) Run(string name, IReadOnlyList<string> arguments, Func<bool> cancelled, object? lifetimeRoot = null, string cwd = "/", string? input = null, ProcessStreams? streams = null, IReadOnlyDictionary<string, string>? environment = null, Action? requestStop = null)
     {
+        // C5.3: under smp=managed the program and its system-call service run together on a placed thread,
+        // which enters its AP's process bridge itself (CpuWorkers.RunProcessSlice). The caller waits here.
+        // An explicit ZENITH_CPU_MASK keeps the BSP-owned slice protocol and its placement guarantees.
+        if (!Zenith.Core.Multiprocessing.CpuWorkers.PlaceProcesses || environment?.ContainsKey("ZENITH_CPU_MASK") == true) { return RunHere(name, arguments, cancelled, lifetimeRoot, cwd, input, streams, environment, requestStop); }
+        var identity = Zenith.Core.Security.CredentialContext.Current;
+        (int, string, ulong) result = (1, "native program did not start", 0); Exception? failure = null;
+        var thread = Zenith.Core.Multiprocessing.CpuWorkers.StartAnywhere(() =>
+        {
+            var credentials = Zenith.Core.Security.CredentialContext.Enter(identity);
+            try { result = RunHere(name, arguments, cancelled, lifetimeRoot, cwd, input, streams, environment, requestStop); }
+            catch (Exception error) { failure = error; }
+            credentials.Dispose();   // explicit: Cosmos skips finally while unwinding
+        }, "native " + name);
+        thread.Join();
+        if (failure is not null) { throw failure; }
+        return result;
+    }
+
+    private static (int Status, string Error, ulong Fault) RunHere(string name, IReadOnlyList<string> arguments, Func<bool> cancelled, object? lifetimeRoot, string cwd, string? input, ProcessStreams? streams, IReadOnlyDictionary<string, string>? environment, Action? requestStop)
+    {
 #if ARCH_ARM64
         throw new IOException("native ELF process execution is currently x86_64 only");
 #else

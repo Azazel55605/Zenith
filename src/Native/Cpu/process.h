@@ -15,6 +15,9 @@ static int process_step(struct cpu *c);
 static int process_pending(struct cpu *c);
 static void process_fault(struct cpu *c);
 static void process_stop(void);
+#ifndef ZENITH_CPU_HOST_TEST
+static int process_period_record(void);
+#endif
 #ifdef ZENITH_CPU_HOST_TEST
 static void process_reset(void);
 #endif

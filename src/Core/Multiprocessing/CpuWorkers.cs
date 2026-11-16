@@ -66,6 +66,8 @@ internal static partial class CpuWorkers
     private static bool s_managedDispatch;
     /// <summary>smp=managed is active: threads started through <see cref="StartAnywhere"/> may run on any CPU.</summary>
     public static bool ManagedDispatchActive => s_managedDispatch;
+    /// <summary>C5.3: native programs started from the BSP run on a placed thread (smp=managed only).</summary>
+    public static bool PlaceProcesses => s_managedDispatch && LogicalCpu() == 0;
     /// <summary>The stack size that asks thread creation for any CPU (src/Native/Cpu/workers.c, PLACE_ANYWHERE).</summary>
     public const int AnywhereStackBytes = 0x41000;
 
@@ -268,6 +270,7 @@ internal static partial class CpuWorkers
             c.WriteLine("detected=" + Detected() + " native-workers=" + s_count + " stopping=" + s_stopping + " managed-cpus=1 pinned-ap-owners=" + (ManagedCpuJobs.Ready ? Math.Max(0, s_count - 1) : 0));
             c.WriteLine("initial-idt-interrupts-enabled=" + ((InitialIdtFlags() & 0x200) != 0));
             c.WriteLine("Experimental workers require boot argument smp=native; idle=interrupt queue-capacity=8.");
+            if (s_managedDispatch) { c.WriteLine("managed-dispatch=True local-process-slices=" + Volatile.Read(ref LocalSlices)); }
             for (int i = 1; i < s_count; i++)
             {
                 ulong x = (ulong)i;

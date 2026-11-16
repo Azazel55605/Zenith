@@ -19,6 +19,10 @@ internal static partial class CpuWorkers
     private static extern ulong ProcessWait(ulong token);
     [DllImport("*", EntryPoint="zenith_gc_fail_stop"), SuppressGCTransition]
     private static extern void ProcessFailStop();
+    [DllImport("*", EntryPoint="zenith_cpu_process_run_here"), SuppressGCTransition]
+    private static extern ulong ProcessRunHere(ulong token);
+    /// <summary>Slices a placed service thread ran on its own AP (C5.3), for `cpu status`.</summary>
+    internal static ulong LocalSlices;
 
     /// <summary>One protected context owns a raw slice until terminal publication.
     /// Managed service execution never leaves the BSP. -1 requests the serialized
@@ -29,6 +33,10 @@ internal static partial class CpuWorkers
         if (RuntimeInformation.ProcessArchitecture != Architecture.X64) return 95;
         if (s_stopping || cancelled()) return 130;
         if (s_count < 2 || (affinity & 254) == 0) return (affinity & 1) != 0 ? -1 : 95;
+        // C5.3: a service thread placed on an AP runs its program on that AP, entering the AP's bridge itself
+        // (no BSP doorbell, no hand-off). Only its own CPU may run the slice and the BSP bridge is not offered.
+        uint here = s_managedDispatch ? LogicalCpu() : 0;
+        if (here != 0) { if ((affinity & (1u << (int)here)) == 0) { return 95; } affinity = 1u << (int)here; }
         ulong token;
         long admission = Stopwatch.GetTimestamp() + 120 * Stopwatch.Frequency;
         while ((token = ProcessSubmit(context,affinity & 254)) == 0)
@@ -39,6 +47,7 @@ internal static partial class CpuWorkers
             if (Stopwatch.GetTimestamp() >= admission) return 124; // No operation was admitted.
             Thread.Sleep(1);
         }
+        if (here != 0 && ProcessRunHere(token) != 0) { LocalSlices++; }
         long deadline = Stopwatch.GetTimestamp() + 120 * Stopwatch.Frequency;
         bool stopping = false;
         try
@@ -72,7 +81,7 @@ internal static partial class CpuWorkers
                     Log.Write("cpu","unacknowledged protected process stop; retaining invocation storage");
                     ProcessFailStop(); throw new InvalidOperationException("native process stop acknowledgement unavailable");
                 }
-                ManagedCpuJobs.PumpRequests();
+                if (here == 0) { ManagedCpuJobs.PumpRequests(); }   // only the BSP collects
                 WaitForSlice(token);
             }
         }

@@ -19,6 +19,9 @@ namespace Zenith.Core.Multiprocessing
     {
         private static bool s_stopping=false;
         private static int s_count=2;
+        // The production broker runs on the BSP here: no C5.3 local slice (smp=managed off).
+        private static bool s_managedDispatch=false;
+        private static uint LogicalCpu() => 0;
         internal static int Run(uint mask,Func<bool> cancelled,out int cpu) => RunProcessSlice(1,mask,cancelled,out cpu);
         // The production wait parks on a monitor pulsed by the kernel loop (CpuWorkers.SliceWait.cs).
         private static void WaitForSlice(ulong token) { if (ProcessWait(token) == 0) System.Threading.Thread.Sleep(1); }

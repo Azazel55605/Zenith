@@ -62,8 +62,13 @@ def variant(original,cpu):
     je 4f
     cmp $0xf1,%eax
     je 6f
-    cmp $0xf5,%eax
+    # C5.3 (smp=managed): a scheduler tick or kick that lands in user code means nothing to the slice; a kick
+    # also left managed_pending set, so it is not lost.
+    cmp $0xef,%eax
     je 6f
+    # A GC stop parks on the caller's stack: end the slice and re-deliver the stop there (z_exit).
+    cmp $0xf5,%eax
+    je 7f
     cmp $0xf3,%eax
     jne z_bad_irq
     pop %rdx
@@ -76,6 +81,12 @@ def variant(original,cpu):
     jz z_timed_out
     # End one timer quantum at a complete user-frame boundary. The BSP broker
     # can requeue this context behind other Ready work without moving its stack.
+    pop %rdx
+    pop %rcx
+    pop %rax
+    jmp z_device_yield
+7:
+    movq $0xf5,z_gc_vector(%rip)
     pop %rdx
     pop %rcx
     pop %rax
@@ -93,7 +104,8 @@ z_bad_irq:
     ud2
 ''' +s[b:]
     # No AP device forwarding. A reschedule yield preserves the user's RAX/frame.
-    s=once(s,'    mov %rax, z_pending_vector(%rip)\n    mov %rsp, %rsi', '    movq $0, z_pending_vector(%rip)\n    mov %rsp, %rsi')
+    # Only a GC stop is forwarded, to its original native handler on the caller's stack.
+    s=once(s,'    mov %rax, z_pending_vector(%rip)\n    mov %rsp, %rsi', '    mov z_gc_vector(%rip), %rax\n    mov %rax, z_pending_vector(%rip)\n    movq $0, z_gc_vector(%rip)\n    mov %rsp, %rsi')
     a=s.index('z_invalid_user_stack:');b=s.index('z_user_fault:',a)
     s=s[:a]+'''z_invalid_user_stack:
     cmpq $32,(%rsp)
@@ -144,6 +156,7 @@ z_rearm:
 .bss
 .p2align 3
 z_cancel: .zero 8
+z_gc_vector: .zero 8
 z_period: .zero 8
 '''
     s=re.sub(r'\bz_[A-Za-z0-9_]+',lambda m:f'p{cpu}_'+m[0],s)
