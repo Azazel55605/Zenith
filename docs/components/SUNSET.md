@@ -76,6 +76,12 @@ when materials are on, solid otherwise.
   Ctrl+Alt+Delete, launcher and Prism entries, the open animation. Icons `lock`, `log-out`, `power` and
   `user` added to `zenith-icons` 0.4.0 (simple shapes without it). Checked by host tests (choices, keys,
   focus, wording, uptime, unlock throttling) and `tools/sunset-smoke.py`.
+- **SS1.1 (kernel 0.0.61):** with zenith-icons installed, Sunset still drew its built-in shapes: icons are
+  stored at 16, 24, 32 and 48 px and Sunset asked for 20 and 26 px. Other sizes are now scaled from the next
+  larger stored one (any shell surface), and the icon cache keeps every icon and looks a missing one up again
+  after a few seconds. The card and the Prism menu blur at the taskbar's scale (`MaterialPolicy.SampleScale`),
+  and key letters use the proportional font, so Log out's O no longer reads as a zero. The gate installs the
+  pack and requires `sunset: icons drawn=5 fallback=0`.
 - **SS2:** lock after a period without input (Meridian › Screen locking, with the time); lock before
   suspend once suspend exists; switching user from the lock screen.
 - **SS3:** native programs naming what they would lose (a per-window reason instead of "has unsaved

@@ -172,7 +172,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
         {
             if (_composition is null || content.W != _frameWidth || content.H != _frameHeight) { BackdropStamp = -1; return; }
             int area = 0; bool blur = false, any = false;
-            int scale = _surface.Resizable && (MaterialResources.Policy.Effective & 2) != 0 && _frameWidth * _frameHeight > 131072 ? 4 : 1;
+            int scale = _surface.Resizable ? MaterialPolicy.SampleScale(_frameWidth, _frameHeight, (MaterialResources.Policy.Effective & 2) != 0, wideCounts: false) : 1;
             for (int i = 0; i < _materialCount; i++)
             {
                 var r = _materials[i]; uint tint = r.Role is 1 or 3 ? Theme.Panel : Theme.Raised;

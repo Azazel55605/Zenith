@@ -42,13 +42,15 @@ internal sealed class SunsetView
     public void Dispose() => _material.Dispose();
 
     public bool IsOpen { get; private set; }
+    // The first frame after opening reports how many icons came from zenith-icons and how many fell back.
+    private bool _reportIcons;
     public Rect Card { get; private set; }
 
     public void Open(SunsetAction preferred, int width, int height)
     {
         Refresh();
         _focus = SunsetPlan.Initial(_choices, preferred);
-        _message = null; IsOpen = true;
+        _message = null; IsOpen = true; _reportIcons = true;
         Place(width, height);
         Zenith.Core.Log.Write("sunset", "opened blockers=" + _blockers.Count + " focus=" + _choices[_focus].Action);
     }
@@ -174,8 +176,10 @@ internal sealed class SunsetView
         // Who: an avatar, the question, then "user on host · up 3 h 12 min".
         Rect avatar = new(x, y, 44, 44);
         s.FillRoundRect(avatar, 22, Theme.AccentSoft);
-        if (!Icons.Draw(s, "user", avatar.X + 12, avatar.Y + 12, 20, Theme.Accent))
-        { s.DrawTextCentered(_host.Who.Length > 0 ? char.ToUpperInvariant(_host.Who[0]).ToString() : "?", Fonts.SemiBold, Theme.TextBody, Theme.Accent, avatar, true); }
+        int drawn = 0, fallback = 0;
+        if (Icons.Draw(s, "user", avatar.X + 12, avatar.Y + 12, 20, Theme.Accent)) { drawn++; }
+        else
+        { fallback++; s.DrawTextCentered(_host.Who.Length > 0 ? char.ToUpperInvariant(_host.Who[0]).ToString() : "?", Fonts.SemiBold, Theme.TextBody, Theme.Accent, avatar, true); }
         s.DrawText("End this session?", Fonts.SemiBold, 16, Theme.TextPrimary, avatar.Right + 14, y + 2);
         long up = System.Diagnostics.Stopwatch.GetTimestamp() / System.Diagnostics.Stopwatch.Frequency;
         s.DrawText(Zenith.Gui.Shell.Portal.PortalHost.Fit(_host.Who + " on " + Zenith.Core.Network.NetworkService.Hostname + " · " + SunsetPlan.Uptime(up), inner - 90, 13),
@@ -197,15 +201,17 @@ internal sealed class SunsetView
             if (enabled && !focused && tile.Contains(mouseX, mouseY)) { s.FillRoundRect(tile, Theme.ControlRadius, Theme.Hover); }
             s.StrokeRoundRect(tile, Theme.ControlRadius, focused && enabled ? Theme.Accent : Theme.WindowBorder);
             uint ink = !enabled ? Theme.TextMuted : focused ? Theme.Accent : Theme.TextPrimary;
-            if (!Icons.Draw(s, c.Icon, tile.X + (Tile - 26) / 2, tile.Y + 18, 26, ink)) { DrawFallback(s, c.Action, tile.X + (Tile - 26) / 2, tile.Y + 18, ink); }
+            if (Icons.Draw(s, c.Icon, tile.X + (Tile - 26) / 2, tile.Y + 18, 26, ink)) { drawn++; }
+            else { fallback++; DrawFallback(s, c.Action, tile.X + (Tile - 26) / 2, tile.Y + 18, ink); }
             s.DrawTextCentered(c.Label, Fonts.SemiBold, 13, enabled ? Theme.TextPrimary : Theme.TextMuted, new Rect(tile.X, tile.Y + 52, tile.W, 20), true);
             Rect cap = new(tile.X + (Tile - 18) / 2, tile.Y + 78, 18, 18);
             s.FillRoundRect(cap, 4, Theme.Panel | 0xff000000U);
             s.StrokeRoundRect(cap, 4, Theme.WindowBorder);
-            s.DrawTextCentered(c.Key.ToString(), Fonts.Mono, 11, enabled ? Theme.TextSecondary : Theme.TextMuted, cap, true);
+            s.DrawTextCentered(c.Key.ToString(), Fonts.SemiBold, 11, enabled ? Theme.TextSecondary : Theme.TextMuted, cap, true);
             _hits.Add((tile, i));
         }
         y += TileHeight + 16;
+        if (_reportIcons) { _reportIcons = false; Zenith.Core.Log.Write("sunset", "icons drawn=" + drawn + " fallback=" + fallback); }
 
         if (_blockers.Count == 0)
         {

@@ -4,7 +4,7 @@ Meta+Shift+L opens Sunset with focus on Lock and nothing in the way; Esc closes 
 L locks the screen; a wrong password is refused and shortcuts do not reach the desktop behind it; the right one
 unlocks. A running command is named as a blocker and log out is refused while it runs; once it ends, O logs out
 to the greeter. After signing in again, S shuts the machine down cleanly."""
-import importlib.util, secrets, sys, time
+import functools, hashlib, http.server, importlib.util, secrets, subprocess, sys, threading, time
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
@@ -19,6 +19,22 @@ def main():
     profile.install_monitor(recovery_console)
     monitor_command = recovery_console.monitor_command
     keep = Path(sys.argv[1]).resolve(); keep.mkdir(parents=True, exist_ok=False)
+    # The signed icon pack, served to the guest: Sunset must draw its own icons, not the built-in fallbacks.
+    subprocess.run(['dotnet', 'build', str(ROOT / 'tools/Zenith.PackageTool'), '-c', 'Release'], check=True, stdout=subprocess.DEVNULL)
+    tool = ['dotnet', str(ROOT / 'tools/Zenith.PackageTool/bin/Release/net10.0/Zenith.PackageTool.dll')]
+    def package(*args):
+        result = subprocess.run([*tool, *map(str, args)], capture_output=True, text=True)
+        if result.returncode: raise RuntimeError('package tool: ' + result.stderr.strip())
+    served = keep / 'served'; served.mkdir(); package('keygen', keep / 'keys')
+    key = (keep / 'keys/public.pem').read_bytes(); (served / 'key.pem').write_bytes(key)
+    subprocess.run([sys.executable, '-B', str(ROOT / 'tools/build-ui-icons.py'), '--package', str(keep / 'icons')], check=True)
+    package('build', 'zenith-icons', '0.1.0', keep / 'icons', keep / 'icons-bundle')
+    package('seal', keep / 'icons-bundle', keep / 'keys/private.pem', served / 'icons.zpk')
+    class Quiet(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, *args): pass
+    server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(Quiet, directory=str(served)))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    url = 'http://10.0.2.2:' + str(server.server_port)
     net = ['-netdev', 'user,id=net0', '-device', 'e1000e,netdev=net0']
     monitor = keep / 'monitor.sock'
     secret = 'S!' + secrets.token_hex(8)
@@ -68,6 +84,9 @@ def main():
         m = h.Machine(keep / 'setup', disk, 'session=headless', network=net); assert m.wait('headless ready', timeout=180)
         for user in ('root', 'user'):
             command('passwd ' + user, 'New password: '); command(secret, 'Repeat password: '); command(secret, 'password updated for ' + user)
+        status('fetch ' + url + '/key.pem /root/key.pem', 'S_KEY')
+        status('pkg trust /root/key.pem ' + hashlib.sha256(key).hexdigest(), 'S_TRUST')
+        status('fetch ' + url + '/icons.zpk /root/icons.zpk', 'S_ICONS_FETCH'); status('pkg install /root/icons.zpk', 'S_ICONS')
         # Transparency on, so the popup, the lock card and Prism are checked on the desktop material.
         status('settings set materials background-blur', 'S_MATERIALS')
         command('poweroff', 'all filesystems unmounted'); m.process.wait(timeout=30); disk = m.disk; m.stop(); m = None
@@ -77,6 +96,8 @@ def main():
 
         press('meta_l-shift-l', 'sunset: opened blockers=0 focus=Lock', 'Meta+Shift+L opens Sunset on Lock with nothing in the way')
         check(m.wait('motion: SunsetOpened frames=', 0, 30), 'it fades and scales in')
+        # Every icon from the pack, at Sunset's own sizes (20 and 26 px are scaled from stored 24 and 32 px).
+        check(m.wait('sunset: icons drawn=5 fallback=0', 0, 30), 'Sunset draws the user, lock, log-out, restart and power icons from zenith-icons')
         shot('sunset')
         press('esc', 'sunset: closed', 'Esc closes it')
         time.sleep(1)

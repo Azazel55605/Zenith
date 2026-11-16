@@ -13,6 +13,15 @@ public class MaterialPolicyTests
         var policy=new MaterialPolicy();policy.Begin(7,0);Assert.Equal(0,policy.Effect(2,0xff25262b,0xfff1f2f4,0xffb4b7c0,100));
     }
     [Fact]
+    public void ShellSurfacesBlurAtTheScaleOfTheBarAndApps()
+    {
+        Assert.Equal(4,MaterialPolicy.SampleScale(1256,48,true));          // floating taskbar: wide
+        Assert.Equal(4,MaterialPolicy.SampleScale(440,560,true));          // Prism menu beside it: app-window sized
+        Assert.Equal(4,MaterialPolicy.SampleScale(640,480,true,wideCounts:false)); // a resizable app window
+        Assert.Equal(1,MaterialPolicy.SampleScale(400,280,true));          // small card
+        Assert.Equal(1,MaterialPolicy.SampleScale(440,560,false));         // blur off: nothing to scale
+    }
+    [Fact]
     public void MeasuredBackdropsAllowMoreTransparencyButNeverLessContrast()
     {
         const uint tint=0xff25262b,text=0xfff1f2f4,secondary=0xffb4b7c0;

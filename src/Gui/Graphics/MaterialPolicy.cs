@@ -31,6 +31,16 @@ internal sealed class MaterialPolicy
     private sealed record OpacityMemo(uint Tint, uint Text, uint Secondary, int Effect, uint Translucency, int Value);
     private static readonly OpacityMemo?[] Opacities = new OpacityMemo[32];
     private static int s_slot;
+    /// <summary>Frame area above which a surface blurs at quarter scale.</summary>
+    public const int LargeArea = 131072;
+
+    /// <summary>Backdrop sample scale for a material surface: quarter scale for anything as large as a
+    /// resizable app window, or as wide as the taskbar, while blur is on. Shell surfaces and app windows
+    /// share it, so the Prism menu beside the bar blurs like the bar and the apps (it once used full
+    /// scale, visibly weaker, because only the width counted for the shell).</summary>
+    public static int SampleScale(int width, int height, bool blur, bool wideCounts = true)
+        => blur && ((wideCounts && width >= 600) || (long)width * height > LargeArea) ? 4 : 1;
+
     public static int Opacity(uint tint, uint text, uint secondary, int effect, uint translucency = 40)
     {
         if (effect == 0) { return 255; }
