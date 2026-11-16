@@ -880,6 +880,21 @@ if (assembly.Name.Name is "Cosmos.Kernel.System" or "Cosmos.Kernel.HAL.X64" or "
             }
             translate.Body.MaxStackSize = Math.Max(2, translate.Body.MaxStackSize); changed = true;
         }
+        // A collection runs with interrupts masked, so nothing hands used event buffers back to the device.
+        // QEMU's virtio-input queue is 64 entries; with only 32 posted, keys typed during a long collection
+        // overflowed it and QEMU dropped them (two lost Settings/Terminal keys in kernel/v0.0.61 validation).
+        // Post the whole queue: EventBufferCount is a const, inlined as the allocation size and the loop bound.
+        var keyboardInit = module.GetType("Cosmos.Kernel.HAL.Devices.Input.VirtioKeyboard").Methods.Single(m => m.Name == "Initialize");
+        static bool Count(Instruction i, int value) => (i.OpCode == OpCodes.Ldc_I4_S && i.Operand is sbyte s && s == value)
+            || (i.OpCode == OpCodes.Ldc_I4 && i.Operand is int n && n == value);
+        var buffers = keyboardInit.Body.Instructions.Where(i => Count(i, 32)).ToArray();
+        if (buffers.Length == 2)
+        {
+            foreach (var instruction in buffers) { instruction.OpCode = OpCodes.Ldc_I4_S; instruction.Operand = (sbyte)64; }
+            changed = true;
+        }
+        else if (buffers.Length != 0 || keyboardInit.Body.Instructions.Count(i => Count(i, 64)) < 2)
+        { throw new InvalidOperationException("Virtio keyboard buffer contract changed"); }
     }
 }
 // Imports above can reintroduce the released patcher's redundant self edge.

@@ -50,6 +50,19 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 
 ## Current focus and execution order
 
+**2026-11-16 — Keys lost during a collection (Q3/W1/H1, local).** `kernel/v0.0.60` and
+`v0.0.61` failed the distributor Settings gate. One run committed `gb` in the Keyboard
+combo, but the Tab to Apply never arrived, so the final Enter reopened the combo. Another
+typed `sh /root` without `/a` and Enter. Both serial logs show a memory-pressure
+collection during the keys. `GarbageCollector.Collect` runs with interrupts masked, so
+nothing returns used event buffers to the virtio keyboard. The driver posted 32 of
+QEMU's 64 queue entries, at about 4 events per key, and QEMU drops events once the
+queue is full. The patcher now posts all 64 (`tools/PatcherFixup/Program.cs`). This is a
+likely cause of the open W1 keyboard-loss bug and of the 0.0.48 "gb left unapplied"
+failure. The Settings and login gates pass locally. Local runs never hit a collection
+during typing, so the fix awaits distributor runs. A longer collection can still
+overflow 64 entries; shortening or splitting masked collections is the remaining fix.
+
 **2026-11-09 — Pointer, scheduler and fractional scale (Q3/C4/D2, local).** Operator
 report on 0.0.50: moving windows and the pointer felt laggy. The PS/2 mouse reported
 80 times a second; VMware fed relative steps; the desktop (scheduler idle thread)
