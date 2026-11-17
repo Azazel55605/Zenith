@@ -15,7 +15,7 @@ owner stay on the BSP. Additional vCPUs alone do not activate this execution pat
 
 **Default (C5.4):** with two or more CPUs and no `smp=` option, x64 boots
 `smp=managed`: the workers above start and general threads, native programs and
-their system-call service run on every CPU ([C5](components/MULTICORE.md#c54-status-local-stress-gate-passed)).
+their system-call service run on every CPU ([C5](components/MULTICORE.md#c54-status-local-stress-gate-and-vmware-passed)).
 `smp=off` keeps the single-CPU kernel; `smp=native` keeps the workers with a
 BSP-only scheduler. One CPU starts nothing either way.
 

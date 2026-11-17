@@ -354,7 +354,7 @@ Plan:
   BSP-owned protocol; one early run measured them slower (about 4.5 s against 2.9 s for the compute work),
   not reproduced since.
 
-### C5.4 status (local, stress gate passed)
+### C5.4 status (local, stress gate and VMware passed)
 
 - With two or more CPUs and no `smp=` option the kernel boots `smp=managed` (`CpuWorkers.Initialize`
   reads the bootloader's CPU count first, so a one-CPU boot starts nothing, as before). `smp=off` is the
@@ -378,7 +378,9 @@ Plan:
 - Stress gate passed 2026-11-16 under TCG with the fix: every native gate at 1, 2, 4 and 8 CPUs (35.6,
   36.0, 71.7 and 72.6 min, run side by side); the 8-CPU run logged 187 boots with
   `managed dispatch=8 enabled=8`.
-- Still open: the VMware run. Follow-up: allocation-heavy managed work is still about 2× slower on an AP
+- VMware (2026-11-17): the operator installed this build with several vCPUs from an installer ISO
+  seeded by `tools/local-installer.py`; the system came up multicore by default, with the seeded apps
+  and package trust. Follow-up: allocation-heavy managed work is still about 2× slower on an AP
   (`cpu threads 1 20000 alloc`: 90–106 ms against 39–68 ms on the BSP, no collection involved), which is
   most of a program's setup (package list, ELF digest) on the placed path.
 
