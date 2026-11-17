@@ -74,6 +74,26 @@ A plain ISO (for example `output-x64/Zenith.iso` from a local build) installs on
 the base system. Seed one yourself with `tools/seed-iso.py`; `--help` shows how to
 use a served package root or build the packages from the checkout with your key.
 
+### Local installer ISOs from the published mirror
+
+To test a local build (a branch, a debug kernel) the way a published installer
+installs, seed it on the workstation with the mirror's own trust and packages:
+
+```sh
+python3 tools/local-installer.py setup https://zenith-stable.net.local   # once
+python3 tools/local-installer.py                       # output-x64/Zenith.iso
+python3 tools/local-installer.py ../MyOS-r5/output-x64/Zenith.iso /var/tmp/zenith-smp-installer.iso
+```
+
+`setup` pins the mirror in `~/.config/zenith/local-installer/`. Without
+`--package-key`/`--tls-ca` files, it takes the CA from the TLS handshake and the key
+from the mirror, checks that the key is the one the index is signed with, and
+prints both SHA256 values: compare them with the server once. Each build fetches
+the signed core index over the pinned CA, verifies it, downloads the newest version
+of every core package (cached in `~/.cache/zenith/local-installer/`, checked
+against the index and the key; `--refresh` downloads again) and seeds the ISO with
+`tools/seed-iso.py`. The default output is `/var/tmp/zenith-local-installer.iso`.
+
 ## Installed structure
 
 | Location | Contents |

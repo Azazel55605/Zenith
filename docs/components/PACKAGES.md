@@ -81,6 +81,10 @@ Implemented locally 2026-11-10 ([format](../../src/Core/Packages/SeedBundle.cs),
   The distributor publishes `iso/zenith-installer-VERSION.iso` (and `.sha256`) with
   each kernel release and `release.sh installer VERSION` reseeds it with newer
   packages. Gate: `installer-seed-smoke.py` (release plan).
+- [x] Local installer ISOs (requested 2026-11-17, for debugging local builds):
+  `tools/local-installer.py` pins the mirror once, then seeds any local ISO with the
+  mirror's key, CA and newest verified core packages
+  ([workflow](../INSTALLATION.md#local-installer-isos-from-the-published-mirror)).
 - [ ] Installed acceptance on the operator's VM with the published installer ISO.
 
 ## Source and operations
