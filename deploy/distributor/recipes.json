@@ -134,5 +134,13 @@
     "payload": "obj/packages/zenith-horizon",
     "program": "horizon",
     "generate": "native"
+  },
+  "zenith-aurora": {
+    "kind": "data",
+    "name": "zenith-aurora",
+    "repository": "core",
+    "payload": "obj/packages/zenith-aurora",
+    "program": "aurora",
+    "generate": "native"
   }
 }

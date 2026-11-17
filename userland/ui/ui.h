@@ -73,6 +73,11 @@ int zui_scroll_step(int value,int delta,int maximum);
 /* Separate premultiplied foreground target. Begin clears coverage, not a whole
  * window's opacity; paint opaque content/control roles over declared materials. */
 void zui_begin_material_frame(struct zui *ui);
+/* The desktop's acceptance rule for a material frame (ProcessMaterials.ValidForeground): every colour
+ * channel at most its alpha, and nothing translucent outside a declared material region. Repairs any pixel
+ * that breaks it (clamped, or made opaque) and returns how many did, so a drawing bug shows as a logged
+ * count instead of a refused frame that ends the program. Call it on a material frame before presenting. */
+int zui_material_repair(struct zui *ui);
 int zui_material_surface(struct zui *ui,struct zui_rect rect,int radius,int role,int effect);
 void zui_appearance(struct zui *ui,int light,int accent);
 void zui_clip(struct zui *ui,struct zui_rect rect);

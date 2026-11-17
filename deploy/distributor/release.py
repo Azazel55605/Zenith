@@ -350,6 +350,8 @@ def native_gate_plan():
     # Horizon and zenith-native-files-abi (kernel 0.0.58; older tags lack it).
     if (REPO / "tools/horizon-smoke.py").exists(): checks.append(("h", "horizon-smoke.py"))
     if (REPO / "tools/sunset-smoke.py").exists(): checks.append(("o", "sunset-smoke.py"))
+    # Aurora and the clipboard calls 639/659 (kernel 0.0.64; older tags lack it).
+    if (REPO / "tools/aurora-smoke.py").exists(): checks.append(("t", "aurora-smoke.py"))
     if (REPO / "tools/installer-seed-smoke.py").exists(): checks.append(("i", "installer-seed-smoke.py"))
     # Run the expensive crash/recovery matrix last. A repository regression
     # should fail before repeating that matrix; every gate remains mandatory.

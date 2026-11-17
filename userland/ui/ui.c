@@ -58,6 +58,22 @@ void zui_begin_material_frame(struct zui *u){
     u->foreground=1;u->material_count=0;
     for(int i=0;i<u->width*u->height;i++)u->pixels[i]=0;
 }
+int zui_material_repair(struct zui *u){
+    if(!u->foreground)return 0;
+    int repaired=0;
+    for(int y=0;y<u->height;y++)for(int x=0;x<u->width;x++){
+        unsigned int *p=&u->pixels[y*u->width+x],v=*p;
+        if(v>=0xff000000u)continue;
+        unsigned int a=v>>24,r=v>>16&255,g=v>>8&255,b=v&255;int bad=0;
+        if(r>a){r=a;bad=1;}if(g>a){g=a;bad=1;}if(b>a){b=a;bad=1;}
+        int inside=0;
+        for(int i=0;i<u->material_count&&!inside;i++){const struct zenith_material_region *m=&u->materials[i];
+            inside=x>=m->x&&y>=m->y&&x<m->x+m->w&&y<m->y+m->h;}
+        if(!inside){a=255;bad=1;}
+        if(bad){*p=a<<24|r<<16|g<<8|b;repaired++;}
+    }
+    return repaired;
+}
 int zui_material_surface(struct zui *u,struct zui_rect r,int radius,int role,int effect){
     if(!u->foreground||u->theme_preview||u->material_count>=8||(!zui_backdrop_candidate(role)&&!(u->full_background&&role==ZUI_SURFACE_CONTENT))||effect<0||effect>2||
        radius<0||radius>24||r.x<0||r.y<0||r.w<1||r.h<1||(long)r.x+r.w>u->width||(long)r.y+r.h>u->height||radius>min(r.w,r.h)/2)return 0;

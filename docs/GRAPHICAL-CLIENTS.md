@@ -25,7 +25,8 @@ The process worker only owns buffers/queues. Desktop tick alone opens windows or
 mutates WindowManager. Decorated windows are labelled Native, fixed size, movable
 and minimizable. The desktop owns focus, stacking, clipping and close controls.
 Only focused window key presses and routed content pointer events reach a client.
-No clipboard, arbitrary window enumeration, fullscreen or input grab exists.
+The clipboard is the session's: a window sets it while it has the keyboard (call 639) and reads it once
+per Ctrl+V the person pressed in it (659). No arbitrary window enumeration, fullscreen or input grab exists.
 
 ## Wire interface
 
@@ -58,6 +59,10 @@ for 16 ms, except the first one after a present, so an animating client gets the
 Call **628** `(0, 0, 0)` returns monotonic milliseconds (kernels before 0.0.38 return -38).
 Calls **630..635** give a client a kernel-owned [terminal session](components/SHELL.md#polaris-design): open `(columns, 0, 0)`, key `(handle, record, 12)`, read `(handle, buffer, 1..65536)`, state `(handle, buffer, 4096)`, resize `(handle, columns, 0)` and close `(handle, 0, 0)`. Open needs a live surface and allows 8 sessions, 20..512 columns. The session has the caller's credentials and takes only keys. A hidden prompt's text never appears in its state. Calls **636** `(handle, text, 1..65536)` and **637** `(handle, 0, 0)` set the clipboard and paste it into that session, without letting the client read it. Once a program opens a session, it stops blocking power and package work, because it holds no files and its commands run as programs of their own.
 Call **638** `(handle, title, 1..320 bytes)` sets the window and taskbar title: 1..80 characters of valid UTF-8, without control, zero-width or direction-override characters (`-22`). Client terminal sessions mark commands in their output with OSC 133: `ESC ] 133 ; A BEL` where a command's prompt line starts, and `ESC ] 133 ; D ; status ; milliseconds BEL` when it ends. The built-in Terminal never receives them.
+Calls **639** `(handle, text, 1..1048576)` and **659** `(handle, buffer, 1..1048576)` (kernel 0.0.64,
+`zenith-native-clipboard-abi` 1.0) copy UTF-8 text to the session clipboard from the focused window (`-1` when
+it is not focused) and paste it: 659 answers once after each Ctrl+V delivered to that window, `-1` otherwise,
+`-61` for an empty clipboard and `-27` when the buffer is smaller. See [Aurora](components/AURORA.md#clipboard-calls-kernel-0064-zenith-native-clipboard-abi-10).
 Call **629** `(handle, request, 24)` asks the desktop to crossfade a rectangle from the last frame into
 the next present: six i32 fields `x, y, width, height, rise, reserved`, rise 0..64, reserved 0, rectangle
 inside the surface (`-22` otherwise). It is purely visual; the system's animation choice can skip it. Its 24-byte event contains six signed i32 fields:

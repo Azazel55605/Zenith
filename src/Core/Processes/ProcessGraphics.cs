@@ -295,6 +295,13 @@ internal sealed class ProcessSurface : IDisposable
         }
     }
     public int SetDirty(bool dirty) { lock (_gate) { if (_closed || _disposed) { return -32; } _unsaved = dirty; return 0; } }
+    private bool _focused, _pasteGranted;
+    /// <summary>Whether the window has the keyboard (set by the desktop); losing it withdraws a paste grant.</summary>
+    public bool Focused { get { lock (_gate) { return _focused; } } set { lock (_gate) { _focused = value; if (!value) { _pasteGranted = false; } } } }
+    /// <summary>The desktop records each key it delivers: Ctrl+V grants one clipboard read (call 659), any other
+    /// key withdraws it, so a program can read the clipboard only as the answer to that key.</summary>
+    public void KeyDelivered(bool paste) { lock (_gate) { _pasteGranted = paste; } }
+    public bool TakePaste() { lock (_gate) { bool granted = _pasteGranted && !_closed && !_disposed; _pasteGranted = false; return granted; } }
     public bool RequestClose()
     {
         lock (_gate)
@@ -370,6 +377,29 @@ internal sealed class ProcessGraphics : IDisposable
     public int RefuseResize(int handle) => handle != _handle || _surface is null ? -9 : _surface.RefuseResize();
     public void EnableFramebuffer() => _surface?.EnableFramebuffer();
     public int SetTitle(int handle, string title) => handle != _handle || _surface is null ? -9 : _surface.SetTitle(title);
+    /// <summary>The most text 639/659 move at once: 1 MiB of UTF-8.</summary>
+    public const int ClipboardBytes = 1 << 20;
+    /// <summary>639: sets the session clipboard, only from the window that has the keyboard.</summary>
+    public int CopyText(int handle, string text)
+    {
+        if (handle != _handle || _surface is null) { return -9; }
+        if (_surface.Ended) { return -32; }
+        if (!_surface.Focused) { return -1; }
+        SessionClipboard.Text = text; return 0;
+    }
+    /// <summary>659: the clipboard as UTF-8, once per Ctrl+V the person pressed in this window; null with
+    /// error -1 when they did not ask to paste, -61 when the clipboard is empty.</summary>
+    public byte[]? PasteText(int handle, out int error)
+    {
+        error = -9;
+        if (handle != _handle || _surface is null) { return null; }
+        error = -1;
+        if (!_surface.TakePaste()) { return null; }
+        string text = SessionClipboard.Text;
+        if (text.Length == 0) { error = -61; return null; }
+        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(text);
+        error = 0; return bytes;
+    }
     public int RequestFade(int handle, ReadOnlySpan<byte> request) => handle != _handle || _surface is null ? -9 : _surface.RequestFade(request);
     public int Dirty(int handle, bool dirty) => handle != _handle || _surface is null ? -9 : _surface.SetDirty(dirty);
     public int Size(int handle) => handle != _handle || _surface is null ? -9 : _presents >= MaximumPresents ? -27 : _surface.Bytes;

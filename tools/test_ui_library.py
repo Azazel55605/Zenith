@@ -16,7 +16,7 @@ class UiLibraryTests(unittest.TestCase):
         # PackageManifest.MaximumFileBytes is enforced by installed kernels too.
         limit = int(re.search(r'MaximumFileBytes = (\d+)', (ROOT/'src/Core/Packages/PackageManifest.cs').read_text()).group(1))
         with tempfile.TemporaryDirectory(prefix='zenith-ui-size-') as directory:
-            for program in ('ui-gallery', 'settings', 'desktop-tools', 'polaris', 'observatory'):
+            for program in ('ui-gallery', 'settings', 'desktop-tools', 'polaris', 'observatory', 'aurora'):
                 dest = Path(directory)/program
                 subprocess.run([sys.executable, '-B', str(ROOT/'tools/build-userland.py'), str(dest), '--program', program],
                                check=True, stdout=subprocess.DEVNULL)
@@ -45,6 +45,23 @@ class UiLibraryTests(unittest.TestCase):
                             str(ROOT/'userland/ui/ui.c'),str(ROOT/'userland/ui/widgets.c'),str(ROOT/'userland/ui/text.c'),
                             generated('build-ui-fonts.py','fonts'),generated('build-ui-icons.py','icons'),'-o',str(exe)],check=True)
             subprocess.run([str(exe)],check=True,timeout=30)
+
+    def test_aurora_with_sanitizers(self):
+        """Aurora's text engine and the real editor over a temporary directory; every frame meets the desktop's material rule."""
+        with tempfile.TemporaryDirectory(prefix='zenith-aurora-') as directory:
+            dest = Path(directory)
+            def generated(tool, name, **options):
+                spec = importlib.util.spec_from_file_location(name, ROOT/'tools'/tool)
+                module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+                path = dest/(name + '.c'); module.build(path, **options); return str(path)
+            exe = dest/'aurora-test'
+            subprocess.run(['gcc','-std=c11','-Wall','-Wextra','-Werror','-O1','-g',
+                            '-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(ROOT/'userland/ui'),
+                            str(ROOT/'userland/aurora/test_aurora.c'),str(ROOT/'userland/aurora/editor.c'),str(ROOT/'userland/aurora/buffer.c'),
+                            str(ROOT/'userland/ui/ui.c'),str(ROOT/'userland/ui/widgets.c'),str(ROOT/'userland/ui/text.c'),
+                            generated('build-ui-fonts.py','fonts',mono=True),generated('build-ui-icons.py','icons'),'-o',str(exe)],check=True)
+            work = dest/'files'; work.mkdir()
+            subprocess.run([str(exe), str(work)], check=True, timeout=120)
 
     def test_widgets_with_sanitizers(self):
         with tempfile.TemporaryDirectory(prefix='zenith-widgets-') as directory:

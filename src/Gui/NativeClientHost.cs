@@ -211,7 +211,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
                 Array.Copy(_fading ? _fadeMix! : _frame, start, surface.Pixels, y * surface.Width + clipped.X, clipped.W);
             }
         }
-        protected override void OnFocusChanged(bool focused) => _surface.Send(new(2, focused ? 1 : 0, 0, 0, 0, 0));
+        protected override void OnFocusChanged(bool focused) { _surface.Focused = focused; _surface.Send(new(2, focused ? 1 : 0, 0, 0, 0, 0)); }
         public override void OnMouseDown(int x, int y) { EndFade("Input"); Pointer(4, x, y); }
         public override void OnMouseUp(int x, int y) => Pointer(5, x, y);
         public override void OnSecondaryPress(int x, int y)
@@ -249,7 +249,10 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
             }
             int modifiers = ((key.Modifiers & ConsoleModifiers.Shift) != 0 ? 1 : 0)
                 | ((key.Modifiers & ConsoleModifiers.Control) != 0 ? 2 : 0) | ((key.Modifiers & ConsoleModifiers.Alt) != 0 ? 4 : 0);
-            _surface.Send(new(3, ProcessKeyEncoding.Text(key.KeyChar, key.Key.ToString(), modifiers), 0, 0, modifiers, special));
+            int code = ProcessKeyEncoding.Text(key.KeyChar, key.Key.ToString(), modifiers);
+            _surface.Focused = true; // keys reach only the focused window
+            _surface.KeyDelivered((modifiers & 6) == 2 && special == 0 && (code == 'v' || code == 'V'));
+            _surface.Send(new(3, code, 0, 0, modifiers, special));
         }
     }
 }

@@ -43,6 +43,7 @@ internal static class BootstrapComponents
         new("zenith-native-disk-abi", "1.0", "disks, partitions and free space; root-only background partition edits"),
         new("zenith-native-portal-abi", "1.0", "Desktop Portal requests (650-653): org.zenith.portal.Authorization grants until exit"),
         new("zenith-native-files-abi", "1.0", "File listing with times, free space and copy/move/delete jobs (654-658), waiting on a job from kernel 0.0.59; right-click and F-key input (627 bits 2/4)"),
+        new("zenith-native-clipboard-abi", "1.0", "window clipboard: 639 copies from the focused window, 659 pastes once per Ctrl+V (kernel 0.0.64)"),
         new("zenith-native-viewport-abi", "1.0", "owned bounded resize/maximize with versioned acknowledgement"),
         new("zenith-native-window-state-abi", "1.0", "owned unsaved state and cancellable chrome close intent"),
         new("zenith-native-graphics-abi", "1.0", "owned private graphical surfaces and routed events"),

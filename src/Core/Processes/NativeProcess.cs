@@ -199,6 +199,27 @@ internal sealed unsafe class NativeProcess
                 return graphics.Terminals.Copy((long)c.Arg0, System.Text.Encoding.UTF8.GetString(ReadUser(c.Arg1, (int)c.Arg2)));
             }
             if (c.Call == 637) { return c.Arg1 != 0 || c.Arg2 != 0 ? -22 : graphics.Terminals.Paste((long)c.Arg0); }
+            // Clipboard for windows (kernel 0.0.64): 639 sets it from the focused window; 659 reads it once, right
+            // after the person pressed Ctrl+V in that window, so no program reads the clipboard behind their back.
+            if (c.Call == 639)
+            {
+                if (c.Arg0 > int.MaxValue || c.Arg2 is < 1 or > ProcessGraphics.ClipboardBytes) { return -22; }
+                if (!Valid(c.Arg1, (int)c.Arg2, false)) { return -14; }
+                string text;
+                try { text = new System.Text.UTF8Encoding(false, true).GetString(ReadUser(c.Arg1, (int)c.Arg2)); }
+                catch (ArgumentException) { return -22; }
+                return graphics.CopyText((int)c.Arg0, text);
+            }
+            if (c.Call == 659)
+            {
+                if (c.Arg0 > int.MaxValue || c.Arg2 is < 1 or > ProcessGraphics.ClipboardBytes) { return -22; }
+                if (!Valid(c.Arg1, (int)c.Arg2, true)) { return -14; }
+                byte[]? pasted = graphics.PasteText((int)c.Arg0, out int error);
+                if (pasted is null) { return error; }
+                if (pasted.Length > (int)c.Arg2) { return -27; }
+                if (pasted.Length > 0) { Transfer(c.Arg1, pasted, true); }
+                return pasted.Length;
+            }
             if (c.Call == 630)
             {
                 if (c.Arg0 > int.MaxValue || c.Arg1 != 0 || c.Arg2 != 0) { return -22; }
@@ -823,7 +844,7 @@ internal sealed unsafe class NativeProcess
                     if (status == DeviceInterruptYield) { continue; }
                     if (status != 4096) { break; }
                     if (cancelled()) { status = 130; break; }
-                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615 or 628 or 629 or >= 630 and <= 638 or 645 or 646) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
+                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615 or 628 or 629 or >= 630 and <= 639 or 645 or 646 or 659) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
                     // A portal grant serves that area's calls as root for this process alone (uid 0 in the
                     // context too, which those handlers read); every other call keeps the program's identity.
                     bool elevated = Zenith.Core.Portal.ProcessPrivileges.Elevates(pid, context.Call, context.Arg0);
@@ -832,7 +853,7 @@ internal sealed unsafe class NativeProcess
                     var caller = Zenith.Core.Security.CredentialContext.Enter(elevated ? Zenith.Core.Security.Credentials.Root : identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
                     // while waiting for a peer. Mutations and transport setup stay serialized.
-                    bool standard = context.Call is 642 or 643 or 644 or 649 or 651 or 653 or 657 or 658 or 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 645 or 646 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    bool standard = context.Call is 642 or 643 or 644 or 649 or 651 or 653 or 657 or 658 or 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 639 or 645 or 646 or 659 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {

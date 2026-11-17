@@ -24,9 +24,9 @@ internal sealed class AppInfo
 
     public string? Native { get; }
     /// <summary>The name to show: an installed native app goes by its own name.</summary>
-    public string DisplayName => Name == "Terminal" && Native is string native
+    public string DisplayName => Name is "Terminal" or "Editor" && Native is string native
         && Zenith.Core.Packages.NativePackageSource.State("/usr/share/zenith/native/" + native + ".elf") == Zenith.Core.Packages.PackagePathState.Occupied
-            ? "Polaris" : Name;
+            ? (Name == "Terminal" ? "Polaris" : "Aurora") : Name;
     public string? Action { get; }
     public string Name { get; }
     public string Description { get; }
@@ -42,7 +42,7 @@ internal static class AppRegistry
         new AppInfo("Welcome", "Getting started", _ => new WelcomeWindow(), "desktop-tools", "welcome"),
         new AppInfo("Terminal", "Command line shell", _ => new TerminalWindow(), "polaris"),
         new AppInfo("Files", "Browse and manage files", path => new FileManagerWindow(path)),
-        new AppInfo("Editor", "Edit text files", path => new EditorWindow(path)),
+        new AppInfo("Editor", "Edit text and code", path => new EditorWindow(path), "aurora"),
         new AppInfo("Sunrise", "Install Zenith", _ => new InstallerWindow()),
         new AppInfo("System", "About this machine", _ => new SystemInfoWindow(), "desktop-tools", "system"),
         new AppInfo("Meridian", "System settings", _ => new AppLaunchNotice("Install the zenith-settings package to open Meridian."), "settings", builtIn: false),
@@ -126,7 +126,7 @@ internal static class AppRegistry
     {
         if (title.Contains("Terminal") || title.Contains("Polaris")) { return "terminal"; }
         if (title.Contains("Files") || title.Contains("Horizon")) { return "folder"; }
-        if (title.Contains("Editor")) { return "file-text"; }
+        if (title.Contains("Editor") || title.Contains("Aurora")) { return "file-text"; }
         if (title.Contains("Welcome")) { return "hand"; }
         if (title.Contains("Sunrise")) { return "sunrise"; }
         if (title.Contains("System") || title.Contains("About")) { return "monitor"; }

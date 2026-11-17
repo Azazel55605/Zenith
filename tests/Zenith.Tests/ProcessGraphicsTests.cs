@@ -136,6 +136,30 @@ public sealed class ProcessGraphicsTests
     }
 
     [Fact]
+    public void ClipboardCopiesFromTheFocusedWindowAndPastesOncePerPasteKey()
+    {
+        var h = new Host(); using var g = new ProcessGraphics(h);
+        int handle = g.Open(160, 100, "Aurora");
+        var surface = h.Surfaces[0];
+        SessionClipboard.Text = "before";
+        Assert.Equal(-1, g.CopyText(handle, "hidden"));                // no keyboard, no copy
+        Assert.Equal("before", SessionClipboard.Text);
+        surface.Focused = true;
+        Assert.Equal(-9, g.CopyText(handle + 1, "x"));
+        Assert.Equal(0, g.CopyText(handle, "copied \u00e4"));
+        Assert.Equal("copied \u00e4", SessionClipboard.Text);
+        Assert.Null(g.PasteText(handle, out int error)); Assert.Equal(-1, error);   // nobody pressed Ctrl+V
+        surface.KeyDelivered(true);
+        Assert.Equal("copied \u00e4", System.Text.Encoding.UTF8.GetString(g.PasteText(handle, out error)!)); Assert.Equal(0, error);
+        Assert.Null(g.PasteText(handle, out error)); Assert.Equal(-1, error);       // once per key
+        surface.KeyDelivered(true); surface.KeyDelivered(false);                    // another key withdraws it
+        Assert.Null(g.PasteText(handle, out error));
+        surface.KeyDelivered(true); surface.Focused = false;                         // so does losing focus
+        Assert.Null(g.PasteText(handle, out error));
+        surface.Focused = true; SessionClipboard.Text = ""; surface.KeyDelivered(true);
+        Assert.Null(g.PasteText(handle, out error)); Assert.Equal(-61, error);      // empty clipboard
+    }
+    [Fact]
     public void PointerMotionIsOptInCoalescedAndNeverDisplacesInput()
     {
         var h = new Host(); using var g = new ProcessGraphics(h);
