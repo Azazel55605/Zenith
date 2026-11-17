@@ -154,6 +154,15 @@ void zui_round_alpha(struct zui *u,struct zui_rect r,int radius,unsigned int col
         unsigned int *p=&u->pixels[y*u->width+x];*p=u->foreground?over(*p,color,a):blend(*p,color,a);
     }
 }
+void zui_image(struct zui *u,int x,int y,int w,int h,const unsigned int *argb){
+    if(!argb||w<=0||h<=0)return;
+    struct zui_rect b=intersect((struct zui_rect){x,y,w,h},u->clip);
+    for(int py=b.y;py<b.y+b.h;py++)for(int px=b.x;px<b.x+b.w;px++){
+        unsigned int s=argb[(py-y)*w+(px-x)],a=s>>24;if(!a)continue;
+        unsigned int *p=&u->pixels[py*u->width+px];
+        *p=a==255?(s&0xffffff)|(u->foreground?0xff000000:0):u->foreground?over(*p,s&0xffffff,a):blend(*p,s&0xffffff,a);
+    }
+}
 int zui_backdrop_candidate(int role){
     return role==ZUI_SURFACE_NAVIGATION||role==ZUI_SURFACE_PANEL||role==ZUI_SURFACE_POPOVER;
 }

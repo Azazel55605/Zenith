@@ -12,16 +12,31 @@ internal static class ProcessPortal
 {
     public const int RequestBytes = 256, ResponseBytes = 256, InfoBytes = 1024, InfoEntries = 14;
 
-    // Request: version 0, flags 4 (0), interface[64] 8, method[32] 72, payload_bytes 104, reserved 108, payload[144] 112.
-    public static long Open(ReadOnlySpan<byte> b, PortalCaller caller)
+    public const uint ExtendedPayload = 1;
+
+    // Request: version 0, flags 4, interface[64] 8, method[32] 72, payload_bytes 104, reserved 108, payload[144] 112.
+    // Flag 1 (kernel 0.0.65): the payload is { u64 address, u32 bytes (1..4096), u32 0 } naming the real payload in
+    // the caller's memory, for requests that carry a path. <paramref name="read"/> copies it (null: bad address).
+    public static long Open(ReadOnlySpan<byte> b, PortalCaller caller, Func<ulong, int, byte[]?>? read = null)
     {
-        if (b.Length != RequestBytes || BinaryPrimitives.ReadUInt32LittleEndian(b) != 1 || BinaryPrimitives.ReadUInt32LittleEndian(b[4..]) != 0
+        if (b.Length != RequestBytes || BinaryPrimitives.ReadUInt32LittleEndian(b) != 1 || BinaryPrimitives.ReadUInt32LittleEndian(b[4..]) > ExtendedPayload
             || BinaryPrimitives.ReadUInt32LittleEndian(b[108..]) != 0) { return -22; }
         string? name = Field(b.Slice(8, 64)), method = Field(b.Slice(72, 32));
         uint length = BinaryPrimitives.ReadUInt32LittleEndian(b[104..]);
         if (name is null || method is null || length > PortalBroker.MaximumPayload) { return -22; }
         foreach (byte value in b.Slice(112 + (int)length, PortalBroker.MaximumPayload - (int)length)) { if (value != 0) { return -22; } }
-        return PortalBroker.Open(caller, name, method, b.Slice(112, (int)length).ToArray());
+        byte[] payload = b.Slice(112, (int)length).ToArray();
+        if (BinaryPrimitives.ReadUInt32LittleEndian(b[4..]) == ExtendedPayload)
+        {
+            if (length != 16 || read is null) { return -22; }
+            ulong address = BinaryPrimitives.ReadUInt64LittleEndian(payload);
+            uint bytes = BinaryPrimitives.ReadUInt32LittleEndian(payload.AsSpan(8)), zero = BinaryPrimitives.ReadUInt32LittleEndian(payload.AsSpan(12));
+            if (bytes is 0 or > PortalBroker.MaximumExtendedPayload || zero != 0) { return -22; }
+            byte[]? extended = read(address, (int)bytes);
+            if (extended is null) { return -14; }
+            payload = extended;
+        }
+        return PortalBroker.Open(caller, name, method, payload);
     }
 
     // Response: version 0, state 4, handle 8, response_bytes 16, reserved 20, message[96] 24, response[136] 120.

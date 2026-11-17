@@ -159,20 +159,53 @@ Call 627 `(handle, bits, 0)` opts in to pointer motion with bit 1, as before.
     below it. Devices can show as the open folder; when two entries share a path (Root and the system disk)
     the first one is highlighted.
   - The gate (92 checks) runs its desktop part with whole-app transparency on.
-- **HZ2:**
-  - split view;
-  - zoom;
-  - drag and drop between panes and tabs;
-  - Properties with permissions and owner for files you own;
-  - opening files with an app through an `OpenWith` Desktop Portal interface (Aurora/Editor for
-    text);
-  - associations.
-- **HZ3:**
-  - Trash, with a per-user location, capacity limit and restore;
-  - removable drives in Devices ([S6](REMOVABLE-STORAGE.md));
-  - search below the current folder (bounded), then indexed search ([S5](../ROADMAP.md)).
-- **HZ4:**
-  - archives;
-  - thumbnails;
-  - tabs and windows restored at sign-in;
-  - administrator file operations through a Desktop Portal interface.
+- **HZ2 (local, kernel 0.0.65, zenith-horizon 0.2.0), requested 2026-11-17 ("complete Horizon"):**
+  - **Opening files** goes through the Desktop Portal's new `org.zenith.portal.OpenWith` interface
+    ([portal](PORTAL.md#orgzenithportalopenwith-1)): Enter or a double click opens a file with the person's
+    remembered app, else the app that declares its type (the Editor, Aurora when installed, declares text
+    and source types); otherwise the desktop asks which app, with "Always use this app for .EXT files".
+    **Open with...** in the menu always asks. Horizon never starts an app itself.
+  - **Associations:** apps declare the extensions they open (`OPENS=` in package `.app` files, built-in for the
+    Editor); "always" choices are kept per account in `/etc/zenith/preferences/UID.open-with`.
+  - **Split view** (F3, the toolbar's two-column button, or the folder menu): two panes per tab, each with its own
+    folder, history, view, sort, zoom and selection; Tab switches the active pane, which carries the accent
+    outline and takes the toolbar, keys and information panel. A split tab is labelled `Documents | Archive`.
+  - **Zoom** per pane: Ctrl+= or Ctrl+keypad plus, Ctrl+- , Ctrl+0, or Ctrl+wheel; icons 32, 48, 64 or 96 pixels
+    and detail rows 26 to 48. Kernel 0.0.65 sends Ctrl+minus/equals as characters and wheel events with
+    their modifiers.
+  - **Drag and drop:** the selection onto a folder, the other pane or another tab's button; a menu then offers
+    Move here, Copy here or Cancel (Shift moves and Ctrl copies without asking). Transfers run as jobs.
+  - **Properties** (Alt+Enter or the menu): kind, location, size or contents, modification time, owner, group
+    and a permission grid that the owner (or root, or an unlocked Horizon) changes through the path call (405).
+- **HZ3 (local):**
+  - **Trash** in the freedesktop layout under `~/.local/share/Trash` (`files/` and `info/NAME.trashinfo`
+    with the original path and deletion date). Delete moves there by rename (instant); Shift+Delete deletes
+    for good after asking. Items on another filesystem than the home folder have no Trash: Horizon says so and
+    asks before deleting them for good. In the Trash (a place in the sidebar): Restore puts items back
+    (making missing folders again, and refusing when the name is taken), Delete permanently, and Empty
+    Trash; the information panel shows where an item came from and when it was deleted. The Trash keeps
+    at most 1,000 items: the oldest are deleted for good when more go in.
+  - **Search below this folder** (Ctrl+Shift+F, then Enter): a bounded walk (up to 2,000 folders and
+    4,096 results) a few folders per event-loop pass, so the window stays responsive. Results are relative
+    paths (`Notes/a.txt`) in the pane, so they open, copy and delete like any item; Esc ends the search.
+    Indexed search is S5.
+  - **Removable drives** in Devices wait for [S6](REMOVABLE-STORAGE.md), which is still design-only and has
+    decisions that need the operator's sign-off.
+- **HZ4 (local):**
+  - **Archives as kernel jobs** (operations 4 extract and 5 compress of call 656, with progress and Cancel):
+    Extract here unpacks .zip, .tar, .tar.gz/.tgz and .gz into a new folder beside the archive; Compress to
+    .zip packs the selection. The kernel has its own DEFLATE decoder and encoder, CRC-32, zip and ustar/GNU/pax
+    tar readers and writers. Entry names are checked (no absolute paths, no `..`); links, devices,
+    encryption, zip64 and other compression methods are refused per entry; output is limited to 64 GiB.
+    Permissions inside archives are not restored.
+  - **Thumbnails** (call 660): PNG (not interlaced), 24/32-bit BMP and baseline JPEG shrink to the icon size in
+    the icons view, one image per event-loop pass, cached by size. Large JPEGs decode only the DC value of each
+    block. Progressive JPEG and interlaced PNG keep their icons. Files over 32 MiB are not previewed.
+  - **Tabs at sign-in:** Ctrl+Q (or the last tab closing) writes `~/.config/zenith/horizon-tabs`; Horizon
+    started without a folder restores its tabs, splits, views, sorts and zoom, skipping folders that are gone.
+  - **Administrator:** after a refusal (a folder or job denied, a permission change refused) the status bar
+    offers **Unlock**, which asks the Desktop Portal's Authorization for `org.zenith.files.manage`. While
+    granted, the kernel serves this Horizon's listing, transfer, path and metadata calls as root until it
+    closes; the title says "(administrator)" and deletions are permanent (the Trash is the person's own).
+  - Checked by host tests (portal, privileges, archives against .NET's zip/gzip/tar in both directions,
+    thumbnails of Pillow/libjpeg fixtures, job parsing) and `tools/horizon-smoke.py`.

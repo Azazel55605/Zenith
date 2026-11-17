@@ -35,6 +35,7 @@ internal sealed class AuthorizationPortal : IPortalInterface
         _isAdministrator = isAdministrator; _rootUnlocked = rootUnlocked; _name = name;
         Add(new("org.zenith.disks.manage", "manage disks and drives", "Partition, format, mount and unmount drives, and choose what mounts at startup.", Privilege.Disks));
         Add(new("org.zenith.settings.system", "change settings for all users", "Keyboard layout, time zone, default session, display and the system appearance.", Privilege.SystemSettings));
+        Add(new("org.zenith.files.manage", "change files and folders that are not yours", "List, copy, move, rename and delete files and change permissions anywhere on this computer, until the program closes.", Privilege.Files));
     }
 
     /// <summary>A new action (a later app's administrative area). Ids are reverse-DNS like interfaces.</summary>

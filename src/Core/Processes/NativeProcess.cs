@@ -370,7 +370,7 @@ internal sealed unsafe class NativeProcess
                 if (c.Arg1 != ProcessPortal.RequestBytes || c.Arg2 != 0) { return -22; }
                 if (!Valid(c.Arg0, ProcessPortal.RequestBytes, false)) { return -14; }
                 var caller = new Zenith.Core.Portal.PortalCaller((int)c.Pid, (uint)c.Uid, (uint)c.Gid, ProgramName((int)c.Pid));
-                return ProcessPortal.Open(ReadUser(c.Arg0, ProcessPortal.RequestBytes), caller);
+                return ProcessPortal.Open(ReadUser(c.Arg0, ProcessPortal.RequestBytes), caller, (address, bytes) => Valid(address, bytes, false) ? ReadUser(address, bytes) : null);
             }
             if (c.Call == 651)
             {
@@ -397,6 +397,35 @@ internal sealed unsafe class NativeProcess
                 long count = NativeFileService.List(files.Resolve(listed), listFlags, offset, out byte[] page);
                 if (count >= 0) { Transfer(c.Arg2, page, true); }
                 return count;
+            }
+            // Horizon HZ4 (kernel 0.0.65): a thumbnail of an image file. Request (32 bytes): version 1, max side
+            // 16..256, u64 path, u32 path bytes, u32 capacity, u64 pixels. Result: width << 16 | height, ARGB pixels.
+            if (c.Call == 660)
+            {
+                if (c.Arg1 != 32 || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, 32, false)) { return -14; }
+                byte[] r = ReadUser(c.Arg0, 32);
+                uint version = BitConverter.ToUInt32(r, 0), max = BitConverter.ToUInt32(r, 4), pathBytes = BitConverter.ToUInt32(r, 16), capacity = BitConverter.ToUInt32(r, 20);
+                ulong pathAt = BitConverter.ToUInt64(r, 8), pixelsAt = BitConverter.ToUInt64(r, 24);
+                if (version != 1 || max is < 16 or > 256 || pathBytes is 0 or > 1024 || capacity < max * max * 4) { return -22; }
+                if (!Valid(pathAt, (int)pathBytes, false) || !Valid(pixelsAt, (int)capacity, true)) { return -14; }
+                string image;
+                try { image = files.Resolve(new UTF8Encoding(false, true).GetString(ReadUser(pathAt, (int)pathBytes))); }
+                catch (ArgumentException) { return -22; }
+                System.IO.FileStream stream;
+                try { stream = new System.IO.FileStream(image, System.IO.FileMode.Open, System.IO.FileAccess.Read); }
+                catch (System.IO.FileNotFoundException) { return -2; }
+                catch (System.IO.DirectoryNotFoundException) { return -2; }
+                catch (UnauthorizedAccessException) { return -13; }
+                catch (System.IO.IOException) { return -5; }
+                if (stream.Length > 32L << 20) { stream.Dispose(); return -27; }
+                var thumb = Zenith.Core.Files.Thumbnails.Make(stream, (int)max, out _);
+                stream.Dispose();
+                if (thumb is null) { return -95; }
+                byte[] pixels = new byte[thumb.Pixels.Length * 4];
+                Buffer.BlockCopy(thumb.Pixels, 0, pixels, 0, pixels.Length);
+                Transfer(pixelsAt, pixels, true);
+                return thumb.Width << 16 | thumb.Height;
             }
             if (c.Call == 655)
             {

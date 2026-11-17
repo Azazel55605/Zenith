@@ -6,8 +6,11 @@ namespace Zenith.Core.Portal;
 internal static class Portals
 {
     public static AuthorizationPortal Authorization { get; private set; } = null!;
+    public static OpenWithPortal OpenWith { get; private set; } = null!;
     public static void Initialize()
     {
+        OpenWith = new OpenWithPortal(new Zenith.Core.Configuration.NativeOpenWithStore());
+        PortalBroker.Register(OpenWith);
         Authorization = new AuthorizationPortal(Accounts.IsAdministrator,
             () => Accounts.Service?.RootConfigured ?? false,
             uid => Accounts.Service?.Name(uid) ?? (uid == 0 ? "root" : uid.ToString()));

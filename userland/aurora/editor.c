@@ -6,6 +6,7 @@
 #include "aurora.h"
 #include "../ui/widgets.h"
 #include "../ui/text.h"
+#include "regex.h"
 
 #define MAX_DOCS 8
 #define TEXT_BYTES (1u<<20)       /* a document holds up to 1 MiB of text */
@@ -31,6 +32,7 @@ struct doc {
     struct au_text text; struct au_history history;
     unsigned int caret,anchor,goal; int goal_valid,scroll_x,scroll_y;
     unsigned long disk_size; long disk_mtime; unsigned int disk_mode;
+    unsigned int recovery_id; int has_recovery; long last_change,last_snapshot; unsigned long snapshot_stamp;
     int state_line,state_value; /* syntax state at the start of state_line */
 };
 static struct doc docs[MAX_DOCS];
@@ -146,6 +148,7 @@ static int new_doc(void){
     int slot=-1;for(int i=0;i<MAX_DOCS;i++)if(!docs[i].used){slot=i;break;}
     if(slot<0)return -1;
     struct doc *d=&docs[slot];*d=(struct doc){0};d->used=1;d->tab=4;d->spaces=1;
+    static unsigned int serial;d->recovery_id=(unsigned int)(au_sys_now()*2654435761u)^(unsigned int)(au_sys_clock()<<8)^(++serial*40503u);
     au_text_init(&d->text,text_store[slot],TEXT_BYTES,line_store[slot],LINE_SLOTS);
     au_history_init(&d->history,change_store[slot],CHANGE_SLOTS,history_store[slot],HISTORY_BYTES);
     order[doc_count++]=slot;return slot;
@@ -163,8 +166,10 @@ static void switch_doc(int slot){
     if(slot>=0)zui_scroll_jump(&view,docs[slot].scroll_y);
     update_title();ui->dirty=1;
 }
+static void recovery_drop(struct doc *d);static void recovery_answer(int choice);
 static void remove_doc(int slot){
     int p=position_of(slot);if(p<0)return;
+    recovery_drop(&docs[slot]);   /* closed (saved, or the person chose not to): its recovery copy goes too */
     for(int i=p;i+1<doc_count;i++)order[i]=order[i+1];
     doc_count--;docs[slot].used=0;
     if(current==slot){current=-1;switch_doc(doc_count?order[p<doc_count?p:doc_count-1]:-1);}
@@ -181,7 +186,7 @@ static void remember_disk(struct doc *d){
 static char status_note[200];static int note_error;
 static void note(const char *s,int error){copy(status_note,s,sizeof(status_note));note_error=error;ui->dirty=1;}
 static struct zui_dialog dialog;static char dialog_title[160],dialog_message[400];
-enum { ASK_NONE,ASK_CLOSE,ASK_QUIT,ASK_OVERWRITE,ASK_REPLACE_FILE,ASK_ERROR,ASK_RELOAD };
+enum { ASK_NONE,ASK_CLOSE,ASK_QUIT,ASK_OVERWRITE,ASK_REPLACE_FILE,ASK_ERROR,ASK_RELOAD,ASK_RECOVER };
 static int asking,asking_doc,quitting;
 static void ask(int kind,int slot,const char *title,const char *message,const char *a,const char *b,const char *c){
     asking=kind;asking_doc=slot;copy(dialog_title,title,sizeof(dialog_title));copy(dialog_message,message,sizeof(dialog_message));
@@ -264,7 +269,7 @@ static int save_to(struct doc *d,const char *path){
         char line[PATH_BYTES+24];o=put(line,path);o=put(o," error=-");num(o,(unsigned long)-result);mark("AURORA_SAVE_FAILED",line);fail("Cannot save",m);return 0;
     }
     copy(d->path,path,sizeof(d->path));copy(d->name,leaf(path),sizeof(d->name));d->language=language_of(d->name);
-    au_mark_saved(&d->history);au_history_break(&d->history);remember_disk(d);
+    au_mark_saved(&d->history);au_history_break(&d->history);remember_disk(d);recovery_drop(d);
     char line[PATH_BYTES+40];o=put(line,path);o=put(o," bytes=");num(o,written);mark("AURORA_SAVED",line);
     note("Saved",0);update_title();return 1;
 }
@@ -329,11 +334,12 @@ int aurora_close(void){
 
 /* ---------- Editing. */
 static void touched(struct doc *d,unsigned int position){
+    d->last_change=au_sys_clock();
     unsigned int line=au_line_of(&d->text,position);
     if((int)line<d->state_line){d->state_line=0;d->state_value=0;}
     update_title();ui->dirty=1;
 }
-static int reveal_caret;
+static int reveal_caret,overwrite;   /* overwrite: Insert toggles typing over the next character */
 static void replace_selection(struct doc *d,const char *s,unsigned int n,int typing){
     unsigned int a=selection_start(d),b=selection_end(d);
     if(a!=b)typing=0;
@@ -412,53 +418,101 @@ static void undo(struct doc *d,int redo){
     }else note(redo?"Nothing to redo.":"Nothing to undo.",0);
 }
 
-/* ---------- Find and replace. */
+/* ---------- Find and replace: plain text (Aa case, W whole word) or a regular expression (.*, regex.h) with $1..$9
+ * in the replacement. Regex matches never cross a line end. */
+#define AU_REGEX 4
 static int find_open,replace_open,find_flags;
 static char find_buffer[256],replace_buffer[256];
 static struct zui_input find_input,replace_input;
 static unsigned int find_total,find_index;
+static struct rx find_rx;static char find_compiled[256];static int find_compiled_flags=-1;static const char *find_error;
+/* Compiles the pattern when it or the flags changed; 0 when the expression is not valid. */
+static int find_ready(void){
+    if(!(find_flags&AU_REGEX)){find_error=0;return find_input.length>0;}
+    if(!find_input.length)return 0;
+    if(find_compiled_flags!=find_flags||!same(find_compiled,find_buffer)){
+        copy(find_compiled,find_buffer,sizeof(find_compiled));find_compiled_flags=find_flags;
+        find_error=rx_compile(&find_rx,find_buffer,find_input.length,find_flags&AU_CASE?0:RX_ICASE)?find_rx.error:0;
+    }
+    return !find_error;
+}
+/* The next match from `from` (forward) or before it, wrapping once; its start, or -1. */
+static long find_match(struct doc *d,unsigned int from,int forward,unsigned int *end,long *groups,int wrap){
+    unsigned int n=au_length(&d->text);long p;
+    if(find_flags&AU_REGEX){
+        p=forward?rx_search(&find_rx,&d->text,from,n,end,groups):rx_search_back(&find_rx,&d->text,from,end,groups);
+        if(p<0&&wrap)p=forward?rx_search(&find_rx,&d->text,0,n,end,groups):rx_search_back(&find_rx,&d->text,n+1,end,groups);
+        return p;
+    }
+    p=au_find(&d->text,find_buffer,find_input.length,from,forward,find_flags);
+    if(p<0&&wrap)p=au_find(&d->text,find_buffer,find_input.length,forward?0:n,forward,find_flags);
+    if(p>=0)*end=(unsigned int)p+find_input.length;
+    return p;
+}
 static void count_matches(void){
     struct doc *d=D();find_total=find_index=0;
-    if(!d||!find_input.length)return;
-    find_total=au_count(&d->text,find_buffer,find_input.length,find_flags,99999,selection_start(d),&find_index);
-    if(!has_selection(d)||selection_end(d)-selection_start(d)!=find_input.length)find_index=0;
+    if(!d||!find_ready())return;
+    if(!(find_flags&AU_REGEX)){
+        find_total=au_count(&d->text,find_buffer,find_input.length,find_flags,99999,selection_start(d),&find_index);
+        if(!has_selection(d)||selection_end(d)-selection_start(d)!=find_input.length)find_index=0;
+        return;
+    }
+    unsigned int position=0,end,n=au_length(&d->text);long p;
+    while(find_total<9999&&position<=n&&(p=rx_search(&find_rx,&d->text,position,n,&end,0))>=0){
+        find_total++;
+        if((unsigned int)p==selection_start(d)&&end==selection_end(d))find_index=find_total;
+        position=end>(unsigned int)p?end:(unsigned int)p+1;
+    }
 }
 static int find_step(int forward,int from_selection_start){
-    struct doc *d=D();if(!d||!find_input.length)return 0;
-    unsigned int from=forward?(from_selection_start?selection_start(d):selection_end(d)):selection_start(d);
-    long p=au_find(&d->text,find_buffer,find_input.length,from,forward,find_flags);
-    if(p<0)p=au_find(&d->text,find_buffer,find_input.length,forward?0:au_length(&d->text),forward,find_flags);
+    struct doc *d=D();if(!d||!find_ready())return 0;
+    unsigned int from=forward?(from_selection_start?selection_start(d):selection_end(d)):selection_start(d),end;
+    /* An empty regex match at the caret would repeat forever: step past it. */
+    if(forward&&!from_selection_start&&!has_selection(d)&&(find_flags&AU_REGEX))from++;
+    long p=find_match(d,from,forward,&end,0,1);
     if(p<0){count_matches();note("No results",0);return 0;}
-    d->anchor=(unsigned int)p;d->caret=(unsigned int)p+find_input.length;d->goal_valid=0;reveal_caret=1;
+    d->anchor=(unsigned int)p;d->caret=end;d->goal_valid=0;reveal_caret=1;
     count_matches();ui->dirty=1;
     char n[300],*o=num(n,find_total);*o++=' ';copy(o,find_buffer,sizeof(n)-(unsigned long)(o-n));mark("AURORA_FIND",n);
     return 1;
 }
 static void open_find(int replace){
     struct doc *d=D();if(!d)return;
+    int was_open=find_open;
     find_open=1;replace_open|=replace;focus_find=replace&&find_input.length?2:1;
-    if(has_selection(d)&&selection_end(d)-selection_start(d)<sizeof(find_buffer)&&au_line_of(&d->text,selection_start(d))==au_line_of(&d->text,selection_end(d))){
+    /* Opening the bar takes the selected text as the search; Ctrl+H on an open bar keeps the pattern. */
+    if(!was_open&&has_selection(d)&&selection_end(d)-selection_start(d)<sizeof(find_buffer)&&au_line_of(&d->text,selection_start(d))==au_line_of(&d->text,selection_end(d))){
         unsigned int n=au_read(&d->text,selection_start(d),selection_end(d)-selection_start(d),find_buffer);find_buffer[n]=0;
         zui_input_init(&find_input,find_buffer,sizeof(find_buffer));
     }
     count_matches();ui->dirty=1;
 }
+static char replacement[4096];
+/* The replacement text for the match [a,end): literal, or with $0..$9 expanded for a regex. */
+static unsigned int replacement_for(struct doc *d,const long *groups){
+    if(!(find_flags&AU_REGEX)){copy(replacement,replace_buffer,sizeof(replacement));return replace_input.length;}
+    return rx_expand(&d->text,replace_buffer,replace_input.length,groups,replacement,sizeof(replacement));
+}
 static void replace_one(void){
-    struct doc *d=D();if(!d||!find_input.length)return;
-    unsigned int a=selection_start(d),b=selection_end(d);
-    if(b-a==find_input.length&&au_find(&d->text,find_buffer,find_input.length,a,1,find_flags)==(long)a){
-        replace_selection(d,replace_buffer,replace_input.length,0);
+    struct doc *d=D();if(!d||!find_ready())return;
+    unsigned int a=selection_start(d),b=selection_end(d),end;long groups[2*RX_GROUPS];
+    long p=find_flags&AU_REGEX?rx_search(&find_rx,&d->text,a,a,&end,groups):au_find(&d->text,find_buffer,find_input.length,a,1,find_flags);
+    if(!(find_flags&AU_REGEX))end=(unsigned int)p+find_input.length;
+    if(p==(long)a&&end==b&&b>a){
+        unsigned int n=replacement_for(d,groups);
+        replace_selection(d,replacement,n,0);
         mark("AURORA_REPLACED","1");
     }
     find_step(1,0);
 }
 static void replace_all(void){
-    struct doc *d=D();if(!d||!find_input.length)return;
+    struct doc *d=D();if(!d||!find_ready())return;
     au_history_break(&d->history);
-    unsigned int position=0,done=0;long p;
-    while((p=au_find(&d->text,find_buffer,find_input.length,position,1,find_flags))>=0&&done<100000){
-        if(au_edit(&d->text,&d->history,(unsigned int)p,find_input.length,replace_buffer,replace_input.length,d->caret,(unsigned int)p,0)){note("The document is full.",1);break;}
-        position=(unsigned int)p+replace_input.length;done++;
+    unsigned int position=0,done=0,end;long p,groups[2*RX_GROUPS];
+    while(position<=au_length(&d->text)&&(p=find_match(d,position,1,&end,groups,0))>=0&&done<100000){
+        unsigned int n=replacement_for(d,groups);
+        if(au_edit(&d->text,&d->history,(unsigned int)p,end-(unsigned int)p,replacement,n,d->caret,(unsigned int)p,0)){note("The document is full.",1);break;}
+        position=(unsigned int)p+n+(end==(unsigned int)p?1:0);done++;
     }
     unsigned int n=au_length(&d->text);if(d->caret>n)d->caret=n;d->anchor=d->caret;
     d->state_line=0;d->state_value=0;touched(d,0);count_matches();
@@ -542,12 +596,12 @@ static void dialog_choose(void){
 #define STATUS_H 30
 #define FIND_H 50
 #define BANNER_H 40
-enum { H_NONE,H_TEXT,H_GUTTER,H_NEW,H_OPEN,H_MENU_BUTTON,H_FIND_FIELD,H_REPLACE_FIELD,H_CASE,H_WORD,H_PREVIOUS,H_NEXT,
+enum { H_NONE,H_TEXT,H_GUTTER,H_MINIMAP,H_HSCROLL,H_REGEX,H_OVERWRITE,H_NEW,H_OPEN,H_MENU_BUTTON,H_FIND_FIELD,H_REPLACE_FIELD,H_CASE,H_WORD,H_PREVIOUS,H_NEXT,
        H_REPLACE,H_ALL,H_FIND_CLOSE,H_EOL,H_INDENT,H_RELOAD,H_KEEP,H_GOTO_FIELD,H_DIALOG_UP,H_DIALOG_FIELD,H_DIALOG_OK,
-       H_DIALOG_CANCEL,H_DIALOG_LIST,H_MODAL,H_DOC=100,H_ENTRY=200,H_MENU=1000 };
+       H_DIALOG_CANCEL,H_DIALOG_LIST,H_MODAL,H_DOC=100,H_ENTRY=200,H_MENU=1000,H_TREE=1200,H_SYMBOL=1500 };
 struct hit_area { struct zui_rect r; int id; };
-static struct hit_area hits[160];static int hit_count,hover=H_NONE;
-static void hit(struct zui_rect r,int id){if(hit_count<160){hits[hit_count].r=r;hits[hit_count].id=id;hit_count++;}}
+static struct hit_area hits[400];static int hit_count,hover=H_NONE;
+static void hit(struct zui_rect r,int id){if(hit_count<400){hits[hit_count].r=r;hits[hit_count].id=id;hit_count++;}}
 static int hit_at(int x,int y){for(int i=hit_count-1;i>=0;i--)if(inside(hits[i].r,x,y))return hits[i].id;return H_NONE;}
 static int sidebar_w(void){return ui->width>=820?(ui->width>=1100?240:208):0;}
 static struct zui_rect editor_area,text_area;static int gutter_w,cell_w,line_h;
@@ -708,6 +762,122 @@ static void draw_tabs(struct zui_rect r){
     zui_tabs_draw(ui,&strip,(struct zui_rect){r.x,r.y,r.w-44,r.h},items,doc_count,active,doc_count<MAX_DOCS);
     icon_button((struct zui_rect){r.x+r.w-36,r.y+2,36,32},"menu",H_MENU_BUTTON,1,0);
 }
+/* ---------- Project (the document's folder as a tree) and Outline (its classes, functions and headings). */
+#define TREE_ROWS 256
+#define TREE_OPEN 16
+struct tree_row { char name[96]; unsigned char depth,folder,open; };
+static struct tree_row tree[TREE_ROWS];static char tree_paths[TREE_ROWS][256];static int tree_count,tree_truncated,tree_dirty=1;
+static char tree_root[PATH_BYTES],tree_opened[TREE_OPEN][256];static int tree_open_count;
+static struct zui_scroll side_scroll;static struct zui_rect side_rect;
+static char list_names[6][128][96];static unsigned char list_folders[6][128];static int list_count[6],list_depth;
+static void collect(void *context,const char *name,int folder){
+    (void)context;int d=list_depth;
+    if(name[0]=='.'||list_count[d]>=128)return;
+    copy(list_names[d][list_count[d]],name,96);list_folders[d][list_count[d]]=(unsigned char)!!folder;list_count[d]++;
+}
+static int folder_open(const char *rel){for(int i=0;i<tree_open_count;i++)if(same(tree_opened[i],rel))return 1;return 0;}
+static void add_children(const char *rel,int depth){
+    if(depth>5)return;
+    char folder[PATH_BYTES];if(rel[0])join(folder,tree_root,rel);else copy(folder,tree_root,sizeof(folder));
+    list_depth=depth;list_count[depth]=0;
+    if(au_sys_list(folder,collect,0)<0)return;
+    int n=list_count[depth];
+    /* Folders first, then names, case-insensitive. */
+    for(int i=1;i<n;i++)for(int j=i;j>0;j--){
+        int a=j-1,b=j,swap=list_folders[depth][a]!=list_folders[depth][b]?list_folders[depth][b]>list_folders[depth][a]:0;
+        if(list_folders[depth][a]==list_folders[depth][b]){const char *x=list_names[depth][a],*y=list_names[depth][b];while(*x&&lower(*x)==lower(*y)){x++;y++;}swap=lower(*x)>lower(*y);}
+        if(!swap)break;
+        char tmp[96];copy(tmp,list_names[depth][a],96);copy(list_names[depth][a],list_names[depth][b],96);copy(list_names[depth][b],tmp,96);
+        unsigned char f=list_folders[depth][a];list_folders[depth][a]=list_folders[depth][b];list_folders[depth][b]=f;
+    }
+    for(int i=0;i<n;i++){
+        if(tree_count>=TREE_ROWS){tree_truncated=1;return;}
+        struct tree_row *row=&tree[tree_count];copy(row->name,list_names[depth][i],sizeof(row->name));row->depth=(unsigned char)depth;row->folder=list_folders[depth][i];
+        char path[256];if(rel[0]){copy(path,rel,sizeof(path));unsigned long k=length(path);if(k+1<sizeof(path)){path[k]='/';copy(path+k+1,row->name,sizeof(path)-k-1);}}else copy(path,row->name,sizeof(path));
+        copy(tree_paths[tree_count],path,256);row->open=row->folder&&folder_open(path);tree_count++;
+        if(row->open){add_children(path,depth+1);list_depth=depth;}
+    }
+}
+static void project_refresh(void){
+    char root[PATH_BYTES];struct doc *d=D();
+    if(d&&d->path[0])parent(root,d->path);else copy(root,home,sizeof(root));
+    if(!same(root,tree_root)){copy(tree_root,root,sizeof(tree_root));tree_open_count=0;tree_dirty=1;}
+    if(!tree_dirty)return;
+    tree_dirty=0;tree_count=0;tree_truncated=0;add_children("",0);
+    char n[24];num(n,(unsigned long)tree_count);mark("AURORA_PROJECT",n);
+}
+static void toggle_folder(int i){
+    if(i<0||i>=tree_count||!tree[i].folder)return;
+    if(tree[i].open){int k=0;for(int j=0;j<tree_open_count;j++)if(!same(tree_opened[j],tree_paths[i]))copy(tree_opened[k++],tree_opened[j],256);tree_open_count=k;}
+    else if(tree_open_count<TREE_OPEN)copy(tree_opened[tree_open_count++],tree_paths[i],256);
+    tree_dirty=1;ui->dirty=1;
+}
+#define SYMBOLS 200
+struct symbol { char name[64]; unsigned int line; unsigned char depth,kind; };
+static struct symbol symbols[SYMBOLS];static int symbol_count,outline_slot=-1;static unsigned long outline_stamp;
+static int ident(char c){return (c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='_'||c=='$';}
+static int word_is(const char *s,int n,const char *w){int i=0;while(i<n&&w[i]&&s[i]==w[i])i++;return i==n&&!w[i];}
+static void add_symbol(const char *s,int n,unsigned int line,int depth,int kind){
+    if(symbol_count>=SYMBOLS||n<=0)return;
+    struct symbol *y=&symbols[symbol_count++];if(n>63)n=63;for(int i=0;i<n;i++)y->name[i]=s[i];y->name[n]=0;
+    y->line=line;y->depth=(unsigned char)(depth>4?4:depth);y->kind=(unsigned char)kind;
+}
+/* One line: a type (kind 1) or a function (kind 0), by language; heuristics, not a parser. */
+static void outline_line(int language,const char *s,int n,unsigned int line){
+    int indent=0,i=0;while(i<n&&(s[i]==' '||s[i]=='\t')){indent+=s[i]=='\t'?4:1;i++;}
+    if(i>=n)return;
+    int depth=indent/4;
+    if(language==LANG_MARKDOWN){if(s[0]!='#')return;int h=0;while(h<n&&s[h]=='#')h++;int a=h;while(a<n&&s[a]==' ')a++;add_symbol(s+a,n-a,line,h-1,h==1);return;}
+    if(language==LANG_HASH){
+        for(int k=0;k<3;k++){static const char *const kw[]={"def ","class ","function "};int l=(int)length(kw[k]);
+            if(n-i>l&&word_is(s+i,l,kw[k])){int a=i+l,b=a;while(b<n&&ident(s[b]))b++;add_symbol(s+a,b-a,line,depth,k==1);return;}}
+        if(!indent){int b=i;while(b<n&&ident(s[b]))b++;if(b+1<n&&s[b]=='('&&s[b+1]==')'&&b>i)add_symbol(s+i,b-i,line,0,0);}
+        return;
+    }
+    if(language!=LANG_C)return;
+    if(s[i]=='#'||s[i]=='/'||s[i]=='*'||s[i]=='.'||s[i]=='}')return;
+    /* Types: modifiers, then class/struct/interface/enum/namespace/record/trait/impl/union and a name. */
+    static const char *const mods[]={"public","private","protected","internal","static","sealed","abstract","partial","readonly","export","default","pub","unsafe","extern","async","virtual","override","const","inline","final","data",0};
+    static const char *const types[]={"class","struct","interface","enum","namespace","record","trait","impl","union",0};
+    int p=i;
+    for(int guard=0;guard<6&&p<n;guard++){
+        int b=p;while(b<n&&ident(s[b]))b++;
+        int is_mod=0;for(int k=0;mods[k];k++)if(word_is(s+p,b-p,mods[k]))is_mod=1;
+        int is_type=0;for(int k=0;types[k];k++)if(word_is(s+p,b-p,types[k]))is_type=1;
+        if(is_type){int a=b;while(a<n&&s[a]==' ')a++;int e=a;while(e<n&&ident(s[e]))e++;if(e>a)add_symbol(s+a,e-a,line,depth,1);return;}
+        if(!is_mod||b==p)break;
+        p=b;while(p<n&&s[p]==' ')p++;
+    }
+    /* Functions: "type name(" or "fn/func/function name(", not a call or a control statement, not ending in ";". */
+    int end=n;while(end>i&&(s[end-1]==' '||s[end-1]=='\r'))end--;
+    if(end>i&&s[end-1]==';')return;
+    for(int q=i;q<end;q++){
+        if(s[q]=='='&&(q+1>=end||s[q+1]!='>'))return;
+        if(s[q]!='(')continue;
+        int b=q;while(b>i&&s[b-1]==' ')b--;
+        int a=b;while(a>i&&ident(s[a-1]))a--;
+        if(a==b)return;
+        static const char *const skip[]={"if","for","while","switch","return","catch","foreach","using","lock","sizeof","new","else","do","when","typeof","nameof","throw","await","fixed","checked","base","this",0};
+        for(int k=0;skip[k];k++)if(word_is(s+a,b-a,skip[k]))return;
+        if(a==i&&!(word_is(s+i,b-a,"function")))return;   /* a bare call: no return type before the name */
+        add_symbol(s+a,b-a,line,depth,0);return;
+    }
+}
+static void outline_refresh(struct doc *d){
+    unsigned long stamp=(unsigned long)au_length(&d->text)*31+d->history.current*7+d->text.line_count+(unsigned long)d->language*101;
+    if(outline_slot==current&&outline_stamp==stamp)return;
+    outline_slot=current;outline_stamp=stamp;symbol_count=0;
+    if(d->language==LANG_PLAIN||d->language==LANG_JSON)return;
+    static char s[256];
+    for(unsigned int l=0;l<d->text.line_count&&l<50000&&symbol_count<SYMBOLS;l++){
+        unsigned int a=au_line_start(&d->text,l),e=au_line_end(&d->text,l);
+        int n=(int)au_read(&d->text,a,min((int)(e-a),255),s);
+        outline_line(d->language,s,n,l);
+    }
+    char line[400],*o=num(line,(unsigned long)symbol_count);
+    for(int i=0;i<symbol_count&&i<6;i++){*o++=' ';o=put(o,symbols[i].name);}
+    mark("AURORA_OUTLINE",line);
+}
 static void draw_sidebar(struct zui_rect r){
     int y=r.y+8;
     text(r.x+12,y+6,"Documents",&zui_label,ui->theme.text);
@@ -725,11 +895,35 @@ static void draw_sidebar(struct zui_rect r){
         if(modified(d))zui_round(ui,(struct zui_rect){row.x+row.w-20,row.y+13,8,8},4,ui->theme.accent);
         hit(row,H_DOC+i);y+=38;
     }
-    if(r.h>y-r.y+80){
-        y+=10;text(r.x+12,y,"Shortcuts",&zui_label,ui->theme.text);y+=26;
-        static const char *const keys[]={"Ctrl+O","Open","Ctrl+S","Save","Ctrl+F","Find","Ctrl+H","Replace","Ctrl+G","Go to line","Ctrl+Z","Undo",0};
-        for(int k=0;keys[k]&&y+20<r.y+r.h;k+=2){text(r.x+12,y,keys[k],&zui_caption,ui->theme.secondary);text(r.x+80,y,keys[k+1],&zui_caption,ui->theme.secondary);y+=22;}
+    /* Project and Outline scroll together below the documents. */
+    struct zui_rect area={r.x,y+4,r.w,r.y+r.h-y-8};
+    if(area.h<60)return;
+    side_rect=area;
+    int top=zui_scroll_begin(ui,&side_scroll,area),yy=top;
+    if(current>=0){project_refresh();outline_refresh(&docs[current]);}
+    text(r.x+12,yy+6,"Project",&zui_label,ui->theme.text);
+    fit(r.x+80,yy+8,leaf(tree_root),r.w-92,&zui_caption,ui->theme.secondary);yy+=32;
+    for(int i=0;i<tree_count;i++,yy+=28){
+        if(yy+28<area.y||yy>area.y+area.h)continue;
+        struct zui_rect row={r.x+4,yy,r.w-8,26};int x=r.x+12+tree[i].depth*14;
+        if(hover==H_TREE+i)zui_round(ui,row,6,mix(ui->theme.raised,ui->theme.text,6));
+        char full[PATH_BYTES];join(full,tree_root,tree_paths[i]);
+        int open_doc=current>=0&&same(docs[current].path,full);
+        if(tree[i].folder)icon(tree[i].open?"chevron-down":"folder",x,yy+5,16,ZUI_ICON_NORMAL);else icon("file-text",x,yy+5,16,open_doc?ZUI_ICON_NORMAL:ZUI_ICON_TEXT);
+        fit(x+22,yy+(26-zui_body.height)/2,tree[i].name,r.x+r.w-x-34,open_doc?&zui_label:&zui_body,ui->theme.text);
+        hit(row,H_TREE+i);
     }
+    if(tree_truncated){text(r.x+12,yy+4,"...",&zui_caption,ui->theme.secondary);yy+=24;}
+    yy+=10;text(r.x+12,yy+6,"Outline",&zui_label,ui->theme.text);yy+=32;
+    if(!symbol_count){text(r.x+12,yy+2,current>=0&&docs[current].language!=LANG_PLAIN?"No symbols found.":"No outline for plain text.",&zui_caption,ui->theme.secondary);yy+=24;}
+    for(int i=0;i<symbol_count;i++,yy+=26){
+        if(yy+26<area.y||yy>area.y+area.h)continue;
+        struct zui_rect row={r.x+4,yy,r.w-8,24};
+        if(hover==H_SYMBOL+i)zui_round(ui,row,6,mix(ui->theme.raised,ui->theme.text,6));
+        fit(r.x+12+symbols[i].depth*12,yy+(24-zui_mono.height)/2,symbols[i].name,r.w-24-symbols[i].depth*12,&zui_mono,symbols[i].kind?zui_accent_color(ui,1):ui->theme.secondary);
+        hit(row,H_SYMBOL+i);
+    }
+    zui_scroll_end(ui,&side_scroll,yy-top+8);
 }
 static void draw_crumbs(struct zui_rect r,struct doc *d){
     char t[PATH_BYTES+8];
@@ -744,27 +938,73 @@ static int line_match(unsigned int i,unsigned int n){
     if(find_flags&AU_WORD){if(i&&au_word_char(line_bytes[i-1]))return 0;if(i+k<n&&au_word_char(line_bytes[i+k]))return 0;}
     return 1;
 }
+/* The bracket beside the caret and its partner (scanning at most 20000 bytes), or 0. */
+static int bracket_pair(struct doc *d,unsigned int *a,unsigned int *b){
+    static const char open[]="([{",close[]=")]}";
+    unsigned int n=au_length(&d->text),c=d->caret;
+    for(int side=0;side<2;side++){
+        if(side==0&&c>=n)continue;
+        if(side==1&&!c)continue;
+        unsigned int at=side==0?c:c-1;char ch=au_at(&d->text,at);
+        for(int k=0;k<3;k++){
+            if(ch==open[k]){int depth=0;for(unsigned int p=at;p<n&&p<at+20000;p++){char x=au_at(&d->text,p);if(x==open[k])depth++;else if(x==close[k]&&--depth==0){*a=at;*b=p;return 1;}}return 0;}
+            if(ch==close[k]){int depth=0;for(unsigned int p=at+1;p-->0&&p+20000>at;){char x=au_at(&d->text,p);if(x==close[k])depth++;else if(x==open[k]&&--depth==0){*a=p;*b=at;return 1;}}return 0;}
+        }
+    }
+    return 0;
+}
+static struct zui_rect minimap_rect,hbar_rect;static int hscroll_range,hscroll_visible;
+static void outline_at(struct doc *d,unsigned int position,int top,int text_x,unsigned int color){
+    unsigned int line=au_line_of(&d->text,position);
+    int y=top+(int)line*line_h,x=text_x+(int)au_column(&d->text,position,(unsigned int)d->tab)*cell_w;
+    zui_round_outline(ui,(struct zui_rect){x-1,y,cell_w+2,line_h},3,color);
+}
+static void draw_minimap(struct doc *d,struct zui_rect m){
+    zui_fill(ui,m,mix(ui->theme.surface,ui->theme.subtle,60));
+    unsigned int lines=d->text.line_count;int dense=(long)lines*2>m.h;
+    for(int row=0;row<m.h;row+=2){
+        unsigned int l=dense?(unsigned int)((long)row*lines/m.h):(unsigned int)(row/2);
+        if(l>=lines)break;
+        unsigned int s=au_line_start(&d->text,l),e=au_line_end(&d->text,l),indent=0,length=0;char first=0;
+        for(unsigned int q=s;q<e&&length<120;q++){char c=au_at(&d->text,q);if(!first&&(c==' '||c=='\t')){indent+=c=='\t'?4:1;continue;}if(!first)first=c;length++;}
+        if(!length)continue;
+        int x=m.x+4+min((int)indent,30),w=min((int)length,m.w-8-min((int)indent,30));
+        unsigned int color=first=='/'||first=='#'?mix(ui->theme.surface,ui->theme.secondary,45):mix(ui->theme.surface,ui->theme.text,38);
+        if(w>0)zui_fill(ui,(struct zui_rect){x,m.y+row,w,1},color);
+    }
+    /* The visible part. */
+    long content=(long)lines*line_h;if(content<1)content=1;
+    int y0=dense?(int)((long)view.visual*m.h/content):view.visual/line_h*2,h=dense?(int)((long)view.rect.h*m.h/content):view.rect.h/line_h*2;
+    if(h<6)h=6;
+    zui_round_alpha(ui,(struct zui_rect){m.x,m.y+y0,m.w,min(h,m.h-y0)},4,ui->theme.accent,50);
+    hit(m,H_MINIMAP);
+}
 static void draw_text_area(struct doc *d){
     struct zui_rect a=text_area;
     zui_round(ui,a,10,ui->theme.surface);
-    int top=zui_scroll_begin(ui,&view,(struct zui_rect){a.x,a.y+6,a.w,a.h-12});
+    int mm=a.w>=700?78:0;
+    struct zui_rect scroll_rect={a.x,a.y+6,a.w-(mm?mm+8:0),a.h-12-12};
+    int top=zui_scroll_begin(ui,&view,scroll_rect);
     unsigned int lines=d->text.line_count;
     int first=view.visual/line_h;if(first<0)first=0;
     unsigned int caret_line=au_line_of(&d->text,d->caret);
     unsigned int s0=selection_start(d),s1=selection_end(d);
     int focused=ui->window_focused&&!focus_find&&!file_dialog&&!dialog.open&&!goto_open;
     int text_x=a.x+gutter_w-d->scroll_x;
-    struct zui_rect code_clip={a.x+gutter_w-4,a.y+6,a.w-gutter_w,a.h-12};
+    struct zui_rect code_clip={a.x+gutter_w-4,scroll_rect.y,scroll_rect.w-gutter_w,scroll_rect.h};
+    struct zui_rect area_clip={a.x,scroll_rect.y,scroll_rect.w,scroll_rect.h};
     int state=state_at(d,(unsigned int)first);
     unsigned int match_color=zui_accent_color(ui,3);
+    int regex=find_open&&(find_flags&AU_REGEX)&&find_ready(),widest=0;
+    unsigned int ba=0,bb=0;int brackets=bracket_pair(d,&ba,&bb);
     for(unsigned int l=(unsigned int)first;l<lines;l++){
-        int y=top+(int)l*line_h;if(y>=a.y+a.h)break;
+        int y=top+(int)l*line_h;if(y>=scroll_rect.y+scroll_rect.h)break;
         unsigned int ls=au_line_start(&d->text,l),le=au_line_end(&d->text,l);
         unsigned int n=au_read(&d->text,ls,min((int)(le-ls),LINE_DRAW),line_bytes);
         int next=classify(d->language,line_bytes,(int)n,state,line_class);
-        if(l==caret_line&&!has_selection(d)){zui_clip(ui,(struct zui_rect){a.x,a.y+6,a.w,a.h-12});zui_round_alpha(ui,(struct zui_rect){a.x+4,y,a.w-8,line_h},6,ui->theme.accent,light()?26:30);}
+        if(l==caret_line&&!has_selection(d)){zui_clip(ui,area_clip);zui_round_alpha(ui,(struct zui_rect){a.x+4,y,scroll_rect.w-8,line_h},6,ui->theme.accent,light()?26:30);}
         /* Line number. */
-        zui_clip(ui,(struct zui_rect){a.x,a.y+6,gutter_w-6,a.h-12});
+        zui_clip(ui,(struct zui_rect){a.x,scroll_rect.y,gutter_w-6,scroll_rect.h});
         char number[16];num(number,l+1);
         text_right(a.x+gutter_w-14,y+(line_h-zui_mono.height)/2,number,&zui_mono,l==caret_line?ui->theme.text:ui->theme.secondary);
         zui_clip(ui,code_clip);
@@ -775,7 +1015,16 @@ static void draw_text_area(struct doc *d){
             if(s1>le)x1+=cell_w/2;
             if(x1>x0)zui_round_alpha(ui,(struct zui_rect){x0,y+1,x1-x0,line_h-2},3,ui->theme.accent,light()?70:90);
         }
-        if(find_open&&find_input.length&&find_input.length<=n){
+        if(regex){
+            unsigned int position=ls,end;long m;int guard=0;
+            while(position<=le&&guard++<200&&(m=rx_search(&find_rx,&d->text,position,le,&end,0))>=0){
+                if(end>(unsigned int)m){
+                    int x0=text_x+(int)au_column(&d->text,(unsigned int)m,(unsigned int)d->tab)*cell_w,x1=text_x+(int)au_column(&d->text,end,(unsigned int)d->tab)*cell_w;
+                    zui_round_outline(ui,(struct zui_rect){x0-1,y,x1-x0+2,line_h},4,match_color);
+                }
+                position=end>(unsigned int)m?end:(unsigned int)m+1;
+            }
+        }else if(find_open&&find_input.length&&find_input.length<=n){
             for(unsigned int p=0;p+find_input.length<=n;p++){
                 if(!line_match(p,n))continue;
                 int x0=text_x+(int)au_column(&d->text,ls+p,(unsigned int)d->tab)*cell_w,cols=0;
@@ -794,18 +1043,36 @@ static void draw_text_area(struct doc *d){
             if(x<code_clip.x+code_clip.w&&x+(int)cols*cell_w>code_clip.x)zui_text(ui,x,ty,line_bytes+i,j-i,&zui_mono,kind_color(kind));
             column+=cols;i=j;
         }
+        if((int)column>widest)widest=(int)column;
+        if(brackets&&(au_line_of(&d->text,ba)==l||au_line_of(&d->text,bb)==l)){
+            if(au_line_of(&d->text,ba)==l)outline_at(d,ba,top,text_x,ui->theme.accent);
+            if(au_line_of(&d->text,bb)==l)outline_at(d,bb,top,text_x,ui->theme.accent);
+        }
         if(focused&&l==caret_line){
             int cx=text_x+(int)au_column(&d->text,d->caret,(unsigned int)d->tab)*cell_w;
-            zui_fill(ui,(struct zui_rect){cx,y+2,2,line_h-4},ui->theme.text);
+            if(overwrite)zui_round_alpha(ui,(struct zui_rect){cx,y+2,cell_w,line_h-4},2,ui->theme.text,110);
+            else zui_fill(ui,(struct zui_rect){cx,y+2,2,line_h-4},ui->theme.text);
         }
         state=next;
-        zui_clip(ui,(struct zui_rect){a.x,a.y+6,a.w,a.h-12});
+        zui_clip(ui,area_clip);
     }
-    zui_clip(ui,(struct zui_rect){a.x,a.y+6,a.w,a.h-12});
+    zui_clip(ui,area_clip);
     zui_scroll_end(ui,&view,(int)((long)lines*line_h+line_h*2));
     zui_clip(ui,(struct zui_rect){0,0,ui->width,ui->height});
-    hit((struct zui_rect){a.x,a.y,gutter_w,a.h},H_GUTTER);
-    hit((struct zui_rect){a.x+gutter_w,a.y,a.w-gutter_w,a.h},H_TEXT);
+    /* Horizontal scroll bar: shown while the widest visible line or the scroll position runs past the view. */
+    hscroll_visible=code_clip.w-cell_w;hscroll_range=widest*cell_w+cell_w*4;
+    if(hscroll_range<d->scroll_x+hscroll_visible)hscroll_range=d->scroll_x+hscroll_visible;
+    hbar_rect=(struct zui_rect){0,0,0,0};
+    if(hscroll_range>hscroll_visible+cell_w){
+        struct zui_rect track={code_clip.x,scroll_rect.y+scroll_rect.h+3,code_clip.w-8,6};
+        int w=max(24,(int)((long)track.w*hscroll_visible/hscroll_range)),x=track.x+(int)((long)(track.w-w)*d->scroll_x/max(1,hscroll_range-hscroll_visible));
+        zui_round_alpha(ui,(struct zui_rect){x,track.y,w,6},3,ui->theme.secondary,hover==H_HSCROLL?200:140);
+        hbar_rect=track;hit((struct zui_rect){track.x,track.y-3,track.w,12},H_HSCROLL);
+    }
+    minimap_rect=(struct zui_rect){0,0,0,0};
+    if(mm){minimap_rect=(struct zui_rect){a.x+a.w-mm-6,a.y+6,mm,a.h-12};draw_minimap(d,minimap_rect);}
+    hit((struct zui_rect){a.x,a.y,gutter_w,scroll_rect.h+6},H_GUTTER);
+    hit((struct zui_rect){a.x+gutter_w,a.y,scroll_rect.w-gutter_w,scroll_rect.h+6},H_TEXT);
 }
 static void draw_banner(struct zui_rect r,struct doc *d){
     zui_round(ui,r,10,mix(ui->theme.surface,warn(),14));
@@ -825,11 +1092,13 @@ static void draw_find(struct zui_rect r){
     input((struct zui_rect){x,y,field,h},&find_input,focus_find==1,H_FIND_FIELD,"Find");x+=field+8;
     char c[40];
     if(!find_input.length)c[0]=0;
+    else if(find_error)copy(c,find_error,sizeof(c));
     else if(!find_total)put(c,"No results");
     else{char *o=c;if(find_index){o=num(o,find_index);o=put(o," of ");}o=num(o,find_total);if(!find_index)put(o,find_total==1?" match":" matches");}
-    text(x,y+(h-zui_caption.height)/2,c,&zui_caption,find_input.length&&!find_total?bad():ui->theme.secondary);x+=86;
+    fit(x,y+(h-zui_caption.height)/2,c,82,&zui_caption,find_input.length&&!find_total?bad():ui->theme.secondary);x+=86;
     text_button((struct zui_rect){x,y,34,h},"Aa",H_CASE,0,1,find_flags&AU_CASE);x+=38;
-    text_button((struct zui_rect){x,y,34,h},"W",H_WORD,0,1,find_flags&AU_WORD);x+=40;
+    text_button((struct zui_rect){x,y,34,h},"W",H_WORD,0,1,find_flags&AU_WORD);x+=38;
+    text_button((struct zui_rect){x,y,34,h},".*",H_REGEX,0,1,find_flags&AU_REGEX);x+=40;
     icon_button((struct zui_rect){x,y,30,h},"chevron-up",H_PREVIOUS,find_input.length>0,0);x+=32;
     icon_button((struct zui_rect){x,y,30,h},"chevron-down",H_NEXT,find_input.length>0,0);x+=38;
     if(replace_open&&!wide){
@@ -864,6 +1133,9 @@ static void draw_status(struct zui_rect r,struct doc *d){
         int w=measure(t,&zui_caption)+16;struct zui_rect b={right-w,r.y+3,w,r.h-6};
         if(hover==H_INDENT)zui_round(ui,b,6,mix(ui->theme.subtle,ui->theme.text,8));
         text(b.x+8,ty,t,&zui_caption,ui->theme.secondary);hit(b,H_INDENT);right-=w+8;
+        const char *mode=overwrite?"OVR":"INS";w=measure(mode,&zui_caption)+16;b=(struct zui_rect){right-w,r.y+3,w,r.h-6};
+        if(hover==H_OVERWRITE)zui_round(ui,b,6,mix(ui->theme.subtle,ui->theme.text,8));
+        text(b.x+8,ty,mode,&zui_caption,overwrite?ui->theme.accent:ui->theme.secondary);hit(b,H_OVERWRITE);right-=w+8;
         const char *enc=d->bom?"UTF-8 BOM":"UTF-8";text_right(right-8,ty,enc,&zui_caption,ui->theme.secondary);right-=measure(enc,&zui_caption)+24;
         const char *eol=d->crlf?"CRLF":"LF";w=measure(eol,&zui_caption)+16;b=(struct zui_rect){right-w,r.y+3,w,r.h-6};
         if(hover==H_EOL)zui_round(ui,b,6,mix(ui->theme.subtle,ui->theme.text,8));
@@ -1067,6 +1339,7 @@ static void menu_action(int m){
 }
 static void dialog_answer(int choice){
     int kind=asking,slot=asking_doc;asking=ASK_NONE;ui->dirty=1;
+    if(kind==ASK_RECOVER){recovery_answer(choice);return;}
     if(kind==ASK_CLOSE||kind==ASK_QUIT){
         if(choice==1){
             close_after_save=slot;
@@ -1098,7 +1371,7 @@ static void click_text(struct doc *d,const struct zenith_gui_event *e,int gutter
     }else{d->caret=p;if(!(e->modifiers&1))d->anchor=p;}
     d->goal_valid=0;ui->dirty=1;
 }
-static int dragging_text;
+static int dragging_text,dragging_bar;   /* dragging_bar: 1 minimap, 2 horizontal scroll bar */
 static int key_text(struct doc *d,const struct zenith_gui_event *e){
     int shift=e->modifiers&1,control=(e->modifiers&6)==2;
     unsigned int n=au_length(&d->text);
@@ -1208,6 +1481,11 @@ static int file_dialog_event(const struct zenith_gui_event *e){
 }
 static int find_event(const struct zenith_gui_event *e){
     int shift=e->modifiers&1;
+    /* Alt+C case, Alt+W whole word, Alt+R regular expression (as in other editors). */
+    if((e->modifiers&6)==4&&!e->extra){
+        int c=e->code>='A'&&e->code<='Z'?e->code+32:e->code,flag=c=='c'?AU_CASE:c=='w'?AU_WORD:c=='r'?AU_REGEX:0;
+        if(flag){find_flags^=flag;if(flag==AU_REGEX)mark("AURORA_REGEX",find_flags&AU_REGEX?"on":"off");count_matches();ui->dirty=1;return 1;}
+    }
     if(e->extra==1){find_open=0;replace_open=0;focus_find=0;ui->dirty=1;return 1;}
     if(e->extra==2){if(focus_find==2)replace_one();else find_step(!shift,0);return 1;}
     if(e->extra==4){focus_find=replace_open&&focus_find==1?2:replace_open&&focus_find==2?1:focus_find;ui->dirty=1;return 1;}
@@ -1265,6 +1543,8 @@ int aurora_event(const struct zenith_gui_event *e){
         return end_requested;
     }
     if(e->type==Z_GUI_SCROLL){
+        if(side_rect.h>0&&inside(side_rect,e->x,e->y)){if(zui_scroll_event(ui,&side_scroll,e))ui->dirty=1;return end_requested;}
+        if(d&&(e->modifiers&1)){d->scroll_x=max(0,d->scroll_x-e->code*cell_w*6);ui->dirty=1;return end_requested;}
         if(d&&zui_scroll_event(ui,&view,e))ui->dirty=1;
         return end_requested;
     }
@@ -1279,6 +1559,15 @@ int aurora_event(const struct zenith_gui_event *e){
             if(a)return end_requested;
         }
         int id=hit_at(e->x,e->y);
+        if(d&&(e->type==Z_GUI_DOWN||e->type==Z_GUI_DRAG)&&(id==H_MINIMAP||dragging_bar==1)&&minimap_rect.h>0&&!dragging_text){
+            dragging_bar=1;long content=(long)d->text.line_count*line_h,dense=(long)d->text.line_count*2>minimap_rect.h;
+            long y=e->y-minimap_rect.y,target=dense?y*content/minimap_rect.h:y/2*line_h;
+            zui_scroll_jump(&view,(int)max(0,(int)(target-view.rect.h/2)));view.offset=min(view.offset,zui_scroll_maximum(&view));ui->dirty=1;return end_requested;
+        }
+        if(d&&(e->type==Z_GUI_DOWN||e->type==Z_GUI_DRAG)&&(id==H_HSCROLL||dragging_bar==2)&&hbar_rect.w>0&&!dragging_text){
+            dragging_bar=2;long x=e->x-hbar_rect.x;d->scroll_x=(int)max(0,(int)(x*hscroll_range/max(1,hbar_rect.w)-hscroll_visible/2));ui->dirty=1;return end_requested;
+        }
+        if(e->type==Z_GUI_UP&&dragging_bar){dragging_bar=0;return end_requested;}
         if(e->type==Z_GUI_DOWN&&d&&(id==H_TEXT||id==H_GUTTER)){focus_find=0;click_text(d,e,id==H_GUTTER);dragging_text=1;return end_requested;}
         if(e->type==Z_GUI_DRAG&&d&&dragging_text){
             d->caret=position_at(d,e->x,e->y);d->goal_valid=0;
@@ -1292,6 +1581,8 @@ int aurora_event(const struct zenith_gui_event *e){
             else if(id==H_REPLACE_FIELD){focus_find=2;ui->dirty=1;}
             else if(id==H_CASE){find_flags^=AU_CASE;count_matches();ui->dirty=1;}
             else if(id==H_WORD){find_flags^=AU_WORD;count_matches();ui->dirty=1;}
+            else if(id==H_REGEX){find_flags^=AU_REGEX;count_matches();ui->dirty=1;mark("AURORA_REGEX",find_flags&AU_REGEX?"on":"off");}
+            else if(id==H_OVERWRITE){overwrite=!overwrite;ui->dirty=1;}
             else if(id==H_PREVIOUS)find_step(0,0);
             else if(id==H_NEXT)find_step(1,0);
             else if(id==H_REPLACE){if(!replace_open){replace_open=1;focus_find=2;ui->dirty=1;}else replace_one();}
@@ -1301,6 +1592,16 @@ int aurora_event(const struct zenith_gui_event *e){
             else if(id==H_OPEN)open_file_dialog(0);
             else if(id==H_MENU_BUTTON)open_menu(ui->width-276,TAB_Y+TAB_H,0);
             else if(id>=H_DOC&&id<H_DOC+MAX_DOCS&&id-H_DOC<doc_count)switch_doc(order[id-H_DOC]);
+            else if(id>=H_TREE&&id<H_TREE+TREE_ROWS&&id-H_TREE<tree_count){
+                int i=id-H_TREE;
+                if(tree[i].folder){toggle_folder(i);mark(tree[i].open?"AURORA_FOLDER closed":"AURORA_FOLDER opened",tree[i].name);}
+                else{char full[PATH_BYTES];join(full,tree_root,tree_paths[i]);open_path(full);}
+            }
+            else if(id>=H_SYMBOL&&id<H_SYMBOL+SYMBOLS&&id-H_SYMBOL<symbol_count&&d){
+                struct symbol *s=&symbols[id-H_SYMBOL];
+                d->caret=d->anchor=au_line_start(&d->text,s->line);d->goal_valid=0;reveal_caret=1;view.offset=max(0,(int)s->line*line_h-line_h*3);
+                mark("AURORA_SYMBOL",s->name);ui->dirty=1;
+            }
             else if(id==H_EOL&&d){d->crlf=!d->crlf;au_history_break(&d->history);if(!modified(d))d->history.saved=-1;update_title();note(d->crlf?"Line endings: CRLF (Windows) when saved":"Line endings: LF when saved",0);}
             else if(id==H_INDENT&&d){
                 if(d->spaces&&d->tab==4)d->tab=2;else if(d->spaces&&d->tab==2){d->spaces=0;d->tab=4;}else{d->spaces=1;d->tab=4;}
@@ -1317,10 +1618,140 @@ int aurora_event(const struct zenith_gui_event *e){
     if(find_open&&focus_find&&find_event(e))return end_requested;
     if(!d)return end_requested;
     if(e->extra==1){if(find_open){find_open=replace_open=0;}else d->anchor=d->caret;ui->dirty=1;return end_requested;}
-    if(typed(e)){char b[4];int n=utf8((unsigned int)e->code,b);replace_selection(d,b,(unsigned int)n,1);}
+    if(e->extra==26){overwrite=!overwrite;mark("AURORA_OVERWRITE",overwrite?"on":"off");ui->dirty=1;return end_requested;}
+    if(typed(e)){
+        char b[4];int n=utf8((unsigned int)e->code,b);
+        if(overwrite&&!has_selection(d)&&d->caret<au_length(&d->text)&&au_at(&d->text,d->caret)!='\n')d->anchor=au_next(&d->text,d->caret);
+        replace_selection(d,b,(unsigned int)n,!overwrite);
+    }
     else key_text(d,e);
     if(find_open)count_matches();
     return end_requested;
+}
+/* ---------- Recovery copies (AU3): while a document has unsaved changes, Aurora writes its text every 15 seconds
+ * to ~/.local/share/aurora/recovery/rID.txt (folders 0700, files 0600: the person's own) and removes it when the
+ * document is saved or closed. After a crash or power loss, the next start offers each copy back (Restore,
+ * Discard or Later); copies older than 14 days are deleted. They survive reboots: that is their purpose. */
+#define RECOVERY_SECONDS (14L*86400)
+static char recovery_dir[PATH_BYTES];
+static void recovery_file(char *o,unsigned int id){char n[32],*q=put(n,"r");q=num(q,id);put(q,".txt");join(o,recovery_dir,n);}
+static int recovery_folders(void){
+    char a[PATH_BYTES],b[PATH_BYTES];join(a,home,".local");join(b,a,"share");join(a,b,"aurora");
+    const char *chain[4]={0,0,a,recovery_dir};char c1[PATH_BYTES],c2[PATH_BYTES];join(c1,home,".local");join(c2,c1,"share");chain[0]=c1;chain[1]=c2;
+    for(int i=0;i<4;i++){struct au_info info;if(au_sys_info(chain[i],&info)){if(au_sys_mkdir(chain[i])<0)return 0;if(i>=2)au_sys_chmod(chain[i],0700);}}
+    return 1;
+}
+static void recovery_drop(struct doc *d){
+    if(!d->has_recovery||!recovery_dir[0])return;
+    char f[PATH_BYTES];recovery_file(f,d->recovery_id);au_sys_unlink(f);d->has_recovery=0;d->snapshot_stamp=0;
+}
+static void recovery_write(struct doc *d,long now){
+    if(!recovery_dir[0]||!recovery_folders())return;
+    char f[PATH_BYTES];recovery_file(f,d->recovery_id);
+    long fd=au_sys_create(f);if(fd<0)return;
+    au_sys_chmod(f,0600);
+    char head[PATH_BYTES+400],*o=put(head,"aurora-recovery 1\npath=");o=put(o,d->path);o=put(o,"\nname=");o=put(o,d->name);
+    o=put(o,"\ncrlf=");o=num(o,(unsigned long)d->crlf);o=put(o,"\ntime=");o=num(o,(unsigned long)au_sys_now());put(o,"\n\n");
+    long r=au_sys_write(fd,head,length(head));
+    unsigned int position=0,end=au_length(&d->text);
+    while(r>=0&&position<end){unsigned int n=au_encode(&d->text,&position,0,staging,65536);r=au_sys_write(fd,staging,n);}
+    if(au_sys_close(fd)<0)r=-5;
+    if(r<0){au_sys_unlink(f);return;}
+    d->has_recovery=1;d->last_snapshot=now;
+    if(!d->snapshot_stamp)mark("AURORA_RECOVERY_SAVED",d->name);
+    d->snapshot_stamp=(unsigned long)d->history.current*131+au_length(&d->text)+1;
+}
+/* Copies left by an earlier run: the ones to offer, oldest first. */
+#define RECOVERIES 8
+static char recover_names[RECOVERIES][32];static int recover_count,recover_next;
+static void found(void *context,const char *name,int folder){
+    (void)context;
+    if(folder||name[0]!='r'||recover_count>=RECOVERIES)return;
+    unsigned long n=length(name);if(n<6||n>30||!same(name+n-4,".txt"))return;
+    char f[PATH_BYTES];join(f,recovery_dir,name);struct au_info info;
+    if(au_sys_info(f,&info))return;
+    long now=au_sys_now();
+    if(now>0&&info.mtime>0&&now-info.mtime>RECOVERY_SECONDS){au_sys_unlink(f);return;}
+    /* A copy this run owns is not "left over". */
+    for(int i=0;i<MAX_DOCS;i++){if(!docs[i].used)continue;char mine[PATH_BYTES];recovery_file(mine,docs[i].recovery_id);if(same(mine,f))return;}
+    copy(recover_names[recover_count++],name,32);
+}
+static char recover_text[TEXT_BYTES+PATH_BYTES+512];
+/* Reads a copy: its header fields and where its text starts (0 when it is not a recovery copy). */
+static long recovery_read(const char *name,char *path,char *title,int *crlf,long *when){
+    char f[PATH_BYTES];join(f,recovery_dir,name);
+    long n=au_sys_read(f,recover_text,sizeof(recover_text)-1);
+    static const char magic[]="aurora-recovery 1\n";
+    if(n<20)return 0;
+    for(int i=0;magic[i];i++)if(recover_text[i]!=magic[i])return 0;
+    recover_text[n]=0;path[0]=title[0]=0;*crlf=0;*when=0;
+    char *l=recover_text;
+    while(*l&&*l!='\n'){char *e=l;while(*e&&*e!='\n')e++;
+        char c=*e;*e=0;
+        if(l[0]=='p'&&l[1]=='a'&&l[2]=='t'&&l[3]=='h'&&l[4]=='=')copy(path,l+5,PATH_BYTES);
+        else if(l[0]=='n'&&l[1]=='a'&&l[2]=='m'&&l[3]=='e'&&l[4]=='=')copy(title,l+5,256);
+        else if(l[0]=='c'&&l[1]=='r'&&l[2]=='l'&&l[3]=='f'&&l[4]=='=')*crlf=l[5]=='1';
+        else if(l[0]=='t'&&l[1]=='i'&&l[2]=='m'&&l[3]=='e'&&l[4]=='='){for(char *d=l+5;*d>='0'&&*d<='9';d++)*when=*when*10+(*d-'0');}
+        *e=c;l=*e?e+1:e;
+    }
+    if(*l!='\n')return 0;
+    return (long)(l+1-recover_text)|((long)n<<32);
+}
+static void offer_recovery(void){
+    while(recover_next<recover_count){
+        char path[PATH_BYTES],title[256];int crlf;long when;
+        long r=recovery_read(recover_names[recover_next],path,title,&crlf,&when);
+        if(!r){char f[PATH_BYTES];join(f,recovery_dir,recover_names[recover_next++]);au_sys_unlink(f);continue;}
+        char m[600],*o=put(m,"Aurora closed before \"");o=put(o,title[0]?title:"a document");o=put(o,"\" was saved");
+        if(path[0]){o=put(o," (");char l[200];copy(l,path,sizeof(l));o=put(o,l);o=put(o,")");}
+        put(o,". Restore the unsaved text from then?");
+        mark("AURORA_RECOVERY_FOUND",title);
+        ask(ASK_RECOVER,-1,"Recover unsaved work?",m,"Restore","Discard","Later");return;
+    }
+}
+static void recovery_answer(int choice){
+    if(recover_next>=recover_count)return;
+    const char *name=recover_names[recover_next++];char f[PATH_BYTES];join(f,recovery_dir,name);
+    if(choice==2){au_sys_unlink(f);mark("AURORA_RECOVERY_DISCARDED",name);}
+    if(choice==1){
+        char path[PATH_BYTES],title[256];int crlf;long when;long r=recovery_read(name,path,title,&crlf,&when);
+        int slot=r?new_doc():-1;
+        if(slot>=0){
+            struct doc *d=&docs[slot];long start=r&0xffffffff,n=r>>32;
+            if(au_load(&d->text,recover_text+start,(unsigned int)(n-start))){remove_doc(slot);fail("Cannot restore","The recovered text is too large for Aurora.");}
+            else{
+                if(path[0]){copy(d->path,path,sizeof(d->path));copy(d->name,leaf(path),sizeof(d->name));d->language=language_of(d->name);remember_disk(d);}
+                else{name_untitled(d);if(title[0])copy(d->name,title,sizeof(d->name));}
+                d->crlf=crlf;au_history_clear(&d->history);d->history.saved=-1;   /* restored text is unsaved */
+                /* The copy now belongs to this document: kept until it is saved or closed. */
+                unsigned long k=length(name);unsigned int id=0;for(unsigned long i=1;i+4<k;i++)id=id*10+(unsigned int)(name[i]-'0');
+                d->recovery_id=id;d->has_recovery=1;d->snapshot_stamp=1;
+                /* An empty, untouched new document from the start gives way to the restored one. */
+                for(int i=doc_count-1;i>=0;i--){struct doc *o=&docs[order[i]];if(order[i]!=slot&&!o->path[0]&&!modified(o)&&!au_length(&o->text)&&!o->history.count)remove_doc(order[i]);}
+                current=-1;switch_doc(slot);mark("AURORA_RECOVERED",d->name);
+            }
+        }
+    }
+    ui->dirty=1;
+    offer_recovery();
+}
+/* Called by main.c on each pass: recovery copies, and files changed by other programs (every 3 seconds). */
+static long last_disk_check;
+void aurora_tick(long now){
+    if(now<0)return;
+    for(int i=0;i<doc_count;i++){
+        struct doc *d=&docs[order[i]];
+        unsigned long stamp=(unsigned long)d->history.current*131+au_length(&d->text)+1;
+        if(!modified(d)){if(d->has_recovery&&d->path[0])recovery_drop(d);continue;}
+        if(stamp!=d->snapshot_stamp&&now-d->last_change>=2000&&(now-d->last_snapshot>=15000||!d->has_recovery))recovery_write(d,now);
+    }
+    if(now-last_disk_check>=3000){
+        last_disk_check=now;
+        for(int i=0;i<doc_count;i++){
+            struct doc *d=&docs[order[i]];if(d->disk_state)continue;
+            int c=changed_on_disk(d);if(c){d->disk_state=c;mark("AURORA_CHANGED_ON_DISK",d->path);ui->dirty=1;}
+        }
+    }
 }
 void aurora_focus(int focused){
     ui->window_focused=focused;ui->dirty=1;
@@ -1340,8 +1771,13 @@ void aurora_start(struct zui *u,const char *home_path,int count,char **paths){
     zui_input_init(&replace_input,replace_buffer,sizeof(replace_buffer));
     zui_input_init(&goto_input,goto_buffer,sizeof(goto_buffer));
     cell_w=zui_mono.advance[0];line_h=zui_mono.height+5;
+    side_scroll=(struct zui_scroll){0};tree_root[0]=0;tree_dirty=1;outline_slot=-1;overwrite=0;last_disk_check=au_sys_clock();
+    char a[PATH_BYTES],b[PATH_BYTES];join(a,home,".local/share/aurora");join(b,a,"recovery");copy(recovery_dir,b,sizeof(recovery_dir));
+    recover_count=recover_next=0;
     for(int i=0;i<count;i++)open_path(paths[i]);
     if(!doc_count)new_document();
+    au_sys_list(recovery_dir,found,0);
+    if(recover_count)offer_recovery();
     update_title();ui->dirty=1;
 }
 /* Called by main.c each loop: keeps the caret in view after edits (needs the last layout). */

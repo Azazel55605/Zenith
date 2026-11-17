@@ -96,12 +96,42 @@ loop). Kernel: `ProcessGraphics.CopyText/PasteText`, `ProcessSurface.Focused/Key
   find and replace, Save as, a refused binary file, and the unsaved-close prompt; the host
   reads both saved files from the disk (CRLF kept, edits present).
 
+## AU2 — project, outline, minimap, regular expressions (local, kernel 0.0.65, zenith-aurora 0.2.0)
+
+Requested 2026-11-17 ("complete Horizon, then Aurora").
+- **Project:** the sidebar shows the active document's folder as a tree (folders first; a click opens a
+  folder in place or opens a file), up to 256 rows and six levels.
+- **Outline:** classes, structs, interfaces, enums, namespaces and records (accent) and functions (grey) for
+  C-family languages; `def`, `class` and shell functions for Python and shell; headings for Markdown. A click
+  goes to the line. Heuristics, not a parser: declarations split over lines may be missed.
+- **Minimap** beside the text from 700 pixels wide: one bar per line, comments dimmer, the visible part
+  highlighted; a click or drag scrolls there.
+- **Horizontal scroll bar** under the text when lines run past the view, and Shift+wheel.
+- **Bracket matching:** the bracket beside the caret and its partner are outlined (within 20,000 bytes).
+- **Overwrite mode:** Insert (kernel 0.0.65 sends it as key 26) or a click on INS/OVR in the status bar.
+- **Regular expressions** in find (`.*`, or Alt+R; Alt+C and Alt+W toggle case and whole word): literals,
+  `.`, classes and `\d \w \s \b`, `^ $`, groups, `|`, `* + ? {n,m}` and lazy forms; `$1`..`$9` in the
+  replacement. Matches stay within a line, and every search has a step budget, so no pattern can hang the
+  editor (`userland/aurora/regex.c`, host-tested).
+- **Open from Horizon:** Enter or a double click on a text file in Horizon opens it in Aurora through the
+  Desktop Portal (`org.zenith.portal.OpenWith`, see Horizon HZ2).
+
+## AU3 — recovery copies and changes on disk (local)
+
+- **Recovery copies:** while a document has unsaved changes, Aurora writes its text every 15 seconds (after
+  two quiet seconds) to `~/.local/share/aurora/recovery/rID.txt`. The folders are mode 0700 and the files
+  0600, so they are the person's own. A copy is removed when the document is saved or closed (closing with
+  Don't save means the person chose to lose it).
+- **After a crash** (or power loss, or the process being ended), the next start offers each copy: Restore
+  opens the text as an unsaved document (with its path when it had one), Discard deletes it, Later keeps it
+  for the next start. Copies older than 14 days are deleted. They survive reboots: that is their purpose.
+- **Changes on disk** are checked every three seconds, not only when the window gets focus back.
+- Checked by the host test (a copy written with the right modes, offered after a restart, restored, removed
+  on close; a change noticed without focus) and `tools/aurora-smoke.py`: the guest ends Aurora with
+  `kill` and the next Aurora restores the unsaved text.
+
 ## Next
 
-- **AU2:** Project (the document's folder as a tree) and Outline in the sidebar, the
-  minimap, horizontal scroll bar, overwrite mode, bracket matching, regular expressions
-  (`.*`) in find, and Open with from Horizon (HZ2).
-- **AU3:** crash-recovery copies with a per-user privacy, cleanup and reboot policy;
-  external-change detection without a focus change.
-- Later: compiler output, diagnostics and language-server features once process/IPC and
-  toolchain support exist. Aurora is not an IDE promise.
+- Compiler output, diagnostics and language-server features once process/IPC and toolchain support exist.
+  Aurora is not an IDE promise.
+- Several cursors, code folding and a configurable colour scheme beyond the accent palette.

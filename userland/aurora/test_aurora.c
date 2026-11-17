@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 #include "aurora.h"
 
@@ -101,6 +102,8 @@ long au_sys_close(long fd){return close((int)fd)?-errno:0;}
 long au_sys_rename(const char *from,const char *to){return rename(from,to)?-errno:0;}
 long au_sys_unlink(const char *path){return unlink(path)?-errno:0;}
 long au_sys_chmod(const char *path,unsigned int mode){return chmod(path,mode)?-errno:0;}
+long au_sys_mkdir(const char *path){return mkdir(path,0755)?-errno:0;}
+long au_sys_now(void){return (long)time(0);}
 long au_sys_list(const char *folder,void (*each)(void *,const char *,int),void *context){
     DIR *d=opendir(folder);if(!d)return -errno;long n=0;struct dirent *e;
     while((e=readdir(d))){if(!strcmp(e->d_name,".")||!strcmp(e->d_name,".."))continue;each(context,e->d_name,e->d_type==DT_DIR);n++;}
@@ -169,6 +172,9 @@ static void editor_tests(const char *dir,int width,int height,int foreground,int
     char *paths[]={src};
     aurora_start(&ui,dir,1,paths);frame();
     CHECK(logged_has("AURORA_OPENED")&&logged_has("crlf"));
+    /* AU2: the outline lists the class and its method (the sidebar shows from 820 pixels). */
+    CHECK(width<820||logged_has("AURORA_OUTLINE 2 SessionStore TryRestore"));
+    CHECK(width<820||logged_has("AURORA_PROJECT"));
     /* Edit, undo, redo. */
     ctrl('G');type("3");key(2,0);
     key(11,0);type("\n");type("// added");
@@ -188,6 +194,15 @@ static void editor_tests(const char *dir,int width,int height,int foreground,int
     ctrl('s');CHECK(logged_has("AURORA_SAVED"));
     char *s=slurp(src,&n);CHECK(n>0&&strstr(s,"// added\r\n")!=0&&strstr(s,"class Store2\r\n")!=0);
     CHECK(!unsaved);
+    /* AU2: a regular expression with a group in the replacement (Alt+R turns it on). */
+    ctrl('f');send(Z_GUI_KEY,'r',0,0,4,0);CHECK(logged_has("AURORA_REGEX on"));
+    for(int i=0;i<40;i++)key(3,0);
+    type("Try(\\w+)\\(");CHECK(logged_has("AURORA_FIND 1 Try(\\w+)\\("));
+    ctrl('h');type("Do$1(");key(2,0);CHECK(logged_has("AURORA_REPLACED 1"));
+    key(1,0);key(1,0);
+    send(Z_GUI_KEY,0,0,0,0,26);CHECK(logged_has("AURORA_OVERWRITE on"));   /* Insert: overwrite */
+    ctrl('G');type("1");key(2,0);type("##");send(Z_GUI_KEY,0,0,0,0,26);
+    ctrl('s');s=slurp(src,&n);CHECK(strstr(s,"DoRestore(string path)")!=0);CHECK(strstr(s,"## Bounded")!=0&&strstr(s,"// Bounded")==0);
     /* A save that runs out of space leaves the file unchanged and keeps the text. */
     type("x");CHECK(unsaved&&strstr(title,"\xE2\x80\xA2"));fail_space=1;ctrl('s');fail_space=0;
     CHECK(logged_has("AURORA_SAVE_FAILED"));
@@ -218,6 +233,26 @@ static void editor_tests(const char *dir,int width,int height,int foreground,int
     if(!end){key(4,1);end=send(Z_GUI_KEY,0,0,0,0,2);}
     CHECK(end);
     s=slurp(out,&n);CHECK(n==17);
+    /* AU3: a recovery copy of unsaved work, offered after a "crash" (a restart without closing). */
+    char rdir[700],rfile[1200];snprintf(rdir,sizeof(rdir),"%s/.local/share/aurora/recovery",dir);
+    logged=0;logbuf[0]=0;aurora_start(&ui,dir,0,0);frame();
+    type("unsaved words");now_ms+=3000;aurora_tick(now_ms);frame();
+    CHECK(logged_has("AURORA_RECOVERY_SAVED"));
+    int copies=0;DIR *rd=opendir(rdir);struct dirent *re;
+    while(rd&&(re=readdir(rd))){if(re->d_name[0]=='r'){copies++;snprintf(rfile,sizeof(rfile),"%s/%s",rdir,re->d_name);}}
+    if(rd)closedir(rd);
+    struct stat st;CHECK(copies==1&&stat(rfile,&st)==0&&(st.st_mode&0777)==0600);
+    CHECK(stat(rdir,&st)==0&&(st.st_mode&0777)==0700);
+    logged=0;logbuf[0]=0;aurora_start(&ui,dir,0,0);frame();
+    CHECK(logged_has("AURORA_RECOVERY_FOUND"));
+    key(2,0);CHECK(logged_has("AURORA_RECOVERED"));CHECK(unsaved);
+    CHECK(access(rfile,F_OK)==0);   /* kept until the document is saved or closed */
+    ctrl('2');ctrl('w');key(4,1);end=send(Z_GUI_KEY,0,0,0,0,2);   /* close it without saving: the copy goes */
+    CHECK(access(rfile,F_OK)!=0);
+    /* AU3: another program's change is noticed within three seconds, without a focus change. */
+    char *again_paths[]={out};logged=0;logbuf[0]=0;aurora_start(&ui,dir,1,again_paths);frame();
+    put_file(out,"changed elsewhere",17);now_ms+=3500;aurora_tick(now_ms);frame();
+    CHECK(logged_has("AURORA_CHANGED_ON_DISK"));
 }
 
 int main(int argc,char **argv){

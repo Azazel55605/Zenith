@@ -20,7 +20,9 @@ _Static_assert(sizeof(struct zenith_filesystem)==128,"filesystem");
 static inline long zenith_files_list(const struct zenith_files_list *r,void *page){return zenith_call(654,(unsigned long)r,sizeof(*r),(unsigned long)page);}
 static inline long zenith_files_filesystem(const char *path,unsigned long bytes,struct zenith_filesystem *out){return zenith_call(655,(unsigned long)path,bytes,(unsigned long)out);}
 
-enum { Z_JOB_COPY=1,Z_JOB_MOVE=2,Z_JOB_DELETE=3 };
+/* Kernel 0.0.65: 4 extracts .zip/.tar/.tar.gz/.tgz/.gz archives (sources) into new folders in the destination; 5 compresses the
+ * sources into the destination archive (.zip, .tar or .tar.gz). */
+enum { Z_JOB_COPY=1,Z_JOB_MOVE=2,Z_JOB_DELETE=3,Z_JOB_EXTRACT=4,Z_JOB_COMPRESS=5 };
 enum { Z_JOB_REPLACE_ALL=1,Z_JOB_SKIP_ALL=2 };
 enum { Z_JOB_COUNTING=1,Z_JOB_WORKING=2,Z_JOB_ASKING=3,Z_JOB_DONE=4,Z_JOB_FAILED=5,Z_JOB_CANCELLED=6 };
 enum { Z_JOB_SKIP=1,Z_JOB_REPLACE=2,Z_JOB_KEEP_BOTH=3,Z_JOB_MERGE=4,Z_JOB_FOR_ALL=256 };
@@ -43,6 +45,14 @@ static inline long zenith_job_wait(long job,unsigned int ms){return zenith_call(
 #define Z_GUI_SECONDARY 12
 enum { Z_KEY_F1=14,Z_KEY_F2=15,Z_KEY_F5=18,Z_KEY_F9=22,Z_KEY_F11=24 };
 static inline long zenith_gui_input(long handle,unsigned int bits){return zenith_call(627,(unsigned long)handle,bits,0);}
+/* Thumbnails (kernel 0.0.65): PNG, BMP and baseline JPEG shrunk to at most max (16..256) pixels a side, ARGB with straight
+ * alpha. Returns width << 16 | height, or -2 missing, -13 denied, -27 over 32 MiB, -95 not an image it can read. */
+struct zenith_thumbnail_request { unsigned int version,max; unsigned long path; unsigned int path_bytes,capacity; unsigned long pixels; };
+_Static_assert(sizeof(struct zenith_thumbnail_request)==32,"thumbnail request");
+static inline long zenith_thumbnail(const char *path,unsigned long bytes,unsigned int max,unsigned int *pixels,unsigned int capacity){
+    struct zenith_thumbnail_request r={1,max,(unsigned long)path,(unsigned int)bytes,capacity,(unsigned long)pixels};
+    return zenith_call(660,(unsigned long)&r,sizeof(r),0);
+}
 /* Path calls (zenith-native-path-abi 1.0). */
 static inline long zenith_mkdir(const char *path,unsigned long bytes){return zenith_path(1,path,bytes,0,0,0755,0);}
 static inline long zenith_rename(const char *from,unsigned long fb,const char *to,unsigned long tb){return zenith_path(4,from,fb,to,tb,0,0);}

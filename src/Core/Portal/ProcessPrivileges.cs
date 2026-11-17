@@ -10,6 +10,7 @@ internal enum Privilege : uint
     None = 0,
     Disks = 1,            // zenith-native-disk-abi: partition, format, mount (calls 647/648)
     SystemSettings = 2,   // settings for all users: keyboard, time zone, session, display, system appearance
+    Files = 4,            // every file and folder: listing, metadata, path operations and transfer jobs (Horizon, kernel 0.0.65)
 }
 
 /// <summary>What each running program was granted, until it exits. A grant makes the kernel serve
@@ -41,6 +42,9 @@ internal static class ProcessPrivileges
         620 or 621 or 625 or 626 or 640 or 641 or 608 or 609 or 616 or 617 or 618 or 619 => Privilege.SystemSettings,
         // Scoped appearance: only the system scope (0); a personal scope stays the caller's own.
         622 when arg0 == 0 => Privilege.SystemSettings,
+        // Files: listing and free space (654/655), transfer jobs (656..658), path operations (405) and metadata
+        // (4/408). Ordinary reads and writes (0..3) keep the program's identity.
+        654 or 655 or 656 or 657 or 658 or 660 or 405 or 4 or 408 => Privilege.Files,
         _ => Privilege.None,
     };
 

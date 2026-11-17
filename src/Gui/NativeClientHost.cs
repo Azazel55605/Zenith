@@ -68,7 +68,12 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
                 var (surface, since) = _pending[i];
                 if (!surface.Ended && !surface.HasPresented && (now - since) * 1000 / System.Diagnostics.Stopwatch.Frequency < FirstFrameMilliseconds) { continue; }
                 _pending.RemoveAt(i--);
-                if (!surface.Ended) { windows.Open(new ClientWindow(surface, _identity)); Zenith.Core.Log.Write("graphics", "native surface opened " + surface.Width + "x" + surface.Height); }
+                if (!surface.Ended)
+                {
+                    var window = new ClientWindow(surface, _identity); windows.Open(window);
+                    // Where its content starts on screen: gates turn content coordinates into pointer moves.
+                    Zenith.Core.Log.Write("graphics", "native surface opened " + surface.Width + "x" + surface.Height + " at " + window.Content.X + "," + window.Content.Y);
+                }
             }
             _surfaces.RemoveAll(s => s.Ended);
         }
@@ -228,7 +233,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
         private int PointerModifiers() => !_surface.SecondaryPresses ? 0
             : (Cosmos.Kernel.System.Keyboard.KeyboardManager.ShiftPressed ? 1 : 0) | (Cosmos.Kernel.System.Keyboard.KeyboardManager.ControlPressed ? 2 : 0)
             | (Cosmos.Kernel.System.Keyboard.KeyboardManager.AltPressed ? 4 : 0);
-        public override void OnScrollAt(int delta, int x, int y) { EndFade("Input"); _surface.Send(new(8, Math.Clamp(delta, -120, 120), Math.Clamp(x, 0, Content.W-1), Math.Clamp(y, 0, Content.H-1), 0, 0)); }
+        public override void OnScrollAt(int delta, int x, int y) { EndFade("Input"); _surface.Send(new(8, Math.Clamp(delta, -120, 120), Math.Clamp(x, 0, Content.W-1), Math.Clamp(y, 0, Content.H-1), PointerModifiers(), 0)); }
         public override void OnKey(KeyEvent key)
         {
             EndFade("Input");
@@ -244,7 +249,8 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
                 special = key.Key switch
                 {
                     ConsoleKeyEx.F1 => 14, ConsoleKeyEx.F2 => 15, ConsoleKeyEx.F3 => 16, ConsoleKeyEx.F4 => 17, ConsoleKeyEx.F5 => 18, ConsoleKeyEx.F6 => 19,
-                    ConsoleKeyEx.F7 => 20, ConsoleKeyEx.F8 => 21, ConsoleKeyEx.F9 => 22, ConsoleKeyEx.F10 => 23, ConsoleKeyEx.F11 => 24, ConsoleKeyEx.F12 => 25, _ => 0
+                    ConsoleKeyEx.F7 => 20, ConsoleKeyEx.F8 => 21, ConsoleKeyEx.F9 => 22, ConsoleKeyEx.F10 => 23, ConsoleKeyEx.F11 => 24, ConsoleKeyEx.F12 => 25,
+                    ConsoleKeyEx.Insert => 26, _ => 0   // kernel 0.0.65 (Aurora's overwrite mode)
                 };
             }
             int modifiers = ((key.Modifiers & ConsoleModifiers.Shift) != 0 ? 1 : 0)

@@ -8,12 +8,17 @@ namespace Zenith.Gui.Shell;
 internal sealed class AppInfo
 {
     public AppInfo(string name, string description, Func<string?, Window> create, string? native = null, string? action = null,
-        bool builtIn = true, string? icon = null)
+        bool builtIn = true, string? icon = null, string[]? opens = null)
     {
         Name = name;
         Description = description;
-        Create = create; Native = native; Action = action; BuiltIn = builtIn; Icon = icon;
+        Create = create; Native = native; Action = action; BuiltIn = builtIn; Icon = icon; Opens = opens ?? Array.Empty<string>();
     }
+
+    /// <summary>File extensions (lower case) the app opens when given a path; empty for apps that take no files.</summary>
+    public string[] Opens { get; }
+    /// <summary>Takes a file path as its argument (Open with lists it).</summary>
+    public bool OpensFiles => Opens.Length > 0;
 
     /// <summary>Opens without its package (a built-in window stands in); otherwise the app is
     /// listed only while its native program is installed.</summary>
@@ -37,12 +42,17 @@ internal sealed class AppInfo
 /// <summary>The built-in applications. Register new apps here to make them appear in the launcher.</summary>
 internal static class AppRegistry
 {
+    /// <summary>Text and source files: the Editor (Aurora when installed) opens them. Declared before Apps: static fields initialize in order.</summary>
+    public static readonly string[] TextTypes = { "txt", "md", "markdown", "log", "conf", "cfg", "ini", "toml", "yaml", "yml", "json", "csv", "tsv",
+        "xml", "html", "htm", "css", "js", "ts", "c", "h", "cc", "cpp", "hpp", "cs", "java", "py", "sh", "bash", "rs", "go", "kt", "swift",
+        "sql", "app", "mk", "cmake", "diff", "patch", "rst", "tex", "svg" };
+
     public static readonly List<AppInfo> Apps = new()
     {
         new AppInfo("Welcome", "Getting started", _ => new WelcomeWindow(), "desktop-tools", "welcome"),
         new AppInfo("Terminal", "Command line shell", _ => new TerminalWindow(), "polaris"),
         new AppInfo("Files", "Browse and manage files", path => new FileManagerWindow(path)),
-        new AppInfo("Editor", "Edit text and code", path => new EditorWindow(path), "aurora"),
+        new AppInfo("Editor", "Edit text and code", path => new EditorWindow(path), "aurora", opens: TextTypes),
         new AppInfo("Sunrise", "Install Zenith", _ => new InstallerWindow()),
         new AppInfo("System", "About this machine", _ => new SystemInfoWindow(), "desktop-tools", "system"),
         new AppInfo("Meridian", "System settings", _ => new AppLaunchNotice("Install the zenith-settings package to open Meridian."), "settings", builtIn: false),
@@ -52,6 +62,20 @@ internal static class AppRegistry
     };
 
     public const string DescriptorDirectory = "/usr/share/zenith/apps";
+
+
+    /// <summary>Apps that open files of this extension ("" for none): those declaring it first, then every other
+    /// app that takes files (so the person can still choose one). Alphabetical within each group.</summary>
+    public static List<AppInfo> OpenersFor(string extension)
+    {
+        var declared = new List<AppInfo>(); var others = new List<AppInfo>();
+        foreach (var app in Visible())
+        {
+            if (!app.OpensFiles) { continue; }
+            if (extension.Length > 0 && Array.IndexOf(app.Opens, extension) >= 0) { declared.Add(app); } else { others.Add(app); }
+        }
+        declared.AddRange(others); return declared;
+    }
 
     /// <summary>What the launcher lists now: built-in apps, package apps whose program is
     /// installed, and apps packages declare in <see cref="DescriptorDirectory"/>. Sunrise only in
@@ -98,7 +122,7 @@ internal static class AppRegistry
 
     public static AppInfo? Parse(string text)
     {
-        string? name = null, description = "", icon = null, program = null, action = null;
+        string? name = null, description = "", icon = null, program = null, action = null; string[]? opens = null;
         foreach (string raw in text.Split('\n'))
         {
             string line = raw.Trim(); int eq = line.IndexOf('=');
@@ -113,12 +137,13 @@ internal static class AppRegistry
                 case "ICON": icon = value; break;
                 case "PROGRAM": program = value; break;
                 case "ACTION": action = value; break;
+                case "OPENS": opens = value.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries); break;
             }
         }
         if (name is null || name.Length == 0 || program is null || program.Length == 0) { return null; }
         foreach (char c in program) { if (!(char.IsAsciiLetterOrDigit(c) || c is '-' or '_')) { return null; } }
         string shown = name;
-        return new AppInfo(name, description, _ => new AppLaunchNotice("Install the package that provides " + shown + "."), program, action, builtIn: false, icon);
+        return new AppInfo(name, description, _ => new AppLaunchNotice("Install the package that provides " + shown + "."), program, action, builtIn: false, icon, opens);
     }
 
     /// <summary>The icon of a registered app; window titles may add to the app's name.</summary>

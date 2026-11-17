@@ -57,11 +57,15 @@ class UiLibraryTests(unittest.TestCase):
             exe = dest/'aurora-test'
             subprocess.run(['gcc','-std=c11','-Wall','-Wextra','-Werror','-O1','-g',
                             '-fsanitize=address,undefined','-fno-omit-frame-pointer','-I'+str(ROOT/'userland/ui'),
-                            str(ROOT/'userland/aurora/test_aurora.c'),str(ROOT/'userland/aurora/editor.c'),str(ROOT/'userland/aurora/buffer.c'),
+                            str(ROOT/'userland/aurora/test_aurora.c'),str(ROOT/'userland/aurora/editor.c'),str(ROOT/'userland/aurora/buffer.c'),str(ROOT/'userland/aurora/regex.c'),
                             str(ROOT/'userland/ui/ui.c'),str(ROOT/'userland/ui/widgets.c'),str(ROOT/'userland/ui/text.c'),
                             generated('build-ui-fonts.py','fonts',mono=True),generated('build-ui-icons.py','icons'),'-o',str(exe)],check=True)
             work = dest/'files'; work.mkdir()
             subprocess.run([str(exe), str(work)], check=True, timeout=120)
+            regex = dest/'regex-test'
+            subprocess.run(['gcc','-std=c11','-Wall','-Wextra','-Werror','-O1','-g','-fsanitize=address,undefined','-fno-omit-frame-pointer',
+                            '-I'+str(ROOT/'userland/aurora'),str(ROOT/'userland/aurora/test_regex.c'),str(ROOT/'userland/aurora/regex.c'),str(ROOT/'userland/aurora/buffer.c'),'-o',str(regex)],check=True)
+            subprocess.run([str(regex)], check=True, timeout=60)
 
     def test_widgets_with_sanitizers(self):
         with tempfile.TemporaryDirectory(prefix='zenith-widgets-') as directory:

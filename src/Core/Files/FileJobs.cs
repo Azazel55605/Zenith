@@ -6,7 +6,7 @@ using Zenith.Core.Security;
 
 namespace Zenith.Core.Files;
 
-internal enum FileJobOperation { Copy = 1, Move = 2, Delete = 3 }
+internal enum FileJobOperation { Copy = 1, Move = 2, Delete = 3, Extract = 4, Compress = 5 }
 internal enum FileJobState { Counting = 1, Working = 2, Asking = 3, Done = 4, Failed = 5, Cancelled = 6 }
 internal enum FileJobAnswer { Skip = 1, Replace = 2, KeepBoth = 3, Merge = 4 }
 internal enum FileKind { Missing, File, Directory, Link, Special }
@@ -39,7 +39,7 @@ internal readonly record struct FileJobStatus(FileJobState State, FileJobOperati
 /// filesystem step takes <c>gate</c>, so it never overlaps a native file call; a copy holds it for one
 /// 64 KiB chunk at a time. Questions (a name already exists) wait for an answer; cancel stops between
 /// chunks and removes the file being written.</summary>
-internal sealed class FileJob
+internal sealed partial class FileJob
 {
     public const int MaximumSources = 64, MaximumItems = 200000, MaximumDepth = 64, Chunk = 65536;
     public const uint ReplaceAll = 1, SkipAll = 2;
@@ -105,17 +105,19 @@ internal sealed class FileJob
         {
             Count();
             if (_cancelled) { Finish(FileJobState.Cancelled, "Cancelled before anything changed."); return; }
-            if (Operation != FileJobOperation.Delete)
+            if (Operation is not (FileJobOperation.Delete or FileJobOperation.Extract))
             {
                 ulong needed; lock (_lock) { needed = _bytesTotal; }
-                ulong available = Locked(() => _store.Available(_destination));
+                ulong available = Locked(() => _store.Available(Operation == FileJobOperation.Compress ? Parent(_destination) : _destination));
                 if (needed > available)
                 { Finish(FileJobState.Failed, "Not enough space: " + Size(needed) + " needed, " + Size(available) + " available."); return; }
             }
             Set(() => _state = FileJobState.Working);
-            foreach (string source in _sources)
+            if (Operation == FileJobOperation.Compress) { Compress(); }
+            else foreach (string source in _sources)
             {
                 if (_cancelled) { break; }
+                if (Operation == FileJobOperation.Extract) { Extract(source); continue; }
                 if (Operation == FileJobOperation.Delete) { Delete(source); }
                 else
                 {
@@ -139,6 +141,7 @@ internal sealed class FileJob
         int items = 0; ulong bytes = 0;
         foreach (string source in _sources)
         {
+            if (Operation == FileJobOperation.Extract) { ulong size = 0; Locked(() => _store.Kind(source, out size)); items++; bytes += size; continue; }
             if (Operation == FileJobOperation.Move && Locked(() => _store.SameFilesystem(source, _destination))) { items++; continue; }
             Walk(source, 0, ref items, ref bytes);
             if (_cancelled) { return; }
@@ -387,7 +390,8 @@ internal static class FileJobs
         foreach (string source in sources)
         {
             if (!Absolute(source) || source == "/") { return -22; }
-            if (operation != FileJobOperation.Delete && (destination == source || destination.StartsWith(source + "/", StringComparison.Ordinal))) { return -22; }
+            if (operation is FileJobOperation.Copy or FileJobOperation.Move && (destination == source || destination.StartsWith(source + "/", StringComparison.Ordinal))) { return -22; }
+            if (operation == FileJobOperation.Compress && destination.StartsWith(source + "/", StringComparison.Ordinal)) { return -22; }
         }
         // Checked as the caller under the gate, released explicitly (see FileJob.Locked).
         int refused = 0;
@@ -395,7 +399,10 @@ internal static class FileJobs
         Monitor.Enter(gate);
         try
         {
-            if (operation != FileJobOperation.Delete && store.Kind(destination, out _) != FileKind.Directory) { refused = -20; }
+            string folder = operation == FileJobOperation.Compress ? FileJob.Parent(destination) : destination;
+            if (operation != FileJobOperation.Delete && store.Kind(folder, out _) != FileKind.Directory) { refused = -20; }
+            else if (operation == FileJobOperation.Compress && FileJob.KindOf(FileJob.Leaf(destination)) is FileJob.ArchiveKind.None or FileJob.ArchiveKind.Gz) { refused = -22; }
+            else if (operation == FileJobOperation.Extract && Array.Exists(sources, s => FileJob.KindOf(FileJob.Leaf(s)) == FileJob.ArchiveKind.None)) { refused = -22; }
             else { foreach (string source in sources) { if (store.Kind(source, out _) == FileKind.Missing) { refused = -2; break; } } }
         }
         catch (Exception e) { refused = e is UnauthorizedAccessException ? -13 : -5; }

@@ -62,8 +62,31 @@ static inline long zenith_portal_info(struct zenith_portal_info *i){return zenit
 #define Z_PORTAL_AUTHORIZATION "org.zenith.portal.Authorization"
 #define Z_ACTION_DISKS "org.zenith.disks.manage"
 #define Z_ACTION_SYSTEM_SETTINGS "org.zenith.settings.system"
-enum { Z_PRIVILEGE_DISKS=1, Z_PRIVILEGE_SYSTEM_SETTINGS=2 };
+/* Kernel 0.0.65: files anywhere (654..658, 405, 4, 408 as root for the program); reads and writes stay its own. */
+#define Z_ACTION_FILES "org.zenith.files.manage"
+enum { Z_PRIVILEGE_DISKS=1, Z_PRIVILEGE_SYSTEM_SETTINGS=2, Z_PRIVILEGE_FILES=4 };
 struct zenith_authorization_result { unsigned int granted, privileges; };
+
+/* Extended payload (kernel 0.0.65): request flag 1 makes the 16 payload bytes { u64 address, u32 bytes, u32 0 }
+ * naming up to 4096 bytes of the program's memory, for requests that carry a path. */
+#define Z_PORTAL_EXTENDED 1u
+struct zenith_portal_extended { unsigned long address; unsigned int bytes, zero; };
+
+/* org.zenith.portal.OpenWith 1 (kernel 0.0.65): the desktop opens a file with an app. "Open" uses the person's
+ * remembered app, else the app that declares the file's type, and asks only when there is none; "Choose" always
+ * asks (Open with...). Payload: the absolute path (extended). Response: u32 opened, then the app name (64 bytes).
+ * Denied when the person cancels or no app opens files; Failed when the app could not be started. */
+#define Z_PORTAL_OPEN_WITH "org.zenith.portal.OpenWith"
+struct zenith_open_with_result { unsigned int opened; char app[64]; };
+static inline long zenith_open_with(const char *method,const char *path,unsigned long bytes){
+    struct zenith_portal_request r;unsigned char *p=(unsigned char*)&r;
+    for(unsigned long i=0;i<sizeof(r);i++)p[i]=0;
+    r.version=1;r.flags=Z_PORTAL_EXTENDED;r.payload_bytes=sizeof(struct zenith_portal_extended);
+    const char *n=Z_PORTAL_OPEN_WITH;for(int i=0;n[i]&&i<63;i++)r.interface_name[i]=n[i];
+    for(int i=0;method[i]&&i<31;i++)r.method[i]=method[i];
+    struct zenith_portal_extended *x=(struct zenith_portal_extended*)r.payload;x->address=(unsigned long)path;x->bytes=(unsigned int)bytes;x->zero=0;
+    return zenith_portal_open(&r);
+}
 
 static inline long zenith_authorize(const char *method,const char *action){
     struct zenith_portal_request r;unsigned char *p=(unsigned char*)&r;

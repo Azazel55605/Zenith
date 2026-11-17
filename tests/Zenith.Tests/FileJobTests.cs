@@ -302,7 +302,8 @@ public sealed class FileJobTests : IDisposable
         Assert.Equal(new[] { "/home/user/a.txt", "/home/user/Fotos" }, sources);
         Assert.True(ProcessFileService.ParseJob(JobRequest(3, 0, "", "/tmp/x"), out op, out _, out destination, out _));
         Assert.Equal(FileJobOperation.Delete, op); Assert.Equal("", destination);
-        Assert.False(ProcessFileService.ParseJob(JobRequest(4, 0, "/a", "/b"), out _, out _, out _, out _));
+        Assert.True(ProcessFileService.ParseJob(JobRequest(4, 0, "/a", "/b.zip"), out op, out _, out _, out _)); Assert.Equal(FileJobOperation.Extract, op);   // HZ4 archives: 4 extract, 5 compress
+        Assert.False(ProcessFileService.ParseJob(JobRequest(6, 0, "/a", "/b"), out _, out _, out _, out _));
         Assert.False(ProcessFileService.ParseJob(JobRequest(1, 0, "/a", ""), out _, out _, out _, out _));
         byte[] wrongCount = JobRequest(1, 0, "/a", "/b"); BinaryPrimitives.WriteUInt32LittleEndian(wrongCount.AsSpan(12), 2);
         Assert.False(ProcessFileService.ParseJob(wrongCount, out _, out _, out _, out _));

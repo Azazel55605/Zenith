@@ -42,7 +42,10 @@ def main():
     (served / 'image.bin').write_bytes(b'\x7fELF\x02\x01\x01\x00' + bytes(range(256)))
     # Whole-app transparency on: Aurora draws its chrome on the window material; code stays opaque.
     gui = {'g0': 'settings set materials background-blur | logger; native run aurora /root/work/session.cs | logger & sleep 6; true',
-           'g1': 'poweroff'}
+           'g1': 'poweroff',
+           # AU3: the process list, to end Aurora as a crash would; then Aurora again to find the recovery copy.
+           'g2': 'ps | logger',
+           'g3': 'native run aurora | logger & sleep 6; true'}
     for name, text in gui.items(): (served / name).write_text(text + '\n')
     class Handler(http.server.SimpleHTTPRequestHandler):
         def log_message(self, *args): pass
@@ -138,7 +141,31 @@ def main():
         typed('/root/work/image.bin\n', 'user: AURORA_REFUSED /root/work/image.bin', 'a binary file is refused')
         shot('refused')
         monitor_command(monitor, 'sendkey ret 30'); time.sleep(.5)
-        login.monitor_type(monitor, 'x')
+        # AU2: regular expressions in find (Alt+R) and overwrite mode (Insert).
+        monitor_command(monitor, 'sendkey ctrl-f 30'); time.sleep(.5)
+        press('alt-r', 'user: AURORA_REGEX on', 'Alt+R turns on regular expressions')
+        for _ in range(30): monitor_command(monitor, 'sendkey backspace 10')
+        typed('Max[a-z]+', 'user: AURORA_FIND 1 Max[a-z]+', 'a regular expression finds MaximumEntries')
+        shot('regex')
+        monitor_command(monitor, 'sendkey esc 30'); monitor_command(monitor, 'sendkey esc 30'); time.sleep(.3)
+        press('insert', 'user: AURORA_OVERWRITE on', 'Insert switches to overwrite')
+        press('insert', 'user: AURORA_OVERWRITE off', 'and back')
+        # AU3: unsaved text gets a recovery copy; Aurora ends without its own cleanup (kill), and the next start offers it.
+        off = len(m.log()); login.monitor_type(monitor, 'x')
+        check(m.wait('user: AURORA_RECOVERY_SAVED copy.cs', off, 60), 'unsaved text gets a recovery copy')
+        # The terminal shows beside Aurora's window on the left: a click gives it the keyboard.
+        observer = profile.RenderedMouse(monitor, monitor_command)
+        (cx, cy), _ = observer.position(); monitor_command(monitor, f'mouse_move {330 - cx} {420 - cy}'); time.sleep(.5)
+        monitor_command(monitor, 'mouse_button 1'); time.sleep(.15); monitor_command(monitor, 'mouse_button 0'); time.sleep(1)
+        output = typed('sh /root/g2\n', ' aurora', 'ps lists Aurora')
+        pid = next(line.split('user: ', 1)[1].split()[0] for line in m.log().splitlines() if line.rstrip().endswith(' aurora') and 'user: ' in line)
+        off = len(m.log()); login.monitor_type(monitor, 'kill ' + pid + '\n')
+        check(m.wait('native surface retired', off, 60), 'kill ends Aurora as a crash would')
+        check('AURORA_CLOSED' not in m.log()[off:], 'without Aurora closing itself')
+        time.sleep(2)
+        typed('sh /root/g3\n', 'user: AURORA_RECOVERY_FOUND copy.cs', 'the next Aurora finds the recovery copy')
+        shot('recovery')
+        press('ret', 'user: AURORA_RECOVERED copy.cs', 'Restore brings the unsaved text back')
         press('ctrl-w', 'user: AURORA_DIALOG Save changes to', 'closing a changed document asks first')
         shot('unsaved')
         monitor_command(monitor, 'sendkey shift-tab 30'); time.sleep(.3)

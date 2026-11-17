@@ -17,6 +17,9 @@ long au_sys_close(long fd);
 long au_sys_rename(const char *from,const char *to);
 long au_sys_unlink(const char *path);
 long au_sys_chmod(const char *path,unsigned int mode);
+long au_sys_mkdir(const char *path);
+/* UTC seconds now (0 when unknown). */
+long au_sys_now(void);
 /* Calls each(context,name,is_dir) for the entries of a folder; the count or a negative error. */
 long au_sys_list(const char *folder,void (*each)(void *context,const char *name,int is_dir),void *context);
 /* The system clipboard: set it, and read it right after the person asked to paste (negative otherwise). */
@@ -38,6 +41,8 @@ int aurora_close(void);
 void aurora_focus(int focused);
 /* After each handled event: keeps the caret in view (uses the last frame's layout). */
 void aurora_after_event(void);
+/* On every pass of the event loop: recovery copies and changes on disk. */
+void aurora_tick(long now);
 /* Events that older headers name elsewhere. */
 #ifndef Z_GUI_SECONDARY
 #define Z_GUI_SECONDARY 12

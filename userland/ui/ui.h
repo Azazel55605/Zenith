@@ -86,6 +86,8 @@ void zui_round_alpha(struct zui *ui,struct zui_rect rect,int radius,unsigned int
 void zui_round(struct zui *ui,struct zui_rect rect,int radius,unsigned int color);
 /* A one-pixel rounded border, antialiased, leaving the inside untouched. */
 void zui_round_outline(struct zui *ui,struct zui_rect rect,int radius,unsigned int color);
+/* An ARGB image (straight alpha), w*h pixels, at (x,y) within the clip; blended so material frames stay valid. */
+void zui_image(struct zui *ui,int x,int y,int w,int h,const unsigned int *argb);
 /* Up to 4096 UTF-8 input bytes per call. Unsupported/malformed characters render '?'. No shaping yet. */
 void zui_text(struct zui *ui,int x,int y,const char *text,unsigned long bytes,
               const struct zui_font *font,unsigned int color);

@@ -102,6 +102,7 @@ NUL-padded to 64 bytes. Its response is u32 granted (1/0) and u32 privileges now
 | Action | Privilege | What it unlocks |
 |---|---|---|
 | `org.zenith.disks.manage` | Disks | Calls 647/648: partitioning, formatting, mounting, startup mounts (Equinox). |
+| `org.zenith.files.manage` | Files (kernel 0.0.65) | Calls 654..658 and 660, 405, 4 and 408: listing, transfer and archive jobs, path operations and metadata anywhere (Horizon's Unlock). Ordinary reads and writes keep the program's identity. |
 | `org.zenith.settings.system` | System settings | Calls 620/621, 625/626, 640/641, 608/609, 616..619 and system-scope 622/623: keyboard, time zone, session, display and the system appearance (Meridian). A personal appearance scope always stays the caller's own. |
 
 A grant belongs to **one process** until it exits or releases it. For that process alone, the
@@ -114,6 +115,26 @@ in the mount editor. `equinox --unlock` asks at once; gates use it. Meridian sho
 read-only system settings (keyboard, time zone, session and similar pages, display, and the
 system colours) when call 653 answers. Both say why when the answer is no, and point to `sudo`
 when no desktop can answer.
+
+### Extended payload (kernel 0.0.65)
+
+Request flag 1 makes the 16 inline payload bytes `{ u64 address, u32 bytes (1..4096), u32 0 }`, naming the
+real payload in the program's memory. The kernel copies it when the request opens (`-14` for a bad address).
+Interfaces whose requests carry a path use it.
+
+### org.zenith.portal.OpenWith 1
+
+Opens a file with an app, as `xdg-open` does; the desktop chooses the app and starts it, never the program.
+Payload: the absolute path, UTF-8, 1..1024 bytes (extended). Methods:
+- **Open**: the person's remembered app for the file's extension, else the first app that declares the
+  extension, opens it at once without a dialog; when no app declares it, the dialog asks.
+- **Choose**: the dialog always asks (Horizon's *Open with...*).
+
+The dialog lists the apps that take files (those declaring the extension first), with *Always use this app
+for .EXT files*, which is remembered per account in `/etc/zenith/preferences/UID.open-with`. Response: u32
+opened, then the app's name, NUL-padded to 64 bytes. Denied when the person cancels or no app takes files;
+Failed when the app cannot be started. Apps declare extensions with `OPENS=ext ext...` in their `.app`
+descriptor; the built-in Editor (Aurora when installed) declares text and source types.
 
 ## Stages
 
@@ -131,7 +152,7 @@ when no desktop can answer.
 - **EL3:** more interfaces on the same broker, each with its own sign-off:
   - file chooser (open/save outside the program's own files);
   - screenshot;
-  - open a file or link with another app;
+  - ~~open a file or link with another app~~ (OpenWith 1 for files, kernel 0.0.65; links later);
   - removable-drive access ([S6](REMOVABLE-STORAGE.md)).
 - **EL4:**
   - per-command rules (a sudoers-like policy) and per-action policy, such as "allow without a

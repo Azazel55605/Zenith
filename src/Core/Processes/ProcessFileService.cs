@@ -100,7 +100,7 @@ internal static class ProcessFileService
             || BinaryPrimitives.ReadUInt32LittleEndian(b[20..]) != 0) { return false; }
         uint op = BinaryPrimitives.ReadUInt32LittleEndian(b[4..]), count = BinaryPrimitives.ReadUInt32LittleEndian(b[12..]);
         flags = BinaryPrimitives.ReadUInt32LittleEndian(b[8..]);
-        if (op is < 1 or > 3 || count is < 1 or > FileJob.MaximumSources || BinaryPrimitives.ReadUInt32LittleEndian(b[16..]) != b.Length - JobHeader) { return false; }
+        if (op is < 1 or > 5 || count is < 1 or > FileJob.MaximumSources || BinaryPrimitives.ReadUInt32LittleEndian(b[16..]) != b.Length - JobHeader) { return false; }
         var parts = new List<string>();
         var text = b[JobHeader..]; int start = 0;
         for (int i = 0; i < text.Length; i++)

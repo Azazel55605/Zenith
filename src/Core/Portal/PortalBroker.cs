@@ -61,7 +61,7 @@ internal interface IPortalInterface
 /// answers. Without a frontend a request that needs one ends Unavailable.</summary>
 internal static class PortalBroker
 {
-    public const int MaximumPayload = 144, MaximumResponse = 136, MaximumPerProcess = 4, MaximumRequests = 32;
+    public const int MaximumPayload = 144, MaximumExtendedPayload = 4096, MaximumResponse = 136, MaximumPerProcess = 4, MaximumRequests = 32;
     private static readonly object s_gate = new();
     private static readonly Dictionary<string, IPortalInterface> s_interfaces = new(StringComparer.Ordinal);
     private static readonly List<PortalRequest> s_requests = new();
@@ -103,7 +103,7 @@ internal static class PortalBroker
     /// <summary>A program's new request: a handle (positive) or a negative errno.</summary>
     public static long Open(PortalCaller caller, string name, string method, byte[] payload)
     {
-        if (!ValidName(name) || method.Length is 0 or > 31 || payload.Length > MaximumPayload) { return -22; }
+        if (!ValidName(name) || method.Length is 0 or > 31 || payload.Length > MaximumExtendedPayload) { return -22; }
         IPortalInterface? target; PortalRequest request;
         lock (s_gate)
         {

@@ -93,6 +93,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         _taskbar = new Taskbar(w, h, Windows);
         _prism = new PrismView(PrismCandidates, PrismActivate, PrismUser);
         _portal.Attach();
+        Zenith.Gui.Shell.Portal.OpenWithDialog.Launch = (app, path) => OpenAppWith(app, new[] { path });
         _sunset = new Zenith.Gui.Shell.Sunset.SunsetView(this);
 
         SessionDisplay.ConfigurePointer();

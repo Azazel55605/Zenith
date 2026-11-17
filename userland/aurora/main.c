@@ -75,6 +75,14 @@ long au_sys_close(long fd){
 long au_sys_rename(const char *from,const char *to){return zenith_rename(from,length(from),to,length(to));}
 long au_sys_unlink(const char *path){return zenith_path(2,path,length(path),0,0,0,0);}
 long au_sys_chmod(const char *path,unsigned int mode){return zenith_path(5,path,length(path),0,0,mode&0xfff,0);}
+long au_sys_mkdir(const char *path){return zenith_mkdir(path,length(path));}
+/* UTC seconds from the files service (its page header carries the time). */
+long au_sys_now(void){
+    static struct zenith_files_list request;static unsigned char page[Z_FILES_PAGE] __attribute__((aligned(16)));
+    request=(struct zenith_files_list){1,0,0,1,{0}};request.path[0]='/';
+    if(zenith_files_list(&request,page)<0)return 0;
+    return ((const struct zenith_files_page *)page)->now;
+}
 long au_sys_list(const char *folder,void (*each)(void *,const char *,int),void *context){
     static struct zenith_files_list request;static unsigned char page[Z_FILES_PAGE] __attribute__((aligned(16)));
     request=(struct zenith_files_list){1,0,0,(unsigned int)length(folder),{0}};copy(request.path,folder,sizeof(request.path));
@@ -155,6 +163,7 @@ int main(int argc,char **argv,char **envp){
     zenith_write("AURORA_READY\n",13);
     int result=0;long repaired_total=0;
     for(;;){
+        aurora_tick(zui_motion_clock());
         if(ui.dirty||ui.animating){
             long now=zui_motion_clock();if(now>=0)zui_motion_frame(&ui,now);
             aurora_draw();

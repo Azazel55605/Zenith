@@ -29,6 +29,7 @@ internal static class PortalDialogs
     private static readonly Dictionary<string, Func<PortalRequest, IPortalDialog>> s_dialogs = new(StringComparer.Ordinal)
     {
         [AuthorizationPortal.InterfaceName] = request => new AuthorizationDialog(request),
+        [OpenWithPortal.InterfaceName] = request => new OpenWithDialog(request),
     };
     public static void Register(string name, Func<PortalRequest, IPortalDialog> create) => s_dialogs[name] = create;
     public static bool Supports(string name) => s_dialogs.ContainsKey(name);
@@ -67,6 +68,7 @@ internal sealed class PortalHost
         if (next is null) { return false; }
         var dialog = PortalDialogs.Create(next);
         if (dialog is null) { PortalBroker.Finish(next, PortalState.Unavailable, "the desktop cannot show this request"); return false; }
+        if (dialog.Done) { return false; }   // answered without asking (Open with a known app)
         _request = next; _dialog = dialog;
         Zenith.Core.Log.Write("portal", "dialog shown: " + next.Interface.Name + "." + next.Method + " for " + next.Caller.Program + " (pid " + next.Caller.Pid + ")");
         return true;

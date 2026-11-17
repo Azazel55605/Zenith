@@ -152,4 +152,63 @@ public class PortalTests : IDisposable
         Assert.Equal(AuthorizationPortal.InterfaceName, Encoding.ASCII.GetString(info, 16, AuthorizationPortal.InterfaceName.Length));
         Assert.Equal(1u, BinaryPrimitives.ReadUInt32LittleEndian(info.AsSpan(16 + 64)));
     }
+
+    [Fact]
+    public void OpenWithCarriesAPathInAnExtendedPayloadAndRemembersChoices()
+    {
+        var store = new MemoryOpenWithStore(); var open = new OpenWithPortal(store);
+        PortalBroker.Register(open); PortalBroker.Attach(_ => true);
+        byte[] path = Encoding.UTF8.GetBytes("/home/user/Documents/Notes.MD");
+        byte[] request = new byte[ProcessPortal.RequestBytes];
+        BinaryPrimitives.WriteUInt32LittleEndian(request, 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(request.AsSpan(4), ProcessPortal.ExtendedPayload);
+        Encoding.ASCII.GetBytes(OpenWithPortal.InterfaceName).CopyTo(request, 8);
+        Encoding.ASCII.GetBytes("Open").CopyTo(request, 72);
+        BinaryPrimitives.WriteUInt32LittleEndian(request.AsSpan(104), 16);
+        BinaryPrimitives.WriteUInt64LittleEndian(request.AsSpan(112), 0x1000);
+        BinaryPrimitives.WriteUInt32LittleEndian(request.AsSpan(120), (uint)path.Length);
+        ulong readAt = 0; int readBytes = 0;
+        long handle = ProcessPortal.Open(request, User(), (address, bytes) => { readAt = address; readBytes = bytes; return path; });
+        Assert.True(handle > 0);
+        Assert.Equal(0x1000UL, readAt); Assert.Equal(path.Length, readBytes);
+        var shown = PortalBroker.TakeNext()!;
+        var prompt = Assert.IsType<OpenWithPrompt>(shown.Prompt);
+        Assert.Equal("/home/user/Documents/Notes.MD", prompt.Path); Assert.Equal("md", prompt.Extension);
+        Assert.False(prompt.Choose); Assert.Null(prompt.Remembered);
+        Assert.True(open.Opened(shown, "Editor", always: true));
+        Assert.Equal(PortalState.Approved, shown.State);
+        Assert.Equal(1u, BinaryPrimitives.ReadUInt32LittleEndian(shown.Response));
+        Assert.Equal("Editor", Encoding.ASCII.GetString(shown.Response, 4, 6));
+        Assert.Equal("md=Editor\n", store.Read(1000));
+        Assert.Equal("Editor", open.Remembered(1000, "md")); Assert.Null(open.Remembered(1001, "md"));
+        // The remembered app arrives with the next request; Choose still asks.
+        long again = ProcessPortal.Open(request, User(), (_, _) => path);
+        Assert.Equal("Editor", Assert.IsType<OpenWithPrompt>(PortalBroker.Find(again, 40)!.Prompt).Remembered);
+        // Without the extended flag a path cannot fit; a bad address is -14; a relative path or junk is refused.
+        Assert.Equal(-14, ProcessPortal.Open(request, User(), (_, _) => null));
+        Assert.Equal(-22, ProcessPortal.Open(request, User()));
+        Assert.Equal(-22, PortalBroker.Open(User(), OpenWithPortal.InterfaceName, "Open", Encoding.UTF8.GetBytes("notes.md")));
+        Assert.Equal(-22, PortalBroker.Open(User(), OpenWithPortal.InterfaceName, "Open", Encoding.UTF8.GetBytes("/tmp/a\nb")));
+        Assert.Equal(-38, PortalBroker.Open(User(), OpenWithPortal.InterfaceName, "Launch", Encoding.UTF8.GetBytes("/tmp/a")));
+        long choose = PortalBroker.Open(User(), OpenWithPortal.InterfaceName, "Choose", Encoding.UTF8.GetBytes("/tmp/README"));
+        var c = Assert.IsType<OpenWithPrompt>(PortalBroker.Find(choose, 40)!.Prompt);
+        Assert.True(c.Choose); Assert.Equal("", c.Extension);
+        Assert.True(open.Declined(PortalBroker.Find(choose, 40)!, "dismissed"));
+        Assert.Equal(PortalState.Denied, PortalBroker.Find(choose, 40)!.State);
+    }
+
+    [Theory]
+    [InlineData("/a/b.txt", "txt")] [InlineData("/a/B.TAR.GZ", "gz")] [InlineData("/a/.bashrc", "")] [InlineData("/a/noext", "")]
+    [InlineData("/a/x.", "")] [InlineData("/a/x.c++", "c++")] [InlineData("/a/x.has space", "")]
+    public void OpenWithExtensions(string path, string extension) => Assert.Equal(extension, OpenWithPortal.ExtensionOf(path));
+
+    [Fact]
+    public void TheFilesGrantElevatesFileCallsOnly()
+    {
+        Assert.NotNull(_auth.Action("org.zenith.files.manage"));
+        ProcessPrivileges.Grant(50, Privilege.Files);
+        foreach (ulong call in new ulong[] { 654, 655, 656, 657, 658, 405, 4, 408 }) { Assert.True(ProcessPrivileges.Elevates(50, call, 0), call.ToString()); }
+        foreach (ulong call in new ulong[] { 0, 1, 2, 3, 647, 620, 650 }) { Assert.False(ProcessPrivileges.Elevates(50, call, 0), call.ToString()); }
+        Assert.False(ProcessPrivileges.Elevates(51, 656, 0));
+    }
 }

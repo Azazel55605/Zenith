@@ -13,7 +13,7 @@ internal sealed class NativePersonalAppearanceStore : IPersonalAppearanceStore
     public bool Persistent => SystemMounts.Mode == BootMode.Installed;
     public bool Available(uint uid) => uid == 0 || (uid != 65534 && Accounts.Service?.Find(Accounts.Service.Name(uid))?.Uid == uid);
     private static string PathFor(uint uid) => "/etc/zenith/preferences/" + uid + ".conf";
-    private static void Ancestors(bool create)
+    internal static void Ancestors(bool create)
     {
         var metadata = new VfsFileMetadata();
         foreach (string path in new[] { "/", "/etc", "/etc/zenith", "/etc/zenith/preferences" })
@@ -28,7 +28,7 @@ internal sealed class NativePersonalAppearanceStore : IPersonalAppearanceStore
             if (stat.Type != "directory" || !stat.UnixAttributes || stat.Uid != 0 || (stat.Mode & 0x12) != 0 || (path.EndsWith("preferences") && (stat.Mode & 0x3f) != 0)) { throw new IOException("unsafe preference ancestor"); }
         }
     }
-    private static void Leaf(string path)
+    internal static void Leaf(string path)
     {
         if (new VfsFileMetadata().TryRead(path, out var stat) && (stat.Type != "regular file" || stat.Links != 1 || stat.Uid != 0 || (stat.Mode & 0x12) != 0))
         { throw new IOException("unsafe preference record"); }
