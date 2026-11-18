@@ -30,53 +30,37 @@ System sounds and additional panels are explicitly subsequent work.
   an explicit click; there are no boot/event sounds. Input meters reflect actual
   authorized recording, never background microphone access just to show a meter.
 
-## Qualification
+## Release qualification
 
-Local qualification completed on 2026-11-18:
+Fresh clean Release acceptance completed on 2026-11-18 at
+`5f3ba1fe6f7a509f342a40aeb0db356ffde25224`:
 
-- Pinned Cosmos 3.0.89 x64 kernel publish succeeded. Tested ELF SHA256:
-  `c90b706e0d7db0d5336a69a65e41f2585749736e05ff42d6677fb18ed8624ec9`.
-- All 1089 host tests passed, including mixer saturation/gain/mute, bounded queues,
-  capture fan-out/overrun, stream ownership/generation, explicit recording grants
-  and the reviewed Meridian inventory. 68 affected controller/documentation tests
-  and all 11 UI/bridge tests passed (actual widgets under sanitizers, both themes,
-  package headroom and the audited seven AP bridges).
-- Fresh `validation-runner.py tools/native-audio-smoke.py /var/tmp/zn-audio-final`
-  passed in 96.674 s with TCG: signed installed native PCM on four CPUs, input and
-  output selection, malformed pointers/frames, stale controls/handles, microphone
-  denial and cleanup after a real native CPU fault. Capture used QEMU's silent
-  backend; no host microphone was accessed. Separate WAV output reached peak 3200;
-  the muted app's entire recording was zero. No-HDA installed boot also passed.
-- The audio gate is part of the shared CI/distributor native plan (`f`), including
-  older-tag compatibility through the existing file-presence check.
-- Host-rendered Sound page evidence is in `/tmp/zenith-audio-ui`. This verifies
-  layout/controls separately from the HDA/native QEMU evidence.
+- All **1095 host tests**, **588 controller tests**, runtime-adapter tests and
+  **23 fresh native VM gates** passed. The matrix used six supported workers with
+  successful-result reuse disabled. Evidence: `/var/tmp/zn-audio-release-068-qualified`.
+- The HDA gate passed signed installed native playback/capture on four CPUs,
+  device selection, invalid ranges/frames, stale controls/handles, capture denial,
+  fault cleanup and no-HDA boot. Capture used QEMU's silent input backend, without
+  accessing the host microphone. Separate actual WAV output/mute checks passed.
+- Full qualification exposed an existing Horizon HZ5 input bug: QEMU and the guest
+  mouse manager received the middle press, but `Desktop.Tick` skipped stationary
+  middle edges. The shared `InputActivity` predicate now dispatches them without
+  pointer motion, preserving release/hover animation behavior. Six host regressions
+  and Horizon's entire **169-check** native gate passed, including middle-open and
+  middle-close. No test assertion, destination or timeout was relaxed. This is a
+  kernel fix; it does not require a rebuilt Horizon package.
+- Release ELF SHA256:
+  `9e3d041e6f2ed242e3037e4772d4feda46e3144a96c6d3d80f8923cd2250a20a`.
+  ISO SHA256:
+  `56da26dbe818d3fc75cd03ce58bf3054c4a71be9f5ace8b55fd2e93e52f54847`.
+- Audio acceptance is mandatory gate `f` in the shared CI/distributor plan. Its
+  gate-list controller regression also covers retained audio evidence. Host UI
+  checks exercise actual Sound widgets in both themes under sanitizers.
 
-Publication qualification on 2026-11-18 at `7103973`:
+Release set at the qualified source commit: **kernel/v0.0.68**, **zenith-settings/v0.12.0**,
+**zenith-man-pages/v0.1.8**. Qualification notes may follow in a documentation-only commit.
+Distributor build/sign/publication and installed VMware listening, input pickup
+and real codec/jack behavior remain external acceptance.
 
-- Fresh Release acceptance retained at `/var/tmp/zn-audio-release-068-publish`:
-  all 588 controller regressions, 1089 host tests, the runtime adapters and 22 of
-  23 native VM gates passed. The audio gate passed in 85.6 s. Release ELF SHA256
-  `00fa6ae0d6a5104b256d0d6d39475d6293eaca5bca2a4232d2a4a30c01c1546b`.
-- The remaining Horizon HZ5 gate failed its middle-click/new-tab check at
-  `tools/horizon-smoke.py:306`; the retained image shows Documents beneath the
-  pointer and one tab. Its input-delivery diagnosis belongs to A1/Q2. No assertion,
-  input destination or timeout was relaxed, and no middle click was replayed.
-- The release-controller expectation was corrected to include the new `f` audio
-  gate. An initial unchanged Aurora host-test timeout passed both isolated and
-  subsequent full controller runs with the original 120-second limit.
-
-The Horizon blocker was traced to desktop dispatch: HMP and the guest mouse
-manager both reported the middle button down, but `Desktop.Tick` did not call
-`HandleInput` for a stationary middle edge. It only reached windows if pointer
-motion happened in the same tick. The shared `InputActivity` predicate now routes
-all button presses without requiring movement and preserves release/hover
-animation behavior. Six host regressions cover it; fresh complete qualification
-of this correction is pending. This is a kernel fix, not a Horizon package change.
-
-Proposed tags `kernel/v0.0.68`, `zenith-settings/v0.12.0` and
-`zenith-man-pages/v0.1.8` remain withheld until release acceptance is resolved.
-Installed VMware listening, input pickup and real codec/jack behavior remain
-operator acceptance.
-Later formats, persistent choices, independent routing, additional controllers
-and system sounds are explicitly outside this first device/application stage.
+Additional formats, remembered choices, independent routing, extra controllers,
+system sounds and further panels remain subsequent H2 work.

@@ -50,16 +50,14 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 
 ## Current focus and execution order
 
-**2026-11-18 — Audio devices and application mixer (H2, local).** Requested: implement output/input
-and a per-app menu before system sounds. Real Intel HDA playback/capture, fixed PCM queues, explicit
-recording permission, device selection and Meridian's three Sound pages are implemented and locally
-qualified. The fresh four-CPU audio gate checks capture DMA, native ownership/fault cleanup and actual
-WAV playback/mute; 1089 host and 588 controller tests pass. Release qualification passed 22/23 VM gates;
-Horizon HZ5 middle-click/new-tab acceptance failed (A1/Q2); the missing stationary-middle edge in
-desktop dispatch is corrected and under fresh qualification. The proposed 0.0.68 / Settings 0.12.0 /
-manuals 0.1.8 tags are withheld; installed VMware audio remains unverified. Persistence,
-additional hardware/formats/routing, system sounds and extra panels follow separately.
-[Audio H2](components/AUDIO.md).
+**2026-11-18 — Audio devices and application mixer (H2, release-qualified).** Intel HDA playback/capture,
+fixed PCM queues, recording permission, device selection and Meridian's three Sound pages are implemented.
+Fresh Release acceptance at `5f3ba1f` passed all 1095 host tests, 588 controller tests, runtime adapters and
+all 23 native VM gates, including actual HDA DMA/WAV/mute checks. The Horizon blocker was a missing
+stationary-middle input edge in desktop dispatch; corrected with six regressions and all 169 Horizon checks
+passing (A1/Q2). Release set: `kernel/v0.0.68`, `zenith-settings/v0.12.0`, `zenith-man-pages/v0.1.8`.
+Distributor/installed VMware audio acceptance remains pending. Persistence, additional hardware/formats,
+independent routing, system sounds and extra panels follow separately. [Audio H2](components/AUDIO.md).
 
 **2026-11-18 — Aurora finished to AU4 (U2, local).** Requested: "finish Aurora". Code folding (indentation and
 Markdown headings), several cursors (Alt+click, Ctrl+Alt+Up/Down, Ctrl+D), colour schemes (Accent, Classic, Warm,
@@ -383,7 +381,7 @@ changes; put smaller implementation steps in the linked component, using the sam
 | N1 | verification | [Sustained networking](components/NETWORKING.md): repeatable VMware/proxy/DNS/TCP/TLS transfer/cancel/replacement benchmarks and actionable counters. Port-allocation mitigation is installed; stale-flow location remains unproved. No current reproduction is assumed from old traces. |
 | N2 | planned, later | Beyond primary wired IPv4 clients: socket/listener/UDP/server contracts, connection/device profiles and additional NICs; Wi-Fi/IPv6 only after explicit driver/protocol scopes. Reconnect/link loss/authz tests per supported profile. |
 | H1 | partial; input candidates local | [System audit](archive/2026-10-30/system-audit.md): VMware power-off repair qualified at `cdba28a` and tagged `kernel/v0.0.30`, device confirmation pending; open findings below map to owners. [Supported device matrix](components/BOOT-RECOVERY.md): publish actual QEMU/VMware boot/storage/display/input/network support and repeatable recovery scenarios; verify physical/USB install separately. Operator VMware all-input freeze reproduced with PS/2 under KVM; root cause is the native user window acknowledging device IRQs without their drivers. [Forwarding candidate](archive/2026-10-29/native-device-irq-forwarding.md) passes the reproducer; clean-source qualified at `760c5fe` (all ten native gates) and tagged `kernel/v0.0.29`. Operator installed 0.0.29 in VMware and reports no recurrence so far (2026-10-30); keep observing under sustained use (**Q2**). [Stranded virtio input](archive/2026-10-28/virtio-mouse-drain.md) reproduced; bounded IRQ-scoped periodic drain is clean-source qualified at `5306703`, with all ten native gates and the exact QEMU 10 restricted-CPU reproducer passing; distributor/installed acceptance remains with Q2. PS/2 and installed wheel/drag anomalies remain unverified; absolute pointer/hardware cursor/damage presentation need driver work. |
-| H2 | partial, locally qualified | [Audio devices and application mixer](components/AUDIO.md): Intel HDA output/input routes, bounded PCM playback/capture, permissioned recording and Meridian device/per-app controls passed host/UI and actual DMA/native QEMU checks. Full release and installed VMware listening/microphone acceptance remain. System sounds, additional formats/routing and removable-device automount follow later. |
+| H2 | partial, locally qualified | [Audio devices and application mixer](components/AUDIO.md): Intel HDA output/input routes, bounded PCM playback/capture, permissioned recording and Meridian device/per-app controls passed host/UI and actual DMA/native QEMU checks. Full Release passed all 23 VM gates at `5f3ba1f`; distributor and installed VMware listening/microphone acceptance remain. System sounds, additional formats/routing and removable-device automount follow later. |
 | H3 | planned, later | True suspend/resume, Bluetooth, printers and specialized accessibility. Define each scope/driver dependency first; WIP pages stay visible. Never count a menu or VM-only demo as device support. |
 | Q1 | verification | Confirm 0.0.25 distributor result and [Appearance installed procedure](testing/SETTINGS-VM-TEST.md); retain current release immutability. |
 | Q2 | 0.0.44 built/installed; multicore correction local | `kernel/v0.0.44`, `sunbeam-tools/v0.7.0` and `zenith-gui-probe/v0.2.0` are tagged at CI-qualified `8502029`. All 28 fresh VM gates and the aggregate passed in 33m 27s; local fresh Release acceptance also passed all 14 mandatory native gates. Parallel CI shares one source-bound build, caches downloads and verifies every result ([qualification](archive/2026-11-04/c4-release-and-ci.md), [contract](DEVELOPMENT.md#ci-and-releases)). Operator confirms distributor 0.0.44 built and is installed; CPU diagnostics exposed the return/GC faults described above. Their repaired candidate has local targeted qualification; new release and VMware acceptance remain Q2/H1. |
