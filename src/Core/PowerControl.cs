@@ -43,6 +43,7 @@ internal static class PowerControl
             if (powerOff) { Log.Write("power", Zenith.Core.Boot.NativeAcpiPower.Describe()); }
 #endif
             Zenith.Core.Multiprocessing.CpuWorkers.Quiesce();
+            Zenith.Core.Audio.AudioService.Stop();
             SystemMounts.Shutdown();
             try { Farewell?.Invoke(powerOff ? "Shutting down" : "Restarting"); }
             catch (Exception e) { Log.Write("power", "farewell skipped: " + e.Message); }

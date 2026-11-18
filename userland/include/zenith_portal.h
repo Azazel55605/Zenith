@@ -63,8 +63,9 @@ static inline long zenith_portal_info(struct zenith_portal_info *i){return zenit
 #define Z_ACTION_DISKS "org.zenith.disks.manage"
 #define Z_ACTION_SYSTEM_SETTINGS "org.zenith.settings.system"
 /* Kernel 0.0.65: files anywhere (654..658, 405, 4, 408 as root for the program); reads and writes stay its own. */
+#define Z_ACTION_AUDIO_RECORD "org.zenith.audio.record"
 #define Z_ACTION_FILES "org.zenith.files.manage"
-enum { Z_PRIVILEGE_DISKS=1, Z_PRIVILEGE_SYSTEM_SETTINGS=2, Z_PRIVILEGE_FILES=4 };
+enum { Z_PRIVILEGE_DISKS=1, Z_PRIVILEGE_SYSTEM_SETTINGS=2, Z_PRIVILEGE_FILES=4, Z_PRIVILEGE_AUDIO_RECORD=8 };
 struct zenith_authorization_result { unsigned int granted, privileges; };
 
 /* Extended payload (kernel 0.0.65): request flag 1 makes the 16 payload bytes { u64 address, u32 bytes, u32 0 }

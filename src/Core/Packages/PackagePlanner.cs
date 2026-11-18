@@ -52,6 +52,7 @@ internal static class BootstrapComponents
         new("zenith-native-network-abi", "1.0", "owned bounded TCP/verified-TLS clients and atomic download sinks"),
         new("zenith-native-path-abi", "1.0", "owned namespace/metadata operations and private descriptor seeks"),
         new("zenith-native-process-abi", "1.0", "exported environment and owned process lifecycle"),
+        new("zenith-native-audio-abi", "1.0", "HDA playback, permissioned capture and session mixer"),
         new("zenith-native-terminal-abi", "1.0", "foreground raw terminal modes and automatic restoration"),
         new("zenith-native-stream-abi", "1.0", "live standard streams and bounded byte pipelines"),
         new("zenith-native-io-abi", "1.0", "bounded native stdin and regular-file writes"),

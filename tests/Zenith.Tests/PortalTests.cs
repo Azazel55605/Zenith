@@ -25,6 +25,19 @@ public class PortalTests : IDisposable
         => PortalBroker.Open(caller, AuthorizationPortal.InterfaceName, method, Action(action));
 
     [Fact]
+    public void RecordingGrantIsExplicitRevocableAndNeverElevatesOtherCalls()
+    {
+        Assert.NotNull(_auth.Action("org.zenith.audio.record"));
+        Assert.False(ProcessPrivileges.Holds(40, Privilege.AudioRecord));
+        ProcessPrivileges.Grant(40, Privilege.AudioRecord);
+        Assert.True(ProcessPrivileges.Holds(40, Privilege.AudioRecord));
+        Assert.False(ProcessPrivileges.Holds(41, Privilege.AudioRecord));
+        Assert.False(ProcessPrivileges.Elevates(40, 663, 1)); // audio checks the grant, never changes uid
+        Assert.False(ProcessPrivileges.Elevates(40, 2, 0));
+        ProcessPrivileges.Revoke(40, Privilege.AudioRecord);
+        Assert.False(ProcessPrivileges.Holds(40, Privilege.AudioRecord));
+    }
+    [Fact]
     public void WithoutADesktopNobodyCanAnswer()
     {
         long handle = Ask(User());

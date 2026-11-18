@@ -8,6 +8,8 @@ namespace Zenith.Core.Portal;
 internal enum Privilege : uint
 {
     None = 0,
+    AudioRecord = 8,      // explicit microphone authorization, until release or process exit
+
     Disks = 1,            // zenith-native-disk-abi: partition, format, mount (calls 647/648)
     SystemSettings = 2,   // settings for all users: keyboard, time zone, session, display, system appearance
     Files = 4,            // every file and folder: listing, metadata, path operations and transfer jobs (Horizon, kernel 0.0.65)

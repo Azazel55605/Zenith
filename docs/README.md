@@ -14,6 +14,7 @@ These expand the roadmap's IDs; they do not define competing priorities.
 | [Sessions / desktop / apps](components/SESSIONS-DESKTOP.md) | D1–D3, S1–S5, W1–W3, A1–A2 | [Design](DESIGN-LANGUAGE.md), [Motion](components/MOTION.md), [Meridian contracts](MERIDIAN-PLAN.md), [Meridian behavior design](MERIDIAN-BEHAVIOR.md), [43-page inventory](MERIDIAN-PAGES.md), [app requirements](APPLICATIONS.md) |
 | [Observatory](components/OBSERVATORY.md) | U7 | [Concept](design/observatory-concept.svg), [app requirements](APPLICATIONS.md) |
 | [Equinox](components/EQUINOX.md) | U8 | [Concept](design/equinox-concept.svg), [app requirements](APPLICATIONS.md) |
+| [Audio devices and mixer](components/AUDIO.md) | H2 | HDA transport, native PCM ABI and Meridian Sound |
 | [sudo and the Desktop Portal](components/PORTAL.md) | W4 | [Accounts](ACCOUNTS.md), [native ABI](NATIVE-PROGRAMS.md) |
 | [Horizon](components/HORIZON.md) | A1 | [Concept](design/files-concept.svg), [app requirements](APPLICATIONS.md), [native ABI](NATIVE-PROGRAMS.md) |
 | [Sunset](components/SUNSET.md) | U10 | [Concept](design/sunset-concept.svg), [login sessions](LOGIN-SESSIONS.md) |

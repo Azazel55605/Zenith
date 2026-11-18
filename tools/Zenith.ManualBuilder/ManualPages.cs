@@ -11,6 +11,35 @@ internal static class ManualPages
 
     public static readonly (string Name, string Text)[] Pages =
     {
+        ("audio", """
+            AUDIO DEVICES AND APPLICATIONS
+
+            Meridian > Input & Output > Sound has Playback Devices, Recording
+            Devices and Applications. Select the system output/input, adjust
+            volume or mute, and test output. Applications lists each live playback
+            or recording stream with its own volume/mute controls. Choices last
+            for this boot. Recording meters run only during authorized recording.
+
+            Intel HD Audio is supported initially, at stereo 48000 Hz / 16-bit
+            PCM. A VM needs an enabled HDA device. Other hardware, formats,
+            per-app physical routing and remembered choices are not implemented.
+            System sounds remain separate work.
+
+            audio                 list devices and the caller's streams
+            audio test            explicitly play a quiet one-second test
+            audio output ID       select output; audio input ID selects input
+            audio volume ID N     set device volume 0..100
+            audio mute ID 0|1     unmute/mute a device
+            audio app-volume H N  set stream H volume
+            audio app-mute H 0|1  unmute/mute a stream
+            audio capture-test    capture about one second, discard PCM, report
+                                  bytes/peak; requires root (sudo) here
+
+            Native recording programs require explicit org.zenith.audio.record
+            authorization or root. Revocation, exit and session changes clear
+            their streams. The first permission dialog requires an administrator.
+            No microphone is opened merely by visiting the Recording page.
+            """),
         ("native-cli", """
             NATIVE CLI PACKAGES
 

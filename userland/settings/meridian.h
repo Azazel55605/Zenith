@@ -1,6 +1,7 @@
 #ifndef ZENITH_MERIDIAN_H
 #define ZENITH_MERIDIAN_H
 #include "app.h"
+#include "../include/zenith_audio.h"
 #include "bindings.h"
 #include "navigation.h"
 #include "../include/zenith_system_settings.h"
@@ -12,6 +13,13 @@
 enum { FADE_PAGE=1,FADE_SIDEBAR=2 };
 struct meridian {
     struct zui ui;
+    struct zenith_audio audio;
+    long (*audio_read)(struct zenith_audio *);
+    long (*audio_control)(const struct zenith_audio_control *);
+    int audio_error;
+    const char *audio_message;
+    unsigned long audio_drawn[16];
+
     struct settings_app colors;
     struct meridian_bindings bindings;
     struct meridian_nav nav;
@@ -44,6 +52,7 @@ void meridian_draw(struct meridian *app);
 void meridian_event(struct meridian *app,const struct zenith_gui_event *event);
 void meridian_system_services(struct meridian *app,long (*read)(struct zenith_system_settings *),long (*save)(unsigned int,unsigned int,unsigned long));
 void meridian_information_services(struct meridian *app,long (*read)(unsigned int,struct zenith_settings_information *));
+void meridian_audio_services(struct meridian *app,long (*read)(struct zenith_audio *),long (*control)(const struct zenith_audio_control *));
 void meridian_refresh(struct meridian *app);
 int meridian_open(struct meridian *app,const char *id);
 struct zui *meridian_ui(struct meridian *app);

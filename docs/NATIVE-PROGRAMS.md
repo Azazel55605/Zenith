@@ -472,3 +472,22 @@ a program's jobs are cancelled when it exits. Calls 657 and 658 do not wait for 
 0.0.59 adds control command 4, which waits for a job in the kernel, so windowless programs need not spin. Older
 kernels answer -38. Full contract: [Horizon](components/HORIZON.md#native-abi-zenith-native-files-abi-10-kernel-0058).
 
+
+## Audio devices and PCM streams (H2)
+
+`zenith-native-audio-abi` 1.0 adds calls 661 (4096-byte device/stream inventory),
+662 (32-byte revisioned live control), 663 (open output/input), 664 (write PCM),
+665 (capture PCM) and 666 (close). The complete fixed layouts and error contract
+are in [zenith_audio.h](../userland/include/zenith_audio.h). This first transport
+uses stereo S16LE at 48000 Hz, at most 16 streams and 32768 queued bytes per stream;
+transfers contain whole frames, are limited to 8192 bytes and yield EAGAIN when
+full/empty. They never return a DMA or device address. The owning invocation is
+checked independently of UID; fault/cancel/exit and session changes revoke handles.
+
+Apps follow the selected input/output. Meridian provides live default-device,
+volume/mute/test controls and an Applications mixer. Input additionally requires
+root or an explicit `org.zenith.audio.record` Authorization portal grant. This
+permission does not elevate the process UID or grant file/system access. Release
+revokes capture before any further samples can be copied out. No system/event
+sounds play automatically. Driver coverage, current limits and qualification are
+recorded under [audio H2](components/AUDIO.md).

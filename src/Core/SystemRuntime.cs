@@ -23,6 +23,9 @@ internal static class SystemRuntime
         SystemConfiguration.Initialize();
         phase?.Invoke("Starting network");
         Network.NetworkService.Initialize();
+        phase?.Invoke("Starting audio");
+        Audio.AudioService.Initialize();
+        Audio.AudioCommands.Register(CommandShell.Register);
         // An installer ISO's seed: pin its package key, TLS CA and mirror in the live /etc.
         Packages.NativeSeed.ApplyLive();
         SystemCommands.Register(CommandShell.Register);

@@ -13,7 +13,7 @@ internal static class MeridianPages
         ("input.shortcuts", "Shortcuts", "Input & Output"),
         ("audio.playback", "Playback Devices", "Input & Output"),
         ("audio.recording", "Recording Devices", "Input & Output"),
-        ("audio.streams", "Playback Streams", "Input & Output"),
+        ("audio.streams", "Applications", "Input & Output"),
         ("display.configuration", "Display Configuration", "Input & Output"),
         ("display.night-light", "Night Light", "Input & Output"),
         ("input.accessibility", "Accessibility", "Input & Output"),

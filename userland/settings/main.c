@@ -268,6 +268,7 @@ int main(int argc,char **argv){
     meridian_system_services(&shell,zenith_system_settings_read,zenith_system_settings_save);
     shell.bindings.display_read=zenith_display_read; shell.bindings.display_save=zenith_display_change;
     meridian_information_services(&shell,zenith_settings_information_read);
+    meridian_audio_services(&shell,zenith_audio_read,zenith_audio_control);
     {struct zenith_portal_info portal;if(zenith_portal_info(&portal)==0&&portal.version==1){shell.authorize=authorize_system;shell.authorization_poll=authorization_poll;}}
     meridian_refresh(&shell);
     long motion_clock=zui_motion_clock();

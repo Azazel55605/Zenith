@@ -30,6 +30,20 @@ static long information_read(unsigned int kind,struct zenith_settings_informatio
     const char *text=kind==1?"address=10.0.2.15\ngateway=10.0.2.2\n":"user uid=1000\n";
     s->length=(unsigned int)strlen(text);strcpy(s->text,text);return 0;
 }
+static struct zenith_audio audio_state={.version=1,.device_count=2,.stream_count=1,.flags=1,.revision=1,.output=11,.input=22,.available=1,.rate=48000,.channels=2,.bits=16,
+    .devices={{.id=11,.flags=2,.volume=80,.name="HD Audio Speakers"},{.id=22,.direction=1,.flags=2,.volume=80,.name="HD Audio Microphone"}},
+    .streams={{.handle=33,.pid=7,.uid=1000,.volume=70,.name="Music player"}}};
+static long read_audio(struct zenith_audio *s){*s=audio_state;return 0;}
+static long change_audio(const struct zenith_audio_control *r){
+    assert(r->version==1&&r->revision==audio_state.revision);
+    if(r->target==11||r->target==22){struct zenith_audio_device *d=&audio_state.devices[r->target==22];
+        if(r->action==Z_AUDIO_DEVICE_VOLUME)d->volume=r->value;
+        else if(r->action==Z_AUDIO_DEVICE_MUTE)d->flags=(d->flags&~1u)|r->value;
+        else assert(r->action==Z_AUDIO_TEST&&r->target==11);
+    }else {assert(r->target==33);if(r->action==Z_AUDIO_STREAM_VOLUME)audio_state.streams[0].volume=r->value;
+        else {assert(r->action==Z_AUDIO_STREAM_MUTE);audio_state.streams[0].flags=r->value;}}
+    audio_state.revision++;return 0;
+}
 static struct zenith_display display;
 static int display_actions;
 static long read_display(struct zenith_display *s){*s=display;return 0;}
@@ -198,9 +212,19 @@ int main(int argc,char **argv){
     assert(!strcmp(app.bindings.display_labels[4],"1600 x 1200 (150%)")&&app.bindings.display_scales[4]==150);
     display.flags=3;display.revision++;meridian_refresh(&app);assert(app.bindings.display_count==3);
 
+    /* H2: real widget events on the three Sound pages, stale stream identity and absent hardware. */
+    assert(meridian_open(&app,"audio.playback"));meridian_audio_services(&app,read_audio,change_audio);draw();
+    assert(find_label("Test")>=0);click_id(5002);assert(audio_state.devices[0].volume==85);
+    click_id(5003);assert(audio_state.devices[0].flags&1);click_id(5004);
+    assert(meridian_open(&app,"audio.recording"));meridian_refresh(&app);draw();click_id(5009);assert(audio_state.devices[1].volume==75);
+    assert(meridian_open(&app,"audio.streams"));meridian_refresh(&app);draw();click_id(6001);assert(audio_state.streams[0].volume==65);
+    click_id(6003);assert(audio_state.streams[0].flags==1);
+    audio_state.stream_count=0;meridian_refresh(&app);draw();assert(find_id(6003)<0);
+    audio_state.available=0;assert(meridian_open(&app,"audio.playback"));meridian_refresh(&app);draw();assert(find_label("Test")<0);
+    audio_state.available=1;audio_state.stream_count=1;
     if(argc==2){
-        const char *shots[]={"quick.overview","style.colors","input.keyboard","network.connections","devices.bluetooth"};
-        for(int s=0;s<5;s++){
+        const char *shots[]={"quick.overview","style.colors","input.keyboard","network.connections","devices.bluetooth","audio.playback","audio.recording","audio.streams"};
+        for(int s=0;s<8;s++){
             assert(meridian_open(&app,shots[s]));meridian_refresh(&app);draw();
             char path[1024];snprintf(path,sizeof(path),"%s/meridian-%s.ppm",argv[1],shots[s]);
             FILE *f=fopen(path,"wb");assert(f);fprintf(f,"P6\n%d %d\n255\n",app.ui.width,app.ui.height);

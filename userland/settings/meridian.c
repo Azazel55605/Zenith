@@ -10,6 +10,21 @@ static unsigned int information_kind(const struct meridian *a){
     const char *id=meridian_pages[a->page].id;
     return same(id,"network.connections")?1:same(id,"system.users")?2:0;
 }
+static int audio_page(const struct meridian *a){
+    const char *id=meridian_pages[a->page].id;
+    return same(id,"audio.playback")?1:same(id,"audio.recording")?2:same(id,"audio.streams")?3:0;
+}
+static void refresh_audio(struct meridian *a){
+    if(!a->audio_read||!audio_page(a)||a->ui.pressed>=0)return;
+    struct zenith_audio state;long r=a->audio_read(&state);
+    if(r||state.version!=1||state.device_count>16||state.stream_count>16){if(!a->audio_error)a->ui.dirty=1;a->audio_error=1;return;}
+    const unsigned char *old=(const unsigned char*)&a->audio,*next=(const unsigned char*)&state;
+    for(unsigned long i=0;i<sizeof(state);i++)if(old[i]!=next[i]){a->ui.dirty=1;break;}
+    a->audio=state;a->audio_error=0;
+}
+void meridian_audio_services(struct meridian *a,long (*read)(struct zenith_audio *),long (*control)(const struct zenith_audio_control *)){
+    a->audio_read=read;a->audio_control=control;refresh_audio(a);
+}
 static void refresh_information(struct meridian *a){
     unsigned int kind=information_kind(a);if(!kind||!a->information_read)return;
     struct zenith_settings_information state;long r=a->information_read(kind,&state);
@@ -51,7 +66,7 @@ static void adopt(struct meridian *a,const struct meridian_nav *next){
     if(a->nav.mode!=NAV_SEARCH&&a->query[0]){a->query[0]=0;zui_input_init(&a->search,a->query,sizeof(a->query));}
     if(changed){
         zui_scroll_jump(&a->page_scroll,0);a->combo.open=a->scale_combo.open=0;a->ui.focus=a->ui.pressed=-1;
-        remember(a,a->page);refresh_information(a);
+        remember(a,a->page);refresh_information(a);refresh_audio(a);
     }
     a->ui.dirty=1;
 }
@@ -106,7 +121,7 @@ static void unlock_row(struct meridian *a,struct zui *u,struct zui_form *f){
     f->y+=46;
 }
 void meridian_refresh(struct meridian *a){
-    poll_unlock(a);
+    poll_unlock(a);refresh_audio(a);
     unsigned long rev=a->colors.state.revision,res=a->colors.state.resources,pref=a->bindings.preferences.revision;unsigned int flags=a->colors.state.flags;
     int ready=a->bindings.ready;
     unsigned long display_revision=a->bindings.display.revision;unsigned int seconds=a->bindings.display.seconds;
@@ -133,6 +148,7 @@ static void draw_sidebar(struct meridian *a,struct zui *u,struct zui_rect s){
     zui_list_draw(u,&a->sidebar,(struct zui_rect){s.x,s.y+52,s.w,s.h-52},nav_row_count(&a->nav),sidebar_rows,a);
 }
 static const char *wip_note(const struct meridian *a,int kind){
+    if(audio_page(a))return "Live audio controls. Stereo PCM, 48 kHz / 16 bit. Input starts only for an authorized recording app. Work in progress: remembered choices, additional formats, independent routing and hot-plug devices.";
     if(kind==BIND_DISPLAY)return "Work in progress: orientation, refresh, brightness and multiple displays.";
     if(kind==BIND_COLORS)return "Work in progress: automatic switching and custom colors.";
     if(kind==BIND_KEYBOARD)return "Work in progress: model, repeat, Num Lock and shortcuts.";
@@ -282,6 +298,71 @@ static void planned_form(struct meridian *a,struct zui *u,struct zui_form *f){
         s+=n;if(*s)s++;
     }
 }
+static void audio_percent(char *s,unsigned int value){
+    if(value>100)value=100;
+    int i=0;if(value==100)s[i++]='1';if(value>=10)s[i++]=(char)('0'+value/10%10);
+    s[i++]=(char)('0'+value%10);s[i++]='%';s[i]=0;
+}
+static void audio_controls(struct zui *u,struct zui_form *f,int base,unsigned int volume,unsigned int flags,unsigned int peak,int enabled){
+    int x=f->x,y=f->y,w=f->w;char percent[5];audio_percent(percent,volume);
+    zui_add(u,base+1,ZUI_BUTTON,(struct zui_rect){x,y,32,32},"-",0,enabled&&volume>0);
+    text(u,x+44,y+8,percent,&zui_body,u->theme.text);
+    zui_add(u,base+2,ZUI_BUTTON,(struct zui_rect){x+98,y,32,32},"+",0,enabled&&volume<100);
+    zui_add(u,base+3,ZUI_BUTTON,(struct zui_rect){x+142,y,100,32},flags&1?"Unmute":"Mute",flags&1,enabled);
+    zui_meter(u,(struct zui_rect){x,y+42,w,6},(int)((unsigned long)peak*100/32768),u->theme.accent);f->y+=64;
+}
+static void audio_form(struct meridian *a,struct zui *u,struct zui_form *f){
+    if(!a->audio_read||a->audio_error){status(u,f,"The audio service is unavailable on this kernel.");return;}
+    if(a->audio_message)status(u,f,a->audio_message);
+    if(!a->audio.available){status(u,f,"No supported audio device detected. Enable Intel HD Audio in the VM, then restart Zenith.");return;}
+    int page=audio_page(a),shown=0,enabled=!!(a->audio.flags&1)&&a->audio_control;
+    if(page==3){
+        zui_form_section(u,f,"Applications using audio");
+        for(unsigned int i=0;i<a->audio.stream_count;i++){
+            struct zenith_audio_stream *s=&a->audio.streams[i];s->name[63]=0;a->audio_drawn[i]=s->handle;
+            text(u,f->x,f->y,s->name,&zui_body,u->theme.text);f->y+=24;
+            text(u,f->x,f->y,s->direction?"Recording - follows selected input":"Playback - follows selected output",&zui_caption,u->theme.secondary);f->y+=24;
+            audio_controls(u,f,6000+(int)i*8,s->volume,s->flags,s->peak,enabled);shown++;
+        }
+        if(!shown)status(u,f,"No applications are playing or recording audio. Streams appear here while they are open.");
+        return;
+    }
+    zui_form_section(u,f,page==1?"Output devices":"Input devices");
+    for(unsigned int i=0;i<a->audio.device_count;i++){
+        struct zenith_audio_device *d=&a->audio.devices[i];if(d->direction!=(unsigned int)(page-1))continue;
+        d->name[63]=0;int base=5000+(int)i*8;shown++;
+        text(u,f->x,f->y,d->name,&zui_body,u->theme.text);f->y+=28;
+        zui_add(u,base,ZUI_BUTTON,(struct zui_rect){f->x,f->y,148,32},d->flags&2?"Selected device":"Use this device",!!(d->flags&2),enabled&&!(d->flags&2));
+        if(page==1)zui_add(u,base+4,ZUI_BUTTON,(struct zui_rect){f->x+160,f->y,88,32},"Test",0,enabled&&!!(d->flags&2));
+        f->y+=44;audio_controls(u,f,base,d->volume,d->flags,d->peak,enabled);
+    }
+    if(!shown)status(u,f,page==1?"No supported output route found.":"No supported input route found.");
+    if(page==2){
+        int recording=0;for(unsigned int i=0;i<a->audio.stream_count;i++)if(a->audio.streams[i].direction==1)recording++;
+        status(u,f,recording?"Recording is active. See Applications for the programs using the input.":"No applications are recording.");
+    }
+    if(page==2)status(u,f,"The level meter is active only during authorized recording. Recording applications appear under Applications.");
+}
+static void audio_action(struct meridian *a,int id){
+    if(!audio_page(a)||!a->audio_control)return;
+    struct zenith_audio_control r={1,0,0,0,0,a->audio.revision};
+    if(id>=5000&&id<5128){
+        unsigned int i=(unsigned int)(id-5000)/8,part=(unsigned int)(id-5000)%8;if(i>=a->audio.device_count)return;
+        struct zenith_audio_device *d=&a->audio.devices[i];r.target=d->id;
+        if(part==0)r.action=d->direction?Z_AUDIO_SELECT_INPUT:Z_AUDIO_SELECT_OUTPUT;
+        else if(part==1||part==2){r.action=Z_AUDIO_DEVICE_VOLUME;r.value=part==1?(d->volume>=5?d->volume-5:0):(d->volume<=95?d->volume+5:100);}
+        else if(part==3){r.action=Z_AUDIO_DEVICE_MUTE;r.value=!(d->flags&1);}
+        else if(part==4)r.action=Z_AUDIO_TEST;else return;
+    }else if(id>=6000&&id<6128){
+        unsigned int i=(unsigned int)(id-6000)/8,part=(unsigned int)(id-6000)%8;if(i>=a->audio.stream_count)return;
+        struct zenith_audio_stream *s=&a->audio.streams[i];if(a->audio_drawn[i]!=s->handle)return;r.target=s->handle;
+        if(part==1||part==2){r.action=Z_AUDIO_STREAM_VOLUME;r.value=part==1?(s->volume>=5?s->volume-5:0):(s->volume<=95?s->volume+5:100);}
+        else if(part==3){r.action=Z_AUDIO_STREAM_MUTE;r.value=!(s->flags&1);}else return;
+    }else return;
+    long result=a->audio_control(&r);
+    a->audio_message=result==-11?"Audio changed while editing. Try again.":result==-13?"Audio controls belong to the active session.":result?"The audio device could not apply this change.":r.action==Z_AUDIO_TEST?"Playing the output test.":0;
+    refresh_audio(a);a->ui.dirty=1;
+}
 static void draw_page(struct meridian *a,struct zui *u,struct zui_rect c){
     const struct meridian_page *p=&meridian_pages[a->page];int kind=page_kind(a),footer=kind!=BIND_NONE?56:0,x=c.x+24;
     text(u,x,c.y+14,p->title,&zui_heading,u->theme.text);
@@ -293,6 +374,7 @@ static void draw_page(struct meridian *a,struct zui *u,struct zui_rect c){
     if(kind==BIND_COLORS)colors_form(a,u,&f);
     else if(kind==BIND_DISPLAY)display_form(a,u,&f);
     else if(kind!=BIND_NONE)preference_form(a,u,&f,kind);
+    else if(audio_page(a))audio_form(a,u,&f);
     else if(a->page==0)overview_form(a,u,&f);
     else if(information_kind(a))lines_form(u,&f,a->information_read&&a->public_kind==information_kind(a)&&!a->public_error?a->public_information:"Information service unavailable.");
     else if(a->page==MERIDIAN_ABOUT&&a->information[0])lines_form(u,&f,a->information);
@@ -465,7 +547,8 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     if(e->type==Z_GUI_KEY&&!e->modifiers&&!on_rows)page_keys(a,e);
     int id=zui_event(u,e);
     if(id==ID_UNLOCK){unlock(a);u->dirty=1;sync_theme(a);return;}
-    if(id==ID_SEARCH){a->search_focus=1;u->dirty=1;}
+    if(id>=5000&&id<6128)audio_action(a,id);
+    else if(id==ID_SEARCH){a->search_focus=1;u->dirty=1;}
     else if(id==ID_FOOTER+ZUI_FOOTER_APPLY)binding_apply(&a->bindings,kind);
     else if(id==ID_FOOTER+ZUI_FOOTER_RESET)binding_reset(&a->bindings,kind);
     else if(id==ID_FOOTER+ZUI_FOOTER_DEFAULTS)binding_defaults(&a->bindings,kind);

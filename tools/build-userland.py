@@ -10,7 +10,7 @@ import sys
 import tempfile
 ROOT=Path(__file__).resolve().parents[1]
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('destination',type=Path);parser.add_argument('--version',default='0.1.0');parser.add_argument('--program',choices=('sunbeam','base-tools','fs-tools','net-tools','gui-probe','ui-gallery','settings','desktop-tools','polaris','observatory','equinox','horizon','aurora'),default='sunbeam');args=parser.parse_args()
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('destination',type=Path);parser.add_argument('--version',default='0.1.0');parser.add_argument('--program',choices=('sunbeam','base-tools','fs-tools','net-tools','gui-probe','ui-gallery','settings','desktop-tools','polaris','observatory','equinox','horizon','aurora','audio-probe'),default='sunbeam');args=parser.parse_args()
     if not re.fullmatch(r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*))?',args.version):raise ValueError('invalid program version')
     destination=args.destination
     output=destination/('usr/share/zenith/native/'+args.program+'.elf');output.parent.mkdir(parents=True,exist_ok=True)
@@ -41,7 +41,7 @@ def main():
                 extra.append(str(obj))
             extra+=[*size,'-Wl,--gc-sections']
         subprocess.run([compiler,*target,'-nostdlib','-static','-fno-pie','-no-pie',*common,'-O2',
-            '-DSUNBEAM_VERSION="'+args.version+'"','-Wl,-T,'+str(source/'link.ld'),'-Wl,--build-id=none',str(source/'start.s'),str(ROOT/('userland/'+args.program+'/main.c') if args.program in ('net-tools','gui-probe','ui-gallery','settings','desktop-tools','polaris','observatory','equinox','horizon','aurora') else source/'main.c'),*extra,'-o',str(output)],check=True)
+            '-DSUNBEAM_VERSION="'+args.version+'"','-Wl,-T,'+str(source/'link.ld'),'-Wl,--build-id=none',str(source/'start.s'),str(ROOT/('userland/'+args.program+'/main.c') if args.program in ('audio-probe','net-tools','gui-probe','ui-gallery','settings','desktop-tools','polaris','observatory','equinox','horizon','aurora') else source/'main.c'),*extra,'-o',str(output)],check=True)
     if args.program in ('ui-gallery','settings','desktop-tools','polaris','observatory','equinox','horizon','aurora'):
         license_dir=destination/('usr/share/zenith/'+args.program);license_dir.mkdir(parents=True,exist_ok=True)
         shutil.copyfile(ROOT/'Resources/Fonts/LICENSE-Inter.txt',license_dir/'LICENSE-Inter.txt')
