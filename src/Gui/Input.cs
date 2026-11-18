@@ -26,6 +26,7 @@ internal sealed class Input
     public List<KeyEvent> Keys { get; } = new();
 
     /// <summary>Whether anything happened this frame that could change what is on screen.</summary>
+    public InputActivity Activity => new(LeftPressed, LeftReleased, RightPressed, MiddlePressed, Scroll, Keys.Count);
     public bool HasActivity => Moved || LeftPressed || LeftReleased || RightPressed || MiddlePressed || Scroll != 0 || Keys.Count > 0;
 
     /// <summary>The pointer in device pixels, as last polled (the hardware pointer is placed there).</summary>

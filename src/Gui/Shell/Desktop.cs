@@ -337,8 +337,8 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         _input.Poll();
 
         // A release or a hover change only redraws; the click that started an animation must not cut it short.
-        bool interrupts = _input.LeftPressed || _input.RightPressed || _input.Scroll != 0 || _input.Keys.Count > 0;
-        if (_input.LeftPressed || _input.LeftReleased || _input.RightPressed || _input.Scroll != 0 || _input.Keys.Count > 0)
+        bool interrupts = _input.Activity.InterruptsMotion;
+        if (_input.Activity.RoutesWithoutMotion)
         {
             HandleInput();
             _sceneDirty = true;

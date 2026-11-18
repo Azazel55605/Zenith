@@ -66,6 +66,14 @@ Publication qualification on 2026-11-18 at `7103973`:
   gate. An initial unchanged Aurora host-test timeout passed both isolated and
   subsequent full controller runs with the original 120-second limit.
 
+The Horizon blocker was traced to desktop dispatch: HMP and the guest mouse
+manager both reported the middle button down, but `Desktop.Tick` did not call
+`HandleInput` for a stationary middle edge. It only reached windows if pointer
+motion happened in the same tick. The shared `InputActivity` predicate now routes
+all button presses without requiring movement and preserves release/hover
+animation behavior. Six host regressions cover it; fresh complete qualification
+of this correction is pending. This is a kernel fix, not a Horizon package change.
+
 Proposed tags `kernel/v0.0.68`, `zenith-settings/v0.12.0` and
 `zenith-man-pages/v0.1.8` remain withheld until release acceptance is resolved.
 Installed VMware listening, input pickup and real codec/jack behavior remain
