@@ -54,7 +54,9 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 and a per-app menu before system sounds. Real Intel HDA playback/capture, fixed PCM queues, explicit
 recording permission, device selection and Meridian's three Sound pages are implemented and locally
 qualified. The fresh four-CPU audio gate checks capture DMA, native ownership/fault cleanup and actual
-WAV playback/mute; 1089 host tests pass. Not published or installed-VMware accepted. Persistence,
+WAV playback/mute; 1089 host and 588 controller tests pass. Release qualification passed 22/23 VM gates;
+Horizon HZ5 middle-click/new-tab acceptance failed (A1/Q2). The proposed 0.0.68 / Settings 0.12.0 /
+manuals 0.1.8 tags are withheld; installed VMware audio remains unverified. Persistence,
 additional hardware/formats/routing, system sounds and extra panels follow separately.
 [Audio H2](components/AUDIO.md).
 

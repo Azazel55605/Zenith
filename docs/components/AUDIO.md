@@ -52,7 +52,23 @@ Local qualification completed on 2026-11-18:
 - Host-rendered Sound page evidence is in `/tmp/zenith-audio-ui`. This verifies
   layout/controls separately from the HDA/native QEMU evidence.
 
-Not published/tagged. The full release matrix and installed VMware listening,
-input pickup and real codec/jack behavior remain release/operator acceptance.
+Publication qualification on 2026-11-18 at `7103973`:
+
+- Fresh Release acceptance retained at `/var/tmp/zn-audio-release-068-publish`:
+  all 588 controller regressions, 1089 host tests, the runtime adapters and 22 of
+  23 native VM gates passed. The audio gate passed in 85.6 s. Release ELF SHA256
+  `00fa6ae0d6a5104b256d0d6d39475d6293eaca5bca2a4232d2a4a30c01c1546b`.
+- The remaining Horizon HZ5 gate failed its middle-click/new-tab check at
+  `tools/horizon-smoke.py:306`; the retained image shows Documents beneath the
+  pointer and one tab. Its input-delivery diagnosis belongs to A1/Q2. No assertion,
+  input destination or timeout was relaxed, and no middle click was replayed.
+- The release-controller expectation was corrected to include the new `f` audio
+  gate. An initial unchanged Aurora host-test timeout passed both isolated and
+  subsequent full controller runs with the original 120-second limit.
+
+Proposed tags `kernel/v0.0.68`, `zenith-settings/v0.12.0` and
+`zenith-man-pages/v0.1.8` remain withheld until release acceptance is resolved.
+Installed VMware listening, input pickup and real codec/jack behavior remain
+operator acceptance.
 Later formats, persistent choices, independent routing, additional controllers
 and system sounds are explicitly outside this first device/application stage.
