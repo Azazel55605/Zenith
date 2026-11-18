@@ -19,8 +19,8 @@ is the cooperative stop `kill` sends, authorized by owner, never a forced kill.
 runtime's `_native_cpu_halt` import, which an adapter routes to
 `zenith_cpu_halt_counted`. That opens a halted span in TSC ticks for this CPU.
 The managed interrupt dispatch closes an open span first, so a timer switch to
-another thread never counts that thread's run time as idle. With `smp=native`,
-an AP's idle park is counted the same way. Busy is the share of a second that a
+another thread never counts that thread's run time as idle. With more than one
+CPU in use (the default since kernel 0.0.63), an AP's idle park is counted the same way. Busy is the share of a second that a
 CPU was not halted. Interrupt handler time inside a halt counts as idle until
 dispatch, a few microseconds per interrupt.
 

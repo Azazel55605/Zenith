@@ -5,7 +5,7 @@ Aurora is Zenith's graphical text and code editor, `zenith-aurora`, built from t
 launcher's Editor opens Aurora and shows it as Aurora; without it, the built-in Editor
 window stays. Files (and later Horizon's Open with) open files in it the same way.
 
-## AU1 — a dependable editor (local, 2026-11-17)
+## AU1 — a dependable editor (released: kernel 0.0.64, zenith-aurora 0.1.0)
 
 - **Documents.** Up to 8 documents, each up to 1 MiB and 65,536 lines. Tabs and the
   sidebar's Documents list show the same documents; a dot marks unsaved changes in both.
@@ -96,7 +96,7 @@ loop). Kernel: `ProcessGraphics.CopyText/PasteText`, `ProcessSurface.Focused/Key
   find and replace, Save as, a refused binary file, and the unsaved-close prompt; the host
   reads both saved files from the disk (CRLF kept, edits present).
 
-## AU2 — project, outline, minimap, regular expressions (local, kernel 0.0.65, zenith-aurora 0.2.0)
+## AU2 — project, outline, minimap, regular expressions (released: kernel 0.0.65, zenith-aurora 0.2.0)
 
 Requested 2026-11-17 ("complete Horizon, then Aurora").
 - **Project:** the sidebar shows the active document's folder as a tree (folders first; a click opens a
@@ -116,7 +116,7 @@ Requested 2026-11-17 ("complete Horizon, then Aurora").
 - **Open from Horizon:** Enter or a double click on a text file in Horizon opens it in Aurora through the
   Desktop Portal (`org.zenith.portal.OpenWith`, see Horizon HZ2).
 
-## AU3 — recovery copies and changes on disk (local)
+## AU3 — recovery copies and changes on disk (released: kernel 0.0.65, zenith-aurora 0.2.0)
 
 - **Recovery copies:** while a document has unsaved changes, Aurora writes its text every 15 seconds (after
   two quiet seconds) to `~/.local/share/aurora/recovery/rID.txt`. The folders are mode 0700 and the files

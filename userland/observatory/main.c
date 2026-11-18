@@ -365,7 +365,7 @@ static void draw_performance(struct zui_rect c){
         stat(mx,sy,"Utilization",a);stat(mx+col,sy,"Programs",b);stat(mx+2*col,sy,"CPUs in use",cc);
         stat(mx,sy+48,"Uptime",d);stat(mx+col,sy+48,"Average frame",e);stat(mx+2*col,sy+48,"Temperature",f);
         if(monitor.detected>monitor.cpus)
-            text(mx,sy+96,"Zenith uses one CPU unless it is started with smp=native.",&zui_caption,ui.theme.secondary);
+            text(mx,sy+96,"Some CPUs are not in use: Zenith was started with smp=off, or could not start them.",&zui_caption,ui.theme.secondary);
     }else if(card==CARD_MEMORY){
         size_text(a,monitor.memory_total-monitor.memory_free);size_text(b,monitor.memory_free);size_text(cc,monitor.memory_total);
         o=num(d,monitor.latest.memory);put(o,"%");num(e,monitor.programs);

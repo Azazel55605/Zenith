@@ -26,7 +26,7 @@ Added to the concept on 2026-11-15, between the title bar and the toolbar.
 - **Open in new tab** on a folder (context menu, Ctrl+Enter) opens it behind the current tab. Middle
   click does the same once the desktop sends middle-button presses.
 - A tab that shows a split view is labelled with both folders (`Documents | Archive`).
-- Tabs are not saved between sessions yet. Restoring them is part of HZ4.
+- Tabs are saved when Horizon closes and restored at the next start (HZ4).
 
 ## The boundary
 
@@ -128,7 +128,7 @@ Call 627 `(handle, bits, 0)` opts in to pointer motion with bit 1, as before.
 
 ## Stages
 
-- **HZ1 (local, kernel 0.0.58, zenith-horizon 0.1.0):**
+- **HZ1 (released: kernel 0.0.58, zenith-horizon 0.1.0):**
   - the files ABI and the input extension;
   - Horizon with tabs, places and devices, breadcrumb and typed location, back, forward and up;
   - icons and details views, sorting by name, size, modification time or type (folders first);
@@ -159,7 +159,7 @@ Call 627 `(handle, bits, 0)` opts in to pointer motion with bit 1, as before.
     below it. Devices can show as the open folder; when two entries share a path (Root and the system disk)
     the first one is highlighted.
   - The gate (92 checks) runs its desktop part with whole-app transparency on.
-- **HZ2 (local, kernel 0.0.65, zenith-horizon 0.2.0), requested 2026-11-17 ("complete Horizon"):**
+- **HZ2 (released: kernel 0.0.65, zenith-horizon 0.2.0), requested 2026-11-17 ("complete Horizon"):**
   - **Opening files** goes through the Desktop Portal's new `org.zenith.portal.OpenWith` interface
     ([portal](PORTAL.md#orgzenithportalopenwith-1)): Enter or a double click opens a file with the person's
     remembered app, else the app that declares its type (the Editor, Aurora when installed, declares text
@@ -177,7 +177,7 @@ Call 627 `(handle, bits, 0)` opts in to pointer motion with bit 1, as before.
     Move here, Copy here or Cancel (Shift moves and Ctrl copies without asking). Transfers run as jobs.
   - **Properties** (Alt+Enter or the menu): kind, location, size or contents, modification time, owner, group
     and a permission grid that the owner (or root, or an unlocked Horizon) changes through the path call (405).
-- **HZ3 (local):**
+- **HZ3 (released: kernel 0.0.65, zenith-horizon 0.2.0):**
   - **Trash** in the freedesktop layout under `~/.local/share/Trash` (`files/` and `info/NAME.trashinfo`
     with the original path and deletion date). Delete moves there by rename (instant); Shift+Delete deletes
     for good after asking. Items on another filesystem than the home folder have no Trash: Horizon says so and
@@ -191,7 +191,7 @@ Call 627 `(handle, bits, 0)` opts in to pointer motion with bit 1, as before.
     Indexed search is S5.
   - **Removable drives** in Devices wait for [S6](REMOVABLE-STORAGE.md), which is still design-only and has
     decisions that need the operator's sign-off.
-- **HZ4 (local):**
+- **HZ4 (released: kernel 0.0.65, zenith-horizon 0.2.0):**
   - **Archives as kernel jobs** (operations 4 extract and 5 compress of call 656, with progress and Cancel):
     Extract here unpacks .zip, .tar, .tar.gz/.tgz and .gz into a new folder beside the archive; Compress to
     .zip packs the selection. The kernel has its own DEFLATE decoder and encoder, CRC-32, zip and ustar/GNU/pax
