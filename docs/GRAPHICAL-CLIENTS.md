@@ -259,6 +259,18 @@ retaining the taskbar and trusted title bar, within the advertised bound.
   -14 and wrong handles -9. Only user/host window actions request a new size;
   clients cannot use this API to move/resize arbitrary windows.
 
+**Opening size (kernel 0.0.66).** A program still opens at most 640×480 (call 610).
+When it enables resizing before its window is shown, and the system setting
+`windows` is `fit` (the default; `settings set windows fit|compact`, stored in
+`/etc/zenith/windows.conf`), the desktop asks it at once for a larger size with the
+same proportions: up to three quarters of the work area's width and four fifths of
+its height, at most twice the request, and only when that is at least a tenth
+larger (`WindowOpening.Fit`). The window stays hidden until a frame of that size
+arrives (up to 1.5 s, then it opens and follows when the frame comes), so the compact
+frame is never shown. The serial log says `native surface fitted 640x480 to WxH`. A
+program that refuses keeps its size; `compact` opens every window at the program's
+own size, which the validation gates use for their pointer coordinates.
+
 Frame replacement retains private copies and strict byte counts. Until the client
 acknowledges/repaints the requested size, the host uses a bounded placeholder,
 never indexes an old frame with a new stride. New clients declare

@@ -57,7 +57,7 @@ def main():
         assert m.wait('headless ready',timeout=180),'headless boot'
         assert m.wait('network: online address=10.0.2.15',timeout=90),'DHCP'
     try:
-        boot('live');status('session set-default headless','CLI_SESSION')
+        boot('live');status('settings set windows compact; session set-default headless','CLI_SESSION')
         status('install sata0 --yes','CLI_INSTALL',timeout=600)
         command('poweroff','all filesystems unmounted');m.process.wait(timeout=30);disk=m.disk;m.stop();m=None
         boot('installed',disk)

@@ -6,7 +6,7 @@ Ctrl+C copy through call 639 and Ctrl+V pastes through 659, which the kernel ans
 undoes the paste; Ctrl+F finds and Ctrl+H replaces; Ctrl+Shift+S saves a copy under a new name; a binary file is
 refused; closing a changed document asks and Don't save ends Aurora. No frame needed repairing for the desktop's
 material rule. The host then reads both files from the disk (debugfs): CRLF line ends kept, the edits present."""
-import boot_image, functools, hashlib, http.server, importlib.util, subprocess, sys, threading, time
+import boot_image, functools, hashlib, http.server, importlib.util, re, subprocess, sys, threading, time
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
@@ -45,7 +45,8 @@ def main():
            'g1': 'poweroff',
            # AU3: the process list, to end Aurora as a crash would; then Aurora again to find the recovery copy.
            'g2': 'ps | logger',
-           'g3': 'native run aurora | logger & sleep 6; true'}
+           # Window opening: the gate installs with compact windows; this start opens sized to the screen.
+           'g3': 'settings set windows fit | logger; native run aurora | logger & sleep 6; true'}
     for name, text in gui.items(): (served / name).write_text(text + '\n')
     class Handler(http.server.SimpleHTTPRequestHandler):
         def log_message(self, *args): pass
@@ -89,7 +90,7 @@ def main():
     try:
         m = h.Machine(keep / 'live', network=net); assert m.wait('headless ready', timeout=180)
         assert m.wait('network: online address=10.0.2.15', timeout=90)
-        status('session set-default headless', 'A_SESSION'); status('install sata0 --yes', 'A_INSTALL', timeout=900)
+        status('settings set windows compact; session set-default headless', 'A_SESSION'); status('install sata0 --yes', 'A_INSTALL', timeout=900)
         command('poweroff', 'all filesystems unmounted'); m.process.wait(timeout=30); disk = m.disk; m.stop(); m = None
 
         m = h.Machine(keep / 'setup', disk, network=net); assert m.wait('headless ready', timeout=180)
@@ -163,7 +164,11 @@ def main():
         check(m.wait('native surface retired', off, 60), 'kill ends Aurora as a crash would')
         check('AURORA_CLOSED' not in m.log()[off:], 'without Aurora closing itself')
         time.sleep(2)
+        off = len(m.log())
         typed('sh /root/g3\n', 'user: AURORA_RECOVERY_FOUND copy.cs', 'the next Aurora finds the recovery copy')
+        fitted = re.search(r'native surface fitted 640x480 to (\d+)x(\d+)', m.log()[off:])
+        check(fitted is not None and int(fitted[1]) > 640 and int(fitted[2]) > 480, 'with windows=fit Aurora opens larger on a big screen')
+        check(fitted is not None and m.wait('native surface opened ' + fitted[1] + 'x' + fitted[2], off, 30), 'its first shown frame already has that size')
         shot('recovery')
         press('ret', 'user: AURORA_RECOVERED copy.cs', 'Restore brings the unsaved text back')
         press('ctrl-w', 'user: AURORA_DIALOG Save changes to', 'closing a changed document asks first')

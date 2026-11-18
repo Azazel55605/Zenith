@@ -77,7 +77,7 @@ def main():
         check(m.wait('headless ready (local text console)' if mode=='headless' else 'desktop ready (installed)',off,180),mode+' authenticated')
     try:
         m=h.Machine(keep/'live',network=net);check(m.wait('headless ready',timeout=180),'live serial fallback')
-        status('session set-default headless','LOGIN_DEFAULT');status('install sata0 --yes','LOGIN_INSTALL');disk=shutdown()
+        status('settings set windows compact; session set-default headless','LOGIN_DEFAULT');status('install sata0 --yes','LOGIN_INSTALL');disk=shutdown()
         m=h.Machine(keep/'setup',disk,'session=headless',network=net);check(m.wait('headless ready',timeout=180),'installed serial recovery')
         for user in ('root','user'):
             command('passwd '+user,'New password: ')

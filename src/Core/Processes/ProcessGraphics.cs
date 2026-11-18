@@ -53,7 +53,7 @@ internal sealed class ProcessSurface : IDisposable
     /// <summary>The program that opened it (Observatory's Apps page groups windows by it).</summary>
     public int OwnerPid { get; set; }
     private (int X, int Y, int Width, int Height, int Rise)? _fade;
-    private bool _dirty = true, _closed, _disposed, _unsaved, _closeIntent, _presented;
+    private bool _dirty = true, _closed, _disposed, _unsaved, _closeIntent, _presented, _presentedAtSize;
     private bool _pointerMotion, _movePending;
     private int _moveX, _moveY;
     public bool Unsaved { get { lock (_gate) { return _unsaved; } } }
@@ -139,7 +139,7 @@ internal sealed class ProcessSurface : IDisposable
             if (width != _requestedWidth || height != _requestedHeight || BinaryPrimitives.ReadUInt64LittleEndian(request[16..]) != _sizeGeneration) { return -11; }
             if (width == Width && height == Height) { return 0; }
             var pixels = new int[width * height]; Array.Fill(pixels, unchecked((int)0xff000000));
-            _fade = null; Width = width; Height = height; _pixels = pixels; _materials = Array.Empty<ProcessMaterialRegion>(); _dirty = false;
+            _fade = null; Width = width; Height = height; _pixels = pixels; _materials = Array.Empty<ProcessMaterialRegion>(); _dirty = _presentedAtSize = false;
             return 0;
         }
     }
@@ -169,6 +169,8 @@ internal sealed class ProcessSurface : IDisposable
     public int Bytes => Width * Height * 4;
     public bool Ended { get { lock (_gate) { return _closed || _disposed; } } }
     public bool HasPresented { get { lock (_gate) { return _presented; } } }
+    /// <summary>Whether the last frame has the size the desktop asked for (no resize waiting for the program).</summary>
+    public bool PresentedAtRequestedSize { get { lock (_gate) { return _presentedAtSize && (!Resizable || (_requestedWidth == Width && _requestedHeight == Height)); } } }
     public int Present(byte[] bytes)
     {
         lock (_gate)
@@ -178,7 +180,7 @@ internal sealed class ProcessSurface : IDisposable
             // Opaque XRGB8888, fixed row stride. No shared client/compositor pages.
             System.Runtime.InteropServices.MemoryMarshal.Cast<byte, int>(bytes).CopyTo(_pixels);
             for (int i = 0; i < _pixels.Length; i++) { _pixels[i] |= unchecked((int)0xff000000); }
-            _dirty = _presented = true; return 0;
+            _dirty = _presented = _presentedAtSize = true; return 0;
         }
     }
     public int PresentMaterials(byte[] bytes, ProcessMaterialRegion[] regions)
@@ -191,7 +193,7 @@ internal sealed class ProcessSurface : IDisposable
             // Validate the complete frame before replacing anything. Caller buffers
             // and region arrays are never shared with compositor state.
             System.Runtime.InteropServices.MemoryMarshal.Cast<byte, int>(bytes).CopyTo(_pixels);
-            _materials = (ProcessMaterialRegion[])regions.Clone(); _dirty = _presented = true; return 0;
+            _materials = (ProcessMaterialRegion[])regions.Clone(); _dirty = _presented = _presentedAtSize = true; return 0;
         }
     }
     /// <summary>Asks for the next presented frame to crossfade from the current one. Validated and fixed-size.</summary>

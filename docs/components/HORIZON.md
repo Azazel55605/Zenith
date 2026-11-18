@@ -148,7 +148,9 @@ Call 627 `(handle, bits, 0)` opts in to pointer motion with bit 1, as before.
     its icon-only buttons stay usable.
   - New windows open at 640x480 (the desktop's limit for a new surface). Places and the information
     panel appear from 720 and 860 pixels wide, after a resize or maximize; the gate does not yet
-    capture that wide layout. A client-requested opening size is a desktop change for later.
+    capture that wide layout. Since kernel 0.0.66 the desktop opens resizable windows sized to the
+    screen (the `windows` setting, [opening size](../GRAPHICAL-CLIENTS.md#owned-viewport-extension)),
+    so on a 1920x1080 screen Horizon opens with Places and the information panel.
 - **zenith-horizon 0.1.2 (with kernel 0.0.60):**
   - Horizon draws on the desktop's window material when the desktop offers it: with whole-app transparency
     (Meridian › Appearance › Materials, background) one blurred material covers the window and the content

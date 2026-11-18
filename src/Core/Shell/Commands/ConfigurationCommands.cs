@@ -11,7 +11,7 @@ internal static class ConfigurationCommands
     public static void Register(Action<Command> add)
     {
         add(new Command("display", "display [test WIDTH HEIGHT SCALE|PERCENT | keep | revert]", "Primary display modes and guarded preview", Display));
-        add(new Command("settings", "settings [show | set keyboard|timezone|session|animations|taskbar|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]", "Shared system settings", Settings));
+        add(new Command("settings", "settings [show | set keyboard|timezone|session|animations|taskbar|windows|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]", "Shared system settings", Settings));
         add(new Command("session", "session [status | list | set-default MODE | switch MODE]", "Select a session or return to login", Session));
     }
     private static int Display(CommandContext c)
@@ -70,6 +70,7 @@ internal static class ConfigurationCommands
             c.WriteLine("session=" + SessionModes.Name(settings.Current.DefaultSession) + " (next boot)");
             c.WriteLine("animations=" + SettingsService.AnimationNames[settings.Current.Animation]);
             c.WriteLine("taskbar=" + SettingsService.TaskbarNames[settings.Current.Taskbar]);
+            c.WriteLine("windows=" + SettingsService.WindowsNames[settings.Current.Windows] + " (new windows)");
             var appearance = SystemConfiguration.Appearance.Snapshot();
             c.WriteLine("appearance=" + AppearanceService.ModeName(appearance.Saved.Mode) + "/" + AppearanceService.AccentName(appearance.Saved.Accent)
                 + " (active " + AppearanceService.ModeName(appearance.Active.Mode) + "/" + AppearanceService.AccentName(appearance.Active.Accent)
@@ -106,7 +107,7 @@ internal static class ConfigurationCommands
             c.WriteLine("saved appearance; desktop applies on its next tick, headless on next login" + (service.Persistent ? "" : " (live: volatile)"));
             return 0;
         }
-        if (c.Args.Length != 3 || c.Args[0] != "set") { return c.Fail("usage: settings [show | set keyboard|timezone|session|animations|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]"); }
+        if (c.Args.Length != 3 || c.Args[0] != "set") { return c.Fail("usage: settings [show | set keyboard|timezone|session|animations|taskbar|windows|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]"); }
         switch (c.Args[1])
         {
             case "keyboard": settings.SetKeyboard(c.Args[2]); break;
@@ -114,6 +115,7 @@ internal static class ConfigurationCommands
             case "session": return SaveSession(c, c.Args[2]);
             case "animations": settings.SetAnimation(c.Args[2]); break;
             case "taskbar": settings.SetTaskbar(c.Args[2]); break;
+            case "windows": settings.SetWindows(c.Args[2]); break;
             default: return c.Fail("unknown setting");
         }
         c.WriteLine("saved " + c.Args[1] + (settings.Persistent ? "" : " (live: lost at reboot)"));

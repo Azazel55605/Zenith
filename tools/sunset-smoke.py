@@ -78,7 +78,7 @@ def main():
 
     try:
         m = h.Machine(keep / 'live', network=net); assert m.wait('headless ready', timeout=180)
-        status('session set-default headless', 'S_SESSION'); status('install sata0 --yes', 'S_INSTALL', timeout=900)
+        status('settings set windows compact; session set-default headless', 'S_SESSION'); status('install sata0 --yes', 'S_INSTALL', timeout=900)
         command('poweroff', 'all filesystems unmounted'); m.process.wait(timeout=30); disk = m.disk; m.stop(); m = None
 
         m = h.Machine(keep / 'setup', disk, 'session=headless', network=net); assert m.wait('headless ready', timeout=180)

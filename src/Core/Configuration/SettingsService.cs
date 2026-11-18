@@ -15,7 +15,7 @@ internal interface ISettingsStore
 }
 
 internal sealed record SystemSettings(string Keyboard, string TimeZone, SessionMode DefaultSession, uint Animation = 0, uint Taskbar = 0,
-    uint Wallpaper = 0, uint Launcher = 0, uint Cursor = 0);
+    uint Wallpaper = 0, uint Launcher = 0, uint Cursor = 0, uint Windows = 0);
 
 /// <summary>Shared validated settings operations. Local /etc state is administrator-owned.</summary>
 internal sealed class SettingsService
@@ -44,6 +44,10 @@ internal sealed class SettingsService
     /// <summary>The Meridian cursor set's variants (docs/design/cursor-concept.svg).</summary>
     public static readonly string[] CursorNames = { "light", "dark" };
     public const string LauncherPath = "/etc/zenith/launcher.conf";
+    /// <summary>How resizable native windows open: scaled to the screen, or at the size the program asks for.</summary>
+    public const string WindowsPath = "/etc/zenith/windows.conf";
+    public static readonly string[] WindowsNames = { "fit", "compact" };
+    public static readonly string[] WindowsLabels = { "Sized to the screen", "Compact (the program's own size)" };
     public static readonly string[] LauncherNames = { "menu", "palette" };
     public static readonly string[] LauncherLabels = { "Start menu", "Search palette" };
     private readonly ISettingsStore _store;
@@ -64,7 +68,7 @@ internal sealed class SettingsService
         lock (_gate)
         {
             var errors = new List<string>();
-            string keymap = "us", zone = "UTC"; SessionMode session = SessionMode.Desktop; uint animation = 0, taskbar = 0, wallpaper = 0, launcher = 0, cursor = 0;
+            string keymap = "us", zone = "UTC"; SessionMode session = SessionMode.Desktop; uint animation = 0, taskbar = 0, wallpaper = 0, launcher = 0, cursor = 0, windows = 0;
             try { var fields = Fields(_store.Read(KeyboardPath)); if (fields.TryGetValue("KEYMAP", out string? value)) { keymap = KeyboardLayoutCatalog.Normalize(value) ?? throw new FormatException("unknown KEYMAP"); } }
             catch (Exception e) { errors.Add(KeyboardPath + ": " + e.Message + "; using us"); }
             try { string value = Bound(_store.Read(TimeZonePath) ?? "UTC").Trim(); if (value.Length > 0) { zone = NormalizeZone(value); } }
@@ -81,8 +85,10 @@ internal sealed class SettingsService
             catch (Exception e) { errors.Add(LauncherPath + ": " + e.Message + "; using menu"); }
             try { cursor = ReadChoice(_store.Read(CursorPath), "CURSOR", CursorNames); }
             catch (Exception e) { errors.Add(CursorPath + ": " + e.Message + "; using light"); }
+            try { windows = ReadChoice(_store.Read(WindowsPath), "WINDOWS", WindowsNames); }
+            catch (Exception e) { errors.Add(WindowsPath + ": " + e.Message + "; using fit"); }
             _keyboard(keymap); _zone(zone);
-            Current = new(keymap, zone, session, animation, taskbar, wallpaper, launcher, cursor);
+            Current = new(keymap, zone, session, animation, taskbar, wallpaper, launcher, cursor, windows);
             return errors;
         }
     }
@@ -152,6 +158,7 @@ internal sealed class SettingsService
     }
     public void SetWallpaper(string name) => SetChoice(WallpaperPath, "WALLPAPER", WallpaperNames, name, c => Current = Current with { Wallpaper = c });
     public void SetLauncher(string name) => SetChoice(LauncherPath, "LAUNCHER", LauncherNames, name, c => Current = Current with { Launcher = c });
+    public void SetWindows(string name) => SetChoice(WindowsPath, "WINDOWS", WindowsNames, name, c => Current = Current with { Windows = c });
     public void SetCursor(string name) => SetChoice(CursorPath, "CURSOR", CursorNames, name, c => Current = Current with { Cursor = c });
     private void SetChoice(string path, string key, string[] names, string name, Action<uint> apply)
     {

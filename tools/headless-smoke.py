@@ -153,7 +153,7 @@ def main():
         step(machine, "open files; echo gui=$? | logger", "user: gui=1")
         step(machine, "pkg list | grep zenith-base | logger", "user: zenith-base")
         step(machine, "session set-default wm; echo wm=$? | logger", "user: wm=1")
-        step(machine, "settings set timezone Europe/Berlin; session set-default headless; install sata0 --yes", "Zenith installed and UEFI bootable.")
+        step(machine, "settings set timezone Europe/Berlin; settings set windows compact; session set-default headless; install sata0 --yes", "Zenith installed and UEFI bootable.")
         step(machine, "sync; poweroff", "all filesystems unmounted")
         assert_(machine.process.wait(timeout=30) == 0, "live clean poweroff")
     finally: machine.stop()

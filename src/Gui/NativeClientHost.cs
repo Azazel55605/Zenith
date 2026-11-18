@@ -33,7 +33,10 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
     private readonly object _gate = new();
     // A window opens with the client's first frame, or empty if that takes too long.
     private const long FirstFrameMilliseconds = 500;
-    private readonly List<(ProcessSurface Surface, long Since)> _pending = new();
+    // A window the desktop opens larger (the "fit" windows setting) waits for a frame at that size, so the
+    // compact first frame is never shown; a slow program (TCG) gets this long before it opens anyway.
+    private const long FittedFrameMilliseconds = 1500;
+    private readonly List<(ProcessSurface Surface, long Since, bool Fitted)> _pending = new();
     private readonly List<ProcessSurface> _surfaces = new();
     private readonly Credentials _identity;
     private readonly int _generation;
@@ -48,7 +51,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
             _pending.RemoveAll(p => p.Surface.Ended);
             if (_stopped || Accounts.Generation != _generation || _surfaces.Count >= 4) { return null; }
             var surface = new ProcessSurface(width, height, title, format);
-            _surfaces.Add(surface); _pending.Add((surface, System.Diagnostics.Stopwatch.GetTimestamp())); return surface;
+            _surfaces.Add(surface); _pending.Add((surface, System.Diagnostics.Stopwatch.GetTimestamp(), false)); return surface;
         }
     }
     public void Tick(WindowManager windows)
@@ -65,8 +68,12 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
             long now = System.Diagnostics.Stopwatch.GetTimestamp();
             for (int i = 0; i < _pending.Count; i++)
             {
-                var (surface, since) = _pending[i];
-                if (!surface.Ended && !surface.HasPresented && (now - since) * 1000 / System.Diagnostics.Stopwatch.Frequency < FirstFrameMilliseconds) { continue; }
+                var (surface, since, fitted) = _pending[i];
+                long waited = (now - since) * 1000 / System.Diagnostics.Stopwatch.Frequency;
+                if (!fitted && !surface.Ended && surface.Resizable && FitToScreen(surface, windows.WorkArea))
+                { _pending[i] = (surface, now, true); continue; }
+                if (!surface.Ended && (fitted ? !surface.PresentedAtRequestedSize && waited < FittedFrameMilliseconds
+                    : !surface.HasPresented && waited < FirstFrameMilliseconds)) { continue; }
                 _pending.RemoveAt(i--);
                 if (!surface.Ended)
                 {
@@ -77,6 +84,18 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
             }
             _surfaces.RemoveAll(s => s.Ended);
         }
+    }
+    /// <summary>With the "fit" windows setting, asks a resizable program that has not been shown yet for a
+    /// size that suits the screen. False when it keeps its own size.</summary>
+    private static bool FitToScreen(ProcessSurface surface, Rect work)
+    {
+        if (Zenith.Core.Configuration.SystemConfiguration.Settings.Current.Windows != 0) { return false; }
+        var size = surface.FrameSize;
+        int maximumWidth = surface.DynamicFramebuffer ? ProcessSurface.MaximumWidth : 1920, maximumHeight = surface.DynamicFramebuffer ? ProcessSurface.MaximumHeight : 1200;
+        if (WindowOpening.Fit(size.Width, size.Height, work.W, work.H - Window.TitleBarHeight, maximumWidth, maximumHeight) is not { } fit) { return false; }
+        surface.RequestResize(fit.Width, fit.Height);
+        Zenith.Core.Log.Write("graphics", "native surface fitted " + size.Width + "x" + size.Height + " to " + fit.Width + "x" + fit.Height);
+        return true;
     }
     private void StopCore()
     { _stopped = true; foreach (var t in _terminals) { t.Close(); t.Tick(); } _terminals.Clear(); foreach (var s in _surfaces) { s.Dispose(); } _surfaces.Clear(); _pending.Clear(); }
@@ -157,6 +176,10 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
             if (size.Width != _frameWidth || size.Height != _frameHeight)
             {
                 _frame = new int[size.Width * size.Height]; EndFade("Resized"); Array.Fill(_frame, (int)(Theme.WindowBackground | 0xff000000U)); _frameWidth = size.Width; _frameHeight = size.Height; _materialCount = 0; changed = true;
+                // The program took the desktop's opening size after its window was already shown (it was slow):
+                // the window follows. Resizes the person makes already have this size.
+                if (!IsMaximized && !IsFullscreen && (Content.W != size.Width || Content.H != size.Height))
+                { SetBounds(new Rect(Bounds.X, Bounds.Y, size.Width, size.Height + TitleBarHeight)); }
             }
             UpdateDamage = null;
             if (IsMinimized) { EndFade("Minimized"); return changed; }

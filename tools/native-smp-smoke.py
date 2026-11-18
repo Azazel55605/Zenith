@@ -60,7 +60,7 @@ def main():
             print('Original fixture preserved: '+str(a.prepared),flush=True)
         else:
             m=h.Machine(keep/'live',network=net);assert m.wait('headless ready',timeout=180)
-            status('session set-default headless','P_SESSION');status('install sata0 --yes','P_INSTALL');disk=poweroff()
+            status('settings set windows compact; session set-default headless','P_SESSION');status('install sata0 --yes','P_INSTALL');disk=poweroff()
         m=h.Machine(keep/'setup',disk,network=net);assert m.wait('headless ready',timeout=120)
         status(fetch+url+'/key.pem /root/key.pem','P_KEY');status('pkg trust /root/key.pem '+hashlib.sha256(key).hexdigest(),'P_TRUST')
         status(fetch+url+'/test.zpk /root/test.zpk','P_FETCH');status('pkg install /root/test.zpk','P_PACKAGE');disk=poweroff()

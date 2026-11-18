@@ -131,6 +131,8 @@ internal sealed class WindowManager
     }
 
     public bool HasTransition => _transition is not null;
+    /// <summary>The screen minus the taskbar: where windows open and maximize.</summary>
+    public Rect WorkArea => _workArea;
 
     /// <summary>Open windows, bottom to top.</summary>
     public IReadOnlyList<Window> Windows => _windows;

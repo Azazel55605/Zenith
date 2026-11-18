@@ -77,7 +77,7 @@ def main():
             boot_image.verify(args.prepared,ROOT/'output-x64/Zenith.elf');disk=args.prepared
         else:
             m=h.Machine(keep/'live',network=net);assert m.wait('headless ready');assert m.wait('network: online address=10.0.2.15')
-            serial('session set-default headless; echo D_SESSION=$? | logger','user: D_SESSION=0');serial('install sata0 --yes; echo D_INSTALL=$? | logger','user: D_INSTALL=0')
+            serial('settings set windows compact; session set-default headless; echo D_SESSION=$? | logger','user: D_SESSION=0');serial('install sata0 --yes; echo D_INSTALL=$? | logger','user: D_INSTALL=0')
             disk=shutdown();m=None
             m=h.Machine(keep/'setup',disk,network=net);assert m.wait('headless ready')
             serial('fetch '+url+'/key.pem /root/display-key.pem','fetch complete')

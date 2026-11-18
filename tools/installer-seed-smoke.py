@@ -67,7 +67,7 @@ def main():
         check('not applied' not in log and 'seed ignored' not in log, 'no seed part refused')
         output = status('pkg repos | logger', 'S_REPOS')
         check('core priority=10 mirror=' + mirror in output, 'live repositories use the seeded mirror')
-        status('session set-default headless', 'S_SESSION')
+        status('settings set windows compact; session set-default headless', 'S_SESSION')
         output = status('install sata0 --yes', 'S_INSTALL', timeout=1200)
         check('installer: seed packages installed=' + str(len(names)) in m.log(), 'Sunrise installed every seeded package')
         off = len(m.log()); m.send('poweroff\r'); check(m.wait('all filesystems unmounted', off, 120), 'live poweroff')

@@ -45,7 +45,7 @@ def command(text,marker,timeout=120):
     print('PASS '+marker,flush=True)
 def status(text,marker,code=0,timeout=120):command(text+'; echo '+marker+'=$? | logger','user: '+marker+'='+str(code),timeout)
 try:
-    boot('live');status('session set-default headless','N_SESSION');status('install sata0 --yes','N_INSTALL',timeout=300);command('poweroff','all filesystems unmounted');m.process.wait(timeout=30);disk=m.disk;m.stop()
+    boot('live');status('settings set windows compact; session set-default headless','N_SESSION');status('install sata0 --yes','N_INSTALL',timeout=300);command('poweroff','all filesystems unmounted');m.process.wait(timeout=30);disk=m.disk;m.stop()
     boot('installed',disk)
     status('cpu irq-test | logger','N_IDT_IRQ_STATE')
     if cpu_workers: status('cpu test 10000000 | logger','N_CPUS_START')

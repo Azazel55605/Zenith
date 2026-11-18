@@ -91,7 +91,7 @@ def main():
         command('reboot' if reboot else 'poweroff','all filesystems unmounted');check(m.process.wait(timeout=60)==0,'clean '+('reboot' if reboot else 'poweroff')+' without manual sync');disk=m.disk;m.stop();return disk
     try:
         m=boot('live');status('pkg kernel install /missing','K_LIVE_DENIED',1)
-        status('session set-default headless','K_SESSION');status('install sata0 --yes','K_INSTALL')
+        status('settings set windows compact; session set-default headless','K_SESSION');status('install sata0 --yes','K_INSTALL')
         base=shutdown();m=boot('prepared',base)
         status('umount /boot/efi','K_ESP_UNMOUNT')
         status('boot status','K_MISSING_ESP_REFUSED',1)

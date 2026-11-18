@@ -84,7 +84,7 @@ def main():
         m=h.Machine(keep/name,disk,argument='smp=native' if multicore else None,cpus=4 if multicore else 1,network=['-netdev','user,id=net0','-device','e1000e,netdev=net0'])
         assert m.wait('headless ready',timeout=180),'boot';assert m.wait('network: online address=10.0.2.15',timeout=90),'DHCP'
     try:
-        boot('live');status('session set-default headless','NET_SESSION');status('install sata0 --yes','NET_INSTALL',timeout=600)
+        boot('live');status('settings set windows compact; session set-default headless','NET_SESSION');status('install sata0 --yes','NET_INSTALL',timeout=600)
         command('poweroff','all filesystems unmounted');m.process.wait(timeout=30);disk=m.disk;m.stop();m=None
         boot('installed',disk)
         status('fetch '+http+'/key.pem /root/net-key.pem','NET_KEY')

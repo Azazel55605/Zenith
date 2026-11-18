@@ -50,6 +50,13 @@ Old 0.0.13/0.0.19 build failures are historical investigations, not current retr
 
 ## Current focus and execution order
 
+**2026-11-18 — Windows open sized to the screen (D2, local).** Requested: "change the window default size
+based on screen resolution; windows can spawn at a larger scale when screenspace is available". Resizable
+native windows open scaled up with their proportions (up to 3/4 of the work area's width, 4/5 of its height,
+twice the request), shown only once a frame of that size arrives; `settings set windows fit|compact`
+(default fit). Gates install with `compact` so their pointer coordinates stay valid; aurora-smoke checks
+`fit`. [Opening size](GRAPHICAL-CLIENTS.md#owned-viewport-extension).
+
 **2026-11-17 — Aurora AU2-AU3 (U2, local).** Project tree, outline, minimap, regular expressions, bracket
 matching, overwrite mode, recovery copies after a crash and polled changes on disk. [Aurora](components/AURORA.md).
 
