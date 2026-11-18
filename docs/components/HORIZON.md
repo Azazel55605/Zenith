@@ -23,8 +23,8 @@ Added to the concept on 2026-11-15, between the title bar and the toolbar.
 - Up to 8 tabs. **Ctrl+T** opens a tab at the current location, **Ctrl+W** closes one (the last
   tab closes the window), **Ctrl+Tab** and **Ctrl+Shift+Tab** cycle, a click on a tab switches to
   it, its × closes it, + adds one.
-- **Open in new tab** on a folder (context menu, Ctrl+Enter) opens it behind the current tab. Middle
-  click does the same once the desktop sends middle-button presses.
+- **Open in new tab** on a folder (context menu, Ctrl+Enter, or a middle click from kernel 0.0.67) opens it
+  behind the current tab. A middle click on a tab closes it.
 - A tab that shows a split view is labelled with both folders (`Documents | Archive`).
 - Tabs are saved when Horizon closes and restored at the next start (HZ4).
 
@@ -123,6 +123,7 @@ Call 627 `(handle, bits, 0)` opts in to pointer motion with bit 1, as before.
 - Bit 2 adds **secondary presses**: event 12, code 2 (right button), content-local x and y. Pointer
   presses, releases and drags then also carry the Shift, Control and Alt state in `modifiers`.
 - Bit 4 adds **function keys**: key extras 14..25 for F1..F12.
+- Bit 8 (kernel 0.0.67) adds **middle presses**: event 12, code 3.
 - For every client, Ctrl+digit now arrives as the digit (code), like Ctrl+letter already did.
 - Older kernels refuse any value but 1 with -22. Clients retry with 1 and work without either.
 
@@ -199,10 +200,10 @@ Call 627 `(handle, bits, 0)` opts in to pointer motion with bit 1, as before.
     .zip packs the selection. The kernel has its own DEFLATE decoder and encoder, CRC-32, zip and ustar/GNU/pax
     tar readers and writers. Entry names are checked (no absolute paths, no `..`); links, devices,
     encryption, zip64 and other compression methods are refused per entry; output is limited to 64 GiB.
-    Permissions inside archives are not restored.
+    Permissions inside archives are restored from HZ5.
   - **Thumbnails** (call 660): PNG (not interlaced), 24/32-bit BMP and baseline JPEG shrink to the icon size in
     the icons view, one image per event-loop pass, cached by size. Large JPEGs decode only the DC value of each
-    block. Progressive JPEG and interlaced PNG keep their icons. Files over 32 MiB are not previewed.
+    block. Files over 32 MiB are not previewed.
   - **Tabs at sign-in:** Ctrl+Q (or the last tab closing) writes `~/.config/zenith/horizon-tabs`; Horizon
     started without a folder restores its tabs, splits, views, sorts and zoom, skipping folders that are gone.
   - **Administrator:** after a refusal (a folder or job denied, a permission change refused) the status bar
@@ -211,3 +212,17 @@ Call 627 `(handle, bits, 0)` opts in to pointer motion with bit 1, as before.
     closes; the title says "(administrator)" and deletions are permanent (the Trash is the person's own).
   - Checked by host tests (portal, privileges, archives against .NET's zip/gzip/tar in both directions,
     thumbnails of Pillow/libjpeg fixtures, job parsing) and `tools/horizon-smoke.py`.
+- **HZ5 (local, kernel 0.0.67, zenith-horizon 0.3.0), requested 2026-11-18 ("finish Horizon"):**
+  - **Middle click** (input bit 8): on a folder it opens a new tab behind the current one; on a tab it closes it.
+  - **Wide layout:** with windows sized to the screen (kernel 0.0.66) Horizon opens with Places, and the
+    gate checks it (`HORIZON_LAYOUT WxH places=1 info=0|1` after each resize).
+  - **Permissions in archives:** Compress records each file's and folder's mode (zip external attributes from
+    "Unix", tar mode field); Extract restores them without setuid, setgid and sticky. Folder modes are set last,
+    deepest first, so a read-only folder still receives its files.
+  - **Zip64** archives (over 4 GiB or 65,535 entries, from other tools) are read: the zip64 end record and
+    locator, and per-entry zip64 sizes and offsets. Compress still writes plain zip and refuses past its limits.
+  - **Thumbnails** of interlaced PNG (Adam7) and progressive JPEG (spectral selection and successive
+    approximation; large images keep only the DC scans and skip the AC data). Host tests compare each
+    progressive fixture with the same image converted losslessly to baseline by jpegtran: identical pixels.
+  - Still not read: .tar.xz, .tar.bz2, .7z and .rar, encrypted zip entries, and lossless or arithmetic-coded
+    JPEG. Removable drives stay deferred (S6).

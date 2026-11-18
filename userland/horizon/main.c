@@ -1888,7 +1888,8 @@ int main(int argc,char **argv,char **envp){
     if(handle<0){print("horizon: graphical session required\n");return 1;}
     ui.foreground=material;
     if(zenith_gui_interactive(handle)<0||zenith_gui_resize_enable(handle)<0){zenith_gui_close(handle);return 1;}
-    ui.hover_supported=zenith_gui_input(handle,7)==0||zenith_gui_pointer_motion(handle)==0;
+    /* 15 adds middle presses (kernel 0.0.67); older kernels refuse it and get 7. */
+    ui.hover_supported=zenith_gui_input(handle,15)==0||zenith_gui_input(handle,7)==0||zenith_gui_pointer_motion(handle)==0;
     if(!(argc==1&&restore_tabs()))open_tab(start,1);
     find_places();
     print(material?(ui.full_background?"HORIZON_MATERIAL window\n":"HORIZON_MATERIAL navigation\n"):"HORIZON_MATERIAL none\n");
@@ -1912,7 +1913,11 @@ int main(int argc,char **argv,char **envp){
             if(r<0){result=zui_window_closed(handle)?0:1;break;}
         }
         struct zenith_gui_event e={0};long r=zenith_gui_poll(handle,&e);if(r<0){result=1;break;}if(!r)continue;
-        if(e.type==Z_GUI_RESIZE){if(zui_apply_viewport(&ui,handle,640*480)<0){result=zui_window_closed(handle)?0:1;break;}continue;}
+        if(e.type==Z_GUI_RESIZE){int r=zui_apply_viewport(&ui,handle,640*480);if(r<0){result=zui_window_closed(handle)?0:1;break;}
+            /* The layout this size gets, for the gate (wide windows show Places and the information panel). */
+            if(r>0){char line[96],*o=put(line,"HORIZON_LAYOUT ");o=num(o,(unsigned long)ui.width);o=put(o,"x");o=num(o,(unsigned long)ui.height);
+                o=put(o," places=");o=num(o,(unsigned long)(sidebar_w()>0));o=put(o," info=");o=num(o,(unsigned long)(info_w()>0));put(o,"\n");print(line);}
+            continue;}
         if(e.type==Z_GUI_CLOSE||e.type==Z_GUI_CLOSE_INTENT){done=1;continue;}
         if(e.type==Z_GUI_RESET){update_appearance();continue;}
         if(e.type==Z_GUI_FOCUS){ui.window_focused=e.code;if(e.code){print("HORIZON_FOCUSED\n");find_places();}ui.dirty=1;continue;}
@@ -1979,6 +1984,14 @@ int main(int argc,char **argv,char **envp){
         }
         if(e.type==Z_GUI_SCROLL&&(e.modifiers&6)==2){set_zoom(T()->zoom+(e.code>0?1:-1));continue;}
         if(e.type==Z_GUI_SCROLL){int pn=pane_at(e.x,e.y);struct zui_scroll *s=pn>=0?&listings[pn].content_scroll:&L->content_scroll;if(zui_scroll_event(&ui,s,&e))ui.dirty=1;continue;}
+        if(e.type==Z_GUI_SECONDARY&&e.code==3){
+            /* Middle button (kernel 0.0.67): a folder opens in a new tab behind this one; a tab closes. */
+            if(e.y<TAB_Y+TAB_H){for(int i=0;i<strip.count&&i<tab_count;i++){struct zui_rect r=strip.tab[i];
+                if(e.x>=r.x&&e.x<r.x+r.w&&e.y>=r.y&&e.y<r.y+r.h){close_tab(i);break;}}continue;}
+            int id=hit_at(e.x,e.y);
+            if(id>=H_ITEM){activate_pane((id-H_ITEM)/PANE_ITEMS);int k=(id-H_ITEM)%PANE_ITEMS;if(is_folder(&L->entries[L->order[k]]))open_item(k,1);}
+            continue;
+        }
         if(e.type==Z_GUI_SECONDARY){
             int id=hit_at(e.x,e.y);
             if(id>=H_ITEM){activate_pane((id-H_ITEM)/PANE_ITEMS);int k=(id-H_ITEM)%PANE_ITEMS;if(!L->entries[L->order[k]].selected){select_only(k);L->anchor=k;}L->focus_index=k;announce_selection();open_menu(e.x,e.y,1);}

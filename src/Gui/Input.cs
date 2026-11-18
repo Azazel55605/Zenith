@@ -12,6 +12,7 @@ internal sealed class Input
 {
     private bool _previousLeft;
     private bool _previousRight;
+    private bool _previousMiddle;
 
     public int X { get; private set; }
     public int Y { get; private set; }
@@ -19,12 +20,13 @@ internal sealed class Input
     public bool LeftPressed { get; private set; }
     public bool LeftReleased { get; private set; }
     public bool RightPressed { get; private set; }
+    public bool MiddlePressed { get; private set; }
     public int Scroll { get; private set; }
     public bool Moved { get; private set; }
     public List<KeyEvent> Keys { get; } = new();
 
     /// <summary>Whether anything happened this frame that could change what is on screen.</summary>
-    public bool HasActivity => Moved || LeftPressed || LeftReleased || RightPressed || Scroll != 0 || Keys.Count > 0;
+    public bool HasActivity => Moved || LeftPressed || LeftReleased || RightPressed || MiddlePressed || Scroll != 0 || Keys.Count > 0;
 
     /// <summary>The pointer in device pixels, as last polled (the hardware pointer is placed there).</summary>
     public static int PhysicalX { get; private set; }
@@ -51,6 +53,8 @@ internal sealed class Input
         LeftPressed = Left && !_previousLeft;
         LeftReleased = !Left && _previousLeft;
         RightPressed = right && !_previousRight;
+        bool middle = absolute ? Zenith.Core.Input.AbsolutePointer.Middle : MouseManager.MiddleButton;
+        MiddlePressed = middle && !_previousMiddle; _previousMiddle = middle;
         _previousLeft = Left;
         _previousRight = right;
 

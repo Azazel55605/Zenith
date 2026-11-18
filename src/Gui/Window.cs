@@ -152,6 +152,11 @@ internal abstract class Window
     {
     }
 
+    /// <summary>A middle-button press inside the content area, in content-relative coordinates.</summary>
+    public virtual void OnMiddlePress(int x, int y)
+    {
+    }
+
     /// <summary>The pointer moved with the button held after a click in the content area (content-relative, may be outside it).</summary>
     public virtual void OnMouseDrag(int x, int y)
     {

@@ -262,7 +262,7 @@ internal sealed unsafe class NativeProcess
             if (c.Call == 628)
             { return c.Arg0 != 0 || c.Arg1 != 0 || c.Arg2 != 0 ? -22 : MonotonicMilliseconds; }
             if (c.Call == 627)
-            { return c.Arg0 > int.MaxValue || c.Arg1 is not (1 or 3 or 5 or 7) || c.Arg2 != 0 ? -22 : graphics.EnablePointerMotion((int)c.Arg0, (int)c.Arg1); }
+            { return c.Arg0 > int.MaxValue || c.Arg1 > 15 || (c.Arg1 & 1) == 0 || c.Arg2 != 0 ? -22 : graphics.EnablePointerMotion((int)c.Arg0, (int)c.Arg1); }
             if (c.Call == 614)
             { return c.Arg0 > int.MaxValue || c.Arg1 != 1 || c.Arg2 != 0 ? -22 : graphics.EnableResize((int)c.Arg0); }
             if (c.Call == 613)

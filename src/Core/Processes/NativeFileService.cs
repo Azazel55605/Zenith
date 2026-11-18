@@ -161,6 +161,8 @@ internal static class NativeFileService
         {
             if (_files.Mutate(ProcessPathOperation.Symlink, path, target, 0, 0) < 0) { throw new IOException("the link could not be created"); }
         }
+        public void SetMode(string path, uint mode) { try { _files.Mutate(ProcessPathOperation.Chmod, path, null, mode & 0x1ff, 0); } catch (Exception) { } }
+        public uint Mode(string path) => new Zenith.Core.Storage.VfsFileMetadata().TryRead(path, out var metadata) ? (uint)metadata.Mode & 0x1ff : 0;
         public ulong Available(string directory)
         {
             string best = "/";

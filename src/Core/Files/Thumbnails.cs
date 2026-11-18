@@ -3,8 +3,8 @@ using System.IO;
 
 namespace Zenith.Core.Files;
 
-/// <summary>Small previews of images for Horizon (HZ4, call 660): PNG (not interlaced), BMP (24/32-bit) and
-/// baseline JPEG. Every decoder hands rows to a box-filter <see cref="Shrinker"/>, so memory stays at the size of
+/// <summary>Small previews of images for Horizon (HZ4, call 660): PNG (interlaced too from HZ5), BMP (24/32-bit) and
+/// baseline or progressive JPEG. Every decoder hands rows to a box-filter <see cref="Shrinker"/>, so memory stays at the size of
 /// the thumbnail plus one source row; large JPEGs decode only each block's DC value (an exact 1/8 image).
 /// Output is ARGB with straight alpha, at most <c>max</c> pixels on the longer side.</summary>
 internal static class Thumbnails
@@ -60,6 +60,12 @@ internal static class Thumbnails
                 _sum[t * 4] += a; _sum[t * 4 + 1] += (p >> 16 & 255) * a; _sum[t * 4 + 2] += (p >> 8 & 255) * a; _sum[t * 4 + 3] += (p & 255) * a; _count[t]++;
             }
         }
+        /// <summary>One source pixel (interlaced PNG passes deliver pixels scattered over the image).</summary>
+        public void Point(int x, int y, uint p)
+        {
+            int t = (int)((long)y * _th / _h) * _tw + (int)((long)x * _tw / _w); uint a = p >> 24;
+            _sum[t * 4] += a; _sum[t * 4 + 1] += (p >> 16 & 255) * a; _sum[t * 4 + 2] += (p >> 8 & 255) * a; _sum[t * 4 + 3] += (p & 255) * a; _count[t]++;
+        }
         public Result Finish()
         {
             var r = new Result { Width = _tw, Height = _th, Pixels = new uint[_tw * _th] };
@@ -106,13 +112,13 @@ internal static class Thumbnails
     {
         var b = new byte[8]; Exactly(s, b, 8);
         int w = 0, h = 0, depth = 0, color = 0; uint[] palette = new uint[256]; for (int i = 0; i < 256; i++) { palette[i] = 0xff000000u; }
-        int transparentGray = -1; int tr = -1, tg = -1, tb = -1;
+        int transparentGray = -1; int tr = -1, tg = -1, tb = -1; bool interlaced = false;
         while (true)
         {
             var head = new byte[8]; Exactly(s, head, 8);
             long length = (uint)(head[0] << 24 | head[1] << 16 | head[2] << 8 | head[3]);
             string type = System.Text.Encoding.ASCII.GetString(head, 4, 4);
-            if (type == "IDAT") { if (w == 0) { throw new InvalidDataException("no image header"); } return PngData(s, length, w, h, depth, color, palette, transparentGray, tr, tg, tb, max); }
+            if (type == "IDAT") { if (w == 0) { throw new InvalidDataException("no image header"); } return PngData(s, length, w, h, depth, color, palette, transparentGray, tr, tg, tb, max, interlaced); }
             if (length > 1 << 24) { throw new InvalidDataException("damaged PNG"); }
             var data = new byte[length]; Exactly(s, data, (int)length);
             var crc = new byte[4]; Exactly(s, crc, 4);
@@ -120,7 +126,8 @@ internal static class Thumbnails
             {
                 w = data[0] << 24 | data[1] << 16 | data[2] << 8 | data[3]; h = data[4] << 24 | data[5] << 16 | data[6] << 8 | data[7];
                 depth = data[8]; color = data[9];
-                if (data[12] != 0) { throw new NotSupportedException("interlaced PNG images have no preview yet"); }
+                interlaced = data[12] == 1;
+                if (data[12] > 1) { throw new NotSupportedException("unsupported PNG interlace method"); }
                 if (color is not (0 or 2 or 3 or 4 or 6) || depth is not (1 or 2 or 4 or 8 or 16) || (color is 2 or 4 or 6 && depth < 8)) { throw new NotSupportedException("unsupported PNG format"); }
                 Check(w, h);
             }
@@ -134,8 +141,11 @@ internal static class Thumbnails
             else if (type == "IEND") { throw new InvalidDataException("no image data"); }
         }
     }
-    private static Result PngData(Stream s, long first, int w, int h, int depth, int color, uint[] palette, int transparentGray, int tr, int tg, int tb, int max)
+    // Adam7: x start, y start, x step, y step of the seven passes.
+    private static readonly int[] Adam7 = { 0, 0, 8, 8, 4, 0, 8, 8, 0, 4, 4, 8, 2, 0, 4, 4, 0, 2, 2, 4, 1, 0, 2, 2, 0, 1, 1, 2 };
+    private static Result PngData(Stream s, long first, int w, int h, int depth, int color, uint[] palette, int transparentGray, int tr, int tg, int tb, int max, bool interlaced = false)
     {
+        if (interlaced) { return PngInterlaced(s, first, w, h, depth, color, palette, transparentGray, tr, tg, tb, max); }
         var idat = new IdatStream(s, first);
         var zlib = new byte[2]; Exactly(idat, zlib, 2);
         if ((zlib[0] & 15) != 8) { throw new InvalidDataException("damaged PNG data"); }
@@ -159,6 +169,54 @@ internal static class Thumbnails
             }
         }, (long)(stride + 1) * h).Run();
         if (y < h) { throw new InvalidDataException("the image ends early"); }
+        return shrink.Finish();
+    }
+    /// <summary>An Adam7 PNG: seven reduced images one after another, each with its own filtered rows.</summary>
+    private static Result PngInterlaced(Stream s, long first, int w, int h, int depth, int color, uint[] palette, int transparentGray, int tr, int tg, int tb, int max)
+    {
+        var idat = new IdatStream(s, first);
+        var zlib = new byte[2]; Exactly(idat, zlib, 2);
+        if ((zlib[0] & 15) != 8) { throw new InvalidDataException("damaged PNG data"); }
+        int channels = color switch { 0 => 1, 2 => 3, 3 => 1, 4 => 2, _ => 4 };
+        int bpp = Math.Max(1, channels * depth / 8);
+        var shrink = new Shrinker(w, h, max);
+        int pass = -1, pw = 0, ph = 0, stride = 0, y = 0, fill = 0, filter = -1; long total = 0;
+        byte[] previous = Array.Empty<byte>(), line = Array.Empty<byte>();
+        for (int p = 0; p < 7; p++)
+        {
+            int cw = w > Adam7[p * 4] ? (w - Adam7[p * 4] + Adam7[p * 4 + 2] - 1) / Adam7[p * 4 + 2] : 0;
+            int ch = h > Adam7[p * 4 + 1] ? (h - Adam7[p * 4 + 1] + Adam7[p * 4 + 3] - 1) / Adam7[p * 4 + 3] : 0;
+            if (cw > 0 && ch > 0) { total += (long)((cw * channels * depth + 7) / 8 + 1) * ch; }
+        }
+        bool Next()   // the next pass with pixels; false after the last
+        {
+            while (++pass < 7)
+            {
+                pw = w > Adam7[pass * 4] ? (w - Adam7[pass * 4] + Adam7[pass * 4 + 2] - 1) / Adam7[pass * 4 + 2] : 0;
+                ph = h > Adam7[pass * 4 + 1] ? (h - Adam7[pass * 4 + 1] + Adam7[pass * 4 + 3] - 1) / Adam7[pass * 4 + 3] : 0;
+                if (pw == 0 || ph == 0) { continue; }
+                stride = (pw * channels * depth + 7) / 8; previous = new byte[stride]; line = new byte[stride]; y = 0; fill = 0; filter = -1;
+                return true;
+            }
+            return false;
+        }
+        bool more = Next();
+        new Inflater(idat, (data, offset, count) =>
+        {
+            for (int i = 0; i < count && more; i++)
+            {
+                byte value = data[offset + i];
+                if (filter < 0) { filter = value; if (filter > 4) { throw new InvalidDataException("damaged PNG filter"); } continue; }
+                line[fill++] = value;
+                if (fill < stride) { continue; }
+                Unfilter(filter, line, previous, bpp);
+                int sy = Adam7[pass * 4 + 1] + y * Adam7[pass * 4 + 3];
+                for (int x = 0; x < pw; x++) { shrink.Point(Adam7[pass * 4] + x * Adam7[pass * 4 + 2], sy, PngPixel(line, x, depth, color, palette, transparentGray, tr, tg, tb)); }
+                (previous, line) = (line, previous); fill = 0; filter = -1;
+                if (++y == ph) { more = Next(); }
+            }
+        }, total).Run();
+        if (more) { throw new InvalidDataException("the image ends early"); }
         return shrink.Finish();
     }
     private static void Unfilter(int filter, byte[] line, byte[] up, int bpp)
@@ -239,11 +297,11 @@ internal static class Thumbnails
         private int _width, _height, _restart;
         private Component[] _components = Array.Empty<Component>();
         private int _hmax, _vmax;
-        private int _bits, _bitCount; private bool _marker;
+        private int _bits, _bitCount, _markerValue = -1; private bool _marker, _progressive;
         public Jpeg(Stream s, int max) { _s = s; _max = max; }
 
         private sealed class Huff { public readonly int[] MaxCode = new int[18], ValPtr = new int[17]; public readonly int[] MinCode = new int[17]; public byte[] Values = Array.Empty<byte>(); }
-        private sealed class Component { public int Id, H, V, Q, Dc, Ac, Prediction; public byte[] Plane = Array.Empty<byte>(); public int PlaneWidth; }
+        private sealed class Component { public int Id, H, V, Q, Dc, Ac, Prediction, BlocksPerLine, BlockLines, BlocksWide, BlocksHigh; public byte[] Plane = Array.Empty<byte>(); public int PlaneWidth; public short[] Coefficients = Array.Empty<short>(); }
 
         private int Byte() { int b = _s.ReadByte(); if (b < 0) { throw new InvalidDataException("the image ends early"); } return b; }
         private int Word() => Byte() << 8 | Byte();
@@ -251,11 +309,18 @@ internal static class Thumbnails
         public Result Decode()
         {
             if (Byte() != 0xff || Byte() != 0xd8) { throw new InvalidDataException("not a JPEG"); }
+            bool scanned = false;
             while (true)
             {
-                int marker = Byte(); if (marker != 0xff) { continue; }
-                do { marker = Byte(); } while (marker == 0xff);
-                if (marker == 0xd9) { throw new InvalidDataException("no image data"); }
+                int marker;
+                if (_markerValue >= 0) { marker = _markerValue; _markerValue = -1; }   // met at the end of a progressive scan
+                else
+                {
+                    marker = Byte(); if (marker != 0xff) { continue; }
+                    do { marker = Byte(); } while (marker == 0xff);
+                }
+                if (marker == 0xd9) { if (_progressive && scanned) { return ProgressiveFinish(); } throw new InvalidDataException("no image data"); }
+                if (marker is >= 0xd0 and <= 0xd7) { continue; }
                 int length = Word() - 2; if (length < 0) { throw new InvalidDataException("damaged JPEG"); }
                 switch (marker)
                 {
@@ -263,9 +328,10 @@ internal static class Thumbnails
                     case 0xc4: Tables(length); break;
                     case 0xdd: _restart = Word(); break;
                     case 0xc0: case 0xc1: Frame(); break;
-                    case 0xc2: case 0xc3: case 0xc5: case 0xc6: case 0xc7: case 0xc9: case 0xca: case 0xcb: case 0xcd: case 0xce: case 0xcf:
-                        throw new NotSupportedException("progressive and lossless JPEG images have no preview yet");
-                    case 0xda: return Scan();
+                    case 0xc2: _progressive = true; Frame(); break;
+                    case 0xc3: case 0xc5: case 0xc6: case 0xc7: case 0xc9: case 0xca: case 0xcb: case 0xcd: case 0xce: case 0xcf:
+                        throw new NotSupportedException("lossless and arithmetic-coded JPEG images have no preview yet");
+                    case 0xda: if (!_progressive) { return Scan(); } ProgressiveScan(); scanned = true; break;
                     default: for (int i = 0; i < length; i++) { Byte(); } break;
                 }
             }
@@ -319,7 +385,7 @@ internal static class Thumbnails
                 else
                 {
                     int b = Byte();
-                    if (b == 0xff) { int next = Byte(); if (next != 0) { _marker = true; b = 0; } }
+                    if (b == 0xff) { int next = Byte(); while (next == 0xff) { next = Byte(); } if (next != 0) { _marker = true; _markerValue = next is >= 0xd0 and <= 0xd7 ? -1 : next; b = 0; } }
                     _bits = b; _bitCount = 8;
                 }
             }
@@ -339,8 +405,172 @@ internal static class Thumbnails
             // Skip to the RSTn marker, then start the bit stream and the DC predictions afresh.
             _bitCount = 0;
             if (!_marker) { int b; do { b = Byte(); } while (b != 0xff); int m; do { m = Byte(); } while (m == 0xff); }
-            _marker = false;
+            _marker = false; _markerValue = -1; _eobRun = 0;
             foreach (var c in _components) { c.Prediction = 0; }
+        }
+
+        // ---------- Progressive JPEG: coefficients collected over several scans, transformed once at the end.
+        private int _eobRun; private bool _dcOnly;
+        private void Prepare()
+        {
+            if (_components[0].Coefficients.Length > 0) { return; }
+            // Large images keep the DC value of each block only (each 8x8 block becomes one pixel); AC scans are skipped.
+            _dcOnly = Math.Max(_width, _height) > 2 * _max * 2;
+            int mcusX = (_width + 8 * _hmax - 1) / (8 * _hmax), mcusY = (_height + 8 * _vmax - 1) / (8 * _vmax);
+            foreach (var c in _components)
+            {
+                if (_quant[c.Q] is null) { throw new InvalidDataException("missing JPEG tables"); }
+                c.BlocksPerLine = mcusX * c.H; c.BlockLines = mcusY * c.V;
+                c.BlocksWide = ((_width * c.H + _hmax - 1) / _hmax + 7) / 8; c.BlocksHigh = ((_height * c.V + _vmax - 1) / _vmax + 7) / 8;
+                c.Coefficients = new short[c.BlocksPerLine * c.BlockLines * (_dcOnly ? 1 : 64)];
+            }
+        }
+        private void ProgressiveScan()
+        {
+            Prepare();
+            int n = Byte(); var scan = new Component[n];
+            for (int i = 0; i < n; i++)
+            {
+                int id = Byte(), tables = Byte();
+                Component? found = null; foreach (var c in _components) { if (c.Id == id) { found = c; } }
+                scan[i] = found ?? throw new InvalidDataException("damaged JPEG scan");
+                found.Dc = tables >> 4; found.Ac = tables & 15;
+            }
+            int ss = Byte(), se = Byte(), a = Byte(), ah = a >> 4, al = a & 15;
+            if (ss > se || se > 63 || (ss == 0 && se != 0) || (ss > 0 && n != 1) || al > 13) { throw new InvalidDataException("damaged JPEG scan"); }
+            _bitCount = 0; _marker = false; _eobRun = 0; foreach (var c in _components) { c.Prediction = 0; }
+            if (ss > 0 && _dcOnly) { SkipScan(); return; }
+            foreach (var c in scan)
+            {
+                if (ss == 0 && ah == 0 && _dc[c.Dc] is null) { throw new InvalidDataException("missing JPEG tables"); }
+                if (ss > 0 && _ac[c.Ac] is null) { throw new InvalidDataException("missing JPEG tables"); }
+            }
+            int stride = _dcOnly ? 1 : 64, units = 0;
+            void Unit(Component c, int bx, int by)
+            {
+                int at = (by * c.BlocksPerLine + bx) * stride;
+                if (ss == 0) { if (ah == 0) { DcFirst(c, at, al); } else if (Bit() != 0) { c.Coefficients[at] |= (short)(1 << al); } }
+                else if (ah == 0) { AcFirst(c, at, ss, se, al); }
+                else { AcRefine(c, at, ss, se, al); }
+            }
+            void Count() { if (_restart > 0 && units > 0 && units % _restart == 0) { Restart(); } units++; }
+            if (n == 1)
+            {
+                // Non-interleaved: the component's own blocks in raster order, without the MCU padding.
+                var c = scan[0];
+                for (int by = 0; by < c.BlocksHigh; by++) { for (int bx = 0; bx < c.BlocksWide; bx++) { Count(); Unit(c, bx, by); } }
+            }
+            else
+            {
+                for (int my = 0; my < _components[0].BlockLines / _components[0].V; my++)
+                {
+                    for (int mx = 0; mx < _components[0].BlocksPerLine / _components[0].H; mx++)
+                    {
+                        Count();
+                        foreach (var c in scan) { for (int by = 0; by < c.V; by++) { for (int bx = 0; bx < c.H; bx++) { Unit(c, mx * c.H + bx, my * c.V + by); } } }
+                    }
+                }
+            }
+            _bitCount = 0;
+            if (_marker) { _marker = false; if (_markerValue < 0) { SkipScan(); } }   // ended on a restart marker: find the next real one
+        }
+        private void DcFirst(Component c, int at, int al)
+        {
+            int t = DecodeHuff(_dc[c.Dc]!); int diff = t == 0 ? 0 : Extend(Receive(t), t);
+            c.Prediction += diff; c.Coefficients[at] = (short)(c.Prediction << al);
+        }
+        private void AcFirst(Component c, int at, int ss, int se, int al)
+        {
+            if (_eobRun > 0) { _eobRun--; return; }
+            var ac = _ac[c.Ac]!;
+            for (int k = ss; k <= se;)
+            {
+                int rs = DecodeHuff(ac), r = rs >> 4, s = rs & 15;
+                if (s == 0)
+                {
+                    if (r < 15) { _eobRun = (1 << r) - 1; if (r > 0) { _eobRun += Receive(r); } break; }
+                    k += 16; continue;
+                }
+                k += r; if (k > 63) { throw new InvalidDataException("damaged JPEG block"); }
+                c.Coefficients[at + k] = (short)(Extend(Receive(s), s) << al); k++;
+            }
+        }
+        private void AcRefine(Component c, int at, int ss, int se, int al)
+        {
+            short p1 = (short)(1 << al), m1 = (short)(-1 << al); var co = c.Coefficients;
+            void Refine(int i) { if (co[i] != 0 && Bit() != 0 && (co[i] & p1) == 0) { co[i] += co[i] >= 0 ? p1 : m1; } }
+            int k = ss;
+            if (_eobRun > 0) { _eobRun--; for (; k <= se; k++) { Refine(at + k); } return; }
+            var ac = _ac[c.Ac]!;
+            while (k <= se)
+            {
+                int rs = DecodeHuff(ac), r = rs >> 4, s = rs & 15; short value = 0;
+                if (s == 0)
+                {
+                    if (r < 15) { _eobRun = (1 << r) - 1; if (r > 0) { _eobRun += Receive(r); } r = 64; }   // refine the rest of this block, then the run continues
+                }
+                else { if (s != 1) { throw new InvalidDataException("damaged JPEG block"); } value = Bit() != 0 ? p1 : m1; }
+                while (k <= se)
+                {
+                    int i = at + k++;
+                    if (co[i] != 0) { Refine(i); }
+                    else { if (r == 0) { if (value != 0) { co[i] = value; } break; } r--; }
+                }
+            }
+        }
+        /// <summary>Skips entropy-coded data up to the next marker other than a restart.</summary>
+        private void SkipScan()
+        {
+            while (true)
+            {
+                if (Byte() != 0xff) { continue; }
+                int m = Byte(); while (m == 0xff) { m = Byte(); }
+                if (m == 0 || m is >= 0xd0 and <= 0xd7) { continue; }
+                _markerValue = m; return;
+            }
+        }
+        private Result ProgressiveFinish()
+        {
+            int scale = _dcOnly ? 8 : 1;
+            int mcuH = 8 * _vmax, mcusX = _components[0].BlocksPerLine / _components[0].H, mcusY = _components[0].BlockLines / _components[0].V;
+            int outW = (_width + scale - 1) / scale, outH = (_height + scale - 1) / scale;
+            foreach (var c in _components) { c.PlaneWidth = mcusX * c.H * 8 / scale; c.Plane = new byte[c.PlaneWidth * c.V * 8 / scale]; }
+            var shrink = new Shrinker(outW, outH, _max); var row = new uint[outW]; var block = new int[64];
+            for (int my = 0; my < mcusY; my++)
+            {
+                foreach (var c in _components)
+                {
+                    var q = _quant[c.Q];
+                    for (int by = 0; by < c.V; by++)
+                    {
+                        for (int bx = 0; bx < c.BlocksPerLine; bx++)
+                        {
+                            int at = ((my * c.V + by) * c.BlocksPerLine + bx) * (_dcOnly ? 1 : 64);
+                            if (_dcOnly) { c.Plane[by * c.PlaneWidth + bx] = Clamp((c.Coefficients[at] * q[0] >> 3) + 128); continue; }
+                            for (int k = 0; k < 64; k++) { block[Zigzag[k]] = c.Coefficients[at + k] * q[Zigzag[k]]; }
+                            Idct(block, c.Plane, by * 8 * c.PlaneWidth + bx * 8, c.PlaneWidth);
+                        }
+                    }
+                }
+                EmitRows(my, mcuH / scale, outW, outH, shrink, row);
+            }
+            return shrink.Finish();
+        }
+        /// <summary>Colour converts one MCU row of the component planes into thumbnail rows.</summary>
+        private void EmitRows(int my, int rows, int outW, int outH, Shrinker shrink, uint[] row)
+        {
+            for (int r = 0; r < rows; r++)
+            {
+                int y = my * rows + r; if (y >= outH) { break; }
+                for (int x = 0; x < outW; x++)
+                {
+                    if (_components.Length == 1) { int g = Sample(_components[0], x, r); row[x] = 0xff000000u | (uint)(g << 16 | g << 8 | g); continue; }
+                    int Y = Sample(_components[0], x, r), Cb = Sample(_components[1], x, r) - 128, Cr = Sample(_components[2], x, r) - 128;
+                    int R = Clamp(Y + ((91881 * Cr) >> 16)), G = Clamp(Y - ((22554 * Cb + 46802 * Cr) >> 16)), B = Clamp(Y + ((116130 * Cb) >> 16));
+                    row[x] = 0xff000000u | (uint)(R << 16 | G << 8 | B);
+                }
+                shrink.Row(y, row);
+            }
         }
 
         private Result Scan()

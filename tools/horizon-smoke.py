@@ -42,7 +42,8 @@ def main():
     gui = {'g0': 'settings set materials background-blur | logger; native run horizon /home/user/Documents | logger & sleep 6; true',
            'g1': 'poweroff',
            # HZ4: Horizon without a folder restores the tabs it saved when it closed.
-           'g2': 'native run horizon | logger & sleep 6; true'}
+           # The restart opens sized to the screen (the gate installs with compact windows): the wide layout.
+           'g2': 'settings set windows fit | logger; native run horizon | logger & sleep 6; true'}
     # HZ4: images for thumbnails (the host-test fixtures).
     fixtures = ROOT / 'tests/Zenith.Tests/Fixtures/images'
     for name in ('quads-420.jpg', 'palette.png'): (served / name).write_bytes((fixtures / name).read_bytes())
@@ -297,6 +298,15 @@ def main():
         check(found >= 1, 'the search finds Documents/Notes/a.txt (' + str(found) + ' results)')
         time.sleep(1); monitor_command(monitor, 'screendump ' + str(keep / 'search.ppm'))
         press('esc', 'user: HORIZON_SEARCH stopped', 'Esc ends the search')
+        # Middle button (kernel 0.0.67, input bit 8): a folder opens in a new tab; a middle click on a tab closes it.
+        typed('Doc', 'user: HORIZON_FOCUS Documents ', 'Documents is focused in the home folder')
+        dx, dy = [int(v) for v in m.log().rsplit('user: HORIZON_FOCUS Documents ', 1)[1].split()[:2]]
+        tabs = int(m.log().rsplit('user: HORIZON_TABS ', 1)[1].split()[0])
+        off = len(m.log()); click(origin[0] + dx, origin[1] + dy, 4)
+        check(m.wait('user: HORIZON_TABS ' + str(tabs + 1) + ' active=' + str(tabs - 1), off, 30), 'a middle click on a folder opens it in a new tab behind this one')
+        width = min(190, (640 - 16 - 44) // (tabs + 1)); x = 12 + tabs * width + (width - 4) // 2
+        off = len(m.log()); click(origin[0] + x, origin[1] + 24, 4)
+        check(m.wait('user: HORIZON_TABS ' + str(tabs) + ' ', off, 30), 'a middle click on that tab closes it')
         # ---- HZ4: thumbnails, archives as jobs, tabs saved and restored.
         monitor_command(monitor, 'sendkey ctrl-l 30'); time.sleep(.5)
         for _ in range(40): monitor_command(monitor, 'sendkey backspace 10')
@@ -319,7 +329,11 @@ def main():
         check(m.wait('user: HORIZON_TABS_SAVED', off, 30), 'Ctrl+Q saves the tabs')
         check(m.wait('native surface retired', off, 60), 'and closes Horizon')
         time.sleep(2)
+        off = len(m.log())
         typed('sh /root/g2\n', 'user: HORIZON_TABS_RESTORED 2', 'Horizon without a folder restores both tabs')
+        check(m.wait('user: HORIZON_LAYOUT ', off, 30), 'with windows=fit Horizon opens larger')
+        layout = m.log()[off:].split('user: HORIZON_LAYOUT ', 1)[1].split()[:3]
+        check(int(layout[0].split('x')[0]) > 640 and layout[1] == 'places=1', 'and shows Places (' + ' '.join(layout) + ')')
         check(m.wait('user: HORIZON_FOCUSED', len(m.log()) - 400, 60) or True, 'it takes focus')
         time.sleep(1)
         off = len(m.log()); monitor_command(monitor, 'sendkey ctrl-q 30')

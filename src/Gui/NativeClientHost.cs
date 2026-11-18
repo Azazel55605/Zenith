@@ -247,6 +247,12 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
             if (!_surface.SecondaryPresses) { return; }
             EndFade("Input"); _surface.Send(new(12, 2, Math.Clamp(x, 0, _surface.Width - 1), Math.Clamp(y, 0, _surface.Height - 1), 0, 0));
         }
+        /// <summary>Input extension bit 8 (kernel 0.0.67): middle presses arrive as event 12, code 3.</summary>
+        public override void OnMiddlePress(int x, int y)
+        {
+            if (!_surface.MiddlePresses) { return; }
+            EndFade("Input"); _surface.Send(new(12, 3, Math.Clamp(x, 0, _surface.Width - 1), Math.Clamp(y, 0, _surface.Height - 1), PointerModifiers(), 0));
+        }
         public override void OnMouseDrag(int x, int y) => Pointer(6, x, y);
         public override void OnPointerMove(int x, int y) => _surface.SendPointerMove(Math.Clamp(x, 0, _surface.Width - 1), Math.Clamp(y, 0, _surface.Height - 1));
         public override void OnPointerLeave() => _surface.SendPointerLeave();

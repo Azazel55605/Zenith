@@ -55,12 +55,45 @@ public class ThumbnailTests
         Quadrants(t, name);
     }
 
+    [Theory]
+    [InlineData("rgba-interlaced.png", "rgba.png")] [InlineData("rgba16-interlaced.png", "rgba.png")] [InlineData("palette-interlaced.png", "palette.png")]
+    public void InterlacedPngMatchesTheSameImageWithoutInterlacing(string interlaced, string plain)
+    {
+        var a = Make(interlaced); var b = Make(plain);
+        Assert.Equal(b.Width, a.Width); Assert.Equal(b.Height, a.Height);
+        Quadrants(a, interlaced);
+        for (int i = 0; i < a.Pixels.Length; i++)
+        {
+            for (int shift = 0; shift < 32; shift += 8)
+            { Assert.True(Math.Abs((int)(a.Pixels[i] >> shift & 255) - (int)(b.Pixels[i] >> shift & 255)) <= 12, interlaced + " pixel " + i); }
+        }
+        // 7x5: some of the seven passes are empty.
+        var tiny = Make("tiny-interlaced.png");
+        Assert.Equal(7, tiny.Width); Assert.Equal(5, tiny.Height);
+        foreach (uint p in tiny.Pixels) { Assert.Equal(255u, p >> 24); }
+    }
+
+    /// <summary>Progressive JPEG against the same image losslessly converted to baseline (jpegtran keeps every DCT
+    /// coefficient): the thumbnails must be identical, at icon size and at full size.</summary>
+    [Theory]
+    [InlineData("progressive")] [InlineData("prog-420")] [InlineData("prog-444-restart")] [InlineData("prog-grey")] [InlineData("prog-large")]
+    public void ProgressiveJpegDecodesLikeItsBaselineTwin(string name)
+    {
+        foreach (int max in new[] { 64, 256 })
+        {
+            var progressive = Make(name + ".jpg", max); var baseline = Make(name + "-baseline.jpg", max);
+            Assert.Equal(baseline.Width, progressive.Width); Assert.Equal(baseline.Height, progressive.Height);
+            Assert.Equal(baseline.Pixels, progressive.Pixels);
+        }
+        Quadrants(Make(name + ".jpg"), name, grey: name == "prog-grey");
+    }
+
     [Fact]
     public void GreyJpegAndUnsupportedImages()
     {
         Quadrants(Make("grey.jpg"), "grey.jpg", grey: true);
-        using var s = File.OpenRead(Fixture("progressive.jpg"));
-        Assert.Null(Thumbnails.Make(s, 64, out string why)); Assert.Contains("progressive", why);
+        using var s = File.OpenRead(Fixture("arithmetic.jpg"));
+        Assert.Null(Thumbnails.Make(s, 64, out string why)); Assert.Contains("arithmetic", why);
         Assert.Null(Thumbnails.Make(new MemoryStream(new byte[] { 1, 2, 3 }), 64, out why)); Assert.Contains("not a PNG", why);
         Assert.Null(Thumbnails.Make(new MemoryStream(new byte[] { 0x89, (byte)'P', (byte)'N', (byte)'G', 13, 10, 26, 10, 0 }), 64, out why));
     }

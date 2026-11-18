@@ -100,7 +100,7 @@ internal sealed partial class FileJob
             else
             {
                 _extractRoot = Unused(Join(_destination, StemOf(Leaf(archive))));
-                Locked(() => _store.CreateDirectory(_extractRoot)); _made.Clear(); _made.Add(_extractRoot);
+                Locked(() => _store.CreateDirectory(_extractRoot)); _made.Clear(); _made.Add(_extractRoot); _folderModes.Clear();
                 if (kind == ArchiveKind.Zip) { ExtractZip(input); }
                 else
                 {
@@ -113,6 +113,9 @@ internal sealed partial class FileJob
                     else { Gunzip(input, (b, o, n) => tar.Push(b, o, n)); }
                     tar.End();
                 }
+                // Folders last, deepest first: a read-only folder must not stop its own files from being written.
+                _folderModes.Sort((a, b) => b.Path.Length.CompareTo(a.Path.Length));
+                foreach (var (path, mode) in _folderModes) { Mode(path, mode); }
             }
             Done(1);
         }
@@ -123,6 +126,10 @@ internal sealed partial class FileJob
         long counted = _bytesDoneSnapshot() - before; if ((long)size > counted) { Done(0, (ulong)((long)size - counted)); }
     }
     private long _bytesDoneSnapshot() { lock (_lock) { return (long)_bytesDone; } }
+    private readonly List<(string Path, uint Mode)> _folderModes = new();
+    /// <summary>An entry's permission bits, without setuid, setgid and sticky (archives never grant those).</summary>
+    private void Mode(string path, uint mode) { if (mode != 0) { Locked(() => _store.SetMode(path, mode & 0x1ff)); } }
+    private void FolderMode(string entry, uint mode) { if (mode == 0) { return; } try { _folderModes.Add((Target(entry), mode)); } catch (Exception) { } }
 
     private string Target(string entry)
     {
@@ -170,8 +177,18 @@ internal sealed partial class FileJob
         int at = -1;
         for (int i = tail - 22; i >= 0; i--) { if (end[i] == 0x50 && end[i + 1] == 0x4b && end[i + 2] == 5 && end[i + 3] == 6) { at = i; break; } }
         if (at < 0) { throw new IOException("not a zip archive (no central directory)"); }
-        int entries = U16(end, at + 10); long size = U32(end, at + 12), offset = U32(end, at + 16);
-        if (entries == 0xffff || offset == 0xffffffff) { throw new IOException("zip64 archives are not supported"); }
+        long entries = U16(end, at + 10), size = U32(end, at + 12), offset = U32(end, at + 16);
+        if (entries == 0xffff || size == 0xffffffff || offset == 0xffffffff)
+        {
+            // Zip64: the locator just before the end record names the zip64 end record with 8-byte fields.
+            if (at < 20 || U32(end, at - 20) != 0x07064b50) { throw new IOException("damaged zip64 archive (no locator)"); }
+            long record = (long)U64(end, at - 12);
+            if (record < 0 || record + 56 > length) { throw new IOException("damaged zip64 archive"); }
+            var z = new byte[56]; input.Position = record; ReadExactly(input, z, 56);
+            if (U32(z, 0) != 0x06064b50) { throw new IOException("damaged zip64 archive"); }
+            entries = (long)U64(z, 32); size = (long)U64(z, 40); offset = (long)U64(z, 48);
+        }
+        if (size < 0 || offset < 0 || size > 64L << 20 || entries > 1_000_000) { throw new IOException("the zip directory is too large"); }
         if (offset + size > length) { throw new IOException("the zip directory lies outside the file"); }
         var directory = new byte[size]; input.Position = offset; ReadExactly(input, directory, (int)size);
         int p = 0;
@@ -180,12 +197,29 @@ internal sealed partial class FileJob
             if (p + 46 > directory.Length || U32(directory, p) != 0x02014b50) { throw new IOException("damaged zip directory"); }
             int flags = U16(directory, p + 8), method = U16(directory, p + 10), nameLength = U16(directory, p + 28), extra = U16(directory, p + 30), comment = U16(directory, p + 32);
             uint crc = U32(directory, p + 16); long packed = U32(directory, p + 20), unpacked = U32(directory, p + 24), local = U32(directory, p + 42);
+            if (p + 46 + nameLength + extra > directory.Length) { throw new IOException("damaged zip directory"); }
+            // Zip64 extra field (id 1): 8-byte values, in this order, for each field above that reads 0xffffffff.
+            for (int x = p + 46 + nameLength, xend = x + extra; x + 4 <= xend;)
+            {
+                int id = U16(directory, x), bytes = U16(directory, x + 2), v = x + 4;
+                if (v + bytes > xend) { break; }
+                if (id == 1)
+                {
+                    if (unpacked == 0xffffffff && v + 8 <= x + 4 + bytes) { unpacked = (long)U64(directory, v); v += 8; }
+                    if (packed == 0xffffffff && v + 8 <= x + 4 + bytes) { packed = (long)U64(directory, v); v += 8; }
+                    if (local == 0xffffffff && v + 8 <= x + 4 + bytes) { local = (long)U64(directory, v); }
+                }
+                x += 4 + bytes;
+            }
+            // Unix permissions when the archive was made on Unix ("version made by" host 3): the high half of the external attributes.
+            uint mode = directory[p + 5] == 3 ? (U32(directory, p + 38) >> 16) & 0x1ff : 0;
             string name = ((flags & 0x800) != 0 ? Encoding.UTF8 : Encoding.Latin1).GetString(directory, p + 46, nameLength);
             p += 46 + nameLength + extra + comment;
-            if (name.EndsWith('/')) { try { MakeFolders(Target(name)); } catch (Exception e) { Error(name, e); } continue; }
+            if (name.EndsWith('/')) { try { MakeFolders(Target(name)); FolderMode(name, mode); } catch (Exception e) { Error(name, e); } continue; }
             if ((flags & 1) != 0) { Error(name, new IOException("encrypted entries are not supported")); continue; }
             if (method is not (0 or 8)) { Error(name, new IOException("compression method " + method + " is not supported")); continue; }
-            if (packed == 0xffffffff || unpacked == 0xffffffff) { Error(name, new IOException("zip64 entries are not supported")); continue; }
+            if (packed < 0 || unpacked < 0 || local < 0 || packed == 0xffffffff || unpacked == 0xffffffff || local == 0xffffffff || local + 30 > length)
+            { Error(name, new IOException("damaged zip64 entry")); continue; }
             var header = new byte[30]; input.Position = local; ReadExactly(input, header, 30);
             if (U32(header, 0) != 0x04034b50) { Error(name, new IOException("damaged entry")); continue; }
             input.Position = local + 30 + U16(header, 26) + U16(header, 28);
@@ -201,7 +235,7 @@ internal sealed partial class FileJob
                 output.Flush(); ok = true;
             }
             catch (Exception e) { if (e is not OperationCanceledException) { Error(name, e); } }
-            if (ok) { output.Close(true); Done(0, (ulong)packed); } else { Abandon(output); }
+            if (ok) { output.Close(true); Mode(_lastPath, mode); Done(0, (ulong)packed); } else { Abandon(output); }
         }
     }
 
@@ -247,7 +281,8 @@ internal sealed partial class FileJob
         private int _headerFill;
         private long _left, _padding;
         private GatedStream? _output;
-        private string _name = "", _longName = "";
+        private string _name = "", _longName = "", _path = "";
+        private uint _mode;
         private bool _ended;
         public TarReader(FileJob job) { _job = job; }
 
@@ -287,17 +322,17 @@ internal sealed partial class FileJob
             string name = Text(0, 100), prefix = Encoding.ASCII.GetString(_header, 257, 6).StartsWith("ustar") ? Text(345, 155) : "";
             if (prefix.Length > 0) { name = prefix + "/" + name; }
             if (_longName.Length > 0) { name = _longName; _longName = ""; }
-            _name = name; _left = size; _padding = (512 - size % 512) % 512; _output = null; _collecting = null;
+            _name = name; _mode = (uint)Octal(100, 8) & 0x1ff; _left = size; _padding = (512 - size % 512) % 512; _output = null; _collecting = null;
             switch (type)
             {
                 case 'L': case 'x':
                     _collecting = new StringBuilder(); _collectKind = type; break;
                 case 'g': break;   // global pax header: ignored
                 case '5':
-                    try { _job.MakeFolders(_job.Target(name)); } catch (Exception e) { _job.Error(name, e); }
+                    try { _job.MakeFolders(_job.Target(name)); _job.FolderMode(name, _mode); } catch (Exception e) { _job.Error(name, e); }
                     break;
                 case '0': case '\0': case '7':
-                    _output = _job.NewFile(name); break;
+                    _output = _job.NewFile(name); _path = _job._lastPath; break;
                 default:
                     _job.Error(name, new IOException(type == '2' || type == '1' ? "links inside archives are not extracted" : "special files are not extracted")); break;
             }
@@ -305,7 +340,7 @@ internal sealed partial class FileJob
         }
         private void FinishEntry()
         {
-            if (_output is not null) { _output.Flush(); _output.Close(true); _output = null; }
+            if (_output is not null) { _output.Flush(); _output.Close(true); _output = null; _job.Mode(_path, _mode); }
             if (_collecting is not null)
             {
                 string text = _collecting.ToString(); _collecting = null;
@@ -413,7 +448,8 @@ internal sealed partial class FileJob
             var entry = new byte[46 + nameBytes.Length];
             W32(entry, 0, 0x02014b50); W16(entry, 4, 0x031e); W16(entry, 6, 20); W16(entry, 8, 0x800); W16(entry, 10, folder ? 0 : 8);
             W16(entry, 12, time); W16(entry, 14, date); W32(entry, 16, crc); W32(entry, 20, (uint)packed); W32(entry, 24, (uint)unpacked);
-            W16(entry, 28, nameBytes.Length); W32(entry, 38, folder ? 0x41ed0010u : 0x81a40000u); W32(entry, 42, (uint)offset); nameBytes.CopyTo(entry, 46);
+            uint mode = Locked(() => _store.Mode(m.Path)); if (mode == 0) { mode = folder ? 0x1edu : 0x1a4u; }
+            W16(entry, 28, nameBytes.Length); W32(entry, 38, (folder ? 0x40000010u : 0x80000000u) | mode << 16); W32(entry, 42, (uint)offset); nameBytes.CopyTo(entry, 46);
             central.Write(entry, 0, entry.Length);
         }
         long start = output.Position; byte[] directory = central.ToArray(); output.Write(directory, 0, directory.Length);
@@ -436,7 +472,8 @@ internal sealed partial class FileJob
                 write(TarHeader("././@LongLink", nameBytes.Length + 1, 'L', mtime), 0, 512);
                 var block = new byte[(nameBytes.Length + 1 + 511) / 512 * 512]; nameBytes.CopyTo(block, 0); write(block, 0, block.Length);
             }
-            write(TarHeader(name, folder ? 0 : (long)m.Size, folder ? '5' : '0', mtime), 0, 512);
+            uint mode = Locked(() => _store.Mode(m.Path)); if (mode == 0) { mode = folder ? 0x1edu : 0x1a4u; }
+            write(TarHeader(name, folder ? 0 : (long)m.Size, folder ? '5' : '0', mtime, mode), 0, 512);
             if (folder) { Done(1); continue; }
             Set(() => _current = Leaf(m.Path));
             var input = new GatedStream(Locked(() => _store.OpenRead(m.Path)), _gate);
@@ -453,12 +490,12 @@ internal sealed partial class FileJob
         }
         write(new byte[1024], 0, 1024);
     }
-    private static byte[] TarHeader(string name, long size, char type, long mtime)
+    private static byte[] TarHeader(string name, long size, char type, long mtime, uint mode = 0x1a4)
     {
         var h = new byte[512];
         byte[] n = Encoding.UTF8.GetBytes(name); Array.Copy(n, h, Math.Min(n.Length, 100));
         void Octal(int at, int length, long value) { string s = Convert.ToString(value, 8).PadLeft(length - 1, '0'); Encoding.ASCII.GetBytes(s).CopyTo(h, at); }
-        Octal(100, 8, type == '5' ? 0x1ed : 0x1a4); Octal(108, 8, 0); Octal(116, 8, 0); Octal(124, 12, size); Octal(136, 12, mtime);
+        Octal(100, 8, mode); Octal(108, 8, 0); Octal(116, 8, 0); Octal(124, 12, size); Octal(136, 12, mtime);
         h[156] = (byte)type; Encoding.ASCII.GetBytes("ustar\0" + "00").CopyTo(h, 257);
         for (int i = 148; i < 156; i++) { h[i] = (byte)' '; }
         uint sum = 0; foreach (byte b in h) { sum += b; }
@@ -471,6 +508,7 @@ internal sealed partial class FileJob
     private string Unused(string path) => Locked(() => _store.Kind(path, out _)) == FileKind.Missing ? path : Free(path);
     private static int U16(byte[] b, int at) => b[at] | b[at + 1] << 8;
     private static uint U32(byte[] b, int at) => (uint)(b[at] | b[at + 1] << 8 | b[at + 2] << 16 | b[at + 3] << 24);
+    private static ulong U64(byte[] b, int at) => U32(b, at) | (ulong)U32(b, at + 4) << 32;
     private static void W16(byte[] b, int at, int v) { b[at] = (byte)v; b[at + 1] = (byte)(v >> 8); }
     private static void W32(byte[] b, int at, uint v) { for (int i = 0; i < 4; i++) { b[at + i] = (byte)(v >> (8 * i)); } }
     private static void ReadExactly(Stream s, byte[] buffer, int count)

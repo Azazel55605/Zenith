@@ -53,6 +53,8 @@ public sealed class FileJobTests : IDisposable
         }
         public string ReadLink(string path) => new FileInfo(path).LinkTarget!;
         public void Symlink(string path, string target) => File.CreateSymbolicLink(path, target);
+        public void SetMode(string path, uint mode) => File.SetUnixFileMode(path, (UnixFileMode)(mode & 0x1ff));
+        public uint Mode(string path) => (uint)File.GetUnixFileMode(path) & 0x1ff;
         public ulong Available(string directory) => Space;
         public bool SameFilesystem(string a, string b) => Same;
     }

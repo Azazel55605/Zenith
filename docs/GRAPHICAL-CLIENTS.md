@@ -137,8 +137,9 @@ widgets and Inter text without changing graphics ABI 1.
 
 Call 627 `(handle, bits, 0)` accepts 1, 3, 5 or 7. Bit 1 is pointer motion as before. Bit 2 adds right-button
 presses as event **12** (code 2, content-local x/y) and the Shift/Control/Alt state on pointer press, release
-and drag events. Bit 4 adds key extras 14..25 for F1..F12. Older kernels refuse anything but 1 with -22, so
-clients retry with 1. Surfaces that do not opt in see no change.
+and drag events. Bit 4 adds key extras 14..25 for F1..F12. Bit 8 (kernel 0.0.67, any odd value up to 15) adds
+middle-button presses as event 12 with code 3. Older kernels refuse unknown bits with -22, so clients retry
+with fewer (Horizon asks for 15, then 7, then 1). Surfaces that do not opt in see no change.
 
 ## Interactive and metadata contracts
 

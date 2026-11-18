@@ -86,13 +86,15 @@ internal sealed class ProcessSurface : IDisposable
         lock (_gate)
         {
             if (_closed || _disposed) { return -32; }
-            _pointerMotion = true; SecondaryPresses |= (bits & 2) != 0; FunctionKeys |= (bits & 4) != 0; return 0;
+            _pointerMotion = true; SecondaryPresses |= (bits & 2) != 0; FunctionKeys |= (bits & 4) != 0; MiddlePresses |= (bits & 8) != 0; return 0;
         }
     }
     /// <summary>Input extension (627 bit 2): right-button presses arrive as event 12, code 2.</summary>
     public bool SecondaryPresses { get; private set; }
     /// <summary>Input extension (627 bit 4): F1..F12 arrive as key extras 14..25.</summary>
     public bool FunctionKeys { get; private set; }
+    /// <summary>Input extension (627 bit 8, kernel 0.0.67): middle-button presses arrive as event 12, code 3.</summary>
+    public bool MiddlePresses { get; private set; }
     // One replaceable pending position outside the bounded queue: motion can never
     // evict keys or clicks, and a busy pointer costs a client one event per poll.
     public void SendPointerMove(int x, int y)

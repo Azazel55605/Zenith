@@ -29,6 +29,10 @@ internal interface IFileJobStore
     string ReadLink(string path);
     void Symlink(string path, string target);
     ulong Available(string directory);
+    /// <summary>Sets the permission bits (0..0777) where the caller may; best effort, failures are ignored.</summary>
+    void SetMode(string path, uint mode);
+    /// <summary>The permission bits (0..0777), or 0 when unknown.</summary>
+    uint Mode(string path);
     bool SameFilesystem(string a, string b);
 }
 
