@@ -130,8 +130,36 @@ Requested 2026-11-17 ("complete Horizon, then Aurora").
   on close; a change noticed without focus) and `tools/aurora-smoke.py`: the guest ends Aurora with
   `kill` and the next Aurora restores the unsaved text.
 
+## AU4 — folding, several cursors, colour schemes (local, zenith-aurora 0.3.0, kernel 0.0.67)
+
+Requested 2026-11-18 ("finish Aurora").
+- **Code folding:** a fold hides the lines below a line that are indented deeper than it (in Markdown, the section
+  below a heading), so braces, Python blocks, YAML and JSON all fold. The gutter shows where a fold can start (a
+  triangle, brighter while the pointer is over the gutter); a click there folds or unfolds, a folded line ends with
+  a "+N lines" pill that unfolds it. Ctrl+Shift+- folds the block around the caret, Ctrl+Shift+= unfolds it (or every
+  fold). Up and Down, Page Up/Down, clicks, the minimap and the scroll range skip folded lines; a caret that gets
+  into a fold (find, go to line, the outline) opens it. Folds follow edits above them and open when their first line
+  changes; undo opens them all.
+- **Several cursors:** Alt+click adds a cursor, Ctrl+Alt+Up/Down adds one on the row above or below at the same
+  column, and Ctrl+D selects the word at the caret, then adds the next match of the selection (up to 64 cursors).
+  Typing, Backspace and Delete (with Ctrl: words), Enter (with the line's indent), Tab, the arrows, Home and End
+  (with Shift: selecting) act at every cursor; characters typed one after another are one undo step. Copy joins
+  the selections one per line; a paste with as many lines as cursors gives each cursor its line, otherwise every
+  cursor gets the whole text. Esc, a click or any other command returns to one cursor. The status bar counts them.
+- **Colour schemes:** the menu's "Colours" entry cycles Accent (the desktop's accent palette, as before), Classic,
+  Warm and High contrast. Each fixed scheme has a dark and a light set with at least 4.5:1 contrast on the code
+  surface. The choice is kept in `~/.config/zenith/aurora.conf` (`SCHEME=Classic`).
+- **Middle click** on a document tab closes it (input bit 8, kernel 0.0.67), as in Horizon.
+- **Size:** Aurora's own code is now built with `-Os` and unused toolkit code is dropped (`--gc-sections`), so the
+  program is about 177 KB and keeps over 48 KB of room under the package file limit.
+- Checked by the host test (a fold over a Python function that Down skips, three cursors from Ctrl+Alt+Down typing
+  at once and undone in one step, Ctrl+D matches given one pasted line each, a middle click closing a tab, every
+  scheme drawing valid frames) and `tools/aurora-smoke.py` (fold and unfold by keyboard, three cursors, Esc, one
+  undo).
+
 ## Next
 
 - Compiler output, diagnostics and language-server features once process/IPC and toolchain support exist.
   Aurora is not an IDE promise.
-- Several cursors, code folding and a configurable colour scheme beyond the accent palette.
+- Limits that stay: 8 documents, 1 MiB and 65,536 lines each, UTF-8 only (other encodings are refused), regular
+  expressions within one line, outline and folding by heuristics rather than a parser.

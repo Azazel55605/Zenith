@@ -23,14 +23,24 @@ def main():
             atlas=Path(temporary)/'ui-fonts.c'
             subprocess.run([sys.executable,str(ROOT/'tools/build-ui-fonts.py'),str(atlas),*(['--mono'] if args.program in ('polaris','equinox','aurora') else [])],check=True)
             extra=['-I'+str(ROOT/'userland/ui'),str(ROOT/'userland/ui/ui.c'),str(ROOT/'userland/ui/widgets.c'),
-                   *([str(ROOT/'userland/polaris/term.c')] if args.program=='polaris' else [str(ROOT/'userland/aurora/editor.c'),str(ROOT/'userland/aurora/buffer.c'),str(ROOT/'userland/aurora/regex.c')] if args.program=='aurora' else [str(ROOT/'userland/ui-gallery/gallery.c')] if args.program=='ui-gallery' else [str(ROOT/'userland/settings/app.c'),str(ROOT/'userland/settings/navigation.c'),str(ROOT/'userland/settings/bindings.c')] if args.program=='settings' else []),str(ROOT/'userland/ui/runtime.c'),str(ROOT/'userland/ui/text.c'),str(atlas)]
+                   *([str(ROOT/'userland/polaris/term.c')] if args.program=='polaris' else [] if args.program=='aurora' else [str(ROOT/'userland/ui-gallery/gallery.c')] if args.program=='ui-gallery' else [str(ROOT/'userland/settings/app.c'),str(ROOT/'userland/settings/navigation.c'),str(ROOT/'userland/settings/bindings.c')] if args.program=='settings' else []),str(ROOT/'userland/ui/runtime.c'),str(ROOT/'userland/ui/text.c'),str(atlas)]
             if args.program=='settings':
                 pages=Path(temporary)/'meridian-pages.c'
                 subprocess.run([sys.executable,str(ROOT/'tools/build-meridian-pages.py'),str(pages)],check=True)
                 extra+=['-I'+str(ROOT/'userland/settings'),str(ROOT/'userland/settings/meridian.c'),str(pages)]
-        subprocess.run([compiler,*target,'-nostdlib','-static','-fno-pie','-no-pie',
-            '-fcf-protection=none','-fno-stack-protector','-fno-builtin','-fno-unwind-tables','-fno-asynchronous-unwind-tables','-mno-red-zone',
-            '-mno-sse','-mno-sse2','-mno-mmx','-O2','-Wall','-Wextra','-Werror',
+        common=['-fcf-protection=none','-fno-stack-protector','-fno-builtin','-fno-unwind-tables','-fno-asynchronous-unwind-tables','-mno-red-zone',
+            '-mno-sse','-mno-sse2','-mno-mmx','-Wall','-Wextra','-Werror']
+        if args.program=='aurora':
+            # Aurora's own code is built for size (the toolkit stays -O2 for drawing speed) and unused toolkit code is
+            # dropped, so the editor keeps room under the package file limit. No libc: GCC must not turn loops into
+            # strlen/memset calls.
+            size=['-ffunction-sections','-fdata-sections','-fno-tree-loop-distribute-patterns']
+            for name in ('editor','buffer','regex'):
+                obj=Path(temporary)/(name+'.o')
+                subprocess.run([compiler,*target,'-c','-fno-pie',*common,'-Os',*size,'-I'+str(ROOT/'userland/ui'),str(ROOT/'userland/aurora'/(name+'.c')),'-o',str(obj)],check=True)
+                extra.append(str(obj))
+            extra+=[*size,'-Wl,--gc-sections']
+        subprocess.run([compiler,*target,'-nostdlib','-static','-fno-pie','-no-pie',*common,'-O2',
             '-DSUNBEAM_VERSION="'+args.version+'"','-Wl,-T,'+str(source/'link.ld'),'-Wl,--build-id=none',str(source/'start.s'),str(ROOT/('userland/'+args.program+'/main.c') if args.program in ('net-tools','gui-probe','ui-gallery','settings','desktop-tools','polaris','observatory','equinox','horizon','aurora') else source/'main.c'),*extra,'-o',str(output)],check=True)
     if args.program in ('ui-gallery','settings','desktop-tools','polaris','observatory','equinox','horizon','aurora'):
         license_dir=destination/('usr/share/zenith/'+args.program);license_dir.mkdir(parents=True,exist_ok=True)

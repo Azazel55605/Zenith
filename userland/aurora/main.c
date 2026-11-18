@@ -156,8 +156,9 @@ int main(int argc,char **argv,char **envp){
     if(handle<0){zenith_write("aurora: graphical session required\n",36);return 1;}
     ui.foreground=material;
     if(zenith_gui_interactive(handle)<0||zenith_gui_resize_enable(handle)<0){zenith_gui_close(handle);return 1;}
-    /* Pointer motion, right-button presses and F1..F12 (F3 finds the next match). */
-    ui.hover_supported=zenith_gui_input(handle,7)==0||zenith_gui_pointer_motion(handle)==0;
+    /* Pointer motion, right-button presses and F1..F12 (F3 finds the next match); 15 adds middle presses (kernel 0.0.67:
+     * a middle click closes a tab). Older kernels refuse 15 and get 7. */
+    ui.hover_supported=zenith_gui_input(handle,15)==0||zenith_gui_input(handle,7)==0||zenith_gui_pointer_motion(handle)==0;
     aurora_start(&ui,home,count,paths);
     zenith_write(material?(ui.full_background?"AURORA_MATERIAL window\n":"AURORA_MATERIAL navigation\n"):"AURORA_MATERIAL none\n",material?(ui.full_background?23:27):21);
     zenith_write("AURORA_READY\n",13);

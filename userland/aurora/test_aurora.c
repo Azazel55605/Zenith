@@ -255,11 +255,49 @@ static void editor_tests(const char *dir,int width,int height,int foreground,int
     CHECK(logged_has("AURORA_CHANGED_ON_DISK"));
 }
 
+/* AU4: folding, several cursors and colour schemes, by keyboard. */
+static void au4_tests(const char *dir,int width,int height,int foreground,int full){
+    char src[512],conf[700],cfg[600];snprintf(src,sizeof(src),"%s/fold.py",dir);
+    const char *code="def first():\n    a = 1\n    if a:\n        b = 2\n    return a\n\ndef second():\n    return 2\n";
+    put_file(src,code,(long)strlen(code));
+    snprintf(cfg,sizeof(cfg),"%s/.config",dir);mkdir(cfg,0755);snprintf(cfg,sizeof(cfg),"%s/.config/zenith",dir);mkdir(cfg,0755);
+    snprintf(conf,sizeof(conf),"%s/aurora.conf",cfg);put_file(conf,"SCHEME=High contrast\n",21);
+    logged=0;logbuf[0]=0;
+    zui_init(&ui,pixels,width,height);ui.foreground=foreground;ui.full_background=full;ui.window_focused=1;
+    char *paths[]={src};aurora_start(&ui,dir,1,paths);frame();
+    CHECK(logged_has("AURORA_SCHEME High contrast"));
+    /* Ctrl+Shift+- folds the function: its four lines hide, the blank line and the next function stay. */
+    send(Z_GUI_KEY,'-',0,0,3,0);CHECK(logged_has("AURORA_FOLD 1 hides 4 lines"));snapshot("folded");
+    key(8,0);type("#");          /* Down skips the folded lines: the # lands on the blank line */
+    ctrl('s');long n;char *s=slurp(src,&n);CHECK(n>0&&strstr(s,"    return a\n#\ndef second")!=0);
+    CHECK(!logged_has("AURORA_UNFOLD"));
+    send(Z_GUI_KEY,'=',0,0,3,0);CHECK(logged_has("AURORA_UNFOLD all"));
+    /* Three cursors (Ctrl+Alt+Down twice) type at once; one undo takes all three back. */
+    ctrl('g');type("2");key(2,0);key(10,0);key(10,0);   /* Home twice: the start of line 2 */
+    key(8,6);key(8,6);CHECK(logged_has("AURORA_CURSORS 3"));snapshot("cursors");
+    type("# ");key(1,0);CHECK(logged_has("AURORA_CURSORS 1"));
+    ctrl('s');s=slurp(src,&n);CHECK(strstr(s,"#     a = 1\n#     if a:\n#         b = 2\n")!=0);
+    ctrl('z');ctrl('s');s=slurp(src,&n);CHECK(strstr(s,"def first():\n    a = 1\n    if a:\n")!=0);
+    /* Ctrl+D: the word, then its next matches; a paste of three lines gives each cursor its own line. */
+    ctrl('g');type("2");key(2,0);key(10,0);
+    logged=0;logbuf[0]=0;ctrl('d');ctrl('d');ctrl('d');CHECK(logged_has("AURORA_CURSORS 3"));
+    memcpy(clipboard,"p\nq\nr",5);clip_n=5;ctrl('v');
+    ctrl('s');s=slurp(src,&n);CHECK(strstr(s,"    p = 1\n    if q:\n        b = 2\n    return r\n")!=0);
+    key(1,0);
+    /* A middle click on the first tab closes that document (kernel 0.0.67 sends middle presses). */
+    ctrl('n');int x0=width>=1100?252:width>=820?220:8;
+    send(Z_GUI_SECONDARY,3,x0+20,8+18,0,0);CHECK(logged_has("AURORA_CLOSED_DOC fold.py"));
+    /* Each scheme draws valid frames. */
+    for(int k=0;k<4;k++){put_file(conf,k==0?"SCHEME=Accent\n":k==1?"SCHEME=Classic\n":k==2?"SCHEME=Warm\n":"SCHEME=High contrast\n",k==0?14:k==1?15:k==2?12:21);
+        aurora_start(&ui,dir,1,paths);frame();}
+    unlink(conf);
+}
+
 int main(int argc,char **argv){
     engine_tests();
     const char *dir=argc>1?argv[1]:"/tmp";
     int sizes[][2]={{640,480},{1200,800}};
-    for(int s=0;s<2;s++)for(int m=0;m<3;m++){mode=m;snapshot_mode=m;editor_tests(dir,sizes[s][0],sizes[s][1],m>0,m==2);}
+    for(int s=0;s<2;s++)for(int m=0;m<3;m++){mode=m;snapshot_mode=m;editor_tests(dir,sizes[s][0],sizes[s][1],m>0,m==2);au4_tests(dir,sizes[s][0],sizes[s][1],m>0,m==2);}
     printf("aurora host tests: %d frames, %s\n",frames,failures?"FAILED":"passed");
     return failures?1:0;
 }

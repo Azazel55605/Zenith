@@ -26,6 +26,12 @@ static char line_bytes[LINE_DRAW];
 static unsigned char line_class[LINE_DRAW];
 
 enum { LANG_PLAIN,LANG_C,LANG_HASH,LANG_MARKDOWN,LANG_JSON };
+#define MAX_FOLDS 128
+#define MAX_MORE 63              /* cursors besides the main one */
+struct cursor { unsigned int caret,anchor,goal; int goal_valid,primary; };
+static unsigned int cur_start(const struct cursor *c){return c->caret<c->anchor?c->caret:c->anchor;}
+static unsigned int cur_end(const struct cursor *c){return c->caret>c->anchor?c->caret:c->anchor;}
+enum { E_TEXT,E_BACK,E_DELETE,E_NEWLINE,E_TAB,E_LINES };
 struct doc {
     int used,number,language,crlf,bom,tab,spaces,disk_known,disk_state; /* disk_state: 1 changed, 2 missing */
     char path[PATH_BYTES],name[256];
@@ -34,6 +40,8 @@ struct doc {
     unsigned long disk_size; long disk_mtime; unsigned int disk_mode;
     unsigned int recovery_id; int has_recovery; long last_change,last_snapshot; unsigned long snapshot_stamp;
     int state_line,state_value; /* syntax state at the start of state_line */
+    unsigned int folds[MAX_FOLDS],known_lines; int fold_count; unsigned long fold_version; /* AU4: folded lines, ascending */
+    struct cursor more[MAX_MORE]; int more_count;                                          /* AU4: the other cursors */
 };
 static struct doc docs[MAX_DOCS];
 static int order[MAX_DOCS],doc_count,current=-1,untitled;
@@ -332,11 +340,114 @@ int aurora_close(void){
     return 0;
 }
 
+/* ---------- Code folding (AU4): a fold hides the lines below a line that are indented deeper than it (Markdown: the
+ * section below a heading). Folds are kept as their first lines; drawing maps visible rows to lines. */
+static unsigned int indent_cols(struct doc *d,unsigned int l,int *blank){
+    unsigned int p=au_line_start(&d->text,l),e=au_line_end(&d->text,l),c=0;
+    while(p<e){char ch=au_at(&d->text,p);if(ch==' ')c++;else if(ch=='\t')c=(c/(unsigned int)d->tab+1)*(unsigned int)d->tab;else break;p++;}
+    *blank=p==e;return c;
+}
+static int heading_level(struct doc *d,unsigned int l){
+    unsigned int p=au_line_start(&d->text,l),e=au_line_end(&d->text,l);unsigned int n=0;
+    while(p+n<e&&n<7&&au_at(&d->text,p+n)=='#')n++;
+    return n>=1&&n<=6&&(p+n==e||au_at(&d->text,p+n)==' ')?(int)n:0;
+}
+/* The last line a fold starting at l hides, or l when no fold starts there. */
+static unsigned int fold_end(struct doc *d,unsigned int l){
+    unsigned int lines=d->text.line_count;int blank;
+    if(l>=lines)return l;
+    if(d->language==LANG_MARKDOWN){
+        int level=heading_level(d,l);if(!level)return l;
+        unsigned int k=l+1;while(k<lines){int h=heading_level(d,k);if(h&&h<=level)break;k++;}
+        while(k>l+1){indent_cols(d,k-1,&blank);if(!blank)break;k--;}
+        return k-1;
+    }
+    unsigned int base=indent_cols(d,l,&blank),last=l;if(blank)return l;
+    for(unsigned int k=l+1;k<lines;k++){unsigned int i=indent_cols(d,k,&blank);if(blank)continue;if(i<=base)break;last=k;}
+    return last;
+}
+/* Whether a fold can start at l (cheap: looks at the next line with text only). */
+static int foldable(struct doc *d,unsigned int l){
+    if(d->language==LANG_MARKDOWN)return heading_level(d,l)&&fold_end(d,l)>l;
+    int blank;unsigned int base=indent_cols(d,l,&blank);if(blank)return 0;
+    for(unsigned int k=l+1;k<d->text.line_count&&k<l+64;k++){unsigned int i=indent_cols(d,k,&blank);if(!blank)return i>base;}
+    return 0;
+}
+static unsigned int row_line[LINE_SLOTS],fold_rows;static int map_doc=-1;static unsigned long map_version;
+static void fold_map(struct doc *d){
+    int slot=(int)(d-docs);
+    if(map_doc==slot&&map_version==d->fold_version)return;
+    map_doc=slot;map_version=d->fold_version;
+    unsigned int lines=d->text.line_count,r=0;int f=0;
+    for(unsigned int l=0;l<lines;){
+        row_line[r++]=l;unsigned int next=l+1;
+        while(f<d->fold_count&&d->folds[f]<l)f++;
+        if(f<d->fold_count&&d->folds[f]==l){unsigned int e=fold_end(d,l);if(e>l)next=e+1;}
+        l=next;
+    }
+    fold_rows=r;
+}
+static unsigned int rows_of(struct doc *d){if(!d->fold_count)return d->text.line_count;fold_map(d);return fold_rows;}
+static unsigned int line_at_row(struct doc *d,unsigned int row){if(!d->fold_count)return row;fold_map(d);return row<fold_rows?row_line[row]:d->text.line_count;}
+static unsigned int row_of(struct doc *d,unsigned int line){
+    if(!d->fold_count)return line;
+    fold_map(d);unsigned int lo=0,hi=fold_rows;
+    while(hi-lo>1){unsigned int m=(lo+hi)/2;if(row_line[m]<=line)lo=m;else hi=m;}
+    return lo;
+}
+static int folded(struct doc *d,unsigned int line){for(int i=0;i<d->fold_count;i++)if(d->folds[i]==line)return 1;return 0;}
+static void unfold_line(struct doc *d,unsigned int line){
+    for(int i=0;i<d->fold_count;i++)if(d->folds[i]==line){
+        for(int k=i;k+1<d->fold_count;k++)d->folds[k]=d->folds[k+1];
+        d->fold_count--;d->fold_version++;ui->dirty=1;char n[24];num(n,line+1);mark("AURORA_UNFOLD",n);return;
+    }
+}
+static int fold_line(struct doc *d,unsigned int line){
+    if(d->fold_count>=MAX_FOLDS||folded(d,line)||!foldable(d,line))return 0;
+    int i=d->fold_count;while(i>0&&d->folds[i-1]>line){d->folds[i]=d->folds[i-1];i--;}
+    d->folds[i]=line;d->fold_count++;d->fold_version++;d->known_lines=d->text.line_count;ui->dirty=1;
+    char n[64],*o=num(n,line+1);o=put(o," hides ");o=num(o,fold_end(d,line)-line);put(o," lines");mark("AURORA_FOLD",n);
+    return 1;
+}
+/* Unfolds what hides line (a cursor got there). */
+static void reveal_line(struct doc *d,unsigned int line){
+    for(int i=d->fold_count-1;i>=0;i--){if(i>=d->fold_count)continue;unsigned int s0=d->folds[i];if(s0<line&&fold_end(d,s0)>=line)unfold_line(d,s0);}
+}
+/* After an edit at line: folds below move with the lines, a fold whose first line changed opens. */
+static void folds_after_edit(struct doc *d,unsigned int line){
+    long delta=(long)d->text.line_count-(long)d->known_lines;d->known_lines=d->text.line_count;
+    int k=0;
+    for(int i=0;i<d->fold_count;i++){
+        long f=d->folds[i];
+        if(f==(long)line)continue;
+        if(f>(long)line){f+=delta;if(f<=(long)line)continue;}
+        d->folds[k++]=(unsigned int)f;
+    }
+    d->fold_count=k;d->fold_version++;
+}
+/* Ctrl+Shift+-: folds the block the caret is in (its own line when a fold starts there). */
+static void fold_here(struct doc *d){
+    unsigned int line=au_line_of(&d->text,d->caret);
+    for(long l=line;l>=0;l--){
+        if(!folded(d,(unsigned int)l)&&foldable(d,(unsigned int)l)&&fold_end(d,(unsigned int)l)>=line){
+            fold_line(d,(unsigned int)l);
+            if((unsigned int)l<line){d->caret=d->anchor=au_line_end(&d->text,(unsigned int)l);d->goal_valid=0;}
+            return;
+        }
+    }
+    note("Nothing to fold here.",0);
+}
+static void unfold_all(struct doc *d){if(d->fold_count){d->fold_count=0;d->fold_version++;ui->dirty=1;mark("AURORA_UNFOLD","all");}}
+
 /* ---------- Editing. */
+static int multi_applying;   /* an edit at every cursor is under way: the other cursors stay */
+static int multi_typing;     /* the last action typed at every cursor: the next typed character joins its undo step */
 static void touched(struct doc *d,unsigned int position){
     d->last_change=au_sys_clock();
     unsigned int line=au_line_of(&d->text,position);
     if((int)line<d->state_line){d->state_line=0;d->state_value=0;}
+    folds_after_edit(d,line);
+    if(!multi_applying){d->more_count=0;multi_typing=0;}   /* an edit made for one cursor ends the others: their offsets would be stale */
     update_title();ui->dirty=1;
 }
 static int reveal_caret,overwrite;   /* overwrite: Insert toggles typing over the next character */
@@ -391,7 +502,23 @@ static void insert_tab(struct doc *d){
     unsigned int column=au_column(&d->text,selection_start(d),(unsigned int)d->tab),n=(unsigned int)d->tab-column%(unsigned int)d->tab;
     replace_selection(d,"        ",n,1);
 }
+static void multi_edit(struct doc *d,int op,const char *s,unsigned int n,int word);
+static int gather(struct doc *d,struct cursor *all);static struct cursor all_cursors[MAX_MORE+1];
 static int clipboard_copy(struct doc *d,int cut){
+    if(d->more_count){
+        /* Every cursor's selection, in text order, one per line. */
+        int count=gather(d,all_cursors);unsigned int used=0,any=0;
+        for(int i=0;i<count;i++){
+            unsigned int a=cur_start(&all_cursors[i]),b=cur_end(&all_cursors[i]);any|=b>a;
+            if(used+(b-a)+1>TEXT_BYTES)return 0;
+            used+=au_read(&d->text,a,b-a,staging+used);if(i+1<count)staging[used++]='\n';
+        }
+        if(!any)return 0;
+        if(au_sys_copy(staging,used)<0){note("The text was not copied.",1);return 0;}
+        char n[24];num(n,used);mark(cut?"AURORA_CUT":"AURORA_COPIED",n);
+        if(cut)multi_edit(d,E_TEXT,"",0,0);
+        return 1;
+    }
     if(!has_selection(d))return 0;
     unsigned int a=selection_start(d),b=selection_end(d);
     if(b-a>TEXT_BYTES)return 0;
@@ -407,11 +534,16 @@ static void clipboard_paste(struct doc *d){
     if(n<0){note(n==-38?"Pasting needs a newer Zenith.":n==-27?"The clipboard holds more than 1 MiB.":"Nothing to paste.",1);return;}
     if(au_check(staging,(unsigned int)n)){note("The clipboard does not hold UTF-8 text.",1);return;}
     int crlf,bom;unsigned int bytes=au_normalize(staging,(unsigned int)n,&crlf,&bom);
-    replace_selection(d,staging,bytes,0);
+    if(d->more_count){
+        /* As many lines as cursors: one line each (a multi-cursor copy pastes back in place); else the whole text at each. */
+        unsigned int lines=1;for(unsigned int i=0;i<bytes;i++)lines+=staging[i]=='\n';
+        multi_edit(d,(int)lines==d->more_count+1?E_LINES:E_TEXT,staging,bytes,0);
+    }else replace_selection(d,staging,bytes,0);
     char t[24];num(t,bytes);mark("AURORA_PASTED",t);
 }
 static void undo(struct doc *d,int redo){
     unsigned int caret;
+    d->fold_count=0;d->more_count=0;
     if(redo?au_redo(&d->text,&d->history,&caret):au_undo(&d->text,&d->history,&caret)){
         unsigned int n=au_length(&d->text);d->caret=d->anchor=caret>n?n:caret;d->goal_valid=0;
         d->state_line=0;d->state_value=0;touched(d,0);reveal_caret=1;mark(redo?"AURORA_REDO":"AURORA_UNDO",0);
@@ -655,7 +787,126 @@ static void panel(struct zui_rect r,int radius){
     else zui_round(ui,r,radius,ui->theme.surface);
 }
 
-/* ---------- Syntax colours, from the accent palette only. */
+/* ---------- Several cursors (AU4): Alt+click, Ctrl+Alt+Up/Down and Ctrl+D add one; Esc keeps only the main one.
+ * Typing, Backspace, Delete, Enter, Tab, paste and the movement keys act at every cursor; other commands first return
+ * to one cursor. One edit at every cursor is one undo step. */
+static void cursors_mark(struct doc *d){char n[24];num(n,(unsigned long)d->more_count+1);mark("AURORA_CURSORS",n);}
+static void single(struct doc *d){multi_typing=0;if(d->more_count){d->more_count=0;ui->dirty=1;cursors_mark(d);}}
+/* Every cursor in text order, overlapping ones merged. */
+static int gather(struct doc *d,struct cursor *all){
+    int n=0;all[n++]=(struct cursor){d->caret,d->anchor,d->goal,d->goal_valid,1};
+    for(int i=0;i<d->more_count;i++){all[n]=d->more[i];all[n].primary=0;n++;}
+    for(int i=1;i<n;i++){struct cursor c=all[i];int j=i;while(j>0&&cur_start(&all[j-1])>cur_start(&c)){all[j]=all[j-1];j--;}all[j]=c;}
+    int k=0;
+    for(int i=0;i<n;i++){
+        if(k&&(cur_start(&all[i])<cur_end(&all[k-1])||(cur_start(&all[i])==cur_start(&all[k-1])&&cur_end(&all[i])==cur_end(&all[k-1])))){
+            struct cursor *m=&all[k-1];unsigned int a=cur_start(m),b=cur_end(&all[i])>cur_end(m)?cur_end(&all[i]):cur_end(m);
+            int primary=m->primary|all[i].primary;
+            if(a==b)*m=(struct cursor){a,a,0,0,primary};else *m=(struct cursor){b,a,0,0,primary};
+            continue;
+        }
+        all[k++]=all[i];
+    }
+    return k;
+}
+static void scatter(struct doc *d,const struct cursor *all,int n){
+    d->more_count=0;int found=0;
+    for(int i=0;i<n;i++){
+        if(all[i].primary&&!found){d->caret=all[i].caret;d->anchor=all[i].anchor;d->goal=all[i].goal;d->goal_valid=all[i].goal_valid;found=1;}
+        else if(d->more_count<MAX_MORE){d->more[d->more_count]=all[i];d->more[d->more_count].primary=0;d->more_count++;}
+    }
+}
+static void add_cursor(struct doc *d,unsigned int caret,unsigned int anchor){
+    if(d->more_count>=MAX_MORE){note("Aurora keeps up to 64 cursors.",0);return;}
+    d->more[d->more_count++]=(struct cursor){d->caret,d->anchor,d->goal,d->goal_valid,0};
+    d->caret=caret;d->anchor=anchor;d->goal_valid=0;
+    scatter(d,all_cursors,gather(d,all_cursors));
+    reveal_caret=1;ui->dirty=1;cursors_mark(d);
+}
+/* Ctrl+Alt+Up/Down: a cursor on the row above the first cursor, or below the last, at the main cursor's column. */
+static void add_vertical(struct doc *d,int direction){
+    int n=gather(d,all_cursors);const struct cursor *edge=direction<0?&all_cursors[0]:&all_cursors[n-1];
+    unsigned int goal=d->goal_valid?d->goal:au_column(&d->text,d->caret,(unsigned int)d->tab);
+    long row=(long)row_of(d,au_line_of(&d->text,edge->caret))+direction;
+    if(row<0||row>=(long)rows_of(d))return;
+    unsigned int p=au_at_column(&d->text,line_at_row(d,(unsigned int)row),goal,(unsigned int)d->tab);
+    add_cursor(d,p,p);d->goal=goal;d->goal_valid=1;
+}
+/* Ctrl+D: selects the word at the caret, then adds the next match of the selection as another cursor. */
+static void select_next(struct doc *d){
+    if(!has_selection(d)){
+        unsigned int a=d->caret,b=d->caret,n=au_length(&d->text);
+        while(a&&au_word_char(au_at(&d->text,a-1)))a--;
+        while(b<n&&au_word_char(au_at(&d->text,b)))b++;
+        if(a==b){note("Put the caret on a word, or select text, to add its next match.",0);return;}
+        d->anchor=a;d->caret=b;d->goal_valid=0;ui->dirty=1;cursors_mark(d);return;
+    }
+    unsigned int a=selection_start(d),b=selection_end(d),n=b-a;static char needle[1024];
+    if(n>sizeof(needle)){note("The selection is too long to match.",0);return;}
+    au_read(&d->text,a,n,needle);
+    int count=gather(d,all_cursors);unsigned int from=cur_end(&all_cursors[count-1]);
+    long m=au_find(&d->text,needle,n,from,1,AU_CASE);if(m<0)m=au_find(&d->text,needle,n,0,1,AU_CASE);
+    for(int i=0;m>=0&&i<count;i++)if(cur_start(&all_cursors[i])==(unsigned int)m){m=-1;}
+    if(m<0){note("Every match has a cursor.",0);return;}
+    add_cursor(d,(unsigned int)m+n,(unsigned int)m);
+}
+/* One edit at every cursor, applied from the last to the first so earlier offsets stay valid. E_LINES gives each
+ * cursor one line of s (a paste with as many lines as there are cursors). For E_TEXT, word=1 means a typed character:
+ * characters typed one after another at every cursor are one undo step, like typing at one cursor. */
+static void multi_edit(struct doc *d,int op,const char *s,unsigned int n,int word){
+    static unsigned int A[MAX_MORE+1],B[MAX_MORE+1],L[MAX_MORE+1];static const char *T[MAX_MORE+1];static char small[MAX_MORE+1][260];
+    int count=gather(d,all_cursors);const char *line=s;
+    for(int i=0;i<count;i++){
+        unsigned int a=cur_start(&all_cursors[i]),b=cur_end(&all_cursors[i]);
+        if(op==E_BACK&&a==b&&a)a=word?au_word_left(&d->text,a):au_previous(&d->text,a);
+        if(op==E_DELETE&&a==b&&b<au_length(&d->text))b=word?au_word_right(&d->text,b):au_next(&d->text,b);
+        if(i&&a<B[i-1])a=B[i-1];
+        if(b<a)b=a;
+        A[i]=a;B[i]=b;T[i]="";L[i]=0;
+        if(op==E_TEXT){T[i]=s;L[i]=n;}
+        else if(op==E_LINES){unsigned int k=0;while(line+k<s+n&&line[k]!='\n')k++;T[i]=line;L[i]=k;line+=k+(line+k<s+n);}
+        else if(op==E_NEWLINE){
+            unsigned int l=au_line_of(&d->text,a),p=au_line_start(&d->text,l),e=line_indent_end(&d->text,l),k=1;small[i][0]='\n';
+            if(e>a)e=a;
+            for(;p<e&&k<sizeof(small[i]);p++)small[i][k++]=au_at(&d->text,p);
+            T[i]=small[i];L[i]=k;
+        }else if(op==E_TAB){
+            if(!d->spaces){small[i][0]='\t';L[i]=1;}
+            else{unsigned int c=au_column(&d->text,a,(unsigned int)d->tab);L[i]=(unsigned int)d->tab-c%(unsigned int)d->tab;for(unsigned int k=0;k<L[i];k++)small[i][k]=' ';}
+            T[i]=small[i];
+        }
+    }
+    int typing=op==E_TEXT&&word&&!(n==1&&s[0]=='\n');
+    if(!(typing&&multi_typing))au_history_break(&d->history);
+    multi_applying=1;
+    for(int i=count-1;i>=0;i--){
+        if(au_edit(&d->text,&d->history,A[i],B[i]-A[i],T[i],L[i],d->caret,A[i]+L[i],0)){
+            note("The document is full: Aurora holds up to 1 MiB and 65,536 lines.",1);
+            for(int k=0;k<=i;k++){B[k]=A[k];L[k]=0;}   /* these were not applied */
+            break;
+        }
+    }
+    long shift=0;
+    for(int i=0;i<count;i++){
+        unsigned int p=(unsigned int)((long)A[i]+shift+(long)L[i]);shift+=(long)L[i]-(long)(B[i]-A[i]);
+        all_cursors[i].caret=all_cursors[i].anchor=p;all_cursors[i].goal_valid=0;
+    }
+    scatter(d,all_cursors,count);
+    touched(d,A[0]);multi_applying=0;reveal_caret=1;multi_typing=typing;
+}
+static int key_text(struct doc *d,const struct zenith_gui_event *e);
+/* A movement key at every cursor; the main cursor last, so the view follows it. */
+static void multi_move(struct doc *d,const struct zenith_gui_event *e){
+    multi_typing=0;struct cursor main={d->caret,d->anchor,d->goal,d->goal_valid,1};
+    for(int i=0;i<d->more_count;i++){
+        d->caret=d->more[i].caret;d->anchor=d->more[i].anchor;d->goal=d->more[i].goal;d->goal_valid=d->more[i].goal_valid;
+        key_text(d,e);d->more[i]=(struct cursor){d->caret,d->anchor,d->goal,d->goal_valid,0};
+    }
+    d->caret=main.caret;d->anchor=main.anchor;d->goal=main.goal;d->goal_valid=main.goal_valid;key_text(d,e);
+    scatter(d,all_cursors,gather(d,all_cursors));
+}
+
+/* ---------- Syntax colours: the accent palette (the Accent scheme) or a fixed scheme (AU4). */
 enum { K_TEXT,K_KEYWORD,K_TYPE,K_STRING,K_NUMBER,K_COMMENT,K_MARK };
 static const char *const c_words[]={"if","else","for","while","do","switch","case","default","break","continue","return","goto",
     "sizeof","typedef","struct","union","enum","static","const","extern","inline","volatile","void","char","short","int","long",
@@ -730,7 +981,18 @@ static int classify(int language,const char *s,int n,int state,unsigned char *k)
     }
     return language==LANG_C?state:0;
 }
+/* Fixed schemes: keyword, type, string, number, comment, heading; for dark and for light surfaces. Each colour keeps
+ * at least 4.5:1 contrast on the theme's code surface. */
+static int scheme;
+static const char *const scheme_names[]={"Accent","Classic","Warm","High contrast"};
+static const unsigned int scheme_colors[3][2][6]={
+    {{0xC792EA,0x7FDBCA,0xC3E88D,0xF78C6C,0x8E99A4,0x82AAFF},{0x7A3E9D,0x00695C,0x2E6B12,0xA4470E,0x5C6670,0x2A55A8}},
+    {{0xF2A65A,0xE8C872,0xA5D46A,0xF09A9A,0xA39A90,0xF2C14E},{0xA4480B,0x7A5F00,0x3F6B14,0xA8303F,0x6B6358,0x8A5000}},
+    {{0xFFD54A,0x5FF3FF,0x8CFF66,0xFF8AD8,0xD0D0D0,0xFFFFFF},{0x1A1AB8,0x005B5B,0x135C00,0x8A0050,0x404040,0x000000}},
+};
 static unsigned int kind_color(int kind){
+    if(scheme>0&&kind>=K_KEYWORD&&kind<=K_MARK)return scheme_colors[scheme-1][light()][kind-K_KEYWORD];
+    if(scheme==3&&kind==K_TEXT)return light()?0x000000:0xFFFFFF;
     switch(kind){
     case K_KEYWORD:return zui_accent_color(ui,1);
     case K_TYPE:return zui_accent_color(ui,5);
@@ -956,7 +1218,7 @@ static int bracket_pair(struct doc *d,unsigned int *a,unsigned int *b){
 static struct zui_rect minimap_rect,hbar_rect;static int hscroll_range,hscroll_visible;
 static void outline_at(struct doc *d,unsigned int position,int top,int text_x,unsigned int color){
     unsigned int line=au_line_of(&d->text,position);
-    int y=top+(int)line*line_h,x=text_x+(int)au_column(&d->text,position,(unsigned int)d->tab)*cell_w;
+    int y=top+(int)row_of(d,line)*line_h,x=text_x+(int)au_column(&d->text,position,(unsigned int)d->tab)*cell_w;
     zui_round_outline(ui,(struct zui_rect){x-1,y,cell_w+2,line_h},3,color);
 }
 static void draw_minimap(struct doc *d,struct zui_rect m){
@@ -972,9 +1234,10 @@ static void draw_minimap(struct doc *d,struct zui_rect m){
         unsigned int color=first=='/'||first=='#'?mix(ui->theme.surface,ui->theme.secondary,45):mix(ui->theme.surface,ui->theme.text,38);
         if(w>0)zui_fill(ui,(struct zui_rect){x,m.y+row,w,1},color);
     }
-    /* The visible part. */
-    long content=(long)lines*line_h;if(content<1)content=1;
-    int y0=dense?(int)((long)view.visual*m.h/content):view.visual/line_h*2,h=dense?(int)((long)view.rect.h*m.h/content):view.rect.h/line_h*2;
+    /* The visible part (folded lines count as the lines they hide). */
+    unsigned int rows=rows_of(d),r0=(unsigned int)max(0,view.visual/line_h),r1=(unsigned int)max(0,(view.visual+view.rect.h)/line_h);
+    unsigned int l0=line_at_row(d,r0<rows?r0:rows-1),l1=r1<rows?line_at_row(d,r1):lines;if(l1<l0)l1=l0;
+    int y0=dense?(int)((long)l0*m.h/(long)max(1,(int)lines)):(int)l0*2,h=dense?(int)((long)(l1-l0)*m.h/(long)max(1,(int)lines)):(int)(l1-l0)*2;
     if(h<6)h=6;
     zui_round_alpha(ui,(struct zui_rect){m.x,m.y+y0,m.w,min(h,m.h-y0)},4,ui->theme.accent,50);
     hit(m,H_MINIMAP);
@@ -985,7 +1248,7 @@ static void draw_text_area(struct doc *d){
     int mm=a.w>=700?78:0;
     struct zui_rect scroll_rect={a.x,a.y+6,a.w-(mm?mm+8:0),a.h-12-12};
     int top=zui_scroll_begin(ui,&view,scroll_rect);
-    unsigned int lines=d->text.line_count;
+    unsigned int rows=rows_of(d);
     int first=view.visual/line_h;if(first<0)first=0;
     unsigned int caret_line=au_line_of(&d->text,d->caret);
     unsigned int s0=selection_start(d),s1=selection_end(d);
@@ -993,12 +1256,15 @@ static void draw_text_area(struct doc *d){
     int text_x=a.x+gutter_w-d->scroll_x;
     struct zui_rect code_clip={a.x+gutter_w-4,scroll_rect.y,scroll_rect.w-gutter_w,scroll_rect.h};
     struct zui_rect area_clip={a.x,scroll_rect.y,scroll_rect.w,scroll_rect.h};
-    int state=state_at(d,(unsigned int)first);
+    int state=state_at(d,line_at_row(d,(unsigned int)first));unsigned int previous=line_at_row(d,(unsigned int)first);
     unsigned int match_color=zui_accent_color(ui,3);
     int regex=find_open&&(find_flags&AU_REGEX)&&find_ready(),widest=0;
     unsigned int ba=0,bb=0;int brackets=bracket_pair(d,&ba,&bb);
-    for(unsigned int l=(unsigned int)first;l<lines;l++){
-        int y=top+(int)l*line_h;if(y>=scroll_rect.y+scroll_rect.h)break;
+    for(unsigned int r=(unsigned int)first;r<rows;r++){
+        int y=top+(int)r*line_h;if(y>=scroll_rect.y+scroll_rect.h)break;
+        unsigned int l=line_at_row(d,r);
+        if(l!=previous+1&&r!=(unsigned int)first)state=state_at(d,l);   /* a fold skipped lines */
+        previous=l;
         unsigned int ls=au_line_start(&d->text,l),le=au_line_end(&d->text,l);
         unsigned int n=au_read(&d->text,ls,min((int)(le-ls),LINE_DRAW),line_bytes);
         int next=classify(d->language,line_bytes,(int)n,state,line_class);
@@ -1007,12 +1273,24 @@ static void draw_text_area(struct doc *d){
         zui_clip(ui,(struct zui_rect){a.x,scroll_rect.y,gutter_w-6,scroll_rect.h});
         char number[16];num(number,l+1);
         text_right(a.x+gutter_w-14,y+(line_h-zui_mono.height)/2,number,&zui_mono,l==caret_line?ui->theme.text:ui->theme.secondary);
+        /* Fold marker: a triangle pointing right when folded, down where a fold can start (dim unless hovered). */
+        int is_folded=d->fold_count&&folded(d,l);
+        if(is_folded||foldable(d,l)){
+            unsigned int c=is_folded?ui->theme.accent:hover==H_GUTTER?ui->theme.secondary:mix(ui->theme.surface,ui->theme.secondary,45);
+            int fx=a.x+8,fy=y+line_h/2;
+            for(int k=0;k<5;k++){
+                if(is_folded)zui_fill(ui,(struct zui_rect){fx+k,fy-4+k,1,9-2*k},c);
+                else zui_fill(ui,(struct zui_rect){fx-1+k,fy-2+k,9-2*k,1},c);
+            }
+        }
         zui_clip(ui,code_clip);
         /* Columns of the selection and of find matches on this line. */
-        if(s0!=s1&&s1>=ls&&s0<=le){
-            unsigned int from=s0>ls?s0:ls,to=s1<le?s1:le;
+        for(int c=-1;c<d->more_count;c++){
+            unsigned int c0=c<0?s0:cur_start(&d->more[c]),c1=c<0?s1:cur_end(&d->more[c]);
+            if(c0==c1||c1<ls||c0>le)continue;
+            unsigned int from=c0>ls?c0:ls,to=c1<le?c1:le;
             int x0=text_x+(int)au_column(&d->text,from,(unsigned int)d->tab)*cell_w,x1=text_x+(int)au_column(&d->text,to,(unsigned int)d->tab)*cell_w;
-            if(s1>le)x1+=cell_w/2;
+            if(c1>le)x1+=cell_w/2;
             if(x1>x0)zui_round_alpha(ui,(struct zui_rect){x0,y+1,x1-x0,line_h-2},3,ui->theme.accent,light()?70:90);
         }
         if(regex){
@@ -1048,16 +1326,27 @@ static void draw_text_area(struct doc *d){
             if(au_line_of(&d->text,ba)==l)outline_at(d,ba,top,text_x,ui->theme.accent);
             if(au_line_of(&d->text,bb)==l)outline_at(d,bb,top,text_x,ui->theme.accent);
         }
-        if(focused&&l==caret_line){
-            int cx=text_x+(int)au_column(&d->text,d->caret,(unsigned int)d->tab)*cell_w;
-            if(overwrite)zui_round_alpha(ui,(struct zui_rect){cx,y+2,cell_w,line_h-4},2,ui->theme.text,110);
-            else zui_fill(ui,(struct zui_rect){cx,y+2,2,line_h-4},ui->theme.text);
+        if(is_folded){
+            /* The hidden lines as a pill after the text; a click on it (or the marker) unfolds. */
+            char pill[32],*o=put(pill,"+");o=num(o,fold_end(d,l)-l);put(o," lines");
+            int px=text_x+(int)column*cell_w+cell_w,pw=measure(pill,&zui_caption)+14;
+            zui_round_alpha(ui,(struct zui_rect){px,y+2,pw,line_h-4},6,ui->theme.accent,light()?40:60);
+            text(px+7,y+(line_h-zui_caption.height)/2,pill,&zui_caption,ui->theme.text);
+        }
+        if(focused){
+            for(int c=-1;c<d->more_count;c++){
+                unsigned int cp=c<0?d->caret:d->more[c].caret;
+                if(c<0?l!=caret_line:au_line_of(&d->text,cp)!=l)continue;
+                int cx=text_x+(int)au_column(&d->text,cp,(unsigned int)d->tab)*cell_w;
+                if(overwrite&&c<0&&!d->more_count)zui_round_alpha(ui,(struct zui_rect){cx,y+2,cell_w,line_h-4},2,ui->theme.text,110);
+                else zui_fill(ui,(struct zui_rect){cx,y+2,2,line_h-4},c<0?ui->theme.text:ui->theme.accent);
+            }
         }
         state=next;
         zui_clip(ui,area_clip);
     }
     zui_clip(ui,area_clip);
-    zui_scroll_end(ui,&view,(int)((long)lines*line_h+line_h*2));
+    zui_scroll_end(ui,&view,(int)((long)rows*line_h+line_h*2));
     zui_clip(ui,(struct zui_rect){0,0,ui->width,ui->height});
     /* Horizontal scroll bar: shown while the widest visible line or the scroll position runs past the view. */
     hscroll_visible=code_clip.w-cell_w;hscroll_range=widest*cell_w+cell_w*4;
@@ -1121,7 +1410,8 @@ static void draw_status(struct zui_rect r,struct doc *d){
         unsigned int line=au_line_of(&d->text,d->caret);
         o=put(t,"Ln ");o=num(o,line+1);o=put(o,", Col ");num(o,au_column(&d->text,d->caret,(unsigned int)d->tab)+1);
         text(x,ty,t,&zui_caption,ui->theme.secondary);x+=measure(t,&zui_caption)+24;
-        if(has_selection(d)){
+        if(d->more_count){o=num(t,(unsigned long)d->more_count+1);put(o," cursors");text(x,ty,t,&zui_caption,ui->theme.accent);x+=measure(t,&zui_caption)+24;}
+        else if(has_selection(d)){
             unsigned int chars=0,a=selection_start(d),b=selection_end(d);
             for(unsigned int p=a;p<b&&p<a+200000;p++)if(((unsigned char)au_at(&d->text,p)&0xc0)!=0x80)chars++;
             o=num(t,chars);put(o,b-a>200000?"+ selected":" selected");text(x,ty,t,&zui_caption,ui->theme.secondary);x+=measure(t,&zui_caption)+24;
@@ -1198,14 +1488,18 @@ static void draw_goto(void){
     text_button((struct zui_rect){x+w-100,y,100,36},"Go",H_DIALOG_OK,1,goto_input.length>0,0);
 }
 /* Menus: the main menu (menu button) and the text context menu (right click). */
-enum { M_NEW=1,M_OPEN,M_SAVE,M_SAVE_AS,M_CLOSE,M_UNDO,M_REDO,M_CUT,M_COPY,M_PASTE,M_SELECT_ALL,M_FIND,M_REPLACE,M_GOTO };
+enum { M_NEW=1,M_OPEN,M_SAVE,M_SAVE_AS,M_CLOSE,M_UNDO,M_REDO,M_CUT,M_COPY,M_PASTE,M_SELECT_ALL,M_FIND,M_REPLACE,M_GOTO,
+       M_FOLD,M_UNFOLD_ALL,M_NEXT_MATCH,M_SCHEME };
 static int menu_open,menu_x,menu_y,menu_count,menu_items[16],menu_focus;
 static const char *menu_label(int m){
-    static const char *const l[]={"","New","Open...","Save","Save as...","Close","Undo","Redo","Cut","Copy","Paste","Select all","Find","Replace","Go to line..."};
+    static const char *const l[]={"","New","Open...","Save","Save as...","Close","Undo","Redo","Cut","Copy","Paste","Select all","Find","Replace","Go to line...",
+        "Fold","Unfold all","Add next match",""};
+    if(m==M_SCHEME){static char t[48];char *o=put(t,"Colours: ");put(o,scheme_names[scheme]);return t;}
     return l[m];
 }
 static const char *menu_keys(int m){
-    static const char *const k[]={"","Ctrl+N","Ctrl+O","Ctrl+S","Ctrl+Shift+S","Ctrl+W","Ctrl+Z","Ctrl+Y","Ctrl+X","Ctrl+C","Ctrl+V","Ctrl+A","Ctrl+F","Ctrl+H","Ctrl+G"};
+    static const char *const k[]={"","Ctrl+N","Ctrl+O","Ctrl+S","Ctrl+Shift+S","Ctrl+W","Ctrl+Z","Ctrl+Y","Ctrl+X","Ctrl+C","Ctrl+V","Ctrl+A","Ctrl+F","Ctrl+H","Ctrl+G",
+        "Ctrl+Shift+-","Ctrl+Shift+=","Ctrl+D",""};
     return k[m];
 }
 static int menu_enabled(int m){
@@ -1215,13 +1509,14 @@ static int menu_enabled(int m){
     if(!d)return 0;
     if(m==M_UNDO)return d->history.current>0;
     if(m==M_REDO)return d->history.current<d->history.count;
-    if(m==M_CUT||m==M_COPY)return has_selection(d);
+    if(m==M_CUT||m==M_COPY)return has_selection(d)||d->more_count;
+    if(m==M_UNFOLD_ALL)return d->fold_count>0;
     return 1;
 }
 static void open_menu(int x,int y,int context){
-    static const int main_items[]={M_NEW,M_OPEN,M_SAVE,M_SAVE_AS,M_CLOSE,M_UNDO,M_REDO,M_FIND,M_REPLACE,M_GOTO};
-    static const int text_items[]={M_UNDO,M_REDO,M_CUT,M_COPY,M_PASTE,M_SELECT_ALL};
-    const int *items=context?text_items:main_items;menu_count=context?6:10;
+    static const int main_items[]={M_NEW,M_OPEN,M_SAVE,M_SAVE_AS,M_CLOSE,M_UNDO,M_REDO,M_FIND,M_REPLACE,M_GOTO,M_UNFOLD_ALL,M_SCHEME};
+    static const int text_items[]={M_UNDO,M_REDO,M_CUT,M_COPY,M_PASTE,M_SELECT_ALL,M_NEXT_MATCH,M_FOLD};
+    const int *items=context?text_items:main_items;menu_count=context?8:12;
     for(int i=0;i<menu_count;i++)menu_items[i]=items[i];
     menu_open=1;menu_x=x;menu_y=y;menu_focus=-1;ui->dirty=1;
 }
@@ -1294,7 +1589,8 @@ void aurora_draw(void){
 /* ---------- Caret movement. */
 static void reveal(struct doc *d){
     unsigned int line=au_line_of(&d->text,d->caret);
-    zui_scroll_reveal(&view,(int)line*line_h,line_h*2);
+    if(d->fold_count)reveal_line(d,line);
+    zui_scroll_reveal(&view,(int)row_of(d,line)*line_h,line_h*2);
     int visible=text_area.w-gutter_w-16,cx=(int)au_column(&d->text,d->caret,(unsigned int)d->tab)*cell_w;
     if(cx<d->scroll_x)d->scroll_x=max(0,cx-cell_w*8);
     else if(cx>d->scroll_x+visible)d->scroll_x=cx-visible+cell_w*8;
@@ -1304,17 +1600,38 @@ static void move(struct doc *d,unsigned int to,int extend){
 }
 static void vertical(struct doc *d,int lines,int extend){
     if(!d->goal_valid){d->goal=au_column(&d->text,d->caret,(unsigned int)d->tab);d->goal_valid=1;}
-    long line=(long)au_line_of(&d->text,d->caret)+lines;
-    if(line<0){move(d,0,extend);return;}
-    if(line>=(long)d->text.line_count){move(d,au_length(&d->text),extend);return;}
-    d->caret=au_at_column(&d->text,(unsigned int)line,d->goal,(unsigned int)d->tab);if(!extend)d->anchor=d->caret;reveal_caret=1;ui->dirty=1;
+    long row=(long)row_of(d,au_line_of(&d->text,d->caret))+lines;   /* rows: folded lines are skipped */
+    if(row<0){move(d,0,extend);return;}
+    if(row>=(long)rows_of(d)){move(d,au_length(&d->text),extend);return;}
+    d->caret=au_at_column(&d->text,line_at_row(d,(unsigned int)row),d->goal,(unsigned int)d->tab);if(!extend)d->anchor=d->caret;reveal_caret=1;ui->dirty=1;
 }
 static unsigned int position_at(struct doc *d,int x,int y){
     int top=text_area.y+6-view.visual;
-    long line=(y-top)/line_h;if(y<top)line=0;
-    if(line>=(long)d->text.line_count)return au_length(&d->text);
+    long row=(y-top)/line_h;if(y<top)row=0;
+    if(row>=(long)rows_of(d))return au_length(&d->text);
+    long line=line_at_row(d,(unsigned int)row);
     int column=(x-(text_area.x+gutter_w-d->scroll_x)+cell_w/2)/cell_w;if(column<0)column=0;
     return au_at_column(&d->text,(unsigned int)line,(unsigned int)column,(unsigned int)d->tab);
+}
+
+/* ---------- Settings: ~/.config/zenith/aurora.conf ("SCHEME=Classic"). */
+static void settings_path(char *o){char a[PATH_BYTES];join(a,home,".config/zenith");join(o,a,"aurora.conf");}
+static void load_scheme(void){
+    char path[PATH_BYTES],b[128];settings_path(path);long n=au_sys_read(path,b,sizeof(b)-1);scheme=0;if(n<=0)return;b[n]=0;
+    for(char *p=b;*p;p++){
+        if((p==b||p[-1]=='\n')&&p[0]=='S'&&p[1]=='C'&&p[2]=='H'&&p[3]=='E'&&p[4]=='M'&&p[5]=='E'&&p[6]=='='){
+            char v[32];int i=0;for(char *q=p+7;*q&&*q!='\n'&&i<31;q++)v[i++]=*q;v[i]=0;
+            for(int k=0;k<4;k++)if(same(v,scheme_names[k]))scheme=k;
+        }
+    }
+    if(scheme)mark("AURORA_SCHEME",scheme_names[scheme]);
+}
+static void save_scheme(void){
+    char a[PATH_BYTES],b[PATH_BYTES],path[PATH_BYTES];join(a,home,".config");join(b,a,"zenith");
+    struct au_info info;if(au_sys_info(a,&info))au_sys_mkdir(a);if(au_sys_info(b,&info))au_sys_mkdir(b);
+    settings_path(path);char t[64],*o=put(t,"SCHEME=");o=put(o,scheme_names[scheme]);put(o,"\n");
+    long fd=au_sys_create(path);if(fd<0){note("The colour scheme could not be saved.",1);return;}
+    au_sys_write(fd,t,length(t));au_sys_close(fd);
 }
 
 /* ---------- Events. */
@@ -1334,6 +1651,10 @@ static void menu_action(int m){
     case M_SELECT_ALL:if(d){d->anchor=0;d->caret=au_length(&d->text);}break;
     case M_FIND:open_find(0);break;
     case M_REPLACE:open_find(1);break;
+    case M_FOLD:if(d){single(d);fold_here(d);}break;
+    case M_UNFOLD_ALL:if(d)unfold_all(d);break;
+    case M_NEXT_MATCH:if(d)select_next(d);break;
+    case M_SCHEME:scheme=(scheme+1)%4;save_scheme();mark("AURORA_SCHEME",scheme_names[scheme]);break;
     case M_GOTO:if(d){goto_open=1;goto_buffer[0]=0;zui_input_init(&goto_input,goto_buffer,sizeof(goto_buffer));}break;
     }
 }
@@ -1358,6 +1679,19 @@ static void dialog_answer(int choice){
 static void click_text(struct doc *d,const struct zenith_gui_event *e,int gutter){
     long now=au_sys_clock();
     unsigned int p=position_at(d,gutter?text_area.x+gutter_w:e->x,e->y);
+    if(gutter&&e->x<text_area.x+22){
+        /* The fold column: folds or unfolds this line. */
+        unsigned int l=au_line_of(&d->text,p);
+        if(folded(d,l))unfold_line(d,l);else if(!fold_line(d,l))return;
+        if(d->caret>au_line_end(&d->text,l)&&au_line_of(&d->text,d->caret)<=fold_end(d,l)){d->caret=d->anchor=au_line_end(&d->text,l);}
+        single(d);ui->dirty=1;return;
+    }
+    if(!gutter&&folded(d,au_line_of(&d->text,p))&&p==au_line_end(&d->text,au_line_of(&d->text,p))
+       &&e->x>text_area.x+gutter_w-d->scroll_x+(int)au_column(&d->text,p,(unsigned int)d->tab)*cell_w){
+        unfold_line(d,au_line_of(&d->text,p));return;   /* the "+N lines" pill */
+    }
+    if(!gutter&&(e->modifiers&4)){add_cursor(d,p,p);return;}   /* Alt+click: another cursor */
+    single(d);
     static long last_time=-1000;static unsigned int last_position;static int clicks;
     clicks=now-last_time<450&&p==last_position?clicks+1:1;last_time=now;last_position=p;
     if(gutter||clicks>=3){
@@ -1421,7 +1755,10 @@ static int shortcut(int c,int shift){
     }
     if(!d)return 0;
     switch(c){
-    case 'a':d->anchor=0;d->caret=au_length(&d->text);ui->dirty=1;return 1;
+    case 'a':single(d);d->anchor=0;d->caret=au_length(&d->text);ui->dirty=1;return 1;
+    case 'd':select_next(d);return 1;
+    case '-':case '_':if(shift){single(d);fold_here(d);return 1;}return 0;
+    case '=':case '+':if(shift){if(folded(d,au_line_of(&d->text,d->caret)))unfold_line(d,au_line_of(&d->text,d->caret));else unfold_all(d);return 1;}return 0;
     case 'c':clipboard_copy(d,0);return 1;
     case 'x':clipboard_copy(d,1);return 1;
     case 'v':clipboard_paste(d);return 1;
@@ -1537,6 +1874,11 @@ int aurora_event(const struct zenith_gui_event *e){
         if(e->type!=Z_GUI_SECONDARY)return end_requested;
         menu_open=0;
     }
+    if(e->type==Z_GUI_SECONDARY&&e->code==3){
+        /* Middle button (kernel 0.0.67): closes the document tab under the pointer, as in Horizon. */
+        if(inside(tabs_rect,e->x,e->y))for(int i=0;i<strip.count&&i<doc_count;i++)if(inside(strip.tab[i],e->x,e->y)){close_doc(order[i],1);break;}
+        return end_requested;
+    }
     if(e->type==Z_GUI_SECONDARY){
         int id=hit_at(e->x,e->y);
         if(d&&id==H_TEXT){unsigned int p=position_at(d,e->x,e->y);if(p<selection_start(d)||p>selection_end(d)){d->caret=d->anchor=p;}open_menu(e->x,e->y,1);}
@@ -1560,8 +1902,9 @@ int aurora_event(const struct zenith_gui_event *e){
         }
         int id=hit_at(e->x,e->y);
         if(d&&(e->type==Z_GUI_DOWN||e->type==Z_GUI_DRAG)&&(id==H_MINIMAP||dragging_bar==1)&&minimap_rect.h>0&&!dragging_text){
-            dragging_bar=1;long content=(long)d->text.line_count*line_h,dense=(long)d->text.line_count*2>minimap_rect.h;
-            long y=e->y-minimap_rect.y,target=dense?y*content/minimap_rect.h:y/2*line_h;
+            dragging_bar=1;long lines=d->text.line_count,dense=lines*2>minimap_rect.h;
+            long y=e->y-minimap_rect.y,line=dense?y*lines/minimap_rect.h:y/2;if(line>=lines)line=lines-1;if(line<0)line=0;
+            long target=(long)row_of(d,(unsigned int)line)*line_h;
             zui_scroll_jump(&view,(int)max(0,(int)(target-view.rect.h/2)));view.offset=min(view.offset,zui_scroll_maximum(&view));ui->dirty=1;return end_requested;
         }
         if(d&&(e->type==Z_GUI_DOWN||e->type==Z_GUI_DRAG)&&(id==H_HSCROLL||dragging_bar==2)&&hbar_rect.w>0&&!dragging_text){
@@ -1599,7 +1942,8 @@ int aurora_event(const struct zenith_gui_event *e){
             }
             else if(id>=H_SYMBOL&&id<H_SYMBOL+SYMBOLS&&id-H_SYMBOL<symbol_count&&d){
                 struct symbol *s=&symbols[id-H_SYMBOL];
-                d->caret=d->anchor=au_line_start(&d->text,s->line);d->goal_valid=0;reveal_caret=1;view.offset=max(0,(int)s->line*line_h-line_h*3);
+                single(d);reveal_line(d,s->line);
+                d->caret=d->anchor=au_line_start(&d->text,s->line);d->goal_valid=0;reveal_caret=1;view.offset=max(0,(int)row_of(d,s->line)*line_h-line_h*3);
                 mark("AURORA_SYMBOL",s->name);ui->dirty=1;
             }
             else if(id==H_EOL&&d){d->crlf=!d->crlf;au_history_break(&d->history);if(!modified(d))d->history.saved=-1;update_title();note(d->crlf?"Line endings: CRLF (Windows) when saved":"Line endings: LF when saved",0);}
@@ -1617,7 +1961,22 @@ int aurora_event(const struct zenith_gui_event *e){
     if(shortcut_key(e))return end_requested;
     if(find_open&&focus_find&&find_event(e))return end_requested;
     if(!d)return end_requested;
-    if(e->extra==1){if(find_open){find_open=replace_open=0;}else d->anchor=d->caret;ui->dirty=1;return end_requested;}
+    if(e->extra==1){if(d->more_count)single(d);else if(find_open){find_open=replace_open=0;}else d->anchor=d->caret;ui->dirty=1;return end_requested;}
+    if((e->extra==7||e->extra==8)&&(e->modifiers&6)==6){add_vertical(d,e->extra==7?-1:1);return end_requested;}   /* Ctrl+Alt+Up/Down */
+    if(d->more_count){
+        int control=(e->modifiers&6)==2;
+        if(typed(e)){char b[4];int n=utf8((unsigned int)e->code,b);multi_edit(d,E_TEXT,b,(unsigned int)n,1);}
+        else switch(e->extra){
+            case 2:multi_edit(d,E_NEWLINE,0,0,0);break;
+            case 3:multi_edit(d,E_BACK,0,0,control);break;
+            case 9:multi_edit(d,E_DELETE,0,0,control);break;
+            case 4:if(!control&&!(e->modifiers&1)){multi_edit(d,E_TAB,0,0,0);break;}single(d);key_text(d,e);break;
+            case 5:case 6:case 7:case 8:case 10:case 11:multi_move(d,e);break;
+            default:single(d);key_text(d,e);
+        }
+        if(find_open)count_matches();
+        return end_requested;
+    }
     if(e->extra==26){overwrite=!overwrite;mark("AURORA_OVERWRITE",overwrite?"on":"off");ui->dirty=1;return end_requested;}
     if(typed(e)){
         char b[4];int n=utf8((unsigned int)e->code,b);
@@ -1773,7 +2132,7 @@ void aurora_start(struct zui *u,const char *home_path,int count,char **paths){
     cell_w=zui_mono.advance[0];line_h=zui_mono.height+5;
     side_scroll=(struct zui_scroll){0};tree_root[0]=0;tree_dirty=1;outline_slot=-1;overwrite=0;last_disk_check=au_sys_clock();
     char a[PATH_BYTES],b[PATH_BYTES];join(a,home,".local/share/aurora");join(b,a,"recovery");copy(recovery_dir,b,sizeof(recovery_dir));
-    recover_count=recover_next=0;
+    recover_count=recover_next=0;map_doc=-1;load_scheme();
     for(int i=0;i<count;i++)open_path(paths[i]);
     if(!doc_count)new_document();
     au_sys_list(recovery_dir,found,0);
