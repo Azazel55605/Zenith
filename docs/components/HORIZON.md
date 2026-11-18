@@ -37,8 +37,8 @@ The kernel owns every rule; Horizon shows and asks.
 - Rename, new folder and single-item permanent deletes use the existing path call (405).
 - Everything runs with the person's own identity and the ordinary VFS checks: search permission on
   ancestors, write permission on the parent, the sticky bit, read-only mounts.
-- Horizon never becomes root. Changing files that belong to someone else is a later Desktop Portal
-  interface, not a reason to elevate the whole app.
+- Horizon never becomes root on its own. Changing files that belong to someone else goes through the Desktop
+  Portal's Authorization (Unlock, HZ4): the kernel then serves that Horizon's file calls as root until it closes.
 
 ## Native ABI: `zenith-native-files-abi` 1.0 (kernel 0.0.58)
 
@@ -147,11 +147,11 @@ Call 627 `(handle, bits, 0)` opts in to pointer motion with bit 1, as before.
     desktop flows by keyboard plus a right click.
   - Icons come from `zenith-icons` (0.3.0 adds Horizon's); without it, Horizon draws simple shapes so
     its icon-only buttons stay usable.
-  - New windows open at 640x480 (the desktop's limit for a new surface). Places and the information
-    panel appear from 720 and 860 pixels wide, after a resize or maximize; the gate does not yet
-    capture that wide layout. Since kernel 0.0.66 the desktop opens resizable windows sized to the
-    screen (the `windows` setting, [opening size](../GRAPHICAL-CLIENTS.md#owned-viewport-extension)),
-    so on a 1920x1080 screen Horizon opens with Places and the information panel.
+  - Places and the information panel appear from 720 and 860 pixels wide. Since kernel 0.0.66 the desktop
+    opens resizable windows sized to the screen (the `windows` setting,
+    [opening size](../GRAPHICAL-CLIENTS.md#owned-viewport-extension)), so on a 1920x1080 screen Horizon opens
+    with both. HZ5's gate checks Places in a window opened that way; the information panel needs a wider
+    screen than the gate's.
 - **zenith-horizon 0.1.2 (with kernel 0.0.60):**
   - Horizon draws on the desktop's window material when the desktop offers it: with whole-app transparency
     (Meridian › Appearance › Materials, background) one blurred material covers the window and the content
@@ -224,5 +224,7 @@ Call 627 `(handle, bits, 0)` opts in to pointer motion with bit 1, as before.
   - **Thumbnails** of interlaced PNG (Adam7) and progressive JPEG (spectral selection and successive
     approximation; large images keep only the DC scans and skip the AC data). Host tests compare each
     progressive fixture with the same image converted losslessly to baseline by jpegtran: identical pixels.
+  - **Copies keep permissions** (also moves between filesystems, which copy): each file and new folder gets
+    the source's permission bits, never setuid, setgid or sticky; a folder's mode is set after its contents.
   - Still not read: .tar.xz, .tar.bz2, .7z and .rar, encrypted zip entries, and lossless or arithmetic-coded
     JPEG. Removable drives stay deferred (S6).

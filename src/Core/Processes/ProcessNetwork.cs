@@ -23,6 +23,8 @@ internal interface IProcessNetworkSource
     long Echo(string host);
     IProcessConnection Connect(string host, int port, bool secure);
     IProcessDownload Download(string path, bool replace, int maximum);
+    /// <summary>Throws when the program is being cancelled (long network-center operations check it).</summary>
+    void ThrowIfCancelled();
 }
 
 /// <summary>Invocation-local handles. No native pointer, PID or environment variable
@@ -44,7 +46,32 @@ internal sealed class ProcessNetwork : IDisposable
     { Check(); if (++_controls > 32) { throw new IOException("native network control budget exceeded"); } }
     private bool _closed;
     public string LastError { get; private set; } = "";
-    public ProcessNetwork(IProcessNetworkSource source) => _source = source;
+    public ProcessNetwork(IProcessNetworkSource source, int pid = 0)
+    {
+        _source = source; Pid = pid;
+        if (pid > 0) { lock (s_live) { s_live.Add(this); } }
+    }
+    // ---------- Programs using the network (Observatory, call 667 operation 8).
+    private static readonly List<ProcessNetwork> s_live = new();
+    public int Pid { get; }
+    public void ThrowIfCancelled() => _source.ThrowIfCancelled();
+    private string _peer = "";
+    public readonly record struct Usage(int Pid, int Connections, long Received, long Sent, string Peer);
+    /// <summary>Every live program that has used the network, with its open connections and bytes so far.</summary>
+    public static List<Usage> Programs()
+    {
+        var list = new List<Usage>();
+        lock (s_live)
+        {
+            foreach (var n in s_live)
+            {
+                int open = 0; foreach (var item in n._handles.Values) { if (item is IProcessConnection or IProcessDownload) { open++; } }
+                if (open == 0 && n._received == 0 && n._sent == 0 && n._written == 0) { continue; }
+                list.Add(new Usage(n.Pid, open, n._received, (long)n._sent + n._written, open > 0 ? n._peer : ""));
+            }
+        }
+        return list;
+    }
     public void Error(string message) => LastError = message.Length <= 512 ? message : message[..512];
     public string Status() { Control(); return _source.Status(); }
     public string Resolve(string host, string? server, int port) { Control(); return _source.Resolve(host, server, port); }
@@ -57,6 +84,7 @@ internal sealed class ProcessNetwork : IDisposable
         if (_handles.Count >= 2) { return -24; }
         if (port is < 1 or > 65535) { return -22; }
         _connections++; var connection = _source.Connect(host, port, secure);
+        _peer = host + ":" + port + (secure ? " TLS" : "");
         int handle = _next++; _handles.Add(handle, connection); return handle;
     }
     public int Download(string path, bool replace, int maximum)
@@ -67,6 +95,7 @@ internal sealed class ProcessNetwork : IDisposable
         foreach (var item in _handles.Values) { if (item is IProcessDownload) { return -16; } }
         if (_handles.Count >= 2) { return -24; }
         _downloads++; var download = _source.Download(path, replace, maximum);
+        if (_peer.Length == 0) { _peer = "download"; }
         int handle = _next++; _handles.Add(handle, download); return handle;
     }
     public int Read(int handle, byte[] buffer)
@@ -117,6 +146,7 @@ internal sealed class ProcessNetwork : IDisposable
     }
     public void Dispose()
     {
+        if (Pid > 0) { lock (s_live) { s_live.Remove(this); } }
         _closed = true;
         foreach (var item in _handles.Values) { try { item.Dispose(); } catch { } }
         _handles.Clear();

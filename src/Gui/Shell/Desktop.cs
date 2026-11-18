@@ -91,6 +91,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
 
         Windows = new WindowManager(new Rect(0, 0, w, h - Theme.TaskbarHeight - 2 * Theme.TaskbarMargin), new Rect(0, 0, w, h));
         _taskbar = new Taskbar(w, h, Windows);
+        _taskbar.Centers = new TaskbarCenters(OpenAppWith);
         _prism = new PrismView(PrismCandidates, PrismActivate, PrismUser);
         _portal.Attach();
         Zenith.Gui.Shell.Portal.OpenWithDialog.Launch = (app, path) => OpenAppWith(app, new[] { path });
@@ -453,7 +454,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         if (near && !Windows.IsDragging) { _barPointerUntil = now + BarLingerMicros; }
         Window? top = Windows.Top;
         bool fullscreen = top?.IsFullscreen == true, maximized = top?.IsMaximized == true;
-        return (TaskbarPolicy.Shown(mode, fullscreen, maximized, now < _barPointerUntil, (_prism.IsOpen && _prism.Mode == PrismView.Layout.Menu) || _taskbar.OverflowOpen),
+        return (TaskbarPolicy.Shown(mode, fullscreen, maximized, now < _barPointerUntil, (_prism.IsOpen && _prism.Mode == PrismView.Layout.Menu) || _taskbar.PopupOpen),
                 TaskbarPolicy.Docked(mode, fullscreen, maximized));
     }
 
@@ -818,7 +819,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
                 if (key.Key == ConsoleKeyEx.Delete) { OpenSunset(Zenith.Core.Sessions.SunsetAction.Lock); return; }
             }
             if (key.Key == ConsoleKeyEx.F11 && Windows.Focused is Window focused) { Windows.ToggleFullscreen(focused); return; }
-            if (key.Key == ConsoleKeyEx.Escape && _taskbar.OverflowOpen) { _taskbar.OverflowOpen = false; return; }
+            if (key.Key == ConsoleKeyEx.Escape && _taskbar.PopupOpen) { _taskbar.ClosePopups(); return; }
         }
         // Prism: Alt+Space or Meta opens the palette from anywhere; while open it owns the keyboard
         // and the next click.
@@ -865,6 +866,8 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
             return;
         }
 
+        // The wheel over the sound button changes the volume.
+        if (_input.Scroll != 0 && _taskbar.Shown && _taskbar.Centers is TaskbarCenters centers && centers.Scroll(_input.X, _input.Y, _input.Scroll)) { return; }
         Windows.HandleInput(_input);
     }
 
@@ -881,7 +884,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         long topKey = TopKey(top), barKey = BarKey();
         Rect barArea = _taskbar.Shown ? _taskbar.Bounds.Inflate(Theme.ShadowSize + 8) : new Rect(0, 0, 0, 0);
         if (_lock.IsLocked) { ComposeLocked(start); return; }
-        bool overlays = withoutTop || _prism.IsOpen || _portal.IsOpen || _sunset.IsOpen || _taskbar.OverflowOpen || Zenith.Core.Sessions.SessionRuntime.Message is not null;
+        bool overlays = withoutTop || _prism.IsOpen || _portal.IsOpen || _sunset.IsOpen || _taskbar.PopupOpen || Zenith.Core.Sessions.SessionRuntime.Message is not null;
         // After an animation or a pass without the top window, the scene does not hold a finished
         // frame: compose everything once.
         bool structural = _composeAll || !appearance || !_lowerValid || top != _lastTop || !Windows.LowerStructureUnchanged();

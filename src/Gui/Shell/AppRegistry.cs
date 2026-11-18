@@ -59,6 +59,7 @@ internal static class AppRegistry
         new AppInfo("Observatory", "CPU, memory and running programs", _ => new AppLaunchNotice("Install the zenith-observatory package to open Observatory."), "observatory", builtIn: false),
         new AppInfo("Equinox", "Disks and partitions", _ => new AppLaunchNotice("Install the zenith-equinox package to open Equinox."), "equinox", builtIn: false),
         new AppInfo("Horizon", "Files, folders and transfers", _ => new AppLaunchNotice("Install the zenith-horizon package to open Horizon."), "horizon", builtIn: false),
+        new AppInfo("Beacon", "Network connection, traffic and diagnostics", _ => new AppLaunchNotice("Install the zenith-beacon package to open Beacon."), "beacon", builtIn: false),
     };
 
     public const string DescriptorDirectory = "/usr/share/zenith/apps";
@@ -158,6 +159,7 @@ internal static class AppRegistry
         if (title.Contains("Meridian") || title.Contains("Settings")) { return "sliders-horizontal"; }
         if (title.Contains("Observatory")) { return "activity"; }
         if (title.Contains("Equinox")) { return "hard-drive"; }
+        if (title.Contains("Beacon")) { return "network"; }
         return "app-window";
     }
 

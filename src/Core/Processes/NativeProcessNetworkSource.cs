@@ -17,6 +17,7 @@ internal sealed class NativeProcessNetworkSource : IProcessNetworkSource
     public long Echo(string host) => NetworkService.Ping(host, _cancel);
     public IProcessConnection Connect(string host, int port, bool secure) => NetworkService.OpenClient(host, port, secure, _cancel);
     public IProcessDownload Download(string path, bool replace, int maximum) => new DownloadSink(path, replace, maximum, _cancel);
+    public void ThrowIfCancelled() => _cancel();
 
     private sealed class DownloadSink : IProcessDownload
     {

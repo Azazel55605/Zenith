@@ -2,6 +2,7 @@
 #define ZENITH_MERIDIAN_H
 #include "app.h"
 #include "../include/zenith_audio.h"
+#include "../include/zenith_network.h"
 #include "bindings.h"
 #include "navigation.h"
 #include "../include/zenith_system_settings.h"
@@ -19,6 +20,10 @@ struct meridian {
     int audio_error;
     const char *audio_message;
     unsigned long audio_drawn[16];
+    /* Network (call 667, kernel 0.0.69): unset in host tests and older kernels, where the page shows the text summary. */
+    long (*network)(unsigned int op,unsigned int value,void *output,unsigned int capacity,const void *input,unsigned int bytes);
+    struct zenith_network_status net; int net_ok,net_mode,net_field,net_edited,net_locked,net_busy;
+    char net_text[4][40]; struct zui_input net_inputs[4]; struct zui_rect net_rects[4]; char net_message[200];
 
     struct settings_app colors;
     struct meridian_bindings bindings;
@@ -52,6 +57,7 @@ void meridian_draw(struct meridian *app);
 void meridian_event(struct meridian *app,const struct zenith_gui_event *event);
 void meridian_system_services(struct meridian *app,long (*read)(struct zenith_system_settings *),long (*save)(unsigned int,unsigned int,unsigned long));
 void meridian_information_services(struct meridian *app,long (*read)(unsigned int,struct zenith_settings_information *));
+void meridian_network_services(struct meridian *app,long (*call)(unsigned int,unsigned int,void *,unsigned int,const void *,unsigned int));
 void meridian_audio_services(struct meridian *app,long (*read)(struct zenith_audio *),long (*control)(const struct zenith_audio_control *));
 void meridian_refresh(struct meridian *app);
 int meridian_open(struct meridian *app,const char *id);

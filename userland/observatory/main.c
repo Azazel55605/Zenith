@@ -8,6 +8,7 @@
 #include "../ui/text.h"
 #include "../include/zenith_settings.h"
 #include "../include/zenith_monitor.h"
+#include "../include/zenith_network.h"
 
 #define MAX_W ZUI_MAX_WIDTH
 #define MAX_H ZUI_MAX_HEIGHT
@@ -125,6 +126,18 @@ static void rescale(void){
 }
 static unsigned long previous_uptime;
 /* Polled four times a second; redraws only when a new sample or a changed program list arrived. */
+/* The network center (call 667, kernel 0.0.69): connection details and the programs using the network. */
+static struct zenith_network_status netc;static struct zenith_network_programs netp;static int have_center;
+static void refresh_center(void){
+    struct zenith_network_status s;
+    int ok=zenith_network(Z_NET_STATUS,0,&s,sizeof(s),0,0)==(long)sizeof(s)&&s.version==1;
+    struct zenith_network_programs p={0};
+    if(ok&&zenith_network(Z_NET_PROGRAMS,0,&p,sizeof(p),0,0)!=(long)sizeof(p))p.count=0;
+    if(p.count>16)p.count=0;
+    if(ok!=have_center||(ok&&(s.state!=netc.state||s.connected_seconds/60!=netc.connected_seconds/60||p.count!=netp.count)))ui.dirty=1;
+    for(unsigned int i=0;ok&&i<p.count;i++)if(p.programs[i].received!=netp.programs[i].received||p.programs[i].sent!=netp.programs[i].sent)ui.dirty=1;
+    have_center=ok;if(ok){netc=s;netp=p;}
+}
 static void refresh(void){
     have_monitor=zenith_monitor_read(&monitor)==0&&monitor.version==1&&monitor.samples<=Z_MONITOR_HISTORY;
     int had=have_processes;
@@ -150,6 +163,7 @@ static void refresh(void){
         previous_uptime=sample_time;changed=1;
         if(frame_clock>=0)sampled_at=frame_clock-(long)monitor.sample_age_ms;
     }
+    refresh_center();
     if(changed)ui.dirty=1;
 }
 static int busy_cores(void){int n=0;for(unsigned int i=0;i<monitor.cpus&&i<8;i++)if(monitor.latest.cpu[i]!=Z_MONITOR_OFFLINE&&monitor.latest.cpu[i]>=50)n++;return n;}
@@ -271,6 +285,7 @@ static int legend(int x,int y,unsigned int color,const char *label){
     text(x+16,y,label,&zui_caption,ui.theme.secondary);
     return x+16+zui_measure(label,length(label),&zui_caption)+18;
 }
+static const struct zenith_process_entry *find_process(int pid);
 static void draw_performance(struct zui_rect c){
     if(!have_monitor){
         text(c.x+24,c.y+24,"This system does not report performance.",&zui_label,ui.theme.text);
@@ -317,7 +332,10 @@ static void draw_performance(struct zui_rect c){
     else put(o,"Frames the desktop composed");
     text(mx,my,card_titles[card],&zui_heading,ui.theme.text);
     text(mx+zui_measure(card_titles[card],length(card_titles[card]),&zui_heading)+14,my+10,sub,&zui_caption,ui.theme.secondary);
-    int stats_h=compact?100:118,cores=card==CARD_CPU&&monitor.cpus>1?(int)monitor.cpus:0,cores_h=cores?(compact?64:92):0;
+    /* The network gains a row of connection details and, while programs use it, a list of them. */
+    int programs=card==CARD_NETWORK&&have_center?(int)(netp.count>4?4:netp.count):0;
+    int extra=card==CARD_NETWORK&&have_center?48+(programs?30+programs*24:0):0;
+    int stats_h=(compact?100:118)+extra,cores=card==CARD_CPU&&monitor.cpus>1?(int)monitor.cpus:0,cores_h=cores?(compact?64:92):0;
     int legend_h=card==CARD_DISK||card==CARD_NETWORK?22:0;
     int gy=my+44,gh=bottom-gy-stats_h-cores_h-(cores?12:0)-legend_h;
     if(gh<60)gh=60;
@@ -389,6 +407,29 @@ static void draw_performance(struct zui_rect c){
         else put(f,"-");
         stat(mx,sy,"Receive",a);stat(mx+col,sy,"Send",b);stat(mx+2*col,sy,"IPv4 address",cc);
         stat(mx,sy+48,"Received since boot",d);stat(mx+col,sy+48,"Sent since boot",e);stat(mx+2*col,sy+48,"Hardware address",f);
+        if(have_center){
+            const char *words=netc.state==Z_NET_ONLINE?"Online":netc.state==Z_NET_NO_ADAPTER?"No adapter":netc.state==Z_NET_CABLE_OUT?"Cable out":
+                netc.state==Z_NET_CONNECTING?"Connecting":netc.state==Z_NET_OFF?(netc.mode==2?"Turned off":"Disconnected"):"Not connected";
+            o=put(a,words);if(netc.state==Z_NET_ONLINE&&netc.connected_seconds>=0){o=put(o," for ");duration_text(o,(unsigned long)netc.connected_seconds*1000);}
+            if(netc.gateway[0]|netc.gateway[1]|netc.gateway[2]|netc.gateway[3])address_text(b,netc.gateway);else put(b,"None");
+            o=cc;*o=0;for(unsigned int i=0;i<netc.dns_count&&i<2;i++){if(i)o=put(o,", ");o=address_text(o,netc.dns[i]);}if(!netc.dns_count)put(cc,"None");
+            stat(mx,sy+96,netc.mode==1?"Connection (manual)":"Connection (DHCP)",a);stat(mx+col,sy+96,"Gateway",b);stat(mx+2*col,sy+96,"DNS",cc);
+            if(programs){
+                int py=sy+150;
+                text(mx,py,"Programs using the network",&zui_label,ui.theme.text);py+=26;
+                for(int i=0;i<programs;i++){
+                    const struct zenith_network_program *g=&netp.programs[i];
+                    const struct zenith_process_entry *pe=find_process(g->pid);
+                    char who[64];o=put(who,pe?pe->name:"Program");o=put(o," (PID ");o=num(o,(unsigned long)g->pid);put(o,")");
+                    text(mx,py,who,&zui_body,ui.theme.text);
+                    char what[64];o=what;if(g->connections){o=put(o,g->peer[0]?g->peer:"connected");}else put(o,"idle");
+                    text(mx+col,py,what,&zui_caption,ui.theme.secondary);
+                    char moved[64];o=put(moved,"in ");o=bytes_text(o,(unsigned long)g->received);o=put(o,", out ");bytes_text(o,(unsigned long)g->sent);
+                    text_right(mx+mw,py,moved,&zui_caption,ui.theme.secondary);
+                    py+=24;
+                }
+            }
+        }
     }else{
         o=num(a,monitor.frames_per_second);put(o," fps");
         o=num(b,monitor.frame_average_us/1000);*o++='.';o=num(o,monitor.frame_average_us%1000/100);put(o," ms");
@@ -695,6 +736,8 @@ static int probe(void){
     for(unsigned int i=0;i<activity.disk_count;i++){o=put(line,"OBSERVATORY_DISK ");o=put(o,activity.disks[i].name);o=put(o," read=");o=num(o,activity.disks[i].read);o=put(o," written=");o=num(o,activity.disks[i].written);put(o,"\n");print(line);}
     for(unsigned int i=0;i<activity.network_count;i++){const struct zenith_activity_network *n=&activity.networks[i];
         o=put(line,"OBSERVATORY_NETWORK ");o=put(o,n->name);o=put(o," received=");o=num(o,n->received);o=put(o," sent=");o=num(o,n->sent);o=put(o," flags=");o=num(o,n->flags);o=put(o," address=");o=address_text(o,n->address);put(o,"\n");print(line);}
+    refresh_center();
+    if(have_center){o=put(line,"OBSERVATORY_CONNECTION state=");o=num(o,netc.state);o=put(o," gateway=");o=address_text(o,netc.gateway);o=put(o," programs=");o=num(o,netp.count);put(o,"\n");print(line);}
     for(unsigned int i=0;i<activity.window_count;i++){o=put(line,"OBSERVATORY_WINDOW pid=");o=num(o,(unsigned long)activity.windows[i].pid);o=put(o," ");o=put(o,activity.windows[i].title);put(o,"\n");print(line);}
     return 0;
 }

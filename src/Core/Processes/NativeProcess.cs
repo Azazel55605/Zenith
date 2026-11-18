@@ -388,6 +388,95 @@ internal sealed unsafe class NativeProcess
                 if (c.Arg0 == c.Pid) { return -22; }
                 return Processes.RequestStop((int)c.Arg0, (uint)c.Uid);
             }
+            // Beacon and the network sections (kernel 0.0.69): status, traffic history, events, diagnostics, ping,
+            // safe apply, connect/disconnect and the programs using the network. Request: 64 bytes (zenith_network.h).
+            if (c.Call == 667)
+            {
+                if (c.Arg1 != 64 || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, 64, false)) { return -14; }
+                byte[] q = ReadUser(c.Arg0, 64);
+                uint version = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(q), op = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(q.AsSpan(4));
+                ulong output = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(q.AsSpan(8)), input = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(q.AsSpan(24));
+                uint capacity = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(q.AsSpan(16)), value = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(q.AsSpan(20));
+                uint inputBytes = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(q.AsSpan(32));
+                for (int i = 36; i < 64; i++) { if (q[i] != 0) { return -22; } }
+                if (version != 1 || capacity > 16384 || inputBytes > 256) { return -22; }
+                if ((capacity > 0 && !Valid(output, (int)capacity, true)) || (inputBytes > 0 && !Valid(input, (int)inputBytes, false))) { return -14; }
+                byte[] given = inputBytes > 0 ? ReadUser(input, (int)inputBytes) : Array.Empty<byte>();
+                Action stop = network.ThrowIfCancelled;
+                byte[] Reply(byte[] data) => data;
+                long Send(byte[] data) { if (data.Length > capacity) { return -34; } Transfer(output, data, true); return data.Length; }
+                // One catch clause decides by type: Cosmos's handler matching confused IOException with
+                // UnauthorizedAccessException in sibling catch clauses (a refused gateway came back as -13).
+                long Failure(Exception e) => e is UnauthorizedAccessException ? -13 : e is ArgumentException ? -22 : Message(-5, e.Message);
+                long Message(long code, string text)
+                {
+                    byte[] t = Encoding.UTF8.GetBytes(text.Length > 240 ? text[..240] : text);
+                    if (capacity >= t.Length + 1) { var buffer = new byte[t.Length + 1]; t.CopyTo(buffer, 0); Transfer(output, buffer, true); }
+                    return code;
+                }
+                try
+                {
+                    switch (op)
+                    {
+                        case 1: return Send(Zenith.Core.Network.NetworkCenter.Status());
+                        case 2: return value > 3 ? -22 : Send(Zenith.Core.Network.NetworkCenter.History.Encode((int)value));
+                        case 3: return Send(Zenith.Core.Network.NetworkCenter.History.EncodeEvents());
+                        case 4: return value is < 1 or > 6 ? -22 : Send(Zenith.Core.Network.NetworkCenter.Check((int)value, stop));
+                        case 5:
+                        {
+                            string host = Encoding.UTF8.GetString(given);
+                            if (host.Length is < 1 or > 253 || host.Contains('\0') || host.Contains(' ')) { return -22; }
+                            try { return Zenith.Core.Network.NetworkService.Ping(host, stop); }
+                            catch (Exception e) { if (e is OperationCanceledException) { throw; } return Failure(e); }
+                        }
+                        case 6:
+                        {
+                            if (given.Length != 48 || System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(given) != 1) { return -22; }
+                            uint mode = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(given.AsSpan(4));
+                            string Ip(int at) => given[at] + "." + given[at + 1] + "." + given[at + 2] + "." + given[at + 3];
+                            if (mode > 2) { return -22; }
+                            var next = Zenith.Core.Network.NetworkService.Configuration with
+                            {
+                                Mode = mode == 0 ? "dhcp" : mode == 1 ? "static" : "off",
+                                Address = mode == 1 ? Ip(8) : "0.0.0.0", Mask = mode == 1 ? Ip(12) : "0.0.0.0",
+                                Gateway = mode == 1 ? Ip(16) : "0.0.0.0", Dns = mode == 1 ? Ip(20) : "0.0.0.0",
+                            };
+                            try { Zenith.Core.Network.NetworkCenter.Apply(next, stop); return Message(0, "applied"); }
+                            catch (Exception e) { if (e is OperationCanceledException) { throw; } return Failure(e); }
+                        }
+                        case 7:
+                            try
+                            {
+                                if (value == 0) { Zenith.Core.Network.NetworkService.Disconnect(); }
+                                else { Zenith.Core.Network.NetworkService.Apply(stop); }
+                                return Message(0, value == 0 ? "disconnected" : "connected");
+                            }
+                            catch (Exception e) { if (e is OperationCanceledException) { throw; } return Failure(e); }
+                        case 8:
+                        {
+                            var visible = new System.Collections.Generic.HashSet<int>();
+                            foreach (var p in Processes.List((uint)c.Uid)) { visible.Add(p.Pid); }
+                            var data = new byte[16 + 16 * 64]; int n = 0;
+                            foreach (var u in ProcessNetwork.Programs())
+                            {
+                                if (n >= 16 || (c.Uid != 0 && !visible.Contains(u.Pid))) { continue; }
+                                var slot = data.AsSpan(16 + n * 64, 64);
+                                System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(slot, u.Pid);
+                                System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(slot[4..], (uint)u.Connections);
+                                System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(slot[8..], u.Received);
+                                System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(slot[16..], u.Sent);
+                                byte[] peer = Encoding.ASCII.GetBytes(u.Peer.Length > 39 ? u.Peer[..39] : u.Peer); peer.CopyTo(slot[24..]);
+                                n++;
+                            }
+                            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(data, 1); System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(4), (uint)n);
+                            return Send(Reply(data));
+                        }
+                        default: return -22;
+                    }
+                }
+                catch (Exception e) { if (e is OperationCanceledException) { throw; } return Failure(e); }
+            }
             // Observatory: disks, network and the windows of the caller's programs (and the desktop's).
             if (c.Call == 649)
             {
@@ -859,7 +948,7 @@ internal sealed unsafe class NativeProcess
             regions[region] = new() { Start = stackBase, End = ProcessArguments.Top };
             process._ranges.Add(new(stackBase, ProcessArguments.Top, true));
             files = new ProcessFiles(new NativeProcessFiles(), cwd, input, streams);
-            network = new ProcessNetwork(new NativeProcessNetworkSource(() => { if (cancelled()) { throw new OperationCanceledException(); } }));
+            network = new ProcessNetwork(new NativeProcessNetworkSource(() => { if (cancelled()) { throw new OperationCanceledException(); } }), pid);
             graphics = NativeProcessGraphics.Create(identity.Uid);
             // The current managed call stack is suspended while the CPU runs the
             // freestanding image. Keep its owner and allocations explicitly rooted.
@@ -908,7 +997,7 @@ internal sealed unsafe class NativeProcess
                     if (status == DeviceInterruptYield) { continue; }
                     if (status != 4096) { break; }
                     if (cancelled()) { status = 130; break; }
-                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615 or 628 or 629 or >= 630 and <= 639 or 645 or 646 or 659 or >= 661 and <= 666) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
+                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615 or 628 or 629 or >= 630 and <= 639 or 645 or 646 or 659 or >= 661 and <= 667) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
                     // A portal grant serves that area's calls as root for this process alone (uid 0 in the
                     // context too, which those handlers read); every other call keeps the program's identity.
                     bool elevated = Zenith.Core.Portal.ProcessPrivileges.Elevates(pid, context.Call, context.Arg0);
@@ -917,7 +1006,7 @@ internal sealed unsafe class NativeProcess
                     var caller = Zenith.Core.Security.CredentialContext.Enter(elevated ? Zenith.Core.Security.Credentials.Root : identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
                     // while waiting for a peer. Mutations and transport setup stay serialized.
-                    bool standard = context.Call is >= 661 and <= 666 or 642 or 643 or 644 or 649 or 651 or 653 or 657 or 658 or 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 639 or 645 or 646 or 659 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    bool standard = context.Call is >= 661 and <= 667 or 642 or 643 or 644 or 649 or 651 or 653 or 657 or 658 or 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 639 or 645 or 646 or 659 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {

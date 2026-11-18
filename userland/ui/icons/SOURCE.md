@@ -22,3 +22,8 @@ Horizon uses `house`, `download`, `folder`, `hard-drive` (places and devices), `
 
 Sunset uses `lock`, `log-out`, `rotate-ccw` and `power` (its four actions), `user` (who is
 signed in), `triangle-alert`, `file`, `terminal`, `check` and `x`.
+
+Beacon uses `shield` (VPN) and `activity` (Traffic) from here, `clock` for History, and ships `cable` (Wired),
+`wifi-off` (no Wi-Fi adapter) and `stethoscope` (Diagnostics) in its own package (`userland/beacon/icons`, the same
+tag): `zenith-icons` is at the package limit of 64 files. The taskbar's network and sound centers use `network` and
+`volume-2` (a strike marks muted).

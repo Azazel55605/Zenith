@@ -96,6 +96,22 @@ public sealed class FileJobTests : IDisposable
     }
 
     [Fact]
+    public void CopiesKeepPermissionsAndAReadOnlyFolderStillGetsItsFiles()
+    {
+        Write("a/run.sh", "#!/bin/sh\n"); Write("a/secret.txt", "s"); Write("a/locked/inside.txt", "in"); Directory.CreateDirectory(P("dest"));
+        File.SetUnixFileMode(P("a/run.sh"), (UnixFileMode)0x1ed);        // 0755
+        File.SetUnixFileMode(P("a/secret.txt"), (UnixFileMode)0x180);    // 0600
+        File.SetUnixFileMode(P("a/locked"), (UnixFileMode)0x16d);        // 0555
+        var s = Run(FileJobOperation.Copy, P("dest"), new[] { P("a") });
+        Assert.Equal(FileJobState.Done, s.State); Assert.Equal(0, s.Errors);
+        Assert.Equal(0x1ed, (int)File.GetUnixFileMode(P("dest/a/run.sh")));
+        Assert.Equal(0x180, (int)File.GetUnixFileMode(P("dest/a/secret.txt")));
+        Assert.Equal("in", File.ReadAllText(P("dest/a/locked/inside.txt")));
+        Assert.Equal(0x16d, (int)File.GetUnixFileMode(P("dest/a/locked")));
+        File.SetUnixFileMode(P("a/locked"), (UnixFileMode)0x1ed); File.SetUnixFileMode(P("dest/a/locked"), (UnixFileMode)0x1ed);   // cleanup
+    }
+
+    [Fact]
     public void CopyIntoTheSameFolderKeepsBoth()
     {
         Write("plan.md", "x");

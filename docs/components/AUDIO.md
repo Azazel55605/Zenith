@@ -59,8 +59,11 @@ Fresh clean Release acceptance completed on 2026-11-18 at
 
 Release set at the qualified source commit: **kernel/v0.0.68**, **zenith-settings/v0.12.0**,
 **zenith-man-pages/v0.1.8**. Qualification notes may follow in a documentation-only commit.
-Distributor build/sign/publication and installed VMware listening, input pickup
-and real codec/jack behavior remain external acceptance.
+On 2026-11-18, the operator confirmed audible playback with kernel 0.0.68 in
+VMware Workstation. Auto Detect alone initially returned `No supported audio
+device`. Keeping Auto Detect and explicitly setting `sound.virtualDev = "hdaudio"`
+in the powered-off VM's `.vmx` resolved detection and playback. VMware microphone
+capture and other physical hardware remain unverified.
 
 Additional formats, remembered choices, independent routing, extra controllers,
 system sounds and further panels remain subsequent H2 work.

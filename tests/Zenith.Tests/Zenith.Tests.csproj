@@ -67,7 +67,7 @@
     <Compile Include="../../src/Core/Multiprocessing/BoxBlur.cs" LinkBase="Kernel/Multiprocessing" />
     <Compile Include="../../src/Core/Memory/*.cs" LinkBase="Kernel/Memory" />
     <Compile Include="../../src/Core/Files/*.cs" LinkBase="Kernel/Files" />
-    <Compile Include="../../src/Core/Network/*.cs" Exclude="../../src/Core/Network/NetworkService.cs;../../src/Core/Network/TlsConnection.cs" LinkBase="Kernel/Network" />
+    <Compile Include="../../src/Core/Network/*.cs" Exclude="../../src/Core/Network/NetworkService.cs;../../src/Core/Network/NetworkCenter.cs;../../src/Core/Network/TlsConnection.cs" LinkBase="Kernel/Network" />
     <Compile Include="../../src/Core/Network/Transport/*.cs" LinkBase="Kernel/Network/Transport" />
     <Compile Include="../../src/Core/Time/*.cs" LinkBase="Kernel/Time" />
     <Compile Include="../../src/Core/Text/*.cs" LinkBase="Kernel/Text" />

@@ -32,6 +32,16 @@ internal static class NetworkService
     private static string s_state = "not initialized", s_time = "not synchronized (unauthenticated NTP)";
     private static string[] s_dns = Array.Empty<string>();
     public static NetworkConfiguration Configuration { get; private set; } = NetworkConfiguration.Default;
+    // For NetworkCenter (Beacon, call 667).
+    public static bool Online => s_state == "online";
+    public static bool Disconnected { get; private set; }
+    public static bool Busy { get { lock (s_gate) { return s_busy; } } }
+    public static bool LeaseValid => s_expiresAt != 0 && !Expired;
+    public static bool ResolverOverride { get; private set; }
+    public static string[] Resolvers => s_dns;
+    public static string State => s_state;
+    public static long LeaseSeconds => s_expiresAt == 0 ? -1 : Math.Max(0, (s_expiresAt - Stopwatch.GetTimestamp()) / Stopwatch.Frequency);
+    public static long RenewSeconds => s_renewAt == 0 || s_expiresAt == 0 ? -1 : Math.Max(0, (s_renewAt - Stopwatch.GetTimestamp()) / Stopwatch.Frequency);
     public static string Hostname { get; private set; } = "zenith";
     private static NetworkAdapter Adapter => NetworkManager.Primary;
     public static void Initialize()
@@ -45,7 +55,8 @@ internal static class NetworkService
             NetworkText.Resolvers(BoundedFile.ReadText("/etc/resolv.conf", 16384) ?? "");
             NetworkText.LookupHosts(BoundedFile.ReadText("/etc/hosts", 16384) ?? "", "localhost");
         }
-        catch (Exception e) { s_invalidConfiguration = true; s_state = "configuration rejected: " + e.Message; Log.Write("network", s_state); return; }
+        catch (Exception e) { s_invalidConfiguration = true; s_state = "configuration rejected: " + e.Message; Log.Write("network", s_state); NetworkCenter.Start(); return; }
+        NetworkCenter.Start();
         StartBackground();
     }
     private static void StartBackground()
@@ -84,7 +95,8 @@ internal static class NetworkService
         catch { interrupts.Dispose(); throw; }
         int frames = Zenith.Core.Network.Transport.EthernetIngress.Received;
         if (frames != Volatile.Read(ref s_seenFrames)) { lock (s_data) { Volatile.Write(ref s_seenFrames, frames); Monitor.PulseAll(s_data); } Zenith.Core.Processes.WakeSignal.Request(); }
-        if (!s_invalidConfiguration && Configuration.Mode == "dhcp" && s_renewAt != 0 && Stopwatch.GetTimestamp() >= s_renewAt)
+        NetworkCenter.Tick();
+        if (!s_invalidConfiguration && !Disconnected && Configuration.Mode == "dhcp" && s_renewAt != 0 && Stopwatch.GetTimestamp() >= s_renewAt)
         { StartBackground(); }
     }
     private sealed class Operation : IDisposable
@@ -158,7 +170,7 @@ internal static class NetworkService
             NetworkText.Resolvers(BoundedFile.ReadText("/etc/resolv.conf", 16384) ?? "");
             NetworkText.LookupHosts(BoundedFile.ReadText("/etc/hosts", 16384) ?? "", "localhost");
             Configuration = next; Hostname = hostname; DnsConfig.HostName = hostname;
-            s_invalidConfiguration = false; ApplyCore(cancel);
+            s_invalidConfiguration = false; Disconnected = false; ApplyCore(cancel);
         });
     }
     public static void SaveResolvers(string[] servers, Action cancel)
@@ -178,7 +190,14 @@ internal static class NetworkService
     {
         GuardedFilesystem.RequireRoot(); Run(() => { cancel(); configuration.Validate();
         new NativeSettingsStore().Replace(NetworkConfiguration.Path, configuration.Serialize());
-        Configuration = configuration; s_invalidConfiguration = false; ApplyCore(cancel); });
+        Configuration = configuration; s_invalidConfiguration = false; Disconnected = false; ApplyCore(cancel); });
+    }
+    /// <summary>Disconnects until Connect or the next start, without changing the saved settings (Beacon's Disconnect).</summary>
+    public static void Disconnect()
+    {
+        GuardedFilesystem.RequireRoot();
+        Run(() => { Clear(); s_renewAt = 0; Disconnected = true; s_state = "disconnected"; });
+        NetworkCenter.Offline(NetworkEventKind.Disconnected, "Disconnected");
     }
     private static void Clear()
     {
@@ -191,7 +210,7 @@ internal static class NetworkService
         try
         {
             cancel();
-            if (Configuration.Mode == "off") { s_state = "disabled"; return; }
+            if (Configuration.Mode == "off") { s_state = "disabled"; NetworkCenter.Offline(NetworkEventKind.TurnedOff, "Network turned off"); return; }
             if (!Adapter.IsValid || !Adapter.Ready || !Adapter.LinkUp) { throw new IOException("no ready adapter/link"); }
             if (Configuration.Mode == "static")
             {
@@ -239,13 +258,17 @@ internal static class NetworkService
                 s_expiresAt = Stopwatch.GetTimestamp() + duration; s_renewAt = Stopwatch.GetTimestamp() + duration / 2;
             }
             string[] overrides = NetworkText.Resolvers(BoundedFile.ReadText("/etc/resolv.conf", 16384) ?? "");
+            ResolverOverride = overrides.Length > 0;
             if (overrides.Length > 0) { s_dns = overrides; }
             foreach (string dns in s_dns) { DnsConfig.Add(new Address4(NetworkText.Ip(dns))); }
             s_state = "online"; Log.Write("network", "online address=" + Adapter.IPConfig!.Address + " dns=" + string.Join(",", s_dns));
+            NetworkCenter.Online(Adapter.IPConfig!.Address.ToString(), Configuration.Mode == "dhcp");
         }
-        catch
+        catch (Exception e)
         {
             dhcp?.Dispose(); Clear(); s_state = "offline (configuration failed/cancelled)";
+            if (e is not OperationCanceledException)
+                NetworkCenter.Offline(NetworkEventKind.Failed, Configuration.Mode == "dhcp" ? "Could not connect: no DHCP answer" : "Could not connect: " + e.Message);
             if (Configuration.Mode == "dhcp") { s_renewAt = Stopwatch.GetTimestamp() + 30 * Stopwatch.Frequency; }
             throw;
         }
@@ -300,7 +323,12 @@ internal static class NetworkService
         throw new IOException("DNS resolution failed: timeout or rejected reply");
     }
     public static string Resolve(string host, Action cancel, string? server = null, int port = 53)
-    { return Run(() => ResolveCore(host, cancel, server, port)); }
+    {
+        var timer = Stopwatch.StartNew();
+        string result = Run(() => ResolveCore(host, cancel, server, port));
+        if (server is null) { NetworkCenter.DnsTime(timer.ElapsedMilliseconds); }
+        return result;
+    }
     public static long Ping(string host, Action cancel)
     {
         return Run(() => { string ip = ResolveCore(host, cancel); Ready();

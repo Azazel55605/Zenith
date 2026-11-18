@@ -25,6 +25,38 @@ static void refresh_audio(struct meridian *a){
 void meridian_audio_services(struct meridian *a,long (*read)(struct zenith_audio *),long (*control)(const struct zenith_audio_control *)){
     a->audio_read=read;a->audio_control=control;refresh_audio(a);
 }
+/* ---------- Network (Connections page): status and editing through call 667. */
+static int network_page(const struct meridian *a){return a->network&&information_kind(a)==1;}
+static char *net_put(char *o,const char *s){while(*s)*o++=*s++;*o=0;return o;}
+static char *net_num(char *o,unsigned long v){char t[24];int n=0;do{t[n++]=(char)('0'+v%10);v/=10;}while(v);while(n)*o++=t[--n];*o=0;return o;}
+static char *net_ip(char *o,const unsigned char *a){for(int i=0;i<4;i++){o=net_num(o,a[i]);if(i<3)*o++='.';}*o=0;return o;}
+static int net_zero(const unsigned char *a){return !a[0]&&!a[1]&&!a[2]&&!a[3];}
+static int net_prefix(const unsigned char *m){int n=0;for(int i=0;i<4;i++)for(int b=7;b>=0;b--){if(m[i]>>b&1)n++;else return n;}return n;}
+static void net_fields_from_status(struct meridian *a){
+    const struct zenith_network_status *s=&a->net;int manual=s->mode==1;
+    const unsigned char *ad=manual?s->saved_address:s->address,*gw=manual?s->saved_gateway:s->gateway,*dn=manual?s->saved_dns:s->dns[0],*mk=manual?s->saved_mask:s->mask;
+    for(int i=0;i<4;i++)a->net_text[i][0]=0;
+    if(!net_zero(ad))net_ip(a->net_text[0],ad);
+    int p=net_prefix(mk);net_num(a->net_text[1],(unsigned long)(p?p:24));
+    if(!net_zero(gw))net_ip(a->net_text[2],gw);
+    if(!net_zero(dn))net_ip(a->net_text[3],dn);
+    for(int i=0;i<4;i++){zui_input_init(&a->net_inputs[i],a->net_text[i],sizeof(a->net_text[i]));unsigned int n=0;while(a->net_text[i][n])n++;a->net_inputs[i].length=a->net_inputs[i].cursor=n;}
+    a->net_mode=(int)s->mode;a->net_edited=0;
+}
+static void refresh_network(struct meridian *a){
+    if(!network_page(a)||a->net_busy)return;
+    struct zenith_network_status s;long r=a->network(Z_NET_STATUS,0,&s,sizeof(s),0,0);
+    int ok=r==(long)sizeof(s)&&s.version==1;
+    if(!ok){if(a->net_ok)a->ui.dirty=1;a->net_ok=0;return;}
+    int first=!a->net_ok;
+    const unsigned char *x=(const unsigned char *)&a->net,*y=(const unsigned char *)&s;
+    for(unsigned long i=0;i<sizeof(s);i++)if(x[i]!=y[i]){a->ui.dirty=1;break;}
+    a->net=s;a->net_ok=1;
+    if(first||!a->net_edited)net_fields_from_status(a);
+}
+void meridian_network_services(struct meridian *a,long (*call)(unsigned int,unsigned int,void *,unsigned int,const void *,unsigned int)){
+    a->network=call;a->net_field=-1;refresh_network(a);
+}
 static void refresh_information(struct meridian *a){
     unsigned int kind=information_kind(a);if(!kind||!a->information_read)return;
     struct zenith_settings_information state;long r=a->information_read(kind,&state);
@@ -66,7 +98,7 @@ static void adopt(struct meridian *a,const struct meridian_nav *next){
     if(a->nav.mode!=NAV_SEARCH&&a->query[0]){a->query[0]=0;zui_input_init(&a->search,a->query,sizeof(a->query));}
     if(changed){
         zui_scroll_jump(&a->page_scroll,0);a->combo.open=a->scale_combo.open=0;a->ui.focus=a->ui.pressed=-1;
-        remember(a,a->page);refresh_information(a);refresh_audio(a);
+        remember(a,a->page);refresh_information(a);refresh_audio(a);a->net_ok=0;a->net_message[0]=0;a->net_field=-1;refresh_network(a);
     }
     a->ui.dirty=1;
 }
@@ -121,7 +153,7 @@ static void unlock_row(struct meridian *a,struct zui *u,struct zui_form *f){
     f->y+=46;
 }
 void meridian_refresh(struct meridian *a){
-    poll_unlock(a);refresh_audio(a);
+    poll_unlock(a);refresh_audio(a);refresh_network(a);
     unsigned long rev=a->colors.state.revision,res=a->colors.state.resources,pref=a->bindings.preferences.revision;unsigned int flags=a->colors.state.flags;
     int ready=a->bindings.ready;
     unsigned long display_revision=a->bindings.display.revision;unsigned int seconds=a->bindings.display.seconds;
@@ -161,7 +193,8 @@ static const char *wip_note(const struct meridian *a,int kind){
     if(kind==BIND_LAUNCHER)return "Prism: Meta or Alt+Space always opens the search palette. Work in progress: file indexing, more providers, pinned applications and a custom shortcut.";
     if(a->page==0)return "Work in progress: scheduled mode and persistent history.";
     if(a->page==MERIDIAN_ABOUT)return "Work in progress: hardware inventory is planned.";
-    if(information_kind(a)==1)return "Work in progress: connection editing and profiles.";
+    if(network_page(a))return "The wired connection, live. Beacon shows its traffic history and diagnostics. Work in progress: several profiles, priorities and link negotiation; Wi-Fi and VPN need drivers and services Zenith does not have yet.";
+    if(information_kind(a)==1)return "This kernel reports the network as text only. Zenith 0.0.69 adds editing here and in Beacon.";
     if(information_kind(a)==2)return "Work in progress: account creation, deletion and passwords.";
     return "Work in progress: this page needs additional system services. Nothing here can be changed yet.";
 }
@@ -273,6 +306,102 @@ static void lines_form(struct zui *u,struct zui_form *f,const char *s){
         f->y+=22;s+=n;if(*s)s++;
     }
 }
+static void net_row(struct zui *u,struct zui_form *f,const char *label,const char *value){
+    text(u,f->x,f->y+2,label,&zui_caption,u->theme.secondary);
+    text(u,f->x+(f->narrow?110:f->label_w),f->y,value,&zui_body,u->theme.text);f->y+=28;
+}
+static void network_form(struct meridian *a,struct zui *u,struct zui_form *f){
+    if(!a->net_ok){status(u,f,"The network service did not answer.");return;}
+    const struct zenith_network_status *s=&a->net;char t[160],*o;
+    zui_form_section(u,f,"Connection");
+    const char *words=s->state==Z_NET_ONLINE?"Connected":s->state==Z_NET_NO_ADAPTER?"No network adapter":s->state==Z_NET_CABLE_OUT?"The cable is out":
+        s->state==Z_NET_CONNECTING?"Connecting...":s->state==Z_NET_OFF?(s->mode==2?"Turned off":"Disconnected"):"Not connected";
+    o=net_put(t,words);if(s->state==Z_NET_ONLINE){o=net_put(o," \xc2\xb7 wired \xc2\xb7 ");net_put(o,s->mode==1?"manual":"DHCP");}
+    net_row(u,f,"State",t);
+    o=net_ip(t,s->address);if(!net_zero(s->mask)){o=net_put(o," / ");net_num(o,(unsigned long)net_prefix(s->mask));}
+    net_row(u,f,"Address",net_zero(s->address)?"none":t);
+    net_ip(t,s->gateway);net_row(u,f,"Gateway",net_zero(s->gateway)?"none":t);
+    o=t;*o=0;for(unsigned int i=0;i<s->dns_count&&i<4;i++){if(i)o=net_put(o,", ");o=net_ip(o,s->dns[i]);}
+    net_row(u,f,"DNS servers",s->dns_count?t:"none");
+    o=t;for(int i=0;i<6;i++){const char *hex="0123456789abcdef";*o++=hex[s->mac[i]>>4];*o++=hex[s->mac[i]&15];if(i<5)*o++=':';}*o=0;
+    net_row(u,f,"Hardware",s->state==Z_NET_NO_ADAPTER?"none":t);
+    if(s->mode==0&&s->renew_seconds>=0){o=net_put(t,"renews in ");unsigned long m=(unsigned long)s->renew_seconds/60;if(m>=60){o=net_num(o,m/60);o=net_put(o," h ");}o=net_num(o,m%60);net_put(o," min");net_row(u,f,"Lease",t);}
+    o=net_put(t,"received ");{unsigned long b=s->received;const char *unit=b>=1000000000?" GB":b>=1000000?" MB":b>=1000?" KB":" B";unsigned long d=b>=1000000000?1000000000:b>=1000000?1000000:b>=1000?1000:1;o=net_num(o,b/d);o=net_put(o,unit);}
+    o=net_put(o,", sent ");{unsigned long b=s->sent;const char *unit=b>=1000000000?" GB":b>=1000000?" MB":b>=1000?" KB":" B";unsigned long d=b>=1000000000?1000000000:b>=1000000?1000000:b>=1000?1000:1;o=net_num(o,b/d);net_put(o,unit);}
+    net_row(u,f,"Traffic",t);
+    int on=s->state==Z_NET_ONLINE||s->state==Z_NET_CONNECTING||s->state==Z_NET_FAILED||s->state==Z_NET_CABLE_OUT;
+    zui_add(u,7021,ZUI_BUTTON,(struct zui_rect){f->x,f->y,140,34},on?"Disconnect":"Connect",0,s->state!=Z_NET_NO_ADAPTER&&!a->net_busy&&!(s->mode==2&&!on));f->y+=46;
+    zui_form_section(u,f,"IPv4 settings");
+    int w=f->narrow?f->w:f->w-f->label_w;if(w>420)w=420;int x=f->narrow?f->x:f->x+f->label_w;
+    text(u,f->x,f->y+8,"Configure",&zui_body,u->theme.text);
+    zui_segment_track(u,(struct zui_rect){x,f->y,w,32});
+    static const char *modes[3]={"Automatic","Manual","Off"};
+    for(int i=0;i<3;i++)zui_add(u,7000+i,ZUI_SEGMENT,(struct zui_rect){x+i*w/3,f->y,w/3,32},modes[i],a->net_mode==i,!a->net_busy);
+    f->y+=44;
+    for(int i=0;i<4;i++)a->net_rects[i]=(struct zui_rect){0,0,0,0};
+    if(a->net_mode==1){
+        static const char *labels[4]={"Address","Prefix length","Gateway","DNS server"};
+        for(int i=0;i<4;i++){
+            text(u,f->x,f->y+8,labels[i],&zui_body,u->theme.text);
+            struct zui_rect r={x,f->y,i==1?80:w,34};a->net_rects[i]=r;
+            zui_round(u,r,8,u->theme.surface);zui_round_outline(u,r,8,a->net_field==i?u->theme.accent:u->theme.border);
+            zui_input_draw(u,(struct zui_rect){r.x+8,r.y+1,r.w-12,r.h-2},&a->net_inputs[i],a->net_field==i);
+            f->y+=44;
+        }
+    }else{
+        status(u,f,a->net_mode==0?"The address, gateway and DNS server come from the network (DHCP).":"No address: the computer stays offline until this changes.");
+    }
+    zui_add(u,7020,ZUI_BUTTON,(struct zui_rect){x,f->y,120,34},a->net_busy?"Applying...":"Apply",1,a->net_edited&&!a->net_busy);
+    f->y+=44;
+    status(u,f,a->net_message[0]?a->net_message:"Applying keeps the old settings until the new ones connect.");
+    if(a->net_locked)unlock_row(a,u,f);
+}
+static int parse_ipv4(const char *s,unsigned char *out){
+    unsigned long part=0;int parts=0,digits=0;
+    for(;;s++){
+        if(*s>='0'&&*s<='9'){part=part*10+(unsigned long)(*s-'0');if(++digits>3||part>255)return 0;continue;}
+        if(*s=='.'||!*s){if(!digits||parts>3)return 0;out[parts++]=(unsigned char)part;part=0;digits=0;if(!*s)break;continue;}
+        return 0;
+    }
+    return parts==4;
+}
+static void copy_message(char *o,const char *s,unsigned long n){unsigned long i=0;for(;i+1<n&&s[i];i++)o[i]=s[i];o[i]=0;}
+static void network_action(struct meridian *a,int id){
+    if(!network_page(a))return;
+    if(id>=7000&&id<=7002){if(a->net_mode!=id-7000){a->net_mode=id-7000;a->net_edited=1;a->net_field=a->net_mode==1?0:-1;}a->ui.dirty=1;return;}
+    char message[200]={0};long r;
+    if(id==7020){
+        struct zenith_network_settings p={0};p.version=1;p.mode=(unsigned int)a->net_mode;
+        if(a->net_mode==1){
+            unsigned long prefix=0;for(const char *c=a->net_text[1];*c;c++){if(*c<'0'||*c>'9'){prefix=99;break;}prefix=prefix*10+(unsigned long)(*c-'0');}
+            if(!parse_ipv4(a->net_text[0],p.address)){copy_message(a->net_message,"The address is not a valid IPv4 address, such as 192.168.1.20.",sizeof(a->net_message));a->ui.dirty=1;return;}
+            if(prefix<8||prefix>30){copy_message(a->net_message,"The prefix length is a number from 8 to 30 (24 is 255.255.255.0).",sizeof(a->net_message));a->ui.dirty=1;return;}
+            unsigned long mask=0xFFFFFFFFul<<(32-prefix)&0xFFFFFFFFul;for(int i=0;i<4;i++)p.mask[i]=(unsigned char)(mask>>(24-8*i));
+            if(a->net_text[2][0]&&!parse_ipv4(a->net_text[2],p.gateway)){copy_message(a->net_message,"The gateway is not a valid IPv4 address.",sizeof(a->net_message));a->ui.dirty=1;return;}
+            if(a->net_text[3][0]&&!parse_ipv4(a->net_text[3],p.dns)){copy_message(a->net_message,"The DNS server is not a valid IPv4 address.",sizeof(a->net_message));a->ui.dirty=1;return;}
+        }
+        a->net_busy=1;r=a->network(Z_NET_APPLY,0,message,sizeof(message),&p,sizeof(p));a->net_busy=0;
+    }else if(id==7021){
+        int on=a->net.state==Z_NET_ONLINE||a->net.state==Z_NET_CONNECTING||a->net.state==Z_NET_FAILED||a->net.state==Z_NET_CABLE_OUT;
+        a->net_busy=1;r=a->network(Z_NET_CONNECT,on?0u:1u,message,sizeof(message),0,0);a->net_busy=0;
+    }else return;
+    message[sizeof(message)-1]=0;
+    if(r==-13){a->net_locked=1;copy_message(a->net_message,"Changing the network needs an administrator. Unlock, then try again.",sizeof(a->net_message));}
+    else if(r==0){a->net_locked=0;a->net_edited=0;copy_message(a->net_message,id==7020?"The new settings are active.":"Done.",sizeof(a->net_message));}
+    else copy_message(a->net_message,message[0]?message:"That did not work.",sizeof(a->net_message));
+    /* After a success the fields show the new state; after a refusal they keep what the person typed. */
+    if(r==0)a->net_ok=0;
+    refresh_network(a);a->ui.dirty=1;
+}
+/* Keys for a focused field; 1 when used. Tab moves between fields, Enter applies, Esc leaves the field. */
+static int network_keys(struct meridian *a,const struct zenith_gui_event *e){
+    if(!network_page(a)||a->net_mode!=1||a->net_field<0||e->type!=Z_GUI_KEY)return 0;
+    if(e->extra==1){a->net_field=-1;a->ui.dirty=1;return 1;}
+    if(e->extra==2){network_action(a,7020);return 1;}
+    if(e->extra==4){a->net_field=(a->net_field+((e->modifiers&1)?3:1))%4;a->ui.dirty=1;return 1;}
+    if(zui_input_event(&a->net_inputs[a->net_field],e)){a->net_edited=1;a->net_message[0]=0;a->ui.dirty=1;return 1;}
+    return 0;
+}
 static void link_row(struct zui *u,struct zui_form *f,int page,const char *label){
     zui_add(u,ID_LINKS+page,ZUI_NAVIGATION,(struct zui_rect){f->x,f->y,f->w,36},label,0,1);f->y+=42;
 }
@@ -376,6 +505,7 @@ static void draw_page(struct meridian *a,struct zui *u,struct zui_rect c){
     else if(kind!=BIND_NONE)preference_form(a,u,&f,kind);
     else if(audio_page(a))audio_form(a,u,&f);
     else if(a->page==0)overview_form(a,u,&f);
+    else if(network_page(a))network_form(a,u,&f);
     else if(information_kind(a))lines_form(u,&f,a->information_read&&a->public_kind==information_kind(a)&&!a->public_error?a->public_information:"Information service unavailable.");
     else if(a->page==MERIDIAN_ABOUT&&a->information[0])lines_form(u,&f,a->information);
     else planned_form(a,u,&f);
@@ -520,6 +650,8 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     if(e->type==Z_GUI_KEY&&e->modifiers==2&&(e->code=='f'||e->code=='F')){
         a->search_focus=1;u->dirty=1;return;
     }
+    if(network_keys(a,e)){sync_theme(a);return;}
+    if(e->type==Z_GUI_DOWN&&network_page(a)){int was=a->net_field;a->net_field=-1;for(int i=0;i<4;i++){struct zui_rect r=a->net_rects[i];if(r.w&&e->x>=r.x&&e->y>=r.y&&e->x<r.x+r.w&&e->y<r.y+r.h)a->net_field=i;}if(was!=a->net_field)u->dirty=1;}
     if(a->search_focus&&e->type==Z_GUI_KEY&&e->extra!=4){
         if(e->extra==1)clear_search(a);
         else if(e->extra==2){a->search_focus=0;if(a->nav.mode==NAV_SEARCH&&a->nav.result_count)request_row(a,1);}
@@ -548,6 +680,7 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     int id=zui_event(u,e);
     if(id==ID_UNLOCK){unlock(a);u->dirty=1;sync_theme(a);return;}
     if(id>=5000&&id<6128)audio_action(a,id);
+    if(id>=7000&&id<=7021)network_action(a,id);
     else if(id==ID_SEARCH){a->search_focus=1;u->dirty=1;}
     else if(id==ID_FOOTER+ZUI_FOOTER_APPLY)binding_apply(&a->bindings,kind);
     else if(id==ID_FOOTER+ZUI_FOOTER_RESET)binding_reset(&a->bindings,kind);

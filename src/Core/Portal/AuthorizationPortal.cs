@@ -35,7 +35,8 @@ internal sealed class AuthorizationPortal : IPortalInterface
         _isAdministrator = isAdministrator; _rootUnlocked = rootUnlocked; _name = name;
         Add(new("org.zenith.audio.record", "record audio from the microphone", "Read the selected audio input until the program closes or releases permission. Recording appears in Meridian Sound.", Privilege.AudioRecord));
         Add(new("org.zenith.disks.manage", "manage disks and drives", "Partition, format, mount and unmount drives, and choose what mounts at startup.", Privilege.Disks));
-        Add(new("org.zenith.settings.system", "change settings for all users", "Keyboard layout, time zone, default session, display and the system appearance.", Privilege.SystemSettings));
+        Add(new("org.zenith.settings.system", "change settings for all users", "Keyboard layout, time zone, default session, display, the network connection and the system appearance.", Privilege.SystemSettings | Privilege.Network));
+        Add(new("org.zenith.network.manage", "change the network connection", "Connect and disconnect, and change the address, gateway and DNS servers, until the program closes.", Privilege.Network));
         Add(new("org.zenith.files.manage", "change files and folders that are not yours", "List, copy, move, rename and delete files and change permissions anywhere on this computer, until the program closes.", Privilege.Files));
     }
 

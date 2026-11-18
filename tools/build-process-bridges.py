@@ -6,8 +6,8 @@ from pathlib import Path
 import re
 ROOT=Path(__file__).resolve().parents[1]
 # Audited change: only service admission extends 640..644 to 640..659 (646: resize refusal, 647/648: disks, 649: activity, 650..653: portal, 654..658: files,
-# 659: clipboard paste, 660: thumbnails, 661..666: copied audio; no frame or state changes) and 613..638 to 613..639 (639: clipboard copy). The derivation below never touches those ranges.
-SOURCE_SHA='0d4813b6a8cd9f6a53378890da467656eacb5e880faf8367f9de15faac6e1a59'
+# 659: clipboard paste, 660: thumbnails, 661..666: copied audio, 667: network center; no frame or state changes) and 613..638 to 613..639 (639: clipboard copy). The derivation below never touches those ranges.
+SOURCE_SHA='a9df7f3565d6764825e025528440e1dbb2936b2ebec682e25bbe29e5258f1329'
 
 def once(s,a,b):
     if s.count(a)!=1:raise RuntimeError('process bridge source contract changed: '+a[:70])

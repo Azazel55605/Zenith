@@ -171,6 +171,39 @@ internal static unsafe class AudioService
         }
         return b;
     }
+    // ---------- The taskbar's sound center (trusted desktop code; the same session and revision rules as call 662).
+    public readonly record struct OutputState(bool Available, uint Id, string Name, int Volume, bool Muted, int Peak);
+    public readonly record struct StreamState(long Handle, string Name, int Volume, bool Muted, int Peak);
+    /// <summary>The selected output, and the playback streams this user may see.</summary>
+    public static (OutputState Output, System.Collections.Generic.List<StreamState> Streams) Overview(uint uid)
+    {
+        var streams = new System.Collections.Generic.List<StreamState>();
+        lock (s_gate)
+        {
+            ObserveSession();
+            var device = s_available ? Find(s_default[0]) : null;
+            var output = device is null ? new OutputState(s_available, 0, s_available ? "No output selected" : Diagnostic, 0, false, 0)
+                : new OutputState(true, device.Id, device.Name, device.Volume, device.Muted, device.Peak);
+            foreach (var stream in s_mixer.Streams)
+            {
+                if (stream is null || stream.Direction != 0 || (uid != 0 && uid != stream.Uid)) { continue; }
+                streams.Add(new StreamState(stream.Handle, stream.Name, stream.Volume, stream.Muted, stream.Peak));
+            }
+            return (output, streams);
+        }
+    }
+    /// <summary>Sets the selected output's volume (0..100) or mute through <see cref="Control"/>; 0 or an error code.</summary>
+    public static long SetOutput(uint uid, int volume, bool? muted)
+    {
+        uint id; ulong revision;
+        lock (s_gate) { id = s_default[0]; revision = s_revision; }
+        var request = new byte[32];
+        BinaryPrimitives.WriteUInt32LittleEndian(request, 1); BinaryPrimitives.WriteUInt32LittleEndian(request.AsSpan(4), muted is null ? 3u : 4u);
+        BinaryPrimitives.WriteUInt64LittleEndian(request.AsSpan(8), id);
+        BinaryPrimitives.WriteUInt32LittleEndian(request.AsSpan(16), muted is null ? (uint)Math.Clamp(volume, 0, 100) : muted.Value ? 1u : 0u);
+        BinaryPrimitives.WriteUInt64LittleEndian(request.AsSpan(24), revision);
+        return Control(uid, request);
+    }
     public static long Control(uint uid, ReadOnlySpan<byte> request)
     {
         if (request.Length != 32 || BinaryPrimitives.ReadUInt32LittleEndian(request) != 1 || BinaryPrimitives.ReadUInt32LittleEndian(request[20..]) != 0) { return -22; }

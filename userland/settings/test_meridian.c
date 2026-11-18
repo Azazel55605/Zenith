@@ -53,6 +53,23 @@ static long change_display(unsigned int action,unsigned int mode,unsigned int sc
     else {assert(token==77);display.phase=0;display.flags&=~4U;if(action==2){display.width=1600;display.height=1200;display.scale=2;}}
     display.revision++;return 0;
 }
+/* A fake network service: online by DHCP; manual settings with gateway 10.0.2.99 do not connect; -13 while locked. */
+static struct zenith_network_status net_state={.version=1,.state=Z_NET_ONLINE,.mode=0,.flags=Z_NET_LINK|Z_NET_LEASE,
+    .address={10,0,2,15},.mask={255,255,255,0},.gateway={10,0,2,2},.dns={{10,0,2,3}},.dns_count=1,.mac={0x52,0x54,0,0x12,0x34,0x56},
+    .connected_seconds=600,.lease_seconds=86000,.renew_seconds=43000,.received=1500000,.sent=20000};
+static int net_locked,net_applies;static struct zenith_network_settings net_last;
+static long fake_network(unsigned int op,unsigned int value,void *out,unsigned int capacity,const void *in,unsigned int bytes){
+    if(op==Z_NET_STATUS){assert(capacity>=sizeof(net_state));memcpy(out,&net_state,sizeof(net_state));return sizeof(net_state);}
+    if(op==Z_NET_APPLY){
+        assert(bytes==sizeof(net_last));if(net_locked)return -13;
+        memcpy(&net_last,in,sizeof(net_last));net_applies++;
+        if(net_last.mode==1&&net_last.gateway[3]==99){snprintf(out,capacity,"The new settings did not connect (the gateway did not answer); the previous settings are back.");return -5;}
+        net_state.mode=net_last.mode;if(net_last.mode==1){memcpy(net_state.saved_address,net_last.address,4);memcpy(net_state.saved_mask,net_last.mask,4);memcpy(net_state.saved_gateway,net_last.gateway,4);}
+        return 0;
+    }
+    if(op==Z_NET_CONNECT){net_state.state=value?Z_NET_ONLINE:Z_NET_OFF;return 0;}
+    (void)value;return -22;
+}
 static long portal_state=2;
 static long fake_authorize(void){return 9;}
 static long fake_poll(long h,char *message,unsigned long size){assert(h==9);snprintf(message,size,"%s",portal_state==4?"dismissed":"authenticated as user");return portal_state;}
@@ -74,6 +91,8 @@ static void click_label(const char *label){click_index(find_label(label));}
 static void wheel_until(int id){for(int i=0;i<40&&find_id(id)<0;i++)send((struct zenith_gui_event){Z_GUI_SCROLL,-120,400,300,0,0});assert(find_id(id)>=0);}
 static int page_id(const char *id){for(int i=0;i<MERIDIAN_PAGE_COUNT;i++)if(!strcmp(id,meridian_pages[i].id))return i;assert(0);return 0;}
 static int enabled(int id){int i=find_id(id);return i>=0&&app.ui.controls[i].enabled;}
+static void reveal(int id){wheel_until(id);for(int i=0;i<3;i++)send((struct zenith_gui_event){Z_GUI_SCROLL,-120,400,300,0,0});assert(find_id(id)>=0);}
+static int find_page_index(const char *id){for(int i=0;i<MERIDIAN_PAGE_COUNT;i++)if(!strcmp(meridian_pages[i].id,id))return i;return -1;}
 int main(int argc,char **argv){
     saved.version=1;saved.revision=1;saved.flags=3;
     struct zui palette;zui_init(&palette,pixels,600,480);
@@ -164,6 +183,29 @@ int main(int argc,char **argv){
     assert(meridian_open(&app,"network.connections"));meridian_refresh(&app);draw();
     assert(strstr(app.public_information,"10.0.2.15")&&!dirty);
     assert(meridian_open(&app,"system.users"));meridian_refresh(&app);draw();assert(app.public_kind==2&&strstr(app.public_information,"uid=1000"));
+    /* Network page over call 667: live state, manual settings with field keys, a refused gateway, locked changes. */
+    meridian_network_services(&app,fake_network);
+    assert(meridian_open(&app,"network.connections"));meridian_refresh(&app);draw();
+    assert(app.net_ok);
+    wheel_until(7021);assert(find_label("Disconnect")>=0);wheel_until(7001);   /* the controls sit below the connection details */
+    assert(!enabled(7020));                                             /* nothing changed: Apply is off */
+    click_label("Manual");assert(app.net_mode==1&&app.net_field==0);wheel_until(7020);assert(enabled(7020));
+    assert(!strcmp(app.net_text[0],"10.0.2.15")&&!strcmp(app.net_text[1],"24")&&!strcmp(app.net_text[2],"10.0.2.2"));
+    key(0,4,0);key(0,4,0);assert(app.net_field==2);                  /* Tab to the gateway */
+    key(0,3,0);                                                         /* Backspace edits the field, not the page */
+    assert(app.page==find_page_index("network.connections"));
+    key('9',0,0);key('9',0,0);assert(!strcmp(app.net_text[2],"10.0.2.99"));
+    key(0,2,0);assert(net_applies==1&&strstr(app.net_message,"previous settings are back"));
+    for(int i=0;i<2;i++){key(0,3,0);}
+    key('2',0,0);key(0,2,0);
+    assert(net_applies==2&&net_last.gateway[3]==2&&net_state.mode==1&&strstr(app.net_message,"active"));
+    key(0,1,0);assert(app.net_field==-1);
+    net_locked=1;wheel_until(7000);click_label("Automatic");reveal(7020);click_id(7020);assert(app.net_locked&&strstr(app.net_message,"administrator"));
+    net_locked=0;reveal(7020);click_id(7020);assert(net_state.mode==0&&!app.net_locked);
+    for(int i=0;i<40;i++)send((struct zenith_gui_event){Z_GUI_SCROLL,120,400,300,0,0});
+    reveal(7021);click_label("Disconnect");assert(net_state.state==Z_NET_OFF);meridian_refresh(&app);draw();assert(find_label("Connect")>=0);
+    click_label("Connect");assert(net_state.state==Z_NET_ONLINE);
+    app.network=0;
     /* Rapid extreme wheel input stays within both scroll ranges. */
     assert(meridian_open(&app,"devices.bluetooth"));draw();click_id(app.sidebar.base_id);
     for(int i=0;i<2000;i++){

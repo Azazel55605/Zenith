@@ -33,6 +33,7 @@ public sealed class ProcessNetworkTests
         public long Echo(string host) => 7;
         public IProcessConnection Connect(string host, int port, bool secure) { Opens++; return Connection = new(); }
         public IProcessDownload Download(string path, bool replace, int maximum) => Sink = new();
+        public void ThrowIfCancelled() { }
     }
     [Fact]
     public void HandlesBelongToAnInvocationAndNeverReuseAfterClose()

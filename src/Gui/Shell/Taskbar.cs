@@ -55,19 +55,28 @@ internal sealed class Taskbar
     public static int RadiusFor(bool docked) => docked ? 0 : Theme.WindowRadius;
     public bool Shown { get; set; } = true;
     public bool OverflowOpen { get; set; }
+    /// <summary>The network and sound centers beside the clock (the desktop sets them; previews have none).</summary>
+    public TaskbarCenters? Centers { get; set; }
+    /// <summary>The overflow list or a center's panel is open: drawn over the scene, closed by Escape.</summary>
+    public bool PopupOpen => OverflowOpen || (Centers is not null && Centers.Open != TaskbarCenters.Panel.None);
+    public void ClosePopups() { OverflowOpen = false; if (Centers is not null && Centers.Open != TaskbarCenters.Panel.None) { Centers.Open = TaskbarCenters.Panel.None; Zenith.Core.Log.Write("taskbar", "centers closed"); } }
     public int OverflowCount => _overflow.Count;
     public Rect OverflowButton => _overflowButton;
 
     /// <summary>Set by the desktop so the launcher button shows its pressed state.</summary>
     public bool LauncherOpen { get; set; }
-    private long _clockMinute = long.MinValue;
+    private long _clockMinute = long.MinValue, _centerSecond;
 
     /// <summary>Refreshes the clock text; returns true when it changed.</summary>
     public bool Update()
     {
         DateTime now = SystemClock.Now;
+        // An open center shows live traffic and levels: redraw once a second while one is open.
+        long second = now.Ticks / TimeSpan.TicksPerSecond;
+        bool live = Centers is not null && Centers.Open != TaskbarCenters.Panel.None && second != _centerSecond;
+        _centerSecond = second;
         long minute = now.Ticks / TimeSpan.TicksPerMinute;
-        if (minute == _clockMinute) { return false; }
+        if (minute == _clockMinute) { return live; }
         _clockMinute = minute;
         string time = Pad2(now.Hour) + ":" + Pad2(now.Minute);
         if (time == _time)
@@ -101,6 +110,13 @@ internal sealed class Taskbar
         {
             OverflowOpen = true;
             return true;
+        }
+
+        if (Centers is not null)
+        {
+            bool wasOpen = Centers.Open != TaskbarCenters.Panel.None;
+            if (Centers.HandleClick(x, y)) { return true; }
+            if (wasOpen && !Bounds.Contains(x, y)) { return true; }   // the click only closed the panel
         }
 
         if (!Bounds.Contains(x, y))
@@ -163,6 +179,8 @@ internal sealed class Taskbar
             return 1;
         }
 
+        if (Centers is not null && Centers.HoverKey(x, y) is int center && center != 0) { return center; }
+
         if (_overflowButton.Contains(x, y))
         {
             return 400;
@@ -187,7 +205,8 @@ internal sealed class Taskbar
         _overflowButton = new Rect(0, 0, 0, 0);
 
         int left = LauncherButton.Right + 10;
-        int available = ClockLeft() - 16 - left;
+        int right = Centers is null ? ClockLeft() : Centers.Layout(ClockLeft() - 12, LauncherButton.Y, LauncherButton.H) - 4;
+        int available = right - 16 - left;
         IReadOnlyList<Window> open = _windows.OpenOrder;
         int shown = TaskbarLayout.Count(open.Count, available);
         var pills = new List<Window>(shown);
@@ -246,6 +265,7 @@ internal sealed class Taskbar
 
         DrawLauncherButton(surface, mouseX, mouseY);
         DrawClock(surface);
+        Centers?.DrawButtons(surface, mouseX, mouseY);
         foreach (var (rect, window) in _pills) { DrawPill(surface, rect, window, mouseX, mouseY); }
         if (_overflow.Count > 0) { DrawOverflowButton(surface, mouseX, mouseY); }
     }
@@ -253,6 +273,7 @@ internal sealed class Taskbar
     /// <summary>Draws the list of windows that did not fit, on top of everything else.</summary>
     public void DrawOverflowList(Surface surface, int mouseX, int mouseY)
     {
+        Centers?.DrawPanel(surface, Bounds, mouseX, mouseY);
         if (!OverflowOpen || _overflow.Count == 0) { return; }
         Rect list = ListBounds();
         surface.DrawShadow(list, Theme.WindowRadius, 18, 100, 6);

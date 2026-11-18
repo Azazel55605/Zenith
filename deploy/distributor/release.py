@@ -353,6 +353,8 @@ def native_gate_plan():
     if (REPO / "tools/sunset-smoke.py").exists(): checks.append(("o", "sunset-smoke.py"))
     # Aurora and the clipboard calls 639/659 (kernel 0.0.64; older tags lack it).
     if (REPO / "tools/aurora-smoke.py").exists(): checks.append(("t", "aurora-smoke.py"))
+    # Beacon, the network center (call 667) and the taskbar's network and sound centers (kernel 0.0.69).
+    if (REPO / "tools/beacon-smoke.py").exists(): checks.append(("w", "beacon-smoke.py"))
     if (REPO / "tools/installer-seed-smoke.py").exists(): checks.append(("i", "installer-seed-smoke.py"))
     # Run the expensive crash/recovery matrix last. A repository regression
     # should fail before repeating that matrix; every gate remains mandatory.

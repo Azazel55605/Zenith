@@ -252,6 +252,8 @@ internal sealed partial class FileJob
             if (_cancelled) { return false; }
             all &= Copy(Join(source, name), Join(destination, name), depth + 1);
         }
+        // A new folder takes the source folder's permissions after its contents, so a read-only one still received them.
+        if (!merge) { KeepMode(source, destination); }
         return all;
     }
 
@@ -277,8 +279,16 @@ internal sealed partial class FileJob
         }
         // The total was counted earlier; a file that changed size since then must not overshoot it.
         if (copied < size) { Done(0, size - copied); }
-        if (complete) { Done(1); }
+        if (complete) { KeepMode(source, destination); Done(1); }
         return complete;
+    }
+
+    /// <summary>The copy gets the source's permission bits (never setuid, setgid or sticky); best effort, as the
+    /// copy itself already succeeded.</summary>
+    private void KeepMode(string source, string destination)
+    {
+        try { uint mode = Locked(() => _store.Mode(source)); if (mode != 0) { Locked(() => _store.SetMode(destination, mode)); } }
+        catch (Exception) { }
     }
 
     /// <summary>Counts a skipped subtree as done, so the progress still reaches its end.</summary>

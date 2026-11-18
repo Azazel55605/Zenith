@@ -12,6 +12,9 @@ Owned native TCP/TLS handles and atomic download sinks back independently packag
 net-tools. Kernel 0.0.23/net-tools 0.1.0 and representative home-path checks were
 operator confirmed. This is not IPv6/Wi-Fi, a general sockets/server API or secure NTP.
 
+Beacon (U11) shows and changes the connection through call 667: status, traffic and event history, diagnostics,
+ping and a safe apply that keeps the previous settings when new ones do not connect; see [Beacon](BEACON.md).
+
 ## N1 — Reliability verification
 
 - [ ] Record sustained refresh/update/connect/transfer/cancel/replacement results
