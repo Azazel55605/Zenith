@@ -149,7 +149,9 @@ static const char *page_icons[PAGES]={"cable","wifi-off","shield","activity","st
 static int page;
 enum { ID_NAV=10,ID_CONNECT=40,ID_EDIT=41,ID_SEE_ALL=42,ID_RANGE=50,ID_RUN=60,ID_FIX=61,ID_PING=62,ID_PING_FIELD=63,
        ID_MODE_AUTO=70,ID_MODE_MANUAL=71,ID_APPLY=72,ID_CANCEL=73,ID_FIELD=80 };
-static void go(int p){if(p==page)return;page=p;char line[48],*o=put(line,"BEACON_PAGE ");o=put(o,page_names[p]);put(o,"\n");print(line);ui.dirty=1;}
+/* A new page crossfades in (call 629, as in Meridian); older kernels refuse it and the page appears at once. */
+static int fade_page;
+static void go(int p){if(p==page)return;page=p;char line[48],*o=put(line,"BEACON_PAGE ");o=put(o,page_names[p]);put(o,"\n");print(line);ui.dirty=1;fade_page=1;}
 
 /* ---------- Asking for permission: changes need root or the org.zenith.network.manage grant. */
 enum { PENDING_NONE,PENDING_APPLY,PENDING_CONNECT,PENDING_DISCONNECT };
@@ -526,6 +528,7 @@ static void draw(void){
     ui.dirty=0;
 }
 static void present(void){
+    if(fade_page){int side=ui.width<760?168:208;zenith_gui_fade(handle,side+24,12,ui.width-side-36,ui.height-24,1);fade_page=0;}
     long r=material?zenith_gui_present_material(handle,ui.pixels,(unsigned long)ui.width*ui.height*4,ui.materials,ui.material_count):zenith_gui_present(handle,ui.pixels,(unsigned long)ui.width*ui.height*4);
     (void)r;
 }

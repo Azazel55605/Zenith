@@ -43,6 +43,11 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
     private bool _stopped;
     public NativeClientHost(Credentials identity) { _identity = identity; _generation = Accounts.Generation; }
     public IProcessGraphicsHost? ForUser(uint uid) => uid == _identity.Uid ? this : null;
+    /// <summary>Tells every program to read its appearance again (a new widget or button style).</summary>
+    public void ResetAll()
+    {
+        lock (_gate) { foreach (var surface in _surfaces) { if (!surface.Ended) { surface.Send(new(7, 0, 0, 0, 0, 0)); } } }
+    }
     public ProcessSurface? Open(int width, int height, string title, int format = 1)
     {
         lock (_gate)

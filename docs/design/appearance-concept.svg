@@ -1,0 +1,420 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="2240" viewBox="0 0 1440 2240">
+<defs><filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="18"/></filter><filter id="blur6" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6"/></filter><filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity=".35"/></filter><filter id="cshadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0.6" dy="1.2" stdDeviation="0.9" flood-color="#000" flood-opacity=".45"/></filter></defs>
+<rect x="0" y="0" width="1440" height="2240" rx="0" fill="#151619" />
+<text x="48" y="55" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="28" font-weight="600" text-anchor="start" xml:space="preserve">Zenith / Appearance concept</text>
+<text x="48" y="86" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="14" font-weight="400" text-anchor="start" xml:space="preserve">Proposal, not running UI · Meridian › Appearance reorganized · Application Style takes the materials from Colors · icon sets · accepted neutral surfaces, 8/12 radii, Inter</text>
+<text x="48" y="126" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Dark · Appearance, reorganized: Application Style</text>
+<rect x="48" y="148" width="1344" height="820" rx="12" fill="#202125" stroke="#45474F" />
+<rect x="49" y="149" width="1342" height="43" rx="11" fill="#25262B" />
+<rect x="49" y="178" width="1342" height="14" rx="0" fill="#25262B" />
+<g transform="translate(64 162) scale(0.6666666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5H3" />
+  <path d="M12 19H3" />
+  <path d="M14 3v4" />
+  <path d="M16 17v4" />
+  <path d="M21 12h-9" />
+  <path d="M21 19h-5" />
+  <path d="M21 5h-7" />
+  <path d="M8 10v4" />
+  <path d="M8 12H3" /></g>
+<text x="88" y="176" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" text-anchor="start" xml:space="preserve">Meridian</text>
+<g transform="translate(1280 162) scale(.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(1316 162) scale(.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(1352 162) scale(.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<rect x="60" y="204" width="250" height="752" rx="10" fill="#1B1C20" />
+<g transform="translate(74 218) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7" />
+  <path d="M19 12H5" /></g>
+<text x="100" y="231" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Appearance</text>
+<text x="84" y="281" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Wallpaper</text>
+<text x="76" y="316" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="700" text-anchor="start" xml:space="preserve">COLORS &amp; THEMES</text>
+<text x="84" y="347" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Colors</text>
+<rect x="68" y="362" width="234" height="32" rx="6" fill="#2C3B3D" />
+<rect x="69" y="369" width="3" height="18" rx="1" fill="#7ECAC7" />
+<text x="84" y="383" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Application Style</text>
+<text x="84" y="419" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Window Decorations</text>
+<text x="84" y="455" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Icons</text>
+<text x="84" y="491" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Cursors</text>
+<text x="76" y="526" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="700" text-anchor="start" xml:space="preserve">STARTUP &amp; LOGIN</text>
+<text x="84" y="557" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Session Splash</text>
+<text x="84" y="593" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Login Screen</text>
+<text x="84" y="629" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Boot Splash</text>
+<text x="76" y="664" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="700" text-anchor="start" xml:space="preserve">TEXT &amp; FONTS</text>
+<text x="84" y="695" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Fonts</text>
+<text x="84" y="731" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Font Management</text>
+<text x="84" y="767" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Animations</text>
+<text x="76" y="916" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Moved out of Appearance</text>
+<text x="76" y="934" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">System Sounds → Sound</text>
+<text x="338" y="244" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="24" font-weight="600" text-anchor="start" xml:space="preserve">Application Style</text>
+<text x="338" y="270" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Appearance · how apps are drawn; Colors keeps mode and accent</text>
+<text x="338" y="312" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Widget style</text>
+<line x1="338" y1="322" x2="1038" y2="322" stroke="#45474F" stroke-width="1" />
+<rect x="338" y="332" width="224" height="150" rx="12" fill="#2A2C31" stroke="#7ECAC7" stroke-width="2"/>
+<rect x="354" y="348" width="192" height="66" rx="12" fill="#202125" stroke="#45474F" />
+<rect x="366" y="362" width="80" height="26" rx="8" fill="#7ECAC7" />
+<text x="406" y="380" fill="#10302F" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Apply</text>
+<rect x="454" y="362" width="80" height="26" rx="8" fill="#26272C" stroke="#45474F" />
+<text x="494" y="380" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">Cancel</text>
+<rect x="366" y="396" width="168" height="8" rx="4" fill="#26272C" />
+<text x="354" y="440" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" text-anchor="start" xml:space="preserve">Rounded</text>
+<text x="354" y="460" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="start" xml:space="preserve">Default · 8 px controls, 12 px cards</text>
+<g transform="translate(530 428) scale(0.6666666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></g>
+<rect x="574" y="332" width="224" height="150" rx="12" fill="#2A2C31" stroke="#45474F" />
+<rect x="590" y="348" width="192" height="66" rx="18" fill="#202125" stroke="#45474F" />
+<rect x="602" y="362" width="80" height="26" rx="14" fill="#3E5E5D" />
+<text x="642" y="380" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Apply</text>
+<rect x="690" y="362" width="80" height="26" rx="14" fill="#26272C" stroke="#45474F" />
+<text x="730" y="380" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">Cancel</text>
+<rect x="602" y="396" width="168" height="8" rx="4" fill="#26272C" />
+<text x="590" y="440" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" text-anchor="start" xml:space="preserve">Soft</text>
+<text x="590" y="460" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="start" xml:space="preserve">Larger radii, tonal fills</text>
+<rect x="810" y="332" width="224" height="150" rx="12" fill="#2A2C31" stroke="#45474F" />
+<rect x="826" y="348" width="192" height="66" rx="3" fill="#202125" stroke="#45474F" />
+<rect x="838" y="362" width="80" height="26" rx="2" fill="#7ECAC7" />
+<text x="878" y="380" fill="#10302F" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Apply</text>
+<rect x="926" y="362" width="80" height="26" rx="2" fill="#26272C" stroke="#45474F" />
+<text x="966" y="380" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">Cancel</text>
+<rect x="838" y="396" width="168" height="8" rx="4" fill="#26272C" />
+<text x="826" y="440" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" text-anchor="start" xml:space="preserve">Sharp</text>
+<text x="826" y="460" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="start" xml:space="preserve">2 px corners, hairline borders</text>
+<text x="338" y="516" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Buttons</text>
+<line x1="338" y1="526" x2="1038" y2="526" stroke="#45474F" stroke-width="1" />
+<text x="338" y="554" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Primary buttons</text>
+<rect x="634" y="532" width="368" height="40" rx="8" fill="#26272C" />
+<rect x="638" y="536" width="120" height="32" rx="6" fill="#2A2C31" stroke="#45474F" />
+<text x="698" y="557" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">Filled</text>
+<text x="818" y="557" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">Tonal</text>
+<text x="938" y="557" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">Outline</text>
+<text x="338" y="612" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Materials</text>
+<line x1="338" y1="622" x2="1038" y2="622" stroke="#45474F" stroke-width="1" />
+<text x="338" y="654" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Transparency</text>
+<text x="338" y="672" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="start" xml:space="preserve">Let panels and the taskbar show the background</text>
+<rect x="990" y="644" width="48" height="26" rx="13" fill="#7ECAC7" />
+<circle cx="1025" cy="657" r="9" fill="#10302F" />
+<text x="338" y="710" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Backdrop blur</text>
+<text x="338" y="728" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="start" xml:space="preserve">Diffuse what shows through; text stays on solid ground</text>
+<rect x="990" y="700" width="48" height="26" rx="13" fill="#7ECAC7" />
+<circle cx="1025" cy="713" r="9" fill="#10302F" />
+<text x="338" y="766" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Whole app backgrounds</text>
+<text x="338" y="784" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="start" xml:space="preserve">Extend materials to app canvases, not only panels</text>
+<rect x="990" y="756" width="48" height="26" rx="13" fill="#45474F" />
+<circle cx="1003" cy="769" r="9" fill="#2A2C31" />
+<text x="338" y="822" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Strength</text>
+<text x="338" y="840" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="start" xml:space="preserve">How much shows through, 0 to 100 %</text>
+<rect x="638" y="820" width="340" height="6" rx="3" fill="#26272C" />
+<rect x="638" y="820" width="136" height="6" rx="3" fill="#7ECAC7" />
+<circle cx="774" cy="823" r="9" fill="#F1F2F4" />
+<text x="1038" y="828" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="end" xml:space="preserve">40 %</text>
+<rect x="338" y="866" width="700" height="54" rx="8" fill="#26272C" />
+<g transform="translate(352 883) scale(0.75)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" />
+  <path d="M12 16v-4" />
+  <path d="M12 8h.01" /></g>
+<text x="382" y="888" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Moved here from Colors: materials are about how surfaces are drawn, not which colors they use.</text>
+<text x="382" y="906" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">One Apply covers Colors and Application Style, as today; nothing about the saved choices changes.</text>
+<text x="1060" y="244" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Preview</text>
+<defs><linearGradient id="wp1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient></defs>
+<rect x="1060" y="260" width="312" height="420" rx="12" fill="url(#wp1)" />
+<circle cx="1140" cy="350" r="70" fill="#7ECAC7" opacity="0.35" filter="url(#soft)"/>
+<circle cx="1310" cy="550" r="90" fill="#9AA8F0" opacity="0.3" filter="url(#soft)"/>
+<rect x="1088" y="312" width="256" height="230" rx="12" fill="#202125" stroke="#5C606B" opacity="0.78" />
+<rect x="1088" y="312" width="256" height="34" rx="12" fill="#25262B" opacity="0.85" />
+<text x="1104" y="334" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="start" xml:space="preserve">Horizon</text>
+<rect x="1100" y="360" width="70" height="170" rx="8" fill="#1B1C20" opacity="0.7" />
+<rect x="1182" y="364" width="150" height="30" rx="6" fill="#2A2C31" />
+<rect x="1182" y="404" width="150" height="30" rx="6" fill="#2A2C31" />
+<rect x="1182" y="444" width="150" height="30" rx="6" fill="#2A2C31" />
+<rect x="1182" y="484" width="150" height="30" rx="6" fill="#2A2C31" />
+<rect x="1076" y="624" width="280" height="40" rx="12" fill="#25262B" opacity="0.72" />
+<rect x="1120" y="634" width="40" height="20" rx="6" fill="#2C3B3D" />
+<rect x="1172" y="634" width="40" height="20" rx="6" fill="#3A3C43" />
+<rect x="1224" y="634" width="40" height="20" rx="6" fill="#3A3C43" />
+<rect x="1276" y="634" width="40" height="20" rx="6" fill="#3A3C43" />
+<text x="1060" y="712" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Transparency 40 %, blur on, whole app off:</text>
+<text x="1060" y="730" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">the window frame and taskbar are</text>
+<text x="1060" y="748" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">materials; the app canvas stays solid.</text>
+<text x="48" y="1010" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">What moves, and why</text>
+<rect x="48" y="1032" width="664" height="112" rx="12" fill="#202125" stroke="#45474F" />
+<text x="68" y="1064" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Transparency, strength, blur</text>
+<text x="68" y="1088" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Colors  →  Application Style</text>
+<text x="68" y="1116" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Materials change how surfaces are drawn. Colors keeps mode and accent, so its page is about color only.</text>
+<rect x="728" y="1032" width="664" height="112" rx="12" fill="#202125" stroke="#45474F" />
+<text x="748" y="1064" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">System Sounds</text>
+<text x="748" y="1088" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Appearance  →  Input &amp; Output › Sound</text>
+<text x="748" y="1116" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Which sounds play is an output setting, next to the devices and app volumes that play them.</text>
+<rect x="48" y="1160" width="664" height="112" rx="12" fill="#202125" stroke="#45474F" />
+<text x="68" y="1192" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Screen locking, automatic login</text>
+<text x="68" y="1216" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Login Screen  →  Security › Screen Locking</text>
+<text x="68" y="1244" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Login Screen only chooses how the greeter looks. Who may skip it is an administrator policy.</text>
+<rect x="728" y="1160" width="664" height="112" rx="12" fill="#202125" stroke="#45474F" />
+<text x="748" y="1192" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Boot diagnostics, recovery access</text>
+<text x="748" y="1216" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Boot Splash  →  System › Session</text>
+<text x="748" y="1244" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Every boot style keeps the log and rescue entry. Whether they show is a system setting, not a style.</text>
+<text x="48" y="1310" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Groups: Colors &amp; Themes (Colors, Application Style, Window Decorations, Icons, Cursors) · Startup &amp; Login (Session Splash, Login Screen, Boot Splash) · Text &amp; Fonts. Wallpaper and Animations stay direct pages.</text>
+<rect x="0" y="1320" width="1440" height="920" rx="0" fill="#DDDFE4" />
+<text x="48" y="1350" fill="#202126" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Light · Icons: the default set first, other sets shown with what they would need</text>
+<rect x="48" y="1372" width="1344" height="760" rx="12" fill="#F6F7F9" stroke="#CFD1D8" />
+<rect x="49" y="1373" width="1342" height="43" rx="11" fill="#EFF0F3" />
+<rect x="49" y="1402" width="1342" height="14" rx="0" fill="#EFF0F3" />
+<g transform="translate(64 1386) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5H3" />
+  <path d="M12 19H3" />
+  <path d="M14 3v4" />
+  <path d="M16 17v4" />
+  <path d="M21 12h-9" />
+  <path d="M21 19h-5" />
+  <path d="M21 5h-7" />
+  <path d="M8 10v4" />
+  <path d="M8 12H3" /></g>
+<text x="88" y="1400" fill="#202126" font-family="Inter, sans-serif" font-size="14" font-weight="600" text-anchor="start" xml:space="preserve">Meridian</text>
+<g transform="translate(1280 1386) scale(.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(1316 1386) scale(.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(1352 1386) scale(.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<text x="80" y="1468" fill="#202126" font-family="Inter, sans-serif" font-size="24" font-weight="600" text-anchor="start" xml:space="preserve">Icons</text>
+<text x="80" y="1494" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Appearance › Colors &amp; Themes · one set for the desktop, the taskbar and every app</text>
+<rect x="80" y="1524" width="860" height="132" rx="12" fill="#FFFFFF" stroke="#197571" stroke-width="2"/>
+<text x="100" y="1554" fill="#202126" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Zenith</text>
+<text x="100" y="1574" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Default · outline, 2 px strokes, round joins · from Lucide (ISC) · 61 icons in zenith-icons</text>
+<rect x="840" y="1540" width="73" height="20" rx="10" fill="#D7E9E8" />
+<text x="876.5" y="1554" fill="#197571" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Installed</text>
+<g transform="translate(102 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
+  <path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></g>
+<g transform="translate(148 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></g>
+<g transform="translate(194 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
+  <path d="M14 2v5a1 1 0 0 0 1 1h5" />
+  <path d="M10 9H8" />
+  <path d="M16 13H8" />
+  <path d="M16 17H8" /></g>
+<g transform="translate(240 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34" />
+  <circle cx="11" cy="11" r="8" /></g>
+<g transform="translate(286 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3" />
+  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+  <path d="m7 10 5 5 5-5" /></g>
+<g transform="translate(332 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" />
+  <path d="M12 22V12" />
+  <polyline points="3.29 7 12 12 20.71 7" />
+  <path d="m7.5 4.27 9 5.15" /></g>
+<g transform="translate(378 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" />
+  <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+  <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+  <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+  <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" /></g>
+<g transform="translate(424 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2" />
+  <line x1="8" x2="16" y1="21" y2="21" />
+  <line x1="12" x2="12" y1="17" y2="21" /></g>
+<g transform="translate(470 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1" />
+  <rect x="2" y="16" width="6" height="6" rx="1" />
+  <rect x="9" y="2" width="6" height="6" rx="1" />
+  <path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3" />
+  <path d="M12 12V8" /></g>
+<g transform="translate(516 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
+  <path d="M16 9a5 5 0 0 1 0 6" />
+  <path d="M19.364 18.364a9 9 0 0 0 0-12.728" /></g>
+<g transform="translate(562 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8h.01" />
+  <path d="M12 12h.01" />
+  <path d="M14 8h.01" />
+  <path d="M16 12h.01" />
+  <path d="M18 8h.01" />
+  <path d="M6 8h.01" />
+  <path d="M7 16h10" />
+  <path d="M8 12h.01" />
+  <rect width="20" height="16" x="2" y="4" rx="2" /></g>
+<g transform="translate(608 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="7" />
+  <path d="M12 6v4" /></g>
+<g transform="translate(654 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M10 16h.01" />
+  <path d="M2.212 11.577a2 2 0 0 0-.212.896V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5.527a2 2 0 0 0-.212-.896L18.55 5.11A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+  <path d="M21.946 12.013H2.054" />
+  <path d="M6 16h.01" /></g>
+<g transform="translate(700 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="7" r="1" />
+  <circle cx="4" cy="20" r="1" />
+  <path d="M4.7 19.3 19 5" />
+  <path d="m21 3-3 1 2 2Z" />
+  <path d="M9.26 7.68 5 12l2 5" />
+  <path d="m10 14 5 2 3.5-3.5" />
+  <path d="m18 12 1-1 1 1-1 1Z" /></g>
+<g transform="translate(746 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19h8" />
+  <path d="m4 17 6-6-6-6" /></g>
+<g transform="translate(792 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" />
+  <path d="M12 6v6l4 2" /></g>
+<g transform="translate(838 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></g>
+<g transform="translate(884 1598) scale(1.0)" fill="none" stroke="#202126" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+  <path d="M7 11V7a5 5 0 0 1 10 0v4" /></g>
+<rect x="80" y="1670" width="860" height="132" rx="12" fill="#FFFFFF" stroke="#CFD1D8" />
+<text x="100" y="1700" fill="#202126" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Zenith Bold</text>
+<text x="100" y="1720" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Proposed · the same drawings at 2.5 px for low-DPI screens and readability</text>
+<rect x="840" y="1686" width="60" height="20" rx="10" fill="#E4E6EB" />
+<text x="870.0" y="1700" fill="#6E727C" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Planned</text>
+<g transform="translate(102 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
+  <path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></g>
+<g transform="translate(148 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></g>
+<g transform="translate(194 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
+  <path d="M14 2v5a1 1 0 0 0 1 1h5" />
+  <path d="M10 9H8" />
+  <path d="M16 13H8" />
+  <path d="M16 17H8" /></g>
+<g transform="translate(240 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34" />
+  <circle cx="11" cy="11" r="8" /></g>
+<g transform="translate(286 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3" />
+  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+  <path d="m7 10 5 5 5-5" /></g>
+<g transform="translate(332 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" />
+  <path d="M12 22V12" />
+  <polyline points="3.29 7 12 12 20.71 7" />
+  <path d="m7.5 4.27 9 5.15" /></g>
+<g transform="translate(378 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" />
+  <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+  <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+  <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+  <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" /></g>
+<g transform="translate(424 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2" />
+  <line x1="8" x2="16" y1="21" y2="21" />
+  <line x1="12" x2="12" y1="17" y2="21" /></g>
+<g transform="translate(470 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1" />
+  <rect x="2" y="16" width="6" height="6" rx="1" />
+  <rect x="9" y="2" width="6" height="6" rx="1" />
+  <path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3" />
+  <path d="M12 12V8" /></g>
+<g transform="translate(516 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
+  <path d="M16 9a5 5 0 0 1 0 6" />
+  <path d="M19.364 18.364a9 9 0 0 0 0-12.728" /></g>
+<g transform="translate(562 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8h.01" />
+  <path d="M12 12h.01" />
+  <path d="M14 8h.01" />
+  <path d="M16 12h.01" />
+  <path d="M18 8h.01" />
+  <path d="M6 8h.01" />
+  <path d="M7 16h10" />
+  <path d="M8 12h.01" />
+  <rect width="20" height="16" x="2" y="4" rx="2" /></g>
+<g transform="translate(608 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="7" />
+  <path d="M12 6v4" /></g>
+<g transform="translate(654 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 16h.01" />
+  <path d="M2.212 11.577a2 2 0 0 0-.212.896V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5.527a2 2 0 0 0-.212-.896L18.55 5.11A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+  <path d="M21.946 12.013H2.054" />
+  <path d="M6 16h.01" /></g>
+<g transform="translate(700 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="7" r="1" />
+  <circle cx="4" cy="20" r="1" />
+  <path d="M4.7 19.3 19 5" />
+  <path d="m21 3-3 1 2 2Z" />
+  <path d="M9.26 7.68 5 12l2 5" />
+  <path d="m10 14 5 2 3.5-3.5" />
+  <path d="m18 12 1-1 1 1-1 1Z" /></g>
+<g transform="translate(746 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19h8" />
+  <path d="m4 17 6-6-6-6" /></g>
+<g transform="translate(792 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" />
+  <path d="M12 6v6l4 2" /></g>
+<g transform="translate(838 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></g>
+<g transform="translate(884 1744) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+  <path d="M7 11V7a5 5 0 0 1 10 0v4" /></g>
+<rect x="80" y="1816" width="860" height="132" rx="12" fill="#FFFFFF" stroke="#CFD1D8" />
+<text x="100" y="1846" fill="#202126" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Zenith Fine</text>
+<text x="100" y="1866" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Proposed · 1.5 px strokes for large scales (150 % and up)</text>
+<rect x="840" y="1832" width="60" height="20" rx="10" fill="#E4E6EB" />
+<text x="870.0" y="1846" fill="#6E727C" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Planned</text>
+<g transform="translate(102 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
+  <path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></g>
+<g transform="translate(148 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></g>
+<g transform="translate(194 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z" />
+  <path d="M14 2v5a1 1 0 0 0 1 1h5" />
+  <path d="M10 9H8" />
+  <path d="M16 13H8" />
+  <path d="M16 17H8" /></g>
+<g transform="translate(240 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34" />
+  <circle cx="11" cy="11" r="8" /></g>
+<g transform="translate(286 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3" />
+  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+  <path d="m7 10 5 5 5-5" /></g>
+<g transform="translate(332 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" />
+  <path d="M12 22V12" />
+  <polyline points="3.29 7 12 12 20.71 7" />
+  <path d="m7.5 4.27 9 5.15" /></g>
+<g transform="translate(378 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" />
+  <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+  <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+  <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+  <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" /></g>
+<g transform="translate(424 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2" />
+  <line x1="8" x2="16" y1="21" y2="21" />
+  <line x1="12" x2="12" y1="17" y2="21" /></g>
+<g transform="translate(470 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="16" width="6" height="6" rx="1" />
+  <rect x="2" y="16" width="6" height="6" rx="1" />
+  <rect x="9" y="2" width="6" height="6" rx="1" />
+  <path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3" />
+  <path d="M12 12V8" /></g>
+<g transform="translate(516 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
+  <path d="M16 9a5 5 0 0 1 0 6" />
+  <path d="M19.364 18.364a9 9 0 0 0 0-12.728" /></g>
+<g transform="translate(562 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8h.01" />
+  <path d="M12 12h.01" />
+  <path d="M14 8h.01" />
+  <path d="M16 12h.01" />
+  <path d="M18 8h.01" />
+  <path d="M6 8h.01" />
+  <path d="M7 16h10" />
+  <path d="M8 12h.01" />
+  <rect width="20" height="16" x="2" y="4" rx="2" /></g>
+<g transform="translate(608 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="7" />
+  <path d="M12 6v4" /></g>
+<g transform="translate(654 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 16h.01" />
+  <path d="M2.212 11.577a2 2 0 0 0-.212.896V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5.527a2 2 0 0 0-.212-.896L18.55 5.11A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+  <path d="M21.946 12.013H2.054" />
+  <path d="M6 16h.01" /></g>
+<g transform="translate(700 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="7" r="1" />
+  <circle cx="4" cy="20" r="1" />
+  <path d="M4.7 19.3 19 5" />
+  <path d="m21 3-3 1 2 2Z" />
+  <path d="M9.26 7.68 5 12l2 5" />
+  <path d="m10 14 5 2 3.5-3.5" />
+  <path d="m18 12 1-1 1 1-1 1Z" /></g>
+<g transform="translate(746 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19h8" />
+  <path d="m4 17 6-6-6-6" /></g>
+<g transform="translate(792 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" />
+  <path d="M12 6v6l4 2" /></g>
+<g transform="translate(838 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></g>
+<g transform="translate(884 1890) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+  <path d="M7 11V7a5 5 0 0 1 10 0v4" /></g>
+<text x="80" y="1982" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Other sets checked for Zenith (licence, coverage of the 61 names, outline style that fits Inter):</text>
+<circle cx="88" cy="2006" r="3" fill="#197571" />
+<text x="100" y="2010" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="start" xml:space="preserve">Tabler Icons</text>
+<text x="230" y="2010" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">MIT · 5 000+ outline icons, 2 px on 24 px: closest match; names to be mapped one by one</text>
+<circle cx="88" cy="2032" r="3" fill="#197571" />
+<text x="100" y="2036" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="start" xml:space="preserve">Phosphor</text>
+<text x="230" y="2036" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">MIT · six weights (thin to fill) in one family: one set could supply Fine, Zenith and Bold</text>
+<circle cx="88" cy="2058" r="3" fill="#197571" />
+<text x="100" y="2062" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="start" xml:space="preserve">Remix Icon</text>
+<text x="230" y="2062" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Apache-2.0 · line and fill pairs; more geometric, fewer system roles</text>
+<circle cx="88" cy="2084" r="3" fill="#197571" />
+<text x="100" y="2088" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="start" xml:space="preserve">Material Symbols</text>
+<text x="230" y="2088" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Apache-2.0 · variable weight and fill; a different visual language from Inter</text>
+<text x="978" y="1540" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Preview by role</text>
+<rect x="978" y="1556" width="380" height="44" rx="8" fill="#FFFFFF" stroke="#CFD1D8" />
+<g transform="translate(992 1566) scale(1.0)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" />
+  <path d="M12 22V12" />
+  <polyline points="3.29 7 12 12 20.71 7" />
+  <path d="m7.5 4.27 9 5.15" /></g>
+<text x="1030" y="1583" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">App and package</text>
+<rect x="978" y="1608" width="380" height="44" rx="8" fill="#FFFFFF" stroke="#CFD1D8" />
+<g transform="translate(992 1618) scale(1.0)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></g>
+<text x="1030" y="1635" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Places and files</text>
+<rect x="978" y="1660" width="380" height="44" rx="8" fill="#FFFFFF" stroke="#CFD1D8" />
+<g transform="translate(992 1670) scale(1.0)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+  <path d="M12 9v4" />
+  <path d="M12 17h.01" /></g>
+<text x="1030" y="1687" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Status</text>
+<rect x="978" y="1712" width="380" height="44" rx="8" fill="#FFFFFF" stroke="#CFD1D8" />
+<g transform="translate(992 1722) scale(1.0)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6" /></g>
+<text x="1030" y="1739" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Navigation</text>
+<rect x="978" y="1764" width="380" height="44" rx="8" fill="#FFFFFF" stroke="#CFD1D8" />
+<g transform="translate(992 1774) scale(1.0)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" />
+  <path d="m6 6 12 12" /></g>
+<text x="1030" y="1791" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Window controls</text>
+<text x="978" y="1836" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Missing-icon fallback</text>
+<rect x="978" y="1850" width="380" height="96" rx="8" fill="#FFFFFF" stroke="#CFD1D8" />
+<rect x="996" y="1870" width="24" height="24" rx="5" fill="none" stroke="#6E727C" stroke-dasharray="3 3" stroke-width="1.5"/>
+<text x="1008" y="1887" fill="#6E727C" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle" xml:space="preserve">A</text>
+<text x="1034" y="1878" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">An app asks for a name the set lacks:</text>
+<text x="1034" y="1896" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">a dashed tile with its initial, never blank,</text>
+<text x="1034" y="1914" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">and the name is logged once.</text>
+<rect x="978" y="1966" width="380" height="116" rx="8" fill="#E4E6EB" />
+<text x="994" y="1992" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Sets are packages: zenith-icons-NAME installs</text>
+<text x="994" y="2011" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">/usr/share/zenith/icons/NAME/*.zic; the default stays</text>
+<text x="994" y="2030" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">zenith-icons. Choosing one is a personal setting;</text>
+<text x="994" y="2049" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">the login screen keeps the default.</text>
+<text x="48" y="2200" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Requires: a set name in the personal appearance record, icon lookup by set in the toolkit and the desktop (64-file package limit: sets ship as their own packages). Values are illustrative.</text>
+</svg>

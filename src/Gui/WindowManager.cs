@@ -237,9 +237,26 @@ internal sealed class WindowManager
     }
 
     /// <summary>Removes windows that closed themselves; returns true if any window changed.</summary>
+    private int _barHeight = -1;
     public bool Update()
     {
         bool changed = false, closedOne = false;
+        // A new decoration changes the bar height: every window keeps its content size, so programs are not resized.
+        int bar = Window.TitleBarHeight;
+        if (_barHeight >= 0 && bar != _barHeight)
+        {
+            int delta = bar - _barHeight;
+            foreach (Window w in _windows)
+            {
+                if (w.IsFullscreen) { continue; }
+                if (w.IsMaximized) { w.SetBounds(w.Bounds); continue; }
+                w.SetBounds(new Rect(w.Bounds.X, w.Bounds.Y, w.Bounds.W, w.Bounds.H + delta));
+                w.ContentVersion++;
+            }
+            Zenith.Core.Log.Write("windows", "decoration " + Decorations.Current.ToString().ToLowerInvariant() + " bar=" + bar);
+            changed = true;
+        }
+        _barHeight = bar;
         for (int i = _windows.Count - 1; i >= 0; i--)
         {
             Window w = _windows[i];
@@ -751,7 +768,8 @@ internal sealed class WindowManager
     {
         if (w.IsFullscreen) { DrawFullscreen(surface, backdrop, w); return; }
         Rect b = w.Bounds;
-        int radius = w.IsMaximized ? 0 : Theme.WindowRadius;
+        var style = Decorations.Current;
+        int radius = w.IsMaximized ? 0 : Decorations.Radius(style);
         Rect chrome = new(b.X, b.Y, b.W, Window.TitleBarHeight + Theme.WindowRadius);
         long phase = FrameStats.Now;
         MaterialComposition.Dirty = w.BackdropDirty;
@@ -771,23 +789,12 @@ internal sealed class WindowManager
 
         // Title bar: title on the left, minimize / maximize / close on the right.
         Rect title = w.TitleBar;
-        w.ChromeMaterial.Paint(surface, chrome, Theme.Panel);
-        if (!w.UnifiedChrome && ((MaterialResources.Policy.Effective & 1) == 0 || !w.AllowMaterials))
+        if (Decorations.BarFill(style)) { w.ChromeMaterial.Paint(surface, chrome, Theme.Panel); }
+        else { surface.FillRect(title, Theme.WindowBackground); }
+        if (Decorations.BarFill(style) && !w.UnifiedChrome && ((MaterialResources.Policy.Effective & 1) == 0 || !w.AllowMaterials))
         { surface.FillRect(new Rect(b.X, title.Bottom - 1, b.W, 1), Theme.TitleDivider); }
-        // Lay out in the title box itself: the clip may be cut down to a partial compose's damage.
-        Rect titleBox = new(title.X + 14, title.Y, w.MinimizeButton.X - title.X - 20, title.H);
-        surface.Clip = titleBox;
-        surface.DrawTextCentered(w.Title, Fonts.SemiBold, Theme.TextTitle,
-            w.IsFocused ? Theme.TextPrimary : Theme.TextSecondary, titleBox, false);
-        surface.ResetClip();
-
-        DrawTitleButton(surface, w.MinimizeButton, TitleIcon.Minimize, mouseX, mouseY, Theme.Hover, w.IsFocused);
-        if (w.CanResize)
-        {
-            DrawTitleButton(surface, w.MaximizeButton, w.IsMaximized ? TitleIcon.Restore : TitleIcon.Maximize, mouseX, mouseY, Theme.Hover, w.IsFocused);
-        }
-
-        DrawTitleButton(surface, w.CloseButton, TitleIcon.Close, mouseX, mouseY, Theme.Danger, w.IsFocused);
+        // The chosen decoration's title and controls (the clip may be cut down to a partial compose's damage).
+        Decorations.DrawBar(surface, style, b, w.Title, w.IsFocused, w.CanResize, w.IsMaximized, mouseX, mouseY);
 
         if (!w.UnifiedChrome) { surface.CaptureContentCorner(w.Content, Theme.WindowRadius); }
         surface.Clip = w.Content.Inflate(-1);
@@ -800,7 +807,7 @@ internal sealed class WindowManager
 
         if (!w.IsMaximized)
         {
-            surface.StrokeRoundRect(b, radius, w.IsFocused ? Theme.WindowBorderFocused : Theme.WindowBorder);
+            surface.StrokeRoundRect(b, radius, Decorations.Border(style, w.IsFocused));
             surface.CompositeWindowCorners(b, radius);
         }
         FrameStats.ChromeTicks += FrameStats.Now - phase;
@@ -819,48 +826,6 @@ internal sealed class WindowManager
         w.DrawContent(surface, w.Content);
         surface.ResetClip();
         FrameStats.ContentTicks += FrameStats.Now - phase;
-    }
-
-    private enum TitleIcon
-    {
-        Minimize,
-        Maximize,
-        Restore,
-        Close,
-    }
-
-    private static void DrawTitleButton(Surface surface, Rect r, TitleIcon icon, int mouseX, int mouseY, uint hoverColor, bool focused)
-    {
-        bool hover = r.Contains(mouseX, mouseY);
-        if (hover)
-        {
-            surface.FillRoundRect(r, Theme.ControlRadius, hoverColor);
-        }
-
-        uint color = hover ? Theme.TextPrimary : focused ? Theme.TextSecondary : Theme.TextMuted;
-        int cx = r.X + r.W / 2, cy = r.Y + r.H / 2;
-        switch (icon)
-        {
-            case TitleIcon.Minimize:
-                surface.FillRect(new Rect(cx - 5, cy, 10, 1), color);
-                break;
-            case TitleIcon.Maximize:
-                surface.StrokeRoundRect(new Rect(cx - 5, cy - 5, 10, 10), 2, color);
-                break;
-            case TitleIcon.Restore:
-                // Two overlapping squares: the back one shows only its top and right edges.
-                surface.StrokeRoundRect(new Rect(cx - 6, cy - 3, 9, 9), 2, color);
-                surface.FillRect(new Rect(cx - 3, cy - 6, 8, 1), color);
-                surface.FillRect(new Rect(cx + 5, cy - 6, 1, 8), color);
-                break;
-            default:
-                for (int i = -4; i <= 4; i++)
-                {
-                    surface.FillRect(new Rect(cx + i, cy + i, 1, 1), color);
-                    surface.FillRect(new Rect(cx + i, cy - i, 1, 1), color);
-                }
-                break;
-        }
     }
 
     /// <summary>A value that changes whenever the pointer crosses into a different window or title-bar button.</summary>

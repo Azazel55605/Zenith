@@ -23,7 +23,7 @@ def main():
             atlas=Path(temporary)/'ui-fonts.c'
             subprocess.run([sys.executable,str(ROOT/'tools/build-ui-fonts.py'),str(atlas),*(['--mono'] if args.program in ('polaris','equinox','aurora') else [])],check=True)
             extra=['-I'+str(ROOT/'userland/ui'),str(ROOT/'userland/ui/ui.c'),str(ROOT/'userland/ui/widgets.c'),
-                   *([str(ROOT/'userland/polaris/term.c')] if args.program=='polaris' else [] if args.program=='aurora' else [str(ROOT/'userland/ui-gallery/gallery.c')] if args.program=='ui-gallery' else [str(ROOT/'userland/settings/app.c'),str(ROOT/'userland/settings/navigation.c'),str(ROOT/'userland/settings/bindings.c')] if args.program=='settings' else []),str(ROOT/'userland/ui/runtime.c'),str(ROOT/'userland/ui/text.c'),str(atlas)]
+                   *([str(ROOT/'userland/polaris/term.c')] if args.program=='polaris' else [] if args.program=='aurora' else [str(ROOT/'userland/ui-gallery/gallery.c')] if args.program=='ui-gallery' else [str(ROOT/'userland/settings/app.c'),str(ROOT/'userland/settings/navigation.c'),str(ROOT/'userland/settings/bindings.c'),str(ROOT/'userland/settings/styles.c')] if args.program=='settings' else []),str(ROOT/'userland/ui/runtime.c'),str(ROOT/'userland/ui/text.c'),str(atlas)]
             if args.program=='settings':
                 pages=Path(temporary)/'meridian-pages.c'
                 subprocess.run([sys.executable,str(ROOT/'tools/build-meridian-pages.py'),str(pages)],check=True)

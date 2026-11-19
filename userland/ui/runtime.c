@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "../include/zenith_style.h"
 #include "../include/zenith_settings.h"
 #include "../include/zenith_system_settings.h"
 /* Compiler-emitted structure initialization/copy helpers for freestanding clients. */
@@ -45,8 +46,16 @@ int zui_apply_appearance(struct zui *u){
     if(surface==u->theme.surface&&accent==u->theme.accent&&was==background)return 0;
     u->dirty=1;return 1;
 }
+int zui_apply_style(struct zui *u){
+    static struct zenith_style_list l;int changed=0;
+    if(!zenith_style_list(11,&l)&&l.version==1&&l.current<3&&(int)l.current!=u->widget_style){u->widget_style=(int)l.current;changed=1;}
+    if(!zenith_style_list(12,&l)&&l.version==1&&l.current<3&&(int)l.current!=u->button_style){u->button_style=(int)l.current;changed=1;}
+    if(changed)u->dirty=1;
+    return changed;
+}
 int zui_apply_motion(struct zui *u,long clock){
     static struct zenith_system_settings settings;
+    zui_apply_style(u);
     if(clock<0||zenith_system_settings_read(&settings))return 0;
     int percent=zui_motion_percent(settings.version==2?settings.animation:0);
     if(percent==u->motion_percent)return 0;

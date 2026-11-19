@@ -39,7 +39,8 @@ internal static class Theme
     public const int TaskbarHeight = 48;
     public const int TaskbarMargin = 8;
     public const int ShellControlHeight = 36;
-    public const int ControlRadius = 8;
+    /// <summary>Controls follow the widget style (8 px in Rounded).</summary>
+    public static int ControlRadius => Widgets.Radius(8);
     public const int ShadowSize = 20;
     public const int ShadowAlpha = 90;
 

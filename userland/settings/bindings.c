@@ -17,7 +17,8 @@ static int valid(const struct zenith_system_settings *s){
         for(unsigned int i=0;i<s->animation_count;i++)if(!bounded_name(s->animations[i],24))return 0;
         if(s->taskbar_count>5||(s->taskbar_count&&s->taskbar>=s->taskbar_count))return 0;
         for(unsigned int i=0;i<s->taskbar_count;i++)if(!bounded_name(s->taskbars[i],24))return 0;
-        if(s->wallpaper_count>12||(s->wallpaper_count&&s->wallpaper>=s->wallpaper_count))return 0;
+        /* The choice may be one of the second set (12..), which only the style catalogue names. */
+        if(s->wallpaper_count>12||(s->wallpaper_count&&s->wallpaper>=63))return 0;
         for(unsigned int i=0;i<s->wallpaper_count;i++)if(!bounded_name(s->wallpapers[i],24))return 0;
         if(s->launcher_count>2||(s->launcher_count&&s->launcher>=s->launcher_count))return 0;
         if(s->cursor_count>2||(s->cursor_count&&s->cursor>=s->cursor_count))return 0;
@@ -31,7 +32,7 @@ void binding_init(struct meridian_bindings *b,struct settings_app *colors,long (
     *b=(struct meridian_bindings){0};b->colors=colors;b->read=read;b->save=save;b->dirty=dirty;binding_refresh(b);
 }
 int binding_of(const char *id){
-    return same(id,"display.configuration")?BIND_DISPLAY:same(id,"style.colors")?BIND_COLORS:same(id,"input.keyboard")?BIND_KEYBOARD:same(id,"locale.time")?BIND_TIMEZONE:
+    return same(id,"display.configuration")?BIND_DISPLAY:same(id,"style.colors")||same(id,"style.application")?BIND_COLORS:same(id,"input.keyboard")?BIND_KEYBOARD:same(id,"locale.time")?BIND_TIMEZONE:
         same(id,"system.session")?BIND_SESSION:same(id,"style.animations")?BIND_ANIMATIONS:same(id,"windows.taskbar")?BIND_TASKBAR:
         same(id,"style.wallpaper")?BIND_WALLPAPER:same(id,"workspace.search")?BIND_LAUNCHER:same(id,"style.cursors")?BIND_CURSOR:BIND_NONE;
 }

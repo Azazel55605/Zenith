@@ -51,6 +51,11 @@
     "Playback stream details",
     "Application output routing"
   ],
+  "audio.sounds": [
+    "System sound packs",
+    "Interaction sound events",
+    "Preview sounds"
+  ],
   "display.configuration": [
     "Displays and supported modes",
     "Resolution and scaling",
@@ -107,9 +112,9 @@
   "style.application": [
     "Rounded and sharp widget styles",
     "Button styles",
-    "Transparency",
-    "Translucency",
-    "Background blur"
+    "Transparency and its strength",
+    "Backdrop blur",
+    "Effects for whole app backgrounds"
   ],
   "style.decorations": [
     "Window decoration presets",
@@ -128,11 +133,6 @@
     "Pointer-role previews",
     "Recovery cursor"
   ],
-  "style.sounds": [
-    "System sound packs",
-    "Interaction sound events",
-    "Preview sounds"
-  ],
   "style.splash": [
     "Enable session splash",
     "Select session animation",
@@ -140,13 +140,12 @@
   ],
   "style.login": [
     "Login screen styles",
-    "Conventional, dot-style and Zenith layouts",
-    "Screen Locking and automatic login settings"
+    "Zenith card, account tiles and clock layouts",
+    "Preselected accounts"
   ],
   "style.boot-splash": [
     "Enable boot splash",
-    "Select boot animation",
-    "Boot diagnostics and recovery access"
+    "Select boot animation"
   ],
   "style.fonts": [
     "System UI font",
@@ -265,6 +264,7 @@
     "Shutdown, reboot and logout confirmation",
     "Restore application sessions",
     "Desktop and Headless session availability",
-    "Unsaved work and busy applications"
+    "Unsaved work and busy applications",
+    "Boot diagnostics and recovery access"
   ]
 }

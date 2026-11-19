@@ -106,7 +106,8 @@ int main(void){
     assert(nav_rows(&n,0,&it)&&!it.chevron);                         /* Quick Settings has no sub-pages */
     nav_activate(&n,0);assert(n.mode==NAV_CATEGORIES&&n.page==find("quick.overview"));
     nav_activate(&n,1);assert(n.mode==NAV_PAGES&&n.category==1&&n.page==find("input.mouse"));
-    assert(nav_row_count(&n)==1+10);                                  /* back row + ten pages */
+    assert(nav_row_count(&n)==1+11);                                  /* back row + eleven pages */
+    assert(nav_rows(&n,row_of_page(&n,find("audio.sounds")),&it)&&it.subtitle&&!strcmp(it.subtitle,"Sound"));   /* moved from Appearance */
     assert(nav_rows(&n,0,&it)&&!strcmp(it.icon,"arrow-left")&&nav_row_page(&n,0)<0);
     assert(nav_rows(&n,row_of_page(&n,find("input.mouse")),&it)&&it.subtitle&&!strcmp(it.subtitle,"Mouse & Touchpad"));
     nav_activate(&n,row_of_page(&n,find("input.keyboard")));assert(n.page==find("input.keyboard")&&n.mode==NAV_PAGES);

@@ -239,11 +239,26 @@ def main():
         assert moved and int(moved[1])>=3,'wheel did not animate'
         print('PASS one wheel notch scrolls one step',flush=True)
         print('scroll motion: '+moved[0],flush=True)
-        # Scroll the form by keyboard to reach the effects rows (40 px per Down).
-        for _ in range(6):monitor_command(monitor,'sendkey down 30');time.sleep(.05)
+        # The materials live on Application Style (moved out of Colors): open it from the sidebar. The Colors draft
+        # comes along without the unsaved-changes dialog, since both pages edit one appearance record.
+        click(x+87,y+206);time.sleep(.5)
+        # Three wheel notches over the form's empty right margin bring all three toggles into view.
+        (cx,cy),_=observer.position();monitor_command(monitor,f'mouse_move {x+614-cx} {y+120-cy}');time.sleep(.2)
+        for _ in range(3):monitor_command(monitor,'mouse_move 0 0 1');time.sleep(.15)
         settled('effects-moved')
-        frame('effects-visible',lambda w,h,rgb:color_at(rgb,w,x+530,y+209)==bytes.fromhex('45474f'))
-        TRANSPARENT,BLUR,WHOLE=(x+516,y+209),(x+516,y+295),(x+516,y+381)
+        def toggle_rows(w,h,rgb):
+            # The three effect toggles: runs of at least 12 px of the off-track color in the toggle column.
+            rows,run=[],0
+            for py in range(y+80,y+440):
+                if color_at(rgb,w,x+530,py)==bytes.fromhex('45474f'):run+=1
+                else:
+                    if run>=12:rows.append(py-run//2)
+                    run=0
+            return rows
+        effects=frame('effects-visible',lambda w,h,rgb:len(toggle_rows(w,h,rgb))>=3)
+        rows=toggle_rows(*effects)[:3]
+        TRANSPARENT,BLUR,WHOLE=[(x+516,r) for r in rows]
+        print('effect toggles at '+str(rows),flush=True)
         click(*TRANSPARENT);click(*BLUR) # Transparency and blur are one draft/apply.
         changed=len(m.log());click(*APPLY)
         assert m.wait('user: SETTINGS_REVISION_CHANGED',changed,15),'GUI apply did not complete'

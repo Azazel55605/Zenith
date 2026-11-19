@@ -583,6 +583,51 @@ internal sealed unsafe class NativeProcess
             }
             // Horizon HZ4 (kernel 0.0.65): a thumbnail of an image file. Request (32 bytes): version 1, max side
             // 16..256, u64 path, u32 path bytes, u32 capacity, u64 pixels. Result: width << 16 | height, ARGB pixels.
+            // Meridian's pickers (kernel 0.0.71, zenith-native-style-catalog-abi 1.0): the choices of a setting, and
+            // a preview drawn by the desktop. Request (32 bytes): version 1, op (1 list, 2 preview), field, index,
+            // u64 output, u32 capacity, u32 width << 16 | height.
+            if (c.Call == 669)
+            {
+                if (c.Arg1 != 32 || c.Arg2 != 0) { return -22; }
+                if (!Valid(c.Arg0, 32, false)) { return -14; }
+                byte[] r = ReadUser(c.Arg0, 32);
+                uint version = BitConverter.ToUInt32(r, 0), op = BitConverter.ToUInt32(r, 4), field = BitConverter.ToUInt32(r, 8), index = BitConverter.ToUInt32(r, 12);
+                ulong output = BitConverter.ToUInt64(r, 16); uint capacity = BitConverter.ToUInt32(r, 24), size = BitConverter.ToUInt32(r, 28);
+                if (version != 1 || capacity > 1 << 20) { return -22; }
+                if (capacity > 0 && !Valid(output, (int)capacity, true)) { return -14; }
+                var service = Zenith.Core.Configuration.SystemConfiguration.Settings;
+                if (service is null) { return -19; }
+                uint accent = Zenith.Core.Configuration.StyleCatalog.Accent?.Invoke() ?? 0x7ECAC7;
+                if (op == 1)
+                {
+                    if (capacity < Zenith.Core.Configuration.StyleCatalog.ListBytes) { return -34; }
+                    byte[]? list = Zenith.Core.Configuration.StyleCatalog.List(service, field, accent);
+                    if (list is null) { return -19; }
+                    Transfer(output, list, true); return list.Length;
+                }
+                if (op == 2)
+                {
+                    int w = (int)(size >> 16), h = (int)(size & 0xFFFF);
+                    if (w is < 32 or > 320 || h is < 20 or > 240 || capacity < (uint)(w * h * 4)) { return -22; }
+                    int[]? picture;
+                    if (field == Zenith.Core.Configuration.StyleCatalog.FieldWallpaper)
+                    {
+                        if (index >= Zenith.Core.Configuration.SettingsService.WallpaperNames.Length) { return -22; }
+                        var render = Zenith.Core.Configuration.StyleCatalog.RenderWallpaper;
+                        if (render is null) { return -19; }
+                        picture = render(index, w, h);
+                    }
+                    else
+                    {
+                        picture = Zenith.Core.Configuration.StyleCatalog.RenderPreview?.Invoke(field, index, w, h);
+                        if (picture is null) { return -22; }
+                    }
+                    byte[] pixels = new byte[picture.Length * 4];
+                    Buffer.BlockCopy(picture, 0, pixels, 0, pixels.Length);
+                    Transfer(output, pixels, true); return w << 16 | h;
+                }
+                return -22;
+            }
             if (c.Call == 660)
             {
                 if (c.Arg1 != 32 || c.Arg2 != 0) { return -22; }
@@ -1057,7 +1102,7 @@ internal sealed unsafe class NativeProcess
                     if (status == DeviceInterruptYield) { continue; }
                     if (status != 4096) { break; }
                     if (cancelled()) { status = 130; break; }
-                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615 or 628 or 629 or >= 630 and <= 639 or 645 or 646 or 659 or >= 661 and <= 668) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
+                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615 or 628 or 629 or >= 630 and <= 639 or 645 or 646 or 659 or >= 661 and <= 669) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
                     // A portal grant serves that area's calls as root for this process alone (uid 0 in the
                     // context too, which those handlers read); every other call keeps the program's identity.
                     bool elevated = Zenith.Core.Portal.ProcessPrivileges.Elevates(pid, context.Call, context.Arg0);
@@ -1066,7 +1111,7 @@ internal sealed unsafe class NativeProcess
                     var caller = Zenith.Core.Security.CredentialContext.Enter(elevated ? Zenith.Core.Security.Credentials.Root : identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
                     // while waiting for a peer. Mutations and transport setup stay serialized.
-                    bool standard = context.Call is >= 661 and <= 668 or 642 or 643 or 644 or 649 or 651 or 653 or 657 or 658 or 400 or 401 or 402 or 403 or 404 or 410 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 639 or 645 or 646 or 659 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    bool standard = context.Call is >= 661 and <= 669 or 642 or 643 or 644 or 649 or 651 or 653 or 657 or 658 or 400 or 401 or 402 or 403 or 404 or 410 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 639 or 645 or 646 or 659 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {

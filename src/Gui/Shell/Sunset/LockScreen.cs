@@ -31,6 +31,7 @@ internal sealed class LockScreen
     {
         if (IsLocked) { return; }
         _name = name; _uid = uid; _password.Clear(); _message = ""; IsLocked = true;
+        Zenith.Core.Audio.SystemSounds.Play("logout");
         Zenith.Core.Log.Write("session", "locked (" + name + ")");
     }
 

@@ -15,6 +15,7 @@ static long save(unsigned int m,unsigned int a,unsigned int materials,unsigned i
     material_level=level;material_saved=materials;saved.mode=m;saved.accent=a;saved.revision++;saves++;return 0;
 }
 static long mark(int d){dirty=d;return 0;}
+static unsigned int cursor_size;
 static struct zenith_system_settings preferences={.version=1,.flags=3,.revision=1,.keyboard_count=2,.zone_count=2,
     .current_zone="UTC",.keyboards={"us","de"},.zones={"UTC","Europe/Berlin"}};
 static long read_preferences(struct zenith_system_settings *s){*s=preferences;return 0;}
@@ -23,7 +24,28 @@ static long save_preferences(unsigned int field,unsigned int choice,unsigned lon
     if(revision!=preferences.revision)return -11;
     if(field==1)preferences.keyboard=choice;
     else if(field==2){preferences.zone=choice;strcpy(preferences.current_zone,preferences.zones[choice]);}
+    else if(field==6)preferences.wallpaper=choice;
+    else if(field==8)preferences.cursor=choice;
+    else if(field==9)cursor_size=choice;
     preferences.revision++;return 0;
+}
+/* The style catalogue: 12 legacy wallpapers (4 dynamic, 8 solid) and the second set of 4 dynamic ones. */
+static int previews_drawn;
+static long fake_catalog(unsigned int field,struct zenith_style_list *out){
+    static const char *walls[16]={"Zenith","Dunes","Aurora","Contour","Graphite","Midnight","Forest","Plum","Cream","Mist","Sand","Accent color","Orbits","Tides","Facets","Nebula"};
+    static const char *packs[5]={"Meridian Light","Meridian Dark","Contrast White","Contrast Black","Comet"};
+    static const char *sizes[3]={"Normal (24 px)","Large (32 px)","Largest (48 px)"};
+    const char **labels=field==6?walls:field==8?packs:field==9?sizes:0;unsigned int count=field==6?16:field==8?5:field==9?3:0;
+    if(!labels)return -19;
+    memset(out,0,sizeof(*out));out->version=1;out->field=field;out->count=count;out->revision=preferences.revision;
+    out->current=field==6?preferences.wallpaper:field==8?preferences.cursor:cursor_size;
+    for(unsigned int i=0;i<count;i++){strcpy(out->entries[i].label,labels[i]);strcpy(out->entries[i].name,labels[i]);out->entries[i].kind=field==6&&i>=4&&i<12;out->entries[i].color=0x202125;}
+    return 0;
+}
+static long fake_preview(unsigned int field,unsigned int index,int w,int h,unsigned int *pixels){
+    if((field!=6&&field!=8&&field!=9)||index>=16)return -22;
+    for(int i=0;i<w*h;i++){pixels[i]=0xFF000000u|(index*16u);}
+    previews_drawn++;return w<<16|h;
 }
 static long information_read(unsigned int kind,struct zenith_settings_information *s){
     *s=(struct zenith_settings_information){.version=1,.kind=kind};
@@ -133,7 +155,8 @@ int main(int argc,char **argv){
     int hover_row=zui_control_area(&app.ui,find_id(app.sidebar.base_id+2)).y+10;
     send((struct zenith_gui_event){Z_GUI_MOVE,0,100,hover_row,0,0});assert(app.ui.controls[app.ui.hover].id==app.sidebar.base_id+2);
     send((struct zenith_gui_event){Z_GUI_MOVE,0,-1,-1,0,0});assert(app.ui.hover==-1);app.ui.hover_supported=0;
-    key(0,ZUI_KEY_PAGE_DOWN,0);assert(app.page_scroll.offset>100);key(0,ZUI_KEY_PAGE_UP,0);assert(app.page_scroll.offset==0);
+    assert(meridian_open(&app,"style.application"));draw();
+    key(0,ZUI_KEY_PAGE_DOWN,0);assert(app.page_scroll.offset>0);key(0,ZUI_KEY_PAGE_UP,0);assert(app.page_scroll.offset==0);
     /* Colors draft, footer state and the unsaved-changes dialog on navigation. */
     assert(meridian_open(&app,"style.colors"));draw();
     assert(!enabled(900+ZUI_FOOTER_APPLY)&&!enabled(900+ZUI_FOOTER_RESET));
@@ -152,7 +175,15 @@ int main(int argc,char **argv){
     assert(meridian_open(&app,"style.colors"));draw();click_id(13);click_id(900+ZUI_FOOTER_APPLY);assert(saved.accent==3);
     click_id(900+ZUI_FOOTER_DEFAULTS);
     assert(app.colors.edited&&app.colors.mode==0&&app.colors.accent==0);click_id(900+ZUI_FOOTER_RESET);assert(!app.colors.edited);
-    wheel_until(54);assert(app.page_scroll.offset>0);click_id(54);assert(app.colors.translucency==50&&app.colors.edited);click_id(900+ZUI_FOOTER_APPLY);assert(material_level==50);
+    /* The materials moved to Application Style; Colors no longer shows them. A Colors draft carries over to
+     * Application Style without the unsaved-changes dialog: both edit one record. */
+    assert(find_id(54)<0);
+    click_label(saved.mode?"Dark":"Light");assert(app.colors.edited);
+    click_label("Application Style");assert(!app.dialog.open&&app.page==page_id("style.application")&&app.colors.edited);
+    click_id(900+ZUI_FOOTER_RESET);assert(!app.colors.edited);
+    assert(meridian_open(&app,"style.colors"));draw();
+    assert(meridian_open(&app,"style.application"));draw();assert(find_id(10)<0);
+    wheel_until(54);click_id(54);assert(app.colors.translucency==50&&app.colors.edited);click_id(900+ZUI_FOOTER_APPLY);assert(material_level==50);
     /* System defaults: combo choice, apply, stale revision, reset. */
     meridian_system_services(&app,read_preferences,save_preferences);
     assert(meridian_open(&app,"input.keyboard"));meridian_refresh(&app);draw();
@@ -178,6 +209,28 @@ int main(int argc,char **argv){
     portal_state=3;click_id(4003);preferences.flags=3;meridian_refresh(&app);draw();
     assert(!app.unlock_handle&&!app.unlock_note[0]&&find_id(4003)<0&&enabled(2004));   /* approved: writable */
     app.authorize=0;app.authorization_poll=0;
+    /* Pickers (call 669): wallpapers in Dynamic and Solid groups with desktop-drawn previews, cursor packs and sizes,
+     * the second set of wallpapers beyond the 12 the snapshot names, chosen by pointer and applied in one footer. */
+    preferences.version=2;preferences.wallpaper_count=12;preferences.wallpaper=0;preferences.cursor_count=2;preferences.cursor=0;
+    for(int i=0;i<12;i++)strcpy(preferences.wallpapers[i],"w");
+    preferences.session_count=1;strcpy(preferences.sessions[0],"de");strcpy(preferences.current_session,"de");
+    meridian_style_services(&app,fake_catalog,fake_preview);
+    assert(styles_field_ready(&app.styles,6)&&styles_field_ready(&app.styles,8)&&styles_field_ready(&app.styles,9)&&!styles_field_ready(&app.styles,10));
+    assert(meridian_open(&app,"style.wallpaper"));draw();
+    assert(find_id(8384)>=0);assert(previews_drawn>=1);assert(app.ui.controls[find_id(8384)].value);
+    int before=previews_drawn;draw();assert(previews_drawn==before);                 /* cached */
+    wheel_until(8384+13);click_id(8384+13);assert(app.styles.draft[6]==13&&styles_changed(&app.styles,"style.wallpaper")&&dirty);
+    click_id(900+ZUI_FOOTER_APPLY);assert(preferences.wallpaper==13&&!styles_changed(&app.styles,"style.wallpaper")&&!dirty);
+    draw();assert(app.ui.controls[find_id(8384+13)].value);                           /* Tides, from the second set */
+    wheel_until(8384+4);                                                             /* the solid colors follow */
+    /* Cursors: pack and size on one page, one Apply; a draft blocks navigation until it is resolved. */
+    assert(meridian_open(&app,"style.cursors"));draw();
+    wheel_until(8512+4);click_id(8512+4);assert(app.styles.draft[8]==4);
+    wheel_until(8576+2);click_id(8576+2);assert(app.styles.draft[9]==2);
+    assert(!meridian_open(&app,"devices.bluetooth"));                                 /* drafts block silent opens */
+    click_id(900+ZUI_FOOTER_APPLY);assert(preferences.cursor==4&&cursor_size==2&&!dirty);
+    click_id(8576+0);click_id(900+ZUI_FOOTER_RESET);assert(app.styles.draft[9]==2&&!dirty);
+    meridian_style_services(&app,0,0);preferences.wallpaper=0;preferences.cursor=0;preferences.version=1;meridian_refresh(&app);
     /* Service-backed information pages. */
     meridian_information_services(&app,information_read);
     assert(meridian_open(&app,"network.connections"));meridian_refresh(&app);draw();

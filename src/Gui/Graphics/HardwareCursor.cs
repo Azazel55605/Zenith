@@ -31,7 +31,8 @@ internal static class HardwareCursor
 #endif
     private static ulong s_kind, s_moves;
     private static bool s_tried, s_shown;
-    private static int s_x = -1, s_y = -1, s_percent, s_variant;
+    private static int s_x = -1, s_y = -1, s_percent;
+    private static long s_variant;
     private static CursorShape s_shape;
 
     /// <summary>The device draws the pointer: frames leave it out.</summary>
@@ -44,7 +45,7 @@ internal static class HardwareCursor
     public static bool Show()
     {
         if (!Ensure()) { return false; }
-        if (s_shape != Cursor.Shape || s_variant != Cursor.Variant)
+        if (s_shape != Cursor.Shape || s_variant != Cursor.Key)
         {
             // A new shape or set: define the device's image again at the same scale.
             s_kind = DefineImage(s_percent);
@@ -98,9 +99,10 @@ internal static class HardwareCursor
         var hhdm = Cosmos.Kernel.Boot.Limine.Limine.HHDM.Response;
         if (hhdm == null) { return 0; }
         // The Meridian set at the size nearest above 24 logical pixels at this scale.
-        s_shape = Cursor.Shape; s_variant = Cursor.Variant;
-        int w = CursorImages.SizeFor(Cursor.Size * Math.Clamp(percent, 100, 300) / 100), h = w;
-        uint[] image = CursorImages.Get(s_variant, s_shape, w, out int hotX, out int hotY);
+        s_shape = Cursor.Shape; s_variant = Cursor.Key;
+        // The chosen pack at the chosen size, at this scale (the device takes up to 144 px here).
+        int w = Math.Min(144, Cursor.Size * Math.Clamp(percent, 100, 300) / 100), h = w;
+        uint[] image = CursorPacks.Get(Cursor.Variant, s_shape, w, Theme.Accent & 0xFFFFFF, out int hotX, out int hotY);
         uint[] scratch = new uint[(w + 31) / 32 * h + w * h];
         fixed (uint* pixels = image)
         fixed (uint* work = scratch)

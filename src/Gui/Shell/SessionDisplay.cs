@@ -75,16 +75,26 @@ internal static class SessionDisplay
         int frames = 0, slow = 0;
         long worst = 0, elapsed = 0;
         string end = "Finished";
+        int style = welcome ? SplashStyles.Current : SplashStyles.Crossfade;
         if (from is not null && from.Length == frame.Length)
         {
             int[] mix = new int[frame.Length];
-            long duration = (welcome ? WelcomeFadeMicros : FadeMicros) * Zenith.Core.Configuration.SystemConfiguration.Settings.AnimationPercent / 100;
+            long duration = (welcome ? SplashStyles.Micros(style) : FadeMicros) * Zenith.Core.Configuration.SystemConfiguration.Settings.AnimationPercent / 100;
+            // Greeting: the card is drawn once, before the clock starts.
+            int[]? greeting = null;
+            if (welcome && style == SplashStyles.Greeting && duration > 0)
+            {
+                uint uid = Zenith.Core.Security.Accounts.Session.Uid;
+                string name = Zenith.Core.Security.Accounts.Service?.Name(uid) ?? (uid == 0 ? "root" : "there");
+                greeting = SplashStyles.GreetingCard(frame, width, height, name);
+            }
             long start = Now();
             while ((elapsed = Now() - start) < duration)
             {
                 long frameStart = Now();
                 int linear = MotionCurve.Linear(elapsed, duration);
-                PixelBlend.Mix(from, frame, mix, (welcome ? MotionCurve.EaseInOut(linear) : MotionCurve.EaseOut(linear)) * 255 / MotionCurve.One);
+                if (welcome) { SplashStyles.Frame(style, from, frame, greeting, mix, width, height, linear); }
+                else { PixelBlend.Mix(from, frame, mix, MotionCurve.EaseOut(linear) * 255 / MotionCurve.One); }
                 FramePresenter.PresentFrame(screen, mix, width, height);
                 long took = Now() - frameStart;
                 frames++;
@@ -93,10 +103,11 @@ internal static class SessionDisplay
                 if (slow >= 2) { end = "OverBudget"; break; }
             }
             System.Array.Clear(mix);
+            if (greeting is not null) { System.Array.Clear(greeting); }
         }
         if (from is not null) { System.Array.Clear(from); }
         FramePresenter.PresentFrame(screen, frame, width, height);
-        Zenith.Core.Log.Write("motion", "SessionFade frames=" + frames + " elapsed=" + elapsed + " worst=" + worst + " ended=" + end);
+        Zenith.Core.Log.Write("motion", "SessionFade frames=" + frames + " elapsed=" + elapsed + " worst=" + worst + " ended=" + end + (welcome ? " style=" + new[] { "crossfade", "rise", "iris", "greeting" }[style] : ""));
     }
 
     // What a session shows now, for the fade when the machine goes down. The session sets and clears it.
@@ -138,6 +149,7 @@ internal static class SessionDisplay
 
     private static void PlayFarewell(string label)
     {
+        Zenith.Core.Audio.SystemSounds.Play("shutdown");
         Zenith.Gui.Graphics.HardwareCursor.Hide();
         int percent = System.Math.Min(100, Zenith.Core.Configuration.SystemConfiguration.Settings.AnimationPercent);
         int[]? from = LiveFrame;

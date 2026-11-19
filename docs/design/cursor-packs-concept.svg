@@ -1,0 +1,216 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1500" viewBox="0 0 1440 1500">
+<defs><filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="18"/></filter><filter id="blur6" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6"/></filter><filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity=".35"/></filter><filter id="cshadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0.6" dy="1.2" stdDeviation="0.9" flood-color="#000" flood-opacity=".45"/></filter></defs>
+<rect x="0" y="0" width="1440" height="1500" rx="0" fill="#151619" />
+<text x="48" y="55" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="28" font-weight="600" text-anchor="start" xml:space="preserve">Zenith / Cursor packs concept</text>
+<text x="48" y="86" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="14" font-weight="400" text-anchor="start" xml:space="preserve">Proposal, not running UI · two packs beside the Meridian set (docs/design/cursor-concept.svg) · same 12 roles and hotspots on the 24-unit grid · drawn by the desktop, the same in every app</text>
+<text x="48" y="128" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="18" font-weight="600" text-anchor="start" xml:space="preserve">Meridian</text>
+<text x="48" y="152" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Installed · reference: Light (white body, near-black outline) and Dark</text>
+<text x="48" y="238" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="start" xml:space="preserve">Light</text>
+<rect x="140" y="192" width="140" height="82" rx="10" fill="#2E3B4B" />
+<path d="M4 3 L4 19.5 L8.6 15.4 L11.6 21.8 L14.3 20.6 L11.3 14.3 L17.4 14.3 Z" transform="translate(187.2 210.2) scale(1.9)" fill="#FFFFFF" stroke="#17181C" stroke-width="1.1" stroke-linejoin="round" filter="url(#cshadow)"/>
+<text x="210" y="184" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Arrow</text>
+<rect x="296" y="192" width="140" height="82" rx="10" fill="#2E3B4B" />
+<path d="M9 4 H15 M12 4 V20 M9 20 H15" transform="translate(343.2 210.2) scale(1.9)" fill="none" stroke="#17181C" stroke-width="4.0" stroke-linecap="round" filter="url(#cshadow)"/>
+<path d="M9 4 H15 M12 4 V20 M9 20 H15" transform="translate(343.2 210.2) scale(1.9)" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/>
+<text x="366" y="184" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Text</text>
+<rect x="452" y="192" width="140" height="82" rx="10" fill="#2E3B4B" />
+<path d="M9 12.5 V5.6 a1.6 1.6 0 0 1 3.2 0 V10.6 a1.6 1.6 0 0 1 3.2 0 V11.4 a1.6 1.6 0 0 1 3.2 0 V15.6 a5.6 5.6 0 0 1 -5.6 5.6 H12.2 a5 5 0 0 1 -4.3 -2.4 L5.2 14.5 a1.6 1.6 0 0 1 2.7 -1.8 Z" transform="translate(499.2 210.2) scale(1.9)" fill="#FFFFFF" stroke="#17181C" stroke-width="1.1" stroke-linejoin="round" filter="url(#cshadow)"/>
+<text x="522" y="184" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Link</text>
+<rect x="608" y="192" width="140" height="82" rx="10" fill="#2E3B4B" />
+<circle cx="12" cy="12" r="7" transform="translate(655.2 210.2) scale(1.9)" fill="none" stroke="#17181C" stroke-width="5.2" filter="url(#cshadow)"/>
+<circle cx="12" cy="12" r="7" transform="translate(655.2 210.2) scale(1.9)" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+<path d="M12 5 A7 7 0 0 1 19 12" transform="translate(655.2 210.2) scale(1.9)" fill="none" stroke="#7ECAC7" stroke-width="3" stroke-linecap="round"/>
+<text x="678" y="184" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Busy</text>
+<rect x="764" y="192" width="140" height="82" rx="10" fill="#2E3B4B" />
+<circle cx="12" cy="12" r="8" transform="translate(811.2 210.2) scale(1.9)" fill="#FFFFFF" stroke="#17181C" stroke-width="1.1" filter="url(#cshadow)"/>
+<circle cx="12" cy="12" r="5.6" transform="translate(811.2 210.2) scale(1.9)" fill="none" stroke="#D2455A" stroke-width="2.2"/>
+<path d="M8 16 L16 8" transform="translate(811.2 210.2) scale(1.9)" stroke="#D2455A" stroke-width="2.2" stroke-linecap="round"/>
+<text x="834" y="184" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Not allowed</text>
+<rect x="920" y="192" width="140" height="82" rx="10" fill="#2E3B4B" />
+<path d="M12 2.5 L15.5 6 H13.3 V10.7 H18 V8.5 L21.5 12 L18 15.5 V13.3 H13.3 V18 H15.5 L12 21.5 L8.5 18 H10.7 V13.3 H6 V15.5 L2.5 12 L6 8.5 V10.7 H10.7 V6 H8.5 Z" transform="translate(967.2 210.2) scale(1.9)" fill="#FFFFFF" stroke="#17181C" stroke-width="1.1" stroke-linejoin="round" filter="url(#cshadow)"/>
+<text x="990" y="184" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Move</text>
+<rect x="1076" y="192" width="140" height="82" rx="10" fill="#2E3B4B" />
+<path d="M12 2.5 L17 8 H13.6 V16 H17 L12 21.5 L7 16 H10.4 V8 H7 Z" transform="translate(1123.2 210.2) scale(1.9)" fill="#FFFFFF" stroke="#17181C" stroke-width="1.1" stroke-linejoin="round" filter="url(#cshadow)"/>
+<text x="1146" y="184" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Resize</text>
+<rect x="1232" y="192" width="140" height="82" rx="10" fill="#2E3B4B" />
+<path d="M12 3 V9 M12 15 V21 M3 12 H9 M15 12 H21" transform="translate(1279.2 210.2) scale(1.9)" fill="none" stroke="#17181C" stroke-width="3.8000000000000003" stroke-linecap="round" filter="url(#cshadow)"/>
+<path d="M12 3 V9 M12 15 V21 M3 12 H9 M15 12 H21" transform="translate(1279.2 210.2) scale(1.9)" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round"/>
+<circle cx="12" cy="12" r="1.4" transform="translate(1279.2 210.2) scale(1.9)" fill="#FFFFFF" stroke="#17181C" stroke-width="0.8800000000000001"/>
+<text x="1302" y="184" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Precise</text>
+<text x="48" y="334" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="start" xml:space="preserve">Dark</text>
+<rect x="140" y="288" width="140" height="82" rx="10" fill="#C9CED8" />
+<path d="M4 3 L4 19.5 L8.6 15.4 L11.6 21.8 L14.3 20.6 L11.3 14.3 L17.4 14.3 Z" transform="translate(187.2 306.2) scale(1.9)" fill="#1D1F24" stroke="#F4F5F7" stroke-width="1.1" stroke-linejoin="round" filter="url(#cshadow)"/>
+<rect x="296" y="288" width="140" height="82" rx="10" fill="#C9CED8" />
+<path d="M9 4 H15 M12 4 V20 M9 20 H15" transform="translate(343.2 306.2) scale(1.9)" fill="none" stroke="#F4F5F7" stroke-width="4.0" stroke-linecap="round" filter="url(#cshadow)"/>
+<path d="M9 4 H15 M12 4 V20 M9 20 H15" transform="translate(343.2 306.2) scale(1.9)" fill="none" stroke="#1D1F24" stroke-width="1.8" stroke-linecap="round"/>
+<rect x="452" y="288" width="140" height="82" rx="10" fill="#C9CED8" />
+<path d="M9 12.5 V5.6 a1.6 1.6 0 0 1 3.2 0 V10.6 a1.6 1.6 0 0 1 3.2 0 V11.4 a1.6 1.6 0 0 1 3.2 0 V15.6 a5.6 5.6 0 0 1 -5.6 5.6 H12.2 a5 5 0 0 1 -4.3 -2.4 L5.2 14.5 a1.6 1.6 0 0 1 2.7 -1.8 Z" transform="translate(499.2 306.2) scale(1.9)" fill="#1D1F24" stroke="#F4F5F7" stroke-width="1.1" stroke-linejoin="round" filter="url(#cshadow)"/>
+<rect x="608" y="288" width="140" height="82" rx="10" fill="#C9CED8" />
+<circle cx="12" cy="12" r="7" transform="translate(655.2 306.2) scale(1.9)" fill="none" stroke="#F4F5F7" stroke-width="5.2" filter="url(#cshadow)"/>
+<circle cx="12" cy="12" r="7" transform="translate(655.2 306.2) scale(1.9)" fill="none" stroke="#1D1F24" stroke-width="3"/>
+<path d="M12 5 A7 7 0 0 1 19 12" transform="translate(655.2 306.2) scale(1.9)" fill="none" stroke="#7ECAC7" stroke-width="3" stroke-linecap="round"/>
+<rect x="764" y="288" width="140" height="82" rx="10" fill="#C9CED8" />
+<circle cx="12" cy="12" r="8" transform="translate(811.2 306.2) scale(1.9)" fill="#1D1F24" stroke="#F4F5F7" stroke-width="1.1" filter="url(#cshadow)"/>
+<circle cx="12" cy="12" r="5.6" transform="translate(811.2 306.2) scale(1.9)" fill="none" stroke="#D2455A" stroke-width="2.2"/>
+<path d="M8 16 L16 8" transform="translate(811.2 306.2) scale(1.9)" stroke="#D2455A" stroke-width="2.2" stroke-linecap="round"/>
+<rect x="920" y="288" width="140" height="82" rx="10" fill="#C9CED8" />
+<path d="M12 2.5 L15.5 6 H13.3 V10.7 H18 V8.5 L21.5 12 L18 15.5 V13.3 H13.3 V18 H15.5 L12 21.5 L8.5 18 H10.7 V13.3 H6 V15.5 L2.5 12 L6 8.5 V10.7 H10.7 V6 H8.5 Z" transform="translate(967.2 306.2) scale(1.9)" fill="#1D1F24" stroke="#F4F5F7" stroke-width="1.1" stroke-linejoin="round" filter="url(#cshadow)"/>
+<rect x="1076" y="288" width="140" height="82" rx="10" fill="#C9CED8" />
+<path d="M12 2.5 L17 8 H13.6 V16 H17 L12 21.5 L7 16 H10.4 V8 H7 Z" transform="translate(1123.2 306.2) scale(1.9)" fill="#1D1F24" stroke="#F4F5F7" stroke-width="1.1" stroke-linejoin="round" filter="url(#cshadow)"/>
+<rect x="1232" y="288" width="140" height="82" rx="10" fill="#C9CED8" />
+<path d="M12 3 V9 M12 15 V21 M3 12 H9 M15 12 H21" transform="translate(1279.2 306.2) scale(1.9)" fill="none" stroke="#F4F5F7" stroke-width="3.8000000000000003" stroke-linecap="round" filter="url(#cshadow)"/>
+<path d="M12 3 V9 M12 15 V21 M3 12 H9 M15 12 H21" transform="translate(1279.2 306.2) scale(1.9)" fill="none" stroke="#1D1F24" stroke-width="1.6" stroke-linecap="round"/>
+<circle cx="12" cy="12" r="1.4" transform="translate(1279.2 306.2) scale(1.9)" fill="#1D1F24" stroke="#F4F5F7" stroke-width="0.8800000000000001"/>
+<text x="48" y="424" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="18" font-weight="600" text-anchor="start" xml:space="preserve">Contrast</text>
+<text x="48" y="448" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">New · for readability: 1.5x larger, 2 px heavy outline, pure black and white; same shapes, no translucency</text>
+<text x="48" y="534" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="start" xml:space="preserve">White</text>
+<rect x="140" y="488" width="140" height="96" rx="10" fill="#2E3B4B" />
+<path d="M4 3 L4 19.5 L8.6 15.4 L11.6 21.8 L14.3 20.6 L11.3 14.3 L17.4 14.3 Z" transform="translate(176.4 502.4) scale(2.8)" fill="#FFFFFF" stroke="#000000" stroke-width="2.0" stroke-linejoin="round" filter="url(#cshadow)"/>
+<text x="210" y="480" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Arrow</text>
+<rect x="296" y="488" width="140" height="96" rx="10" fill="#2E3B4B" />
+<path d="M9 4 H15 M12 4 V20 M9 20 H15" transform="translate(332.4 502.4) scale(2.8)" fill="none" stroke="#000000" stroke-width="5.8" stroke-linecap="round" filter="url(#cshadow)"/>
+<path d="M9 4 H15 M12 4 V20 M9 20 H15" transform="translate(332.4 502.4) scale(2.8)" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/>
+<text x="366" y="480" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Text</text>
+<rect x="452" y="488" width="140" height="96" rx="10" fill="#2E3B4B" />
+<path d="M9 12.5 V5.6 a1.6 1.6 0 0 1 3.2 0 V10.6 a1.6 1.6 0 0 1 3.2 0 V11.4 a1.6 1.6 0 0 1 3.2 0 V15.6 a5.6 5.6 0 0 1 -5.6 5.6 H12.2 a5 5 0 0 1 -4.3 -2.4 L5.2 14.5 a1.6 1.6 0 0 1 2.7 -1.8 Z" transform="translate(488.4 502.4) scale(2.8)" fill="#FFFFFF" stroke="#000000" stroke-width="2.0" stroke-linejoin="round" filter="url(#cshadow)"/>
+<text x="522" y="480" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Link</text>
+<rect x="608" y="488" width="140" height="96" rx="10" fill="#2E3B4B" />
+<circle cx="12" cy="12" r="7" transform="translate(644.4 502.4) scale(2.8)" fill="none" stroke="#000000" stroke-width="7.0" filter="url(#cshadow)"/>
+<circle cx="12" cy="12" r="7" transform="translate(644.4 502.4) scale(2.8)" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+<path d="M12 5 A7 7 0 0 1 19 12" transform="translate(644.4 502.4) scale(2.8)" fill="none" stroke="#000000" stroke-width="3" stroke-linecap="round"/>
+<text x="678" y="480" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Busy</text>
+<rect x="764" y="488" width="140" height="96" rx="10" fill="#2E3B4B" />
+<circle cx="12" cy="12" r="8" transform="translate(800.4 502.4) scale(2.8)" fill="#FFFFFF" stroke="#000000" stroke-width="2.0" filter="url(#cshadow)"/>
+<circle cx="12" cy="12" r="5.6" transform="translate(800.4 502.4) scale(2.8)" fill="none" stroke="#D2455A" stroke-width="2.2"/>
+<path d="M8 16 L16 8" transform="translate(800.4 502.4) scale(2.8)" stroke="#D2455A" stroke-width="2.2" stroke-linecap="round"/>
+<text x="834" y="480" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Not allowed</text>
+<rect x="920" y="488" width="140" height="96" rx="10" fill="#2E3B4B" />
+<path d="M12 2.5 L15.5 6 H13.3 V10.7 H18 V8.5 L21.5 12 L18 15.5 V13.3 H13.3 V18 H15.5 L12 21.5 L8.5 18 H10.7 V13.3 H6 V15.5 L2.5 12 L6 8.5 V10.7 H10.7 V6 H8.5 Z" transform="translate(956.4 502.4) scale(2.8)" fill="#FFFFFF" stroke="#000000" stroke-width="2.0" stroke-linejoin="round" filter="url(#cshadow)"/>
+<text x="990" y="480" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Move</text>
+<rect x="1076" y="488" width="140" height="96" rx="10" fill="#2E3B4B" />
+<path d="M12 2.5 L17 8 H13.6 V16 H17 L12 21.5 L7 16 H10.4 V8 H7 Z" transform="translate(1112.4 502.4) scale(2.8)" fill="#FFFFFF" stroke="#000000" stroke-width="2.0" stroke-linejoin="round" filter="url(#cshadow)"/>
+<text x="1146" y="480" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Resize</text>
+<rect x="1232" y="488" width="140" height="96" rx="10" fill="#2E3B4B" />
+<path d="M12 3 V9 M12 15 V21 M3 12 H9 M15 12 H21" transform="translate(1268.4 502.4) scale(2.8)" fill="none" stroke="#000000" stroke-width="5.6" stroke-linecap="round" filter="url(#cshadow)"/>
+<path d="M12 3 V9 M12 15 V21 M3 12 H9 M15 12 H21" transform="translate(1268.4 502.4) scale(2.8)" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round"/>
+<circle cx="12" cy="12" r="1.4" transform="translate(1268.4 502.4) scale(2.8)" fill="#FFFFFF" stroke="#000000" stroke-width="1.6"/>
+<text x="1302" y="480" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Precise</text>
+<text x="48" y="644" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="start" xml:space="preserve">Black</text>
+<rect x="140" y="598" width="140" height="96" rx="10" fill="#C9CED8" />
+<path d="M4 3 L4 19.5 L8.6 15.4 L11.6 21.8 L14.3 20.6 L11.3 14.3 L17.4 14.3 Z" transform="translate(176.4 612.4) scale(2.8)" fill="#000000" stroke="#FFFFFF" stroke-width="2.0" stroke-linejoin="round" filter="url(#cshadow)"/>
+<rect x="296" y="598" width="140" height="96" rx="10" fill="#C9CED8" />
+<path d="M9 4 H15 M12 4 V20 M9 20 H15" transform="translate(332.4 612.4) scale(2.8)" fill="none" stroke="#FFFFFF" stroke-width="5.8" stroke-linecap="round" filter="url(#cshadow)"/>
+<path d="M9 4 H15 M12 4 V20 M9 20 H15" transform="translate(332.4 612.4) scale(2.8)" fill="none" stroke="#000000" stroke-width="1.8" stroke-linecap="round"/>
+<rect x="452" y="598" width="140" height="96" rx="10" fill="#C9CED8" />
+<path d="M9 12.5 V5.6 a1.6 1.6 0 0 1 3.2 0 V10.6 a1.6 1.6 0 0 1 3.2 0 V11.4 a1.6 1.6 0 0 1 3.2 0 V15.6 a5.6 5.6 0 0 1 -5.6 5.6 H12.2 a5 5 0 0 1 -4.3 -2.4 L5.2 14.5 a1.6 1.6 0 0 1 2.7 -1.8 Z" transform="translate(488.4 612.4) scale(2.8)" fill="#000000" stroke="#FFFFFF" stroke-width="2.0" stroke-linejoin="round" filter="url(#cshadow)"/>
+<rect x="608" y="598" width="140" height="96" rx="10" fill="#C9CED8" />
+<circle cx="12" cy="12" r="7" transform="translate(644.4 612.4) scale(2.8)" fill="none" stroke="#FFFFFF" stroke-width="7.0" filter="url(#cshadow)"/>
+<circle cx="12" cy="12" r="7" transform="translate(644.4 612.4) scale(2.8)" fill="none" stroke="#000000" stroke-width="3"/>
+<path d="M12 5 A7 7 0 0 1 19 12" transform="translate(644.4 612.4) scale(2.8)" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+<rect x="764" y="598" width="140" height="96" rx="10" fill="#C9CED8" />
+<circle cx="12" cy="12" r="8" transform="translate(800.4 612.4) scale(2.8)" fill="#000000" stroke="#FFFFFF" stroke-width="2.0" filter="url(#cshadow)"/>
+<circle cx="12" cy="12" r="5.6" transform="translate(800.4 612.4) scale(2.8)" fill="none" stroke="#D2455A" stroke-width="2.2"/>
+<path d="M8 16 L16 8" transform="translate(800.4 612.4) scale(2.8)" stroke="#D2455A" stroke-width="2.2" stroke-linecap="round"/>
+<rect x="920" y="598" width="140" height="96" rx="10" fill="#C9CED8" />
+<path d="M12 2.5 L15.5 6 H13.3 V10.7 H18 V8.5 L21.5 12 L18 15.5 V13.3 H13.3 V18 H15.5 L12 21.5 L8.5 18 H10.7 V13.3 H6 V15.5 L2.5 12 L6 8.5 V10.7 H10.7 V6 H8.5 Z" transform="translate(956.4 612.4) scale(2.8)" fill="#000000" stroke="#FFFFFF" stroke-width="2.0" stroke-linejoin="round" filter="url(#cshadow)"/>
+<rect x="1076" y="598" width="140" height="96" rx="10" fill="#C9CED8" />
+<path d="M12 2.5 L17 8 H13.6 V16 H17 L12 21.5 L7 16 H10.4 V8 H7 Z" transform="translate(1112.4 612.4) scale(2.8)" fill="#000000" stroke="#FFFFFF" stroke-width="2.0" stroke-linejoin="round" filter="url(#cshadow)"/>
+<rect x="1232" y="598" width="140" height="96" rx="10" fill="#C9CED8" />
+<path d="M12 3 V9 M12 15 V21 M3 12 H9 M15 12 H21" transform="translate(1268.4 612.4) scale(2.8)" fill="none" stroke="#FFFFFF" stroke-width="5.6" stroke-linecap="round" filter="url(#cshadow)"/>
+<path d="M12 3 V9 M12 15 V21 M3 12 H9 M15 12 H21" transform="translate(1268.4 612.4) scale(2.8)" fill="none" stroke="#000000" stroke-width="1.6" stroke-linecap="round"/>
+<circle cx="12" cy="12" r="1.4" transform="translate(1268.4 612.4) scale(2.8)" fill="#000000" stroke="#FFFFFF" stroke-width="1.6"/>
+<text x="48" y="748" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="18" font-weight="600" text-anchor="start" xml:space="preserve">Comet</text>
+<text x="48" y="772" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">New · filled in the accent with a white rim and a soft shadow, rounded joins; follows the accent and the light/dark mode</text>
+<text x="48" y="858" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="start" xml:space="preserve">Teal</text>
+<rect x="140" y="812" width="140" height="82" rx="10" fill="#2E3B4B" />
+<path d="M4 3 L4 19.5 L8.6 15.4 L11.6 21.8 L14.3 20.6 L11.3 14.3 L17.4 14.3 Z" transform="translate(187.2 830.2) scale(1.9)" fill="#7ECAC7" stroke="#FFFFFF" stroke-width="1.3" stroke-linejoin="round" filter="url(#cshadow)"/>
+<text x="210" y="804" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Arrow</text>
+<rect x="296" y="812" width="140" height="82" rx="10" fill="#2E3B4B" />
+<path d="M9 4 H15 M12 4 V20 M9 20 H15" transform="translate(343.2 830.2) scale(1.9)" fill="none" stroke="#FFFFFF" stroke-width="4.4" stroke-linecap="round" filter="url(#cshadow)"/>
+<path d="M9 4 H15 M12 4 V20 M9 20 H15" transform="translate(343.2 830.2) scale(1.9)" fill="none" stroke="#7ECAC7" stroke-width="1.8" stroke-linecap="round"/>
+<text x="366" y="804" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Text</text>
+<rect x="452" y="812" width="140" height="82" rx="10" fill="#2E3B4B" />
+<path d="M9 12.5 V5.6 a1.6 1.6 0 0 1 3.2 0 V10.6 a1.6 1.6 0 0 1 3.2 0 V11.4 a1.6 1.6 0 0 1 3.2 0 V15.6 a5.6 5.6 0 0 1 -5.6 5.6 H12.2 a5 5 0 0 1 -4.3 -2.4 L5.2 14.5 a1.6 1.6 0 0 1 2.7 -1.8 Z" transform="translate(499.2 830.2) scale(1.9)" fill="#7ECAC7" stroke="#FFFFFF" stroke-width="1.3" stroke-linejoin="round" filter="url(#cshadow)"/>
+<text x="522" y="804" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Link</text>
+<rect x="608" y="812" width="140" height="82" rx="10" fill="#2E3B4B" />
+<circle cx="12" cy="12" r="7" transform="translate(655.2 830.2) scale(1.9)" fill="none" stroke="#FFFFFF" stroke-width="5.6" filter="url(#cshadow)"/>
+<circle cx="12" cy="12" r="7" transform="translate(655.2 830.2) scale(1.9)" fill="none" stroke="#7ECAC7" stroke-width="3"/>
+<path d="M12 5 A7 7 0 0 1 19 12" transform="translate(655.2 830.2) scale(1.9)" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+<text x="678" y="804" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Busy</text>
+<rect x="764" y="812" width="140" height="82" rx="10" fill="#2E3B4B" />
+<circle cx="12" cy="12" r="8" transform="translate(811.2 830.2) scale(1.9)" fill="#7ECAC7" stroke="#FFFFFF" stroke-width="1.3" filter="url(#cshadow)"/>
+<circle cx="12" cy="12" r="5.6" transform="translate(811.2 830.2) scale(1.9)" fill="none" stroke="#D2455A" stroke-width="2.2"/>
+<path d="M8 16 L16 8" transform="translate(811.2 830.2) scale(1.9)" stroke="#D2455A" stroke-width="2.2" stroke-linecap="round"/>
+<text x="834" y="804" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Not allowed</text>
+<rect x="920" y="812" width="140" height="82" rx="10" fill="#2E3B4B" />
+<path d="M12 2.5 L15.5 6 H13.3 V10.7 H18 V8.5 L21.5 12 L18 15.5 V13.3 H13.3 V18 H15.5 L12 21.5 L8.5 18 H10.7 V13.3 H6 V15.5 L2.5 12 L6 8.5 V10.7 H10.7 V6 H8.5 Z" transform="translate(967.2 830.2) scale(1.9)" fill="#7ECAC7" stroke="#FFFFFF" stroke-width="1.3" stroke-linejoin="round" filter="url(#cshadow)"/>
+<text x="990" y="804" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Move</text>
+<rect x="1076" y="812" width="140" height="82" rx="10" fill="#2E3B4B" />
+<path d="M12 2.5 L17 8 H13.6 V16 H17 L12 21.5 L7 16 H10.4 V8 H7 Z" transform="translate(1123.2 830.2) scale(1.9)" fill="#7ECAC7" stroke="#FFFFFF" stroke-width="1.3" stroke-linejoin="round" filter="url(#cshadow)"/>
+<text x="1146" y="804" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Resize</text>
+<rect x="1232" y="812" width="140" height="82" rx="10" fill="#2E3B4B" />
+<path d="M12 3 V9 M12 15 V21 M3 12 H9 M15 12 H21" transform="translate(1279.2 830.2) scale(1.9)" fill="none" stroke="#FFFFFF" stroke-width="4.2" stroke-linecap="round" filter="url(#cshadow)"/>
+<path d="M12 3 V9 M12 15 V21 M3 12 H9 M15 12 H21" transform="translate(1279.2 830.2) scale(1.9)" fill="none" stroke="#7ECAC7" stroke-width="1.6" stroke-linecap="round"/>
+<circle cx="12" cy="12" r="1.4" transform="translate(1279.2 830.2) scale(1.9)" fill="#7ECAC7" stroke="#FFFFFF" stroke-width="1.04"/>
+<text x="1302" y="804" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Precise</text>
+<text x="48" y="954" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="start" xml:space="preserve">Violet</text>
+<rect x="140" y="908" width="140" height="82" rx="10" fill="#C9CED8" />
+<path d="M4 3 L4 19.5 L8.6 15.4 L11.6 21.8 L14.3 20.6 L11.3 14.3 L17.4 14.3 Z" transform="translate(187.2 926.2) scale(1.9)" fill="#B7A3F0" stroke="#FFFFFF" stroke-width="1.3" stroke-linejoin="round" filter="url(#cshadow)"/>
+<rect x="296" y="908" width="140" height="82" rx="10" fill="#C9CED8" />
+<path d="M9 4 H15 M12 4 V20 M9 20 H15" transform="translate(343.2 926.2) scale(1.9)" fill="none" stroke="#FFFFFF" stroke-width="4.4" stroke-linecap="round" filter="url(#cshadow)"/>
+<path d="M9 4 H15 M12 4 V20 M9 20 H15" transform="translate(343.2 926.2) scale(1.9)" fill="none" stroke="#B7A3F0" stroke-width="1.8" stroke-linecap="round"/>
+<rect x="452" y="908" width="140" height="82" rx="10" fill="#C9CED8" />
+<path d="M9 12.5 V5.6 a1.6 1.6 0 0 1 3.2 0 V10.6 a1.6 1.6 0 0 1 3.2 0 V11.4 a1.6 1.6 0 0 1 3.2 0 V15.6 a5.6 5.6 0 0 1 -5.6 5.6 H12.2 a5 5 0 0 1 -4.3 -2.4 L5.2 14.5 a1.6 1.6 0 0 1 2.7 -1.8 Z" transform="translate(499.2 926.2) scale(1.9)" fill="#B7A3F0" stroke="#FFFFFF" stroke-width="1.3" stroke-linejoin="round" filter="url(#cshadow)"/>
+<rect x="608" y="908" width="140" height="82" rx="10" fill="#C9CED8" />
+<circle cx="12" cy="12" r="7" transform="translate(655.2 926.2) scale(1.9)" fill="none" stroke="#FFFFFF" stroke-width="5.6" filter="url(#cshadow)"/>
+<circle cx="12" cy="12" r="7" transform="translate(655.2 926.2) scale(1.9)" fill="none" stroke="#B7A3F0" stroke-width="3"/>
+<path d="M12 5 A7 7 0 0 1 19 12" transform="translate(655.2 926.2) scale(1.9)" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+<rect x="764" y="908" width="140" height="82" rx="10" fill="#C9CED8" />
+<circle cx="12" cy="12" r="8" transform="translate(811.2 926.2) scale(1.9)" fill="#B7A3F0" stroke="#FFFFFF" stroke-width="1.3" filter="url(#cshadow)"/>
+<circle cx="12" cy="12" r="5.6" transform="translate(811.2 926.2) scale(1.9)" fill="none" stroke="#D2455A" stroke-width="2.2"/>
+<path d="M8 16 L16 8" transform="translate(811.2 926.2) scale(1.9)" stroke="#D2455A" stroke-width="2.2" stroke-linecap="round"/>
+<rect x="920" y="908" width="140" height="82" rx="10" fill="#C9CED8" />
+<path d="M12 2.5 L15.5 6 H13.3 V10.7 H18 V8.5 L21.5 12 L18 15.5 V13.3 H13.3 V18 H15.5 L12 21.5 L8.5 18 H10.7 V13.3 H6 V15.5 L2.5 12 L6 8.5 V10.7 H10.7 V6 H8.5 Z" transform="translate(967.2 926.2) scale(1.9)" fill="#B7A3F0" stroke="#FFFFFF" stroke-width="1.3" stroke-linejoin="round" filter="url(#cshadow)"/>
+<rect x="1076" y="908" width="140" height="82" rx="10" fill="#C9CED8" />
+<path d="M12 2.5 L17 8 H13.6 V16 H17 L12 21.5 L7 16 H10.4 V8 H7 Z" transform="translate(1123.2 926.2) scale(1.9)" fill="#B7A3F0" stroke="#FFFFFF" stroke-width="1.3" stroke-linejoin="round" filter="url(#cshadow)"/>
+<rect x="1232" y="908" width="140" height="82" rx="10" fill="#C9CED8" />
+<path d="M12 3 V9 M12 15 V21 M3 12 H9 M15 12 H21" transform="translate(1279.2 926.2) scale(1.9)" fill="none" stroke="#FFFFFF" stroke-width="4.2" stroke-linecap="round" filter="url(#cshadow)"/>
+<path d="M12 3 V9 M12 15 V21 M3 12 H9 M15 12 H21" transform="translate(1279.2 926.2) scale(1.9)" fill="none" stroke="#B7A3F0" stroke-width="1.6" stroke-linecap="round"/>
+<circle cx="12" cy="12" r="1.4" transform="translate(1279.2 926.2) scale(1.9)" fill="#B7A3F0" stroke="#FFFFFF" stroke-width="1.04"/>
+<text x="48" y="1044" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Choosing a pack</text>
+<rect x="48" y="1066" width="820" height="260" rx="12" fill="#202125" stroke="#45474F" />
+<text x="68" y="1100" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="20" font-weight="600" text-anchor="start" xml:space="preserve">Cursors</text>
+<text x="68" y="1122" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Appearance › Colors &amp; Themes</text>
+<rect x="68" y="1142" width="250" height="120" rx="10" fill="#2A2C31" stroke="#7ECAC7" stroke-width="2"/>
+<rect x="80" y="1154" width="100" height="70" rx="8" fill="#2E3B4B" />
+<path d="M4 3 L4 19.5 L8.6 15.4 L11.6 21.8 L14.3 20.6 L11.3 14.3 L17.4 14.3 Z" transform="translate(108 1162) scale(1.7)" fill="#FFFFFF" stroke="#17181C" stroke-width="1.1" stroke-linejoin="round" filter="url(#cshadow)"/>
+<path d="M9 12.5 V5.6 a1.6 1.6 0 0 1 3.2 0 V10.6 a1.6 1.6 0 0 1 3.2 0 V11.4 a1.6 1.6 0 0 1 3.2 0 V15.6 a5.6 5.6 0 0 1 -5.6 5.6 H12.2 a5 5 0 0 1 -4.3 -2.4 L5.2 14.5 a1.6 1.6 0 0 1 2.7 -1.8 Z" transform="translate(194 1162) scale(1.7)" fill="#FFFFFF" stroke="#17181C" stroke-width="1.1" stroke-linejoin="round" filter="url(#cshadow)"/>
+<text x="80" y="1242" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" text-anchor="start" xml:space="preserve">Meridian</text>
+<text x="306" y="1242" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="end" xml:space="preserve">Light · Dark</text>
+<rect x="330" y="1142" width="250" height="120" rx="10" fill="#2A2C31" stroke="#45474F" />
+<rect x="342" y="1154" width="100" height="70" rx="8" fill="#2E3B4B" />
+<path d="M4 3 L4 19.5 L8.6 15.4 L11.6 21.8 L14.3 20.6 L11.3 14.3 L17.4 14.3 Z" transform="translate(370 1162) scale(2.2)" fill="#FFFFFF" stroke="#000000" stroke-width="2.0" stroke-linejoin="round" filter="url(#cshadow)"/>
+<path d="M9 12.5 V5.6 a1.6 1.6 0 0 1 3.2 0 V10.6 a1.6 1.6 0 0 1 3.2 0 V11.4 a1.6 1.6 0 0 1 3.2 0 V15.6 a5.6 5.6 0 0 1 -5.6 5.6 H12.2 a5 5 0 0 1 -4.3 -2.4 L5.2 14.5 a1.6 1.6 0 0 1 2.7 -1.8 Z" transform="translate(456 1162) scale(1.7)" fill="#FFFFFF" stroke="#000000" stroke-width="2.0" stroke-linejoin="round" filter="url(#cshadow)"/>
+<text x="342" y="1242" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" text-anchor="start" xml:space="preserve">Contrast</text>
+<text x="568" y="1242" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="end" xml:space="preserve">White · Black</text>
+<rect x="592" y="1142" width="250" height="120" rx="10" fill="#2A2C31" stroke="#45474F" />
+<rect x="604" y="1154" width="100" height="70" rx="8" fill="#2E3B4B" />
+<path d="M4 3 L4 19.5 L8.6 15.4 L11.6 21.8 L14.3 20.6 L11.3 14.3 L17.4 14.3 Z" transform="translate(632 1162) scale(1.7)" fill="#7ECAC7" stroke="#FFFFFF" stroke-width="1.3" stroke-linejoin="round" filter="url(#cshadow)"/>
+<path d="M9 12.5 V5.6 a1.6 1.6 0 0 1 3.2 0 V10.6 a1.6 1.6 0 0 1 3.2 0 V11.4 a1.6 1.6 0 0 1 3.2 0 V15.6 a5.6 5.6 0 0 1 -5.6 5.6 H12.2 a5 5 0 0 1 -4.3 -2.4 L5.2 14.5 a1.6 1.6 0 0 1 2.7 -1.8 Z" transform="translate(718 1162) scale(1.7)" fill="#7ECAC7" stroke="#FFFFFF" stroke-width="1.3" stroke-linejoin="round" filter="url(#cshadow)"/>
+<text x="604" y="1242" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" text-anchor="start" xml:space="preserve">Comet</text>
+<text x="830" y="1242" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="end" xml:space="preserve">Follows the accent</text>
+<text x="68" y="1292" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Size</text>
+<rect x="168" y="1276" width="278" height="36" rx="8" fill="#26272C" />
+<rect x="172" y="1280" width="90" height="28" rx="6" fill="#2A2C31" stroke="#45474F" />
+<text x="217" y="1299" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle" xml:space="preserve">24 px</text>
+<text x="307" y="1299" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="middle" xml:space="preserve">32 px</text>
+<text x="397" y="1299" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="middle" xml:space="preserve">48 px</text>
+<text x="900" y="1096" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Every pack keeps the 12 roles and their hotspots, so</text>
+<text x="900" y="1118" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">switching never moves where a click lands.</text>
+<text x="900" y="1140" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Recovery and the login screen keep Meridian Light,</text>
+<text x="900" y="1162" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">whatever is chosen, so a pointer is always readable.</text>
+<text x="900" y="1184" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Contrast ignores transparency and the accent.</text>
+<text x="900" y="1206" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Comet re-tints when the accent changes, without</text>
+<text x="900" y="1228" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">a restart, like the wallpapers.</text>
+<text x="48" y="1470" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Requires: a pack and a size in the cursor setting (today: light or dark), cursor images per pack at 24/32/48 px in the desktop. Values are illustrative.</text>
+</svg>

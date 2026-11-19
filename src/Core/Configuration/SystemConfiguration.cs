@@ -23,6 +23,7 @@ internal static class SystemConfiguration
             name => { if (!SystemClock.TrySetZone(name)) { throw new InvalidOperationException("clock apply failed"); } },
             SessionRuntime.Available);
         foreach (string error in Settings.Load()) { Log.Write("settings", error); }
+        StyleCatalog.Values = field => Settings.Style(field);
         Log.Write("settings", "loaded keyboard=" + Settings.Current.Keyboard + " timezone=" + Settings.Current.TimeZone
             + " session=" + SessionModes.Name(Settings.Current.DefaultSession));
     }

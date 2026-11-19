@@ -9,7 +9,7 @@ using Zenith.Core.Security;
 namespace Zenith.Tests;
 public class ProcessSystemSettingsTests
 {
-    private sealed class Store : ISettingsStore
+    internal sealed class Store : ISettingsStore
     {
         public bool Fail; public bool Persistent => true;
         public readonly Dictionary<string,string> Files = new();
@@ -34,22 +34,40 @@ public class ProcessSystemSettingsTests
         var broken=new SettingsService(store,_=>{},_=>{},_=>true);Assert.Single(broken.Load());Assert.Equal(0U,broken.Current.Taskbar);
     }
     [Fact]
+    public void TheStyleCatalogueListsEveryWallpaperAndASecondSetChoiceSaves()
+    {
+        var store=new Store();var service=new SettingsService(store,_=>{},_=>{},_=>true);
+        using var root=CredentialContext.Enter(Credentials.Root);
+        byte[] list=Zenith.Core.Configuration.StyleCatalog.List(service,6,0x7ECAC7)!;
+        Assert.Equal(16U,BinaryPrimitives.ReadUInt32LittleEndian(list.AsSpan(8)));
+        Assert.Equal("Orbits",Encoding.UTF8.GetString(list,32+12*64+24,6));
+        Assert.Equal(0U,BinaryPrimitives.ReadUInt32LittleEndian(list.AsSpan(32+12*64+56)));          // dynamic
+        Assert.Equal(1U,BinaryPrimitives.ReadUInt32LittleEndian(list.AsSpan(32+4*64+56)));           // Graphite: solid
+        Assert.Equal(0x7ECAC7U,BinaryPrimitives.ReadUInt32LittleEndian(list.AsSpan(32+11*64+60)));   // Accent color
+        Assert.Null(Zenith.Core.Configuration.StyleCatalog.List(service,1,0));
+        byte[] request=new byte[32];request[0]=2;request[4]=6;request[8]=1;request[16]=13;         // Tides
+        Assert.Equal(0,ProcessSystemSettings.Save(service,request,true));Assert.Equal(13U,service.Current.Wallpaper);
+        var data=ProcessSystemSettings.Snapshot(service,true);
+        Assert.Equal(13U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(3748)));                // beyond the 12 names
+        var reboot=new SettingsService(store,_=>{},_=>{},_=>true);Assert.Empty(reboot.Load());Assert.Equal(13U,reboot.Current.Wallpaper);
+    }
+    [Fact]
     public void WallpaperAndLauncherChoicesArePublishedSavedAndSurviveReboot()
     {
         var store=new Store();var service=new SettingsService(store,_=>{},_=>{},_=>true);
         using var root=CredentialContext.Enter(Credentials.Root);
         var data=ProcessSystemSettings.Snapshot(service,true);
-        Assert.Equal((uint)SettingsService.WallpaperNames.Length,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(3744)));
+        Assert.Equal(12U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(3744)));   // the legacy snapshot names 12
         Assert.Equal(0U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(3748)));
         Assert.Equal("Zenith (dynamic)",Encoding.UTF8.GetString(data,3752,16));
         Assert.Equal(2U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(4040)));Assert.Equal((byte)'S',data[4048+24]);
         byte[] request=new byte[32];request[0]=2;request[4]=6;request[8]=1;request[16]=2;    // wallpaper: Aurora
-        Assert.Equal("aurora",SettingsService.WallpaperNames[2]);Assert.Equal(12,SettingsService.WallpaperNames.Length);
+        Assert.Equal("aurora",SettingsService.WallpaperNames[2]);Assert.Equal(16,SettingsService.WallpaperNames.Length);
         Assert.Equal(0,ProcessSystemSettings.Save(service,request,true));Assert.Equal(2U,service.Current.Wallpaper);
         request[4]=7;request[8]=2;request[16]=1;                                             // launcher: palette
         Assert.Equal(0,ProcessSystemSettings.Save(service,request,true));Assert.Equal(1U,service.Current.Launcher);
         request[8]=3;request[16]=2;Assert.Equal(-22,ProcessSystemSettings.Save(service,request,true));
-        request[4]=9;request[16]=0;Assert.Equal(-22,ProcessSystemSettings.Save(service,request,true));
+        request[4]=99;request[16]=0;Assert.Equal(-22,ProcessSystemSettings.Save(service,request,true));
         data=ProcessSystemSettings.Snapshot(service,true);
         Assert.Equal(2U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(3748)));Assert.Equal(1U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(4044)));
         Assert.Equal(2U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(112)));Assert.Equal(0U,BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(116)));

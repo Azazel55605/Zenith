@@ -92,6 +92,8 @@ def execute(config, checkout, version, recipe):
             release.phase("Generate fonts", [sys.executable, "-B", str(checkout / "tools/build-font-package.py"), str(payload)], preparation / "generate.log")
         elif recipe.get("generate") == "icons":
             release.phase("Generate icons", [sys.executable, "-B", str(checkout / "tools/build-ui-icons.py"), "--package", str(payload)], preparation / "generate.log")
+        elif recipe.get("generate") == "sounds":
+            release.phase("Render sounds", [sys.executable, "-B", str(checkout / "tools/build-sounds.py"), str(payload)], preparation / "generate.log")
         elif recipe.get("generate") == "native":
             command = [sys.executable, "-B", str(checkout / "tools/build-userland.py"), str(payload), "--version", version]
             # Older immutable Sunbeam tags do not support the program selector.

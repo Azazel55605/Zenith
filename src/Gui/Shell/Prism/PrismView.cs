@@ -22,6 +22,10 @@ internal sealed class PrismView
     private List<PrismItem> _all = new(), _results = new();
     private string _query = "";
     private int _filter, _selected, _scroll, _maxHeight = 560;
+    // Scrolling: the list follows the keyboard selection until the wheel or the scroll bar moves it.
+    private bool _follow = true, _dragging;
+    private int _content, _view, _dragOffset;
+    private Rect _track, _thumb;
     private readonly List<(Rect Rect, int Index)> _rows = new();
     private readonly List<(Rect Rect, string Action)> _buttons = new();
 
@@ -38,13 +42,40 @@ internal sealed class PrismView
 
     public void Open(Layout layout, Rect bar, int width, int height)
     {
-        Mode = layout; IsOpen = true; _query = ""; _filter = 0; _selected = 0; _scroll = 0;
+        Mode = layout; IsOpen = true; _query = ""; _filter = 0; _selected = 0; _scroll = 0; _follow = true; _dragging = false;
         _all = _candidates(); Refresh();
         Place(bar, width, height);
+        Zenith.Gui.Motion.OverlayMotion.Start(Zenith.Gui.Motion.OverlayMotion.Prism);
         Zenith.Core.Log.Write("prism", "opened " + (layout == Layout.Menu ? "menu" : "palette") + " candidates=" + _all.Count);
     }
 
-    public void Close() { IsOpen = false; _rows.Clear(); _buttons.Clear(); }
+    public void Close() { IsOpen = false; _dragging = false; _rows.Clear(); _buttons.Clear(); }
+
+    private int MaxScroll => Math.Max(0, _content - _view);
+    /// <summary>The wheel over the list: three rows a notch. True when it was over Prism.</summary>
+    public bool Wheel(int x, int y, int delta)
+    {
+        if (!IsOpen || delta == 0 || !Bounds.Contains(x, y)) { return false; }
+        // The desktop's wheel value is positive for down (windows get it negated).
+        _follow = false; _scroll = Math.Clamp(_scroll + Math.Sign(delta) * Row * 3, 0, MaxScroll); return true;
+    }
+    /// <summary>A press on the scroll bar: the thumb starts a drag, the track pages. True when it was used.</summary>
+    private bool PressScrollBar(int x, int y)
+    {
+        if (_track.W == 0 || !new Rect(_track.X - 6, _track.Y, _track.W + 8, _track.H).Contains(x, y)) { return false; }
+        _follow = false;
+        if (_thumb.Contains(x, y) || new Rect(_thumb.X - 6, _thumb.Y, _thumb.W + 8, _thumb.H).Contains(x, y)) { _dragging = true; _dragOffset = y - _thumb.Y; return true; }
+        _scroll = Math.Clamp(_scroll + (y < _thumb.Y ? -_view : _view), 0, MaxScroll); return true;
+    }
+    /// <summary>The pointer moved with the button held: a thumb drag maps to the list position.</summary>
+    public void Drag(int y)
+    {
+        if (!_dragging) { return; }
+        int travel = Math.Max(1, _track.H - _thumb.H);
+        _scroll = Math.Clamp((int)((long)(y - _dragOffset - _track.Y) * MaxScroll / travel), 0, MaxScroll);
+    }
+    public void Release() { _dragging = false; }
+    public bool Dragging => _dragging;
 
     /// <summary>Keeps the menu above the bar and the palette in the upper third, wherever the
     /// display and the bar are now.</summary>
@@ -80,28 +111,29 @@ internal sealed class PrismView
         {
             case ConsoleKeyEx.Escape: Close(); return true;
             case ConsoleKeyEx.Enter: Activate(_selected); return true;
-            case ConsoleKeyEx.DownArrow: _selected = Math.Min(_selected + 1, _results.Count - 1); return true;
-            case ConsoleKeyEx.UpArrow: _selected = Math.Max(_selected - 1, 0); return true;
-            case ConsoleKeyEx.PageDown: _selected = Math.Min(_selected + 6, _results.Count - 1); return true;
-            case ConsoleKeyEx.PageUp: _selected = Math.Max(_selected - 6, 0); return true;
+            case ConsoleKeyEx.DownArrow: _follow = true; _selected = Math.Min(_selected + 1, _results.Count - 1); return true;
+            case ConsoleKeyEx.UpArrow: _follow = true; _selected = Math.Max(_selected - 1, 0); return true;
+            case ConsoleKeyEx.PageDown: _follow = true; _selected = Math.Min(_selected + 6, _results.Count - 1); return true;
+            case ConsoleKeyEx.PageUp: _follow = true; _selected = Math.Max(_selected - 6, 0); return true;
             case ConsoleKeyEx.Tab:
                 int n = PrismSearch.Filters.Length;
                 _filter = (_filter + ((key.Modifiers & ConsoleModifiers.Shift) != 0 ? n - 1 : 1)) % n;
-                _selected = 0; _scroll = 0; Refresh(); return true;
+                _selected = 0; _scroll = 0; _follow = true; Refresh(); return true;
             case ConsoleKeyEx.Backspace:
-                if (_query.Length > 0) { _query = (key.Modifiers & ConsoleModifiers.Control) != 0 ? "" : _query[..^1]; _selected = 0; _scroll = 0; Refresh(); }
+                if (_query.Length > 0) { _query = (key.Modifiers & ConsoleModifiers.Control) != 0 ? "" : _query[..^1]; _selected = 0; _scroll = 0; _follow = true; Refresh(); }
                 return true;
         }
         if ((key.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) != 0) { return true; }
         char c = key.KeyChar;
         if (c >= ' ' && c <= '~' && _query.Length < PrismSearch.MaximumQuery)
-        { _query += c; _selected = 0; _scroll = 0; Refresh(); }
+        { _query += c; _selected = 0; _scroll = 0; _follow = true; Refresh(); }
         return true;
     }
 
     /// <summary>A click while open: a row or button acts; anywhere outside closes.</summary>
     public void HandleClick(int x, int y)
     {
+        if (PressScrollBar(x, y)) { return; }
         foreach (var (rect, index) in _rows) { if (rect.Contains(x, y)) { Activate(index); return; } }
         foreach (var (rect, action) in _buttons) { if (rect.Contains(x, y)) { Close(); _activate(new PrismItem(PrismKind.Action, action, "", "", action)); return; } }
         if (!Bounds.Contains(x, y)) { Close(); }
@@ -109,6 +141,8 @@ internal sealed class PrismView
 
     public int HoverKey(int x, int y)
     {
+        if (_dragging) { return 100000 + _scroll; }
+        if (_track.W > 0 && new Rect(_track.X - 6, _track.Y, _track.W + 8, _track.H).Contains(x, y)) { return 90000; }
         for (int i = 0; i < _rows.Count; i++) { if (_rows[i].Rect.Contains(x, y)) { return i + 1; } }
         for (int i = 0; i < _buttons.Count; i++) { if (_buttons[i].Rect.Contains(x, y)) { return 100 + i; } }
         return 0;
@@ -140,7 +174,9 @@ internal sealed class PrismView
         _rows.Clear(); _buttons.Clear();
         // The palette grows downward with its results; the search field never moves.
         if (Mode == Layout.Palette) { Bounds = new Rect(Bounds.X, Bounds.Y, Bounds.W, Math.Min(_maxHeight, 56 + ContentHeight() + 36)); }
-        Rect b = Bounds;
+        // Rising into place: the palette drops from above, the menu rises from the bar.
+        int rise = Zenith.Gui.Motion.OverlayMotion.Offset(Zenith.Gui.Motion.OverlayMotion.Prism);
+        Rect b = Bounds.Offset(0, Mode == Layout.Palette ? -rise : rise);
         _material.Capture(surface, b.Intersect(surface.Bounds), 12, Theme.Menu);
         surface.DrawShadow(b, 12, 22, 110, 8);
         _material.Paint(surface, b.Intersect(surface.Bounds), Theme.Menu);
@@ -204,8 +240,13 @@ internal sealed class PrismView
             layout.Add((y, i, null)); y += Row;
         }
         int selectedY = 0; foreach (var entry in layout) { if (entry.Index == _selected) { selectedY = entry.Y; } }
-        if (selectedY - _scroll > area.H - Row - 4) { _scroll = selectedY - (area.H - Row - 4); }
-        if (selectedY - Header - _scroll < 0) { _scroll = Math.Max(0, selectedY - Header - 6); }
+        _content = y + 6; _view = area.H;
+        if (_follow)
+        {
+            if (selectedY - _scroll > area.H - Row - 4) { _scroll = selectedY - (area.H - Row - 4); }
+            if (selectedY - Header - _scroll < 0) { _scroll = Math.Max(0, selectedY - Header - 6); }
+        }
+        _scroll = Math.Clamp(_scroll, 0, MaxScroll);
         foreach (var (rowY, index, section) in layout)
         {
             int screenY = area.Y + rowY - _scroll;
@@ -220,10 +261,16 @@ internal sealed class PrismView
             DrawRow(s, row, _results[index], index == _selected, row.Contains(mouseX, mouseY));
             _rows.Add((row, index));
         }
-        if (y > area.H)
+        _track = new Rect(0, 0, 0, 0);
+        if (_content > area.H)
         {
-            int track = area.H - 12, thumb = Math.Max(24, track * area.H / y), at = area.Y + 6 + (track - thumb) * _scroll / Math.Max(1, y - area.H);
-            s.FillRoundRect(new Rect(area.Right - 6, at, 3, thumb), 2, Theme.TextMuted);
+            // A real scroll bar: drag the thumb, click the track to page; it widens under the pointer.
+            int track = area.H - 12, thumb = Math.Max(24, track * area.H / _content), at = area.Y + 6 + (track - thumb) * _scroll / Math.Max(1, MaxScroll);
+            _track = new Rect(area.Right - 8, area.Y + 6, 6, track);
+            _thumb = new Rect(area.Right - 8, at, 6, thumb);
+            bool hot = _dragging || new Rect(_track.X - 6, _track.Y, _track.W + 8, _track.H).Contains(mouseX, mouseY);
+            if (hot) { s.FillRoundRect(_track, 3, Theme.Hover); }
+            s.FillRoundRect(hot ? _thumb : new Rect(area.Right - 6, at, 3, thumb), 2, hot ? Theme.TextSecondary : Theme.TextMuted);
         }
     }
 

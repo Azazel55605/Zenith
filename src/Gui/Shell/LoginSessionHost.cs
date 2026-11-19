@@ -28,6 +28,14 @@ internal sealed class LoginSessionHost : ISessionHost
     private bool _started;
     private string _title = "Zenith", _subtitle = "Sign in to your workspace";
     private bool _dirty = true;
+    // Login styles (docs/design/startup-concept.svg, kernel 0.0.71): 0 Zenith card, 1 Accounts, 2 Clock, 3 Split.
+    // Accounts, Clock and Split preselect the last account that signed in here; Clock waits for a key or click.
+    private int _style;
+    private System.Collections.Generic.List<string> _accounts = new();
+    private int _account = -1;
+    private bool _revealed = true;
+    private long _clockMinute = -1;
+    private const string LastPath = "/var/lib/zenith/last-login";
     public LoginSessionHost(SessionMode selected) => _mode = selected;
     public bool CanStop => !_login.Busy;
     public string? StopBlocker(CommandShell? requester) => _login.Busy ? "Authentication is running." : null;
@@ -56,26 +64,60 @@ internal sealed class LoginSessionHost : ISessionHost
                 if (valid) { if (line.StartsWith("TITLE=", StringComparison.Ordinal)) { _title = value; } else { _subtitle = value; } }
             }
         }
+        _style = (int)Math.Min(3u, Zenith.Core.Configuration.SystemConfiguration.Settings?.Style(14) ?? 0);
+        if (_style > 0)
+        {
+            try { _accounts = Accounts.Service?.SignInAccounts() ?? new(); } catch (Exception) { _accounts = new(); }
+            // No account to offer (a fresh system): the card is the only way in.
+            if (_accounts.Count == 0) { _style = 0; }
+            else
+            {
+                string? last = null;
+                try { last = Zenith.Core.Storage.BoundedFile.ReadText(LastPath, 64)?.Trim(); } catch (Exception) { }
+                _account = Math.Max(0, last is null ? -1 : _accounts.IndexOf(last));
+                if (_accounts.Count > 1 && _account == 0 && _accounts[0] == "root" && last is null) { _account = 1; }
+                _name.Clear(); _name.Append(_accounts[_account]); _focus = 1;
+                _revealed = _style != 2;
+            }
+        }
+        Log.Write("session", "login style " + new[] { "card", "accounts", "clock", "split" }[_style] + " accounts=" + _accounts.Count);
         SessionDisplay.ConfigurePointer();
     }
+    private void SelectAccount(int index)
+    {
+        if (index < 0 || index >= _accounts.Count) { return; }
+        _account = index; _name.Clear(); _name.Append(_accounts[index]); _password.Clear(); _focus = 1; _dirty = true;
+    }
+    /// <summary>Account tiles (Accounts) or rows (Split).</summary>
+    private Rect AccountTile(int i)
+    {
+        if (_style == 3) { return new Rect(Card.X + 16, Card.Y + 64 + i * 48, Card.W - 32, 44); }
+        int n = _accounts.Count, w = 112, gap = 12, total = n * w + (n - 1) * gap;
+        return new Rect((_surface.Width - total) / 2 + i * (w + gap), Card.Y - 148, w, 128);
+    }
+    private int Shift => _style == 3 ? 56 + _accounts.Count * 48 : 0;
     private const int CardWidth = 420, CardHeight = 396, Padding = 28, PowerWidth = 120, ConfirmWidth = 440, ConfirmHeight = 52;
     private Rect Card
     {
         get
         {
+            if (_style == 3) { int panel = Math.Min(380, _surface.Width / 2); return new(_surface.Width - panel, 0, panel, _surface.Height); }
             int width = Math.Min(CardWidth, _surface.Width - 32);
-            return new((_surface.Width - width) / 2, Math.Max(8, (_surface.Height - CardHeight) / 2 - 16), width, CardHeight);
+            int y = Math.Max(8, (_surface.Height - CardHeight) / 2 - 16);
+            if (_style == 1) { y = Math.Min(Math.Max(170, y + 70), Math.Max(8, _surface.Height - CardHeight - 72)); }
+            return new((_surface.Width - width) / 2, y, width, CardHeight);
         }
     }
-    private Rect Field(int index) => new(Card.X + Padding, Card.Y + 116 + index * 64, Card.W - 2 * Padding, AppStyle.ControlHeight);
+    private Rect Field(int index) => new(Card.X + Padding, Card.Y + 116 + Shift + index * 64, Card.W - 2 * Padding, AppStyle.ControlHeight);
     private Rect Segment(int index)
     {
         int width = (Card.W - 2 * Padding - 8) / 2;
-        return new(Card.X + Padding + index * (width + 8), Card.Y + 244, width, AppStyle.ControlHeight);
+        return new(Card.X + Padding + index * (width + 8), Card.Y + 244 + Shift, width, AppStyle.ControlHeight);
     }
-    private Rect Submit => new(Card.X + Padding, Card.Y + 300, Card.W - 2 * Padding, AppStyle.ControlHeight);
-    private Rect Restart => new(_surface.Width / 2 - PowerWidth - 10, _surface.Height - 56, PowerWidth, AppStyle.ControlHeight);
-    private Rect Shutdown => new(_surface.Width / 2 + 10, _surface.Height - 56, PowerWidth, AppStyle.ControlHeight);
+    private Rect Submit => new(Card.X + Padding, Card.Y + 300 + Shift, Card.W - 2 * Padding, AppStyle.ControlHeight);
+    private int PowerCenter => _style == 3 ? (_surface.Width - Card.W) / 2 : _surface.Width / 2;
+    private Rect Restart => new(PowerCenter - PowerWidth - 10, _surface.Height - 56, PowerWidth, AppStyle.ControlHeight);
+    private Rect Shutdown => new(PowerCenter + 10, _surface.Height - 56, PowerWidth, AppStyle.ControlHeight);
     private Rect ConfirmPanel => new((_surface.Width - ConfirmWidth) / 2, _surface.Height - 66, ConfirmWidth, ConfirmHeight);
     private Rect ConfirmYes => new(ConfirmPanel.Right - 8 - 100, ConfirmPanel.Y + 8, 100, AppStyle.ControlHeight);
     private Rect ConfirmNo => new(ConfirmYes.X - 8 - 84, ConfirmPanel.Y + 8, 84, AppStyle.ControlHeight);
@@ -92,8 +134,13 @@ internal sealed class LoginSessionHost : ISessionHost
         if (_login.TakeResult(out var identity))
         {
             _dirty = true;
-            if (identity is not null) { SessionRuntime.Activate(identity, _mode); return; }
+            if (identity is not null)
+            {
+                try { var store = new Zenith.Core.Configuration.NativeSettingsStore(); store.Replace(LastPath, _name.ToString() + "\n"); } catch (Exception) { }
+                SessionRuntime.Activate(identity, _mode); return;
+            }
             Log.Write("session", "authentication failed");
+            Zenith.Core.Audio.SystemSounds.Play("error");
         }
         _input.Poll();
         int hover = HoverAt(_input.X, _input.Y);
@@ -109,8 +156,20 @@ internal sealed class LoginSessionHost : ISessionHost
             HandleConfirm();
             if (_confirm is null) { _dirty = true; }
         }
+        else if (!_login.Busy && !_revealed)
+        {
+            // Clock: any key or click brings up the card for the preselected account; that input is not typed.
+            if (_input.LeftPressed && Restart.Contains(_input.X, _input.Y)) { AskConfirm("Restart"); }
+            else if (_input.LeftPressed && Shutdown.Contains(_input.X, _input.Y)) { AskConfirm("Shut down"); }
+            else if (_input.LeftPressed || _input.Keys.Count > 0) { _revealed = true; Log.Write("session", "login clock revealed"); }
+            if (_input.LeftPressed || _input.Keys.Count > 0) { _dirty = true; }
+        }
         else if (!_login.Busy)
         {
+            if (_input.LeftPressed && (_style == 1 || _style == 3))
+            {
+                for (int i = 0; i < _accounts.Count; i++) { if (AccountTile(i).Contains(_input.X, _input.Y)) { SelectAccount(i); } }
+            }
             if (_input.LeftPressed)
             {
                 if (Restart.Contains(_input.X, _input.Y)) { AskConfirm("Restart"); }
@@ -125,6 +184,9 @@ internal sealed class LoginSessionHost : ISessionHost
             foreach (KeyEvent key in _input.Keys)
             {
                 if (_login.Busy) { break; }
+                // Accounts and Split: Left/Right (Up/Down in Split) choose another account while the password is empty.
+                if (_style is 1 or 3 && _focus == 1 && _password.Length == 0 && key.Key is ConsoleKeyEx.LeftArrow or ConsoleKeyEx.RightArrow or ConsoleKeyEx.UpArrow or ConsoleKeyEx.DownArrow)
+                { SelectAccount(_account + (key.Key is ConsoleKeyEx.LeftArrow or ConsoleKeyEx.UpArrow ? -1 : 1)); continue; }
                 if (key.Key == ConsoleKeyEx.Tab) { _focus = (_focus + ((key.Modifiers & ConsoleModifiers.Shift) != 0 ? 2 : 1)) % 3; }
                 else if (key.Key == ConsoleKeyEx.Enter) { if (_focus == 0) { _focus = 1; } else { SignIn(); } }
                 else if (_focus == 2 && key.Key is ConsoleKeyEx.LeftArrow or ConsoleKeyEx.RightArrow or ConsoleKeyEx.Spacebar) { Toggle(); }
@@ -140,6 +202,8 @@ internal sealed class LoginSessionHost : ISessionHost
             Log.Write("session", "login ready; selection=" + SessionModes.Name(_mode));
             return;
         }
+        long minute = Zenith.Core.Time.SystemClock.Now.Ticks / TimeSpan.TicksPerMinute;
+        if (_style is 2 or 3 && minute != _clockMinute) { _clockMinute = minute; _dirty = true; }
         if (_dirty) { Draw(); _dirty = false; }
         else if (cursorOnly) { DrawCursorOnly(); }
     }
@@ -174,15 +238,74 @@ internal sealed class LoginSessionHost : ISessionHost
         string password = _password.ToString(); _password.Clear();
         _login.Submit(_name.ToString(), password); _dirty = true;
     }
+    private void DrawClock(int x, int y, int size, bool centered)
+    {
+        DateTime now = Zenith.Core.Time.SystemClock.Now;
+        string time = now.Hour.ToString("00") + ":" + now.Minute.ToString("00");
+        string[] days = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+        string[] months = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
+        string date = days[(int)now.DayOfWeek] + " " + now.Day + " " + months[now.Month - 1];
+        if (centered)
+        {
+            _surface.DrawTextCentered(time, Fonts.Regular, size, 0xFFF1F2F4U, new Rect(0, y, _surface.Width, size + 8), true);
+            _surface.DrawTextCentered(date, Fonts.Regular, size / 4, 0xFFD5D8DEU, new Rect(0, y + size + 12, _surface.Width, size / 4 + 8), true);
+        }
+        else
+        {
+            _surface.DrawText(time, Fonts.Regular, size, 0xFFF1F2F4U, x, y);
+            _surface.DrawText(date, Fonts.Regular, size / 3, 0xFFD5D8DEU, x + 2, y + size + 10);
+        }
+    }
+    private void DrawAccountTiles()
+    {
+        for (int i = 0; i < _accounts.Count; i++)
+        {
+            Rect tile = AccountTile(i); bool selected = i == _account;
+            string name = _accounts[i], initial = name.Substring(0, 1).ToUpperInvariant();
+            if (_style == 3)
+            {
+                if (selected) { _surface.FillRoundRect(tile, Theme.ControlRadius, Theme.AccentSoft); }
+                _surface.FillRoundRect(new Rect(tile.X + 10, tile.Y + 8, 28, 28), 14, selected ? Theme.Accent : Theme.Raised);
+                _surface.DrawTextCentered(initial, Fonts.SemiBold, Theme.TextBody, selected ? Theme.OnAccent : Theme.TextPrimary, new Rect(tile.X + 10, tile.Y + 8, 28, 28), true);
+                _surface.DrawText(name, selected ? Fonts.SemiBold : Fonts.Regular, Theme.TextBody, Theme.TextPrimary, tile.X + 50, tile.Y + 12);
+                continue;
+            }
+            if (selected)
+            {
+                _surface.FillRoundRect(tile, Theme.WindowRadius, Theme.AccentSoft);
+                _surface.StrokeRoundRect(tile, Theme.WindowRadius, Theme.Accent);
+            }
+            Rect avatar = new(tile.X + (tile.W - 64) / 2, tile.Y + 12, 64, 64);
+            _surface.FillRoundRect(avatar, 32, selected ? Theme.Accent : 0xFF5C606BU);
+            _surface.DrawTextCentered(initial, Fonts.SemiBold, 26, selected ? Theme.OnAccent : 0xFFF1F2F4U, avatar, true);
+            _surface.DrawTextCentered(name, selected ? Fonts.SemiBold : Fonts.Regular, Theme.TextBody, 0xFFF1F2F4U, new Rect(tile.X, tile.Y + 90, tile.W, 24), true);
+        }
+    }
     private void Draw()
     {
         _surface.CopyFrom(_background);
+        if (!_revealed)
+        {
+            // Clock: the time over the wallpaper and the preselected account; any key brings up the card.
+            _surface.FillRect(new Rect(0, 0, _surface.Width, _surface.Height), 0x33000000U);
+            DrawClock(0, _surface.Height / 2 - 110, 96, true);
+            Rect pill = new((_surface.Width - 260) / 2, _surface.Height - 140, 260, 40);
+            _surface.FillRoundRect(pill, 20, 0xCC202125U);
+            _surface.FillRoundRect(new Rect(pill.X + 10, pill.Y + 9, 22, 22), 11, Theme.Accent);
+            _surface.DrawText(_accounts[_account] + " · press any key", Fonts.Regular, Theme.TextBody, 0xFFF1F2F4U, pill.X + 42, pill.Y + 11);
+            DrawPower();
+            FinishFrame();
+            return;
+        }
+        if (_style == 3) { DrawClock(48, _surface.Height - 150, 64, false); }
+        if (_style == 1) { DrawAccountTiles(); }
         _surface.DrawShadow(Card, Theme.WindowRadius, Theme.ShadowSize, Theme.ShadowAlpha, 6);
         _surface.FillRoundRect(Card, Theme.WindowRadius, Theme.WindowBackground | 0xff000000U);
         _surface.StrokeRoundRect(Card, Theme.WindowRadius, Theme.WindowBorder);
         Logo.Draw(_surface, new Rect(Card.X + Padding, Card.Y + 28, 32, 32));
         _surface.DrawText(_title, Fonts.SemiBold, Theme.TextHeading, Theme.TextPrimary, Card.X + Padding + 42, Card.Y + 28);
-        _surface.DrawText(_subtitle, Fonts.Regular, Theme.TextBody, Theme.TextSecondary, Card.X + Padding, Card.Y + 68);
+        _surface.DrawText(_style == 3 ? "Choose an account" : _style == 1 ? "Password for " + _name : _subtitle, Fonts.Regular, Theme.TextBody, Theme.TextSecondary, Card.X + Padding, Card.Y + 68);
+        if (_style == 3) { DrawAccountTiles(); }
         for (int i = 0; i < 2; i++)
         {
             Rect field = Field(i);
@@ -215,13 +338,19 @@ internal sealed class LoginSessionHost : ISessionHost
             AppStyle.Button(_surface, ConfirmYes, action, danger: true);
             Hovered(ConfirmYes, 1);
         }
-        else
-        {
-            AppStyle.Button(_surface, Restart, "Restart");
-            Hovered(Restart, 6);
-            AppStyle.Button(_surface, Shutdown, "Shut down");
-            Hovered(Shutdown, 7);
-        }
+        else { DrawPower(); }
+        FinishFrame();
+    }
+    private void DrawPower()
+    {
+        if (_confirm is not null) { return; }
+        AppStyle.Button(_surface, Restart, "Restart");
+        Hovered(Restart, 6);
+        AppStyle.Button(_surface, Shutdown, "Shut down");
+        Hovered(Shutdown, 7);
+    }
+    private void FinishFrame()
+    {
         _frame.CopyFrom(_surface);
         _cursorX = _input.X; _cursorY = _input.Y;
         Cursor.Draw(_frame, _cursorX, _cursorY);

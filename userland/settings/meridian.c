@@ -6,6 +6,15 @@ static int same(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return *
 static void text(struct zui *u,int x,int y,const char *s,const struct zui_font *f,unsigned int c){zui_text(u,x,y,s,length(s),f,c);}
 static int sidebar_width(const struct meridian *a){return a->ui.width>=720?240:200;}
 static int page_kind(const struct meridian *a){return binding_of(meridian_pages[a->page].id);}
+static int page_has_pickers(const struct meridian *a){
+    unsigned int f[4];int n=styles_page_fields(meridian_pages[a->page].id,f);
+    for(int i=0;i<n;i++)if(styles_field_ready(&a->styles,f[i]))return 1;
+    return 0;
+}
+static int page_changed(const struct meridian *a){return binding_changed(&a->bindings,page_kind(a))||styles_changed(&a->styles,meridian_pages[a->page].id);}
+static int any_changed(const struct meridian *a){return binding_any_changed(&a->bindings)||styles_any_changed(&a->styles);}
+static long page_apply(struct meridian *a){long r=binding_apply(&a->bindings,page_kind(a));if(r)return r;return styles_apply(&a->styles,meridian_pages[a->page].id);}
+static void page_reset(struct meridian *a){binding_reset(&a->bindings,page_kind(a));styles_reset(&a->styles,meridian_pages[a->page].id);}
 static unsigned int information_kind(const struct meridian *a){
     const char *id=meridian_pages[a->page].id;
     return same(id,"network.connections")?1:same(id,"system.users")?2:0;
@@ -81,6 +90,13 @@ void meridian_information_services(struct meridian *a,long (*read)(unsigned int,
 void meridian_system_services(struct meridian *a,long (*read)(struct zenith_system_settings *),long (*save)(unsigned int,unsigned int,unsigned long)){
     a->bindings.read=read;a->bindings.save=save;binding_refresh(&a->bindings);
 }
+/* The style catalogue and previews (call 669): the wallpaper page becomes a picker when the kernel has it. */
+void meridian_style_services(struct meridian *a,long (*catalog)(unsigned int,struct zenith_style_list *),
+                             long (*preview)(unsigned int,unsigned int,int,int,unsigned int *)){
+    a->styles.catalog=catalog;a->styles.preview=preview;a->styles.save=a->bindings.save;a->styles.dirty=a->bindings.dirty;
+    if(!catalog){for(int f=0;f<STYLE_FIELDS;f++)a->styles.ready[f]=0;return;}
+    styles_refresh(&a->styles);
+}
 struct zui *meridian_ui(struct meridian *a){return &a->ui;}
 static void remember(struct meridian *a,int page){
     int i=0;while(i<a->recent_count&&a->recent[i]!=page)i++;
@@ -107,7 +123,7 @@ static void clear_search(struct meridian *a){
     a->search_focus=0;zui_scroll_jump(&a->sidebar.scroll,0);a->ui.dirty=1;
 }
 int meridian_open(struct meridian *a,const char *id){
-    if(binding_any_changed(&a->bindings))return 0;
+    if(any_changed(a))return 0;
     struct meridian_nav next=a->nav;if(!nav_open(&next,id))return 0;
     adopt(a,&next);zui_scroll_jump(&a->sidebar.scroll,0);return 1;
 }
@@ -157,7 +173,7 @@ void meridian_refresh(struct meridian *a){
     unsigned long rev=a->colors.state.revision,res=a->colors.state.resources,pref=a->bindings.preferences.revision;unsigned int flags=a->colors.state.flags;
     int ready=a->bindings.ready;
     unsigned long display_revision=a->bindings.display.revision;unsigned int seconds=a->bindings.display.seconds;
-    refresh_information(a);binding_refresh(&a->bindings);settings_refresh(&a->colors);sync_theme(a);
+    refresh_information(a);binding_refresh(&a->bindings);styles_refresh(&a->styles);settings_refresh(&a->colors);sync_theme(a);
     if(display_revision!=a->bindings.display.revision||seconds!=a->bindings.display.seconds)a->ui.dirty=1;
     if(rev!=a->colors.state.revision||res!=a->colors.state.resources||flags!=a->colors.state.flags||pref!=a->bindings.preferences.revision||ready!=a->bindings.ready)a->ui.dirty=1;
 }
@@ -179,18 +195,30 @@ static void draw_sidebar(struct meridian *a,struct zui *u,struct zui_rect s){
     if(a->nav.mode!=NAV_CATEGORIES)for(int i=1;i<nav_row_count(&a->nav);i++)if(nav_row_page(&a->nav,i)==a->page)a->sidebar.selected=i;
     zui_list_draw(u,&a->sidebar,(struct zui_rect){s.x,s.y+52,s.w,s.h-52},nav_row_count(&a->nav),sidebar_rows,a);
 }
+static void picker(struct meridian *a,struct zui *u,struct zui_form *f,unsigned int field,const char *title,const char *help,int writable);
+static int system_writable(const struct meridian *a);
+static int style_page(const struct meridian *a){return same(meridian_pages[a->page].id,"style.application");}
 static const char *wip_note(const struct meridian *a,int kind){
     if(audio_page(a))return "Live audio controls. Stereo PCM, 48 kHz / 16 bit. Input starts only for an authorized recording app. Work in progress: remembered choices, additional formats, independent routing and hot-plug devices.";
     if(kind==BIND_DISPLAY)return "Work in progress: orientation, refresh, brightness and multiple displays.";
+    if(kind==BIND_COLORS&&style_page(a))return "Widget style and buttons apply to every app with the next frame.";
     if(kind==BIND_COLORS)return "Work in progress: automatic switching and custom colors.";
     if(kind==BIND_KEYBOARD)return "Work in progress: model, repeat, Num Lock and shortcuts.";
     if(kind==BIND_TIMEZONE)return "Work in progress: clock editing and sync policy.";
     if(kind==BIND_SESSION)return "Work in progress: session restore and confirmation policy.";
     if(kind==BIND_TASKBAR)return "F11 makes the focused window fullscreen; the bar ducks and returns at the bottom screen edge. Work in progress: position and pinned applications.";
     if(kind==BIND_ANIMATIONS)return "Work in progress: per-effect controls, peek and desktop transitions.";
-    if(kind==BIND_WALLPAPER)return "Dynamic wallpapers follow light/dark mode and the accent color at once. Work in progress: images, more dynamic designs and scheduling.";
-    if(kind==BIND_CURSOR)return "The Meridian set: Light has a white body, Dark a dark one. Text, links, window edges and busy apps get their own shapes. Work in progress: cursor size and more sets.";
+    if(kind==BIND_WALLPAPER)return "Dynamic wallpapers follow light/dark mode and the accent color at once. Work in progress: your own images and scheduling.";
+    if(kind==BIND_CURSOR)return "Every pack has the same shapes for text, links, window edges and busy apps. Contrast is larger and pure black and white; Comet follows your accent.";
     if(kind==BIND_LAUNCHER)return "Prism: Meta or Alt+Space always opens the search palette. Work in progress: file indexing, more providers, pinned applications and a custom shortcut.";
+    {
+        const char *id=meridian_pages[a->page].id;
+        if(page_has_pickers(a)&&same(id,"style.decorations"))return "The desktop draws the title bar of every window; apps cannot draw their own.";
+        if(page_has_pickers(a)&&same(id,"style.splash"))return "Plays once when you sign in. Animations Off or a slow machine skips it; a failed start shows its error instead.";
+        if(page_has_pickers(a)&&same(id,"style.login"))return "Accounts, Clock and Split preselect the last account that signed in. Who may skip the login is in Security.";
+        if(page_has_pickers(a)&&same(id,"style.boot-splash"))return "From the second boot phase on. Diagnostics and the rescue entry stay reachable in every style.";
+        if(page_has_pickers(a)&&same(id,"audio.sounds"))return "Zenith Chimes plays short, quiet sounds for signing in and out, questions, errors, finished changes and the volume. Work in progress: a level and per-event choices.";
+    }
     if(a->page==0)return "Work in progress: scheduled mode and persistent history.";
     if(a->page==MERIDIAN_ABOUT)return "Work in progress: hardware inventory is planned.";
     if(network_page(a))return "The wired connection, live. Beacon shows its traffic history and diagnostics. Work in progress: several profiles, priorities and link negotiation; Wi-Fi and VPN need drivers and services Zenith does not have yet.";
@@ -209,10 +237,13 @@ static void status(struct zui *u,struct zui_form *f,const char *s){
     if(!s)return;
     zui_paragraph(u,(struct zui_rect){f->x,f->y,f->w,36},s,&zui_caption,u->theme.text,0);f->y+=40;
 }
+/* Colors (mode and accent) and Application Style (the materials) share one appearance record and one footer. */
 static void colors_form(struct meridian *a,struct zui *u,struct zui_form *f){
     struct settings_app *s=&a->colors;int writable=binding_writable(&a->bindings,BIND_COLORS),cw=f->narrow?f->w:f->w-f->label_w-16;
+    struct zui_rect r;
+    if(style_page(a))goto materials;
     zui_form_section(u,f,"Appearance");
-    struct zui_rect r=zui_form_row(u,f,"Color mode",0,272,32);
+    r=zui_form_row(u,f,"Color mode",0,272,32);
     zui_segment_track(u,(struct zui_rect){r.x-4,r.y-4,r.w+8,r.h+8});
     zui_add(u,1,ZUI_SEGMENT,(struct zui_rect){r.x,r.y,r.w/2,32},"Dark",s->mode==0,writable);
     zui_add(u,2,ZUI_SEGMENT,(struct zui_rect){r.x+r.w/2,r.y,r.w/2,32},"Light",s->mode==1,writable);
@@ -220,7 +251,9 @@ static void colors_form(struct meridian *a,struct zui *u,struct zui_form *f){
     static const char *const names[6]={"Blue","Violet","Rose","Amber","Green","Teal"};
     for(int i=0;i<6;i++)zui_add_swatch(u,10+i,(struct zui_rect){r.x+i*44,r.y,32,32},names[i],i,s->accent==(unsigned int)i,writable);
     zui_swatch_caption(u,r.x,r.y+38);
-    zui_form_section(u,f,"Effects");
+    goto scope;
+materials:
+    zui_form_section(u,f,"Materials");
     static const char *const effect_names[3]={"Transparency","Backdrop blur","Whole app"};
     const char *help[3]={"Let panels reveal the background.",
         !s->available_effects?"Unavailable here; saved choices are kept.":!(s->effects&1)&&(s->effects&2)?"Saved; enable transparency to activate it.":s->material_reason>=3?"Some surfaces fall back for contrast or speed.":"Diffuse the backdrop; controls remain clear.",
@@ -229,7 +262,7 @@ static void colors_form(struct meridian *a,struct zui *u,struct zui_form *f){
         r=zui_form_row(u,f,effect_names[i],help[i],cw<300?cw:300,28);
         zui_add(u,50+i,ZUI_TOGGLE,r,"",!!(s->effects&(1U<<i)),writable&&!!(s->available_effects&(1U<<i)));
     }
-    r=zui_form_row(u,f,"Translucency",0,152,32);
+    r=zui_form_row(u,f,"Strength",0,152,32);
     int level_enabled=writable&&!!s->available_effects;
     zui_add(u,53,ZUI_BUTTON,(struct zui_rect){r.x,r.y,32,32},"-",0,level_enabled);
     zui_add(u,54,ZUI_BUTTON,(struct zui_rect){r.x+r.w-32,r.y,32,32},"+",0,level_enabled);
@@ -238,6 +271,9 @@ static void colors_form(struct meridian *a,struct zui *u,struct zui_form *f){
     if(n>=10)percent[k++]=(char)('0'+n/10%10);
     percent[k++]=(char)('0'+n%10);percent[k++]='%';percent[k]=0;
     text(u,r.x+60,r.y+8,percent,&zui_label,u->theme.text);
+scope:
+    if(style_page(a)){unsigned int fl[4];int n=styles_page_fields("style.application",fl);for(int k=0;k<n;k++)if(styles_field_ready(&a->styles,fl[k]))
+        picker(a,u,f,fl[k],fl[k]==11?"Widget style":"Buttons",fl[k]==11?"Corners and fills of controls in every app.":"How primary buttons are drawn.",system_writable(a));}
     if(s->has_scopes){
         zui_form_section(u,f,"Scope");
         r=zui_form_row(u,f,"Applies to",0,272,32);
@@ -273,6 +309,69 @@ static void preference_form(struct meridian *a,struct zui *u,struct zui_form *f,
     status(u,f,b->message?b->message:binding_changed(b,kind)?"Unapplied change.":kind==BIND_KEYBOARD?"Applies to keyboard input across sessions immediately.":
         kind==BIND_TIMEZONE?"Changes local time display; the UTC clock is unchanged.":kind==BIND_ANIMATIONS?"Applies to the next window change. Off keeps every change immediate.":kind==BIND_TASKBAR?"Applies immediately. Dock when maximized removes the gap around the bar for a maximized window.":
         kind==BIND_WALLPAPER?"Applies immediately, here and on the login screen.":kind==BIND_LAUNCHER||kind==BIND_CURSOR?"Applies immediately.":"Applies on next boot; the running session is unchanged.");
+}
+/* Pickers (call 669): previews drawn by the desktop, one tile per choice, the draft outlined with a check. */
+enum { ID_PICKS=8000 };   /* ID_PICKS + field * 64 + index */
+static unsigned int appearance_key(const struct meridian *a){return (a->colors.state.mode&1)<<8|(a->colors.state.accent&255);}
+static void tile_size(unsigned int field,int *w,int *h){
+    switch(field){
+        case 6:*w=120;*h=75;break;
+        case 8:*w=176;*h=64;break;
+        case 9:*w=96;*h=72;break;
+        case 11:case 12:*w=160;*h=96;break;
+        case 16:*w=0;*h=0;break;
+        default:*w=176;*h=110;break;
+    }
+}
+static void picker(struct meridian *a,struct zui *u,struct zui_form *f,unsigned int field,const char *title,const char *help,int writable){
+    struct meridian_styles *st=&a->styles;
+    const struct zenith_style_list *l=&st->list[field];
+    int pw,ph;tile_size(field,&pw,&ph);
+    int tile_w=pw?pw+12:180,tile_h=pw?ph+38:56,gap=12,cols=(f->w+gap)/(tile_w+gap);if(cols<1)cols=1;
+    unsigned int groups=field==6?2:1;
+    for(unsigned int group=0;group<groups;group++){
+        zui_form_section(u,f,field==6?(group?"Solid colors":"Dynamic"):title);
+        const char *line=field==6?(group?"A plain fill; Accent color follows your accent.":"Drawn for light or dark mode and your accent color."):help;
+        if(line&&line[0]){text(u,f->x,f->y,line,&zui_caption,u->theme.secondary);f->y+=26;}
+        int n=0;
+        for(unsigned int i=0;i<l->count;i++){
+            const struct zenith_style_entry *e=&l->entries[i];
+            if(field==6&&(e->kind?1u:0u)!=group)continue;
+            struct zui_rect r={f->x+(n%cols)*(tile_w+gap),f->y+(n/cols)*(tile_h+gap),tile_w,tile_h};
+            if(pw){
+                struct zui_rect pic={r.x+6,r.y+6,pw,ph};
+                if(field==6&&e->kind)zui_round(u,pic,6,e->color&0xFFFFFF);
+                else{
+                    /* Only previews in view are drawn, so a long list costs nothing until it scrolls in. */
+                    struct zui_rect view=a->page_scroll.rect;
+                    const unsigned int *t=pic.y+ph>view.y&&pic.y<view.y+view.h?styles_thumb(st,field,i,pw,ph,appearance_key(a)):0;
+                    if(t)zui_image(u,pic.x,pic.y,pw,ph,t);else zui_round(u,pic,6,u->theme.subtle);
+                }
+                text(u,r.x+8,r.y+ph+12,e->label,&zui_caption,u->theme.text);
+            }else text(u,r.x+14,r.y+18,e->label,&zui_label,u->theme.text);
+            zui_add(u,ID_PICKS+(int)field*64+(int)i,ZUI_TILE,r,e->label,i==st->draft[field],writable);
+            n++;
+        }
+        f->y+=((n+cols-1)/cols)*(tile_h+gap)+8;
+    }
+}
+static int system_writable(const struct meridian *a){return a->bindings.ready&&!!(a->bindings.preferences.flags&2);}
+/* Every picker of the page; true when it drew any. */
+static int pickers_form(struct meridian *a,struct zui *u,struct zui_form *f){
+    unsigned int fields[4];int n=styles_page_fields(meridian_pages[a->page].id,fields),drawn=0,writable=system_writable(a);
+    for(int k=0;k<n;k++){
+        unsigned int fl=fields[k];if(!styles_field_ready(&a->styles,fl))continue;
+        static const char *titles[STYLE_FIELDS]={0,0,0,0,0,0,"Wallpaper",0,"Cursor pack","Size","Window decorations","Widget style","Buttons","Session splash","Login screen","Boot animation","Sound pack"};
+        static const char *helps[STYLE_FIELDS]={0,0,0,0,0,0,0,0,"The same shapes everywhere; login and recovery keep Meridian Light.","How large the pointer is drawn, at any display scale.",
+            "The title bar the desktop draws for every window.","Corners and fills of controls in every app.","How primary buttons are drawn.",
+            "The transition from signing in to the desktop. A press or key ends it.","The screen you sign in on.","Before the login screen; diagnostics stay reachable.","Sounds for system events."};
+        picker(a,u,f,fl,titles[fl],helps[fl],writable);drawn=1;
+    }
+    if(drawn){
+        if(!writable)unlock_row(a,u,f);
+        status(u,f,a->styles.message?a->styles.message:styles_changed(&a->styles,meridian_pages[a->page].id)?"Unapplied change: Apply to use it.":"Applies immediately.");
+    }
+    return drawn;
 }
 static void display_form(struct meridian *a,struct zui *u,struct zui_form *f){
     struct meridian_bindings *b=&a->bindings;
@@ -407,7 +506,7 @@ static void link_row(struct zui *u,struct zui_form *f,int page,const char *label
 }
 static void overview_form(struct meridian *a,struct zui *u,struct zui_form *f){
     zui_form_section(u,f,"Appearance");
-    link_row(u,f,MERIDIAN_COLORS,"Colors and materials");
+    link_row(u,f,MERIDIAN_COLORS,"Colors");
     for(int i=0;i<MERIDIAN_PAGE_COUNT;i++)if(same(meridian_pages[i].id,"style.wallpaper"))link_row(u,f,i,"Wallpaper");
     int shown=0;
     for(int i=0;i<a->recent_count&&shown<3;i++)if(a->recent[i]!=0&&a->recent[i]!=MERIDIAN_COLORS&&!same(meridian_pages[a->recent[i]].id,"style.wallpaper")){
@@ -493,7 +592,7 @@ static void audio_action(struct meridian *a,int id){
     refresh_audio(a);a->ui.dirty=1;
 }
 static void draw_page(struct meridian *a,struct zui *u,struct zui_rect c){
-    const struct meridian_page *p=&meridian_pages[a->page];int kind=page_kind(a),footer=kind!=BIND_NONE?56:0,x=c.x+24;
+    const struct meridian_page *p=&meridian_pages[a->page];int kind=page_kind(a),footer=kind!=BIND_NONE||page_has_pickers(a)?56:0,x=c.x+24;
     text(u,x,c.y+14,p->title,&zui_heading,u->theme.text);
     text(u,x,c.y+50,meridian_categories[nav_category_of(a->page)],&zui_caption,u->theme.secondary);
     struct zui_rect body={c.x,c.y+74,c.w,c.h-74-footer};
@@ -502,6 +601,7 @@ static void draw_page(struct meridian *a,struct zui *u,struct zui_rect c){
     note(u,&f,wip_note(a,kind));
     if(kind==BIND_COLORS)colors_form(a,u,&f);
     else if(kind==BIND_DISPLAY)display_form(a,u,&f);
+    else if(page_has_pickers(a)&&kind!=BIND_COLORS){pickers_form(a,u,&f);}
     else if(kind!=BIND_NONE)preference_form(a,u,&f,kind);
     else if(audio_page(a))audio_form(a,u,&f);
     else if(a->page==0)overview_form(a,u,&f);
@@ -510,7 +610,7 @@ static void draw_page(struct meridian *a,struct zui *u,struct zui_rect c){
     else if(a->page==MERIDIAN_ABOUT&&a->information[0])lines_form(u,&f,a->information);
     else planned_form(a,u,&f);
     zui_scroll_end(u,&a->page_scroll,zui_form_height(&f,top)+8);
-    if(footer)zui_footer(u,(struct zui_rect){c.x,c.y+c.h-56,c.w,56},ID_FOOTER,0,binding_changed(&a->bindings,kind),binding_at_defaults(&a->bindings,kind));
+    if(footer)zui_footer(u,(struct zui_rect){c.x,c.y+c.h-56,c.w,56},ID_FOOTER,0,page_changed(a),binding_at_defaults(&a->bindings,kind));
 }
 /* Indices change every frame: restore focus and press by control id. Dialog buttons
  * are registered last in reverse order, so their index follows from the page count. */
@@ -572,25 +672,27 @@ static void confirm(struct meridian *a,int pending){
     a->dialog=(struct zui_dialog){1,ID_DIALOG,"Apply changes?","This page has unapplied changes.",{"Apply","Discard","Cancel"},3};
     a->ui.pressed=-1;a->ui.dirty=1;
 }
+/* Colors and Application Style edit one appearance record: a draft moves between them without asking. */
+static int shares_draft(const struct meridian *a,int page){return page>=0&&page<MERIDIAN_PAGE_COUNT&&binding_of(meridian_pages[page].id)==page_kind(a);}
 static void request_row(struct meridian *a,int row){
     struct meridian_nav next=a->nav;nav_activate(&next,row);
-    if(next.page!=a->page&&binding_changed(&a->bindings,page_kind(a))){a->pending_row=row;confirm(a,PENDING_ROW);return;}
+    if(next.page!=a->page&&((!shares_draft(a,next.page)&&binding_changed(&a->bindings,page_kind(a)))||styles_changed(&a->styles,meridian_pages[a->page].id))){a->pending_row=row;confirm(a,PENDING_ROW);return;}
     if(next.mode!=a->nav.mode||next.category!=a->nav.category)zui_scroll_jump(&a->sidebar.scroll,0);
     adopt(a,&next);
 }
 static void request_page(struct meridian *a,int page){
-    if(page!=a->page&&binding_changed(&a->bindings,page_kind(a))){a->pending_page=page;confirm(a,PENDING_PAGE);return;}
+    if(page!=a->page&&((!shares_draft(a,page)&&binding_changed(&a->bindings,page_kind(a)))||styles_changed(&a->styles,meridian_pages[a->page].id))){a->pending_page=page;confirm(a,PENDING_PAGE);return;}
     struct meridian_nav next=a->nav;nav_open(&next,meridian_pages[page].id);
     zui_scroll_jump(&a->sidebar.scroll,0);adopt(a,&next);
 }
 static void close_request(struct meridian *a){
-    if(binding_any_changed(&a->bindings))confirm(a,PENDING_CLOSE);else a->closing=1;
+    if(any_changed(a))confirm(a,PENDING_CLOSE);else a->closing=1;
 }
 static void resolve(struct meridian *a,int button){
-    int pending=a->pending,kind=page_kind(a);a->pending=PENDING_NONE;a->ui.dirty=1;
+    int pending=a->pending;a->pending=PENDING_NONE;a->ui.dirty=1;
     if(button==3)return;
-    if(button==1&&binding_apply(&a->bindings,kind))return;
-    if(button==2)binding_reset(&a->bindings,kind);
+    if(button==1&&page_apply(a))return;
+    if(button==2)page_reset(a);
     if(pending==PENDING_CLOSE)a->closing=1;
     else if(pending==PENDING_ROW)request_row(a,a->pending_row);
     else if(pending==PENDING_PAGE)request_page(a,a->pending_page);
@@ -642,7 +744,8 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
         if(chosen){binding_choose_scale(&a->bindings,(unsigned int)chosen-1);u->focus=index_of(u,ID_SCALE);}
         if(was||a->scale_combo.open){if(a->scale_combo.open!=was)u->pressed=-1;u->dirty=1;return;}
     }
-    if(kind>=BIND_KEYBOARD&&binding_writable(&a->bindings,kind)){
+    /* The wallpaper picker has tiles, not the combo: its stale field rectangle must not take clicks. */
+    if(kind>=BIND_KEYBOARD&&binding_writable(&a->bindings,kind)&&!page_has_pickers(a)){
         int was=a->combo.open,chosen=zui_combo_event(u,&a->combo,e,choice_rows,a);
         if(chosen){binding_choose(&a->bindings,kind,(unsigned int)chosen-1);u->focus=index_of(u,ID_COMBO);}
         if(was||a->combo.open){if(a->combo.open!=was)u->pressed=-1;u->dirty=1;return;}
@@ -682,8 +785,8 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     if(id>=5000&&id<6128)audio_action(a,id);
     if(id>=7000&&id<=7021)network_action(a,id);
     else if(id==ID_SEARCH){a->search_focus=1;u->dirty=1;}
-    else if(id==ID_FOOTER+ZUI_FOOTER_APPLY)binding_apply(&a->bindings,kind);
-    else if(id==ID_FOOTER+ZUI_FOOTER_RESET)binding_reset(&a->bindings,kind);
+    else if(id==ID_FOOTER+ZUI_FOOTER_APPLY)page_apply(a);
+    else if(id==ID_FOOTER+ZUI_FOOTER_RESET)page_reset(a);
     else if(id==ID_FOOTER+ZUI_FOOTER_DEFAULTS)binding_defaults(&a->bindings,kind);
     else if((id==4001||id==4002)&&kind==BIND_DISPLAY){
         struct meridian_bindings *b=&a->bindings;
@@ -691,6 +794,7 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
         binding_refresh(b);
     }
     else if(id>=ID_LINKS&&id<ID_LINKS+MERIDIAN_PAGE_COUNT)request_page(a,id-ID_LINKS);
+    else if(id>=ID_PICKS&&id<ID_PICKS+STYLE_FIELDS*64)styles_choose(&a->styles,(unsigned int)(id-ID_PICKS)/64,(unsigned int)(id-ID_PICKS)%64);
     else if(id&&kind==BIND_COLORS)colors_action(a,id);
     if(id)u->dirty=1;
     sync_theme(a);

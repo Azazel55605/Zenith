@@ -44,12 +44,16 @@ internal static class ProcessSystemSettings
             // The cursor set in the reserved bytes after current_session (0.0.55): count at 112, choice
             // at 116; Meridian names the two variants. The 352-byte tail: wallpaper at 3744 (12 names),
             // launcher mode at 4040 (2 names).
-            BinaryPrimitives.WriteUInt32LittleEndian(b[112..],(uint)SettingsService.CursorNames.Length);
-            BinaryPrimitives.WriteUInt32LittleEndian(b[116..],state.Cursor);
-            if (SettingsService.WallpaperLabels.Length > 12 || SettingsService.LauncherLabels.Length > 2) { throw new InvalidOperationException("settings catalogue exceeds ABI bounds"); }
-            BinaryPrimitives.WriteUInt32LittleEndian(b[3744..],(uint)SettingsService.WallpaperLabels.Length);
+            // Older Meridian builds know the two Meridian variants: a newer pack reads as the nearest of them.
+            BinaryPrimitives.WriteUInt32LittleEndian(b[112..],2U);
+            BinaryPrimitives.WriteUInt32LittleEndian(b[116..],state.Cursor switch { 0 or 2 or 4 => 0U, _ => 1U });
+            // The legacy snapshot holds 12 wallpapers and the two Meridian cursor variants; the style catalogue (669)
+            // lists all of them. A newer choice reads as itself here (beyond the count) for older Meridian builds.
+            if (SettingsService.LauncherLabels.Length > 2) { throw new InvalidOperationException("settings catalogue exceeds ABI bounds"); }
+            int wallpapers = Math.Min(12, SettingsService.WallpaperLabels.Length);
+            BinaryPrimitives.WriteUInt32LittleEndian(b[3744..],(uint)wallpapers);
             BinaryPrimitives.WriteUInt32LittleEndian(b[3748..],state.Wallpaper);
-            for(int i=0;i<SettingsService.WallpaperLabels.Length;i++) { Put(data,3752+i*24,24,SettingsService.WallpaperLabels[i]); }
+            for(int i=0;i<wallpapers;i++) { Put(data,3752+i*24,24,SettingsService.WallpaperLabels[i]); }
             BinaryPrimitives.WriteUInt32LittleEndian(b[4040..],(uint)SettingsService.LauncherLabels.Length);
             BinaryPrimitives.WriteUInt32LittleEndian(b[4044..],state.Launcher);
             for(int i=0;i<SettingsService.LauncherLabels.Length;i++) { Put(data,4048+i*24,24,SettingsService.LauncherLabels[i]); }

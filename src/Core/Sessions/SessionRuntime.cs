@@ -60,6 +60,7 @@ internal static class SessionRuntime
             if (DesktopAvailable() && (Accounts.Service is null || !Accounts.Service.HasPasswords))
             { Message = "Configure installed accounts before logging out."; return Message; }
             if (next.HasValue && !Available(next.Value)) { return "session unavailable"; }
+            Zenith.Core.Audio.SystemSounds.Play("logout");
             string? blocker = MutationBlocker() ?? s_host?.StopBlocker(requester);
             if (blocker is not null) { Message = blocker; Log.Write("session", "logout refused: " + blocker); return blocker; }
             s_next = next ?? Selected.Mode;

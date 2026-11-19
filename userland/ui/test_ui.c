@@ -220,6 +220,19 @@ int main(int argc,char **argv){
         zui_event(&b,&t);assert(b.focus_visible);zui_draw_controls(&b);assert(px[8*100+30]!=0x123456);
         zui_event(&b,&d);assert(!b.focus_visible);
     }
+    {   /* Widget styles (U14): Soft rounds more, Sharp at most 2 px, circles and pills stay round; button styles. */
+        static unsigned int px[120*60];struct zui b;assert(zui_init(&b,px,120,60));
+        assert(zui_radius(&b,8,32)==8);b.widget_style=1;assert(zui_radius(&b,8,32)==12);assert(zui_radius(&b,6,16)==8);
+        b.widget_style=2;assert(zui_radius(&b,8,32)==2);assert(zui_radius(&b,16,32)==16&&zui_radius(&b,13,26)==13);
+        /* Sharp: the corner pixel of a filled 40x30 rectangle is painted (Rounded leaves it to the background). */
+        zui_fill(&b,b.clip,0x000000);zui_round(&b,(struct zui_rect){10,10,40,30},8,0xFFFFFF);assert((px[10*120+11]&0xFFFFFF)!=0);
+        b.widget_style=0;zui_fill(&b,b.clip,0x000000);zui_round(&b,(struct zui_rect){10,10,40,30},8,0xFFFFFF);assert((px[10*120+10]&0xFFFFFF)==0);
+        /* A primary button: Filled paints the accent, Outline keeps the inside raised. */
+        b.count=0;zui_add(&b,1,ZUI_BUTTON,(struct zui_rect){10,10,60,30},"",1,1);
+        zui_fill(&b,b.clip,0);zui_draw_controls(&b);unsigned int filled=px[25*120+40]&0xFFFFFF;assert(filled==(b.theme.accent&0xFFFFFF));
+        b.button_style=2;zui_fill(&b,b.clip,0);zui_draw_controls(&b);assert((px[25*120+40]&0xFFFFFF)==(b.theme.raised&0xFFFFFF));
+        b.button_style=1;zui_fill(&b,b.clip,0);zui_draw_controls(&b);assert((px[25*120+40]&0xFFFFFF)!=filled);
+    }
     puts("PASS UI renderer bounds, fonts, theme, focus, activation, disabled/reset/capture and 10000 event sequences");
     return 0;
 }

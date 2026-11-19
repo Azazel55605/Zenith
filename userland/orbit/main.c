@@ -196,7 +196,9 @@ static int page,back_page=PAGE_BROWSE;
 enum { ID_NAV=10,ID_CHECK=30,ID_REVIEW=31,ID_APPLY=32,ID_COMMAND=33,ID_CANCEL_JOB=34,ID_BACK=35,ID_TOGGLE_PLAN=36,ID_FETCH=37,ID_SEARCH=38,
        ID_PLAN_PAGE=39,ID_CLEAR=40,ID_MARK=100,ID_ROW=300 };
 static struct zui_scroll page_scroll,plan_scroll;
-static void go(int p){if(p==page)return;page=p;zui_scroll_jump(&page_scroll,0);char line[48],*o=put(line,"ORBIT_PAGE ");o=put(o,page_names[p]);put(o,"\n");print(line);ui.dirty=1;}
+/* A new page crossfades in (call 629, as in Meridian); older kernels refuse it and the page appears at once. */
+static int fade_page;
+static void go(int p){if(p==page)return;page=p;zui_scroll_jump(&page_scroll,0);char line[48],*o=put(line,"ORBIT_PAGE ");o=put(o,page_names[p]);put(o,"\n");print(line);ui.dirty=1;fade_page=1;}
 
 /* ---------- Jobs: refresh and apply run in the kernel; the window polls. */
 static struct { long id; char kind[10]; int state,mine,restart; long done,total,changes; char step[200],message[300]; } job;
@@ -774,6 +776,7 @@ static void draw(void){
     ui.dirty=0;
 }
 static void present(void){
+    if(fade_page){int side=ui.width<760?168:208;zenith_gui_fade(handle,side+24,12,ui.width-side-36,ui.height-24,1);fade_page=0;}
     long r=material?zenith_gui_present_material(handle,ui.pixels,(unsigned long)ui.width*ui.height*4,ui.materials,ui.material_count):zenith_gui_present(handle,ui.pixels,(unsigned long)ui.width*ui.height*4);
     (void)r;
 }

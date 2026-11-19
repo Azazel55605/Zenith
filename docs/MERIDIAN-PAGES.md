@@ -29,7 +29,8 @@ Work state and delivery order live only in the [master roadmap](ROADMAP.md#merid
 
 ## 2. Input & Output
 
-Mouse & Touchpad, Keyboard, Sound, Display & Monitor are groups beneath this category.
+Mouse & Touchpad, Keyboard, Sound, Display & Monitor are groups beneath this category. System Sounds sits in Sound
+(moved from Appearance on 2026-11-19: which sounds play is an output setting, beside the devices that play them).
 
 | ID / page | Requested sections and controls | Baseline; activation / owner |
 |---|---|---|
@@ -40,6 +41,7 @@ Mouse & Touchpad, Keyboard, Sound, Display & Monitor are groups beneath this cat
 | `audio.playback` — Playback Devices | Enumerate/select playback devices; per-device test; channel configuration; sample rate and bit depth when negotiable. Report supported/negotiated formats rather than accepting arbitrary values. | —; M8. U/S; audio service + driver. |
 | `audio.recording` — Recording Devices | Enumerate/select recording devices; show actual per-channel pickup/level meters with capture permission/activity state. Never generate fake meter activity. | —; M8. U/S; authorized audio capture/meter service. |
 | `audio.streams` — Applications | List apps actually playing or recording audio, with live per-stream volume and mute controls. Per-app output routing is retained as the optional advanced step. | —; stream inventory M8, routing M10 after mixer/routing support. U; audio service. |
+| `audio.sounds` — System Sounds | Select interaction sound packs; map/test actual system sound events once playback exists. | —; M8. U; sound-event policy/resources + audio service. |
 | `display.configuration` — Display Configuration | Actual display/current/supported modes; resolution and scaling first; orientation, refresh rate, brightness and tearing policy. Device-dependent controls remain visible with a reason when unavailable. | H for initial display; M2 priority, unsupported hardware/presentation features M10. U/S; display/compositor service. |
 | `display.night-light` — Night Light | Off/On/Auto; strength; separate day/night temperature targets; schedule source/status linked to Day–Night Cycle. Apply across the display, not just the app. | —; M6 after global color-transform support. U; compositor color + scheduler. |
 | `input.accessibility` — Accessibility | Visible later-feature destination with a WIP summary. Specialized features need a follow-up scope; basic keyboard access, contrast, focus and readable layout apply from M1 everywhere. | —; specialized tools M10. U/S; relevant input/text/accessibility services. |
@@ -60,9 +62,11 @@ Mouse & Touchpad, Keyboard, Sound, Display & Monitor are groups beneath this cat
 
 ## 5. Appearance & Style
 
-Colors & Themes, Text & Fonts are groups beneath this category. Keep Wallpaper and
-Animations as directly discoverable pages. Add transparency/translucency and blur
-to Application Style as carried forward from the accepted design direction.
+Colors & Themes, Startup & Login, Text & Fonts are groups beneath this category. Keep Wallpaper and
+Animations as directly discoverable pages. Transparency, translucency strength and backdrop blur live in
+Application Style (moved out of Colors on 2026-11-19); Colors keeps the color mode and accent. Screen locking and
+automatic login are Security settings and boot diagnostics and recovery access a System setting; the login and boot
+pages here only choose how those screens look. Concepts: [appearance](design/appearance-concept.svg).
 
 | ID / page | Requested sections and controls | Baseline; activation / owner |
 |---|---|---|
@@ -72,10 +76,9 @@ to Application Style as carried forward from the accepted design direction.
 | `style.decorations` — Window Decorations | Several decoration presets: conventional Windows-like controls, macOS-like dots and additional Zenith options. Define geometry, button affordances and focus states through the host; clients cannot impersonate trusted chrome. | H for one trusted decoration; M5. U; compositor decoration service/resources. |
 | `style.icons` — Icons | Select among system icon sets, preview common roles, show missing-icon fallbacks. Shared application/shell resource lookup. | —; M5. U; bounded icon resources. |
 | `style.cursors` — Cursors | Select among cursor styles, preview roles and retain a readable recovery cursor. Apply consistently in the host, not just Meridian. | H for fixed host cursor; M5. U; compositor/input cursor resources. |
-| `style.sounds` — System Sounds | Select interaction sound packs; map/test actual system sound events once playback exists. | —; M8. U; sound-event policy/resources + audio service. |
 | `style.splash` — Splash Screen | Enable/select an animation during the authenticated transition from login manager to desktop. It must not delay or hide a failed session startup. | —; M5 style/resource shell, functional activation with M9 session lifecycle. U/S; session host. |
-| `style.login` — Login Manager | Several greeter styles, including Windows-like, macOS-like and Zenith alternatives. Style/layout only here; auto-login policy links to Screen Locking and stays administrative. | C/H for authenticated greeter and packaged branding; M5 resources, M9 trusted application/lifecycle. S; trusted greeter. |
-| `style.boot-splash` — Boot Splash | Optional animation before the login manager, if supported. Retain diagnostics/recovery and distinguish boot splash from post-login animation. | —; M9/M10 if the boot/display path can support it. S; boot/display service, never an ordinary client drawing over authentication. |
+| `style.login` — Login Manager | Several greeter styles, including Windows-like, macOS-like and Zenith alternatives. Style/layout only here; automatic login and locking are Security › Screen Locking. | C/H for authenticated greeter and packaged branding; M5 resources, M9 trusted application/lifecycle. S; trusted greeter. |
+| `style.boot-splash` — Boot Splash | Optional animation before the login manager, if supported. Distinguish boot splash from post-login animation; diagnostics and recovery access are System › Session and every style keeps them. | —; M9/M10 if the boot/display path can support it. S; boot/display service, never an ordinary client drawing over authentication. |
 | `style.fonts` — Fonts | System UI font selection, antialiasing and hinting options; honest previews of supported rendering modes. Changes must affect consumers, not only the picker. | C/H for verified packaged fonts in trusted hosts; native font/render resource work M6. U/S; shared text renderer/resources. |
 | `style.font-management` — Font Management | All Fonts, Personal Fonts and System Fonts views; install/manage fonts. User installs stay user-scoped, system installs require authority; malformed fonts get bounded validation. | C for font package delivery only; M6. U/S; font catalogue/import service. |
 | `style.animations` — Animations | Global speed; per-effect enable/disable for open/close, maximize, minimize, fullscreen, peek desktop and virtual-desktop switching. Mark effects WIP until that actual operation/animation exists. | —; M5 basic effects, M7 desktop-dependent effects. U; compositor effect policy; reduced-motion fallback. |
@@ -121,11 +124,11 @@ Window Management groups Taskbar, Window Behavior, Task Switcher and Virtual Des
 | `system.power` — Power Management | Suspend policy/action and automatic idle dimming. Separate display dimming from backlight hardware and prove real suspend/resume before enabling it. | C for reboot/poweroff only; dim M9, suspend M9/M10 after driver/firmware work. U/S; idle/display/power services. |
 | `system.users` — Users | Manage accounts: actual user list, add, delete and account/password actions. Existing account creation does not imply safe deletion exists. Protect active/system identities and make home-data handling explicit. | C for identity, add and password services; list M3, guarded mutations M9. S for account administration; trusted credential prompts. |
 | `system.autostart` — Autostart | Inspect/add/remove/enable/disable application startup entries and their actual failures. Use authorized app identities and recovery from crash loops. | —; M9. U/S; app/session launch service. |
-| `system.session` — Session | Confirmation policy for shutdown/reboot/logout; session restore behavior. Show actual DE/Headless availability and preserve busy/unsaved-work handling. Restore only supported app state, never credentials. | C for session selection and safe teardown; basic summary/default M3, confirmation/restore M9. U/S; session/app lifecycle services. |
+| `system.session` — Session | Confirmation policy for shutdown/reboot/logout; session restore behavior; boot diagnostics and recovery access (moved from Boot Splash). Show actual DE/Headless availability and preserve busy/unsaved-work handling. Restore only supported app state, never credentials. | C for session selection and safe teardown; basic summary/default M3, confirmation/restore M9. U/S; session/app lifecycle services. |
 
 ## Coverage check
 
-Counts by category: **1 + 10 + 3 + 1 + 13 + 5 + 2 + 1 + 3 + 5 = 44**.
+Counts by category: **1 + 11 + 3 + 1 + 12 + 5 + 2 + 1 + 3 + 5 = 44**.
 All 10 categories and 44 destinations are required in M1. Later-phase pages retain
 their WIP banner rather than being removed from navigation. Option groups such as
 keyboard Focus/Titlebar/Movement, font All/Personal/System, and region formats are

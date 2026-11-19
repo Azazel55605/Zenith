@@ -1,0 +1,520 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="2440" viewBox="0 0 1440 2440">
+<defs><filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="18"/></filter><filter id="blur6" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6"/></filter><filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity=".35"/></filter><filter id="cshadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0.6" dy="1.2" stdDeviation="0.9" flood-color="#000" flood-opacity=".45"/></filter></defs>
+<rect x="0" y="0" width="1440" height="2440" rx="0" fill="#151619" />
+<text x="48" y="55" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="28" font-weight="600" text-anchor="start" xml:space="preserve">Zenith / Startup concept: session splash, login screen, boot</text>
+<text x="48" y="86" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="14" font-weight="400" text-anchor="start" xml:space="preserve">Proposal, not running UI · styles for the three screens around signing in · none of them may delay or hide a failed start, and every one keeps recovery reachable</text>
+<text x="48" y="126" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Session splash · login → desktop (Appearance › Startup &amp; Login › Session Splash)</text>
+<text x="48" y="172" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Crossfade</text>
+<text x="48" y="194" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="start" xml:space="preserve">current · 420 ms</text>
+<text x="48" y="220" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">The card leaves, the desktop fades in</text>
+<text x="48" y="238" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">over the same wallpaper.</text>
+<defs><linearGradient id="w1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k1"><rect x="330" y="150" width="250" height="156" rx="8"/></clipPath></defs>
+<g clip-path="url(#k1)">
+<rect x="330" y="150" width="250" height="156" rx="0" fill="url(#w1)" />
+<circle cx="392.5" cy="196.8" r="54.599999999999994" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<g opacity="1.00" transform="translate(455.0 228.0) scale(1.000) translate(-455.0 -228.0)">
+<rect x="410.0" y="189.0" width="90.0" height="78.0" rx="8" fill="#202125" stroke="#45474F" />
+<circle cx="455.0" cy="210.84" r="9.36" fill="#7ECAC7" />
+<text x="455.0" y="231.9" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="7.800000000000001" font-weight="600" text-anchor="middle" xml:space="preserve">Alex</text>
+<rect x="420.8" y="238.92000000000002" width="68.4" height="10.920000000000002" rx="4" fill="#2A2C31" stroke="#45474F" />
+</g>
+<g opacity="0.00" transform="translate(455.0 228.0) scale(1.000) translate(-455.0 -228.0)">
+<rect x="355.0" y="168.72" width="112.5" height="85.80000000000001" rx="6" fill="#202125" stroke="#45474F" />
+<rect x="355.0" y="168.72" width="112.5" height="15.600000000000001" rx="6" fill="#25262B" />
+<rect x="442.5" y="189.0" width="105.0" height="70.2" rx="6" fill="#202125" stroke="#45474F" />
+</g>
+<rect x="380.0" y="284.15999999999997" width="150.0" height="15.600000000000001" rx="5" fill="#25262B" opacity="0.0" />
+<rect x="390.0" y="288.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.0" />
+<rect x="407.5" y="288.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.0" />
+<rect x="425.0" y="288.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.0" />
+<rect x="442.5" y="288.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.0" />
+</g>
+<rect x="330" y="150" width="250" height="156" rx="8" fill="none" stroke="#45474F" />
+<text x="330" y="322" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="start" xml:space="preserve">0 ms</text>
+<defs><linearGradient id="w2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k2"><rect x="600" y="150" width="250" height="156" rx="8"/></clipPath></defs>
+<g clip-path="url(#k2)">
+<rect x="600" y="150" width="250" height="156" rx="0" fill="url(#w2)" />
+<circle cx="662.5" cy="196.8" r="54.599999999999994" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<g opacity="0.67" transform="translate(725.0 228.0) scale(1.000) translate(-725.0 -228.0)">
+<rect x="680.0" y="189.0" width="90.0" height="78.0" rx="8" fill="#202125" stroke="#45474F" />
+<circle cx="725.0" cy="210.84" r="9.36" fill="#7ECAC7" />
+<text x="725.0" y="231.9" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="7.800000000000001" font-weight="600" text-anchor="middle" xml:space="preserve">Alex</text>
+<rect x="690.8" y="238.92000000000002" width="68.4" height="10.920000000000002" rx="4" fill="#2A2C31" stroke="#45474F" />
+</g>
+<g opacity="0.33" transform="translate(725.0 228.0) scale(1.000) translate(-725.0 -228.0)">
+<rect x="625.0" y="168.72" width="112.5" height="85.80000000000001" rx="6" fill="#202125" stroke="#45474F" />
+<rect x="625.0" y="168.72" width="112.5" height="15.600000000000001" rx="6" fill="#25262B" />
+<rect x="712.5" y="189.0" width="105.0" height="70.2" rx="6" fill="#202125" stroke="#45474F" />
+</g>
+<rect x="650.0" y="284.15999999999997" width="150.0" height="15.600000000000001" rx="5" fill="#25262B" opacity="0.3333333333333333" />
+<rect x="660.0" y="288.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.3333333333333333" />
+<rect x="677.5" y="288.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.3333333333333333" />
+<rect x="695.0" y="288.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.3333333333333333" />
+<rect x="712.5" y="288.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.3333333333333333" />
+</g>
+<rect x="600" y="150" width="250" height="156" rx="8" fill="none" stroke="#45474F" />
+<text x="600" y="322" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="start" xml:space="preserve">a third</text>
+<defs><linearGradient id="w3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k3"><rect x="870" y="150" width="250" height="156" rx="8"/></clipPath></defs>
+<g clip-path="url(#k3)">
+<rect x="870" y="150" width="250" height="156" rx="0" fill="url(#w3)" />
+<circle cx="932.5" cy="196.8" r="54.599999999999994" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<g opacity="0.33" transform="translate(995.0 228.0) scale(1.000) translate(-995.0 -228.0)">
+<rect x="950.0" y="189.0" width="90.0" height="78.0" rx="8" fill="#202125" stroke="#45474F" />
+<circle cx="995.0" cy="210.84" r="9.36" fill="#7ECAC7" />
+<text x="995.0" y="231.9" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="7.800000000000001" font-weight="600" text-anchor="middle" xml:space="preserve">Alex</text>
+<rect x="960.8" y="238.92000000000002" width="68.4" height="10.920000000000002" rx="4" fill="#2A2C31" stroke="#45474F" />
+</g>
+<g opacity="0.67" transform="translate(995.0 228.0) scale(1.000) translate(-995.0 -228.0)">
+<rect x="895.0" y="168.72" width="112.5" height="85.80000000000001" rx="6" fill="#202125" stroke="#45474F" />
+<rect x="895.0" y="168.72" width="112.5" height="15.600000000000001" rx="6" fill="#25262B" />
+<rect x="982.5" y="189.0" width="105.0" height="70.2" rx="6" fill="#202125" stroke="#45474F" />
+</g>
+<rect x="920.0" y="284.15999999999997" width="150.0" height="15.600000000000001" rx="5" fill="#25262B" opacity="0.6666666666666666" />
+<rect x="930.0" y="288.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.6666666666666666" />
+<rect x="947.5" y="288.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.6666666666666666" />
+<rect x="965.0" y="288.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.6666666666666666" />
+<rect x="982.5" y="288.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.6666666666666666" />
+</g>
+<rect x="870" y="150" width="250" height="156" rx="8" fill="none" stroke="#45474F" />
+<text x="870" y="322" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="start" xml:space="preserve">two thirds</text>
+<defs><linearGradient id="w4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k4"><rect x="1140" y="150" width="250" height="156" rx="8"/></clipPath></defs>
+<g clip-path="url(#k4)">
+<rect x="1140" y="150" width="250" height="156" rx="0" fill="url(#w4)" />
+<circle cx="1202.5" cy="196.8" r="54.599999999999994" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<g opacity="0.00" transform="translate(1265.0 228.0) scale(1.000) translate(-1265.0 -228.0)">
+<rect x="1220.0" y="189.0" width="90.0" height="78.0" rx="8" fill="#202125" stroke="#45474F" />
+<circle cx="1265.0" cy="210.84" r="9.36" fill="#7ECAC7" />
+<text x="1265.0" y="231.9" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="7.800000000000001" font-weight="600" text-anchor="middle" xml:space="preserve">Alex</text>
+<rect x="1230.8" y="238.92000000000002" width="68.4" height="10.920000000000002" rx="4" fill="#2A2C31" stroke="#45474F" />
+</g>
+<g opacity="1.00" transform="translate(1265.0 228.0) scale(1.000) translate(-1265.0 -228.0)">
+<rect x="1165.0" y="168.72" width="112.5" height="85.80000000000001" rx="6" fill="#202125" stroke="#45474F" />
+<rect x="1165.0" y="168.72" width="112.5" height="15.600000000000001" rx="6" fill="#25262B" />
+<rect x="1252.5" y="189.0" width="105.0" height="70.2" rx="6" fill="#202125" stroke="#45474F" />
+</g>
+<rect x="1190.0" y="284.15999999999997" width="150.0" height="15.600000000000001" rx="5" fill="#25262B" opacity="1.0" />
+<rect x="1200.0" y="288.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+<rect x="1217.5" y="288.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+<rect x="1235.0" y="288.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+<rect x="1252.5" y="288.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+</g>
+<rect x="1140" y="150" width="250" height="156" rx="8" fill="none" stroke="#45474F" />
+<text x="1140" y="322" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="start" xml:space="preserve">desktop</text>
+<text x="48" y="372" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Rise</text>
+<text x="48" y="394" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="start" xml:space="preserve">new · 480 ms</text>
+<text x="48" y="420" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">The desktop grows from 94 % as the</text>
+<text x="48" y="438" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">card fades; the taskbar slides up</text>
+<text x="48" y="456" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">last.</text>
+<defs><linearGradient id="w5" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k5"><rect x="330" y="350" width="250" height="156" rx="8"/></clipPath></defs>
+<g clip-path="url(#k5)">
+<rect x="330" y="350" width="250" height="156" rx="0" fill="url(#w5)" />
+<circle cx="392.5" cy="396.8" r="54.599999999999994" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<g opacity="1.00" transform="translate(455.0 428.0) scale(1.000) translate(-455.0 -428.0)">
+<rect x="410.0" y="389.0" width="90.0" height="78.0" rx="8" fill="#202125" stroke="#45474F" />
+<circle cx="455.0" cy="410.84" r="9.36" fill="#7ECAC7" />
+<text x="455.0" y="431.9" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="7.800000000000001" font-weight="600" text-anchor="middle" xml:space="preserve">Alex</text>
+<rect x="420.8" y="438.92" width="68.4" height="10.920000000000002" rx="4" fill="#2A2C31" stroke="#45474F" />
+</g>
+<g opacity="0.00" transform="translate(455.0 428.0) scale(0.940) translate(-455.0 -428.0)">
+<rect x="355.0" y="368.72" width="112.5" height="85.80000000000001" rx="6" fill="#202125" stroke="#45474F" />
+<rect x="355.0" y="368.72" width="112.5" height="15.600000000000001" rx="6" fill="#25262B" />
+<rect x="442.5" y="389.0" width="105.0" height="70.2" rx="6" fill="#202125" stroke="#45474F" />
+</g>
+<rect x="380.0" y="506.0" width="150.0" height="15.600000000000001" rx="5" fill="#25262B" opacity="0.0" />
+<rect x="390.0" y="509.9" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.0" />
+<rect x="407.5" y="509.9" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.0" />
+<rect x="425.0" y="509.9" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.0" />
+<rect x="442.5" y="509.9" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.0" />
+</g>
+<rect x="330" y="350" width="250" height="156" rx="8" fill="none" stroke="#45474F" />
+<text x="330" y="522" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="start" xml:space="preserve">0 ms</text>
+<defs><linearGradient id="w6" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k6"><rect x="600" y="350" width="250" height="156" rx="8"/></clipPath></defs>
+<g clip-path="url(#k6)">
+<rect x="600" y="350" width="250" height="156" rx="0" fill="url(#w6)" />
+<circle cx="662.5" cy="396.8" r="54.599999999999994" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<g opacity="0.33" transform="translate(725.0 428.0) scale(1.013) translate(-725.0 -428.0)">
+<rect x="680.0" y="389.0" width="90.0" height="78.0" rx="8" fill="#202125" stroke="#45474F" />
+<circle cx="725.0" cy="410.84" r="9.36" fill="#7ECAC7" />
+<text x="725.0" y="431.9" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="7.800000000000001" font-weight="600" text-anchor="middle" xml:space="preserve">Alex</text>
+<rect x="690.8" y="438.92" width="68.4" height="10.920000000000002" rx="4" fill="#2A2C31" stroke="#45474F" />
+</g>
+<g opacity="0.53" transform="translate(725.0 428.0) scale(0.960) translate(-725.0 -428.0)">
+<rect x="625.0" y="368.72" width="112.5" height="85.80000000000001" rx="6" fill="#202125" stroke="#45474F" />
+<rect x="625.0" y="368.72" width="112.5" height="15.600000000000001" rx="6" fill="#25262B" />
+<rect x="712.5" y="389.0" width="105.0" height="70.2" rx="6" fill="#202125" stroke="#45474F" />
+</g>
+<rect x="650.0" y="506.0" width="150.0" height="15.600000000000001" rx="5" fill="#25262B" opacity="0.5333333333333333" />
+<rect x="660.0" y="509.9" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.5333333333333333" />
+<rect x="677.5" y="509.9" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.5333333333333333" />
+<rect x="695.0" y="509.9" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.5333333333333333" />
+<rect x="712.5" y="509.9" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.5333333333333333" />
+</g>
+<rect x="600" y="350" width="250" height="156" rx="8" fill="none" stroke="#45474F" />
+<text x="600" y="522" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="start" xml:space="preserve">a third</text>
+<defs><linearGradient id="w7" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k7"><rect x="870" y="350" width="250" height="156" rx="8"/></clipPath></defs>
+<g clip-path="url(#k7)">
+<rect x="870" y="350" width="250" height="156" rx="0" fill="url(#w7)" />
+<circle cx="932.5" cy="396.8" r="54.599999999999994" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<g opacity="0.00" transform="translate(995.0 428.0) scale(1.027) translate(-995.0 -428.0)">
+<rect x="950.0" y="389.0" width="90.0" height="78.0" rx="8" fill="#202125" stroke="#45474F" />
+<circle cx="995.0" cy="410.84" r="9.36" fill="#7ECAC7" />
+<text x="995.0" y="431.9" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="7.800000000000001" font-weight="600" text-anchor="middle" xml:space="preserve">Alex</text>
+<rect x="960.8" y="438.92" width="68.4" height="10.920000000000002" rx="4" fill="#2A2C31" stroke="#45474F" />
+</g>
+<g opacity="1.00" transform="translate(995.0 428.0) scale(0.980) translate(-995.0 -428.0)">
+<rect x="895.0" y="368.72" width="112.5" height="85.80000000000001" rx="6" fill="#202125" stroke="#45474F" />
+<rect x="895.0" y="368.72" width="112.5" height="15.600000000000001" rx="6" fill="#25262B" />
+<rect x="982.5" y="389.0" width="105.0" height="70.2" rx="6" fill="#202125" stroke="#45474F" />
+</g>
+<rect x="920.0" y="498.72" width="150.0" height="15.600000000000001" rx="5" fill="#25262B" opacity="1" />
+<rect x="930.0" y="502.62" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1" />
+<rect x="947.5" y="502.62" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1" />
+<rect x="965.0" y="502.62" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1" />
+<rect x="982.5" y="502.62" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1" />
+</g>
+<rect x="870" y="350" width="250" height="156" rx="8" fill="none" stroke="#45474F" />
+<text x="870" y="522" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="start" xml:space="preserve">two thirds</text>
+<defs><linearGradient id="w8" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k8"><rect x="1140" y="350" width="250" height="156" rx="8"/></clipPath></defs>
+<g clip-path="url(#k8)">
+<rect x="1140" y="350" width="250" height="156" rx="0" fill="url(#w8)" />
+<circle cx="1202.5" cy="396.8" r="54.599999999999994" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<g opacity="0.00" transform="translate(1265.0 428.0) scale(1.040) translate(-1265.0 -428.0)">
+<rect x="1220.0" y="389.0" width="90.0" height="78.0" rx="8" fill="#202125" stroke="#45474F" />
+<circle cx="1265.0" cy="410.84" r="9.36" fill="#7ECAC7" />
+<text x="1265.0" y="431.9" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="7.800000000000001" font-weight="600" text-anchor="middle" xml:space="preserve">Alex</text>
+<rect x="1230.8" y="438.92" width="68.4" height="10.920000000000002" rx="4" fill="#2A2C31" stroke="#45474F" />
+</g>
+<g opacity="1.00" transform="translate(1265.0 428.0) scale(1.000) translate(-1265.0 -428.0)">
+<rect x="1165.0" y="368.72" width="112.5" height="85.80000000000001" rx="6" fill="#202125" stroke="#45474F" />
+<rect x="1165.0" y="368.72" width="112.5" height="15.600000000000001" rx="6" fill="#25262B" />
+<rect x="1252.5" y="389.0" width="105.0" height="70.2" rx="6" fill="#202125" stroke="#45474F" />
+</g>
+<rect x="1190.0" y="484.15999999999997" width="150.0" height="15.600000000000001" rx="5" fill="#25262B" opacity="1" />
+<rect x="1200.0" y="488.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1" />
+<rect x="1217.5" y="488.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1" />
+<rect x="1235.0" y="488.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1" />
+<rect x="1252.5" y="488.05999999999995" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1" />
+</g>
+<rect x="1140" y="350" width="250" height="156" rx="8" fill="none" stroke="#45474F" />
+<text x="1140" y="522" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="start" xml:space="preserve">desktop</text>
+<text x="48" y="572" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Iris</text>
+<text x="48" y="594" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="start" xml:space="preserve">new · 520 ms</text>
+<text x="48" y="620" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">A circle opens from the account</text>
+<text x="48" y="638" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">picture until the whole desktop shows.</text>
+<defs><linearGradient id="w9" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k9"><rect x="330" y="550" width="250" height="156" rx="8"/></clipPath></defs>
+<g clip-path="url(#k9)">
+<rect x="330" y="550" width="250" height="156" rx="0" fill="url(#w9)" />
+<circle cx="392.5" cy="596.8" r="54.599999999999994" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<g opacity="1.00" transform="translate(455.0 628.0) scale(1.000) translate(-455.0 -628.0)">
+<rect x="410.0" y="589.0" width="90.0" height="78.0" rx="8" fill="#202125" stroke="#45474F" />
+<circle cx="455.0" cy="610.84" r="9.36" fill="#7ECAC7" />
+<text x="455.0" y="631.9" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="7.800000000000001" font-weight="600" text-anchor="middle" xml:space="preserve">Alex</text>
+<rect x="420.8" y="638.92" width="68.4" height="10.920000000000002" rx="4" fill="#2A2C31" stroke="#45474F" />
+</g>
+</g>
+<rect x="330" y="550" width="250" height="156" rx="8" fill="none" stroke="#45474F" />
+<text x="330" y="722" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="start" xml:space="preserve">0 ms</text>
+<defs><linearGradient id="w10" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k10"><rect x="600" y="550" width="250" height="156" rx="8"/></clipPath></defs>
+<g clip-path="url(#k10)">
+<rect x="600" y="550" width="250" height="156" rx="0" fill="url(#w10)" />
+<circle cx="662.5" cy="596.8" r="54.599999999999994" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<clipPath id="i11"><circle cx="725.0" cy="610.84" r="40"/></clipPath>
+<g opacity="0.67" transform="translate(725.0 628.0) scale(1.000) translate(-725.0 -628.0)">
+<rect x="680.0" y="589.0" width="90.0" height="78.0" rx="8" fill="#202125" stroke="#45474F" />
+<circle cx="725.0" cy="610.84" r="9.36" fill="#7ECAC7" />
+<text x="725.0" y="631.9" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="7.800000000000001" font-weight="600" text-anchor="middle" xml:space="preserve">Alex</text>
+<rect x="690.8" y="638.92" width="68.4" height="10.920000000000002" rx="4" fill="#2A2C31" stroke="#45474F" />
+</g>
+<g clip-path="url(#i11)">
+<rect x="600" y="550" width="250" height="156" rx="0" fill="#1A2A3A" opacity="0.6" />
+<g opacity="1.00" transform="translate(725.0 628.0) scale(1.000) translate(-725.0 -628.0)">
+<rect x="625.0" y="568.72" width="112.5" height="85.80000000000001" rx="6" fill="#202125" stroke="#45474F" />
+<rect x="625.0" y="568.72" width="112.5" height="15.600000000000001" rx="6" fill="#25262B" />
+<rect x="712.5" y="589.0" width="105.0" height="70.2" rx="6" fill="#202125" stroke="#45474F" />
+</g>
+<rect x="650.0" y="684.16" width="150.0" height="15.600000000000001" rx="5" fill="#25262B" opacity="1.0" />
+<rect x="660.0" y="688.06" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+<rect x="677.5" y="688.06" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+<rect x="695.0" y="688.06" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+<rect x="712.5" y="688.06" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+</g>
+<circle cx="725.0" cy="610.84" r="40" fill="none" stroke="#7ECAC7" stroke-width="1.5" opacity="0.8" />
+</g>
+<rect x="600" y="550" width="250" height="156" rx="8" fill="none" stroke="#45474F" />
+<text x="600" y="722" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="start" xml:space="preserve">a third</text>
+<defs><linearGradient id="w12" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k12"><rect x="870" y="550" width="250" height="156" rx="8"/></clipPath></defs>
+<g clip-path="url(#k12)">
+<rect x="870" y="550" width="250" height="156" rx="0" fill="url(#w12)" />
+<circle cx="932.5" cy="596.8" r="54.599999999999994" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<clipPath id="i13"><circle cx="995.0" cy="610.84" r="110"/></clipPath>
+<g opacity="0.33" transform="translate(995.0 628.0) scale(1.000) translate(-995.0 -628.0)">
+<rect x="950.0" y="589.0" width="90.0" height="78.0" rx="8" fill="#202125" stroke="#45474F" />
+<circle cx="995.0" cy="610.84" r="9.36" fill="#7ECAC7" />
+<text x="995.0" y="631.9" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="7.800000000000001" font-weight="600" text-anchor="middle" xml:space="preserve">Alex</text>
+<rect x="960.8" y="638.92" width="68.4" height="10.920000000000002" rx="4" fill="#2A2C31" stroke="#45474F" />
+</g>
+<g clip-path="url(#i13)">
+<rect x="870" y="550" width="250" height="156" rx="0" fill="#1A2A3A" opacity="0.6" />
+<g opacity="1.00" transform="translate(995.0 628.0) scale(1.000) translate(-995.0 -628.0)">
+<rect x="895.0" y="568.72" width="112.5" height="85.80000000000001" rx="6" fill="#202125" stroke="#45474F" />
+<rect x="895.0" y="568.72" width="112.5" height="15.600000000000001" rx="6" fill="#25262B" />
+<rect x="982.5" y="589.0" width="105.0" height="70.2" rx="6" fill="#202125" stroke="#45474F" />
+</g>
+<rect x="920.0" y="684.16" width="150.0" height="15.600000000000001" rx="5" fill="#25262B" opacity="1.0" />
+<rect x="930.0" y="688.06" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+<rect x="947.5" y="688.06" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+<rect x="965.0" y="688.06" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+<rect x="982.5" y="688.06" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+</g>
+<circle cx="995.0" cy="610.84" r="110" fill="none" stroke="#7ECAC7" stroke-width="1.5" opacity="0.8" />
+</g>
+<rect x="870" y="550" width="250" height="156" rx="8" fill="none" stroke="#45474F" />
+<text x="870" y="722" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="start" xml:space="preserve">two thirds</text>
+<defs><linearGradient id="w14" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k14"><rect x="1140" y="550" width="250" height="156" rx="8"/></clipPath></defs>
+<g clip-path="url(#k14)">
+<rect x="1140" y="550" width="250" height="156" rx="0" fill="url(#w14)" />
+<circle cx="1202.5" cy="596.8" r="54.599999999999994" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<clipPath id="i15"><circle cx="1265.0" cy="610.84" r="200"/></clipPath>
+<g opacity="0.00" transform="translate(1265.0 628.0) scale(1.000) translate(-1265.0 -628.0)">
+<rect x="1220.0" y="589.0" width="90.0" height="78.0" rx="8" fill="#202125" stroke="#45474F" />
+<circle cx="1265.0" cy="610.84" r="9.36" fill="#7ECAC7" />
+<text x="1265.0" y="631.9" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="7.800000000000001" font-weight="600" text-anchor="middle" xml:space="preserve">Alex</text>
+<rect x="1230.8" y="638.92" width="68.4" height="10.920000000000002" rx="4" fill="#2A2C31" stroke="#45474F" />
+</g>
+<g clip-path="url(#i15)">
+<rect x="1140" y="550" width="250" height="156" rx="0" fill="#1A2A3A" opacity="0.6" />
+<g opacity="1.00" transform="translate(1265.0 628.0) scale(1.000) translate(-1265.0 -628.0)">
+<rect x="1165.0" y="568.72" width="112.5" height="85.80000000000001" rx="6" fill="#202125" stroke="#45474F" />
+<rect x="1165.0" y="568.72" width="112.5" height="15.600000000000001" rx="6" fill="#25262B" />
+<rect x="1252.5" y="589.0" width="105.0" height="70.2" rx="6" fill="#202125" stroke="#45474F" />
+</g>
+<rect x="1190.0" y="684.16" width="150.0" height="15.600000000000001" rx="5" fill="#25262B" opacity="1.0" />
+<rect x="1200.0" y="688.06" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+<rect x="1217.5" y="688.06" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+<rect x="1235.0" y="688.06" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+<rect x="1252.5" y="688.06" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+</g>
+</g>
+<rect x="1140" y="550" width="250" height="156" rx="8" fill="none" stroke="#45474F" />
+<text x="1140" y="722" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="start" xml:space="preserve">desktop</text>
+<text x="48" y="772" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Greeting</text>
+<text x="48" y="794" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="start" xml:space="preserve">new · 900 ms</text>
+<text x="48" y="820" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">"Good evening, Alex" and the time hold</text>
+<text x="48" y="838" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">briefly, then fade into the desktop.</text>
+<defs><linearGradient id="w16" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k16"><rect x="330" y="750" width="250" height="156" rx="8"/></clipPath></defs>
+<g clip-path="url(#k16)">
+<rect x="330" y="750" width="250" height="156" rx="0" fill="url(#w16)" />
+<circle cx="392.5" cy="796.8" r="54.599999999999994" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<g opacity="1.00" transform="translate(455.0 828.0) scale(1.000) translate(-455.0 -828.0)">
+<rect x="410.0" y="789.0" width="90.0" height="78.0" rx="8" fill="#202125" stroke="#45474F" />
+<circle cx="455.0" cy="810.84" r="9.36" fill="#7ECAC7" />
+<text x="455.0" y="831.9" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="7.800000000000001" font-weight="600" text-anchor="middle" xml:space="preserve">Alex</text>
+<rect x="420.8" y="838.92" width="68.4" height="10.920000000000002" rx="4" fill="#2A2C31" stroke="#45474F" />
+</g>
+</g>
+<rect x="330" y="750" width="250" height="156" rx="8" fill="none" stroke="#45474F" />
+<text x="330" y="922" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="start" xml:space="preserve">0 ms</text>
+<defs><linearGradient id="w17" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k17"><rect x="600" y="750" width="250" height="156" rx="8"/></clipPath></defs>
+<g clip-path="url(#k17)">
+<rect x="600" y="750" width="250" height="156" rx="0" fill="url(#w17)" />
+<circle cx="662.5" cy="796.8" r="54.599999999999994" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<text x="725.0" y="820.2" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" opacity="1" xml:space="preserve">Good evening, Alex</text>
+<text x="725.0" y="846.72" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="middle" opacity="1" xml:space="preserve">19:42 · Thursday 19 November</text>
+</g>
+<rect x="600" y="750" width="250" height="156" rx="8" fill="none" stroke="#45474F" />
+<text x="600" y="922" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="start" xml:space="preserve">a third</text>
+<defs><linearGradient id="w18" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k18"><rect x="870" y="750" width="250" height="156" rx="8"/></clipPath></defs>
+<g clip-path="url(#k18)">
+<rect x="870" y="750" width="250" height="156" rx="0" fill="url(#w18)" />
+<circle cx="932.5" cy="796.8" r="54.599999999999994" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<text x="995.0" y="820.2" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" opacity="0.5" xml:space="preserve">Good evening, Alex</text>
+<text x="995.0" y="846.72" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="middle" opacity="0.5" xml:space="preserve">19:42 · Thursday 19 November</text>
+<g opacity="0.50" transform="translate(995.0 828.0) scale(1.000) translate(-995.0 -828.0)">
+<rect x="895.0" y="768.72" width="112.5" height="85.80000000000001" rx="6" fill="#202125" stroke="#45474F" />
+<rect x="895.0" y="768.72" width="112.5" height="15.600000000000001" rx="6" fill="#25262B" />
+<rect x="982.5" y="789.0" width="105.0" height="70.2" rx="6" fill="#202125" stroke="#45474F" />
+</g>
+<rect x="920.0" y="895.08" width="150.0" height="15.600000000000001" rx="5" fill="#25262B" opacity="0.5" />
+<rect x="930.0" y="898.98" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.5" />
+<rect x="947.5" y="898.98" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.5" />
+<rect x="965.0" y="898.98" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.5" />
+<rect x="982.5" y="898.98" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="0.5" />
+</g>
+<rect x="870" y="750" width="250" height="156" rx="8" fill="none" stroke="#45474F" />
+<text x="870" y="922" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="start" xml:space="preserve">two thirds</text>
+<defs><linearGradient id="w19" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k19"><rect x="1140" y="750" width="250" height="156" rx="8"/></clipPath></defs>
+<g clip-path="url(#k19)">
+<rect x="1140" y="750" width="250" height="156" rx="0" fill="url(#w19)" />
+<circle cx="1202.5" cy="796.8" r="54.599999999999994" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<g opacity="1.00" transform="translate(1265.0 828.0) scale(1.000) translate(-1265.0 -828.0)">
+<rect x="1165.0" y="768.72" width="112.5" height="85.80000000000001" rx="6" fill="#202125" stroke="#45474F" />
+<rect x="1165.0" y="768.72" width="112.5" height="15.600000000000001" rx="6" fill="#25262B" />
+<rect x="1252.5" y="789.0" width="105.0" height="70.2" rx="6" fill="#202125" stroke="#45474F" />
+</g>
+<rect x="1190.0" y="884.16" width="150.0" height="15.600000000000001" rx="5" fill="#25262B" opacity="1.0" />
+<rect x="1200.0" y="888.06" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+<rect x="1217.5" y="888.06" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+<rect x="1235.0" y="888.06" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+<rect x="1252.5" y="888.06" width="12.5" height="7.800000000000001" rx="3" fill="#3A3C43" opacity="1.0" />
+</g>
+<rect x="1140" y="750" width="250" height="156" rx="8" fill="none" stroke="#45474F" />
+<text x="1140" y="922" fill="#8A8E98" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="start" xml:space="preserve">desktop</text>
+<text x="48" y="950" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">All four: the desktop is already running underneath; a press or key ends the splash at once; Animations › Off or a slow machine (two frames over 33 ms)</text>
+<text x="48" y="969" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">skips it; a session that fails to start shows its error instead of the splash. Logout keeps the short fade.</text>
+<text x="48" y="1020" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Login screen styles (Appearance › Startup &amp; Login › Login Screen · who may skip it stays in Security)</text>
+<defs><linearGradient id="w20" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k20"><rect x="48" y="1042" width="640" height="360" rx="8"/></clipPath></defs>
+<g clip-path="url(#k20)">
+<rect x="48" y="1042" width="640" height="360" rx="0" fill="url(#w20)" />
+<circle cx="208.0" cy="1150.0" r="125.99999999999999" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<rect x="48" y="1042" width="640" height="360" rx="0" fill="#000" opacity="0.15" />
+<rect x="218.0" y="1112.0" width="300" height="220" rx="12" fill="#202125" stroke="#45474F" />
+<circle cx="250.0" cy="1140.0" r="10" fill="#7ECAC7" />
+<text x="268.0" y="1145.0" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Zenith</text>
+<text x="242.0" y="1184.0" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="start" xml:space="preserve">Name</text>
+<rect x="242.0" y="1190.0" width="252" height="30" rx="6" fill="#2A2C31" stroke="#45474F" />
+<text x="242.0" y="1238.0" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="start" xml:space="preserve">Password</text>
+<rect x="242.0" y="1244.0" width="252" height="30" rx="6" fill="#2A2C31" stroke="#45474F" />
+<rect x="242.0" y="1296.0" width="120" height="28" rx="6" fill="#7ECAC7" />
+<text x="302.0" y="1314.0" fill="#10302F" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">Desktop</text>
+<rect x="374.0" y="1296.0" width="120" height="28" rx="6" fill="#2A2C31" stroke="#45474F" />
+<text x="434.0" y="1314.0" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">Headless</text>
+<g transform="translate(632 1372) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10" />
+  <path d="M18.4 6.6a9 9 0 1 1-12.77.04" /></g>
+<g transform="translate(658 1372) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+  <path d="M3 3v5h5" /></g>
+</g>
+<rect x="48" y="1042" width="640" height="360" rx="8" fill="none" stroke="#45474F" />
+<text x="48" y="1428" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Zenith card</text>
+<rect x="163" y="1413" width="60" height="20" rx="10" fill="#2C3B3D" />
+<text x="193.0" y="1427" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">current</text>
+<text x="48" y="1450" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">One card: name and password, Desktop and Headless, power buttons in the corner.</text>
+<defs><linearGradient id="w21" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k21"><rect x="752" y="1042" width="640" height="360" rx="8"/></clipPath></defs>
+<g clip-path="url(#k21)">
+<rect x="752" y="1042" width="640" height="360" rx="0" fill="url(#w21)" />
+<circle cx="912.0" cy="1150.0" r="125.99999999999999" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<rect x="752" y="1042" width="640" height="360" rx="0" fill="#000" opacity="0.15" />
+<rect x="878.0" y="1118.0" width="118" height="128" rx="12" fill="#2C3B3D" stroke="#7ECAC7" />
+<circle cx="937.0" cy="1160.0" r="30" fill="#7ECAC7" />
+<text x="937.0" y="1168.0" fill="#10302F" font-family="Inter, sans-serif" font-size="22" font-weight="600" text-anchor="middle" xml:space="preserve">A</text>
+<text x="937.0" y="1224.0" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">Alex</text>
+<circle cx="1067.0" cy="1160.0" r="30" fill="#5C606B" />
+<text x="1067.0" y="1168.0" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="22" font-weight="600" text-anchor="middle" xml:space="preserve">G</text>
+<text x="1067.0" y="1224.0" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">Guest</text>
+<circle cx="1197.0" cy="1160.0" r="30" fill="#5C606B" />
+<text x="1197.0" y="1168.0" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="22" font-weight="600" text-anchor="middle" xml:space="preserve">A</text>
+<text x="1197.0" y="1224.0" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="middle" xml:space="preserve">Admin</text>
+<rect x="922.0" y="1262.0" width="300" height="34" rx="8" fill="#202125" stroke="#7ECAC7" />
+<text x="936.0" y="1284.0" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Password for Alex</text>
+<circle cx="1206.0" cy="1279.0" r="12" fill="#7ECAC7" />
+<path d="M1201.0 1279.0 h9 m-3 -3 3 3 -3 3" fill="none" stroke="#10302F" stroke-width="1.6" />
+<text x="1072.0" y="1324.0" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="middle" xml:space="preserve">Last used is selected · arrows or a click choose another · Desktop ▾</text>
+<g transform="translate(1336 1372) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10" />
+  <path d="M18.4 6.6a9 9 0 1 1-12.77.04" /></g>
+<g transform="translate(1362 1372) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+  <path d="M3 3v5h5" /></g>
+</g>
+<rect x="752" y="1042" width="640" height="360" rx="8" fill="none" stroke="#45474F" />
+<text x="752" y="1428" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Accounts</text>
+<rect x="840" y="1413" width="124" height="20" rx="10" fill="#2C3B3D" />
+<text x="902.0" y="1427" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">new · preselected</text>
+<text x="752" y="1450" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Every account as a tile; the last one used is already selected with the password field open.</text>
+<defs><linearGradient id="w22" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k22"><rect x="48" y="1494" width="640" height="360" rx="8"/></clipPath></defs>
+<g clip-path="url(#k22)">
+<rect x="48" y="1494" width="640" height="360" rx="0" fill="url(#w22)" />
+<circle cx="208.0" cy="1602.0" r="125.99999999999999" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<rect x="48" y="1494" width="640" height="360" rx="0" fill="#000" opacity="0.15" />
+<text x="368.0" y="1664.0" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="72" font-weight="300" text-anchor="middle" xml:space="preserve">19:42</text>
+<text x="368.0" y="1700.0" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="16" font-weight="400" text-anchor="middle" xml:space="preserve">Thursday 19 November</text>
+<rect x="258.0" y="1784" width="220" height="40" rx="20" fill="#202125" stroke="#45474F" opacity="0.85" />
+<circle cx="280.0" cy="1804" r="11" fill="#7ECAC7" />
+<text x="298.0" y="1809" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="start" xml:space="preserve">Alex · press any key</text>
+<g transform="translate(632 1824) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10" />
+  <path d="M18.4 6.6a9 9 0 1 1-12.77.04" /></g>
+<g transform="translate(658 1824) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+  <path d="M3 3v5h5" /></g>
+</g>
+<rect x="48" y="1494" width="640" height="360" rx="8" fill="none" stroke="#45474F" />
+<text x="48" y="1880" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Clock</text>
+<rect x="109" y="1865" width="35" height="20" rx="10" fill="#2C3B3D" />
+<text x="126.5" y="1879" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">new</text>
+<text x="48" y="1902" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">A large clock and date over the wallpaper; any key or click slides the card up for the last account.</text>
+<defs><linearGradient id="w23" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B3A6B"/><stop offset=".55" stop-color="#1A2A3A"/><stop offset="1" stop-color="#1F5552"/></linearGradient><clipPath id="k23"><rect x="752" y="1494" width="640" height="360" rx="8"/></clipPath></defs>
+<g clip-path="url(#k23)">
+<rect x="752" y="1494" width="640" height="360" rx="0" fill="url(#w23)" />
+<circle cx="912.0" cy="1602.0" r="125.99999999999999" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<rect x="752" y="1494" width="640" height="360" rx="0" fill="#000" opacity="0.15" />
+<rect x="1162" y="1494" width="230" height="360" rx="0" fill="#202125" opacity="0.92" />
+<text x="1182" y="1530" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Sign in</text>
+<rect x="1172" y="1554" width="210" height="44" rx="8" fill="#2C3B3D" />
+<circle cx="1196" cy="1576" r="14" fill="#7ECAC7" />
+<text x="1220" y="1581" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Alex</text>
+<circle cx="1196" cy="1628" r="14" fill="#5C606B" />
+<text x="1220" y="1633" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Guest</text>
+<circle cx="1196" cy="1680" r="14" fill="#5C606B" />
+<text x="1220" y="1685" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Admin</text>
+<rect x="1172" y="1724" width="210" height="32" rx="6" fill="#2A2C31" stroke="#7ECAC7" />
+<text x="1184" y="1745" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="400" text-anchor="start" xml:space="preserve">Password</text>
+<text x="792" y="1794" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="44" font-weight="300" text-anchor="start" xml:space="preserve">19:42</text>
+<text x="794" y="1822" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Thursday 19 November</text>
+<g transform="translate(1106 1824) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10" />
+  <path d="M18.4 6.6a9 9 0 1 1-12.77.04" /></g>
+<g transform="translate(1132 1824) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+  <path d="M3 3v5h5" /></g>
+</g>
+<rect x="752" y="1494" width="640" height="360" rx="8" fill="none" stroke="#45474F" />
+<text x="752" y="1880" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Split</text>
+<rect x="813" y="1865" width="35" height="20" rx="10" fill="#2C3B3D" />
+<text x="830.5" y="1879" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">new</text>
+<text x="752" y="1902" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Accounts in a side panel, the wallpaper and time on the rest; good on wide screens.</text>
+<text x="48" y="1956" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Accounts lists only accounts allowed to sign in here (not system accounts); an administrator can hide the list (Security), which falls back to the Zenith card.</text>
+<text x="48" y="1975" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Every style: the same trusted greeter, the same throttled attempts, the keyboard path (Tab, arrows, Enter), Desktop/Headless choice and power buttons that ask first.</text>
+<text x="48" y="2026" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Boot animation styles (Appearance › Startup &amp; Login › Boot Splash · fixed dark: the appearance is not loaded yet)</text>
+<rect x="48" y="2048" width="316" height="200" rx="8" fill="#0B0C0F" stroke="#45474F" />
+<circle cx="206.0" cy="2138.0" r="18" fill="none" stroke="#F1F2F4" stroke-width="2.4" opacity="1" />
+<circle cx="206.0" cy="2134.4" r="5.76" fill="#7ECAC7" opacity="1" />
+<rect x="136.0" y="2178.0" width="140" height="4" rx="2" fill="#2A2C31" />
+<rect x="136.0" y="2178.0" width="84" height="4" rx="2" fill="#F1F2F4" />
+<text x="206.0" y="2202.0" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="middle" xml:space="preserve">Network</text>
+<text x="48" y="2274" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Phases</text>
+<rect x="118" y="2259" width="60" height="20" rx="10" fill="#2C3B3D" />
+<text x="148.0" y="2273" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">current</text>
+<text x="48" y="2296" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Logo and a bar that fills as real</text>
+<text x="48" y="2314" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">phases finish; the phase name shows.</text>
+<rect x="390" y="2048" width="316" height="200" rx="8" fill="#0B0C0F" stroke="#45474F" />
+<circle cx="548.0" cy="2138.0" r="18" fill="none" stroke="#F1F2F4" stroke-width="2.4" opacity="1" />
+<circle cx="548.0" cy="2134.4" r="5.76" fill="#7ECAC7" opacity="1" />
+<circle cx="548.0" cy="2098.0" r="4" fill="#7ECAC7" />
+<circle cx="586.0422606518061" cy="2125.639320225002" r="4" fill="#7ECAC7" />
+<circle cx="571.511410091699" cy="2170.360679774998" r="4" fill="#7ECAC7" />
+<circle cx="524.488589908301" cy="2170.360679774998" r="4" fill="#3A3C43" />
+<circle cx="509.95773934819385" cy="2125.639320225002" r="4" fill="#3A3C43" />
+<text x="548.0" y="2206.0" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="middle" xml:space="preserve">Network</text>
+<text x="390" y="2274" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Orbit</text>
+<rect x="451" y="2259" width="35" height="20" rx="10" fill="#2C3B3D" />
+<text x="468.5" y="2273" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">new</text>
+<text x="390" y="2296" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Five dots circle the logo; each lights</text>
+<text x="390" y="2314" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">when its phase is done.</text>
+<rect x="732" y="2048" width="316" height="200" rx="8" fill="#0B0C0F" stroke="#45474F" />
+<circle cx="890.0" cy="2138.0" r="34" fill="#7ECAC7" opacity="0.25" filter="url(#soft)"/>
+<circle cx="890.0" cy="2138.0" r="20" fill="none" stroke="#F1F2F4" stroke-width="2.4" opacity="1" />
+<circle cx="890.0" cy="2134.0" r="6.4" fill="#7ECAC7" opacity="1" />
+<text x="890.0" y="2194.0" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="10" font-weight="400" text-anchor="middle" opacity="0.7" xml:space="preserve">Network</text>
+<text x="732" y="2274" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Pulse</text>
+<rect x="793" y="2259" width="35" height="20" rx="10" fill="#2C3B3D" />
+<text x="810.5" y="2273" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">new</text>
+<text x="732" y="2296" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">The logo breathes slowly; the phase</text>
+<text x="732" y="2314" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">name fades in under it.</text>
+<rect x="1074" y="2048" width="316" height="200" rx="8" fill="#0B0C0F" stroke="#45474F" />
+<circle cx="1232.0" cy="2138.0" r="16" fill="none" stroke="#F1F2F4" stroke-width="2.4" opacity="0.9" />
+<circle cx="1232.0" cy="2134.8" r="5.12" fill="#7ECAC7" opacity="0.9" />
+<rect x="1074" y="2245" width="189.6" height="2" rx="1" fill="#F1F2F4" />
+<text x="1074" y="2274" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Quiet</text>
+<rect x="1135" y="2259" width="35" height="20" rx="10" fill="#2C3B3D" />
+<text x="1152.5" y="2273" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="middle" xml:space="preserve">new</text>
+<text x="1074" y="2296" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">The logo and a hairline that grows with</text>
+<text x="1074" y="2314" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">the phases; the name shows if one is slow.</text>
+<text x="48" y="2348" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Every style reads the same real phases (disks, accounts, settings, network, session) and never guesses a percentage; the phase name is readable in all of them (Quiet shows it once a phase takes over 3 s).</text>
+<text x="48" y="2367" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">nosplash and the rescue entry skip it; a failure paints the panic screen over it; the serial log is unchanged (System › Session decides whether details show).</text>
+<text x="48" y="2386" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">The style is read from the installed root once it is mounted: the first phase always uses Phases. Live and installer boots keep Phases.</text>
+<text x="48" y="2410" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Requires: style choices in the session, greeter and boot settings; the greeter account list from the account service. Values are illustrative.</text>
+</svg>

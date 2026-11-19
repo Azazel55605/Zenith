@@ -92,6 +92,17 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         Windows = new WindowManager(new Rect(0, 0, w, h - Theme.TaskbarHeight - 2 * Theme.TaskbarMargin), new Rect(0, 0, w, h));
         _taskbar = new Taskbar(w, h, Windows);
         _taskbar.Centers = new TaskbarCenters(OpenAppWith);
+        // Meridian's wallpaper picker shows real previews, drawn by the same formulas (call 669).
+        Zenith.Core.Configuration.StyleCatalog.RenderWallpaper = (choice, w, h) =>
+        {
+            var picture = new Surface(w, h);
+            Wallpaper.Render(picture, choice, Theme.IsLight, Theme.Accent & 0xFFFFFF, quiet: true);
+            return picture.Pixels;
+        };
+        Zenith.Core.Configuration.StyleCatalog.Accent = () => Theme.Accent & 0xFFFFFF;
+        Zenith.Core.Configuration.StyleCatalog.RenderPreview = StylePreviews.Render;
+        Zenith.Gui.Motion.OverlayMotion.AnimationPercent = () => Zenith.Core.Configuration.SystemConfiguration.Settings?.AnimationPercent ?? 100;
+        Zenith.Core.Configuration.StyleCatalog.Values = field => Zenith.Core.Configuration.SystemConfiguration.Settings?.Style(field) ?? 0;
         _prism = new PrismView(PrismCandidates, PrismActivate, PrismUser);
         _portal.Attach();
         Zenith.Gui.Shell.Portal.OpenWithDialog.Launch = (app, path) => OpenAppWith(app, new[] { path });
@@ -297,6 +308,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
             _frame.CopyFrom(_scene);
             DrawCursor();
             SessionDisplay.FadeTo(_frame.Pixels, _frame.Width, _frame.Height, welcome: true);
+            Zenith.Core.Audio.SystemSounds.Play("login");
             _sceneDirty = false;
         }
 
@@ -304,6 +316,16 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         // the other kind's pointer must not stay on screen.
         bool hardwarePointer = HardwareCursor.Active;
         if (hardwarePointer != _hardwarePointer) { _hardwarePointer = hardwarePointer; _composeAll = true; _sceneDirty = true; }
+        // A new cursor pack or size (or the accent for Comet) changes the pointer's pixels and its bounds.
+        long cursorKey = Cursor.Key;
+        if (cursorKey != _cursorKey) { _cursorKey = cursorKey; _composeAll = true; _sceneDirty = true; }
+        // A new window decoration or widget style redraws every window, the cached lower ones too.
+        long styleKey = (long)Decorations.Current | (long)Widgets.Current << 4 | (long)Widgets.Buttons << 8;
+        if (styleKey != _styleKey)
+        {
+            if (_styleKey != -1) { _sceneKey++; Windows.InvalidateLower(); _lowerValid = false; _nativeClients.ResetAll(); }
+            _styleKey = styleKey; _composeAll = true; _sceneDirty = true;
+        }
         // A new wallpaper choice, light/dark mode or accent redraws the wallpaper now, not at reboot.
         long wallpaper = Wallpaper.Key();
         if (wallpaper != _wallpaperKey)
@@ -318,7 +340,12 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         // A portal dialog (a program asking for permission) opens above everything and closes Prism.
         RunPendingPower();
         if (_lock.IsLocked) { if (_lock.Tick()) { _lockDirty = true; _sceneDirty = true; } }
-        else if (_portal.Tick()) { _sceneDirty = true; _composeAll = true; if (_portal.IsOpen) { _prism.Close(); _sunset.Close(); } }
+        else if (_portal.Tick())
+        {
+            _sceneDirty = true; _composeAll = true;
+            if (_portal.IsOpen) { _prism.Close(); _sunset.Close(); if (!_portalSounded) { _portalSounded = true; Zenith.Core.Audio.SystemSounds.Play("attention"); } }
+            else { _portalSounded = false; }
+        }
         if (_sunset.Tick(_scene.Width, _scene.Height)) { _sceneDirty = true; }
         if (_generation != Accounts.Generation)
         {
@@ -339,6 +366,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
 
         // A release or a hover change only redraws; the click that started an animation must not cut it short.
         bool interrupts = _input.Activity.InterruptsMotion;
+        if (_input.Activity.LeftPressed || _input.Keys.Count > 0 || _input.Scroll != 0) { Zenith.Gui.Motion.OverlayMotion.Finish(); }
         if (_input.Activity.RoutesWithoutMotion)
         {
             HandleInput();
@@ -396,7 +424,9 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         bool due = FrameStats.Now - _lastPresent >= FrameInterval;
         // Only motion the person is watching (an animation, a drag) keeps the loop awake until the frame
         // is due; other changes (a client's new frame) wait halted for the next interrupt, at most a tick.
-        bool watched = _motion.Active || _motionName is not null || Windows.IsDragging;
+        // A popup rising into place keeps the frames coming until it lands.
+        if (Zenith.Gui.Motion.OverlayMotion.Active) { _sceneDirty = true; }
+        bool watched = _motion.Active || _motionName is not null || Windows.IsDragging || Zenith.Gui.Motion.OverlayMotion.Active;
         if ((watched || _sceneDirty) && !due) { _framePending = watched; return; }
         if (_motion.Active || _motionName is not null)
         {
@@ -821,6 +851,12 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
             if (key.Key == ConsoleKeyEx.F11 && Windows.Focused is Window focused) { Windows.ToggleFullscreen(focused); return; }
             if (key.Key == ConsoleKeyEx.Escape && _taskbar.PopupOpen) { _taskbar.ClosePopups(); return; }
         }
+        // Dragging the sound center's volume knob.
+        if (_taskbar.Centers is { Sliding: true } sliding)
+        {
+            if (_input.Left) { sliding.Slide(_input.X); } else { sliding.StopSliding(); }
+            return;
+        }
         // Prism: Alt+Space or Meta opens the palette from anywhere; while open it owns the keyboard
         // and the next click.
         foreach (KeyEvent key in _input.Keys)
@@ -846,6 +882,9 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         bool menuWasOpen = _prism.IsOpen;
         if (menuWasOpen)
         {
+            // Prism's list scrolls with the wheel and its scroll bar drags.
+            if (_input.Scroll != 0) { _prism.Wheel(_input.X, _input.Y, _input.Scroll); }
+            if (_prism.Dragging) { if (_input.Left) { _prism.Drag(_input.Y); } else { _prism.Release(); } }
             if (!_input.LeftPressed) { return; }
             _prism.HandleClick(_input.X, _input.Y);
             if (!_taskbar.Bounds.Contains(_input.X, _input.Y)) { return; }
@@ -1182,6 +1221,8 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     private long _lastTopKey, _lastBarKey;
     private int _lastTopVersion;
     private bool _barChanged, _composeAll, _hardwarePointer;
+    private long _cursorKey = -1, _styleKey = -1;
+    private bool _portalSounded;
     /// <summary>Everything that changes how the top window looks: place, state, hover, content.</summary>
     private long TopKey(Window? top)
     {
@@ -1196,6 +1237,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     {
         var hash = new HashCode();
         hash.Add(_taskbar.Shown); hash.Add(_taskbar.Docked); hash.Add(_taskbar.Bounds.Y);
+        if (_taskbar.Centers is TaskbarCenters centers) { hash.Add(centers.StateKey()); }
         foreach (Window w in Windows.Windows) { hash.Add(w.Title); hash.Add(w.IsFocused); hash.Add(w.IsMinimized); }
         if (_taskbar.Bounds.Inflate(Theme.TaskbarMargin).Contains(_input.X, _input.Y)) { hash.Add(_input.X); hash.Add(_input.Y); }
         return hash.ToHashCode();

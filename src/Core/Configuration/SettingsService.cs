@@ -36,13 +36,16 @@ internal sealed class SettingsService
     public const string WallpaperPath = "/etc/zenith/wallpaper.conf";
     /// <summary>Dynamic wallpapers are formulas the compositor draws for the current mode and accent;
     /// solid ones are a plain fill ("solid-accent" follows the accent). At most 12 (ABI).</summary>
+    /// <summary>The first 12 fit the legacy snapshot (call 625); the second set (2026-11-19) follows, read through
+    /// the style catalogue (call 669).</summary>
     public static readonly string[] WallpaperNames = { "zenith", "dunes", "aurora", "contour", "solid-graphite", "solid-midnight",
-        "solid-forest", "solid-plum", "solid-cream", "solid-mist", "solid-sand", "solid-accent" };
+        "solid-forest", "solid-plum", "solid-cream", "solid-mist", "solid-sand", "solid-accent", "orbits", "tides", "facets", "nebula" };
     public static readonly string[] WallpaperLabels = { "Zenith (dynamic)", "Dunes (dynamic)", "Aurora (dynamic)", "Contour (dynamic)",
-        "Graphite", "Midnight", "Forest", "Plum", "Cream", "Mist", "Sand", "Accent color" };
+        "Graphite", "Midnight", "Forest", "Plum", "Cream", "Mist", "Sand", "Accent color", "Orbits (dynamic)", "Tides (dynamic)", "Facets (dynamic)", "Nebula (dynamic)" };
     public const string CursorPath = "/etc/zenith/cursor.conf";
     /// <summary>The Meridian cursor set's variants (docs/design/cursor-concept.svg).</summary>
-    public static readonly string[] CursorNames = { "light", "dark" };
+    public static readonly string[] CursorNames = { "light", "dark", "contrast-white", "contrast-black", "comet" };
+    public static readonly string[] CursorLabels = { "Meridian Light", "Meridian Dark", "Contrast White", "Contrast Black", "Comet" };
     public const string LauncherPath = "/etc/zenith/launcher.conf";
     /// <summary>How resizable native windows open: scaled to the screen, or at the size the program asks for.</summary>
     public const string WindowsPath = "/etc/zenith/windows.conf";
@@ -87,6 +90,7 @@ internal sealed class SettingsService
             catch (Exception e) { errors.Add(CursorPath + ": " + e.Message + "; using light"); }
             try { windows = ReadChoice(_store.Read(WindowsPath), "WINDOWS", WindowsNames); }
             catch (Exception e) { errors.Add(WindowsPath + ": " + e.Message + "; using fit"); }
+            LoadStyles(errors);
             _keyboard(keymap); _zone(zone);
             Current = new(keymap, zone, session, animation, taskbar, wallpaper, launcher, cursor, windows);
             return errors;
@@ -182,11 +186,57 @@ internal sealed class SettingsService
         int choice = Array.IndexOf(names, name);
         return choice >= 0 ? (uint)choice : throw new FormatException("unknown " + key);
     }
+    // ---------- Style choices (U13, 2026-11-19): one file, one key each, fields 9..16 of the save call.
+    public const string StylePath = "/etc/zenith/style.conf";
+    public sealed record StyleChoice(uint Field, string Key, string[] Names, string[] Labels);
+    /// <summary>Filled in as each style lands (decorations, widgets, buttons, splash, login, boot, sounds, cursor size).</summary>
+    public static readonly StyleChoice[] Styles =
+    {
+        new(9, "CURSOR_SIZE", new[] { "24", "32", "48" }, new[] { "Normal (24 px)", "Large (32 px)", "Largest (48 px)" }),
+        new(10, "DECORATION", new[] { "zenith", "classic", "dots", "ribbon" }, new[] { "Zenith", "Classic", "Dots", "Ribbon" }),
+        new(11, "WIDGETS", new[] { "rounded", "soft", "sharp" }, new[] { "Rounded", "Soft", "Sharp" }),
+        new(12, "BUTTONS", new[] { "filled", "tonal", "outline" }, new[] { "Filled", "Tonal", "Outline" }),
+        new(13, "SPLASH", new[] { "crossfade", "rise", "iris", "greeting" }, new[] { "Crossfade", "Rise", "Iris", "Greeting" }),
+        new(14, "LOGIN", new[] { "card", "accounts", "clock", "split" }, new[] { "Zenith card", "Accounts", "Clock", "Split" }),
+        new(15, "BOOT", new[] { "phases", "orbit", "pulse", "quiet" }, new[] { "Phases", "Orbit", "Pulse", "Quiet" }),
+        new(16, "SOUNDS", new[] { "chimes", "silent" }, new[] { "Zenith Chimes", "Silent" }),
+    };
+
+    private readonly uint[] _styles = new uint[Styles.Length];
+    public static StyleChoice? StyleFor(uint field) { foreach (var s in Styles) { if (s.Field == field) { return s; } } return null; }
+    /// <summary>The current choice of a style field (9..16).</summary>
+    public uint Style(uint field) { lock (_gate) { for (int i = 0; i < Styles.Length; i++) { if (Styles[i].Field == field) { return _styles[i]; } } return 0; } }
+    public void SetStyle(uint field, string name)
+    {
+        var style = StyleFor(field) ?? throw new ArgumentException("unknown style field");
+        int index = Array.IndexOf(Styles, style);
+        SetChoice(StylePath, style.Key, style.Names, name, c => _styles[index] = c);
+    }
+    private void LoadStyles(List<string> errors)
+    {
+        string? text = null;
+        try { text = _store.Read(StylePath); } catch (Exception e) { errors.Add(StylePath + ": " + e.Message); }
+        for (int i = 0; i < Styles.Length; i++)
+        {
+            try { _styles[i] = ReadChoice(text, Styles[i].Key, Styles[i].Names); }
+            catch (Exception e) { _styles[i] = 0; errors.Add(StylePath + " " + Styles[i].Key + ": " + e.Message + "; using " + Styles[i].Names[0]); }
+        }
+    }
     public IReadOnlyList<SessionMode> SessionChoices
     { get { var result = new List<SessionMode>(); foreach(var mode in new[] { SessionMode.Desktop, SessionMode.Headless, SessionMode.WindowManager }) { if(_available(mode)) { result.Add(mode); } } return result; } }
     public int SaveChoice(uint field, uint choice, ulong revision)
     {
         if (!CredentialContext.Current.IsRoot) { return -13; }
+        if (StyleFor(field) is StyleChoice style)
+        {
+            if (choice >= style.Names.Length) { return -22; }
+            lock (_gate)
+            {
+                if (revision != _revision) { return -11; }
+                if (_revision == ulong.MaxValue) { return -75; }
+                try { SetStyle(field, style.Names[choice]); return 0; } catch { return -5; }
+            }
+        }
         if (field is < 1 or > 8 || (field == 1 ? choice >= KeyboardLayoutCatalog.Names.Length : field == 2 ? choice >= TimeZones.All.Count : field == 3 ? choice >= SessionChoices.Count
             : field == 4 ? choice >= AnimationNames.Length : field == 5 ? choice >= TaskbarNames.Length : field == 6 ? choice >= WallpaperNames.Length : field == 7 ? choice >= LauncherNames.Length : choice >= CursorNames.Length)) { return -22; }
         lock (_gate)

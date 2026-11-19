@@ -10,23 +10,35 @@ namespace Zenith.Gui.Graphics;
 /// </summary>
 internal static class Cursor
 {
-    public const int Size = 24;
     public static CursorShape Shape { get; set; }
+    /// <summary>The pack (Meridian Light, Meridian Dark, Contrast White, Contrast Black, Comet: the cursor setting).</summary>
     public static int Variant
     {
-        get { uint v = Zenith.Core.Configuration.SystemConfiguration.Settings?.Current.Cursor ?? 0; return v < CursorImages.Variants ? (int)v : 0; }
+        get { uint v = Zenith.Core.Configuration.SystemConfiguration.Settings?.Current.Cursor ?? 0; return v < CursorPacks.Count ? (int)v : 0; }
     }
+    /// <summary>The size choice (24, 32 or 48 px: style field 9).</summary>
+    public static int SizeChoice => (int)(Zenith.Core.Configuration.SystemConfiguration.Settings?.Style(9) ?? 0);
+    /// <summary>The pointer's size in frame (logical) pixels.</summary>
+    public static int Size => CursorPacks.Logical(Variant, SizeChoice);
+    /// <summary>Changes whenever the pointer's pixels would (pack, size, the accent for Comet).</summary>
+    public static long Key => Variant | (long)SizeChoice << 4 | (Variant == CursorPacks.Comet ? (long)(Theme.Accent & 0xFFFFFF) << 8 : 0);
 
     /// <summary>The pixels any shape (shadow included) can touch when drawn at (<paramref name="x"/>,
     /// <paramref name="y"/>): the same for every shape, so a shape change repaints its old pixels.
     /// Empty while the device draws the pointer itself: frames never contain it then.</summary>
-    public static Rect Bounds(int x, int y) => HardwareCursor.Active ? new Rect(x, y, 0, 0) : new Rect(x - 12, y - 12, Size + 12, Size + 12);
+    public static Rect Bounds(int x, int y)
+    {
+        if (HardwareCursor.Active) { return new Rect(x, y, 0, 0); }
+        int size = Size, half = size / 2;
+        return new Rect(x - half, y - half, size + half, size + half);
+    }
 
     /// <summary>Draws the pointer into an on-screen frame, or moves the device's pointer to it.</summary>
     public static void Draw(Surface surface, int x, int y)
     {
         if (HardwareCursor.Show()) { return; }
-        uint[] image = CursorImages.Get(Variant, Shape, Size, out int hotX, out int hotY);
+        int Size = Cursor.Size;
+        uint[] image = CursorPacks.Get(Variant, Shape, Size, Theme.Accent & 0xFFFFFF, out int hotX, out int hotY);
         int left = x - hotX, top = y - hotY;
         Rect clip = new Rect(left, top, Size, Size).Intersect(surface.Clip);
         int[] pixels = surface.Pixels; int width = surface.Width;

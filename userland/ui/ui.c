@@ -113,8 +113,15 @@ static unsigned int corner_coverage(int x,int y,int radius){
     }
     return (unsigned int)(hits*255+8)/16;
 }
+int zui_radius(const struct zui *u,int radius,int height){
+    if(radius<=0||(long)radius*2>=height||!u)return radius;
+    if(u->widget_style==1)return min(radius*8/5,height/2);
+    if(u->widget_style==2)return min(radius,2);
+    return radius;
+}
 void zui_round(struct zui *u,struct zui_rect r,int radius,unsigned int c){
     if(r.w<=0||r.h<=0)return;
+    radius=zui_radius(u,radius,min(r.w,r.h));
     radius=max(0,min(radius,min(r.w,r.h)/2));radius=min(radius,32);
     struct zui_rect b=intersect(r,u->clip);c&=0xffffff;
     for(int y=b.y;y<b.y+b.h;y++)for(int x=b.x;x<b.x+b.w;x++){
@@ -129,6 +136,7 @@ void zui_round(struct zui *u,struct zui_rect r,int radius,unsigned int c){
 }
 void zui_round_outline(struct zui *u,struct zui_rect r,int radius,unsigned int color){
     if(r.w<3||r.h<3)return;
+    radius=zui_radius(u,radius,min(r.w,r.h));
     radius=max(1,min(radius,min(r.w,r.h)/2));radius=min(radius,32);
     struct zui_rect b=intersect(r,u->clip);color&=0xffffff;
     for(int y=b.y;y<b.y+b.h;y++)for(int x=b.x;x<b.x+b.w;x++){
@@ -145,6 +153,7 @@ void zui_round_outline(struct zui *u,struct zui_rect r,int radius,unsigned int c
 }
 void zui_round_alpha(struct zui *u,struct zui_rect r,int radius,unsigned int color,unsigned int opacity){
     if(r.w<=0||r.h<=0)return;
+    radius=zui_radius(u,radius,min(r.w,r.h));
     if(opacity>255)opacity=255;
     radius=max(0,min(radius,min(r.w,r.h)/2));radius=min(radius,32);
     struct zui_rect b=intersect(r,u->clip);
@@ -230,7 +239,7 @@ void zui_text(struct zui *u,int x,int y,const char *s,unsigned long n,const stru
     }
 }
 int zui_add(struct zui *u,int id,int kind,struct zui_rect r,const char *label,int value,int enabled){
-    if(u->count>=ZUI_MAX_CONTROLS||id<=0||kind<1||kind>ZUI_NAVIGATION||!label||r.w<1||r.h<1)return 0;
+    if(u->count>=ZUI_MAX_CONTROLS||id<=0||kind<1||kind>ZUI_TILE||!label||r.w<1||r.h<1)return 0;
     struct zui_rect visible=intersect(r,u->clip);
     if(visible.w<1||visible.h<1)return 0;
     for(int i=0;i<u->count;i++)if(u->controls[i].id==id)return 0;
@@ -325,6 +334,21 @@ static void check(struct zui *u,int x,int y,unsigned int c){
     for(int i=0;i<5;i++)zui_fill(u,(struct zui_rect){x+i,y+i,2,2},c);
     for(int i=0;i<9;i++)zui_fill(u,(struct zui_rect){x+4+i,y+4-i,2,2},c);
 }
+/* Toggle knobs in motion: the last value seen per control id and when it changed. */
+static struct { int id,value; long start; } toggles[16];
+static int toggle_knob(struct zui *u,int id,int value){
+    int slot=-1,free_slot=0;
+    for(int i=0;i<16;i++){if(toggles[i].id==id){slot=i;break;}if(!toggles[i].id)free_slot=i;}
+    if(slot<0){slot=free_slot;toggles[slot].id=id;toggles[slot].value=value;toggles[slot].start=0;return value?22:0;}
+    if(toggles[slot].value!=value){toggles[slot].value=value;toggles[slot].start=u->motion_percent>0&&u->now>0?u->now:0;}
+    long duration=100L*u->motion_percent/100;
+    if(!toggles[slot].start||duration<=0)return value?22:0;
+    long t=u->now-toggles[slot].start;
+    if(t>=duration){toggles[slot].start=0;return value?22:0;}
+    u->animating=1;
+    int done=(int)(t*22/duration);
+    return value?done:22-done;
+}
 void zui_draw_range(struct zui *u,int first,int count){
     struct zui_rect saved=u->clip;
     if(first<0||count<0||first>u->count||count>u->count-first)return;
@@ -339,8 +363,18 @@ void zui_draw_range(struct zui *u,int first,int count){
         if(hovered&&!selected&&c->kind!=ZUI_SWATCH&&c->kind!=ZUI_TOGGLE)fill=blend(fill,u->theme.text,16);
         int radius=c->kind==ZUI_SWATCH?r.w/2:8;
         if(u->window_focused&&u->focus_visible&&u->focus==i&&c->enabled){
-            zui_round(u,(struct zui_rect){r.x-3,r.y-3,r.w+6,r.h+6},radius+3,u->theme.accent);
-            zui_round(u,(struct zui_rect){r.x-2,r.y-2,r.w+4,r.h+4},radius+2,u->theme.surface);
+            if(c->kind==ZUI_TILE){zui_round_outline(u,(struct zui_rect){r.x-3,r.y-3,r.w+6,r.h+6},13,u->theme.accent);zui_round_outline(u,(struct zui_rect){r.x-4,r.y-4,r.w+8,r.h+8},14,u->theme.accent);}
+            else{
+                zui_round(u,(struct zui_rect){r.x-3,r.y-3,r.w+6,r.h+6},radius+3,u->theme.accent);
+                zui_round(u,(struct zui_rect){r.x-2,r.y-2,r.w+4,r.h+4},radius+2,u->theme.surface);
+            }
+        }
+        if(c->kind==ZUI_TILE){
+            /* The picture is already painted: only outline, hover and the selection check. */
+            if(selected){zui_round_outline(u,r,10,u->theme.accent);zui_round_outline(u,(struct zui_rect){r.x+1,r.y+1,r.w-2,r.h-2},9,u->theme.accent);
+                zui_round(u,(struct zui_rect){r.x+r.w-26,r.y+6,20,20},10,u->theme.accent);check(u,r.x+r.w-22,r.y+16,u->theme.on_accent);}
+            else zui_round_outline(u,r,10,hovered||pressed?u->theme.text:u->theme.border);
+            u->clip=saved;continue;
         }
         if(c->kind==ZUI_SWATCH){
             unsigned int color=zui_accent_color(u,c->swatch);
@@ -360,11 +394,20 @@ void zui_draw_range(struct zui *u,int first,int count){
             fg=c->enabled?u->theme.text:u->theme.secondary;
             if(selected)zui_round(u,(struct zui_rect){r.x+1,r.y+7,3,r.h-14},1,u->theme.accent);
         }else if(c->kind==ZUI_TOGGLE){
-            /* A settings row, not a selected accent-filled button. */
+            /* A settings row, not a selected accent-filled button. The knob slides over 100 ms with motion on. */
             fg=c->enabled?u->theme.text:u->theme.secondary;
-            int x=r.x+r.w-48,y=r.y+(r.h-26)/2;
-            zui_round(u,(struct zui_rect){x,y,48,26},13,selected&&c->enabled?u->theme.accent:u->theme.border);
-            zui_round(u,(struct zui_rect){x+4+(selected?22:0),y+4,18,18},9,selected&&c->enabled?u->theme.on_accent:u->theme.raised);
+            int x=r.x+r.w-48,y=r.y+(r.h-26)/2,knob=toggle_knob(u,c->id,selected);
+            zui_round(u,(struct zui_rect){x,y,48,26},13,c->enabled&&knob>11?u->theme.accent:u->theme.border);
+            zui_round(u,(struct zui_rect){x+4+knob,y+4,18,18},9,c->enabled&&knob>11?u->theme.on_accent:u->theme.raised);
+        }else if(c->kind==ZUI_BUTTON&&selected&&c->enabled&&u->button_style==1){
+            /* Tonal: an accent tint with accent text. */
+            unsigned int tint=blend(u->theme.raised,u->theme.accent,pressed?96:64);
+            zui_round(u,r,8,tint);fg=blend(u->theme.text,u->theme.accent,160);
+        }else if(c->kind==ZUI_BUTTON&&selected&&c->enabled&&u->button_style==2){
+            /* Outline: the accent as a border and text, no fill. */
+            zui_round(u,r,8,u->theme.accent);
+            zui_round(u,(struct zui_rect){r.x+1,r.y+1,r.w-2,r.h-2},7,pressed?blend(u->theme.raised,u->theme.accent,40):u->theme.raised);
+            fg=blend(u->theme.text,u->theme.accent,180);
         }else{
             zui_round(u,r,8,c->enabled?u->theme.border:u->theme.subtle);
             zui_round(u,(struct zui_rect){r.x+1,r.y+1,r.w-2,r.h-2},7,pressed?u->theme.subtle:fill);

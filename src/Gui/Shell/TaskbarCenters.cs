@@ -69,6 +69,17 @@ internal sealed class TaskbarCenters
         return whole + (whole < 100 ? "." + tenth : "") + units[u];
     }
 
+    /// <summary>What the two buttons show (online, the state words, the output, volume and mute): the bar redraws when
+    /// it changes, whoever changed it (Beacon, Meridian, the wheel, a cable).</summary>
+    public long StateKey()
+    {
+        var (headline, _, online) = NetworkWords();
+        var (output, _) = AudioService.Overview(Uid);
+        var hash = new HashCode();
+        hash.Add(online); hash.Add(headline); hash.Add(output.Available); hash.Add(output.Muted); hash.Add(output.Volume); hash.Add(_busy);
+        return hash.ToHashCode();
+    }
+
     // ---------- Buttons on the bar.
     public void DrawButtons(Surface surface, int mouseX, int mouseY)
     {
@@ -98,10 +109,10 @@ internal sealed class TaskbarCenters
     {
         _actions.Clear(); _slider = new Rect(0, 0, 0, 0);
         if (Open == Panel.None) { return; }
-        int height = Open == Panel.Network ? 252 : SoundHeight();
+        int height = Open == Panel.Network ? NetworkHeight() : SoundHeight();
         Rect anchor = Open == Panel.Network ? NetworkButton : SoundButton;
         int x = Math.Max(bar.X, Math.Min(anchor.Right - PanelWidth, bar.Right - PanelWidth));
-        _panel = new Rect(x, bar.Y - height - Theme.TaskbarMargin, PanelWidth, height);
+        _panel = new Rect(x, bar.Y - height - Theme.TaskbarMargin + Zenith.Gui.Motion.OverlayMotion.Offset(Zenith.Gui.Motion.OverlayMotion.Centers), PanelWidth, height);
         surface.DrawShadow(_panel, Theme.WindowRadius, 18, 100, 6);
         surface.FillRoundRect(_panel, Theme.WindowRadius, Theme.Menu);
         surface.StrokeRoundRect(_panel, Theme.WindowRadius, Theme.PanelBorder);
@@ -133,7 +144,6 @@ internal sealed class TaskbarCenters
         }
         surface.FillRect(new Rect(chart.X + 4, mid, chart.W - 8, 1), Theme.PanelBorder);
         y += chart.H + 12;
-        bool root = CredentialContext.Current.IsRoot;
         bool connected = online || NetworkService.Busy;
         Action(surface, new Rect(x, y, (w - 8) / 2, 32), connected ? "Disconnect" : "Connect", (int)Act.Toggle, mouseX, mouseY, !_busy);
         Action(surface, new Rect(x + (w - 8) / 2 + 8, y, (w - 8) / 2, 32), "Diagnostics", (int)Act.Diagnostics, mouseX, mouseY, true);
@@ -141,13 +151,16 @@ internal sealed class TaskbarCenters
         Action(surface, new Rect(x, y, (w - 8) / 2, 32), "Open Beacon", (int)Act.Beacon, mouseX, mouseY, true);
         Action(surface, new Rect(x + (w - 8) / 2 + 8, y, (w - 8) / 2, 32), "Network settings", (int)Act.NetworkSettings, mouseX, mouseY, true);
         y += 40;
-        string note = _note.Length > 0 ? _note : root ? "" : "Connecting and disconnecting ask for an administrator in Beacon.";
+        string note = NetworkNote;
         if (note.Length > 0) { surface.DrawText(Fit(note, w), Fonts.Regular, Theme.TextSmall, Theme.TextSecondary, x, y); }
     }
+    private string NetworkNote => _note.Length > 0 ? _note : CredentialContext.Current.IsRoot ? "" : "Connecting and disconnecting ask for an administrator in Beacon.";
+    // Rows: headline 50, rates 20, chart 64 + 12, two button rows 40 each, the note 22 when there is one, padding.
+    private int NetworkHeight() => Padding + 50 + 20 + 64 + 12 + 40 + 40 + (NetworkNote.Length > 0 ? 22 : 0) + Padding - 8;
     private int SoundHeight()
     {
         var (_, streams) = AudioService.Overview(Uid);
-        return 196 + Math.Min(4, streams.Count) * 26 + (streams.Count == 0 ? 0 : 22);
+        return 196 + Math.Min(4, streams.Count) * 26 + (streams.Count == 0 ? 0 : 22) + (_note.Length > 0 ? 22 : 0);
     }
     private void DrawSound(Surface surface, int mouseX, int mouseY)
     {
@@ -183,7 +196,8 @@ internal sealed class TaskbarCenters
             }
         }
         Action(surface, new Rect(x, _panel.Bottom - Padding - 32, w, 32), "Sound settings", (int)Act.SoundSettings, mouseX, mouseY, true);
-        if (_note.Length > 0) { surface.DrawText(Fit(_note, w), Fonts.Regular, Theme.TextSmall, Theme.Danger, x, _panel.Bottom - Padding - 52); }
+        // The note has its own row above the settings button (the panel grew by it), never over the volume buttons.
+        if (_note.Length > 0) { surface.DrawText(Fit(_note, w), Fonts.Regular, Theme.TextSmall, Theme.Danger, x, _panel.Bottom - Padding - 32 - 22); }
     }
     private void Action(Surface surface, Rect r, string label, int action, int mouseX, int mouseY, bool enabled)
     {
@@ -208,13 +222,24 @@ internal sealed class TaskbarCenters
         if (Open == Panel.None) { return false; }
         if (!_panel.Contains(x, y)) { Open = Panel.None; _note = ""; return false; }
         if (_slider.W > 0 && new Rect(_slider.X - 8, _slider.Y - 10, _slider.W + 16, _slider.H + 20).Contains(x, y))
-        { Volume((int)Math.Round(Math.Clamp(x - _slider.X, 0, _slider.W) * 100.0 / _slider.W)); return true; }
+        { Sliding = true; Slide(x); return true; }
         foreach (var (rect, action) in _actions) { if (rect.Contains(x, y)) { Run((Act)action); break; } }
         return true;
     }
+    /// <summary>The volume knob follows the pointer while the button is held.</summary>
+    public bool Sliding { get; private set; }
+    public void Slide(int x)
+    {
+        if (_slider.W <= 0) { Sliding = false; return; }
+        int value = (int)Math.Round(Math.Clamp(x - _slider.X, 0, _slider.W) * 100.0 / _slider.W);
+        var (output, _) = AudioService.Overview(Uid);
+        if (value != output.Volume) { Volume(value); }
+    }
+    public void StopSliding() { Sliding = false; }
     private void Toggle(Panel panel)
     {
         Open = Open == panel ? Panel.None : panel; _note = "";
+        if (Open != Panel.None) { Zenith.Gui.Motion.OverlayMotion.Start(Zenith.Gui.Motion.OverlayMotion.Centers); }
         Zenith.Core.Log.Write("taskbar", (panel == Panel.Network ? "network" : "sound") + " center " + (Open == panel ? "opened" : "closed"));
     }
     /// <summary>The wheel over the sound button (or the open sound panel) changes the volume in 5% steps.</summary>
@@ -222,13 +247,14 @@ internal sealed class TaskbarCenters
     {
         if (!(SoundButton.Contains(x, y) || (Open == Panel.Sound && _panel.Contains(x, y))) || delta == 0) { return false; }
         var (output, _) = AudioService.Overview(Uid);
-        Volume(output.Volume + (delta > 0 ? 5 : -5)); return true;
+        // Positive is the wheel turned down (toward you): quieter.
+        Volume(output.Volume + (delta > 0 ? -5 : 5)); return true;
     }
     private void Volume(int value)
     {
         long r = AudioService.SetOutput(Uid, Math.Clamp(value, 0, 100), null);
         _note = r == 0 ? "" : r == -13 ? "Sound belongs to the signed-in session." : "The volume could not be changed.";
-        if (r == 0) { Zenith.Core.Log.Write("taskbar", "volume " + Math.Clamp(value, 0, 100)); }
+        if (r == 0) { Zenith.Core.Log.Write("taskbar", "volume " + Math.Clamp(value, 0, 100)); Zenith.Core.Audio.SystemSounds.Play("volume"); }
     }
     private void Run(Act act)
     {
@@ -270,6 +296,7 @@ internal sealed class TaskbarCenters
     /// <summary>Hover key part for the desktop's redraw decisions.</summary>
     public int HoverKey(int x, int y)
     {
+        if (Sliding) { return 800 + AudioService.Overview(Uid).Output.Volume; }
         if (NetworkButton.Contains(x, y)) { return 700; }
         if (SoundButton.Contains(x, y)) { return 701; }
         if (Open != Panel.None && _panel.Contains(x, y)) { for (int i = 0; i < _actions.Count; i++) { if (_actions[i].Rect.Contains(x, y)) { return 710 + i; } } return 709; }

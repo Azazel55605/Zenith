@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1650" viewBox="0 0 1440 1650">
+<defs><filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="18"/></filter><filter id="blur6" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6"/></filter><filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity=".35"/></filter><filter id="cshadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0.6" dy="1.2" stdDeviation="0.9" flood-color="#000" flood-opacity=".45"/></filter></defs>
+<rect x="0" y="0" width="1440" height="1650" rx="0" fill="#151619" />
+<text x="48" y="55" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="28" font-weight="600" text-anchor="start" xml:space="preserve">Zenith / More motion: concept</text>
+<text x="48" y="86" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="14" font-weight="400" text-anchor="start" xml:space="preserve">Proposal, not running UI · places that still change at once, checked against docs/components/MOTION.md · same rules: 100–180 ms, input ends it, Animations › Off and slow frames skip it</text>
+<rect x="48" y="130" width="432" height="340" rx="12" fill="#202125" stroke="#45474F" />
+<text x="68" y="162" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Taskbar centers</text>
+<text x="68" y="186" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Network and sound panels</text>
+<rect x="114" y="226" width="300" height="92" rx="8" fill="#1B1C20" />
+<rect x="144" y="232" width="100" height="40" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="0.35" />
+<rect x="294" y="248" width="100" height="56" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="1" />
+<path d="M254 272.0 h18 m-5 -5 5 5 -5 5" fill="none" stroke="#8A8E98" stroke-width="1.5" />
+<text x="68" y="348" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Today</text>
+<text x="68" y="366" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">appear at once</text>
+<text x="68" y="408" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Proposal</text>
+<text x="68" y="426" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Rise 8 px and fade in from the button, 140 ms; close by</text>
+<text x="68" y="444" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">fading, 100 ms.</text>
+<rect x="504" y="130" width="432" height="340" rx="12" fill="#202125" stroke="#45474F" />
+<text x="524" y="162" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Menus and popups</text>
+<text x="524" y="186" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Start menu, +N list, combo boxes, right-click menus</text>
+<rect x="570" y="226" width="300" height="92" rx="8" fill="#1B1C20" />
+<rect x="620" y="256" width="70" height="40" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="0.35" />
+<rect x="750" y="242" width="100" height="60" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="1" />
+<path d="M710 272.0 h18 m-5 -5 5 5 -5 5" fill="none" stroke="#8A8E98" stroke-width="1.5" />
+<text x="524" y="348" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Today</text>
+<text x="524" y="366" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">appear at once (MOTION: "Popups have no animation")</text>
+<text x="524" y="408" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Proposal</text>
+<text x="524" y="426" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Scale 96 % → 100 % from the anchor and fade, 120 ms.</text>
+<rect x="960" y="130" width="432" height="340" rx="12" fill="#202125" stroke="#45474F" />
+<text x="980" y="162" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Dialogs</text>
+<text x="980" y="186" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Unsaved changes, Sunset, portal prompts</text>
+<rect x="1026" y="226" width="300" height="92" rx="8" fill="#1B1C20" />
+<rect x="1056" y="252" width="100" height="40" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="0.25" />
+<rect x="1206" y="252" width="100" height="40" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="1" />
+<path d="M1166 272.0 h18 m-5 -5 5 5 -5 5" fill="none" stroke="#8A8E98" stroke-width="1.5" />
+<text x="980" y="348" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Today</text>
+<text x="980" y="366" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">appear at once</text>
+<text x="980" y="408" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Proposal</text>
+<text x="980" y="426" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Dim the window over 150 ms; the card rises 10 px, like</text>
+<text x="980" y="444" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Meridian pages.</text>
+<rect x="48" y="490" width="432" height="340" rx="12" fill="#202125" stroke="#45474F" />
+<text x="68" y="522" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Prism</text>
+<text x="68" y="546" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">The search palette</text>
+<rect x="114" y="586" width="300" height="92" rx="8" fill="#1B1C20" />
+<rect x="144" y="592" width="100" height="40" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="0.35" />
+<rect x="294" y="608" width="100" height="56" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="1" />
+<path d="M254 632.0 h18 m-5 -5 5 5 -5 5" fill="none" stroke="#8A8E98" stroke-width="1.5" />
+<text x="68" y="708" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Today</text>
+<text x="68" y="726" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">appears at once</text>
+<text x="68" y="768" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Proposal</text>
+<text x="68" y="786" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Drop 12 px and fade in, 140 ms; results crossfade as you</text>
+<text x="68" y="804" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">type (no slide).</text>
+<rect x="504" y="490" width="432" height="340" rx="12" fill="#202125" stroke="#45474F" />
+<text x="524" y="522" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Notifications</text>
+<text x="524" y="546" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Toasts (when they exist), Orbit and file-job results</text>
+<rect x="570" y="586" width="300" height="92" rx="8" fill="#1B1C20" />
+<rect x="650" y="606" width="60" height="52" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="0.35" />
+<rect x="750" y="606" width="100" height="52" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="1" />
+<path d="M710 632.0 h18 m-5 -5 5 5 -5 5" fill="none" stroke="#8A8E98" stroke-width="1.5" />
+<text x="524" y="708" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Today</text>
+<text x="524" y="726" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">not built yet</text>
+<text x="524" y="768" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Proposal</text>
+<text x="524" y="786" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Slide in from the edge, 180 ms; slide out when dismissed.</text>
+<rect x="960" y="490" width="432" height="340" rx="12" fill="#202125" stroke="#45474F" />
+<text x="980" y="522" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Toggles and checks</text>
+<text x="980" y="546" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Every switch and checkbox in the toolkit</text>
+<rect x="1026" y="586" width="300" height="92" rx="8" fill="#1B1C20" />
+<rect x="1076" y="619" width="48" height="26" rx="13" fill="#45474F" />
+<circle cx="1089" cy="632" r="9" fill="#2A2C31" />
+<rect x="1226" y="619" width="48" height="26" rx="13" fill="#7ECAC7" />
+<circle cx="1261" cy="632" r="9" fill="#10302F" />
+<path d="M1166 632.0 h18 m-5 -5 5 5 -5 5" fill="none" stroke="#8A8E98" stroke-width="1.5" />
+<text x="980" y="708" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Today</text>
+<text x="980" y="726" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">jump</text>
+<text x="980" y="768" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Proposal</text>
+<text x="980" y="786" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Knob slides and the track tints, 100 ms; checks draw in.</text>
+<rect x="48" y="850" width="432" height="340" rx="12" fill="#202125" stroke="#45474F" />
+<text x="68" y="882" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Tabs</text>
+<text x="68" y="906" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Horizon, Aurora tab bars</text>
+<rect x="114" y="946" width="300" height="92" rx="8" fill="#1B1C20" />
+<rect x="134" y="966" width="32" height="16" rx="4" fill="#2C3B3D" />
+<rect x="170" y="966" width="32" height="16" rx="4" fill="#2A2C31" />
+<rect x="206" y="966" width="32" height="16" rx="4" fill="#2A2C31" />
+<rect x="134" y="984" width="32" height="2" rx="0" fill="#7ECAC7" />
+<rect x="284" y="966" width="32" height="16" rx="4" fill="#2A2C31" />
+<rect x="320" y="966" width="32" height="16" rx="4" fill="#2A2C31" />
+<rect x="356" y="966" width="32" height="16" rx="4" fill="#2C3B3D" />
+<rect x="356" y="984" width="32" height="2" rx="0" fill="#7ECAC7" />
+<path d="M304 1010 h60" fill="none" stroke="#7ECAC7" stroke-width="1" stroke-dasharray="3 3"/>
+<path d="M254 992.0 h18 m-5 -5 5 5 -5 5" fill="none" stroke="#8A8E98" stroke-width="1.5" />
+<text x="68" y="1068" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Today</text>
+<text x="68" y="1086" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">switch at once</text>
+<text x="68" y="1128" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Proposal</text>
+<text x="68" y="1146" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">The accent underline glides to the new tab, 140 ms;</text>
+<text x="68" y="1164" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">content stays instant.</text>
+<rect x="504" y="850" width="432" height="340" rx="12" fill="#202125" stroke="#45474F" />
+<text x="524" y="882" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Lists that change</text>
+<text x="524" y="906" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Rows added or removed: Horizon, Orbit plan, History</text>
+<rect x="570" y="946" width="300" height="92" rx="8" fill="#1B1C20" />
+<rect x="600" y="966" width="100" height="10" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="1" />
+<rect x="600" y="986" width="100" height="4" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="0.4" />
+<rect x="600" y="1002" width="100" height="10" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="1" />
+<rect x="750" y="958" width="100" height="10" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="1" />
+<rect x="750" y="976" width="100" height="26" rx="6" fill="#2C3B3D" stroke="#5C606B" opacity="1" />
+<rect x="750" y="1008" width="100" height="10" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="1" />
+<path d="M710 992.0 h18 m-5 -5 5 5 -5 5" fill="none" stroke="#8A8E98" stroke-width="1.5" />
+<text x="524" y="1068" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Today</text>
+<text x="524" y="1086" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">jump</text>
+<text x="524" y="1128" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Proposal</text>
+<text x="524" y="1146" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Rows open to their height, 120 ms; removed rows fade then</text>
+<text x="524" y="1164" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">close.</text>
+<rect x="960" y="850" width="432" height="340" rx="12" fill="#202125" stroke="#45474F" />
+<text x="980" y="882" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Window snapping</text>
+<text x="980" y="906" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Dragging to a screen edge (planned with snap zones)</text>
+<rect x="1026" y="946" width="300" height="92" rx="8" fill="#1B1C20" />
+<rect x="1076" y="976" width="60" height="36" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="1" />
+<rect x="1206" y="954" width="55" height="76" rx="6" fill="#7ECAC7" opacity="0.25" />
+<rect x="1208" y="956" width="51" height="72" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="1" />
+<path d="M1166 992.0 h18 m-5 -5 5 5 -5 5" fill="none" stroke="#8A8E98" stroke-width="1.5" />
+<text x="980" y="1068" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Today</text>
+<text x="980" y="1086" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">not built yet</text>
+<text x="980" y="1128" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Proposal</text>
+<text x="980" y="1146" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">A tinted preview grows where the window will land, 120 ms.</text>
+<rect x="48" y="1210" width="432" height="340" rx="12" fill="#202125" stroke="#45474F" />
+<text x="68" y="1242" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Progress</text>
+<text x="68" y="1266" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Long jobs: copy, extract, Orbit apply, boot phases</text>
+<rect x="114" y="1306" width="300" height="92" rx="8" fill="#1B1C20" />
+<rect x="144" y="1348" width="260" height="8" rx="4" fill="#26272C" />
+<rect x="224" y="1348" width="70" height="8" rx="4" fill="#7ECAC7" />
+<defs><linearGradient id="sh" x1="0" x2="1"><stop offset="0" stop-color="#7ECAC7" stop-opacity="0"/><stop offset="1" stop-color="#7ECAC7"/></linearGradient></defs>
+<rect x="174" y="1348" width="50" height="8" rx="4" fill="url(#sh)" />
+<text x="68" y="1428" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Today</text>
+<text x="68" y="1446" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">bars jump per update</text>
+<text x="68" y="1488" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Proposal</text>
+<text x="68" y="1506" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Bars ease to the new value, 160 ms; unknown length shows a</text>
+<text x="68" y="1524" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">moving shimmer.</text>
+<rect x="504" y="1210" width="432" height="340" rx="12" fill="#202125" stroke="#45474F" />
+<text x="524" y="1242" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Badges and counts</text>
+<text x="524" y="1266" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Taskbar +N, Orbit Updates count, sound level</text>
+<rect x="570" y="1306" width="300" height="92" rx="8" fill="#1B1C20" />
+<text x="650" y="1362" fill="#8A8E98" font-family="Inter, sans-serif" font-size="26" font-weight="600" text-anchor="middle" xml:space="preserve">3</text>
+<text x="800" y="1362" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="26" font-weight="600" text-anchor="middle" xml:space="preserve">4</text>
+<circle cx="800" cy="1352" r="22" fill="none" stroke="#7ECAC7" stroke-width="1.5" opacity="0.5" />
+<path d="M710 1352.0 h18 m-5 -5 5 5 -5 5" fill="none" stroke="#8A8E98" stroke-width="1.5" />
+<text x="524" y="1428" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Today</text>
+<text x="524" y="1446" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">replace at once</text>
+<text x="524" y="1488" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Proposal</text>
+<text x="524" y="1506" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Old number fades up, new one in, 120 ms; a ring pulses</text>
+<text x="524" y="1524" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">once.</text>
+<rect x="960" y="1210" width="432" height="340" rx="12" fill="#202125" stroke="#45474F" />
+<text x="980" y="1242" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Pages in every app</text>
+<text x="980" y="1266" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Orbit, Beacon, Observatory, Horizon settings</text>
+<rect x="1026" y="1306" width="300" height="92" rx="8" fill="#1B1C20" />
+<rect x="1056" y="1332" width="100" height="40" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="0.25" />
+<rect x="1206" y="1332" width="100" height="40" rx="6" fill="#2A2C31" stroke="#5C606B" opacity="1" />
+<path d="M1166 1352.0 h18 m-5 -5 5 5 -5 5" fill="none" stroke="#8A8E98" stroke-width="1.5" />
+<text x="980" y="1428" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Today</text>
+<text x="980" y="1446" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">only Meridian uses the page fade</text>
+<text x="980" y="1488" fill="#7ECAC7" font-family="Inter, sans-serif" font-size="11" font-weight="700" text-anchor="start" xml:space="preserve">Proposal</text>
+<text x="980" y="1506" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">The same call 629 crossfade for their page changes, 150</text>
+<text x="980" y="1524" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">ms.</text>
+<text x="48" y="1600" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Each one logs like the existing animations (name, frames, worst frame, how it ended) and gets a check in the gate that owns its program. Values are illustrative.</text>
+</svg>

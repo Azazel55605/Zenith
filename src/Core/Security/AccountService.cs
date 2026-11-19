@@ -46,6 +46,22 @@ internal sealed class AccountService
         }
     }
     public UserAccount? Find(string name) { lock (_gate) { return Load().Find(name); } }
+    /// <summary>Accounts that may sign in on the login screen (a usable password; root and uid 1000 and above), at
+    /// most 8, for the Accounts, Clock and Split login styles. System accounts never show.</summary>
+    public System.Collections.Generic.List<string> SignInAccounts()
+    {
+        var result = new System.Collections.Generic.List<string>();
+        lock (_gate)
+        {
+            foreach (var user in Load().Users)
+            {
+                if (result.Count == 8) { break; }
+                if (user.Password is "!" or "*" or "" || !(user.Uid == 0 || user.Uid >= 1000) || user.Uid == 65534) { continue; }
+                result.Add(user.Name);
+            }
+        }
+        return result;
+    }
     public string Name(uint uid)
     {
         lock (_gate) { foreach (var user in Load().Users) { if (user.Uid == uid) { return user.Name; } } }

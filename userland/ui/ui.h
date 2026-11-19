@@ -28,7 +28,9 @@ enum { ZUI_KEY_PAGE_UP=12,ZUI_KEY_PAGE_DOWN=13 };
 struct zui;
 int zui_surface(struct zui *ui,struct zui_rect rect,int radius,int role);
 int zui_backdrop_candidate(int role);
-enum { ZUI_BUTTON=1,ZUI_TOGGLE=2,ZUI_CHOICE=3,ZUI_SEGMENT=4,ZUI_SWATCH=5,ZUI_NAVIGATION=6 };
+enum { ZUI_BUTTON=1,ZUI_TOGGLE=2,ZUI_CHOICE=3,ZUI_SEGMENT=4,ZUI_SWATCH=5,ZUI_NAVIGATION=6,ZUI_TILE=7 };
+/* ZUI_TILE: a picture the application paints first (a preview); the control adds only the hover tint, the
+ * focus ring and, when value is set, a 2 px accent outline with a check. Its label is not drawn. */
 /* icon/detail/no_chevron: optional ZUI_NAVIGATION decorations painted with the row;
  * a ZUI_BUTTON with an icon is drawn as a field (leading label, trailing 16 px icon). */
 struct zui_control { int id,kind,enabled,value,swatch; struct zui_rect rect,clip; const char *label,*icon,*detail; int no_chevron; };
@@ -46,6 +48,9 @@ struct zui {
     struct zenith_material_region materials[8];
     /* Frame clock. 0 percent (the default) means no motion: everything lands at once. */
     int motion_percent,frame_ms,animating;long now;
+    /* The shared widget style (0 Rounded, 1 Soft, 2 Sharp) and primary-button style (0 Filled, 1 Tonal, 2 Outline):
+     * every rounded rectangle follows the widget style, circles and pills stay round. zui_apply_style reads them. */
+    int widget_style,button_style;
 };
 /* After a window call failed: 1 when the person closed the window (title-bar X) meanwhile.
  * The host ends the surface at once, so a present or viewport call in flight fails; that is a
@@ -60,6 +65,11 @@ int zui_motion_percent(unsigned int choice);
  * transparency for whole app backgrounds. Nothing here decides whether a window may be transparent. */
 int zui_apply_appearance(struct zui *ui);
 int zui_apply_motion(struct zui *ui,long clock);
+/* The widget and button styles (style catalogue, call 669, kernel 0.0.71); 1 when either changed. zui_apply_motion
+ * calls it too, so every app that follows the motion setting follows these. */
+int zui_apply_style(struct zui *ui);
+/* A corner radius in the current widget style. */
+int zui_radius(const struct zui *ui,int radius,int height);
 /* Adopts the host's viewport size. Returns 1 when the size changed, 0 when it did not, negative on failure. */
 int zui_apply_viewport(struct zui *ui,long handle,unsigned long capacity);
 /* Starts a drawn frame at this time. Widgets set animating when they need another. */

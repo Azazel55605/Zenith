@@ -382,7 +382,7 @@ internal static class PackageCenter
             scope.Dispose();
             lock (s_gate)
             {
-                if (failure is null) { job.State = 2; }
+                if (failure is null) { job.State = 2; if (kind == "apply") { Zenith.Core.Audio.SystemSounds.Play("done"); } }
                 else { job.Message = Words(failure); job.State = cancelled ? 4 : 3; }
                 job.Step = failure is null ? "Done" : cancelled ? "Cancelled" : "Failed";
             }

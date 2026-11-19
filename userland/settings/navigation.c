@@ -6,7 +6,7 @@ const char *const meridian_categories[10]={"Quick Settings","Input & Output","De
     "Apps & Windows","Workspace","Security","Language","System"};
 const char *const meridian_category_icons[10]={"zap","keyboard","usb","network","palette","app-window","layout-grid",
     "shield","languages","monitor-cog"};
-static const char *const groups[7]={"Mouse & Touchpad","Keyboard","Sound","Display & Monitor","Colors & Themes","Text & Fonts","Window Management"};
+static const char *const groups[8]={"Mouse & Touchpad","Keyboard","Sound","Display & Monitor","Colors & Themes","Text & Fonts","Window Management","Startup & Login"};
 static int same(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return *a==*b;}
 static char lower(char c){return c>='A'&&c<='Z'?(char)(c+32):c;}
 static int contains(const char *s,const char *q){
@@ -50,7 +50,7 @@ int nav_rows(const struct meridian_nav *n,int index,struct zui_list_item *out){
         *out=(struct zui_list_item){"arrow-left",n->mode==NAV_SEARCH?"All settings":meridian_categories[n->category],0,0,1};return 1;
     }
     int page=nav_row_page(n,index);const struct meridian_page *p=&meridian_pages[page];
-    const char *subtitle=n->mode==NAV_SEARCH?meridian_categories[nav_category_of(page)]:p->group>=0&&p->group<7?groups[p->group]:0;
+    const char *subtitle=n->mode==NAV_SEARCH?meridian_categories[nav_category_of(page)]:p->group>=0&&p->group<8?groups[p->group]:0;
     *out=(struct zui_list_item){0,p->title,subtitle,0,1};return 1;
 }
 void nav_activate(struct meridian_nav *n,int row){

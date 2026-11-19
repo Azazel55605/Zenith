@@ -11,7 +11,7 @@ internal static class ConfigurationCommands
     public static void Register(Action<Command> add)
     {
         add(new Command("display", "display [test WIDTH HEIGHT SCALE|PERCENT | keep | revert]", "Primary display modes and guarded preview", Display));
-        add(new Command("settings", "settings [show | set keyboard|timezone|session|animations|taskbar|windows|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]", "Shared system settings", Settings));
+        add(new Command("settings", "settings [show | set keyboard|timezone|session|animations|taskbar|windows|wallpaper|cursor|cursor-size|decoration|widgets|buttons|splash|login|boot|sounds|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]", "Shared system settings", Settings));
         add(new Command("session", "session [status | list | set-default MODE | switch MODE]", "Select a session or return to login", Session));
     }
     private static int Display(CommandContext c)
@@ -71,6 +71,8 @@ internal static class ConfigurationCommands
             c.WriteLine("animations=" + SettingsService.AnimationNames[settings.Current.Animation]);
             c.WriteLine("taskbar=" + SettingsService.TaskbarNames[settings.Current.Taskbar]);
             c.WriteLine("windows=" + SettingsService.WindowsNames[settings.Current.Windows] + " (new windows)");
+            c.WriteLine("wallpaper=" + SettingsService.WallpaperNames[settings.Current.Wallpaper] + " cursor=" + SettingsService.CursorNames[settings.Current.Cursor]);
+            foreach (var style in SettingsService.Styles) { c.WriteLine(style.Key.ToLowerInvariant().Replace('_', '-') + "=" + style.Names[settings.Style(style.Field)]); }
             var appearance = SystemConfiguration.Appearance.Snapshot();
             c.WriteLine("appearance=" + AppearanceService.ModeName(appearance.Saved.Mode) + "/" + AppearanceService.AccentName(appearance.Saved.Accent)
                 + " (active " + AppearanceService.ModeName(appearance.Active.Mode) + "/" + AppearanceService.AccentName(appearance.Active.Accent)
@@ -107,7 +109,7 @@ internal static class ConfigurationCommands
             c.WriteLine("saved appearance; desktop applies on its next tick, headless on next login" + (service.Persistent ? "" : " (live: volatile)"));
             return 0;
         }
-        if (c.Args.Length != 3 || c.Args[0] != "set") { return c.Fail("usage: settings [show | set keyboard|timezone|session|animations|taskbar|windows|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]"); }
+        if (c.Args.Length != 3 || c.Args[0] != "set") { return c.Fail("usage: settings [show | set keyboard|timezone|session|animations|taskbar|windows|wallpaper|cursor|cursor-size|decoration|widgets|buttons|splash|login|boot|sounds|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]"); }
         switch (c.Args[1])
         {
             case "keyboard": settings.SetKeyboard(c.Args[2]); break;
@@ -116,7 +118,16 @@ internal static class ConfigurationCommands
             case "animations": settings.SetAnimation(c.Args[2]); break;
             case "taskbar": settings.SetTaskbar(c.Args[2]); break;
             case "windows": settings.SetWindows(c.Args[2]); break;
-            default: return c.Fail("unknown setting");
+            case "wallpaper": settings.SetWallpaper(c.Args[2]); break;
+            case "cursor": settings.SetCursor(c.Args[2]); break;
+            default:
+            {
+                // Style choices (U14): cursor-size, decoration, widgets, buttons, splash, login, boot, sounds.
+                SettingsService.StyleChoice? style = null;
+                foreach (var candidate in SettingsService.Styles) { if (candidate.Key.ToLowerInvariant().Replace('_', '-') == c.Args[1]) { style = candidate; } }
+                if (style is null) { return c.Fail("unknown setting"); }
+                settings.SetStyle(style.Field, c.Args[2]); break;
+            }
         }
         c.WriteLine("saved " + c.Args[1] + (settings.Persistent ? "" : " (live: lost at reboot)"));
         return 0;

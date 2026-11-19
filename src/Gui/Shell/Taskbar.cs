@@ -65,7 +65,7 @@ internal sealed class Taskbar
 
     /// <summary>Set by the desktop so the launcher button shows its pressed state.</summary>
     public bool LauncherOpen { get; set; }
-    private long _clockMinute = long.MinValue, _centerSecond;
+    private long _clockMinute = long.MinValue, _centerSecond, _centerKey;
 
     /// <summary>Refreshes the clock text; returns true when it changed.</summary>
     public bool Update()
@@ -74,6 +74,8 @@ internal sealed class Taskbar
         // An open center shows live traffic and levels: redraw once a second while one is open.
         long second = now.Ticks / TimeSpan.TicksPerSecond;
         bool live = Centers is not null && Centers.Open != TaskbarCenters.Panel.None && second != _centerSecond;
+        // Once a second, also when closed: the buttons' state (online, mute, volume) may change from elsewhere.
+        if (Centers is not null && second != _centerSecond) { long key = Centers.StateKey(); if (key != _centerKey) { _centerKey = key; live = true; } }
         _centerSecond = second;
         long minute = now.Ticks / TimeSpan.TicksPerMinute;
         if (minute == _clockMinute) { return live; }
@@ -108,7 +110,7 @@ internal sealed class Taskbar
         }
         else if (_overflow.Count > 0 && _overflowButton.Contains(x, y))
         {
-            OverflowOpen = true;
+            OverflowOpen = true; Zenith.Gui.Motion.OverlayMotion.Start(Zenith.Gui.Motion.OverlayMotion.Overflow);
             return true;
         }
 
@@ -275,7 +277,7 @@ internal sealed class Taskbar
     {
         Centers?.DrawPanel(surface, Bounds, mouseX, mouseY);
         if (!OverflowOpen || _overflow.Count == 0) { return; }
-        Rect list = ListBounds();
+        Rect list = ListBounds().Offset(0, Zenith.Gui.Motion.OverlayMotion.Offset(Zenith.Gui.Motion.OverlayMotion.Overflow));
         surface.DrawShadow(list, Theme.WindowRadius, 18, 100, 6);
         surface.FillRoundRect(list, Theme.WindowRadius, Theme.Menu);
         surface.StrokeRoundRect(list, Theme.WindowRadius, Theme.PanelBorder);

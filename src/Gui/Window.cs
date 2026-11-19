@@ -10,7 +10,8 @@ namespace Zenith.Gui;
 /// </summary>
 internal abstract class Window
 {
-    public const int TitleBarHeight = 44;
+    /// <summary>The bar height of the chosen decoration (44 for Zenith; docs/design/decorations-concept.svg).</summary>
+    public static int TitleBarHeight => Decorations.BarHeight(Decorations.Current);
     public const int ButtonSize = 32;
 
     protected Window(string title, int width, int height)
@@ -82,9 +83,9 @@ internal abstract class Window
     private int ChromeHeight => IsFullscreen ? 0 : TitleBarHeight;
     public Rect TitleBar => new(Bounds.X, Bounds.Y, Bounds.W, ChromeHeight);
     public Rect Content => new(Bounds.X, Bounds.Y + ChromeHeight, Bounds.W, Bounds.H - ChromeHeight);
-    public Rect CloseButton => IsFullscreen ? new Rect(0, 0, 0, 0) : new(Bounds.Right - ButtonSize - 6, Bounds.Y + (TitleBarHeight - ButtonSize) / 2, ButtonSize, ButtonSize);
-    public Rect MaximizeButton => CanResize ? CloseButton.Offset(-ButtonSize - 4, 0) : new Rect(0, 0, 0, 0);
-    public Rect MinimizeButton => CloseButton.Offset(-(ButtonSize + 4) * (CanResize ? 2 : 1), 0);
+    public Rect CloseButton => IsFullscreen ? new Rect(0, 0, 0, 0) : Decorations.Buttons(Decorations.Current, Bounds, CanResize).Close;
+    public Rect MaximizeButton => IsFullscreen || !CanResize ? new Rect(0, 0, 0, 0) : Decorations.Buttons(Decorations.Current, Bounds, CanResize).Maximize;
+    public Rect MinimizeButton => IsFullscreen ? new Rect(0, 0, 0, 0) : Decorations.Buttons(Decorations.Current, Bounds, CanResize).Minimize;
 
     /// <summary>The package icon on this window's taskbar pill.</summary>
     public string IconName => Zenith.Gui.Shell.AppRegistry.IconFor(Title);

@@ -266,12 +266,13 @@ int main(int argc,char **argv){
     if(zenith_gui_resize_enable(handle)<0){zenith_gui_close(handle);print("settings: viewport service required\n");return 1;}
     shell.ui.hover_supported=zenith_gui_pointer_motion(handle)==0; /* -38 on older kernels */
     meridian_system_services(&shell,zenith_system_settings_read,zenith_system_settings_save);
+    {struct zenith_style_list probe;if(zenith_style_list(Z_STYLE_WALLPAPER,&probe)==0)meridian_style_services(&shell,zenith_style_list,zenith_style_preview);}
     shell.bindings.display_read=zenith_display_read; shell.bindings.display_save=zenith_display_change;
     meridian_information_services(&shell,zenith_settings_information_read);
     meridian_audio_services(&shell,zenith_audio_read,zenith_audio_control);
     {struct zenith_network_status probe;if(zenith_network(Z_NET_STATUS,0,&probe,sizeof(probe),0,0)==(long)sizeof(probe))meridian_network_services(&shell,zenith_network);}
     {struct zenith_portal_info portal;if(zenith_portal_info(&portal)==0&&portal.version==1){shell.authorize=authorize_system;shell.authorization_poll=authorization_poll;}}
-    meridian_refresh(&shell);
+    meridian_refresh(&shell);zui_apply_style(&shell.ui);
     long motion_clock=zui_motion_clock();
     if(motion_clock>=0){shell.ui.now=motion_clock;shell.ui.motion_percent=zui_motion_percent(shell.bindings.preferences.animation);}
     print("MERIDIAN_MOTION percent=");number((unsigned long)shell.ui.motion_percent);print("\n");
@@ -299,7 +300,7 @@ int main(int argc,char **argv){
         if(r){meridian_event(&shell,&e);if(e.type==Z_GUI_FOCUS&&e.code)print("MERIDIAN_FOCUSED\n");}
         if(previous_page!=shell.page){print("MERIDIAN_PAGE ");print(meridian_pages[shell.page].id);print("\n");}
         if(previous_mode!=NAV_CATEGORIES&&shell.nav.mode==NAV_CATEGORIES)print("MERIDIAN_PAGE navigation\n");
-        if((i&31)==0){meridian_refresh(&shell);if(motion_clock>=0)shell.ui.motion_percent=zui_motion_percent(shell.bindings.preferences.animation);}
+        if((i&31)==0){meridian_refresh(&shell);zui_apply_style(&shell.ui);if(motion_clock>=0)shell.ui.motion_percent=zui_motion_percent(shell.bindings.preferences.animation);}
         if(!edited&&binding_any_changed(&shell.bindings))print("SETTINGS_UNSAVED\n");
         if(!prompt&&shell.dialog.open)print("SETTINGS_DISCARD_PROMPT\n");
         if(shell.bindings.preferences.revision!=preference_revision)print("SYSTEM_SETTINGS_REVISION_CHANGED\n");

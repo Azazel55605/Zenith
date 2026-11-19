@@ -1,0 +1,230 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1520" viewBox="0 0 1440 1520">
+<defs><filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="18"/></filter><filter id="blur6" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6"/></filter><filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity=".35"/></filter><filter id="cshadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0.6" dy="1.2" stdDeviation="0.9" flood-color="#000" flood-opacity=".45"/></filter></defs>
+<rect x="0" y="0" width="1440" height="1520" rx="0" fill="#151619" />
+<text x="48" y="55" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="28" font-weight="600" text-anchor="start" xml:space="preserve">Zenith / Window decorations concept</text>
+<text x="48" y="86" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="14" font-weight="400" text-anchor="start" xml:space="preserve">Proposal, not running UI · four styles for the trusted title bar, drawn by the desktop for every window (apps cannot draw their own chrome) · active, inactive, light</text>
+<text x="48" y="130" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="18" font-weight="600" text-anchor="start" xml:space="preserve">Zenith</text>
+<text x="128" y="130" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">current, the default</text>
+<text x="48" y="162" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">44 px bar, app icon and title left, outline controls right.</text>
+<text x="48" y="181" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Active: raised bar; inactive: bar sinks into the window,</text>
+<text x="48" y="200" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">title and controls go muted. Close hover: rose tint.</text>
+<text x="404" y="124" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="start" xml:space="preserve">Active · hover on close</text>
+<rect x="404" y="136" width="300" height="160" rx="12" fill="#202125" stroke="#45474F" />
+<rect x="405" y="137" width="298" height="43" rx="11" fill="#25262B" />
+<rect x="405" y="166" width="298" height="14" rx="0" fill="#25262B" />
+<g transform="translate(420 150) scale(0.6666666666666666)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></g>
+<text x="444" y="164" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Horizon — Documents</text>
+<g transform="translate(592 150) scale(0.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(628 150) scale(0.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<rect x="658" y="144" width="28" height="28" rx="8" fill="#F29BAE" opacity="0.25" />
+<g transform="translate(664 150) scale(0.67)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<rect x="420" y="194" width="120" height="88" rx="8" fill="#1B1C20" />
+<rect x="556" y="194" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="556" y="228" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="556" y="262" width="132" height="26" rx="6" fill="#2A2C31" />
+<text x="732" y="124" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="start" xml:space="preserve">Inactive</text>
+<rect x="732" y="136" width="300" height="160" rx="12" fill="#202125" stroke="#45474F" />
+<rect x="733" y="137" width="298" height="43" rx="11" fill="#202125" />
+<rect x="733" y="166" width="298" height="14" rx="0" fill="#202125" />
+<g transform="translate(748 150) scale(0.6666666666666666)" fill="none" stroke="#8A8E98" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></g>
+<text x="772" y="164" fill="#8A8E98" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Horizon — Documents</text>
+<g transform="translate(920 150) scale(0.67)" fill="none" stroke="#8A8E98" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(956 150) scale(0.67)" fill="none" stroke="#8A8E98" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(992 150) scale(0.67)" fill="none" stroke="#8A8E98" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<rect x="748" y="194" width="120" height="88" rx="8" fill="#1B1C20" />
+<rect x="884" y="194" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="884" y="228" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="884" y="262" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="1048" y="108" width="324" height="208" rx="14" fill="#DDDFE4" />
+<text x="1060" y="124" fill="#6E727C" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="start" xml:space="preserve">Light · active</text>
+<rect x="1060" y="136" width="300" height="160" rx="12" fill="#F6F7F9" stroke="#CFD1D8" />
+<rect x="1061" y="137" width="298" height="43" rx="11" fill="#EFF0F3" />
+<rect x="1061" y="166" width="298" height="14" rx="0" fill="#EFF0F3" />
+<g transform="translate(1076 150) scale(0.6666666666666666)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></g>
+<text x="1100" y="164" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Horizon — Documents</text>
+<g transform="translate(1248 150) scale(0.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(1284 150) scale(0.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(1320 150) scale(0.67)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<rect x="1076" y="194" width="120" height="88" rx="8" fill="#ECEDF1" />
+<rect x="1212" y="194" width="132" height="26" rx="6" fill="#FFFFFF" />
+<rect x="1212" y="228" width="132" height="26" rx="6" fill="#FFFFFF" />
+<rect x="1212" y="262" width="132" height="26" rx="6" fill="#FFFFFF" />
+<text x="48" y="366" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="18" font-weight="600" text-anchor="start" xml:space="preserve">Classic</text>
+<text x="139" y="366" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">familiar from Windows</text>
+<text x="48" y="398" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">32 px bar, 46 px wide rectangular buttons flush right,</text>
+<text x="48" y="417" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">close turns red on hover over the full bar height.</text>
+<text x="48" y="436" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">6 px window corners. Double-click title maximizes.</text>
+<text x="404" y="360" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="start" xml:space="preserve">Active · hover on close</text>
+<rect x="404" y="372" width="300" height="160" rx="6" fill="#202125" stroke="#45474F" />
+<rect x="405" y="373" width="298" height="32" rx="5" fill="#25262B" />
+<g transform="translate(416 381) scale(0.5833333333333334)" fill="none" stroke="#F1F2F4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></g>
+<text x="438" y="393" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Horizon — Documents</text>
+<g transform="translate(582 381) scale(0.58)" fill="none" stroke="#F1F2F4" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(628 381) scale(0.58)" fill="none" stroke="#F1F2F4" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<rect x="658" y="373" width="45" height="32" rx="0" fill="#C42B1C" />
+<rect x="688" y="373" width="15" height="32" rx="5" fill="#C42B1C" />
+<g transform="translate(674 381) scale(0.58)" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<rect x="420" y="418" width="120" height="100" rx="8" fill="#1B1C20" />
+<rect x="556" y="418" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="556" y="452" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="556" y="486" width="132" height="26" rx="6" fill="#2A2C31" />
+<text x="732" y="360" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="start" xml:space="preserve">Inactive</text>
+<rect x="732" y="372" width="300" height="160" rx="6" fill="#202125" stroke="#45474F" />
+<rect x="733" y="373" width="298" height="32" rx="5" fill="#202125" />
+<g transform="translate(744 381) scale(0.5833333333333334)" fill="none" stroke="#8A8E98" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></g>
+<text x="766" y="393" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Horizon — Documents</text>
+<g transform="translate(910 381) scale(0.58)" fill="none" stroke="#8A8E98" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(956 381) scale(0.58)" fill="none" stroke="#8A8E98" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(1002 381) scale(0.58)" fill="none" stroke="#8A8E98" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<rect x="748" y="418" width="120" height="100" rx="8" fill="#1B1C20" />
+<rect x="884" y="418" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="884" y="452" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="884" y="486" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="1048" y="344" width="324" height="208" rx="14" fill="#DDDFE4" />
+<text x="1060" y="360" fill="#6E727C" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="start" xml:space="preserve">Light · active</text>
+<rect x="1060" y="372" width="300" height="160" rx="6" fill="#F6F7F9" stroke="#CFD1D8" />
+<rect x="1061" y="373" width="298" height="32" rx="5" fill="#EFF0F3" />
+<g transform="translate(1072 381) scale(0.5833333333333334)" fill="none" stroke="#202126" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></g>
+<text x="1094" y="393" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Horizon — Documents</text>
+<g transform="translate(1238 381) scale(0.58)" fill="none" stroke="#202126" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(1284 381) scale(0.58)" fill="none" stroke="#202126" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(1330 381) scale(0.58)" fill="none" stroke="#202126" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<rect x="1076" y="418" width="120" height="100" rx="8" fill="#ECEDF1" />
+<rect x="1212" y="418" width="132" height="26" rx="6" fill="#FFFFFF" />
+<rect x="1212" y="452" width="132" height="26" rx="6" fill="#FFFFFF" />
+<rect x="1212" y="486" width="132" height="26" rx="6" fill="#FFFFFF" />
+<text x="48" y="602" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="18" font-weight="600" text-anchor="start" xml:space="preserve">Dots</text>
+<text x="106" y="602" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">familiar from macOS</text>
+<text x="48" y="634" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">38 px bar, three 12 px dots left (close, minimize,</text>
+<text x="48" y="653" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">maximize), symbols on hover; centered title.</text>
+<text x="48" y="672" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Inactive windows show grey dots.</text>
+<text x="404" y="596" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="start" xml:space="preserve">Active · hover on close</text>
+<rect x="404" y="608" width="300" height="160" rx="12" fill="#202125" stroke="#45474F" />
+<rect x="405" y="609" width="298" height="38" rx="11" fill="#25262B" />
+<rect x="405" y="632" width="298" height="14" rx="0" fill="#25262B" />
+<circle cx="424" cy="627" r="6" fill="#EC6A5E" />
+<g transform="translate(419.5 622.5) scale(0.38)" fill="none" stroke="#5A1A14" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<circle cx="444" cy="627" r="6" fill="#F4BF4F" />
+<g transform="translate(439.5 622.5) scale(0.38)" fill="none" stroke="#5A1A14" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<circle cx="464" cy="627" r="6" fill="#61C554" />
+<g transform="translate(459.5 622.5) scale(0.38)" fill="none" stroke="#5A1A14" stroke-width="2" stroke-linecap="round"><path d="M8 8h8v8"/></g>
+<text x="554.0" y="632" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">Documents</text>
+<rect x="420" y="660" width="120" height="94" rx="8" fill="#1B1C20" />
+<rect x="556" y="660" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="556" y="694" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="556" y="728" width="132" height="26" rx="6" fill="#2A2C31" />
+<text x="732" y="596" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="start" xml:space="preserve">Inactive</text>
+<rect x="732" y="608" width="300" height="160" rx="12" fill="#202125" stroke="#45474F" />
+<rect x="733" y="609" width="298" height="38" rx="11" fill="#25262B" />
+<rect x="733" y="632" width="298" height="14" rx="0" fill="#25262B" />
+<circle cx="752" cy="627" r="6" fill="#45474F" />
+<circle cx="772" cy="627" r="6" fill="#45474F" />
+<circle cx="792" cy="627" r="6" fill="#45474F" />
+<text x="882.0" y="632" fill="#8A8E98" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">Documents</text>
+<rect x="748" y="660" width="120" height="94" rx="8" fill="#1B1C20" />
+<rect x="884" y="660" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="884" y="694" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="884" y="728" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="1048" y="580" width="324" height="208" rx="14" fill="#DDDFE4" />
+<text x="1060" y="596" fill="#6E727C" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="start" xml:space="preserve">Light · active</text>
+<rect x="1060" y="608" width="300" height="160" rx="12" fill="#F6F7F9" stroke="#CFD1D8" />
+<rect x="1061" y="609" width="298" height="38" rx="11" fill="#EFF0F3" />
+<rect x="1061" y="632" width="298" height="14" rx="0" fill="#EFF0F3" />
+<circle cx="1080" cy="627" r="6" fill="#EC6A5E" />
+<circle cx="1100" cy="627" r="6" fill="#F4BF4F" />
+<circle cx="1120" cy="627" r="6" fill="#61C554" />
+<text x="1210.0" y="632" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">Documents</text>
+<rect x="1076" y="660" width="120" height="94" rx="8" fill="#ECEDF1" />
+<rect x="1212" y="660" width="132" height="26" rx="6" fill="#FFFFFF" />
+<rect x="1212" y="694" width="132" height="26" rx="6" fill="#FFFFFF" />
+<rect x="1212" y="728" width="132" height="26" rx="6" fill="#FFFFFF" />
+<text x="48" y="838" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="18" font-weight="600" text-anchor="start" xml:space="preserve">Ribbon</text>
+<text x="128" y="838" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">new, Zenith compact</text>
+<text x="48" y="870" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">34 px bar with no fill of its own: the window is one</text>
+<text x="48" y="889" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">surface; controls sit in a pill; the focused window</text>
+<text x="48" y="908" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">gets an accent hairline instead of a darker bar.</text>
+<text x="404" y="832" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="start" xml:space="preserve">Active · hover on close</text>
+<rect x="404" y="844" width="300" height="160" rx="14" fill="#202125" stroke="#7ECAC7" stroke-width="1.5"/>
+<text x="554.0" y="866" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle" xml:space="preserve">Documents</text>
+<rect x="600" y="850" width="92" height="24" rx="12" fill="#26272C" />
+<g transform="translate(610 855) scale(0.5)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(638 855) scale(0.5)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<rect x="658" y="851" width="28" height="22" rx="11" fill="#F29BAE" opacity="0.35" />
+<g transform="translate(666 855) scale(0.5)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<g transform="translate(418 854) scale(0.5833333333333334)" fill="none" stroke="#7ECAC7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></g>
+<rect x="420" y="892" width="120" height="98" rx="8" fill="#1B1C20" />
+<rect x="556" y="892" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="556" y="926" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="556" y="960" width="132" height="26" rx="6" fill="#2A2C31" />
+<text x="732" y="832" fill="#8A8E98" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="start" xml:space="preserve">Inactive</text>
+<rect x="732" y="844" width="300" height="160" rx="14" fill="#202125" stroke="#45474F" />
+<text x="882.0" y="866" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle" xml:space="preserve">Documents</text>
+<rect x="928" y="850" width="92" height="24" rx="12" fill="#202125" stroke="#45474F" />
+<g transform="translate(938 855) scale(0.5)" fill="none" stroke="#8A8E98" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(966 855) scale(0.5)" fill="none" stroke="#8A8E98" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(994 855) scale(0.5)" fill="none" stroke="#8A8E98" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<g transform="translate(746 854) scale(0.5833333333333334)" fill="none" stroke="#8A8E98" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></g>
+<rect x="748" y="892" width="120" height="98" rx="8" fill="#1B1C20" />
+<rect x="884" y="892" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="884" y="926" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="884" y="960" width="132" height="26" rx="6" fill="#2A2C31" />
+<rect x="1048" y="816" width="324" height="208" rx="14" fill="#DDDFE4" />
+<text x="1060" y="832" fill="#6E727C" font-family="Inter, sans-serif" font-size="11" font-weight="600" text-anchor="start" xml:space="preserve">Light · active</text>
+<rect x="1060" y="844" width="300" height="160" rx="14" fill="#F6F7F9" stroke="#197571" stroke-width="1.5"/>
+<text x="1210.0" y="866" fill="#202126" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle" xml:space="preserve">Documents</text>
+<rect x="1256" y="850" width="92" height="24" rx="12" fill="#E4E6EB" />
+<g transform="translate(1266 855) scale(0.5)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M6 12h12"/></g>
+<g transform="translate(1294 855) scale(0.5)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(1322 855) scale(0.5)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+<g transform="translate(1074 854) scale(0.5833333333333334)" fill="none" stroke="#197571" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></g>
+<rect x="1076" y="892" width="120" height="98" rx="8" fill="#ECEDF1" />
+<rect x="1212" y="892" width="132" height="26" rx="6" fill="#FFFFFF" />
+<rect x="1212" y="926" width="132" height="26" rx="6" fill="#FFFFFF" />
+<rect x="1212" y="960" width="132" height="26" rx="6" fill="#FFFFFF" />
+<text x="48" y="1084" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">One decoration service, four parameter sets</text>
+<text x="48" y="1114" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve"></text>
+<text x="248" y="1114" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Zenith</text>
+<text x="508" y="1114" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Classic</text>
+<text x="768" y="1114" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Dots</text>
+<text x="1028" y="1114" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Ribbon</text>
+<line x1="48" y1="1125" x2="1392" y2="1125" stroke="#45474F" stroke-width="1" />
+<text x="48" y="1144" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Bar height</text>
+<text x="248" y="1144" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">44</text>
+<text x="508" y="1144" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">32</text>
+<text x="768" y="1144" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">38</text>
+<text x="1028" y="1144" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">34</text>
+<line x1="48" y1="1153" x2="1392" y2="1153" stroke="#45474F" stroke-width="1" />
+<text x="48" y="1172" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Corner radius</text>
+<text x="248" y="1172" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">12</text>
+<text x="508" y="1172" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">6</text>
+<text x="768" y="1172" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">12</text>
+<text x="1028" y="1172" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">14</text>
+<line x1="48" y1="1181" x2="1392" y2="1181" stroke="#45474F" stroke-width="1" />
+<text x="48" y="1200" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Controls</text>
+<text x="248" y="1200" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">right, 36 px</text>
+<text x="508" y="1200" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">right, 46 x 32</text>
+<text x="768" y="1200" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">left, 12 px dots</text>
+<text x="1028" y="1200" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">right, pill 92 x 24</text>
+<line x1="48" y1="1209" x2="1392" y2="1209" stroke="#45474F" stroke-width="1" />
+<text x="48" y="1228" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Title</text>
+<text x="248" y="1228" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">left, with icon</text>
+<text x="508" y="1228" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">left, with icon</text>
+<text x="768" y="1228" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">centered</text>
+<text x="1028" y="1228" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">centered</text>
+<line x1="48" y1="1237" x2="1392" y2="1237" stroke="#45474F" stroke-width="1" />
+<text x="48" y="1256" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Focus shows by</text>
+<text x="248" y="1256" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">bar tone</text>
+<text x="508" y="1256" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">bar tone</text>
+<text x="768" y="1256" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">dot colors</text>
+<text x="1028" y="1256" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">accent hairline</text>
+<line x1="48" y1="1265" x2="1392" y2="1265" stroke="#45474F" stroke-width="1" />
+<text x="48" y="1284" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Hit target (px)</text>
+<text x="248" y="1284" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">28</text>
+<text x="508" y="1284" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">46 x 32</text>
+<text x="768" y="1284" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">20 (padded)</text>
+<text x="1028" y="1284" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">28 x 24</text>
+<text x="48" y="1332" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Every style keeps: drag to move, double-click to maximize, resize edges, and the existing keyboard paths.</text>
+<text x="48" y="1352" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Snap, maximize and fullscreen animations use the bar height of the chosen style. Native and kernel windows look the same.</text>
+<text x="48" y="1372" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Dots never uses the accent for close, so it stays recognizable in every accent; Classic red is fixed for the same reason.</text>
+<text x="48" y="1490" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Requires: a decoration choice in the personal appearance record and the desktop drawing chrome from a parameter set (no per-app decorations). Values are illustrative.</text>
+</svg>

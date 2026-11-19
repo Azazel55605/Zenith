@@ -64,7 +64,7 @@ internal static class BootScreen
     /// Sizes follow the surface's height (1080 lines draw them at 100%) and never fall below the display
     /// <paramref name="percent"/> of a physical surface, so the frame looks the same on any screen, matches
     /// the scaled desktop, and stays sharp at high resolutions.</summary>
-    public static void Paint(Surface surface, string? label, int filled, int percent = 100)
+    public static void Paint(Surface surface, string? label, int filled, int percent = 100, int style = -1)
     {
         surface.FillRect(surface.Bounds, Background);
         int unit = Math.Clamp(Math.Max(surface.Height * 1000 / 1080, percent * 10), 1000, 4000);
@@ -74,6 +74,22 @@ internal static class BootScreen
         if (label is not null)
         { surface.DrawTextCentered(label, Fonts.Regular, S(Theme.TextBody), 0xFFB4B7C0, new Rect(0, y + S(8), surface.Width, S(24)), true); }
         if (filled < 0) { return; }
+        // Boot styles (docs/design/startup-concept.svg, kernel 0.0.71), read once the installed root is mounted: the
+        // first phase always uses Phases. Every style keeps the phase name; Quiet shows it only as a hairline grows.
+        if (style < 0) { style = (int)Math.Min(3u, Zenith.Core.Configuration.SystemConfiguration.Settings?.Style(15) ?? 0); }
+        if (style == 1)
+        {
+            int cx = x, cy = y - logo / 2 - S(16), r = logo * 3 / 4;
+            for (int k = 0; k < 5; k++)
+            {
+                double a = -Math.PI / 2 + k * 2 * Math.PI / 5;
+                int dot = S(8);
+                surface.FillRoundRect(new Rect(cx + (int)(r * Math.Cos(a)) - dot / 2, cy + (int)(r * Math.Sin(a)) - dot / 2, dot, dot), dot / 2, k * 256 < filled * 5 ? Theme.Accent : 0xFF3A3C43);
+            }
+            return;
+        }
+        if (style == 2) { return; }   // Pulse: the logo and the phase name only
+        if (style == 3) { surface.FillRect(new Rect(0, surface.Height - Math.Max(2, S(2)), surface.Width * filled / 256, Math.Max(2, S(2))), 0xFFF1F2F4); return; }
         Rect bar = new(x - barWidth / 2, y + S(44), barWidth, barHeight);
         surface.FillRoundRect(bar, barHeight / 2, 0xFF2A2C31);
         int width = barWidth * filled / 256;
