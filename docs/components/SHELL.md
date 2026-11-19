@@ -93,11 +93,15 @@ A missing file is created on the first successful save.
 The editor uses [Aurora's text buffer](../../userland/aurora/buffer.c) and the foreground
 raw keyboard lease. It opens UTF-8 text up to 256 KiB and 32,768 lines, including a
 final empty line if present. It preserves a UTF-8 BOM and the predominant newline
-format. The first version uses a fixed eight-row, 48-column view with a marked
-caret. It displays ASCII and printable Latin-1 and shows other code points as
-`?` while preserving their bytes. Its redraws use the existing terminal clear
-sequence, which clears graphical scrollback. Native I/O and syscall quotas
-still apply to each editing session.
+format. Quill uses the available terminal rows and columns (up to 512×128), with a thin editing
+caret and an inverted shortcut bar at the bottom. It updates changed rows on
+the alternate screen and keeps the shell scrollback when it exits. Resizing
+a graphical terminal updates Quill while it waits for input. The graphical
+path needs the updated kernel and, in Polaris, the updated client. COM1
+uses an 80×24 VT viewport. Older kernels and graphical clients without the
+size handshake use the compact legacy view. Quill displays ASCII and printable
+Latin-1 and shows other code points as `?` while preserving their bytes.
+Native I/O and syscall quotas still apply to each editing session.
 
 Saves use a temporary directory alongside the file and rename the flushed
 replacement into place. Saving an unchanged existing file leaves it alone.
@@ -111,7 +115,9 @@ Build with `python3 tools/build-userland.py DEST --program quill`.
 Local QEMU checks used a signed test package and verified keyboard editing,
 save and shell return on COM1, the built-in Terminal and Polaris. The COM1
 test also checked undo/redo, search, exit confirmation and the saved ext2
-bytes and permissions. Publication and installed VMware acceptance are
+bytes and permissions. The follow-up verified the alternate screen and footer
+on COM1, the built-in Terminal and Polaris, including live maximization in
+Polaris. Publication and installed VMware acceptance are
 tracked in the [roadmap](../ROADMAP.md).
 
 ## H1 / N1 / X2 — Related work

@@ -357,6 +357,7 @@ Current delivery/installed evidence belongs to [the master roadmap](ROADMAP.md#s
 | 406 | private file fd, signed offset, origin 0/1/2 | New position; invalid seek fails without advancing |
 | 407 | readable source fd, destination path pointer, path bytes | Open/create copy target after same-inode check, before truncate |
 | 408 | path pointer, path bytes, writable 24-byte stat | Metadata without following the final symlink |
+| 410 | 0, 0, 0 | Foreground raw terminal size, or negative error |
 
 401/402 require an owned terminal input lease on fd 0. Pipes/redirections and
 background jobs return -25; closed/invalid descriptors return -9. Default mode 7
@@ -365,7 +366,15 @@ Other canonical combinations are refused. In raw mode Ctrl+D is byte 4, not EOF;
 Ctrl+C is byte 3 unless signal handling is selected. Arrows/Home/End/Delete use
 VT key sequences. The 4096-byte raw queue reports overflow (-75); closing stdin,
 exit, fault, watchdog and cancellation restore mode 7 and discard raw type-ahead.
-This does not provide full VT screen rendering or a PTY.
+Call 410 takes three zero arguments and returns columns in the low 16 bits
+and rows in the high 16 bits. It requires an owned raw fd 0 and terminal stdout.
+A successful query subscribes that lease to geometry changes. A size change
+returns -11 from stdin until 410 acknowledges the current size, preserving
+queued keys. A host without geometry returns -25. Native terminal clients can
+send a row count in argument 3 of call 634. Zero keeps the legacy columns-only
+behavior. The graphical terminals support the alternate screen, absolute
+cursor positioning inside it, erase line and inverse cells for fullscreen
+terminal applications. Full PTY emulation is separate.
 
 405's little-endian request has operation u32, zero flags u32, then six u64 fields:
 path pointer, path byte count, target pointer, target byte count, value, extra.

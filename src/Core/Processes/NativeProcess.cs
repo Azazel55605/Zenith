@@ -286,7 +286,7 @@ internal sealed unsafe class NativeProcess
                 if (state is null) { return -9; }
                 Transfer(c.Arg1, state, true); return state.Length;
             }
-            if (c.Call == 634) { return c.Arg1 > int.MaxValue || c.Arg2 != 0 ? -22 : graphics.Terminals.Resize((long)c.Arg0, (int)c.Arg1); }
+            if (c.Call == 634) { return c.Arg1 > int.MaxValue || c.Arg2 > 512 ? -22 : graphics.Terminals.Resize((long)c.Arg0, (int)c.Arg1, (int)c.Arg2); }
             if (c.Call == 635) { return c.Arg1 != 0 || c.Arg2 != 0 ? -22 : graphics.Terminals.Close((long)c.Arg0); }
             if (c.Call == 629)
             {
@@ -867,6 +867,7 @@ internal sealed unsafe class NativeProcess
                 if (c.Call == 402 && c.Arg1 > int.MaxValue) { return -22; }
                 return files.TerminalMode((int)c.Arg0, c.Call == 402 ? (int)c.Arg1 : null);
             }
+            if (c.Call == 410) { return c.Arg0 != 0 || c.Arg1 != 0 || c.Arg2 != 0 ? -22 : files.TerminalSize(); }
             if (c.Call == 400) { return c.Arg0 > int.MaxValue ? -9 : files.IsTerminal((int)c.Arg0); }
             if (c.Call == 3) { return c.Arg0 > int.MaxValue ? -9 : files.Close((int)c.Arg0); }
             if (c.Call == 74) { return c.Arg0 > int.MaxValue ? -9 : files.Flush((int)c.Arg0); }
@@ -1065,7 +1066,7 @@ internal sealed unsafe class NativeProcess
                     var caller = Zenith.Core.Security.CredentialContext.Enter(elevated ? Zenith.Core.Security.Credentials.Root : identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
                     // while waiting for a peer. Mutations and transport setup stay serialized.
-                    bool standard = context.Call is >= 661 and <= 668 or 642 or 643 or 644 or 649 or 651 or 653 or 657 or 658 or 400 or 401 or 402 or 403 or 404 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 639 or 645 or 646 or 659 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    bool standard = context.Call is >= 661 and <= 668 or 642 or 643 or 644 or 649 or 651 or 653 or 657 or 658 or 400 or 401 or 402 or 403 or 404 or 410 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 639 or 645 or 646 or 659 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {

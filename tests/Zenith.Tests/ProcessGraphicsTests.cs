@@ -30,11 +30,11 @@ public sealed class ProcessGraphicsTests
     }
     private sealed class FakeTerminal : IProcessTerminal
     {
-        public int Keys, Columns; public bool Closed;
+        public int Keys, Columns, Rows; public bool Closed;
         public void Key(int code, int modifiers, int extra) => Keys++;
         public int Read(Span<byte> destination) { destination[0] = 65; return 1; }
         public byte[] State() => new byte[24];
-        public void Resize(int columns) => Columns = columns;
+        public void Resize(int columns, int rows) { Columns = columns; Rows = rows; }
         public void Close() => Closed = true;
         public void Copy(string text) { }
         public void Paste() { }
@@ -61,6 +61,10 @@ public sealed class ProcessGraphicsTests
         Assert.Equal(1, host.Opened[0].Keys);
         Assert.Equal(-22, t.Resize(first, 5));
         Assert.Equal(0, t.Resize(first, 100));
+        Assert.Equal(0, host.Opened[0].Rows);
+        Assert.Equal(-22, t.Resize(first, 100, 513));
+        Assert.Equal(0, t.Resize(first, 100, 30));
+        Assert.Equal(30, host.Opened[0].Rows);
         Assert.Equal(0, t.Close(first));
         Assert.True(host.Opened[0].Closed);
         Assert.Equal(-9, t.Close(first));

@@ -9,7 +9,9 @@ enum { PT_PROMPT=1, PT_DONE=2 };
 struct pterm {
     struct pt_cell *cells; unsigned int cell_capacity,next_cell;
     struct pt_line *lines; unsigned int line_capacity,first_line,line_count;
-    unsigned int column; unsigned char color,bold;
+    unsigned int column,row,caret_row,caret_column,grid_stride; unsigned char color,bold,inverse;
+    struct pterm *alternate;
+    int in_alternate,private_csi;
     /* Decoder state, kept between writes because a read can end anywhere. */
     int escape,parameters[8],parameter_count; unsigned int utf8; int utf8_left;
     char osc[48]; int osc_length;
@@ -19,6 +21,8 @@ struct pterm {
 enum { PT_MAX_LINE=8192 };
 int pt_init(struct pterm *t,struct pt_cell *cells,unsigned int cell_capacity,struct pt_line *lines,unsigned int line_capacity);
 void pt_clear(struct pterm *t);
+const struct pterm *pt_alternate(const struct pterm *t);
+void pt_end_alternate(struct pterm *t);
 void pt_write(struct pterm *t,const char *bytes,unsigned long count);
 unsigned int pt_length(const struct pterm *t,unsigned int line);
 /* The line's prompt mark: 0, PT_PROMPT while its command runs or if it never ran one, PT_DONE with status and time. */

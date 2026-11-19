@@ -69,6 +69,9 @@ static inline long zenith_terminal_read(long handle,char *buffer,unsigned long c
 enum { Z_TERMINAL_BUSY=1,Z_TERMINAL_SECRET=2,Z_TERMINAL_RAW=4,Z_TERMINAL_EXIT=8,Z_TERMINAL_DROPPED=16 };
 /* version,flags,cursor,prompt bytes,input bytes,directory bytes, then that UTF-8 text in order */
 static inline long zenith_terminal_state(long handle,void *buffer){return zenith_call(633,(unsigned long)handle,(unsigned long)buffer,Z_TERMINAL_STATE_BYTES);}
+static inline long zenith_terminal_resize_grid(long handle,int columns,int rows){
+    return zenith_call(634,(unsigned long)handle,(unsigned long)columns,(unsigned long)rows);
+}
 static inline long zenith_terminal_resize(long handle,int columns){return zenith_call(634,(unsigned long)handle,(unsigned long)columns,0);}
 static inline long zenith_terminal_close(long handle){return zenith_call(635,(unsigned long)handle,0,0);}
 /* The clipboard stays in the kernel: a client can set it, and paste it into its own session, without reading it. */

@@ -17,6 +17,11 @@ internal sealed class TerminalInputChannel(Func<string?> readLine, Action<string
     private Lease? _owner;
     private int _mode = DefaultMode, _generation;
     private bool _overflow;
+    private int _size;
+    public void Resize(int columns, int rows)
+    {
+        lock (_gate) { _size = rows == 0 ? 0 : (Math.Clamp(rows, 1, 512) << 16) | Math.Clamp(columns, 1, 512); }
+    }
     private Decoder _echoDecoder = Encoding.UTF8.GetDecoder();
     public bool RawActive { get { lock (_gate) { return _owner is not null && (_mode & Canonical) == 0; } } }
     public int Generation { get { lock (_gate) { return _generation; } } }
@@ -58,6 +63,18 @@ internal sealed class TerminalInputChannel(Func<string?> readLine, Action<string
     private sealed class Lease(TerminalInputChannel terminal, Func<bool> cancelled, LineByteInput canonical) : ITerminalInput
     {
         private LineByteInput _canonical = canonical;
+        private int _lastSize;
+        private bool _watchSize;
+        public int Size()
+        {
+            lock (terminal._gate)
+            {
+                if (!ReferenceEquals(terminal._owner, this)) { return -9; }
+                if ((terminal._mode & Canonical) != 0 || terminal._size == 0) { _watchSize = false; return -25; }
+                _watchSize = true;
+                return _lastSize = terminal._size;
+            }
+        }
         public int GetMode()
         { lock (terminal._gate) { return ReferenceEquals(terminal._owner, this) ? terminal._mode : -9; } }
         public int SetMode(int flags)
@@ -68,6 +85,7 @@ internal sealed class TerminalInputChannel(Func<string?> readLine, Action<string
                 if (!ReferenceEquals(terminal._owner, this)) { return -9; }
                 if (terminal._mode != flags)
                 {
+                    _watchSize = false;
                     terminal._mode = flags; terminal._bytes.Clear(); terminal._overflow = false; terminal._echoDecoder=Encoding.UTF8.GetDecoder();
                     _canonical = new LineByteInput(terminal._readLine, cancelled);
                     terminal._generation++;
@@ -88,6 +106,7 @@ internal sealed class TerminalInputChannel(Func<string?> readLine, Action<string
                     cooked = (terminal._mode & Canonical) != 0;
                     if (!cooked)
                     {
+                        if (_watchSize && _lastSize != terminal._size) { return -11; }
                         if (terminal._overflow) { return -75; }
                         int count = Math.Min(buffer.Length, terminal._bytes.Count);
                         for (int i = 0; i < count; i++) { buffer[i] = terminal._bytes.Dequeue(); }

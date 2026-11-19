@@ -442,6 +442,8 @@ z_syscall:
     je z_service
     cmp $408, %rax
     je z_service
+    cmp $410, %rax
+    je z_service
     cmp $0, %rax
     je z_service
     cmp $2, %rax

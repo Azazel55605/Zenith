@@ -89,6 +89,7 @@ internal sealed class ProcessFiles : IDisposable
         if (result > buffer.Length) { throw new IOException("invalid native write count"); }
         _written += result; return result;
     }
+    public int TerminalSize() => _streams?.TerminalSize() ?? -25;
     public int TerminalMode(int fd, int? flags = null) => _streams?.TerminalMode(fd, flags) ?? (fd == 0 && !_inputClosed ? -25 : -9);
     public int OpenCopyDestination(int source, string path)
     {

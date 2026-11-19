@@ -7,7 +7,7 @@ import re
 ROOT=Path(__file__).resolve().parents[1]
 # Audited change: only service admission extends 640..644 to 640..659 (646: resize refusal, 647/648: disks, 649: activity, 650..653: portal, 654..658: files,
 # 659: clipboard paste, 660: thumbnails, 661..666: copied audio, 667: network center, 668: package center; no frame or state changes) and 613..638 to 613..639 (639: clipboard copy). The derivation below never touches those ranges.
-SOURCE_SHA='837407af4851f591cae10a0f06ec66d93beaee067659090aa3572474111d6696'
+SOURCE_SHA='16ce19e06c18283ba9d4dc365551f87671c4171f0bcbdf2bd6a3f733efe85fdd'
 
 def once(s,a,b):
     if s.count(a)!=1:raise RuntimeError('process bridge source contract changed: '+a[:70])

@@ -85,6 +85,27 @@ public class NativeTerminalTests
         var pipe=new ProcessStreams(new ShellInput(""),(_,b)=>b.Length,false,false,true);
         Assert.Equal(-25,pipe.TerminalMode(0,0));Assert.Equal(-9,pipe.TerminalMode(9));
     }
+    [Fact]
+    public void ASizeSubscriberReceivesResizeBeforeQueuedKeys()
+    {
+        var terminal = new TerminalInputChannel(() => null, _ => {}, () => {});
+        terminal.Resize(80, 24);
+        using var lease = terminal.Acquire(() => false);
+        Assert.Equal(-25, lease.Size());
+        Assert.Equal(0, lease.SetMode(0));
+        terminal.Resize(90, 26);
+        terminal.Receive('a');
+        var input = new byte[1];
+        Assert.Equal(1, lease.Read(input));
+        Assert.Equal(26 << 16 | 90, lease.Size());
+        terminal.Resize(120, 40);
+        terminal.Receive('b');
+        Assert.Equal(-11, lease.Read(input));
+        Assert.Equal(40 << 16 | 120, lease.Size());
+        Assert.Equal(1, lease.Read(input));
+        Assert.Equal((byte)'b', input[0]);
+    }
+
     [Theory]
     [InlineData("UpArrow",'\0',false,"\x1b[A")]
     [InlineData("C",'c',true,"\x03")]

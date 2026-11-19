@@ -56,6 +56,7 @@ internal sealed class SerialTerminal : IOutput
         _shell.ReadInputLine = prompt => ReadLine(prompt, false);
         _shell.ReadSecret = prompt => ReadLine(prompt, true);
         _nativeInput = new TerminalInputChannel(() => ReadLine("", false), Emit, () => _shell.CancelForeground());
+        _nativeInput.Resize(80, 24);
         _shell.NativeTerminal = _nativeInput; _inputGeneration = _nativeInput.Generation;
         _shell.ExitRequested += () => { lock (_gate) { _exit = true; } };
     }

@@ -20,7 +20,14 @@ static unsigned int caret, top, left, goal;
 static int prompt, quit;
 static char query[128], search[128];
 static unsigned int query_length, search_length;
-static char frame[IO];
+/* Compose the view before sending only the changed rows to the terminal. */
+enum { MAX_ROWS = 128, MAX_COLUMNS = 512, VIEW_BYTES = MAX_ROWS * (MAX_COLUMNS * 2 + 24) + IO };
+static char view[VIEW_BYTES], previous[VIEW_BYTES], output[VIEW_BYTES];
+static char *frame = view;
+static unsigned int previous_start[MAX_ROWS], previous_length[MAX_ROWS];
+static int clear_screen;
+static unsigned int columns = WIDTH, rows = ROWS, height;
+static int fullscreen;
 static unsigned int used;
 
 static unsigned long length(const char *s)
@@ -237,13 +244,13 @@ static void paint_line(unsigned int line)
 {
     unsigned int position = au_line_start(&text, line), end = au_line_end(&text, line);
     unsigned int column = 0;
-    while (position <= end && column < left + WIDTH) {
+    while (position <= end && column < left + columns) {
         unsigned char c = position == end ? ' ' : (unsigned char)au_at(&text, position);
         unsigned int width = c == '\t' ? TAB - column % TAB : 1;
         unsigned char next = position + 1 < end ? (unsigned char)au_at(&text, position + 1) : 0;
-        for (unsigned int i = 0; i < width && column < left + WIDTH; ++i, ++column) {
+        for (unsigned int i = 0; i < width && column < left + columns; ++i, ++column) {
             if (column < left) continue;
-            int marked = caret == position && i == 0;
+            int marked = !fullscreen && caret == position && i == 0;
             if (marked) add("\x1b[1;96m");
             if (marked && (position == end || c == '\t')) put('|');
             else glyph(c == '\t' ? ' ' : c, next);
@@ -254,21 +261,130 @@ static void paint_line(unsigned int line)
     }
 }
 
+static int refresh_size(void)
+{
+    long size = zenith_call(410, 0, 0, 0);
+    if (size <= 0) return 0;
+    height = (unsigned int)size >> 16;
+    columns = (unsigned int)size & 65535;
+    if (columns < 1 || columns > MAX_COLUMNS) return 0;
+    if (height > MAX_ROWS) height = MAX_ROWS;
+    clear_screen = 1;
+    rows = height - (height >= 4 ? 3 : height == 3 ? 2 : height == 2 ? 1 : 0);
+    return 1;
+}
+
+static int flush_frame(void)
+{
+    for (unsigned int offset = 0; offset < used;) {
+        unsigned int chunk = used - offset;
+        if (chunk > IO) chunk = IO;
+        if (!write_bytes(1, frame + offset, chunk)) return 0;
+        offset += chunk;
+    }
+    return 1;
+}
+
+static void position(unsigned int row, unsigned int column)
+{
+    add("\x1b["); number(row + 1); put(';'); number(column + 1); put('H');
+}
+
+static void footer(unsigned int line, unsigned int col)
+{
+    unsigned int start = used;
+    if (height >= 3) {
+        add("Line "); number(line + 1); add("  Col "); number(col + 1);
+        if (message) { add("  "); add(message); }
+        if (used - start > columns) used = start + columns;
+        add("\r\n");
+    }
+    add("\x1b[7m");
+    start = used;
+    if (prompt == CONFIRM_EXIT) {
+        add(columns >= 42 ? "Save changes? Y Save  N Discard  ^C Cancel" : "Save? Y Yes N No ^C");
+    } else if (prompt == SEARCH) {
+        add("Find: ");
+        if (columns > 6) print_text(query, query_length, columns - 6);
+    } else {
+        add(columns >= 49 ? "^O Save  ^X Exit  ^W Find  ^N Next  ^Z Undo  ^Y Redo" :
+            columns >= 32 ? "^O Save  ^X Exit  ^W Find" : "^O Save ^X Exit");
+    }
+    if (prompt == SEARCH) {
+        unsigned int cells = 6;
+        for (unsigned int i = 0; i < query_length && cells < columns; ++i)
+            if (((unsigned char)query[i] & 192) != 128) ++cells;
+        while (cells++ < columns) put(' ');
+    } else {
+        if (used - start > columns) used = start + columns;
+        while (used - start < columns) put(' ');
+    }
+    add("\x1b[0m");
+}
+
+static int different(const char *a, const char *b, unsigned int count)
+{
+    for (unsigned int i = 0; i < count; ++i)
+        if (a[i] != b[i]) return 1;
+    return 0;
+}
+
+static int draw_view(unsigned int caret_row, unsigned int caret_column)
+{
+    unsigned int start = 0, size = used;
+    frame = output;
+    used = 0;
+    if (clear_screen) add("\x1b[2J");
+    for (unsigned int row = 0; row < height; ++row) {
+        unsigned int end = start;
+        while (end < size && view[end] != '\r') ++end;
+        unsigned int count = end - start;
+        if ((clear_screen && count) || (!clear_screen &&
+            (count != previous_length[row] || different(view + start, previous + previous_start[row], count)))) {
+            position(row, 0);
+            add("\x1b[2K");
+            for (unsigned int i = start; i < end; ++i) put(view[i]);
+        }
+        previous_start[row] = start;
+        previous_length[row] = count;
+        start = end < size ? end + 2 : size;
+    }
+    for (unsigned int i = 0; i < size; ++i) previous[i] = view[i];
+    clear_screen = 0;
+    position(caret_row, caret_column);
+    int ok = flush_frame();
+    frame = view;
+    return ok;
+}
+
 static int paint(void)
 {
     unsigned int line = au_line_of(&text, caret), col = au_column(&text, caret, TAB);
     if (line < top) top = line;
-    if (line >= top + ROWS) top = line - ROWS + 1;
+    if (line >= top + rows) top = line - rows + 1;
     if (col < left) left = col;
-    if (col >= left + WIDTH) left = col - WIDTH + 1;
+    if (col >= left + columns) left = col - columns + 1;
     used = 0;
-    add("\x1b[2J\x1b[HQuill  ");
-    print_text(path, (unsigned int)path_length, WIDTH - 9);
-    if (au_modified(&history)) add(" *");
-    add("\r\n");
-    for (unsigned int row = 0; row < ROWS; ++row) {
-        if (top + row < text.line_count) paint_line(top + row);
+    if (!fullscreen) add("\x1b[2J\x1b[H");
+    unsigned int header = !fullscreen || height >= 4;
+    if (header) {
+        add("Quill  ");
+        print_text(path, (unsigned int)path_length, columns > 9 ? columns - 9 : 0);
+        if (au_modified(&history)) add(" *");
         add("\r\n");
+    }
+    for (unsigned int row = 0; row < rows; ++row) {
+        if (top + row < text.line_count) paint_line(top + row);
+        if (!fullscreen || height > 1) add("\r\n");
+    }
+    if (fullscreen) {
+        if (height > 1) footer(line, col);
+        if (prompt == SEARCH && height > 1) {
+            unsigned int cell = 6;
+            for (unsigned int i = 0; i < query_length; ++i) if (((unsigned char)query[i] & 192) != 128) ++cell;
+            return draw_view(height - 1, cell < columns ? cell : columns - 1);
+        }
+        return draw_view(line - top + header, col - left);
     }
     add("Line "); number(line + 1); add("  Col "); number(col + 1);
     if (message) { add("  "); add(message); }
@@ -364,8 +480,8 @@ static void key(int k, const char *s, unsigned int bytes)
     case END: caret = au_line_end(&text, au_line_of(&text, caret)); break;
     case UP: move_vertical(-1); return;
     case DOWN: move_vertical(1); return;
-    case PAGE_UP: move_vertical(-ROWS); return;
-    case PAGE_DOWN: move_vertical(ROWS); return;
+    case PAGE_UP: move_vertical(-(int)rows); return;
+    case PAGE_DOWN: move_vertical((int)rows); return;
     case '\r': case '\n': edit(caret, 0, "\n", 1, 0); break;
     case '\t': edit(caret, 0, "\t", 1, 0); break;
     default: if (bytes) edit(caret, 0, s, bytes, 1); break;
@@ -458,15 +574,24 @@ int main(int argc, char **argv)
     }
 
     char keys[64];
-    int ok = paint();
+    fullscreen = refresh_size();
+    const char *enter = "\x1b[?1049h\x1b[6 q";
+    const char *leave = "\x1b[0m\x1b[0 q\x1b[?1049l";
+    int ok = (!fullscreen || write_bytes(1, enter, (unsigned int)length(enter))) && paint();
     while (ok && !quit) {
         long count = zenith_call(0, 0, (unsigned long)keys, sizeof(keys));
+        if (fullscreen && count == -11) {
+            if (refresh_size()) ok = paint();
+            else ok = 0;
+            continue;
+        }
         if (count <= 0) { ok = count == 0 && !au_modified(&history); break; }
         for (long i = 0; i < count && !quit; ++i) input((unsigned char)keys[i]);
         if (!quit) ok = paint();
     }
+    if (fullscreen) write_bytes(1, leave, (unsigned int)length(leave));
+    else write_bytes(1, "\x1b[0m\r\n", 6);
     zenith_call(402, 0, (unsigned long)mode, 0);
-    write_bytes(1, "\x1b[0m\r\n", 6);
     if (!ok) write_bytes(2, "quill: terminal interrupted\n", sizeof("quill: terminal interrupted\n") - 1);
     return ok ? 0 : 1;
 }

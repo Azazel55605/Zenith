@@ -91,7 +91,7 @@ internal sealed class TerminalWindow : Window
 
     private void SyncWithJob()
     {
-        _session.Sync(_columns);
+        _session.Sync(_columns, _rows);
         if (_session.TakeRowsMoved()) { _selectionAnchor = null; }   // the rows it referred to have moved
         if (_session.ExitRequested) { Close(); return; }
         if (_session.TakeJobFinished())
@@ -187,6 +187,7 @@ internal sealed class TerminalWindow : Window
 
     public override void OnScroll(int delta)
     {
+        if (_buffer.Alternate is not null) { return; }
         _selectionAnchor = null;
         _scroll = Math.Clamp(_scroll + delta * 3, 0, Math.Max(0, _buffer.LineCount - 1));
         _buffer.Changed = true;
@@ -241,6 +242,21 @@ internal sealed class TerminalWindow : Window
     {
         PaintWorkspace(surface, content, 0, 4);
 
+        if (_buffer.Alternate is TerminalBuffer screen)
+        {
+            int x = content.X + Padding, y = content.Y + Padding;
+            _visibleRows.Clear();
+            for (int row = 0; row < Math.Min(_rows, screen.LineCount); row++)
+            {
+                DrawCells(surface, screen.Line(row), x, y + row * _cellHeight, Theme.IsLight, _columns);
+            }
+            if (IsFocused && _caretVisible && screen.CaretRow < _rows && screen.CaretColumn < _columns)
+            {
+                surface.FillRect(new Rect(x + screen.CaretColumn * _cellWidth, y + screen.CaretRow * _cellHeight, 2, _cellHeight), Theme.Accent);
+            }
+            return;
+        }
+
         // What is shown: the scrollback, then its unfinished last line (e.g. a `read -p` prompt)
         // continued by the shell prompt and the input. Lines are wrapped here, at the current
         // width, so resizing the window reflows everything. While a command runs there is no
@@ -289,7 +305,7 @@ internal sealed class TerminalWindow : Window
             }
         }
 
-        if (IsFocused && _caretVisible && _scroll == 0)
+        if (IsFocused && _caretVisible && _scroll == 0 && !_session.RawActive)
         {
             int caretRow = total - inputRows + caretIndex / _columns - start;
             int caretCol = caretIndex % _columns;
@@ -338,21 +354,23 @@ internal sealed class TerminalWindow : Window
     }
 
     /// <summary>Draws a row of cells, batching runs of the same color into one string.</summary>
-    private void DrawCells(Surface surface, List<Cell> cells, int x, int y, bool light)
+    private void DrawCells(Surface surface, List<Cell> cells, int x, int y, bool light, int limit = int.MaxValue)
     {
-        int start = 0;
-        while (start < cells.Count)
+        int count = Math.Min(limit, cells.Count), start = 0;
+        while (start < count)
         {
             uint color = cells[start].ResolveColor(Theme.TextPrimary, light);
+            bool inverse = cells[start].Inverse;
             int end = start;
             var run = new StringBuilder();
-            while (end < cells.Count && cells[end].ResolveColor(Theme.TextPrimary, light) == color)
+            while (end < count && cells[end].Inverse == inverse && cells[end].ResolveColor(Theme.TextPrimary, light) == color)
             {
                 run.Append(cells[end].Char);
                 end++;
             }
 
-            surface.DrawText(run.ToString(), Fonts.Mono, FontSize, color, x + start * _cellWidth, y);
+            if (inverse) { surface.FillRect(new Rect(x + start * _cellWidth, y, (end - start) * _cellWidth, _cellHeight), color); }
+            surface.DrawText(run.ToString(), Fonts.Mono, FontSize, inverse ? Theme.WindowBackground : color, x + start * _cellWidth, y);
             start = end;
         }
     }

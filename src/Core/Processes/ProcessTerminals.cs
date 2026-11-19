@@ -9,7 +9,7 @@ internal interface IProcessTerminal
     void Key(int code, int modifiers, int extra);
     int Read(Span<byte> destination);
     byte[] State();
-    void Resize(int columns);
+    void Resize(int columns, int rows);
     void Copy(string text);
     void Paste();
     void Close();
@@ -59,12 +59,12 @@ internal sealed class ProcessTerminals : IDisposable
     public int Read(long handle, Span<byte> destination) => Find(handle) is { } session ? session.Read(destination) : -9;
     public byte[]? State(long handle) => Find(handle)?.State();
 
-    public int Resize(long handle, int columns)
+    public int Resize(long handle, int columns, int rows = 0)
     {
         var session = Find(handle);
         if (session is null) { return -9; }
-        if (columns is < MinimumColumns or > MaximumColumns) { return -22; }
-        session.Resize(columns);
+        if (columns is < MinimumColumns or > MaximumColumns || rows is < 0 or > 512) { return -22; }
+        session.Resize(columns, rows);
         return 0;
     }
 

@@ -58,6 +58,7 @@ internal sealed class ProcessStreams
         if (fd != 0 || !_terminal[fd] || _input is not ITerminalInput terminal) { return -25; }
         return flags is int mode ? terminal.SetMode(mode) : terminal.GetMode();
     }
+    public int TerminalSize() => !_closed[0] && _terminal[0] && _terminal[1] && _input is ITerminalInput terminal ? terminal.Size() : -25;
     public int IsTerminal(int fd) => fd < 0 || fd > 2 || _closed[fd] ? -9 : _terminal[fd] ? 1 : 0;
     public void Close() { _closed[0] = _closed[1] = _closed[2] = true; if (_input is ITerminalInput terminal) { terminal.Dispose(); } }
 }

@@ -2,14 +2,18 @@
 static struct pt_line *line_at(const struct pterm *t,unsigned int i){return &t->lines[(t->first_line+i)%t->line_capacity];}
 void pt_clear(struct pterm *t){
     t->first_line=0;t->line_count=1;t->next_cell=0;t->column=0;t->lines[0]=(struct pt_line){0,0,0,0,0};t->changed=1;
-    t->has_prompt=0;
+    t->has_prompt=0;t->row=t->caret_row=t->caret_column=0;
 }
 int pt_init(struct pterm *t,struct pt_cell *cells,unsigned int cell_capacity,struct pt_line *lines,unsigned int line_capacity){
     if(!t||!cells||!lines||cell_capacity<16||line_capacity<2)return 0;
     t->cells=cells;t->cell_capacity=cell_capacity;t->lines=lines;t->line_capacity=line_capacity;
-    t->color=t->bold=0;t->escape=0;t->parameter_count=0;t->utf8=0;t->utf8_left=0;t->osc_length=0;t->dropped=0;
+    t->alternate=0;t->in_alternate=t->private_csi=0;t->grid_stride=0;
+    t->color=t->bold=t->inverse=0;t->escape=0;t->parameter_count=0;t->utf8=0;t->utf8_left=0;t->osc_length=0;t->dropped=0;
     pt_clear(t);return 1;
 }
+const struct pterm *pt_alternate(const struct pterm *t){return t->in_alternate?t->alternate:0;}
+void pt_end_alternate(struct pterm *t){if(t->in_alternate){t->in_alternate=0;t->changed=1;}}
+static struct pterm *screen(struct pterm *t){return t->in_alternate?t->alternate:t;}
 /* Cells live in a ring; a line never wraps around it, which keeps every line contiguous. */
 static void drop_first(struct pterm *t){t->first_line=(t->first_line+1)%t->line_capacity;t->line_count--;t->dropped++;}
 static int overlaps(const struct pterm *t,unsigned int from,unsigned int to){
@@ -20,7 +24,16 @@ static int overlaps(const struct pterm *t,unsigned int from,unsigned int to){
     }
     return 0;
 }
+static struct pt_line *active_line(struct pterm *t){
+    if(!t->grid_stride)return line_at(t,t->line_count-1);
+    while(t->line_count<=t->row){
+        unsigned int row=t->line_count++;
+        *line_at(t,row)=(struct pt_line){row*t->grid_stride,0,0,0,0};
+    }
+    return line_at(t,t->row);
+}
 static void new_line(struct pterm *t){
+    if(t->grid_stride){if(t->row+1<t->line_capacity)t->row++;t->column=0;return;}
     struct pt_line *last=line_at(t,t->line_count-1);
     unsigned int start=last->start+last->length;
     if(t->line_count==t->line_capacity)drop_first(t);
@@ -29,7 +42,14 @@ static void new_line(struct pterm *t){
     t->column=0;t->next_cell=start;
 }
 static void put(struct pterm *t,struct pt_cell c){
-    struct pt_line *l=line_at(t,t->line_count-1);
+    struct pt_line *l=active_line(t);
+    if(t->grid_stride){
+        if(t->column>=t->grid_stride)return;
+        while(l->length<t->column)t->cells[l->start+l->length++]=(struct pt_cell){' ',0,0};
+        t->cells[l->start+t->column++]=c;
+        if(l->length<t->column)l->length=t->column;
+        t->changed=1;return;
+    }
     if(t->column>=PT_MAX_LINE){new_line(t);l=line_at(t,t->line_count-1);}
     if(t->column<l->length){t->cells[l->start+t->column++]=c;t->changed=1;return;}
     unsigned int end=l->start+l->length;
@@ -46,11 +66,13 @@ static void put(struct pterm *t,struct pt_cell c){
     t->cells[end]=c;l->length++;t->column=l->length;t->next_cell=end+1;t->changed=1;
 }
 void pt_put(struct pterm *t,struct pt_cell c){put(t,c);}
-static void sgr(struct pterm *t){
-    if(!t->parameter_count){t->color=t->bold=0;return;}
-    for(int i=0;i<t->parameter_count;i++){
-        int p=t->parameters[i];
-        if(p==0){t->color=0;t->bold=0;}
+static void sgr(struct pterm *t,const int *parameters,int count){
+    if(!count){t->color=t->bold=t->inverse=0;return;}
+    for(int i=0;i<count;i++){
+        int p=parameters[i];
+        if(p==0){t->color=t->bold=t->inverse=0;}
+        else if(p==7)t->inverse=1;
+        else if(p==27)t->inverse=0;
         else if(p==1)t->bold=1;
         else if(p==22)t->bold=0;
         else if(p==39)t->color=0;
@@ -58,12 +80,31 @@ static void sgr(struct pterm *t){
         else if(p>=90&&p<=97)t->color=(unsigned char)(p-81);
     }
 }
-static void control(struct pterm *t,char final){
-    int first=t->parameter_count?t->parameters[0]:0;
-    struct pt_line *l=line_at(t,t->line_count-1);
-    if(final=='m')sgr(t);
+static unsigned int coordinate(int value){return value<1?0:value>512?511:(unsigned int)(value-1);}
+static void control(struct pterm *root,char final){
+    int first=root->parameter_count?root->parameters[0]:0;
+    if(root->private_csi){
+        if(first==1049&&root->alternate){
+            if(final=='h'&&!root->in_alternate){
+                pt_clear(root->alternate);root->alternate->grid_stride=root->alternate->cell_capacity/root->alternate->line_capacity;
+                root->alternate->color=root->alternate->bold=root->alternate->inverse=0;
+                root->in_alternate=1;root->changed=1;
+            }
+            if(final=='l')pt_end_alternate(root);
+        }
+        return;
+    }
+    struct pterm *t=screen(root);
+    if(final=='m')sgr(t,root->parameters,root->parameter_count);
+    else if(final=='H'&&root->in_alternate){
+        t->caret_row=coordinate(first);
+        t->caret_column=coordinate(root->parameter_count>=2?root->parameters[1]:0);
+        t->row=t->caret_row<t->line_capacity?t->caret_row:t->line_capacity-1;
+        t->column=t->caret_column;
+    }
     else if(final=='J'&&first==2)pt_clear(t);
     else if(final=='K'){
+        struct pt_line *l=active_line(t);
         if(first==2){l->length=0;t->column=0;}
         else if(first==0&&t->column<l->length)l->length=t->column;
         t->changed=1;
@@ -73,7 +114,7 @@ static unsigned long number(const char *s,int *at){unsigned long v=0;while(s[*at
 /* OSC 133: A starts a prompt line, D;status;ms ends that line's command. Others are ignored. */
 static void osc(struct pterm *t){
     const char *s=t->osc;
-    if(t->osc_length<5||s[0]!='1'||s[1]!='3'||s[2]!='3'||s[3]!=';')return;
+    if(t->in_alternate||t->osc_length<5||s[0]!='1'||s[1]!='3'||s[2]!='3'||s[3]!=';')return;
     if(s[4]=='A'){t->prompt=t->dropped+t->line_count-1;t->has_prompt=1;line_at(t,t->line_count-1)->mark=PT_PROMPT;return;}
     if(s[4]!='D'||!t->has_prompt||t->prompt<t->dropped)return;
     int at=5;unsigned long status=0,ms=0;
@@ -83,7 +124,7 @@ static void osc(struct pterm *t){
     l->mark=PT_DONE;l->status=(unsigned char)(status>255?255:status);l->ms=(unsigned int)ms;t->changed=1;
 }
 static void character(struct pterm *t,unsigned int c){
-    struct pt_cell cell={(unsigned short)(c>0xffff?'?':c),t->color,t->bold};
+    struct pt_cell cell={(unsigned short)(c>0xffff?'?':c),t->color,(unsigned char)(t->bold|t->inverse<<1)};
     put(t,cell);
 }
 static void byte(struct pterm *t,unsigned char b){
@@ -95,10 +136,11 @@ static void byte(struct pterm *t,unsigned char b){
     if(t->escape==4){t->escape=0;if(b=='\\')return;}
     if(t->escape==1){
         if(b==']'){t->escape=3;t->osc_length=0;return;}
-        if(b=='['){t->escape=2;t->parameter_count=0;for(int i=0;i<8;i++)t->parameters[i]=0;return;}
+        if(b=='['){t->escape=2;t->parameter_count=t->private_csi=0;for(int i=0;i<8;i++)t->parameters[i]=0;return;}
         t->escape=0;return;
     }
     if(t->escape==2){
+        if(b=='?'){t->private_csi=1;return;}
         if(b>='0'&&b<='9'){
             if(!t->parameter_count)t->parameter_count=1;
             int *p=&t->parameters[t->parameter_count-1];
@@ -112,20 +154,21 @@ static void byte(struct pterm *t,unsigned char b){
     if(t->utf8_left){
         if((b&0xc0)==0x80){
             t->utf8=(t->utf8<<6)|(b&0x3f);
-            if(!--t->utf8_left)character(t,t->utf8);
+            if(!--t->utf8_left)character(screen(t),t->utf8);
             return;
         }
-        t->utf8_left=0;character(t,'?');
+        t->utf8_left=0;character(screen(t),'?');
     }
     if(b>=0xf0&&b<0xf8){t->utf8=b&7;t->utf8_left=3;return;}
     if(b>=0xe0&&b<0xf0){t->utf8=b&15;t->utf8_left=2;return;}
     if(b>=0xc2&&b<0xe0){t->utf8=b&31;t->utf8_left=1;return;}
-    if(b>=0x80){character(t,'?');return;}
+    if(b>=0x80){character(screen(t),'?');return;}
     if(b==0x1b){t->escape=1;return;}
+    t=screen(t);
     if(b=='\n'){new_line(t);t->changed=1;return;}
     if(b=='\r'){t->column=0;return;}
     if(b=='\b'){if(t->column)t->column--;return;}
-    if(b=='\t'){unsigned int stop=(t->column/8+1)*8;while(t->column<stop)character(t,' ');return;}
+    if(b=='\t'){unsigned int count=8-t->column%8;while(count--)character(t,' ');return;}
     if(b>=0x20&&b<0x7f)character(t,b);
 }
 void pt_write(struct pterm *t,const char *bytes,unsigned long count){for(unsigned long i=0;i<count;i++)byte(t,(unsigned char)bytes[i]);}

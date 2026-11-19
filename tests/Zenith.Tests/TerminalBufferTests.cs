@@ -11,6 +11,28 @@ public class TerminalBufferTests
         => new string(buffer.Line(index).Select(c => c.Char).ToArray());
 
     [Fact]
+    public void AlternateFramesPreserveHistoryAndKeepTheCaretSeparateFromText()
+    {
+        var terminal = new TerminalBuffer();
+        terminal.Write("history\r\n$ quill\r\n\u001b[?10");
+        terminal.Write("49h\u001b[2J\u001b[HQuill\r\ntext\r\n\u001b[7mSave  \u001b[0m\u001b[2;");
+        terminal.Write("2H");
+        var screen = Assert.IsType<TerminalBuffer>(terminal.Alternate);
+        Assert.Equal("text", LineText(screen, 1));
+        Assert.Equal(1, screen.CaretRow);
+        Assert.Equal(1, screen.CaretColumn);
+        Assert.True(screen.Line(2)[5].Inverse);
+        terminal.Write("\u001b[2;1H\u001b[2Knew\u001b[2;4H");
+        Assert.Equal("new", LineText(screen, 1));
+        Assert.Equal("Save  ", LineText(screen, 2));
+        Assert.Equal(3, screen.CaretColumn);
+        terminal.Write("\u001b[?1049l");
+        Assert.Null(terminal.Alternate);
+        Assert.Equal("history", LineText(terminal, 0));
+        Assert.Equal("$ quill", LineText(terminal, 1));
+    }
+
+    [Fact]
     public void CarriageReturnOverwritesAndEraseRemovesPreviousLongStatus()
     {
         var buffer = new TerminalBuffer(); buffer.Write("long progress status");

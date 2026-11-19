@@ -135,9 +135,10 @@ internal sealed class TerminalSession : IOutput
     }
 
     /// <summary>Takes the worker's output and requests onto the host's thread; finishes a completed job.</summary>
-    public void Sync(int columns)
+    public void Sync(int columns, int rows)
     {
         SyncNativeInput();
+        _nativeInput.Resize(columns, rows);
         if (_columns != columns) { _columns = columns; _columnsChanged = true; }
         if (_columnsChanged && !IsBusy)
         {
@@ -168,6 +169,8 @@ internal sealed class TerminalSession : IOutput
             Emit(output);
             _newOutput = true;
         }
+
+        if (!RawActive) { _buffer.EndAlternate(); }
 
         foreach (var (name, argument, caller) in apps)
         {

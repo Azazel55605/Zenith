@@ -11,9 +11,9 @@ enum { LAYOUT_TALL=0, LAYOUT_COLUMNS=1, LAYOUT_ROWS=2 };
 enum { ID_TALL=1, ID_COLUMNS=2, ID_ROWS=3, ID_FIND=4, ID_CASE=10, ID_PROMPTS=11, ID_PREVIOUS=12, ID_NEXT=13, ID_CLOSE_FIND=14 };
 enum { MAX_MATCHES=1024, MAX_HINTS=26, MAX_MARKS=256 };
 struct pane {
-    int used; long session; struct pterm term; struct zui_scroll view; struct zui_rect rect,text_area;
+    int used; long session; struct pterm term,screen; struct zui_scroll view; struct zui_rect rect,text_area;
     unsigned int state[Z_TERMINAL_STATE_BYTES/4]; const char *text;
-    int columns,following,selecting,has_selection;
+    int columns,rows,following,selecting,has_selection;
     unsigned int anchor_row,anchor_column,head_row,head_column,total_rows;
     unsigned long last_flags,last_cursor,last_lengths;
     long running_since; char command[96];
@@ -23,6 +23,8 @@ struct match { unsigned int line,column; };
 struct hint { unsigned int line,column,length; char text[256]; };
 static unsigned int pixels[640*480];
 static struct pt_cell pool_cells[MAX_PANES][CELLS];static struct pt_line pool_lines[MAX_PANES][LINES];
+static struct pt_cell screen_cells[MAX_PANES][65536];
+static struct pt_line screen_lines[MAX_PANES][128];
 static struct pt_cell edit_cells[8192];static struct pt_line edit_lines[8];
 static struct pterm edit;
 static struct pane panes[MAX_PANES];static struct tab tabs[MAX_PANES];
@@ -52,7 +54,7 @@ static int append_number(char *out,int at,int limit,unsigned long v){
 }
 static unsigned int cell_color(struct pt_cell c){
     int index=c.color?c.color-1:-1;
-    if(index>=0&&index<8&&c.bold)index+=8;
+    if(index>=0&&index<8&&(c.bold&1))index+=8;
     return index<0?ui.theme.text:palette(index);
 }
 /* The session marks a pasted line break with this; the atlas is ASCII, so it is drawn by hand. */
@@ -64,14 +66,18 @@ static void draw_line_break(int x,int y){
     zui_fill(&ui,(struct zui_rect){x+2,y+3+h/2-2,1,3},ui.theme.accent);
 }
 static void draw_cells(const struct pterm *t,unsigned int line,unsigned int from,unsigned int to,int x,int y){
-    char run[512];unsigned long used=0;int run_x=x;unsigned int color=0;
+    char run[512];unsigned long used=0;int run_x=x,inverse=0;unsigned int color=0;
     for(unsigned int i=from;i<=to;i++){
         struct pt_cell c=i<to?pt_cell_at(t,line,i):(struct pt_cell){0,0,0};
         int mark=i<to&&c.ch==LINE_BREAK_MARK;
         unsigned int next=i<to?cell_color(c):color;
-        if(used&&(i==to||mark||next!=color||used+3>=sizeof(run))){zui_text(&ui,run_x,y,run,used,&zui_mono,color);used=0;}
+        int reversed=(c.bold&2)!=0,cell_x=x+(int)(i-from)*cell_width();
+        if(used&&(i==to||mark||next!=color||reversed!=inverse||used+3>=sizeof(run))){
+            if(inverse)zui_fill(&ui,(struct zui_rect){run_x,y-1,cell_x-run_x,cell_height()},color);
+            zui_text(&ui,run_x,y,run,used,&zui_mono,inverse?ui.theme.surface:color);used=0;
+        }
         if(mark){draw_line_break(x+(int)(i-from)*cell_width(),y);continue;}
-        if(i<to){if(!used)run_x=x+(int)(i-from)*cell_width();color=next;used+=(unsigned long)pt_utf8(c.ch?c.ch:' ',run+used);}
+        if(i<to){if(!used)run_x=x+(int)(i-from)*cell_width();color=next;inverse=reversed;used+=(unsigned long)pt_utf8(c.ch?c.ch:' ',run+used);}
     }
 }
 /* The session keeps the edit line; the last logical line is what it continues, like `read -p`. */
@@ -177,6 +183,19 @@ static void draw_pane(struct pane *p,int focused,int many){
     if(material)zui_round_alpha(&ui,r,8,ui.theme.surface,40);
     else zui_round(&ui,r,8,ui.theme.surface);
     zui_round_outline(&ui,r,8,focused&&many?ui.theme.accent:ui.theme.border);
+    const struct pterm *screen=pt_alternate(&p->term);
+    if(screen){
+        struct zui_rect area={r.x+PADDING,r.y+8,r.w-PADDING-14,r.h-16};
+        p->text_area=area;
+        int height=cell_height();
+        for(unsigned int row=0;row<screen->line_count&&row<(unsigned int)p->rows;row++){
+            unsigned int n=pt_length(screen,row);
+            draw_cells(screen,row,0,n<columns?n:columns,area.x,area.y+(int)row*height+1);
+        }
+        if(focused&&ui.window_focused&&caret_on&&screen->caret_row<(unsigned int)p->rows&&screen->caret_column<columns)
+            zui_fill(&ui,(struct zui_rect){area.x+(int)screen->caret_column*cell_width(),area.y+(int)screen->caret_row*height+1,2,height-2},ui.theme.accent);
+        return;
+    }
     compose_edit(p);
     unsigned int history=0;
     for(unsigned int i=0;i+1<p->term.line_count;i++)history+=pt_rows(pt_length(&p->term,i),columns);
@@ -236,7 +255,14 @@ static void place_panes(void){
         if(columns<20)columns=20;
         if(r.x!=p->rect.x||r.y!=p->rect.y||r.w!=p->rect.w||r.h!=p->rect.h)p->has_selection=0;
         p->rect=r;
-        if(columns!=p->columns){p->columns=columns;zenith_terminal_resize(p->session,columns);}
+        int rows=(r.h-16)/cell_height();
+        if(rows<1)rows=1;
+        if(rows>128)rows=128;
+        if(columns>512)columns=512;
+        if(columns!=p->columns||rows!=p->rows){
+            p->columns=columns;p->rows=rows;
+            if(zenith_terminal_resize_grid(p->session,columns,rows)<0)zenith_terminal_resize(p->session,columns);
+        }
     }
 }
 /* Small drawn glyphs for the layout control; the shared icon set has none for these. */
@@ -358,12 +384,14 @@ static int open_pane(struct tab *t,int columns){
         long session=zenith_terminal_open(columns<20?20:columns);
         if(session<0)return 0;
         struct pane *p=&panes[i];
-        p->used=1;p->session=session;p->columns=columns;p->following=1;p->has_selection=p->selecting=0;
+        p->used=1;p->session=session;p->columns=columns;p->rows=0;p->following=1;p->has_selection=p->selecting=0;
         p->view=(struct zui_scroll){{0,0,0,0},{0,0,0,0},0,0,0,0,0,0,0};
         p->rect=(struct zui_rect){0,0,0,0};p->text=(const char *)p->state+24;
         for(unsigned int w=0;w<Z_TERMINAL_STATE_BYTES/4;w++)p->state[w]=0;
         p->last_flags=p->last_cursor=p->last_lengths=0;p->running_since=0;p->command[0]=0;
         pt_init(&p->term,pool_cells[i],CELLS,pool_lines[i],LINES);
+        pt_init(&p->screen,screen_cells[i],65536,screen_lines[i],128);
+        p->term.alternate=&p->screen;
         t->panes[t->count]=i;t->active=t->count++;ui.dirty=1;
         return 1;
     }
@@ -559,7 +587,7 @@ static void handle_event(const struct zenith_gui_event *e,int *done){
     struct pane *p=pane_now();
     if(e->type==Z_GUI_SCROLL){
         struct pane *under=pane_at(e->x,e->y,0);
-        if(under&&zui_scroll_event(&ui,&under->view,e))under->following=under->view.offset==zui_scroll_maximum(&under->view);
+        if(under&&!pt_alternate(&under->term)&&zui_scroll_event(&ui,&under->view,e))under->following=under->view.offset==zui_scroll_maximum(&under->view);
         return;
     }
     if(e->type!=Z_GUI_KEY){
@@ -578,6 +606,7 @@ static void handle_event(const struct zenith_gui_event *e,int *done){
         if(which!=tab_now()->active){tab_now()->active=which;find.stale=1;hints.open=0;ui.dirty=1;}
         p=under;
     }
+    if(e->type!=Z_GUI_KEY&&pt_alternate(&p->term))return;
     if(e->type!=Z_GUI_KEY&&zui_scroll_event(&ui,&p->view,e)){p->following=p->view.offset==zui_scroll_maximum(&p->view);return;}
     if(p->view.dragging){if(e->type==Z_GUI_UP)p->view.dragging=0;return;}
     if(e->type==Z_GUI_DOWN){
@@ -646,6 +675,9 @@ static int read_pane(struct pane *p,int *got_output){
     }
     int change=p->term.changed;p->term.changed=0;
     if(zenith_terminal_state(p->session,p->state)<24)return -1;
+    if(!(p->state[1]&(Z_TERMINAL_BUSY|Z_TERMINAL_RAW))&&pt_alternate(&p->term)){
+        pt_end_alternate(&p->term);change=1;
+    }
     unsigned long lengths=p->state[3]*65536UL+p->state[4];
     if(p->state[1]!=p->last_flags||p->state[2]!=p->last_cursor||lengths!=p->last_lengths){
         if((p->state[1]&Z_TERMINAL_BUSY)&&!(p->last_flags&Z_TERMINAL_BUSY))p->running_since=now_ms;

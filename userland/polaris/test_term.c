@@ -55,5 +55,18 @@ int main(void){
     /* A prompt line that scrolled away is not marked by a late D. */
     pt_clear(&t);W("\x1b]133;A\x07$ long\n");for(int i=0;i<100;i++)W("line\n");W("\x1b]133;D;0;5\x07");
     for(unsigned int i=0;i<t.line_count;i++)assert(pt_mark(&t,i,0,0)!=PT_DONE);
+    /* Alternate frames preserve shell history, inverse cells and split cursor sequences. */
+    pt_clear(&t);W("shell history\n$ quill\n");
+    struct pterm alternate;struct pt_cell screen_cells[256];struct pt_line screen_lines[16];
+    assert(pt_init(&alternate,screen_cells,256,screen_lines,16));t.alternate=&alternate;
+    W("\x1b[?10");W("49h\x1b[2J\x1b[HQuill\r\ntext\r\n\x1b[7mSave  \x1b[0m\x1b[2;");
+    W("2H");assert(pt_alternate(&t)==&alternate);
+    same(&alternate,0,"Quill");same(&alternate,1,"text");same(&alternate,2,"Save  ");
+    assert(alternate.caret_row==1&&alternate.caret_column==1);
+    assert((pt_cell_at(&alternate,2,5).bold&2)!=0);
+    W("\x1b[2;1H\x1b[2Knew\x1b[2;4H");
+    same(&alternate,1,"new");same(&alternate,2,"Save  ");assert(alternate.caret_column==3);
+    W("\x1b[?1049l");assert(!pt_alternate(&t));
+    same(&t,0,"shell history");same(&t,1,"$ quill");
     puts("PASS Polaris scrollback: lines, escapes, UTF-8, wrapping and bounded rings");return 0;
 }

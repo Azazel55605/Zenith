@@ -8,16 +8,18 @@ namespace Zenith.Gui.Terminal;
 internal readonly struct Cell
 {
     public Cell(char ch, uint color) : this(ch, color, -2) { }
-    internal Cell(char ch, uint color, int style)
+    internal Cell(char ch, uint color, int style, bool inverse = false)
     {
         Char = ch;
         Color = color;
         _style = style;
+        Inverse = inverse;
     }
     private readonly int _style;
     public uint ResolveColor(uint foreground, bool light)
         => _style == -2 ? Color : _style < 0 ? foreground : TerminalColors.Resolve(_style, light);
 
+    public bool Inverse { get; }
     public char Char { get; }
     public uint Color { get; }
 }
@@ -46,6 +48,20 @@ internal sealed class TerminalBuffer
     private int _cursor;
     private int _baseColor = -1;
 
+    private bool _inverse;
+    private bool _positioned;
+    private int _row;
+    private string? _escape;
+    public TerminalBuffer? Alternate { get; private set; }
+    public int CaretRow { get; private set; }
+    public int CaretColumn { get; private set; }
+    internal void EndAlternate()
+    {
+        if (Alternate is null) { return; }
+        Alternate = null;
+        Changed = true;
+    }
+
     public int LineCount => _lines.Count;
 
     /// <summary>Raised whenever the content changes, so the window can redraw.</summary>
@@ -60,46 +76,54 @@ internal sealed class TerminalBuffer
     {
         _lines.Clear();
         _lines.Add(new List<Cell>());
-        _cursor = 0;
+        _row = _cursor = CaretRow = CaretColumn = 0;
         Changed = true;
     }
 
     public void Write(string text)
     {
-        for (int i = 0; i < text.Length; i++)
+        foreach (char c in text)
         {
-            char c = text[i];
-            if (c == '\u001b' && i + 1 < text.Length && text[i + 1] == '[')
+            if (c == '\u001b') { _escape = ""; continue; }
+            if (_escape is string sequence)
             {
-                i = ParseEscape(text, i + 2);
-                continue;
-            }
-
-            switch (c)
-            {
-                case '\b':
-                    _cursor = Math.Max(0, _cursor - 1);
-                    break;
-                case '\n':
-                    NewLine();
-                    break;
-                case '\r':
-                    _cursor = 0;
-                    break;
-                case '\t':
-                    do
+                if (sequence.Length == 0)
+                {
+                    _escape = c == '[' ? "[" : null;
+                    if (c == '[') { continue; }
+                }
+                else
+                {
+                    if (c is >= '@' and <= '~')
                     {
-                        Put(' ');
+                        string args = sequence[1..];
+                        if (args == "?1049" && c == 'h') { Alternate ??= new TerminalBuffer { _positioned = true }; }
+                        else if (args == "?1049" && c == 'l') { EndAlternate(); }
+                        else { (Alternate ?? this).ApplyEscape(args, c); }
+                        _escape = null;
                     }
-                    while (CursorColumn % 8 != 0);
-                    break;
-                default:
-                    Put(c);
-                    break;
+                    else { _escape = sequence.Length < 64 ? sequence + c : null; }
+                    continue;
+                }
             }
+            (Alternate ?? this).WriteCharacter(c);
         }
 
         Changed = true;
+    }
+
+    private void WriteCharacter(char c)
+    {
+        switch (c)
+        {
+            case '\b': _cursor = Math.Max(0, _cursor - 1); break;
+            case '\n': NewLine(); break;
+            case '\r': _cursor = 0; break;
+            case '\t':
+                do { Put(' '); } while (CursorColumn % 8 != 0);
+                break;
+            default: Put(c); break;
+        }
     }
 
     /// <summary>Appends already-colored cells (e.g. a copy of another buffer's unfinished line).</summary>
@@ -114,11 +138,19 @@ internal sealed class TerminalBuffer
     }
 
     private int Style => _baseColor < 0 ? -1 : _bold && _baseColor < 8 ? _baseColor + 8 : _baseColor;
-    private void Put(char c) => Put(new Cell(c, _color, Style));
+    private void Put(char c) => Put(new Cell(c, _color, Style, _inverse));
+
+    private List<Cell> ActiveLine()
+    {
+        if (!_positioned) { return _lines[^1]; }
+        while (_lines.Count <= _row) { _lines.Add(new List<Cell>()); }
+        return _lines[_row];
+    }
 
     private void Put(Cell cell)
     {
-        var line = _lines[^1];
+        if (_positioned && _cursor >= 512) { return; }
+        var line = ActiveLine();
         while (line.Count < _cursor) { line.Add(new Cell(' ', _color, Style)); }
         if (_cursor < line.Count) { line[_cursor] = cell; } else { line.Add(cell); }
         _cursor++;
@@ -147,6 +179,7 @@ internal sealed class TerminalBuffer
     private void NewLine()
     {
         _cursor = 0;
+        if (_positioned) { _row = Math.Min(511, _row + 1); return; }
         _lines.Add(new List<Cell>());
         if (_lines.Count > MaxLines)
         {
@@ -154,58 +187,50 @@ internal sealed class TerminalBuffer
         }
     }
 
-    /// <summary>Applies one CSI sequence starting after "ESC[" and returns the index of its final character.</summary>
-    private int ParseEscape(string text, int i)
+    private void ApplyEscape(string args, char final)
     {
-        int start = i;
-        while (i < text.Length && !char.IsLetter(text[i]))
-        {
-            i++;
-        }
-
-        if (i >= text.Length)
-        {
-            return text.Length - 1;
-        }
-
-        string args = text.Substring(start, i - start);
-        switch (text[i])
+        switch (final)
         {
             case 'm':
                 foreach (string part in args.Length == 0 ? new[] { "0" } : args.Split(';'))
                 {
-                    ApplySgr(int.TryParse(part, out int code) ? code : 0);
+                    if (int.TryParse(part, out int code)) { ApplySgr(code); }
                 }
-
+                break;
+            case 'H':
+                string[] position = args.Split(';');
+                CaretRow = Coordinate(position[0]);
+                CaretColumn = position.Length > 1 ? Coordinate(position[1]) : 0;
+                if (_positioned) { _row = CaretRow; _cursor = CaretColumn; }
                 break;
             case 'K':
-                if (args == "2") { _lines[^1].Clear(); }
-                else if (args is "" or "0" && _cursor < _lines[^1].Count)
-                { _lines[^1].RemoveRange(_cursor, _lines[^1].Count - _cursor); }
+                List<Cell> line = ActiveLine();
+                if (args == "2") { line.Clear(); }
+                else if (args is "" or "0" && _cursor < line.Count)
+                { line.RemoveRange(_cursor, line.Count - _cursor); }
                 break;
             case 'J':
-                if (args == "2")
-                {
-                    Clear();
-                }
-
+                if (args == "2") { Clear(); }
                 break;
         }
-
-        return i;
     }
+
+    private static int Coordinate(string value)
+        => int.TryParse(value, out int coordinate) ? Math.Clamp(coordinate, 1, 512) - 1 : 0;
 
     private void ApplySgr(int code)
     {
         if (code == 0)
         {
-            _bold = false;
+            _bold = _inverse = false;
             _baseColor = -1;
         }
         else if (code == 1)
         {
             _bold = true;
         }
+        else if (code == 7) { _inverse = true; }
+        else if (code == 27) { _inverse = false; }
         else if (code >= 30 && code <= 37)
         {
             _baseColor = code - 30;
