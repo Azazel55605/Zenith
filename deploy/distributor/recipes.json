@@ -137,6 +137,14 @@
     "program": "horizon",
     "generate": "native"
   },
+  "zenith-quill": {
+    "kind": "data",
+    "name": "zenith-quill",
+    "repository": "extra",
+    "payload": "obj/packages/zenith-quill",
+    "program": "quill",
+    "generate": "native"
+  },
   "zenith-aurora": {
     "kind": "data",
     "name": "zenith-aurora",

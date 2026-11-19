@@ -74,6 +74,46 @@ missing or failing Polaris falls back to, and local console and serial are uncha
    is one content material and panes keep only the toolkit's light tint; a hidden prompt in view keeps it solid.
    Not built: profiles, inline images, regular expressions in find, and opening a hint directly.
 
+## U13 — Quill
+
+Quill is a single-file terminal editor, packaged as `zenith-quill` in extra. Run
+`quill FILE`, or `native run quill FILE` on a compatible kernel without the short command.
+A missing file is created on the first successful save.
+
+| Keys | Action |
+|---|---|
+| Arrow keys, Home/End, Page Up/Page Down | Navigate |
+| Ctrl+O | Save to the current path |
+| Ctrl+X | Exit, asking whether to save or discard unsaved edits |
+| Ctrl+W, Enter | Find literal text, ignoring ASCII case |
+| Ctrl+N | Find the next match, wrapping to the start |
+| Ctrl+Z / Ctrl+Y | Undo / redo |
+| Ctrl+C | Cancel a search or exit prompt |
+
+The editor uses [Aurora's text buffer](../../userland/aurora/buffer.c) and the foreground
+raw keyboard lease. It opens UTF-8 text up to 256 KiB and 32,768 lines, including a
+final empty line if present. It preserves a UTF-8 BOM and the predominant newline
+format. The first version uses a fixed eight-row, 48-column view with a marked
+caret. It displays ASCII and printable Latin-1 and shows other code points as
+`?` while preserving their bytes. Its redraws use the existing terminal clear
+sequence, which clears graphical scrollback. Native I/O and syscall quotas
+still apply to each editing session.
+
+Saves use a temporary directory alongside the file and rename the flushed
+replacement into place. Saving an unchanged existing file leaves it alone.
+Existing files must be regular and writable. Quill
+preserves owner, group and ordinary permission bits or fails the save. It checks
+for changes to file contents and metadata before replacement. Concurrent edits can
+still race the final rename, and hard links to the previous inode retain their
+old contents.
+
+Build with `python3 tools/build-userland.py DEST --program quill`.
+Local QEMU checks used a signed test package and verified keyboard editing,
+save and shell return on COM1, the built-in Terminal and Polaris. The COM1
+test also checked undo/redo, search, exit confirmation and the saved ext2
+bytes and permissions. Publication and installed VMware acceptance are
+tracked in the [roadmap](../ROADMAP.md).
+
 ## H1 / N1 / X2 — Related work
 
 Sustained PS/2/relative-input and home-network behavior need measured regression
