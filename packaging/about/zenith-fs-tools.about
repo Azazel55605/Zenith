@@ -1,0 +1,6 @@
+ZENITH-ABOUT	1
+title	Filesystem tools
+summary	Filesystem and account tools
+description	Programs for the shell that check filesystems and manage accounts.
+category	tools
+icon	hard-drive

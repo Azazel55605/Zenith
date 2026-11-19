@@ -57,20 +57,22 @@ internal static class NativePackageCache
     }
 
     /// <summary>After a completed transaction (its archives are installed or staged): the automatic cleanup.</summary>
-    public static void AfterTransaction(CommandContext c)
+    public static void AfterTransaction(CommandContext c) => AfterTransaction(c.WriteLine);
+    public static void AfterTransaction(Action<string> say)
     {
         if (!Automatic) { return; }
         try
         {
             var plan = Clean(PackageCacheMode.All, false, out int failed);
-            if (plan.Remove.Count > 0) { c.WriteLine("package cache: removed " + (plan.Remove.Count - failed) + " files, " + PackageCachePolicy.Human(plan.Bytes)); }
+            if (plan.Remove.Count > 0) { say("package cache: removed " + (plan.Remove.Count - failed) + " files, " + PackageCachePolicy.Human(plan.Bytes)); }
         }
-        catch (Exception error) { c.WriteLine("package cache cleanup skipped: " + error.Message); }
+        catch (Exception error) { say("package cache cleanup skipped: " + error.Message); }
     }
 
     /// <summary>Before downloading: room for the archives not cached yet, their installed payloads and a
     /// reserve on the root filesystem. Old archives are cleaned first when that makes room.</summary>
-    public static void EnsureSpace(IEnumerable<RepositoryEntry> downloads, CommandContext c)
+    public static void EnsureSpace(IEnumerable<RepositoryEntry> downloads, CommandContext c) => EnsureSpace(downloads, c.WriteLine);
+    public static void EnsureSpace(IEnumerable<RepositoryEntry> downloads, Action<string> say)
     {
         ulong needed = 0;
         foreach (var entry in downloads)
@@ -83,7 +85,7 @@ internal static class NativePackageCache
         if (Automatic)
         {
             var plan = Clean(PackageCacheMode.All, false, out _);
-            if (plan.Remove.Count > 0) { c.WriteLine("package cache: removed " + plan.Remove.Count + " files to make room, " + PackageCachePolicy.Human(plan.Bytes)); }
+            if (plan.Remove.Count > 0) { say("package cache: removed " + plan.Remove.Count + " files to make room, " + PackageCachePolicy.Human(plan.Bytes)); }
             free = Store.FreeBytes;
             if (free >= required) { return; }
         }

@@ -136,8 +136,24 @@ internal sealed class PackageManager
     public void Install(IReadOnlyList<SignedPackage> incoming, Action cancel, Action<string>? progress = null)
     {
         if (incoming.Count is < 1 or > 32) { throw new IOException("install expects 1..32 signed packages"); }
+        Change(incoming, Array.Empty<string>(), cancel, progress);
+    }
+    /// <summary>Installs, upgrades and removes in one transaction (Orbit's plan): nothing changes until all of it is
+    /// ready, and the set must be valid afterwards.</summary>
+    public void Change(IReadOnlyList<SignedPackage> incoming, IReadOnlyList<string> remove, Action cancel, Action<string>? progress = null)
+    {
+        if (incoming.Count > 32 || remove.Count > 16 || incoming.Count + remove.Count == 0) { throw new IOException("a transaction installs 0..32 and removes 0..16 packages"); }
         Recover(); var old = new List<InstalledPackage>(List()); var next = new List<InstalledPackage>(old);
         var seen = new HashSet<string>(StringComparer.Ordinal); var changes = new Dictionary<string, (byte[]? Data, ushort Mode)>(StringComparer.Ordinal);
+        var freed = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string name in remove)
+        {
+            cancel();
+            if (!seen.Add(name)) { throw new IOException("duplicate removal target"); }
+            var item = next.Find(x => x.Manifest.Name == name) ?? throw new IOException("package is not independently installed: " + name);
+            next.Remove(item);
+            foreach (var file in item.Manifest.Files) { _ = Owned(file); changes[file.Path] = (null, file.Mode); freed.Add(file.Path); }
+        }
         foreach (var package in incoming)
         {
             cancel(); var manifest = package.Manifest;
@@ -154,7 +170,7 @@ internal sealed class PackageManager
             {
                 Parents(file.Path);
                 if (file.Path.EndsWith(".pkg-new", StringComparison.Ordinal)) { throw new IOException("reserved staging suffix"); }
-                bool owned = existing is not null && Contains(existing.Manifest.Files, file.Path);
+                bool owned = (existing is not null && Contains(existing.Manifest.Files, file.Path)) || freed.Contains(file.Path);
                 if (!owned && _store.State(file.Path) != PackagePathState.Missing) { throw new IOException("unowned path conflict: " + file.Path); }
                 changes[file.Path] = (package.Read(file), file.Mode);
             }
@@ -243,6 +259,10 @@ internal sealed class PackageManager
             else { Cleanup(backups.Count); }
             throw;
         }
+        // Every committed change goes into the history, whoever started it (Orbit, the shell, the installer).
+        var who = PackageHistory.Who();
+        PackageHistory.Append(_store, new(PackageHistory.Now(), who.Uid, who.User, PackageHistory.Source, true,
+            PackageHistory.Changes(old, next), PackageHistory.Command, ""));
     }
     private void Cleanup(int count)
     {

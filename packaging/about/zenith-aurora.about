@@ -1,0 +1,7 @@
+ZENITH-ABOUT	1
+title	Aurora
+summary	The text and code editor
+description	Edit text and code with tabs, syntax colors, search and replace with regular expressions, folding and several cursors.
+category	apps
+icon	file-code
+change	0.3.0	Folding, several cursors and color schemes

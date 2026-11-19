@@ -205,6 +205,46 @@ internal static class NativeKernelUpdates
         try { int result = c.Args[1] == "check" ? Execute() : Mutation(Execute, true); progress.Finish(); return result; }
         catch { progress.Finish(); throw; }
     }
+    /// <summary>Verifies and stages a downloaded kernel for the next boot (Orbit's plan, kernel 0.0.70); the caller
+    /// holds the package service. Returns the staged version.</summary>
+    public static string Stage(string path, Action cancel, Action<string> progress)
+    {
+        string version = "";
+        int Execute()
+        {
+            var store = new NativeKernelUpdateStore { Cancel = cancel, Progress = progress };
+            var package = KernelPackage.Read(store.Read(path, KernelPackage.MaximumBytes), store.Read(Zenith.Core.Shell.Commands.PackageCommands.KeyPath, 4096), new NativePackageVerifier());
+            Open(store).Install(package, NativeBootAssets.RunningKernelId(), cancel, text =>
+            {
+                progress(text);
+                if (text == "Publishing next-boot generation") { TestCheckpoint("staged"); }
+            });
+            SystemMounts.SyncAll(); version = package.Version;
+            return 0;
+        }
+        Mutation(Execute, true);
+        return version;
+    }
+    /// <summary>The kernel this system runs and the newest it has staged, for anyone to read (Orbit's overview).</summary>
+    public static (string Running, string HighWater, bool Pending)? Versions()
+    {
+        try
+        {
+            var scope = Zenith.Core.Security.CredentialContext.Enter(Zenith.Core.Security.Credentials.Root);
+            (string, string, bool)? result = null;
+            try
+            {
+                var state = Open(new NativeKernelUpdateStore()).Status();
+                string running = NativeBootAssets.RunningKernelId();
+                string current = running == state.Current.Id ? state.Current.Version : state.Previous is not null && running == state.Previous.Id ? state.Previous.Version : state.Current.Version;
+                result = (current, state.HighWater, state.Pending);
+            }
+            catch (Exception) { }
+            scope.Dispose();
+            return result;
+        }
+        catch (Exception) { return null; }
+    }
     public static void CheckCandidate(string path)
     {
         GuardedFilesystem.RequireRoot(); var store = new NativeKernelUpdateStore();

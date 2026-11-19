@@ -1,0 +1,8 @@
+ZENITH-ABOUT	1
+title	Horizon
+summary	Files and folders
+description	Browse, copy, move and delete files in tabs, open archives, see thumbnails and open files with the right program.
+category	apps
+icon	folder
+change	0.3.0	Middle-click tabs, permissions kept on copies, progressive JPEG and interlaced PNG thumbnails
+planned	Removable drives

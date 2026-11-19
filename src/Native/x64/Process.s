@@ -392,10 +392,10 @@ z_forward:
     ret
 z_syscall:
     # 640/641 display, 642..644 monitor, 645/646 framebuffer/resize refusal, 647/648 disks, 649 activity, 650..653 portal, 654..658 files,
-    # 659 clipboard paste, 660 thumbnails, 661..666 copied audio services, 667 network center.
+    # 659 clipboard paste, 660 thumbnails, 661..666 copied audio services, 667 network center, 668 package center.
     cmp $640, %rax
     jb 11f
-    cmp $667, %rax
+    cmp $668, %rax
     jbe z_service
 11:
     # 613..639: viewport, terminals, title, 639 clipboard copy.

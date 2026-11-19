@@ -49,6 +49,16 @@ internal sealed class ProcessTable
             if (_entries.TryGetValue(pid, out var entry) && entry.State != ProcessState.Exited && !entry.Client) { entry.Client = true; _clients++; }
         }
     }
+    /// <summary>The names of the programs that package and power work wait for (Orbit names them).</summary>
+    public string BlockingNames()
+    {
+        lock (_gate)
+        {
+            var names = new List<string>();
+            foreach (var entry in _entries.Values) { if (entry.State != ProcessState.Exited && !entry.Client && !names.Contains(entry.Name)) { names.Add(entry.Name); } }
+            return string.Join(", ", names);
+        }
+    }
     public int Start(string name, uint uid, Action stop)
     {
         if (name.Length is < 1 or > 64) { throw new ArgumentException("invalid process name"); }

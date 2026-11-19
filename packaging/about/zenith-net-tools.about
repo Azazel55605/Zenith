@@ -1,0 +1,6 @@
+ZENITH-ABOUT	1
+title	Network tools
+summary	Downloads and network checks
+description	Programs for the shell that fetch files over HTTPS and check connections.
+category	tools
+icon	network

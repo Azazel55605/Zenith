@@ -148,7 +148,10 @@ internal static class NativeSeed
         var packages = Packages();
         if (packages.Count == 0) { return 0; }
         var manager = new PackageManager(new NativePackageStore(root));
+        // The new system's history starts with what the installer put there.
+        PackageCenter.Bind(); PackageHistory.Source = "installer"; PackageHistory.Command = "";
         manager.Install(packages, () => { }, step => progress("Installing apps: " + step));
+        PackageHistory.Source = "shell";
         return packages.Count;
     }
 }

@@ -1,0 +1,6 @@
+ZENITH-ABOUT	1
+title	Manual pages
+summary	Help for every command
+description	The manual pages read with man, for every shell command.
+category	documents
+icon	file-text

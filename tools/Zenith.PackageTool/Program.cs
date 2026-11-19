@@ -18,6 +18,11 @@ try
         RejectLinks(source);
         var files = new List<string>(); int visited = 0;
         if (!meta) { Walk(source, files, ref visited); }
+        // Orbit reads a package's own description from /usr/share/zenith/about/NAME.about (kernel 0.0.70). The source
+        // is packaging/about/NAME.about in the checkout; older kernels see an ordinary data file.
+        string? about = meta ? null : AboutSource(name);
+        string aboutTarget = "/usr/share/zenith/about/" + name + ".about";
+        if (about is not null && files.Any(f => "/" + Path.GetRelativePath(source, f).Replace(Path.DirectorySeparatorChar, '/') == aboutTarget)) { about = null; }
         if (!meta && files.Count == 0) { throw new IOException("empty package"); }
         files.Sort(StringComparer.Ordinal);
         string temporary = output + ".staging-" + Guid.NewGuid().ToString("N");
@@ -42,6 +47,7 @@ try
             if (native && name == "zenith-aurora") { manifest.Append("requires\tzenith-native-graphics-abi\t1.0\nrequires\tzenith-native-interactive-abi\t1.0\nrequires\tzenith-native-viewport-abi\t1.0\nrequires\tzenith-native-settings-abi\t1.0\nrequires\tzenith-native-personal-appearance-abi\t1.0\nrequires\tzenith-native-background-abi\t1.0\nrequires\tzenith-native-memory-abi\t1.0\nrequires\tzenith-native-framebuffer-abi\t1.0\nrequires\tzenith-native-files-abi\t1.0\nrequires\tzenith-native-window-state-abi\t1.0\nrequires\tzenith-native-clipboard-abi\t1.0\n"); }
             if (native && name == "zenith-equinox") { manifest.Append("requires\tzenith-native-graphics-abi\t1.0\nrequires\tzenith-native-interactive-abi\t1.0\nrequires\tzenith-native-viewport-abi\t1.0\nrequires\tzenith-native-settings-abi\t1.0\nrequires\tzenith-native-personal-appearance-abi\t1.0\nrequires\tzenith-native-background-abi\t1.0\nrequires\tzenith-native-memory-abi\t1.0\nrequires\tzenith-native-framebuffer-abi\t1.0\nrequires\tzenith-native-disk-abi\t1.0\n"); }
             if (native && name == "zenith-beacon") { manifest.Append("requires\tzenith-native-graphics-abi\t1.0\nrequires\tzenith-native-interactive-abi\t1.0\nrequires\tzenith-native-viewport-abi\t1.0\nrequires\tzenith-native-settings-abi\t1.0\nrequires\tzenith-native-personal-appearance-abi\t1.0\nrequires\tzenith-native-background-abi\t1.0\nrequires\tzenith-native-memory-abi\t1.0\nrequires\tzenith-native-framebuffer-abi\t1.0\nrequires\tzenith-native-portal-abi\t1.0\nrequires\tzenith-native-network-center-abi\t1.0\n"); }
+            if (native && name == "zenith-orbit") { manifest.Append("requires\tzenith-native-graphics-abi\t1.0\nrequires\tzenith-native-interactive-abi\t1.0\nrequires\tzenith-native-viewport-abi\t1.0\nrequires\tzenith-native-settings-abi\t1.0\nrequires\tzenith-native-personal-appearance-abi\t1.0\nrequires\tzenith-native-background-abi\t1.0\nrequires\tzenith-native-memory-abi\t1.0\nrequires\tzenith-native-framebuffer-abi\t1.0\nrequires\tzenith-native-portal-abi\t1.0\nrequires\tzenith-native-package-center-abi\t1.0\n"); }
             if (native && name == "zenith-net-tools") { manifest.Append("requires\tzenith-native-network-abi\t1.0\n"); }
             if (meta)
             {
@@ -65,6 +71,17 @@ try
                 string target = temporary + "/payload" + path;
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!); File.WriteAllBytes(target, data);
                 manifest.Append("file\t").Append(path).Append(native && path.EndsWith(".elf", StringComparison.Ordinal) ? "\t0755\t" : "\t0644\t").Append(data.Length).Append('\t').Append(PackagePlanner.Digest(data)).Append('\n');
+            }
+            if (about is not null)
+            {
+                byte[] data = ReadBounded(about, 8192);
+                if (!Encoding.UTF8.GetString(data).StartsWith("ZENITH-ABOUT\t1\n", StringComparison.Ordinal)) { throw new IOException("about file must start with ZENITH-ABOUT\t1: " + about); }
+                if (files.Count == PackageManifest.MaximumFiles) { throw new IOException("no room for the about file: the package has " + files.Count + " files"); }
+                total = checked(total + data.Length);
+                if (total > PackageManifest.MaximumPayloadBytes) { throw new IOException("payload exceeds limit"); }
+                string target = temporary + "/payload" + aboutTarget;
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!); File.WriteAllBytes(target, data);
+                manifest.Append("file\t").Append(aboutTarget).Append("\t0644\t").Append(data.Length).Append('\t').Append(PackagePlanner.Digest(data)).Append('\n');
             }
             if (native && executables == 0) { throw new IOException("native package requires a valid Zenith ABI executable"); }
             string text = manifest.ToString();
@@ -99,6 +116,25 @@ try
 }
 catch (Exception e) { Console.Error.WriteLine(e.Message); return 1; }
 
+/// <summary>packaging/about/NAME.about from the source checkout (found from the working directory upward), or null.</summary>
+static string? AboutSource(string name)
+{
+    if (Environment.GetEnvironmentVariable("ZENITH_NO_ABOUT") == "1") { return null; }
+    for (string? directory = Directory.GetCurrentDirectory(); directory is not null; directory = Path.GetDirectoryName(directory))
+    {
+        if (!File.Exists(Path.Combine(directory, "deploy/distributor/recipes.json"))) { continue; }
+        string path = Path.Combine(directory, "packaging/about", name + ".about");
+        return File.Exists(path) ? path : null;
+    }
+    // A tool run from outside the checkout: next to the tool's own project (tools/Zenith.PackageTool/bin/...).
+    for (string? directory = AppContext.BaseDirectory; directory is not null; directory = Path.GetDirectoryName(directory))
+    {
+        if (!File.Exists(Path.Combine(directory, "deploy/distributor/recipes.json"))) { continue; }
+        string path = Path.Combine(directory, "packaging/about", name + ".about");
+        return File.Exists(path) ? path : null;
+    }
+    return null;
+}
 static PackageManifest Load(string path) => PackageManifest.Parse(Encoding.UTF8.GetString(ReadBounded(path, PackageManifest.MaximumBytes)));
 static void RejectLinks(string path)
 {

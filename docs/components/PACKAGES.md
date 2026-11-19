@@ -19,6 +19,14 @@ Distributor immutable tags/build/gates/sign/publish, verification retry, useful
 logs, version grouping, storage reporting, automatic cleanup and retry controls
 already exist. Old 0.0.13 retry requests are superseded historical investigations.
 
+## Orbit's package service (U12, kernel 0.0.70)
+
+Every committed transaction (shell, Orbit, installer) and every staged kernel is appended to
+`/var/lib/zenith/pkg/history.tsv` (the newest 64, with who, the source, the changes and the command).
+`PackageManager.Change` installs, upgrades and removes in one transaction. Packages carry their own description in
+`/usr/share/zenith/about/NAME.about`, added by the package tool from `packaging/about/`. Call 668 serves all of it to
+programs; see [Orbit](ORBIT.md).
+
 ## PK1–PK5 — Remaining steps
 
 - [ ] PK1: define `/etc` default/merge/conflict semantics and restart notices.

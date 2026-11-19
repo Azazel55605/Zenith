@@ -1,0 +1,8 @@
+ZENITH-ABOUT	1
+title	Polaris
+summary	The native terminal
+description	A terminal for the Zenith shell with scrollback, selection and the clipboard.
+category	apps
+icon	terminal
+replaces	Opens instead of the built-in Terminal, which stays for recovery
+planned	Tabs and layouts

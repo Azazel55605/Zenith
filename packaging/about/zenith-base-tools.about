@@ -1,0 +1,6 @@
+ZENITH-ABOUT	1
+title	Base tools
+summary	Shell and text tools
+description	Programs for the shell that work with text and files.
+category	tools
+icon	terminal

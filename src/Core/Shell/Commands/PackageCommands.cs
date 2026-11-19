@@ -25,6 +25,8 @@ internal static class PackageCommands
             if (Installer.IsRunning || Zenith.Core.Boot.NativeKernelUpdates.IsRunning || Zenith.Core.Processes.NativeProcess.IsRunning || Interlocked.CompareExchange(ref s_busy, 1, 0) != 0)
             { return c.Fail("package/system update service busy"); }
         }
+        PackageHistory.Source = "shell"; PackageHistory.Command = Zenith.Core.Packages.PackageHistory.Clean("pkg " + string.Join(" ", c.Args), 240);
+        PackageCenter.Bind();
         try { int result = Execute(c); Interlocked.Exchange(ref s_busy, 0); return result; }
         catch { Interlocked.Exchange(ref s_busy, 0); throw; }
     }
@@ -50,7 +52,7 @@ internal static class PackageCommands
         { throw new IOException("expected public SPKI PEM; private keys refused"); }
         new NativeSettingsStore().Replace(KeyPath, pem);
     }
-    private static void Mutable()
+    internal static void Mutable()
     {
         GuardedFilesystem.RequireRoot();
         if (SystemMounts.Mode != BootMode.Installed || !new VfsFileMetadata().TryRead("/", out var stat) || !stat.UnixAttributes)
@@ -220,7 +222,7 @@ internal static class PackageCommands
         int result = Zenith.Core.Boot.NativeKernelUpdates.Package(new CommandContext(c.Shell, c.Name,
             new[] { "kernel", "install", path }, c.Input, c.Out, c.Err, c.IsTerminal));
         c.WriteLine("Kernel staged. Run reboot, then boot confirm after testing.");
-        if (result == 0) { NativePackageCache.AfterTransaction(c); }
+        if (result == 0) { PackageCenter.RecordKernel(current.HighWater, entry.Version); NativePackageCache.AfterTransaction(c); }
         return result;
     }
 
@@ -264,6 +266,7 @@ internal static class PackageCommands
                 int result = Zenith.Core.Boot.NativeKernelUpdates.Package(new CommandContext(c.Shell, c.Name,
                     new[] { "kernel", "install", kernelPath }, c.Input, c.Out, c.Err, c.IsTerminal));
                 if (result != 0) { return result; }
+                PackageCenter.RecordKernel(current.HighWater, plan.Kernel!.Version);
             }
             catch
             {

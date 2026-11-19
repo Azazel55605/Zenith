@@ -1,0 +1,7 @@
+ZENITH-ABOUT	1
+title	Meridian
+summary	System settings
+description	Appearance, display, keyboard, time, sound, network, accounts and the default session, for you or for everyone.
+category	system
+icon	sliders-horizontal
+change	0.13.0	Network connections with live status and safe changes

@@ -486,7 +486,8 @@ static void nav(struct zui_rect s){
     text(s.x+20,y,"Connections",&zui_caption,ui.theme.secondary);y+=22;
     for(int i=0;i<PAGES;i++){
         if(i==PAGE_TRAFFIC){y+=10;text(s.x+20,y,"Tools",&zui_caption,ui.theme.secondary);y+=22;}
-        int at=zui_add(&ui,ID_NAV+i,ZUI_NAVIGATION,(struct zui_rect){s.x+8,y,s.w-16,36},page_names[i],page==i,1);
+        /* zui_add answers 1 when it registered the control, which is then the last one. */
+        int at=zui_add(&ui,ID_NAV+i,ZUI_NAVIGATION,(struct zui_rect){s.x+8,y,s.w-16,36},page_names[i],page==i,1)?ui.count-1:-1;
         if(at>=0){
             ui.controls[at].icon=page_icons[i];ui.controls[at].no_chevron=1;
             ui.controls[at].detail=i==PAGE_WIRED?(!have_status?"":net.state==Z_NET_ONLINE?"On":net.state==Z_NET_NO_ADAPTER?"None":"Off"):i==PAGE_WIFI?"No adapter":i==PAGE_VPN?"None":0;

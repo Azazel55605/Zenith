@@ -1,0 +1,6 @@
+ZENITH-ABOUT	1
+title	Window probe
+summary	A test window
+description	A small window used to check that graphical programs work.
+category	tools
+icon	app-window

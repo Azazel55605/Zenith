@@ -1,0 +1,9 @@
+ZENITH-ABOUT	1
+title	Beacon
+summary	The network, in plain words
+description	Shows whether you are online and how, traffic for the last minute, hour, day and week, a history of what happened, and diagnostics from the adapter outward.
+description	Changes keep the old settings until the new ones connect.
+category	apps
+icon	network
+change	0.1.0	Status, traffic, history, diagnostics, ping and safe changes
+planned	Trace, Wi-Fi and VPN once drivers exist

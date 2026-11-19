@@ -112,6 +112,7 @@
   "zenith-polaris": {"kind": "data", "name": "zenith-polaris", "repository": "core", "payload": "obj/packages/zenith-polaris", "program": "polaris", "generate": "native"},
   "zenith-observatory": {"kind": "data", "name": "zenith-observatory", "repository": "core", "payload": "obj/packages/zenith-observatory", "program": "observatory", "generate": "native"},
   "zenith-beacon": {"kind": "data", "name": "zenith-beacon", "repository": "core", "payload": "obj/packages/zenith-beacon", "program": "beacon", "generate": "native"},
+  "zenith-orbit": {"kind": "data", "name": "zenith-orbit", "repository": "core", "payload": "obj/packages/zenith-orbit", "program": "orbit", "generate": "native"},
   "zenith-desktop-tools": {
     "kind": "data",
     "name": "zenith-desktop-tools",

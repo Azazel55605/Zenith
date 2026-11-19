@@ -24,7 +24,7 @@ package: small session controls may belong to the desktop/session package initia
 | Aurora (chosen, U2) | Graphical text/code editor; [concept](design/editor-concept.svg), [design and stages](components/AURORA.md) | zenith-aurora |
 | Polaris (chosen Terminal name) | Terminal; [design](components/SHELL.md#polaris-design) and [concept](design/terminal-concept.svg) | zenith-polaris |
 | Meridian (chosen Settings name) | System Settings; [ordered plan](MERIDIAN-PLAN.md) | Existing zenith-settings retained initially; rename/migration separate |
-| Orbit (chosen) | Graphical package and update manager; [concept](design/orbit-concept.svg) | zenith-orbit |
+| Orbit (chosen, U12) | Graphical package and update manager: a plan applied as one transaction, reasons, history and sources; [concept](design/orbit-concept.svg), [design and stages](components/ORBIT.md) | zenith-orbit |
 | Observatory (chosen, U7) | System, process and resource monitor; [concept](design/observatory-concept.svg), [design and stages](components/OBSERVATORY.md) | zenith-observatory |
 | Beacon (chosen, U11) | Network status, configuration, history and diagnostics; [concept](design/beacon-concept.svg), [design and stages](components/BEACON.md) | zenith-beacon |
 | Prism (chosen) | Keyboard launcher with apps, calculator and search, beside the start menu; [concept](design/prism-concept.svg). Theming and appearance belong to Meridian | zenith-prism |
