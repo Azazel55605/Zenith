@@ -15,6 +15,20 @@ ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("efi", ROOT / "tools/test-installed-boot.py")
 efi = importlib.util.module_from_spec(spec); spec.loader.exec_module(efi)
 
+def sparse_copy(source, target, chunk=1 << 20):
+    """Copies a guest disk keeping its holes: a 256 MiB disk that is mostly empty stays small on the host, also in the
+    evidence a failed release keeps (a plain copy filled every one to its full size)."""
+    with open(source, 'rb') as src, open(target, 'wb') as dst:
+        size = 0
+        while True:
+            block = src.read(chunk)
+            if not block: break
+            size += len(block)
+            if block.count(0) == len(block): dst.seek(len(block), 1)
+            else: dst.write(block)
+        dst.truncate(size)
+
+
 class Machine:
     def __init__(self, directory, disk=None, argument=None, network=None, extra_disks=(), monitor=None, vga="none", verify=True, cpus=1, iso=None):
         if not isinstance(cpus, int) or not 1 <= cpus <= 8: raise ValueError("test CPU count must be 1..8")
@@ -30,7 +44,7 @@ class Machine:
         self.disk = directory / "disk.img"
         self.serial = directory / "serial.log"
         if disk:
-            shutil.copyfile(disk, self.disk)
+            sparse_copy(disk, self.disk)
             import boot_image
             if verify: boot_image.verify(self.disk)
             else: boot_image.partitions(self.disk)

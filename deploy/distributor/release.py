@@ -443,7 +443,23 @@ def native_checks(work, gate=None):
                 if stat.S_ISSOCK(path.lstat().st_mode): path.unlink()
         # Preserve failed runs too. Same-filesystem moves are just renames; a
         # separate /var filesystem falls back to copying the retained evidence.
-        shutil.move(str(directory), str(work / "native"))
+        shutil.move(str(directory), str(work / "native"), copy_function=sparse_copy2)
+
+
+def sparse_copy2(source, target):
+    """shutil.copy2 that keeps holes: guest disks are mostly empty, and a plain copy across filesystems filled each
+    retained one to its full size."""
+    with open(source, "rb") as src, open(target, "wb") as dst:
+        size = 0
+        while True:
+            block = src.read(1 << 20)
+            if not block: break
+            size += len(block)
+            if block.count(0) == len(block): dst.seek(len(block), 1)
+            else: dst.write(block)
+        dst.truncate(size)
+    shutil.copystat(source, target)
+    return target
 
 
 def prerequisites():

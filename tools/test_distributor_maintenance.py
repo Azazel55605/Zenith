@@ -93,6 +93,37 @@ class MaintenanceTests(unittest.TestCase):
         self.assertTrue(report['warnings']);self.assertEqual('keep',(outside/'important').read_text())
         self.assertTrue(old.is_symlink())
 
+    def test_failure_replaced_by_a_newer_release_keeps_only_small_evidence(self):
+        failed=self.checkout('kernel/v1.0.58','failed')
+        native=failed/'obj/distributor/release-a/native/o/desktop';native.mkdir(parents=True)
+        with (native/'disk.img').open('wb') as f:f.write(b'x'*(m.SLIM_BYTES+1))
+        (native/'serial.log').write_bytes(b'l'*(m.SLIM_BYTES+1));(native/'shot.ppm').write_bytes(b'small')
+        self.records['kernel/v1.0.59']=dict(status='complete',finished=self.now)
+        report=m.run(self.state,self.records,self.config)
+        self.assertFalse((native/'disk.img').exists());self.assertTrue((native/'serial.log').exists());self.assertTrue((native/'shot.ppm').exists())
+        self.assertTrue(any('replaced by a newer release' in r for r in report['removed']))
+        self.assertEqual([],m.run(self.state,self.records,self.config)['removed'])          # once
+    def test_a_replaced_latest_failure_still_expires(self):
+        failed=self.checkout('kernel/v1.0.58','failed',m.MAX_AGE+1)
+        self.records['kernel/v1.0.59']=dict(status='complete',finished=self.now)
+        m.run(self.state,self.records,self.config);self.assertFalse(failed.exists())
+    def test_unreplaced_failure_and_other_packages_keep_everything(self):
+        failed=self.checkout('kernel/v1.0.58','failed');big=failed/'disk.img'
+        with big.open('wb') as f:f.write(b'x'*(m.SLIM_BYTES+1))
+        self.records['zenith-orbit/v9.0.0']=dict(status='complete',finished=self.now)
+        self.records['kernel/v1.0.57']=dict(status='complete',finished=self.now)
+        m.run(self.state,self.records,self.config);self.assertTrue(big.exists())
+    def test_missing_finish_time_ages_by_the_checkout(self):
+        old=self.checkout('kernel/v1.0.1','failed');del self.records['kernel/v1.0.1']['finished']
+        self.checkout('kernel/v1.0.2','failed')
+        os.utime(old,(self.now-m.MAX_AGE-10,self.now-m.MAX_AGE-10))
+        m.run(self.state,self.records,self.config);self.assertFalse(old.exists())
+    def test_unrecorded_build_folders_expire_by_age(self):
+        old=self.state/'build-kernel-v0.0.58';old.mkdir();(old/'disk.img').write_text('x')
+        young=self.state/'build-kernel-v0.0.61';young.mkdir()
+        os.utime(old,(self.now-m.MAX_AGE-10,self.now-m.MAX_AGE-10))
+        report=m.run(self.state,self.records,self.config)
+        self.assertFalse(old.exists());self.assertTrue(young.exists());self.assertIn('build-kernel-v0.0.58 (unrecorded)',report['removed'])
     def test_storage_report_permissions_and_readonly_preview(self):
         checkout=self.checkout('kernel/v1.0.0','complete')
         report=m.run(self.state,self.records,self.config,apply=False)
