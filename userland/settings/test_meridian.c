@@ -15,7 +15,7 @@ static long save(unsigned int m,unsigned int a,unsigned int materials,unsigned i
     material_level=level;material_saved=materials;saved.mode=m;saved.accent=a;saved.revision++;saves++;return 0;
 }
 static long mark(int d){dirty=d;return 0;}
-static unsigned int cursor_size;
+static unsigned int cursor_size,cursor_pack;
 static struct zenith_system_settings preferences={.version=1,.flags=3,.revision=1,.keyboard_count=2,.zone_count=2,
     .current_zone="UTC",.keyboards={"us","de"},.zones={"UTC","Europe/Berlin"}};
 static long read_preferences(struct zenith_system_settings *s){*s=preferences;return 0;}
@@ -25,7 +25,7 @@ static long save_preferences(unsigned int field,unsigned int choice,unsigned lon
     if(field==1)preferences.keyboard=choice;
     else if(field==2){preferences.zone=choice;strcpy(preferences.current_zone,preferences.zones[choice]);}
     else if(field==6)preferences.wallpaper=choice;
-    else if(field==8)preferences.cursor=choice;
+    else if(field==8){cursor_pack=choice;preferences.cursor=choice==1||choice==3?1:0;}   /* the snapshot names two */
     else if(field==9)cursor_size=choice;
     preferences.revision++;return 0;
 }
@@ -35,13 +35,23 @@ static long fake_catalog(unsigned int field,struct zenith_style_list *out){
     static const char *walls[16]={"Zenith","Dunes","Aurora","Contour","Graphite","Midnight","Forest","Plum","Cream","Mist","Sand","Accent color","Orbits","Tides","Facets","Nebula"};
     static const char *packs[5]={"Meridian Light","Meridian Dark","Contrast White","Contrast Black","Comet"};
     static const char *sizes[3]={"Normal (24 px)","Large (32 px)","Largest (48 px)"};
-    const char **labels=field==6?walls:field==8?packs:field==9?sizes:0;unsigned int count=field==6?16:field==8?5:field==9?3:0;
+    static const char *packs16[2]={"Zenith Chimes","Silent"};
+    const char **labels=field==6?walls:field==8?packs:field==9?sizes:field==16?packs16:0;unsigned int count=field==6?16:field==8?5:field==9?3:field==16?2:0;
     if(!labels)return -19;
     memset(out,0,sizeof(*out));out->version=1;out->field=field;out->count=count;out->revision=preferences.revision;
-    out->current=field==6?preferences.wallpaper:field==8?preferences.cursor:cursor_size;
+    out->current=field==6?preferences.wallpaper:field==8?cursor_pack:field==16?0:cursor_size;
     for(unsigned int i=0;i<count;i++){strcpy(out->entries[i].label,labels[i]);strcpy(out->entries[i].name,labels[i]);out->entries[i].kind=field==6&&i>=4&&i<12;out->entries[i].color=0x202125;}
     return 0;
 }
+static unsigned int sound_level=70,sound_mask=0x9FF;static int sound_played=-1;
+static long fake_sounds(struct zenith_sound_settings *out){
+    memset(out,0,sizeof(*out));out->version=1;out->level=sound_level;out->mask=sound_mask;out->count=12;out->revision=preferences.revision;
+    static const char *names[12]={"Sign in","Sign out and lock","Notification","Attention","Error","Device connected","Device removed","Done","Volume","Trash emptied","Screenshot","Shut down"};
+    for(int i=0;i<12;i++)strcpy(out->labels[i],names[i]);
+    return 512;
+}
+static long fake_sound_save(unsigned int level,unsigned int mask,unsigned long revision){if(revision!=preferences.revision)return -11;sound_level=level;sound_mask=mask;preferences.revision++;return 0;}
+static long fake_sound_play(unsigned int event){sound_played=(int)event;return 0;}
 static long fake_preview(unsigned int field,unsigned int index,int w,int h,unsigned int *pixels){
     if((field!=6&&field!=8&&field!=9)||index>=16)return -22;
     for(int i=0;i<w*h;i++){pixels[i]=0xFF000000u|(index*16u);}
@@ -228,9 +238,17 @@ int main(int argc,char **argv){
     wheel_until(8512+4);click_id(8512+4);assert(app.styles.draft[8]==4);
     wheel_until(8576+2);click_id(8576+2);assert(app.styles.draft[9]==2);
     assert(!meridian_open(&app,"devices.bluetooth"));                                 /* drafts block silent opens */
-    click_id(900+ZUI_FOOTER_APPLY);assert(preferences.cursor==4&&cursor_size==2&&!dirty);
+    click_id(900+ZUI_FOOTER_APPLY);assert(cursor_pack==4&&cursor_size==2&&!dirty);
     click_id(8576+0);click_id(900+ZUI_FOOTER_RESET);assert(app.styles.draft[9]==2&&!dirty);
-    meridian_style_services(&app,0,0);preferences.wallpaper=0;preferences.cursor=0;preferences.version=1;meridian_refresh(&app);
+    /* System Sounds: level and per-event switches are drafts like the pack; Play previews at once. */
+    meridian_sound_services(&app,fake_sounds,fake_sound_save,fake_sound_play);
+    assert(meridian_open(&app,"audio.sounds"));draw();
+    wheel_until(9002);click_id(9002);assert(app.styles.sound_level==80&&dirty);
+    wheel_until(9109);click_id(9109);assert(app.styles.sound_mask&(1u<<9));
+    wheel_until(9209);click_id(9209);assert(sound_played==9);
+    click_id(900+ZUI_FOOTER_APPLY);assert(sound_level==80&&(sound_mask&(1u<<9))&&!dirty);
+    meridian_sound_services(&app,0,0,0);
+    meridian_style_services(&app,0,0);preferences.wallpaper=0;preferences.cursor=0;cursor_pack=0;preferences.version=1;meridian_refresh(&app);
     /* Service-backed information pages. */
     meridian_information_services(&app,information_read);
     assert(meridian_open(&app,"network.connections"));meridian_refresh(&app);draw();

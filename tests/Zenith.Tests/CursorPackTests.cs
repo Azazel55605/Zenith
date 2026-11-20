@@ -56,6 +56,21 @@ public class CursorPackTests
     }
 
     [Fact]
+    public void SoundLevelAndEventsSaveAndSurviveReboot()
+    {
+        var store = new ProcessSystemSettingsTests.Store(); var service = new SettingsService(store, _ => { }, _ => { }, _ => true);
+        Assert.Empty(service.Load());
+        Assert.Equal(70U, service.SoundLevel); Assert.Equal(0, (int)(service.SoundMask >> 9 & 3));   // trash and screenshot off
+        var (_, revision) = service.Snapshot();
+        Assert.Equal(-13, service.SaveSounds(50, 0xFFF, revision));
+        using var root = CredentialContext.Enter(Credentials.Root);
+        Assert.Equal(-22, service.SaveSounds(101, 0, revision));
+        Assert.Equal(0, service.SaveSounds(50, 0xFFF & ~1u, revision));
+        Assert.Equal(-11, service.SaveSounds(40, 0, revision));                                 // stale revision
+        var reboot = new SettingsService(store, _ => { }, _ => { }, _ => true); Assert.Empty(reboot.Load());
+        Assert.Equal(50U, reboot.SoundLevel); Assert.Equal(0xFFEU, reboot.SoundMask);           // sign in off, the rest on
+    }
+    [Fact]
     public void PackAndSizeAreSettingsTheCatalogueLists()
     {
         var store = new ProcessSystemSettingsTests.Store(); var service = new SettingsService(store, _ => { }, _ => { }, _ => true);

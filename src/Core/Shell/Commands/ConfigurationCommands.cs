@@ -11,7 +11,7 @@ internal static class ConfigurationCommands
     public static void Register(Action<Command> add)
     {
         add(new Command("display", "display [test WIDTH HEIGHT SCALE|PERCENT | keep | revert]", "Primary display modes and guarded preview", Display));
-        add(new Command("settings", "settings [show | set keyboard|timezone|session|animations|taskbar|windows|wallpaper|cursor|cursor-size|decoration|widgets|buttons|splash|login|boot|sounds|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]", "Shared system settings", Settings));
+        add(new Command("settings", "settings [show | set keyboard|timezone|session|animations|taskbar|windows|wallpaper|cursor|cursor-size|decoration|widgets|buttons|splash|login|boot|sounds|icons|sound-level|sound-off|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]", "Shared system settings", Settings));
         add(new Command("session", "session [status | list | set-default MODE | switch MODE]", "Select a session or return to login", Session));
     }
     private static int Display(CommandContext c)
@@ -73,6 +73,11 @@ internal static class ConfigurationCommands
             c.WriteLine("windows=" + SettingsService.WindowsNames[settings.Current.Windows] + " (new windows)");
             c.WriteLine("wallpaper=" + SettingsService.WallpaperNames[settings.Current.Wallpaper] + " cursor=" + SettingsService.CursorNames[settings.Current.Cursor]);
             foreach (var style in SettingsService.Styles) { c.WriteLine(style.Key.ToLowerInvariant().Replace('_', '-') + "=" + style.Names[settings.Style(style.Field)]); }
+            {
+                var off = new System.Collections.Generic.List<string>();
+                for (int i = 0; i < SettingsService.SoundEvents.Length; i++) { if ((settings.SoundMask & (1u << i)) == 0) { off.Add(SettingsService.SoundEvents[i]); } }
+                c.WriteLine("sound-level=" + settings.SoundLevel + "% sound-off=" + (off.Count == 0 ? "none" : string.Join(",", off)));
+            }
             var appearance = SystemConfiguration.Appearance.Snapshot();
             c.WriteLine("appearance=" + AppearanceService.ModeName(appearance.Saved.Mode) + "/" + AppearanceService.AccentName(appearance.Saved.Accent)
                 + " (active " + AppearanceService.ModeName(appearance.Active.Mode) + "/" + AppearanceService.AccentName(appearance.Active.Accent)
@@ -109,7 +114,7 @@ internal static class ConfigurationCommands
             c.WriteLine("saved appearance; desktop applies on its next tick, headless on next login" + (service.Persistent ? "" : " (live: volatile)"));
             return 0;
         }
-        if (c.Args.Length != 3 || c.Args[0] != "set") { return c.Fail("usage: settings [show | set keyboard|timezone|session|animations|taskbar|windows|wallpaper|cursor|cursor-size|decoration|widgets|buttons|splash|login|boot|sounds|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]"); }
+        if (c.Args.Length != 3 || c.Args[0] != "set") { return c.Fail("usage: settings [show | set keyboard|timezone|session|animations|taskbar|windows|wallpaper|cursor|cursor-size|decoration|widgets|buttons|splash|login|boot|sounds|icons|sound-level|sound-off|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]"); }
         switch (c.Args[1])
         {
             case "keyboard": settings.SetKeyboard(c.Args[2]); break;
@@ -120,6 +125,27 @@ internal static class ConfigurationCommands
             case "windows": settings.SetWindows(c.Args[2]); break;
             case "wallpaper": settings.SetWallpaper(c.Args[2]); break;
             case "cursor": settings.SetCursor(c.Args[2]); break;
+            case "sound-level" or "sound-off":
+            {
+                // sound-level 0..100; sound-off a comma list of events (or "none").
+                using var root = Zenith.Core.Security.CredentialContext.Enter(Zenith.Core.Security.Credentials.Root);
+                uint level = settings.SoundLevel, mask = settings.SoundMask;
+                if (c.Args[1] == "sound-level") { if (!uint.TryParse(c.Args[2], out level) || level > 100) { return c.Fail("sound-level takes 0..100"); } }
+                else
+                {
+                    mask = 0xFFF;
+                    foreach (string name in c.Args[2].Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        if (name == "none") { continue; }
+                        int i = Array.IndexOf(SettingsService.SoundEvents, name);
+                        if (i < 0) { return c.Fail("unknown sound event " + name); }
+                        mask &= ~(1u << i);
+                    }
+                }
+                var (_, revision) = settings.Snapshot();
+                if (settings.SaveSounds(level, mask, revision) != 0) { return c.Fail("could not save sounds"); }
+                break;
+            }
             default:
             {
                 // Style choices (U14): cursor-size, decoration, widgets, buttons, splash, login, boot, sounds.

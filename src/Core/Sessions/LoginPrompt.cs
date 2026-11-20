@@ -16,12 +16,13 @@ internal sealed class LoginPrompt
     public void Submit(string name, string password)
     {
         if (Busy) { return; }
-        if (!AccountDatabase.ValidName(name) || password.Length > 256) { Message = "Authentication failed."; return; }
+        // A name that cannot exist fails like a wrong password: the same delay, message, log line and sound.
+        bool possible = AccountDatabase.ValidName(name) && password.Length <= 256;
         Busy = true; _completed = false; _result = null; Message = "Signing in...";
         new Thread(() =>
         {
             Credentials? identity = null;
-            try { identity = _authenticate(name, password); }
+            try { if (possible) { identity = _authenticate(name, password); } }
             catch { }
             password = string.Empty;
             if (identity is null) { Thread.Sleep(1000); }

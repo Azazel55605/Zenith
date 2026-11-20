@@ -11,9 +11,17 @@ void *memcpy(void *destination,const void *source,unsigned long size){
     for(unsigned long i=0;i<size;i++)d[i]=s[i];
     return destination;
 }
-/* Package-installed icons: read one bounded root-owned file through the native ABI. */
+/* Package-installed icons: read one bounded root-owned file through the native ABI. The chosen icon set (style field
+ * 17: Zenith, Bold or Fine) is looked up in its own folder first; a set that lacks an icon falls back to the default. */
+static int icon_set;   /* 0 default, 1 bold, 2 fine */
+static long icon_file(const char *folder,const char *name,unsigned char *out,unsigned long capacity);
 static long package_icon(const char *name,unsigned char *out,unsigned long capacity){
-    char path[80]="/usr/share/zenith/icons/";unsigned long n=24;
+    if(icon_set==1||icon_set==2){long r=icon_file(icon_set==1?"bold/":"fine/",name,out,capacity);if(r>0)return r;}
+    return icon_file("",name,out,capacity);
+}
+static long icon_file(const char *folder,const char *name,unsigned char *out,unsigned long capacity){
+    char path[96]="/usr/share/zenith/icons/";unsigned long n=24;
+    for(unsigned long i=0;folder[i];i++)path[n++]=folder[i];
     for(unsigned long i=0;name[i];i++)if(n<sizeof(path)-5)path[n++]=name[i];
     path[n++]='.';path[n++]='z';path[n++]='i';path[n++]='c';path[n]=0;
     long fd=zenith_call(2,(unsigned long)path,n,0);
@@ -50,6 +58,8 @@ int zui_apply_style(struct zui *u){
     static struct zenith_style_list l;int changed=0;
     if(!zenith_style_list(11,&l)&&l.version==1&&l.current<3&&(int)l.current!=u->widget_style){u->widget_style=(int)l.current;changed=1;}
     if(!zenith_style_list(12,&l)&&l.version==1&&l.current<3&&(int)l.current!=u->button_style){u->button_style=(int)l.current;changed=1;}
+    /* A new icon set: drop the cached icons so they load from its folder. */
+    if(!zenith_style_list(17,&l)&&l.version==1&&l.current<3&&(int)l.current!=icon_set){icon_set=(int)l.current;zui_icon_source(package_icon);changed=1;}
     if(changed)u->dirty=1;
     return changed;
 }

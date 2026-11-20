@@ -583,7 +583,7 @@ internal sealed unsafe class NativeProcess
             }
             // Horizon HZ4 (kernel 0.0.65): a thumbnail of an image file. Request (32 bytes): version 1, max side
             // 16..256, u64 path, u32 path bytes, u32 capacity, u64 pixels. Result: width << 16 | height, ARGB pixels.
-            // Meridian's pickers (kernel 0.0.71, zenith-native-style-catalog-abi 1.0): the choices of a setting, and
+            // Meridian's pickers (zenith-native-style-catalog-abi 1.0 in kernel 0.0.71; 1.1 in 0.0.72 adds ops 3-5): the choices of a setting, and
             // a preview drawn by the desktop. Request (32 bytes): version 1, op (1 list, 2 preview), field, index,
             // u64 output, u32 capacity, u32 width << 16 | height.
             if (c.Call == 669)
@@ -604,6 +604,31 @@ internal sealed unsafe class NativeProcess
                     byte[]? list = Zenith.Core.Configuration.StyleCatalog.List(service, field, accent);
                     if (list is null) { return -19; }
                     Transfer(output, list, true); return list.Length;
+                }
+                // System sounds (U14): 3 reads level, event mask and labels; 4 saves (index = level, size = mask; root
+                // or the system settings grant); 5 plays event <index> once as a preview.
+                if (op == 3)
+                {
+                    if (capacity < 512) { return -34; }
+                    var (_, revision) = service.Snapshot();
+                    byte[] data = new byte[512];
+                    BitConverter.TryWriteBytes(data.AsSpan(0), 1u); BitConverter.TryWriteBytes(data.AsSpan(4), service.SoundLevel);
+                    BitConverter.TryWriteBytes(data.AsSpan(8), service.SoundMask); BitConverter.TryWriteBytes(data.AsSpan(12), (uint)Zenith.Core.Configuration.SettingsService.SoundEvents.Length);
+                    BitConverter.TryWriteBytes(data.AsSpan(16), revision);
+                    for (int i = 0; i < Zenith.Core.Configuration.SettingsService.SoundEventLabels.Length; i++)
+                    { Encoding.ASCII.GetBytes(Zenith.Core.Configuration.SettingsService.SoundEventLabels[i]).CopyTo(data, 32 + i * 32); }
+                    Transfer(output, data, true); return data.Length;
+                }
+                if (op == 4)
+                {
+                    if (capacity < 8 || !Valid(output, 8, false)) { return -22; }
+                    ulong expected = BitConverter.ToUInt64(ReadUser(output, 8), 0);
+                    return service.SaveSounds(index, size, expected);
+                }
+                if (op == 5)
+                {
+                    if (index >= Zenith.Core.Configuration.SettingsService.SoundEvents.Length) { return -22; }
+                    Zenith.Core.Audio.SystemSounds.Play(Zenith.Core.Configuration.SettingsService.SoundEvents[index], true); return 0;
                 }
                 if (op == 2)
                 {

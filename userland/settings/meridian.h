@@ -57,6 +57,7 @@ struct meridian {
 int meridian_init(struct meridian *app,unsigned int *pixels,struct settings_backend backend,const char *page);
 void meridian_style_services(struct meridian *a,long (*catalog)(unsigned int,struct zenith_style_list *),
                              long (*preview)(unsigned int,unsigned int,int,int,unsigned int *));
+void meridian_sound_services(struct meridian *a,long (*read)(struct zenith_sound_settings *),long (*save)(unsigned int,unsigned int,unsigned long),long (*play)(unsigned int));
 int meridian_resize(struct meridian *app,int width,int height,unsigned long capacity);
 void meridian_draw(struct meridian *app);
 void meridian_event(struct meridian *app,const struct zenith_gui_event *event);

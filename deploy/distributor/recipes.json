@@ -114,6 +114,8 @@
   "zenith-beacon": {"kind": "data", "name": "zenith-beacon", "repository": "core", "payload": "obj/packages/zenith-beacon", "program": "beacon", "generate": "native"},
   "zenith-orbit": {"kind": "data", "name": "zenith-orbit", "repository": "core", "payload": "obj/packages/zenith-orbit", "program": "orbit", "generate": "native"},
   "zenith-sounds": {"kind": "data", "name": "zenith-sounds", "repository": "core", "payload": "obj/packages/zenith-sounds", "generate": "sounds"},
+  "zenith-icons-bold": {"kind": "data", "name": "zenith-icons-bold", "repository": "extra", "payload": "obj/packages/zenith-icons-bold", "generate": "icons-bold"},
+  "zenith-icons-fine": {"kind": "data", "name": "zenith-icons-fine", "repository": "extra", "payload": "obj/packages/zenith-icons-fine", "generate": "icons-fine"},
   "zenith-desktop-tools": {
     "kind": "data",
     "name": "zenith-desktop-tools",

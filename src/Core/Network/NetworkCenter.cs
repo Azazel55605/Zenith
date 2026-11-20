@@ -175,6 +175,8 @@ internal static class NetworkCenter
     public const int CheckBytes = 176;
     /// <summary>Step 1 adapter, 2 address, 3 gateway, 4 DNS, 5 internet, 6 secure web. Result: version, step, result,
     /// milliseconds, subject (32 bytes) and a plain-words detail (128 bytes).</summary>
+    /// <summary>Names the DNS step tries in turn when no mirror name is set.</summary>
+    internal static readonly string[] DnsNames = { "one.one.one.one", "google.com", "example.com" };
     public static byte[] Check(int step, Action cancel)
     {
         var adapter = NetworkManager.Primary; var ip = adapter.IsValid ? adapter.IPConfig : null;
@@ -208,14 +210,23 @@ internal static class NetworkCenter
                 case 4:
                     subject = NetworkService.Resolvers.Length > 0 ? NetworkService.Resolvers[0] : "none";
                     if (NetworkService.Resolvers.Length == 0) { r = Result.Failed; detail = "No DNS server. Names cannot be looked up; add one in the connection settings."; break; }
-                    try
+                {
+                    // A few well-known names in turn: a network that filters one name (some block public resolvers'
+                    // names) still has working DNS. The first that answers is the subject and its time counts.
+                    string[] names = configured is not null && !IsAddress(configured) ? new[] { name, "one.one.one.one", "google.com" } : DnsNames;
+                    bool answered = false;
+                    foreach (string candidate in names)
                     {
-                        subject = name; NetworkService.Resolve(name, cancel); ms = timer.ElapsedMilliseconds;
-                        if (ms >= 200) { r = Result.Slow; detail = "DNS is slower than usual. Pages may open late, though everything still works."; }
-                        else { detail = "answers"; }
+                        long started = timer.ElapsedMilliseconds;
+                        try { NetworkService.Resolve(candidate, cancel); answered = true; }
+                        catch (Exception e) when (e is not OperationCanceledException) { answered = false; }
+                        if (answered) { subject = candidate; ms = Math.Max(1, timer.ElapsedMilliseconds - started); break; }
                     }
-                    catch (Exception e) when (e is not OperationCanceledException) { r = Result.Failed; detail = "The DNS server does not answer. Try another server, such as the gateway or 1.1.1.1."; }
+                    if (!answered) { subject = names[0]; r = Result.Failed; detail = "The DNS server does not answer. Try another server, such as the gateway or 1.1.1.1."; }
+                    else if (ms >= 200) { r = Result.Slow; detail = "DNS is slower than usual. Pages may open late, though everything still works."; }
+                    else { detail = "answers"; }
                     break;
+                }
                 case 5:
                     subject = mirror;
                     try { NetworkService.Probe(mirror, 443, cancel); ms = timer.ElapsedMilliseconds; detail = "reachable"; }

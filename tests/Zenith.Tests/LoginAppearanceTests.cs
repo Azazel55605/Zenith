@@ -32,6 +32,16 @@ public class LoginAppearanceTests
         for (int i = 0; i < 200 && !completed; i++) { await Task.Delay(10); completed = prompt.TakeResult(out var id); Assert.Null(id); }
         Assert.True(completed); Assert.False(prompt.Busy); Assert.DoesNotContain("private-value", prompt.Message);
     }
+    [Fact]
+    public async Task ImpossibleNameFailsLikeAWrongPasswordWithoutAskingTheStore()
+    {
+        int calls = 0;
+        var prompt = new LoginPrompt((_, _) => { calls++; return null; }); prompt.Submit("Probe!2026x", "x");
+        Assert.True(prompt.Busy);
+        bool completed = false;
+        for (int i = 0; i < 200 && !completed; i++) { await Task.Delay(10); completed = prompt.TakeResult(out var id); Assert.Null(id); }
+        Assert.True(completed); Assert.Equal(0, calls); Assert.StartsWith("Authentication failed", prompt.Message);
+    }
     [Theory]
     [InlineData("VERSION=2\nAccent=FF00AAFF\n")]
     [InlineData("VERSION=1\nAccent=00000000\n")]

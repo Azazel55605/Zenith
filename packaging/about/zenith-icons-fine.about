@@ -1,0 +1,7 @@
+ZENITH-ABOUT	1
+title	Zenith Fine
+summary	The Zenith icons at another weight
+description	The same drawings as the default set (from Lucide, ISC) with 1.4 px strokes for large display scales. Choose it in Meridian › Icons; an icon it lacks comes from the default set.
+category	themes
+icon	image
+change	0.1.0	All 61 icons of the default set

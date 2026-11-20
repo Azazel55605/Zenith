@@ -91,6 +91,7 @@ internal sealed class SettingsService
             try { windows = ReadChoice(_store.Read(WindowsPath), "WINDOWS", WindowsNames); }
             catch (Exception e) { errors.Add(WindowsPath + ": " + e.Message + "; using fit"); }
             LoadStyles(errors);
+            LoadSounds(errors);
             _keyboard(keymap); _zone(zone);
             Current = new(keymap, zone, session, animation, taskbar, wallpaper, launcher, cursor, windows);
             return errors;
@@ -200,9 +201,49 @@ internal sealed class SettingsService
         new(14, "LOGIN", new[] { "card", "accounts", "clock", "split" }, new[] { "Zenith card", "Accounts", "Clock", "Split" }),
         new(15, "BOOT", new[] { "phases", "orbit", "pulse", "quiet" }, new[] { "Phases", "Orbit", "Pulse", "Quiet" }),
         new(16, "SOUNDS", new[] { "chimes", "silent" }, new[] { "Zenith Chimes", "Silent" }),
+        new(17, "ICONS", new[] { "zenith", "bold", "fine" }, new[] { "Zenith", "Zenith Bold", "Zenith Fine" }),
     };
 
     private readonly uint[] _styles = new uint[Styles.Length];
+
+    // ---------- System sound level and events (U14): /etc/zenith/sounds.conf, LEVEL=0..100, OFF=event,event.
+    public const string SoundsPath = "/etc/zenith/sounds.conf";
+    public static readonly string[] SoundEvents = { "login", "logout", "notification", "attention", "error", "device-added", "device-removed", "done", "volume", "trash", "screenshot", "shutdown" };
+    public static readonly string[] SoundEventLabels = { "Sign in", "Sign out and lock", "Notification", "Attention", "Error", "Device connected", "Device removed", "Done", "Volume", "Trash emptied", "Screenshot", "Shut down" };
+    public const uint DefaultSoundMask = 0xFFFu & ~(1u << 9) & ~(1u << 10);   // trash and screenshot off
+    public uint SoundLevel { get; private set; } = 70;
+    public uint SoundMask { get; private set; } = DefaultSoundMask;
+    private void LoadSounds(List<string> errors)
+    {
+        try
+        {
+            var fields = Fields(_store.Read(SoundsPath));
+            if (fields.TryGetValue("LEVEL", out string? level)) { SoundLevel = uint.TryParse(level, out uint v) && v <= 100 ? v : throw new FormatException("bad LEVEL"); }
+            if (fields.TryGetValue("OFF", out string? off))
+            {
+                uint mask = 0xFFF;
+                foreach (string name in off.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                { int i = Array.IndexOf(SoundEvents, name.Trim()); if (i >= 0) { mask &= ~(1u << i); } }
+                SoundMask = mask;
+            }
+        }
+        catch (Exception e) { SoundLevel = 70; SoundMask = DefaultSoundMask; errors.Add(SoundsPath + ": " + e.Message + "; using defaults"); }
+    }
+    public int SaveSounds(uint level, uint mask, ulong revision)
+    {
+        if (!CredentialContext.Current.IsRoot) { return -13; }
+        if (level > 100 || mask > 0xFFF) { return -22; }
+        lock (_gate)
+        {
+            if (revision != _revision) { return -11; }
+            var off = new List<string>();
+            for (int i = 0; i < SoundEvents.Length; i++) { if ((mask & (1u << i)) == 0) { off.Add(SoundEvents[i]); } }
+            try { _store.Replace(SoundsPath, Update(_store.Read(SoundsPath), new Dictionary<string, string> { ["VERSION"] = "1", ["LEVEL"] = level.ToString(), ["OFF"] = string.Join(",", off) })); }
+            catch { return -5; }
+            SoundLevel = level; SoundMask = mask; _revision++;
+            return 0;
+        }
+    }
     public static StyleChoice? StyleFor(uint field) { foreach (var s in Styles) { if (s.Field == field) { return s; } } return null; }
     /// <summary>The current choice of a style field (9..16).</summary>
     public uint Style(uint field) { lock (_gate) { for (int i = 0; i < Styles.Length; i++) { if (Styles[i].Field == field) { return _styles[i]; } } return 0; } }

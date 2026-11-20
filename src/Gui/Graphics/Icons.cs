@@ -17,8 +17,17 @@ internal static class Icons
     // A missing icon is looked up again after a while: the pack may be installed while the desktop runs.
     private static readonly Dictionary<string, long> s_missing = new();
 
+    private static uint s_set;
+    /// <summary>Draws from this set instead of the chosen one (Meridian's previews).</summary>
+    internal static uint? ForcedSet;
+    internal static bool SetInstalled(uint set) => set == 0 || Directory.Exists("/usr/share/zenith/icons/" + Folder(set));
+    /// <summary>The icon set (style field 17): 0 Zenith, 1 Bold, 2 Fine. Bold and Fine live in their own folders; an
+    /// icon a set lacks comes from the default.</summary>
+    private static string Folder(uint set) => set == 1 ? "bold/" : set == 2 ? "fine/" : "";
     private static byte[]? Load(string name)
     {
+        uint set = ForcedSet ?? Zenith.Core.Configuration.StyleCatalog.Value(17);
+        if (set != s_set) { s_set = set; s_files.Clear(); s_missing.Clear(); }
         if (s_files.TryGetValue(name, out byte[]? known)) { return known; }
         long now = Stopwatch.GetTimestamp();
         if (s_missing.TryGetValue(name, out long since) && now - since < 5 * Stopwatch.Frequency) { return null; }
@@ -26,8 +35,12 @@ internal static class Icons
         byte[]? bytes = null;
         try
         {
-            string path = "/usr/share/zenith/icons/" + name + ".zic";
-            if (File.Exists(path) && new FileInfo(path).Length <= IconFile.MaximumBytes) { bytes = File.ReadAllBytes(path); }
+            foreach (string folder in new[] { Folder(set), "" })
+            {
+                string path = "/usr/share/zenith/icons/" + folder + name + ".zic";
+                if (File.Exists(path) && new FileInfo(path).Length <= IconFile.MaximumBytes) { bytes = File.ReadAllBytes(path); break; }
+                if (folder.Length == 0) { break; }
+            }
         }
         catch (Exception) { bytes = null; }
         if (bytes is null) { if (s_missing.Count < MaximumCached) { s_missing[name] = now; } return null; }

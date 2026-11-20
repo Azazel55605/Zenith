@@ -18,6 +18,7 @@ internal static class StylePreviews
             13 => Splash((int)Math.Min(3u, index), w, h),
             14 => Login((int)Math.Min(3u, index), w, h),
             15 => Boot((int)Math.Min(3u, index), w, h),
+            17 => IconSet(Math.Min(2u, index), w, h),
             _ => null,
         };
     }
@@ -128,6 +129,25 @@ internal static class StylePreviews
                 break;
             default: return LoginCard(w, h);
         }
+        return s.Pixels;
+    }
+
+    /// <summary>Ten icons of a set, as drawn from its own files; a set that is not installed says so.</summary>
+    private static int[] IconSet(uint set, int w, int h)
+    {
+        var s = new Surface(w, h);
+        s.FillRect(new Rect(0, 0, w, h), Theme.WindowBackground | 0xFF000000u);
+        if (!Icons.SetInstalled(set))
+        {
+            s.DrawTextCentered("Not installed", Fonts.Regular, Theme.TextSmall, Theme.TextSecondary, new Rect(0, 0, w, h), true);
+            return s.Pixels;
+        }
+        string[] names = { "house", "folder", "search", "download", "package", "palette", "network", "volume-2", "terminal", "shield" };
+        int size = Math.Min(24, h / 3), gap = (w - 5 * size) / 6;
+        Icons.ForcedSet = set;
+        for (int i = 0; i < names.Length; i++)
+        { Icons.Draw(s, names[i], gap + (i % 5) * (size + gap), h / 2 - size - 4 + (i / 5) * (size + 8), size, Theme.TextPrimary); }
+        Icons.ForcedSet = null;
         return s.Pixels;
     }
 

@@ -35,7 +35,7 @@ int zui_scroll_maximum(const struct zui_scroll *s);
  * base_id+index. Row height defaults to 40 (36 + 4 gap). */
 struct zui_list_item { const char *icon,*label,*subtitle; int chevron,enabled; };
 typedef int (*zui_list_source)(void *context,int index,struct zui_list_item *out);
-struct zui_list { struct zui_scroll scroll; int selected,count,row_height,base_id,first_control,visible_controls; };
+struct zui_list { struct zui_scroll scroll; int selected,count,row_height,base_id,first_control,visible_controls; int grown_from; long grown_at; };
 void zui_list_draw(struct zui *ui,struct zui_list *l,struct zui_rect rect,int count,zui_list_source items,void *context);
 /* Returns index+1 when a row is activated (click release or Enter), else 0. Handles
  * Up/Down/Home/End, first-letter type-ahead and the embedded scroll area. */
@@ -84,7 +84,7 @@ int zui_dialog_event(struct zui *ui,struct zui_dialog *d,const struct zenith_gui
 /* A row of closable tabs with a new-tab button. Stateless apart from the areas of the last draw. */
 #define ZUI_MAX_TABS 8
 struct zui_tab { const char *label; int mark; const char *icon; }; /* mark: a dot saying the tab has news */
-struct zui_tabs { struct zui_rect tab[ZUI_MAX_TABS],close[ZUI_MAX_TABS],add; int count; };
+struct zui_tabs { struct zui_rect tab[ZUI_MAX_TABS],close[ZUI_MAX_TABS],add; int count; int glide_from,glide_to; long glide_start; };
 void zui_tabs_draw(struct zui *ui,struct zui_tabs *tabs,struct zui_rect rect,const struct zui_tab *items,int count,int active,int can_add);
 /* On a release: i+1 chose tab i, -(i+1) closed tab i, ZUI_TABS_ADD asked for a new one, 0 nothing. */
 enum { ZUI_TABS_ADD=1000 };

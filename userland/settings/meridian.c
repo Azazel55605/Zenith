@@ -94,8 +94,11 @@ void meridian_system_services(struct meridian *a,long (*read)(struct zenith_syst
 void meridian_style_services(struct meridian *a,long (*catalog)(unsigned int,struct zenith_style_list *),
                              long (*preview)(unsigned int,unsigned int,int,int,unsigned int *)){
     a->styles.catalog=catalog;a->styles.preview=preview;a->styles.save=a->bindings.save;a->styles.dirty=a->bindings.dirty;
-    if(!catalog){for(int f=0;f<STYLE_FIELDS;f++)a->styles.ready[f]=0;return;}
+    if(!catalog){for(int f=0;f<STYLE_FIELDS;f++)a->styles.ready[f]=0;a->styles.sounds=0;a->styles.sound_ready=0;return;}
     styles_refresh(&a->styles);
+}
+void meridian_sound_services(struct meridian *a,long (*read)(struct zenith_sound_settings *),long (*save)(unsigned int,unsigned int,unsigned long),long (*play)(unsigned int)){
+    a->styles.sounds=read;a->styles.sound_save=save;a->styles.sound_play=play;styles_refresh(&a->styles);
 }
 struct zui *meridian_ui(struct meridian *a){return &a->ui;}
 static void remember(struct meridian *a,int page){
@@ -355,18 +358,36 @@ static void picker(struct meridian *a,struct zui *u,struct zui_form *f,unsigned 
         f->y+=((n+cols-1)/cols)*(tile_h+gap)+8;
     }
 }
+/* System Sounds: the level and a switch and a Play button per event (ids 9001/9002, 9100+i, 9200+i). */
+static void sound_events_form(struct meridian *a,struct zui *u,struct zui_form *f,int writable){
+    struct meridian_styles *st=&a->styles;
+    zui_form_section(u,f,"Level");
+    struct zui_rect r=zui_form_row(u,f,"Volume of system sounds","Scaled with the output volume; 0 % plays nothing.",152,32);
+    zui_add(u,9001,ZUI_BUTTON,(struct zui_rect){r.x,r.y,32,32},"-",0,writable&&st->sound_level>0);
+    zui_add(u,9002,ZUI_BUTTON,(struct zui_rect){r.x+r.w-32,r.y,32,32},"+",0,writable&&st->sound_level<100);
+    char t[8];int k=0;unsigned int v=st->sound_level;if(v>=100)t[k++]='1';if(v>=10)t[k++]=(char)('0'+v/10%10);t[k++]=(char)('0'+v%10);t[k++]='%';t[k]=0;
+    text(u,r.x+52,r.y+8,t,&zui_label,u->theme.text);
+    zui_form_section(u,f,"Events");
+    for(unsigned int i=0;i<st->sound.count&&i<15;i++){
+        st->sound.labels[i][31]=0;
+        r=zui_form_row(u,f,st->sound.labels[i],0,f->narrow?f->w:240,32);
+        zui_add(u,(int)(9200+i),ZUI_BUTTON,(struct zui_rect){r.x,r.y,64,32},"Play",0,st->sound_play!=0);
+        zui_add(u,(int)(9100+i),ZUI_TOGGLE,(struct zui_rect){r.x+76,r.y,r.w-76,32},"",!!(st->sound_mask&(1u<<i)),writable);
+    }
+}
 static int system_writable(const struct meridian *a){return a->bindings.ready&&!!(a->bindings.preferences.flags&2);}
 /* Every picker of the page; true when it drew any. */
 static int pickers_form(struct meridian *a,struct zui *u,struct zui_form *f){
     unsigned int fields[4];int n=styles_page_fields(meridian_pages[a->page].id,fields),drawn=0,writable=system_writable(a);
     for(int k=0;k<n;k++){
         unsigned int fl=fields[k];if(!styles_field_ready(&a->styles,fl))continue;
-        static const char *titles[STYLE_FIELDS]={0,0,0,0,0,0,"Wallpaper",0,"Cursor pack","Size","Window decorations","Widget style","Buttons","Session splash","Login screen","Boot animation","Sound pack"};
+        static const char *titles[STYLE_FIELDS]={0,0,0,0,0,0,"Wallpaper",0,"Cursor pack","Size","Window decorations","Widget style","Buttons","Session splash","Login screen","Boot animation","Sound pack","Icon set"};
         static const char *helps[STYLE_FIELDS]={0,0,0,0,0,0,0,0,"The same shapes everywhere; login and recovery keep Meridian Light.","How large the pointer is drawn, at any display scale.",
             "The title bar the desktop draws for every window.","Corners and fills of controls in every app.","How primary buttons are drawn.",
-            "The transition from signing in to the desktop. A press or key ends it.","The screen you sign in on.","Before the login screen; diagnostics stay reachable.","Sounds for system events."};
+            "The transition from signing in to the desktop. A press or key ends it.","The screen you sign in on.","Before the login screen; diagnostics stay reachable.","Sounds for system events.","The same drawings at three stroke weights; an icon a set lacks comes from Zenith."};
         picker(a,u,f,fl,titles[fl],helps[fl],writable);drawn=1;
     }
+    if(drawn&&same(meridian_pages[a->page].id,"audio.sounds")&&a->styles.sound_ready)sound_events_form(a,u,f,writable);
     if(drawn){
         if(!writable)unlock_row(a,u,f);
         status(u,f,a->styles.message?a->styles.message:styles_changed(&a->styles,meridian_pages[a->page].id)?"Unapplied change: Apply to use it.":"Applies immediately.");
@@ -794,6 +815,9 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
         binding_refresh(b);
     }
     else if(id>=ID_LINKS&&id<ID_LINKS+MERIDIAN_PAGE_COUNT)request_page(a,id-ID_LINKS);
+    else if(id==9001||id==9002){struct meridian_styles *st=&a->styles;int v=(int)st->sound_level+(id==9002?10:-10);styles_sound_set(st,(unsigned int)(v<0?0:v>100?100:v),st->sound_mask);}
+    else if(id>=9100&&id<9115){struct meridian_styles *st=&a->styles;styles_sound_set(st,st->sound_level,st->sound_mask^(1u<<(id-9100)));}
+    else if(id>=9200&&id<9215){if(a->styles.sound_play)a->styles.sound_play((unsigned int)(id-9200));}
     else if(id>=ID_PICKS&&id<ID_PICKS+STYLE_FIELDS*64)styles_choose(&a->styles,(unsigned int)(id-ID_PICKS)/64,(unsigned int)(id-ID_PICKS)%64);
     else if(id&&kind==BIND_COLORS)colors_action(a,id);
     if(id)u->dirty=1;

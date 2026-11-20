@@ -73,7 +73,15 @@ int zui_scroll_event(struct zui *u,struct zui_scroll *s,const struct zenith_gui_
 static int row_h(const struct zui_list *l){return l->row_height>0?l->row_height:40;}
 static unsigned long len256(const char *s){unsigned long n=0;while(s&&n<256&&s[n])n++;return n;}
 void zui_list_draw(struct zui *u,struct zui_list *l,struct zui_rect r,int count,zui_list_source items,void *ctx){
-    int h=row_h(l);l->count=count<0?0:count;
+    int h=row_h(l),before=l->count;l->count=count<0?0:count;
+    /* Rows that join a list (a scan finding networks, a package search) rise 12 px into place over 160 ms; the first
+     * fill of a list does not move. */
+    long duration=160L*u->motion_percent/100;int rise=0;
+    if(l->count>before&&before>0&&duration>0&&u->now>0){l->grown_from=before;l->grown_at=u->now;}
+    if(l->grown_at){
+        if(u->now-l->grown_at>=duration||l->grown_from>=l->count)l->grown_at=0;
+        else{long k=(u->now-l->grown_at)*1024/duration;k=1024-(1024-k)*(1024-k)/1024;rise=(int)(12*(1024-k)/1024);u->animating=1;}
+    }
     if(l->selected>=l->count)l->selected=l->count?l->count-1:0;
     if(l->selected<0)l->selected=0;
     int top=zui_scroll_begin(u,&l->scroll,r);
@@ -81,7 +89,7 @@ void zui_list_draw(struct zui *u,struct zui_list *l,struct zui_rect r,int count,
     for(int i=l->scroll.visual/h;i<l->count;i++){
         int y=top+3+i*h;if(y>=r.y+r.h)break;
         struct zui_list_item it;if(!items(ctx,i,&it))continue;
-        struct zui_rect row={r.x+3,y,r.w-15,h-4};
+        struct zui_rect row={r.x+3,y+(rise&&i>=l->grown_from?rise:0),r.w-15,h-4};
         if(!zui_add(u,l->base_id+i,ZUI_NAVIGATION,row,it.label?it.label:"",i==l->selected,it.enabled))continue;
         struct zui_control *c=&u->controls[u->count-1];
         c->icon=it.icon;c->detail=it.subtitle;c->no_chevron=!it.chevron;l->visible_controls++;
@@ -270,10 +278,19 @@ void zui_tabs_draw(struct zui *u,struct zui_tabs *t,struct zui_rect r,const stru
     int room=r.w-44,w=count?room/count:0;
     if(w>190)w=190;
     int h=r.h-8,y=r.y+4,x=r.x+4;
+    /* The raised background glides from the previous tab to the new one (140 ms with motion on). */
+    if(active!=t->glide_to){t->glide_from=t->glide_to<0||t->glide_to>=count?active:t->glide_to;t->glide_to=active;t->glide_start=u->motion_percent>0&&u->now>0?u->now:0;}
+    if(active>=0&&active<count){
+        int ax=x+active*w,fx=x+t->glide_from*w;long duration=140L*u->motion_percent/100;
+        if(t->glide_start&&duration>0&&u->now-t->glide_start<duration){
+            long k=(u->now-t->glide_start)*1024/duration;k=1024-(1024-k)*(1024-k)/1024;   /* ease out */
+            ax=fx+(int)((ax-fx)*k/1024);u->animating=1;
+        }else t->glide_start=0;
+        struct zui_rect bg={ax,y,w-4,h};zui_round(u,bg,8,u->theme.surface);zui_round_outline(u,bg,8,u->theme.border);
+    }
     for(int i=0;i<count;i++,x+=w){
         struct zui_rect tab={x,y,w-4,h},close={x+w-4-26,y+(h-16)/2,16,16};
         t->tab[i]=tab;t->close[i]=close;
-        if(i==active){zui_round(u,tab,8,u->theme.surface);zui_round_outline(u,tab,8,u->theme.border);}
         int lx=tab.x+10;
         if(items[i].icon&&zui_icon(u,items[i].icon,lx,y+(h-16)/2,16,i==active?ZUI_ICON_NORMAL:ZUI_ICON_TEXT))lx+=24;
         unsigned long n=len256(items[i].label);
@@ -345,10 +362,24 @@ void zui_graph_phase(struct zui *ui,struct zui_rect r,const unsigned char *value
         previous=y;
     }
 }
+/* Meters in motion: each (keyed by its place) eases to a new value over 160 ms instead of jumping. */
+static struct { int key,shown,from,target; long start; } meters[12];
+static int meter_eased(struct zui *ui,struct zui_rect r,int percent){
+    int key=r.x<<16^r.y<<4^r.w,slot=-1,oldest=0;
+    for(int i=0;i<12;i++){if(meters[i].key==key){slot=i;break;}if(meters[i].start<meters[oldest].start)oldest=i;}
+    long duration=160L*ui->motion_percent/100;
+    if(slot<0){slot=oldest;meters[slot].key=key;meters[slot].shown=meters[slot].target=percent;meters[slot].start=0;return percent;}
+    if(meters[slot].target!=percent){meters[slot].from=meters[slot].shown;meters[slot].target=percent;meters[slot].start=ui->motion_percent>0&&ui->now>0?ui->now:0;}
+    if(!meters[slot].start||duration<=0||ui->now-meters[slot].start>=duration){meters[slot].start=0;meters[slot].shown=percent;return percent;}
+    long k=(ui->now-meters[slot].start)*1024/duration;k=1024-(1024-k)*(1024-k)/1024;
+    meters[slot].shown=meters[slot].from+(int)((percent-meters[slot].from)*k/1024);ui->animating=1;
+    return meters[slot].shown;
+}
 void zui_meter(struct zui *ui,struct zui_rect r,int percent,unsigned int color){
     if(r.w<2||r.h<2)return;
     if(percent<0)percent=0;
     if(percent>100)percent=100;
+    percent=meter_eased(ui,r,percent);
     zui_round(ui,r,r.h/2,ui->theme.subtle);
     int w=r.w*percent/100;
     zui_round(ui,(struct zui_rect){r.x,r.y,w<r.h?r.h:w,r.h},r.h/2,color);

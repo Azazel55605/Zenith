@@ -51,6 +51,8 @@ internal static class ProcessPrivileges
         654 or 655 or 656 or 657 or 658 or 660 or 405 or 4 or 408 => Privilege.Files,
         667 => Privilege.Network,
         668 => Privilege.Packages,
+        // The style catalogue's sound settings save (669 op 4); reads stay open to everyone.
+        669 => Privilege.SystemSettings,
         _ => Privilege.None,
     };
 

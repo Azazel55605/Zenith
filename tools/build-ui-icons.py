@@ -193,11 +193,16 @@ def icon_file(svg_text):
         out += size.to_bytes(2, 'little') + len(runs).to_bytes(4, 'little') + runs
     return bytes(out)
 
-def build_package(output):
+# Icon sets (U14): the same drawings at other stroke weights, in their own folders (Zenith Bold, Zenith Fine).
+SETS = {'bold': '2.6', 'fine': '1.4'}
+
+def build_package(output, icon_set=None):
     """Write the installable icon tree: one file per icon, so any package can add its own."""
-    target = Path(output)/ICON_DIR; target.mkdir(parents=True, exist_ok=True)
+    target = Path(output)/ICON_DIR/(icon_set or ''); target.mkdir(parents=True, exist_ok=True)
     for svg in sorted((ROOT/'userland/ui/icons').glob('*.svg')):
-        (target/(svg.stem + '.zic')).write_bytes(icon_file(svg.read_text()))
+        text = svg.read_text()
+        if icon_set: text = text.replace('stroke-width="2"', 'stroke-width="' + SETS[icon_set] + '"')
+        (target/(svg.stem + '.zic')).write_bytes(icon_file(text))
     (target/'LICENSE-Lucide.txt').write_bytes((ROOT/'userland/ui/icons/LICENSE').read_bytes())
 
 def build(output):
@@ -225,5 +230,7 @@ __attribute__((constructor)) static void install_host_icons(void){zui_icon_sourc
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__); parser.add_argument('output', type=Path)
     parser.add_argument('--package', action='store_true', help='write the installable icon tree')
+    parser.add_argument('--set', choices=sorted(SETS), help='an icon set at another stroke weight (with --package)')
     arguments = parser.parse_args()
-    (build_package if arguments.package else build)(arguments.output)
+    if arguments.package: build_package(arguments.output, arguments.set)
+    else: build(arguments.output)

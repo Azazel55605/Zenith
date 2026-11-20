@@ -52,6 +52,7 @@ internal sealed class SunsetView
         _focus = SunsetPlan.Initial(_choices, preferred);
         _message = null; IsOpen = true; _reportIcons = true;
         Place(width, height);
+        Zenith.Gui.Motion.OverlayMotion.Start(Zenith.Gui.Motion.OverlayMotion.Dialog);
         Zenith.Core.Log.Write("sunset", "opened blockers=" + _blockers.Count + " focus=" + _choices[_focus].Action);
     }
 
@@ -166,7 +167,7 @@ internal sealed class SunsetView
         if (!IsOpen) { return; }
         _hits.Clear();
         s.FillRect(s.Bounds, 0x99000000U);
-        Rect card = Card;
+        Rect card = Card.Offset(0, Zenith.Gui.Motion.OverlayMotion.Offset(Zenith.Gui.Motion.OverlayMotion.Dialog));
         _material.Capture(s, card.Intersect(s.Bounds), Theme.WindowRadius, Theme.WindowBackground | 0xff000000U);
         s.DrawShadow(card, Theme.WindowRadius, Theme.ShadowSize, Theme.ShadowAlpha, 6);
         _material.Paint(s, card.Intersect(s.Bounds), Theme.WindowBackground | 0xff000000U);

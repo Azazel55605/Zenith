@@ -17,16 +17,25 @@ internal static class SystemSounds
 
     /// <summary>Plays <paramref name="name"/> (login, logout, notification, attention, error, device-added, device-removed,
     /// done, volume, trash, screenshot, shutdown) unless sounds are off or one is already playing.</summary>
-    public static void Play(string name)
+    public static void Play(string name) => Play(name, false);
+    /// <summary>A preview (Meridian's Play buttons) ignores the per-event switch, not the pack or the level.</summary>
+    public static void Play(string name, bool preview)
     {
-        if (!Enabled || Interlocked.CompareExchange(ref s_playing, 1, 0) != 0) { return; }
+        var settings = Zenith.Core.Configuration.SystemConfiguration.Settings;
+        int index = Array.IndexOf(Zenith.Core.Configuration.SettingsService.SoundEvents, name);
+        if (!preview && settings is not null && index >= 0 && (settings.SoundMask & (1u << index)) == 0) { return; }
+        uint level = settings?.SoundLevel ?? 70;
+        if (!Enabled || level == 0 || Interlocked.CompareExchange(ref s_playing, 1, 0) != 0) { return; }
         byte[]? pcm = null;
         // The pack is a system resource: read it as the system, whoever is signed in.
         var root = Zenith.Core.Security.CredentialContext.Enter(Zenith.Core.Security.Credentials.Root);
         try { pcm = Load(Directory + name + ".wav"); } catch (Exception) { }
         root.Dispose();
         if (pcm is null) { Interlocked.Exchange(ref s_playing, 0); return; }
-        uint uid = Zenith.Core.Security.Accounts.Session.Uid;
+        if (level < 100) { Scale(pcm, level); }
+        // The system's own stream: as root, so it plays at the login screen (where the session is nobody) and while a
+        // session ends. The mixer drops it with every other stream when the session changes.
+        const uint uid = 0;
         new Thread(() =>
         {
             long handle = 0;
@@ -53,6 +62,15 @@ internal static class SystemSounds
         }).Start();
     }
 
+    /// <summary>The level (0..100 %) on S16LE samples, in place.</summary>
+    public static void Scale(byte[] pcm, uint level)
+    {
+        for (int i = 0; i + 1 < pcm.Length; i += 2)
+        {
+            int v = (short)(pcm[i] | pcm[i + 1] << 8) * (int)level / 100;
+            pcm[i] = (byte)v; pcm[i + 1] = (byte)(v >> 8);
+        }
+    }
     /// <summary>A mono 24 kHz 16-bit WAV as 48 kHz stereo S16LE (each sample twice, both channels), or null.</summary>
     public static byte[]? Load(string path)
     {

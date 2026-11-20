@@ -773,6 +773,10 @@ int main(int argc,char **argv){
         if(ui.dirty)drawn=now;
         if(ui.dirty){
             draw();
+            /* A new page crossfades in (call 629, as in Meridian); older kernels refuse it and the page appears at once. */
+            static int presented_page=-1;
+            if(presented_page>=0&&presented_page!=page_shown){int side=ui.width<760?168:208;zenith_gui_fade(handle,side+24,12,ui.width-side-36,ui.height-24,1);}
+            presented_page=page_shown;
             long r=material?zenith_gui_present_material(handle,ui.pixels,(unsigned long)ui.width*ui.height*4,ui.materials,ui.material_count):zenith_gui_present(handle,ui.pixels,(unsigned long)ui.width*ui.height*4);
             if(r<0){result=zui_window_closed(handle)?0:1;break;}
         }

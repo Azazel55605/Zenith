@@ -70,6 +70,7 @@ internal sealed class PortalHost
         if (dialog is null) { PortalBroker.Finish(next, PortalState.Unavailable, "the desktop cannot show this request"); return false; }
         if (dialog.Done) { return false; }   // answered without asking (Open with a known app)
         _request = next; _dialog = dialog;
+        Zenith.Gui.Motion.OverlayMotion.Start(Zenith.Gui.Motion.OverlayMotion.Dialog);
         Zenith.Core.Log.Write("portal", "dialog shown: " + next.Interface.Name + "." + next.Method + " for " + next.Caller.Program + " (pid " + next.Caller.Pid + ")");
         return true;
     }
@@ -89,7 +90,7 @@ internal sealed class PortalHost
         surface.FillRect(surface.Bounds, 0x99000000U);   // dim everything below: the dialog is the only thing to answer
         int width = Math.Min(CardWidth, surface.Width - 32), inner = width - 2 * Pad;
         int height = Head + _dialog.Height(inner) + Pad;
-        _card = new Rect((surface.Width - width) / 2, Math.Max(16, (surface.Height - height) / 2 - 24), width, height);
+        _card = new Rect((surface.Width - width) / 2, Math.Max(16, (surface.Height - height) / 2 - 24) + Zenith.Gui.Motion.OverlayMotion.Offset(Zenith.Gui.Motion.OverlayMotion.Dialog), width, height);
         surface.DrawShadow(_card, Theme.WindowRadius, Theme.ShadowSize, Theme.ShadowAlpha, 6);
         surface.FillRoundRect(_card, Theme.WindowRadius, Theme.WindowBackground | 0xff000000U);
         surface.StrokeRoundRect(_card, Theme.WindowRadius, Theme.WindowBorder);

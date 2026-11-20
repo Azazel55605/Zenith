@@ -42,7 +42,7 @@ wallpapers, and the three widget styles built in full. The Ribbon concept's clos
 - Orbits, Tides, Facets and Nebula are formulas in `src/Gui/Graphics/Wallpaper.cs` beside the first four; they follow
   light/dark mode and the accent. Their names follow the first 12 (`orbits`, `tides`, `facets`, `nebula`), so the
   legacy snapshot (call 625) keeps its 12 slots; a choice from the second set reads as itself there.
-- **Call 669, `zenith-native-style-catalog-abi` 1.0** ([header](../../userland/include/zenith_style.h)): list every
+- **Call 669, `zenith-native-style-catalog-abi` 1.0 (1.1 from kernel 0.0.72 adds the sound operations)** ([header](../../userland/include/zenith_style.h)): list every
   choice of a setting (label, kind, color) and draw a preview of a wallpaper with the desktop's own formulas. Saving
   stays call 626 with the same field numbers. `/etc/zenith/style.conf` and fields 9..16 are reserved for the styles
   still to come (cursor size, decorations, widgets, buttons, splash, login, boot, sounds).
@@ -103,9 +103,11 @@ wallpapers, and the three widget styles built in full. The Ribbon concept's clos
   menu (rises) and palette (drops, 12 px), and the +N window list.
 - Toolkit switches slide (100 ms) in apps that run the frame clock (Meridian).
 - Beacon and Orbit crossfade their pages (call 629), like Meridian.
-- Still to come from the concept: dialogs (portal, Sunset), notifications (needs a notification service), changing
-  lists, tab underlines, progress easing, counts, window snapping (needs snap zones), page fades in Observatory and
-  Horizon.
+- Second part: the portal and Sunset dialogs rise like the overlays; toolkit tabs glide their raised background to
+  the new tab (140 ms); meters ease to a new value (160 ms); rows that join a list rise 12 px into place (160 ms, not
+  on its first fill); Observatory crossfades its pages too.
+- Not done: notifications (needs a notification service), window snapping (needs snap zones), counts (no counter
+  widget yet), Horizon (a folder change redraws the whole view; a fade there needs its own design).
 
 ## AP5 — Zenith Chimes (local)
 
@@ -115,7 +117,29 @@ wallpapers, and the three widget styles built in full. The Ribbon concept's clos
   error (a failed sign-in), done (an Orbit change), volume (the taskbar) and shut down. Device and notification events
   wait for removable drives and notifications. Input & Output › System Sounds: Zenith Chimes or Silent.
 
+- Second part: a level (0–100 %, default 70) and a switch per event in `/etc/zenith/sounds.conf` (trash and screenshot
+  off by default). Meridian's System Sounds page has the level, a switch and a Play button per event; Play previews a
+  sound even when its event is off. Call 669 ops 3 (read), 4 (save, system settings grant) and 5 (play). Shell:
+  `settings set sound-level N`, `settings set sound-off EVENT,EVENT|none`.
+
+## Fixes in the second round
+
+- System sounds stream as the system (uid 0): at the login screen the session is nobody, and the mixer refused it, so
+  the failed sign-in sound never played.
+- A sign-in name that cannot exist now fails like a wrong password (same delay, message, log line and sound) instead
+  of returning at once without either.
+- Beacon's DNS step tries one.one.one.one, google.com and example.com in turn, so a network that filters one name
+  no longer reports DNS as broken.
+
+## AP8 — Icon sets (local)
+
+- Zenith Bold (2.6 px strokes) and Zenith Fine (1.4 px) render the default drawings at another weight
+  (`tools/build-ui-icons.py --package --set bold|fine`) into `/usr/share/zenith/icons/bold|fine/`, packaged as
+  **zenith-icons-bold** and **zenith-icons-fine** (extra repository). Style field 17 (`ICONS`) picks the set; the
+  desktop and the toolkit look in its folder first and fall back to the default, so a partial set still works.
+  Meridian › Icons is a preview picker; a set that is not installed says so.
+
 ## Next
 
-Gates for the new styles (settings gate pickers; login styles; decorations in the system-app gate), the rest of AP7,
-a level and per-event choices for system sounds, icon sets (AP1's second half: Zenith Bold and Fine).
+Gates for the new styles (settings gate pickers; login styles; decorations in the system-app gate; icon sets and
+sound settings), notifications and snapping once their features exist.
