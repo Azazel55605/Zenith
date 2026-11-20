@@ -92,6 +92,7 @@ internal sealed class SettingsService
             catch (Exception e) { errors.Add(WindowsPath + ": " + e.Message + "; using fit"); }
             LoadStyles(errors);
             LoadSounds(errors);
+            LoadNotifications(errors);
             _keyboard(keymap); _zone(zone);
             Current = new(keymap, zone, session, animation, taskbar, wallpaper, launcher, cursor, windows);
             return errors;
@@ -228,6 +229,35 @@ internal sealed class SettingsService
             }
         }
         catch (Exception e) { SoundLevel = 70; SoundMask = DefaultSoundMask; errors.Add(SoundsPath + ": " + e.Message + "; using defaults"); }
+    }
+    // ---------- Notifications (U14): /etc/zenith/notifications.conf, DND=0|1, POPUP=short|normal|long.
+    public const string NotificationsPath = "/etc/zenith/notifications.conf";
+    public static readonly string[] PopupNames = { "short", "normal", "long" };
+    public static readonly int[] PopupSeconds = { 4, 6, 10 };
+    public bool DoNotDisturb { get; private set; }
+    public uint Popup { get; private set; } = 1;
+    private void LoadNotifications(List<string> errors)
+    {
+        try
+        {
+            var fields = Fields(_store.Read(NotificationsPath));
+            if (fields.TryGetValue("DND", out string? dnd)) { DoNotDisturb = dnd == "1" ? true : dnd == "0" ? false : throw new FormatException("bad DND"); }
+            if (fields.TryGetValue("POPUP", out string? popup)) { int i = Array.IndexOf(PopupNames, popup); Popup = i >= 0 ? (uint)i : throw new FormatException("bad POPUP"); }
+        }
+        catch (Exception e) { DoNotDisturb = false; Popup = 1; errors.Add(NotificationsPath + ": " + e.Message + "; using defaults"); }
+    }
+    public int SaveNotifications(bool dnd, uint popup, ulong revision)
+    {
+        if (!CredentialContext.Current.IsRoot) { return -13; }
+        if (popup >= PopupNames.Length) { return -22; }
+        lock (_gate)
+        {
+            if (revision != _revision) { return -11; }
+            try { _store.Replace(NotificationsPath, Update(_store.Read(NotificationsPath), new Dictionary<string, string> { ["VERSION"] = "1", ["DND"] = dnd ? "1" : "0", ["POPUP"] = PopupNames[popup] })); }
+            catch { return -5; }
+            DoNotDisturb = dnd; Popup = popup; _revision++;
+            return 0;
+        }
     }
     public int SaveSounds(uint level, uint mask, ulong revision)
     {

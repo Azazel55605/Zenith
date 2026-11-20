@@ -178,7 +178,7 @@ internal sealed class TaskbarCenters
         int filled = (int)((long)_slider.W * output.Volume / 100);
         if (filled > 0) { surface.FillRoundRect(new Rect(_slider.X, _slider.Y, filled, _slider.H), 4, output.Muted ? Theme.TextMuted : Theme.Accent); }
         surface.FillRoundRect(new Rect(_slider.X + filled - 7, _slider.Y - 4, 14, 16), 7, usable ? Theme.TextPrimary : Theme.TextMuted);
-        surface.DrawText(output.Muted ? "Muted" : output.Volume + "%", Fonts.Regular, Theme.TextSmall, Theme.TextSecondary, _slider.Right + 10, y + 8);
+        Zenith.Gui.Motion.CountMotion.Draw(surface, 2, output.Muted ? "Muted" : output.Volume + "%", Fonts.Regular, Theme.TextSmall, Theme.TextSecondary, new Rect(_slider.Right + 10, y + 8, 48, 16), false);
         y += 44;
         Action(surface, new Rect(x, y, (w - 8) / 2, 30), "- 5%", (int)Act.Down, mouseX, mouseY, usable && output.Volume > 0);
         Action(surface, new Rect(x + (w - 8) / 2 + 8, y, (w - 8) / 2, 30), "+ 5%", (int)Act.Up, mouseX, mouseY, usable && output.Volume < 100);

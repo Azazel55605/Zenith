@@ -2,7 +2,7 @@ using System;
 
 namespace Zenith.Gui.Graphics;
 
-/// <summary>Pictures for Meridian's pickers (call 669 preview, kernel 0.0.71), drawn by the desktop with the same code
+/// <summary>Pictures for Meridian's pickers (call 669 preview, kernel 0.0.72), drawn by the desktop with the same code
 /// that draws the real thing, so a preview never differs from the result.</summary>
 internal static class StylePreviews
 {

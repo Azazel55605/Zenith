@@ -39,6 +39,8 @@ internal abstract class Window
 
     /// <summary>Where a maximized window goes back to.</summary>
     internal Rect RestoreBounds { get; set; }
+    /// <summary>Where a snapped window (half or quarter of the screen) goes back to when dragged away; null when not snapped.</summary>
+    internal Rect? SnapRestore { get; set; }
     /// <summary>Where a fullscreen window goes back to.</summary>
     internal Rect WindowedBounds { get; set; }
 

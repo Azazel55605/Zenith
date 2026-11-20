@@ -65,7 +65,7 @@ int zui_motion_percent(unsigned int choice);
  * transparency for whole app backgrounds. Nothing here decides whether a window may be transparent. */
 int zui_apply_appearance(struct zui *ui);
 int zui_apply_motion(struct zui *ui,long clock);
-/* The widget and button styles (style catalogue, call 669, kernel 0.0.71); 1 when either changed. zui_apply_motion
+/* The widget and button styles (style catalogue, call 669, kernel 0.0.72); 1 when either changed. zui_apply_motion
  * calls it too, so every app that follows the motion setting follows these. */
 int zui_apply_style(struct zui *ui);
 /* A corner radius in the current widget style. */

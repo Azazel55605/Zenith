@@ -387,6 +387,13 @@ internal static class PackageCenter
                 job.Step = failure is null ? "Done" : cancelled ? "Cancelled" : "Failed";
             }
             Log.Write("pkg", "orbit job " + job.Id + " " + (failure is null ? "done: " + job.Message : (cancelled ? "cancelled" : "failed: " + failure)));
+            // Results of a package change are notifications too (U14): Orbit may be closed or behind another window.
+            if (kind == "apply" && !cancelled)
+            {
+                string text = failure is null ? job.Message : Words(failure);
+                Zenith.Core.Notifications.NotificationCenter.FromSystem("Orbit", failure is null ? "Changes applied" : "Changes not applied",
+                    text.Length > 160 ? text[..157] + "..." : text, failure is null ? "package" : "triangle-alert");
+            }
         }
         new Thread(Body).Start();
         return job.Id;

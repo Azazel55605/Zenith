@@ -78,6 +78,17 @@ internal sealed class WindowManager
 
     // Pointer drag in progress: moving (_edges == None) or resizing.
     private Window? _dragging;
+    // ---------- Snapping (docs/design/motion-additions-concept.svg): dragging a window's title to a screen edge
+    // shows a tinted preview that grows where it will land (120 ms); releasing there snaps it. Left or right edge:
+    // that half; the top edge: maximized; near a corner: that quarter.
+    private const int SnapNone = WindowSnap.None, SnapTop = WindowSnap.Top;
+    private const long SnapMicros = 120_000;
+    private int _snapZone;
+    private long _snapStart;
+    private Rect _snapFrom;
+    /// <summary>The animation setting in percent (0 = Off), set by the desktop.</summary>
+    public static System.Func<int> AnimationPercent = () => 100;
+    private static long Micros => System.Diagnostics.Stopwatch.GetTimestamp() * 1_000_000 / System.Diagnostics.Stopwatch.Frequency;
     private Edges _edges;
     private Rect _dragStartBounds;
     private int _dragStartX;
@@ -112,7 +123,7 @@ internal sealed class WindowManager
 
     public void SetDisplayArea(Rect screen, Rect work)
     {
-        _screen=screen; _workArea=work; _dragging=null; _contentDrag=null; _pointerWindow?.OnPointerLeave(); _pointerWindow=null;
+        _screen=screen; _workArea=work; _dragging=null; _snapZone=SnapNone; _snapStart=0; _contentDrag=null; _pointerWindow?.OnPointerLeave(); _pointerWindow=null;
         _lastTitleClick=null; _transition=null; _lowerDirty=true;
         foreach(Window w in _windows)
         {
@@ -141,6 +152,59 @@ internal sealed class WindowManager
     public IReadOnlyList<Window> OpenOrder => _opened;
 
     public bool IsDragging => _dragging is not null || _contentDrag is not null;
+    /// <summary>A snap preview is on screen (the desktop composes everything while it shows).</summary>
+    public bool SnapPreviewShown => _snapZone != SnapNone && _dragging is not null;
+    /// <summary>The snap preview is still growing (the desktop keeps drawing).</summary>
+    public bool SnapMoving => SnapPreviewShown && _snapStart != 0;
+    public int SnapZone => _snapZone;
+
+    internal static int ZoneAt(Rect work, int x, int y) => WindowSnap.ZoneAt(work, x, y);
+    internal static Rect SnapTarget(Rect work, int zone) => WindowSnap.Target(work, zone);
+    private static bool Fits(Window w, Rect target)
+    {
+        var (minW, minH) = w.MinimumSize; var (maxW, maxH) = w.MaximumSize;
+        return target.W >= minW && target.H >= minH && target.W <= maxW && (maxH == int.MaxValue || target.H <= maxH);
+    }
+    /// <summary>The preview's rectangle now: grows from the pointer to the target, eased.</summary>
+    private Rect SnapPreview()
+    {
+        Rect target = SnapTarget(_workArea, _snapZone);
+        if (_snapStart == 0) { return target; }
+        long duration = SnapMicros * AnimationPercent() / 100, elapsed = Micros - _snapStart;
+        if (duration <= 0 || elapsed >= duration) { _snapStart = 0; return target; }
+        int k = Zenith.Gui.Motion.MotionCurve.EaseOut(Zenith.Gui.Motion.MotionCurve.Linear(elapsed, duration)), one = Zenith.Gui.Motion.MotionCurve.One;
+        int Mix(int a, int b) => a + (int)((long)(b - a) * k / one);
+        return new Rect(Mix(_snapFrom.X, target.X), Mix(_snapFrom.Y, target.Y), Mix(_snapFrom.W, target.W), Mix(_snapFrom.H, target.H));
+    }
+    private void TrackSnap(Window w, int x, int y)
+    {
+        int zone = w.CanResize && !w.IsFullscreen ? ZoneAt(_workArea, x, y) : SnapNone;
+        if (zone != SnapNone && !Fits(w, SnapTarget(_workArea, zone))) { zone = SnapNone; }
+        if (zone == _snapZone) { return; }
+        // A new zone grows from where the old preview was, or from a small square at the pointer.
+        _snapFrom = _snapZone != SnapNone ? SnapPreview() : new Rect(x - 24, y - 24, 48, 48);
+        _snapZone = zone;
+        _snapStart = zone != SnapNone && AnimationPercent() > 0 ? Micros : 0;
+    }
+    /// <summary>Releasing a title drag over a zone snaps the window there.</summary>
+    private void FinishSnap(Window w)
+    {
+        int zone = _snapZone; _snapZone = SnapNone; _snapStart = 0;
+        if (zone == SnapNone || w.IsClosed) { return; }
+        Rect from = w.Bounds, before = w.SnapRestore ?? _dragStartBounds;
+        if (zone == SnapTop)
+        {
+            if (w.IsMaximized) { return; }
+            w.SnapRestore = null; w.SetBounds(new Rect(from.X, from.Y, before.W, before.H));
+            ToggleMaximize(w);
+            Zenith.Core.Log.Write("windows", "snapped top " + w.Title);
+            return;
+        }
+        w.SnapRestore = before;
+        w.SetBounds(SnapTarget(_workArea, zone));
+        if (w == Top) { _transition = new(WindowChange.Resized, w, from); }
+        Zenith.Core.Log.Write("windows", "snapped " + WindowSnap.Names[zone] + " " + w.Title);
+    }
 
     public Window? Focused => _windows.Count > 0 && _windows[^1].IsFocused ? _windows[^1] : null;
 
@@ -156,6 +220,8 @@ internal sealed class WindowManager
         _opened.Add(window);
         Focus(window);
         _transition = new(WindowChange.Opened, window, window.Bounds);
+        Rect b = window.Bounds;
+        Zenith.Core.Log.Write("windows", "opened at " + b.X + "," + b.Y + " " + b.W + "x" + b.H);
     }
 
     /// <summary>The latest change since the last call. State has already changed; only the top window's changes are reported.</summary>
@@ -304,7 +370,9 @@ internal sealed class WindowManager
             }
             else
             {
+                Window released = _dragging;
                 _dragging = null;
+                if (_edges == Edges.None) { FinishSnap(released); }
             }
 
             RouteKeys(input);
@@ -447,9 +515,20 @@ internal sealed class WindowManager
                 return;
             }
 
+            // Pulling a snapped window away gives it back its size, under the pointer like a maximized one.
+            if (w.SnapRestore is Rect snapped && (Math.Abs(dx) > 4 || Math.Abs(dy) > 4))
+            {
+                int grabX = (_dragStartX - w.Bounds.X) * snapped.W / Math.Max(1, w.Bounds.W);
+                w.SnapRestore = null;
+                w.SetBounds(new Rect(x - grabX, w.Bounds.Y, snapped.W, snapped.H));
+                StartDrag(w, Edges.None, x, y);
+                return;
+            }
+
             if (!w.IsMaximized)
             {
                 MoveTo(w, _dragStartBounds.X + dx, _dragStartBounds.Y + dy);
+                TrackSnap(w, x, y);
             }
 
             return;
@@ -747,6 +826,13 @@ internal sealed class WindowManager
         top.BackdropDirty = known && top.BackdropGeneration == _generation - 1 ? DirtyUnder(top.Bounds, _changed) : new Rect(0, 0, 0, 0);
         top.BackdropStamp = sceneKey; top.BackdropBounds = top.Bounds; top.BackdropGeneration = _generation;
         bool hovered = _dragging is null && HitTest(mouseX, mouseY, includeResizeMargin: false) == top;
+        if (SnapPreviewShown && _dragging == top)
+        {
+            Rect preview = SnapPreview();
+            int radius = _snapZone == SnapTop ? 0 : Decorations.Radius(Decorations.Current);
+            surface.FillRoundRect(preview.Inflate(-6), radius, (Theme.Accent & 0x00FFFFFFu) | 0x40000000u);
+            surface.StrokeRoundRect(preview.Inflate(-6), radius, (Theme.Accent & 0x00FFFFFFu) | 0xB0000000u);
+        }
         DrawWindow(surface, backdrop, top, hovered ? mouseX : -1, mouseY);
         top.BackdropUnchanged = false; top.BackdropDirty = new Rect(0, 0, 0, 0); top.ContentDamage = new Rect(0, 0, 0, 0);
     }

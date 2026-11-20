@@ -7,6 +7,7 @@ static void text(struct zui *u,int x,int y,const char *s,const struct zui_font *
 static int sidebar_width(const struct meridian *a){return a->ui.width>=720?240:200;}
 static int page_kind(const struct meridian *a){return binding_of(meridian_pages[a->page].id);}
 static int page_has_pickers(const struct meridian *a){
+    if(same(meridian_pages[a->page].id,"windows.notifications")&&a->styles.notify_ready)return 1;
     unsigned int f[4];int n=styles_page_fields(meridian_pages[a->page].id,f);
     for(int i=0;i<n;i++)if(styles_field_ready(&a->styles,f[i]))return 1;
     return 0;
@@ -96,6 +97,9 @@ void meridian_style_services(struct meridian *a,long (*catalog)(unsigned int,str
     a->styles.catalog=catalog;a->styles.preview=preview;a->styles.save=a->bindings.save;a->styles.dirty=a->bindings.dirty;
     if(!catalog){for(int f=0;f<STYLE_FIELDS;f++)a->styles.ready[f]=0;a->styles.sounds=0;a->styles.sound_ready=0;return;}
     styles_refresh(&a->styles);
+}
+void meridian_notify_services(struct meridian *a,long (*read)(struct zenith_notify_settings *),long (*save)(unsigned int,unsigned int,unsigned long),long (*post)(const char *,const char *,const char *)){
+    a->styles.notify_read=read;a->styles.notify_save=save;a->styles.notify_post=post;if(!read)a->styles.notify_ready=0;styles_refresh(&a->styles);
 }
 void meridian_sound_services(struct meridian *a,long (*read)(struct zenith_sound_settings *),long (*save)(unsigned int,unsigned int,unsigned long),long (*play)(unsigned int)){
     a->styles.sounds=read;a->styles.sound_save=save;a->styles.sound_play=play;styles_refresh(&a->styles);
@@ -220,7 +224,8 @@ static const char *wip_note(const struct meridian *a,int kind){
         if(page_has_pickers(a)&&same(id,"style.splash"))return "Plays once when you sign in. Animations Off or a slow machine skips it; a failed start shows its error instead.";
         if(page_has_pickers(a)&&same(id,"style.login"))return "Accounts, Clock and Split preselect the last account that signed in. Who may skip the login is in Security.";
         if(page_has_pickers(a)&&same(id,"style.boot-splash"))return "From the second boot phase on. Diagnostics and the rescue entry stay reachable in every style.";
-        if(page_has_pickers(a)&&same(id,"audio.sounds"))return "Zenith Chimes plays short, quiet sounds for signing in and out, questions, errors, finished changes and the volume. Work in progress: a level and per-event choices.";
+        if(page_has_pickers(a)&&same(id,"audio.sounds"))return "Zenith Chimes plays short, quiet sounds for signing in and out, questions, errors, finished changes, notifications and the volume. Play previews a sound even when its event is off.";
+        if(page_has_pickers(a)&&same(id,"windows.notifications"))return "Popups appear above the taskbar at the right; a click dismisses one. The sender is always the app's real name. Work in progress: a history panel and per-app choices.";
     }
     if(a->page==0)return "Work in progress: scheduled mode and persistent history.";
     if(a->page==MERIDIAN_ABOUT)return "Work in progress: hardware inventory is planned.";
@@ -375,10 +380,25 @@ static void sound_events_form(struct meridian *a,struct zui *u,struct zui_form *
         zui_add(u,(int)(9100+i),ZUI_TOGGLE,(struct zui_rect){r.x+76,r.y,r.w-76,32},"",!!(st->sound_mask&(1u<<i)),writable);
     }
 }
+/* Notifications: Do Not Disturb, the popup time and a test post (ids 9300, 9310+i, 9320). */
+static void notify_form(struct meridian *a,struct zui *u,struct zui_form *f,int writable){
+    struct meridian_styles *st=&a->styles;
+    zui_form_section(u,f,"Do Not Disturb");
+    struct zui_rect r=zui_form_row(u,f,"Do Not Disturb","Notifications go to the history without a popup or a sound.",f->narrow?f->w:240,32);
+    zui_add(u,9300,ZUI_TOGGLE,r,"",st->notify_dnd!=0,writable);
+    zui_form_section(u,f,"Popups");
+    static const char *names[3]={"Short","Normal","Long"};
+    r=zui_form_row(u,f,"Shown for","4, 6 or 10 seconds; the pointer over a popup holds it.",f->narrow?f->w:300,32);
+    int w=(r.w-16)/3;
+    for(unsigned int i=0;i<3&&i<st->notify.choices;i++)zui_add(u,(int)(9310+i),ZUI_SEGMENT,(struct zui_rect){r.x+(int)i*(w+8),r.y,w,32},names[i],st->notify_popup==i,writable);
+    r=zui_form_row(u,f,"Try it","Sends a notification from Meridian.",f->narrow?f->w:180,32);
+    zui_add(u,9320,ZUI_BUTTON,(struct zui_rect){r.x,r.y,r.w,32},"Send a test",0,st->notify_post!=0);
+}
 static int system_writable(const struct meridian *a){return a->bindings.ready&&!!(a->bindings.preferences.flags&2);}
 /* Every picker of the page; true when it drew any. */
 static int pickers_form(struct meridian *a,struct zui *u,struct zui_form *f){
     unsigned int fields[4];int n=styles_page_fields(meridian_pages[a->page].id,fields),drawn=0,writable=system_writable(a);
+    if(same(meridian_pages[a->page].id,"windows.notifications")&&a->styles.notify_ready){notify_form(a,u,f,writable);drawn=1;}
     for(int k=0;k<n;k++){
         unsigned int fl=fields[k];if(!styles_field_ready(&a->styles,fl))continue;
         static const char *titles[STYLE_FIELDS]={0,0,0,0,0,0,"Wallpaper",0,"Cursor pack","Size","Window decorations","Widget style","Buttons","Session splash","Login screen","Boot animation","Sound pack","Icon set"};
@@ -815,6 +835,9 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
         binding_refresh(b);
     }
     else if(id>=ID_LINKS&&id<ID_LINKS+MERIDIAN_PAGE_COUNT)request_page(a,id-ID_LINKS);
+    else if(id==9300){struct meridian_styles *st=&a->styles;styles_notify_set(st,!st->notify_dnd,st->notify_popup);}
+    else if(id>=9310&&id<9313){struct meridian_styles *st=&a->styles;styles_notify_set(st,st->notify_dnd,(unsigned int)(id-9310));}
+    else if(id==9320){struct meridian_styles *st=&a->styles;if(st->notify_post){long r=st->notify_post("Notifications work","This is how notifications from your apps will look.","info");st->message=r>0?"Test sent.":r==-16?"Sent too often; wait a few seconds.":"The desktop does not show notifications yet.";}}
     else if(id==9001||id==9002){struct meridian_styles *st=&a->styles;int v=(int)st->sound_level+(id==9002?10:-10);styles_sound_set(st,(unsigned int)(v<0?0:v>100?100:v),st->sound_mask);}
     else if(id>=9100&&id<9115){struct meridian_styles *st=&a->styles;styles_sound_set(st,st->sound_level,st->sound_mask^(1u<<(id-9100)));}
     else if(id>=9200&&id<9215){if(a->styles.sound_play)a->styles.sound_play((unsigned int)(id-9200));}

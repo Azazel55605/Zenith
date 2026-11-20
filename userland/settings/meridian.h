@@ -49,7 +49,7 @@ struct meridian {
     long (*authorize)(void);
     long (*authorization_poll)(long handle,char *message,unsigned long size);
     long unlock_handle;char unlock_note[100];
-    /* The pickers (call 669, kernel 0.0.71): wallpapers, cursors, decorations, widgets, startup styles, sounds. */
+    /* The pickers (call 669, kernel 0.0.72): wallpapers, cursors, decorations, widgets, startup styles, sounds. */
     struct meridian_styles styles;
     /* What the next present should crossfade from the last one; fade_ready when set. */
     int fade_request,fade_ready,fade_rise;struct zui_rect fade_rect;
@@ -57,6 +57,7 @@ struct meridian {
 int meridian_init(struct meridian *app,unsigned int *pixels,struct settings_backend backend,const char *page);
 void meridian_style_services(struct meridian *a,long (*catalog)(unsigned int,struct zenith_style_list *),
                              long (*preview)(unsigned int,unsigned int,int,int,unsigned int *));
+void meridian_notify_services(struct meridian *a,long (*read)(struct zenith_notify_settings *),long (*save)(unsigned int,unsigned int,unsigned long),long (*post)(const char *,const char *,const char *));
 void meridian_sound_services(struct meridian *a,long (*read)(struct zenith_sound_settings *),long (*save)(unsigned int,unsigned int,unsigned long),long (*play)(unsigned int));
 int meridian_resize(struct meridian *app,int width,int height,unsigned long capacity);
 void meridian_draw(struct meridian *app);

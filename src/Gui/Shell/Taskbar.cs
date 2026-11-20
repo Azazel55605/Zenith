@@ -382,7 +382,7 @@ internal sealed class Taskbar
             surface.FillRoundRect(_overflowButton, Theme.ControlRadius, Theme.Hover);
         }
 
-        surface.DrawTextCentered("+" + _overflow.Count, Fonts.SemiBold, Theme.TextTitle, Theme.TextPrimary, _overflowButton, true);
+        Zenith.Gui.Motion.CountMotion.Draw(surface, 1, "+" + _overflow.Count, Fonts.SemiBold, Theme.TextTitle, Theme.TextPrimary, _overflowButton, true, _overflowButton.Inflate(-4));
     }
 
     /// <summary>The title cut to a width, ending in "..." when it had to be cut.</summary>

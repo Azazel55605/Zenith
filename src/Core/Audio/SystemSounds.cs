@@ -4,7 +4,7 @@ using System.Threading;
 
 namespace Zenith.Core.Audio;
 
-/// <summary>System sounds (docs/design/sounds-concept.svg, kernel 0.0.71): plays a named event of the chosen pack
+/// <summary>System sounds (docs/design/sounds-concept.svg, kernel 0.0.72): plays a named event of the chosen pack
 /// (style field 16: Zenith Chimes or Silent) through the session's mixer, under the apps, on its own thread. The pack
 /// is the zenith-sounds package: mono 24 kHz WAV files, played at 48 kHz stereo. A missing pack or device stays silent.</summary>
 internal static class SystemSounds

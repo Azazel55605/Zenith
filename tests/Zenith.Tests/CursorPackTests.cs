@@ -10,7 +10,7 @@ using Zenith.Gui.Graphics;
 
 namespace Zenith.Tests;
 
-/// <summary>The cursor packs (kernel 0.0.71): Comet and Contrast derived from the Meridian images, every pack at the
+/// <summary>The cursor packs (kernel 0.0.72): Comet and Contrast derived from the Meridian images, every pack at the
 /// chosen size, and the pack and size settings through the style catalogue.</summary>
 public class CursorPackTests
 {

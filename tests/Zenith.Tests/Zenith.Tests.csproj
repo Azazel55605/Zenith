@@ -50,7 +50,7 @@
     <Compile Include="../../src/Core/Monitoring/SystemMonitor.cs;../../src/Core/Monitoring/ProcessMonitor.cs;../../src/Core/Monitoring/ActivityMonitor.cs;../../src/Core/Monitoring/IoCounters.cs" LinkBase="Kernel/Monitoring" />
     <Compile Include="../../src/Core/Storage/Fstab.cs;../../src/Core/Storage/MemoryBlockDevice.cs" LinkBase="Kernel/Storage" />
     <Compile Include="../../src/Core/Portal/*.cs" Exclude="../../src/Core/Portal/Portals.cs" LinkBase="Kernel/Portal" />
-    <Compile Include="../../src/Gui/Motion/*.cs" LinkBase="Gui/Motion" />
+    <Compile Include="../../src/Gui/Motion/*.cs" Exclude="../../src/Gui/Motion/CountMotion.cs" LinkBase="Gui/Motion" />
     <Compile Include="../../src/Gui/Shell/TaskbarLayout.cs" Link="Gui/Shell/TaskbarLayout.cs" />
   </ItemGroup>
 
@@ -67,11 +67,12 @@
     <Compile Include="../../src/Core/Multiprocessing/BoxBlur.cs" LinkBase="Kernel/Multiprocessing" />
     <Compile Include="../../src/Core/Memory/*.cs" LinkBase="Kernel/Memory" />
     <Compile Include="../../src/Core/Files/*.cs" LinkBase="Kernel/Files" />
+    <Compile Include="../../src/Core/Notifications/NotificationCenter.cs" LinkBase="Kernel/Notifications" />
     <Compile Include="../../src/Core/Network/*.cs" Exclude="../../src/Core/Network/NetworkService.cs;../../src/Core/Network/NetworkCenter.cs;../../src/Core/Network/TlsConnection.cs" LinkBase="Kernel/Network" />
     <Compile Include="../../src/Core/Network/Transport/*.cs" LinkBase="Kernel/Network/Transport" />
     <Compile Include="../../src/Core/Time/*.cs" LinkBase="Kernel/Time" />
     <Compile Include="../../src/Core/Text/*.cs" LinkBase="Kernel/Text" />
-    <Compile Include="../../src/Gui/Terminal/TerminalBuffer.cs;../../src/Gui/Terminal/TerminalColors.cs;../../src/Gui/Graphics/Theme.cs;../../src/Gui/Graphics/Rect.cs;../../src/Gui/Graphics/ShadowMask.cs;../../src/Gui/Graphics/RoundedComposition.cs;../../src/Gui/Graphics/MaterialComposition.cs;../../src/Gui/Graphics/MaterialRows.cs;../../src/Gui/Graphics/MaterialPolicy.cs;../../src/Gui/Graphics/PointerImage.cs;../../src/Gui/Graphics/CursorImages.cs;../../src/Gui/Graphics/CursorImages.g.cs;../../src/Gui/Graphics/CursorPacks.cs;../../src/Gui/Graphics/Widgets.cs" LinkBase="Kernel/Gui" />
+    <Compile Include="../../src/Gui/Terminal/TerminalBuffer.cs;../../src/Gui/Terminal/TerminalColors.cs;../../src/Gui/Graphics/Theme.cs;../../src/Gui/Graphics/Rect.cs;../../src/Gui/Graphics/ShadowMask.cs;../../src/Gui/Graphics/RoundedComposition.cs;../../src/Gui/Graphics/MaterialComposition.cs;../../src/Gui/Graphics/MaterialRows.cs;../../src/Gui/Graphics/MaterialPolicy.cs;../../src/Gui/Graphics/PointerImage.cs;../../src/Gui/Graphics/CursorImages.cs;../../src/Gui/Graphics/CursorImages.g.cs;../../src/Gui/Graphics/CursorPacks.cs;../../src/Gui/Graphics/Widgets.cs;../../src/Gui/WindowSnap.cs" LinkBase="Kernel/Gui" />
   </ItemGroup>
 
   <ItemGroup>

@@ -24,6 +24,7 @@ internal static class SystemConfiguration
             SessionRuntime.Available);
         foreach (string error in Settings.Load()) { Log.Write("settings", error); }
         StyleCatalog.Values = field => Settings.Style(field);
+        Zenith.Core.Files.FileJob.Notify = (title, body, icon) => Zenith.Core.Notifications.NotificationCenter.FromSystem("Files", title, body, icon);
         Log.Write("settings", "loaded keyboard=" + Settings.Current.Keyboard + " timezone=" + Settings.Current.TimeZone
             + " session=" + SessionModes.Name(Settings.Current.DefaultSession));
     }

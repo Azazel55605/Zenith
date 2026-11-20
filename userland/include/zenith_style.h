@@ -1,6 +1,6 @@
 #ifndef ZENITH_STYLE_H
 #define ZENITH_STYLE_H
-/* zenith-native-style-catalog-abi 1.1 (kernel 0.0.72; 1.0 in 0.0.71 had ops 1-2): call 669 for Meridian's pickers (docs/components/APPEARANCE.md).
+/* zenith-native-style-catalog-abi 1.0 (kernel 0.0.72): call 669 for Meridian's pickers (docs/components/APPEARANCE.md).
  * List: every choice of a setting (field numbers of the system settings save call, 626) with its label, kind and color.
  * Preview: a picture of one choice drawn by the desktop itself (wallpapers). Older kernels answer -38; a field without a
  * catalogue answers -19. */

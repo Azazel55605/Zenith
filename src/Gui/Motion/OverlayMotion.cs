@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace Zenith.Gui.Motion;
 
 /// <summary>Popups, panels and dialogs rise into place instead of appearing at once (docs/design/motion-additions-concept.svg,
-/// kernel 0.0.71): a short ease-out of a few pixels, scaled by the animation setting; Off, or any input, lands them at
+/// kernel 0.0.72): a short ease-out of a few pixels, scaled by the animation setting; Off, or any input, lands them at
 /// once. The desktop keeps drawing while one is moving.</summary>
 internal static class OverlayMotion
 {

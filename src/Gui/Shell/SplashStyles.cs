@@ -4,7 +4,7 @@ using Zenith.Gui.Motion;
 
 namespace Zenith.Gui.Shell;
 
-/// <summary>The session splash styles (docs/design/startup-concept.svg, kernel 0.0.71): how signing in turns into the
+/// <summary>The session splash styles (docs/design/startup-concept.svg, kernel 0.0.72): how signing in turns into the
 /// desktop. The desktop is already running underneath; every style ends on its real frame, a slow machine cuts it
 /// short, and Animations › Off skips it. Crossfade is the original; Rise, Iris and Greeting are new.</summary>
 internal static class SplashStyles

@@ -3,7 +3,7 @@ namespace Zenith.Gui.Graphics;
 internal enum WidgetStyle { Rounded = 0, Soft = 1, Sharp = 2 }
 internal enum ButtonStyle { Filled = 0, Tonal = 1, Outline = 2 }
 
-/// <summary>The shared widget and button styles (docs/design/appearance-concept.svg, kernel 0.0.71): Rounded (8 px
+/// <summary>The shared widget and button styles (docs/design/appearance-concept.svg, kernel 0.0.72): Rounded (8 px
 /// controls), Soft (larger radii) and Sharp (2 px corners); Filled, Tonal and Outline primary buttons. The desktop's own
 /// controls follow here; native apps follow through the toolkit, which reads the same settings (call 669).</summary>
 internal static class Widgets

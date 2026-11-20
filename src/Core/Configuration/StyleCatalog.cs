@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Zenith.Core.Configuration;
 
-/// <summary>The style catalogue (call 669, kernel 0.0.71, docs/components/APPEARANCE.md): every choice of a setting
+/// <summary>The style catalogue (call 669, kernel 0.0.72, docs/components/APPEARANCE.md): every choice of a setting
 /// with its label, kind and color, and preview pictures the desktop draws with its own code, so Meridian's pickers
 /// show the real thing. Saving stays the system settings call (626) with the same field numbers.</summary>
 internal static class StyleCatalog

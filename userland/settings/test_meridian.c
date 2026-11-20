@@ -52,6 +52,10 @@ static long fake_sounds(struct zenith_sound_settings *out){
 }
 static long fake_sound_save(unsigned int level,unsigned int mask,unsigned long revision){if(revision!=preferences.revision)return -11;sound_level=level;sound_mask=mask;preferences.revision++;return 0;}
 static long fake_sound_play(unsigned int event){sound_played=(int)event;return 0;}
+static unsigned int notify_dnd,notify_popup=1;static int notify_posted;
+static long fake_notify_read(struct zenith_notify_settings *out){memset(out,0,sizeof(*out));out->version=1;out->dnd=notify_dnd;out->popup=notify_popup;out->choices=3;out->revision=preferences.revision;return 32;}
+static long fake_notify_save(unsigned int dnd,unsigned int popup,unsigned long revision){if(revision!=preferences.revision)return -11;notify_dnd=dnd;notify_popup=popup;preferences.revision++;return 0;}
+static long fake_notify_post(const char *title,const char *body,const char *icon){(void)body;(void)icon;notify_posted=title&&title[0];return 7;}
 static long fake_preview(unsigned int field,unsigned int index,int w,int h,unsigned int *pixels){
     if((field!=6&&field!=8&&field!=9)||index>=16)return -22;
     for(int i=0;i<w*h;i++){pixels[i]=0xFF000000u|(index*16u);}
@@ -248,6 +252,14 @@ int main(int argc,char **argv){
     wheel_until(9209);click_id(9209);assert(sound_played==9);
     click_id(900+ZUI_FOOTER_APPLY);assert(sound_level==80&&(sound_mask&(1u<<9))&&!dirty);
     meridian_sound_services(&app,0,0,0);
+    /* Notifications: Do Not Disturb and the popup time are drafts; the test button posts at once. */
+    meridian_notify_services(&app,fake_notify_read,fake_notify_save,fake_notify_post);
+    assert(meridian_open(&app,"windows.notifications"));draw();
+    click_id(9300);assert(app.styles.notify_dnd==1&&dirty);
+    click_id(9312);assert(app.styles.notify_popup==2);
+    wheel_until(9320);click_id(9320);assert(notify_posted);
+    click_id(900+ZUI_FOOTER_APPLY);assert(notify_dnd==1&&notify_popup==2&&!dirty);
+    meridian_notify_services(&app,0,0,0);
     meridian_style_services(&app,0,0);preferences.wallpaper=0;preferences.cursor=0;cursor_pack=0;preferences.version=1;meridian_refresh(&app);
     /* Service-backed information pages. */
     meridian_information_services(&app,information_read);

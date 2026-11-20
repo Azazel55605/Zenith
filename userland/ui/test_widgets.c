@@ -287,7 +287,23 @@ static void graph_tests(void){
     assert(px[13*800+30]==line&&px[13*800+90]==0x111111);
     zui_meter(&u,(struct zui_rect){10,30,100,6},0,line);assert(px[33*800+13]==line);
 }
+/* A number in a navigation row's detail (Orbit's update count) animates when it changes; text details do not. */
+static void count_tests(void){
+    struct zui u;assert(zui_init(&u,px,800,600));
+    long now=1000;zui_motion_frame(&u,now);u.motion_percent=100;
+    struct zui_rect row={10,10,200,40};
+    #define ROW(D) do{u.count=0;assert(zui_add(&u,42,ZUI_NAVIGATION,row,"Updates",0,1));u.controls[0].detail=(D);u.controls[0].no_chevron=1;u.animating=0;zui_draw_controls(&u);}while(0)
+    ROW("3");assert(!u.animating);                       /* first sight: no motion */
+    ROW("3");assert(!u.animating);
+    ROW("4");assert(u.animating);                        /* changed: the old fades up, the new rises in */
+    int frames=0;do{now+=16;zui_motion_frame(&u,now);ROW("4");}while(u.animating&&++frames<100);
+    assert(frames>=5&&frames<20);                        /* about 120 ms */
+    ROW("ready");assert(!u.animating);                   /* not a number */
+    u.motion_percent=0;ROW("5");assert(!u.animating);    /* Animations Off */
+    #undef ROW
+}
 int main(void){
+    count_tests();
     graph_tests();
     stage3_tests();
     scroll_tests();

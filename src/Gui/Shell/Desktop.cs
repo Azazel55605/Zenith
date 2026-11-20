@@ -36,6 +36,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     private NativeClientHost _nativeClients;
     private Taskbar _taskbar;
     private PrismView _prism;
+    private readonly Toasts _toasts = new();
     private readonly Zenith.Gui.Shell.Portal.PortalHost _portal = new();
     private readonly Zenith.Gui.Shell.Sunset.SunsetView _sunset;
     private readonly Zenith.Gui.Shell.Sunset.LockScreen _lock = new();
@@ -46,6 +47,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     private long _pendingPowerFrame;
     private readonly System.Collections.Generic.List<Window> _prismWindows = new();
     private bool _lowerValid;
+    private bool _snapShown; private int _snapZone;
     private (int BlurArea, uint Reason) _lowerSpent;
     private uint _lowerMaterials, _lowerTranslucency, _lowerPanel, _lowerBackground, _lowerBorder, _lowerFocused, _lowerText, _lowerAccent;
     private bool _sceneDirty = true;
@@ -102,6 +104,9 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         Zenith.Core.Configuration.StyleCatalog.Accent = () => Theme.Accent & 0xFFFFFF;
         Zenith.Core.Configuration.StyleCatalog.RenderPreview = StylePreviews.Render;
         Zenith.Gui.Motion.OverlayMotion.AnimationPercent = () => Zenith.Core.Configuration.SystemConfiguration.Settings?.AnimationPercent ?? 100;
+        Zenith.Gui.WindowManager.AnimationPercent = Zenith.Gui.Motion.OverlayMotion.AnimationPercent;
+        Toasts.AnimationPercent = Zenith.Gui.Motion.OverlayMotion.AnimationPercent;
+        Zenith.Gui.Motion.CountMotion.AnimationPercent = Zenith.Gui.Motion.OverlayMotion.AnimationPercent;
         Zenith.Core.Configuration.StyleCatalog.Values = field => Zenith.Core.Configuration.SystemConfiguration.Settings?.Style(field) ?? 0;
         _prism = new PrismView(PrismCandidates, PrismActivate, PrismUser);
         _portal.Attach();
@@ -347,6 +352,8 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
             else { _portalSounded = false; }
         }
         if (_sunset.Tick(_scene.Width, _scene.Height)) { _sceneDirty = true; }
+        // Notifications: toasts over the work area (not on the lock screen, where they wait).
+        if (!_lock.IsLocked && _toasts.Tick(Windows.WorkArea, _input.X, _input.Y)) { _sceneDirty = true; _composeAll = true; }
         if (_generation != Accounts.Generation)
         {
             foreach (var window in Windows.Windows) { if (window is TerminalWindow terminal && terminal.IsBusy) { return; } }
@@ -425,8 +432,13 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         // Only motion the person is watching (an animation, a drag) keeps the loop awake until the frame
         // is due; other changes (a client's new frame) wait halted for the next interrupt, at most a tick.
         // A popup rising into place keeps the frames coming until it lands.
-        if (Zenith.Gui.Motion.OverlayMotion.Active) { _sceneDirty = true; }
-        bool watched = _motion.Active || _motionName is not null || Windows.IsDragging || Zenith.Gui.Motion.OverlayMotion.Active;
+        if (Zenith.Gui.Motion.OverlayMotion.Active || Windows.SnapMoving || _toasts.Moving) { _sceneDirty = true; _composeAll |= _toasts.Moving; }
+        // A count changing on the bar or in a panel redraws the bar until it has settled.
+        if (Zenith.Gui.Motion.CountMotion.Active) { _sceneDirty = true; _barChanged = true; }
+        // The snap preview lies outside the top window: compose everything while it shows, and once when it goes.
+        bool snap = Windows.SnapPreviewShown;
+        if (snap != _snapShown || (snap && Windows.SnapZone != _snapZone)) { _snapShown = snap; _snapZone = Windows.SnapZone; _composeAll = true; _sceneDirty = true; }
+        bool watched = _motion.Active || _motionName is not null || Windows.IsDragging || Zenith.Gui.Motion.OverlayMotion.Active || _toasts.Moving || Zenith.Gui.Motion.CountMotion.Active;
         if ((watched || _sceneDirty) && !due) { _framePending = watched; return; }
         if (_motion.Active || _motionName is not null)
         {
@@ -814,6 +826,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         if (_portal.IsOpen) { return -_portal.HoverKey(x, y); }
         if (_sunset.IsOpen) { return -2_000_000 - _sunset.HoverKey(x, y); }
         long key = _prism.IsOpen ? _prism.HoverKey(x, y) : 0;
+        if (_toasts.Contains(x, y)) { key ^= 0x5A5A_0000_0000L + y / 8; }
         key = key * 1024 + _taskbar.HoverKey(x, y);
         return key * 4096 + Windows.HoverKey(x, y);
     }
@@ -890,6 +903,8 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
             if (!_taskbar.Bounds.Contains(_input.X, _input.Y)) { return; }
         }
 
+        // A click on a toast dismisses it and goes no further.
+        if (_input.LeftPressed && _toasts.HandleClick(_input.X, _input.Y)) { _sceneDirty = true; return; }
         if (_input.LeftPressed && _taskbar.HandleClick(_input.X, _input.Y, out bool launcherClicked))
         {
             if (launcherClicked)
@@ -923,7 +938,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         long topKey = TopKey(top), barKey = BarKey();
         Rect barArea = _taskbar.Shown ? _taskbar.Bounds.Inflate(Theme.ShadowSize + 8) : new Rect(0, 0, 0, 0);
         if (_lock.IsLocked) { ComposeLocked(start); return; }
-        bool overlays = withoutTop || _prism.IsOpen || _portal.IsOpen || _sunset.IsOpen || _taskbar.PopupOpen || Zenith.Core.Sessions.SessionRuntime.Message is not null;
+        bool overlays = withoutTop || Windows.SnapPreviewShown || _toasts.IsShown || _prism.IsOpen || _portal.IsOpen || _sunset.IsOpen || _taskbar.PopupOpen || Zenith.Core.Sessions.SessionRuntime.Message is not null;
         // After an animation or a pass without the top window, the scene does not hold a finished
         // frame: compose everything once.
         bool structural = _composeAll || !appearance || !_lowerValid || top != _lastTop || !Windows.LowerStructureUnchanged();
@@ -1013,6 +1028,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
             _scene.FillRoundRect(new Rect(12, 12, Math.Min(WidthForMessage(), _scene.Width - 24), 40), 6, Theme.Panel);
             _scene.DrawText(message, Fonts.Regular, 13, Theme.TextPrimary, 24, 24);
         }
+        if (_toasts.IsShown) { _toasts.Draw(_scene, _input.X, _input.Y); }
         if (_prism.IsOpen) { _prism.Draw(_scene, _input.X, _input.Y); }
         if (_taskbar.Shown) { _taskbar.DrawOverflowList(_scene, _input.X, _input.Y); }
         if (_sunset.IsOpen && !_sunsetCardHidden) { _sunset.Draw(_scene, _input.X, _input.Y); }
@@ -1176,7 +1192,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     {
         if (_launchingUntil != 0 && (FrameStats.Now > _launchingUntil || Windows.Windows.Count > _launchingWindows)) { _launchingUntil = 0; }
         if (_launchingUntil != 0) { return CursorShape.Progress; }
-        if (_lock.IsLocked || _sunset.IsOpen || _prism.IsOpen || _portal.IsOpen || (_taskbar.Shown && _taskbar.Bounds.Contains(_input.X, _input.Y))) { return CursorShape.Default; }
+        if (_lock.IsLocked || _sunset.IsOpen || _prism.IsOpen || _portal.IsOpen || _toasts.Contains(_input.X, _input.Y) || (_taskbar.Shown && _taskbar.Bounds.Contains(_input.X, _input.Y))) { return CursorShape.Default; }
         return Windows.CursorAt(_input.X, _input.Y);
     }
     private bool AppearanceStillValid() => _lowerValid

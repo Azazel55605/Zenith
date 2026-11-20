@@ -4,7 +4,7 @@ namespace Zenith.Gui.Graphics;
 
 internal enum DecorationStyle { Zenith = 0, Classic = 1, Dots = 2, Ribbon = 3 }
 
-/// <summary>The trusted title bar in four styles (docs/design/decorations-concept.svg, kernel 0.0.71): one service, one
+/// <summary>The trusted title bar in four styles (docs/design/decorations-concept.svg, kernel 0.0.72): one service, one
 /// parameter set per style. The desktop draws it for every window, native or its own; programs cannot draw chrome.</summary>
 internal static class Decorations
 {

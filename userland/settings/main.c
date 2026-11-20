@@ -267,6 +267,7 @@ int main(int argc,char **argv){
     shell.ui.hover_supported=zenith_gui_pointer_motion(handle)==0; /* -38 on older kernels */
     meridian_system_services(&shell,zenith_system_settings_read,zenith_system_settings_save);
     {struct zenith_style_list probe;if(zenith_style_list(Z_STYLE_WALLPAPER,&probe)==0){meridian_style_services(&shell,zenith_style_list,zenith_style_preview);meridian_sound_services(&shell,zenith_sound_settings,zenith_sound_save,zenith_sound_play);}}
+    {struct zenith_notify_settings probe;if(zenith_notify_settings(&probe)>=0)meridian_notify_services(&shell,zenith_notify_settings,zenith_notify_save,zenith_notify);}
     shell.bindings.display_read=zenith_display_read; shell.bindings.display_save=zenith_display_change;
     meridian_information_services(&shell,zenith_settings_information_read);
     meridian_audio_services(&shell,zenith_audio_read,zenith_audio_control);

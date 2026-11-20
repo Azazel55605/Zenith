@@ -198,6 +198,32 @@ int zui_surface(struct zui *u,struct zui_rect r,int radius,int role){
      * of future material capability/effective preference and never changes here. */
     zui_round(u,r,radius,color);return 1;
 }
+/* Counts in motion (docs/design/motion-additions-concept.svg): a navigation row's detail that is a number, such as
+ * Orbit's update count, changes by the old number fading up and the new one rising in (120 ms); other details and the
+ * first appearance of a number draw at once. */
+static unsigned long length(const char *s);
+static struct { int id; char old[16],now[16]; long start; } counts[12];
+static int count_number(const char *t){int n=0;while(t[n]>='0'&&t[n]<='9'&&n<15)n++;return n>0&&t[n]==0;}
+static void count_copy(char *to,const char *from){int n=0;while(from[n]&&n<15){to[n]=from[n];n++;}to[n]=0;}
+static int count_same(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return *a==*b;}
+static void count_detail(struct zui *u,int id,const char *detail,int x,int y,unsigned int under){
+    unsigned long n=length(detail);
+    if(!count_number(detail)){zui_text(u,x,y,detail,n,&zui_caption,u->theme.secondary);return;}
+    int slot=-1,oldest=0;
+    for(int i=0;i<12;i++){if(counts[i].id==id&&counts[i].now[0]){slot=i;break;}if(counts[i].start<counts[oldest].start)oldest=i;}
+    long duration=120L*u->motion_percent/100;
+    if(slot<0){slot=oldest;counts[slot].id=id;count_copy(counts[slot].now,detail);counts[slot].old[0]=0;counts[slot].start=0;}
+    else if(!count_same(counts[slot].now,detail)){
+        count_copy(counts[slot].old,counts[slot].now);count_copy(counts[slot].now,detail);
+        counts[slot].start=duration>0&&u->now>0?u->now:0;
+    }
+    if(!counts[slot].start||u->now-counts[slot].start>=duration){counts[slot].start=0;zui_text(u,x,y,detail,n,&zui_caption,u->theme.secondary);return;}
+    long k=(u->now-counts[slot].start)*255/duration;k=255-(255-k)*(255-k)/255;   /* ease out, 0..255 */
+    int shift=6;
+    zui_text(u,x,y-(int)(shift*k/255),counts[slot].old,length(counts[slot].old),&zui_caption,blend(u->theme.secondary,under,(unsigned int)k));
+    zui_text(u,x,y+shift-(int)(shift*k/255),detail,n,&zui_caption,blend(under,u->theme.secondary,(unsigned int)k));
+    u->animating=1;
+}
 static unsigned int blend(unsigned int bg,unsigned int fg,unsigned int a){
     unsigned int out=0;
     for(int s=0;s<24;s+=8)out|=((((bg>>s)&255)*(255-a)+((fg>>s)&255)*a+127)/255)<<s;
@@ -424,7 +450,9 @@ void zui_draw_range(struct zui *u,int first,int count){
             tx=r.x+(c->kind==ZUI_NAVIGATION?(c->icon?44:12):0);
             if(c->kind==ZUI_NAVIGATION&&c->icon)zui_icon(u,c->icon,r.x+10,r.y+(r.h-24)/2,24,c->enabled?ZUI_ICON_NORMAL:ZUI_ICON_DISABLED);
             if(c->kind==ZUI_NAVIGATION&&c->detail){
-                ty=r.y+2;zui_text(u,tx,r.y+r.h-zui_caption.height-1,c->detail,length(c->detail),&zui_caption,u->theme.secondary);
+                ty=r.y+2;
+                unsigned int under=selected||pressed||hovered?(pressed?u->theme.raised:fill):u->theme.surface;
+                count_detail(u,c->id,c->detail,tx,r.y+r.h-zui_caption.height-1,under);
             }
             u->clip=intersect(u->clip,(struct zui_rect){r.x,r.y,r.w-(c->kind==ZUI_TOGGLE?60:c->no_chevron?8:24),r.h});
         }

@@ -137,7 +137,21 @@ internal sealed partial class FileJob
         catch (Exception e) { Finish(FileJobState.Failed, e.Message); }
     }
 
-    private void Finish(FileJobState state, string message) => Set(() => { _state = state; _message = message; _current = ""; _question = ""; _questionKind = 0; });
+    private void Finish(FileJobState state, string message)
+    {
+        Set(() => { _state = state; _message = message; _current = ""; _question = ""; _questionKind = 0; });
+        // A result worth a notification (U14): a failure, or a job long enough that the person may have looked away.
+        long took = System.Diagnostics.Stopwatch.GetTimestamp() - _started;
+        if (state == FileJobState.Failed || (state == FileJobState.Done && took >= 2 * System.Diagnostics.Stopwatch.Frequency))
+        {
+            string what = Operation switch { FileJobOperation.Copy => "Copy", FileJobOperation.Move => "Move", FileJobOperation.Delete => "Delete", FileJobOperation.Extract => "Extract", _ => "Compress" };
+            string title = what + (state == FileJobState.Done ? " finished" : " failed");
+            Notify?.Invoke(title, message.Length > 160 ? message[..157] + "..." : message, state == FileJobState.Done ? "check" : "triangle-alert");
+        }
+    }
+    private readonly long _started = System.Diagnostics.Stopwatch.GetTimestamp();
+    /// <summary>Posts a file-job result (title, body, icon) as a notification; set at boot.</summary>
+    public static Action<string, string, string>? Notify;
 
     // ---------- Counting: items and bytes, bounded; moves within a filesystem count one item each.
     private void Count()

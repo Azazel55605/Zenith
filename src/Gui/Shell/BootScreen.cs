@@ -74,7 +74,7 @@ internal static class BootScreen
         if (label is not null)
         { surface.DrawTextCentered(label, Fonts.Regular, S(Theme.TextBody), 0xFFB4B7C0, new Rect(0, y + S(8), surface.Width, S(24)), true); }
         if (filled < 0) { return; }
-        // Boot styles (docs/design/startup-concept.svg, kernel 0.0.71), read once the installed root is mounted: the
+        // Boot styles (docs/design/startup-concept.svg, kernel 0.0.72), read once the installed root is mounted: the
         // first phase always uses Phases. Every style keeps the phase name; Quiet shows it only as a hairline grows.
         if (style < 0) { style = (int)Math.Min(3u, Zenith.Core.Configuration.SystemConfiguration.Settings?.Style(15) ?? 0); }
         if (style == 1)

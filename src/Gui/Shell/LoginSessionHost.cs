@@ -28,7 +28,7 @@ internal sealed class LoginSessionHost : ISessionHost
     private bool _started;
     private string _title = "Zenith", _subtitle = "Sign in to your workspace";
     private bool _dirty = true;
-    // Login styles (docs/design/startup-concept.svg, kernel 0.0.71): 0 Zenith card, 1 Accounts, 2 Clock, 3 Split.
+    // Login styles (docs/design/startup-concept.svg, kernel 0.0.72): 0 Zenith card, 1 Accounts, 2 Clock, 3 Split.
     // Accounts, Clock and Split preselect the last account that signed in here; Clock waits for a key or click.
     private int _style;
     private System.Collections.Generic.List<string> _accounts = new();

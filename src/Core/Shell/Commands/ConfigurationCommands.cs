@@ -13,6 +13,34 @@ internal static class ConfigurationCommands
         add(new Command("display", "display [test WIDTH HEIGHT SCALE|PERCENT | keep | revert]", "Primary display modes and guarded preview", Display));
         add(new Command("settings", "settings [show | set keyboard|timezone|session|animations|taskbar|windows|wallpaper|cursor|cursor-size|decoration|widgets|buttons|splash|login|boot|sounds|icons|sound-level|sound-off|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]", "Shared system settings", Settings));
         add(new Command("session", "session [status | list | set-default MODE | switch MODE]", "Select a session or return to login", Session));
+        add(new Command("notify", "notify [--icon NAME] TITLE [BODY...] | notify history | notify dnd on|off | notify popup short|normal|long", "Post a notification; show history; Do Not Disturb", Notify));
+    }
+    private static int Notify(CommandContext c)
+    {
+        var settings = SystemConfiguration.Settings;
+        if (c.Args.Length == 1 && c.Args[0] == "history")
+        {
+            foreach (var n in Zenith.Core.Notifications.NotificationCenter.History()) { c.WriteLine(n.Id + " " + n.Source + ": " + n.Title + (n.Body.Length > 0 ? " - " + n.Body : "")); }
+            c.WriteLine("dnd=" + (settings.DoNotDisturb ? "on" : "off") + " popup=" + SettingsService.PopupNames[settings.Popup]);
+            return 0;
+        }
+        if (c.Args.Length == 2 && c.Args[0] is "dnd" or "popup")
+        {
+            using var root = Zenith.Core.Security.CredentialContext.Enter(Zenith.Core.Security.Credentials.Root);
+            bool dnd = settings.DoNotDisturb; uint popup = settings.Popup;
+            if (c.Args[0] == "dnd") { if (c.Args[1] is not ("on" or "off")) { return c.Fail("notify dnd on|off"); } dnd = c.Args[1] == "on"; }
+            else { int i = Array.IndexOf(SettingsService.PopupNames, c.Args[1]); if (i < 0) { return c.Fail("notify popup short|normal|long"); } popup = (uint)i; }
+            var (_, revision) = settings.Snapshot();
+            if (settings.SaveNotifications(dnd, popup, revision) != 0) { return c.Fail("could not save notification settings"); }
+            c.WriteLine("saved " + c.Args[0] + " " + c.Args[1]); return 0;
+        }
+        int at = 0; string icon = "";
+        if (c.Args.Length >= 2 && c.Args[0] == "--icon") { icon = c.Args[1]; at = 2; }
+        if (c.Args.Length <= at) { return c.Fail("usage: notify [--icon NAME] TITLE [BODY...]"); }
+        string body = c.Args.Length > at + 1 ? string.Join(" ", c.Args, at + 1, c.Args.Length - at - 1) : "";
+        int id = Zenith.Core.Notifications.NotificationCenter.Post("Shell", c.Args[at], body, icon, 0);
+        if (id < 0) { return c.Fail(id == -16 ? "too many notifications; wait a few seconds" : "title up to 64 bytes, body up to 160, icon a lower-case name"); }
+        c.WriteLine("posted " + id); return 0;
     }
     private static int Display(CommandContext c)
     {

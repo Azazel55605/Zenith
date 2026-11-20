@@ -5,3 +5,4 @@ description	Processor, memory, disks, network and frame times, and the programs 
 category	apps
 icon	activity
 change	0.5.0	Connection details and programs using the network
+change	0.6.0	Pages crossfade

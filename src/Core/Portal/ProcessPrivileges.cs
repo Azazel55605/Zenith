@@ -53,6 +53,8 @@ internal static class ProcessPrivileges
         668 => Privilege.Packages,
         // The style catalogue's sound settings save (669 op 4); reads stay open to everyone.
         669 => Privilege.SystemSettings,
+        // Notification settings save (670 op 3); posting runs as the caller.
+        670 => Privilege.SystemSettings,
         _ => Privilege.None,
     };
 

@@ -6,4 +6,5 @@ description	Changes keep the old settings until the new ones connect.
 category	apps
 icon	network
 change	0.1.0	Status, traffic, history, diagnostics, ping and safe changes
+change	0.2.0	Pages crossfade; diagnostics try several names for DNS
 planned	Trace, Wi-Fi and VPN once drivers exist

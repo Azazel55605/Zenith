@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Zenith.Gui.Graphics;
 
-/// <summary>The cursor packs (docs/design/cursor-packs-concept.svg, kernel 0.0.71): Meridian Light and Dark are the
+/// <summary>The cursor packs (docs/design/cursor-packs-concept.svg, kernel 0.0.72): Meridian Light and Dark are the
 /// generated images; Contrast (1.5x, pure black and white, a heavier outline) and Comet (the accent with a white rim)
 /// are derived from them at run time, and every pack is scaled to the chosen size (24, 32 or 48 logical pixels) at the
 /// display's scale. No extra images in the kernel. Pure: host-tested.</summary>

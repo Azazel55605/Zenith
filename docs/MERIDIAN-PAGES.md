@@ -89,7 +89,7 @@ Window Management groups Taskbar, Window Behavior, Task Switcher and Virtual Des
 
 | ID / page | Requested sections and controls | Baseline; activation / owner |
 |---|---|---|
-| `windows.notifications` — Notifications | Do Not Disturb, visibility conditions and popup behavior. Settings summaries remain truthful before the notification service exists. | —; M7. U; notification service/compositor presentation. |
+| `windows.notifications` — Notifications | Do Not Disturb, visibility conditions and popup behavior. | Do Not Disturb, popup time and a test (call 670, kernel 0.0.72); visibility conditions and per-app choices M7. U; notification service/compositor presentation. |
 | `windows.taskbar` — Taskbar | Dock when maximized, floating, docked, hide when maximized, auto-hide; later position and pinned applications. | H; M7. U; compositor presentation. |
 | `windows.behavior` — Window Behavior | Focus: click-to-focus in DE, focus delay, raising; titlebar double-click/maximize-button actions; movement screen-edge and window snap zones. Expose per-session capabilities for floating DE versus later tiling WM. | H for fixed DE behavior; M7. U; window manager/compositor. |
 | `windows.switcher` — Task Switcher | Several visualizations; sort order; one-window-per-application option; filters for virtual desktops and monitors when those concepts exist. Use owned app/window identity. | —; M7, monitor-specific filters after display support. U; session window/task service. |
