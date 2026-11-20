@@ -382,11 +382,13 @@ internal static class PackageCenter
             scope.Dispose();
             lock (s_gate)
             {
-                if (failure is null) { job.State = 2; if (kind == "apply") { Zenith.Core.Audio.SystemSounds.Play("done"); } }
+                if (failure is null) { job.State = 2; }
                 else { job.Message = Words(failure); job.State = cancelled ? 4 : 3; }
                 job.Step = failure is null ? "Done" : cancelled ? "Cancelled" : "Failed";
             }
             Log.Write("pkg", "orbit job " + job.Id + " " + (failure is null ? "done: " + job.Message : (cancelled ? "cancelled" : "failed: " + failure)));
+            // Outside the lock: the sound and the notification never hold up a status call.
+            if (failure is null && kind == "apply") { Zenith.Core.Audio.SystemSounds.Play("done"); }
             // Results of a package change are notifications too (U14): Orbit may be closed or behind another window.
             if (kind == "apply" && !cancelled)
             {

@@ -625,6 +625,7 @@ int main(int argc,char **argv){
         long now=zui_motion_clock();
         if((now>=0&&now-last>=1000)||(now<0&&++polls>=400)){last=now;polls=0;refresh();}
         check_step();ping_step();poll_permission();
+        zui_motion_tick(&ui,now);
         if(ui.dirty){draw();present();}
         struct zenith_gui_event e={0};long r=zenith_gui_poll(handle,&e);if(r<0){result=1;break;}if(!r)continue;
         if(e.type==Z_GUI_RESIZE){if(zui_apply_viewport(&ui,handle,640*480)<0){result=zui_window_closed(handle)?0:1;break;}continue;}

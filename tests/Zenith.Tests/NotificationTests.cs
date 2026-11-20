@@ -42,6 +42,18 @@ public class NotificationTests
         Assert.True(NotificationCenter.Post("noisy", "later", "", "", 0) > 0);
     }
     [Fact]
+    public void UnreadCountsUntilThePanelOpensAndTheHistoryCanBeTrimmed()
+    {
+        int a = NotificationCenter.Post("p", "one", "", "", 0), b = NotificationCenter.Post("q", "two", "", "", 0);
+        Assert.Equal(2, NotificationCenter.Unread);
+        int revision = NotificationCenter.Revision;
+        NotificationCenter.MarkRead(); Assert.Equal(0, NotificationCenter.Unread); Assert.NotEqual(revision, NotificationCenter.Revision);
+        Assert.True(NotificationCenter.Remove(a)); Assert.False(NotificationCenter.Remove(a));
+        Assert.Equal(new[] { b }, NotificationCenter.History().ConvertAll(n => n.Id));
+        NotificationCenter.Post("p", "three", "", "", 0); Assert.Equal(1, NotificationCenter.Unread);
+        NotificationCenter.Clear(); Assert.Empty(NotificationCenter.History()); Assert.Equal(0, NotificationCenter.Unread);
+    }
+    [Fact]
     public void HistoryKeepsTheLastThirtyTwo()
     {
         for (int i = 0; i < 40; i++) { NotificationCenter.Post("s" + i, "t" + i, "", "", 0); }

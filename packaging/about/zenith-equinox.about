@@ -4,3 +4,4 @@ summary	Disks and partitions
 description	See disks and partitions, and create, format, resize and mount them as a plan applied at once.
 category	system
 icon	hard-drive
+change	0.5.0	Follows the widget and button styles and the icon set; progress eases, lists and counts move

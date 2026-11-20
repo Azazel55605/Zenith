@@ -15,31 +15,34 @@ namespace Zenith.Gui.Shell;
 /// the programs playing. Both read the kernel services directly; changes go through the same rules as the native calls.</summary>
 internal sealed class TaskbarCenters
 {
-    public enum Panel { None, Network, Sound }
+    public enum Panel { None, Network, Sound, Notifications }
     private const int PanelWidth = 320, Padding = 14;
     private readonly Func<string, string[]?, bool> _openApp;
     public TaskbarCenters(Func<string, string[]?, bool> openApp) { _openApp = openApp; }
     public Panel Open { get; set; }
     public Rect NetworkButton { get; private set; }
     public Rect SoundButton { get; private set; }
+    public Rect NotificationsButton { get; private set; }
     private Rect _panel;
     private readonly List<(Rect Rect, int Action)> _actions = new();
     private Rect _slider;
     private string _note = "";
     private volatile bool _busy;
-    private enum Act { Toggle = 1, Beacon, Diagnostics, NetworkSettings, Mute, Down, Up, SoundSettings }
+    private enum Act { Toggle = 1, Beacon, Diagnostics, NetworkSettings, Mute, Down, Up, SoundSettings, ClearAll, DoNotDisturb, NotificationSettings, Dismiss = 100 }
 
     /// <summary>Lays the two buttons out to the left of x (the clock's left edge); returns their left edge.</summary>
     public int Layout(int right, int y, int size)
     {
-        SoundButton = new Rect(right - size, y, size, size);
-        NetworkButton = new Rect(right - 2 * size - 4, y, size, size);
+        NotificationsButton = new Rect(right - size, y, size, size);
+        SoundButton = new Rect(right - 2 * size - 4, y, size, size);
+        NetworkButton = new Rect(right - 3 * size - 8, y, size, size);
         // Where they are, once per change: gates turn this into pointer moves.
         if (NetworkButton.X != _loggedX || NetworkButton.Y != _loggedY)
         {
             _loggedX = NetworkButton.X; _loggedY = NetworkButton.Y;
             Zenith.Core.Log.Write("taskbar", "centers network=" + (NetworkButton.X + size / 2) + "," + (NetworkButton.Y + size / 2)
-                + " sound=" + (SoundButton.X + size / 2) + "," + (SoundButton.Y + size / 2));
+                + " sound=" + (SoundButton.X + size / 2) + "," + (SoundButton.Y + size / 2)
+                + " notifications=" + (NotificationsButton.X + size / 2) + "," + (NotificationsButton.Y + size / 2));
         }
         return NetworkButton.X;
     }
@@ -77,6 +80,7 @@ internal sealed class TaskbarCenters
         var (output, _) = AudioService.Overview(Uid);
         var hash = new HashCode();
         hash.Add(online); hash.Add(headline); hash.Add(output.Available); hash.Add(output.Muted); hash.Add(output.Volume); hash.Add(_busy);
+        hash.Add(Zenith.Core.Notifications.NotificationCenter.Revision); hash.Add(Zenith.Core.Configuration.SystemConfiguration.Settings?.DoNotDisturb ?? false);
         return hash.ToHashCode();
     }
 
@@ -90,6 +94,30 @@ internal sealed class TaskbarCenters
         bool silent = !output.Available || output.Muted || output.Volume == 0;
         Button(surface, SoundButton, "volume-2", output.Available ? Theme.TextPrimary : Theme.TextMuted, Open == Panel.Sound, mouseX, mouseY);
         if (silent) { Strike(surface, SoundButton.X + (SoundButton.W - 16) / 2, SoundButton.Y + (SoundButton.H - 16) / 2, output.Available ? Theme.Danger : Theme.TextMuted); }
+        // The bell: dimmed and struck through under Do Not Disturb; the unread count in a badge (animated).
+        bool dnd = Zenith.Core.Configuration.SystemConfiguration.Settings?.DoNotDisturb ?? false;
+        Rect nb = NotificationsButton;
+        if (Open == Panel.Notifications) { surface.FillRoundRect(nb, Theme.ControlRadius, Theme.AccentSoft); }
+        else if (nb.Contains(mouseX, mouseY)) { surface.FillRoundRect(nb, Theme.ControlRadius, Theme.Hover); }
+        int bx = nb.X + (nb.W - 16) / 2, by = nb.Y + (nb.H - 16) / 2;
+        Bell(surface, bx, by, dnd ? Theme.TextMuted : Theme.TextPrimary);
+        if (dnd) { Strike(surface, bx, by, Theme.TextMuted); }
+        int unread = Zenith.Core.Notifications.NotificationCenter.Unread;
+        if (unread > 0 && !dnd)
+        {
+            string count = unread > 9 ? "9+" : unread.ToString();
+            Rect badge = new(nb.Right - 15, nb.Y + 3, count.Length > 1 ? 18 : 14, 14);
+            surface.FillRoundRect(badge, 7, Theme.Accent);
+            Zenith.Gui.Motion.CountMotion.Draw(surface, 3, count, Fonts.SemiBold, 10, Theme.OnAccent, new Rect(badge.X, badge.Y + 1, badge.W, 12), true, badge);
+        }
+    }
+    /// <summary>A 16-pixel bell in 2-pixel strokes (zenith-icons is at its file limit): dome, rim and clapper.</summary>
+    private static void Bell(Surface surface, int x, int y, uint color)
+    {
+        surface.StrokeRoundRect(new Rect(x + 3, y + 1, 10, 13), 5, color);
+        surface.StrokeRoundRect(new Rect(x + 4, y + 2, 8, 11), 4, color);
+        surface.FillRect(new Rect(x + 1, y + 11, 14, 2), color);
+        surface.FillRoundRect(new Rect(x + 6, y + 14, 4, 2), 1, color);
     }
     /// <summary>A diagonal stroke over a 16-pixel icon: muted or no device (zenith-icons has no volume-x at its file limit).</summary>
     private static void Strike(Surface surface, int x, int y, uint color)
@@ -109,14 +137,16 @@ internal sealed class TaskbarCenters
     {
         _actions.Clear(); _slider = new Rect(0, 0, 0, 0);
         if (Open == Panel.None) { return; }
-        int height = Open == Panel.Network ? NetworkHeight() : SoundHeight();
-        Rect anchor = Open == Panel.Network ? NetworkButton : SoundButton;
+        int height = Open == Panel.Network ? NetworkHeight() : Open == Panel.Sound ? SoundHeight() : NotificationsHeight();
+        Rect anchor = Open == Panel.Network ? NetworkButton : Open == Panel.Sound ? SoundButton : NotificationsButton;
         int x = Math.Max(bar.X, Math.Min(anchor.Right - PanelWidth, bar.Right - PanelWidth));
         _panel = new Rect(x, bar.Y - height - Theme.TaskbarMargin + Zenith.Gui.Motion.OverlayMotion.Offset(Zenith.Gui.Motion.OverlayMotion.Centers), PanelWidth, height);
         surface.DrawShadow(_panel, Theme.WindowRadius, 18, 100, 6);
         surface.FillRoundRect(_panel, Theme.WindowRadius, Theme.Menu);
         surface.StrokeRoundRect(_panel, Theme.WindowRadius, Theme.PanelBorder);
-        if (Open == Panel.Network) { DrawNetwork(surface, mouseX, mouseY); } else { DrawSound(surface, mouseX, mouseY); }
+        if (Open == Panel.Network) { DrawNetwork(surface, mouseX, mouseY); }
+        else if (Open == Panel.Sound) { DrawSound(surface, mouseX, mouseY); }
+        else { DrawNotifications(surface, mouseX, mouseY); }
     }
     private void DrawNetwork(Surface surface, int mouseX, int mouseY)
     {
@@ -199,6 +229,71 @@ internal sealed class TaskbarCenters
         // The note has its own row above the settings button (the panel grew by it), never over the volume buttons.
         if (_note.Length > 0) { surface.DrawText(Fit(_note, w), Fonts.Regular, Theme.TextSmall, Theme.Danger, x, _panel.Bottom - Padding - 32 - 22); }
     }
+    // ---------- Notifications: the history, newest first, with Do Not Disturb and Clear all.
+    private const int NoteRow = 58, NotesShown = 5;
+    private int NotificationsHeight()
+    {
+        int n = Math.Min(NotesShown, Zenith.Core.Notifications.NotificationCenter.History().Count);
+        return Padding + 28 + 44 + (n == 0 ? 64 : n * NoteRow) + 8 + 32 + Padding;
+    }
+    private void DrawNotifications(Surface surface, int mouseX, int mouseY)
+    {
+        int x = _panel.X + Padding, y = _panel.Y + Padding, w = _panel.W - 2 * Padding;
+        var history = Zenith.Core.Notifications.NotificationCenter.History();
+        if (Zenith.Core.Notifications.NotificationCenter.Unread > 0) { Zenith.Core.Notifications.NotificationCenter.MarkRead(); }   // seen here
+        surface.DrawText("Notifications", Fonts.SemiBold, Theme.TextBody, Theme.TextPrimary, x, y);
+        if (history.Count > 0)
+        {
+            Rect clear = new(x + w - 80, y - 4, 80, 26);
+            if (clear.Contains(mouseX, mouseY)) { surface.FillRoundRect(clear, Theme.ControlRadius, Theme.Hover); }
+            surface.DrawTextCentered("Clear all", Fonts.Regular, Theme.TextSmall, Theme.TextSecondary, clear, true);
+            _actions.Add((clear, (int)Act.ClearAll));
+        }
+        y += 28;
+        // Do Not Disturb as a switch row.
+        bool dnd = Zenith.Core.Configuration.SystemConfiguration.Settings?.DoNotDisturb ?? false;
+        Rect row = new(x, y, w, 34);
+        if (row.Contains(mouseX, mouseY)) { surface.FillRoundRect(row, Theme.ControlRadius, Theme.Hover); }
+        surface.DrawText("Do Not Disturb", Fonts.Regular, Theme.TextSmall + 1, Theme.TextPrimary, x + 8, y + 9);
+        Rect track = new(x + w - 46, y + 8, 38, 18);
+        surface.FillRoundRect(track, 9, dnd ? Theme.Accent : Theme.Pressed);
+        surface.FillRoundRect(new Rect(dnd ? track.Right - 16 : track.X + 2, track.Y + 2, 14, 14), 7, dnd ? Theme.OnAccent : Theme.TextPrimary);
+        _actions.Add((row, (int)Act.DoNotDisturb));
+        y += 44;
+        if (history.Count == 0)
+        {
+            surface.DrawTextCentered("No notifications", Fonts.Regular, Theme.TextSmall + 1, Theme.TextSecondary, new Rect(x, y + 10, w, 20), true);
+            surface.DrawTextCentered(dnd ? "Popups are paused; new ones wait here." : "What apps and the system tell you waits here.", Fonts.Regular, Theme.TextSmall, Theme.TextMuted, new Rect(x, y + 32, w, 18), true);
+            y += 64;
+        }
+        long now = System.Diagnostics.Stopwatch.GetTimestamp() * 1_000_000 / System.Diagnostics.Stopwatch.Frequency;
+        for (int i = history.Count - 1, shown = 0; i >= 0 && shown < NotesShown; i--, shown++)
+        {
+            var n = history[i];
+            Rect card = new(x, y, w, NoteRow - 6);
+            bool over = card.Contains(mouseX, mouseY);
+            surface.FillRoundRect(card, Theme.ControlRadius, over ? Theme.Pressed : Theme.Hover);
+            if (!Icons.Draw(surface, n.Icon.Length > 0 ? n.Icon : "info", card.X + 10, card.Y + 10, 16, Theme.Accent)) { Logo.Draw(surface, new Rect(card.X + 10, card.Y + 10, 16, 16)); }
+            int tx = card.X + 36, tw = card.W - 36 - (over ? 30 : 10);
+            surface.DrawText(Fit(n.Source + " · " + Ago(now - n.Posted), tw), Fonts.Regular, Theme.TextSmall, Theme.TextSecondary, tx, card.Y + 6);
+            surface.DrawText(Fit(n.Title, tw), Fonts.SemiBold, Theme.TextSmall + 1, Theme.TextPrimary, tx, card.Y + 20);
+            if (n.Body.Length > 0) { surface.DrawText(Fit(n.Body, tw), Fonts.Regular, Theme.TextSmall, Theme.TextSecondary, tx, card.Y + 36); }
+            if (over)
+            {
+                Rect close = new(card.Right - 28, card.Y + 6, 22, 22);
+                surface.FillRoundRect(close, Theme.ControlRadius, close.Contains(mouseX, mouseY) ? Theme.Hover : Theme.Pressed);
+                for (int k = 6; k < 16; k++) { surface.FillRect(new Rect(close.X + k, close.Y + k, 2, 2), Theme.TextSecondary); surface.FillRect(new Rect(close.X + 21 - k, close.Y + k, 2, 2), Theme.TextSecondary); }
+                _actions.Add((close, (int)Act.Dismiss + n.Id));
+            }
+            y += NoteRow;
+        }
+        Action(surface, new Rect(x, _panel.Bottom - Padding - 32, w, 32), "Notification settings", (int)Act.NotificationSettings, mouseX, mouseY, true);
+    }
+    private static string Ago(long micros)
+    {
+        long s = Math.Max(0, micros / 1_000_000);
+        return s < 60 ? "now" : s < 3600 ? s / 60 + " min" : s < 86400 ? s / 3600 + " h" : s / 86400 + " d";
+    }
     private void Action(Surface surface, Rect r, string label, int action, int mouseX, int mouseY, bool enabled)
     {
         surface.FillRoundRect(r, Theme.ControlRadius, r.Contains(mouseX, mouseY) && enabled ? Theme.Pressed : Theme.Hover);
@@ -219,11 +314,13 @@ internal sealed class TaskbarCenters
     {
         if (NetworkButton.Contains(x, y)) { Toggle(Panel.Network); return true; }
         if (SoundButton.Contains(x, y)) { Toggle(Panel.Sound); return true; }
+        if (NotificationsButton.Contains(x, y)) { Toggle(Panel.Notifications); return true; }
         if (Open == Panel.None) { return false; }
         if (!_panel.Contains(x, y)) { Open = Panel.None; _note = ""; return false; }
         if (_slider.W > 0 && new Rect(_slider.X - 8, _slider.Y - 10, _slider.W + 16, _slider.H + 20).Contains(x, y))
         { Sliding = true; Slide(x); return true; }
-        foreach (var (rect, action) in _actions) { if (rect.Contains(x, y)) { Run((Act)action); break; } }
+        // Later actions sit on top (a row's close mark over the row): the last hit wins.
+        for (int i = _actions.Count - 1; i >= 0; i--) { if (_actions[i].Rect.Contains(x, y)) { Run((Act)_actions[i].Action); break; } }
         return true;
     }
     /// <summary>The volume knob follows the pointer while the button is held.</summary>
@@ -240,7 +337,8 @@ internal sealed class TaskbarCenters
     {
         Open = Open == panel ? Panel.None : panel; _note = "";
         if (Open != Panel.None) { Zenith.Gui.Motion.OverlayMotion.Start(Zenith.Gui.Motion.OverlayMotion.Centers); }
-        Zenith.Core.Log.Write("taskbar", (panel == Panel.Network ? "network" : "sound") + " center " + (Open == panel ? "opened" : "closed"));
+        if (Open == Panel.Notifications) { Zenith.Core.Notifications.NotificationCenter.MarkRead(); }
+        Zenith.Core.Log.Write("taskbar", (panel == Panel.Network ? "network" : panel == Panel.Sound ? "sound" : "notifications") + " center " + (Open == panel ? "opened" : "closed"));
     }
     /// <summary>The wheel over the sound button (or the open sound panel) changes the volume in 5% steps.</summary>
     public bool Scroll(int x, int y, int delta)
@@ -259,8 +357,21 @@ internal sealed class TaskbarCenters
     private void Run(Act act)
     {
         _note = "";
+        if (act >= Act.Dismiss) { Zenith.Core.Notifications.NotificationCenter.Remove((int)act - (int)Act.Dismiss); return; }
         switch (act)
         {
+            case Act.ClearAll: Zenith.Core.Notifications.NotificationCenter.Clear(); Zenith.Core.Log.Write("taskbar", "notifications cleared"); break;
+            case Act.NotificationSettings: Open = Panel.None; _openApp("Meridian", new[] { "--page", "windows.notifications" }); break;
+            case Act.DoNotDisturb:
+            {
+                // A personal convenience for whoever sits at the screen: saved as the system's choice.
+                var settings = Zenith.Core.Configuration.SystemConfiguration.Settings;
+                using var root = CredentialContext.Enter(Credentials.Root);
+                var (_, revision) = settings.Snapshot();
+                if (settings.SaveNotifications(!settings.DoNotDisturb, settings.Popup, revision) == 0)
+                { Zenith.Core.Log.Write("taskbar", "do not disturb " + (settings.DoNotDisturb ? "on" : "off")); }
+                break;
+            }
             case Act.Beacon: Open = Panel.None; _openApp("Beacon", null); break;
             case Act.Diagnostics: Open = Panel.None; _openApp("Beacon", new[] { "diagnostics" }); break;
             case Act.NetworkSettings: Open = Panel.None; _openApp("Meridian", new[] { "--page", "network.connections" }); break;
@@ -299,6 +410,7 @@ internal sealed class TaskbarCenters
         if (Sliding) { return 800 + AudioService.Overview(Uid).Output.Volume; }
         if (NetworkButton.Contains(x, y)) { return 700; }
         if (SoundButton.Contains(x, y)) { return 701; }
+        if (NotificationsButton.Contains(x, y)) { return 702; }
         if (Open != Panel.None && _panel.Contains(x, y)) { for (int i = 0; i < _actions.Count; i++) { if (_actions[i].Rect.Contains(x, y)) { return 710 + i; } } return 709; }
         return 0;
     }

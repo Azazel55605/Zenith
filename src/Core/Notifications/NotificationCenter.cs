@@ -18,7 +18,23 @@ internal static class NotificationCenter
     private static readonly List<Note> s_history = new();
     private static readonly Queue<Note> s_new = new();
     private static readonly Dictionary<string, Queue<long>> s_recent = new();
-    private static int s_next = 1;
+    private static int s_next = 1, s_unread;
+    /// <summary>Posted since the history panel was last opened (the bell's count).</summary>
+    public static int Unread { get { lock (s_gate) { return s_unread; } } }
+    /// <summary>Changes whenever the history does (the taskbar redraws on it).</summary>
+    public static int Revision { get; private set; }
+    public static void MarkRead() { lock (s_gate) { s_unread = 0; Revision++; } }
+    /// <summary>Removes one notification from the history (the panel's close mark).</summary>
+    public static bool Remove(int id)
+    {
+        lock (s_gate)
+        {
+            int i = s_history.FindIndex(n => n.Id == id);
+            if (i < 0) { return false; }
+            s_history.RemoveAt(i); Revision++; return true;
+        }
+    }
+    public static void Clear() { lock (s_gate) { s_history.Clear(); s_unread = 0; Revision++; } }
     /// <summary>Clock in microseconds; tests replace it.</summary>
     internal static Func<long> Clock = () => Stopwatch.GetTimestamp() * 1_000_000 / Stopwatch.Frequency;
     /// <summary>Raised (outside the lock) after a post is accepted: the desktop wakes for it.</summary>
@@ -42,6 +58,7 @@ internal static class NotificationCenter
             if (s_recent.Count > 64) { s_recent.Clear(); }
             note = new Note(s_next++, source, title, body, icon, uid, now);
             s_history.Add(note); if (s_history.Count > Kept) { s_history.RemoveAt(0); }
+            s_unread = Math.Min(s_unread + 1, Kept); Revision++;
             s_new.Enqueue(note); while (s_new.Count > Kept) { s_new.Dequeue(); }
         }
         Log.Write("notify", "posted " + note.Id + " from " + source + ": " + title);
@@ -61,7 +78,7 @@ internal static class NotificationCenter
         lock (s_gate) { var list = new List<Note>(s_new); s_new.Clear(); return list; }
     }
     public static List<Note> History() { lock (s_gate) { return new List<Note>(s_history); } }
-    internal static void Reset() { lock (s_gate) { s_history.Clear(); s_new.Clear(); s_recent.Clear(); s_next = 1; } }
+    internal static void Reset() { lock (s_gate) { s_history.Clear(); s_new.Clear(); s_recent.Clear(); s_next = 1; s_unread = 0; Revision++; } }
 
     // One line of plain text: control characters become spaces, the ends are trimmed.
     private static string Clean(string? text)

@@ -5,3 +5,4 @@ description	Edit text and code with tabs, syntax colors, search and replace with
 category	apps
 icon	file-code
 change	0.3.0	Folding, several cursors and color schemes
+change	0.4.0	Follows the widget and button styles and the icon set; tabs glide

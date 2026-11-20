@@ -26,21 +26,23 @@ internal static class SystemSounds
         if (!preview && settings is not null && index >= 0 && (settings.SoundMask & (1u << index)) == 0) { return; }
         uint level = settings?.SoundLevel ?? 70;
         if (!Enabled || level == 0 || Interlocked.CompareExchange(ref s_playing, 1, 0) != 0) { return; }
-        byte[]? pcm = null;
-        // The pack is a system resource: read it as the system, whoever is signed in.
-        var root = Zenith.Core.Security.CredentialContext.Enter(Zenith.Core.Security.Credentials.Root);
-        try { pcm = Load(Directory + name + ".wav"); } catch (Exception) { }
-        root.Dispose();
-        if (pcm is null) { Interlocked.Exchange(ref s_playing, 0); return; }
-        if (level < 100) { Scale(pcm, level); }
-        // The system's own stream: as root, so it plays at the login screen (where the session is nobody) and while a
-        // session ends. The mixer drops it with every other stream when the session changes.
+        // Everything slow (the file, the conversion, the device) happens on the sound's own thread, so a caller holding a
+        // lock (the package center, the desktop's tick) never waits on the disk or the mixer.
         const uint uid = 0;
         new Thread(() =>
         {
             long handle = 0;
             try
             {
+                byte[]? pcm = null;
+                // The pack is a system resource: read it as the system, whoever is signed in. The system's own stream
+                // plays as root too, so it works at the login screen (where the session is nobody) and while a session
+                // ends; the mixer drops it with every other stream when the session changes.
+                var root = Zenith.Core.Security.CredentialContext.Enter(Zenith.Core.Security.Credentials.Root);
+                try { pcm = Load(Directory + name + ".wav"); } catch (Exception) { }
+                root.Dispose();
+                if (pcm is null) { Interlocked.Exchange(ref s_playing, 0); return; }
+                if (level < 100) { Scale(pcm, level); }
                 handle = AudioService.Open(Pid, uid, "System sounds", 0, 0);
                 if (handle > 0)
                 {

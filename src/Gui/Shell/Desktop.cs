@@ -353,7 +353,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         }
         if (_sunset.Tick(_scene.Width, _scene.Height)) { _sceneDirty = true; }
         // Notifications: toasts over the work area (not on the lock screen, where they wait).
-        if (!_lock.IsLocked && _toasts.Tick(Windows.WorkArea, _input.X, _input.Y)) { _sceneDirty = true; _composeAll = true; }
+        if (!_lock.IsLocked && _toasts.Tick(Windows.WorkArea, _input.X, _input.Y, _taskbar.Centers?.Open == TaskbarCenters.Panel.Notifications)) { _sceneDirty = true; _composeAll = true; }
         if (_generation != Accounts.Generation)
         {
             foreach (var window in Windows.Windows) { if (window is TerminalWindow terminal && terminal.IsBusy) { return; } }

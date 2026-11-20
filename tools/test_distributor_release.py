@@ -45,6 +45,17 @@ class ReleaseTests(unittest.TestCase):
         with patch.object(release, "REPO", self.repo), patch.object(release, "phase"):
             return release.publish_existing(self.config, "0.0.2", self.source / "kernel.zpk", "a" * 40)
 
+    def test_every_recipe_generator_is_known_to_the_server_and_the_installer_seed(self):
+        import importlib.util, json, re
+        root = Path(__file__).resolve().parents[1]
+        recipes = json.loads((root / 'deploy/distributor/recipes.json').read_text())
+        used = {r['generate'] for r in recipes.values() if r.get('generate')}
+        spec = importlib.util.spec_from_file_location('seed_iso_check', root / 'tools/seed-iso.py'); seed = importlib.util.module_from_spec(spec); spec.loader.exec_module(seed)
+        self.assertLessEqual(used, set(seed.GENERATORS), 'seed-iso.py lacks a generator')
+        poll = (root / 'deploy/distributor/poll.py').read_text()
+        for name in used:
+            self.assertTrue(re.search(r'generate"\)\s*(==\s*"' + re.escape(name) + r'"|in \([^)]*"' + re.escape(name) + r'")', poll), 'poll.py lacks ' + name)
+
     def test_saved_configuration_is_data_and_does_not_touch_keys(self):
         target = self.repo / "config/distributor.json"
         args = argparse.Namespace(url="https://mirror.home/", keys=self.keys, root=self.root, tls_ca=None)

@@ -40,10 +40,11 @@ internal sealed class Toasts
 
     /// <summary>Takes new notifications, ends cards whose time ran out and lays the stack out in the work area.
     /// True when something on screen changed.</summary>
-    public bool Tick(Rect work, int mouseX, int mouseY)
+    public bool Tick(Rect work, int mouseX, int mouseY, bool historyOpen = false)
     {
         var settings = Zenith.Core.Configuration.SystemConfiguration.Settings;
-        bool dnd = settings?.DoNotDisturb ?? false, changed = false;
+        bool dnd = (settings?.DoNotDisturb ?? false) || historyOpen, changed = false;   // the open history shows them itself
+        if (historyOpen) { foreach (var c in _cards) { if (c.Leaving == 0) { c.Leaving = Now; changed = true; } } _waiting.Clear(); }
         foreach (var note in NotificationCenter.TakeNew())
         {
             if (dnd) { continue; }   // kept in the history only

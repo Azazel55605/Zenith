@@ -1036,6 +1036,7 @@ int main(int argc,char **argv){
         long now=zui_motion_clock();
         int interval=applying>=0||mount_token||unlock_handle>0?150:1000;
         if((now>=0&&now-last>=interval)||(now<0&&++polls>=200)){last=now;polls=0;refresh();poll_step();poll_mount();poll_unlock();}
+        zui_motion_tick(&ui,now);
         if(ui.dirty){
             draw();
             long r=material?zenith_gui_present_material(handle,ui.pixels,(unsigned long)ui.width*ui.height*4,ui.materials,ui.material_count):zenith_gui_present(handle,ui.pixels,(unsigned long)ui.width*ui.height*4);

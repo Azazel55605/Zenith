@@ -4,5 +4,6 @@ summary	The native terminal
 description	A terminal for the Zenith shell with scrollback, selection and the clipboard.
 category	apps
 icon	terminal
+change	0.5.0	Follows the widget and button styles and the icon set; tabs and lists move
 replaces	Opens instead of the built-in Terminal, which stays for recovery
 planned	Tabs and layouts

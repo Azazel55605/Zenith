@@ -74,6 +74,10 @@ int zui_radius(const struct zui *ui,int radius,int height);
 int zui_apply_viewport(struct zui *ui,long handle,unsigned long capacity);
 /* Starts a drawn frame at this time. Widgets set animating when they need another. */
 void zui_motion_frame(struct zui *ui,long now);
+/* Once per event loop pass with the frame clock (call 628): while a widget animates (tabs, lists, meters, counts,
+ * switches, smooth scrolling) asks for a frame at most every 16 ms, and before any frame advances the clock. Returns 1
+ * when a frame is due. Older kernels (clock < 0) draw without motion. */
+int zui_motion_tick(struct zui *ui,long now);
 /* Returns 0 for invalid dimensions/buffer; caller supplies width*height pixels. */
 int zui_init(struct zui *ui,unsigned int *pixels,int width,int height);
 int zui_resize(struct zui *ui,int width,int height,unsigned long capacity);

@@ -1905,6 +1905,7 @@ int main(int argc,char **argv,char **envp){
         }
         /* One thumbnail per pass, after the frame that asked for it. */
         if(thumb_want[0]&&!ui.dirty)thumb_fetch();
+        zui_motion_tick(&ui,now);
         if(ui.dirty){
             draw();
             if(reveal_later){reveal_later=0;if(L->focus_index>=0){reveal(L->focus_index);draw();}}

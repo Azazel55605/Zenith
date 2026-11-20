@@ -302,7 +302,17 @@ static void count_tests(void){
     u.motion_percent=0;ROW("5");assert(!u.animating);    /* Animations Off */
     #undef ROW
 }
+/* The loop helper: a frame while animating at most every 16 ms, the clock advanced before any frame. */
+static void tick_tests(void){
+    struct zui u;assert(zui_init(&u,px,800,600));
+    u.dirty=0;assert(!zui_motion_tick(&u,1000)&&u.now==0);            /* idle: nothing due, clock untouched */
+    u.dirty=1;assert(zui_motion_tick(&u,1000)&&u.now==1000);          /* a frame: the clock moves first */
+    u.dirty=0;u.animating=1;assert(!zui_motion_tick(&u,1008));          /* animating, too soon */
+    assert(zui_motion_tick(&u,1016)&&u.now==1016&&!u.animating);       /* due: the frame re-arms animating itself */
+    u.dirty=1;assert(zui_motion_tick(&u,-38)&&u.now==1016);            /* no clock: draw, no motion */
+}
 int main(void){
+    tick_tests();
     count_tests();
     graph_tests();
     stage3_tests();

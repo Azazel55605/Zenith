@@ -770,6 +770,7 @@ int main(int argc,char **argv){
             long into=now-sampled_at;graph_phase=into<=0?0:into>=1000?255:(int)(into*256/1000);
             ui.dirty=1;
         }
+        zui_motion_tick(&ui,now);
         if(ui.dirty)drawn=now;
         if(ui.dirty){
             draw();

@@ -5,4 +5,5 @@ description	Browse, copy, move and delete files in tabs, open archives, see thum
 category	apps
 icon	folder
 change	0.3.0	Middle-click tabs, permissions kept on copies, progressive JPEG and interlaced PNG thumbnails
+change	0.4.0	Follows the widget and button styles and the icon set; tabs glide, progress eases, lists move; finished jobs also arrive as notifications
 planned	Removable drives

@@ -17,6 +17,12 @@ int zui_motion_percent(unsigned int choice){return choice==1?60:choice==2?150:ch
 void zui_motion_frame(struct zui *u,long now){
     long d=now-u->now;u->frame_ms=d<1?1:d>50?50:(int)d;u->now=now;u->animating=0;
 }
+int zui_motion_tick(struct zui *u,long now){
+    if(now<0)return u->dirty;
+    if(u->animating&&now-u->now>=16)u->dirty=1;
+    if(u->dirty)zui_motion_frame(u,now);
+    return u->dirty;
+}
 int zui_init(struct zui *u,unsigned int *p,int w,int h){
     if(!u||!p||w<1||h<1||w>ZUI_MAX_WIDTH||h>ZUI_MAX_HEIGHT)return 0;
     *u=(struct zui){0};u->pixels=p;u->width=w;u->height=h;

@@ -166,8 +166,18 @@ wallpapers, and the three widget styles built in full. The Ribbon concept's clos
   once (`CountMotion`). Toolkit: a navigation row's detail that is a number (Orbit's update, installed and source
   counts) does the same in every app.
 
+## AP12 — Notification history and motion in every app (local)
+
+- A bell beside the sound button opens the history panel: newest first (five shown), each with its sender, age,
+  title and body and a close mark; Clear all; a Do Not Disturb switch; the way into Meridian › Notifications. The
+  bell shows the unread count (animated, cleared when the panel opens) and a strike under Do Not Disturb. Toasts stay
+  away while the panel is open. The bell is drawn by the desktop: `zenith-icons` is at its 64-file limit.
+- Toolkit `zui_motion_tick`: the frame clock for every app's loop (a frame at most every 16 ms while something
+  animates). Horizon, Equinox, Orbit, Beacon, Observatory and desktop-tools ran without it, so tabs, lists, meters and
+  counts stood still there; desktop-tools now also follows widget styles, icon sets and appearance changes live.
+
 ## Next
 
 Gates for the new styles (settings gate pickers; login styles; decorations in the system-app gate; icon sets and
-sound settings; snapping and toasts), a notification history panel and per-app notification choices, keyboard
-snapping (Meta+arrows).
+sound settings; snapping, toasts and the history panel), per-app notification choices and which apps post what,
+keyboard snapping (Meta+arrows).

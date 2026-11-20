@@ -22,6 +22,8 @@ static void update(void){
     int personal=zenith_scoped_appearance_read(1,&scoped)==0;
     if(personal)state=scoped.appearance;
     if((personal||!zenith_appearance_read(&state))&&state.active_mode<2&&state.active_accent<6){const unsigned int *p=state.palette[state.active_mode][state.active_accent];ui.theme=(struct zui_theme){p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]};}
+    /* Widget style, buttons, icon set and the animation setting, like every other app. */
+    zui_apply_motion(&ui,zui_motion_clock());ui.dirty=1;
     long r=zenith_call(612,(unsigned long)information,sizeof(information)-1,1);
     if(r>0&&r<(long)sizeof(information))information[r]=0;
     else {const char *s="System information unavailable.";unsigned int i=0;for(;s[i];i++)information[i]=s[i];information[i]=0;}
@@ -47,6 +49,7 @@ int main(int argc,char **argv){
     sidebar.base_id=10;
     int done=0,lines=0,result=0,tab=0;
     while(!done){
+        zui_motion_tick(&ui,zui_motion_clock());
         if(ui.dirty){
             struct zui_workspace w=zui_workspace_begin(&ui,156);struct zui_rect c=w.content;
             int focus=ui.focus>=0&&ui.focus<ui.count?ui.controls[ui.focus].id:0;
@@ -78,6 +81,7 @@ int main(int argc,char **argv){
             continue;
         }
         if(e.type==Z_GUI_CLOSE||e.type==Z_GUI_CLOSE_INTENT||(e.type==Z_GUI_KEY&&e.extra==1&&ui.window_focused)){done=1;continue;}
+        if(e.type==Z_GUI_RESET){update();continue;}
         if(e.type==Z_GUI_FOCUS&&e.code)print("DESKTOP_FOCUSED\n");
         int action=zui_event(&ui,&e);if(action==2)done=1;if(action==1)update();
         if(action>=10&&action<13){tab=action-10;page.offset=0;ui.dirty=1;}

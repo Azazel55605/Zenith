@@ -890,6 +890,7 @@ int main(int argc,char **argv){
         if(job_id>0&&((now>=0&&now-last>=300)||(now<0&&++polls>=120))){last=now;polls=0;poll_job();}
         poll_permission();
         if(plan_dirty&&have_service)compute_plan();
+        zui_motion_tick(&ui,now);
         if(ui.dirty){draw();present();}
         struct zenith_gui_event e={0};long r=zenith_gui_poll(handle,&e);if(r<0){result=1;break;}if(!r)continue;
         if(e.type==Z_GUI_RESIZE){if(zui_apply_viewport(&ui,handle,640*480)<0){result=zui_window_closed(handle)?0:1;break;}continue;}

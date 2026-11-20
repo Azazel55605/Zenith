@@ -7,4 +7,5 @@ category	apps
 icon	package
 change	0.1.0	Overview, updates, installed, browse, history and sources; package details with capabilities; plans with permission
 change	0.2.0	Pages crossfade; counts animate; results also arrive as notifications
+change	0.2.1	Counts, lists and progress animate (the frame clock now runs)
 planned	Scheduled checks and update notifications

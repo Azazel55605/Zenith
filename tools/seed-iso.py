@@ -58,6 +58,10 @@ def tag_version(key):
     return max(versions, key=version_key) if versions else '0.0.1'
 
 
+# Every package generator recipes.json may name; deploy/distributor/poll.py must know the same ones
+# (tools/test_distributor_release.py checks both against the recipes).
+GENERATORS = ('manuals', 'fonts', 'icons', 'icons-bold', 'icons-fine', 'sounds', 'native')
+
 def build_recipes(repository, keys, work):
     """Builds every data recipe of REPOSITORY from this checkout, at its newest tag's version."""
     subprocess.run(['dotnet', 'build', str(ROOT / 'tools/Zenith.PackageTool'), '-c', 'Release', '--nologo'], check=True, stdout=subprocess.DEVNULL)
@@ -68,12 +72,14 @@ def build_recipes(repository, keys, work):
         name, version = recipe['name'], tag_version(key)
         payload = ROOT / recipe['payload']
         generate = recipe.get('generate')
-        if generate in ('manuals', 'fonts', 'icons', 'native'):
+        if generate in GENERATORS:
             payload = work / ('payload-' + name)
             if payload.exists(): shutil.rmtree(payload)
             if generate == 'manuals': command = ['dotnet', 'run', '--project', str(ROOT / 'tools/Zenith.ManualBuilder'), '--', str(payload)]
             elif generate == 'fonts': command = [sys.executable, '-B', str(ROOT / 'tools/build-font-package.py'), str(payload)]
             elif generate == 'icons': command = [sys.executable, '-B', str(ROOT / 'tools/build-ui-icons.py'), '--package', str(payload)]
+            elif generate in ('icons-bold', 'icons-fine'): command = [sys.executable, '-B', str(ROOT / 'tools/build-ui-icons.py'), '--package', '--set', generate[6:], str(payload)]
+            elif generate == 'sounds': command = [sys.executable, '-B', str(ROOT / 'tools/build-sounds.py'), str(payload)]
             else:
                 command = [sys.executable, '-B', str(ROOT / 'tools/build-userland.py'), str(payload), '--version', version]
                 if 'program' in recipe: command += ['--program', recipe['program']]

@@ -7,4 +7,5 @@ category	apps
 icon	network
 change	0.1.0	Status, traffic, history, diagnostics, ping and safe changes
 change	0.2.0	Pages crossfade; diagnostics try several names for DNS
+change	0.2.1	Lists and meters animate (the frame clock now runs)
 planned	Trace, Wi-Fi and VPN once drivers exist
