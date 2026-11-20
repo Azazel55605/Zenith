@@ -66,7 +66,8 @@ internal static class PrismSearch
             if (command.Length > 0) { results.Add(new(PrismKind.Command, "Run \"" + command + "\"", "Command in a terminal", "terminal", command, 1000)); }
             return results;
         }
-        if (filter is null && TryEvaluate(trimmed, out double value) && LooksLikeArithmetic(trimmed))
+        // The cheap shape check first: ordinary words never reach the parser.
+        if (filter is null && LooksLikeArithmetic(trimmed) && TryEvaluate(trimmed, out double value))
         {
             string answer = Format(value);
             results.Add(new(PrismKind.Calculator, trimmed + " = " + answer, "Calculator · Enter copies the result", "zap", answer, 2000));
@@ -121,14 +122,12 @@ internal static class PrismSearch
     {
         value = 0;
         if (text.Length == 0 || text.Length > MaximumQuery) { return false; }
+        // No exceptions: typing into Prism happens on the desktop's thread, and a thrown exception there is both slow
+        // and, on Cosmos, a place where the desktop has been seen to stop (kernel/v0.0.73's sunset-smoke).
         var parser = new Parser(text);
-        try
-        {
-            value = parser.Expression(0);
-            parser.Skip();
-            return parser.Done && !double.IsNaN(value) && !double.IsInfinity(value);
-        }
-        catch (FormatException) { return false; }
+        value = parser.Expression(0);
+        parser.Skip();
+        return !parser.Bad && parser.Done && !double.IsNaN(value) && !double.IsInfinity(value);
     }
 
     private sealed class Parser
@@ -136,11 +135,14 @@ internal static class PrismSearch
         private readonly string _s; private int _i;
         public Parser(string s) { _s = s; }
         public bool Done => _i >= _s.Length;
+        /// <summary>Set instead of throwing: the text is not an expression.</summary>
+        public bool Bad { get; private set; }
+        private double Fail() { Bad = true; _i = _s.Length; return 0; }
         public void Skip() { while (_i < _s.Length && _s[_i] == ' ') { _i++; } }
         private char Peek() { Skip(); return _i < _s.Length ? _s[_i] : '\0'; }
         public double Expression(int depth)
         {
-            if (depth > 32) { throw new FormatException(); }
+            if (depth > 32 || Bad) { return Fail(); }
             double v = Term(depth);
             for (char c = Peek(); c is '+' or '-'; c = Peek()) { _i++; double r = Term(depth); v = c == '+' ? v + r : v - r; }
             return v;
@@ -164,18 +166,19 @@ internal static class PrismSearch
         private double Unary(int depth)
         {
             char c = Peek();
+            if (depth > 32) { return Fail(); }
             if (c == '-') { _i++; return -Unary(depth + 1); }
             if (c == '+') { _i++; return Unary(depth + 1); }
             if (c == '(')
             {
                 _i++; double v = Expression(depth + 1);
-                if (Peek() != ')') { throw new FormatException(); }
+                if (Peek() != ')') { return Fail(); }
                 _i++; return v;
             }
             int start = _i; bool dot = false;
             while (_i < _s.Length && (char.IsDigit(_s[_i]) || (_s[_i] == '.' && !dot))) { dot |= _s[_i] == '.'; _i++; }
-            if (_i == start || (_i == start + 1 && dot)) { throw new FormatException(); }
-            return double.Parse(_s.AsSpan(start, _i - start), NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture);
+            if (_i == start || (_i == start + 1 && dot)) { return Fail(); }
+            return double.TryParse(_s.AsSpan(start, _i - start), NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out double number) ? number : Fail();
         }
     }
 

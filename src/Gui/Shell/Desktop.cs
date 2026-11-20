@@ -41,7 +41,8 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     private readonly Zenith.Gui.Shell.Sunset.SunsetView _sunset;
     private readonly Zenith.Gui.Shell.Sunset.LockScreen _lock = new();
     private const long SunsetOpenMicros = 120_000;
-    // Cosmos reports no key releases: Meta followed within a second by Shift+L counts as Meta+Shift+L.
+    // Cosmos reports no key releases: Meta followed within three seconds by Shift+L counts as Meta+Shift+L (a memory
+    // collection can hold the desktop for over a second between the two; kernel/v0.0.73 missed it at one).
     private long _metaAt;
     private Zenith.Core.Sessions.SunsetAction? _pendingPower;
     private long _pendingPowerFrame;
@@ -875,7 +876,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         foreach (KeyEvent key in _input.Keys)
         {
             if (key.Key == ConsoleKeyEx.L && (key.Modifiers & ConsoleModifiers.Shift) != 0 && (key.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) == 0
-                && _metaAt != 0 && FrameStats.Now - _metaAt < System.Diagnostics.Stopwatch.Frequency)
+                && _metaAt != 0 && FrameStats.Now - _metaAt < 3 * System.Diagnostics.Stopwatch.Frequency)
             {
                 _metaAt = 0; _prism.Close(); OpenSunset(Zenith.Core.Sessions.SunsetAction.Lock); return;
             }

@@ -20,6 +20,25 @@ public class PrismTests
         new(PrismKind.Action, "Shut down", "Power", "zap", "shutdown"),
     };
 
+    [Theory]
+    [InlineData("L")]
+    [InlineData("lock")]
+    [InlineData("(((")]
+    [InlineData("2+")]
+    [InlineData(".")]
+    [InlineData("1..2")]
+    public void NonExpressionsAreRefusedWithoutThrowing(string text)
+    {
+        var e = Record.Exception(() => Assert.False(PrismSearch.TryEvaluate(text, out _)));
+        Assert.Null(e);
+    }
+    [Fact]
+    public void DeepNestingIsRefusedWithoutThrowing()
+    {
+        Assert.False(PrismSearch.TryEvaluate(new string('(', 60) + "1" + new string(')', 60), out _));
+        Assert.False(PrismSearch.TryEvaluate(new string('-', 60) + "1", out _));
+        Assert.True(PrismSearch.TryEvaluate("(2+3)*4", out double v)); Assert.Equal(20, v);
+    }
     [Fact]
     public void PrefixBeatsWordStartBeatsSubstringBeatsLettersInOrder()
     {
