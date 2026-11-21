@@ -75,9 +75,10 @@ inside the surface (`-22` otherwise). It is purely visual; the system's animatio
 | 2 | Focus changed; code 1 focused, 0 unfocused |
 | 3 | Key press; code UTF-16 character, modifiers Shift=1/Control=2/Alt=4 |
 | 4 / 5 / 6 | Left pointer press/release/drag; code 1, content-local clamped x/y |
-| 7 | Input queue overflow; discard any locally held key/button state |
+| 7 | Input reset; discard any locally held key/button state |
 | 8 | Scroll; code signed notch count, positive = up, clamped to -120..120 (a single notch is ±1) |
 | 11 | Pointer motion after opt-in (call 627); content-local x/y, x=y=-1 on leave |
+| 14 / 15 | Physical key press / release after opt-in (call 671); `code` is the normalized scan ID |
 
 On focus loss, clients should discard locally held input state.
 
@@ -140,6 +141,28 @@ presses as event **12** (code 2, content-local x/y) and the Shift/Control/Alt st
 and drag events. Bit 4 adds key extras 14..25 for F1..F12. Bit 8 (kernel 0.0.67, any odd value up to 15) adds
 middle-button presses as event 12 with code 3. Older kernels refuse unknown bits with -22, so clients retry
 with fewer (Horizon asks for 15, then 7, then 1). Surfaces that do not opt in see no change.
+
+### Focused physical keys
+
+`zenith-native-key-edges-abi 1.0` adds call **671** `(owned_handle, 0, 0)`.
+It enables physical events for that surface until close and is idempotent.
+It returns `-9` for an invalid handle and `-22` for nonzero reserved arguments.
+`zenith_gui_key_edges()` wraps the call in `zenith_graphics.h`.
+Declare the ABI as a package dependency if the app requires physical events.
+
+Types 14 and 15 pair by `code`, regardless of the active layout, modifiers
+or character changes while the key is held. The other event fields are zero.
+Codes are Zenith's normalized keyboard scan IDs (set 1 for ordinary keys,
+`0x60` for right Alt and `0x68`/`0x6b`/`0x6d`/`0x70` for dedicated arrows).
+The stream reports transitions without typematic repeats. The existing type 3
+stream still supplies text and text repeat. Scan IDs shared by multiple keyboard
+devices are a single logical key in this ABI.
+
+Only the focused surface receives these events. Focus loss, desktop keyboard
+capture and queue overflow clear the held set. Clients must clear their own set
+on type 7 or focus-out. A key held through a reset must be released and pressed
+again. Desktop shortcuts and input taken by the lock screen, portal or launcher
+are excluded. `gui-probe --key-edges` prints the physical events for validation.
 
 ## Interactive and metadata contracts
 

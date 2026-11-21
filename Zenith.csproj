@@ -12,7 +12,7 @@
   <ItemGroup>
     <Compile Remove="tests/**" />
     <Compile Remove="tools/**" />
-    <Compile Remove="src/Core/Input/KeyboardScanPolicy.cs" />
+    <Compile Remove="src/Core/Input/KeyboardScanPolicy.cs;src/Core/Input/KeyboardEdges.cs" />
     <Compile Remove="src/Core/Security/Credentials.cs;src/Core/Security/PermissionPolicy.cs;src/Core/Security/FileAccessPolicy.cs;src/Core/Security/obj/**;src/Core/Security/bin/**" />
     <Compile Remove="src/Core/Network/Transport/*.cs;src/Core/Network/Transport/obj/**;src/Core/Network/Transport/bin/**" />
     <None Remove="tests/**" />

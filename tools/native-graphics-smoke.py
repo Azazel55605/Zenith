@@ -67,6 +67,7 @@ def main():
         ('ls /usr/share/zenith/native; false','G_FAILED'),
         ('settings set translucency 100','G_TRANSLUCENT'),
         ('native run gui-probe --buffer-probe | logger','G_BUFFER'),
+        ('native run gui-probe --key-edges | logger','G_KEY_EDGES'),
         ('fps | logger','G_RENDER_STATS'),
         ('free --collect | logger','G_COLLECT'),
     ]
@@ -158,6 +159,27 @@ def main():
         monitor_command(monitor,'mouse_button 1');time.sleep(.15);monitor_command(monitor,'mouse_button 0')
         assert m.wait('user: G_CANCEL=130',off,30),'minimized cancellation'
         assert m.wait('native surface retired',off,30),'minimized client retirement';checks+=2
+        from guest_cpu_frame import prompt as public_prompt
+        terminal_spec = importlib.util.spec_from_file_location('key_edge_terminal', ROOT/'deploy/distributor/validation-terminal.py')
+        terminal = importlib.util.module_from_spec(terminal_spec); terminal_spec.loader.exec_module(terminal)
+        observer = input_profile.RenderedMouse(monitor, input_profile.monitor_text)
+        edge_command = 'native run gui-probe --key-edges | logger; echo G_KEY_EDGES=$? | logger'
+        public_prompt(observer, terminal)
+        off = len(m.log())
+        login.monitor_type(monitor, 'sh /root/' + scripts[edge_command] + '\n')
+        assert m.wait('user: KEY_EDGES_READY', off, 30),'physical key opt-in'
+        assert m.wait('user: KEY_EDGES_FOCUS_IN', off, 30),'physical key probe focus'
+        edge_start = len(m.log())
+        monitor_command(monitor, 'sendkey up 150')
+        assert m.wait('user: KEY_EDGE U 68', edge_start, 30),'dedicated arrow release'
+        edges = m.log()[edge_start:]
+        assert edges.count('user: KEY_EDGE D 68') == 1 and edges.index('user: KEY_EDGE D 68') < edges.index('user: KEY_EDGE U 68'), 'physical arrow pair'
+        monitor_command(monitor, 'sendkey esc 30')
+        assert m.wait('user: G_KEY_EDGES=0', off, 30),'key edge probe exit'
+        assert m.wait('native surface retired', off, 30),'key edge probe retirement'
+        public_prompt(observer, terminal)
+        checks += 1
+        print('PASS focused physical key press and release', flush=True)
         print('PASS minimized cancellation and window retirement',flush=True)
         status('native run gui-probe --probe','G_AFTER_CANCEL')
         # Four independently running clients exhaust the desktop admission quota.

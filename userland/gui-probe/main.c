@@ -132,6 +132,28 @@ int main(int argc,char **argv) {
     draw(0x6b8cff);
     if(zenith_gui_present(h,pixels,sizeof(pixels))!=0)return 2;
     print("GUI_PRESENTED\n");
+    if(same(mode,"--key-edges")) {
+        if(zenith_gui_key_edges(h+1)!=-9||zenith_call(671,h,1,0)!=-22||zenith_gui_key_edges(h)!=0)return 40;
+        print("KEY_EDGES_READY\n");
+        static const char hex[]="0123456789abcdef";
+        for (;;) {
+            struct zenith_gui_event e;
+            long ready=zenith_gui_poll(h,&e);
+            if(ready<0)return 41;
+            if(!ready)continue;
+            if(e.type==Z_GUI_CLOSE||(e.type==Z_GUI_KEY&&e.extra==1))break;
+            if(e.type==Z_GUI_FOCUS)print(e.code?"KEY_EDGES_FOCUS_IN\n":"KEY_EDGES_FOCUS_OUT\n");
+            if(e.type==Z_GUI_RESET)print("KEY_EDGES_RESET\n");
+            if(e.type==Z_GUI_KEY_DOWN||e.type==Z_GUI_KEY_UP) {
+                if(e.code<1||e.code>255||e.x||e.y||e.modifiers||e.extra)return 42;
+                char marker[]="KEY_EDGE D 00\n";
+                marker[9]=e.type==Z_GUI_KEY_DOWN?'D':'U';
+                marker[11]=hex[e.code>>4];marker[12]=hex[e.code&15];
+                print(marker);
+            }
+        }
+        return zenith_gui_close(h)!=0;
+    }
     if(same(mode,"--fault")){__asm__ volatile("ud2");return 3;}
     if(same(mode,"--exit"))return 0; /* parent must reclaim the unclosed surface */
     if(same(mode,"--probe")) {

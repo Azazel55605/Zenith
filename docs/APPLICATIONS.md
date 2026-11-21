@@ -82,9 +82,9 @@ preview to check whether the engine recognizes the contents. A source build uses
 
 - [X5](ROADMAP.md) owns the executable/package size increase and the larger
   native read budget needed for WAD startup and level transitions.
-- Focused native key releases are the remaining gameplay input prerequisite.
-  Carry press and release to the focused window, and clear held keys on focus
-  loss or input reset so movement and fire cannot stick.
+- The [focused physical-key ABI](GRAPHICAL-CLIENTS.md#focused-physical-keys)
+  supplies press/release and input reset. The engine still needs to map these
+  events to gameplay and clear its internal held keys on reset or focus loss.
 - Gameplay needs per-user save/config paths. Sound effects can be resampled to
   48 kHz stereo PCM. Music needs a MIDI synthesizer and can follow the first
   playable build.

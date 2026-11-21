@@ -12,6 +12,10 @@ _Static_assert(sizeof(struct zenith_surface_request)==48,"surface request layout
 _Static_assert(sizeof(struct zenith_gui_event)==24,"event layout");
 enum { Z_GUI_NONE=0,Z_GUI_CLOSE=1,Z_GUI_FOCUS=2,Z_GUI_KEY=3,Z_GUI_DOWN=4,
        Z_GUI_UP=5,Z_GUI_DRAG=6,Z_GUI_RESET=7,Z_GUI_SCROLL=8 };
+/* Focused physical keys, opt-in. Code is a normalized scan ID; clear held
+ * keys on Z_GUI_RESET or focus loss. Z_GUI_KEY remains the text stream. */
+enum { Z_GUI_KEY_DOWN=14,Z_GUI_KEY_UP=15 };
+static inline long zenith_gui_key_edges(long handle){return zenith_call(671,(unsigned long)handle,0,0);}
 static inline long zenith_gui_open(unsigned int width,unsigned int height,const char *title,unsigned long length) {
     struct zenith_surface_request r={1,0,width,height,(unsigned long)title,length,{0,0}};
     return zenith_call(600,(unsigned long)&r,sizeof(r),0);

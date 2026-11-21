@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using Cosmos.Kernel.System.Keyboard;
 using Cosmos.Kernel.System.Mouse;
+using Cosmos.Kernel.Core.Scheduler;
+using Zenith.Core.Input;
 
 namespace Zenith.Gui;
 
@@ -24,6 +26,18 @@ internal sealed class Input
     public int Scroll { get; private set; }
     public bool Moved { get; private set; }
     public List<KeyEvent> Keys { get; } = new();
+    private readonly ushort[] _edges = new ushort[KeyboardEdges.Capacity];
+    private int _edgeCount;
+    public bool LostKeyEdges => _edgeCount < 0;
+    public System.ReadOnlySpan<ushort> KeyEdges => new(_edges, 0, System.Math.Max(0, _edgeCount));
+
+    public static void CaptureKeyEdges(bool enabled)
+    {
+#pragma warning disable COSMOS0001 // Snapshot the two IRQ-fed queues using the pinned Cosmos interrupt scope.
+        using var interrupts = SchedulerManager.MaskInterrupts();
+#pragma warning restore COSMOS0001
+        KeyboardEdges.SetEnabled(enabled);
+    }
 
     /// <summary>Whether anything happened this frame that could change what is on screen.</summary>
     public InputActivity Activity => new(LeftPressed, LeftReleased, RightPressed, MiddlePressed, Scroll, Keys.Count);
@@ -66,6 +80,12 @@ internal sealed class Input
         }
 
         Keys.Clear();
+        // The keyboard IRQ produces both queues. Read one snapshot so a shortcut
+        // cannot be consumed from the text queue in a different frame than its edge.
+#pragma warning disable COSMOS0001
+        using var interrupts = SchedulerManager.MaskInterrupts();
+#pragma warning restore COSMOS0001
+        _edgeCount = KeyboardEdges.Drain(_edges);
         while (KeyboardManager.TryReadKey(out KeyEvent? key))
         {
             Keys.Add(key);

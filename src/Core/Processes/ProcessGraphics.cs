@@ -34,6 +34,7 @@ internal readonly record struct ProcessGraphicsRequest(int Width, int Height, ul
 internal readonly record struct ProcessGraphicsEvent(int Type, int Code, int X, int Y, int Modifiers, int Extra)
 {
     public const int Bytes = 24;
+    public const int PhysicalKeyDown = 14, PhysicalKeyUp = 15;
     public byte[] Encode()
     {
         byte[] b = new byte[Bytes];
@@ -265,16 +266,58 @@ internal sealed class ProcessSurface : IDisposable
         lock (_gate)
         {
             if (_closed || _disposed) { return; }
-            if (_events.Count >= 64)
-            {
-                // Drop stale input and explicitly reset client input state. Close
-                // is sticky and cannot be evicted by a flood of pointer events.
-                _events.Clear(); _events.Enqueue(new(7, 0, 0, 0, 0, 0));
-            }
-            _events.Enqueue(e);
-            Monitor.PulseAll(_gate); WakeSignal.Request();
+            SendLocked(e);
         }
     }
+    private void SendLocked(ProcessGraphicsEvent e)
+    {
+        if (_events.Count >= 64)
+        {
+            // Drop stale input and reset the client's held keys. A release
+            // after this reset has no matching press. Close remains sticky.
+            _events.Clear();
+            if (_heldKeys is not null) { Array.Clear(_heldKeys); }
+            _events.Enqueue(new(7, 0, 0, 0, 0, 0));
+            if (e.Type is not (7 or ProcessGraphicsEvent.PhysicalKeyUp)) { _events.Enqueue(e); }
+        }
+        else { _events.Enqueue(e); }
+        Monitor.PulseAll(_gate); WakeSignal.Request();
+    }
+
+    private bool[]? _heldKeys;
+    public int EnableKeyEdges()
+    {
+        lock (_gate)
+        {
+            if (_closed || _disposed) { return -32; }
+            _heldKeys ??= new bool[256];
+            return 0;
+        }
+    }
+
+    public void KeyEdges(ReadOnlySpan<ushort> batch)
+    {
+        lock (_gate)
+        {
+            if (_heldKeys is not bool[] held || !_focused || _closed || _disposed) { return; }
+            foreach (ushort edge in batch)
+            {
+                int scan = edge & 255;
+                bool pressed = edge < 256;
+                if (held[scan] == pressed) { continue; }
+                SendLocked(new(pressed ? ProcessGraphicsEvent.PhysicalKeyDown : ProcessGraphicsEvent.PhysicalKeyUp, scan, 0, 0, 0, 0));
+                held[scan] = pressed;
+            }
+        }
+    }
+
+    private void ResetKeysLocked()
+    {
+        if (_heldKeys is not bool[] held || _closed || _disposed || Array.IndexOf(held, true) < 0) { return; }
+        Array.Clear(held);
+        SendLocked(new(7, 0, 0, 0, 0, 0));
+    }
+    public void ResetKeys() { lock (_gate) { ResetKeysLocked(); } }
     /// <summary>An idle client's poll waits here: any event, resize, move or close wakes it at
     /// once instead of after a fixed sleep, so input reaches a native app without delay.</summary>
     public void WaitForEvent(int milliseconds)
@@ -301,7 +344,11 @@ internal sealed class ProcessSurface : IDisposable
     public int SetDirty(bool dirty) { lock (_gate) { if (_closed || _disposed) { return -32; } _unsaved = dirty; return 0; } }
     private bool _focused, _pasteGranted;
     /// <summary>Whether the window has the keyboard (set by the desktop); losing it withdraws a paste grant.</summary>
-    public bool Focused { get { lock (_gate) { return _focused; } } set { lock (_gate) { _focused = value; if (!value) { _pasteGranted = false; } } } }
+    public bool Focused
+    {
+        get { lock (_gate) { return _focused; } }
+        set { lock (_gate) { _focused = value; if (!value) { _pasteGranted = false; ResetKeysLocked(); } } }
+    }
     /// <summary>The desktop records each key it delivers: Ctrl+V grants one clipboard read (call 659), any other
     /// key withdraws it, so a program can read the clipboard only as the answer to that key.</summary>
     public void KeyDelivered(bool paste) { lock (_gate) { _pasteGranted = paste; } }
@@ -375,6 +422,7 @@ internal sealed class ProcessGraphics : IDisposable
         _surface = surface; _handle = 20000 + ++_opens; return _handle;
     }
     public int EnableResize(int handle) => handle != _handle || _surface is null ? -9 : _surface.EnableResize();
+    public int EnableKeyEdges(int handle) => handle != _handle || _surface is null ? -9 : _surface.EnableKeyEdges();
     public int EnablePointerMotion(int handle, int bits = 1) => handle != _handle || _surface is null ? -9 : _surface.EnablePointerMotion(bits);
     public byte[]? Viewport(int handle) => handle != _handle || _surface is null || _surface.Ended ? null : _surface.Viewport();
     public int AcceptResize(int handle, ReadOnlySpan<byte> request) => handle != _handle || _surface is null ? -9 : _surface.AcceptResize(request);

@@ -185,4 +185,7 @@ internal abstract class Window
     public virtual void OnKey(KeyEvent key)
     {
     }
+
+    internal virtual void OnKeyEdges(System.ReadOnlySpan<ushort> edges) { }
+    internal virtual void ResetKeyEdges() { }
 }

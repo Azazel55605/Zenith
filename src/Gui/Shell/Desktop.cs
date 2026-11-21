@@ -32,6 +32,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     private Surface _scene;   // everything but the cursor
     private Surface _frame;   // scene + cursor, what is on screen
     private readonly Input _input = new();
+    private Window? _keyEdgesOwner;
     private NativeAppLauncher _apps = new();
     private NativeClientHost _nativeClients;
     private Taskbar _taskbar;
@@ -118,6 +119,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
 
         SessionDisplay.ConfigurePointer();
         MouseManager.SetPosition(SessionDisplay.Physical.Width / 2, SessionDisplay.Physical.Height / 2);
+        Input.CaptureKeyEdges(true);
 
         TerminalWindow.OpenApp = OpenApp;
         FileManagerWindow.OpenApp = OpenApp;
@@ -308,7 +310,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     }
     public WindowManager Windows { get; }
 
-    public void StopClients() { _portal.Detach(); _taskbar.Dispose(); _prism.Dispose(); _sunset.Dispose(); _lock.Dispose(); Zenith.Core.Configuration.SystemConfiguration.Appearance.ReportMaterials(0, 0, 2); _apps.Stop(); _nativeClients.Stop(); Zenith.Core.Processes.NativeSystemInformation.Display("No graphical session"); }
+    public void StopClients() { Input.CaptureKeyEdges(false); _keyEdgesOwner?.ResetKeyEdges(); _portal.Detach(); _taskbar.Dispose(); _prism.Dispose(); _sunset.Dispose(); _lock.Dispose(); Zenith.Core.Configuration.SystemConfiguration.Appearance.ReportMaterials(0, 0, 2); _apps.Stop(); _nativeClients.Stop(); Zenith.Core.Processes.NativeSystemInformation.Display("No graphical session"); }
 
     /// <summary>What is on screen, for the crossfade when this session ends.</summary>
     public int[] FramePixels => _frame.Pixels;
@@ -325,6 +327,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         if (SessionDisplay.FadePending)
         {
             _input.Poll();
+            _keyEdgesOwner?.ResetKeyEdges();
             WantedBar();
             ComposeScene();
             _frame.CopyFrom(_scene);
@@ -390,19 +393,21 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
             Windows.Open(new TerminalWindow());
             _sceneDirty = true;
         }
+        Window? beforeInput = KeyEdgesOwner();
         _input.Poll();
+        bool routeKeyEdges = true;
 
         // A release or a hover change only redraws; the click that started an animation must not cut it short.
         bool interrupts = _input.Activity.InterruptsMotion;
         if (_input.Activity.LeftPressed || _input.Keys.Count > 0 || _input.Scroll != 0) { Zenith.Gui.Motion.OverlayMotion.Finish(); }
         if (_input.Activity.RoutesWithoutMotion)
         {
-            HandleInput();
+            routeKeyEdges = HandleInput();
             _sceneDirty = true;
         }
         else if (_input.Moved)
         {
-            HandleInput();   // drags move windows on motion alone
+            routeKeyEdges = HandleInput();   // drags move windows on motion alone
             long hover = HoverKey();
             if (Windows.IsDragging || hover != _hoverKey)
             {
@@ -416,6 +421,16 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
 
             _hoverKey = hover;
         }
+
+        Window? afterInput = KeyEdgesOwner();
+        if (!routeKeyEdges || _input.LostKeyEdges || _keyEdgesOwner != beforeInput || beforeInput != afterInput)
+        {
+            // The desktop consumed this batch, or it straddled a focus change.
+            // Clear held keys and let physical release/repress rearm the key.
+            _keyEdgesOwner?.ResetKeyEdges();
+        }
+        else if (!_input.KeyEdges.IsEmpty) { afterInput?.OnKeyEdges(_input.KeyEdges); }
+        _keyEdgesOwner = afterInput;
 
         CursorShape shape = PointerShape();
         if (shape != Cursor.Shape) { Cursor.Shape = shape; _cursorDirty = true; }
@@ -852,7 +867,11 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         return key * 4096 + Windows.HoverKey(x, y);
     }
 
-    private void HandleInput()
+    private Window? KeyEdgesOwner() =>
+        !_lock.IsLocked && !_portal.IsOpen && !_sunset.IsOpen && !_prism.IsOpen && !_taskbar.PopupOpen
+        && Windows.Focused is { IsClosed: false } focused ? focused : null;
+
+    private bool HandleInput()
     {
         // The lock screen takes everything: no shortcut, window or taskbar sees input while it is up.
         if (_lock.IsLocked)
@@ -860,15 +879,15 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
             foreach (KeyEvent key in _input.Keys) { _lock.Key(key); }
             if (_input.LeftPressed) { _lock.Click(_input.X, _input.Y); }
             if (_input.Keys.Count > 0 || _input.LeftPressed) { _lockDirty = true; }
-            return;
+            return false;
         }
         // A portal dialog is modal: it takes every key and click until it is answered.
-        if (_portal.IsOpen) { _portal.HandleInput(_input); return; }
+        if (_portal.IsOpen) { _portal.HandleInput(_input); return false; }
         if (_sunset.IsOpen)
         {
             foreach (KeyEvent key in _input.Keys) { if (!_sunset.IsOpen) { break; } _sunset.Key(key, _scene.Width, _scene.Height); }
             if (_sunset.IsOpen && _input.LeftPressed) { _sunset.Click(_input.X, _input.Y, _scene.Width, _scene.Height); }
-            return;
+            return false;
         }
         foreach (KeyEvent key in _input.Keys)
         {
@@ -877,28 +896,29 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
                 if (key.Key == ConsoleKeyEx.T)
                 {
                     OpenApp((key.Modifiers & ConsoleModifiers.Shift) != 0 ? RecoveryTerminal : "Terminal", null);
-                    return;
+                    return false;
                 }
-                if (key.Key == ConsoleKeyEx.L) { Zenith.Core.Sessions.SessionRuntime.RequestLogout(); return; }
-                if (key.Key == ConsoleKeyEx.Delete) { OpenSunset(Zenith.Core.Sessions.SunsetAction.Lock); return; }
+                if (key.Key == ConsoleKeyEx.L) { Zenith.Core.Sessions.SessionRuntime.RequestLogout(); return false; }
+                if (key.Key == ConsoleKeyEx.Delete) { OpenSunset(Zenith.Core.Sessions.SunsetAction.Lock); return false; }
             }
-            if (key.Key == ConsoleKeyEx.F11 && Windows.Focused is Window focused) { Windows.ToggleFullscreen(focused); return; }
-            if (key.Key == ConsoleKeyEx.Escape && _taskbar.PopupOpen) { _taskbar.ClosePopups(); return; }
+            if (key.Key == ConsoleKeyEx.F11 && Windows.Focused is Window focused) { Windows.ToggleFullscreen(focused); return false; }
+            if (key.Key == ConsoleKeyEx.Escape && _taskbar.PopupOpen) { _taskbar.ClosePopups(); return false; }
         }
         // Dragging the sound center's volume knob.
         if (_taskbar.Centers is { Sliding: true } sliding)
         {
             if (_input.Left) { sliding.Slide(_input.X); } else { sliding.StopSliding(); }
-            return;
+            return false;
         }
         // Prism: Alt+Space or Meta opens the palette from anywhere; while open it owns the keyboard
         // and the next click.
+        bool prismOwnedKeys = _prism.IsOpen;
         foreach (KeyEvent key in _input.Keys)
         {
             if (key.Key == ConsoleKeyEx.L && (key.Modifiers & ConsoleModifiers.Shift) != 0 && (key.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) == 0
                 && _metaAt != 0 && FrameStats.Now - _metaAt < 3 * System.Diagnostics.Stopwatch.Frequency)
             {
-                _metaAt = 0; _prism.Close(); OpenSunset(Zenith.Core.Sessions.SunsetAction.Lock); return;
+                _metaAt = 0; _prism.Close(); OpenSunset(Zenith.Core.Sessions.SunsetAction.Lock); return false;
             }
             if (key.Key is ConsoleKeyEx.LWin or ConsoleKeyEx.RWin) { _metaAt = FrameStats.Now; }
             else { _metaAt = 0; }
@@ -906,6 +926,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
                 || (key.Key == ConsoleKeyEx.Spacebar && (key.Modifiers & ConsoleModifiers.Alt) != 0 && (key.Modifiers & ConsoleModifiers.Control) == 0);
             if (palette)
             {
+                prismOwnedKeys = true;
                 if (_prism.IsOpen && _prism.Mode == PrismView.Layout.Palette) { _prism.Close(); }
                 else { _prism.Open(PrismView.Layout.Palette, _taskbar.Bounds, _scene.Width, _scene.Height); }
                 // Keys typed with or right after Meta go on: Shift+L may complete Meta+Shift+L, others search.
@@ -919,13 +940,13 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
             // Prism's list scrolls with the wheel and its scroll bar drags.
             if (_input.Scroll != 0) { _prism.Wheel(_input.X, _input.Y, _input.Scroll); }
             if (_prism.Dragging) { if (_input.Left) { _prism.Drag(_input.Y); } else { _prism.Release(); } }
-            if (!_input.LeftPressed) { return; }
+            if (!_input.LeftPressed) { return false; }
             _prism.HandleClick(_input.X, _input.Y);
-            if (!_taskbar.Bounds.Contains(_input.X, _input.Y)) { return; }
+            if (!_taskbar.Bounds.Contains(_input.X, _input.Y)) { return false; }
         }
 
         // A click on a toast dismisses it and goes no further.
-        if (_input.LeftPressed && _toasts.HandleClick(_input.X, _input.Y)) { _sceneDirty = true; return; }
+        if (_input.LeftPressed && _toasts.HandleClick(_input.X, _input.Y)) { _sceneDirty = true; return false; }
         if (_input.LeftPressed && _taskbar.HandleClick(_input.X, _input.Y, out bool launcherClicked))
         {
             if (launcherClicked)
@@ -938,12 +959,13 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
                 }
             }
 
-            return;
+            return false;
         }
 
         // The wheel over the sound button changes the volume.
-        if (_input.Scroll != 0 && _taskbar.Shown && _taskbar.Centers is TaskbarCenters centers && centers.Scroll(_input.X, _input.Y, _input.Scroll)) { return; }
+        if (_input.Scroll != 0 && _taskbar.Shown && _taskbar.Centers is TaskbarCenters centers && centers.Scroll(_input.X, _input.Y, _input.Scroll)) { return false; }
         Windows.HandleInput(_input);
+        return !prismOwnedKeys;
     }
 
     private void ComposeScene(bool withoutTop = false)

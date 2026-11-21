@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using Cosmos.Kernel.System.Keyboard;
 using Zenith.Core.Input;
@@ -6,6 +7,32 @@ namespace Zenith.Tests;
 
 public class KeyboardTests
 {
+    [Fact]
+    public void PhysicalEdgesPairInOrderRejectRepeatAndRecoverFromOverflow()
+    {
+        Span<ushort> batch = stackalloc ushort[KeyboardEdges.Capacity];
+        KeyboardEdges.SetEnabled(true);
+        try
+        {
+            KeyboardEdges.Capture(0x11, true);
+            KeyboardEdges.Capture(0x11, false);
+            KeyboardEdges.Capture(0x11, false);
+            KeyboardEdges.Capture(0x2a, false);
+            KeyboardEdges.Capture(0x11, true);
+            Assert.Equal(3, KeyboardEdges.Drain(batch));
+            Assert.Equal(new ushort[] { 0x11, 0x2a, 0x111 }, batch[..3].ToArray());
+            for (int i = 0; i < KeyboardEdges.Capacity; i++) { KeyboardEdges.Capture(0x11, false); KeyboardEdges.Capture(0x11, true); }
+            Assert.Equal(-1, KeyboardEdges.Drain(batch));
+            KeyboardEdges.Capture(0x2a, false); // still physically held, not a new press
+            KeyboardEdges.Capture(0x2a, true);
+            Assert.Equal(1, KeyboardEdges.Drain(batch));
+            Assert.Equal(0x12a, batch[0]);
+        }
+        finally { KeyboardEdges.SetEnabled(false); }
+        KeyboardEdges.Capture(0x11, false);
+        Assert.Equal(0, KeyboardEdges.Drain(batch));
+    }
+
     private static KeyEvent Convert(byte scan, bool shift = false, bool num = false, bool caps = false, bool altGr = false)
     {
         var method = typeof(ScanMapBase).GetMethod("ConvertScanCode", BindingFlags.Instance | BindingFlags.NonPublic)!;

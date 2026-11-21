@@ -54,6 +54,7 @@ internal static class BootstrapComponents
         new("zenith-native-viewport-abi", "1.0", "owned bounded resize/maximize with versioned acknowledgement"),
         new("zenith-native-window-state-abi", "1.0", "owned unsaved state and cancellable chrome close intent"),
         new("zenith-native-graphics-abi", "1.0", "owned private graphical surfaces and routed events"),
+        new("zenith-native-key-edges-abi", "1.0", "opt-in focused physical keyboard press and release events (671)"),
         new("zenith-native-network-abi", "1.0", "owned bounded TCP/verified-TLS clients and atomic download sinks"),
         new("zenith-native-path-abi", "1.0", "owned namespace/metadata operations and private descriptor seeks"),
         new("zenith-native-process-abi", "1.0", "exported environment and owned process lifecycle"),

@@ -163,6 +163,35 @@ public sealed class ProcessGraphicsTests
         surface.Focused = true; SessionClipboard.Text = ""; surface.KeyDelivered(true);
         Assert.Null(g.PasteText(handle, out error)); Assert.Equal(-61, error);      // empty clipboard
     }
+
+    [Fact]
+    public void PhysicalEdgesRequireOptInAndPairOnlyWithinTheSameFocus()
+    {
+        using var surface = new ProcessSurface(160, 100, "keys");
+        surface.Focused = true;
+        surface.KeyEdges([0x11, 0x111]);
+        Assert.Equal(0, surface.Poll().Type);
+        Assert.Equal(0, surface.EnableKeyEdges());
+        surface.KeyEdges([0x11, 0x111, 0x2a]);
+        Assert.Equal(new ProcessGraphicsEvent(14, 0x11, 0, 0, 0, 0), surface.Poll());
+        Assert.Equal(new ProcessGraphicsEvent(15, 0x11, 0, 0, 0, 0), surface.Poll());
+        Assert.Equal(14, surface.Poll().Type);
+        surface.Focused = false;
+        Assert.Equal(7, surface.Poll().Type);
+        surface.KeyEdges([0x11]);
+        surface.Focused = true;
+        surface.KeyEdges([0x111, 0x12a]);
+        Assert.Equal(0, surface.Poll().Type);
+
+        surface.KeyEdges([0x11]);
+        for (int i = 0; i < 63; i++) { surface.Send(new(3, 'a', 0, 0, 0, 0)); }
+        surface.KeyEdges([0x111]); // this edge itself would overflow the queue
+        Assert.Equal(7, surface.Poll().Type);
+        Assert.Equal(0, surface.Poll().Type);
+        surface.KeyEdges([0x11, 0x111]);
+        Assert.Equal(14, surface.Poll().Type);
+        Assert.Equal(15, surface.Poll().Type);
+    }
     [Fact]
     public void PointerMotionIsOptInCoalescedAndNeverDisplacesInput()
     {

@@ -316,6 +316,8 @@ internal sealed unsafe class NativeProcess
             { return c.Arg0 != 0 || c.Arg1 != 0 || c.Arg2 != 0 ? -22 : MonotonicMilliseconds; }
             if (c.Call == 627)
             { return c.Arg0 > int.MaxValue || c.Arg1 > 15 || (c.Arg1 & 1) == 0 || c.Arg2 != 0 ? -22 : graphics.EnablePointerMotion((int)c.Arg0, (int)c.Arg1); }
+            if (c.Call == 671)
+            { return c.Arg0 > int.MaxValue || c.Arg1 != 0 || c.Arg2 != 0 ? -22 : graphics.EnableKeyEdges((int)c.Arg0); }
             if (c.Call == 614)
             { return c.Arg0 > int.MaxValue || c.Arg1 != 1 || c.Arg2 != 0 ? -22 : graphics.EnableResize((int)c.Arg0); }
             if (c.Call == 613)
@@ -1299,7 +1301,7 @@ internal sealed unsafe class NativeProcess
                     if (status == DeviceInterruptYield) { continue; }
                     if (status != 4096) { break; }
                     if (cancelled()) { status = 130; break; }
-                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615 or 628 or 629 or >= 630 and <= 639 or 645 or 646 or 659 or >= 661 and <= 670) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > (large ? ProcessFiles.LargeCallBudget : 4096)) { status = 124; break; }
+                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615 or 628 or 629 or >= 630 and <= 639 or 645 or 646 or 659 or >= 661 and <= 671) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > (large ? ProcessFiles.LargeCallBudget : 4096)) { status = 124; break; }
                     // A portal grant serves that area's calls as root for this process alone (uid 0 in the
                     // context too, which those handlers read); every other call keeps the program's identity.
                     bool elevated = Zenith.Core.Portal.ProcessPrivileges.Elevates(pid, context.Call, context.Arg0);
@@ -1308,7 +1310,7 @@ internal sealed unsafe class NativeProcess
                     var caller = Zenith.Core.Security.CredentialContext.Enter(elevated ? Zenith.Core.Security.Credentials.Root : identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
                     // while waiting for a peer. Mutations and transport setup stay serialized.
-                    bool standard = context.Call is >= 661 and <= 670 or 642 or 643 or 644 or 649 or 651 or 653 or 657 or 658 or 400 or 401 or 402 or 403 or 404 or 410 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 639 or 645 or 646 or 659 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    bool standard = context.Call is >= 661 and <= 671 or 642 or 643 or 644 or 649 or 651 or 653 or 657 or 658 or 400 or 401 or 402 or 403 or 404 or 410 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 639 or 645 or 646 or 659 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {

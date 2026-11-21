@@ -255,6 +255,8 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
             }
         }
         protected override void OnFocusChanged(bool focused) { _surface.Focused = focused; _surface.Send(new(2, focused ? 1 : 0, 0, 0, 0, 0)); }
+        internal override void OnKeyEdges(ReadOnlySpan<ushort> edges) => _surface.KeyEdges(edges);
+        internal override void ResetKeyEdges() => _surface.ResetKeys();
         public override void OnMouseDown(int x, int y) { EndFade("Input"); Pointer(4, x, y); }
         public override void OnMouseUp(int x, int y) => Pointer(5, x, y);
         public override void OnSecondaryPress(int x, int y)

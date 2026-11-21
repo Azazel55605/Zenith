@@ -475,9 +475,10 @@ The M0–M10 names in that guide are Meridian phases, not separate project miles
 **Optional Doom engine** has a local `zenith-doom` package preview based on
 PureDOOM. It uses X5 for executable size and reads. A signed preview installed
 in QEMU, drew a frame from a 27.5 MiB Freedoom test IWAD, and returned to the
-shell on Escape. Remaining work is focused
-native key-up and clearing held keys on focus loss, gameplay controls, save/config
-storage, and audio. Acceptance requires a supported user-supplied IWAD, guest
+shell on Escape. The [focused key-edge ABI](GRAPHICAL-CLIENTS.md#focused-physical-keys)
+is implemented locally. QEMU PS/2 and virtio tests verified release, focus reset
+and launcher isolation. Remaining work is wiring the ABI into the engine's
+gameplay controls, save/config storage, and audio. Acceptance requires a supported user-supplied IWAD, guest
 gameplay and save/load, clean exit, and an independent package update. Follow
 the [port contract](APPLICATIONS.md#doom-engine-package-requested-feasibility-slice).
 

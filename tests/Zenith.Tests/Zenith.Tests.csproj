@@ -43,7 +43,7 @@
       <HintPath>$(NuGetPackageRoot)cosmos.kernel.system/$(CosmosVersion)/runtimes/linux-x64/lib/net10.0/Cosmos.Kernel.System.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <Compile Include="../../src/Core/Input/GermanKeyboardLayout.cs;../../src/Core/Input/KeyboardScanPolicy.cs" LinkBase="Kernel/Input" />
+    <Compile Include="../../src/Core/Input/GermanKeyboardLayout.cs;../../src/Core/Input/KeyboardScanPolicy.cs;../../src/Core/Input/KeyboardEdges.cs" LinkBase="Kernel/Input" />
     <Compile Include="../../src/Core/PowerControl.cs" Link="Kernel/PowerControl.cs" />
     <Compile Include="../../src/Gui/InputActivity.cs" Link="Gui/InputActivity.cs" />
     <Compile Include="../../src/Gui/FrameStats.cs" Link="Gui/FrameStats.cs" />

@@ -839,6 +839,20 @@ if (assembly.Name.Name is "Cosmos.Kernel.System" or "Cosmos.Kernel.HAL.X64" or "
     MethodReference Policy(string name) => module.ImportReference(policy.Methods.Single(m => m.Name == name));
     if (assembly.Name.Name == "Cosmos.Kernel.System")
     {
+        var capture = support.MainModule.GetType("Zenith.Core.Input.KeyboardEdges").Methods.Single(m => m.Name == "Capture");
+        var handleScan = module.GetType("Cosmos.Kernel.System.Keyboard.KeyboardManager").Methods
+            .Single(m => m.Name == "HandleScanCode" && m.IsStatic && m.Parameters.Count == 2);
+        if (!handleScan.HasBody || handleScan.Parameters[0].ParameterType.FullName != "System.Byte"
+            || handleScan.Parameters[1].ParameterType.FullName != "System.Boolean" || handleScan.ReturnType.FullName != "System.Void")
+        { throw new InvalidOperationException("Keyboard edge capture signature changed"); }
+        if (!handleScan.Body.Instructions.Any(i => i.Operand is MethodReference m && m.FullName == capture.FullName))
+        {
+            var il = handleScan.Body.GetILProcessor(); var entry = handleScan.Body.Instructions[0];
+            il.InsertBefore(entry, il.Create(OpCodes.Ldarg_0));
+            il.InsertBefore(entry, il.Create(OpCodes.Ldarg_1));
+            il.InsertBefore(entry, il.Create(OpCodes.Call, module.ImportReference(capture)));
+            changed = true;
+        }
         var scan = module.GetType("Cosmos.Kernel.System.Keyboard.ScanMapBase").Methods
             .Single(m => m.Name == "ConvertScanCode" && m.Parameters.Count == 7);
         if (scan.Parameters[0].ParameterType.FullName != "System.Byte" || scan.Parameters[4].Name != "numLock" || !scan.HasBody)
