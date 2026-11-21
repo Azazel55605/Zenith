@@ -347,15 +347,18 @@ static void picker(struct meridian *a,struct zui *u,struct zui_form *f,unsigned 
             if(field==6&&(e->kind?1u:0u)!=group)continue;
             struct zui_rect r={f->x+(n%cols)*(tile_w+gap),f->y+(n/cols)*(tile_h+gap),tile_w,tile_h};
             if(pw){
-                struct zui_rect pic={r.x+6,r.y+6,pw,ph};
-                if(field==6&&e->kind)zui_round(u,pic,6,e->color&0xFFFFFF);
+                /* The picture fills the tile up to its outline (3 px), its corners following the tile's in every
+                 * widget style: Rounded and Soft round it, Sharp keeps it square. */
+                int iw=pw+6,ih=ph+6,radius=zui_radius(u,10,tile_h)-3;if(radius<0)radius=0;
+                struct zui_rect pic={r.x+3,r.y+3,iw,ih};
+                if(field==6&&e->kind)zui_round(u,pic,radius,e->color&0xFFFFFF);
                 else{
                     /* Only previews in view are drawn, so a long list costs nothing until it scrolls in. */
                     struct zui_rect view=a->page_scroll.rect;
-                    const unsigned int *t=pic.y+ph>view.y&&pic.y<view.y+view.h?styles_thumb(st,field,i,pw,ph,appearance_key(a)):0;
-                    if(t)zui_image(u,pic.x,pic.y,pw,ph,t);else zui_round(u,pic,6,u->theme.subtle);
+                    const unsigned int *t=pic.y+ih>view.y&&pic.y<view.y+view.h?styles_thumb(st,field,i,iw,ih,appearance_key(a)):0;
+                    if(t)zui_image_round(u,pic.x,pic.y,iw,ih,t,radius);else zui_round(u,pic,radius,u->theme.subtle);
                 }
-                text(u,r.x+8,r.y+ph+12,e->label,&zui_caption,u->theme.text);
+                text(u,r.x+8,r.y+ih+9,e->label,&zui_caption,u->theme.text);
             }else text(u,r.x+14,r.y+18,e->label,&zui_label,u->theme.text);
             zui_add(u,ID_PICKS+(int)field*64+(int)i,ZUI_TILE,r,e->label,i==st->draft[field],writable);
             n++;

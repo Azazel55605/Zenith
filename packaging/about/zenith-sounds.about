@@ -1,8 +1,9 @@
 ZENITH-ABOUT	1
 title	Zenith Chimes
 summary	The system sound pack
-description	Short, quiet sounds tuned in C major for signing in and out, questions, errors, finished jobs, the volume and shutting down.
+description	Short, quiet plucked chimes for signing in and out, questions, errors, finished jobs, devices, the volume and shutting down.
 description	Rendered from recipes in the Zenith source, so the pack is original and the same on every build.
 category	themes
 icon	volume-2
 change	0.1.0	Twelve events: sign in, sign out, notification, attention, error, device added and removed, done, volume, trash, screenshot, shut down
+change	0.2.0	Sign in, sign out, done, trash, screenshot and shut down are plucked chimes, like the device sounds

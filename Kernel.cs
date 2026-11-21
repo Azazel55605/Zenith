@@ -36,12 +36,20 @@ public class Kernel : Sys.Kernel
             SessionDisplay.MarkSessionThread();
             PowerControl.Farewell = SessionDisplay.Farewell;
             bool bootScreen = hasDisplay && BootScreen.Wanted(CommandLine());
-            if (bootScreen) { BootScreen.Begin(); }
+            if (bootScreen) { BootScreen.Begin(CommandLine()); }
             // A whole-volume ext2 check keeps two bits per block in memory: bound it by free memory.
             Zenith.Core.Storage.Ext2.Ext2Checker.AvailableMemory = () => MemoryInfo.FreePages * 4096 / 2;
             SystemRuntime.Initialize(bootScreen ? BootScreen.Phase : null);
             if (hasDisplay) { Zenith.Core.Input.AbsolutePointer.Start(CommandLine()); }
             if (bootScreen) { BootScreen.Phase("Starting session"); BootScreen.Finish(); }
+            // A boot menu older than the boot style setting (an update, or a style saved by an older kernel) is brought
+            // in line, so the next boot starts in the chosen style.
+            try
+            {
+                uint wanted = SystemConfiguration.Settings.Style(15);
+                if (hasDisplay && wanted != Zenith.Core.Boot.BootLayout.BootStyleOf(CommandLine())) { Zenith.Core.Boot.NativeKernelUpdates.SaveBootStyle(wanted); }
+            }
+            catch (Exception e) { Zenith.Core.Log.Write("boot", "boot style not written: " + e.Message); }
             SessionRuntime.Start(SystemConfiguration.Settings.Current.DefaultSession,
                 mode => mode switch
                 {

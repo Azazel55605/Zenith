@@ -178,6 +178,27 @@ void zui_image(struct zui *u,int x,int y,int w,int h,const unsigned int *argb){
         *p=a==255?(s&0xffffff)|(u->foreground?0xff000000:0):u->foreground?over(*p,s&0xffffff,a):blend(*p,s&0xffffff,a);
     }
 }
+/* An image with rounded corners (anti-aliased), for pictures inside rounded controls such as Meridian's tiles. */
+void zui_image_round(struct zui *u,int x,int y,int w,int h,const unsigned int *argb,int radius){
+    if(!argb||w<=0||h<=0)return;
+    if(radius>w/2)radius=w/2;
+    if(radius>h/2)radius=h/2;
+    if(radius<=0){zui_image(u,x,y,w,h,argb);return;}
+    struct zui_rect b=intersect((struct zui_rect){x,y,w,h},u->clip);
+    for(int py=b.y;py<b.y+b.h;py++)for(int px=b.x;px<b.x+b.w;px++){
+        unsigned int s=argb[(py-y)*w+(px-x)],a=s>>24;if(!a)continue;
+        int lx=px-x,ly=py-y,cx=lx<radius?radius-1-lx:lx>=w-radius?lx-(w-radius):-1,cy=ly<radius?radius-1-ly:ly>=h-radius?ly-(h-radius):-1;
+        if(cx>=0&&cy>=0){
+            /* Coverage of this corner pixel, 4x4 samples against the corner's circle. */
+            int inside=0;long r2=(long)radius*radius*16;
+            for(int sy=0;sy<4;sy++)for(int sx=0;sx<4;sx++){long dx=cx*4+sx+1,dy=cy*4+sy+1;if(dx*dx+dy*dy<=r2)inside++;}
+            if(!inside)continue;
+            a=a*(unsigned int)inside/16;
+        }
+        unsigned int *p=&u->pixels[py*u->width+px];
+        *p=a==255?(s&0xffffff)|(u->foreground?0xff000000:0):u->foreground?over(*p,s&0xffffff,a):blend(*p,s&0xffffff,a);
+    }
+}
 int zui_backdrop_candidate(int role){
     return role==ZUI_SURFACE_NAVIGATION||role==ZUI_SURFACE_PANEL||role==ZUI_SURFACE_POPOVER;
 }

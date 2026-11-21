@@ -176,6 +176,17 @@ wallpapers, and the three widget styles built in full. The Ribbon concept's clos
   animates). Horizon, Equinox, Orbit, Beacon, Observatory and desktop-tools ran without it, so tabs, lists, meters and
   counts stood still there; desktop-tools now also follows widget styles, icon sets and appearance changes live.
 
+## Fixes after the first round of testing (kernel 0.0.75)
+
+- Boot animations: the style travels on the kernel command line (`bootstyle=orbit|pulse|quiet`, written into both boot
+  menus when the setting is saved, carried across kernel updates, and corrected at boot when the menu is older than
+  the setting), so the first frame already uses it; a boot-screen thread redraws only the moving area: Phases' sheen,
+  Orbit's comet, Pulse's breathing logo, Quiet's line growing between phases.
+- Zenith Chimes 0.2.0: sign in, sign out, done, trash, screenshot and shut down are plucked chimes in the style of the
+  device sounds.
+- Meridian's picker previews fill their tiles up to the outline, rounded with the tile in Rounded and Soft
+  (`zui_image_round`).
+
 ## Next
 
 Gates for the new styles (settings gate pickers; login styles; decorations in the system-app gate; icon sets and

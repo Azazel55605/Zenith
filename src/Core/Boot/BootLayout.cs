@@ -48,7 +48,41 @@ internal static class BootLayout
         { throw new IOException("invalid x64 PE/COFF installer module"); }
     }
     /// <summary>Boot opt-ins a rewritten menu keeps when the running kernel was booted with them.</summary>
-    public static readonly string[] CarriedOptions = { "smp=off", "smp=native", "smp=managed", "rtc=utc", "rtc=local" };
+    public static readonly string[] CarriedOptions = { "smp=off", "smp=native", "smp=managed", "rtc=utc", "rtc=local", "bootstyle=orbit", "bootstyle=pulse", "bootstyle=quiet" };
+    /// <summary>The boot animation styles (style field 15). The boot screen reads the choice from the kernel command line,
+    /// the only setting it has before the installed root is mounted; Phases, the default, has no option.</summary>
+    public static readonly string[] BootStyleNames = { "phases", "orbit", "pulse", "quiet" };
+    public static uint BootStyleOf(string arguments)
+    {
+        foreach (string token in arguments.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (!token.StartsWith("bootstyle=", StringComparison.Ordinal)) { continue; }
+            int i = Array.IndexOf(BootStyleNames, token[10..]);
+            if (i > 0) { return (uint)i; }
+        }
+        return 0;
+    }
+    /// <summary>The menu with every installed entry booting in <paramref name="style"/> (the rescue entry keeps none).</summary>
+    public static string WithBootStyle(string menu, uint style)
+    {
+        if (style >= BootStyleNames.Length || menu.Length > 32768) { throw new IOException("invalid boot style"); }
+        var text = new StringBuilder();
+        string[] lines = menu.Split('\n');
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string line = lines[i], trimmed = line.TrimStart();
+            if (trimmed.StartsWith("cmdline: root=PARTUUID=", StringComparison.Ordinal))
+            {
+                var kept = new List<string>();
+                foreach (string token in trimmed["cmdline:".Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                { if (!token.StartsWith("bootstyle=", StringComparison.Ordinal)) { kept.Add(token); } }
+                if (style > 0) { kept.Add("bootstyle=" + BootStyleNames[style]); }
+                line = line[..(line.Length - trimmed.Length)] + "cmdline: " + string.Join(" ", kept);
+            }
+            text.Append(line); if (i < lines.Length - 1) { text.Append('\n'); }
+        }
+        return text.ToString();
+    }
     public static string Carried(string arguments)
     {
         var tokens = arguments.Split(new[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);

@@ -6,7 +6,7 @@ import math, random, struct, sys
 from pathlib import Path
 
 RATE = 24000
-NOTE = {'G3': 196.0, 'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'G4': 392.0, 'A4': 440.0, 'C5': 523.25, 'D5': 587.33,
+NOTE = {'B5': 987.77, 'F4': 349.23, 'B4': 493.88, 'A3': 220.0, 'D6': 1174.66, 'G3': 196.0, 'C4': 261.63, 'D4': 293.66, 'E4': 329.63, 'G4': 392.0, 'A4': 440.0, 'C5': 523.25, 'D5': 587.33,
         'E5': 659.25, 'G5': 783.99, 'A5': 880.0, 'C6': 1046.5, 'E6': 1318.5}
 PEAK = 10 ** (-12 / 20)   # -12 dBFS
 
@@ -38,6 +38,14 @@ def pluck(f, t):
     return env(t, .004, .1) * (math.sin(2 * math.pi * f * t) + .2 * math.sin(2 * math.pi * 2 * f * t))
 
 
+def chime(f, t, decay):
+    """The plucked chime of the device sounds, longer: a soft 4 ms attack, the fundamental with a quiet octave and
+    twelfth, and a second voice 0.3 % sharp that beats slowly against it, so a held note shimmers instead of beeping."""
+    e = env(t, .004, decay)
+    tone = math.sin(2 * math.pi * f * t) + .22 * math.sin(2 * math.pi * 2 * f * t) * math.exp(-t / (decay * .5)) + .06 * math.sin(2 * math.pi * 3 * f * t) * math.exp(-t / (decay * .3))
+    return e * (tone + .35 * math.sin(2 * math.pi * f * 1.003 * t)) / 1.35
+
+
 def pad(f, t, length):
     fade = max(0.0, 1 - t / length)
     s = sum(math.sin(2 * math.pi * f * k * t) / k for k in range(1, 6)) * .5
@@ -66,18 +74,18 @@ def notes(seq, gap, length, voice):
 
 
 SOUNDS = {
-    'login': lambda: notes(['C5', 'E5', 'G5', 'C6'], .09, .9, lambda f, t: bell(f, t, .35)),
-    'logout': lambda: notes(['G5', 'E5', 'C5'], .09, .65, lambda f, t: bell(f, t, .25) * .8),
+    'login': lambda: notes(['G4', 'C5', 'E5', 'G5'], .085, 1.2, lambda f, t: chime(f, t, .42)),
+    'logout': lambda: notes(['G5', 'E5', 'C5', 'G4'], .1, 1.1, lambda f, t: chime(f, t, .36)),
     'notification': lambda: notes(['A5', 'E6'], .07, .32, glass),
     'attention': lambda: notes(['E5', 'E5'], .14, .36, lambda f, t: marimba(f, t, 7)),
     'error': lambda: notes(['C4', 'G3'], .11, .3, soft_square),
     'device-added': lambda: notes(['G4', 'D5'], .08, .28, pluck),
     'device-removed': lambda: notes(['D5', 'G4'], .08, .28, pluck),
-    'done': lambda: notes(['C5', 'G5', 'C6'], .03, .65, lambda f, t: bell(f, t, .2)),
+    'done': lambda: notes(['E5', 'B5'], .07, .7, lambda f, t: chime(f, t, .24)),
     'volume': lambda: render(.04, lambda t: env(t, .001, .006) * math.sin(2 * math.pi * NOTE['A5'] * t)),
-    'trash': lambda: render(.28, lambda t: noise(t, 3, .09, 3)),
-    'screenshot': lambda: render(.12, lambda t: noise(t, 5, .01, 0) + noise(t - .06, 6, .01, 0)),
-    'shutdown': lambda: render(1.4, lambda t: sum(pad(NOTE[n], t, 1.4) for n in ('C5', 'G4', 'C4'))),
+    'trash': lambda: notes(['A4', 'F4', 'D4'], .055, .5, lambda f, t: chime(f, t, .1)),
+    'screenshot': lambda: notes(['E6', 'B5'], .045, .3, lambda f, t: chime(f, t, .06)),
+    'shutdown': lambda: notes(['G5', 'E5', 'C5', 'G4', 'C4'], .16, 1.4, lambda f, t: chime(f, t, .55)),
 }
 
 

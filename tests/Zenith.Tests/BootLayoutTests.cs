@@ -8,6 +8,23 @@ namespace Zenith.Tests;
 public sealed class BootLayoutTests
 {
     [Fact]
+    public void BootStyleGoesOnInstalledEntriesOnlyAndIsReadBack()
+    {
+        var root = Guid.Parse("11111111-2222-3333-4444-555555555555");
+        string menu = BootLayout.Configuration(root, new string('a', 64), new string('b', 64), "rtc=utc");
+        string orbit = BootLayout.WithBootStyle(menu, 1);
+        Assert.Equal(2, orbit.Split("bootstyle=orbit").Length - 1);                       // current and previous kernel
+        Assert.Contains("cmdline: root=live session=headless\n", orbit);                 // rescue untouched
+        Assert.Contains("rtc=utc bootstyle=orbit", orbit);
+        string quiet = BootLayout.WithBootStyle(orbit, 3);
+        Assert.DoesNotContain("orbit", quiet); Assert.Equal(2, quiet.Split("bootstyle=quiet").Length - 1);
+        Assert.Equal(menu, BootLayout.WithBootStyle(quiet, 0));                           // Phases has no option
+        Assert.Equal(3u, BootLayout.BootStyleOf("root=PARTUUID=x kernel=k1 bootstyle=quiet"));
+        Assert.Equal(0u, BootLayout.BootStyleOf("root=PARTUUID=x bootstyle=nonsense"));
+        Assert.Equal("bootstyle=pulse", BootLayout.Carried("root=PARTUUID=x bootstyle=pulse"));   // kept across updates
+        Assert.Throws<System.IO.IOException>(() => BootLayout.WithBootStyle(menu, 4));
+    }
+    [Fact]
     public void BootDisplayPreferenceSurvivesMenuPublicationWithoutChangingIdentity()
     {
         Guid root = Guid.NewGuid(); string current = new('a', 64), next = new('b', 64);

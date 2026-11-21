@@ -274,6 +274,8 @@ internal sealed class SettingsService
             return 0;
         }
     }
+    /// <summary>Called after a style choice is saved (the boot style also goes into the boot menu); set at boot.</summary>
+    public static Action<uint, uint>? StyleSaved;
     public static StyleChoice? StyleFor(uint field) { foreach (var s in Styles) { if (s.Field == field) { return s; } } return null; }
     /// <summary>The current choice of a style field (9..16).</summary>
     public uint Style(uint field) { lock (_gate) { for (int i = 0; i < Styles.Length; i++) { if (Styles[i].Field == field) { return _styles[i]; } } return 0; } }
@@ -282,6 +284,7 @@ internal sealed class SettingsService
         var style = StyleFor(field) ?? throw new ArgumentException("unknown style field");
         int index = Array.IndexOf(Styles, style);
         SetChoice(StylePath, style.Key, style.Names, name, c => _styles[index] = c);
+        StyleSaved?.Invoke(field, _styles[index]);
     }
     private void LoadStyles(List<string> errors)
     {

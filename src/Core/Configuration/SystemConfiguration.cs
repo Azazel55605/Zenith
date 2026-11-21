@@ -24,6 +24,17 @@ internal static class SystemConfiguration
             SessionRuntime.Available);
         foreach (string error in Settings.Load()) { Log.Write("settings", error); }
         StyleCatalog.Values = field => Settings.Style(field);
+        // The boot style must be known before the installed root is mounted: it travels on the kernel command line.
+        SettingsService.StyleSaved = (field, choice) =>
+        {
+            if (field != 15) { return; }
+            new System.Threading.Thread(() =>
+            {
+                using var root = Zenith.Core.Security.CredentialContext.Enter(Zenith.Core.Security.Credentials.Root);
+                try { Zenith.Core.Boot.NativeKernelUpdates.SaveBootStyle(choice); Log.Write("boot", "boot style " + Zenith.Core.Boot.BootLayout.BootStyleNames[choice] + " written to the boot menu"); }
+                catch (Exception e) { Log.Write("boot", "boot style not written: " + e.Message); }
+            }).Start();
+        };
         Zenith.Core.Files.FileJob.Notify = (title, body, icon) => Zenith.Core.Notifications.NotificationCenter.FromSystem("Files", title, body, icon);
         Log.Write("settings", "loaded keyboard=" + Settings.Current.Keyboard + " timezone=" + Settings.Current.TimeZone
             + " session=" + SessionModes.Name(Settings.Current.DefaultSession));

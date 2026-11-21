@@ -122,6 +122,23 @@ internal static class NativeKernelUpdates
             return 0;
         }, allowClients: true);
     }
+    /// <summary>Writes the boot animation style into both boot menus (see BootLayout.BootStyleOf).</summary>
+    public static void SaveBootStyle(uint style)
+    {
+        if (SystemMounts.Mode != BootMode.Installed) { return; }
+        Mutation(() =>
+        {
+            var store = new NativeKernelUpdateStore(); _ = Open(store).Status();
+            foreach (string path in new[] { KernelUpdater.FallbackMenu, KernelUpdater.MenuPath })
+            {
+                if (!store.Exists(path)) { continue; }
+                string before = Encoding.UTF8.GetString(store.Read(path, 32768));
+                string after = BootLayout.WithBootStyle(before, style);
+                if (before != after) { store.Write(path, Encoding.UTF8.GetBytes(after)); store.Sync(); }
+            }
+            return 0;
+        }, allowClients: true);
+    }
     // Opt-in boot flags only used by disposable power-cut tests, never normal update behavior.
     internal static unsafe void TestCheckpoint(string phase)
     {

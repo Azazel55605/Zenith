@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
+#include <stdlib.h>
 static struct zenith_appearance saved;
 static int saves,dirty;
 static unsigned int material_saved,material_level=40;
@@ -58,7 +59,7 @@ static long fake_notify_save(unsigned int dnd,unsigned int popup,unsigned long r
 static long fake_notify_post(const char *title,const char *body,const char *icon){(void)body;(void)icon;notify_posted=title&&title[0];return 7;}
 static long fake_preview(unsigned int field,unsigned int index,int w,int h,unsigned int *pixels){
     if((field!=6&&field!=8&&field!=9)||index>=16)return -22;
-    for(int i=0;i<w*h;i++){pixels[i]=0xFF000000u|(index*16u);}
+    for(int y=0;y<h;y++)for(int x=0;x<w;x++)pixels[y*w+x]=0xFF000000u|(unsigned int)(60+x*150/w)<<16|(unsigned int)(80+y*120/h)<<8|(index*12u);
     previews_drawn++;return w<<16|h;
 }
 static long information_read(unsigned int kind,struct zenith_settings_information *s){
@@ -231,6 +232,15 @@ int main(int argc,char **argv){
     meridian_style_services(&app,fake_catalog,fake_preview);
     assert(styles_field_ready(&app.styles,6)&&styles_field_ready(&app.styles,8)&&styles_field_ready(&app.styles,9)&&!styles_field_ready(&app.styles,10));
     assert(meridian_open(&app,"style.wallpaper"));draw();
+    /* MERIDIAN_DUMP=DIR writes the wallpaper picker in each widget style as PPM, to look at the tiles. */
+    if(getenv("MERIDIAN_DUMP"))for(int ws=0;ws<3;ws++){
+        app.ui.widget_style=ws;app.ui.dirty=1;draw();
+        char path[512];snprintf(path,sizeof(path),"%s/picker-%d.ppm",getenv("MERIDIAN_DUMP"),ws);
+        FILE *f=fopen(path,"wb");assert(f);fprintf(f,"P6 %d %d 255\n",app.ui.width,app.ui.height);
+        for(int i=0;i<app.ui.width*app.ui.height;i++){unsigned int c=app.ui.pixels[i];fputc(c>>16&255,f);fputc(c>>8&255,f);fputc(c&255,f);}
+        fclose(f);
+    }
+    app.ui.widget_style=0;draw();
     assert(find_id(8384)>=0);assert(previews_drawn>=1);assert(app.ui.controls[find_id(8384)].value);
     int before=previews_drawn;draw();assert(previews_drawn==before);                 /* cached */
     wheel_until(8384+13);click_id(8384+13);assert(app.styles.draft[6]==13&&styles_changed(&app.styles,"style.wallpaper")&&dirty);
