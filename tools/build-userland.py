@@ -10,7 +10,7 @@ import sys
 import tempfile
 ROOT=Path(__file__).resolve().parents[1]
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('destination',type=Path);parser.add_argument('--version',default='0.1.0');parser.add_argument('--program',choices=('sunbeam','base-tools','fs-tools','net-tools','gui-probe','ui-gallery','settings','desktop-tools','polaris','observatory','equinox','horizon','aurora','audio-probe','beacon','orbit','quill'),default='sunbeam');args=parser.parse_args()
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('destination',type=Path);parser.add_argument('--version',default='0.1.0');parser.add_argument('--program',choices=('sunbeam','base-tools','fs-tools','net-tools','gui-probe','ui-gallery','settings','desktop-tools','polaris','observatory','equinox','horizon','aurora','audio-probe','beacon','orbit','quill','doom'),default='sunbeam');args=parser.parse_args()
     if not re.fullmatch(r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*))?',args.version):raise ValueError('invalid program version')
     destination=args.destination
     output=destination/('usr/share/zenith/native/'+args.program+'.elf');output.parent.mkdir(parents=True,exist_ok=True)
@@ -32,6 +32,13 @@ def main():
             extra.append(str(ROOT/'userland/aurora/buffer.c'))
         common=['-fcf-protection=none','-fno-stack-protector','-fno-builtin','-fno-unwind-tables','-fno-asynchronous-unwind-tables','-mno-red-zone',
             '-mno-sse','-mno-sse2','-mno-mmx','-Wall','-Wextra','-Werror']
+        if args.program=='doom':
+            engine=Path(temporary)/'doom-engine.o'
+            # The upstream engine uses pre-C23 declarations and its own true/false enum.
+            subprocess.run([compiler,*target,'-c','-fno-pie',*common[:-3],'-std=gnu11','-w','-O2',
+                '-ffile-prefix-map='+str(ROOT)+'=.',
+                str(ROOT/'userland/doom/engine.c'),'-o',str(engine)],check=True)
+            extra.extend(('-std=gnu11',str(engine)))
         if args.program=='aurora':
             # Aurora's own code is built for size (the toolkit stays -O2 for drawing speed) and unused toolkit code is
             # dropped, so the editor keeps room under the package file limit. No libc: GCC must not turn loops into
@@ -42,8 +49,18 @@ def main():
                 subprocess.run([compiler,*target,'-c','-fno-pie',*common,'-Os',*size,'-I'+str(ROOT/'userland/ui'),str(ROOT/'userland/aurora'/(name+'.c')),'-o',str(obj)],check=True)
                 extra.append(str(obj))
             extra+=[*size,'-Wl,--gc-sections']
+        main_source=source/'main.c' if args.program in ('sunbeam','base-tools','fs-tools') else ROOT/'userland'/args.program/'main.c'
         subprocess.run([compiler,*target,'-nostdlib','-static','-fno-pie','-no-pie',*common,'-O2',
-            '-DSUNBEAM_VERSION="'+args.version+'"','-Wl,-T,'+str(source/'link.ld'),'-Wl,--build-id=none',str(source/'start.s'),str(ROOT/('userland/'+args.program+'/main.c') if args.program in ('audio-probe','net-tools','gui-probe','ui-gallery','settings','desktop-tools','polaris','observatory','equinox','horizon','aurora','beacon','orbit','quill') else source/'main.c'),*extra,'-o',str(output)],check=True)
+            '-DSUNBEAM_VERSION="'+args.version+'"','-Wl,-T,'+str(source/'link.ld'),'-Wl,--build-id=none',str(source/'start.s'),str(main_source),*extra,'-o',str(output)],check=True)
+    if args.program=='doom':
+        source_dir=destination/'usr/share/zenith/doom/source'
+        for name in ('userland/doom/main.c','userland/doom/engine.c','userland/doom/UPSTREAM.md',
+                     'userland/doom/upstream/PureDOOM.h','userland/doom/upstream/LICENSE',
+                     'userland/include/zenith_graphics.h','userland/sunbeam/zenith.h',
+                     'userland/sunbeam/start.s','userland/sunbeam/link.ld','tools/build-userland.py'):
+            target_path=source_dir/name
+            target_path.parent.mkdir(parents=True,exist_ok=True)
+            shutil.copyfile(ROOT/name,target_path)
     if args.program=='beacon':
         # Beacon's own icons beside the shared ones (zenith-icons is at the package file limit).
         spec=importlib.util.spec_from_file_location('ui_icons',ROOT/'tools/build-ui-icons.py');icons=importlib.util.module_from_spec(spec);spec.loader.exec_module(icons)

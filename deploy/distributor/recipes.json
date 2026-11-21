@@ -148,6 +148,14 @@
     "program": "quill",
     "generate": "native"
   },
+  "zenith-doom": {
+    "kind": "data",
+    "name": "zenith-doom",
+    "repository": "extra",
+    "payload": "obj/packages/zenith-doom",
+    "program": "doom",
+    "generate": "native"
+  },
   "zenith-aurora": {
     "kind": "data",
     "name": "zenith-aurora",

@@ -472,7 +472,16 @@ The M0–M10 names in that guide are Meridian phases, not separate project miles
 
 ## Scope decisions and non-blocking ideas
 
-Concepts exist for [Sunset](design/sunset-concept.svg) and [Prism](design/prism-concept.svg) (implemented as U9) and for [Orbit](design/orbit-concept.svg), [Beacon](design/beacon-concept.svg) and [Equinox](design/equinox-concept.svg) below. Equinox (U8) was requested 2026-11-10 and is implemented locally with its `disk` command base. Sunset (U10) was requested 2026-11-15. Beacon (U11) and Orbit (U12) are implemented. Observatory is promoted to U7. Optional Doom remains outside the product's main delivery sequence. Its [prerequisites](APPLICATIONS.md#doom-engine-package-requested-feasibility-slice) are X5 for executable size and WAD reads, and focused native key-up events for held gameplay controls. Orbit/package
+**Optional Doom engine** has a local `zenith-doom` package preview based on
+PureDOOM. It uses X5 for executable size and reads. A signed preview installed
+in QEMU, drew a frame from a 27.5 MiB Freedoom test IWAD, and returned to the
+shell on Escape. Remaining work is focused
+native key-up and clearing held keys on focus loss, gameplay controls, save/config
+storage, and audio. Acceptance requires a supported user-supplied IWAD, guest
+gameplay and save/load, clean exit, and an independent package update. Follow
+the [port contract](APPLICATIONS.md#doom-engine-package-requested-feasibility-slice).
+
+Concepts exist for [Sunset](design/sunset-concept.svg) and [Prism](design/prism-concept.svg) (implemented as U9) and for [Orbit](design/orbit-concept.svg), [Beacon](design/beacon-concept.svg) and [Equinox](design/equinox-concept.svg) below. Equinox (U8) was requested 2026-11-10 and is implemented locally with its `disk` command base. Sunset (U10) was requested 2026-11-15. Beacon (U11) and Orbit (U12) are implemented. Observatory is promoted to U7. Orbit/package
 browser, Beacon/network panel, archive app, screenshots,
 SSH and diagnostic export are proposed additional applications, not approved core
 release blockers. Keep them in [application requirements](APPLICATIONS.md), and add

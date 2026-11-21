@@ -61,22 +61,33 @@ does not establish isolation or independent compiled-package updates.
 
 ## Doom engine package: requested feasibility slice
 
-User request (2026-10-13): offer a separately installed Doom engine; users supply
-their own WAD files. No commercial game data belongs in the engine package.
-This is a proposed port, not an implemented or runtime-verified application.
+The optional [Doom engine work](ROADMAP.md#scope-decisions-and-non-blocking-ideas)
+uses a separately installed engine and user-supplied WADs. The package contains
+the engine, its adapter, and rebuild sources.
 
-[PureDOOM](https://github.com/Daivuk/PureDOOM) is the first candidate. A stripped
-freestanding x64 probe linked at 310,720 bytes before adding the Zenith adapter.
-The native window, monotonic clock, and PCM output APIs already exist.
+[PureDOOM](https://github.com/Daivuk/PureDOOM) is pinned in the
+[port sources](../userland/doom/UPSTREAM.md). The x64 preview uses a native
+320×200 surface and the monotonic clock. It takes an explicit, read-only IWAD
+path. The preview uses the basename to select the game mode (`doom.wad`,
+`doomu.wad`, `doom1.wad`, or `doom2.wad`). Escape or window close exits.
+
+```sh
+native run doom --check-wad /path/to/doom2.wad
+native run doom --preview /path/to/doom2.wad
+```
+
+`--check-wad` checks the IWAD header and directory bounds up to 30 MiB. Use the
+preview to check whether the engine recognizes the contents. A source build uses
+`python3 -B tools/build-userland.py DESTINATION --program doom --version 0.1.0`.
 
 - [X5](ROADMAP.md) owns the executable/package size increase and the larger
   native read budget needed for WAD startup and level transitions.
 - Focused native key releases are the remaining gameplay input prerequisite.
   Carry press and release to the focused window, and clear held keys on focus
   loss or input reset so movement and fire cannot stick.
-- The engine adapter supplies file access, allocation, software presentation,
-  and save/config paths. Sound effects can be resampled to 48 kHz stereo PCM.
-  Music needs a MIDI synthesizer and can follow the first playable build.
+- Gameplay needs per-user save/config paths. Sound effects can be resampled to
+  48 kHz stereo PCM. Music needs a MIDI synthesizer and can follow the first
+  playable build.
 
 Proposed first scope: classic Doom/Doom II IWADs, optional compatible vanilla
 PWADs, scaled software rendering and keyboard controls, per-user saves/config,
