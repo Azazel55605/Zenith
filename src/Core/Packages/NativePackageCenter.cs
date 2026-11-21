@@ -172,9 +172,8 @@ internal static class PackageCenter
         Line(s, "key", key is null ? "-" : PackagePlanner.Digest(key));
         foreach (var repository in SafeRepositories())
         {
-            string cache = NativePackageCache.Path + "/" + repository.Name + "-v3.zri";
+            string cache = NativeRepositories.CachedCatalog(repository.Name);
             var store = new NativePackageStore();
-            if (store.State(cache) == PackagePathState.Missing) { cache = NativePackageCache.Path + "/" + repository.Name + ".zri"; }
             string generation = "-", issued = "-", expires = "-", entries = "-", checkedAt = "-";
             try
             {
@@ -510,8 +509,7 @@ internal static class PackageCenter
         var downloads = new List<RepositoryEntry>(plan.Downloads);
         if (plan.Kernel is not null) { downloads.Add(plan.Kernel); }
         NativePackageCache.EnsureSpace(downloads, reporter.Say);
-        var packages = new List<SignedPackage>();
-        foreach (var entry in plan.Downloads) { reporter.Cancel(); packages.Add(NativeRepositories.Data(entry, reporter)); }
+        var packages = NativeRepositories.LoadData(plan.Downloads, reporter);
         string? kernelPath = null;
         if (plan.Kernel is not null)
         {

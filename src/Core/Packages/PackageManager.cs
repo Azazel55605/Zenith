@@ -26,7 +26,11 @@ internal sealed record InstalledPackage(string ManifestText, string ArchiveDiges
 internal sealed class PackageManager
 {
     public const string Root = "/var/lib/zenith/pkg", Database = Root + "/installed.tsv", Journal = Root + "/journal.tsv";
-    private const int MaximumDatabase = 1048576, MaximumTransaction = 8388608;
+    private const int MaximumDatabase = 1048576, MaximumTransaction = 64 * 1024 * 1024;
+    internal static void CheckTransactionBytes(long bytes)
+    {
+        if (bytes > MaximumTransaction) { throw new IOException("transaction exceeds 64 MiB"); }
+    }
     private readonly IPackageStore _store;
     public PackageManager(IPackageStore store) { _store = store; }
     private static byte[] Text(string text) => Encoding.UTF8.GetBytes(text);
@@ -143,6 +147,8 @@ internal sealed class PackageManager
     public void Change(IReadOnlyList<SignedPackage> incoming, IReadOnlyList<string> remove, Action cancel, Action<string>? progress = null)
     {
         if (incoming.Count > 32 || remove.Count > 16 || incoming.Count + remove.Count == 0) { throw new IOException("a transaction installs 0..32 and removes 0..16 packages"); }
+        long incomingBytes = 0;
+        foreach (var package in incoming) { incomingBytes += package.Manifest.PayloadBytes; CheckTransactionBytes(incomingBytes); }
         Recover(); var old = new List<InstalledPackage>(List()); var next = new List<InstalledPackage>(old);
         var seen = new HashSet<string>(StringComparer.Ordinal); var changes = new Dictionary<string, (byte[]? Data, ushort Mode)>(StringComparer.Ordinal);
         var freed = new HashSet<string>(StringComparer.Ordinal);
@@ -211,17 +217,18 @@ internal sealed class PackageManager
     {
         if (changes.Count > 1024) { throw new IOException("transaction file limit"); }
         byte[] before = Serialize(old), after = Serialize(next); int bytes = 0;
+        foreach (var change in changes) { bytes += change.Value.Data?.Length ?? 0; CheckTransactionBytes(bytes); }
         var backups = new List<(string Path, byte[]? Data, ushort Mode)>();
         foreach (var change in changes)
         {
             Parents(change.Key);
             if (_store.State(change.Key + ".pkg-new") != PackagePathState.Missing) { throw new IOException("occupied package staging path"); }
             byte[]? data = _store.State(change.Key) == PackagePathState.Missing ? null : _store.Read(change.Key, PackageManifest.MaximumFileBytes);
-            bytes = checked(bytes + (data?.Length ?? 0) + (change.Value.Data?.Length ?? 0));
+            bytes += data?.Length ?? 0; CheckTransactionBytes(bytes);
             backups.Add((change.Key, data, data is null ? (ushort)0 : _store.Mode(change.Key)));
         }
-        if (bytes > MaximumTransaction || _store.FreeBytes < (ulong)(bytes + before.Length + after.Length + 262144))
-        { throw new IOException("insufficient transaction space or transaction exceeds 8 MiB"); }
+        if (_store.FreeBytes < (ulong)(bytes + before.Length + after.Length + 262144))
+        { throw new IOException("insufficient transaction space"); }
         EnsureParents(Journal); var journal = new StringBuilder("ZENITH-UNDO\t1\t" + PackagePlanner.Digest(after) + "\n");
         try
         {

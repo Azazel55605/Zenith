@@ -17,6 +17,28 @@ public class PackageTests
         PackagePlanner.Plan(PackageManifest.Parse(text), new Source(data ?? Data), "x86_64", BootstrapComponents.All, state ?? (_ => PackagePathState.Missing));
 
     [Fact]
+    public void X5PackageUsesTheNewCapabilityAndBoundaries()
+    {
+        var payload = new byte[PackageManifest.LegacyMaximumFileBytes + 1];
+        string digest = PackagePlanner.Digest(payload);
+        string manifest = Text().Replace("\t0644\t6\t" + PackagePlanner.Digest(Data),
+            $"\t0644\t{payload.Length}\t{digest}");
+        Assert.Throws<FormatException>(() => PackageManifest.Parse(manifest));
+        manifest += $"requires\t{PackageManifest.LargeNativeCapability}\t1.0\n";
+        var parsed = PackageManifest.Parse(manifest);
+        var old = BootstrapComponents.All.Where(c => c.Name != PackageManifest.LargeNativeCapability).ToArray();
+        var plan = PackagePlanner.Plan(parsed, new Source(payload), "x86_64", old, _ => PackagePathState.Missing);
+        Assert.Contains(PackageManifest.LargeNativeCapability, Assert.Single(plan.Blockers));
+        Assert.True(Plan(manifest, data: payload).Applicable);
+
+        string files = manifest[..manifest.IndexOf("file\t", StringComparison.Ordinal)] + $"requires\t{PackageManifest.LargeNativeCapability}\t1.0\n";
+        for (int i = 0; i < 8; ++i) { files += $"file\t/usr/share/doc/x5-{i}\t0644\t{PackageManifest.MaximumFileBytes}\t{digest}\n"; }
+        Assert.Equal(PackageManifest.MaximumPayloadBytes, PackageManifest.Parse(files).PayloadBytes);
+        Assert.Throws<FormatException>(() => PackageManifest.Parse(files + $"file\t/usr/share/doc/x5-over\t0644\t1\t{digest}\n"));
+        PackageManager.CheckTransactionBytes(64 * 1024 * 1024);
+        Assert.Throws<IOException>(() => PackageManager.CheckTransactionBytes(64 * 1024 * 1024 + 1));
+    }
+    [Fact]
     public void FilesystemCapabilityBlocksInstallationOnOldKernels()
     {
         string text = Text().Replace("requires\tzenith-base\t0.1\n", "requires\tzenith-base\t0.1\nrequires\tzenith-native-fs-abi\t1.0\n");

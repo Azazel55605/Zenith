@@ -113,8 +113,15 @@ internal static class PackageCommands
         {
             Mutable(); var packages = new List<SignedPackage>(); byte[] key = store.Read(KeyPath, 4096);
             if (c.Args.Length > 17) { throw new IOException("at most 16 packages per transaction"); }
+            long bytes = 0;
             foreach (string path in c.Args.AsSpan(1))
-            { c.Shell.ThrowIfCancelled(); packages.Add(SignedPackage.Read(store.Read(c.Resolve(path), SignedPackage.MaximumBytes), key, new NativePackageVerifier())); }
+            {
+                c.Shell.ThrowIfCancelled();
+                var package = SignedPackage.Read(store.Read(c.Resolve(path), SignedPackage.MaximumBytes), key, new NativePackageVerifier());
+                bytes += package.Manifest.PayloadBytes;
+                PackageManager.CheckTransactionBytes(bytes);
+                packages.Add(package);
+            }
             var progress = new CommandProgress(c.Out, c.IsTerminal);
             try { manager.Install(packages, c.Shell.ThrowIfCancelled, progress.Report); }
             catch { progress.Finish(); throw; }
@@ -196,8 +203,7 @@ internal static class PackageCommands
         if (!Confirm(c, yes)) { c.WriteLine("package operation cancelled"); return 0; }
         _ = NativeRepositories.Catalog();
         NativePackageCache.EnsureSpace(plan, c);
-        var packages = new List<SignedPackage>();
-        foreach (var entry in plan) { c.Shell.ThrowIfCancelled(); packages.Add(NativeRepositories.Data(entry, c)); }
+        var packages = NativeRepositories.LoadData(plan, PackageReporter.For(c));
         _ = NativeRepositories.Catalog();
         var progress = new CommandProgress(c.Out, c.IsTerminal);
         try { manager.Install(packages, c.Shell.ThrowIfCancelled, progress.Report); }
@@ -240,8 +246,7 @@ internal static class PackageCommands
         if (plan.Kernel is not null) { c.WriteLine("Stage zenith-kernel " + plan.Kernel.Version + "; reboot and boot confirm required"); }
         if (!Confirm(c, yes)) { c.WriteLine("system update cancelled"); return 0; }
         NativePackageCache.EnsureSpace(plan.Kernel is null ? plan.Data : plan.Data.Append(plan.Kernel), c);
-        var packages = new List<SignedPackage>();
-        foreach (var entry in plan.Data) { c.Shell.ThrowIfCancelled(); packages.Add(NativeRepositories.Data(entry, c)); }
+        var packages = NativeRepositories.LoadData(plan.Data, PackageReporter.For(c));
         string? kernelPath = plan.Kernel is null ? null : NativeRepositories.Download(plan.Kernel, c);
         if (kernelPath is not null)
         {

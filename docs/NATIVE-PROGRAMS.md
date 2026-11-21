@@ -48,9 +48,14 @@ replacing the loaded kernel. The existing shell commands remain recovery builtin
 ## Executable contract
 
 The loader accepts bounded, static ELF64 little-endian ET_EXEC for machine 62:
-64-byte ELF header, 56-byte program headers, 1..16 entries, at most 256 KiB on disk.
+64-byte ELF header, 56-byte program headers, 1..16 entries, at most 256 KiB on disk for legacy packages.
 PT_LOAD virtual addresses occupy 0x400000..0x2400000 (`zenith-native-memory-abi 1.0`; before it 0x400000..0xc00000, so a larger image must require that capability), with 4096-byte aligned offsets
-and addresses. Read-only, read/execute or read/write pages are accepted; writable
+and addresses. X5 packages require `zenith-native-large-abi 1.0` for a 4 MiB
+executable and the address window `0x400000..0x10400000`. The sum of resident
+load segments is limited to 64 MiB, with free-page headroom checked as pages
+are allocated. Each ELF note segment is bounded to 4 KiB. The kernel streams bytes into private pages and verifies the
+installed digest and validated ELF metadata before entering user mode.
+Read-only, read/execute or read/write pages are accepted; writable
 executable pages and overlapping mappings are refused. BSS starts zeroed. Entry
 must lie in file-backed executable bytes. Dynamic/interpreter/TLS segments and
 executable stacks are refused. PT_NOTE must contain one ZENITH NUL-terminated
@@ -215,6 +220,10 @@ The unreleased terminal extension below adds a bounded foreground raw-input ABI.
 
 Each invocation permits 16 live handles, 4 KiB per I/O request, 1 MiB accumulated file/directory readback,
 4096 managed requests and the existing 1000-interrupt user execution budget.
+X5 packages can read up to 32 MiB of file data and make up to 32,768 ordinary
+service requests per allowance. The interactive profile renews these budgets
+while an owned window is live. The 4 KiB per-call, stdin, write and pipe bounds
+retain their existing limits.
 Exhausted execution/request budgets return 124. Every 16 managed requests include a
 normal scheduler sleep so console/cancellation workers can run; Cosmos 3.0.89's
 `Thread.Yield` is a stub. Invalid descriptors return -9, denied operations -13,

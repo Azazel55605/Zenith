@@ -50,6 +50,18 @@ internal static class NativeRepositories
             if (Store.State(directory) != PackagePathState.Directory) { throw new IOException("occupied repository cache directory"); }
         }
     }
+    private static readonly string[] CatalogVersions = { "-v4", "-v3", "" };
+    private static string CatalogPath(string name, string version) => Cache + "/" + name + version + ".zri";
+    internal static string CachedCatalog(string name)
+    {
+        foreach (string version in CatalogVersions)
+        {
+            string path = CatalogPath(name, version);
+            if (Store.State(path) != PackagePathState.Missing) { return path; }
+        }
+        return CatalogPath(name, "");
+    }
+
     public static void Refresh(CommandContext c) => Refresh(PackageReporter.For(c));
     public static void Refresh(PackageReporter c)
     {
@@ -57,37 +69,35 @@ internal static class NativeRepositories
         foreach (var repository in Repositories)
         {
             if (repository.Mirror is null) { throw new IOException("set pkg mirror HTTPS_BASE_URL first"); }
-            string legacy = Cache + "/" + repository.Name + ".zri";
-            string cache = Cache + "/" + repository.Name + "-v3.zri", incoming = cache + ".incoming";
+            string cache = "", incoming = "";
             var progress = c;
             try
             {
                 c.Say("Refreshing " + repository.Name);
-                if (Store.State(incoming) != PackagePathState.Missing) { Store.Delete(incoming); }
-                try
+                foreach (string version in CatalogVersions)
                 {
-                    NetworkService.Fetch(repository.Mirror.TrimEnd('/') + "/" + repository.Name + "/index-v3.zri", incoming,
-                        false, c.Cancel, progress.Progress, RepositoryIndex.MaximumBytes);
-                }
-                catch (Exception error)
-                {
-                    if (error.Message != "HTTP status 404" || Store.State(cache) != PackagePathState.Missing) { throw; }
-                    cache = legacy; incoming = cache + ".incoming";
+                    cache = CatalogPath(repository.Name, version);
+                    incoming = cache + ".incoming";
                     if (Store.State(incoming) != PackagePathState.Missing) { Store.Delete(incoming); }
-                    NetworkService.Fetch(repository.Mirror.TrimEnd('/') + "/" + repository.Name + "/index.zri", incoming,
-                        false, c.Cancel, progress.Progress, RepositoryIndex.MaximumBytes);
+                    try
+                    {
+                        NetworkService.Fetch(repository.Mirror.TrimEnd('/') + "/" + repository.Name + "/index" + version + ".zri",
+                            incoming, false, c.Cancel, progress.Progress, RepositoryIndex.MaximumBytes);
+                        break;
+                    }
+                    catch (Exception error) when (version.Length != 0 && error.Message == "HTTP status 404"
+                        && Store.State(cache) == PackagePathState.Missing) { }
                 }
                 byte[] bytes = Store.Read(incoming, RepositoryIndex.MaximumBytes);
                 var index = RepositoryIndex.Read(bytes, key, Verifier, repository.Name); index.Fresh(Now);
-                if (cache != legacy && Store.State(cache) == PackagePathState.Missing && Store.State(legacy) != PackagePathState.Missing)
+                foreach (string version in CatalogVersions)
                 {
-                    var floor = RepositoryIndex.Read(Store.Read(legacy, RepositoryIndex.MaximumBytes), key, Verifier, repository.Name);
-                    if (index.Generation < floor.Generation) { throw new IOException("extended repository below legacy generation floor"); }
-                }
-                if (Store.State(cache) != PackagePathState.Missing)
-                {
-                    byte[] previous = Store.Read(cache, RepositoryIndex.MaximumBytes);
-                    RepositoryIndex.Advance(RepositoryIndex.Read(previous, key, Verifier, repository.Name), previous, index, bytes);
+                    string path = CatalogPath(repository.Name, version);
+                    if (Store.State(path) == PackagePathState.Missing) { continue; }
+                    byte[] previous = Store.Read(path, RepositoryIndex.MaximumBytes);
+                    var floor = RepositoryIndex.Read(previous, key, Verifier, repository.Name);
+                    if (cache == path) { RepositoryIndex.Advance(floor, previous, index, bytes); }
+                    else if (index.Generation < floor.Generation) { throw new IOException("repository below prior catalog generation floor"); }
                 }
                 c.Cancel();
                 // This reserved cache stage can remain after a terminated refresh.
@@ -108,8 +118,7 @@ internal static class NativeRepositories
         foreach (var repository in Repositories)
         {
             if (repository.Mirror is null) { throw new IOException("set pkg mirror HTTPS_BASE_URL first"); }
-            string cache = Cache + "/" + repository.Name + ".zri";
-            if (Store.State(Cache + "/" + repository.Name + "-v3.zri") != PackagePathState.Missing) { cache = Cache + "/" + repository.Name + "-v3.zri"; }
+            string cache = CachedCatalog(repository.Name);
             if (Store.State(cache) == PackagePathState.Missing) { throw new IOException("run pkg refresh first"); }
             var index = RepositoryIndex.Read(Store.Read(cache, RepositoryIndex.MaximumBytes), key, Verifier, repository.Name);
             index.Fresh(Now); entries.AddRange(index.Entries);
@@ -138,6 +147,18 @@ internal static class NativeRepositories
         if (entry.Kind == "kernel" && Zenith.Core.Boot.KernelPackage.Read(bytes, Key(), Verifier).Version != entry.Version)
         { throw new IOException("kernel version disagrees with signed index"); }
         return path;
+    }
+    public static List<SignedPackage> LoadData(IReadOnlyList<RepositoryEntry> entries, PackageReporter reporter)
+    {
+        long bytes = 0;
+        foreach (var entry in entries)
+        {
+            bytes += PackageManifest.Parse(entry.ManifestText).PayloadBytes;
+            PackageManager.CheckTransactionBytes(bytes);
+        }
+        var packages = new List<SignedPackage>(entries.Count);
+        foreach (var entry in entries) { reporter.Cancel(); packages.Add(Data(entry, reporter)); }
+        return packages;
     }
     public static SignedPackage Data(RepositoryEntry entry, CommandContext c) => Data(entry, PackageReporter.For(c));
     public static SignedPackage Data(RepositoryEntry entry, PackageReporter c)

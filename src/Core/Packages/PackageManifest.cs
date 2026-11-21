@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 
 namespace Zenith.Core.Packages;
@@ -11,7 +12,11 @@ internal sealed record PackageDependency(string Name, string Version);
 /// <summary>Experimental P0 text manifest. This is not the production signed package format.</summary>
 internal sealed class PackageManifest
 {
-    public const int MaximumBytes = 32768, MaximumFiles = 64, MaximumFileBytes = 262144, MaximumPayloadBytes = 4194304;
+    public const int MaximumBytes = 32768, MaximumFiles = 64;
+    public const int LegacyMaximumFileBytes = 256 * 1024, LegacyMaximumPayloadBytes = 4 * 1024 * 1024;
+    public const int MaximumFileBytes = 4 * 1024 * 1024, MaximumPayloadBytes = 32 * 1024 * 1024;
+    public const string LargeNativeCapability = "zenith-native-large-abi";
+    public bool LargeNative => Dependencies.Any(d => d.Name == LargeNativeCapability && PackageVersions.Matches("1.0", d.Version));
     public const string Runtime = "bootstrap-1";
     public string Name { get; }
     public string Version { get; }
@@ -89,6 +94,8 @@ internal sealed class PackageManifest
         var result = new PackageManifest(fields["name"], fields["version"], fields["architecture"], fields["runtime"], files, dependencies, bytes);
         result.Repository = version2 ? fields["repository"] : "extra"; result.Conflicts = conflicts.AsReadOnly();
         result.Kind = fields["kind"];
+        if ((bytes > LegacyMaximumPayloadBytes || files.Any(file => file.Length > LegacyMaximumFileBytes)) && !result.LargeNative)
+        { throw new FormatException("large packages require " + LargeNativeCapability + " 1.0"); }
         if (conflicts.Contains(result.Name)) { throw new FormatException("package conflicts with itself"); }
         return result;
     }

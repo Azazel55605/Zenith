@@ -246,8 +246,8 @@ internal static class ManualPages
             explicit reboot/boot confirm. No global root/ESP atomicity or hot reload.
             Recovery covers journaled package changes; ext2 power-loss repair may
             still require host tools. Kernel update undo is separate: boot recover. No root snapshot recovery.
-            Limits: 32 installed packages; 32 KiB manifest; 64 files; 256 KiB/file;
-            4 MiB/package; 8 MiB transaction payload. See docs/PACKAGES.md.
+            Limits: 32 installed packages, 32 KiB manifest and 64 files. X5 packages
+            allow 4 MiB/file and 32 MiB/package. Transaction payload cap is 64 MiB. See docs/PACKAGES.md.
             """),
         ("accounts", """
             NAME

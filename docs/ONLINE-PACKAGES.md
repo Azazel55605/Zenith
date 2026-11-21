@@ -26,7 +26,10 @@ Install and confirm the compatible kernel before installing `zenith-session` and
 `zenith-theme-default` and `zenith-fonts`. New clients adopt signed `index-v3.zri`;
 legacy `index.zri` excludes unsupported manifests so older clients can still find
 kernel upgrades. After adoption, an unavailable extended catalog cannot silently
-force a protocol downgrade. See [login/session compatibility](LOGIN-SESSIONS.md)
+force a protocol downgrade. X5 clients prefer `index-v4.zri`, which includes
+oversized package manifests. Older index endpoints omit those records and retain
+their compatible package versions and kernel upgrades. Refresh preserves the
+generation floor across endpoint upgrades. See [login/session compatibility](LOGIN-SESSIONS.md)
 for installed-database rollback limits and resource validation.
 
 ## Guest workflow

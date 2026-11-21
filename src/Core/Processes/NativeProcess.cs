@@ -36,13 +36,14 @@ internal sealed unsafe class NativeProcess
     [SuppressGCTransition]
     private static extern ulong ReadCr3();
     private readonly List<nint> _allocations = new(1100);
-    private readonly Dictionary<ulong, nint> _pages = new();
     private readonly List<ProcessMemoryRange> _ranges = new();
     private readonly ulong _hhdm;
     private ulong* _root;
     private byte[]? _processSnapshot;
     private byte[]? _graphicsTransfer;
-    private const ulong FramebufferAddress = 0x10000000;
+    // X5's 256 MiB image window crosses the legacy framebuffer base.
+    private ulong FramebufferAddress => _largeNative ? 0x20000000UL : 0x10000000UL;
+    private bool _largeNative;
     private int _framebufferPages, _framebufferRange = -1;
     private long Framebuffer(ref Context c, ulong bytes)
     {
@@ -118,6 +119,8 @@ internal sealed unsafe class NativeProcess
     {
         if (_arenaLeft == 0)
         {
+            if (_largeNative && Cosmos.Kernel.System.Diagnostics.MemoryInfo.FreePages < ArenaPages + 8192UL)
+            { throw new IOException("insufficient memory for large native image"); }
             _arena = (byte*)(((ulong)Allocate((ArenaPages + 1) * 4096) + 4095) & ~4095UL);
             _arenaLeft = ArenaPages;
         }
@@ -134,17 +137,31 @@ internal sealed unsafe class NativeProcess
     }
     private void Map(ulong address, byte* frame, bool writable, bool executable)
     {
+        var table = LeafTable(address, create: true);
+        int leaf = (int)((address >> 12) & 511);
+        if (table[leaf] != 0) { throw new IOException("duplicate native virtual page"); }
+        table[leaf] = Physical(frame) | 5UL | (writable ? 2UL : 0) | (executable ? 0 : 1UL << 63);
+    }
+    private ulong* LeafTable(ulong address, bool create)
+    {
         var table = _root;
         for (int shift = 39; shift >= 21; shift -= 9)
         {
             int index = (int)((address >> shift) & 511);
-            if (table[index] == 0) { table[index] = Physical(Page()) | 7; }
+            if (table[index] == 0)
+            {
+                if (!create) { throw new IOException("unmapped native page"); }
+                table[index] = Physical(Page()) | 7;
+            }
             table = (ulong*)((table[index] & 0x000fffffffffF000UL) + _hhdm);
         }
-        _pages.Add(address, (nint)frame);
-        int leaf = (int)((address >> 12) & 511);
-        if (table[leaf] != 0) { throw new IOException("duplicate native virtual page"); }
-        table[leaf] = Physical(frame) | 5UL | (writable ? 2UL : 0) | (executable ? 0 : 1UL << 63);
+        return table;
+    }
+    private byte* MappedPage(ulong address)
+    {
+        ulong entry = LeafTable(address, create: false)[(address >> 12) & 511];
+        if ((entry & 1) == 0) { throw new IOException("unmapped native page"); }
+        return (byte*)((entry & 0x000fffffffffF000UL) + _hhdm);
     }
     private void Dispose()
     {
@@ -163,7 +180,7 @@ internal sealed unsafe class NativeProcess
         while (offset < buffer.Length)
         {
             int within = (int)(address & 4095), count = Math.Min(4096 - within, buffer.Length - offset);
-            var page = new Span<byte>((byte*)_pages[address & ~4095UL] + within, count);
+            var page = new Span<byte>(MappedPage(address) + within, count);
             if (write) { buffer.Slice(offset, count).CopyTo(page); } else { page.CopyTo(buffer.Slice(offset, count)); }
             address += (ulong)count; offset += count;
         }
@@ -172,7 +189,7 @@ internal sealed unsafe class NativeProcess
     private readonly ProcessInteractive _interactive = new();
     private static long MonotonicMilliseconds => System.Diagnostics.Stopwatch.GetTimestamp() / (System.Diagnostics.Stopwatch.Frequency / 1000);
     private static void Pace(int milliseconds) { if (milliseconds > 0) { Thread.Sleep(milliseconds); } }
-    private long Service(ref Context c, ProcessFiles files, ProcessNetwork network, ProcessGraphics graphics, ref int readBytes)
+    private long Service(ref Context c, ProcessFiles files, ProcessNetwork network, ProcessGraphics graphics, ref int readBytes, ref int directoryBytes)
     {
         try
         {
@@ -1066,10 +1083,12 @@ internal sealed unsafe class NativeProcess
                 int count = (int)c.Arg2;
                 if (!Valid(c.Arg1, count, true)) { return -14; }
                 bool stdin = c.Call == 0 && c.Arg0 == 0;
-                if (!stdin && readBytes + count > ProcessFiles.MaximumTransfer) { return -28; }
+                ref int transferred = ref (_largeNative && c.Call == 217 ? ref directoryBytes : ref readBytes);
+                int readLimit = _largeNative && c.Call == 0 ? ProcessFiles.LargeReadTransfer : ProcessFiles.MaximumTransfer;
+                if (!stdin && transferred + count > readLimit) { return -28; }
                 byte[] buffer = new byte[count];
                 int result = c.Call == 0 ? files.Read((int)c.Arg0, buffer) : files.Next((int)c.Arg0, buffer);
-                if (result > 0) { if (!stdin) { readBytes += result; } Transfer(c.Arg1, buffer.AsSpan(0, result).ToArray(), true); }
+                if (result > 0) { if (!stdin) { transferred += result; } Transfer(c.Arg1, buffer.AsSpan(0, result).ToArray(), true); }
                 return result;
             }
             return -38;
@@ -1106,6 +1125,61 @@ internal sealed unsafe class NativeProcess
         return result;
     }
 
+    private Region[] LoadImage(string path, PackageFile owned, bool large, Func<bool> cancelled, out ElfImage image)
+    {
+        var store = new NativePackageStore();
+        using var stream = store.OpenRead(path, large ? ElfImage.MaximumBytes : ElfImage.LegacyMaximumBytes, out int size);
+        try
+        {
+            if (size != owned.Length || store.Mode(path) != owned.Mode)
+            { throw new IOException("native executable differs from its installed package"); }
+            var metadata = new List<ElfImage.Metadata>();
+            var layout = ElfImage.Read(stream, size, large, metadata);
+            _largeNative = large;
+            Initialize();
+            var regions = new Region[layout.Segments.Count + 2];
+            int region = 0;
+            foreach (var segment in layout.Segments)
+            {
+                ulong end = segment.Address + (ulong)segment.Pages * 4096;
+                bool writable = (segment.Flags & 2) != 0;
+                _ranges.Add(new(segment.Address, end, writable));
+                for (ulong address = segment.Address; address < end; address += 4096)
+                {
+                    if (cancelled()) { throw new OperationCanceledException(); }
+                    Map(address, Page(), writable, (segment.Flags & 1) != 0);
+                }
+                regions[region++] = new() { Start = segment.Address, End = end };
+            }
+
+            // Validate the layout against the very same bytes sent to the hash and private pages.
+            // No executable bytes become runnable until this stream matches the signed digest.
+            Span<byte> digest = stackalloc byte[32];
+            Zenith.Core.Security.Sha256.HashStream(stream, size, digest, (buffer, offset, count) =>
+            {
+                if (cancelled()) { throw new OperationCanceledException(); }
+                foreach (var record in metadata)
+                {
+                    int from = Math.Max(record.Offset, offset);
+                    int to = Math.Min(record.Offset + record.Bytes.Length, offset + count);
+                    if (to > from && !buffer.AsSpan(from - offset, to - from).SequenceEqual(record.Bytes.AsSpan(from - record.Offset, to - from)))
+                    { throw new IOException("native executable metadata changed during load"); }
+                }
+                foreach (var segment in layout.Segments)
+                {
+                    int from = Math.Max(segment.Offset, offset);
+                    int to = Math.Min(segment.Offset + segment.FileBytes, offset + count);
+                    if (to > from) { Transfer(segment.Address + (ulong)(from - segment.Offset), buffer.AsSpan(from - offset, to - from), true); }
+                }
+            });
+            if (!Convert.ToHexString(digest).Equals(owned.Digest, StringComparison.OrdinalIgnoreCase))
+            { throw new IOException("native executable differs from its installed package"); }
+            image = layout;
+            return regions;
+        }
+        catch { stream.Dispose(); throw; }
+    }
+
     private static (int Status, string Error, ulong Fault) RunHere(string name, IReadOnlyList<string> arguments, Func<bool> cancelled, object? lifetimeRoot, string cwd, string? input, ProcessStreams? streams, IReadOnlyDictionary<string, string>? environment, Action? requestStop)
     {
 #if ARCH_ARM64
@@ -1114,21 +1188,21 @@ internal sealed unsafe class NativeProcess
         // Cosmos exception dispatch is not safe for overlapping managed unwinds.
         // Serialize expected setup/VFS errors, converting them before releasing the
         // gate. Never hold this gate across blocking standard-stream operations.
-        byte[] bytes = Array.Empty<byte>(); ElfImage image = null!; ProcessArguments stack = null!;
+        PackageFile owned = null!; ProcessArguments stack = null!; bool large = false;
+        string path = "/usr/share/zenith/native/" + name + ".elf";
         string? setupError = null;
         Monitor.Enter(s_serviceGate);
         try
         {
             if (!PackageManifest.ValidName(name)) { throw new IOException("invalid native program name"); }
-            string path = "/usr/share/zenith/native/" + name + ".elf";
-            var store = new NativePackageStore(); var manager = new PackageManager(store);
-            var owned = manager.List().SelectMany(package => package.Manifest.Files).FirstOrDefault(file => file.Path == path)
-                ?? throw new IOException("native executable must be installed by a signed package");
+            var manager = new PackageManager(new NativePackageStore());
+            var candidate = manager.List().Select(item => item.Manifest)
+                .SelectMany(manifest => manifest.Files.Select(file => (Manifest: manifest, File: file)))
+                .FirstOrDefault(item => item.File.Path == path);
+            owned = candidate.File ?? throw new IOException("native executable must be installed by a signed package");
             if (owned.Mode != 0x1ed) { throw new IOException("native executable requires signed executable permissions"); }
-            bytes = store.Read(path, ElfImage.MaximumBytes);
-            if (bytes.Length != owned.Length || PackagePlanner.Digest(bytes) != owned.Digest || store.Mode(path) != owned.Mode)
-            { throw new IOException("native executable differs from its installed package"); }
-            image = ElfImage.Read(bytes); stack = ProcessArguments.Create(arguments, environment);
+            large = candidate.Manifest!.LargeNative;
+            stack = ProcessArguments.Create(arguments, environment);
         }
         catch (Exception error) { setupError = error.Message; }
         Monitor.Exit(s_serviceGate);
@@ -1152,18 +1226,21 @@ internal sealed unsafe class NativeProcess
         try
         {
             if (cancelled()) { Release(pid, ref released, 130); return (130, "", 0); }
-            process = new NativeProcess(); process.Initialize(); var regions = new Region[image.Segments.Count + 2]; int region = 0;
-            foreach (var segment in image.Segments)
+            process = new NativeProcess();
+            ElfImage image = null!;
+            Region[] regions = null!;
+            Monitor.Enter(s_serviceGate);
+            try { regions = process.LoadImage(path, owned, large, cancelled, out image); }
+            catch (Exception error) { setupError = error.Message; }
+            Monitor.Exit(s_serviceGate);
+            if (setupError is not null)
             {
-                process._ranges.Add(new(segment.Address, segment.Address + (ulong)(segment.Pages * 4096), (segment.Flags & 2) != 0));
-                for (int page = 0; page < segment.Pages; page++)
-                {
-                    byte* frame = process.Page(); int offset = page * 4096, count = Math.Min(4096, Math.Max(0, segment.FileBytes - offset));
-                    if (count > 0) { bytes.AsSpan(segment.Offset + offset, count).CopyTo(new Span<byte>(frame, 4096)); }
-                    process.Map(segment.Address + (ulong)offset, frame, (segment.Flags & 2) != 0, (segment.Flags & 1) != 0);
-                }
-                regions[region++] = new() { Start = segment.Address, End = segment.Address + (ulong)(segment.Pages * 4096) };
+                process.Dispose();
+                int failure = cancelled() ? 130 : 1;
+                Release(pid, ref released, failure);
+                return (failure, failure == 130 ? "" : setupError, 0);
             }
+            int region = image.Segments.Count;
             ulong stackBase = ProcessArguments.Top - ProcessArguments.StackBytes;
             for (int offset = 0; offset < stack.Bytes.Length; offset += 4096)
             {
@@ -1177,7 +1254,7 @@ internal sealed unsafe class NativeProcess
             graphics = NativeProcessGraphics.Create(identity.Uid);
             // The current managed call stack is suspended while the CPU runs the
             // freestanding image. Keep its owner and allocations explicitly rooted.
-            lock (s_rootsGate) { s_roots.Add(pid, new object[] { process, regions, arguments, bytes, image, stack, lifetimeRoot ?? arguments, files, network, graphics }); }
+            lock (s_rootsGate) { s_roots.Add(pid, new object[] { process, regions, arguments, image, stack, lifetimeRoot ?? arguments, files, network, graphics }); }
             fixed (Region* list = regions)
             {
                 var context = new Context
@@ -1196,7 +1273,7 @@ internal sealed unsafe class NativeProcess
                     Frame = process.Allocate(176),
                     UserFp = process.Page()
                 };
-                int status; int calls = 0, networkCalls = 0, graphicsCalls = 0, readBytes = 0;
+                int status; int calls = 0, networkCalls = 0, graphicsCalls = 0, readBytes = 0, directoryBytes = 0;
                 uint serviced = 0; // every kind of call: the budget counters above stand still for the others
                 Processes.SetState(pid, ProcessState.Running);
                 do
@@ -1207,7 +1284,7 @@ internal sealed unsafe class NativeProcess
                     // A live window app may use its CPU for the whole minute: it is on screen and closing
                     // it stops it. 1000 quanta (10 s a minute) killed apps that keep drawing, such as
                     // Observatory's gliding graphs, with status 124. Windowless programs keep the watchdog.
-                    { calls = graphicsCalls = readBytes = 0; files.RenewBudget(); graphics.RenewBudget(); context.Ticks = ProcessInteractive.LiveQuantaPerWindow; }
+                    { calls = graphicsCalls = readBytes = directoryBytes = 0; files.RenewBudget(); graphics.RenewBudget(); context.Ticks = ProcessInteractive.LiveQuantaPerWindow; }
                     status = Zenith.Core.Multiprocessing.CpuWorkers.RunProcessSlice((ulong)&context, affinity, cancelled, out int cpu);
                     if (status == -1)
                     {
@@ -1222,7 +1299,7 @@ internal sealed unsafe class NativeProcess
                     if (status == DeviceInterruptYield) { continue; }
                     if (status != 4096) { break; }
                     if (cancelled()) { status = 130; break; }
-                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615 or 628 or 629 or >= 630 and <= 639 or 645 or 646 or 659 or >= 661 and <= 670) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > 4096) { status = 124; break; }
+                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615 or 628 or 629 or >= 630 and <= 639 or 645 or 646 or 659 or >= 661 and <= 670) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > (large ? ProcessFiles.LargeCallBudget : 4096)) { status = 124; break; }
                     // A portal grant serves that area's calls as root for this process alone (uid 0 in the
                     // context too, which those handlers read); every other call keeps the program's identity.
                     bool elevated = Zenith.Core.Portal.ProcessPrivileges.Elevates(pid, context.Call, context.Arg0);
@@ -1236,7 +1313,7 @@ internal sealed unsafe class NativeProcess
                     try
                     {
                         Processes.SetState(pid, ProcessState.Waiting);
-                        context.Result = process.Service(ref context, files, network!, graphics!, ref readBytes);
+                        context.Result = process.Service(ref context, files, network!, graphics!, ref readBytes, ref directoryBytes);
                         Processes.SetState(pid, ProcessState.Running);
                         if (!standard) { Monitor.Exit(s_serviceGate); }
                         caller.Dispose(); context.Uid = ownUid; context.Gid = ownGid;

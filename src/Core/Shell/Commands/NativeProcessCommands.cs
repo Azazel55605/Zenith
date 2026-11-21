@@ -95,7 +95,10 @@ internal static class NativeProcessCommands
     {
         if (c.Args.Length == 2 && c.Args[0] == "check")
         {
-            var image = ElfImage.Read(new Zenith.Core.Packages.NativePackageStore().Read(c.Resolve(c.Args[1]), ElfImage.MaximumBytes));
+            using var stream = new Zenith.Core.Packages.NativePackageStore().OpenRead(c.Resolve(c.Args[1]), ElfImage.MaximumBytes, out int size);
+            ElfImage image;
+            try { image = ElfImage.Read(stream, size, allowLarge: true); }
+            catch { stream.Dispose(); throw; }
             c.WriteLine("Zenith native ABI 1; x86_64 ELF entry=0x" + image.Entry.ToString("x") + " segments=" + image.Segments.Count); return 0;
         }
         if (c.Args.Length < 2 || c.Args[0] != "run") { return c.Fail("native check FILE | run NAME [ARGS...]"); }

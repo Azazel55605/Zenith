@@ -59,13 +59,19 @@ try
                 { throw new IOException("meta definition requires only newline-terminated dependency records"); }
                 manifest.Append(requirements);
             }
-            int total = 0, executables = 0;
+            int total = 0, executables = 0; bool large = false;
             foreach (string file in files)
             {
                 string path = "/" + Path.GetRelativePath(source, file).Replace(Path.DirectorySeparatorChar, '/');
                 if (!PackageManifest.ValidPath(path)) { throw new IOException("unsupported payload path: " + path); }
                 byte[] data = ReadBounded(file, PackageManifest.MaximumFileBytes);
-                if (native && path.EndsWith(".elf", StringComparison.Ordinal)) { _ = ElfImage.Read(data); executables++; }
+                if (native && path.EndsWith(".elf", StringComparison.Ordinal))
+                {
+                    var image = ElfImage.Read(data, allowLarge: true);
+                    large |= image.Segments.Any(segment => segment.Address + (ulong)segment.MemoryBytes > ElfImage.LegacyMaximumAddress);
+                    executables++;
+                }
+                large |= data.Length > PackageManifest.LegacyMaximumFileBytes;
                 total = checked(total + data.Length);
                 if (total > PackageManifest.MaximumPayloadBytes) { throw new IOException("payload exceeds limit"); }
                 string target = temporary + "/payload" + path;
@@ -84,6 +90,8 @@ try
                 manifest.Append("file\t").Append(aboutTarget).Append("\t0644\t").Append(data.Length).Append('\t').Append(PackagePlanner.Digest(data)).Append('\n');
             }
             if (native && executables == 0) { throw new IOException("native package requires a valid Zenith ABI executable"); }
+            if (large || total > PackageManifest.LegacyMaximumPayloadBytes)
+            { manifest.Append("requires\t").Append(PackageManifest.LargeNativeCapability).Append("\t1.0\n"); }
             string text = manifest.ToString();
             if (args.Length == 7) { text = text.Replace("ZENITH-PACKAGE\t1\n", "ZENITH-PACKAGE\t2\nrepository\t" + args[6] + "\n"); }
             _ = PackageManifest.Parse(text);
@@ -94,7 +102,7 @@ try
         Console.WriteLine("built experimental bundle: " + output);
     }
     else if (args.Length == 2 && args[0] == "native-check")
-    { var image = ElfImage.Read(ReadBounded(args[1], ElfImage.MaximumBytes)); Console.WriteLine("verified native ABI 1 entry=" + image.Entry + " segments=" + image.Segments.Count); }
+    { var image = ElfImage.Read(ReadBounded(args[1], ElfImage.MaximumBytes), allowLarge: true); Console.WriteLine("verified native ABI 1 entry=" + image.Entry + " segments=" + image.Segments.Count); }
     else if (args.Length == 2 && args[0] == "inspect")
     {
         var manifest = Load(args[1]); Console.WriteLine(manifest.Name + " " + manifest.Version + ": " + manifest.Files.Count + " files, " + manifest.PayloadBytes + " bytes");

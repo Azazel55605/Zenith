@@ -25,11 +25,15 @@ internal sealed class NativePackageStore : IPackageStore
         { throw new IOException("expected bounded regular package file"); }
         return (int)stat.Size;
     }
-    public byte[] Read(string path, int maximum)
+    public Stream OpenRead(string path, int maximum, out int length)
     {
         path = Map(path);
-        int length = Regular(path, maximum);
-        using var stream = File.OpenRead(path); byte[] bytes = new byte[length]; int offset = 0;
+        length = Regular(path, maximum);
+        return File.OpenRead(path);
+    }
+    public byte[] Read(string path, int maximum)
+    {
+        using var stream = OpenRead(path, maximum, out int length); byte[] bytes = new byte[length]; int offset = 0;
         try
         {
             while (offset < bytes.Length)

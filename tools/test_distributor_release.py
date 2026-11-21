@@ -160,7 +160,8 @@ class ReleaseTests(unittest.TestCase):
         self.assertTrue((work / "native/u/evidence.txt").exists())
         self.assertTrue((work / "native/a/evidence.txt").exists())
         self.assertTrue(all(not path.parent.exists() for path in calls))
-        self.assertEqual(['s','r','a','d','v','m','g','f','n','c','p','j','b','q','u','x','e','z','h','o','t','w','y','l','i','k'],[path.name for path in calls])
+        self.assertEqual(['s','r','a','d','v','m','g','f','n','c','p','j','b','q','u','x5','x','e','z','h','o','t','w','y','l','i','k'],[path.name for path in calls])
+        self.assertTrue((work / 'native/x5/evidence.txt').exists())
         self.assertTrue((work / 'native/f/evidence.txt').exists())
         self.assertTrue((work / 'native/d/evidence.txt').exists())
         self.assertTrue((work / 'native/c/evidence.txt').exists())
@@ -202,8 +203,12 @@ class ReleaseTests(unittest.TestCase):
              patch.object(release, "source_commit", return_value="a" * 40), \
              patch.object(release, "prerequisites"), patch.object(release, "phase", side_effect=phase):
             release.build(self.config, "0.0.3")
-        self.assertEqual(["Validation controller tests", "Host tests", "Kernel build", "Package tool", "Sign kernel", "Index core", "Index core extended", "Index extra", "Index extra extended"], calls)
+        self.assertEqual(["Validation controller tests", "Host tests", "Kernel build", "Package tool", "Sign kernel",
+                          "Index core", "Index core v3", "Index core v4",
+                          "Index extra", "Index extra v3", "Index extra v4"], calls)
         self.assertTrue((self.root / "core/zenith-kernel/0.0.3/zenith-kernel.zpk").is_file())
+        for channel in ("core", "extra"):
+            self.assertTrue((self.root / channel / "index-v4.zri").is_file())
 
     def test_phase_failure_reports_useful_tail_and_retains_full_log(self):
         log = self.repo / "failure.log"

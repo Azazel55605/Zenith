@@ -28,6 +28,7 @@ internal static class BootstrapComponents
 #if !ARCH_ARM64
         new("zenith-native-fs-abi", "1.0", "read-only native filesystem calls"),
         new("zenith-native-terminal-session-abi", "1.0", "kernel-owned shell sessions for terminal clients"),
+        new(PackageManifest.LargeNativeCapability, "1.0", "large native images, packages and bounded file reads"),
         new("zenith-native-memory-abi", "1.0", "program images up to 32 MiB of address space"),
         new("zenith-native-framebuffer-abi", "1.0", "on-demand private framebuffer and resource-safe resize refusal"),
         new("zenith-native-display-abi", "1.0", "host-owned primary display preview, rollback and integer scale"),

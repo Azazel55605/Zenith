@@ -11,26 +11,48 @@ internal sealed record ElfSegment(ulong Address, int Offset, int FileBytes, int 
 }
 internal sealed record ElfImage(ulong Entry, IReadOnlyList<ElfSegment> Segments)
 {
-    public const int MaximumBytes = 262144;
-    public const ulong MinimumAddress = 0x400000, MaximumAddress = 0x2400000;
-    public static ElfImage Read(ReadOnlySpan<byte> bytes)
+    public const int LegacyMaximumBytes = 256 * 1024, MaximumBytes = 4 * 1024 * 1024;
+    public const ulong MinimumAddress = 0x400000, LegacyMaximumAddress = 0x2400000, MaximumAddress = 0x10400000;
+    public const int MaximumResidentBytes = 64 * 1024 * 1024;
+    internal sealed record Metadata(int Offset, byte[] Bytes);
+    public static ElfImage Read(byte[] bytes, bool allowLarge = false)
     {
-        if (bytes.Length is < 64 or > MaximumBytes || bytes[0] != 127 || bytes[1] != 'E' || bytes[2] != 'L' || bytes[3] != 'F'
+        using var stream = new MemoryStream(bytes, writable: false);
+        return Read(stream, bytes.Length, allowLarge);
+    }
+    public static ElfImage Read(Stream stream, int size, bool allowLarge, List<Metadata>? metadata = null)
+    {
+        if (size < 64 || size > (allowLarge ? MaximumBytes : LegacyMaximumBytes))
+        { throw new IOException("expected bounded static x86_64 ELF64 executable"); }
+        byte[] ReadAt(int offset, int length)
+        {
+            stream.Position = offset;
+            var data = new byte[length];
+            ReadExactly(stream, data, length);
+            metadata?.Add(new Metadata(offset, data));
+            return data;
+        }
+        ulong addressLimit = allowLarge ? MaximumAddress : LegacyMaximumAddress;
+        int pages = 0;
+        byte[] bytes = ReadAt(0, 64);
+        if (bytes[0] != 127 || bytes[1] != 'E' || bytes[2] != 'L' || bytes[3] != 'F'
             || bytes[4] != 2 || bytes[5] != 1 || bytes[6] != 1 || U16(bytes, 16) != 2 || U16(bytes, 18) != 62
             || U32(bytes, 20) != 1 || U16(bytes, 52) != 64 || U16(bytes, 54) != 56)
         { throw new IOException("expected bounded static x86_64 ELF64 executable"); }
         ulong entry = U64(bytes, 24), table = U64(bytes, 32); int count = U16(bytes, 56);
-        if (count is < 1 or > 16 || table < 64 || table > (ulong)bytes.Length || (ulong)(count * 56) > (ulong)bytes.Length - table)
+        if (count is < 1 or > 16 || table < 64 || table > (ulong)size || (ulong)(count * 56) > (ulong)size - table)
         { throw new IOException("invalid ELF program table"); }
+        bytes = ReadAt((int)table, count * 56);
         var segments = new List<ElfSegment>(); bool abi = false;
         for (int i = 0; i < count; i++)
         {
-            int header = (int)table + i * 56; uint type = U32(bytes, header), flags = U32(bytes, header + 4);
+            int header = i * 56; uint type = U32(bytes, header), flags = U32(bytes, header + 4);
             ulong offset = U64(bytes, header + 8), address = U64(bytes, header + 16), length = U64(bytes, header + 32), memory = U64(bytes, header + 40);
-            if (offset > (ulong)bytes.Length || length > (ulong)bytes.Length - offset) { throw new IOException("ELF segment file bounds"); }
+            if (offset > (ulong)size || length > (ulong)size - offset) { throw new IOException("ELF segment file bounds"); }
             if (type == 4)
             {
-                var notes = bytes.Slice((int)offset, (int)length); int position = 0;
+                if (length > 4096) { throw new IOException("ELF note segment exceeds 4 KiB"); }
+                var notes = ReadAt((int)offset, (int)length).AsSpan(); int position = 0;
                 while (position < notes.Length)
                 {
                     if (notes.Length - position < 12) { throw new IOException("truncated ELF note"); }
@@ -49,13 +71,15 @@ internal sealed record ElfImage(ulong Entry, IReadOnlyList<ElfSegment> Segments)
             }
             else if (type == 1)
             {
-                if (flags is not (4 or 5 or 6) || length > memory || memory == 0 || memory > MaximumAddress - MinimumAddress
-                    || address < MinimumAddress || address >= MaximumAddress || memory > MaximumAddress - address
+                if (flags is not (4 or 5 or 6) || length > memory || memory == 0 || memory > addressLimit - MinimumAddress
+                    || address < MinimumAddress || address >= addressLimit || memory > addressLimit - address
                     || address % 4096 != 0 || offset % 4096 != 0 || U64(bytes, header + 48) != 4096)
                 { throw new IOException("ELF load bounds, page alignment or W^X violation"); }
                 var segment = new ElfSegment(address, (int)offset, (int)length, (int)memory, flags);
                 foreach (var previous in segments)
                 { if (address < previous.Address + (ulong)(previous.Pages * 4096) && previous.Address < address + (ulong)(segment.Pages * 4096)) { throw new IOException("overlapping ELF pages"); } }
+                pages += segment.Pages;
+                if (pages > MaximumResidentBytes / 4096) { throw new IOException("ELF resident image exceeds 64 MiB"); }
                 segments.Add(segment);
             }
             else if (type != 0 && type != 0x6474e551) { throw new IOException("dynamic, TLS or unsupported ELF program type"); }
@@ -65,6 +89,17 @@ internal sealed record ElfImage(ulong Entry, IReadOnlyList<ElfSegment> Segments)
         { throw new IOException("missing native ABI or file-backed executable entry"); }
         return new(entry, segments.AsReadOnly());
     }
+    internal static void ReadExactly(Stream stream, byte[] buffer, int count)
+    {
+        int offset = 0;
+        while (offset < count)
+        {
+            int n = stream.Read(buffer, offset, count - offset);
+            if (n <= 0) { throw new IOException("truncated ELF file"); }
+            offset += n;
+        }
+    }
+
     private static ushort U16(ReadOnlySpan<byte> bytes, int offset) => BinaryPrimitives.ReadUInt16LittleEndian(bytes.Slice(offset, 2));
     private static uint U32(ReadOnlySpan<byte> bytes, int offset) => BinaryPrimitives.ReadUInt32LittleEndian(bytes.Slice(offset, 4));
     private static ulong U64(ReadOnlySpan<byte> bytes, int offset) => BinaryPrimitives.ReadUInt64LittleEndian(bytes.Slice(offset, 8));

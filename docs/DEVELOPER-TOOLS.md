@@ -45,6 +45,11 @@ New installs use the whole disk (ext2 up to 2 TiB, files up to 2 TiB); existing
 512 MiB roots need migration (roadmap R1). Measure memory needs before promising
 a complete on-system SDK.
 
+[X5](ROADMAP.md) adds the larger static native profile for compiled
+applications, with bounded streamed loading, a larger virtual range, and
+higher private file-read limits. See [the ELF and I/O contract](NATIVE-PROGRAMS.md)
+and [package bounds](PACKAGES.md). The legacy profile remains the default.
+
 Primary references checked on 2026-10-11:
 [GCC build/host/target terminology](https://gcc.gnu.org/onlinedocs/gccint/Configure-Terms.html),
 [GCC prerequisites](https://gcc.gnu.org/install/prerequisites.html),

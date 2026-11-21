@@ -343,6 +343,7 @@ def native_gate_plan():
     if (REPO / "src/Core/Multiprocessing/CpuWorkers.Process.cs").exists(): checks.append(("q", "native-smp-smoke.py"))
     # Older immutable kernel tags predate this ABI and its harness.
     if (REPO / "tools/native-process-smoke.py").exists(): checks.append(("u", "native-process-smoke.py"))
+    if (REPO / "tools/native-large-smoke.py").exists(): checks.append(("x5", "native-large-smoke.py"))
     # 4 KiB ext2 profile, files past 4 GiB and a whole-disk installed root (older tags lack it).
     if (REPO / "tools/large-ext2-smoke.py").exists(): checks.append(("x", "large-ext2-smoke.py"))
     if (REPO / "tools/equinox-smoke.py").exists(): checks.append(("e", "equinox-smoke.py"))
@@ -578,20 +579,22 @@ def indexes(config, work=None):
         finally:
             if os.path.exists(temporary): os.unlink(temporary)
         print("Published signed " + repository + " index generation=" + str(generation) + " (7-day validity)", flush=True)
-        extended = work / (repository + "-v3.zri")
-        phase("Index " + repository + " extended", ["dotnet", str(index_tool), "index-seal-v3", repository, str(generation), str(now),
-              str(now + 7 * 86400), str(root), str(keys / "private.pem"), str(extended)], work / (repository + "-index-v3.log"))
-        clean()
-        if source_commit() != commit: raise ValueError("source changed while signing extended index")
-        descriptor, temporary = tempfile.mkstemp(prefix=".index-v3-", dir=root.parent)
-        try:
-            with os.fdopen(descriptor, "wb") as output:
-                output.write(extended.read_bytes()); output.flush(); os.fsync(output.fileno())
-            os.chmod(temporary, 0o644); os.replace(temporary, directory / "index-v3.zri")
-            publisher.sync_directory(directory)
-        finally:
-            if os.path.exists(temporary): os.unlink(temporary)
-        print("Published signed " + repository + " extended index generation=" + str(generation), flush=True)
+        for version in ("v3", "v4"):
+            extended = work / (repository + "-" + version + ".zri")
+            phase("Index " + repository + " " + version, ["dotnet", str(index_tool), "index-seal-" + version, repository,
+                  str(generation), str(now), str(now + 7 * 86400), str(root), str(keys / "private.pem"), str(extended)],
+                  work / (repository + "-index-" + version + ".log"))
+            clean()
+            if source_commit() != commit: raise ValueError("source changed while signing extended index")
+            descriptor, temporary = tempfile.mkstemp(prefix=".index-" + version + "-", dir=root.parent)
+            try:
+                with os.fdopen(descriptor, "wb") as output:
+                    output.write(extended.read_bytes()); output.flush(); os.fsync(output.fileno())
+                os.chmod(temporary, 0o644); os.replace(temporary, directory / ("index-" + version + ".zri"))
+                publisher.sync_directory(directory)
+            finally:
+                if os.path.exists(temporary): os.unlink(temporary)
+            print("Published signed " + repository + " " + version + " index generation=" + str(generation), flush=True)
 
 
 def main():

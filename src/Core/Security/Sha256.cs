@@ -23,10 +23,40 @@ internal static class Sha256
         Span<uint> schedule = stackalloc uint[64];
         int offset = 0;
         while (input.Length - offset >= 64) { Compress(input.Slice(offset, 64), state, schedule); offset += 64; }
+        Finish(input.Slice(offset), (ulong)input.Length, output, state, schedule);
+    }
+
+    internal static void HashStream(System.IO.Stream stream, int length, Span<byte> output, Action<byte[], int, int> consume)
+    {
+        Span<uint> state = stackalloc uint[8] { 0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19 };
+        Span<uint> schedule = stackalloc uint[64];
+        byte[] buffer = new byte[16384];
+        stream.Position = 0;
+        for (int offset = 0; offset < length;)
+        {
+            int count = Math.Min(buffer.Length, length - offset), read = 0;
+            while (read < count)
+            {
+                int n = stream.Read(buffer, read, count - read);
+                if (n <= 0) { throw new System.IO.IOException("truncated executable while verifying"); }
+                read += n;
+            }
+            consume(buffer, offset, count);
+            int whole = count & ~63;
+            for (int block = 0; block < whole; block += 64) { Compress(buffer.AsSpan(block, 64), state, schedule); }
+            offset += count;
+            if (offset == length) { Finish(buffer.AsSpan(whole, count - whole), (ulong)length, output, state, schedule); }
+        }
+        if (length == 0) { Finish(ReadOnlySpan<byte>.Empty, 0, output, state, schedule); }
+        if (stream.ReadByte() != -1) { throw new System.IO.IOException("executable grew while verifying"); }
+    }
+
+    private static void Finish(ReadOnlySpan<byte> remainder, ulong total, Span<byte> output, Span<uint> state, Span<uint> schedule)
+    {
         Span<byte> tail = stackalloc byte[128]; tail.Clear();
-        input.Slice(offset).CopyTo(tail); tail[input.Length - offset] = 0x80;
-        int length = input.Length - offset < 56 ? 64 : 128;
-        ulong bits = (ulong)input.Length * 8;
+        remainder.CopyTo(tail); tail[remainder.Length] = 0x80;
+        int length = remainder.Length < 56 ? 64 : 128;
+        ulong bits = total * 8;
         for (int i = 0; i < 8; i++) { tail[length - 1 - i] = (byte)(bits >> (i * 8)); }
         Compress(tail.Slice(0, 64), state, schedule);
         if (length == 128) { Compress(tail.Slice(64), state, schedule); }

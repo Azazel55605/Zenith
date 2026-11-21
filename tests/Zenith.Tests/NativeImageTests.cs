@@ -26,6 +26,27 @@ public class NativeImageTests
         var bytes=Image();U64(bytes,104,0x2000000);Assert.Equal(8192,ElfImage.Read(bytes).Segments[0].Pages);
         U64(bytes,104,0x2000001);Assert.Throws<IOException>(()=>ElfImage.Read(bytes));
     }
+    [Fact]
+    public void X5AcceptsLargerFilesAndAddressesWithinTheResidentCap()
+    {
+        var bytes = Image();
+        Array.Resize(ref bytes, ElfImage.MaximumBytes);
+        U64(bytes, 24, 0x10000000);
+        U64(bytes, 80, 0x10000000);
+        U64(bytes, 104, 4096);
+        Assert.Throws<IOException>(() => ElfImage.Read(bytes));
+        Assert.Equal(0x10000000UL, ElfImage.Read(bytes, allowLarge: true).Entry);
+
+        U64(bytes, 24, ElfImage.MinimumAddress);
+        U64(bytes, 80, ElfImage.MinimumAddress);
+        U64(bytes, 104, ElfImage.MaximumResidentBytes);
+        Assert.Equal(ElfImage.MaximumResidentBytes / 4096, ElfImage.Read(bytes, allowLarge: true).Segments[0].Pages);
+        U64(bytes, 104, ElfImage.MaximumResidentBytes + 1);
+        Assert.Throws<IOException>(() => ElfImage.Read(bytes, allowLarge: true));
+        Array.Resize(ref bytes, ElfImage.MaximumBytes + 1);
+        U64(bytes, 104, 4096);
+        Assert.Throws<IOException>(() => ElfImage.Read(bytes, allowLarge: true));
+    }
     [Theory]
     [InlineData(16,3UL)] [InlineData(18,183UL)] [InlineData(32,ulong.MaxValue)] [InlineData(56,17UL)]
     [InlineData(68,7UL)] [InlineData(72,ulong.MaxValue)] [InlineData(80,0xffff800000000000UL)]

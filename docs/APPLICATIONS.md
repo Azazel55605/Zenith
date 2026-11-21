@@ -65,17 +65,18 @@ User request (2026-10-13): offer a separately installed Doom engine; users suppl
 their own WAD files. No commercial game data belongs in the engine package.
 This is a proposed port, not an implemented or runtime-verified application.
 
-[doomgeneric](https://github.com/ozkl/doomgeneric) is an initial candidate: its
-platform hooks cover framebuffer presentation, keyboard events and timing. A
-Zenith port also needs the C runtime/file I/O used by the engine, allocation,
-application startup/exit and save/config persistence. Sound/music are separate
-backend work; no Zenith PCM audio service is currently established.
+[PureDOOM](https://github.com/Daivuk/PureDOOM) is the first candidate. A stripped
+freestanding x64 probe linked at 310,720 bytes before adding the Zenith adapter.
+The native window, monotonic clock, and PCM output APIs already exist.
 
-The independent package depends on the native program foundation described in
-[USERLAND](components/USERLAND.md). Current scripts/data packages cannot execute a native
-engine. A kernel-linked C experiment could test rendering/input earlier, but
-would require a kernel rebuild and would not meet the independent-package goal.
-Do not silently substitute that experiment for the requested application.
+- [X5](ROADMAP.md) owns the executable/package size increase and the larger
+  native read budget needed for WAD startup and level transitions.
+- Focused native key releases are the remaining gameplay input prerequisite.
+  Carry press and release to the focused window, and clear held keys on focus
+  loss or input reset so movement and fire cannot stick.
+- The engine adapter supplies file access, allocation, software presentation,
+  and save/config paths. Sound effects can be resampled to 48 kHz stereo PCM.
+  Music needs a MIDI synthesizer and can follow the first playable build.
 
 Proposed first scope: classic Doom/Doom II IWADs, optional compatible vanilla
 PWADs, scaled software rendering and keyboard controls, per-user saves/config,
@@ -89,7 +90,7 @@ Retain upstream GPL source/license obligations with the distributed engine.
 ## Developer ports
 
 The [developer tools contract](DEVELOPER-TOOLS.md) owns prerequisites and acceptance.
-Master work is X1–X4; optional Doom stays outside the main product sequence.
+Master work is X1–X5; optional Doom stays outside the main product sequence.
 
 ## Additional product ideas, proposed
 

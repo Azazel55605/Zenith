@@ -24,6 +24,7 @@ internal sealed class ProcessFiles : IDisposable
 {
     public const int MaximumHandles = 16, MaximumIo = 4096, EntryBytes = 280, StatBytes = 24;
     public const int MaximumTransfer = 1048576;
+    public const int LargeReadTransfer = 32 * 1024 * 1024, LargeCallBudget = 32768;
     public const ulong WriteOnly = 2, Create = 4, Truncate = 8, Append = 16;
     private readonly IProcessFiles _files;
     private readonly Dictionary<int, IProcessFile> _handles = new();

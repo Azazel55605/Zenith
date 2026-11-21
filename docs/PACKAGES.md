@@ -170,11 +170,12 @@ mount or through a symlink ancestor is rejected. Other privileged kernel code/ro
 sessions remain trusted; this is not per-process isolation or a general root-writer lock.
 
 Bounds: 32 installed packages, 64 files per package, 32 dependencies/conflicts,
-32 KiB manifest, 256 KiB/file, 4 MiB/package, 1 MiB installed DB, 1024 changed paths,
-8 MiB old+new transaction payload and a 256 KiB free-space reserve plus DB sizes.
+32 KiB manifest, 1 MiB installed DB, 1024 changed paths, 64 MiB old+new transaction payload.
+Files above 256 KiB or payloads above 4 MiB require `zenith-native-large-abi 1.0`.
+That capability allows up to 4 MiB per file and 32 MiB per package. Transactions keep a 256 KiB free-space reserve plus DB sizes.
 Space checking is conservative but does not reserve blocks/inodes; late write failures
 must roll back. Each input container is bounded before allocation. Package commands
-can retain up to 16 candidate containers; independent userland/resource quotas remain
+can retain up to 16 supplied archives in a local install; independent userland/resource quotas remain
 future work.
 
 Recovery tests cover injected storage failures, cancellation and a prepared journal
@@ -259,6 +260,6 @@ be incorrect; their actual ports require additional APIs.
 
 `pkg update [--yes]` maintains all installed signed packages and stages a newer
 kernel. It permits up to 32 selected data packages within the existing total DB,
-8 MiB transaction and per-file limits. Offline supplied-file CLI remains bounded
+64 MiB transaction and per-file limits. Offline supplied-file CLI remains bounded
 to 16 archives. See [ONLINE-PACKAGES](ONLINE-PACKAGES.md) for preflight, freshness,
 confirmation, separate data/boot commits and first upgrade from 0.0.7.
