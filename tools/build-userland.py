@@ -54,7 +54,7 @@ def main():
             '-DSUNBEAM_VERSION="'+args.version+'"','-Wl,-T,'+str(source/'link.ld'),'-Wl,--build-id=none',str(source/'start.s'),str(main_source),*extra,'-o',str(output)],check=True)
     if args.program=='doom':
         source_dir=destination/'usr/share/zenith/doom/source'
-        for name in ('userland/doom/main.c','userland/doom/engine.c','userland/doom/UPSTREAM.md',
+        for name in ('userland/doom/main.c','userland/doom/engine.c','userland/doom/engine.h','userland/doom/UPSTREAM.md',
                      'userland/doom/upstream/PureDOOM.h','userland/doom/upstream/LICENSE',
                      'userland/include/zenith_graphics.h','userland/sunbeam/zenith.h',
                      'userland/sunbeam/start.s','userland/sunbeam/link.ld','tools/build-userland.py'):

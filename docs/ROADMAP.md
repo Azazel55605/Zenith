@@ -477,8 +477,11 @@ PureDOOM. It uses X5 for executable size and reads. A signed preview installed
 in QEMU, drew a frame from a 27.5 MiB Freedoom test IWAD, and returned to the
 shell on Escape. The [focused key-edge ABI](GRAPHICAL-CLIENTS.md#focused-physical-keys)
 is implemented locally. QEMU PS/2 and virtio tests verified release, focus reset
-and launcher isolation. Remaining work is wiring the ABI into the engine's
-gameplay controls, save/config storage, and audio. Acceptance requires a supported user-supplied IWAD, guest
+and launcher isolation. The engine-only `zenith-doom/v0.2.0` source release
+requires those ABIs and ships no WADs. A signed QEMU install ran a separately
+supplied Freedoom level and verified continuous turning, release, launcher
+capture reset, and menu exit. Distributor and installed acceptance are open.
+Remaining work includes save/config storage and audio. Acceptance requires a supported user-supplied IWAD, guest
 gameplay and save/load, clean exit, and an independent package update. Follow
 the [port contract](APPLICATIONS.md#doom-engine-package-requested-feasibility-slice).
 

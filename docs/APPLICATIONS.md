@@ -63,28 +63,36 @@ does not establish isolation or independent compiled-package updates.
 
 The optional [Doom engine work](ROADMAP.md#scope-decisions-and-non-blocking-ideas)
 uses a separately installed engine and user-supplied WADs. The package contains
-the engine, its adapter, and rebuild sources.
+the executable, its adapter, the corresponding source, and the license. It
+ships no WADs, including the Freedoom fixture used for local validation.
 
 [PureDOOM](https://github.com/Daivuk/PureDOOM) is pinned in the
-[port sources](../userland/doom/UPSTREAM.md). The x64 preview uses a native
+[port sources](../userland/doom/UPSTREAM.md). The x64 engine uses a native
 320×200 surface and the monotonic clock. It takes an explicit, read-only IWAD
-path. The preview uses the basename to select the game mode (`doom.wad`,
-`doomu.wad`, `doom1.wad`, or `doom2.wad`). Escape or window close exits.
+path. The engine uses the basename to select the game mode (`doom.wad`,
+`doomu.wad`, `doom1.wad`, or `doom2.wad`).
 
 ```sh
 native run doom --check-wad /path/to/doom2.wad
 native run doom --preview /path/to/doom2.wad
+native run doom --play /path/to/doom2.wad
 ```
 
-`--check-wad` checks the IWAD header and directory bounds up to 30 MiB. Use the
-preview to check whether the engine recognizes the contents. A source build uses
-`python3 -B tools/build-userland.py DESTINATION --program doom --version 0.1.0`.
+`--check-wad` checks the IWAD header and directory bounds up to 30 MiB. Use
+`--preview` to see the title/demo and press Escape to exit. In `--play`, Escape
+opens the game menu, Enter selects an item, and F10 offers to quit. Close the
+window to exit directly. The classic controls are arrows to move/turn, Shift
+to run, Alt with Left/Right or comma/period to strafe, Ctrl to fire, Space to use, Tab for the
+automap, and number keys to switch weapons. Controls follow physical key positions.
+The 0.2.0 package requires the large-native and physical-key ABIs, both first
+included in the kernel 0.0.77 source tag.
+A source build uses `python3 -B tools/build-userland.py DESTINATION --program doom --version 0.2.0`.
 
 - [X5](ROADMAP.md) owns the executable/package size increase and the larger
   native read budget needed for WAD startup and level transitions.
 - The [focused physical-key ABI](GRAPHICAL-CLIENTS.md#focused-physical-keys)
-  supplies press/release and input reset. The engine still needs to map these
-  events to gameplay and clear its internal held keys on reset or focus loss.
+  supplies press/release and input reset. The adapter clears queued edges,
+  held gameplay keys, and held map controls on focus loss or reset.
 - Gameplay needs per-user save/config paths. Sound effects can be resampled to
   48 kHz stereo PCM. Music needs a MIDI synthesizer and can follow the first
   playable build.

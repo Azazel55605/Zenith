@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include "../include/zenith_graphics.h"
-#include "upstream/PureDOOM.h"
+#include "engine.h"
 
 enum { WIDTH = 320, HEIGHT = 200, MIB = 1024 * 1024, GUI_ESCAPE = 1 };
 static unsigned char wad[30 * MIB];
@@ -135,7 +135,7 @@ static void release(void *ptr)
     if (ptr) ((struct block *)ptr - 1)->available = 1;
 }
 
-/* Resolve only the selected IWAD. The preview never reads configuration or
+/* Resolve only the selected IWAD. The engine never reads configuration or
  * writes to the guest filesystem. Each engine open owns its own cursor. */
 struct cursor { unsigned int position; int in_use; };
 static struct cursor cursors[4];
@@ -200,12 +200,56 @@ static void get_time(int *seconds, int *microseconds)
     *microseconds = (int)(elapsed % 1000) * 1000;
 }
 
-static _Noreturn void preview(void)
+static const unsigned char scan_keys[256] = {
+    [0x01] = DOOM_KEY_ESCAPE,
+    [0x02] = '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',
+    [0x0e] = DOOM_KEY_BACKSPACE, DOOM_KEY_TAB,
+    [0x10] = 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']',
+    [0x1c] = DOOM_KEY_ENTER, DOOM_KEY_CTRL,
+    [0x1e] = 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'',
+    [0x2a] = DOOM_KEY_SHIFT,
+    [0x2c] = 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/',
+    [0x36] = DOOM_KEY_SHIFT,
+    [0x38] = DOOM_KEY_ALT, DOOM_KEY_SPACE,
+    [0x3b] = DOOM_KEY_F1, DOOM_KEY_F2, DOOM_KEY_F3, DOOM_KEY_F4, DOOM_KEY_F5,
+    DOOM_KEY_F6, DOOM_KEY_F7, DOOM_KEY_F8, DOOM_KEY_F9, DOOM_KEY_F10,
+    [0x58] = DOOM_KEY_F12,
+    [0x60] = DOOM_KEY_ALT,
+    [0x68] = DOOM_KEY_UP_ARROW, [0x6b] = DOOM_KEY_LEFT_ARROW,
+    [0x6d] = DOOM_KEY_RIGHT_ARROW, [0x70] = DOOM_KEY_DOWN_ARROW,
+};
+static unsigned char scans_down[256], key_holds[256];
+
+static void reset_keys(void)
 {
-    static const char title[] = "Doom engine preview";
-    surface = zenith_gui_open(WIDTH, HEIGHT, title, sizeof(title) - 1);
+    for (unsigned int i = 0; i < sizeof(scans_down); i++) {
+        scans_down[i] = 0;
+        key_holds[i] = 0;
+    }
+    zenith_doom_reset_keys();
+}
+
+static void physical_key(int scan, int pressed)
+{
+    if (scan <= 0 || scan >= (int)sizeof(scan_keys) || scans_down[scan] == pressed) return;
+    doom_key_t key = (doom_key_t)scan_keys[scan];
+    if (!key) return;
+    scans_down[scan] = (unsigned char)pressed;
+    /* Both Shift keys (or both Alt keys) can hold the same Doom control. */
+    int transition = pressed ? key_holds[key]++ == 0 : --key_holds[key] == 0;
+    if (transition && !zenith_doom_key(key, pressed)) reset_keys();
+}
+
+static _Noreturn void run_engine(int play)
+{
+    const char *title = play ? "Doom" : "Doom engine preview";
+    surface = zenith_gui_open(WIDTH, HEIGHT, title, length(title));
     if (surface < 0 || zenith_gui_interactive(surface) < 0) {
-        print("doom: preview requires a graphical Zenith session\n");
+        print("doom: requires a graphical Zenith session\n");
+        finish(1);
+    }
+    if (play && zenith_gui_key_edges(surface) < 0) {
+        print("doom: play requires Zenith's physical-key ABI\n");
         finish(1);
     }
     doom_set_print(print);
@@ -223,10 +267,18 @@ static _Noreturn void preview(void)
     long next_frame = start_time;
     int presented = 0;
     for (;;) {
-        struct zenith_gui_event event;
-        long pending = zenith_gui_poll(surface, &event);
-        if (pending < 0) finish(1);
-        if (pending && (event.type == Z_GUI_CLOSE || (event.type == Z_GUI_KEY && event.extra == GUI_ESCAPE))) finish(0);
+        for (int i = 0; i < 64; i++) {
+            struct zenith_gui_event event;
+            long pending = zenith_gui_poll(surface, &event);
+            if (pending < 0) finish(1);
+            if (!pending) break;
+            if (event.type == Z_GUI_CLOSE) finish(0);
+            if (!play && event.type == Z_GUI_KEY && event.extra == GUI_ESCAPE) finish(0);
+            if (!play) continue;
+            if (event.type == Z_GUI_RESET || (event.type == Z_GUI_FOCUS && !event.code)) reset_keys();
+            if (event.type == Z_GUI_KEY_DOWN || event.type == Z_GUI_KEY_UP)
+                physical_key(event.code, event.type == Z_GUI_KEY_DOWN);
+        }
         long now = zenith_call(628, 0, 0, 0);
         if (now < 0) finish(1);
         if (now < next_frame) continue;
@@ -237,14 +289,14 @@ static _Noreturn void preview(void)
             pixels[i] = ((unsigned int)rgb[3 * i] << 16) | ((unsigned int)rgb[3 * i + 1] << 8) | rgb[3 * i + 2];
         }
         if (zenith_gui_present(surface, pixels, sizeof(pixels)) < 0) finish(1);
-        if (!presented) { print("doom: preview presented\n"); presented = 1; }
+        if (!presented) { print(play ? "doom: ready\n" : "doom: preview presented\n"); presented = 1; }
     }
 }
 
 int main(int argc, char **argv)
 {
     if (argc == 2 && equal(argv[1], "--version")) {
-        print("doom " SUNBEAM_VERSION " (engine preview)\n");
+        print("doom " SUNBEAM_VERSION "\n");
         return 0;
     }
     if (argc == 3 && equal(argv[1], "--check-wad")) {
@@ -252,15 +304,15 @@ int main(int argc, char **argv)
         print("doom: IWAD directory is readable\n");
         return 0;
     }
-    if (argc == 3 && equal(argv[1], "--preview")) {
+    if (argc == 3 && (equal(argv[1], "--play") || equal(argv[1], "--preview"))) {
         engine_wad = engine_path(argv[2]);
         if (!engine_wad) {
-            print("doom: use doom.wad, doomu.wad, doom1.wad or doom2.wad for the preview\n");
+            print("doom: use doom.wad, doomu.wad, doom1.wad or doom2.wad\n");
             return 2;
         }
         if (!load_wad(argv[2])) return 1;
-        preview();
+        run_engine(equal(argv[1], "--play"));
     }
-    print("usage: native run doom --version | --check-wad PATH | --preview PATH\n");
+    print("usage: native run doom --version | --check-wad PATH | --preview PATH | --play PATH\n");
     return argc == 1 || (argc == 2 && equal(argv[1], "--help")) ? 0 : 2;
 }
