@@ -246,6 +246,8 @@ int main(int argc,char **argv){
     app.ui.widget_style=0;draw();
     assert(find_id(8384)>=0);assert(previews_drawn>=1);assert(app.ui.controls[find_id(8384)].value);
     int before=previews_drawn;draw();assert(previews_drawn==before);                 /* cached */
+    /* The largest tile's picture (176x110 grown by 3 px a side) fits the thumbnail cache. */
+    assert(styles_thumb(&app.styles,8,0,182,116,12345)!=0);
     wheel_until(8384+13);click_id(8384+13);assert(app.styles.draft[6]==13&&styles_changed(&app.styles,"style.wallpaper")&&dirty);
     click_id(900+ZUI_FOOTER_APPLY);assert(preferences.wallpaper==13&&!styles_changed(&app.styles,"style.wallpaper")&&!dirty);
     draw();assert(app.ui.controls[find_id(8384+13)].value);                           /* Tides, from the second set */

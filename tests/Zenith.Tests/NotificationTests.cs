@@ -113,6 +113,17 @@ public class NotificationTests
         Zenith.Core.Storage.StorageWatch.Root = () => null; Zenith.Core.Storage.StorageWatch.Reset();
     }
     [Fact]
+    public void ASmallDiskThatIsMostlyEmptyDoesNotWarn()
+    {
+        Zenith.Core.Storage.StorageWatch.Reset();
+        Zenith.Core.Storage.StorageWatch.Root = () => (100UL << 20, 256UL << 20);        // 39 % free of a 256 MiB disk
+        Assert.False(Zenith.Core.Storage.StorageWatch.Check(0));
+        Zenith.Core.Storage.StorageWatch.Reset();
+        Zenith.Core.Storage.StorageWatch.Root = () => (20UL << 20, 2UL << 40);           // 20 MiB left: always too little
+        Assert.True(Zenith.Core.Storage.StorageWatch.Check(0));
+        Zenith.Core.Storage.StorageWatch.Root = () => null; Zenith.Core.Storage.StorageWatch.Reset();
+    }
+    [Fact]
     public void HistoryKeepsTheLastThirtyTwo()
     {
         for (int i = 0; i < 40; i++) { NotificationCenter.Post("s" + i, "t" + i, "", "", 0); }

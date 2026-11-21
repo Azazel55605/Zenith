@@ -5,7 +5,8 @@
 /* Meridian's pickers (call 669, kernel 0.0.72): every style setting a page shows as previews, with one draft per
  * field (6 wallpaper, 8 cursor pack, 9 cursor size, 10 decoration, 11 widgets, 12 buttons, 13 splash, 14 login,
  * 15 boot, 16 sounds). Saving goes through the system settings call (626) with the same field numbers. */
-enum { STYLE_FIELDS=18,STYLE_THUMBS=40,STYLE_THUMB_PIXELS=176*110 };
+/* The largest picker picture: a default tile (176x110) plus the 3 px it now grows on each side to fill the tile. */
+enum { STYLE_FIELDS=18,STYLE_THUMBS=40,STYLE_THUMB_PIXELS=182*116 };
 struct meridian_styles {
     long (*catalog)(unsigned int field,struct zenith_style_list *out);
     long (*preview)(unsigned int field,unsigned int index,int width,int height,unsigned int *pixels);

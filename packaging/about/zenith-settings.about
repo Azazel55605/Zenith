@@ -8,3 +8,4 @@ change	0.13.0	Network connections with live status and safe changes
 change	0.14.0	Appearance reorganized; preview pickers for wallpapers, cursors, decorations, widgets, buttons, icons and startup styles; system sound level and per-event switches; Notifications page
 change	0.14.1	Picker previews fill their tiles, with corners that follow the widget style
 change	0.15.0	Notifications: a switch per app
+change	0.15.1	Decoration, icon and startup previews show again in the larger tiles

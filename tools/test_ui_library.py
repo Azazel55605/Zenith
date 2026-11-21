@@ -14,7 +14,10 @@ ROOT = Path(__file__).resolve().parents[1]
 class UiLibraryTests(unittest.TestCase):
     def test_ui_programs_fit_the_package_file_limit(self):
         # PackageManifest.MaximumFileBytes is enforced by installed kernels too.
-        limit = int(re.search(r'MaximumFileBytes = (\d+)', (ROOT/'src/Core/Packages/PackageManifest.cs').read_text()).group(1))
+        # The current limit, not LegacyMaximumFileBytes before it; written as a product such as 4 * 1024 * 1024.
+        expression = re.search(r'(?<!Legacy)MaximumFileBytes = ([\d\s*]+)', (ROOT/'src/Core/Packages/PackageManifest.cs').read_text()).group(1)
+        limit = 1
+        for factor in expression.split('*'): limit *= int(factor)
         with tempfile.TemporaryDirectory(prefix='zenith-ui-size-') as directory:
             for program in ('ui-gallery', 'settings', 'desktop-tools', 'polaris', 'observatory', 'aurora', 'orbit'):
                 dest = Path(directory)/program

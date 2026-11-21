@@ -2,11 +2,12 @@ using System;
 
 namespace Zenith.Core.Storage;
 
-/// <summary>Warns once when the system disk is almost full (U14 notifications): below 5 % or 256 MiB free. It warns
-/// again only after space recovered above 10 % and 512 MiB, so a disk hovering at the edge does not repeat itself.</summary>
+/// <summary>Warns once when the system disk is almost full (U14 notifications): below 5 % free, or below 32 MiB on any
+/// disk. It warns again only after space recovered above 10 % and 64 MiB, so a disk hovering at the edge does not
+/// repeat itself. (A fixed 256 MiB threshold warned on every small disk that was mostly empty, test disks included.)</summary>
 internal static class StorageWatch
 {
-    public const ulong LowBytes = 256UL << 20, ClearBytes = 512UL << 20;
+    public const ulong LowBytes = 32UL << 20, ClearBytes = 64UL << 20;
     public const long IntervalMicros = 60_000_000;
     /// <summary>Free and total bytes of the system disk, or null when unknown; set at boot, replaced by tests.</summary>
     public static Func<(ulong Free, ulong Total)?> Root = () => null;
