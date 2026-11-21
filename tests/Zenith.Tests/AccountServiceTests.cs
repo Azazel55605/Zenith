@@ -17,6 +17,23 @@ public class AccountServiceTests
         Assert.Equal(1000u, service.Authenticate("user", "User-password-1")!.Uid);
     }
     [Fact]
+    public void FailedSignInsAreReportedAtTheNextSignInOnce()
+    {
+        Zenith.Core.Notifications.NotificationCenter.Reset();
+        var service = new AccountService(new Store(), new Entropy());
+        using (CredentialContext.Enter(Credentials.Root)) { service.SetPassword("user", null, "User-password-1"); }
+        Assert.Null(service.Authenticate("user", "wrong-1")); Assert.Null(service.Authenticate("user", "wrong-2"));
+        Assert.Null(service.Authenticate("nobody", "x"));                                   // not a real account: not counted
+        Assert.Empty(Zenith.Core.Notifications.NotificationCenter.History());
+        Assert.NotNull(service.Authenticate("user", "User-password-1"));
+        var note = Assert.Single(Zenith.Core.Notifications.NotificationCenter.History());
+        Assert.Equal("Security", note.Source); Assert.StartsWith("2 failed sign-ins", note.Title);
+        Assert.Equal("Meridian", note.Actions![0].App);
+        Assert.NotNull(service.Authenticate("user", "User-password-1"));                     // counted once
+        Assert.Single(Zenith.Core.Notifications.NotificationCenter.History());
+        Zenith.Core.Notifications.NotificationCenter.Reset();
+    }
+    [Fact]
     public void PublicAccountSummaryHasNoSecretsAndOrdinaryReadersSeeOnlyThemselves()
     {
         var service=new AccountService(new Store(),new Entropy());

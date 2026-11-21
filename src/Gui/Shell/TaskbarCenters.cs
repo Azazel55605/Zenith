@@ -19,6 +19,9 @@ internal sealed class TaskbarCenters
     private const int PanelWidth = 320, Padding = 14;
     private readonly Func<string, string[]?, bool> _openApp;
     public TaskbarCenters(Func<string, string[]?, bool> openApp) { _openApp = openApp; }
+    /// <summary>Carries out a notification button (the desktop's); the history shows the first button of each entry.</summary>
+    public Action<Zenith.Core.Notifications.NotificationCenter.NoteAction, Zenith.Core.Notifications.NotificationCenter.Note, int>? RunAction;
+    private readonly Dictionary<int, Zenith.Core.Notifications.NotificationCenter.Note> _noteButtons = new();
     public Panel Open { get; set; }
     public Rect NetworkButton { get; private set; }
     public Rect SoundButton { get; private set; }
@@ -28,7 +31,7 @@ internal sealed class TaskbarCenters
     private Rect _slider;
     private string _note = "";
     private volatile bool _busy;
-    private enum Act { Toggle = 1, Beacon, Diagnostics, NetworkSettings, Mute, Down, Up, SoundSettings, ClearAll, DoNotDisturb, NotificationSettings, Dismiss = 100 }
+    private enum Act { Toggle = 1, Beacon, Diagnostics, NetworkSettings, Mute, Down, Up, SoundSettings, ClearAll, DoNotDisturb, NotificationSettings, Dismiss = 100, NoteButton = 1_000_000 }
 
     /// <summary>Lays the two buttons out to the left of x (the clock's left edge); returns their left edge.</summary>
     public int Layout(int right, int y, int size)
@@ -46,7 +49,8 @@ internal sealed class TaskbarCenters
         }
         return NetworkButton.X;
     }
-    private int _loggedX = int.MinValue, _loggedY;
+    private int _loggedX = int.MinValue, _loggedY, _loggedPanelY = int.MinValue;
+    private Panel _loggedPanel;
 
     // ---------- What to show.
     private static uint Uid => CredentialContext.Current.Uid;
@@ -144,6 +148,11 @@ internal sealed class TaskbarCenters
         surface.DrawShadow(_panel, Theme.WindowRadius, 18, 100, 6);
         surface.FillRoundRect(_panel, Theme.WindowRadius, Theme.Menu);
         surface.StrokeRoundRect(_panel, Theme.WindowRadius, Theme.PanelBorder);
+        if (Open != _loggedPanel || _panel.Y != _loggedPanelY)
+        {
+            _loggedPanel = Open; _loggedPanelY = _panel.Y;
+            Zenith.Core.Log.Write("taskbar", "panel " + Open.ToString().ToLowerInvariant() + " at " + _panel.X + "," + _panel.Y + " " + _panel.W + "x" + _panel.H);
+        }
         if (Open == Panel.Network) { DrawNetwork(surface, mouseX, mouseY); }
         else if (Open == Panel.Sound) { DrawSound(surface, mouseX, mouseY); }
         else { DrawNotifications(surface, mouseX, mouseY); }
@@ -277,6 +286,16 @@ internal sealed class TaskbarCenters
             int tx = card.X + 36, tw = card.W - 36 - (over ? 30 : 10);
             surface.DrawText(Fit(n.Source + " · " + Ago(now - n.Posted), tw), Fonts.Regular, Theme.TextSmall, Theme.TextSecondary, tx, card.Y + 6);
             surface.DrawText(Fit(n.Title, tw), Fonts.SemiBold, Theme.TextSmall + 1, Theme.TextPrimary, tx, card.Y + 20);
+            if (n.Actions is { Length: > 0 } acts && acts[0].Label.Length > 0)
+            {
+                // The main button stays reachable in the history, to the right of the body.
+                int bw = Math.Min(110, Fonts.Regular.MeasureString(acts[0].Label, Theme.TextSmall) + 20);
+                Rect button = new(card.Right - bw - 8, card.Bottom - 26, bw, 22);
+                tw = Math.Min(tw, button.X - tx - 6);
+                surface.FillRoundRect(button, Theme.ControlRadius, button.Contains(mouseX, mouseY) ? Theme.Accent & 0xE0FFFFFFu : Theme.Accent);
+                surface.DrawTextCentered(Fit(acts[0].Label, bw - 8), Fonts.Regular, Theme.TextSmall, Theme.OnAccent, button, true);
+                _actions.Add((button, (int)Act.NoteButton + n.Id)); _noteButtons[n.Id] = n;
+            }
             if (n.Body.Length > 0) { surface.DrawText(Fit(n.Body, tw), Fonts.Regular, Theme.TextSmall, Theme.TextSecondary, tx, card.Y + 36); }
             if (over)
             {
@@ -357,6 +376,13 @@ internal sealed class TaskbarCenters
     private void Run(Act act)
     {
         _note = "";
+        if (act >= Act.NoteButton)
+        {
+            int id = (int)act - (int)Act.NoteButton;
+            if (_noteButtons.TryGetValue(id, out var note) && Zenith.Core.Notifications.NotificationCenter.Activate(id, 0) is { } action)
+            { Open = Panel.None; RunAction?.Invoke(action, note, 0); }
+            return;
+        }
         if (act >= Act.Dismiss) { Zenith.Core.Notifications.NotificationCenter.Remove((int)act - (int)Act.Dismiss); return; }
         switch (act)
         {

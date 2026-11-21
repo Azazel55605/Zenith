@@ -58,6 +58,7 @@ int meridian_init(struct meridian *app,unsigned int *pixels,struct settings_back
 void meridian_style_services(struct meridian *a,long (*catalog)(unsigned int,struct zenith_style_list *),
                              long (*preview)(unsigned int,unsigned int,int,int,unsigned int *));
 void meridian_notify_services(struct meridian *a,long (*read)(struct zenith_notify_settings *),long (*save)(unsigned int,unsigned int,unsigned long),long (*post)(const char *,const char *,const char *));
+void meridian_notify_senders(struct meridian *a,long (*senders)(char *,unsigned int),long (*mute)(const char *,unsigned int,unsigned long));
 void meridian_sound_services(struct meridian *a,long (*read)(struct zenith_sound_settings *),long (*save)(unsigned int,unsigned int,unsigned long),long (*play)(unsigned int));
 int meridian_resize(struct meridian *app,int width,int height,unsigned long capacity);
 void meridian_draw(struct meridian *app);

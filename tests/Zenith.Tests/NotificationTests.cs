@@ -54,6 +54,65 @@ public class NotificationTests
         NotificationCenter.Clear(); Assert.Empty(NotificationCenter.History()); Assert.Equal(0, NotificationCenter.Unread);
     }
     [Fact]
+    public void ButtonsAreBoundedAndActivatingOneFinishesTheNotification()
+    {
+        var open = new NotificationCenter.NoteAction("Show updates", "Orbit", new[] { "updates" });
+        int id = NotificationCenter.Post("Orbit", "2 updates are ready", "", "package", 0, 0, new[] { open });
+        Assert.Same(open, NotificationCenter.Activate(id, 0));
+        Assert.Empty(NotificationCenter.History());
+        Assert.Null(NotificationCenter.Activate(id, 0));                                   // gone
+        var three = new[] { open, open, open };
+        Assert.Equal(-22, NotificationCenter.Post("Orbit", "t", "", "", 0, 0, three));
+        Assert.Equal(-22, NotificationCenter.Post("Orbit", "t", "", "", 0, 0, new[] { new NotificationCenter.NoteAction("", "Orbit", new string[0]) }));
+        Assert.Equal(-22, NotificationCenter.Post("Orbit", "t", "", "", 0, 0, new[] { new NotificationCenter.NoteAction("Go", "Orbit", new[] { "a\nb" }) }));
+    }
+    [Fact]
+    public void MutedSendersPostNothingButAreStillListed()
+    {
+        NotificationCenter.IsMuted = name => name == "noisy";
+        Assert.Equal(0, NotificationCenter.Post("noisy", "hello", "", "", 0));
+        Assert.Empty(NotificationCenter.History()); Assert.Empty(NotificationCenter.TakeNew());
+        Assert.True(NotificationCenter.Post("quiet", "hello", "", "", 0, 77) > 0);
+        Assert.Equal(new[] { "noisy", "quiet" }, NotificationCenter.Senders());
+        Assert.Equal(77, NotificationCenter.History()[0].SenderPid);
+    }
+    [Fact]
+    public void MutedSendersSaveAndSurviveReboot()
+    {
+        var store = new ProcessSystemSettingsTests.Store(); var service = new SettingsService(store, _ => { }, _ => { }, _ => true);
+        Assert.Empty(service.Load());
+        using var root = CredentialContext.Enter(Credentials.Root);
+        var (_, revision) = service.Snapshot();
+        Assert.Equal(-22, service.SaveSenderMuted("a,b", true, revision));
+        Assert.Equal(0, service.SaveSenderMuted("Orbit", true, revision));
+        (_, revision) = service.Snapshot();
+        Assert.Equal(0, service.SaveNotifications(true, 0, revision));                     // keeps the switches
+        var reboot = new SettingsService(store, _ => { }, _ => { }, _ => true); Assert.Empty(reboot.Load());
+        Assert.Equal(new[] { "Orbit" }, reboot.MutedSenders); Assert.True(reboot.DoNotDisturb);
+        (_, revision) = reboot.Snapshot();
+        Assert.Equal(0, reboot.SaveSenderMuted("Orbit", false, revision)); Assert.Empty(reboot.MutedSenders);
+    }
+    [Fact]
+    public void TheDiskWarningComesOnceAndAgainOnlyAfterSpaceRecovered()
+    {
+        Zenith.Core.Storage.StorageWatch.Reset();
+        ulong free = 100UL << 20, total = 4UL << 30;
+        Zenith.Core.Storage.StorageWatch.Root = () => (free, total);
+        long t = 0;
+        Assert.True(Zenith.Core.Storage.StorageWatch.Check(t));
+        Assert.False(Zenith.Core.Storage.StorageWatch.Check(t += 1));                       // not yet a minute
+        Assert.False(Zenith.Core.Storage.StorageWatch.Check(t += Zenith.Core.Storage.StorageWatch.IntervalMicros));   // still low: once
+        free = 300UL << 20;                                                                  // above 256 MiB but below 10 %
+        Assert.False(Zenith.Core.Storage.StorageWatch.Check(t += Zenith.Core.Storage.StorageWatch.IntervalMicros));
+        free = 1UL << 30;                                                                    // recovered
+        Assert.False(Zenith.Core.Storage.StorageWatch.Check(t += Zenith.Core.Storage.StorageWatch.IntervalMicros));
+        free = 100UL << 20;
+        Assert.True(Zenith.Core.Storage.StorageWatch.Check(t += Zenith.Core.Storage.StorageWatch.IntervalMicros));
+        var note = NotificationCenter.History()[^1];
+        Assert.Equal("Disk almost full", note.Title); Assert.Contains("100 MB", note.Body); Assert.Equal(2, note.Actions!.Length);
+        Zenith.Core.Storage.StorageWatch.Root = () => null; Zenith.Core.Storage.StorageWatch.Reset();
+    }
+    [Fact]
     public void HistoryKeepsTheLastThirtyTwo()
     {
         for (int i = 0; i < 40; i++) { NotificationCenter.Post("s" + i, "t" + i, "", "", 0); }

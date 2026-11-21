@@ -35,6 +35,13 @@ internal static class SystemConfiguration
                 catch (Exception e) { Log.Write("boot", "boot style not written: " + e.Message); }
             }).Start();
         };
+        Zenith.Core.Notifications.NotificationCenter.IsMuted = sender => { var muted = Settings.MutedSenders; for (int i = 0; i < muted.Count; i++) { if (muted[i] == sender) { return true; } } return false; };
+        Zenith.Core.Storage.StorageWatch.Root = () =>
+        {
+            if (!Zenith.Core.Storage.SystemMounts.Mode.Equals(Zenith.Core.Storage.BootMode.Installed)) { return null; }
+            if (!Cosmos.Kernel.System.Vfs.VfsManager.TryStatFs("/", out var st)) { return null; }
+            return (st.Bavail * st.BlockSize, st.Blocks * st.BlockSize);
+        };
         Zenith.Core.Files.FileJob.Notify = (title, body, icon) => Zenith.Core.Notifications.NotificationCenter.FromSystem("Files", title, body, icon);
         Log.Write("settings", "loaded keyboard=" + Settings.Current.Keyboard + " timezone=" + Settings.Current.TimeZone
             + " session=" + SessionModes.Name(Settings.Current.DefaultSession));

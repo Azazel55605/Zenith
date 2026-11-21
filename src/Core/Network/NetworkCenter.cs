@@ -62,6 +62,32 @@ internal static class NetworkCenter
     {
         History.Record(Now, kind, value, text);
         Log.Write("network", "event: " + text);
+        Notify(kind, text);
+    }
+    // ---------- Notifications (U14): losing a working connection, and getting it back. Choices the person made
+    // (disconnect, turning the network off) and the first connection after starting stay quiet.
+    private static bool s_wasOnline, s_lossShown;
+    private static void Notify(NetworkEventKind kind, string text)
+    {
+        var settings = new Zenith.Core.Notifications.NotificationCenter.NoteAction("Network", "Beacon", Array.Empty<string>());
+        switch (kind)
+        {
+            case NetworkEventKind.CableOut when s_wasOnline && !s_lossShown:
+                s_lossShown = true;
+                Zenith.Core.Notifications.NotificationCenter.FromSystem("Network", "Network cable unplugged", "You are offline until it is plugged in again.", "network", settings);
+                break;
+            case NetworkEventKind.Failed when s_wasOnline && !s_lossShown:
+                s_lossShown = true;
+                Zenith.Core.Notifications.NotificationCenter.FromSystem("Network", "Connection lost", text, "network", settings);
+                break;
+            case NetworkEventKind.Connected:
+                if (s_lossShown) { Zenith.Core.Notifications.NotificationCenter.FromSystem("Network", "Back online", text, "network"); }
+                s_wasOnline = true; s_lossShown = false;
+                break;
+            case NetworkEventKind.Disconnected or NetworkEventKind.TurnedOff:
+                s_wasOnline = false; s_lossShown = false;
+                break;
+        }
     }
     /// <summary>NetworkService reports each configuration it brought up; a second success at the same address is a renewal.</summary>
     public static void Online(string address, bool dhcp)

@@ -33,6 +33,14 @@ internal sealed class ClientTerminal : IProcessTerminal
     {
         _columns = columns; OwnerPid = ownerPid;
         _session = new TerminalSession(identity, columns, openApp, Emit);
+        // A long command in Polaris: posted under the program's own name; the desktop skips the popup while its window
+        // is in front, and Show brings it forward.
+        _session.CommandFinished = (line, millis, status) =>
+        {
+            var (title, body) = TerminalSession.FinishedWords(line, millis, status);
+            Zenith.Core.Notifications.NotificationCenter.Post(Zenith.Core.Processes.NativeProcess.ProgramNameOf(ownerPid), title, body, "terminal", identity.Uid, ownerPid,
+                new[] { new Zenith.Core.Notifications.NotificationCenter.NoteAction("Show", "@sender", Array.Empty<string>()) });
+        };
     }
 
     public int OwnerPid { get; }

@@ -57,6 +57,9 @@ static unsigned int notify_dnd,notify_popup=1;static int notify_posted;
 static long fake_notify_read(struct zenith_notify_settings *out){memset(out,0,sizeof(*out));out->version=1;out->dnd=notify_dnd;out->popup=notify_popup;out->choices=3;out->revision=preferences.revision;return 32;}
 static long fake_notify_save(unsigned int dnd,unsigned int popup,unsigned long revision){if(revision!=preferences.revision)return -11;notify_dnd=dnd;notify_popup=popup;preferences.revision++;return 0;}
 static long fake_notify_post(const char *title,const char *body,const char *icon){(void)body;(void)icon;notify_posted=title&&title[0];return 7;}
+static int muted_orbit;
+static long fake_notify_senders(char *out,unsigned int capacity){const char *t=muted_orbit?"Orbit\t1\nShell\t0\n":"Orbit\t0\nShell\t0\n";unsigned int n=(unsigned int)strlen(t);if(n>capacity)return -34;memcpy(out,t,n);return n;}
+static long fake_notify_mute(const char *name,unsigned int off,unsigned long revision){if(revision!=preferences.revision)return -11;if(!strcmp(name,"Orbit"))muted_orbit=(int)off;preferences.revision++;return 0;}
 static long fake_preview(unsigned int field,unsigned int index,int w,int h,unsigned int *pixels){
     if((field!=6&&field!=8&&field!=9)||index>=16)return -22;
     for(int y=0;y<h;y++)for(int x=0;x<w;x++)pixels[y*w+x]=0xFF000000u|(unsigned int)(60+x*150/w)<<16|(unsigned int)(80+y*120/h)<<8|(index*12u);
@@ -269,6 +272,12 @@ int main(int argc,char **argv){
     click_id(9312);assert(app.styles.notify_popup==2);
     wheel_until(9320);click_id(9320);assert(notify_posted);
     click_id(900+ZUI_FOOTER_APPLY);assert(notify_dnd==1&&notify_popup==2&&!dirty);
+    /* Per app: switching Orbit off is a draft until Apply, saved against the latest revision. */
+    meridian_notify_senders(&app,fake_notify_senders,fake_notify_mute);draw();
+    assert(app.styles.sender_count==2);wheel_until(9400);assert(app.ui.controls[find_id(9400)].value);
+    click_id(9400);assert(app.styles.senders[0].draft==1&&dirty&&!muted_orbit);
+    click_id(900+ZUI_FOOTER_APPLY);assert(muted_orbit==1&&!dirty);draw();assert(!app.ui.controls[find_id(9400)].value);
+    meridian_notify_senders(&app,0,0);
     meridian_notify_services(&app,0,0,0);
     meridian_style_services(&app,0,0);preferences.wallpaper=0;preferences.cursor=0;cursor_pack=0;preferences.version=1;meridian_refresh(&app);
     /* Service-backed information pages. */

@@ -100,6 +100,35 @@ internal static class PackageCenter
     public static bool Busy => PackageCommands.IsRunning || Installer.IsRunning || Zenith.Core.Boot.NativeKernelUpdates.IsRunning
         || (s_job is { } job && job.State == 1);
 
+    // ---------- The background update check (U14 notifications): two minutes after the desktop starts and then once a
+    // day, only online and when nothing else changes packages. A notification tells when updates are ready, and again
+    // only when their number changed. A check that could not run tries again in half an hour.
+    public const long FirstCheckMicros = 120_000_000, CheckEveryMicros = 86_400_000_000, RetryMicros = 1_800_000_000;
+    private static long s_nextCheck;
+    private static int s_lastOffered = -1;
+    public static void BackgroundCheck(long nowMicros)
+    {
+        if (s_nextCheck == 0) { s_nextCheck = nowMicros + FirstCheckMicros; return; }
+        if (nowMicros < s_nextCheck) { return; }
+        if (SystemMounts.Mode != BootMode.Installed || !Zenith.Core.Network.NetworkService.Online || Busy) { s_nextCheck = nowMicros + RetryMicros; return; }
+        s_nextCheck = nowMicros + CheckEveryMicros;
+        try
+        {
+            using var root = CredentialContext.Enter(Credentials.Root);
+            long id = Start("refresh", "", 0, 0);
+            Log.Write("pkg", id > 0 ? "background update check started" : "background update check deferred: " + id);
+            if (id <= 0) { s_nextCheck = nowMicros + RetryMicros; }
+        }
+        catch (Exception e) { Log.Write("pkg", "background update check skipped: " + e.Message); s_nextCheck = nowMicros + RetryMicros; }
+    }
+    private static long NowMicros() => System.Diagnostics.Stopwatch.GetTimestamp() * 1_000_000 / System.Diagnostics.Stopwatch.Frequency;
+    private static int UpdateCount()
+    {
+        int updates = 0;
+        foreach (var row in Rows(Load(), () => { })) { if (row.State == PackageRowState.Update) { updates++; } }
+        return updates;
+    }
+
     public static byte[] Overview(bool mayApply, Action cancel)
     {
         var view = Load(); var rows = Rows(view, cancel);
@@ -342,6 +371,14 @@ internal static class PackageCenter
             _ = ParseChanges(text);
         }
         if (SystemMounts.Mode != BootMode.Installed) { throw new IOException("Packages can only be changed on an installed system, not on the live system."); }
+        // The background update check steps aside for a person's request: it is asked to stop (it only downloads
+        // package lists) and given up to ten seconds.
+        if (pid != 0 && s_job is { Pid: 0, State: 1 } background)
+        {
+            background.CancelRequested = true;
+            for (int waited = 0; background.State == 1 && waited < 10_000; waited += 50) { Thread.Sleep(50); }
+            Log.Write("pkg", "background update check " + (background.State == 1 ? "still running" : "stopped") + " for pid " + pid);
+        }
         PackageJob job;
         lock (s_gate)
         {
@@ -387,12 +424,35 @@ internal static class PackageCenter
                 job.Step = failure is null ? "Done" : cancelled ? "Cancelled" : "Failed";
             }
             Log.Write("pkg", "orbit job " + job.Id + " " + (failure is null ? "done: " + job.Message : (cancelled ? "cancelled" : "failed: " + failure)));
+            if (cancelled && kind == "refresh" && job.Pid == 0) { s_nextCheck = Math.Min(s_nextCheck, NowMicros() + RetryMicros); }
+            // The background check (pid 0) tells about updates; Orbit shows its own checks itself.
+            if (failure is null && kind == "refresh" && job.Pid == 0)
+            {
+                int updates = 0;
+                try { updates = UpdateCount(); } catch (Exception) { updates = 0; }
+                if (updates > 0 && updates != s_lastOffered)
+                {
+                    Zenith.Core.Notifications.NotificationCenter.FromSystem("Orbit", updates == 1 ? "1 update is ready" : updates + " updates are ready",
+                        "Open Orbit to see what changes and apply them.", "package",
+                        new Zenith.Core.Notifications.NotificationCenter.NoteAction("Show updates", "Orbit", new[] { "updates" }));
+                }
+                s_lastOffered = updates;
+            }
             // Outside the lock: the sound and the notification never hold up a status call.
             if (failure is null && kind == "apply") { Zenith.Core.Audio.SystemSounds.Play("done"); }
             // Results of a package change are notifications too (U14): Orbit may be closed or behind another window.
             if (kind == "apply" && !cancelled)
             {
                 string text = failure is null ? job.Message : Words(failure);
+                if (failure is null && job.Restart)
+                {
+                    // A staged kernel takes effect at restart: the notification offers it.
+                    Zenith.Core.Notifications.NotificationCenter.FromSystem("Orbit", "Restart to finish the update",
+                        text.Length > 160 ? text[..157] + "..." : text, "rotate-ccw",
+                        new Zenith.Core.Notifications.NotificationCenter.NoteAction("Restart now", "", Array.Empty<string>(), true),
+                        new Zenith.Core.Notifications.NotificationCenter.NoteAction("Later", "", Array.Empty<string>()));
+                }
+                else
                 Zenith.Core.Notifications.NotificationCenter.FromSystem("Orbit", failure is null ? "Changes applied" : "Changes not applied",
                     text.Length > 160 ? text[..157] + "..." : text, failure is null ? "package" : "triangle-alert");
             }

@@ -99,7 +99,10 @@ void meridian_style_services(struct meridian *a,long (*catalog)(unsigned int,str
     styles_refresh(&a->styles);
 }
 void meridian_notify_services(struct meridian *a,long (*read)(struct zenith_notify_settings *),long (*save)(unsigned int,unsigned int,unsigned long),long (*post)(const char *,const char *,const char *)){
-    a->styles.notify_read=read;a->styles.notify_save=save;a->styles.notify_post=post;if(!read)a->styles.notify_ready=0;styles_refresh(&a->styles);
+    a->styles.notify_read=read;a->styles.notify_save=save;a->styles.notify_post=post;if(!read){a->styles.notify_ready=0;a->styles.sender_count=0;}styles_refresh(&a->styles);
+}
+void meridian_notify_senders(struct meridian *a,long (*senders)(char *,unsigned int),long (*mute)(const char *,unsigned int,unsigned long)){
+    a->styles.notify_senders=senders;a->styles.notify_mute=mute;if(!senders)a->styles.sender_count=0;styles_refresh(&a->styles);
 }
 void meridian_sound_services(struct meridian *a,long (*read)(struct zenith_sound_settings *),long (*save)(unsigned int,unsigned int,unsigned long),long (*play)(unsigned int)){
     a->styles.sounds=read;a->styles.sound_save=save;a->styles.sound_play=play;styles_refresh(&a->styles);
@@ -396,6 +399,13 @@ static void notify_form(struct meridian *a,struct zui *u,struct zui_form *f,int 
     for(unsigned int i=0;i<3&&i<st->notify.choices;i++)zui_add(u,(int)(9310+i),ZUI_SEGMENT,(struct zui_rect){r.x+(int)i*(w+8),r.y,w,32},names[i],st->notify_popup==i,writable);
     r=zui_form_row(u,f,"Try it","Sends a notification from Meridian.",f->narrow?f->w:180,32);
     zui_add(u,9320,ZUI_BUTTON,(struct zui_rect){r.x,r.y,r.w,32},"Send a test",0,st->notify_post!=0);
+    /* Per app: everyone that posted since the system started, and every app switched off. */
+    zui_form_section(u,f,"Apps");
+    if(!st->sender_count){status(u,f,"Apps appear here once they send a notification.");return;}
+    for(int i=0;i<st->sender_count;i++){
+        r=zui_form_row(u,f,st->senders[i].name,st->senders[i].draft?"Off: not shown and not kept.":0,f->narrow?f->w:240,32);
+        zui_add(u,9400+i,ZUI_TOGGLE,r,"",!st->senders[i].draft,writable);
+    }
 }
 static int system_writable(const struct meridian *a){return a->bindings.ready&&!!(a->bindings.preferences.flags&2);}
 /* Every picker of the page; true when it drew any. */
@@ -840,6 +850,7 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     else if(id>=ID_LINKS&&id<ID_LINKS+MERIDIAN_PAGE_COUNT)request_page(a,id-ID_LINKS);
     else if(id==9300){struct meridian_styles *st=&a->styles;styles_notify_set(st,!st->notify_dnd,st->notify_popup);}
     else if(id>=9310&&id<9313){struct meridian_styles *st=&a->styles;styles_notify_set(st,st->notify_dnd,(unsigned int)(id-9310));}
+    else if(id>=9400&&id<9424){styles_sender_toggle(&a->styles,id-9400);}
     else if(id==9320){struct meridian_styles *st=&a->styles;if(st->notify_post){long r=st->notify_post("Notifications work","This is how notifications from your apps will look.","info");st->message=r>0?"Test sent.":r==-16?"Sent too often; wait a few seconds.":"The desktop does not show notifications yet.";}}
     else if(id==9001||id==9002){struct meridian_styles *st=&a->styles;int v=(int)st->sound_level+(id==9002?10:-10);styles_sound_set(st,(unsigned int)(v<0?0:v>100?100:v),st->sound_mask);}
     else if(id>=9100&&id<9115){struct meridian_styles *st=&a->styles;styles_sound_set(st,st->sound_level,st->sound_mask^(1u<<(id-9100)));}

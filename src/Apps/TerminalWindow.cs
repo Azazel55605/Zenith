@@ -56,6 +56,13 @@ internal sealed class TerminalWindow : Window
         UpdateGeometry();
 
         _session = new TerminalSession(Identity, _columns, (name, argument) => OpenApp?.Invoke(name, argument) ?? false);
+        // A long command finished while this window was not in front.
+        _session.CommandFinished = (line, millis, status) =>
+        {
+            if (IsFocused) { return; }
+            var (title, body) = TerminalSession.FinishedWords(line, millis, status);
+            Zenith.Core.Notifications.NotificationCenter.FromSystem("Terminal", title, body, "terminal");
+        };
     }
 
     /// <summary>Opens a desktop app by name; set once by the desktop.</summary>

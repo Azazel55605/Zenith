@@ -357,6 +357,8 @@ def native_gate_plan():
     if (REPO / "tools/beacon-smoke.py").exists(): checks.append(("w", "beacon-smoke.py"))
     # Orbit, the package center (call 668) and about files in packages (kernel 0.0.70).
     if (REPO / "tools/orbit-smoke.py").exists(): checks.append(("y", "orbit-smoke.py"))
+    # Appearance, window snapping and notifications (kernel 0.0.76; older tags lack it).
+    if (REPO / "tools/appearance-smoke.py").exists(): checks.append(("l", "appearance-smoke.py"))
     if (REPO / "tools/installer-seed-smoke.py").exists(): checks.append(("i", "installer-seed-smoke.py"))
     # Run the expensive crash/recovery matrix last. A repository regression
     # should fail before repeating that matrix; every gate remains mandatory.

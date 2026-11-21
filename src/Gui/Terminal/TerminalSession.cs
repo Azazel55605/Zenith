@@ -476,11 +476,28 @@ internal sealed class TerminalSession : IOutput
         }
     }
 
+    /// <summary>A command that ran at least <see cref="LongCommandMillis"/> finished (line, milliseconds, status): the
+    /// terminal decides whether to post a notification.</summary>
+    public Action<string, long, int>? CommandFinished;
+    public const long LongCommandMillis = 10_000;
+    public static string Duration(long millis)
+    {
+        long s = millis / 1000;
+        return s < 60 ? s + " s" : s < 3600 ? s / 60 + " min " + s % 60 + " s" : s / 3600 + " h " + s / 60 % 60 + " min";
+    }
+    /// <summary>The notification text for a finished long command.</summary>
+    public static (string Title, string Body) FinishedWords(string line, long millis, int status)
+    {
+        string shown = line.Trim(); if (shown.Length > 60) { shown = shown[..57] + "..."; }
+        return (status == 0 ? "Command finished" : "Command failed", shown + (status == 0 ? " finished after " : " failed with status " + status + " after ") + Duration(millis));
+    }
+
     /// <summary>Runs a complete command on a worker thread.</summary>
     private void Run(string line)
     {
         _commandStarted = Stopwatch.GetTimestamp();
         _jobRunning = true;
+        long started = _commandStarted;
         _job = new Thread(() =>
         {
             using var credentials = CredentialContext.Enter(_shell.Identity);
@@ -488,6 +505,12 @@ internal sealed class TerminalSession : IOutput
             try { _shell.Execute(line); }
             catch (Exception e) { Zenith.Core.Log.Write("terminal", "command failed: " + e.Message); }
             _jobRunning = false;
+            long millis = (Stopwatch.GetTimestamp() - started) * 1000 / Stopwatch.Frequency;
+            if (millis >= LongCommandMillis)
+            {
+                try { CommandFinished?.Invoke(line, millis, _shell.LastStatus); }
+                catch (Exception e) { Zenith.Core.Log.Write("terminal", "finished notice skipped: " + e.Message); }
+            }
         });
         _job.Start();
     }

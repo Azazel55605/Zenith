@@ -47,7 +47,7 @@ internal static class BootstrapComponents
         new("zenith-native-open-with-abi", "1.0", "portal extended payloads, org.zenith.portal.OpenWith and the org.zenith.files.manage action (kernel 0.0.65)"),
         new("zenith-native-network-center-abi", "1.0", "network status, traffic and event history, diagnostics, ping, safe apply and connect/disconnect (667) (kernel 0.0.69)"),
         new("zenith-native-package-center-abi", "1.0", "Orbit's package service: overview, packages with reasons, details from the signed package, plans, apply and refresh jobs, history and sources (668) (kernel 0.0.70)"),
-        new("zenith-native-notifications-abi", "1.0", "Post a notification the desktop shows as a toast; read and save Do Not Disturb and popup time (670) (kernel 0.0.72)"),
+        new("zenith-native-notifications-abi", "1.1", "Post a notification the desktop shows as a toast; Do Not Disturb and popup time (670, kernel 0.0.72); buttons (event 13 to the sender), the senders and per-sender switches (ops 4-6, kernel 0.0.76)"),
         new("zenith-native-style-catalog-abi", "1.0", "Meridian's pickers: every choice of a setting and previews drawn by the desktop, system sound level, switches and preview (669) (kernel 0.0.72)"),
         new("zenith-native-clipboard-abi", "1.0", "window clipboard: 639 copies from the focused window, 659 pastes once per Ctrl+V (kernel 0.0.64)"),
         new("zenith-native-viewport-abi", "1.0", "owned bounded resize/maximize with versioned acknowledgement"),

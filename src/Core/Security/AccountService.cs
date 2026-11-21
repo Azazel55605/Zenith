@@ -69,12 +69,28 @@ internal sealed class AccountService
     }
     public Credentials? Authenticate(string name, string password)
     {
+        Credentials? identity; int failed = 0;
         lock (_gate)
         {
             var db = Load(); var user = db.Find(name);
-            return user is not null && PasswordHash.Verify(password, user.Password) ? db.Identity(user) : null;
+            identity = user is not null && PasswordHash.Verify(password, user.Password) ? db.Identity(user) : null;
+            // Wrong passwords for a real account are counted (since the system started) and reported at its next sign-in.
+            if (user is not null)
+            {
+                if (identity is null) { s_failures.TryGetValue(user.Name, out int n); if (n < 9999) { s_failures[user.Name] = n + 1; } }
+                else if (s_failures.Remove(user.Name, out int n)) { failed = n; }
+            }
         }
+        if (failed > 0)
+        {
+            Zenith.Core.Notifications.NotificationCenter.FromSystem("Security",
+                failed == 1 ? "1 failed sign-in since your last sign-in" : failed + " failed sign-ins since your last sign-in",
+                "Someone entered a wrong password for " + name + ". If that wasn't you, change your password.", "shield",
+                new Zenith.Core.Notifications.NotificationCenter.NoteAction("Users", "Meridian", new[] { "--page", "system.users" }));
+        }
+        return identity;
     }
+    private readonly System.Collections.Generic.Dictionary<string, int> s_failures = new();
     public Credentials RootSwitch(string name)
     {
         if (!CredentialContext.Current.IsRoot) { throw new UnauthorizedAccessException("operation requires root"); }

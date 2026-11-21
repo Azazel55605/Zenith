@@ -48,6 +48,16 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
     {
         lock (_gate) { foreach (var surface in _surfaces) { if (!surface.Ended) { surface.Send(new(7, 0, 0, 0, 0, 0)); } } }
     }
+    /// <summary>Tells program <paramref name="pid"/> that button <paramref name="index"/> of its notification
+    /// <paramref name="id"/> was pressed (event 13: code = button, extra = notification). False when it has no window.</summary>
+    public bool SendNotificationAction(int pid, int index, int id)
+    {
+        lock (_gate)
+        {
+            foreach (var surface in _surfaces) { if (!surface.Ended && surface.OwnerPid == pid) { surface.Send(new(13, index, 0, 0, 0, id)); return true; } }
+            return false;
+        }
+    }
     public ProcessSurface? Open(int width, int height, string title, int format = 1)
     {
         lock (_gate)

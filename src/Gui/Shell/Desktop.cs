@@ -95,6 +95,8 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         Windows = new WindowManager(new Rect(0, 0, w, h - Theme.TaskbarHeight - 2 * Theme.TaskbarMargin), new Rect(0, 0, w, h));
         _taskbar = new Taskbar(w, h, Windows);
         _taskbar.Centers = new TaskbarCenters(OpenAppWith);
+        _toasts.RunAction = RunNotificationAction;
+        _taskbar.Centers.RunAction = RunNotificationAction;
         // Meridian's wallpaper picker shows real previews, drawn by the same formulas (call 669).
         Zenith.Core.Configuration.StyleCatalog.RenderWallpaper = (choice, w, h) =>
         {
@@ -173,6 +175,20 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
 
     /// <summary>Opens a registered app by (case-insensitive) name, passing it an optional argument such as a file path.</summary>
     public bool OpenApp(string name, string? argument) => OpenAppWith(name, argument is null ? null : new[] { argument });
+    /// <summary>A notification button: Restart asks Sunset (which confirms), "@sender" tells the program that posted it
+    /// (event 13) and brings its window forward, an app name opens that app, an empty one only closes the notification.</summary>
+    private void RunNotificationAction(Zenith.Core.Notifications.NotificationCenter.NoteAction action, Zenith.Core.Notifications.NotificationCenter.Note note, int index)
+    {
+        _sceneDirty = true;
+        if (action.Restart) { OpenSunset(Zenith.Core.Sessions.SunsetAction.Restart); return; }
+        if (action.App == "@sender")
+        {
+            foreach (var window in Windows.Windows) { if (window.OwnerPid == note.SenderPid && note.SenderPid != 0) { Windows.Focus(window); break; } }
+            if (!_nativeClients.SendNotificationAction(note.SenderPid, index, note.Id)) { Zenith.Core.Log.Write("notify", "action for " + note.Source + " dropped: the program has no window"); }
+            return;
+        }
+        if (action.App.Length > 0) { OpenAppWith(action.App, action.Args.Length == 0 ? null : action.Args); }
+    }
 
     /// <summary>Opens an app by name with extra program arguments (Prism opens a Meridian page
     /// with "--page", ID). An installed native program runs; otherwise its built-in window.</summary>
@@ -354,7 +370,11 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         }
         if (_sunset.Tick(_scene.Width, _scene.Height)) { _sceneDirty = true; }
         // Notifications: toasts over the work area (not on the lock screen, where they wait).
-        if (!_lock.IsLocked && _toasts.Tick(Windows.WorkArea, _input.X, _input.Y, _taskbar.Centers?.Open == TaskbarCenters.Panel.Notifications)) { _sceneDirty = true; _composeAll = true; }
+        // System checks that become notifications: the disk filling up (at most once a minute).
+        long checkNow = FrameStats.Now * 1_000_000 / System.Diagnostics.Stopwatch.Frequency;
+        Zenith.Core.Storage.StorageWatch.Check(checkNow);
+        Zenith.Core.Packages.PackageCenter.BackgroundCheck(checkNow);
+        if (!_lock.IsLocked && _toasts.Tick(Windows.WorkArea, _input.X, _input.Y, _taskbar.Centers?.Open == TaskbarCenters.Panel.Notifications, Windows.Top is { IsFocused: true, IsMinimized: false } front ? front.OwnerPid : 0)) { _sceneDirty = true; _composeAll = true; }
         if (_generation != Accounts.Generation)
         {
             foreach (var window in Windows.Windows) { if (window is TerminalWindow terminal && terminal.IsBusy) { return; } }

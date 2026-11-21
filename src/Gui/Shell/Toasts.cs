@@ -20,6 +20,7 @@ internal sealed class Toasts
         public long Shown, Leaving, Deadline;
         public string[] Lines = Array.Empty<string>();
         public Rect Bounds;
+        public bool Logged;
     }
     private readonly List<Card> _cards = new();
     private readonly Queue<NotificationCenter.Note> _waiting = new();
@@ -40,7 +41,13 @@ internal sealed class Toasts
 
     /// <summary>Takes new notifications, ends cards whose time ran out and lays the stack out in the work area.
     /// True when something on screen changed.</summary>
-    public bool Tick(Rect work, int mouseX, int mouseY, bool historyOpen = false)
+    /// <summary>Carries out a button (opens an app, restarts through Sunset, tells the sending program); set by the desktop.</summary>
+    public Action<NotificationCenter.NoteAction, NotificationCenter.Note, int>? RunAction;
+    public const int ButtonHeight = 28;
+
+    /// <summary><paramref name="frontPid"/>: the program whose window is in front; its own notifications skip the popup
+    /// (they are in the history).</summary>
+    public bool Tick(Rect work, int mouseX, int mouseY, bool historyOpen = false, int frontPid = 0)
     {
         var settings = Zenith.Core.Configuration.SystemConfiguration.Settings;
         bool dnd = (settings?.DoNotDisturb ?? false) || historyOpen, changed = false;   // the open history shows them itself
@@ -48,6 +55,7 @@ internal sealed class Toasts
         foreach (var note in NotificationCenter.TakeNew())
         {
             if (dnd) { continue; }   // kept in the history only
+            if (frontPid != 0 && note.SenderPid == frontPid) { Zenith.Core.Log.Write("notify", "toast " + note.Id + " skipped: its app is in front"); continue; }
             _waiting.Enqueue(note); while (_waiting.Count > 8) { _waiting.Dequeue(); }
         }
         long now = Now, slide = SlideMicros * AnimationPercent() / 100;
@@ -58,7 +66,6 @@ internal sealed class Toasts
             var note = _waiting.Dequeue();
             _cards.Insert(0, new Card { Note = note, Shown = now, Deadline = now + hold });
             if (!sounded) { sounded = true; Zenith.Core.Audio.SystemSounds.Play("notification"); }
-            Zenith.Core.Log.Write("notify", "toast " + note.Id + " shown");
             changed = true;
         }
         for (int i = _cards.Count - 1; i >= 0; i--)
@@ -72,6 +79,13 @@ internal sealed class Toasts
             else if (now - c.Leaving >= slide) { _cards.RemoveAt(i); changed = true; }
         }
         Layout(work);
+        // Where each new card landed, once: gates turn this into clicks on it and its buttons.
+        foreach (var c in _cards)
+        {
+            if (c.Logged) { continue; }
+            c.Logged = true; Rect b = c.Bounds;
+            Zenith.Core.Log.Write("notify", "toast " + c.Note.Id + " shown at " + b.X + "," + b.Y + " " + b.W + "x" + b.H + " buttons=" + (c.Note.Actions?.Length ?? 0));
+        }
         return changed || Moving;
     }
 
@@ -81,7 +95,7 @@ internal sealed class Toasts
         foreach (var c in _cards)
         {
             if (c.Lines.Length == 0) { c.Lines = Wrap(c.Note.Body, inner, 2); }
-            int height = Pad + 16 + 20 + c.Lines.Length * 18 + Pad;
+            int height = Pad + 16 + 20 + c.Lines.Length * 18 + Pad + (c.Note.Actions is { Length: > 0 } ? ButtonHeight + 8 : 0);
             c.Bounds = new Rect(work.Right - Margin - width, bottom - height, width, height);
             bottom -= height + Gap;
         }
@@ -109,14 +123,35 @@ internal sealed class Toasts
         return false;
     }
 
-    /// <summary>A click on a card dismisses it (sliding out). True when the click landed on one.</summary>
+    /// <summary>The buttons of a card in place: right-aligned at its bottom.</summary>
+    internal static Rect[] Buttons(Rect card, int count, int pad = Pad)
+    {
+        var result = new Rect[count];
+        int w = Math.Min(140, (card.W - 2 * pad - 44 - 8 * (count - 1)) / Math.Max(1, count)), x = card.Right - pad;
+        for (int i = count - 1; i >= 0; i--) { x -= w; result[i] = new Rect(x, card.Bottom - pad - ButtonHeight, w, ButtonHeight); x -= 8; }
+        return result;
+    }
+    /// <summary>A click on a card: on a button runs it, anywhere else dismisses the card (sliding out). True when the
+    /// click landed on one.</summary>
     public bool HandleClick(int x, int y)
     {
         foreach (var c in _cards)
         {
             if (c.Leaving == 0 && c.Bounds.Contains(x, y))
             {
-                c.Leaving = Now; Zenith.Core.Log.Write("notify", "toast " + c.Note.Id + " dismissed");
+                c.Leaving = Now;
+                if (c.Note.Actions is { Length: > 0 } actions)
+                {
+                    var rects = Buttons(c.Bounds, actions.Length);
+                    for (int i = 0; i < rects.Length; i++)
+                    {
+                        if (!rects[i].Contains(x, y)) { continue; }
+                        var action = NotificationCenter.Activate(c.Note.Id, i);
+                        if (action is not null) { RunAction?.Invoke(action, c.Note, i); }
+                        return true;
+                    }
+                }
+                Zenith.Core.Log.Write("notify", "toast " + c.Note.Id + " dismissed");
                 return true;
             }
         }
@@ -144,6 +179,17 @@ internal sealed class Toasts
             s.DrawText(Fit(c.Note.Title, right - x, Theme.TextBody, Fonts.SemiBold), Fonts.SemiBold, Theme.TextBody, Theme.TextPrimary, x, r.Y + Pad + 14);
             int y = r.Y + Pad + 36;
             foreach (string line in c.Lines) { s.DrawText(line, Fonts.Regular, Theme.TextSmall + 1, Theme.TextSecondary, x, y); y += 18; }
+            if (c.Note.Actions is { Length: > 0 } actions)
+            {
+                var rects = Buttons(r, actions.Length);
+                for (int i = 0; i < rects.Length; i++)
+                {
+                    bool over = rects[i].Offset(-Offset(c, now), 0).Contains(mouseX, mouseY);
+                    // The first button is the main one: filled with the accent, the second plain.
+                    s.FillRoundRect(rects[i], Theme.ControlRadius, i == 0 ? (over ? Theme.Accent & 0xE0FFFFFFu : Theme.Accent) : over ? Theme.Pressed : Theme.Hover);
+                    s.DrawTextCentered(Fit(actions[i].Label, rects[i].W - 12, Theme.TextSmall + 1, Fonts.Regular), Fonts.Regular, Theme.TextSmall + 1, i == 0 ? Theme.OnAccent : Theme.TextPrimary, rects[i], true);
+                }
+            }
             // The close mark shows under the pointer; a click anywhere on the card dismisses it.
             if (c.Leaving == 0 && c.Bounds.Contains(mouseX, mouseY) && !Icons.Draw(s, "x", r.Right - Pad - 16, r.Y + Pad, 16, Theme.TextSecondary))
             {

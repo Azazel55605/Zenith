@@ -236,6 +236,10 @@ internal sealed class SettingsService
     public static readonly int[] PopupSeconds = { 4, 6, 10 };
     public bool DoNotDisturb { get; private set; }
     public uint Popup { get; private set; } = 1;
+    /// <summary>Senders whose notifications are switched off (OFF=Name,Name).</summary>
+    public IReadOnlyList<string> MutedSenders { get; private set; } = Array.Empty<string>();
+    public const int MutedMax = 32;
+    public static bool ValidSender(string name) { if (name.Length is 0 or > 32) { return false; } foreach (char c in name) { if (c is ',' or '=' or '\n' or '\r' || c < ' ') { return false; } } return true; }
     private void LoadNotifications(List<string> errors)
     {
         try
@@ -243,8 +247,14 @@ internal sealed class SettingsService
             var fields = Fields(_store.Read(NotificationsPath));
             if (fields.TryGetValue("DND", out string? dnd)) { DoNotDisturb = dnd == "1" ? true : dnd == "0" ? false : throw new FormatException("bad DND"); }
             if (fields.TryGetValue("POPUP", out string? popup)) { int i = Array.IndexOf(PopupNames, popup); Popup = i >= 0 ? (uint)i : throw new FormatException("bad POPUP"); }
+            if (fields.TryGetValue("OFF", out string? off))
+            {
+                var muted = new List<string>();
+                foreach (string name in off.Split(',', StringSplitOptions.RemoveEmptyEntries)) { if (ValidSender(name) && muted.Count < MutedMax && !muted.Contains(name)) { muted.Add(name); } }
+                MutedSenders = muted;
+            }
         }
-        catch (Exception e) { DoNotDisturb = false; Popup = 1; errors.Add(NotificationsPath + ": " + e.Message + "; using defaults"); }
+        catch (Exception e) { DoNotDisturb = false; Popup = 1; MutedSenders = Array.Empty<string>(); errors.Add(NotificationsPath + ": " + e.Message + "; using defaults"); }
     }
     public int SaveNotifications(bool dnd, uint popup, ulong revision)
     {
@@ -253,9 +263,26 @@ internal sealed class SettingsService
         lock (_gate)
         {
             if (revision != _revision) { return -11; }
-            try { _store.Replace(NotificationsPath, Update(_store.Read(NotificationsPath), new Dictionary<string, string> { ["VERSION"] = "1", ["DND"] = dnd ? "1" : "0", ["POPUP"] = PopupNames[popup] })); }
+            try { _store.Replace(NotificationsPath, Update(_store.Read(NotificationsPath), new Dictionary<string, string> { ["VERSION"] = "1", ["DND"] = dnd ? "1" : "0", ["POPUP"] = PopupNames[popup], ["OFF"] = string.Join(",", MutedSenders) })); }
             catch { return -5; }
             DoNotDisturb = dnd; Popup = popup; _revision++;
+            return 0;
+        }
+    }
+    /// <summary>Switches a sender's notifications off or on.</summary>
+    public int SaveSenderMuted(string sender, bool muted, ulong revision)
+    {
+        if (!CredentialContext.Current.IsRoot) { return -13; }
+        if (!ValidSender(sender)) { return -22; }
+        lock (_gate)
+        {
+            if (revision != _revision) { return -11; }
+            var list = new List<string>(MutedSenders);
+            if (muted && !list.Contains(sender)) { if (list.Count >= MutedMax) { return -28; } list.Add(sender); }
+            if (!muted) { list.Remove(sender); }
+            try { _store.Replace(NotificationsPath, Update(_store.Read(NotificationsPath), new Dictionary<string, string> { ["VERSION"] = "1", ["DND"] = DoNotDisturb ? "1" : "0", ["POPUP"] = PopupNames[Popup], ["OFF"] = string.Join(",", list) })); }
+            catch { return -5; }
+            MutedSenders = list; _revision++;
             return 0;
         }
     }

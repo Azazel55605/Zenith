@@ -187,8 +187,31 @@ wallpapers, and the three widget styles built in full. The Ribbon concept's clos
 - Meridian's picker previews fill their tiles up to the outline, rounded with the tile in Rounded and Soft
   (`zui_image_round`).
 
+## AP13 — Notifications from the system, buttons and per-app choices (local, kernel 0.0.76)
+
+- System sources, all posted by the kernel:
+  - **Network:** a working connection lost (cable out or a failed reconnect) and "Back online"; disconnecting or
+    turning the network off yourself stays quiet.
+  - **Storage:** the system disk below 5 % or 256 MiB, once, until it recovers above 10 % and 512 MiB
+    (`StorageWatch`, checked once a minute).
+  - **Security:** wrong passwords for an account since the system started, reported at its next sign-in.
+  - **Orbit:** a background update check two minutes after the desktop starts and then daily, when online and
+    nothing else changes packages, telling when updates are ready (again only when their number changes); "Restart
+    to finish the update" after a kernel update, with Restart now (through Sunset) and Later.
+  - **Terminals:** a command that ran 10 s or more, from Polaris (under its own name, with Show) or the built-in
+    Terminal when it is not in front.
+- Buttons: up to two per notification. System buttons open an app (with arguments) or restart through Sunset; a
+  program's buttons reach only itself (event 13, `Z_GUI_NOTIFICATION_ACTION`, and its window comes forward). Toasts
+  show them right-aligned; the history panel keeps the first. Shell: `notify --action LABEL APP`.
+- Per-app switches: Meridian › Notifications lists every sender seen since the system started and every one switched
+  off (`OFF=` in `/etc/zenith/notifications.conf`); an app switched off posts nothing. Shell: `notify mute NAME on|off`.
+  A program's own notifications skip the popup while its window is in front (they go to the history).
+- `zenith-native-notifications-abi` 1.1: ops 4 (senders), 5 (switch one), 6 (post with buttons).
+- Gate `tools/appearance-smoke.py` (release check `l`): boot style in the menu, the failed sign-in report, snapping
+  to the left half, top and a corner, a toast and its dismissal, a button, a sender switched off, a long command,
+  the bell panel with Do Not Disturb and Clear all, and live style switching.
+
 ## Next
 
-Gates for the new styles (settings gate pickers; login styles; decorations in the system-app gate; icon sets and
-sound settings; snapping, toasts and the history panel), per-app notification choices and which apps post what,
-keyboard snapping (Meta+arrows).
+Keyboard snapping (Meta+arrows); notifications from removable drives (S6) and downloads (N3) when those exist;
+picker and login-style checks in the gates.

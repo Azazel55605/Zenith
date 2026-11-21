@@ -79,6 +79,7 @@ internal sealed unsafe class NativeProcess
         Zenith.Core.Audio.AudioService.Release(pid);
         Processes.Complete(pid, status);
     }
+    internal static string ProgramNameOf(int pid) => ProgramName(pid);
     private static string ProgramName(int pid)
     {
         foreach (var p in Processes.List(0)) { if (p.Pid == pid) { return p.Name; } }
@@ -586,7 +587,7 @@ internal sealed unsafe class NativeProcess
             // Meridian's pickers and system sounds (zenith-native-style-catalog-abi 1.0, kernel 0.0.72): the choices of a setting, and
             // a preview drawn by the desktop. Request (32 bytes): version 1, op (1 list, 2 preview), field, index,
             // u64 output, u32 capacity, u32 width << 16 | height.
-            // Notifications (zenith-native-notifications-abi 1.0, kernel 0.0.72). Request (32 bytes): version 1, op,
+            // Notifications (zenith-native-notifications-abi 1.0, kernel 0.0.72; 1.1, kernel 0.0.76, adds ops 4-6). Request (32 bytes): version 1, op,
             // u32 argument, u32 reserved, u64 buffer, u32 size, u32 reserved. Op 1 posts (buffer: title[64], body[160],
             // icon[32], NUL padded); the sender is the process name. Op 2 reads the settings (32 bytes: version, Do Not
             // Disturb, popup choice, choices, u64 revision). Op 3 saves them (argument: dnd | popup << 8; buffer: the
@@ -611,7 +612,7 @@ internal sealed unsafe class NativeProcess
                     }
                     string title = Field(note, 0, 64), body = Field(note, 64, 160), icon = Field(note, 224, 32);
                     if (title == "\u0001" || body == "\u0001" || icon == "\u0001") { return -22; }
-                    return Zenith.Core.Notifications.NotificationCenter.Post(ProgramName((int)c.Pid), title, body, icon, (uint)c.Uid);
+                    return Zenith.Core.Notifications.NotificationCenter.Post(ProgramName((int)c.Pid), title, body, icon, (uint)c.Uid, (int)c.Pid);
                 }
                 if (service is null) { return -19; }
                 if (op == 2)
@@ -628,6 +629,55 @@ internal sealed unsafe class NativeProcess
                 {
                     if (size < 8 || !Valid(buffer, 8, false) || (argument & 0xFF) > 1) { return -22; }
                     return service.SaveNotifications((argument & 1) != 0, argument >> 8, BitConverter.ToUInt64(ReadUser(buffer, 8), 0));
+                }
+                // 1.1 (kernel 0.0.76): op 4 lists the senders ("name TAB 0|1 LF", 1 = switched off) into the buffer;
+                // op 5 switches one off (argument 1) or on (0): buffer = u64 revision, name[56]; op 6 posts with up to
+                // two buttons: buffer = the 256-byte notification, then two 64-byte buttons (label[24], reserved).
+                if (op == 4)
+                {
+                    if (size < 64 || size > 8192 || !Valid(buffer, (int)size, true)) { return -22; }
+                    var names = Zenith.Core.Notifications.NotificationCenter.Senders();
+                    foreach (string m in service.MutedSenders) { if (!names.Contains(m)) { names.Add(m); } }
+                    var text = new StringBuilder();
+                    foreach (string n in names)
+                    {
+                        bool off = false; foreach (string m in service.MutedSenders) { if (m == n) { off = true; } }
+                        string line = n + "\t" + (off ? "1" : "0") + "\n";
+                        if (text.Length + line.Length > size) { break; }
+                        text.Append(line);
+                    }
+                    byte[] data = Encoding.UTF8.GetBytes(text.ToString());
+                    if (data.Length > 0) { Transfer(buffer, data, true); }
+                    return data.Length;
+                }
+                if (op == 5)
+                {
+                    if (size != 64 || !Valid(buffer, 64, false) || argument > 1) { return -22; }
+                    byte[] q = ReadUser(buffer, 64);
+                    int n = 0; while (n < 56 && q[8 + n] != 0) { n++; }
+                    if (n == 56) { return -22; }
+                    return service.SaveSenderMuted(Encoding.UTF8.GetString(q, 8, n), argument == 1, BitConverter.ToUInt64(q, 0));
+                }
+                if (op == 6)
+                {
+                    if (size != 384 || !Valid(buffer, 384, false)) { return -22; }
+                    byte[] note = ReadUser(buffer, 384);
+                    static string Field6(byte[] b, int at, int length)
+                    {
+                        int k = 0; while (k < length && b[at + k] != 0) { k++; }
+                        return k == length ? "\u0001" : Encoding.UTF8.GetString(b, at, k);
+                    }
+                    string title = Field6(note, 0, 64), body = Field6(note, 64, 160), icon = Field6(note, 224, 32);
+                    if (title == "\u0001" || body == "\u0001" || icon == "\u0001") { return -22; }
+                    var buttons = new System.Collections.Generic.List<Zenith.Core.Notifications.NotificationCenter.NoteAction>();
+                    for (int b = 0; b < 2; b++)
+                    {
+                        string label = Field6(note, 256 + b * 64, 24);
+                        if (label == "\u0001") { return -22; }
+                        // A program's button can only reach the program itself: the desktop sends it event 13.
+                        if (label.Length > 0) { buttons.Add(new(label, "@sender", Array.Empty<string>())); }
+                    }
+                    return Zenith.Core.Notifications.NotificationCenter.Post(ProgramName((int)c.Pid), title, body, icon, (uint)c.Uid, (int)c.Pid, buttons.Count == 0 ? null : buttons.ToArray());
                 }
                 return -22;
             }

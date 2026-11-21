@@ -13,7 +13,7 @@ internal static class ConfigurationCommands
         add(new Command("display", "display [test WIDTH HEIGHT SCALE|PERCENT | keep | revert]", "Primary display modes and guarded preview", Display));
         add(new Command("settings", "settings [show | set keyboard|timezone|session|animations|taskbar|windows|wallpaper|cursor|cursor-size|decoration|widgets|buttons|splash|login|boot|sounds|icons|sound-level|sound-off|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]", "Shared system settings", Settings));
         add(new Command("session", "session [status | list | set-default MODE | switch MODE]", "Select a session or return to login", Session));
-        add(new Command("notify", "notify [--icon NAME] TITLE [BODY...] | notify history | notify dnd on|off | notify popup short|normal|long", "Post a notification; show history; Do Not Disturb", Notify));
+        add(new Command("notify", "notify [--icon NAME] [--action LABEL APP] TITLE [BODY...] | notify history | notify dnd on|off | notify popup short|normal|long | notify mute NAME on|off", "Post a notification; show history; Do Not Disturb", Notify));
     }
     private static int Notify(CommandContext c)
     {
@@ -23,6 +23,15 @@ internal static class ConfigurationCommands
             foreach (var n in Zenith.Core.Notifications.NotificationCenter.History()) { c.WriteLine(n.Id + " " + n.Source + ": " + n.Title + (n.Body.Length > 0 ? " - " + n.Body : "")); }
             c.WriteLine("dnd=" + (settings.DoNotDisturb ? "on" : "off") + " popup=" + SettingsService.PopupNames[settings.Popup]);
             return 0;
+        }
+        if (c.Args.Length == 3 && c.Args[0] == "mute")
+        {
+            if (c.Args[2] is not ("on" or "off")) { return c.Fail("notify mute NAME on|off"); }
+            using var root = Zenith.Core.Security.CredentialContext.Enter(Zenith.Core.Security.Credentials.Root);
+            var (_, revision) = settings.Snapshot();
+            int r = settings.SaveSenderMuted(c.Args[1], c.Args[2] == "on", revision);
+            if (r != 0) { return c.Fail(r == -22 ? "a sender name is 1..32 characters without commas" : "could not save"); }
+            c.WriteLine((c.Args[2] == "on" ? "muted " : "unmuted ") + c.Args[1]); return 0;
         }
         if (c.Args.Length == 2 && c.Args[0] is "dnd" or "popup")
         {
@@ -35,10 +44,17 @@ internal static class ConfigurationCommands
             c.WriteLine("saved " + c.Args[0] + " " + c.Args[1]); return 0;
         }
         int at = 0; string icon = "";
-        if (c.Args.Length >= 2 && c.Args[0] == "--icon") { icon = c.Args[1]; at = 2; }
+        var actions = new System.Collections.Generic.List<Zenith.Core.Notifications.NotificationCenter.NoteAction>();
+        while (at < c.Args.Length && c.Args[at].StartsWith("--", StringComparison.Ordinal))
+        {
+            if (c.Args[at] == "--icon" && at + 1 < c.Args.Length) { icon = c.Args[at + 1]; at += 2; }
+            else if (c.Args[at] == "--action" && at + 2 < c.Args.Length) { actions.Add(new(c.Args[at + 1].Replace('_', ' '), c.Args[at + 2], Array.Empty<string>())); at += 3; }
+            else { return c.Fail("usage: notify [--icon NAME] [--action LABEL APP] TITLE [BODY...]"); }
+        }
         if (c.Args.Length <= at) { return c.Fail("usage: notify [--icon NAME] TITLE [BODY...]"); }
         string body = c.Args.Length > at + 1 ? string.Join(" ", c.Args, at + 1, c.Args.Length - at - 1) : "";
-        int id = Zenith.Core.Notifications.NotificationCenter.Post("Shell", c.Args[at], body, icon, 0);
+        int id = Zenith.Core.Notifications.NotificationCenter.Post("Shell", c.Args[at], body, icon, 0, 0, actions.Count == 0 ? null : actions.ToArray());
+        if (id == 0) { c.WriteLine("Shell notifications are switched off"); return 0; }
         if (id < 0) { return c.Fail(id == -16 ? "too many notifications; wait a few seconds" : "title up to 64 bytes, body up to 160, icon a lower-case name"); }
         c.WriteLine("posted " + id); return 0;
     }
