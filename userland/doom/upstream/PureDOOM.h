@@ -9480,7 +9480,10 @@ void D_PageTicker(void)
 //
 void D_PageDrawer(void)
 {
-    V_DrawPatch(0, 0, 0, W_CacheLumpName(pagename, PU_CACHE));
+    char *page = pagename;
+    if (doom_strcmp(page, "TITLEPIC") == 0 && W_CheckNumForName(page) < 0 && W_CheckNumForName("DMENUPIC") >= 0)
+        page = "DMENUPIC";
+    V_DrawPatch(0, 0, 0, W_CacheLumpName(page, PU_CACHE));
 }
 
 

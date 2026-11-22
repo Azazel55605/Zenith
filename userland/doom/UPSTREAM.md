@@ -7,6 +7,7 @@ Zenith change below, has SHA-256
 
 Zenith skips the first `W_AddFile` directory copy because no prior directory
 exists on the first load. This avoids a null read on the protected native ABI.
+Title drawing uses `DMENUPIC` when the base game supplies it in place of `TITLEPIC`.
 The upstream GPLv2 license is in `upstream/LICENSE`. The engine package carries
 its source, including this adapter and the files needed to rebuild it. WAD
 files are supplied separately by the user.

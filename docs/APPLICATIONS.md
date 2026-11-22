@@ -84,9 +84,13 @@ opens the game menu, Enter selects an item, and F10 offers to quit. Close the
 window to exit directly. The classic controls are arrows to move/turn, Shift
 to run, Alt with Left/Right or comma/period to strafe, Ctrl to fire, Space to use, Tab for the
 automap, and number keys to switch weapons. Controls follow physical key positions.
-The 0.2.0 package requires the large-native and physical-key ABIs, both first
+The engine package requires the large-native and physical-key ABIs, both first
 included in the kernel 0.0.77 source tag.
-A source build uses `python3 -B tools/build-userland.py DESTINATION --program doom --version 0.2.0`.
+Version 0.2.1 recognizes classic `IWAD` files and BFG-style base games that
+start with `PWAD`. It uses
+their alternate title graphic when needed. Standalone loading still rejects
+ordinary add-on PWADs. A `doom.wad` containing the fourth episode selects Ultimate Doom.
+A source build uses `python3 -B tools/build-userland.py DESTINATION --program doom --version 0.2.1`.
 
 - [X5](ROADMAP.md) owns the executable/package size increase and the larger
   native read budget needed for WAD startup and level transitions.

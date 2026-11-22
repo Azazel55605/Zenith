@@ -5,6 +5,7 @@
 enum { WIDTH = 320, HEIGHT = 200, MIB = 1024 * 1024, GUI_ESCAPE = 1 };
 static unsigned char wad[30 * MIB];
 static unsigned int wad_size;
+static int wad_has_episode_four;
 static unsigned int pixels[WIDTH * HEIGHT];
 static long surface = -1;
 static long start_time;
@@ -47,17 +48,48 @@ static unsigned int little32(const unsigned char *bytes)
         ((unsigned int)bytes[2] << 16) | ((unsigned int)bytes[3] << 24);
 }
 
+static int lump_is(const unsigned char *entry, const char *name)
+{
+    for (unsigned int i = 0; i < 8; i++) {
+        if (entry[8 + i] != (unsigned char)*name) return 0;
+        if (*name) name++;
+    }
+    return *name == 0;
+}
+
 static int valid_iwad(void)
 {
-    if (wad_size < 12 || wad[0] != 'I' || wad[1] != 'W' || wad[2] != 'A' || wad[3] != 'D') return 0;
+    if (wad_size < 12 || (wad[0] != 'I' && wad[0] != 'P') || wad[1] != 'W' || wad[2] != 'A' || wad[3] != 'D') {
+        print("doom: unrecognized WAD header\n");
+        return 0;
+    }
     unsigned int count = little32(wad + 4);
     unsigned int offset = little32(wad + 8);
     if (!count || offset < 12 || offset > wad_size || count > (wad_size - offset) / 16) return 0;
+    const char *base_lumps[] = {"PLAYPAL", "COLORMAP", "PNAMES", "TEXTURE1", "DMENUPIC"};
+    unsigned int required = (unsigned int)(sizeof(base_lumps) / sizeof(*base_lumps));
+    unsigned int found = 0;
+    int first_map = 0;
     for (unsigned int i = 0; i < count; i++) {
         const unsigned char *entry = wad + offset + 16 * i;
         unsigned int position = little32(entry);
         unsigned int size = little32(entry + 4);
         if (position > wad_size || size > wad_size - position) return 0;
+        if (lump_is(entry, "E4M1")) wad_has_episode_four = 1;
+        if (wad[0] == 'I') continue;
+        if (size) {
+            for (unsigned int n = 0; n < required; n++) {
+                if (lump_is(entry, base_lumps[n])) found |= 1u << n;
+            }
+        }
+        if ((lump_is(entry, "E1M1") || lump_is(entry, "MAP01")) && count - i >= 3
+            && lump_is(entry + 16, "THINGS") && lump_is(entry + 32, "LINEDEFS")) first_map = 1;
+    }
+    /* The BFG base games use a PWAD header and a DMENUPIC title. Require the
+     * base resources and first map so an ordinary add-on stays an add-on. */
+    if (wad[0] == 'P' && (found != (1u << required) - 1 || !first_map)) {
+        print("doom: this PWAD lacks the base game resources; use a base-game WAD\n");
+        return 0;
     }
     return 1;
 }
@@ -80,8 +112,12 @@ static int load_wad(const char *path)
         wad_size += (unsigned int)got;
     }
     zenith_call(3, fd, 0, 0);
-    if (wad_size != (unsigned long)size || !valid_iwad()) {
-        print("doom: incomplete IWAD or invalid lump directory\n");
+    if (wad_size != (unsigned long)size) {
+        print("doom: could not read the complete WAD\n");
+        return 0;
+    }
+    if (!valid_iwad()) {
+        print("doom: invalid or unsupported base-game WAD\n");
         return 0;
     }
     return 1;
@@ -301,7 +337,7 @@ int main(int argc, char **argv)
     }
     if (argc == 3 && equal(argv[1], "--check-wad")) {
         if (!load_wad(argv[2])) return 1;
-        print("doom: IWAD directory is readable\n");
+        print("doom: base-game WAD directory is readable\n");
         return 0;
     }
     if (argc == 3 && (equal(argv[1], "--play") || equal(argv[1], "--preview"))) {
@@ -311,6 +347,7 @@ int main(int argc, char **argv)
             return 2;
         }
         if (!load_wad(argv[2])) return 1;
+        if (wad_has_episode_four && equal(engine_wad, "./doom.wad")) engine_wad = "./doomu.wad";
         run_engine(equal(argv[1], "--play"));
     }
     print("usage: native run doom --version | --check-wad PATH | --preview PATH | --play PATH\n");

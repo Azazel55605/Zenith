@@ -481,6 +481,12 @@ and launcher isolation. The engine-only `zenith-doom/v0.2.0` source release
 requires those ABIs and ships no WADs. A signed QEMU install ran a separately
 supplied Freedoom level and verified continuous turning, release, launcher
 capture reset, and menu exit. Distributor and installed acceptance are open.
+The installed 0.2.0 checker rejected the supplied BFG-style base WADs because
+their magic is `PWAD`. The local adapter recognizes the base resource layout
+and handles the Doom II alternate title lump. Both supplied WADs passed the
+checker, entered their first level, and exited cleanly in a signed QEMU install
+of the engine-only `zenith-doom/v0.2.1` release. Distributor publication and
+installed VMware acceptance are open.
 Remaining work includes save/config storage and audio. Acceptance requires a supported user-supplied IWAD, guest
 gameplay and save/load, clean exit, and an independent package update. Follow
 the [port contract](APPLICATIONS.md#doom-engine-package-requested-feasibility-slice).
