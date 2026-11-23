@@ -19,7 +19,7 @@ def main():
     target=['--target=x86_64-unknown-none','-fuse-ld=lld','-Wno-unused-command-line-argument'] if 'clang' in Path(compiler).name else []
     with tempfile.TemporaryDirectory(prefix='zenith-userland-') as temporary:
         extra=[]
-        if args.program in ('ui-gallery','settings','desktop-tools','polaris','observatory','equinox','horizon','aurora','beacon','orbit'):
+        if args.program in ('ui-gallery','settings','desktop-tools','polaris','observatory','equinox','horizon','aurora','beacon','orbit','doom'):
             atlas=Path(temporary)/'ui-fonts.c'
             subprocess.run([sys.executable,str(ROOT/'tools/build-ui-fonts.py'),str(atlas),*(['--mono'] if args.program in ('polaris','equinox','aurora') else [])],check=True)
             extra=['-I'+str(ROOT/'userland/ui'),str(ROOT/'userland/ui/ui.c'),str(ROOT/'userland/ui/widgets.c'),
@@ -38,7 +38,7 @@ def main():
             subprocess.run([compiler,*target,'-c','-fno-pie',*common[:-3],'-std=gnu11','-w','-O2',
                 '-ffile-prefix-map='+str(ROOT)+'=.',
                 str(ROOT/'userland/doom/engine.c'),'-o',str(engine)],check=True)
-            extra.extend(('-std=gnu11',str(engine)))
+            extra.extend(('-std=gnu11',str(engine),str(ROOT/'userland/doom/launcher.c')))
         if args.program=='aurora':
             # Aurora's own code is built for size (the toolkit stays -O2 for drawing speed) and unused toolkit code is
             # dropped, so the editor keeps room under the package file limit. No libc: GCC must not turn loops into
@@ -53,11 +53,20 @@ def main():
         subprocess.run([compiler,*target,'-nostdlib','-static','-fno-pie','-no-pie',*common,'-O2',
             '-DSUNBEAM_VERSION="'+args.version+'"','-Wl,-T,'+str(source/'link.ld'),'-Wl,--build-id=none',str(source/'start.s'),str(main_source),*extra,'-o',str(output)],check=True)
     if args.program=='doom':
+        apps=destination/'usr/share/zenith/apps'
+        apps.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(ROOT/'userland/doom/doom.app',apps/'doom.app')
         source_dir=destination/'usr/share/zenith/doom/source'
-        for name in ('userland/doom/main.c','userland/doom/engine.c','userland/doom/engine.h','userland/doom/UPSTREAM.md',
+        for name in ('userland/doom/main.c','userland/doom/engine.c','userland/doom/engine.h','userland/doom/UPSTREAM.md','userland/doom/launcher.c',
+                     'userland/doom/launcher.h','userland/doom/doom.app',
                      'userland/doom/upstream/PureDOOM.h','userland/doom/upstream/LICENSE',
                      'userland/include/zenith_graphics.h','userland/sunbeam/zenith.h',
-                     'userland/sunbeam/start.s','userland/sunbeam/link.ld','tools/build-userland.py'):
+                     'userland/sunbeam/start.s','userland/sunbeam/link.ld','tools/build-userland.py',
+                     'tools/build-ui-fonts.py','Resources/Fonts/Inter-Regular.ttf',
+                     'Resources/Fonts/Inter-SemiBold.ttf','Resources/Fonts/LICENSE-Inter.txt',
+                     'userland/include/zenith_files.h','userland/include/zenith_settings.h',
+                     'userland/include/zenith_style.h','userland/include/zenith_system_settings.h',
+                     *(f'userland/ui/{file}' for file in ('runtime.c','ui.c','ui.h','widgets.c','widgets.h','text.c','text.h'))):
             target_path=source_dir/name
             target_path.parent.mkdir(parents=True,exist_ok=True)
             shutil.copyfile(ROOT/name,target_path)

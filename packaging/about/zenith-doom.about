@@ -1,0 +1,7 @@
+ZENITH-ABOUT	1
+title	Doom
+summary	Doom and Doom II engine
+description	Choose your own Doom or Doom II WAD from the desktop and play in a resizable window. Game data is supplied separately.
+category	apps
+icon	file-archive
+change	0.3.0	Desktop WAD launcher and a larger resizable game window

@@ -487,6 +487,13 @@ and handles the Doom II alternate title lump. Both supplied WADs passed the
 checker, entered their first level, and exited cleanly in a signed QEMU install
 of the engine-only `zenith-doom/v0.2.1` release. Distributor publication and
 installed VMware acceptance are open.
+The `zenith-doom/v0.3.0` source release adds a desktop launcher entry, a themed WAD browser
+with a remembered folder, and a larger resizable game window with 4:3 scaling.
+A signed QEMU install launched both supplied WADs. It selected Doom II from a
+nested folder under a filename with spaces, maximized the game, entered and
+restored from F11 fullscreen with a PS/2 keyboard, and reopened in the
+last-played folder. F11 did not toggle with the VirtIO keyboard in this fixture.
+Distributor publication and installed VMware acceptance remain open for 0.3.0.
 Remaining work includes save/config storage and audio. Acceptance requires a supported user-supplied IWAD, guest
 gameplay and save/load, clean exit, and an independent package update. Follow
 the [port contract](APPLICATIONS.md#doom-engine-package-requested-feasibility-slice).

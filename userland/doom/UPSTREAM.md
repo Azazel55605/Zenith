@@ -14,7 +14,7 @@ files are supplied separately by the user.
 
 To rebuild the preview on an x86-64 host, copy the installed
 `/usr/share/zenith/doom/source` tree and run the following from its root with
-Python 3 and GCC or Clang/LLD available. Use the package version for `VERSION`.
+Python 3, Pillow, and GCC or Clang/LLD available. Use the package version for `VERSION`.
 
 ```sh
 python3 -B tools/build-userland.py /tmp/zenith-doom-payload --program doom --version VERSION

@@ -67,12 +67,20 @@ the executable, its adapter, the corresponding source, and the license. It
 ships no WADs, including the Freedoom fixture used for local validation.
 
 [PureDOOM](https://github.com/Daivuk/PureDOOM) is pinned in the
-[port sources](../userland/doom/UPSTREAM.md). The x64 engine uses a native
-320×200 surface and the monotonic clock. It takes an explicit, read-only IWAD
-path. The engine uses the basename to select the game mode (`doom.wad`,
-`doomu.wad`, `doom1.wad`, or `doom2.wad`).
+[port sources](../userland/doom/UPSTREAM.md). Version 0.3.0 adds **Doom** to
+the desktop launcher. Its native WAD browser uses the Zenith UI toolkit and
+the current theme. It opens in `~/doom` when available and remembers the last
+folder used to start a game. Browse folders, select a `.wad`, and choose **Play**.
+The engine opens the file read-only and identifies the game from its map directory.
+
+The app requests a 640×480 window, follows the desktop's opening-size preference,
+and supports maximize and fullscreen (F11).
+The software renderer still draws at 320×200. The window scales that image
+to the original 4:3 display aspect ratio and fills unused space with black.
 
 ```sh
+native run doom --launcher
+native run doom --launcher /path/to/wad-folder
 native run doom --check-wad /path/to/doom2.wad
 native run doom --preview /path/to/doom2.wad
 native run doom --play /path/to/doom2.wad
@@ -86,11 +94,10 @@ to run, Alt with Left/Right or comma/period to strafe, Ctrl to fire, Space to us
 automap, and number keys to switch weapons. Controls follow physical key positions.
 The engine package requires the large-native and physical-key ABIs, both first
 included in the kernel 0.0.77 source tag.
-Version 0.2.1 recognizes classic `IWAD` files and BFG-style base games that
-start with `PWAD`. It uses
-their alternate title graphic when needed. Standalone loading still rejects
-ordinary add-on PWADs. A `doom.wad` containing the fourth episode selects Ultimate Doom.
-A source build uses `python3 -B tools/build-userland.py DESTINATION --program doom --version 0.2.1`.
+The engine recognizes classic `IWAD` files and BFG-style base games that
+start with `PWAD`, including their alternate title graphic. Standalone loading
+rejects ordinary add-on PWADs. A Doom WAD with the fourth episode selects Ultimate Doom.
+A source build uses `python3 -B tools/build-userland.py DESTINATION --program doom --version 0.3.0`.
 
 - [X5](ROADMAP.md) owns the executable/package size increase and the larger
   native read budget needed for WAD startup and level transitions.

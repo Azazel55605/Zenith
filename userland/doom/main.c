@@ -1,12 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include "../include/zenith_graphics.h"
 #include "engine.h"
+#include "launcher.h"
 
 enum { WIDTH = 320, HEIGHT = 200, MIB = 1024 * 1024, GUI_ESCAPE = 1 };
 static unsigned char wad[30 * MIB];
 static unsigned int wad_size;
-static int wad_has_episode_four;
-static unsigned int pixels[WIDTH * HEIGHT];
+enum { EPISODE_ONE = 1, EPISODE_TWO = 2, EPISODE_FOUR = 4, MAP_ONE = 8 };
+static int wad_maps;
+static unsigned int pixels[DOOM_WINDOW_PIXELS];
+static struct zui ui;
 static long surface = -1;
 static long start_time;
 static const char *engine_wad;
@@ -57,80 +60,73 @@ static int lump_is(const unsigned char *entry, const char *name)
     return *name == 0;
 }
 
-static int valid_iwad(void)
+static const char *validate_wad(void)
 {
-    if (wad_size < 12 || (wad[0] != 'I' && wad[0] != 'P') || wad[1] != 'W' || wad[2] != 'A' || wad[3] != 'D') {
-        print("doom: unrecognized WAD header\n");
-        return 0;
-    }
+    if ((wad[0] != 'I' && wad[0] != 'P') || wad[1] != 'W' || wad[2] != 'A' || wad[3] != 'D')
+        return "Unrecognized WAD header.";
     unsigned int count = little32(wad + 4);
     unsigned int offset = little32(wad + 8);
-    if (!count || offset < 12 || offset > wad_size || count > (wad_size - offset) / 16) return 0;
+    const char *invalid = "Invalid WAD lump directory.";
+    if (!count || offset < 12 || offset > wad_size || count > (wad_size - offset) / 16) return invalid;
     const char *base_lumps[] = {"PLAYPAL", "COLORMAP", "PNAMES", "TEXTURE1", "DMENUPIC"};
     unsigned int required = (unsigned int)(sizeof(base_lumps) / sizeof(*base_lumps));
     unsigned int found = 0;
-    int first_map = 0;
+    wad_maps = 0;
     for (unsigned int i = 0; i < count; i++) {
         const unsigned char *entry = wad + offset + 16 * i;
         unsigned int position = little32(entry);
         unsigned int size = little32(entry + 4);
-        if (position > wad_size || size > wad_size - position) return 0;
-        if (lump_is(entry, "E4M1")) wad_has_episode_four = 1;
-        if (wad[0] == 'I') continue;
-        if (size) {
+        if (position > wad_size || size > wad_size - position) return invalid;
+        if (count - i >= 3 && lump_is(entry + 16, "THINGS") && lump_is(entry + 32, "LINEDEFS")) {
+            if (lump_is(entry, "E1M1")) wad_maps |= EPISODE_ONE;
+            if (lump_is(entry, "E2M1")) wad_maps |= EPISODE_TWO;
+            if (lump_is(entry, "E4M1")) wad_maps |= EPISODE_FOUR;
+            if (lump_is(entry, "MAP01")) wad_maps |= MAP_ONE;
+        }
+        if (wad[0] == 'P' && size) {
             for (unsigned int n = 0; n < required; n++) {
                 if (lump_is(entry, base_lumps[n])) found |= 1u << n;
             }
         }
-        if ((lump_is(entry, "E1M1") || lump_is(entry, "MAP01")) && count - i >= 3
-            && lump_is(entry + 16, "THINGS") && lump_is(entry + 32, "LINEDEFS")) first_map = 1;
     }
-    /* The BFG base games use a PWAD header and a DMENUPIC title. Require the
-     * base resources and first map so an ordinary add-on stays an add-on. */
-    if (wad[0] == 'P' && (found != (1u << required) - 1 || !first_map)) {
-        print("doom: this PWAD lacks the base game resources; use a base-game WAD\n");
-        return 0;
-    }
-    return 1;
+    if (wad[0] == 'P' && (found != (1u << required) - 1 || !(wad_maps & (EPISODE_ONE | MAP_ONE))))
+        return "This add-on needs a base-game WAD.";
+    return 0;
 }
 
-static int load_wad(const char *path)
+static const char *load_wad(const char *path)
 {
     long fd = zenith_call(2, (unsigned long)path, length(path), Z_OPEN_READ);
-    if (fd < 0) { print("doom: cannot open IWAD\n"); return 0; }
+    if (fd < 0) return fd == -13 ? "Permission denied for this WAD." : "Could not open the WAD.";
 
     long size = zenith_call(406, fd, 0, 2);
     if (size < 12 || size > (long)sizeof(wad) || zenith_call(406, fd, 0, 0) != 0) {
         zenith_call(3, fd, 0, 0);
-        print("doom: IWAD must be a seekable file from 12 bytes to 30 MiB\n");
-        return 0;
+        return "Choose a readable WAD of at most 30 MiB.";
     }
+    wad_size = 0;
+    long got = 0;
     while (wad_size < (unsigned long)size) {
         unsigned long remaining = (unsigned long)size - wad_size;
-        long got = zenith_call(0, fd, (unsigned long)(wad + wad_size), remaining > 4096 ? 4096 : remaining);
+        got = zenith_call(0, fd, (unsigned long)(wad + wad_size), remaining > 4096 ? 4096 : remaining);
         if (got <= 0) break;
         wad_size += (unsigned int)got;
     }
     zenith_call(3, fd, 0, 0);
-    if (wad_size != (unsigned long)size) {
-        print("doom: could not read the complete WAD\n");
-        return 0;
-    }
-    if (!valid_iwad()) {
-        print("doom: invalid or unsupported base-game WAD\n");
-        return 0;
-    }
-    return 1;
+    if (got == -28) return "Read limit reached. Wait a minute and retry.";
+    if (wad_size != (unsigned long)size) return "Could not read the complete WAD.";
+    return validate_wad();
 }
 
-static const char *engine_path(const char *path)
+static const char *load_game(const char *path)
 {
-    const char *base = path;
-    for (const char *p = path; *p; p++) if (*p == '/') base = p + 1;
-    if (equal(base, "doom.wad")) return "./doom.wad";
-    if (equal(base, "doomu.wad")) return "./doomu.wad";
-    if (equal(base, "doom1.wad")) return "./doom1.wad";
-    if (equal(base, "doom2.wad")) return "./doom2.wad";
+    const char *error = load_wad(path);
+    if (error) return error;
+    if (wad_maps & MAP_ONE) engine_wad = "./doom2.wad";
+    else if ((wad_maps & EPISODE_ONE) && (wad_maps & EPISODE_FOUR)) engine_wad = "./doomu.wad";
+    else if ((wad_maps & EPISODE_ONE) && (wad_maps & EPISODE_TWO)) engine_wad = "./doom.wad";
+    else if (wad_maps & EPISODE_ONE) engine_wad = "./doom1.wad";
+    else return "This WAD has no supported Doom or Doom II first map.";
     return 0;
 }
 
@@ -276,14 +272,47 @@ static void physical_key(int scan, int pressed)
     if (transition && !zenith_doom_key(key, pressed)) reset_keys();
 }
 
+static int open_window(const char *title)
+{
+    surface = zenith_gui_open(DOOM_WINDOW_WIDTH, DOOM_WINDOW_HEIGHT, title, length(title));
+    if (surface < 0 || zenith_gui_interactive(surface) < 0
+        || !zui_init(&ui,pixels,DOOM_WINDOW_WIDTH,DOOM_WINDOW_HEIGHT)
+        || zenith_gui_resize_enable(surface) < 0) {
+        print("doom: a graphical session with viewport support is required\n");
+        return 0;
+    }
+    return 1;
+}
+
+/* The original 320x200 renderer used non-square pixels. Fit its intended
+ * 4:3 display without stretching it to the shape of the desktop window. */
+static void game_frame(const unsigned char *rgb)
+{
+    static unsigned int source[WIDTH*HEIGHT];
+    static unsigned short columns[ZUI_MAX_WIDTH], rows[ZUI_MAX_HEIGHT];
+    static int width, height, x, y, old_width, old_height;
+    if (ui.width != old_width || ui.height != old_height) {
+        old_width=ui.width; old_height=ui.height;
+        width=ui.width;
+        height=width*3/4;
+        if (height>ui.height) { height=ui.height; width=height*4/3; }
+        x=(ui.width-width)/2;
+        y=(ui.height-height)/2;
+        for(int c=0;c<width;c++) columns[c]=(unsigned short)(c*WIDTH/width);
+        for(int r=0;r<height;r++) rows[r]=(unsigned short)(r*HEIGHT/height);
+        zui_fill(&ui,(struct zui_rect){0,0,ui.width,ui.height},0);
+    }
+    for (unsigned int i=0;i<WIDTH*HEIGHT;i++)
+        source[i]=((unsigned int)rgb[3*i]<<16)|((unsigned int)rgb[3*i+1]<<8)|rgb[3*i+2];
+    for(int r=0;r<height;r++) {
+        unsigned int *dest=ui.pixels+(y+r)*ui.width+x;
+        const unsigned int *line=source+rows[r]*WIDTH;
+        for(int c=0;c<width;c++) dest[c]=line[columns[c]];
+    }
+}
+
 static _Noreturn void run_engine(int play)
 {
-    const char *title = play ? "Doom" : "Doom engine preview";
-    surface = zenith_gui_open(WIDTH, HEIGHT, title, length(title));
-    if (surface < 0 || zenith_gui_interactive(surface) < 0) {
-        print("doom: requires a graphical Zenith session\n");
-        finish(1);
-    }
     if (play && zenith_gui_key_edges(surface) < 0) {
         print("doom: play requires Zenith's physical-key ABI\n");
         finish(1);
@@ -309,6 +338,10 @@ static _Noreturn void run_engine(int play)
             if (pending < 0) finish(1);
             if (!pending) break;
             if (event.type == Z_GUI_CLOSE) finish(0);
+            if (event.type == Z_GUI_RESIZE) {
+                if (zui_apply_viewport(&ui,surface,DOOM_WINDOW_PIXELS)<0) finish(zui_window_closed(surface)?0:1);
+                continue;
+            }
             if (!play && event.type == Z_GUI_KEY && event.extra == GUI_ESCAPE) finish(0);
             if (!play) continue;
             if (event.type == Z_GUI_RESET || (event.type == Z_GUI_FOCUS && !event.code)) reset_keys();
@@ -320,36 +353,35 @@ static _Noreturn void run_engine(int play)
         if (now < next_frame) continue;
         next_frame = now + 28;
         doom_update();
-        const unsigned char *rgb = doom_get_framebuffer(3);
-        for (unsigned int i = 0; i < WIDTH * HEIGHT; i++) {
-            pixels[i] = ((unsigned int)rgb[3 * i] << 16) | ((unsigned int)rgb[3 * i + 1] << 8) | rgb[3 * i + 2];
-        }
-        if (zenith_gui_present(surface, pixels, sizeof(pixels)) < 0) finish(1);
+        game_frame(doom_get_framebuffer(3));
+        if (zenith_gui_present(surface,ui.pixels,(unsigned long)ui.width*ui.height*4)<0)
+            finish(zui_window_closed(surface)?0:1);
         if (!presented) { print(play ? "doom: ready\n" : "doom: preview presented\n"); presented = 1; }
     }
 }
 
-int main(int argc, char **argv)
+int main(int argc, char **argv, char **envp)
 {
     if (argc == 2 && equal(argv[1], "--version")) {
         print("doom " SUNBEAM_VERSION "\n");
         return 0;
     }
-    if (argc == 3 && equal(argv[1], "--check-wad")) {
-        if (!load_wad(argv[2])) return 1;
-        print("doom: base-game WAD directory is readable\n");
-        return 0;
+    if (argc == 1 || ((argc == 2 || argc == 3) && equal(argv[1], "--launcher")
+        && (argc == 2 || argv[2][0] == '/'))) {
+        if (!open_window("Doom")) finish(1);
+        int selected = doom_launcher(surface,&ui,envp,argc == 3 ? argv[2] : 0,load_game);
+        if (selected <= 0) finish(selected < 0);
+        run_engine(1);
     }
-    if (argc == 3 && (equal(argv[1], "--play") || equal(argv[1], "--preview"))) {
-        engine_wad = engine_path(argv[2]);
-        if (!engine_wad) {
-            print("doom: use doom.wad, doomu.wad, doom1.wad or doom2.wad\n");
-            return 2;
-        }
-        if (!load_wad(argv[2])) return 1;
-        if (wad_has_episode_four && equal(engine_wad, "./doom.wad")) engine_wad = "./doomu.wad";
-        run_engine(equal(argv[1], "--play"));
+    if (argc == 3 && (equal(argv[1], "--check-wad") || equal(argv[1], "--play") || equal(argv[1], "--preview"))) {
+        int check = equal(argv[1], "--check-wad");
+        const char *error = check ? load_wad(argv[2]) : load_game(argv[2]);
+        if (error) { print("doom: "); print(error); print("\n"); return 1; }
+        if (check) { print("doom: base-game WAD directory is readable\n"); return 0; }
+        int play = equal(argv[1], "--play");
+        if (!open_window(play ? "Doom" : "Doom engine preview")) finish(1);
+        run_engine(play);
     }
-    print("usage: native run doom --version | --check-wad PATH | --preview PATH | --play PATH\n");
-    return argc == 1 || (argc == 2 && equal(argv[1], "--help")) ? 0 : 2;
+    print("usage: native run doom [--launcher [ABSOLUTE-FOLDER] | --version | --check-wad PATH | --preview PATH | --play PATH]\n");
+    return !(argc == 2 && equal(argv[1], "--help"));
 }
