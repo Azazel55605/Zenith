@@ -2,6 +2,7 @@
 #include "../include/zenith_graphics.h"
 #include "engine.h"
 #include "launcher.h"
+#include "../include/zenith_settings.h"
 
 enum { WIDTH = 320, HEIGHT = 200, MIB = 1024 * 1024, GUI_ESCAPE = 1 };
 static unsigned char wad[30 * MIB];
@@ -11,6 +12,8 @@ static int wad_maps;
 static unsigned int pixels[DOOM_WINDOW_PIXELS];
 static struct zui ui;
 static long surface = -1;
+/* A material window (Application Style's transparency and blur behind the launcher) when the system offers one. */
+static int material;
 static long start_time;
 static const char *engine_wad;
 
@@ -274,14 +277,24 @@ static void physical_key(int scan, int pressed)
 
 static int open_window(const char *title)
 {
-    surface = zenith_gui_open(DOOM_WINDOW_WIDTH, DOOM_WINDOW_HEIGHT, title, length(title));
+    struct zenith_material_caps caps = {0}; struct zenith_material_settings settings = {0};
+    material = !zenith_material_settings_read(&settings) && !zenith_gui_material_caps(&caps) && caps.version == 2;
+    surface = material ? zenith_gui_open_material(DOOM_WINDOW_WIDTH, DOOM_WINDOW_HEIGHT, title, length(title))
+                       : zenith_gui_open(DOOM_WINDOW_WIDTH, DOOM_WINDOW_HEIGHT, title, length(title));
     if (surface < 0 || zenith_gui_interactive(surface) < 0
         || !zui_init(&ui,pixels,DOOM_WINDOW_WIDTH,DOOM_WINDOW_HEIGHT)
         || zenith_gui_resize_enable(surface) < 0) {
         print("doom: a graphical session with viewport support is required\n");
         return 0;
     }
+    ui.foreground = material;
     return 1;
+}
+/* The game's frames are opaque: in a material window they go through the material call with no regions. */
+static long present_game(void)
+{
+    unsigned long bytes = (unsigned long)ui.width * ui.height * 4;
+    return material ? zenith_gui_present_material(surface, ui.pixels, bytes, 0, 0) : zenith_gui_present(surface, ui.pixels, bytes);
 }
 
 /* The original 320x200 renderer used non-square pixels. Fit its intended
@@ -300,10 +313,11 @@ static void game_frame(const unsigned char *rgb)
         y=(ui.height-height)/2;
         for(int c=0;c<width;c++) columns[c]=(unsigned short)(c*WIDTH/width);
         for(int r=0;r<height;r++) rows[r]=(unsigned short)(r*HEIGHT/height);
-        zui_fill(&ui,(struct zui_rect){0,0,ui.width,ui.height},0);
+        /* Opaque black bars: a material window shows anything less than opaque as see-through. */
+        for (unsigned long i=0;i<(unsigned long)ui.width*ui.height;i++) ui.pixels[i]=0xff000000u;
     }
     for (unsigned int i=0;i<WIDTH*HEIGHT;i++)
-        source[i]=((unsigned int)rgb[3*i]<<16)|((unsigned int)rgb[3*i+1]<<8)|rgb[3*i+2];
+        source[i]=0xff000000u|((unsigned int)rgb[3*i]<<16)|((unsigned int)rgb[3*i+1]<<8)|rgb[3*i+2];
     for(int r=0;r<height;r++) {
         unsigned int *dest=ui.pixels+(y+r)*ui.width+x;
         const unsigned int *line=source+rows[r]*WIDTH;
@@ -354,7 +368,7 @@ static _Noreturn void run_engine(int play)
         next_frame = now + 28;
         doom_update();
         game_frame(doom_get_framebuffer(3));
-        if (zenith_gui_present(surface,ui.pixels,(unsigned long)ui.width*ui.height*4)<0)
+        if (present_game()<0)
             finish(zui_window_closed(surface)?0:1);
         if (!presented) { print(play ? "doom: ready\n" : "doom: preview presented\n"); presented = 1; }
     }

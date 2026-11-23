@@ -323,7 +323,10 @@ static long draw(long window,struct zui *ui,long now)
     }
     zui_update_hover(ui);
     zui_draw_controls(ui);
-    return zenith_gui_present(window,ui->pixels,(unsigned long)ui->width*ui->height*4);
+    /* A material window: the workspace above filled in the material regions (sidebar and background). */
+    unsigned long bytes=(unsigned long)ui->width*ui->height*4;
+    return ui->foreground ? zenith_gui_present_material(window,ui->pixels,bytes,ui->materials,ui->material_count)
+                          : zenith_gui_present(window,ui->pixels,bytes);
 }
 
 int doom_launcher(long window,struct zui *ui,char **envp,const char *start,const char *(*load)(const char *))
