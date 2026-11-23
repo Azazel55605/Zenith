@@ -5,3 +5,4 @@ description	Choose your own Doom or Doom II WAD from the desktop and play in a r
 category	apps
 icon	file-archive
 change	0.3.0	Desktop WAD launcher and a larger resizable game window
+change	0.4.0	The launcher in the newer app layout: places, the folder heading, game names and sizes, a Play bar

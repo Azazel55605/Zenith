@@ -3,11 +3,17 @@
 #include "../include/zenith_files.h"
 #include "../ui/widgets.h"
 
-enum { MAX_ENTRIES = 256, HOME_BUTTON = 1, UP_BUTTON, REFRESH_BUTTON, PLAY_BUTTON, ROW_ID = 32 };
-struct entry { char name[256]; int folder; };
+enum { MAX_ENTRIES = 256, HOME_BUTTON = 1, UP_BUTTON, REFRESH_BUTTON, PLAY_BUTTON, PLACE_ID = 8, ROW_ID = 32 };
+struct entry { char name[256]; int folder; unsigned long size; char detail[64]; };
+/* The places in the sidebar: the account home, its doom and Downloads folders when they exist, and the whole disk. */
+enum { PLACE_HOME, PLACE_DOOM, PLACE_DOWNLOADS, PLACE_ROOT, PLACES };
+static const char *const place_names[PLACES] = {"Home", "Doom", "Downloads", "Computer"};
+static const char *const place_icons[PLACES] = {"house", "folder", "download", "hard-drive"};
+static char places[PLACES][DOOM_PATH_BYTES];
+static int place_exists[PLACES];
 static struct entry entries[MAX_ENTRIES];
 static _Alignas(16) unsigned char page[Z_FILES_PAGE];
-static struct zui_list list = {.selected = -1, .base_id = ROW_ID};
+static struct zui_list list = {.selected = -1, .base_id = ROW_ID, .row_height = 46};
 static char home[DOOM_PATH_BYTES], folder[DOOM_PATH_BYTES], preference[DOOM_PATH_BYTES];
 static int count, limited;
 static const char *message;
@@ -51,6 +57,45 @@ static int before(const struct entry *a, const struct entry *b)
     return lower(*x) < lower(*y);
 }
 
+/* The game a well-known WAD holds, matched by its file name (any case). */
+static const char *game_of(const char *name)
+{
+    static const char *const known[][2] = {
+        {"doom.wad","The Ultimate Doom"},{"doom1.wad","Doom (shareware)"},{"doom2.wad","Doom II: Hell on Earth"},
+        {"plutonia.wad","Final Doom: The Plutonia Experiment"},{"tnt.wad","Final Doom: TNT: Evilution"},
+        {"freedoom1.wad","Freedoom: Phase 1"},{"freedoom2.wad","Freedoom: Phase 2"},{"freedm.wad","FreeDM"},
+        {"doombfg.wad","Doom (BFG Edition)"},{"doom2bfg.wad","Doom II (BFG Edition)"},
+    };
+    for (unsigned int i = 0; i < sizeof(known) / sizeof(known[0]); i++) {
+        const char *a = name, *b = known[i][0];
+        while (*a && lower(*a) == *b) { a++; b++; }
+        if (!*a && !*b) return known[i][1];
+    }
+    return 0;
+}
+static char *put(char *o, const char *s) { while (*s) *o++ = *s++; *o = 0; return o; }
+static char *number(char *o, unsigned long v)
+{
+    char d[24]; int n = 0;
+    do { d[n++] = (char)('0' + v % 10); v /= 10; } while (v);
+    while (n) *o++ = d[--n];
+    *o = 0; return o;
+}
+/* "12.4 MB" or "640 KB". */
+static char *size_text(char *o, unsigned long bytes)
+{
+    if (bytes >= 1024UL * 1024) { unsigned long tenths = bytes * 10 / (1024UL * 1024); o = number(o,tenths / 10); o = put(o,"."); o = number(o,tenths % 10); return put(o," MB"); }
+    o = number(o,(bytes + 1023) / 1024); return put(o," KB");
+}
+static void describe(struct entry *e)
+{
+    char *o = e->detail; *o = 0;
+    if (e->folder) { put(o,"Folder"); return; }
+    const char *game = game_of(e->name);
+    if (game) { unsigned long n = length(game); if (n > 48) n = 48; copy(o,game,n); o += n; o = put(o," · "); }
+    size_text(o,e->size);
+}
+
 static long read_entries(const char *path)
 {
     struct zenith_files_list request = {.version = 1, .path_bytes = (unsigned int)length(path)};
@@ -74,8 +119,9 @@ static long read_entries(const char *path)
             if ((directory && f->name[0] == '.' && (f->name_bytes == 1 || (f->name_bytes == 2 && f->name[1]=='.')))
                 || (!directory && (kind != 0100000 || !wad_extension(f->name,f->name_bytes)))) continue;
             if (count == MAX_ENTRIES) { limited = 1; break; }
-            struct entry value = {.folder = directory};
+            struct entry value = {.folder = directory, .size = f->size};
             copy(value.name,f->name,f->name_bytes);
+            describe(&value);
             int pos = count++;
             while (pos && before(&value,&entries[pos-1])) { entries[pos] = entries[pos-1]; pos--; }
             entries[pos] = value;
@@ -119,6 +165,15 @@ static void initialize_folder(struct zui *ui, char **envp, const char *start)
     if (!home[0] && zenith_call(79,(unsigned long)home,sizeof(home),0) < 0) home[0] = 0;
     if (!home[0]) copy(home,"/",1);
 
+    copy(places[PLACE_HOME],home,length(home)); place_exists[PLACE_HOME] = 1;
+    copy(places[PLACE_ROOT],"/",1); place_exists[PLACE_ROOT] = 1;
+    struct zenith_files_list probe = {.version = 1};
+    for (int i = PLACE_DOOM; i <= PLACE_DOWNLOADS; i++) {
+        if (!join(places[i],home,i == PLACE_DOOM ? "doom" : "Downloads")) continue;
+        probe.path_bytes = (unsigned int)length(places[i]);
+        for (unsigned int k = 0; k < probe.path_bytes; k++) probe.path[k] = places[i][k];
+        place_exists[i] = zenith_files_list(&probe,page) >= 0;
+    }
     char path[DOOM_PATH_BYTES];
     if (join(preference,home,".zenith-doom-folder") && !start) {
         long fd = zenith_call(2,(unsigned long)preference,length(preference),Z_OPEN_READ);
@@ -168,7 +223,7 @@ static int row(void *context, int index, struct zui_list_item *item)
     (void)context;
     if (index<0 || index>=count) return 0;
     const struct entry *e = &entries[index];
-    *item = (struct zui_list_item){e->folder?"folder":"file-archive",e->name,0,e->folder,1};
+    *item = (struct zui_list_item){e->folder?"folder":"file-archive",e->name,e->detail,e->folder,1};
     return 1;
 }
 
@@ -182,40 +237,85 @@ static int selected_file(void)
     return list.selected>=0 && list.selected<count && !entries[list.selected].folder;
 }
 
+static int same_path(const char *a, const char *b)
+{
+    while (*a && *a == *b) { a++; b++; }
+    return *a == *b;
+}
+/* A line of text cut with "..." to a width (UTF-8 safe at the cut). */
+static void fit(struct zui *ui, int x, int y, const char *s, int width, const struct zui_font *font, unsigned int color)
+{
+    unsigned long n = length(s);
+    if (zui_measure(s,n,font) <= width) { zui_text(ui,x,y,s,n,font,color); return; }
+    int dots = zui_measure("...",3,font);
+    while (n && zui_measure(s,n,font) > width - dots) { n--; while (n && ((unsigned char)s[n] & 0xc0) == 0x80) n--; }
+    zui_text(ui,x,y,s,n,font,color);
+    zui_text(ui,x + zui_measure(s,n,font),y,"...",3,font,color);
+}
+
+/* The newer app layout (Beacon, Orbit): a sidebar of places, a heading with the folder and its path, the list on a
+ * content card, and a footer with the chosen game and Play. */
 static long draw(long window,struct zui *ui,long now)
 {
-    int w=ui->width,h=ui->height;
     int focused=ui->focus>=0 && ui->focus<ui->count ? ui->controls[ui->focus].id : 0;
     int pressed=ui->pressed>=0 && ui->pressed<ui->count ? ui->controls[ui->pressed].id : 0;
     ui->count=0;
     ui->dirty=0;
     zui_motion_frame(ui,now);
-    zui_clip(ui,(struct zui_rect){0,0,w,h});
-    zui_fill(ui,ui->clip,ui->theme.surface);
-    text(ui,24,18,"Choose a WAD",&zui_heading,ui->theme.text);
-    zui_add(ui,HOME_BUTTON,ZUI_BUTTON,(struct zui_rect){24,58,74,34},"Home",0,1);
-    zui_add(ui,UP_BUTTON,ZUI_BUTTON,(struct zui_rect){106,58,64,34},"Up",0,folder[1]!=0);
-    zui_add(ui,REFRESH_BUTTON,ZUI_BUTTON,(struct zui_rect){178,58,84,34},"Refresh",0,1);
-    struct zui_rect address={24,102,w-48,34};
-    zui_surface(ui,address,8,ZUI_SURFACE_CONTROL);
-    zui_clip(ui,(struct zui_rect){34,102,w-68,34});
-    const char *shown=folder;
-    while (*shown && zui_measure(shown,length(shown),&zui_body)>w-92) shown++;
-    while (((unsigned char)*shown & 0xc0) == 0x80) shown++;
-    if (shown!=folder) text(ui,34,110,"...",&zui_body,ui->theme.secondary);
-    text(ui,shown==folder?34:52,110,shown,&zui_body,ui->theme.text);
-    zui_clip(ui,(struct zui_rect){0,0,w,h});
+    struct zui_workspace ws=zui_workspace_begin(ui,ui->width<760?168:208);
+    struct zui_rect side=ws.sidebar,c=ws.content;
 
-    struct zui_rect files={24,146,w-48,h-220};
-    zui_surface(ui,files,12,ZUI_SURFACE_CONTENT);
-    zui_list_draw(ui,&list,(struct zui_rect){files.x+6,files.y+6,files.w-12,files.h-12},count,row,0);
-    if (!count) text(ui,42,167,"No WAD files or folders here.",&zui_body,ui->theme.secondary);
+    /* Sidebar: the app and its places. */
+    text(ui,side.x+20,side.y+18,"Doom",&zui_label,ui->theme.text);
+    int y=side.y+56;
+    text(ui,side.x+20,y,"Places",&zui_caption,ui->theme.secondary);y+=22;
+    for (int i=0;i<PLACES;i++) {
+        if (!place_exists[i]) continue;
+        int at=zui_add(ui,PLACE_ID+i,ZUI_NAVIGATION,(struct zui_rect){side.x+8,y,side.w-16,36},place_names[i],same_path(folder,places[i]),1)?ui->count-1:-1;
+        if (at>=0) { ui->controls[at].icon=place_icons[i]; ui->controls[at].no_chevron=1; }
+        y+=40;
+    }
 
-    const char *caption=message?message:selected_file()?entries[list.selected].name:"Select a base-game WAD to play.";
-    zui_clip(ui,(struct zui_rect){24,h-65,w-158,56});
-    text(ui,24,h-42,caption,&zui_body,message?ui->theme.text:ui->theme.secondary);
-    zui_clip(ui,(struct zui_rect){0,0,w,h});
-    zui_add(ui,PLAY_BUTTON,ZUI_BUTTON,(struct zui_rect){w-120,h-57,96,36},"Play",1,selected_file());
+    /* Heading: the folder's name and its path; Up and Refresh as icon buttons. */
+    int x=c.x+24,w=c.w-48;
+    const char *name=folder;
+    for (const char *p=folder;*p;p++) if (*p=='/' && p[1]) name=p+1;
+    zui_clip(ui,c);
+    fit(ui,x,c.y+16,same_path(folder,"/")?"Computer":name,w-96,&zui_heading,ui->theme.text);
+    fit(ui,x,c.y+52,folder,w-96,&zui_caption,ui->theme.secondary);
+    zui_add(ui,UP_BUTTON,ZUI_BUTTON,(struct zui_rect){x+w-80,c.y+18,36,34},"",0,folder[1]!=0);
+    if (ui->count) ui->controls[ui->count-1].icon="arrow-up";
+    zui_add(ui,REFRESH_BUTTON,ZUI_BUTTON,(struct zui_rect){x+w-36,c.y+18,36,34},"",0,1);
+    if (ui->count) ui->controls[ui->count-1].icon="refresh-cw";
+
+    /* The folders and WADs on a card. */
+    int footer=64;
+    struct zui_rect card={x,c.y+84,w,c.h-84-footer-8};
+    zui_surface(ui,card,zui_radius(ui,12,card.h),ZUI_SURFACE_CONTENT);
+    zui_list_draw(ui,&list,(struct zui_rect){card.x+6,card.y+6,card.w-12,card.h-12},count,row,0);
+    if (!count) {
+        int cy=card.y+card.h/2-40;
+        zui_icon(ui,"file-archive",card.x+(card.w-32)/2,cy,32,ZUI_ICON_TEXT);
+        const char *line1="No WAD files here",*line2="Put Doom, Doom II or Freedoom WADs in a doom folder in your home,";
+        const char *line3="or open the folder that holds them.";
+        text(ui,card.x+(card.w-zui_measure(line1,length(line1),&zui_label))/2,cy+44,line1,&zui_label,ui->theme.text);
+        fit(ui,card.x+(card.w-zui_measure(line2,length(line2),&zui_caption))/2,cy+68,line2,card.w-24,&zui_caption,ui->theme.secondary);
+        text(ui,card.x+(card.w-zui_measure(line3,length(line3),&zui_caption))/2,cy+86,line3,&zui_caption,ui->theme.secondary);
+    }
+
+    /* Footer: what Play would start, or what went wrong. */
+    int fy=c.y+c.h-footer;
+    zui_fill(ui,(struct zui_rect){x,fy,w,1},ui->theme.border);
+    const char *title=message?message:selected_file()?(game_of(entries[list.selected].name)?game_of(entries[list.selected].name):entries[list.selected].name):"Choose a game";
+    /* Under the game's name: the file and its size (the row already says which game it is). */
+    static char chosen[300];
+    if (!message && selected_file()) { char *o=chosen; const struct entry *e=&entries[list.selected]; unsigned long n=length(e->name); if (n>200) n=200; copy(o,e->name,n); o+=n; o=put(o," · "); size_text(o,e->size); }
+    const char *detail=message?0:selected_file()?chosen:"Pick a WAD from the list, then Play.";
+    fit(ui,x,fy+14,title,w-130,&zui_label,message?ui->theme.text:ui->theme.text);
+    if (detail) fit(ui,x,fy+36,detail,w-130,&zui_caption,ui->theme.secondary);
+    zui_add(ui,PLAY_BUTTON,ZUI_BUTTON,(struct zui_rect){x+w-110,fy+14,110,36},"Play",1,selected_file());
+    zui_clip(ui,(struct zui_rect){0,0,ui->width,ui->height});
+
     ui->focus=ui->pressed=-1;
     for(int i=0;i<ui->count;i++) {
         if(ui->controls[i].id==focused) ui->focus=i;
@@ -223,7 +323,7 @@ static long draw(long window,struct zui *ui,long now)
     }
     zui_update_hover(ui);
     zui_draw_controls(ui);
-    return zenith_gui_present(window,ui->pixels,(unsigned long)w*h*4);
+    return zenith_gui_present(window,ui->pixels,(unsigned long)ui->width*ui->height*4);
 }
 
 int doom_launcher(long window,struct zui *ui,char **envp,const char *start,const char *(*load)(const char *))
@@ -267,6 +367,7 @@ int doom_launcher(long window,struct zui *ui,char **envp,const char *start,const
             }
         }
         if(action==HOME_BUTTON) browse(ui,home);
+        else if(action>=PLACE_ID && action<PLACE_ID+PLACES && place_exists[action-PLACE_ID]) browse(ui,places[action-PLACE_ID]);
         else if(action==UP_BUTTON) {
             unsigned long n=length(folder);
             while(n>1 && folder[n-1]=='/') n--;
