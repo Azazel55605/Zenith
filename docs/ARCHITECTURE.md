@@ -47,7 +47,7 @@ wake it. The memory reserve policy requests collection near one-eighth free page
 at most once per second. It protects the tested native workload; graceful behavior
 for arbitrary workloads larger than RAM remains unproven.
 
-The test DE, local text and x64 serial fallback hosts exist; WM remains unavailable. Selection
+The floating DE and tiling WM use the same graphical host, compositor and app services. Local text and x64 COM1 provide headless operation. Selection
 prefers DE as fallback when supported display hardware is present, then headless.
 Saving an unavailable mode through the CLI is refused. Supported display detection
 checks the boot framebuffer and known virtio GPU/VMware SVGA PCI IDs without a canvas.

@@ -214,7 +214,8 @@ static int style_page(const struct meridian *a){return same(meridian_pages[a->pa
 static const char *wip_note(const struct meridian *a,int kind){
     if(desktop_active(a)){
         if(desktop_kind(a)==Z_DESKTOP_TASKBAR)return "F11 toggles fullscreen. Move the pointer to the taskbar's screen edge to reveal it.";
-        if(desktop_kind(a)==Z_DESKTOP_WINDOWS)return "These controls apply to the floating Zenith desktop.";
+        if(desktop_kind(a)==Z_DESKTOP_WINDOWS)return a->desktop.saved.page==Z_DESKTOP_WINDOWS_TILING
+            ?"Window gaps apply only in Tiling WM.":"These controls apply to the floating Zenith desktop.";
         if(desktop_kind(a)==Z_DESKTOP_SWITCHER)return "Hold Alt and press Tab to cycle; release Alt to select. Add Shift to go back.";
         return "Manage the order and names of the desktops available in this session.";
     }
@@ -329,6 +330,11 @@ static void preference_form(struct meridian *a,struct zui *u,struct zui_form *f,
     status(u,f,b->message?b->message:binding_changed(b,kind)?"Unapplied change.":kind==BIND_KEYBOARD?"Applies to keyboard input across sessions immediately.":
         kind==BIND_TIMEZONE?"Changes local time display; the UTC clock is unchanged.":kind==BIND_ANIMATIONS?"Applies to the next window change. Off keeps every change immediate.":kind==BIND_TASKBAR?"Applies immediately. Dock when maximized removes the gap around the bar for a maximized window.":
         kind==BIND_WALLPAPER?"Applies immediately, here and on the login screen.":kind==BIND_LAUNCHER||kind==BIND_CURSOR?"Applies immediately.":"Applies on next boot; the running session is unchanged.");
+    if(kind==BIND_SESSION){
+        unsigned int selected=binding_choice(b,kind);
+        if(selected<(unsigned int)count&&same(b->preferences.sessions[selected],"wm"))
+            note(u,f,"Alt+Arrow focuses a tile. Run wm in Terminal for the full list of shortcuts.");
+    }
 }
 /* Pickers (call 669): previews drawn by the desktop, one tile per choice, the draft outlined with a check. */
 enum { ID_PICKS=8000 };   /* ID_PICKS + field * 64 + index */

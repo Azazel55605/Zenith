@@ -32,7 +32,7 @@ internal static class SessionRuntime
     public static bool IsLogin { get; private set; }
     public static string? Message { get; private set; }
     public static SessionSelection Selected { get; private set; } = new(SessionMode.Desktop, "built-in default", null);
-    public static bool Available(SessionMode mode) => (mode == SessionMode.Desktop && DesktopAvailable())
+    public static bool Available(SessionMode mode) => (SessionModes.IsGraphical(mode) && DesktopAvailable())
         || (mode == SessionMode.Headless && System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.X64);
     public static unsafe void Start(SessionMode saved, Func<SessionMode, ISessionHost> factory)
     {

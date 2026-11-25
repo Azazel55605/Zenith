@@ -7,6 +7,9 @@ internal sealed record SessionSelection(SessionMode Mode, string Source, string?
 
 internal static class SessionModes
 {
+    private static readonly SessionMode[] Modes = { SessionMode.Desktop, SessionMode.Headless, SessionMode.WindowManager };
+    public static ReadOnlySpan<SessionMode> All => Modes;
+    public static bool IsGraphical(SessionMode mode) => mode is SessionMode.Desktop or SessionMode.WindowManager;
     public static string Name(SessionMode mode) => mode switch
     { SessionMode.Desktop => "de", SessionMode.Headless => "headless", SessionMode.WindowManager => "wm", _ => throw new ArgumentOutOfRangeException(nameof(mode)) };
     public static bool TryParse(string name, out SessionMode mode)

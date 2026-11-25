@@ -8,13 +8,30 @@ namespace Zenith.Core.Shell.Commands;
 
 internal static class ConfigurationCommands
 {
+    private const string SettingsUsage = "settings [show | set keyboard|timezone|session|animations|taskbar|panel-position|tile-split|windows|wallpaper|cursor|cursor-size|decoration|widgets|buttons|splash|login|boot|sounds|icons|sound-level|sound-off|translucency VALUE | set tile-gaps INNER OUTER | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]";
+
     public static void Register(Action<Command> add)
     {
         add(new Command("display", "display [test WIDTH HEIGHT SCALE|PERCENT | keep | revert]", "Primary display modes and guarded preview", Display));
-        add(new Command("settings", "settings [show | set keyboard|timezone|session|animations|taskbar|windows|wallpaper|cursor|cursor-size|decoration|widgets|buttons|splash|login|boot|sounds|icons|sound-level|sound-off|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]", "Shared system settings", Settings));
+        add(new Command("settings", SettingsUsage, "Shared system settings", Settings));
+        add(new Command("wm", "wm", "Show tiling window manager controls", WindowManagerHelp));
         add(new Command("session", "session [status | list | set-default MODE | switch MODE]", "Select a session or return to login", Session));
         add(new Command("notify", "notify [--icon NAME] [--action LABEL APP] TITLE [BODY...] | notify history | notify dnd on|off | notify popup short|normal|long | notify mute NAME on|off", "Post a notification; show history; Do Not Disturb", Notify));
     }
+    private static int WindowManagerHelp(CommandContext c)
+    {
+        if (c.Args.Length != 0) { return c.Fail("usage: wm"); }
+        c.WriteLine("Session: " + SessionModes.Name(SessionRuntime.Selected.Mode));
+        c.WriteLine("Alt+Arrow focuses a tile. Alt+Shift+Arrow swaps it with its neighbor.");
+        c.WriteLine("Alt+Page Up/Down cycles through every tile on this desktop, including overflow pages.");
+        c.WriteLine("Alt+Minus/Equal adjusts the primary column. Ctrl+Alt+F toggles floating. F11 toggles fullscreen.");
+        c.WriteLine("Ctrl+Alt+Left/Right or 1-8 selects a desktop. Add Shift to take the focused window.");
+        c.WriteLine("Alt+Tab switches windows. Alt+Space opens Prism. Ctrl+Alt+Shift+T opens a recovery terminal.");
+        c.WriteLine("Set the inner and outer tile gaps in Meridian under Window Behavior, or use settings set tile-gaps INNER OUTER.");
+        c.WriteLine("In Meridian, use Virtual Desktops to manage desktops and Taskbar to choose the panel edge.");
+        return 0;
+    }
+
     private static int Notify(CommandContext c)
     {
         var settings = SystemConfiguration.Settings;
@@ -114,6 +131,10 @@ internal static class ConfigurationCommands
             c.WriteLine("session=" + SessionModes.Name(settings.Current.DefaultSession) + " (next boot)");
             c.WriteLine("animations=" + SettingsService.AnimationNames[settings.Current.Animation]);
             c.WriteLine("taskbar=" + SettingsService.TaskbarNames[settings.Current.Taskbar]);
+            c.WriteLine("panel-position=" + (settings.DesktopPreferences.TaskbarPosition == 1 ? "top" : "bottom"));
+            var desktop = settings.DesktopPreferences;
+            c.WriteLine("tile-split=" + desktop.MasterPercent);
+            c.WriteLine("tile-gaps=" + desktop.TileInnerGap + "," + desktop.TileOuterGap + " (inner,outer; WM logical pixels)");
             c.WriteLine("windows=" + SettingsService.WindowsNames[settings.Current.Windows] + " (new windows)");
             c.WriteLine("wallpaper=" + SettingsService.WallpaperNames[settings.Current.Wallpaper] + " cursor=" + SettingsService.CursorNames[settings.Current.Cursor]);
             foreach (var style in SettingsService.Styles) { c.WriteLine(style.Key.ToLowerInvariant().Replace('_', '-') + "=" + style.Names[settings.Style(style.Field)]); }
@@ -129,6 +150,13 @@ internal static class ConfigurationCommands
             var materials = SystemConfiguration.Appearance.MaterialStatus;
             c.WriteLine("materials saved=" + appearance.Saved.Materials + " effective=" + materials.Effective
                 + " translucency=" + appearance.Saved.Translucency + "%" + " available=" + materials.Available + " fallback=" + materials.Reason);
+            return 0;
+        }
+        if (c.Args.Length >= 2 && c.Args[0] == "set" && c.Args[1] == "tile-gaps")
+        {
+            if (c.Args.Length != 4) { return c.Fail("usage: settings set tile-gaps INNER OUTER (0..32 logical pixels each)"); }
+            settings.SetTileGaps(c.Args[2], c.Args[3]);
+            c.WriteLine("saved tile-gaps" + (settings.Persistent ? "" : " (live: lost at reboot)"));
             return 0;
         }
         if (c.Args.Length == 3 && c.Args[0] == "set" && c.Args[1] == "translucency")
@@ -158,13 +186,23 @@ internal static class ConfigurationCommands
             c.WriteLine("saved appearance; desktop applies on its next tick, headless on next login" + (service.Persistent ? "" : " (live: volatile)"));
             return 0;
         }
-        if (c.Args.Length != 3 || c.Args[0] != "set") { return c.Fail("usage: settings [show | set keyboard|timezone|session|animations|taskbar|windows|wallpaper|cursor|cursor-size|decoration|widgets|buttons|splash|login|boot|sounds|icons|sound-level|sound-off|translucency VALUE | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]"); }
+        if (c.Args.Length != 3 || c.Args[0] != "set") { return c.Fail("usage: " + SettingsUsage); }
         switch (c.Args[1])
         {
             case "keyboard": settings.SetKeyboard(c.Args[2]); break;
             case "timezone": settings.SetTimeZone(c.Args[2]); break;
             case "session": return SaveSession(c, c.Args[2]);
             case "animations": settings.SetAnimation(c.Args[2]); break;
+            case "tile-split": settings.SetTileSplit(c.Args[2]); break;
+            case "panel-position":
+            {
+                if (c.Args[2] is not ("top" or "bottom")) { return c.Fail("panel-position takes top or bottom"); }
+                var (desktop, mode, revision) = settings.DesktopSnapshot();
+                uint position = c.Args[2] == "top" ? 1u : 0u;
+                int result = settings.SaveDesktopPreferences(1, new[] { mode, position }, desktop.Entries(1), revision);
+                if (result != 0) { return c.Fail("could not save panel position (" + result + ")"); }
+                break;
+            }
             case "taskbar": settings.SetTaskbar(c.Args[2]); break;
             case "windows": settings.SetWindows(c.Args[2]); break;
             case "wallpaper": settings.SetWallpaper(c.Args[2]); break;
@@ -213,10 +251,17 @@ internal static class ConfigurationCommands
         }
         if (c.Args.Length == 1 && c.Args[0] == "list")
         {
-            foreach (SessionMode mode in new[] { SessionMode.Desktop, SessionMode.Headless, SessionMode.WindowManager })
-            { c.WriteLine(SessionModes.Name(mode) + ": " + (SessionRuntime.Available(mode)
-                ? mode == SessionMode.Desktop ? "available (test desktop)" : SessionRuntime.DesktopAvailable() ? "available (local text console; serial fallback)" : "available (serial COM1)"
-                : "planned, unavailable")); }
+            foreach (SessionMode mode in SessionModes.All)
+            {
+                string description = mode switch
+                {
+                    _ when !SessionRuntime.Available(mode) => "unavailable on this boot",
+                    SessionMode.Desktop => "available (floating desktop)",
+                    SessionMode.WindowManager => "available (automatic tiling)",
+                    _ => SessionRuntime.DesktopAvailable() ? "available (local text console; serial fallback)" : "available (serial COM1)"
+                };
+                c.WriteLine(SessionModes.Name(mode) + ": " + description);
+            }
             return 0;
         }
         if (c.Args.Length == 2 && c.Args[0] == "set-default") { return SaveSession(c, c.Args[1]); }
@@ -227,7 +272,7 @@ internal static class ConfigurationCommands
             if (error is not null) { return c.Fail(error); }
             c.WriteLine("Ending session; sign in to " + c.Args[1] + "."); return 0;
         }
-        return c.Fail("usage: session [status | list | set-default MODE]");
+        return c.Fail("usage: session [status | list | set-default MODE | switch MODE]");
     }
     private static int SaveSession(CommandContext c, string name)
     {

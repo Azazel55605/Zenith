@@ -154,6 +154,36 @@ public class SettingsServiceTests
     }
 
     [Fact]
+    public void TilingSplitPersistsWithoutOverwritingWorkspaceSettings()
+    {
+        using var root = CredentialContext.Enter(Credentials.Root);
+        var store = new Store();
+        store.Files[SettingsService.DesktopPath] = "VERSION=1\nMASTER_PERCENT=90\nCUSTOM=keep\n";
+        var service = Service(store);
+        Assert.Contains(service.Load(), error => error.Contains("MASTER_PERCENT"));
+        Assert.Equal(55, service.DesktopPreferences.MasterPercent);
+        var (_, _, revision) = service.DesktopSnapshot();
+        using (CredentialContext.Enter(new Credentials(1000, 1000)))
+        {
+            Assert.Throws<UnauthorizedAccessException>(() => service.SetTileSplit("65"));
+        }
+        Assert.Throws<ArgumentException>(() => service.SetTileSplit("24"));
+        store.FailWrite = true;
+        Assert.Throws<IOException>(() => service.SetTileSplit("65"));
+        Assert.Equal(revision, service.DesktopSnapshot().Revision);
+        store.FailWrite = false;
+        service.SetTileSplit("65");
+        var desktop = new DesktopEntry[] { new(0, "Main"), new(1, "Code") };
+        Assert.Equal(-11, service.SaveDesktopPreferences(4, new uint[] { 0 }, desktop, revision));
+        Assert.Equal(0, service.SaveDesktopPreferences(4, new uint[] { 0 }, desktop, revision + 1));
+        var reopened = Service(store);
+        Assert.Empty(reopened.Load());
+        Assert.Equal(65, reopened.DesktopPreferences.MasterPercent);
+        Assert.Equal(desktop, reopened.DesktopPreferences.Desktops);
+        Assert.Contains("CUSTOM=keep", store.Files[SettingsService.DesktopPath]);
+    }
+
+    [Fact]
     public void DesktopWireEnforcesAuthorizationCanonicalPaddingAndRevision()
     {
         using var root = CredentialContext.Enter(Credentials.Root);
@@ -174,5 +204,70 @@ public class SettingsServiceTests
         Assert.Equal(0, ProcessDesktopPreferences.Save(service, data));
         Assert.Equal(-11, ProcessDesktopPreferences.Save(service, data));
         Assert.Equal(0u, service.DesktopPreferences.DesktopMotion);
+    }
+
+    [Fact]
+    public void ExtendedWindowDraftAndLegacyClientsShareOneRevisionAndPreserveGaps()
+    {
+        using var root = CredentialContext.Enter(Credentials.Root);
+        var store = new Store();
+        store.Files[SettingsService.DesktopPath] = "MASTER_PERCENT=65\nCUSTOM=keep\n";
+        var service = Service(store);
+        Assert.Empty(service.Load());
+        byte[] draft = ProcessDesktopPreferences.Snapshot(service, 5, false);
+        Assert.Equal(0UL, BinaryPrimitives.ReadUInt64LittleEndian(draft.AsSpan(56)));
+        service.SetTileGaps("4", "8");
+        Assert.Equal(-11, ProcessDesktopPreferences.Save(service, draft));
+
+        draft = ProcessDesktopPreferences.Snapshot(service, 5, false);
+        Assert.Equal(4u, BinaryPrimitives.ReadUInt32LittleEndian(draft.AsSpan(56)));
+        Assert.Equal(8u, BinaryPrimitives.ReadUInt32LittleEndian(draft.AsSpan(60)));
+        BinaryPrimitives.WriteUInt32LittleEndian(draft.AsSpan(28), 500); // Hover delay.
+        BinaryPrimitives.WriteUInt32LittleEndian(draft.AsSpan(56), 32);
+        BinaryPrimitives.WriteUInt32LittleEndian(draft.AsSpan(60), 33);
+        Assert.Equal(-22, ProcessDesktopPreferences.Save(service, draft));
+        BinaryPrimitives.WriteUInt32LittleEndian(draft.AsSpan(60), 0);
+        using (CredentialContext.Enter(new Credentials(1000, 1000)))
+        {
+            Assert.Equal(-13, ProcessDesktopPreferences.Save(service, draft));
+            Assert.Throws<UnauthorizedAccessException>(() => service.SetTileGaps("0", "32"));
+        }
+        store.FailWrite = true;
+        Assert.Equal(-5, ProcessDesktopPreferences.Save(service, draft));
+        Assert.Equal((250u, 4, 8), (service.DesktopPreferences.FocusDelay, service.DesktopPreferences.TileInnerGap, service.DesktopPreferences.TileOuterGap));
+        store.FailWrite = false;
+        Assert.Equal(0, ProcessDesktopPreferences.Save(service, draft));
+        Assert.Equal(-11, ProcessDesktopPreferences.Save(service, draft));
+        byte[] legacy = ProcessDesktopPreferences.Snapshot(service, 2, false);
+        Assert.Equal(500u, BinaryPrimitives.ReadUInt32LittleEndian(legacy.AsSpan(28)));
+        Assert.Equal(0UL, BinaryPrimitives.ReadUInt64LittleEndian(legacy.AsSpan(56)));
+        legacy[60] = 1;
+        Assert.Equal(-22, ProcessDesktopPreferences.Save(service, legacy));
+        legacy[60] = 0;
+        BinaryPrimitives.WriteUInt32LittleEndian(legacy.AsSpan(28), 600);
+        Assert.Equal(0, ProcessDesktopPreferences.Save(service, legacy));
+        var reopened = Service(store);
+        Assert.Empty(reopened.Load());
+        Assert.Equal((600u, 32, 0), (reopened.DesktopPreferences.FocusDelay, reopened.DesktopPreferences.TileInnerGap, reopened.DesktopPreferences.TileOuterGap));
+        Assert.Equal(65, reopened.DesktopPreferences.MasterPercent);
+        Assert.Contains("CUSTOM=keep", store.Files[SettingsService.DesktopPath]);
+    }
+
+    [Fact]
+    public void MalformedGapPairFallsBackAndInvalidCliWritesLeaveSettingsIntact()
+    {
+        using var root = CredentialContext.Enter(Credentials.Root);
+        var store = new Store();
+        const string original = "VERSION=1\nMASTER_PERCENT=60\nWM_GAPS=10,-1\n";
+        store.Files[SettingsService.DesktopPath] = original;
+        var service = Service(store);
+        Assert.Contains(service.Load(), error => error.Contains("WM_GAPS"));
+        Assert.Equal((60, 0, 0), (service.DesktopPreferences.MasterPercent, service.DesktopPreferences.TileInnerGap, service.DesktopPreferences.TileOuterGap));
+        Assert.Throws<ArgumentException>(() => service.SetTileGaps("33", "1"));
+        Assert.Throws<ArgumentException>(() => service.SetTileGaps("1", "-1"));
+        Assert.Equal(original, store.Files[SettingsService.DesktopPath]);
+        store.Files[SettingsService.DesktopPath] = "VERSION=2\n";
+        Assert.Throws<FormatException>(() => service.SetTileGaps("0", "1"));
+        Assert.Equal("VERSION=2\n", store.Files[SettingsService.DesktopPath]);
     }
 }

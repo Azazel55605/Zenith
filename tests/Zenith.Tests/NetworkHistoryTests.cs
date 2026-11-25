@@ -8,6 +8,7 @@ using Zenith.Core.Processes;
 namespace Zenith.Tests;
 
 /// <summary>Beacon's history (kernel 0.0.69): traffic at four resolutions, bounded events and the on-disk format.</summary>
+[Collection("portal")] // The network-grant test uses the table that PortalTests resets.
 public class NetworkHistoryTests
 {
     private static (uint Count, uint Step, uint[] In, uint[] Out) Decode(byte[] b)

@@ -1,13 +1,17 @@
 #ifndef ZENITH_DESKTOP_PREFERENCES_H
 #define ZENITH_DESKTOP_PREFERENCES_H
 #include "../sunbeam/zenith.h"
-enum { Z_DESKTOP_TASKBAR=1, Z_DESKTOP_WINDOWS, Z_DESKTOP_SWITCHER, Z_DESKTOP_WORKSPACES };
-enum { Z_DESKTOP_MAX=8, Z_DESKTOP_PINS=6, Z_DESKTOP_APPS=62 };
+enum { Z_DESKTOP_TASKBAR=1, Z_DESKTOP_WINDOWS, Z_DESKTOP_SWITCHER, Z_DESKTOP_WORKSPACES, Z_DESKTOP_WINDOWS_TILING };
+enum { Z_DESKTOP_MAX=8, Z_DESKTOP_PINS=6, Z_DESKTOP_APPS=62, Z_DESKTOP_GAP_MAX=32 };
 struct zenith_desktop_entry { unsigned int id; char name[65]; unsigned char reserved[3]; };
 struct zenith_desktop_preferences {
     unsigned int version,page,flags,count;
     unsigned long revision;
-    unsigned int values[8],reserved[2];
+    unsigned int values[8];
+    union {
+        unsigned int reserved[2];
+        struct { unsigned int inner_gap,outer_gap; }; /* Z_DESKTOP_WINDOWS_TILING only, logical pixels */
+    };
     struct zenith_desktop_entry entries[Z_DESKTOP_MAX];
 };
 struct zenith_desktop_app { char id[65], label[65]; };

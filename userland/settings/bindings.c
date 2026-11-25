@@ -128,7 +128,14 @@ int binding_choice_count(const struct meridian_bindings *b,int kind){
 const char *binding_choice_name(const struct meridian_bindings *b,int kind,unsigned int i){
     if(kind==BIND_DISPLAY)return i<b->resolution_count?b->resolution_labels[i]:"";
     int f=field(kind);if(i>=(unsigned int)binding_choice_count(b,kind))return "";
-    return f==1?b->preferences.keyboards[i]:f==2?b->preferences.zones[i]:f==3?b->preferences.sessions[i]:f==4?b->preferences.animations[i]:
+    if(kind==BIND_SESSION){
+        const char *mode=b->preferences.sessions[i];
+        if(same(mode,"de"))return "Floating desktop";
+        if(same(mode,"wm"))return "Tiling window manager";
+        if(same(mode,"headless"))return "Text console";
+        return mode;
+    }
+    return f==1?b->preferences.keyboards[i]:f==2?b->preferences.zones[i]:f==4?b->preferences.animations[i]:
         f==5?b->preferences.taskbars[i]:f==6?b->preferences.wallpapers[i]:f==7?b->preferences.launchers[i]:i==0?"Meridian Light":"Meridian Dark";
 }
 unsigned int binding_choice(const struct meridian_bindings *b,int kind){if(kind==BIND_DISPLAY)return resolution_of(b,b->display_choice);int f=field(kind);return f?b->choice[f]:0;}

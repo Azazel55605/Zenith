@@ -22,14 +22,14 @@ in the 0.0.11 source; protected graphical executables remain a later ABI slice.
 ## Current use and acceptance
 
 Configured installed ext2 accounts reach a graphical greeter before apps open.
-Type username, Tab to the masked password, then choose Desktop or Headless by
+Type username, Tab to the masked password, then choose Desktop, Tiling WM or Headless by
 clicking the session selector (or Tab and Left/Right). Enter signs in. A configured
 ordinary user with locked root still requires login and cannot regain bootstrap
 root access. Live/fresh installs retain their setup/recovery workflows.
 
 Ctrl+Alt+T opens Terminal; Ctrl+Alt+L or the launcher requests logout. Busy commands,
 updates and unsaved editor documents block logout with a visible reason. Save or
-explicitly close your work first. `logout` and `session switch de|headless`
+explicitly close your work first. `logout` and `session switch de|wm|headless`
 return to login; switching closes the old session rather than retain its apps.
 `exit` closes a desktop Terminal window; in the local console it ends the session.
 Headless uses a local keyboard/text framebuffer and history with the configured
@@ -89,8 +89,7 @@ operator acceptance limits. The sections below retain the design/delivery contex
   opening desktop applications. Username/password authentication uses the existing
   account service; passwords are hidden, cleared after submission and absent from
   logs. Failed authentication does not create an authenticated session.
-- The login surface offers Desktop and Headless only when their hosts are available.
-  WM remains unavailable until its implementation exists. Saved session defaults
+- The login surface offers Desktop, Tiling WM and Headless according to host availability. Saved session defaults
   select the initial choice; explicit boot arguments retain their documented
   headless/recovery behavior for unattended diagnostics and serial acceptance.
 - Desktop opens under the authenticated user's credentials. A terminal is an app,

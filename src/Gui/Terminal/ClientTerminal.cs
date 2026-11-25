@@ -46,7 +46,9 @@ internal sealed class ClientTerminal : IProcessTerminal
     public int OwnerPid { get; }
     public bool Closed { get { lock (_gate) { return _closed; } } }
     /// <summary>Whether a logout would interrupt something.</summary>
-    public bool Busy => _session.IsBusy || _session.HasBackgroundJobs;
+    public bool Busy => BlocksLogout(null);
+    public bool BlocksLogout(Zenith.Core.Shell.Shell? requester) =>
+        _session.HasBackgroundJobs || (_session.IsBusy && (requester is null || !_session.OwnsShell(requester)));
 
     private void Emit(string text)
     {

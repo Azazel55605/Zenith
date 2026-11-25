@@ -37,12 +37,12 @@ internal static class ProcessDesktopPreferences
 
     public static int Save(SettingsService service, ReadOnlySpan<byte> data)
     {
-        if (data.Length != Bytes || Read(data, 0) != 1 || Read(data, 8) != 0 || Read(data, 56) != 0 || Read(data, 60) != 0) { return -22; }
+        if (data.Length != Bytes || Read(data, 0) != 1 || Read(data, 8) != 0) { return -22; }
         uint page = Read(data, 4), count = Read(data, 12);
-        int fields = page switch { 1 => 2, 2 => 8, 3 => 4, 4 => 1, _ => 0 };
+        int fields = DesktopPreferences.ChoiceCount(page);
         if (fields == 0 || count > DesktopPreferences.MaximumDesktops) { return -22; }
         var values = new uint[fields];
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 10; i++)
         {
             uint value = Read(data, 24 + i * 4);
             if (i < fields) { values[i] = value; }

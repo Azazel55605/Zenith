@@ -340,9 +340,21 @@ A stale revision or refused disk write keeps the live settings intact. The
 taskbar record extends `/etc/zenith/taskbar.conf`; the other pages use
 `/etc/zenith/desktop-preferences.conf`.
 
-The little-endian 640-byte record has four u32 values (version 1, page 1–4,
-flags, count), a u64 revision, eight u32 page values, two zero u32 fields, and
-eight 72-byte entries. Read flag bit 0 means writable. Flags are zero on save.
+The DE and tiling WM share the Taskbar and Virtual Desktops pages. An
+administrator can also save the panel edge with `settings set panel-position
+top` or `settings set panel-position bottom`. The WM's optional
+`MASTER_PERCENT` field in `desktop-preferences.conf` sets the default master
+share. `settings set tile-split 60` writes that field and advances the shared
+revision. Older files default to 55%. The supported range is 25–75%.
+`settings set tile-gaps 8 16` writes `WM_GAPS=8,16` in the same file.
+The first number sets the space between tiles and the second sets the margin
+around the work area inside the panel edge. Each accepts 0–32 logical pixels
+and defaults to zero. Only tiled windows in WM mode use these values.
+
+The little-endian 640-byte record has four u32 values (version 1, page ID,
+flags, count), a u64 revision, eight u32 page values, two additional u32
+fields at offsets 56 and 60, and eight 72-byte entries. Pages 1–4 reserve
+those two fields as zero. Read flag bit 0 means writable. Flags are zero on save.
 An entry contains a u32 stable ID, a 65-byte UTF-8 name and three zero bytes.
 Names are NUL-terminated and padded, and unused values and entries are zero.
 
@@ -352,6 +364,12 @@ Names are NUL-terminated and padded, and unused values and entries are zero.
 | 2 Window behavior | Focus (click/pointer), hover delay (0–1000 ms), click raise, hover raise, double-click action, maximize-button action, screen snap, neighbor snap distance (0–32 px) | None |
 | 3 Task switcher | Cards/list, recent/open/title sort, group by application, current/all workspaces | None |
 | 4 Virtual desktops | Animate switching | One to eight ordered names (1–48 UTF-8 bytes) with unique stable IDs |
+| 5 Extended window behavior | The eight page 2 values, then inner gap at offset 56 and outer gap at offset 60 | None |
+
+Meridian requests page 5 for Window Behavior so Apply can save the whole
+form in one transaction. On kernels that only implement page 2, Meridian
+uses that page and displays the original controls. Saving page 2 on a newer
+kernel preserves both gaps.
 
 Boolean values are 0/1. Titlebar action IDs 0–3 are maximize/restore,
 minimize, toggle fullscreen and do nothing. App catalogue reads use

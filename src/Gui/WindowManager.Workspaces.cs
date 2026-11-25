@@ -48,7 +48,7 @@ internal sealed partial class WindowManager
             if (!HasDesktop(window.WorkspaceId)) { window.WorkspaceId = desktops[0].Id; }
         }
         if (!HasDesktop(_activeDesktop)) { ChangeWorkspace(desktops[0].Id); }
-        else { _lowerDirty = true; }
+        else { _lowerDirty = true; RefreshAutoTiles(); }
         return true;
     }
 
@@ -105,6 +105,7 @@ internal sealed partial class WindowManager
         }
         if (id != _activeDesktop) { WorkspaceGeneration++; }
         _activeDesktop = id;
+        RefreshAutoTiles();
         _lowerDirty = true;
         foreach (Window window in _recentWindows)
         {

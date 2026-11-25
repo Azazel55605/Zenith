@@ -66,6 +66,13 @@ public class KeyboardTests
     }
 
     [Fact]
+    public void VirtioFunctionRowIncludesFullscreenKey()
+    {
+        Assert.Equal(ConsoleKeyEx.F11, Convert(KeyboardScanPolicy.Virtio(0, 87)).Key);
+        Assert.Equal(ConsoleKeyEx.F12, Convert(KeyboardScanPolicy.Virtio(0, 88)).Key);
+    }
+
+    [Fact]
     public void DedicatedArrowsRemainNavigationWhileKeypadKeepsNumLock()
     {
         Assert.Equal(ConsoleKeyEx.UpArrow, Convert(KeyboardScanPolicy.Ps2(0x48, true), num: true).Key);

@@ -102,8 +102,9 @@ internal sealed partial class WindowManager
     private long _lastTitleClickTime;
     private int _lastTitleClickX, _lastTitleClickY;
 
-    public WindowManager(Rect workArea, Rect screen)
+    public WindowManager(Rect workArea, Rect screen, bool autoTile = false)
     {
+        AutoTile = autoTile;
         _workArea = workArea;
         _screen = screen;
     }
@@ -115,6 +116,7 @@ internal sealed partial class WindowManager
         _workArea = workArea;
         foreach (Window w in _windows)
         {
+            if (w.IsTiled && !w.IsMaximized) { continue; }
             if (!w.IsMaximized)
             {
                 if (originChanged && w.IsFullscreen) { w.WindowedBounds = KeepTitleReachable(w.WindowedBounds, workArea); }
@@ -127,6 +129,7 @@ internal sealed partial class WindowManager
             if (w.IsFullscreen) { w.WindowedBounds = maximized; }
             else { w.SetBounds(maximized); }
         }
+        RefreshAutoTiles();
     }
 
     public void SetDisplayArea(Rect screen, Rect work)
@@ -137,6 +140,7 @@ internal sealed partial class WindowManager
         foreach(Window w in _windows)
         {
             w.BackdropStamp=-1; w.ChromeMaterial.Dispose();
+            if (w.IsTiled && !w.IsMaximized && !w.IsFullscreen) { continue; }
             var max=w.MaximumSize; var min=w.MinimumSize;
             Rect b=w.Bounds;
             int width=w.IsFullscreen?Math.Min(screen.W,max.Width):w.IsMaximized?Math.Min(work.W,max.Width):w.CanResize?Math.Max(min.Width,Math.Min(b.W,work.W)):b.W;
@@ -148,6 +152,7 @@ internal sealed partial class WindowManager
             w.WindowedBounds = KeepBoundsIn(w.WindowedBounds, work);
             if (w.SnapRestore is Rect restore) { w.SnapRestore = KeepBoundsIn(restore, work); }
         }
+        RefreshAutoTiles();
     }
 
     public bool HasTransition => _transition is not null;
@@ -239,6 +244,7 @@ internal sealed partial class WindowManager
         _windows.Add(window);
         _opened.Add(window);
         _recentWindows.Add(window);
+        if (AutoTile) { _tileOrder.Add(window); RefreshAutoTiles(); }
         if (IsOnActiveDesktop(window))
         {
             Focus(window);
@@ -262,18 +268,21 @@ internal sealed partial class WindowManager
     {
         if (window.IsClosed || !IsOnActiveDesktop(window) || !_windows.Contains(window)) { return; }
         CancelPointerFocus();
-        if (window.IsMinimized) { _transition = new(WindowChange.Restored, window, window.Bounds); }
+        bool restore = window.IsMinimized;
+        if (restore) { _transition = new(WindowChange.Restored, window, window.Bounds); }
         window.IsMinimized = false;
-        if (raise && window != _windows[^1])
+        if (AutoTile && CanTile(window) && Focused is Window previous && previous != window && previous.IsTiled)
         {
-            _windows.Remove(window);
-            _windows.Add(window);
+            if (previous.IsFullscreen) { ToggleFullscreen(previous); }
+            if (previous.IsMaximized) { ToggleMaximize(previous); }
         }
         foreach (Window w in _windows)
         {
             w.IsFocused = w == window;
         }
         RecordFocus(window);
+        if (AutoTile && (restore || window.TileHidden)) { RefreshAutoTiles(); }
+        if (raise) { RaiseWindow(window); }
     }
 
     public void Minimize(Window window)
@@ -281,6 +290,7 @@ internal sealed partial class WindowManager
         if (window == Top) { _transition = new(WindowChange.Minimized, window, window.Bounds); }
         window.IsMinimized = true;
         window.IsFocused = false;
+        RefreshAutoTiles();
         FocusTopmostVisible();
     }
 
@@ -296,6 +306,7 @@ internal sealed partial class WindowManager
         {
             window.IsMaximized = false;
             window.SetBounds(window.RestoreBounds);
+            if (AutoTile) { RaiseWindow(window); }
         }
         else
         {
@@ -303,6 +314,7 @@ internal sealed partial class WindowManager
             if (_workArea.W < minimum.Width || _workArea.H < minimum.Height) { return; }
             window.RestoreBounds = window.Bounds;
             window.IsMaximized = true;
+            if (AutoTile) { RaiseWindow(window); }
             var maximum = window.MaximumSize;
             window.SetBounds(new(_workArea.X, _workArea.Y, Math.Min(_workArea.W, maximum.Width), Math.Min(_workArea.H, maximum.Height)));
         }
@@ -318,7 +330,8 @@ internal sealed partial class WindowManager
         if (window.IsFullscreen)
         {
             window.IsFullscreen = false;
-            window.SetBounds(window.WindowedBounds);
+            window.SetBounds(window.WindowedBounds, contentHeightChanged: true);
+            if (AutoTile) { RaiseWindow(window); }
         }
         else
         {
@@ -327,9 +340,10 @@ internal sealed partial class WindowManager
             Focus(window);   // Entering fullscreen brings this window above the rest of the desktop.
             window.WindowedBounds = window.Bounds;
             window.IsFullscreen = true;
+            if (AutoTile) { RaiseWindow(window); }
             var maximum = window.MaximumSize;
             int height = maximum.Height == int.MaxValue ? _screen.H : Math.Min(_screen.H, maximum.Height - Window.TitleBarHeight);
-            window.SetBounds(new(_screen.X, _screen.Y, Math.Min(_screen.W, maximum.Width), height));
+            window.SetBounds(new(_screen.X, _screen.Y, Math.Min(_screen.W, maximum.Width), height), contentHeightChanged: true);
         }
 
         if (window == Top) { _transition = new(WindowChange.Resized, window, from); }
@@ -339,7 +353,7 @@ internal sealed partial class WindowManager
     private int _barHeight = -1;
     public bool Update()
     {
-        bool changed = false, closedOne = false;
+        bool changed = false, closedOne = false, reflow = false;
         // A new decoration changes the bar height: every window keeps its content size, so programs are not resized.
         int bar = Window.TitleBarHeight;
         if (_barHeight >= 0 && bar != _barHeight)
@@ -348,6 +362,7 @@ internal sealed partial class WindowManager
             foreach (Window w in _windows)
             {
                 if (w.IsFullscreen) { continue; }
+                if (w.IsTiled) { w.SetBounds(w.Bounds, contentHeightChanged: true); reflow = true; continue; }
                 if (w.IsMaximized) { w.SetBounds(w.Bounds); continue; }
                 w.SetBounds(new Rect(w.Bounds.X, w.Bounds.Y, w.Bounds.W, w.Bounds.H + delta));
                 w.ContentVersion++;
@@ -364,10 +379,11 @@ internal sealed partial class WindowManager
             if (!w.IsClosed && (!w.IsMinimized || w.UpdateWhenMinimized) && w.Update())
             {
                 changed = true;
+                reflow |= AutoTile && IsOnActiveDesktop(w) && w.IsTiled != CanTile(w);
                 w.ContentVersion++;
                 w.ContentDamage = w.ContentDamage.Union(w.UpdateDamage is Rect part && !part.IsEmpty
                     ? part.Offset(w.Content.X, w.Content.Y).Intersect(w.Content) : AreaOf(w));
-                if (IsOnActiveDesktop(w) && !w.IsMinimized && w != Top) { _lowerDirty = true; w.ContentChanged = true; }
+                if (Visible(w) && w != Top) { _lowerDirty = true; w.ContentChanged = true; }
             }
 
             if (w.IsClosed)
@@ -381,10 +397,12 @@ internal sealed partial class WindowManager
                 _windows.RemoveAt(i);
                 _opened.Remove(w);
                 _recentWindows.Remove(w);
+                if (AutoTile) { _tileOrder.Remove(w); reflow |= IsOnActiveDesktop(w); }
                 changed = true;
             }
         }
 
+        if (reflow) { RefreshAutoTiles(); }
         if (changed && Focused is null)
         {
             FocusTopmostVisible();
@@ -473,7 +491,7 @@ internal sealed partial class WindowManager
                 {
                     RunTitleAction(hit, _behavior.TitleDoubleClick);
                 }
-                else
+                else if (!hit.IsTiled)
                 {
                     StartDrag(hit, Edges.None, input.X, input.Y);
                 }
@@ -626,7 +644,7 @@ internal sealed partial class WindowManager
 
     private static Edges EdgesAt(Window w, int x, int y)
     {
-        if (!w.CanResize || w.IsMaximized || w.IsFullscreen)
+        if (!w.CanResize || w.IsMaximized || w.IsFullscreen || w.IsTiled)
         {
             return Edges.None;
         }
@@ -659,7 +677,7 @@ internal sealed partial class WindowManager
     {
         get
         {
-            for (int i = _windows.Count - 1; i >= 0; i--) { if (IsOnActiveDesktop(_windows[i]) && !_windows[i].IsMinimized) { return _windows[i]; } }
+            for (int i = _windows.Count - 1; i >= 0; i--) { if (Visible(_windows[i])) { return _windows[i]; } }
             return null;
         }
     }
@@ -672,7 +690,7 @@ internal sealed partial class WindowManager
         int at = 0;
         foreach (Window w in _windows)
         {
-            if (!IsOnActiveDesktop(w) || w.IsMinimized || w == top) { continue; }
+            if (!Visible(w) || w == top) { continue; }
             if (at == _lower.Count || !_lower[at].Shows(w, w == hovered ? ButtonAt(w, mouseX, mouseY) : 0)) { return false; }
             at++;
         }
@@ -691,13 +709,13 @@ internal sealed partial class WindowManager
         foreach (LowerWindow old in _lower)
         {
             Window w = old.Window;
-            if (w.IsClosed || !IsOnActiveDesktop(w) || w.IsMinimized || w == top || !_windows.Contains(w)) { _changed.Add(old.Bounds.Inflate(Theme.ShadowSize + 2)); }
+            if (w.IsClosed || !Visible(w) || w == top || !_windows.Contains(w)) { _changed.Add(old.Bounds.Inflate(Theme.ShadowSize + 2)); }
         }
         var previous = new List<LowerWindow>(_lower);
         _lower.Clear(); _lowerDirty = false;
         foreach (Window w in _windows)
         {
-            if (!IsOnActiveDesktop(w) || w.IsMinimized || w == top) { continue; }
+            if (!Visible(w) || w == top) { continue; }
             int button = w == hovered ? ButtonAt(w, mouseX, mouseY) : 0;
             bool same = false;
             foreach (LowerWindow old in previous) { if (old.Shows(w, button)) { same = true; break; } }
@@ -720,7 +738,7 @@ internal sealed partial class WindowManager
     public void MarkChanged(Window w)
     {
         w.ContentVersion++; w.ContentDamage = AreaOf(w);
-        if (IsOnActiveDesktop(w) && !w.IsMinimized && w != Top) { _lowerDirty = true; w.ContentChanged = true; }
+        if (Visible(w) && w != Top) { _lowerDirty = true; w.ContentChanged = true; }
     }
 
     /// <summary>Area a window changes on screen, shadow included.</summary>
@@ -733,7 +751,7 @@ internal sealed partial class WindowManager
         Window? top = Top; int at = 0;
         foreach (Window w in _windows)
         {
-            if (!IsOnActiveDesktop(w) || w.IsMinimized || w == top) { continue; }
+            if (!Visible(w) || w == top) { continue; }
             if (at == _lower.Count || _lower[at].Window != w) { return false; }
             at++;
         }
@@ -981,8 +999,8 @@ internal sealed partial class WindowManager
         for (int i = _windows.Count - 1; i >= 0; i--)
         {
             Window w = _windows[i];
-            Rect area = includeResizeMargin && w.CanResize && !w.IsMaximized && !w.IsFullscreen ? w.Bounds.Inflate(ResizeMargin) : w.Bounds;
-            if (IsOnActiveDesktop(w) && !w.IsMinimized && area.Contains(x, y))
+            Rect area = includeResizeMargin && w.CanResize && !w.IsMaximized && !w.IsFullscreen && !w.IsTiled ? w.Bounds.Inflate(ResizeMargin) : w.Bounds;
+            if (Visible(w) && area.Contains(x, y))
             {
                 return w;
             }
@@ -1013,7 +1031,7 @@ internal sealed partial class WindowManager
     {
         for (int i = _windows.Count - 1; i >= 0; i--)
         {
-            if (IsOnActiveDesktop(_windows[i]) && !_windows[i].IsMinimized)
+            if (Visible(_windows[i]))
             {
                 Focus(_windows[i]);
                 return;

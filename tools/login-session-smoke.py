@@ -74,7 +74,8 @@ def main():
         if mode=='headless':
             monitor_command(keep/'monitor.sock','sendkey tab 30');monitor_command(keep/'monitor.sock','sendkey right 30');monitor_command(keep/'monitor.sock','sendkey shift-tab 30')
         off=len(m.log());monitor_type(keep/'monitor.sock',secret+'\n')
-        check(m.wait('headless ready (local text console)' if mode=='headless' else 'desktop ready (installed)',off,180),mode+' authenticated')
+        ready={'headless':'headless ready (local text console)','desktop':'desktop ready (installed)','wm':'wm ready (installed)'}
+        check(m.wait(ready[mode],off,180),mode+' authenticated')
     try:
         m=h.Machine(keep/'live',network=net);check(m.wait('headless ready',timeout=180),'live serial fallback')
         status('settings set windows compact; session set-default headless','LOGIN_DEFAULT');status('install sata0 --yes','LOGIN_INSTALL');disk=shutdown()
@@ -164,7 +165,13 @@ def main():
         login('root','desktop');monitor_command(keep/'monitor.sock','sendkey ctrl-alt-t 30');time.sleep(1)
         status('pkg remove zenith-style','LOGIN_META_REMOVE',True)
         output=status('pkg list | logger','LOGIN_DEPS_RETAINED',True);check('zenith-fonts' in output and 'zenith-theme-default' in output,'removing meta retains dependencies')
-        status('pkg verify','LOGIN_FINAL_VERIFY',True);disk=shutdown(True);m=None
+        status('pkg verify','LOGIN_FINAL_VERIFY',True)
+        command('session switch wm','login ready; selection=wm',True)
+        login('root','wm')
+        monitor_command(keep/'monitor.sock','sendkey ctrl-alt-t 30')
+        output=status('session status | logger','LOGIN_WM',True)
+        check('active=wm (authenticated login)' in output,'tiling session activated through login')
+        disk=shutdown(True);m=None
         import boot_image
         state=boot_image.verify(disk);part=next(p for p in boot_image.partitions(disk) if str(p[1])==state['root'])
         with disk.open('rb') as source,(keep/'root.ext2').open('wb') as target:

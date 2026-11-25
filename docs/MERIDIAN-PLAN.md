@@ -218,7 +218,7 @@ exact Plasma version/layout.
 - [System Settings modules](https://docs.kde.org/trunk_kf6/en/systemsettings/systemsettings/general.html): reference for grouped modules, navigation/search and distinct appearance/session components.
 - [Region & Language](https://docs.kde.org/stable_kf6/en/plasma-workspace/kcontrol/region_language/): reference for language preferences, independent format overrides and previews.
 - [KDE region-language model](https://github.com/KDE/plasma-workspace/blob/master/kcms/region_language/optionsmodel.cpp) and [its page source](https://github.com/KDE/plasma-workspace/blob/master/kcms/region_language/ui/main.qml): confirm **Data & Storage Sizes** means size-unit formatting, such as decimal MB versus binary MiB. It is not storage partitioning or distributor cleanup.
-- [Window Behavior](https://userbase.kde.org/System_Settings/Window_Behavior): reference for focus, raising, titlebar actions and movement as separate policies. Floating-DE controls must not pretend to configure a not-yet-implemented tiling WM.
+- [Window Behavior](https://userbase.kde.org/System_Settings/Window_Behavior): reference for focus, raising, titlebar actions and movement as separate policies. The floating desktop and the automatic tiler have distinct placement policies and share workspace and panel settings.
 
 Additional interpretation: “same as mouse” means the requested mouse options also
 appear on Touchpad, gated by that device's real capabilities. Focus delay applies to a supported pointer-focus policy, not to delaying an

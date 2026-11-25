@@ -31,10 +31,10 @@ never infer current failures from old release logs or claim a menu stub is a bac
 - `Kernel.cs` composes shared `SystemRuntime` initialization and `SessionRuntime`;
   `DesktopSessionHost` owns fonts/canvas/windows; x64 `HeadlessSessionHost` owns a
   bounded COM1 shell. `OnBoot` bypasses Cosmos's graphical KernelConsole bootstrap.
-  A missing supported display falls back to serial; WM remains unavailable.
+  The DE and tiling WM share the graphical host. A missing supported display falls back to serial.
   `Run()` ticks the selected host and halts until an interrupt.
 - Settings persistence belongs to `SettingsService`, shared by CLI and future GUI.
-  Configured installed accounts use the graphical greeter and local text/DE session
+  Configured installed accounts use the graphical greeter and local text, DE and WM session
   lifecycle; no-GPU COM1 remains recovery. Preserve worker/unsaved/mutation teardown,
   hidden authentication and package-loaded appearance/legacy catalog checks
   (docs/LOGIN-SESSIONS.md). The GUI host remains trusted and kernel-linked.

@@ -1,6 +1,6 @@
 #include "desktop_settings.h"
 
-enum { CHOICE=10000, COMBO_ROW=10032, ENTRY=10100, ADD=10200, REFRESH_APPS=10201, STEP=10216, TOGGLE=10232, PICK_APP=8 };
+enum { CHOICE=10000, COMBO_ROW=10032, ENTRY=10100, ADD=10200, REFRESH_APPS=10201, STEP=10216, TOGGLE=10232, INNER_GAP=10240, OUTER_GAP=10242, PICK_APP=8 };
 static const char *const modes[]={"Dock when maximized","Floating","Docked","Hide when maximized","Auto-hide"};
 static const char *const positions[]={"Bottom","Top"};
 static const char *const focus[]={"Click to focus","Focus follows pointer"};
@@ -21,6 +21,7 @@ static void copy(char *out,const char *in,unsigned long size){
 }
 static unsigned long length(const char *s){unsigned long n=0;while(s[n])n++;return n;}
 static void text(struct zui *ui,int x,int y,const char *s,const struct zui_font *font,unsigned int color){zui_text(ui,x,y,s,length(s),font,color);}
+static int window_behavior(unsigned int page){return page==Z_DESKTOP_WINDOWS||page==Z_DESKTOP_WINDOWS_TILING;}
 
 unsigned int desktop_page(const char *id){
     if(same(id,"windows.taskbar"))return Z_DESKTOP_TASKBAR;
@@ -31,12 +32,13 @@ unsigned int desktop_page(const char *id){
 }
 static struct zenith_desktop_preferences defaults(unsigned int page){
     struct zenith_desktop_preferences p={.version=1,.page=page};
-    if(page==Z_DESKTOP_WINDOWS){p.values[1]=250;p.values[2]=p.values[6]=1;}
+    if(window_behavior(page)){p.values[1]=250;p.values[2]=p.values[6]=1;}
     if(page==Z_DESKTOP_WORKSPACES){p.values[0]=1;p.count=1;copy(p.entries[0].name,"Desktop 1",65);}
     return p;
 }
 static int same_values(const struct zenith_desktop_preferences *a,const struct zenith_desktop_preferences *b){
     if(a->count!=b->count||!equal_bytes(a->values,b->values,sizeof(a->values)))return 0;
+    if(a->page==Z_DESKTOP_WINDOWS_TILING&&(a->inner_gap!=b->inner_gap||a->outer_gap!=b->outer_gap))return 0;
     for(unsigned int i=0;i<a->count;i++)if(a->entries[i].id!=b->entries[i].id||!same(a->entries[i].name,b->entries[i].name))return 0;
     return 1;
 }
@@ -54,7 +56,15 @@ static void refresh_catalog(struct meridian_desktop *d){
 int desktop_refresh(struct meridian_desktop *d,unsigned int page){
     if(!page||!d->read)return 0;
     struct zenith_desktop_preferences next;
-    if(d->read(page,&next)||next.version!=1||next.page!=page||next.count>Z_DESKTOP_MAX)return 0;
+    unsigned int requested=page;
+    if(page==Z_DESKTOP_WINDOWS)requested=d->ready?d->saved.page:Z_DESKTOP_WINDOWS_TILING;
+    long result=d->read(requested,&next);
+    if(page==Z_DESKTOP_WINDOWS&&!d->ready&&(result==-22||result==-38)){
+        requested=Z_DESKTOP_WINDOWS;
+        result=d->read(requested,&next);
+    }
+    if(result||next.version!=1||next.page!=requested||next.count>Z_DESKTOP_MAX)return 0;
+    if(requested==Z_DESKTOP_WINDOWS_TILING&&(next.count||next.inner_gap>Z_DESKTOP_GAP_MAX||next.outer_gap>Z_DESKTOP_GAP_MAX))return 0;
     for(unsigned int i=0;i<next.count;i++)if(next.entries[i].name[64])return 0;
     int update=!d->ready||d->saved.revision!=next.revision||d->saved.flags!=next.flags;
     if(!update)return 0;
@@ -119,7 +129,7 @@ static const char *const *options(const struct meridian_desktop *d,int field,int
         if(field==1){*count=2;return positions;}
         *count=(int)d->catalog.count;return 0;
     }
-    if(page==Z_DESKTOP_WINDOWS){
+    if(window_behavior(page)){
         if(field==0){*count=2;return focus;}
         *count=4;return title_actions;
     }
@@ -157,15 +167,15 @@ static int combo(struct meridian_desktop *d,struct zui *u,struct zui_form *f,int
 static void toggle(struct meridian_desktop *d,struct zui *u,struct zui_form *f,int field,const char *label,const char *help,int enabled){
     zui_add(u,TOGGLE+field,ZUI_TOGGLE,row(u,f,label,help,32),"",d->draft.values[field]!=0,enabled);
 }
-static void stepper(struct meridian_desktop *d,struct zui *u,struct zui_form *f,int field,const char *label,const char *help,const char *unit,unsigned int max,int enabled){
-    char shown[24],digits[12];unsigned int value=d->draft.values[field],n=value,i=0,at=0;
+static void stepper(struct zui *u,struct zui_form *f,int id,unsigned int value,const char *label,const char *help,const char *unit,unsigned int max,int enabled){
+    char shown[24],digits[12];unsigned int n=value,i=0,at=0;
     do{digits[i++]=(char)('0'+n%10);n/=10;}while(n);
     while(i)shown[at++]=digits[--i];
     copy(shown+at,unit,sizeof(shown)-at);
     struct zui_rect r=row(u,f,label,help,34);
-    zui_add(u,STEP+field*2,ZUI_BUTTON,(struct zui_rect){r.x,r.y,40,34},"-",0,enabled&&value);
+    zui_add(u,id,ZUI_BUTTON,(struct zui_rect){r.x,r.y,40,34},"-",0,enabled&&value);
     text(u,r.x+52,r.y+8,shown,&zui_body,u->theme.text);
-    zui_add(u,STEP+field*2+1,ZUI_BUTTON,(struct zui_rect){r.x+r.w-40,r.y,40,34},"+",0,enabled&&value<max);
+    zui_add(u,id+1,ZUI_BUTTON,(struct zui_rect){r.x+r.w-40,r.y,40,34},"+",0,enabled&&value<max);
 }
 static void entries_form(struct meridian_desktop *d,struct zui *u,struct zui_form *f,int workspaces,int enabled){
     unsigned int count=d->draft.count;
@@ -195,11 +205,11 @@ void desktop_form(struct meridian_desktop *d,struct zui *u,struct zui_form *f){
         combo(d,u,f,PICK_APP,"Add a pin",0,enabled&&d->draft.count<Z_DESKTOP_PINS);
         if(!d->catalog.count)message(u,f,"The application list is unavailable.");
         zui_add(u,REFRESH_APPS,ZUI_BUTTON,(struct zui_rect){f->x,f->y,158,34},"Refresh app list",0,1);f->y+=42;
-    }else if(page==Z_DESKTOP_WINDOWS){
+    }else if(window_behavior(page)){
         int hover=enabled&&d->draft.values[0]!=0;
         zui_form_section(u,f,"Focus");
         combo(d,u,f,0,"Focus policy",0,enabled);
-        stepper(d,u,f,1,"Focus delay","Applies when focus follows the pointer."," ms",1000,hover);
+        stepper(u,f,STEP+2,d->draft.values[1],"Focus delay","Applies when focus follows the pointer."," ms",1000,hover);
         toggle(d,u,f,2,"Raise on click","Bring a clicked window to the front.",enabled);
         toggle(d,u,f,3,"Raise on hover focus",0,hover);
         zui_form_section(u,f,"Titlebar");
@@ -207,7 +217,12 @@ void desktop_form(struct meridian_desktop *d,struct zui *u,struct zui_form *f){
         combo(d,u,f,5,"Maximize button",0,enabled);
         zui_form_section(u,f,"Snapping");
         toggle(d,u,f,6,"Screen edge zones","Drag to an edge or corner to maximize or tile.",enabled);
-        stepper(d,u,f,7,"Snap to other windows","Set the distance to 0 to turn it off."," px",32,enabled);
+        stepper(u,f,STEP+14,d->draft.values[7],"Snap to other windows","Set the distance to 0 to turn it off."," px",32,enabled);
+        if(page==Z_DESKTOP_WINDOWS_TILING){
+            zui_form_section(u,f,"Tiling WM");
+            stepper(u,f,INNER_GAP,d->draft.inner_gap,"Inner gap","Space between tiles."," px",Z_DESKTOP_GAP_MAX,enabled);
+            stepper(u,f,OUTER_GAP,d->draft.outer_gap,"Outer gap","Space around the tiled workspace."," px",Z_DESKTOP_GAP_MAX,enabled);
+        }
     }else if(page==Z_DESKTOP_SWITCHER){
         zui_form_section(u,f,"Appearance and order");
         combo(d,u,f,0,"Layout",0,enabled);
@@ -283,6 +298,11 @@ int desktop_action(struct meridian_desktop *d,struct zui *u,int id){
         int field=(id-STEP)/2,delta=(id-STEP)%2?1:-1,step=field==1?50:4,max=field==1?1000:32;
         int next=(int)d->draft.values[field]+delta*step;
         d->draft.values[field]=(unsigned int)(next<0?0:next>max?max:next);
+    }else if(d->draft.page==Z_DESKTOP_WINDOWS_TILING&&id>=INNER_GAP&&id<=OUTER_GAP+1){
+        unsigned int *gap=id<OUTER_GAP?&d->draft.inner_gap:&d->draft.outer_gap;
+        if(id==INNER_GAP||id==OUTER_GAP){
+            if(*gap>0)(*gap)--;
+        }else if(*gap<Z_DESKTOP_GAP_MAX)(*gap)++;
     }else if(id>=ENTRY&&id<ENTRY+Z_DESKTOP_MAX*4){
         unsigned int at=(unsigned int)(id-ENTRY)/4,action=(unsigned int)(id-ENTRY)%4;
         if(at>=d->draft.count)return 0;

@@ -6,6 +6,7 @@ using System.Text;
 using Zenith.Core.Configuration;
 using Zenith.Core.Processes;
 using Zenith.Core.Security;
+using Zenith.Core.Sessions;
 namespace Zenith.Tests;
 public class ProcessSystemSettingsTests
 {
@@ -97,6 +98,30 @@ public class ProcessSystemSettingsTests
         var reboot=new SettingsService(store,_=>{},_=>{},_=>true);Assert.Empty(reboot.Load());Assert.Equal(3U,reboot.Current.Animation);
         store.Replace(SettingsService.MotionPath,"ANIMATION=sideways\n");
         var broken=new SettingsService(store,_=>{},_=>{},_=>true);Assert.Single(broken.Load());Assert.Equal(100,broken.AnimationPercent);
+    }
+    [Fact]
+    public void TilingDefaultCanBeSavedAndBootedWithDisplayOrRecoveredHeadless()
+    {
+        var store = new Store();
+        var settings = new SettingsService(store, _ => { }, _ => { }, _ => true);
+        var data = ProcessSystemSettings.Snapshot(settings, true);
+        Assert.Equal(3U, BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(3456)));
+        Assert.Equal("wm", Encoding.UTF8.GetString(data, 3464 + 2 * 16, 2));
+        byte[] request = new byte[32];
+        request[0] = 2; request[4] = 3; request[8] = 1; request[16] = 2;
+        using (CredentialContext.Enter(new Credentials(1000, 1000)))
+        { Assert.Equal(-13, ProcessSystemSettings.Save(settings, request, true)); }
+        using (CredentialContext.Enter(Credentials.Root))
+        { Assert.Equal(0, ProcessSystemSettings.Save(settings, request, true)); }
+
+        var restored = new SettingsService(store, _ => { }, _ => { }, _ => true);
+        Assert.Empty(restored.Load());
+        Assert.Equal(SessionMode.WindowManager, restored.Current.DefaultSession);
+        Assert.Equal(SessionMode.WindowManager, SessionModes.Select(restored.Current.DefaultSession, "", _ => true).Mode);
+        var recovery = SessionModes.Select(restored.Current.DefaultSession, "", mode => mode == SessionMode.Headless);
+        Assert.Equal(SessionMode.Headless, recovery.Mode);
+        Assert.Equal("capability fallback", recovery.Source);
+        Assert.Equal(SessionMode.Headless, SessionModes.Select(restored.Current.DefaultSession, "session=headless", _ => true).Mode);
     }
     [Fact]
     public void NewSessionCatalogueIsVersionedAndOldRequestsCannotSaveIt()

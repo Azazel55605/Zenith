@@ -51,6 +51,7 @@
     <Compile Include="../../src/Core/Storage/Fstab.cs;../../src/Core/Storage/MemoryBlockDevice.cs" LinkBase="Kernel/Storage" />
     <Compile Include="../../src/Core/Portal/*.cs" Exclude="../../src/Core/Portal/Portals.cs" LinkBase="Kernel/Portal" />
     <Compile Include="../../src/Gui/Motion/*.cs" Exclude="../../src/Gui/Motion/CountMotion.cs" LinkBase="Gui/Motion" />
+    <Compile Include="../../src/Gui/AutoTileLayout.cs" Link="Gui/AutoTileLayout.cs" />
     <Compile Include="../../src/Gui/Shell/TaskbarLayout.cs" Link="Gui/Shell/TaskbarLayout.cs" />
   </ItemGroup>
 

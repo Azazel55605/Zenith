@@ -71,18 +71,23 @@ static long fake_preview(unsigned int field,unsigned int index,int w,int h,unsig
     for(int y=0;y<h;y++)for(int x=0;x<w;x++)pixels[y*w+x]=0xFF000000u|(unsigned int)(60+x*150/w)<<16|(unsigned int)(80+y*120/h)<<8|(index*12u);
     previews_drawn++;return w<<16|h;
 }
-static struct zenith_desktop_preferences desktop_state[5]={
+static int tiling_supported;
+static struct zenith_desktop_preferences desktop_state[6]={
     [1]={.version=1,.page=1,.flags=1,.revision=1},
     [2]={.version=1,.page=2,.flags=1,.revision=1,.values={0,250,1,0,0,0,1,0}},
     [3]={.version=1,.page=3,.flags=1,.revision=1},
-    [4]={.version=1,.page=4,.flags=1,.revision=1,.values={1},.count=1,.entries={{0,"Desktop 1",{0}}}}
+    [4]={.version=1,.page=4,.flags=1,.revision=1,.values={1},.count=1,.entries={{0,"Desktop 1",{0}}}},
+    [5]={.version=1,.page=5,.flags=1,.revision=1,.values={0,250,1,0,0,0,1,0}}
 };
 static long fake_desktop_read(unsigned int page,struct zenith_desktop_preferences *out){
-    assert(page>=1&&page<=4);*out=desktop_state[page];return 0;
+    assert(page>=1&&page<=5);
+    if(page==Z_DESKTOP_WINDOWS_TILING&&!tiling_supported)return -22;
+    *out=desktop_state[page];return 0;
 }
 static long fake_desktop_save(const struct zenith_desktop_preferences *p){
-    assert(p->page>=1&&p->page<=4&&p->flags==0);
+    assert(p->page>=1&&p->page<=5&&p->flags==0);
     struct zenith_desktop_preferences *s=&desktop_state[p->page];
+    if(!(s->flags&1))return -13;
     if(p->revision!=s->revision)return -11;
     *s=*p;s->flags=1;s->revision++;
     return 0;
@@ -336,6 +341,7 @@ int main(int argc,char **argv){
     click_id(900+ZUI_FOOTER_APPLY);
     assert(!dirty&&desktop_state[1].values[1]==1&&!strcmp(desktop_state[1].entries[0].name,"Editor"));
     assert(meridian_open(&app,"windows.behavior"));draw();
+    assert(app.desktop.saved.page==Z_DESKTOP_WINDOWS&&!desktop_action(&app.desktop,&app.ui,10241));
     click_label("Click to focus");click_label("Focus follows pointer");
     click_id(10219);assert(app.desktop.draft.values[1]==300);
     click_id(900+ZUI_FOOTER_APPLY);assert(desktop_state[2].values[0]==1&&desktop_state[2].values[1]==300&&!dirty);
@@ -357,6 +363,28 @@ int main(int argc,char **argv){
            &&!strcmp(desktop_state[4].entries[0].name,"Desktop B"));
     click_id(10103);click_id(900+ZUI_FOOTER_APPLY);
     assert(!dirty&&desktop_state[4].count==1&&desktop_state[4].entries[0].id==0);
+    /* Window Behavior on a WM-capable kernel saves both spacings with the existing fields. */
+    tiling_supported=1;
+    assert(meridian_open(&app,"windows.behavior"));draw();
+    assert(app.desktop.saved.page==Z_DESKTOP_WINDOWS_TILING);
+    click_label("Click to focus");click_label("Focus follows pointer");
+    wheel_until(10243);assert(!enabled(10240)&&!enabled(10242));
+    click_id(10241);click_id(10243);click_id(10243);
+    assert(dirty&&app.desktop.draft.inner_gap==1&&app.desktop.draft.outer_gap==2);
+    struct zenith_desktop_preferences *wm=&desktop_state[Z_DESKTOP_WINDOWS_TILING];
+    assert(wm->inner_gap==0&&wm->outer_gap==0&&wm->values[0]==0);
+    click_id(900+ZUI_FOOTER_APPLY);
+    assert(!dirty&&wm->inner_gap==1&&wm->outer_gap==2&&wm->values[0]==1);
+    click_id(10240);wm->inner_gap=31;wm->revision++;meridian_refresh(&app);draw();
+    click_id(900+ZUI_FOOTER_APPLY);
+    assert(dirty&&wm->inner_gap==31&&strstr(app.desktop.message,"changed elsewhere"));
+    click_id(900+ZUI_FOOTER_RESET);assert(!dirty&&app.desktop.draft.inner_gap==31);
+    click_id(10241);assert(!enabled(10241)&&app.desktop.draft.inner_gap==32&&app.desktop.draft.outer_gap==2);
+    click_id(10242);assert(app.desktop.draft.outer_gap==1&&wm->outer_gap==2);
+    click_id(900+ZUI_FOOTER_DEFAULTS);click_id(900+ZUI_FOOTER_APPLY);
+    assert(!dirty&&wm->inner_gap==0&&wm->outer_gap==0&&wm->values[0]==0);
+    wm->flags=0;meridian_refresh(&app);draw();
+    assert(!enabled(10241)&&!enabled(10243)&&!desktop_action(&app.desktop,&app.ui,10241)&&!dirty);
     assert(meridian_resize(&app,640,480,1920*1000));
     /* Service-backed information pages. */
     meridian_information_services(&app,information_read);

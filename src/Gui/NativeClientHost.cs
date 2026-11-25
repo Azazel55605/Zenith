@@ -13,7 +13,11 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
 {
     private readonly List<Zenith.Gui.Terminal.ClientTerminal> _terminals = new();
     /// <summary>Whether a client's terminal session has a command or background job a logout would interrupt.</summary>
-    public bool TerminalBusy { get { lock (_gate) { foreach (var t in _terminals) { if (!t.Closed && t.Busy) { return true; } } return false; } } }
+    public bool TerminalBusy(Zenith.Core.Shell.Shell? requester)
+    {
+        lock (_gate) { foreach (var t in _terminals) { if (!t.Closed && t.BlocksLogout(requester)) { return true; } } }
+        return false;
+    }
     /// <summary>The programs whose terminal sessions are busy, for Sunset's list of what is in the way.</summary>
     public HashSet<int> BusyTerminalOwners()
     {
@@ -86,7 +90,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
                 var (surface, since, fitted) = _pending[i];
                 if (surface.OwnerPid == 0 && !surface.Ended) { continue; }
                 long waited = (now - since) * 1000 / System.Diagnostics.Stopwatch.Frequency;
-                if (!fitted && !surface.Ended && surface.Resizable && FitToScreen(surface, windows.WorkArea))
+                if (!windows.AutoTile && !fitted && !surface.Ended && surface.Resizable && FitToScreen(surface, windows.WorkArea))
                 { _pending[i] = (surface, now, true); continue; }
                 if (!surface.Ended && (fitted ? !surface.PresentedAtRequestedSize && waited < FittedFrameMilliseconds
                     : !surface.HasPresented && waited < FirstFrameMilliseconds)) { continue; }
@@ -182,8 +186,10 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
         {
             if (_surface.TakeResizeRefusal())
             {
+                if (IsTiled) { FloatingByChoice = true; FloatingBounds = null; }
                 IsMaximized = IsFullscreen = false;
-                SetBounds(new Rect(Bounds.X, Bounds.Y, _frameWidth, _frameHeight + TitleBarHeight));
+                var accepted = _surface.FrameSize;
+                SetBounds(new Rect(Bounds.X, Bounds.Y, accepted.Width, accepted.Height + TitleBarHeight));
                 return true;
             }
             if (_surface.Ended) { _composition?.Dispose();base.Close(); Zenith.Core.Log.Write("graphics", "native surface retired"); return true; }
@@ -196,11 +202,11 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
                 _frame = new int[size.Width * size.Height]; EndFade("Resized"); Array.Fill(_frame, (int)(Theme.WindowBackground | 0xff000000U)); _frameWidth = size.Width; _frameHeight = size.Height; _materialCount = 0; changed = true;
                 // The program took the desktop's opening size after its window was already shown (it was slow):
                 // the window follows. Resizes the person makes already have this size.
-                if (!IsMaximized && !IsFullscreen && (Content.W != size.Width || Content.H != size.Height))
+                if (!IsTiled && !IsMaximized && !IsFullscreen && (Content.W != size.Width || Content.H != size.Height))
                 { SetBounds(new Rect(Bounds.X, Bounds.Y, size.Width, size.Height + TitleBarHeight)); }
             }
             UpdateDamage = null;
-            if (IsMinimized) { EndFade("Minimized"); return changed; }
+            if (IsMinimized || TileHidden) { EndFade("Hidden"); return changed; }
             if (_surface.TakeFade() is { } fade) { BeginFade(fade); }
             bool copied = _surface.CopyFrame(_frame, false, _materials, out int count, out int left, out int top, out int right, out int bottom);
             if (copied) { _materialCount = count; }
@@ -253,7 +259,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
             Rect clipped = content.Intersect(surface.Clip);
             for (int y = clipped.Y; y < clipped.Bottom; y++)
             {
-                int start = (y - content.Y) * _surface.Width + clipped.X - content.X;
+                int start = (y - content.Y) * _frameWidth + clipped.X - content.X;
                 Array.Copy(_fading ? _fadeMix! : _frame, start, surface.Pixels, y * surface.Width + clipped.X, clipped.W);
             }
         }

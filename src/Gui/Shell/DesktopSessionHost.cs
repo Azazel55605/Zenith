@@ -10,9 +10,11 @@ using CommandShell = Zenith.Core.Shell.Shell;
 
 namespace Zenith.Gui.Shell;
 
-/// <summary>The temporary floating desktop, isolated behind the session lifecycle.</summary>
+/// <summary>Hosts floating and tiling sessions with the same display and authenticated application lifecycle.</summary>
 internal sealed class DesktopSessionHost : ISessionHost
 {
+    private readonly SessionMode _mode;
+    public DesktopSessionHost(SessionMode mode) => _mode = mode;
     public bool FramePending => _desktop is not null && _desktop.FramePending;
 
     [DllImport("*", EntryPoint = "zenith_has_display")]
@@ -27,7 +29,7 @@ internal sealed class DesktopSessionHost : ISessionHost
     public bool CanStop => StopBlocker(null) is null;
     public string? StopBlocker(CommandShell? requester)
     {
-        if (_desktop.TerminalBusy) { return "A terminal command is still running."; }
+        if (_desktop.TerminalBusy(requester)) { return "A terminal command is still running."; }
         foreach (var window in _desktop.Windows.Windows)
         {
             if (window.IsClosed) { continue; }
@@ -59,7 +61,7 @@ internal sealed class DesktopSessionHost : ISessionHost
     public void Start()
     {
         NativeAppearance.Reload();
-        _desktop = new Desktop(SessionDisplay.Screen);
+        _desktop = new Desktop(SessionDisplay.Screen, tiling: _mode == SessionMode.WindowManager);
         DisplayController.Attach(_desktop);
         SessionDisplay.LiveFrame = _desktop.FramePixels;
         Zenith.Core.Monitoring.KernelMonitor.Frames = Zenith.Gui.FrameStats.TakeMonitorFrames;
@@ -69,7 +71,8 @@ internal sealed class DesktopSessionHost : ISessionHost
             _desktop.Windows.Open(new WelcomeWindow { AppId = "Welcome" });
             _desktop.Windows.Open(new TerminalWindow { AppId = "Terminal" });
         }
-        Log.Write("kernel", "desktop ready (" + (SystemMounts.Mode == BootMode.Live ? "live" : "installed") + ")");
+        string host = _mode == SessionMode.WindowManager ? "wm" : "desktop";
+        Log.Write("kernel", host + " ready (" + (SystemMounts.Mode == BootMode.Live ? "live" : "installed") + ")");
     }
     public void Tick() { DisplayController.Tick(); NativeAppearance.ApplyPending(); _desktop.Tick(); Zenith.Core.Monitoring.KernelMonitor.Instance.Tick(); Zenith.Core.Monitoring.KernelMonitor.Activity.Tick(); }
 }

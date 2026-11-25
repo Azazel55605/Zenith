@@ -33,6 +33,12 @@ class LoginInputTests(unittest.TestCase):
   path,machine,raw,module,observer,policy=self.fixture();machine.wait.return_value=False;observer.capture.side_effect=None
   with self.assertRaisesRegex(RuntimeError,'fade did not finish'):module.monitor_command(path,'sendkey ctrl-alt-t 30')
   raw.assert_not_called();data=json.loads(path.with_name('login-terminal-handoff.json').read_text());self.assertFalse(data['shortcut_sent']);self.assertEqual('session-fade',data['phase'])
+ def test_fade_uses_new_tiling_session_after_previous_desktop_logs_out(self):
+  path,machine,raw,module,observer,policy=self.fixture()
+  machine.log.return_value+='session: login ready\nwm ready (installed)\n'
+  with patch.object(login.time,'sleep'):module.monitor_command(path,'sendkey ctrl-alt-t 30')
+  machine.wait.assert_called_once_with(login.FADE,machine.log.return_value.index('wm ready'),timeout=30)
+  raw.assert_called_once()
  def test_greeter_or_changed_session_never_receives_shortcut(self):
   for changed in (False,True):
    path,machine,raw,module,observer,policy=self.fixture();observer.capture.side_effect=None

@@ -153,9 +153,8 @@ state and upgrade order.
 
 ## Settings, sessions and packages
 
-The 0.0.11 source adds installed graphical login and Desktop/local text Headless
-selection with serial fallback. Ctrl+Alt+T opens Terminal, Ctrl+Alt+L requests logout;
-`session switch de|headless` returns to login after busy/unsaved-work checks.
+Installed graphical login offers Desktop, Tiling WM and local text Headless, with serial fallback. Ctrl+Alt+T opens Terminal, Ctrl+Alt+L requests logout;
+`session switch de|wm|headless` returns to login after busy/unsaved-work checks.
 `zenith-session` supplies branding and `zenith-style` selects independent theme/font
 resources, reloaded at login. The trusted session host remains kernel-linked.
 See [login/session guide](docs/LOGIN-SESSIONS.md).
@@ -163,8 +162,7 @@ See [login/session guide](docs/LOGIN-SESSIONS.md).
 `settings show` and `settings set keyboard|timezone|session VALUE` use the same
 system-settings service as localectl/timedatectl. Changes require root; installed
 settings persist, live settings are volatile. `session status/list/set-default`
-reports available hosts and next-boot selection. The floating test DE and x64
-Headless are available; WM is planned. `session=headless` selects local text when
+reports available hosts and next-boot selection. Choose Tiling WM at login or save it with `session set-default wm`. Run `wm` for the keyboard controls. The panel edge and named desktops are shared with the floating desktop. See [tiling and panel placement](docs/components/SESSIONS-DESKTOP.md#w2--automatic-tiling). `session=headless` selects local text when
 a supported display exists, otherwise COM1 serial;
 `session set-default headless` saves it for the next boot. No supported display
 falls back to headless. See [settings/session guide](docs/SETTINGS-SESSIONS.md).

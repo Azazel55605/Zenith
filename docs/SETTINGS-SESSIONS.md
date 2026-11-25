@@ -11,14 +11,13 @@ Work owners: **S1/S2/W3** in the [master roadmap](ROADMAP.md). This page is a co
 - [Serial headless operation](#serial-headless-operation)
 - [Packaging and later migration](#packaging-and-later-migration)
 
-S0 system-settings/session seam and S1 x64 serial headless, 2026-10-11. The current
-floating desktop remains the test DE. Tiling WM remains unavailable; `session list` reports registered hosts on this boot.
+S0 system-settings/session seam and S1 x64 serial headless, 2026-10-11. Run `session list` to see the available hosts. Supported displays offer a floating desktop and an [automatic tiling WM](components/SESSIONS-DESKTOP.md#w2--automatic-tiling).
 Meridian now exposes typed shared settings and personal appearance inheritance;
 see [native Settings](NATIVE-SETTINGS.md) for scopes, storage and authority.
 
 0.0.11 adds [graphical login, local text Headless and logout/session selection](LOGIN-SESSIONS.md).
 Configured installed accounts start at login; Ctrl+Alt+T opens Terminal and
-Ctrl+Alt+L requests logout. `session switch de|headless` ends the old session and
+Ctrl+Alt+L requests logout. `session switch de|wm|headless` ends the old session and
 selects the next login after busy/unsaved-work checks. With a display, Headless
 uses a local text console; without one, COM1 remains recovery. The no-GPU COM1 section below describes the fallback transport; current local
 lifecycle details are in that guide.
@@ -71,15 +70,13 @@ failures or power loss still need the documented recovery route.
 
 `SystemRuntime.Initialize` prepares storage, accounts, configuration and shared
 commands. `Kernel` then selects and starts an `ISessionHost`. Fonts, canvas and
-initial windows are constructed in `DesktopSessionHost`, which adapts the current
-DE. The shared idle/memory-pressure loop calls the selected host's `Tick`.
+initial windows are constructed in `DesktopSessionHost`, which selects floating or automatic tiling for the graphical session. The shared idle/memory-pressure loop calls the selected host's `Tick`.
 
 Selection precedence is a single `session=de|headless|wm` boot argument, then the
 saved default. Malformed/duplicate arguments use the saved default and log a
 diagnostic. A requested host absent from the build falls back to DE with a clear
 message. If DE also lacks a supported display, it falls back to x64 COM1 headless.
-Saving an unavailable mode through the CLI is refused. The test DE and x64 headless
-are available; WM remains planned. Since 0.0.11, `session switch de|headless`
+Saving an unavailable mode through the CLI is refused. Both graphical modes require a supported display. `session switch de|wm|headless`
 returns to login after safe teardown checks. The model separates session choice
 from live/installed storage.
 
@@ -162,11 +159,7 @@ or boot files. Future shipped defaults belong under `/usr/share/zenith/defaults`
 with local overrides kept separately. This separation is a policy now; package
 default loading/upgrade reconciliation is not implemented yet.
 
-The current DE is a replaceable test implementation behind the host seam, but remains
-kernel-linked. Component inventory does not make it independently updatable. Proper
-DE/WM and user preferences follow the planned toolkit and protected-userland work.
-Use explicit API/runtime compatibility when migrating these services to IPC; the
-existing native text ABI does not yet provide graphical/service IPC.
+The DE and WM share a kernel-linked compositor and the protected native graphical client API. Independent updates to the compositor or session host require a service boundary and explicit compatibility with existing clients.
 
 Validation commands and exact native evidence are in [DEVELOPMENT](DEVELOPMENT.md)
 and [Master roadmap](ROADMAP.md#current-focus-and-execution-order). See [package prototype](archive/2026-10-27/package-prototype.md) for P0.

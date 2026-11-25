@@ -151,12 +151,18 @@ internal static class ManualPages
             native run settings              (independent graphical Appearance page)
             native run settings --show
             native run settings --set light teal  (same root-only service)
-            session [status | list | set-default MODE]
+            session [status | list | set-default MODE | switch MODE]
+            settings set panel-position top|bottom
+            settings set tile-split 25..75
+            settings set tile-gaps INNER OUTER   (0..32 logical pixels each)
 
             Keyboard/timezone changes share validation and staged persistence with
             localectl/timedatectl. Installed saves persist; live saves are volatile.
             loadkeys changes the active keyboard only. Session defaults take effect
-            next boot. The test DE and x64 COM1 headless are available; WM is planned.
+            next boot. Use de for floating windows, wm for tiling and headless for text.
+            Run wm to see focus, tile and workspace shortcuts.
+            In Tiling WM, INNER separates tiles and OUTER sets the margin at
+            the edge of the work area. The default is 0 for both.
             Boot session= overrides saved defaults; no display falls back to headless.
             Unknown session schema versions are preserved and cannot be downgraded.
             Config paths: /etc/vconsole.conf, /etc/timezone, /etc/zenith/session.conf.

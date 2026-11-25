@@ -90,8 +90,8 @@ Window Management groups Taskbar, Window Behavior, Task Switcher and Virtual Des
 | ID / page | Requested sections and controls | Baseline; activation / owner |
 |---|---|---|
 | `windows.notifications` — Notifications | Do Not Disturb, visibility conditions and popup behavior. | Do Not Disturb, test, history, per-app switches, position, timeout, hover pause, sound and focused-app/fullscreen visibility. U; notification service and compositor. |
-| `windows.taskbar` — Taskbar | Five visibility modes, top/bottom position and ordered pinned applications. | U. Compositor presentation. |
-| `windows.behavior` — Window Behavior | Click or pointer focus, hover delay, click/hover raising, titlebar and maximize-button actions, screen-edge and neighboring-window snapping. | U. Floating desktop policy. A future tiling session will need its own policies. |
+| `windows.taskbar` — Taskbar | Five visibility modes, top/bottom position and ordered pinned applications, shared by DE and WM. | U. Compositor presentation. |
+| `windows.behavior` — Window Behavior | Click or pointer focus, hover delay, click/hover raising, titlebar and maximize-button actions, screen-edge and neighboring-window snapping. Separate inner and outer window gaps for Tiling WM. | U. Floating placement and [WM tile spacing](components/SESSIONS-DESKTOP.md#w2--automatic-tiling) share the Window Behavior form. |
 | `windows.switcher` — Task Switcher | Alt+Tab, cards or compact list, recent/open/title order, one window per app, and current or all desktops. | U. Session window identity. Monitor filtering requires multi-monitor support. |
 | `windows.desktops` — Virtual Desktops | Create, name, reorder and remove up to eight desktops. Pager and keyboard switching, moving a window between desktops, animated transitions. | U. Compositor/workspace service. |
 

@@ -111,7 +111,8 @@ internal sealed class LoginSessionHost : ISessionHost
     private Rect Field(int index) => new(Card.X + Padding, Card.Y + 116 + Shift + index * 64, Card.W - 2 * Padding, AppStyle.ControlHeight);
     private Rect Segment(int index)
     {
-        int width = (Card.W - 2 * Padding - 8) / 2;
+        int count = SessionModes.All.Length;
+        int width = (Card.W - 2 * Padding - 8 * (count - 1)) / count;
         return new(Card.X + Padding + index * (width + 8), Card.Y + 244 + Shift, width, AppStyle.ControlHeight);
     }
     private Rect Submit => new(Card.X + Padding, Card.Y + 300 + Shift, Card.W - 2 * Padding, AppStyle.ControlHeight);
@@ -126,8 +127,11 @@ internal sealed class LoginSessionHost : ISessionHost
     {
         if (_login.Busy) { return 0; }
         if (_confirm is not null) { return ConfirmYes.Contains(x, y) ? 1 : ConfirmNo.Contains(x, y) ? 2 : 0; }
-        return Segment(0).Contains(x, y) ? 3 : Segment(1).Contains(x, y) ? 4 : Submit.Contains(x, y) ? 5
-            : Restart.Contains(x, y) ? 6 : Shutdown.Contains(x, y) ? 7 : 0;
+        for (int i = 0; i < SessionModes.All.Length; i++)
+        {
+            if (Segment(i).Contains(x, y)) { return 10 + i; }
+        }
+        return Submit.Contains(x, y) ? 5 : Restart.Contains(x, y) ? 6 : Shutdown.Contains(x, y) ? 7 : 0;
     }
     public void Tick()
     {
@@ -176,8 +180,7 @@ internal sealed class LoginSessionHost : ISessionHost
                 else if (Shutdown.Contains(_input.X, _input.Y)) { AskConfirm("Shut down"); }
                 else if (Field(0).Contains(_input.X, _input.Y)) { _focus = 0; }
                 else if (Field(1).Contains(_input.X, _input.Y)) { _focus = 1; }
-                else if (Segment(0).Contains(_input.X, _input.Y)) { _focus = 2; Choose(SessionMode.Desktop); }
-                else if (Segment(1).Contains(_input.X, _input.Y)) { _focus = 2; Choose(SessionMode.Headless); }
+                else if (hover >= 10) { _focus = 2; Choose(SessionModes.All[hover - 10]); }
                 else if (Submit.Contains(_input.X, _input.Y)) { SignIn(); }
                 _dirty = true;
             }
@@ -189,7 +192,10 @@ internal sealed class LoginSessionHost : ISessionHost
                 { SelectAccount(_account + (key.Key is ConsoleKeyEx.LeftArrow or ConsoleKeyEx.UpArrow ? -1 : 1)); continue; }
                 if (key.Key == ConsoleKeyEx.Tab) { _focus = (_focus + ((key.Modifiers & ConsoleModifiers.Shift) != 0 ? 2 : 1)) % 3; }
                 else if (key.Key == ConsoleKeyEx.Enter) { if (_focus == 0) { _focus = 1; } else { SignIn(); } }
-                else if (_focus == 2 && key.Key is ConsoleKeyEx.LeftArrow or ConsoleKeyEx.RightArrow or ConsoleKeyEx.Spacebar) { Toggle(); }
+                else if (_focus == 2 && key.Key is ConsoleKeyEx.LeftArrow or ConsoleKeyEx.RightArrow or ConsoleKeyEx.Spacebar)
+                {
+                    StepSession(key.Key == ConsoleKeyEx.LeftArrow ? -1 : 1);
+                }
                 else if (key.Key == ConsoleKeyEx.Backspace) { var text = _focus == 0 ? _name : _password; if (_focus < 2 && text.Length > 0) { text.Length--; } }
                 else if (_focus < 2 && key.KeyChar >= ' ' && !char.IsControl(key.KeyChar))
                 { var text = _focus == 0 ? _name : _password; if (text.Length < (_focus == 0 ? 32 : 256)) { text.Append(key.KeyChar); } }
@@ -228,7 +234,17 @@ internal sealed class LoginSessionHost : ISessionHost
         try { if (action == "Restart") { Zenith.Core.PowerControl.Reboot(); } else { Zenith.Core.PowerControl.PowerOff(); } }
         catch (Exception e) { Zenith.Core.Log.Write("session", "power action failed: " + e.Message); }
     }
-    private void Toggle() => Choose(_mode == SessionMode.Desktop ? SessionMode.Headless : SessionMode.Desktop);
+    private void StepSession(int direction)
+    {
+        var modes = SessionModes.All;
+        int index = 0;
+        while (index < modes.Length && modes[index] != _mode) { index++; }
+        for (int i = 0; i < modes.Length; i++)
+        {
+            index = (index + direction + modes.Length) % modes.Length;
+            if (SessionRuntime.Available(modes[index])) { _mode = modes[index]; return; }
+        }
+    }
     private void Choose(SessionMode next)
     {
         if (SessionRuntime.Available(next)) { _mode = next; }
@@ -319,8 +335,12 @@ internal sealed class LoginSessionHost : ISessionHost
             }
         }
         Label("Session", Segment(0));
-        DrawSegment(0, "Desktop", SessionMode.Desktop);
-        DrawSegment(1, "Headless", SessionMode.Headless);
+        for (int i = 0; i < SessionModes.All.Length; i++)
+        {
+            var mode = SessionModes.All[i];
+            string label = mode switch { SessionMode.Desktop => "Desktop", SessionMode.WindowManager => "Tiling WM", _ => "Headless" };
+            DrawSegment(i, label, mode);
+        }
         AppStyle.Button(_surface, Submit, _login.Busy ? "Signing in..." : "Sign in", primary: true, enabled: !_login.Busy);
         Hovered(Submit, 5);
         bool failed = Accounts.Error is not null || _login.Message.StartsWith("Authentication failed", StringComparison.Ordinal);
@@ -369,7 +389,7 @@ internal sealed class LoginSessionHost : ISessionHost
         _surface.FillRoundRect(box, Theme.ControlRadius, selected ? Theme.AccentSoft : Theme.Raised);
         _surface.StrokeRoundRect(box, Theme.ControlRadius, selected ? Theme.Accent : Theme.WindowBorder);
         if (selected && _focus == 2) { _surface.StrokeRoundRect(box.Inflate(2), Theme.ControlRadius + 2, Theme.Accent); }
-        if (available) { Hovered(box, 3 + index); }
+        if (available) { Hovered(box, 10 + index); }
         _surface.DrawTextCentered(label, selected ? Fonts.SemiBold : Fonts.Regular, Theme.TextBody, available ? Theme.TextPrimary : Theme.TextMuted, box, true);
     }
     private void DrawCursorOnly()

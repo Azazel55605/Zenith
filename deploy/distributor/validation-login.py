@@ -11,6 +11,9 @@ import time
 READY = 'desktop ready (installed)'
 FADE = 'motion: SessionFade frames='
 
+def ready_offset(raw):
+    return max(raw.rfind(READY), raw.rfind('wm ready (installed)'))
+
 
 def install_monitor(module, machines, policy, terminal):
     original = module.monitor_command
@@ -24,13 +27,14 @@ def install_monitor(module, machines, policy, terminal):
                        and (not hasattr(m, 'process') or m.process.poll() is None)]
             if len(matches) != 1: raise RuntimeError('Login Terminal VM unavailable; matches='+str(len(matches)))
             machine = matches[0]
-            raw = machine.log(); ready = raw.rfind(READY)
+            raw = machine.log(); ready = ready_offset(raw)
             if ready < 0 or raw.rfind('login ready') > ready:
                 raise RuntimeError('Terminal shortcut requires the authenticated desktop')
             phase = 'session-fade'
             if not machine.wait(FADE, ready, timeout=30):
                 raise RuntimeError('Desktop fade did not finish before Terminal shortcut')
-            if machine.log().rfind(READY) != ready or machine.log().rfind('login ready') > ready:
+            raw = machine.log()
+            if ready_offset(raw) != ready or raw.rfind('login ready') > ready:
                 raise RuntimeError('Session changed before Terminal shortcut')
             print('PASS desktop fade completed before Terminal shortcut', flush=True)
             result = original(path, text); sent = True  # Exactly one shortcut, never replayed.
@@ -45,7 +49,7 @@ def install_monitor(module, machines, policy, terminal):
                 if time.monotonic() >= deadline:
                     raise RuntimeError('Focused public Terminal prompt did not follow login shortcut')
             raw = machine.log()
-            if raw.rfind(READY) != ready or raw.rfind('login ready') > ready:
+            if ready_offset(raw) != ready or raw.rfind('login ready') > ready:
                 raise RuntimeError('Session changed during Terminal opening')
             print('PASS focused public Terminal prompt after login shortcut', flush=True)
             return result

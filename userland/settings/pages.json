@@ -184,7 +184,8 @@
     "Titlebar: double-click action",
     "Maximize-button actions",
     "Movement: screen-edge snapping",
-    "Window snap zones"
+    "Window snap zones",
+    "Inner and outer window gaps in Tiling WM"
   ],
   "windows.switcher": [
     "Task switcher appearance",
@@ -264,7 +265,7 @@
   "system.session": [
     "Shutdown, reboot and logout confirmation",
     "Restore application sessions",
-    "Desktop and Headless session availability",
+    "Floating desktop, tiling window manager and text console",
     "Unsaved work and busy applications",
     "Boot diagnostics and recovery access"
   ]

@@ -868,7 +868,7 @@ internal sealed unsafe class NativeProcess
                 }
                 if (c.Arg1 == 1)
                 {
-                    if (c.Arg2 is < 1 or > 4 || !Valid(c.Arg0, ProcessDesktopPreferences.Bytes, true)) { return -22; }
+                    if (c.Arg2 is < 1 or > 5 || !Valid(c.Arg0, ProcessDesktopPreferences.Bytes, true)) { return -22; }
                     bool writable = CredentialContext.Current.IsRoot
                         || Zenith.Core.Portal.ProcessPrivileges.Holds((int)c.Pid, Zenith.Core.Portal.Privilege.SystemSettings);
                     Transfer(c.Arg0, ProcessDesktopPreferences.Snapshot(service, (uint)c.Arg2, writable), true);

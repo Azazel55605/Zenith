@@ -34,6 +34,11 @@ internal abstract class Window
     }
     protected virtual void OnFocusChanged(bool focused) { }
 
+    internal bool IsTiled { get; set; }
+    internal bool TileHidden { get; set; }
+    internal bool FloatingByChoice { get; set; }
+    internal Rect? FloatingBounds { get; set; }
+
     public bool IsMinimized { get; internal set; }
     public bool IsMaximized { get; internal set; }
     /// <summary>Covers the whole screen without a title bar.</summary>
@@ -101,12 +106,12 @@ internal abstract class Window
     public virtual void EndSession() => Close();
 
     /// <summary>Moves or resizes the window; <see cref="OnResized"/> runs when the size changed.</summary>
-    internal void SetBounds(Rect bounds)
+    internal void SetBounds(Rect bounds, bool contentHeightChanged = false)
     {
         using var identity = CredentialContext.Enter(Identity);
         bool resized = bounds.W != Bounds.W || bounds.H != Bounds.H;
         Bounds = bounds;
-        if (resized)
+        if (resized || contentHeightChanged)
         {
             OnResized();
         }

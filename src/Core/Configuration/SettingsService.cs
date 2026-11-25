@@ -126,14 +126,31 @@ internal sealed partial class SettingsService
     {
         RequireRoot();
         if (!_available(mode)) { throw new InvalidOperationException("session '" + SessionModes.Name(mode) + "' is unavailable in this build"); }
+        WriteSettings(() =>
+        {
+            string? old = _store.Read(SessionPath);
+            _ = ReadSession(old);
+            _store.Replace(SessionPath, Update(old, new Dictionary<string, string> { ["VERSION"] = "1", ["SESSION"] = SessionModes.Name(mode) }));
+            Current = Current with { DefaultSession = mode };
+        });
+    }
+
+    private void WriteSettings(Action write)
+    {
+        // The guest runtime can skip a lock's finally when a store exception crosses it.
+        // Leave the monitor normally before reporting the failure to the caller.
+        Exception? failure = null;
         lock (_gate)
         {
-            if (_revision == ulong.MaxValue) { throw new InvalidOperationException("settings revision exhausted"); }
-            string? old = _store.Read(SessionPath);
-            _ = ReadSession(old); // Never silently downgrade an unknown future schema.
-            _store.Replace(SessionPath, Update(old, new Dictionary<string, string> { ["VERSION"] = "1", ["SESSION"] = SessionModes.Name(mode) }));
-            Current = Current with { DefaultSession = mode }; _revision++;
+            try
+            {
+                if (_revision == ulong.MaxValue) { throw new InvalidOperationException("settings revision exhausted"); }
+                write();
+                _revision++;
+            }
+            catch (Exception e) { failure = e; }
         }
+        if (failure is not null) { throw failure; }
     }
     public void SetAnimation(string name)
     {
@@ -363,7 +380,7 @@ internal sealed partial class SettingsService
         }
     }
     public IReadOnlyList<SessionMode> SessionChoices
-    { get { var result = new List<SessionMode>(); foreach(var mode in new[] { SessionMode.Desktop, SessionMode.Headless, SessionMode.WindowManager }) { if(_available(mode)) { result.Add(mode); } } return result; } }
+    { get { var result = new List<SessionMode>(); foreach (var mode in SessionModes.All) { if (_available(mode)) { result.Add(mode); } } return result; } }
     public int SaveChoice(uint field, uint choice, ulong revision)
     {
         if (!CredentialContext.Current.IsRoot) { return -13; }

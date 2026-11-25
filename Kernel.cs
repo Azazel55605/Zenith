@@ -53,7 +53,7 @@ public class Kernel : Sys.Kernel
             SessionRuntime.Start(SystemConfiguration.Settings.Current.DefaultSession,
                 mode => mode switch
                 {
-                    SessionMode.Desktop => new DesktopSessionHost(),
+                    SessionMode.Desktop or SessionMode.WindowManager => new DesktopSessionHost(mode),
                     SessionMode.Headless => hasDisplay ? new LocalConsoleHost() : new HeadlessSessionHost(),
                     _ => throw new InvalidOperationException("unavailable session host")
                 });
@@ -104,7 +104,7 @@ public class Kernel : Sys.Kernel
 
     private static void ReportPanic(Exception exception)
     {
-        if (SessionRuntime.Started && SessionRuntime.Selected.Mode == SessionMode.Desktop)
+        if (SessionRuntime.Started && SessionModes.IsGraphical(SessionRuntime.Selected.Mode))
         {
             try { PanicScreen.Show(exception); }
             catch (Exception drawing) { Log.Write("panic", "graphical reporting failed: " + drawing.Message); }

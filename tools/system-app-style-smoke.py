@@ -17,7 +17,7 @@ def main():
     smoke=load('app_style_smoke',ROOT/'tools/smoke-test.py')
     load('app_style_accel',ROOT/'deploy/distributor/validation-accelerator.py').install(smoke)
     profile=load('app_style_input',ROOT/'deploy/distributor/validation-input.py');profile.install_monitor(recovery_console)
-    # PS/2, as on real machines and VMware: the Cosmos virtio keyboard map stops at F10.
+    # Exercise the PS/2 keyboard used by VMware; wm-smoke also covers VirtIO fullscreen.
     m,_=smoke.boot(ROOT/'output-x64/Zenith.iso',180,'system app styling',keyboard='ps2')
     if not m:raise RuntimeError('desktop boot')
     observer=profile.RenderedMouse(m.monitor,recovery_console.monitor_command)

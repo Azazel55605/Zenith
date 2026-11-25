@@ -83,6 +83,9 @@ static void binding_tests(void){
     prefs.version=2;prefs.session_count=2;strcpy(prefs.sessions[0],"de");strcpy(prefs.sessions[1],"headless");strcpy(prefs.current_session,"de");
     binding_refresh(&b);assert(binding_choice_count(&b,BIND_SESSION)==2);
     assert(!binding_choose(&b,BIND_SESSION,1)&&!binding_apply(&b,BIND_SESSION)&&prefs.session==1&&prefs_saves==3);
+    prefs.session_count=3;strcpy(prefs.sessions[2],"wm");binding_refresh(&b);
+    assert(!strcmp(binding_choice_name(&b,BIND_SESSION,2),"Tiling window manager"));
+    assert(!binding_choose(&b,BIND_SESSION,2)&&!binding_apply(&b,BIND_SESSION)&&!strcmp(prefs.current_session,"wm"));
     prefs.animation_count=2;strcpy(prefs.animations[0],"Normal");strcpy(prefs.animations[1],"Off");
     binding_refresh(&b);assert(binding_choice_count(&b,BIND_ANIMATIONS)==2&&!strcmp(binding_choice_name(&b,BIND_ANIMATIONS,1),"Off"));
     assert(!binding_choose(&b,BIND_ANIMATIONS,1)&&binding_changed(&b,BIND_ANIMATIONS)&&binding_any_changed(&b));binding_reset(&b,BIND_ANIMATIONS);

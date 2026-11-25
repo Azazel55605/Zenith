@@ -78,7 +78,7 @@ internal sealed partial class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     private volatile bool _cpuPreviewRequested;
     private const int BenchFrames = 30;
 
-    public Desktop(Canvas screen)
+    public Desktop(Canvas screen, bool tiling = false)
     {
         _screen = screen;
         _generation = Accounts.Generation;
@@ -94,8 +94,10 @@ internal sealed partial class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         Wallpaper.Render(_wallpaper); _wallpaperKey = Wallpaper.Key();
 
         Rect screenArea = new(0, 0, w, h);
-        Windows = new WindowManager(BarWorkArea(screenArea), screenArea);
-        Windows.InitializeDesktops(Zenith.Core.Configuration.SystemConfiguration.Settings.DesktopPreferences.Desktops);
+        Windows = new WindowManager(BarWorkArea(screenArea), screenArea, tiling);
+        var preferences = Zenith.Core.Configuration.SystemConfiguration.Settings.DesktopPreferences;
+        Windows.InitializeDesktops(preferences.Desktops);
+        Windows.SetTileLayout(preferences.MasterPercent, preferences.TileInnerGap, preferences.TileOuterGap);
         _taskbar = CreateTaskbar(w, h);
         _toasts.RunAction = RunNotificationAction;
         // Meridian's wallpaper picker shows real previews, drawn by the same formulas (call 669).
@@ -310,6 +312,7 @@ internal sealed partial class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
             item.Window.IsMaximized=item.Maximized; item.Window.IsFullscreen=item.Fullscreen;
             item.Window.RestoreBounds=item.Restore; item.Window.WindowedBounds=item.Windowed; item.Window.SetBounds(item.Bounds);
         }
+        Windows.RefreshAutoTiles();
         _taskbar=frames.Bar; _prism.Place(_taskbar.Bounds, w, h, _taskbar.Position);
         _barMode=(TaskbarMode)(-1); _lowerValid=false; _sceneDirty=true; _cursorDirty=true; _hoverKey=-1;
         Zenith.Core.Processes.NativeSystemInformation.Display(w+"x"+h+" logical, scale="+SessionDisplay.Percent+"%");
@@ -348,7 +351,7 @@ internal sealed partial class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     /// <summary>What is on screen, for the crossfade when this session ends.</summary>
     public int[] FramePixels => _frame.Pixels;
     private const string RecoveryTerminal = "recovery-terminal";
-    public bool TerminalBusy => _nativeClients.TerminalBusy;
+    public bool TerminalBusy(Zenith.Core.Shell.Shell? requester) => _nativeClients.TerminalBusy(requester);
 
     // While an animation plays: desktop ticks and the longest gap between two, for the motion log.
     private long _lastTickAt, _motionTicks, _motionGap;
@@ -444,7 +447,7 @@ internal sealed partial class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         // A release or a hover change only redraws; the click that started an animation must not cut it short.
         bool interrupts = _input.Activity.InterruptsMotion;
         if (_input.Activity.LeftPressed || _input.Keys.Count > 0 || _input.Scroll != 0) { Zenith.Gui.Motion.OverlayMotion.Finish(); }
-        if (_input.Activity.RoutesWithoutMotion || _switcherTabs != 0)
+        if (_input.Activity.RoutesWithoutMotion || _switcherTabs != 0 || _tilingKeys.Count != 0)
         {
             routeKeyEdges = HandleInput(altReleased);
             _sceneDirty = true;
@@ -599,7 +602,7 @@ internal sealed partial class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         bool near = TaskbarPolicy.PointerNear(position, _input.Y, h, _taskbar.Bounds, _taskbar.Shown, BarRevealRows, Theme.TaskbarMargin);
         if (near && !Windows.IsDragging) { _barPointerUntil = now + BarLingerMicros; }
         Window? top = Windows.Top;
-        bool fullscreen = top?.IsFullscreen == true, maximized = top?.IsMaximized == true;
+        bool fullscreen = top?.IsFullscreen == true, maximized = top?.IsMaximized == true || Windows.HasTiledWindows;
         bool shown = TaskbarPolicy.Shown(mode, fullscreen, maximized, now < _barPointerUntil, (_prism.IsOpen && _prism.Mode == PrismView.Layout.Menu) || _taskbar.PopupOpen);
         bool docked = TaskbarPolicy.Docked(mode, fullscreen, maximized);
         if (moved) { SetBar(shown, docked); }
