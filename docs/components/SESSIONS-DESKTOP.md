@@ -69,6 +69,34 @@ compositor/session separation. True locking must preserve apps while denying
 input/content; administrative auto-login, autostart/restore, dimming and suspend
 need explicit trusted lifecycle/device support. Keep recovery until these exits pass.
 
+### W1 — Apps and Windows
+
+Meridian applies window behavior to the floating desktop. Focus can follow the
+pointer after a configurable delay. Click and hover raising are independent;
+double-clicking the titlebar and using the maximize button can maximize, minimize,
+toggle fullscreen, or do nothing. Edge tiling and magnetic snapping to nearby
+windows are independent.
+
+Hold Alt and press Tab to cycle through the configured cards or compact list.
+Shift cycles backwards. Release Alt or use Enter to activate, Escape to cancel.
+The switcher can list all windows or the most recently used window per trusted
+application identity. Sort by focus recency, opening order, or title and show the
+current workspace or all workspaces. Choosing a window on another desktop switches
+there. This desktop has one output. Monitor filtering awaits multi-monitor support.
+
+Create, rename, reorder or remove up to eight desktops in Meridian. The taskbar
+shows windows on the active desktop and provides a numbered pager. Ctrl+Alt+Left
+and Right switch in order. Add Shift to move the focused window to that desktop
+with you. Removing a desktop sends its windows to the first desktop in the new
+order. Reordering preserves window ownership. Workspaces stay live while hidden,
+and switching clears pointer/input ownership. Optional crossfades honor the global
+animation speed and resource budget. Names and order persist. Windows and the
+currently selected workspace are session state.
+
+[Taskbar placement and pins](MOTION.md#stage-4-taskbar) ·
+[Notification rules and history](APPEARANCE.md) ·
+[Native settings contract](../NATIVE-SETTINGS.md#desktop-preferences)
+
 ## Source, contracts and evidence
 
 [Sessions](../../src/Core/Sessions), [configuration](../../src/Core/Configuration),

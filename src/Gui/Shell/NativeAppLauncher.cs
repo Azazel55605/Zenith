@@ -15,6 +15,7 @@ internal sealed class NativeAppLauncher
     {
         public readonly ProcessCancellation Stop = new(() => { });
         public bool Done;
+        public uint? WorkspaceId;
         public string? Error;
     }
     private sealed class EmptyInput : IByteInput
@@ -22,10 +23,10 @@ internal sealed class NativeAppLauncher
     private readonly object _gate = new();
     private readonly List<Invocation> _running = new();
     private bool _closed;
-    public bool Launch(string program, string[] arguments, string cwd)
+    public bool Launch(string program, string[] arguments, string cwd, NativeWindowPlacement placement)
     {
         Credentials identity = CredentialContext.Current;
-        var invocation = new Invocation();
+        var invocation = new Invocation { WorkspaceId = placement.WorkspaceId };
         lock (_gate)
         { if (_closed || _running.Count >= 4) { return false; } _running.Add(invocation); }
         new Thread(() =>
@@ -36,7 +37,7 @@ internal sealed class NativeAppLauncher
             try
             {
                 var result = NativeProcess.Run(program, arguments, () => invocation.Stop.Requested,
-                    invocation, cwd, streams: streams, requestStop: invocation.Stop.Request);
+                    invocation, cwd, streams: streams, requestStop: invocation.Stop.Request, placement: placement);
                 if (result.Status != 0 && result.Status != 130)
                 { failure = result.Error.Length > 0 ? result.Error : "Application exited with status " + result.Status; }
             }
@@ -59,7 +60,7 @@ internal sealed class NativeAppLauncher
             for (int i = _running.Count - 1; i >= 0; i--)
             {
                 if (!_running[i].Done) { continue; }
-                if (!_closed && _running[i].Error is string error) { windows.Open(new AppLaunchNotice(error)); }
+                if (!_closed && _running[i].Error is string error) { windows.Open(new AppLaunchNotice(error), _running[i].WorkspaceId); }
                 _running.RemoveAt(i);
             }
         }

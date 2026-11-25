@@ -1,6 +1,7 @@
 #ifndef ZENITH_NOTIFY_H
 #define ZENITH_NOTIFY_H
-/* zenith-native-notifications-abi 1.1 (1.0 in kernel 0.0.72; ops 4-6 and event 13 in 0.0.76): call 670. Post a notification the desktop shows as a toast; the
+/* zenith-native-notifications-abi 1.1 and zenith-native-notification-preferences-abi 1.0 (v2 of ops 2 and 3): call 670.
+ * Post a notification the desktop shows as a toast; the
  * sender shown is the program's name as the kernel knows it. Five posts per program per ten seconds (-16 beyond).
  * Settings: Do Not Disturb and the popup time (0 short, 1 normal, 2 long); saving needs root or the system settings
  * grant. Older kernels answer -38. */
@@ -10,9 +11,11 @@ struct zenith_notify_request { unsigned int version,op,argument,reserved; unsign
 _Static_assert(sizeof(struct zenith_notify_request)==32,"notify request");
 struct zenith_notification { char title[64],body[160],icon[32]; };   /* NUL terminated; icon: a system icon name or empty */
 _Static_assert(sizeof(struct zenith_notification)==256,"notification");
-struct zenith_notify_settings { unsigned int version,dnd,popup,choices; unsigned long revision; unsigned int reserved[2]; };
+struct zenith_notify_settings { unsigned int version,dnd,popup,choices; unsigned long revision; unsigned int flags,corner; };
 _Static_assert(sizeof(struct zenith_notify_settings)==32,"notify settings");
 enum { Z_NOTIFY_POST=1,Z_NOTIFY_SETTINGS=2,Z_NOTIFY_SAVE=3,Z_NOTIFY_SENDERS=4,Z_NOTIFY_MUTE=5,Z_NOTIFY_POST_BUTTONS=6 };
+enum { Z_NOTIFY_FULLSCREEN=1,Z_NOTIFY_FOCUSED_APP=2,Z_NOTIFY_HOVER=4,Z_NOTIFY_SOUND=8,Z_NOTIFY_ALL_FLAGS=15 };
+enum { Z_NOTIFY_BOTTOM_RIGHT,Z_NOTIFY_TOP_RIGHT,Z_NOTIFY_BOTTOM_LEFT,Z_NOTIFY_TOP_LEFT,Z_NOTIFY_CORNERS };
 /* A button of a notification the program posted was pressed: the desktop sends event 13 with code = the button
  * (0 or 1) and extra = the notification's id, and brings the program's window forward. */
 #define Z_GUI_NOTIFICATION_ACTION 13
@@ -51,13 +54,22 @@ static inline long zenith_notify_mute(const char *name,unsigned int off,unsigned
     return zenith_call(670,(unsigned long)&r,sizeof(r),0);
 }
 static inline long zenith_notify_settings(struct zenith_notify_settings *out){
-    struct zenith_notify_request r={1,Z_NOTIFY_SETTINGS,0,0,(unsigned long)out,sizeof(*out),0};
+    struct zenith_notify_request r={2,Z_NOTIFY_SETTINGS,0,0,(unsigned long)out,sizeof(*out),0};
+    long result=zenith_call(670,(unsigned long)&r,sizeof(r),0);
+    if(result!=-22)return result;
+    r.version=1;
     return zenith_call(670,(unsigned long)&r,sizeof(r),0);
 }
 /* Saves against the revision the caller read (-11 when changed elsewhere, -13 without permission). */
 static inline long zenith_notify_save(unsigned int dnd,unsigned int popup,unsigned long revision){
     unsigned long expected=revision;
     struct zenith_notify_request r={1,Z_NOTIFY_SAVE,(dnd?1u:0u)|popup<<8,0,(unsigned long)&expected,8,0};
+    return zenith_call(670,(unsigned long)&r,sizeof(r),0);
+}
+static inline long zenith_notify_save_preferences(const struct zenith_notify_settings *settings){
+    if(settings->version==1)return zenith_notify_save(settings->dnd,settings->popup,settings->revision);
+    struct { unsigned long revision; unsigned int flags,corner; } q={settings->revision,settings->flags,settings->corner};
+    struct zenith_notify_request r={2,Z_NOTIFY_SAVE,settings->dnd|settings->popup<<8,0,(unsigned long)&q,sizeof(q),0};
     return zenith_call(670,(unsigned long)&r,sizeof(r),0);
 }
 #endif

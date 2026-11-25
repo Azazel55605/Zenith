@@ -84,6 +84,7 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
             for (int i = 0; i < _pending.Count; i++)
             {
                 var (surface, since, fitted) = _pending[i];
+                if (surface.OwnerPid == 0 && !surface.Ended) { continue; }
                 long waited = (now - since) * 1000 / System.Diagnostics.Stopwatch.Frequency;
                 if (!fitted && !surface.Ended && surface.Resizable && FitToScreen(surface, windows.WorkArea))
                 { _pending[i] = (surface, now, true); continue; }
@@ -92,7 +93,9 @@ internal sealed class NativeClientHost : IProcessGraphicsHost, IProcessTerminalH
                 _pending.RemoveAt(i--);
                 if (!surface.Ended)
                 {
-                    var window = new ClientWindow(surface, _identity); windows.Open(window);
+                    var window = new ClientWindow(surface, _identity);
+                    if (surface.AppId is string appId) { window.AppId = appId; }
+                    windows.Open(window, surface.WorkspaceId);
                     // Where its content starts on screen: gates turn content coordinates into pointer moves.
                     Zenith.Core.Log.Write("graphics", "native surface opened " + surface.Width + "x" + surface.Height + " at " + window.Content.X + "," + window.Content.Y);
                 }

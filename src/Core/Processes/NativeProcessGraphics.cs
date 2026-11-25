@@ -8,8 +8,8 @@ internal static class NativeProcessGraphics
     private static Func<uint, IProcessGraphicsHost?>? _factory;
     public static void Register(Func<uint, IProcessGraphicsHost?>? factory)
     { lock (Gate) { _factory = factory; } }
-    public static ProcessGraphics Create(uint uid)
+    public static ProcessGraphics Create(uint uid, NativeWindowPlacement placement)
     {
-        lock (Gate) { return new ProcessGraphics(_factory?.Invoke(uid)); }
+        lock (Gate) { return new ProcessGraphics(_factory?.Invoke(uid), placement); }
     }
 }

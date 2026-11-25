@@ -8,7 +8,7 @@ namespace Zenith.Gui;
 /// <summary>
 /// Owns the open windows: stacking order (last is topmost), focus, moving by the title bar,
 /// resizing from the edges and corners, minimize/maximize/close, and drawing each window
-/// with its chrome. Double-clicking a title bar toggles maximize; dragging a maximized window
+/// with its chrome. Double-clicking a title bar runs its configured action; dragging a maximized window
 /// restores it under the pointer.
 /// </summary>
 internal enum WindowChange { Opened, Closed, Minimized, Restored, Resized }
@@ -16,7 +16,7 @@ internal enum WindowChange { Opened, Closed, Minimized, Restored, Resized }
 /// <summary>A state change the desktop may animate; <see cref="From"/> is where the window was.</summary>
 internal readonly record struct WindowTransition(WindowChange Change, Window Window, Rect From);
 
-internal sealed class WindowManager
+internal sealed partial class WindowManager
 {
     private const int ResizeMargin = 5;   // grab zone on each side of a window edge
     private const long DoubleClickMilliseconds = 400;
@@ -100,6 +100,7 @@ internal sealed class WindowManager
 
     private Window? _lastTitleClick;
     private long _lastTitleClickTime;
+    private int _lastTitleClickX, _lastTitleClickY;
 
     public WindowManager(Rect workArea, Rect screen)
     {
@@ -110,10 +111,17 @@ internal sealed class WindowManager
     /// <summary>Changes the space maximized windows fill and moves those already maximized.</summary>
     public void SetWorkArea(Rect workArea)
     {
+        bool originChanged = workArea.Y != _workArea.Y || workArea.X != _workArea.X;
         _workArea = workArea;
         foreach (Window w in _windows)
         {
-            if (!w.IsMaximized) { continue; }
+            if (!w.IsMaximized)
+            {
+                if (originChanged && w.IsFullscreen) { w.WindowedBounds = KeepTitleReachable(w.WindowedBounds, workArea); }
+                else if (originChanged) { w.SetBounds(KeepTitleReachable(w.Bounds, workArea)); }
+                continue;
+            }
+            if (originChanged) { w.RestoreBounds = KeepTitleReachable(w.RestoreBounds, workArea); }
             var maximum = w.MaximumSize;
             Rect maximized = new(workArea.X, workArea.Y, Math.Min(workArea.W, maximum.Width), Math.Min(workArea.H, maximum.Height));
             if (w.IsFullscreen) { w.WindowedBounds = maximized; }
@@ -125,6 +133,7 @@ internal sealed class WindowManager
     {
         _screen=screen; _workArea=work; _dragging=null; _snapZone=SnapNone; _snapStart=0; _contentDrag=null; _pointerWindow?.OnPointerLeave(); _pointerWindow=null;
         _lastTitleClick=null; _transition=null; _lowerDirty=true;
+        CancelPointerFocus();
         foreach(Window w in _windows)
         {
             w.BackdropStamp=-1; w.ChromeMaterial.Dispose();
@@ -132,12 +141,12 @@ internal sealed class WindowManager
             Rect b=w.Bounds;
             int width=w.IsFullscreen?Math.Min(screen.W,max.Width):w.IsMaximized?Math.Min(work.W,max.Width):w.CanResize?Math.Max(min.Width,Math.Min(b.W,work.W)):b.W;
             int height=w.IsFullscreen?Math.Min(screen.H,max.Height==int.MaxValue?screen.H:max.Height-Window.TitleBarHeight):w.IsMaximized?Math.Min(work.H,max.Height):w.CanResize?Math.Max(min.Height,Math.Min(b.H,work.H)):b.H;
-            int x=Math.Clamp(b.X,0,Math.Max(0,work.W-width)),y=Math.Clamp(b.Y,0,Math.Max(0,work.H-height));
-            w.SetBounds(new Rect(w.IsFullscreen||w.IsMaximized?0:x,w.IsFullscreen||w.IsMaximized?0:y,width,height));
-            Rect restore=w.RestoreBounds;
-            w.RestoreBounds=new Rect(Math.Clamp(restore.X,0,Math.Max(0,work.W-restore.W)),Math.Clamp(restore.Y,0,Math.Max(0,work.H-restore.H)),restore.W,restore.H);
-            Rect windowed=w.WindowedBounds;
-            w.WindowedBounds=new Rect(Math.Clamp(windowed.X,0,Math.Max(0,work.W-windowed.W)),Math.Clamp(windowed.Y,0,Math.Max(0,work.H-windowed.H)),windowed.W,windowed.H);
+            Rect sized = new(b.X, b.Y, width, height);
+            w.SetBounds(w.IsFullscreen ? new Rect(screen.X, screen.Y, width, height)
+                : w.IsMaximized ? new Rect(work.X, work.Y, width, height) : KeepBoundsIn(sized, work));
+            w.RestoreBounds = KeepBoundsIn(w.RestoreBounds, work);
+            w.WindowedBounds = KeepBoundsIn(w.WindowedBounds, work);
+            if (w.SnapRestore is Rect restore) { w.SnapRestore = KeepBoundsIn(restore, work); }
         }
     }
 
@@ -178,7 +187,7 @@ internal sealed class WindowManager
     }
     private void TrackSnap(Window w, int x, int y)
     {
-        int zone = w.CanResize && !w.IsFullscreen ? ZoneAt(_workArea, x, y) : SnapNone;
+        int zone = _behavior.ScreenSnap != 0 && w.CanResize && !w.IsFullscreen ? ZoneAt(_workArea, x, y) : SnapNone;
         if (zone != SnapNone && !Fits(w, SnapTarget(_workArea, zone))) { zone = SnapNone; }
         if (zone == _snapZone) { return; }
         // A new zone grows from where the old preview was, or from a small square at the pointer.
@@ -206,20 +215,35 @@ internal sealed class WindowManager
         Zenith.Core.Log.Write("windows", "snapped " + WindowSnap.Names[zone] + " " + w.Title);
     }
 
-    public Window? Focused => _windows.Count > 0 && _windows[^1].IsFocused ? _windows[^1] : null;
+    public Window? Focused
+    {
+        get
+        {
+            foreach (Window window in _windows)
+            {
+                if (window.IsFocused && !window.IsClosed && !window.IsMinimized && IsOnActiveDesktop(window)) { return window; }
+            }
+            return null;
+        }
+    }
 
-    public void Open(Window window)
+    public void Open(Window window, uint? desktop = null)
     {
         // Center, then step each new window down-right so they do not stack exactly.
         int x = _workArea.X + (_workArea.W - window.Bounds.W) / 2 + _cascade;
         int y = _workArea.Y + (_workArea.H - window.Bounds.H) / 2 + _cascade;
         _cascade = (_cascade + 28) % 140;
-        window.SetBounds(new Rect(Math.Clamp(x, 0, Math.Max(0, _workArea.W-window.Bounds.W)), Math.Clamp(y, 0, Math.Max(0, _workArea.H-window.Bounds.H)), window.Bounds.W, window.Bounds.H));
+        window.SetBounds(KeepBoundsIn(new Rect(x, y, window.Bounds.W, window.Bounds.H), _workArea));
 
+        window.WorkspaceId = desktop.HasValue && HasDesktop(desktop.Value) ? desktop.Value : _activeDesktop;
         _windows.Add(window);
         _opened.Add(window);
-        Focus(window);
-        _transition = new(WindowChange.Opened, window, window.Bounds);
+        _recentWindows.Add(window);
+        if (IsOnActiveDesktop(window))
+        {
+            Focus(window);
+            _transition = new(WindowChange.Opened, window, window.Bounds);
+        }
         Rect b = window.Bounds;
         Zenith.Core.Log.Write("windows", "opened at " + b.X + "," + b.Y + " " + b.W + "x" + b.H);
     }
@@ -232,16 +256,24 @@ internal sealed class WindowManager
         return transition;
     }
 
-    public void Focus(Window window)
+    public void Focus(Window window) => Focus(window, true);
+
+    private void Focus(Window window, bool raise)
     {
+        if (window.IsClosed || !IsOnActiveDesktop(window) || !_windows.Contains(window)) { return; }
+        CancelPointerFocus();
         if (window.IsMinimized) { _transition = new(WindowChange.Restored, window, window.Bounds); }
         window.IsMinimized = false;
-        _windows.Remove(window);
-        _windows.Add(window);
+        if (raise && window != _windows[^1])
+        {
+            _windows.Remove(window);
+            _windows.Add(window);
+        }
         foreach (Window w in _windows)
         {
             w.IsFocused = w == window;
         }
+        RecordFocus(window);
     }
 
     public void Minimize(Window window)
@@ -292,6 +324,7 @@ internal sealed class WindowManager
         {
             var minimum = window.MinimumSize;
             if (_screen.W < minimum.Width || _screen.H < minimum.Height - Window.TitleBarHeight) { return; }
+            Focus(window);   // Entering fullscreen brings this window above the rest of the desktop.
             window.WindowedBounds = window.Bounds;
             window.IsFullscreen = true;
             var maximum = window.MaximumSize;
@@ -334,7 +367,7 @@ internal sealed class WindowManager
                 w.ContentVersion++;
                 w.ContentDamage = w.ContentDamage.Union(w.UpdateDamage is Rect part && !part.IsEmpty
                     ? part.Offset(w.Content.X, w.Content.Y).Intersect(w.Content) : AreaOf(w));
-                if (!w.IsMinimized && w != Top) { _lowerDirty = true; w.ContentChanged = true; }
+                if (IsOnActiveDesktop(w) && !w.IsMinimized && w != Top) { _lowerDirty = true; w.ContentChanged = true; }
             }
 
             if (w.IsClosed)
@@ -344,9 +377,10 @@ internal sealed class WindowManager
                 if (_pointerWindow == w) { _pointerWindow = null; }
                 if (_lastTitleClick == w) { _lastTitleClick = null; }
                 if (w == Top && !closedOne) { _transition = new(WindowChange.Closed, w, w.Bounds); }
-                closedOne = true;
+                closedOne |= IsOnActiveDesktop(w);
                 _windows.RemoveAt(i);
                 _opened.Remove(w);
+                _recentWindows.Remove(w);
                 changed = true;
             }
         }
@@ -403,9 +437,11 @@ internal sealed class WindowManager
 
         if (input.LeftPressed && hit is not null)
         {
-            Focus(hit);
+            Focus(hit, _behavior.RaiseOnClick != 0);
             Edges edges = EdgesAt(hit, input.X, input.Y);
 
+            bool title = edges == Edges.None && hit.TitleBar.Contains(input.X, input.Y) && ButtonAt(hit, input.X, input.Y) == 0;
+            if (!title) { _lastTitleClick = null; }
             if (edges != Edges.None)
             {
                 StartDrag(hit, edges, input.X, input.Y);
@@ -416,23 +452,26 @@ internal sealed class WindowManager
             }
             else if (hit.MaximizeButton.Contains(input.X, input.Y))
             {
-                ToggleMaximize(hit);
+                RunTitleAction(hit, _behavior.MaximizeButtonAction);
             }
             else if (hit.MinimizeButton.Contains(input.X, input.Y))
             {
                 Minimize(hit);
             }
-            else if (hit.TitleBar.Contains(input.X, input.Y))
+            else if (title)
             {
                 long now = Stopwatch.GetTimestamp();
                 bool doubleClick = _lastTitleClick == hit
-                    && (now - _lastTitleClickTime) * 1000 / Stopwatch.Frequency < DoubleClickMilliseconds;
+                    && now - _lastTitleClickTime < Stopwatch.Frequency * DoubleClickMilliseconds / 1000
+                    && Math.Abs(input.X - _lastTitleClickX) <= ResizeMargin && Math.Abs(input.Y - _lastTitleClickY) <= ResizeMargin;
                 _lastTitleClick = doubleClick ? null : hit;
                 _lastTitleClickTime = now;
+                _lastTitleClickX = input.X;
+                _lastTitleClickY = input.Y;
 
-                if (doubleClick)
+                if (doubleClick && _behavior.TitleDoubleClick != 3)
                 {
-                    ToggleMaximize(hit);
+                    RunTitleAction(hit, _behavior.TitleDoubleClick);
                 }
                 else
                 {
@@ -449,14 +488,16 @@ internal sealed class WindowManager
 
         if (input.RightPressed && !input.Left && hit is not null && hit.Content.Contains(input.X, input.Y))
         {
-            Focus(hit);
+            _lastTitleClick = null;
+            Focus(hit, _behavior.RaiseOnClick != 0);
             using var identity = Zenith.Core.Security.CredentialContext.Enter(hit.Identity);
             hit.OnSecondaryPress(input.X - hit.Content.X, input.Y - hit.Content.Y);
         }
 
         if (input.MiddlePressed && !input.Left && hit is not null && hit.Content.Contains(input.X, input.Y))
         {
-            Focus(hit);
+            _lastTitleClick = null;
+            Focus(hit, _behavior.RaiseOnClick != 0);
             using var identity = Zenith.Core.Security.CredentialContext.Enter(hit.Identity);
             hit.OnMiddlePress(input.X - hit.Content.X, input.Y - hit.Content.Y);
         }
@@ -618,7 +659,7 @@ internal sealed class WindowManager
     {
         get
         {
-            for (int i = _windows.Count - 1; i >= 0; i--) { if (!_windows[i].IsMinimized) { return _windows[i]; } }
+            for (int i = _windows.Count - 1; i >= 0; i--) { if (IsOnActiveDesktop(_windows[i]) && !_windows[i].IsMinimized) { return _windows[i]; } }
             return null;
         }
     }
@@ -631,7 +672,7 @@ internal sealed class WindowManager
         int at = 0;
         foreach (Window w in _windows)
         {
-            if (w.IsMinimized || w == top) { continue; }
+            if (!IsOnActiveDesktop(w) || w.IsMinimized || w == top) { continue; }
             if (at == _lower.Count || !_lower[at].Shows(w, w == hovered ? ButtonAt(w, mouseX, mouseY) : 0)) { return false; }
             at++;
         }
@@ -650,13 +691,13 @@ internal sealed class WindowManager
         foreach (LowerWindow old in _lower)
         {
             Window w = old.Window;
-            if (w.IsClosed || w.IsMinimized || w == top || !_windows.Contains(w)) { _changed.Add(old.Bounds.Inflate(Theme.ShadowSize + 2)); }
+            if (w.IsClosed || !IsOnActiveDesktop(w) || w.IsMinimized || w == top || !_windows.Contains(w)) { _changed.Add(old.Bounds.Inflate(Theme.ShadowSize + 2)); }
         }
         var previous = new List<LowerWindow>(_lower);
         _lower.Clear(); _lowerDirty = false;
         foreach (Window w in _windows)
         {
-            if (w.IsMinimized || w == top) { continue; }
+            if (!IsOnActiveDesktop(w) || w.IsMinimized || w == top) { continue; }
             int button = w == hovered ? ButtonAt(w, mouseX, mouseY) : 0;
             bool same = false;
             foreach (LowerWindow old in previous) { if (old.Shows(w, button)) { same = true; break; } }
@@ -679,7 +720,7 @@ internal sealed class WindowManager
     public void MarkChanged(Window w)
     {
         w.ContentVersion++; w.ContentDamage = AreaOf(w);
-        if (!w.IsMinimized && w != Top) { _lowerDirty = true; w.ContentChanged = true; }
+        if (IsOnActiveDesktop(w) && !w.IsMinimized && w != Top) { _lowerDirty = true; w.ContentChanged = true; }
     }
 
     /// <summary>Area a window changes on screen, shadow included.</summary>
@@ -692,7 +733,7 @@ internal sealed class WindowManager
         Window? top = Top; int at = 0;
         foreach (Window w in _windows)
         {
-            if (w.IsMinimized || w == top) { continue; }
+            if (!IsOnActiveDesktop(w) || w.IsMinimized || w == top) { continue; }
             if (at == _lower.Count || _lower[at].Window != w) { return false; }
             at++;
         }
@@ -826,7 +867,7 @@ internal sealed class WindowManager
         top.BackdropDirty = known && top.BackdropGeneration == _generation - 1 ? DirtyUnder(top.Bounds, _changed) : new Rect(0, 0, 0, 0);
         top.BackdropStamp = sceneKey; top.BackdropBounds = top.Bounds; top.BackdropGeneration = _generation;
         bool hovered = _dragging is null && HitTest(mouseX, mouseY, includeResizeMargin: false) == top;
-        if (SnapPreviewShown && _dragging == top)
+        if (SnapPreviewShown)
         {
             Rect preview = SnapPreview();
             int radius = _snapZone == SnapTop ? 0 : Decorations.Radius(Decorations.Current);
@@ -941,7 +982,7 @@ internal sealed class WindowManager
         {
             Window w = _windows[i];
             Rect area = includeResizeMargin && w.CanResize && !w.IsMaximized && !w.IsFullscreen ? w.Bounds.Inflate(ResizeMargin) : w.Bounds;
-            if (!w.IsMinimized && area.Contains(x, y))
+            if (IsOnActiveDesktop(w) && !w.IsMinimized && area.Contains(x, y))
             {
                 return w;
             }
@@ -952,17 +993,27 @@ internal sealed class WindowManager
 
     private void MoveTo(Window w, int x, int y)
     {
-        // Keep enough of the title bar on screen to grab it again.
-        x = Math.Clamp(x, _workArea.X - w.Bounds.W + 120, _workArea.Right - 120);
-        y = Math.Clamp(y, _workArea.Y, _workArea.Bottom - Window.TitleBarHeight);
-        w.SetBounds(new Rect(x, y, w.Bounds.W, w.Bounds.H));
+        Rect moving = KeepTitleReachable(new Rect(x, y, w.Bounds.W, w.Bounds.H), _workArea);
+        w.SetBounds(KeepTitleReachable(SnapToWindows(w, moving), _workArea));
+    }
+
+    private static Rect KeepBoundsIn(Rect bounds, Rect work)
+        => new(Math.Clamp(bounds.X, work.X, Math.Max(work.X, work.Right - bounds.W)),
+            Math.Clamp(bounds.Y, work.Y, Math.Max(work.Y, work.Bottom - bounds.H)), bounds.W, bounds.H);
+
+    // Keep enough of the title bar on screen to grab it again.
+    private static Rect KeepTitleReachable(Rect bounds, Rect work)
+    {
+        int grab = Math.Min(120, Math.Min(bounds.W, work.W) / 2);
+        return new Rect(Math.Clamp(bounds.X, work.X - bounds.W + grab, work.Right - grab),
+            Math.Clamp(bounds.Y, work.Y, Math.Max(work.Y, work.Bottom - Window.TitleBarHeight)), bounds.W, bounds.H);
     }
 
     private void FocusTopmostVisible()
     {
         for (int i = _windows.Count - 1; i >= 0; i--)
         {
-            if (!_windows[i].IsMinimized)
+            if (IsOnActiveDesktop(_windows[i]) && !_windows[i].IsMinimized)
             {
                 Focus(_windows[i]);
                 return;

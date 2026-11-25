@@ -89,11 +89,11 @@ Window Management groups Taskbar, Window Behavior, Task Switcher and Virtual Des
 
 | ID / page | Requested sections and controls | Baseline; activation / owner |
 |---|---|---|
-| `windows.notifications` — Notifications | Do Not Disturb, visibility conditions and popup behavior. | Do Not Disturb, popup time and a test (call 670, kernel 0.0.72); per-app switches (kernel 0.0.76); visibility conditions M7. U; notification service/compositor presentation. |
-| `windows.taskbar` — Taskbar | Dock when maximized, floating, docked, hide when maximized, auto-hide; later position and pinned applications. | H; M7. U; compositor presentation. |
-| `windows.behavior` — Window Behavior | Focus: click-to-focus in DE, focus delay, raising; titlebar double-click/maximize-button actions; movement screen-edge and window snap zones. Expose per-session capabilities for floating DE versus later tiling WM. | H for fixed DE behavior; M7. U; window manager/compositor. |
-| `windows.switcher` — Task Switcher | Several visualizations; sort order; one-window-per-application option; filters for virtual desktops and monitors when those concepts exist. Use owned app/window identity. | —; M7, monitor-specific filters after display support. U; session window/task service. |
-| `windows.desktops` — Virtual Desktops | Create/manage virtual desktops and their order/names; coordinate switching with animations/task filtering. | —; M7. U; compositor/workspace service. |
+| `windows.notifications` — Notifications | Do Not Disturb, visibility conditions and popup behavior. | Do Not Disturb, test, history, per-app switches, position, timeout, hover pause, sound and focused-app/fullscreen visibility. U; notification service and compositor. |
+| `windows.taskbar` — Taskbar | Five visibility modes, top/bottom position and ordered pinned applications. | U. Compositor presentation. |
+| `windows.behavior` — Window Behavior | Click or pointer focus, hover delay, click/hover raising, titlebar and maximize-button actions, screen-edge and neighboring-window snapping. | U. Floating desktop policy. A future tiling session will need its own policies. |
+| `windows.switcher` — Task Switcher | Alt+Tab, cards or compact list, recent/open/title order, one window per app, and current or all desktops. | U. Session window identity. Monitor filtering requires multi-monitor support. |
+| `windows.desktops` — Virtual Desktops | Create, name, reorder and remove up to eight desktops. Pager and keyboard switching, moving a window between desktops, animated transitions. | U. Compositor/workspace service. |
 
 ## 7. Workspace
 

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Buffers.Binary;
+using Zenith.Core.Processes;
 using System.IO;
 using Zenith.Core.Configuration;
 using Zenith.Core.Security;
@@ -109,5 +111,68 @@ public class SettingsServiceTests
         selected = SessionModes.Select(SessionMode.Headless, "session=de session=wm", _ => true);
         Assert.Equal(SessionMode.Headless, selected.Mode); Assert.Contains("duplicate", selected.Diagnostic);
         Assert.Throws<InvalidOperationException>(() => SessionModes.Select(SessionMode.Desktop, "", _ => false));
+    }
+    [Fact]
+    public void DesktopPagesPersistAndARejectedDraftNeverChangesLiveSettings()
+    {
+        using var root = CredentialContext.Enter(Credentials.Root);
+        var store = new Store();
+        store.Files[SettingsService.TaskbarPath] = "VERSION=1\nTASKBAR=always\nCUSTOM=keep\n";
+        var settings = Service(store);
+        Assert.Empty(settings.Load());
+        Assert.Equal(1u, settings.Current.Taskbar);
+        var (original, _, revision) = settings.DesktopSnapshot();
+        Assert.Equal(-22, settings.SaveDesktopPreferences(1, new uint[] { 4, 1 },
+            new DesktopEntry[] { new(0, "Terminal"), new(0, "terminal") }, revision));
+        store.FailWrite = true;
+        Assert.Equal(-5, settings.SaveDesktopPreferences(1, new uint[] { 4, 1 },
+            new DesktopEntry[] { new(0, "Terminal") }, revision));
+        Assert.Same(original, settings.DesktopPreferences);
+        Assert.Equal(1u, settings.Current.Taskbar);
+        store.FailWrite = false;
+        Assert.Equal(0, settings.SaveDesktopPreferences(1, new uint[] { 4, 1 },
+            new DesktopEntry[] { new(0, "Terminal"), new(0, "Editor") }, revision));
+        Assert.Contains("CUSTOM=keep", store.Files[SettingsService.TaskbarPath]);
+
+        var desktops = new DesktopEntry[] { new(2, "Développement"), new(0, "Desktop 1") };
+        Assert.Equal(-11, settings.SaveDesktopPreferences(4, new uint[] { 0 }, desktops, revision));
+        Assert.Equal(0, settings.SaveDesktopPreferences(4, new uint[] { 0 }, desktops, ++revision));
+        Assert.Equal(0, settings.SaveDesktopPreferences(2, new uint[] { 1, 400, 0, 1, 2, 3, 0, 28 }, Array.Empty<DesktopEntry>(), ++revision));
+        Assert.Equal(0, settings.SaveDesktopPreferences(3, new uint[] { 1, 2, 1, 1 }, Array.Empty<DesktopEntry>(), ++revision));
+
+        var reopened = Service(store);
+        Assert.Empty(reopened.Load());
+        Assert.Equal(4u, reopened.Current.Taskbar);
+        Assert.Equal(1u, reopened.DesktopPreferences.TaskbarPosition);
+        Assert.Equal(new[] { "Terminal", "Editor" }, reopened.DesktopPreferences.TaskbarPins);
+        Assert.Equal(desktops, reopened.DesktopPreferences.Desktops);
+        Assert.Equal(0u, reopened.DesktopPreferences.DesktopMotion);
+        Assert.Equal(400u, reopened.DesktopPreferences.FocusDelay);
+        Assert.Equal(28u, reopened.DesktopPreferences.WindowSnapDistance);
+        Assert.Equal(2u, reopened.DesktopPreferences.SwitcherSort);
+        Assert.Equal(1u, reopened.DesktopPreferences.SwitcherScope);
+    }
+
+    [Fact]
+    public void DesktopWireEnforcesAuthorizationCanonicalPaddingAndRevision()
+    {
+        using var root = CredentialContext.Enter(Credentials.Root);
+        var service = Service(new Store());
+        byte[] data = ProcessDesktopPreferences.Snapshot(service, 4, true);
+        Assert.Equal(-22, ProcessDesktopPreferences.Save(service, data)); // read-only response flags cannot be submitted
+        data[8] = 0;
+        using (CredentialContext.Enter(new Credentials(1000, 1000)))
+        { Assert.Equal(-13, ProcessDesktopPreferences.Save(service, data)); }
+        data[70] = 0;
+        Assert.Equal(-22, ProcessDesktopPreferences.Save(service, data)); // premature NUL leaves nonzero padding
+        data[70] = (byte)'s';
+        data[72] = 0xff;
+        Assert.Equal(-22, ProcessDesktopPreferences.Save(service, data));
+        // Use a fresh record to verify the successful and stale paths.
+        data = ProcessDesktopPreferences.Snapshot(service, 4, false);
+        BinaryPrimitives.WriteUInt32LittleEndian(data.AsSpan(24), 0);
+        Assert.Equal(0, ProcessDesktopPreferences.Save(service, data));
+        Assert.Equal(-11, ProcessDesktopPreferences.Save(service, data));
+        Assert.Equal(0u, service.DesktopPreferences.DesktopMotion);
     }
 }

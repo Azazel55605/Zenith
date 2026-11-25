@@ -126,19 +126,32 @@ longer look alike. Client titles lose the "Native · " prefix. The clock is cent
 the clock that lists them. The focused window always keeps a pill. Every window stays reachable.
 
 **Shape and hiding.** `taskbar` is a system-wide choice in `/etc/zenith/taskbar.conf`, set on
-the `windows.taskbar` page or with `settings set taskbar`. Docked runs edge to edge along the
-bottom row with square corners; floating is inset and rounded.
+the `windows.taskbar` page or with `settings set taskbar`. Docked runs edge to edge with square
+corners. Floating is inset and rounded.
 
 | Choice | Bar | Maximize fills |
 |---|---|---|
-| `dock-maximized` (default) | Floating; docked while the top window is maximized or fullscreen | Space above the docked bar |
-| `floating` | Always floating | Space above the floating bar |
-| `docked` | Always docked | Space above the docked bar |
+| `dock-maximized` (default) | Floating, docked while the top window is maximized or fullscreen | Screen minus the docked bar |
+| `floating` | Always floating | Screen minus the floating bar and margin |
+| `docked` | Always docked | Screen minus the docked bar |
 | `maximized` | Floating; hidden while the top window is maximized | Whole screen |
 | `auto` | Floating, only on demand | Whole screen |
 
-One setting covers both, because a Meridian page holds one control and these are the
-combinations worth having. `always`, saved by 0.0.35, reads as `floating`.
+`always`, saved by 0.0.35, reads as `floating`.
+
+**Position and pins.** Meridian also places the horizontal taskbar at the top or bottom. The work
+area and reveal strip follow that edge. Prism's menu and the taskbar centers open toward the screen
+interior. From the Taskbar page, add up to six registered apps and change their order or remove
+them. A pin opens the app or focuses its existing window on the current desktop. Additional
+windows for the same app keep their own pills. Pins preserve their registry ID when an app is
+temporarily unavailable. Excess entries go in the scrollable overflow list. When there is more
+than one virtual desktop, the numbered pager switches desktops and shows their names on hover.
+
+The Meridian taskbar form uses desktop preference call 672, page 1, for the existing mode,
+position, and ordered pin IDs. Operation 3 supplies the visible app catalog as a little-endian
+32-bit version (`1`) and record count followed by pairs of 65-byte NUL-terminated ASCII fields
+(registry ID and display label). The catalog keeps aliases such as Terminal/Polaris stable across
+package changes. SettingsService persists the preferences through the desktop settings store.
 
 **Fullscreen.** F11 toggles the focused resizable window to the whole screen without a title
 bar. A client gets the normal resize. Client surfaces stop at 1920x1000, so on taller screens

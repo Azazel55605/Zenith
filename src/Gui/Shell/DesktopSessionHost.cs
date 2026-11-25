@@ -66,8 +66,8 @@ internal sealed class DesktopSessionHost : ISessionHost
         using var session = CredentialContext.Enter(Accounts.Session);
         if (SystemMounts.Mode == BootMode.Live || Accounts.Service is null || !Accounts.Service.HasPasswords)
         {
-            _desktop.Windows.Open(new WelcomeWindow());
-            _desktop.Windows.Open(new TerminalWindow());
+            _desktop.Windows.Open(new WelcomeWindow { AppId = "Welcome" });
+            _desktop.Windows.Open(new TerminalWindow { AppId = "Terminal" });
         }
         Log.Write("kernel", "desktop ready (" + (SystemMounts.Mode == BootMode.Live ? "live" : "installed") + ")");
     }

@@ -18,7 +18,7 @@ internal sealed record SystemSettings(string Keyboard, string TimeZone, SessionM
     uint Wallpaper = 0, uint Launcher = 0, uint Cursor = 0, uint Windows = 0);
 
 /// <summary>Shared validated settings operations. Local /etc state is administrator-owned.</summary>
-internal sealed class SettingsService
+internal sealed partial class SettingsService
 {
     public const int MaximumBytes = 16384;
     public const string KeyboardPath = "/etc/vconsole.conf";
@@ -90,6 +90,7 @@ internal sealed class SettingsService
             catch (Exception e) { errors.Add(CursorPath + ": " + e.Message + "; using light"); }
             try { windows = ReadChoice(_store.Read(WindowsPath), "WINDOWS", WindowsNames); }
             catch (Exception e) { errors.Add(WindowsPath + ": " + e.Message + "; using fit"); }
+            LoadDesktopPreferences(errors, taskbar);
             LoadStyles(errors);
             LoadSounds(errors);
             LoadNotifications(errors);
@@ -230,23 +231,44 @@ internal sealed class SettingsService
         }
         catch (Exception e) { SoundLevel = 70; SoundMask = DefaultSoundMask; errors.Add(SoundsPath + ": " + e.Message + "; using defaults"); }
     }
-    // ---------- Notifications (U14): /etc/zenith/notifications.conf, DND=0|1, POPUP=short|normal|long.
+    // ---------- Notifications (U14): /etc/zenith/notifications.conf.
     public const string NotificationsPath = "/etc/zenith/notifications.conf";
     public static readonly string[] PopupNames = { "short", "normal", "long" };
     public static readonly int[] PopupSeconds = { 4, 6, 10 };
-    public bool DoNotDisturb { get; private set; }
-    public uint Popup { get; private set; } = 1;
+    public static readonly string[] PopupCorners = { "bottom-right", "top-right", "bottom-left", "top-left" };
+    public const uint PopupFullscreen = 1, PopupFocusedApp = 2, PopupHoldOnHover = 4, PopupSound = 8;
+    private const uint AllPopupFlags = PopupFullscreen | PopupFocusedApp | PopupHoldOnHover | PopupSound;
+    public sealed record NotificationPreferences(bool DoNotDisturb = false, uint Time = 1,
+        uint Flags = PopupFullscreen | PopupHoldOnHover | PopupSound, uint Corner = 0)
+    {
+        public bool AllowsPopups(bool fullscreen) => !DoNotDisturb && (!fullscreen || (Flags & PopupFullscreen) != 0);
+        public bool AllowsSender(int senderPid, int focusedPid) => senderPid == 0 || senderPid != focusedPid || (Flags & PopupFocusedApp) != 0;
+        public bool FromTop => (Corner & 1) != 0;
+        public bool FromLeft => (Corner & 2) != 0;
+    }
+    public NotificationPreferences Notifications { get; private set; } = new();
+    public bool DoNotDisturb => Notifications.DoNotDisturb;
+    public uint Popup => Notifications.Time;
+    public (NotificationPreferences Settings, ulong Revision) NotificationSnapshot() { lock (_gate) { return (Notifications, _revision); } }
     /// <summary>Senders whose notifications are switched off (OFF=Name,Name).</summary>
     public IReadOnlyList<string> MutedSenders { get; private set; } = Array.Empty<string>();
     public const int MutedMax = 32;
     public static bool ValidSender(string name) { if (name.Length is 0 or > 32) { return false; } foreach (char c in name) { if (c is ',' or '=' or '\n' or '\r' || c < ' ') { return false; } } return true; }
     private void LoadNotifications(List<string> errors)
     {
+        Notifications = new();
+        MutedSenders = Array.Empty<string>();
         try
         {
             var fields = Fields(_store.Read(NotificationsPath));
-            if (fields.TryGetValue("DND", out string? dnd)) { DoNotDisturb = dnd == "1" ? true : dnd == "0" ? false : throw new FormatException("bad DND"); }
-            if (fields.TryGetValue("POPUP", out string? popup)) { int i = Array.IndexOf(PopupNames, popup); Popup = i >= 0 ? (uint)i : throw new FormatException("bad POPUP"); }
+            CheckNotificationVersion(fields);
+            bool dnd = fields.TryGetValue("DND", out string? value) && (value == "1" ? true : value == "0" ? false : throw new FormatException("bad DND"));
+            int popup = fields.TryGetValue("POPUP", out string? time) ? Array.IndexOf(PopupNames, time) : 1;
+            int corner = fields.TryGetValue("CORNER", out string? place) ? Array.IndexOf(PopupCorners, place) : 0;
+            uint flags = Notifications.Flags;
+            if (popup < 0 || corner < 0 || (fields.TryGetValue("POPUP_FLAGS", out string? options) && (!uint.TryParse(options, out flags) || flags > AllPopupFlags)))
+            { throw new FormatException("bad notification preferences"); }
+            Notifications = new(dnd, (uint)popup, flags, (uint)corner);
             if (fields.TryGetValue("OFF", out string? off))
             {
                 var muted = new List<string>();
@@ -254,18 +276,34 @@ internal sealed class SettingsService
                 MutedSenders = muted;
             }
         }
-        catch (Exception e) { DoNotDisturb = false; Popup = 1; MutedSenders = Array.Empty<string>(); errors.Add(NotificationsPath + ": " + e.Message + "; using defaults"); }
+        catch (Exception e) { errors.Add(NotificationsPath + ": " + e.Message + "; using defaults"); }
     }
-    public int SaveNotifications(bool dnd, uint popup, ulong revision)
+    private static void CheckNotificationVersion(Dictionary<string, string> fields)
+    {
+        if (fields.TryGetValue("VERSION", out string? version) && version != "1") { throw new FormatException("unsupported settings VERSION"); }
+    }
+    private void SaveNotificationFile(NotificationPreferences value, IReadOnlyList<string> muted)
+    {
+        string? old = _store.Read(NotificationsPath);
+        CheckNotificationVersion(Fields(old));
+        _store.Replace(NotificationsPath, Update(old, new Dictionary<string, string>
+        {
+            ["VERSION"] = "1", ["DND"] = value.DoNotDisturb ? "1" : "0", ["POPUP"] = PopupNames[value.Time],
+            ["OFF"] = string.Join(",", muted), ["POPUP_FLAGS"] = value.Flags.ToString(), ["CORNER"] = PopupCorners[value.Corner]
+        }));
+    }
+    public int SaveNotifications(bool dnd, uint popup, ulong revision, uint? flags = null, uint? corner = null)
     {
         if (!CredentialContext.Current.IsRoot) { return -13; }
-        if (popup >= PopupNames.Length) { return -22; }
+        if (popup >= PopupNames.Length || flags > AllPopupFlags || corner >= PopupCorners.Length) { return -22; }
         lock (_gate)
         {
             if (revision != _revision) { return -11; }
-            try { _store.Replace(NotificationsPath, Update(_store.Read(NotificationsPath), new Dictionary<string, string> { ["VERSION"] = "1", ["DND"] = dnd ? "1" : "0", ["POPUP"] = PopupNames[popup], ["OFF"] = string.Join(",", MutedSenders) })); }
+            if (_revision == ulong.MaxValue) { return -75; }
+            var next = new NotificationPreferences(dnd, popup, flags ?? Notifications.Flags, corner ?? Notifications.Corner);
+            try { SaveNotificationFile(next, MutedSenders); }
             catch { return -5; }
-            DoNotDisturb = dnd; Popup = popup; _revision++;
+            Notifications = next; _revision++;
             return 0;
         }
     }
@@ -277,10 +315,11 @@ internal sealed class SettingsService
         lock (_gate)
         {
             if (revision != _revision) { return -11; }
+            if (_revision == ulong.MaxValue) { return -75; }
             var list = new List<string>(MutedSenders);
             if (muted && !list.Contains(sender)) { if (list.Count >= MutedMax) { return -28; } list.Add(sender); }
             if (!muted) { list.Remove(sender); }
-            try { _store.Replace(NotificationsPath, Update(_store.Read(NotificationsPath), new Dictionary<string, string> { ["VERSION"] = "1", ["DND"] = DoNotDisturb ? "1" : "0", ["POPUP"] = PopupNames[Popup], ["OFF"] = string.Join(",", list) })); }
+            try { SaveNotificationFile(Notifications, list); }
             catch { return -5; }
             MutedSenders = list; _revision++;
             return 0;

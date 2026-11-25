@@ -1,3 +1,4 @@
+using System;
 using Zenith.Gui.Graphics;
 
 namespace Zenith.Gui;
@@ -41,5 +42,25 @@ internal static class WindowSnap
             BottomRight => new Rect(work.X + halfW, work.Y + halfH, work.W - halfW, work.H - halfH),
             _ => new Rect(0, 0, 0, 0),
         };
+    }
+
+    /// <summary>Retains the closest contact with neighbouring edges. Each axis starts at distance + 1.</summary>
+    internal static void NearestContact(Rect moving, Rect other, ref int dx, ref int dy)
+    {
+        if (moving.Y < other.Bottom && other.Y < moving.Bottom)
+        {
+            PreferCloser(other.X - moving.Right, ref dx);
+            PreferCloser(other.Right - moving.X, ref dx);
+        }
+        if (moving.X < other.Right && other.X < moving.Right)
+        {
+            PreferCloser(other.Y - moving.Bottom, ref dy);
+            PreferCloser(other.Bottom - moving.Y, ref dy);
+        }
+    }
+
+    private static void PreferCloser(int offset, ref int best)
+    {
+        if (Math.Abs(offset) < Math.Abs(best)) { best = offset; }
     }
 }

@@ -6,7 +6,8 @@
  * field (6 wallpaper, 8 cursor pack, 9 cursor size, 10 decoration, 11 widgets, 12 buttons, 13 splash, 14 login,
  * 15 boot, 16 sounds). Saving goes through the system settings call (626) with the same field numbers. */
 /* The largest picker picture: a default tile (176x110) plus the 3 px it now grows on each side to fill the tile. */
-enum { STYLE_FIELDS=18,STYLE_THUMBS=40,STYLE_THUMB_PIXELS=182*116 };
+enum { STYLE_FIELDS=18,STYLE_THUMBS=40,STYLE_THUMB_PIXELS=182*116,STYLE_NOTIFY_SENDERS=96 };
+struct meridian_sender { char name[56]; unsigned char off,draft; };
 struct meridian_styles {
     long (*catalog)(unsigned int field,struct zenith_style_list *out);
     long (*preview)(unsigned int field,unsigned int index,int width,int height,unsigned int *pixels);
@@ -20,15 +21,15 @@ struct meridian_styles {
     long (*sound_save)(unsigned int level,unsigned int mask,unsigned long revision);
     long (*sound_play)(unsigned int event);
     struct zenith_sound_settings sound; int sound_ready; unsigned int sound_level,sound_mask;
-    /* Notifications (670): Do Not Disturb and the popup time, drafted the same way; a test post. */
+    /* Notifications (670): revisioned visibility, popup behavior, and a test post. */
     long (*notify_read)(struct zenith_notify_settings *out);
-    long (*notify_save)(unsigned int dnd,unsigned int popup,unsigned long revision);
+    long (*notify_save)(const struct zenith_notify_settings *settings);
     long (*notify_post)(const char *title,const char *body,const char *icon);
-    struct zenith_notify_settings notify; int notify_ready; unsigned int notify_dnd,notify_popup;
+    struct zenith_notify_settings notify; int notify_ready; unsigned int notify_dnd,notify_popup,notify_flags,notify_corner;
     /* Per-app switches (670 ops 4 and 5): the senders seen, each switched off or on, with a draft. */
     long (*notify_senders)(char *out,unsigned int capacity);
     long (*notify_mute)(const char *name,unsigned int off,unsigned long revision);
-    struct { char name[56]; unsigned char off,draft; } senders[24]; int sender_count;
+    struct meridian_sender senders[STYLE_NOTIFY_SENDERS]; int sender_count;
     /* Preview cache: (field, index, size) per slot, dropped when the appearance key changes. */
     unsigned int thumb_field[STYLE_THUMBS],thumb_index[STYLE_THUMBS],thumb_size[STYLE_THUMBS],thumb_key,thumb_next;
     unsigned int thumbs[STYLE_THUMBS][STYLE_THUMB_PIXELS];
@@ -45,7 +46,7 @@ int styles_choose(struct meridian_styles *s,unsigned int field,unsigned int choi
 long styles_apply(struct meridian_styles *s,const char *page_id);
 void styles_reset(struct meridian_styles *s,const char *page_id);
 int styles_sound_set(struct meridian_styles *s,unsigned int level,unsigned int mask);
-int styles_notify_set(struct meridian_styles *s,unsigned int dnd,unsigned int popup);
+int styles_notify_set(struct meridian_styles *s,unsigned int dnd,unsigned int popup,unsigned int flags,unsigned int corner);
 int styles_sender_toggle(struct meridian_styles *s,int index);
 /* A cached preview (ARGB, width x height up to 176 x 110), or 0 when the kernel cannot draw it. */
 const unsigned int *styles_thumb(struct meridian_styles *s,unsigned int field,unsigned int index,int width,int height,unsigned int key);

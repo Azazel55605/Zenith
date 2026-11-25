@@ -49,6 +49,36 @@ public class TaskbarTests
     public void DockedAndFloatingKeepTheirOwnSpace(int mode, int rows)
         => Assert.Equal(rows, TaskbarPolicy.Reserved((TaskbarMode)mode, 48, 8));
 
+    [Theory]
+    [InlineData(0, 744, 0, 706, 799, 1)]
+    [InlineData(1, 8, 64, 64, 1, 799)]
+    public void WorkAreaAndRevealFollowThePanel(int edge, int panelY, int workY, int popupY, int near, int far)
+    {
+        var position = (TaskbarPosition)edge;
+        Rect screen = new(0, 0, 1280, 800);
+        Rect panel = TaskbarPolicy.Bounds(screen, position, 48, 8);
+        Assert.Equal(panelY, panel.Y);
+        Rect work = TaskbarPolicy.WorkArea(screen, TaskbarMode.Floating, position, 48, 8);
+        Assert.Equal(workY, work.Y);
+        Assert.Equal(736, work.H);
+        Assert.Equal(popupY, TaskbarPolicy.Inward(position, panel, 30, 8));
+        Assert.True(TaskbarPolicy.PointerNear(position, near, 800, panel, false, 3, 8));
+        Assert.False(TaskbarPolicy.PointerNear(position, far, 800, panel, false, 3, 8));
+        Assert.Equal(position == TaskbarPosition.Top ? -48 : 48, TaskbarPolicy.SlideAway(position, 48));
+    }
+
+    [Fact]
+    public void WidePagerAndPinnedOverflowKeepTaskControlsReachable()
+    {
+        const int available = 256, desktops = 8;
+        int width = TaskbarLayout.PagerWidth(desktops, available);
+        Assert.InRange(width, 16, 27);
+        int remaining = available - (width + TaskbarLayout.PagerGap) * desktops - 7;
+        Assert.True(remaining >= TaskbarLayout.OverflowWidth);
+        Assert.Equal(0, TaskbarLayout.PagerWidth(1, available));
+        Assert.Equal(1, TaskbarLayout.Count(2, 244, needsOverflow: true));
+    }
+
     [Fact]
     public void PillsKeepNaturalWidthWhenTheyFit()
         => Assert.Equal(new[] { 100, 150 }, TaskbarLayout.Fit(new[] { 100, 150 }, 254));

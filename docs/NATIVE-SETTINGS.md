@@ -329,3 +329,32 @@ native run settings --system-set session headless
 native run settings --settings-info network
 native run settings --settings-info accounts
 ```
+
+## Desktop preferences
+
+`zenith-native-desktop-preferences-abi 1.0` uses call 672 for the four Apps &
+Windows preference pages. It preserves the legacy taskbar mode calls. Read
+uses `(buffer, 1, page)`. Save uses `(buffer, 2, 640)`. Each page has one
+revisioned save, authorized by root or the scoped system-settings portal grant.
+A stale revision or refused disk write keeps the live settings intact. The
+taskbar record extends `/etc/zenith/taskbar.conf`; the other pages use
+`/etc/zenith/desktop-preferences.conf`.
+
+The little-endian 640-byte record has four u32 values (version 1, page 1–4,
+flags, count), a u64 revision, eight u32 page values, two zero u32 fields, and
+eight 72-byte entries. Read flag bit 0 means writable. Flags are zero on save.
+An entry contains a u32 stable ID, a 65-byte UTF-8 name and three zero bytes.
+Names are NUL-terminated and padded, and unused values and entries are zero.
+
+| Page | Values in order | Entries |
+| --- | --- | --- |
+| 1 Taskbar | Legacy mode (0–4), bottom/top (0/1) | Up to six pin registry IDs as names, each with numeric ID zero |
+| 2 Window behavior | Focus (click/pointer), hover delay (0–1000 ms), click raise, hover raise, double-click action, maximize-button action, screen snap, neighbor snap distance (0–32 px) | None |
+| 3 Task switcher | Cards/list, recent/open/title sort, group by application, current/all workspaces | None |
+| 4 Virtual desktops | Animate switching | One to eight ordered names (1–48 UTF-8 bytes) with unique stable IDs |
+
+Boolean values are 0/1. Titlebar action IDs 0–3 are maximize/restore,
+minimize, toggle fullscreen and do nothing. App catalogue reads use
+`(buffer, 3, capacity)` and return the bytes written. The catalogue header
+is a u32 version (1) and count, then two NUL-padded 65-byte ASCII fields per
+entry (registry ID, display label). It exposes launcher entries only.

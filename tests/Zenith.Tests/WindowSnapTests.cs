@@ -35,4 +35,27 @@ public class WindowSnapTests
         Assert.Equal(WindowSnap.None, WindowSnap.ZoneAt(top, 640, 60));
         Assert.Equal(48, WindowSnap.Target(top, WindowSnap.Left).Y);
     }
+
+    [Fact]
+    public void AdjacentSnapUsesTheClosestEdgeAndRespectsItsDistance()
+    {
+        Rect moving = new(100, 100, 200, 100);
+        int dx = 9, dy = 9;
+        WindowSnap.NearestContact(moving, new Rect(307, 160, 200, 100), ref dx, ref dy);
+        WindowSnap.NearestContact(moving, new Rect(303, 160, 200, 100), ref dx, ref dy);
+        WindowSnap.NearestContact(moving, new Rect(190, 206, 200, 100), ref dx, ref dy);
+        WindowSnap.NearestContact(moving, new Rect(170, -12, 200, 100), ref dx, ref dy);
+        Assert.Equal(3, dx);
+        Assert.Equal(6, dy);
+    }
+
+    [Fact]
+    public void AdjacentSnapIgnoresCornersWithNoOverlappingSide()
+    {
+        Rect moving = new(100, 100, 200, 100);
+        int dx = 9, dy = 9;
+        WindowSnap.NearestContact(moving, new Rect(302, 202, 200, 100), ref dx, ref dy);
+        Assert.Equal(9, dx);
+        Assert.Equal(9, dy);
+    }
 }

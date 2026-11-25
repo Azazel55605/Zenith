@@ -9,6 +9,7 @@ using Zenith.Core.Packages;
 using Zenith.Core.Storage;
 using Cosmos.Kernel.Boot.Limine;
 using Zenith.Core.IO;
+using Zenith.Core.Security;
 
 namespace Zenith.Core.Processes;
 
@@ -606,11 +607,8 @@ internal sealed unsafe class NativeProcess
             // Meridian's pickers and system sounds (zenith-native-style-catalog-abi 1.0, kernel 0.0.72): the choices of a setting, and
             // a preview drawn by the desktop. Request (32 bytes): version 1, op (1 list, 2 preview), field, index,
             // u64 output, u32 capacity, u32 width << 16 | height.
-            // Notifications (zenith-native-notifications-abi 1.0, kernel 0.0.72; 1.1, kernel 0.0.76, adds ops 4-6). Request (32 bytes): version 1, op,
-            // u32 argument, u32 reserved, u64 buffer, u32 size, u32 reserved. Op 1 posts (buffer: title[64], body[160],
-            // icon[32], NUL padded); the sender is the process name. Op 2 reads the settings (32 bytes: version, Do Not
-            // Disturb, popup choice, choices, u64 revision). Op 3 saves them (argument: dnd | popup << 8; buffer: the
-            // u64 revision read), as root or with the system settings grant.
+            // Notifications. Version 1 preserves the original op 1..6 packets. Version 2 extends the
+            // op 2 snapshot and op 3 save with popup flags and corner (settings grant still applies).
             if (c.Call == 670)
             {
                 if (c.Arg1 != 32 || c.Arg2 != 0) { return -22; }
@@ -618,7 +616,7 @@ internal sealed unsafe class NativeProcess
                 byte[] r = ReadUser(c.Arg0, 32);
                 uint version = BitConverter.ToUInt32(r, 0), op = BitConverter.ToUInt32(r, 4), argument = BitConverter.ToUInt32(r, 8);
                 ulong buffer = BitConverter.ToUInt64(r, 16); uint size = BitConverter.ToUInt32(r, 24);
-                if (version != 1) { return -22; }
+                if (version != 1 && (version != 2 || op is not (2 or 3) || BitConverter.ToUInt32(r, 12) != 0 || BitConverter.ToUInt32(r, 28) != 0)) { return -22; }
                 var service = Zenith.Core.Configuration.SystemConfiguration.Settings;
                 if (op == 1)
                 {
@@ -636,18 +634,22 @@ internal sealed unsafe class NativeProcess
                 if (service is null) { return -19; }
                 if (op == 2)
                 {
-                    if (size < 32 || !Valid(buffer, 32, true)) { return -22; }
-                    var (_, revision) = service.Snapshot();
+                    if (size < 32 || !Valid(buffer, 32, true) || (version == 2 && (size != 32 || argument != 0))) { return -22; }
+                    var (preferences, revision) = service.NotificationSnapshot();
                     byte[] data = new byte[32];
-                    BitConverter.TryWriteBytes(data.AsSpan(0), 1u); BitConverter.TryWriteBytes(data.AsSpan(4), service.DoNotDisturb ? 1u : 0u);
-                    BitConverter.TryWriteBytes(data.AsSpan(8), service.Popup); BitConverter.TryWriteBytes(data.AsSpan(12), (uint)Zenith.Core.Configuration.SettingsService.PopupNames.Length);
+                    BitConverter.TryWriteBytes(data.AsSpan(0), version); BitConverter.TryWriteBytes(data.AsSpan(4), preferences.DoNotDisturb ? 1u : 0u);
+                    BitConverter.TryWriteBytes(data.AsSpan(8), preferences.Time); BitConverter.TryWriteBytes(data.AsSpan(12), (uint)Zenith.Core.Configuration.SettingsService.PopupNames.Length);
                     BitConverter.TryWriteBytes(data.AsSpan(16), revision);
+                    if (version == 2) { BitConverter.TryWriteBytes(data.AsSpan(24), preferences.Flags); BitConverter.TryWriteBytes(data.AsSpan(28), preferences.Corner); }
                     Transfer(buffer, data, true); return data.Length;
                 }
                 if (op == 3)
                 {
-                    if (size < 8 || !Valid(buffer, 8, false) || (argument & 0xFF) > 1) { return -22; }
-                    return service.SaveNotifications((argument & 1) != 0, argument >> 8, BitConverter.ToUInt64(ReadUser(buffer, 8), 0));
+                    int bytes = version == 2 ? 16 : 8;
+                    if (size < bytes || !Valid(buffer, bytes, false) || (argument & 0xFF) > 1 || (version == 2 && size != bytes)) { return -22; }
+                    byte[] data = ReadUser(buffer, bytes);
+                    return service.SaveNotifications((argument & 1) != 0, argument >> 8, BitConverter.ToUInt64(data, 0),
+                        version == 2 ? BitConverter.ToUInt32(data, 8) : null, version == 2 ? BitConverter.ToUInt32(data, 12) : null);
                 }
                 // 1.1 (kernel 0.0.76): op 4 lists the senders ("name TAB 0|1 LF", 1 = switched off) into the buffer;
                 // op 5 switches one off (argument 1) or on (0): buffer = u64 revision, name[56]; op 6 posts with up to
@@ -656,14 +658,18 @@ internal sealed unsafe class NativeProcess
                 {
                     if (size < 64 || size > 8192 || !Valid(buffer, (int)size, true)) { return -22; }
                     var names = Zenith.Core.Notifications.NotificationCenter.Senders();
-                    foreach (string m in service.MutedSenders) { if (!names.Contains(m)) { names.Add(m); } }
+                    var muted = service.MutedSenders;
+                    foreach (string m in muted) { if (!names.Contains(m)) { names.Add(m); } }
                     var text = new StringBuilder();
+                    int bytes = 0;
                     foreach (string n in names)
                     {
-                        bool off = false; foreach (string m in service.MutedSenders) { if (m == n) { off = true; } }
+                        bool off = false; foreach (string m in muted) { if (m == n) { off = true; } }
                         string line = n + "\t" + (off ? "1" : "0") + "\n";
-                        if (text.Length + line.Length > size) { break; }
+                        int length = Encoding.UTF8.GetByteCount(line);
+                        if (bytes + length > size) { break; }
                         text.Append(line);
+                        bytes += length;
                     }
                     byte[] data = Encoding.UTF8.GetBytes(text.ToString());
                     if (data.Length > 0) { Transfer(buffer, data, true); }
@@ -847,6 +853,32 @@ internal sealed unsafe class NativeProcess
                 if(c.Arg1 != ProcessDisplaySettings.RequestBytes || c.Arg2 != 0) { return -22; }
                 if(!Valid(c.Arg0,ProcessDisplaySettings.RequestBytes,false)) { return -14; }
                 return ProcessDisplaySettings.Request(Zenith.Core.Configuration.SystemConfiguration.Display,ReadUser(c.Arg0,ProcessDisplaySettings.RequestBytes),(int)c.Uid,(int)c.Pid);
+            }
+            // Desktop preferences 1.0: read a page (1), save its revisioned draft (2), or list installed apps (3).
+            if (c.Call == 672)
+            {
+                var service = Zenith.Core.Configuration.SystemConfiguration.Settings;
+                if (c.Arg1 == 3)
+                {
+                    if (c.Arg2 is < 8 or > 8192 || !Valid(c.Arg0, (int)c.Arg2, true)) { return -22; }
+                    byte[] catalog = Zenith.Gui.Shell.DesktopAppCatalog.Encode();
+                    if ((ulong)catalog.Length > c.Arg2) { return -28; }
+                    Transfer(c.Arg0, catalog, true);
+                    return catalog.Length;
+                }
+                if (c.Arg1 == 1)
+                {
+                    if (c.Arg2 is < 1 or > 4 || !Valid(c.Arg0, ProcessDesktopPreferences.Bytes, true)) { return -22; }
+                    bool writable = CredentialContext.Current.IsRoot
+                        || Zenith.Core.Portal.ProcessPrivileges.Holds((int)c.Pid, Zenith.Core.Portal.Privilege.SystemSettings);
+                    Transfer(c.Arg0, ProcessDesktopPreferences.Snapshot(service, (uint)c.Arg2, writable), true);
+                    return 0;
+                }
+                if (c.Arg1 != 2 || c.Arg2 != ProcessDesktopPreferences.Bytes || !Valid(c.Arg0, ProcessDesktopPreferences.Bytes, false)) { return -22; }
+                bool grant = Zenith.Core.Portal.ProcessPrivileges.Holds((int)c.Pid, Zenith.Core.Portal.Privilege.SystemSettings);
+                var desktopScope = CredentialContext.Enter(grant ? Credentials.Root : CredentialContext.Current);
+                try { int result = ProcessDesktopPreferences.Save(service, ReadUser(c.Arg0, ProcessDesktopPreferences.Bytes)); desktopScope.Dispose(); return result; }
+                catch { desktopScope.Dispose(); throw; }
             }
             if(c.Call == 625)
             {
@@ -1107,18 +1139,18 @@ internal sealed unsafe class NativeProcess
             return -5;
         }
     }
-    public static (int Status, string Error, ulong Fault) Run(string name, IReadOnlyList<string> arguments, Func<bool> cancelled, object? lifetimeRoot = null, string cwd = "/", string? input = null, ProcessStreams? streams = null, IReadOnlyDictionary<string, string>? environment = null, Action? requestStop = null)
+    public static (int Status, string Error, ulong Fault) Run(string name, IReadOnlyList<string> arguments, Func<bool> cancelled, object? lifetimeRoot = null, string cwd = "/", string? input = null, ProcessStreams? streams = null, IReadOnlyDictionary<string, string>? environment = null, Action? requestStop = null, NativeWindowPlacement? placement = null)
     {
         // C5.3: under smp=managed the program and its system-call service run together on a placed thread,
         // which enters its AP's process bridge itself (CpuWorkers.RunProcessSlice). The caller waits here.
         // An explicit ZENITH_CPU_MASK keeps the BSP-owned slice protocol and its placement guarantees.
-        if (!Zenith.Core.Multiprocessing.CpuWorkers.PlaceProcesses || environment?.ContainsKey("ZENITH_CPU_MASK") == true) { return RunHere(name, arguments, cancelled, lifetimeRoot, cwd, input, streams, environment, requestStop); }
+        if (!Zenith.Core.Multiprocessing.CpuWorkers.PlaceProcesses || environment?.ContainsKey("ZENITH_CPU_MASK") == true) { return RunHere(name, arguments, cancelled, lifetimeRoot, cwd, input, streams, environment, requestStop, placement); }
         var identity = Zenith.Core.Security.CredentialContext.Current;
         (int, string, ulong) result = (1, "native program did not start", 0); Exception? failure = null;
         var thread = Zenith.Core.Multiprocessing.CpuWorkers.StartAnywhere(() =>
         {
             var credentials = Zenith.Core.Security.CredentialContext.Enter(identity);
-            try { result = RunHere(name, arguments, cancelled, lifetimeRoot, cwd, input, streams, environment, requestStop); }
+            try { result = RunHere(name, arguments, cancelled, lifetimeRoot, cwd, input, streams, environment, requestStop, placement); }
             catch (Exception error) { failure = error; }
             credentials.Dispose();   // explicit: Cosmos skips finally while unwinding
         }, "native " + name);
@@ -1182,7 +1214,7 @@ internal sealed unsafe class NativeProcess
         catch { stream.Dispose(); throw; }
     }
 
-    private static (int Status, string Error, ulong Fault) RunHere(string name, IReadOnlyList<string> arguments, Func<bool> cancelled, object? lifetimeRoot, string cwd, string? input, ProcessStreams? streams, IReadOnlyDictionary<string, string>? environment, Action? requestStop)
+    private static (int Status, string Error, ulong Fault) RunHere(string name, IReadOnlyList<string> arguments, Func<bool> cancelled, object? lifetimeRoot, string cwd, string? input, ProcessStreams? streams, IReadOnlyDictionary<string, string>? environment, Action? requestStop, NativeWindowPlacement? placement)
     {
 #if ARCH_ARM64
         throw new IOException("native ELF process execution is currently x86_64 only");
@@ -1253,7 +1285,7 @@ internal sealed unsafe class NativeProcess
             process._ranges.Add(new(stackBase, ProcessArguments.Top, true));
             files = new ProcessFiles(new NativeProcessFiles(), cwd, input, streams);
             network = new ProcessNetwork(new NativeProcessNetworkSource(() => { if (cancelled()) { throw new OperationCanceledException(); } }), pid);
-            graphics = NativeProcessGraphics.Create(identity.Uid);
+            graphics = NativeProcessGraphics.Create(identity.Uid, placement ?? new NativeWindowPlacement(name, null));
             // The current managed call stack is suspended while the CPU runs the
             // freestanding image. Keep its owner and allocations explicitly rooted.
             lock (s_rootsGate) { s_roots.Add(pid, new object[] { process, regions, arguments, image, stack, lifetimeRoot ?? arguments, files, network, graphics }); }
@@ -1301,7 +1333,7 @@ internal sealed unsafe class NativeProcess
                     if (status == DeviceInterruptYield) { continue; }
                     if (status != 4096) { break; }
                     if (cancelled()) { status = 130; break; }
-                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615 or 628 or 629 or >= 630 and <= 639 or 645 or 646 or 659 or >= 661 and <= 671) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > (large ? ProcessFiles.LargeCallBudget : 4096)) { status = 124; break; }
+                    if ((context.Call is >= 600 and <= 607 or >= 613 and <= 615 or 628 or 629 or >= 630 and <= 639 or 645 or 646 or 659 or >= 661 and <= 672) ? ++graphicsCalls > ProcessGraphics.MaximumCalls : context.Call is >= 500 and <= 503 ? ++networkCalls > ProcessNetwork.MaximumCalls : ++calls > (large ? ProcessFiles.LargeCallBudget : 4096)) { status = 124; break; }
                     // A portal grant serves that area's calls as root for this process alone (uid 0 in the
                     // context too, which those handlers read); every other call keeps the program's identity.
                     bool elevated = Zenith.Core.Portal.ProcessPrivileges.Elevates(pid, context.Call, context.Arg0);
@@ -1310,7 +1342,7 @@ internal sealed unsafe class NativeProcess
                     var caller = Zenith.Core.Security.CredentialContext.Enter(elevated ? Zenith.Core.Security.Credentials.Root : identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
                     // while waiting for a peer. Mutations and transport setup stay serialized.
-                    bool standard = context.Call is >= 661 and <= 671 or 642 or 643 or 644 or 649 or 651 or 653 or 657 or 658 or 400 or 401 or 402 or 403 or 404 or 410 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 639 or 645 or 646 or 659 || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    bool standard = context.Call is >= 661 and <= 671 or 642 or 643 or 644 or 649 or 651 or 653 or 657 or 658 or 400 or 401 or 402 or 403 or 404 or 410 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 639 or 645 or 646 or 659 || (context.Call == 672 && context.Arg1 is 1 or 3) || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {

@@ -266,9 +266,12 @@ int main(int argc,char **argv){
     if(zenith_gui_resize_enable(handle)<0){zenith_gui_close(handle);print("settings: viewport service required\n");return 1;}
     shell.ui.hover_supported=zenith_gui_pointer_motion(handle)==0; /* -38 on older kernels */
     meridian_system_services(&shell,zenith_system_settings_read,zenith_system_settings_save);
+    shell.desktop.read=zenith_desktop_read;shell.desktop.save=zenith_desktop_save;
+    shell.desktop.apps=zenith_desktop_apps;shell.desktop.dirty=shell.bindings.dirty;
+    desktop_enter(&shell.desktop,desktop_page(meridian_pages[shell.page].id));
     {struct zenith_style_list probe;if(zenith_style_list(Z_STYLE_WALLPAPER,&probe)==0){meridian_style_services(&shell,zenith_style_list,zenith_style_preview);meridian_sound_services(&shell,zenith_sound_settings,zenith_sound_save,zenith_sound_play);}}
     {struct zenith_notify_settings probe;if(zenith_notify_settings(&probe)>=0){
-        meridian_notify_services(&shell,zenith_notify_settings,zenith_notify_save,zenith_notify);
+        meridian_notify_services(&shell,zenith_notify_settings,zenith_notify_save_preferences,zenith_notify);
         /* 1.1 kernels list senders; older ones refuse and the Apps section stays away. */
         static char probe2[64];if(zenith_notify_senders(probe2,sizeof(probe2))>=0)meridian_notify_senders(&shell,zenith_notify_senders,zenith_notify_mute);
     }}

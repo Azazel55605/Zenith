@@ -10,7 +10,7 @@ using Zenith.Gui.Graphics;
 namespace Zenith.Gui.Shell;
 
 /// <summary>The taskbar's network and sound centers (2026-11-18): two buttons beside the clock, each opening a small
-/// panel above the bar. Network: the state in words, address, the last minute of traffic, connect/disconnect (root
+/// panel beside the bar. Network: the state in words, address, the last minute of traffic, connect/disconnect (root
 /// sessions) and the way into Beacon and Meridian. Sound: the output, mute, volume (also the wheel over the button) and
 /// the programs playing. Both read the kernel services directly; changes go through the same rules as the native calls.</summary>
 internal sealed class TaskbarCenters
@@ -137,14 +137,16 @@ internal sealed class TaskbarCenters
     }
 
     // ---------- The panels.
-    public void DrawPanel(Surface surface, Rect bar, int mouseX, int mouseY)
+    public void DrawPanel(Surface surface, Rect bar, TaskbarPosition position, int mouseX, int mouseY)
     {
         _actions.Clear(); _slider = new Rect(0, 0, 0, 0);
         if (Open == Panel.None) { return; }
         int height = Open == Panel.Network ? NetworkHeight() : Open == Panel.Sound ? SoundHeight() : NotificationsHeight();
         Rect anchor = Open == Panel.Network ? NetworkButton : Open == Panel.Sound ? SoundButton : NotificationsButton;
         int x = Math.Max(bar.X, Math.Min(anchor.Right - PanelWidth, bar.Right - PanelWidth));
-        _panel = new Rect(x, bar.Y - height - Theme.TaskbarMargin + Zenith.Gui.Motion.OverlayMotion.Offset(Zenith.Gui.Motion.OverlayMotion.Centers), PanelWidth, height);
+        int y = TaskbarPolicy.Inward(position, bar, height, Theme.TaskbarMargin);
+        y += TaskbarPolicy.SlideAway(position, Zenith.Gui.Motion.OverlayMotion.Offset(Zenith.Gui.Motion.OverlayMotion.Centers));
+        _panel = new Rect(x, y, PanelWidth, height);
         surface.DrawShadow(_panel, Theme.WindowRadius, 18, 100, 6);
         surface.FillRoundRect(_panel, Theme.WindowRadius, Theme.Menu);
         surface.StrokeRoundRect(_panel, Theme.WindowRadius, Theme.PanelBorder);

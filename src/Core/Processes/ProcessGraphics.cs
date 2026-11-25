@@ -53,6 +53,8 @@ internal sealed class ProcessSurface : IDisposable
     public int Format { get; }
     /// <summary>The program that opened it (Observatory's Apps page groups windows by it).</summary>
     public int OwnerPid { get; set; }
+    public string? AppId { get; set; }
+    public uint? WorkspaceId { get; set; }
     private (int X, int Y, int Width, int Height, int Rise)? _fade;
     private bool _dirty = true, _closed, _disposed, _unsaved, _closeIntent, _presented, _presentedAtSize;
     private bool _pointerMotion, _movePending;
@@ -393,6 +395,8 @@ internal sealed class FramePacer
     }
 }
 
+internal readonly record struct NativeWindowPlacement(string AppId, uint? WorkspaceId);
+
 internal sealed class ProcessGraphics : IDisposable
 {
     public const int MaximumCalls = 65536;
@@ -408,7 +412,9 @@ internal sealed class ProcessGraphics : IDisposable
     public bool Live => _surface is not null && !_surface.Ended;
     public bool OwnsLive(int handle) => handle == _handle && Live;
     public void RenewBudget() { _presents = 0; }
-    public ProcessGraphics(IProcessGraphicsHost? host) { _host = host; }
+    private readonly NativeWindowPlacement _placement;
+    public ProcessGraphics(IProcessGraphicsHost? host, NativeWindowPlacement placement = default)
+    { _host = host; _placement = placement; }
     public int Open(int width, int height, string title, int format = 1, int pid = 0)
     {
         if (_disposed) { return -9; }
@@ -418,6 +424,7 @@ internal sealed class ProcessGraphics : IDisposable
         foreach (char c in title) { if (c < ' ' || c > '~') { return -22; } }
         var surface = _host.Open(width, height, title, format);
         if (surface is null) { return -19; }
+        surface.AppId = _placement.AppId; surface.WorkspaceId = _placement.WorkspaceId;
         surface.OwnerPid = pid;
         _surface = surface; _handle = 20000 + ++_opens; return _handle;
     }

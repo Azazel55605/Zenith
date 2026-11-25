@@ -57,7 +57,7 @@ identity: .long 0
         # Display, monitor, framebuffer, files and clipboard-paste services, one inclusive range; 613..639 likewise.
         for cpu in range(1,8):
             bridge=b.variant(self.source,cpu)
-            self.assertIn('cmp $640, %rax\n    jb 11f\n    cmp $671, %rax\n    jbe p'+str(cpu)+'_z_service\n11:',bridge)
+            self.assertIn('cmp $640, %rax\n    jb 11f\n    cmp $672, %rax\n    jbe p'+str(cpu)+'_z_service\n11:',bridge)
             self.assertIn('cmp $613, %rax\n    jb 10f\n    cmp $639, %rax\n    jbe p'+str(cpu)+'_z_service\n10:',bridge)
 
     def test_resumed_frames_rebind_selectors_after_kernel_gdt_growth(self):

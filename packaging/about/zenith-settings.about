@@ -9,3 +9,4 @@ change	0.14.0	Appearance reorganized; preview pickers for wallpapers, cursors, d
 change	0.14.1	Picker previews fill their tiles, with corners that follow the widget style
 change	0.15.0	Notifications: a switch per app
 change	0.15.1	Decoration, icon and startup previews show again in the larger tiles
+change	0.15.2	Apps & Windows: notification popup rules, panel placement and pins, window behavior, task switcher and virtual desktops

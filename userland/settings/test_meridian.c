@@ -53,9 +53,15 @@ static long fake_sounds(struct zenith_sound_settings *out){
 }
 static long fake_sound_save(unsigned int level,unsigned int mask,unsigned long revision){if(revision!=preferences.revision)return -11;sound_level=level;sound_mask=mask;preferences.revision++;return 0;}
 static long fake_sound_play(unsigned int event){sound_played=(int)event;return 0;}
-static unsigned int notify_dnd,notify_popup=1;static int notify_posted;
-static long fake_notify_read(struct zenith_notify_settings *out){memset(out,0,sizeof(*out));out->version=1;out->dnd=notify_dnd;out->popup=notify_popup;out->choices=3;out->revision=preferences.revision;return 32;}
-static long fake_notify_save(unsigned int dnd,unsigned int popup,unsigned long revision){if(revision!=preferences.revision)return -11;notify_dnd=dnd;notify_popup=popup;preferences.revision++;return 0;}
+static unsigned int notify_dnd,notify_popup=1,notify_flags=Z_NOTIFY_FULLSCREEN|Z_NOTIFY_HOVER|Z_NOTIFY_SOUND,notify_corner;
+static int notify_posted;
+static long fake_notify_read(struct zenith_notify_settings *out){
+    *out=(struct zenith_notify_settings){2,notify_dnd,notify_popup,3,preferences.revision,notify_flags,notify_corner};return sizeof(*out);
+}
+static long fake_notify_save(const struct zenith_notify_settings *value){
+    if(value->revision!=preferences.revision)return -11;
+    notify_dnd=value->dnd;notify_popup=value->popup;notify_flags=value->flags;notify_corner=value->corner;preferences.revision++;return 0;
+}
 static long fake_notify_post(const char *title,const char *body,const char *icon){(void)body;(void)icon;notify_posted=title&&title[0];return 7;}
 static int muted_orbit;
 static long fake_notify_senders(char *out,unsigned int capacity){const char *t=muted_orbit?"Orbit\t1\nShell\t0\n":"Orbit\t0\nShell\t0\n";unsigned int n=(unsigned int)strlen(t);if(n>capacity)return -34;memcpy(out,t,n);return n;}
@@ -64,6 +70,26 @@ static long fake_preview(unsigned int field,unsigned int index,int w,int h,unsig
     if((field!=6&&field!=8&&field!=9)||index>=16)return -22;
     for(int y=0;y<h;y++)for(int x=0;x<w;x++)pixels[y*w+x]=0xFF000000u|(unsigned int)(60+x*150/w)<<16|(unsigned int)(80+y*120/h)<<8|(index*12u);
     previews_drawn++;return w<<16|h;
+}
+static struct zenith_desktop_preferences desktop_state[5]={
+    [1]={.version=1,.page=1,.flags=1,.revision=1},
+    [2]={.version=1,.page=2,.flags=1,.revision=1,.values={0,250,1,0,0,0,1,0}},
+    [3]={.version=1,.page=3,.flags=1,.revision=1},
+    [4]={.version=1,.page=4,.flags=1,.revision=1,.values={1},.count=1,.entries={{0,"Desktop 1",{0}}}}
+};
+static long fake_desktop_read(unsigned int page,struct zenith_desktop_preferences *out){
+    assert(page>=1&&page<=4);*out=desktop_state[page];return 0;
+}
+static long fake_desktop_save(const struct zenith_desktop_preferences *p){
+    assert(p->page>=1&&p->page<=4&&p->flags==0);
+    struct zenith_desktop_preferences *s=&desktop_state[p->page];
+    if(p->revision!=s->revision)return -11;
+    *s=*p;s->flags=1;s->revision++;
+    return 0;
+}
+static long fake_desktop_catalog(struct zenith_desktop_apps *apps){
+    *apps=(struct zenith_desktop_apps){1,2,{{"Editor","Aurora"},{"Terminal","Polaris"}}};
+    return 8+2*sizeof(apps->entries[0]);
 }
 static long information_read(unsigned int kind,struct zenith_settings_information *s){
     *s=(struct zenith_settings_information){.version=1,.kind=kind};
@@ -273,7 +299,15 @@ int main(int argc,char **argv){
     click_id(9300);assert(app.styles.notify_dnd==1&&dirty);
     click_id(9312);assert(app.styles.notify_popup==2);
     wheel_until(9320);click_id(9320);assert(notify_posted);
-    click_id(900+ZUI_FOOTER_APPLY);assert(notify_dnd==1&&notify_popup==2&&!dirty);
+    wheel_until(9343);click_id(9343);assert(app.styles.notify_corner==Z_NOTIFY_TOP_LEFT&&notify_corner==0);
+    wheel_until(9332);click_id(9332);assert(!(app.styles.notify_flags&Z_NOTIFY_HOVER));
+    wheel_until(9333);click_id(9333);assert(!(app.styles.notify_flags&Z_NOTIFY_SOUND));
+    wheel_until(9330);click_id(9330);assert(!(app.styles.notify_flags&Z_NOTIFY_FULLSCREEN));
+    wheel_until(9331);click_id(9331);assert(app.styles.notify_flags&Z_NOTIFY_FOCUSED_APP);
+    click_id(900+ZUI_FOOTER_APPLY);assert(notify_dnd==1&&notify_popup==2&&notify_flags==Z_NOTIFY_FOCUSED_APP&&notify_corner==Z_NOTIFY_TOP_LEFT&&!dirty);
+    click_id(9331);preferences.revision++;meridian_refresh(&app);draw();
+    click_id(900+ZUI_FOOTER_APPLY);assert(dirty&&notify_flags==Z_NOTIFY_FOCUSED_APP&&strstr(app.styles.message,"Changed elsewhere"));
+    click_id(900+ZUI_FOOTER_RESET);assert(!dirty&&app.styles.notify_flags==notify_flags);
     /* Per app: switching Orbit off is a draft until Apply, saved against the latest revision. */
     meridian_notify_senders(&app,fake_notify_senders,fake_notify_mute);draw();
     assert(app.styles.sender_count==2);wheel_until(9400);assert(app.ui.controls[find_id(9400)].value);
@@ -282,6 +316,40 @@ int main(int argc,char **argv){
     meridian_notify_senders(&app,0,0);
     meridian_notify_services(&app,0,0,0);
     meridian_style_services(&app,0,0);preferences.wallpaper=0;preferences.cursor=0;cursor_pack=0;preferences.version=1;meridian_refresh(&app);
+    /* Desktop forms use revisioned drafts and the same keyboard, focus, and Apply/Reset controls. */
+    app.desktop.read=fake_desktop_read;app.desktop.save=fake_desktop_save;
+    app.desktop.apps=fake_desktop_catalog;app.desktop.dirty=mark;
+    assert(meridian_resize(&app,1150,960,1920*1000));
+    assert(meridian_open(&app,"windows.taskbar"));draw();
+    click_label("Bottom");click_label("Top");
+    click_label("Choose an application");click_label("Aurora");
+    assert(dirty&&app.desktop.draft.values[1]==1&&app.desktop.draft.count==1);
+    assert(!meridian_open(&app,"windows.behavior"));
+    click_id(900+ZUI_FOOTER_APPLY);
+    assert(!dirty&&desktop_state[1].values[1]==1&&!strcmp(desktop_state[1].entries[0].name,"Editor"));
+    assert(meridian_open(&app,"windows.behavior"));draw();
+    click_label("Click to focus");click_label("Focus follows pointer");
+    click_id(10219);assert(app.desktop.draft.values[1]==300);
+    click_id(900+ZUI_FOOTER_APPLY);assert(desktop_state[2].values[0]==1&&desktop_state[2].values[1]==300&&!dirty);
+    assert(meridian_open(&app,"windows.switcher"));draw();
+    click_label("Cards");click_label("Compact list");
+    click_label("Current desktop");click_label("All desktops");
+    desktop_state[3].revision++;meridian_refresh(&app);draw();
+    click_id(900+ZUI_FOOTER_APPLY);assert(dirty&&desktop_state[3].values[3]==0);
+    click_id(900+ZUI_FOOTER_RESET);assert(!dirty);
+    click_label("Cards");click_label("Compact list");
+    click_label("Current desktop");click_label("All desktops");
+    click_id(900+ZUI_FOOTER_APPLY);assert(!dirty&&desktop_state[3].values[0]==1&&desktop_state[3].values[3]==1);
+    assert(meridian_open(&app,"windows.desktops"));draw();
+    click_label("Add desktop");click_label("Desktop 2");
+    key(0,3,0);type("B");key(0,2,0);
+    click_id(10105); /* Move the second desktop up. */
+    click_id(900+ZUI_FOOTER_APPLY);
+    assert(!dirty&&desktop_state[4].count==2&&desktop_state[4].entries[0].id==1
+           &&!strcmp(desktop_state[4].entries[0].name,"Desktop B"));
+    click_id(10103);click_id(900+ZUI_FOOTER_APPLY);
+    assert(!dirty&&desktop_state[4].count==1&&desktop_state[4].entries[0].id==0);
+    assert(meridian_resize(&app,640,480,1920*1000));
     /* Service-backed information pages. */
     meridian_information_services(&app,information_read);
     assert(meridian_open(&app,"network.connections"));meridian_refresh(&app);draw();

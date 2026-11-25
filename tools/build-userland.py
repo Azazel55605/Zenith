@@ -27,7 +27,7 @@ def main():
             if args.program=='settings':
                 pages=Path(temporary)/'meridian-pages.c'
                 subprocess.run([sys.executable,str(ROOT/'tools/build-meridian-pages.py'),str(pages)],check=True)
-                extra+=['-I'+str(ROOT/'userland/settings'),str(ROOT/'userland/settings/meridian.c'),str(pages)]
+                extra+=['-I'+str(ROOT/'userland/settings'),str(ROOT/'userland/settings/meridian.c'),str(ROOT/'userland/settings/desktop_settings.c'),str(pages)]
         if args.program=='quill':
             extra.append(str(ROOT/'userland/aurora/buffer.c'))
         common=['-fcf-protection=none','-fno-stack-protector','-fno-builtin','-fno-unwind-tables','-fno-asynchronous-unwind-tables','-mno-red-zone',

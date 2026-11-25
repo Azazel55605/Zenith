@@ -207,6 +207,21 @@ wallpapers, and the three widget styles built in full. The Ribbon concept's clos
   off (`OFF=` in `/etc/zenith/notifications.conf`); an app switched off posts nothing. Shell: `notify mute NAME on|off`.
   A program's own notifications skip the popup while its window is in front (they go to the history).
 - `zenith-native-notifications-abi` 1.1: ops 4 (senders), 5 (switch one), 6 (post with buttons).
+
+### Popup visibility and behavior
+
+Meridian › Apps & Windows › Notifications chooses whether to show popups over fullscreen windows or from the
+focused app. These conditions and Do Not Disturb keep suppressed notifications in the taskbar bell's history.
+The popup stack starts in the chosen corner of the work area. Duration, holding on hover, and notification sound
+are independent settings. The test notification uses the saved configuration. Per-app switch-off still disables
+both the popup and the history entry.
+
+The optional `POPUP_FLAGS` and `CORNER` keys in `/etc/zenith/notifications.conf` default to `13` and `bottom-right`.
+Flags 1, 2, 4 and 8 enable fullscreen, focused-app popups, hover hold and sound, respectively. The kernel advertises
+`zenith-native-notification-preferences-abi` 1.0. Request version 2 of call 670 op 2 fills the original 32-byte snapshot's
+last eight bytes with `u32 flags` and `u32 corner`; op 3 accepts `u64 revision, u32 flags, u32 corner` while retaining
+its original argument encoding. The settings grant or root still controls saves. Request version 1 keeps the
+original wire format and updates existing fields independently of the new flags and corner.
 - Gate `tools/appearance-smoke.py` (release check `l`): boot style in the menu, the failed sign-in report, snapping
   to the left half, top and a corner, a toast and its dismissal, a button, a sender switched off, a long command,
   the bell panel with Do Not Disturb and Clear all, and live style switching.

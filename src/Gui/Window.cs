@@ -21,6 +21,9 @@ internal abstract class Window
     }
 
     public string Title { get; protected set; }
+    private string? _appId;
+    public string AppId { get => _appId ?? GetType().Name; internal set => _appId = value; }
+    internal uint WorkspaceId { get; set; }
     public Credentials Identity { get; protected set; } = CredentialContext.Current;
     public Rect Bounds { get; private set; }
     private bool _isFocused;

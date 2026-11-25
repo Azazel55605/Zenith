@@ -12,10 +12,12 @@ static int page_has_pickers(const struct meridian *a){
     for(int i=0;i<n;i++)if(styles_field_ready(&a->styles,f[i]))return 1;
     return 0;
 }
-static int page_changed(const struct meridian *a){return binding_changed(&a->bindings,page_kind(a))||styles_changed(&a->styles,meridian_pages[a->page].id);}
-static int any_changed(const struct meridian *a){return binding_any_changed(&a->bindings)||styles_any_changed(&a->styles);}
-static long page_apply(struct meridian *a){long r=binding_apply(&a->bindings,page_kind(a));if(r)return r;return styles_apply(&a->styles,meridian_pages[a->page].id);}
-static void page_reset(struct meridian *a){binding_reset(&a->bindings,page_kind(a));styles_reset(&a->styles,meridian_pages[a->page].id);}
+static unsigned int desktop_kind(const struct meridian *a){return desktop_page(meridian_pages[a->page].id);}
+static int desktop_active(const struct meridian *a){return a->desktop.ready&&desktop_kind(a);}
+static int page_changed(const struct meridian *a){if(desktop_active(a))return desktop_changed(&a->desktop);return binding_changed(&a->bindings,page_kind(a))||styles_changed(&a->styles,meridian_pages[a->page].id);}
+static int any_changed(const struct meridian *a){return binding_any_changed(&a->bindings)||styles_any_changed(&a->styles)||desktop_changed(&a->desktop);}
+static long page_apply(struct meridian *a){if(desktop_active(a))return desktop_apply(&a->desktop);long r=binding_apply(&a->bindings,page_kind(a));if(r)return r;return styles_apply(&a->styles,meridian_pages[a->page].id);}
+static void page_reset(struct meridian *a){if(desktop_active(a)){desktop_reset(&a->desktop,0);return;}binding_reset(&a->bindings,page_kind(a));styles_reset(&a->styles,meridian_pages[a->page].id);}
 static unsigned int information_kind(const struct meridian *a){
     const char *id=meridian_pages[a->page].id;
     return same(id,"network.connections")?1:same(id,"system.users")?2:0;
@@ -98,7 +100,7 @@ void meridian_style_services(struct meridian *a,long (*catalog)(unsigned int,str
     if(!catalog){for(int f=0;f<STYLE_FIELDS;f++)a->styles.ready[f]=0;a->styles.sounds=0;a->styles.sound_ready=0;return;}
     styles_refresh(&a->styles);
 }
-void meridian_notify_services(struct meridian *a,long (*read)(struct zenith_notify_settings *),long (*save)(unsigned int,unsigned int,unsigned long),long (*post)(const char *,const char *,const char *)){
+void meridian_notify_services(struct meridian *a,long (*read)(struct zenith_notify_settings *),long (*save)(const struct zenith_notify_settings *),long (*post)(const char *,const char *,const char *)){
     a->styles.notify_read=read;a->styles.notify_save=save;a->styles.notify_post=post;if(!read){a->styles.notify_ready=0;a->styles.sender_count=0;}styles_refresh(&a->styles);
 }
 void meridian_notify_senders(struct meridian *a,long (*senders)(char *,unsigned int),long (*mute)(const char *,unsigned int,unsigned long)){
@@ -124,7 +126,7 @@ static void adopt(struct meridian *a,const struct meridian_nav *next){
     if(a->nav.mode!=NAV_SEARCH&&a->query[0]){a->query[0]=0;zui_input_init(&a->search,a->query,sizeof(a->query));}
     if(changed){
         zui_scroll_jump(&a->page_scroll,0);a->combo.open=a->scale_combo.open=0;a->ui.focus=a->ui.pressed=-1;
-        remember(a,a->page);refresh_information(a);refresh_audio(a);a->net_ok=0;a->net_message[0]=0;a->net_field=-1;refresh_network(a);
+        desktop_enter(&a->desktop,desktop_kind(a));remember(a,a->page);refresh_information(a);refresh_audio(a);a->net_ok=0;a->net_message[0]=0;a->net_field=-1;refresh_network(a);
     }
     a->ui.dirty=1;
 }
@@ -139,7 +141,7 @@ int meridian_open(struct meridian *a,const char *id){
 }
 int meridian_resize(struct meridian *a,int w,int h,unsigned long capacity){
     if(w<600||h<480||!zui_resize(&a->ui,w,h,capacity))return 0;
-    a->combo.open=a->scale_combo.open=0;a->fade_request=a->fade_ready=0;return 1;
+    a->combo.open=a->scale_combo.open=0;desktop_cancel_input(&a->desktop);a->fade_request=a->fade_ready=0;return 1;
 }
 int meridian_init(struct meridian *a,unsigned int *pixels,struct settings_backend backend,const char *page){
     *a=(struct meridian){0};
@@ -180,6 +182,7 @@ static void unlock_row(struct meridian *a,struct zui *u,struct zui_form *f){
 }
 void meridian_refresh(struct meridian *a){
     poll_unlock(a);refresh_audio(a);refresh_network(a);
+    if(desktop_refresh(&a->desktop,desktop_kind(a)))a->ui.dirty=1;
     unsigned long rev=a->colors.state.revision,res=a->colors.state.resources,pref=a->bindings.preferences.revision;unsigned int flags=a->colors.state.flags;
     int ready=a->bindings.ready;
     unsigned long display_revision=a->bindings.display.revision;unsigned int seconds=a->bindings.display.seconds;
@@ -209,6 +212,12 @@ static void picker(struct meridian *a,struct zui *u,struct zui_form *f,unsigned 
 static int system_writable(const struct meridian *a);
 static int style_page(const struct meridian *a){return same(meridian_pages[a->page].id,"style.application");}
 static const char *wip_note(const struct meridian *a,int kind){
+    if(desktop_active(a)){
+        if(desktop_kind(a)==Z_DESKTOP_TASKBAR)return "F11 toggles fullscreen. Move the pointer to the taskbar's screen edge to reveal it.";
+        if(desktop_kind(a)==Z_DESKTOP_WINDOWS)return "These controls apply to the floating Zenith desktop.";
+        if(desktop_kind(a)==Z_DESKTOP_SWITCHER)return "Hold Alt and press Tab to cycle; release Alt to select. Add Shift to go back.";
+        return "Manage the order and names of the desktops available in this session.";
+    }
     if(audio_page(a))return "Live audio controls. Stereo PCM, 48 kHz / 16 bit. Input starts only for an authorized recording app. Work in progress: remembered choices, additional formats, independent routing and hot-plug devices.";
     if(kind==BIND_DISPLAY)return "Work in progress: orientation, refresh, brightness and multiple displays.";
     if(kind==BIND_COLORS&&style_page(a))return "Widget style and buttons apply to every app with the next frame.";
@@ -217,7 +226,7 @@ static const char *wip_note(const struct meridian *a,int kind){
     if(kind==BIND_TIMEZONE)return "Work in progress: clock editing and sync policy.";
     if(kind==BIND_SESSION)return "Work in progress: session restore and confirmation policy.";
     if(kind==BIND_TASKBAR)return "F11 makes the focused window fullscreen; the bar ducks and returns at the bottom screen edge. Work in progress: position and pinned applications.";
-    if(kind==BIND_ANIMATIONS)return "Work in progress: per-effect controls, peek and desktop transitions.";
+    if(kind==BIND_ANIMATIONS)return "Work in progress: additional per-effect controls and peek. Set workspace transitions in Virtual Desktops.";
     if(kind==BIND_WALLPAPER)return "Dynamic wallpapers follow light/dark mode and the accent color at once. Work in progress: your own images and scheduling.";
     if(kind==BIND_CURSOR)return "Every pack has the same shapes for text, links, window edges and busy apps. Contrast is larger and pure black and white; Comet follows your accent.";
     if(kind==BIND_LAUNCHER)return "Prism: Meta or Alt+Space always opens the search palette. Work in progress: file indexing, more providers, pinned applications and a custom shortcut.";
@@ -228,7 +237,7 @@ static const char *wip_note(const struct meridian *a,int kind){
         if(page_has_pickers(a)&&same(id,"style.login"))return "Accounts, Clock and Split preselect the last account that signed in. Who may skip the login is in Security.";
         if(page_has_pickers(a)&&same(id,"style.boot-splash"))return "From the second boot phase on. Diagnostics and the rescue entry stay reachable in every style.";
         if(page_has_pickers(a)&&same(id,"audio.sounds"))return "Zenith Chimes plays short, quiet sounds for signing in and out, questions, errors, finished changes, notifications and the volume. Play previews a sound even when its event is off.";
-        if(page_has_pickers(a)&&same(id,"windows.notifications"))return "Popups appear above the taskbar at the right; a click dismisses one. The sender is always the app's real name. Work in progress: a history panel and per-app choices.";
+        if(page_has_pickers(a)&&same(id,"windows.notifications"))return a->styles.notify.version>=2?"Open the taskbar bell to see notification history. Click a popup to dismiss it.":"Work in progress on this kernel: popup visibility, position, hover and sound controls.";
     }
     if(a->page==0)return "Work in progress: scheduled mode and persistent history.";
     if(a->page==MERIDIAN_ABOUT)return "Work in progress: hardware inventory is planned.";
@@ -386,25 +395,44 @@ static void sound_events_form(struct meridian *a,struct zui *u,struct zui_form *
         zui_add(u,(int)(9100+i),ZUI_TOGGLE,(struct zui_rect){r.x+76,r.y,r.w-76,32},"",!!(st->sound_mask&(1u<<i)),writable);
     }
 }
-/* Notifications: Do Not Disturb, the popup time and a test post (ids 9300, 9310+i, 9320). */
+enum { ID_NOTIFY_DND=9300,ID_NOTIFY_TIME=9310,ID_NOTIFY_TEST=9320,ID_NOTIFY_FLAG=9330,ID_NOTIFY_CORNER=9340,ID_NOTIFY_SENDER=9400 };
 static void notify_form(struct meridian *a,struct zui *u,struct zui_form *f,int writable){
     struct meridian_styles *st=&a->styles;
     zui_form_section(u,f,"Do Not Disturb");
     struct zui_rect r=zui_form_row(u,f,"Do Not Disturb","Notifications go to the history without a popup or a sound.",f->narrow?f->w:240,32);
-    zui_add(u,9300,ZUI_TOGGLE,r,"",st->notify_dnd!=0,writable);
+    zui_add(u,ID_NOTIFY_DND,ZUI_TOGGLE,r,"",st->notify_dnd!=0,writable);
     zui_form_section(u,f,"Popups");
     static const char *names[3]={"Short","Normal","Long"};
-    r=zui_form_row(u,f,"Shown for","4, 6 or 10 seconds; the pointer over a popup holds it.",f->narrow?f->w:300,32);
+    r=zui_form_row(u,f,"Shown for","4, 6 or 10 seconds.",f->narrow?f->w:300,32);
     int w=(r.w-16)/3;
-    for(unsigned int i=0;i<3&&i<st->notify.choices;i++)zui_add(u,(int)(9310+i),ZUI_SEGMENT,(struct zui_rect){r.x+(int)i*(w+8),r.y,w,32},names[i],st->notify_popup==i,writable);
-    r=zui_form_row(u,f,"Try it","Sends a notification from Meridian.",f->narrow?f->w:180,32);
-    zui_add(u,9320,ZUI_BUTTON,(struct zui_rect){r.x,r.y,r.w,32},"Send a test",0,st->notify_post!=0);
+    for(unsigned int i=0;i<3&&i<st->notify.choices;i++)zui_add(u,ID_NOTIFY_TIME+(int)i,ZUI_SEGMENT,(struct zui_rect){r.x+(int)i*(w+8),r.y,w,32},names[i],st->notify_popup==i,writable);
+    r=zui_form_row(u,f,"Try it","Sends a notification using the saved settings.",f->narrow?f->w:180,32);
+    zui_add(u,ID_NOTIFY_TEST,ZUI_BUTTON,(struct zui_rect){r.x,r.y,r.w,32},"Send a test",0,st->notify_post!=0);
+    if(st->notify.version>=2){
+        static const char *corners[]={"Bottom right","Top right","Bottom left","Top left"};
+        r=zui_form_row(u,f,"Position","Place popups in a corner of the work area.",f->narrow?f->w:300,72);
+        int col=(r.w-8)/2;
+        for(unsigned int i=0;i<Z_NOTIFY_CORNERS;i++){
+            struct zui_rect button={r.x+(int)(i%2)*(col+8),r.y+(int)(i/2)*40,col,32};
+            zui_add(u,ID_NOTIFY_CORNER+(int)i,ZUI_SEGMENT,button,corners[i],i==st->notify_corner,writable);
+        }
+        r=zui_form_row(u,f,"Pause on hover","Keep a popup visible while the pointer is over it.",f->narrow?f->w:180,32);
+        zui_add(u,ID_NOTIFY_FLAG+2,ZUI_TOGGLE,r,"",!!(st->notify_flags&Z_NOTIFY_HOVER),writable);
+        r=zui_form_row(u,f,"Play sound","Use the Notification sound from System Sounds.",f->narrow?f->w:180,32);
+        zui_add(u,ID_NOTIFY_FLAG+3,ZUI_TOGGLE,r,"",!!(st->notify_flags&Z_NOTIFY_SOUND),writable);
+        zui_form_section(u,f,"Visibility");
+        r=zui_form_row(u,f,"Over fullscreen windows","Otherwise keep notifications in history while an app is fullscreen.",f->narrow?f->w:180,32);
+        zui_add(u,ID_NOTIFY_FLAG,ZUI_TOGGLE,r,"",!!(st->notify_flags&Z_NOTIFY_FULLSCREEN),writable);
+        r=zui_form_row(u,f,"From the focused app","Otherwise keep that app's notifications in history while you use it.",f->narrow?f->w:180,32);
+        zui_add(u,ID_NOTIFY_FLAG+1,ZUI_TOGGLE,r,"",!!(st->notify_flags&Z_NOTIFY_FOCUSED_APP),writable);
+    }
     /* Per app: everyone that posted since the system started, and every app switched off. */
+    if(!st->notify_senders)return;
     zui_form_section(u,f,"Apps");
     if(!st->sender_count){status(u,f,"Apps appear here once they send a notification.");return;}
     for(int i=0;i<st->sender_count;i++){
         r=zui_form_row(u,f,st->senders[i].name,st->senders[i].draft?"Off: not shown and not kept.":0,f->narrow?f->w:240,32);
-        zui_add(u,9400+i,ZUI_TOGGLE,r,"",!st->senders[i].draft,writable);
+        zui_add(u,ID_NOTIFY_SENDER+i,ZUI_TOGGLE,r,"",!st->senders[i].draft,writable);
     }
 }
 static int system_writable(const struct meridian *a){return a->bindings.ready&&!!(a->bindings.preferences.flags&2);}
@@ -646,14 +674,18 @@ static void audio_action(struct meridian *a,int id){
     refresh_audio(a);a->ui.dirty=1;
 }
 static void draw_page(struct meridian *a,struct zui *u,struct zui_rect c){
-    const struct meridian_page *p=&meridian_pages[a->page];int kind=page_kind(a),footer=kind!=BIND_NONE||page_has_pickers(a)?56:0,x=c.x+24;
+    const struct meridian_page *p=&meridian_pages[a->page];int kind=page_kind(a),footer=kind!=BIND_NONE||page_has_pickers(a)||desktop_active(a)?56:0,x=c.x+24;
     text(u,x,c.y+14,p->title,&zui_heading,u->theme.text);
     text(u,x,c.y+50,meridian_categories[nav_category_of(a->page)],&zui_caption,u->theme.secondary);
     struct zui_rect body={c.x,c.y+74,c.w,c.h-74-footer};
     int top=zui_scroll_begin(u,&a->page_scroll,body);
     struct zui_form f;zui_form_begin(&f,(struct zui_rect){body.x+16,body.y,body.w-32,body.h},top+8,u->width);
     note(u,&f,wip_note(a,kind));
-    if(kind==BIND_COLORS)colors_form(a,u,&f);
+    if(desktop_active(a)){
+        desktop_form(&a->desktop,u,&f);
+        if(!(a->desktop.saved.flags&1))unlock_row(a,u,&f);
+    }
+    else if(kind==BIND_COLORS)colors_form(a,u,&f);
     else if(kind==BIND_DISPLAY)display_form(a,u,&f);
     else if(page_has_pickers(a)&&kind!=BIND_COLORS){pickers_form(a,u,&f);}
     else if(kind!=BIND_NONE)preference_form(a,u,&f,kind);
@@ -664,7 +696,7 @@ static void draw_page(struct meridian *a,struct zui *u,struct zui_rect c){
     else if(a->page==MERIDIAN_ABOUT&&a->information[0])lines_form(u,&f,a->information);
     else planned_form(a,u,&f);
     zui_scroll_end(u,&a->page_scroll,zui_form_height(&f,top)+8);
-    if(footer)zui_footer(u,(struct zui_rect){c.x,c.y+c.h-56,c.w,56},ID_FOOTER,0,page_changed(a),binding_at_defaults(&a->bindings,kind));
+    if(footer)zui_footer(u,(struct zui_rect){c.x,c.y+c.h-56,c.w,56},ID_FOOTER,0,page_changed(a),desktop_active(a)?desktop_default(&a->desktop):binding_at_defaults(&a->bindings,kind));
 }
 /* Indices change every frame: restore focus and press by control id. Dialog buttons
  * are registered last in reverse order, so their index follows from the page count. */
@@ -692,7 +724,7 @@ void meridian_draw(struct meridian *a){
     draw_sidebar(a,u,w.sidebar);
     draw_page(a,u,w.content);
     zui_clip(u,(struct zui_rect){0,0,u->width,u->height});
-    zui_update_hover(u);if(a->combo.open||a->scale_combo.open||a->dialog.open)u->hover=-1;
+    zui_update_hover(u);if(a->combo.open||a->scale_combo.open||a->desktop.choice.open||a->dialog.open)u->hover=-1;
     u->focus=focus?index_of(u,focus):-1;u->pressed=pressed?index_of(u,pressed):-1;
     if(a->focus_row!=-1){u->focus=index_of(u,ID_ROWS+(a->focus_row==-2?a->sidebar.selected:a->focus_row));a->focus_row=-1;}
     zui_draw_controls(u);
@@ -701,6 +733,7 @@ void meridian_draw(struct meridian *a){
     if(!a->query[0]&&!a->search_focus)text(u,r.x+10,r.y+9,"Search settings",&zui_caption,u->theme.secondary);
     int kind=page_kind(a);
     if(kind>=BIND_KEYBOARD&&a->combo.open)zui_combo_popup(u,&a->combo,binding_choice_count(&a->bindings,kind),choice_rows,a);
+    desktop_popup(&a->desktop,u);
     if(kind==BIND_DISPLAY&&a->scale_combo.open)zui_combo_popup(u,&a->scale_combo,binding_scale_count(&a->bindings),scale_rows,a);
     if(a->bindings.display.phase==2 && (a->bindings.display.flags&4)){
         unsigned int seconds=a->bindings.display.seconds;char *t=a->display_countdown;
@@ -722,7 +755,7 @@ void meridian_draw(struct meridian *a){
     zui_clip(u,(struct zui_rect){0,0,u->width,u->height});u->dirty=0;
 }
 static void confirm(struct meridian *a,int pending){
-    a->pending=pending;a->combo.open=a->scale_combo.open=0;
+    a->pending=pending;a->combo.open=a->scale_combo.open=0;desktop_cancel_input(&a->desktop);
     a->dialog=(struct zui_dialog){1,ID_DIALOG,"Apply changes?","This page has unapplied changes.",{"Apply","Discard","Cancel"},3};
     a->ui.pressed=-1;a->ui.dirty=1;
 }
@@ -730,12 +763,12 @@ static void confirm(struct meridian *a,int pending){
 static int shares_draft(const struct meridian *a,int page){return page>=0&&page<MERIDIAN_PAGE_COUNT&&binding_of(meridian_pages[page].id)==page_kind(a);}
 static void request_row(struct meridian *a,int row){
     struct meridian_nav next=a->nav;nav_activate(&next,row);
-    if(next.page!=a->page&&((!shares_draft(a,next.page)&&binding_changed(&a->bindings,page_kind(a)))||styles_changed(&a->styles,meridian_pages[a->page].id))){a->pending_row=row;confirm(a,PENDING_ROW);return;}
+    if(next.page!=a->page&&((!shares_draft(a,next.page)&&binding_changed(&a->bindings,page_kind(a)))||styles_changed(&a->styles,meridian_pages[a->page].id)||desktop_changed(&a->desktop))){a->pending_row=row;confirm(a,PENDING_ROW);return;}
     if(next.mode!=a->nav.mode||next.category!=a->nav.category)zui_scroll_jump(&a->sidebar.scroll,0);
     adopt(a,&next);
 }
 static void request_page(struct meridian *a,int page){
-    if(page!=a->page&&((!shares_draft(a,page)&&binding_changed(&a->bindings,page_kind(a)))||styles_changed(&a->styles,meridian_pages[a->page].id))){a->pending_page=page;confirm(a,PENDING_PAGE);return;}
+    if(page!=a->page&&((!shares_draft(a,page)&&binding_changed(&a->bindings,page_kind(a)))||styles_changed(&a->styles,meridian_pages[a->page].id)||desktop_changed(&a->desktop))){a->pending_page=page;confirm(a,PENDING_PAGE);return;}
     struct meridian_nav next=a->nav;nav_open(&next,meridian_pages[page].id);
     zui_scroll_jump(&a->sidebar.scroll,0);adopt(a,&next);
 }
@@ -781,7 +814,7 @@ static void page_keys(struct meridian *a,const struct zenith_gui_event *e){
 void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     struct zui *u=&a->ui;
     if(e->type==Z_GUI_MOVE){zui_event(u,e);return;}
-    if(e->type==Z_GUI_FOCUS||e->type==Z_GUI_RESET){zui_event(u,e);a->combo.open=a->scale_combo.open=0;a->sidebar.scroll.dragging=a->page_scroll.dragging=0;return;}
+    if(e->type==Z_GUI_FOCUS||e->type==Z_GUI_RESET){zui_event(u,e);a->combo.open=a->scale_combo.open=0;desktop_cancel_input(&a->desktop);a->sidebar.scroll.dragging=a->page_scroll.dragging=0;return;}
     if(e->type==Z_GUI_CLOSE){a->closing=1;return;}
     if(!u->window_focused&&e->type!=Z_GUI_CLOSE_INTENT)return;
     if(a->display_dialog.open){
@@ -793,13 +826,14 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     if(a->dialog.open){int button=zui_dialog_event(u,&a->dialog,e);if(button)resolve(a,button);sync_theme(a);return;}
     if(e->type==Z_GUI_CLOSE_INTENT||(e->type==Z_GUI_KEY&&e->modifiers==2&&(e->code=='q'||e->code=='Q'))){close_request(a);return;}
     int kind=page_kind(a);
-    if(kind==BIND_DISPLAY&&binding_writable(&a->bindings,kind)&&!a->combo.open){
+    if(desktop_active(a)&&desktop_event(&a->desktop,u,e))return;
+    if(!desktop_active(a)&&kind==BIND_DISPLAY&&binding_writable(&a->bindings,kind)&&!a->combo.open){
         int was=a->scale_combo.open,chosen=zui_combo_event(u,&a->scale_combo,e,scale_rows,a);
         if(chosen){binding_choose_scale(&a->bindings,(unsigned int)chosen-1);u->focus=index_of(u,ID_SCALE);}
         if(was||a->scale_combo.open){if(a->scale_combo.open!=was)u->pressed=-1;u->dirty=1;return;}
     }
     /* The wallpaper picker has tiles, not the combo: its stale field rectangle must not take clicks. */
-    if(kind>=BIND_KEYBOARD&&binding_writable(&a->bindings,kind)&&!page_has_pickers(a)){
+    if(!desktop_active(a)&&kind>=BIND_KEYBOARD&&binding_writable(&a->bindings,kind)&&!page_has_pickers(a)){
         int was=a->combo.open,chosen=zui_combo_event(u,&a->combo,e,choice_rows,a);
         if(chosen){binding_choose(&a->bindings,kind,(unsigned int)chosen-1);u->focus=index_of(u,ID_COMBO);}
         if(was||a->combo.open){if(a->combo.open!=was)u->pressed=-1;u->dirty=1;return;}
@@ -841,17 +875,30 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     else if(id==ID_SEARCH){a->search_focus=1;u->dirty=1;}
     else if(id==ID_FOOTER+ZUI_FOOTER_APPLY)page_apply(a);
     else if(id==ID_FOOTER+ZUI_FOOTER_RESET)page_reset(a);
-    else if(id==ID_FOOTER+ZUI_FOOTER_DEFAULTS)binding_defaults(&a->bindings,kind);
+    else if(id==ID_FOOTER+ZUI_FOOTER_DEFAULTS){
+        if(desktop_active(a))desktop_reset(&a->desktop,1);
+        else binding_defaults(&a->bindings,kind);
+    }
+    else if(desktop_active(a)&&desktop_action(&a->desktop,u,id))u->dirty=1;
     else if((id==4001||id==4002)&&kind==BIND_DISPLAY){
         struct meridian_bindings *b=&a->bindings;
         if(b->display_save)b->display_save(id==4001?2:3,0,0,b->display.revision,b->display.token);
         binding_refresh(b);
     }
     else if(id>=ID_LINKS&&id<ID_LINKS+MERIDIAN_PAGE_COUNT)request_page(a,id-ID_LINKS);
-    else if(id==9300){struct meridian_styles *st=&a->styles;styles_notify_set(st,!st->notify_dnd,st->notify_popup);}
-    else if(id>=9310&&id<9313){struct meridian_styles *st=&a->styles;styles_notify_set(st,st->notify_dnd,(unsigned int)(id-9310));}
-    else if(id>=9400&&id<9424){styles_sender_toggle(&a->styles,id-9400);}
-    else if(id==9320){struct meridian_styles *st=&a->styles;if(st->notify_post){long r=st->notify_post("Notifications work","This is how notifications from your apps will look.","info");st->message=r>0?"Test sent.":r==-16?"Sent too often; wait a few seconds.":"The desktop does not show notifications yet.";}}
+    else if(id==ID_NOTIFY_DND){struct meridian_styles *st=&a->styles;styles_notify_set(st,!st->notify_dnd,st->notify_popup,st->notify_flags,st->notify_corner);}
+    else if(id>=ID_NOTIFY_TIME&&id<ID_NOTIFY_TIME+3){struct meridian_styles *st=&a->styles;styles_notify_set(st,st->notify_dnd,(unsigned int)(id-ID_NOTIFY_TIME),st->notify_flags,st->notify_corner);}
+    else if(id>=ID_NOTIFY_FLAG&&id<ID_NOTIFY_FLAG+4){struct meridian_styles *st=&a->styles;styles_notify_set(st,st->notify_dnd,st->notify_popup,st->notify_flags^(1u<<(id-ID_NOTIFY_FLAG)),st->notify_corner);}
+    else if(id>=ID_NOTIFY_CORNER&&id<ID_NOTIFY_CORNER+Z_NOTIFY_CORNERS){struct meridian_styles *st=&a->styles;styles_notify_set(st,st->notify_dnd,st->notify_popup,st->notify_flags,(unsigned int)(id-ID_NOTIFY_CORNER));}
+    else if(id>=ID_NOTIFY_SENDER&&id<ID_NOTIFY_SENDER+STYLE_NOTIFY_SENDERS){styles_sender_toggle(&a->styles,id-ID_NOTIFY_SENDER);}
+    else if(id==ID_NOTIFY_TEST){
+        struct meridian_styles *st=&a->styles;
+        if(st->notify_post){
+            long r=st->notify_post("Test notification","This is how a notification from Meridian will look.","info");
+            st->message=r>0?"Test sent. Check the taskbar bell if no popup appears.":r==0?"Notifications from Meridian are switched off.":r==-16?"Sent too often; wait a few seconds.":"Could not send the test notification.";
+            styles_refresh(st);
+        }
+    }
     else if(id==9001||id==9002){struct meridian_styles *st=&a->styles;int v=(int)st->sound_level+(id==9002?10:-10);styles_sound_set(st,(unsigned int)(v<0?0:v>100?100:v),st->sound_mask);}
     else if(id>=9100&&id<9115){struct meridian_styles *st=&a->styles;styles_sound_set(st,st->sound_level,st->sound_mask^(1u<<(id-9100)));}
     else if(id>=9200&&id<9215){if(a->styles.sound_play)a->styles.sound_play((unsigned int)(id-9200));}

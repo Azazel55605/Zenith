@@ -146,4 +146,39 @@ public class NotificationTests
         var reboot = new SettingsService(store, _ => { }, _ => { }, _ => true); Assert.Empty(reboot.Load());
         Assert.True(reboot.DoNotDisturb); Assert.Equal(2U, reboot.Popup);
     }
+
+    [Fact]
+    public void PopupPreferencesApplyAndPersistAcrossLegacySaves()
+    {
+        var store = new ProcessSystemSettingsTests.Store();
+        var service = new SettingsService(store, _ => { }, _ => { }, _ => true);
+        Assert.Empty(service.Load());
+        var (defaults, revision) = service.NotificationSnapshot();
+        Assert.True(defaults.AllowsPopups(true));
+        Assert.False(defaults.AllowsSender(17, 17));
+        Assert.True(defaults.AllowsSender(17, 18));
+        Assert.True(defaults.AllowsSender(0, 0));
+        Assert.False(defaults.FromTop);
+        Assert.False(defaults.FromLeft);
+        Assert.Equal(-13, service.SaveNotifications(false, 2, revision, 2, 3));
+        using var root = CredentialContext.Enter(Credentials.Root);
+        Assert.Equal(-22, service.SaveNotifications(false, 2, revision, 16, 3));
+        Assert.Equal(-22, service.SaveNotifications(false, 2, revision, 2, 4));
+        Assert.Equal(0, service.SaveNotifications(false, 2, revision, SettingsService.PopupFocusedApp, 3));
+        Assert.Equal(-11, service.SaveNotifications(true, 2, revision));
+        Assert.False(service.Notifications.AllowsPopups(true));
+        Assert.True(service.Notifications.AllowsPopups(false));
+        Assert.True(service.Notifications.AllowsSender(17, 17));
+        Assert.True(service.Notifications.FromTop);
+        Assert.True(service.Notifications.FromLeft);
+        (_, revision) = service.NotificationSnapshot();
+        Assert.Equal(0, service.SaveNotifications(true, 1, revision));
+        (_, revision) = service.NotificationSnapshot();
+        Assert.Equal(0, service.SaveSenderMuted("Orbit", true, revision));
+        var reboot = new SettingsService(store, _ => { }, _ => { }, _ => true);
+        Assert.Empty(reboot.Load());
+        Assert.Equal(service.Notifications, reboot.Notifications);
+        Assert.False(reboot.Notifications.AllowsPopups(false));
+        Assert.Contains("Orbit", reboot.MutedSenders);
+    }
 }

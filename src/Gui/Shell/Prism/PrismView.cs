@@ -8,7 +8,7 @@ namespace Zenith.Gui.Shell.Prism;
 
 /// <summary>
 /// Prism (docs/design/prism-concept.svg): one search over installed apps, open windows, settings
-/// pages, actions, a calculator and commands, shown either as the start menu above the taskbar
+/// pages, actions, a calculator and commands, shown either as the start menu next to the taskbar
 /// button or as a palette in the upper third of the screen (Meta or Alt+Space). While open it owns
 /// the keyboard: type to search, Up/Down choose, Enter opens, Tab narrows to one kind, Esc closes.
 /// </summary>
@@ -24,6 +24,7 @@ internal sealed class PrismView
     private int _filter, _selected, _scroll, _maxHeight = 560;
     // Scrolling: the list follows the keyboard selection until the wheel or the scroll bar moves it.
     private bool _follow = true, _dragging;
+    private TaskbarPosition _barPosition;
     private int _content, _view, _dragOffset;
     private Rect _track, _thumb;
     private readonly List<(Rect Rect, int Index)> _rows = new();
@@ -40,11 +41,11 @@ internal sealed class PrismView
     public Layout Mode { get; private set; }
     public Rect Bounds { get; private set; }
 
-    public void Open(Layout layout, Rect bar, int width, int height)
+    public void Open(Layout layout, Rect bar, int width, int height, TaskbarPosition position)
     {
         Mode = layout; IsOpen = true; _query = ""; _filter = 0; _selected = 0; _scroll = 0; _follow = true; _dragging = false;
         _all = _candidates(); Refresh();
-        Place(bar, width, height);
+        Place(bar, width, height, position);
         Zenith.Gui.Motion.OverlayMotion.Start(Zenith.Gui.Motion.OverlayMotion.Prism);
         Zenith.Core.Log.Write("prism", "opened " + (layout == Layout.Menu ? "menu" : "palette") + " candidates=" + _all.Count);
     }
@@ -77,10 +78,11 @@ internal sealed class PrismView
     public void Release() { _dragging = false; }
     public bool Dragging => _dragging;
 
-    /// <summary>Keeps the menu above the bar and the palette in the upper third, wherever the
+    /// <summary>Keeps the menu next to the bar and the palette in the upper third, wherever the
     /// display and the bar are now.</summary>
-    public void Place(Rect bar, int width, int height)
+    public void Place(Rect bar, int width, int height, TaskbarPosition position)
     {
+        _barPosition = position;
         if (Mode == Layout.Palette)
         {
             int w = Math.Min(680, width - 80);
@@ -89,8 +91,9 @@ internal sealed class PrismView
         }
         else
         {
-            int w = Math.Min(440, width - 2 * Theme.TaskbarMargin), h = Math.Min(560, bar.Y - 2 * Theme.TaskbarMargin);
-            Bounds = new Rect(Math.Max(bar.X, Theme.TaskbarMargin), bar.Y - h - Theme.TaskbarMargin, w, h);
+            int space = position == TaskbarPosition.Top ? height - bar.Bottom : bar.Y;
+            int w = Math.Min(440, width - 2 * Theme.TaskbarMargin), h = Math.Min(560, space - 2 * Theme.TaskbarMargin);
+            Bounds = new Rect(Math.Max(bar.X, Theme.TaskbarMargin), TaskbarPolicy.Inward(position, bar, h, Theme.TaskbarMargin), w, h);
         }
     }
 
@@ -176,7 +179,7 @@ internal sealed class PrismView
         if (Mode == Layout.Palette) { Bounds = new Rect(Bounds.X, Bounds.Y, Bounds.W, Math.Min(_maxHeight, 56 + ContentHeight() + 36)); }
         // Rising into place: the palette drops from above, the menu rises from the bar.
         int rise = Zenith.Gui.Motion.OverlayMotion.Offset(Zenith.Gui.Motion.OverlayMotion.Prism);
-        Rect b = Bounds.Offset(0, Mode == Layout.Palette ? -rise : rise);
+        Rect b = Bounds.Offset(0, Mode == Layout.Palette ? -rise : TaskbarPolicy.SlideAway(_barPosition, rise));
         _material.Capture(surface, b.Intersect(surface.Bounds), 12, Theme.Menu);
         surface.DrawShadow(b, 12, 22, 110, 8);
         _material.Paint(surface, b.Intersect(surface.Bounds), Theme.Menu);

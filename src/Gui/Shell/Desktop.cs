@@ -24,7 +24,7 @@ namespace Zenith.Gui.Shell;
 /// </list>
 /// Either way the finished frame reaches the display in a single copy.
 /// </summary>
-internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
+internal sealed partial class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
 {
     private Canvas _screen;
     private Surface _wallpaper;
@@ -93,11 +93,11 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         _frame = new Surface(w, h);
         Wallpaper.Render(_wallpaper); _wallpaperKey = Wallpaper.Key();
 
-        Windows = new WindowManager(new Rect(0, 0, w, h - Theme.TaskbarHeight - 2 * Theme.TaskbarMargin), new Rect(0, 0, w, h));
-        _taskbar = new Taskbar(w, h, Windows);
-        _taskbar.Centers = new TaskbarCenters(OpenAppWith);
+        Rect screenArea = new(0, 0, w, h);
+        Windows = new WindowManager(BarWorkArea(screenArea), screenArea);
+        Windows.InitializeDesktops(Zenith.Core.Configuration.SystemConfiguration.Settings.DesktopPreferences.Desktops);
+        _taskbar = CreateTaskbar(w, h);
         _toasts.RunAction = RunNotificationAction;
-        _taskbar.Centers.RunAction = RunNotificationAction;
         // Meridian's wallpaper picker shows real previews, drawn by the same formulas (call 669).
         Zenith.Core.Configuration.StyleCatalog.RenderWallpaper = (choice, w, h) =>
         {
@@ -185,7 +185,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         if (action.Restart) { OpenSunset(Zenith.Core.Sessions.SunsetAction.Restart); return; }
         if (action.App == "@sender")
         {
-            foreach (var window in Windows.Windows) { if (window.OwnerPid == note.SenderPid && note.SenderPid != 0) { Windows.Focus(window); break; } }
+            foreach (var window in Windows.Windows) { if (window.OwnerPid == note.SenderPid && note.SenderPid != 0) { Windows.Activate(window); break; } }
             if (!_nativeClients.SendNotificationAction(note.SenderPid, index, note.Id)) { Zenith.Core.Log.Write("notify", "action for " + note.Source + " dropped: the program has no window"); }
             return;
         }
@@ -197,7 +197,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     public bool OpenAppWith(string name, string[]? arguments)
     {
         // Always the built-in terminal: the way back when an installed Polaris does not work.
-        if (string.Equals(name, RecoveryTerminal, System.StringComparison.OrdinalIgnoreCase)) { Windows.Open(new TerminalWindow()); return true; }
+        if (string.Equals(name, RecoveryTerminal, System.StringComparison.OrdinalIgnoreCase)) { Windows.Open(new TerminalWindow { AppId = "Terminal" }); return true; }
         if (string.Equals(name, "Polaris", System.StringComparison.OrdinalIgnoreCase)) { name = "Terminal"; }
         if (AppRegistry.Find(name) is not AppInfo app) { return false; }
         if (app.Native is string native && Zenith.Core.Packages.NativePackageSource.State("/usr/share/zenith/native/" + native + ".elf") != Zenith.Core.Packages.PackagePathState.Missing)
@@ -207,10 +207,15 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
             if (arguments is not null) { args.AddRange(arguments); }
             string user = Accounts.Service?.Name(CredentialContext.Current.Uid) ?? "user";
             string cwd = CredentialContext.Current.IsRoot ? "/root" : "/home/" + user;
-            if (!_apps.Launch(native, args.ToArray(), cwd)) { Windows.Open(new AppLaunchNotice("Too many applications are open. Close one and try again.")); }
+            if (!_apps.Launch(native, args.ToArray(), cwd, new(app.Name, Windows.ActiveDesktopId))) { Windows.Open(new AppLaunchNotice("Too many applications are open. Close one and try again.")); }
             else { _launchingUntil = FrameStats.Now + 4 * System.Diagnostics.Stopwatch.Frequency; _launchingWindows = Windows.Windows.Count; }
         }
-        else { Windows.Open(app.Create(arguments is { Length: 1 } ? arguments[0] : null)); }
+        else
+        {
+            Window window = app.Create(arguments is { Length: 1 } ? arguments[0] : null);
+            window.AppId = app.Name;
+            Windows.Open(window);
+        }
         return true;
     }
 
@@ -246,13 +251,13 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
                 case PrismKind.App: OpenApp(item.Target, null); break;
                 case PrismKind.Window:
                     if (int.TryParse(item.Target, out int index) && index >= 0 && index < _prismWindows.Count && !_prismWindows[index].IsClosed)
-                    { Windows.Focus(_prismWindows[index]); }
+                    { Windows.Activate(_prismWindows[index]); }
                     break;
                 case PrismKind.Setting: OpenAppWith("Meridian", new[] { "--page", item.Target }); break;
                 case PrismKind.Calculator: Zenith.Gui.Clipboard.Text = item.Target; break;
                 case PrismKind.Command:
                     // The built-in terminal takes typed input; Polaris has no run-a-command option yet.
-                    var terminal = new TerminalWindow(); Windows.Open(terminal);
+                    var terminal = new TerminalWindow { AppId = "Terminal" }; Windows.Open(terminal);
                     foreach (char c in item.Target) { terminal.OnKey(new KeyEvent(c, ConsoleKeyEx.NoName, false, false, false, KeyEvent.KeyEventType.Make)); }
                     terminal.OnKey(new KeyEvent('\n', ConsoleKeyEx.Enter, false, false, false, KeyEvent.KeyEventType.Make));
                     break;
@@ -278,10 +283,10 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         public readonly Surface Wallpaper, Lower, Scene, Frame;
         public readonly Taskbar Bar;
         public readonly System.Collections.Generic.List<(Window Window,Rect Bounds,Rect Restore,Rect Windowed,bool Maximized,bool Fullscreen)> Geometry=new();
-        public DisplayFrames(int width,int height,WindowManager windows,System.Func<string,string?,bool> open)
+        public DisplayFrames(int width,int height,Taskbar bar)
         {
             Wallpaper=new Surface(width,height); Lower=new Surface(width,height); Scene=new Surface(width,height); Frame=new Surface(width,height);
-            Zenith.Gui.Graphics.Wallpaper.Render(Wallpaper); Bar=new Taskbar(width,height,windows);
+            Zenith.Gui.Graphics.Wallpaper.Render(Wallpaper); Bar=bar;
         }
         public DisplayFrames(Desktop desktop)
         {
@@ -290,25 +295,53 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
             foreach(Window w in desktop.Windows.Windows) { Geometry.Add((w,w.Bounds,w.RestoreBounds,w.WindowedBounds,w.IsMaximized,w.IsFullscreen)); }
         }
     }
-    internal DisplayFrames PrepareDisplay(int width,int height) => new(width,height,Windows,OpenApp);
+    internal DisplayFrames PrepareDisplay(int width,int height) => new(width,height,CreateTaskbar(width,height));
     internal DisplayFrames CaptureDisplay() => new(this);
     internal void UseDisplay(Canvas screen,DisplayFrames frames)
     {
         _motion.Interrupt(); _motionBase=null; _screen=screen;
         _wallpaper=frames.Wallpaper; _lower=frames.Lower; _scene=frames.Scene; _frame=frames.Frame;
         int w=screen.Width,h=screen.Height;
-        Windows.SetDisplayArea(new Rect(0,0,w,h),new Rect(0,0,w,h-Theme.TaskbarHeight-2*Theme.TaskbarMargin));
+        Rect screenArea = new(0, 0, w, h);
+        Windows.SetDisplayArea(screenArea, BarWorkArea(screenArea));
         foreach(var item in frames.Geometry)
         {
             if(item.Window.IsClosed) { continue; }
             item.Window.IsMaximized=item.Maximized; item.Window.IsFullscreen=item.Fullscreen;
             item.Window.RestoreBounds=item.Restore; item.Window.WindowedBounds=item.Windowed; item.Window.SetBounds(item.Bounds);
         }
-        _taskbar=frames.Bar; _prism.Place(_taskbar.Bounds,screen.Width,screen.Height);
+        _taskbar=frames.Bar; _prism.Place(_taskbar.Bounds, w, h, _taskbar.Position);
         _barMode=(TaskbarMode)(-1); _lowerValid=false; _sceneDirty=true; _cursorDirty=true; _hoverKey=-1;
         Zenith.Core.Processes.NativeSystemInformation.Display(w+"x"+h+" logical, scale="+SessionDisplay.Percent+"%");
     }
     public WindowManager Windows { get; }
+
+    private static Rect BarWorkArea(Rect screen)
+    {
+        var settings = Zenith.Core.Configuration.SystemConfiguration.Settings;
+        return TaskbarPolicy.WorkArea(screen, (TaskbarMode)settings.Current.Taskbar,
+            (TaskbarPosition)settings.DesktopPreferences.TaskbarPosition, Theme.TaskbarHeight, Theme.TaskbarMargin);
+    }
+
+    private Taskbar CreateTaskbar(int w, int h)
+    {
+        var bar = new Taskbar(w, h, Windows)
+        {
+            Position = (TaskbarPosition)Zenith.Core.Configuration.SystemConfiguration.Settings.DesktopPreferences.TaskbarPosition,
+            Centers = new TaskbarCenters(OpenAppWith) { RunAction = RunNotificationAction },
+            LaunchPin = OpenPinnedApp,
+        };
+        return bar;
+    }
+
+    private bool OpenPinnedApp(string id)
+    {
+        foreach (AppInfo app in AppRegistry.Visible())
+        {
+            if (string.Equals(app.Name, id, System.StringComparison.OrdinalIgnoreCase)) { return OpenAppWith(app.Name, null); }
+        }
+        return false;
+    }
 
     public void StopClients() { Input.CaptureKeyEdges(false); _keyEdgesOwner?.ResetKeyEdges(); _portal.Detach(); _taskbar.Dispose(); _prism.Dispose(); _sunset.Dispose(); _lock.Dispose(); Zenith.Core.Configuration.SystemConfiguration.Appearance.ReportMaterials(0, 0, 2); _apps.Stop(); _nativeClients.Stop(); Zenith.Core.Processes.NativeSystemInformation.Display("No graphical session"); }
 
@@ -377,7 +410,13 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         long checkNow = FrameStats.Now * 1_000_000 / System.Diagnostics.Stopwatch.Frequency;
         Zenith.Core.Storage.StorageWatch.Check(checkNow);
         Zenith.Core.Packages.PackageCenter.BackgroundCheck(checkNow);
-        if (!_lock.IsLocked && _toasts.Tick(Windows.WorkArea, _input.X, _input.Y, _taskbar.Centers?.Open == TaskbarCenters.Panel.Notifications, Windows.Top is { IsFocused: true, IsMinimized: false } front ? front.OwnerPid : 0)) { _sceneDirty = true; _composeAll = true; }
+        if (!_lock.IsLocked)
+        {
+            Window? front = Windows.Top;
+            if (_toasts.Tick(Windows.WorkArea, _input.X, _input.Y, _taskbar.Centers?.Open == TaskbarCenters.Panel.Notifications,
+                Windows.Focused is { IsMinimized: false } focused ? focused.OwnerPid : 0, front?.IsFullscreen == true))
+            { _sceneDirty = true; _composeAll = true; }
+        }
         if (_generation != Accounts.Generation)
         {
             foreach (var window in Windows.Windows) { if (window is TerminalWindow terminal && terminal.IsBusy) { return; } }
@@ -389,25 +428,30 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
             foreach (var window in Windows.Windows) { window.EndSession(); }
             Zenith.Gui.Clipboard.Text = string.Empty;
             Windows.Update();
+            Windows.InitializeDesktops(Zenith.Core.Configuration.SystemConfiguration.Settings.DesktopPreferences.Desktops);
+            _workspaceGeneration = 0;
             using var identity = CredentialContext.Enter(Accounts.Session);
-            Windows.Open(new TerminalWindow());
+            Windows.Open(new TerminalWindow { AppId = "Terminal" });
             _sceneDirty = true;
         }
+        UpdateWorkspacePreferences();
+        if (_lock.IsLocked || _portal.IsOpen || _sunset.IsOpen || _prism.IsOpen) { CancelSwitcher(); }
         Window? beforeInput = KeyEdgesOwner();
         _input.Poll();
+        bool altReleased = ReadWorkspaceKeys();
         bool routeKeyEdges = true;
 
         // A release or a hover change only redraws; the click that started an animation must not cut it short.
         bool interrupts = _input.Activity.InterruptsMotion;
         if (_input.Activity.LeftPressed || _input.Keys.Count > 0 || _input.Scroll != 0) { Zenith.Gui.Motion.OverlayMotion.Finish(); }
-        if (_input.Activity.RoutesWithoutMotion)
+        if (_input.Activity.RoutesWithoutMotion || _switcherTabs != 0)
         {
-            routeKeyEdges = HandleInput();
+            routeKeyEdges = HandleInput(altReleased);
             _sceneDirty = true;
         }
         else if (_input.Moved)
         {
-            routeKeyEdges = HandleInput();   // drags move windows on motion alone
+            routeKeyEdges = HandleInput(altReleased);   // drags move windows on motion alone
             long hover = HoverKey();
             if (Windows.IsDragging || hover != _hoverKey)
             {
@@ -422,6 +466,16 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
             _hoverKey = hover;
         }
 
+        if (altReleased && !_input.HasActivity && _switcher.Open)
+        {
+            _switcher.Accept(Windows);
+            routeKeyEdges = false;
+            _sceneDirty = _composeAll = true;
+        }
+        bool workspaceInput = routeKeyEdges && !_lock.IsLocked && !_portal.IsOpen && !_sunset.IsOpen && !_prism.IsOpen
+            && !_switcher.Open && !_taskbar.PopupOpen && (!_taskbar.Shown || !_taskbar.Bounds.Contains(_input.X, _input.Y));
+        if (Windows.UpdatePointerFocus(_input.X, _input.Y, workspaceInput, _input.Moved))
+        { _sceneDirty = true; }
         Window? afterInput = KeyEdgesOwner();
         if (!routeKeyEdges || _input.LostKeyEdges || _keyEdgesOwner != beforeInput || beforeInput != afterInput)
         {
@@ -439,7 +493,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         if (interrupts) { _motion.Interrupt(); }
         bool barUpdated = _taskbar.Update();
         _barChanged |= barUpdated;
-        if (Windows.Update() | barUpdated)
+        if (Windows.Update() | barUpdated | _switcher.Prune())
         {
             _sceneDirty = true;
         }
@@ -519,28 +573,44 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     private (bool Shown, bool Docked) WantedBar()
     {
         int w = _scene.Width, h = _scene.Height;
-        var mode = (TaskbarMode)Zenith.Core.Configuration.SystemConfiguration.Settings.Current.Taskbar;
-        if (mode != _barMode)
+        var settings = Zenith.Core.Configuration.SystemConfiguration.Settings;
+        var desktop = settings.DesktopPreferences;
+        var mode = (TaskbarMode)settings.Current.Taskbar;
+        var position = (TaskbarPosition)desktop.TaskbarPosition;
+        bool moved = position != _taskbar.Position;
+        if (mode != _barMode || moved)
         {
             _barMode = mode;
-            Windows.SetWorkArea(new Rect(0, 0, w, h - TaskbarPolicy.Reserved(mode, Theme.TaskbarHeight, Theme.TaskbarMargin)));
+            _taskbar.Position = position;
+            Windows.SetWorkArea(TaskbarPolicy.WorkArea(new Rect(0, 0, w, h), mode, position, Theme.TaskbarHeight, Theme.TaskbarMargin));
             _sceneDirty = true;
         }
+        if (moved)
+        {
+            _barPointerUntil = 0;
+            _taskbar.ClosePopups();
+            _motion.Interrupt();
+            ReportMotion();
+            _composeAll = true;
+        }
+        if (_taskbar.SetPins(desktop.TaskbarPins)) { _barChanged = true; _sceneDirty = true; }
 
         long now = Micros(FrameStats.Now);
-        bool near = _input.Y >= h - BarRevealRows || (_taskbar.Shown && _input.Y >= _taskbar.Bounds.Y - Theme.TaskbarMargin);
+        bool near = TaskbarPolicy.PointerNear(position, _input.Y, h, _taskbar.Bounds, _taskbar.Shown, BarRevealRows, Theme.TaskbarMargin);
         if (near && !Windows.IsDragging) { _barPointerUntil = now + BarLingerMicros; }
         Window? top = Windows.Top;
         bool fullscreen = top?.IsFullscreen == true, maximized = top?.IsMaximized == true;
-        return (TaskbarPolicy.Shown(mode, fullscreen, maximized, now < _barPointerUntil, (_prism.IsOpen && _prism.Mode == PrismView.Layout.Menu) || _taskbar.PopupOpen),
-                TaskbarPolicy.Docked(mode, fullscreen, maximized));
+        bool shown = TaskbarPolicy.Shown(mode, fullscreen, maximized, now < _barPointerUntil, (_prism.IsOpen && _prism.Mode == PrismView.Layout.Menu) || _taskbar.PopupOpen);
+        bool docked = TaskbarPolicy.Docked(mode, fullscreen, maximized);
+        if (moved) { SetBar(shown, docked); }
+        return (shown, docked);
     }
 
     private void SetBar(bool shown, bool docked)
     {
         _taskbar.Shown = shown;
         _taskbar.Docked = docked;
-        if (_prism.IsOpen) { _prism.Place(_taskbar.Bounds, _scene.Width, _scene.Height); }
+        if (_prism.IsOpen) { _prism.Place(_taskbar.Bounds, _scene.Width, _scene.Height, _taskbar.Position); }
     }
 
     /// <summary>Composes without the bar when the bar is about to animate, since it travels above everything else.</summary>
@@ -554,7 +624,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     private void BeginBarOverlay(bool wasShown, bool wasDocked, bool shown, bool docked)
     {
         Rect now = _taskbar.BoundsFor(docked), was = _taskbar.BoundsFor(wasDocked);
-        int away = Theme.TaskbarHeight + Theme.TaskbarMargin;
+        int away = TaskbarPolicy.SlideAway(_taskbar.Position, Theme.TaskbarHeight + Theme.TaskbarMargin);
         Rect from = wasShown ? was : now.Offset(0, away), to = shown ? now : was.Offset(0, away);
         _motion.SetOverlay(_barLayer, from, to, Taskbar.RadiusFor(wasShown ? wasDocked : docked), Taskbar.RadiusFor(shown ? docked : wasDocked));
     }
@@ -606,6 +676,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     private void StartTransition()
     {
         WindowTransition? change = Windows.TakeTransition();
+        if (ApplyWorkspaceTransition()) { return; }
         if (_lock.IsLocked) { return; }
         var (shown, docked) = WantedBar();
         bool wasShown = _taskbar.Shown, wasDocked = _taskbar.Docked;
@@ -869,9 +940,9 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
 
     private Window? KeyEdgesOwner() =>
         !_lock.IsLocked && !_portal.IsOpen && !_sunset.IsOpen && !_prism.IsOpen && !_taskbar.PopupOpen
-        && Windows.Focused is { IsClosed: false } focused ? focused : null;
+        && !_switcher.Open && Windows.Focused is { IsClosed: false } focused ? focused : null;
 
-    private bool HandleInput()
+    private bool HandleInput(bool altReleased)
     {
         // The lock screen takes everything: no shortcut, window or taskbar sees input while it is up.
         if (_lock.IsLocked)
@@ -889,6 +960,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
             if (_sunset.IsOpen && _input.LeftPressed) { _sunset.Click(_input.X, _input.Y, _scene.Width, _scene.Height); }
             return false;
         }
+        if (!_prism.IsOpen && HandleWorkspaceInput(altReleased)) { return false; }
         foreach (KeyEvent key in _input.Keys)
         {
             if ((key.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) == (ConsoleModifiers.Control | ConsoleModifiers.Alt))
@@ -928,7 +1000,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
             {
                 prismOwnedKeys = true;
                 if (_prism.IsOpen && _prism.Mode == PrismView.Layout.Palette) { _prism.Close(); }
-                else { _prism.Open(PrismView.Layout.Palette, _taskbar.Bounds, _scene.Width, _scene.Height); }
+                else { _prism.Open(PrismView.Layout.Palette, _taskbar.Bounds, _scene.Width, _scene.Height, _taskbar.Position); }
                 // Keys typed with or right after Meta go on: Shift+L may complete Meta+Shift+L, others search.
                 continue;
             }
@@ -955,7 +1027,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
                 else
                 {
                     var layout = Zenith.Core.Configuration.SystemConfiguration.Settings.Current.Launcher == 1 ? PrismView.Layout.Palette : PrismView.Layout.Menu;
-                    _prism.Open(layout, _taskbar.Bounds, _scene.Width, _scene.Height);
+                    _prism.Open(layout, _taskbar.Bounds, _scene.Width, _scene.Height, _taskbar.Position);
                 }
             }
 
@@ -963,9 +1035,12 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         }
 
         // The wheel over the sound button changes the volume.
+        if (_input.Scroll != 0 && _taskbar.ScrollOverflow(_input.X, _input.Y, _input.Scroll)) { return false; }
         if (_input.Scroll != 0 && _taskbar.Shown && _taskbar.Centers is TaskbarCenters centers && centers.Scroll(_input.X, _input.Y, _input.Scroll)) { return false; }
+        // The key that accepted a launcher result still belongs to Prism, even if the popup closed.
+        if (prismOwnedKeys) { return false; }
         Windows.HandleInput(_input);
-        return !prismOwnedKeys;
+        return true;
     }
 
     private void ComposeScene(bool withoutTop = false)
@@ -981,7 +1056,8 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         long topKey = TopKey(top), barKey = BarKey();
         Rect barArea = _taskbar.Shown ? _taskbar.Bounds.Inflate(Theme.ShadowSize + 8) : new Rect(0, 0, 0, 0);
         if (_lock.IsLocked) { ComposeLocked(start); return; }
-        bool overlays = withoutTop || Windows.SnapPreviewShown || _toasts.IsShown || _prism.IsOpen || _portal.IsOpen || _sunset.IsOpen || _taskbar.PopupOpen || Zenith.Core.Sessions.SessionRuntime.Message is not null;
+        bool taskbarLabel = !_prism.IsOpen && !_switcher.Open && !_portal.IsOpen && !_sunset.IsOpen && _taskbar.HasHoverLabel(_input.X, _input.Y);
+        bool overlays = withoutTop || Windows.SnapPreviewShown || _toasts.IsShown || _prism.IsOpen || _switcher.Open || _portal.IsOpen || _sunset.IsOpen || _taskbar.PopupOpen || taskbarLabel || Zenith.Core.Sessions.SessionRuntime.Message is not null;
         // After an animation or a pass without the top window, the scene does not hold a finished
         // frame: compose everything once.
         bool structural = _composeAll || !appearance || !_lowerValid || top != _lastTop || !Windows.LowerStructureUnchanged();
@@ -1074,8 +1150,10 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         if (_toasts.IsShown) { _toasts.Draw(_scene, _input.X, _input.Y); }
         if (_prism.IsOpen) { _prism.Draw(_scene, _input.X, _input.Y); }
         if (_taskbar.Shown) { _taskbar.DrawOverflowList(_scene, _input.X, _input.Y); }
+        if (taskbarLabel) { _taskbar.DrawHoverLabel(_scene, _input.X, _input.Y); }
         if (_sunset.IsOpen && !_sunsetCardHidden) { _sunset.Draw(_scene, _input.X, _input.Y); }
         else if (_sunset.IsOpen) { _scene.FillRect(_scene.Bounds, 0x99000000U); }
+        if (_switcher.Open) { _switcher.Draw(_scene, Windows); }
         if (_portal.IsOpen) { _portal.Draw(_scene, _input.X, _input.Y); }
 
         FrameStats.ShellTicks += FrameStats.Now - shell;
@@ -1184,7 +1262,7 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
 
     void Zenith.Gui.Shell.Sunset.ISunsetHost.Show(object target)
     {
-        if (target is Window window && !window.IsClosed) { Windows.Focus(window); _sceneDirty = true; }
+        if (target is Window window && !window.IsClosed) { Windows.Activate(window); _sceneDirty = true; }
     }
 
     private void RunPendingPower()
@@ -1297,7 +1375,12 @@ internal sealed class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         var hash = new HashCode();
         hash.Add(_taskbar.Shown); hash.Add(_taskbar.Docked); hash.Add(_taskbar.Bounds.Y);
         if (_taskbar.Centers is TaskbarCenters centers) { hash.Add(centers.StateKey()); }
-        foreach (Window w in Windows.Windows) { hash.Add(w.Title); hash.Add(w.IsFocused); hash.Add(w.IsMinimized); }
+        hash.Add(Windows.DesktopCount); hash.Add(Windows.ActiveDesktopIndex);
+        foreach (Window w in Windows.Windows)
+        {
+            if (!Windows.IsOnActiveDesktop(w)) { continue; }
+            hash.Add(w.Title); hash.Add(w.IsFocused); hash.Add(w.IsMinimized);
+        }
         if (_taskbar.Bounds.Inflate(Theme.TaskbarMargin).Contains(_input.X, _input.Y)) { hash.Add(_input.X); hash.Add(_input.Y); }
         return hash.ToHashCode();
     }
