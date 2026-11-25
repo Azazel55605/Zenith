@@ -1,7 +1,7 @@
 #ifndef ZENITH_DESKTOP_PREFERENCES_H
 #define ZENITH_DESKTOP_PREFERENCES_H
 #include "../sunbeam/zenith.h"
-enum { Z_DESKTOP_TASKBAR=1, Z_DESKTOP_WINDOWS, Z_DESKTOP_SWITCHER, Z_DESKTOP_WORKSPACES, Z_DESKTOP_WINDOWS_TILING };
+enum { Z_DESKTOP_TASKBAR=1, Z_DESKTOP_WINDOWS, Z_DESKTOP_SWITCHER, Z_DESKTOP_WORKSPACES, Z_DESKTOP_WINDOWS_TILING, Z_DESKTOP_LOCKING };
 enum { Z_DESKTOP_MAX=8, Z_DESKTOP_PINS=6, Z_DESKTOP_APPS=62, Z_DESKTOP_GAP_MAX=32 };
 struct zenith_desktop_entry { unsigned int id; char name[65]; unsigned char reserved[3]; };
 struct zenith_desktop_preferences {
@@ -26,4 +26,6 @@ static inline long zenith_desktop_save(const struct zenith_desktop_preferences *
 static inline long zenith_desktop_apps(struct zenith_desktop_apps *out){
     return zenith_call(672,(unsigned long)out,3,sizeof(*out));
 }
+/* Ops 4 and 5 use the caller's account. Read returns the byte count of up to six
+ * newline-separated page IDs in a 384-byte buffer. Visit takes one ID of 1..63 bytes. */
 #endif

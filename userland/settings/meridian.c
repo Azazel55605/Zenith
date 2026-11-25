@@ -111,18 +111,52 @@ void meridian_sound_services(struct meridian *a,long (*read)(struct zenith_sound
 }
 struct zui *meridian_ui(struct meridian *a){return &a->ui;}
 static void remember(struct meridian *a,int page){
+    if(!page)return;
     int i=0;while(i<a->recent_count&&a->recent[i]!=page)i++;
     if(i==a->recent_count&&i<6)a->recent_count++;
     if(i>5)i=5;
     for(;i>0;i--)a->recent[i]=a->recent[i-1];
     a->recent[0]=page;
+    if(a->visit)a->visit(meridian_pages[page].id);
+}
+void meridian_recent(struct meridian *a,const char *history,long (*visit)(const char *)){
+    a->recent_count=0;
+    while(*history&&a->recent_count<6){
+        const char *end=history;while(*end&&*end!='\n')end++;
+        for(int i=1;i<MERIDIAN_PAGE_COUNT;i++){
+            const char *id=meridian_pages[i].id,*p=history;
+            while(p<end&&*id&&*p==*id){p++;id++;}
+            if(p==end&&!*id){
+                int k=0;while(k<a->recent_count&&a->recent[k]!=i)k++;
+                if(k==a->recent_count)a->recent[a->recent_count++]=i;
+                break;
+            }
+        }
+        history=*end?end+1:end;
+    }
+    a->visit=visit;remember(a,a->page);
+}
+/* Quick Settings changes this account. Restore Colors' previous editing scope on departure. */
+static void quick_scope(struct meridian *a,int entering){
+    struct settings_app *s=&a->colors;
+    if(entering){
+        a->quick_message=0;
+        if(s->has_scopes&&!s->scope){
+            a->quick_restore_scope=!settings_set_scope(s,1);
+            if(!a->quick_restore_scope)a->quick_message="Personal appearance is unavailable.";
+        }
+    }else if(a->quick_restore_scope){
+        settings_set_scope(s,0);a->quick_restore_scope=0;
+    }
 }
 /* Adopt a navigation state; a new page starts at its top with fresh transient state. */
 static void adopt(struct meridian *a,const struct meridian_nav *next){
     int changed=next->page!=a->page;
     if(next->mode!=a->nav.mode||next->category!=a->nav.category)a->fade_request|=FADE_SIDEBAR;
     if(changed)a->fade_request|=FADE_PAGE;
+    if(changed&&a->page==0)quick_scope(a,0);
     a->nav=*next;a->page=next->page;
+    if(changed&&a->page==0)quick_scope(a,1);
     if(a->nav.mode!=NAV_SEARCH&&a->query[0]){a->query[0]=0;zui_input_init(&a->search,a->query,sizeof(a->query));}
     if(changed){
         zui_scroll_jump(&a->page_scroll,0);a->combo.open=a->scale_combo.open=0;a->ui.focus=a->ui.pressed=-1;
@@ -150,6 +184,7 @@ int meridian_init(struct meridian *a,unsigned int *pixels,struct settings_backen
     a->focus_row=-1;nav_init(&a->nav,0);a->sidebar.base_id=ID_ROWS;a->combo.id=ID_COMBO;a->combo.popup.base_id=ID_COMBO_ROWS;a->scale_combo.id=ID_SCALE;a->scale_combo.popup.base_id=ID_SCALE_ROWS;
     remember(a,0);
     if(page&&!meridian_open(a,page))return 0;
+    if(!a->page)quick_scope(a,1);
     sync_theme(a);return 1;
 }
 static void copy_note(char *o,const char *s,unsigned long n){unsigned long i=0;for(;i+1<n&&s[i];i++)o[i]=s[i];o[i]=0;}
@@ -216,10 +251,11 @@ static const char *wip_note(const struct meridian *a,int kind){
         if(desktop_kind(a)==Z_DESKTOP_TASKBAR)return "F11 toggles fullscreen. Move the pointer to the taskbar's screen edge to reveal it.";
         if(desktop_kind(a)==Z_DESKTOP_WINDOWS)return a->desktop.saved.page==Z_DESKTOP_WINDOWS_TILING
             ?"Window gaps apply only in Tiling WM.":"These controls apply to the floating Zenith desktop.";
+        if(desktop_kind(a)==Z_DESKTOP_LOCKING)return "Manually locking always requires your password. Work in progress: automatic login.";
         if(desktop_kind(a)==Z_DESKTOP_SWITCHER)return "Hold Alt and press Tab to cycle; release Alt to select. Add Shift to go back.";
         return "Manage the order and names of the desktops available in this session.";
     }
-    if(audio_page(a))return "Live audio controls. Stereo PCM, 48 kHz / 16 bit. Input starts only for an authorized recording app. Work in progress: remembered choices, additional formats, independent routing and hot-plug devices.";
+    if(audio_page(a))return "Live audio controls. Stereo PCM, 48 kHz / 16 bit. Input starts only for an authorized recording app. Work in progress: additional formats, independent routing and hot-plug devices.";
     if(kind==BIND_DISPLAY)return "Work in progress: orientation, refresh, brightness and multiple displays.";
     if(kind==BIND_COLORS&&style_page(a))return "Widget style and buttons apply to every app with the next frame.";
     if(kind==BIND_COLORS)return "Work in progress: automatic switching and custom colors.";
@@ -240,7 +276,7 @@ static const char *wip_note(const struct meridian *a,int kind){
         if(page_has_pickers(a)&&same(id,"audio.sounds"))return "Zenith Chimes plays short, quiet sounds for signing in and out, questions, errors, finished changes, notifications and the volume. Play previews a sound even when its event is off.";
         if(page_has_pickers(a)&&same(id,"windows.notifications"))return a->styles.notify.version>=2?"Open the taskbar bell to see notification history. Click a popup to dismiss it.":"Work in progress on this kernel: popup visibility, position, hover and sound controls.";
     }
-    if(a->page==0)return "Work in progress: scheduled mode and persistent history.";
+    if(a->page==0)return "Work in progress: scheduled light and dark mode.";
     if(a->page==MERIDIAN_ABOUT)return "Work in progress: hardware inventory is planned.";
     if(network_page(a))return "The wired connection, live. Beacon shows its traffic history and diagnostics. Work in progress: several profiles, priorities and link negotiation; Wi-Fi and VPN need drivers and services Zenith does not have yet.";
     if(information_kind(a)==1)return "This kernel reports the network as text only. Zenith 0.0.69 adds editing here and in Beacon.";
@@ -259,15 +295,21 @@ static void status(struct zui *u,struct zui_form *f,const char *s){
     zui_paragraph(u,(struct zui_rect){f->x,f->y,f->w,36},s,&zui_caption,u->theme.text,0);f->y+=40;
 }
 /* Colors (mode and accent) and Application Style (the materials) share one appearance record and one footer. */
+static void mode_row(struct meridian *a,struct zui *u,struct zui_form *f){
+    struct settings_app *s=&a->colors;int writable=binding_writable(&a->bindings,BIND_COLORS);
+    const char *scope=0;
+    if(!a->page){scope=s->has_scopes?"For your account":"System appearance";if(s->has_scopes&&!s->scope)writable=0;}
+    struct zui_rect r=zui_form_row(u,f,"Color mode",scope,272,32);
+    zui_segment_track(u,(struct zui_rect){r.x-4,r.y-4,r.w+8,r.h+8});
+    zui_add(u,1,ZUI_SEGMENT,(struct zui_rect){r.x,r.y,r.w/2,32},"Dark",s->mode==0,writable);
+    zui_add(u,2,ZUI_SEGMENT,(struct zui_rect){r.x+r.w/2,r.y,r.w/2,32},"Light",s->mode==1,writable);
+}
 static void colors_form(struct meridian *a,struct zui *u,struct zui_form *f){
     struct settings_app *s=&a->colors;int writable=binding_writable(&a->bindings,BIND_COLORS),cw=f->narrow?f->w:f->w-f->label_w-16;
     struct zui_rect r;
     if(style_page(a))goto materials;
     zui_form_section(u,f,"Appearance");
-    r=zui_form_row(u,f,"Color mode",0,272,32);
-    zui_segment_track(u,(struct zui_rect){r.x-4,r.y-4,r.w+8,r.h+8});
-    zui_add(u,1,ZUI_SEGMENT,(struct zui_rect){r.x,r.y,r.w/2,32},"Dark",s->mode==0,writable);
-    zui_add(u,2,ZUI_SEGMENT,(struct zui_rect){r.x+r.w/2,r.y,r.w/2,32},"Light",s->mode==1,writable);
+    mode_row(a,u,f);
     r=zui_form_row(u,f,"Accent color",0,264,54);
     static const char *const names[6]={"Blue","Violet","Rose","Amber","Green","Teal"};
     for(int i=0;i<6;i++)zui_add_swatch(u,10+i,(struct zui_rect){r.x+i*44,r.y,32,32},names[i],i,s->accent==(unsigned int)i,writable);
@@ -594,6 +636,8 @@ static void link_row(struct zui *u,struct zui_form *f,int page,const char *label
 }
 static void overview_form(struct meridian *a,struct zui *u,struct zui_form *f){
     zui_form_section(u,f,"Appearance");
+    mode_row(a,u,f);
+    if(a->quick_message)status(u,f,a->quick_message);
     link_row(u,f,MERIDIAN_COLORS,"Colors");
     for(int i=0;i<MERIDIAN_PAGE_COUNT;i++)if(same(meridian_pages[i].id,"style.wallpaper"))link_row(u,f,i,"Wallpaper");
     int shown=0;
@@ -676,7 +720,7 @@ static void audio_action(struct meridian *a,int id){
         else if(part==3){r.action=Z_AUDIO_STREAM_MUTE;r.value=!(s->flags&1);}else return;
     }else return;
     long result=a->audio_control(&r);
-    a->audio_message=result==-11?"Audio changed while editing. Try again.":result==-13?"Audio controls belong to the active session.":result?"The audio device could not apply this change.":r.action==Z_AUDIO_TEST?"Playing the output test.":0;
+    a->audio_message=result==-11?"Audio changed while editing. Try again.":result==-30?"Changed for this boot. Could not save audio preferences.":result==-95?"Changed for this boot. Device identity unavailable.":result==-13?"Audio controls belong to the active session.":result?"The audio device could not apply this change.":r.action==Z_AUDIO_TEST?"Playing the output test.":0;
     refresh_audio(a);a->ui.dirty=1;
 }
 static void draw_page(struct meridian *a,struct zui *u,struct zui_rect c){
@@ -909,6 +953,15 @@ void meridian_event(struct meridian *a,const struct zenith_gui_event *e){
     else if(id>=9100&&id<9115){struct meridian_styles *st=&a->styles;styles_sound_set(st,st->sound_level,st->sound_mask^(1u<<(id-9100)));}
     else if(id>=9200&&id<9215){if(a->styles.sound_play)a->styles.sound_play((unsigned int)(id-9200));}
     else if(id>=ID_PICKS&&id<ID_PICKS+STYLE_FIELDS*64)styles_choose(&a->styles,(unsigned int)(id-ID_PICKS)/64,(unsigned int)(id-ID_PICKS)%64);
+    else if(a->page==0&&(id==1||id==2)){
+        struct settings_app *s=&a->colors;
+        unsigned int mode=(unsigned int)(id-1);
+        if(mode!=s->mode){
+            long result=s->backend.save(mode,s->accent,s->effects,s->translucency,s->base_revision);
+            settings_refresh(s);
+            a->quick_message=!result?"Appearance saved.":result==-11?"Appearance changed elsewhere. Choose again.":"Could not save appearance.";
+        }
+    }
     else if(id&&kind==BIND_COLORS)colors_action(a,id);
     if(id)u->dirty=1;
     sync_theme(a);

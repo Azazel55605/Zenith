@@ -130,7 +130,7 @@ Requested 2026-11-17 ("complete Horizon, then Aurora").
   on close; a change noticed without focus) and `tools/aurora-smoke.py`: the guest ends Aurora with
   `kill` and the next Aurora restores the unsaved text.
 
-## AU4 — folding, several cursors, colour schemes (local, zenith-aurora 0.3.0, kernel 0.0.67)
+## AU4 — folding, several cursors, colour schemes (zenith-aurora 0.3.0, kernel 0.0.67)
 
 Requested 2026-11-18 ("finish Aurora").
 - **Code folding:** a fold hides the lines below a line that are indented deeper than it (in Markdown, the section

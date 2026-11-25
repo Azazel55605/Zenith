@@ -15,6 +15,19 @@ namespace Zenith.Tests;
 [Collection("PackageHistory")]
 public class OrbitPackageTests
 {
+    [Fact]
+    public void UpdateNoticeTracksOfferedVersionsRegardlessOfCatalogOrder()
+    {
+        PackageRow Row(string name, string candidate) => new(name, "native", "extra", "1.0.0", candidate,
+            candidate, PackageRowState.Update, 100, 200, 3, true, "");
+        var a = Row("alpha", "1.0.1"); var b = Row("beta", "2.0.0");
+        var first = PackageCatalogView.UpdateOffers([a, b]);
+        Assert.Equal(2, first.Count);
+        Assert.Equal(first, PackageCatalogView.UpdateOffers([b, a]));
+        Assert.NotEqual(first.Key, PackageCatalogView.UpdateOffers([a with { Candidate = "1.1.0" }, b]).Key);
+        Assert.Equal((0, ""), PackageCatalogView.UpdateOffers([a with { State = PackageRowState.Current }]));
+    }
+
     private sealed class Verifier : IPackageSignatureVerifier
     {
         public bool Verify(byte[] key, byte[] digest, byte[] signature)

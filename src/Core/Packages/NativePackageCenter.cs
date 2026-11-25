@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading;
+using Zenith.Core.Configuration;
 using Zenith.Core.Security;
 using Zenith.Core.Shell.Commands;
 using Zenith.Core.Storage;
@@ -102,12 +103,14 @@ internal static class PackageCenter
 
     // ---------- The background update check (U14 notifications): two minutes after the desktop starts and then once a
     // day, only online and when nothing else changes packages. A notification tells when updates are ready, and again
-    // only when their number changed. A check that could not run tries again in half an hour.
+    // only when the offered names or versions change. A check that could not run tries again in half an hour.
     public const long FirstCheckMicros = 120_000_000, CheckEveryMicros = 86_400_000_000, RetryMicros = 1_800_000_000;
     private static long s_nextCheck;
-    private static int s_lastOffered = -1;
+    private static string s_lastOffered = "";
     public static void BackgroundCheck(long nowMicros)
     {
+        if (!SystemConfiguration.Settings.DesktopPreferences.ScheduledUpdates)
+        { s_nextCheck = 0; return; }
         if (s_nextCheck == 0) { s_nextCheck = nowMicros + FirstCheckMicros; return; }
         if (nowMicros < s_nextCheck) { return; }
         if (SystemMounts.Mode != BootMode.Installed || !Zenith.Core.Network.NetworkService.Online || Busy) { s_nextCheck = nowMicros + RetryMicros; return; }
@@ -121,14 +124,7 @@ internal static class PackageCenter
         }
         catch (Exception e) { Log.Write("pkg", "background update check skipped: " + e.Message); s_nextCheck = nowMicros + RetryMicros; }
     }
-    private static long NowMicros() => System.Diagnostics.Stopwatch.GetTimestamp() * 1_000_000 / System.Diagnostics.Stopwatch.Frequency;
-    private static int UpdateCount()
-    {
-        int updates = 0;
-        foreach (var row in Rows(Load(), () => { })) { if (row.State == PackageRowState.Update) { updates++; } }
-        return updates;
-    }
-
+    private static long NowMicros() => System.Diagnostics.Stopwatch.GetElapsedTime(0).Ticks / 10;
     public static byte[] Overview(bool mayApply, Action cancel)
     {
         var view = Load(); var rows = Rows(view, cancel);
@@ -144,6 +140,8 @@ internal static class PackageCenter
         var s = new StringBuilder("ZENITH-ORBIT-OVERVIEW\t1\n");
         Line(s, "kernel", view.Kernel?.Running, view.Kernel?.HighWater, view.Kernel?.Pending == true ? "1" : "0");
         Line(s, "counts", N(installed), N(updates), N(available), N(notOffered), N(Components()));
+        var preferences = SystemConfiguration.Settings.DesktopSnapshot();
+        Line(s, "scheduled", preferences.Preferences.ScheduledUpdates ? "1" : "0", preferences.Revision.ToString(CultureInfo.InvariantCulture));
         AppendSources(s);
         ulong free = 0; try { free = new NativePackageStore().FreeBytes; } catch (Exception) { }
         bool mutable = SystemMounts.Mode == BootMode.Installed;
@@ -423,19 +421,24 @@ internal static class PackageCenter
                 job.Step = failure is null ? "Done" : cancelled ? "Cancelled" : "Failed";
             }
             Log.Write("pkg", "orbit job " + job.Id + " " + (failure is null ? "done: " + job.Message : (cancelled ? "cancelled" : "failed: " + failure)));
-            if (cancelled && kind == "refresh" && job.Pid == 0) { s_nextCheck = Math.Min(s_nextCheck, NowMicros() + RetryMicros); }
-            // The background check (pid 0) tells about updates; Orbit shows its own checks itself.
-            if (failure is null && kind == "refresh" && job.Pid == 0)
+            if (kind == "refresh" && job.Pid == 0 && SystemConfiguration.Settings.DesktopPreferences.ScheduledUpdates)
             {
-                int updates = 0;
-                try { updates = UpdateCount(); } catch (Exception) { updates = 0; }
-                if (updates > 0 && updates != s_lastOffered)
+                if (failure is not null || cancelled) { Interlocked.Exchange(ref s_nextCheck, NowMicros() + RetryMicros); }
+                else
                 {
-                    Zenith.Core.Notifications.NotificationCenter.FromSystem("Orbit", updates == 1 ? "1 update is ready" : updates + " updates are ready",
-                        "Open Orbit to see what changes and apply them.", "package",
-                        new Zenith.Core.Notifications.NotificationCenter.NoteAction("Show updates", "Orbit", new[] { "updates" }));
+                    try
+                    {
+                        var offers = PackageCatalogView.UpdateOffers(Rows(Load(), () => { }));
+                        if (offers.Count > 0 && offers.Key != s_lastOffered && SystemConfiguration.Settings.DesktopPreferences.ScheduledUpdates)
+                        {
+                            Zenith.Core.Notifications.NotificationCenter.FromSystem("Orbit", offers.Count == 1 ? "1 update is ready" : offers.Count + " updates are ready",
+                                "Open Orbit to review the available updates.", "package",
+                                new Zenith.Core.Notifications.NotificationCenter.NoteAction("Show updates", "Orbit", new[] { "updates" }));
+                        }
+                        s_lastOffered = offers.Key;
+                    }
+                    catch (Exception e) { Log.Write("pkg", "update notice deferred: " + e.Message); Interlocked.Exchange(ref s_nextCheck, NowMicros() + RetryMicros); }
                 }
-                s_lastOffered = updates;
             }
             // Outside the lock: the sound and the notification never hold up a status call.
             if (failure is null && kind == "apply") { Zenith.Core.Audio.SystemSounds.Play("done"); }

@@ -11,13 +11,14 @@
 #include "mbedtls/x509_crt.h"
 #include "mbedtls/memory_buffer_alloc.h"
 #include "mbedtls/platform_util.h"
+#include "web-ca.h"
 #ifdef ZENITH_TLS_HOST_TEST
 #include <sys/random.h>
 #endif
 
 #define QUEUE 32768
 static unsigned char arena[1048576], incoming[QUEUE], outgoing[QUEUE];
-static size_t in_count, out_count;
+static size_t in_offset, in_count, out_count;
 static mbedtls_ssl_context ssl;
 static mbedtls_ssl_config config;
 static mbedtls_x509_crt roots;
@@ -68,8 +69,10 @@ static int receive_bytes(void *unused, unsigned char *data, size_t length)
     (void)unused;
     if (!in_count) return MBEDTLS_ERR_SSL_WANT_READ;
     if (length > in_count) length = in_count;
-    memcpy(data, incoming, length); in_count -= length;
-    memmove(incoming, incoming + length, in_count); return (int)length;
+    memcpy(data, incoming + in_offset, length);
+    in_count -= length;
+    in_offset = in_count ? in_offset + length : 0;
+    return (int)length;
 }
 static int compare_time(const mbedtls_x509_time *a, const mbedtls_x509_time *b)
 {
@@ -96,19 +99,30 @@ void zenith_tls_close(void)
     mbedtls_platform_zeroize(arena, sizeof(arena));
     mbedtls_platform_zeroize(incoming, sizeof(incoming));
     mbedtls_platform_zeroize(outgoing, sizeof(outgoing));
-    in_count = out_count = 0; active = 0;
+    in_offset = in_count = out_count = 0; active = 0;
 }
 int zenith_tls_open(const unsigned char *ca, size_t ca_length, const char *hostname,
-                    int year, int month, int day, int hour, int minute, int second)
+                    int year, int month, int day, int hour, int minute, int second, int web_trust)
 {
-    if (!ca || ca_length < 1 || ca_length > 65536 || !hostname || year < 2020 || year > 2100 || !__sync_bool_compare_and_swap(&active, 0, 1)) return -1;
+    if ((web_trust != 0 && web_trust != 1) || (!web_trust && !ca)
+        || ((ca == NULL) != (ca_length == 0)) || ca_length > 65536
+        || !hostname || !*hostname || year < 2020 || year > 2100
+        || !__sync_bool_compare_and_swap(&active, 0, 1)) return -1;
     mbedtls_memory_buffer_alloc_init(arena, sizeof(arena));
     mbedtls_ssl_init(&ssl); mbedtls_ssl_config_init(&config);
     mbedtls_x509_crt_init(&roots); mbedtls_ctr_drbg_init(&random_state);
     now = (mbedtls_x509_time){ year, month, day, hour, minute, second };
     int result = mbedtls_ctr_drbg_seed(&random_state, entropy, NULL, (const unsigned char *)"Zenith TLS", 10);
-    if (!result) result = mbedtls_x509_crt_parse(&roots, ca, ca_length);
+    if (!result && ca) result = mbedtls_x509_crt_parse(&roots, ca, ca_length);
     /* Positive results mean a partly invalid trust bundle: reject it too. */
+    if (!result && web_trust) {
+        size_t offset = 0;
+        for (size_t i = 0; i < sizeof(web_ca_lengths) / sizeof(web_ca_lengths[0]); ++i) {
+            result = mbedtls_x509_crt_parse_der_nocopy(&roots, web_ca_data + offset, web_ca_lengths[i]);
+            if (result) break;
+            offset += web_ca_lengths[i];
+        }
+    }
     if (!result) result = mbedtls_ssl_config_defaults(&config, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
     if (!result) {
         mbedtls_ssl_conf_authmode(&config, MBEDTLS_SSL_VERIFY_REQUIRED);
@@ -129,10 +143,17 @@ int zenith_tls_handshake(void) { return active ? mbedtls_ssl_handshake(&ssl) : -
 uint32_t zenith_tls_verify(void) { return active ? mbedtls_ssl_get_verify_result(&ssl) : UINT32_MAX; }
 int zenith_tls_read(unsigned char *data, size_t length) { return active ? mbedtls_ssl_read(&ssl, data, length) : -1; }
 int zenith_tls_write(const unsigned char *data, size_t length) { return active ? mbedtls_ssl_write(&ssl, data, length) : -1; }
+int zenith_tls_pending_input(void) { return (int)in_count; }
 int zenith_tls_push(const unsigned char *data, size_t length)
 {
     if (!active || length > QUEUE - in_count) return -1;
-    memcpy(incoming + in_count, data, length); in_count += length; return (int)length;
+    if (length > QUEUE - in_offset - in_count) {
+        memmove(incoming, incoming + in_offset, in_count);
+        in_offset = 0;
+    }
+    memcpy(incoming + in_offset + in_count, data, length);
+    in_count += length;
+    return (int)length;
 }
 int zenith_tls_pull(unsigned char *data, size_t length)
 {
@@ -183,6 +204,14 @@ int zenith_tls_selftest(void)
 }
 #ifdef ZENITH_TLS_HOST_TEST
 void zenith_tls_test_entropy_fault(int fail) { entropy_fault = fail; }
+size_t zenith_tls_test_root_count(void)
+{
+    size_t count = 0;
+    if (active == 1) {
+        for (const mbedtls_x509_crt *crt = &roots; crt != NULL; crt = crt->next) ++count;
+    }
+    return count;
+}
 #endif
 
 /* Offline package verification: RSA-PSS SHA256, MGF1 SHA256, 32-byte salt.

@@ -3,13 +3,14 @@ using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Zenith.Core.Security;
+using Zenith.Core.Configuration;
 using Zenith.Core.Portal;
 
 namespace Zenith.Core.Audio;
 
 /// <summary>H2: the BSP owns HDA and fixed DMA rings. Native apps exchange copied PCM only.
-/// Controls are session-local; no hardware addresses, microphone samples or other users' streams
-/// leave this service. No audio work is performed by the desktop frame loop.</summary>
+/// Installed systems remember hardware endpoint choices, levels and mute. Stream controls and
+/// recording grants belong to their owners. The desktop frame loop performs no audio work.</summary>
 internal static unsafe class AudioService
 {
     public const int SnapshotBytes = 4096;
@@ -18,9 +19,12 @@ internal static unsafe class AudioService
         public uint Id;
         public int Direction, Volume = 80, Peak;
         public bool Muted;
-        public string Name = "";
+        public string Name = "", Key = "";
     }
     private static readonly object s_gate = new();
+    private static readonly object s_preferencesGate = new();
+    private static readonly NativeSettingsStore s_store = new();
+    private static AudioPreferences s_preferences = new();
     private static readonly AudioMixer s_mixer = new();
     private static readonly Device?[] s_devices = new Device?[16];
     private static readonly uint[] s_default = new uint[2];
@@ -67,6 +71,8 @@ internal static unsafe class AudioService
             int direction = (int)Field((ulong)i, 1);
             string kind = (cfg >> 20 & 15) switch { 0 => "Line out", 1 => "Speakers", 2 => "Headphones", 8 => "Line in", 10 => "Microphone", _ => direction == 0 ? "Output" : "Input" };
             var device = new Device { Id = (uint)Field((ulong)i, 0), Direction = direction, Name = "HD Audio " + kind + " (" + codec + ":" + pin + ")" };
+            device.Key = AudioPreferences.Identity((uint)Field((ulong)i, 6), (uint)Field((ulong)i, 7), (uint)Field((ulong)i, 8),
+                codec, pin, (uint)direction, cfg);
             s_devices[i] = device;
             if (Field((ulong)i, 5) != 0) { s_default[direction] = device.Id; }
         }
@@ -76,11 +82,34 @@ internal static unsafe class AudioService
         Log.Write("audio", Diagnostic + "; endpoints=" + s_count);
         if (s_available)
         {
+            RestorePreferences();
             // Ordinary threads stay on BSP; never use StartAnywhere for driver I/O.
             new Thread(Pump) { IsBackground = true, Name = "audio" }.Start();
         }
 #endif
     }
+#if !ARCH_ARM64
+    private static void RestorePreferences()
+    {
+        if (!s_store.Persistent) { return; }
+        try
+        {
+            using var root = CredentialContext.Enter(Credentials.Root);
+            s_preferences = AudioPreferences.Decode(s_store.Read(AudioPreferences.Path));
+            for (int i = 0; i < s_count; i++)
+            {
+                Device device = s_devices[i]!;
+                if (s_preferences.TryLevel(device.Key, out var level)) { device.Volume = level.Volume; device.Muted = level.Muted; }
+                int d = device.Direction;
+                if (!s_preferences.Selected(device.Key, d) || device.Id == s_default[d]) { continue; }
+                uint fallback = s_default[d];
+                if (Select((ulong)d, device.Id) != 0) { s_default[d] = device.Id; }
+                else if (fallback != 0 && Select((ulong)d, fallback) == 0) { s_default[d] = 0; }
+            }
+        }
+        catch (Exception error) { Log.Write("audio", "could not restore audio preferences: " + error.Message); }
+    }
+#endif
     private static Device? Find(uint id)
     {
         for (int i = 0; i < s_count; i++) { if (s_devices[i]!.Id == id) { return s_devices[i]; } }
@@ -205,6 +234,29 @@ internal static unsafe class AudioService
         return Control(uid, request);
     }
     public static long Control(uint uid, ReadOnlySpan<byte> request)
+    {
+        if (request.Length != 32) { return -22; }
+        uint action = BinaryPrimitives.ReadUInt32LittleEndian(request[4..]);
+        if (action is < 1 or > 4 || !s_store.Persistent) { return ControlLive(uid, request); }
+        // Serialize preference writers, but never hold the mixer lock during filesystem I/O.
+        lock (s_preferencesGate)
+        {
+            long result = ControlLive(uid, request);
+            if (result != 0) { return result; }
+            var device = Find((uint)BinaryPrimitives.ReadUInt64LittleEndian(request[8..]))!;
+            if (device.Key.Length == 0) { return -95; }
+            s_preferences.Remember(device.Key, device.Direction, device.Volume, device.Muted, action is 1 or 2);
+            try
+            {
+                using var root = CredentialContext.Enter(Credentials.Root);
+                s_store.Replace(AudioPreferences.Path, s_preferences.Encode());
+            }
+            catch (Exception error) { Log.Write("audio", "could not save audio preferences: " + error.Message); return -30; }
+            return 0;
+        }
+    }
+
+    private static long ControlLive(uint uid, ReadOnlySpan<byte> request)
     {
         if (request.Length != 32 || BinaryPrimitives.ReadUInt32LittleEndian(request) != 1 || BinaryPrimitives.ReadUInt32LittleEndian(request[20..]) != 0) { return -22; }
         uint action = BinaryPrimitives.ReadUInt32LittleEndian(request[4..]), value = BinaryPrimitives.ReadUInt32LittleEndian(request[16..]);

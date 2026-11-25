@@ -1,6 +1,8 @@
 #include "desktop_settings.h"
 
 enum { CHOICE=10000, COMBO_ROW=10032, ENTRY=10100, ADD=10200, REFRESH_APPS=10201, STEP=10216, TOGGLE=10232, INNER_GAP=10240, OUTER_GAP=10242, PICK_APP=8 };
+static const char *const idle_timeouts[]={"Never","1 minute","5 minutes","10 minutes","15 minutes","30 minutes"};
+static const char *const idle_graces[]={"Immediately","After 5 seconds","After 15 seconds","After 30 seconds"};
 static const char *const modes[]={"Dock when maximized","Floating","Docked","Hide when maximized","Auto-hide"};
 static const char *const positions[]={"Bottom","Top"};
 static const char *const focus[]={"Click to focus","Focus follows pointer"};
@@ -24,6 +26,7 @@ static void text(struct zui *ui,int x,int y,const char *s,const struct zui_font 
 static int window_behavior(unsigned int page){return page==Z_DESKTOP_WINDOWS||page==Z_DESKTOP_WINDOWS_TILING;}
 
 unsigned int desktop_page(const char *id){
+    if(same(id,"security.locking"))return Z_DESKTOP_LOCKING;
     if(same(id,"windows.taskbar"))return Z_DESKTOP_TASKBAR;
     if(same(id,"windows.behavior"))return Z_DESKTOP_WINDOWS;
     if(same(id,"windows.switcher"))return Z_DESKTOP_SWITCHER;
@@ -65,6 +68,7 @@ int desktop_refresh(struct meridian_desktop *d,unsigned int page){
     }
     if(result||next.version!=1||next.page!=requested||next.count>Z_DESKTOP_MAX)return 0;
     if(requested==Z_DESKTOP_WINDOWS_TILING&&(next.count||next.inner_gap>Z_DESKTOP_GAP_MAX||next.outer_gap>Z_DESKTOP_GAP_MAX))return 0;
+    if(requested==Z_DESKTOP_LOCKING&&(next.count||next.values[0]>5||next.values[1]>3))return 0;
     for(unsigned int i=0;i<next.count;i++)if(next.entries[i].name[64])return 0;
     int update=!d->ready||d->saved.revision!=next.revision||d->saved.flags!=next.flags;
     if(!update)return 0;
@@ -124,6 +128,7 @@ static const char *app_label(const struct meridian_desktop *d,const char *id){
 }
 static const char *const *options(const struct meridian_desktop *d,int field,int *count){
     unsigned int page=d->draft.page;
+    if(page==Z_DESKTOP_LOCKING){*count=field==0?6:4;return field==0?idle_timeouts:idle_graces;}
     if(page==Z_DESKTOP_TASKBAR){
         if(field==0){*count=5;return modes;}
         if(field==1){*count=2;return positions;}
@@ -223,6 +228,10 @@ void desktop_form(struct meridian_desktop *d,struct zui *u,struct zui_form *f){
             stepper(u,f,INNER_GAP,d->draft.inner_gap,"Inner gap","Space between tiles."," px",Z_DESKTOP_GAP_MAX,enabled);
             stepper(u,f,OUTER_GAP,d->draft.outer_gap,"Outer gap","Space around the tiled workspace."," px",Z_DESKTOP_GAP_MAX,enabled);
         }
+    }else if(page==Z_DESKTOP_LOCKING){
+        zui_form_section(u,f,"Idle lock");
+        combo(d,u,f,0,"Lock after inactivity","Requires a password on the signed-in account.",enabled);
+        combo(d,u,f,1,"Require password","Grace applies only to automatic locking.",enabled&&d->draft.values[0]);
     }else if(page==Z_DESKTOP_SWITCHER){
         zui_form_section(u,f,"Appearance and order");
         combo(d,u,f,0,"Layout",0,enabled);

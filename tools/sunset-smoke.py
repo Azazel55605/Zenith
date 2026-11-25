@@ -88,6 +88,7 @@ def main():
         status('pkg trust /root/key.pem ' + hashlib.sha256(key).hexdigest(), 'S_TRUST')
         status('fetch ' + url + '/icons.zpk /root/icons.zpk', 'S_ICONS_FETCH'); status('pkg install /root/icons.zpk', 'S_ICONS')
         # Transparency on, so the popup, the lock card and Prism are checked on the desktop material.
+        status('settings set idle-lock 1 15', 'S_IDLE_POLICY')
         status('settings set materials background-blur', 'S_MATERIALS')
         command('poweroff', 'all filesystems unmounted'); m.process.wait(timeout=30); disk = m.disk; m.stop(); m = None
 
@@ -116,6 +117,13 @@ def main():
         later = m.log()[off:]
         check('session ended' not in later and 'prism: opened' not in later and 'logout' not in later, 'shortcuts do not reach the desktop behind the lock')
         typed(secret + '\n', 'session: unlocked', 'the right password unlocks', timeout=120)
+        idle = len(m.log())
+        check(m.wait('session: locked (user)', idle, 120), 'one idle minute covers the desktop')
+        press('spc', 'session: idle lock dismissed during grace', 'wake consumes input during the fifteen-second grace')
+        idle = len(m.log())
+        check(m.wait('session: locked (user)', idle, 120), 'inactivity locks the desktop again')
+        check(m.wait('session: idle lock requires password', idle, 60), 'grace expires on the trusted clock')
+        typed(secret + '\n', 'session: unlocked', 'the password is required after grace')
         time.sleep(1); shot('unlocked')
 
         # A running command is named, and log out waits for it.

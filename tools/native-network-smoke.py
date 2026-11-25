@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Signed native network clients, verified TLS and owned cleanup on disposable disks."""
 import functools
+import argparse
 import hashlib
 import http.server
 import importlib.util
@@ -19,11 +20,18 @@ spec=importlib.util.spec_from_file_location('headless',ROOT/'tools/headless-smok
 h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
 
 class Server(http.server.ThreadingHTTPServer): daemon_threads=True
+BINARY_FIXTURE=bytes(range(256))*48
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def log_message(self,*args): pass
     def do_GET(self):
         if self.path=='/redirect':
             self.send_response(302);self.send_header('Location','/good');self.send_header('Content-Length','0');self.end_headers();return
+        if self.path=='/chunks':
+            self.send_response(200);self.send_header('Transfer-Encoding','chunked');self.end_headers()
+            for start in range(0,len(BINARY_FIXTURE),2049):
+                part=BINARY_FIXTURE[start:start+2049];self.wfile.write(f'{len(part):x}\r\n'.encode()+part+b'\r\n')
+            self.wfile.write(b'0\r\n\r\n');return
         if self.path=='/bad-length':
             self.send_response(200);self.send_header('Content-Length','9999999999999');self.end_headers();return
         if self.path=='/truncated':
@@ -49,7 +57,11 @@ class UdpServer(socketserver.ThreadingUDPServer):daemon_threads=True
 
 
 def main():
-    keep=Path(sys.argv[1]);keep.mkdir(parents=True,exist_ok=False)
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('keep',type=Path)
+    parser.add_argument('--public-https',action='store_true',help='also fetch a pinned file from curl.se over the guest internet connection')
+    args=parser.parse_args()
+    keep=args.keep;keep.mkdir(parents=True,exist_ok=False)
     tool=ROOT/'tools/Zenith.PackageTool/bin/Release/net10.0/Zenith.PackageTool.dll'
     subprocess.run(['dotnet','build',str(ROOT/'tools/Zenith.PackageTool'),'-c','Release'],check=True,stdout=subprocess.DEVNULL)
     def package(*args):subprocess.run(['dotnet',str(tool),*map(str,args)],check=True,capture_output=True)
@@ -57,7 +69,9 @@ def main():
     subprocess.run([sys.executable,str(ROOT/'tools/build-userland.py'),str(keep/'source'),'--program','net-tools','--version','0.1.0'],check=True)
     package('keygen',keep/'keys');key=(keep/'keys/public.pem').read_bytes();(served/'key.pem').write_bytes(key)
     package('build-native','zenith-net-tools','0.1.0',keep/'source',keep/'bundle','--repo','core')
-    manifest=(keep/'bundle/manifest.tsv').read_text();assert 'requires\tzenith-native-network-abi\t1.0\n' in manifest,'network capability missing'
+    manifest=(keep/'bundle/manifest.tsv').read_text()
+    for capability in ('zenith-native-network-abi','zenith-native-web-transport-abi'):
+        assert f'requires\t{capability}\t1.0\n' in manifest,capability+' missing'
     package('seal',keep/'bundle',keep/'keys/private.pem',served/'net-tools.zpk')
     subprocess.run([sys.executable,str(ROOT/'tools/build-userland.py'),str(keep/'upgrade-source'),'--program','net-tools','--version','0.1.1'],check=True)
     package('build-native','zenith-net-tools','0.1.1',keep/'upgrade-source',keep/'upgrade-bundle','--repo','core')
@@ -89,11 +103,13 @@ def main():
         boot('installed',disk)
         status('fetch '+http+'/key.pem /root/net-key.pem','NET_KEY')
         status('pkg trust /root/net-key.pem '+hashlib.sha256(key).hexdigest(),'NET_TRUST')
-        status('fetch '+http+'/tls.pem /root/net-tls.pem','NET_CA_FETCH')
-        status('tls trust /root/net-tls.pem '+hashlib.sha256(ca).hexdigest(),'NET_CA')
         status('fetch '+http+'/net-tools.zpk /root/net-tools.zpk; pkg install /root/net-tools.zpk','NET_PACKAGE')
         command('which fetch | logger','user: fetch: signed native net-tools')
         command('net-tools --version | logger','user: net-tools 0.1.0')
+        if args.public_https:
+            status('fetch -so /root/public-ca.pem https://curl.se/ca/cacert-2026-11-05.pem','NET_PUBLIC_CA')
+        status('fetch '+http+'/tls.pem /root/net-tls.pem','NET_CA_FETCH')
+        status('tls trust /root/net-tls.pem '+hashlib.sha256(ca).hexdigest(),'NET_CA')
         status('net-tools --abi-bounds','NET_ABI_BOUNDS')
         status('ip','NET_IP');status('ifconfig','NET_IFCONFIG')
         command('nslookup 10.0.2.2 | logger','user: 10.0.2.2 address=10.0.2.2')
@@ -106,6 +122,10 @@ def main():
         status('mkdir -p /home/user/net; chown 1000:1000 /home/user/net','NET_DIRECTORY')
         status('fetch '+http+'/good /home/user/net/plain','NET_HTTP')
         command('cat /home/user/net/plain | logger','user: NETWORK_OK')
+        command('fetch -sL '+https+'/redirect | logger','user: NETWORK_OK')
+        command('fetch -I '+https+'/good | grep Content-Length | logger','user: Content-Length: 11')
+        status('fetch '+https+'/chunks > /home/user/net/raw-stdout','NET_BINARY_STDOUT')
+        status('fetch -so /home/user/net/raw-output '+https+'/chunks','NET_BINARY_OUTPUT')
         status('fetch '+https+'/good /home/user/net/secure','NET_HTTPS')
         command('cat /home/user/net/secure | logger','user: NETWORK_OK')
         status('fetch https://mirror.home:'+str(secure.server_port)+'/good /home/user/net/hostname','NET_HTTPS_HOSTNAME')
@@ -170,6 +190,14 @@ def main():
                 data=src.read(min(remaining,1048576));assert data;out.write(data);remaining-=len(data)
         audit=subprocess.run(['e2fsck','-fn',str(keep/'root.ext2')],capture_output=True);(keep/'e2fsck.log').write_bytes(audit.stdout+audit.stderr)
         assert audit.returncode==0,'independent ext2 audit'
+        for name in ('raw-stdout','raw-output'):
+            exported=keep/(name+'.bin')
+            subprocess.run(['debugfs','-R','dump /home/user/net/'+name+' '+str(exported),str(keep/'root.ext2')],check=True,capture_output=True)
+            assert exported.read_bytes()==BINARY_FIXTURE,'binary HTTPS '+name+' changed in guest'
+        if args.public_https:
+            downloaded=subprocess.run(['debugfs','-R','cat /root/public-ca.pem',str(keep/'root.ext2')],check=True,capture_output=True).stdout
+            assert downloaded==(ROOT/'vendor/web-pki/cacert.pem').read_bytes(),'public HTTPS byte audit failed'
+            print('PASS public guest HTTPS: '+str(len(downloaded))+' bytes, sha256='+hashlib.sha256(downloaded).hexdigest(),flush=True)
         assert all(secret not in p.read_text(errors='replace') for p in keep.glob('*/serial.log')),'secret in transcript'
         print(str(checks)+' native network checks passed; owned cleanup, TLS and ext2 audit passed',flush=True)
     finally:

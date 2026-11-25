@@ -20,6 +20,7 @@ internal sealed class LockScreen
     private uint _uid;
     private long _minute = -1, _wait = -1;
     private Rect _field, _unlock;
+    private long _graceUntil;
 
     public bool IsLocked { get; private set; }
 
@@ -27,12 +28,21 @@ internal sealed class LockScreen
     private readonly HostMaterial _material = new(400 * 280);
     public void Dispose() => _material.Dispose();
 
-    public void Lock(string name, uint uid)
+    public void Lock(string name, uint uid, long graceUntil = 0)
     {
         if (IsLocked) { return; }
+        _graceUntil = graceUntil;
         _name = name; _uid = uid; _password.Clear(); _message = ""; IsLocked = true;
         Zenith.Core.Audio.SystemSounds.Play("logout");
         Zenith.Core.Log.Write("session", "locked (" + name + ")");
+    }
+
+    public bool WakeDuringGrace(long now)
+    {
+        if (!IsLocked || !IdleLockTimer.CanWake(now, _graceUntil)) { return false; }
+        _graceUntil = 0; IsLocked = false;
+        Zenith.Core.Log.Write("session", "idle lock dismissed during grace");
+        return true;
     }
 
     private static long Now => System.Diagnostics.Stopwatch.GetTimestamp() / System.Diagnostics.Stopwatch.Frequency;
@@ -43,6 +53,7 @@ internal sealed class LockScreen
     {
         if (!IsLocked) { return false; }
         bool changed = false;
+        if (_graceUntil > 0 && !IdleLockTimer.CanWake(Now, _graceUntil)) { _graceUntil = 0; changed = true; Zenith.Core.Log.Write("session", "idle lock requires password"); }
         if (_login.TakeResult(out var identity))
         {
             changed = true;
@@ -112,6 +123,13 @@ internal sealed class LockScreen
         { s.DrawTextCentered(_name.Length > 0 ? char.ToUpperInvariant(_name[0]).ToString() : "?", Fonts.SemiBold, 20, Theme.Accent, avatar, true); }
         s.DrawTextCentered(_name, Fonts.SemiBold, 16, Theme.TextPrimary, new Rect(card.X, avatar.Bottom + 10, w, 22), true);
         s.DrawTextCentered("Locked", Fonts.Regular, 12, Theme.TextSecondary, new Rect(card.X, avatar.Bottom + 32, w, 18), true);
+        if (IdleLockTimer.CanWake(Now, _graceUntil))
+        {
+            _field = _unlock = default;
+            s.DrawTextCentered("Move the pointer or press a key to resume", Fonts.Regular, 14, Theme.TextPrimary,
+                new Rect(card.X, avatar.Bottom + 65, w, 32), true);
+            return;
+        }
         _field = new Rect(card.X + 24, avatar.Bottom + 60, w - 48, AppStyle.ControlHeight);
         string dots = new('*', Math.Min(_password.Length, 32));
         AppStyle.Field(s, _field, _password.Length == 0 && !_login.Busy ? "" : dots, true);

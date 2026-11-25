@@ -16,6 +16,17 @@ static long save(unsigned int m,unsigned int a,unsigned int materials,unsigned i
     material_level=level;material_saved=materials;saved.mode=m;saved.accent=a;saved.revision++;saves++;return 0;
 }
 static long mark(int d){dirty=d;return 0;}
+static unsigned int appearance_scope;
+static long select_scope(unsigned int action,unsigned long revision){
+    (void)revision;
+    if(action==3)return 4|appearance_scope;
+    if(action>1)return -22;
+    appearance_scope=action;return 0;
+}
+static long save_personal(unsigned int mode,unsigned int accent,unsigned int effects,unsigned int level,unsigned long revision){
+    assert(appearance_scope==1);
+    return save(mode,accent,effects,level,revision);
+}
 static unsigned int cursor_size,cursor_pack;
 static struct zenith_system_settings preferences={.version=1,.flags=3,.revision=1,.keyboard_count=2,.zone_count=2,
     .current_zone="UTC",.keyboards={"us","de"},.zones={"UTC","Europe/Berlin"}};
@@ -72,20 +83,21 @@ static long fake_preview(unsigned int field,unsigned int index,int w,int h,unsig
     previews_drawn++;return w<<16|h;
 }
 static int tiling_supported;
-static struct zenith_desktop_preferences desktop_state[6]={
+static struct zenith_desktop_preferences desktop_state[7]={
     [1]={.version=1,.page=1,.flags=1,.revision=1},
     [2]={.version=1,.page=2,.flags=1,.revision=1,.values={0,250,1,0,0,0,1,0}},
     [3]={.version=1,.page=3,.flags=1,.revision=1},
     [4]={.version=1,.page=4,.flags=1,.revision=1,.values={1},.count=1,.entries={{0,"Desktop 1",{0}}}},
-    [5]={.version=1,.page=5,.flags=1,.revision=1,.values={0,250,1,0,0,0,1,0}}
+    [5]={.version=1,.page=5,.flags=1,.revision=1,.values={0,250,1,0,0,0,1,0}},
+    [6]={.version=1,.page=6,.flags=1,.revision=1}
 };
 static long fake_desktop_read(unsigned int page,struct zenith_desktop_preferences *out){
-    assert(page>=1&&page<=5);
+    assert(page>=1&&page<=6);
     if(page==Z_DESKTOP_WINDOWS_TILING&&!tiling_supported)return -22;
     *out=desktop_state[page];return 0;
 }
 static long fake_desktop_save(const struct zenith_desktop_preferences *p){
-    assert(p->page>=1&&p->page<=5&&p->flags==0);
+    assert(p->page>=1&&p->page<=6&&p->flags==0);
     struct zenith_desktop_preferences *s=&desktop_state[p->page];
     if(!(s->flags&1))return -13;
     if(p->revision!=s->revision)return -11;
@@ -168,10 +180,25 @@ int main(int argc,char **argv){
     saved.version=1;saved.revision=1;saved.flags=3;
     struct zui palette;zui_init(&palette,pixels,600,480);
     for(int m=0;m<2;m++)for(int a=0;a<6;a++){zui_appearance(&palette,m,a);memcpy(saved.palette[m][a],&palette.theme,sizeof(palette.theme));}
+    /* A signed-in administrator's quick action targets their own appearance and leaves
+       the Colors page in its original system scope. Clicking the active choice preserves inheritance. */
+    assert(meridian_init(&app,pixels,(struct settings_backend){read_state,save_personal,mark,select_scope},"style.colors"));
+    assert(appearance_scope==0&&meridian_open(&app,"quick.overview")&&appearance_scope==1);
+    send((struct zenith_gui_event){Z_GUI_FOCUS,1,0,0,0,0});
+    draw();click_id(1);assert(saves==0);
+    draw();click_id(2);assert(saves==1&&saved.mode==1);
+    draw();click_id(1);assert(saves==2&&saved.mode==0);
+    assert(meridian_open(&app,"style.colors")&&appearance_scope==0);
+    saves=0;
     assert(meridian_init(&app,pixels,(struct settings_backend){read_state,save,mark,0},0));
     assert(meridian_resize(&app,640,480,1920*1000));meridian_refresh(&app);
     send((struct zenith_gui_event){Z_GUI_FOCUS,1,0,0,0,0});
     assert(app.page==page_id("quick.overview"));
+    meridian_recent(&app,"input.keyboard\nmissing.page\ninput.keyboard\nstyle.wallpaper",0);
+    assert(app.recent_count==2&&app.recent[0]==page_id("input.keyboard"));
+    draw();click_id(2);assert(saved.mode==1&&!dirty);
+    draw();click_id(1);assert(!saved.mode&&!dirty);
+    assert(saves==2);saves=0;
     /* Every destination draws at the default and the minimum size within the region budget. */
     for(int size=0;size<2;size++){
         assert(meridian_resize(&app,size?600:640,480,1920*1000));
@@ -324,6 +351,12 @@ int main(int argc,char **argv){
     /* Desktop forms use revisioned drafts and the same keyboard, focus, and Apply/Reset controls. */
     app.desktop.read=fake_desktop_read;app.desktop.save=fake_desktop_save;
     app.desktop.apps=fake_desktop_catalog;app.desktop.dirty=mark;
+    assert(meridian_resize(&app,1150,960,1920*1000));
+    assert(meridian_open(&app,"security.locking"));draw();
+    assert(!app.ui.controls[find_label("Immediately")].enabled);
+    click_label("Never");click_label("5 minutes");click_label("Immediately");click_label("After 15 seconds");
+    assert(desktop_changed(&app.desktop));click_id(900+ZUI_FOOTER_APPLY);
+    assert(!dirty&&desktop_state[6].values[0]==2&&desktop_state[6].values[1]==2);
     assert(meridian_resize(&app,640,480,1920*1000));
     assert(meridian_open(&app,"windows.taskbar"));draw();
     /* The installed Settings gate changes visibility by keyboard at this size. */

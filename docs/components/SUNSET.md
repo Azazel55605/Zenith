@@ -48,6 +48,10 @@ Requested 2026-11-15: implement Sunset and its functionality.
 
 ## The lock screen
 
+**Meridian → Security → Screen Locking** sets the system's idle timeout and password grace. Automatic locking defaults to off. Choose 1, 5, 10, 15 or 30 minutes. Grace defaults to immediate authentication and can be set to 5, 15 or 30 seconds. The CLI takes minutes and seconds, for example `settings set idle-lock 5 15`. Zero minutes disables automatic locking.
+
+Keyboard or pointer input during grace wakes the covered desktop and consumes that input. Grace starts at the inactivity deadline, including when a busy frame handles the event late. After grace, the signed-in account must authenticate. Manual Lock always requires the password. Accounts without a usable password keep the desktop accessible.
+
 - Drawn opaque over everything: the wallpaper dimmed, the time and date, the person's name and a
   password field. No window, taskbar, Prism or portal dialog is drawn, and no key or click reaches
   them. Programs keep running; their frames are not shown. A portal request waits until unlock.
@@ -82,7 +86,7 @@ when materials are on, solid otherwise.
   after a few seconds. The card and the Prism menu blur at the taskbar's scale (`MaterialPolicy.SampleScale`),
   and key letters use the proportional font, so Log out's O no longer reads as a zero. The gate installs the
   pack and requires `sunset: icons drawn=5 fallback=0`.
-- **SS2:** lock after a period without input (Meridian › Screen locking, with the time); lock before
+- **SS2:** lock before
   suspend once suspend exists; switching user from the lock screen.
 - **SS3:** native programs naming what they would lose (a per-window reason instead of "has unsaved
   changes"), and "Save all" where programs support it.

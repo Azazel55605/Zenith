@@ -1,17 +1,11 @@
 # Multicore foundation
 
-Work owners: **C1–C4** in the [master roadmap](ROADMAP.md). This is the execution
+Work owners: **C1–C5** in the [master roadmap](ROADMAP.md). This is the execution
 contract; [component steps](components/MULTICORE.md) own implementation detail.
 
 ## Activation and boundary
 
-The x64 boot argument `smp=native` starts **isolated native workers**. Ordinary
-boots leave them disabled. Up to eight CPUs including the BSP participate; Limine
-MP revision 0 supplies topology and AP entry. Legacy APIC IDs above 255 are excluded.
-C3 adds explicitly admitted pinned managed compute jobs. C4 admits protected user
-contexts through private AP bridges and a native ready pool. General managed
-scheduling, GC collection, device/filesystem service actors and the trusted UI
-owner stay on the BSP. Additional vCPUs alone do not activate this execution path.
+The explicit `smp=native` mode starts isolated native workers with the general scheduler on the BSP. Limine MP revision 0 supplies AP entry and topology for up to eight CPUs including the BSP. Legacy APIC IDs above 255 are excluded. C3 added pinned managed compute jobs and C4 added protected user contexts with private AP bridges and a ready pool. This mode remains available for comparison and diagnostics.
 
 **Default (C5.4):** with two or more CPUs and no `smp=` option, x64 boots
 `smp=managed`: the workers above start and general threads, native programs and

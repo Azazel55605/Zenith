@@ -5,3 +5,4 @@ description	The manual pages read with man, for every shell command.
 category	documents
 icon	file-text
 change	0.1.9	Document the tiling session, window gaps, master split and panel placement.
+change	0.1.10	Document public HTTPS, the new fetch options, file limits and kernel requirements.

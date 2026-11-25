@@ -464,6 +464,8 @@ def main():
         serial('native run settings --materials-show','MATERIAL_SETTINGS saved=7 effective=0 available=0 reason=2')
         serial('settings show','translucency=80%')
         serial('native run settings --system-show','SHARED_SETTINGS scope=system keyboard=us timezone=UTC writable=1')
+        serial('native run settings --recent','devices.bluetooth')
+        serial('sudo -u user -- native run settings --recent','No recent settings pages.')
         serial('sh /root/a','PERSONAL_SETTINGS uid=1000 inherited=0 mode=light accent=violet')
         disk=shutdown()
         state=boot_image.verify(m.disk)

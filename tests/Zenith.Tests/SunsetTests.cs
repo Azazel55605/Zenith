@@ -10,6 +10,21 @@ public sealed class SunsetTests
     private static readonly SessionBlocker Unsaved = new("Editor — notes.txt", "has unsaved changes", true, null);
 
     [Fact]
+    public void LateInputCannotExtendTheIdleDeadlineOrPasswordGrace()
+    {
+        var idle = new IdleLockTimer();
+        Assert.Null(idle.Poll(10, 60, false)); Assert.Null(idle.Poll(25, 60, true));
+        Assert.Null(idle.Poll(84, 60, false));
+        Assert.Equal(85L, idle.Poll(120, 60, true));
+        Assert.False(IdleLockTimer.CanWake(120, 85 + 15));
+        Assert.True(IdleLockTimer.CanWake(99, 100)); Assert.False(IdleLockTimer.CanWake(100, 100));
+        Assert.False(IdleLockTimer.CanWake(0, 0));
+        idle.Reset(); Assert.Null(idle.Poll(999, 60, false));
+        Assert.Null(idle.Poll(9999, 0, false)); Assert.Null(idle.Poll(20000, 0, true));
+        Assert.Null(idle.Poll(1, 60, true));
+    }
+
+    [Fact]
     public void NothingInTheWayAllowsEverything()
     {
         var choices = SunsetPlan.Choices(new List<SessionBlocker>(), null, null, null);

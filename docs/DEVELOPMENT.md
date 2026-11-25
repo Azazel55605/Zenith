@@ -50,13 +50,8 @@ remove all of `obj/` during an update: the local relay and recovery copies live 
 
 ## Toolchain
 
-For local download performance, run `python3 -B tools/transfer-bench.py obj/transfer-bench`.
-It compares a burst HTTP payload to RAM ext2 and a disposable installed disk,
-records timings/throughput and Ethernet PCAPs, verifies local TCP windows and exact stored bytes, and independently audits
-ext2 after shutdown. `--disk-mib 16` exercises kernel-sized transfers while keeping
-the RAM test at 4 MiB. Timings include guest shell completion and are diagnostic,
-not a portable hardware performance guarantee. Set `QEMU` to the selected emulator
-or an explicit TCG wrapper for like-for-like measurements.
+For local download performance, run `python3 -B tools/transfer-bench.py obj/transfer-bench --https --runs 3`.
+It times HTTP and verified HTTPS transfers to RAM-backed ext2 and a disposable installed disk. The report gives decimal Mbit/s, advertised TCP windows and counts of backwards TCP acknowledgements. Both disk files are compared byte-for-byte with the host fixture, followed by an independent ext2 audit. The test imports its own temporary CA on the disposable guest. `--disk-mib 16` exercises kernel-sized transfers. Use `--iso PATH` and a fresh output directory for each side of a comparison. Keep the emulator, payload sizes and host load the same. Timings run from submitting the command until the guest reports completion, including connection setup and file commit.
 
 | Tool | Used for |
 |---|---|

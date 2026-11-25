@@ -7,6 +7,29 @@ namespace Zenith.Tests;
 public sealed class TcpBufferTests
 {
     [Fact]
+    public void CountingAndCopyingFromAPartiallyDrainedWindowAllocateNoSnapshot()
+    {
+        var buffer = new BoundedTcpBuffer();
+        var packet = new byte[1440];
+        for (int i = 0; i < 20; i++)
+        {
+            Array.Fill(packet, (byte)i);
+            Assert.True(buffer.Append(packet));
+        }
+        buffer.Advance(500);
+        var destination = new byte[1500];
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        int count = buffer.Count;
+        buffer.CopyPrefix(destination);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Equal(0, allocated);
+        Assert.Equal(20 * 1440 - 500, count);
+        Assert.Equal(new byte[940], destination[..940]);
+        Assert.All(destination[940..], value => Assert.Equal((byte)1, value));
+        Assert.Throws<ArgumentOutOfRangeException>(() => buffer.CopyPrefix(new byte[count + 1]));
+    }
+
+    [Fact]
     public void PartialChunkDrainAppendAndHeldSnapshotsPreserveAllBytes()
     {
         var buffer = new BoundedTcpBuffer(); var first = new byte[10000];
@@ -42,12 +65,13 @@ public sealed class TcpBufferTests
         var consumer = Task.Run(() =>
         {
             int read = 0;
+            var destination = new byte[17];
             while (read < count)
             {
-                var snapshot = buffer.Data;
-                if (snapshot.Length == 0) { System.Threading.Thread.Yield(); continue; }
-                int n = Math.Min(snapshot.Length, 17);
-                for (int i = 0; i < n; i++) { Assert.Equal((byte)(read + i), snapshot[i]); }
+                int n = Math.Min(buffer.Count, destination.Length);
+                if (n == 0) { System.Threading.Thread.Yield(); continue; }
+                buffer.CopyPrefix(destination.AsSpan(0, n));
+                for (int i = 0; i < n; i++) { Assert.Equal((byte)(read + i), destination[i]); }
                 buffer.Advance(n); read += n;
             }
         });

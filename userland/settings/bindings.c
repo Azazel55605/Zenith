@@ -55,7 +55,9 @@ static void display_refresh(struct meridian_bindings *b){
     for(unsigned int m=0;m<s.mode_count;m++)for(unsigned int k=0;k<5;k++){
         unsigned int w=s.modes[m].width,h=s.modes[m].height,p=percents[k];
         if(p!=100&&p!=200&&!(s.flags&8))continue;
-        if(w*100/p<800||h*100/p<600||(p==200&&(w%2||h%2))||w>3840||h>2400||b->display_count>=120)continue;
+        /* Match DisplayLayout's framebuffer budget before multiplying dimensions. */
+        if(w>16384||h>16384||(unsigned long)w*h>32UL*1024*1024)continue;
+        if(w*100/p<800||h*100/p<600||(p==200&&(w%2||h%2))||b->display_count>=120)continue;
         unsigned int i=b->display_count++;b->display_modes[i]=m;b->display_scales[i]=p;
         char *t=b->display_labels[i];t=digits(t,w);*t++=' ';*t++='x';*t++=' ';t=digits(t,h);*t++=' ';*t++='(';t=digits(t,p);*t++='%';*t++=')';*t=0;
     }

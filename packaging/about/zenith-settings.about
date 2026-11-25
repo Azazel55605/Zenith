@@ -11,3 +11,4 @@ change	0.15.0	Notifications: a switch per app
 change	0.15.1	Decoration, icon and startup previews show again in the larger tiles
 change	0.15.2	Apps & Windows: notification popup rules, panel placement and pins, window behavior, task switcher and virtual desktops
 change	0.16.0	Choose the tiling window manager as your default session and adjust the spacing between tiles and around the workspace.
+change	0.17.0	Quick Settings remembers recent pages per account. Choose high-resolution display modes and configure idle locking and password grace.

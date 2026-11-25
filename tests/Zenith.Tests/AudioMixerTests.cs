@@ -11,6 +11,25 @@ public sealed class AudioMixerTests
         return b;
     }
     private static short Left(byte[] b) => (short)(b[0] | b[1] << 8);
+    [Fact]
+    public void RememberedEndpointsMatchHardwareAndDirectionAcrossBoots()
+    {
+        string Key(uint model, uint pin, uint direction) => AudioPreferences.Identity(0x80, 0x12348086, model, 0, pin, direction, 9);
+        string output = Key(1, 4, 0), input = Key(1, 6, 1);
+        var saved = new AudioPreferences();
+        saved.Remember(output, 0, 72, false, true);
+        saved.Remember(input, 1, 38, true, true);
+        var loaded = AudioPreferences.Decode(saved.Encode());
+        Assert.True(loaded.Selected(input, 1)); Assert.True(loaded.Selected(output, 0));
+        Assert.True(loaded.TryLevel(input, out var level)); Assert.Equal(new AudioPreferences.Level(38, true), level);
+        string replaced = Key(2, 4, 0);
+        Assert.False(loaded.Selected(replaced, 0)); Assert.False(loaded.TryLevel(replaced, out _));
+        loaded.Remember(replaced, 0, 80, false, false);
+        Assert.True(AudioPreferences.Decode(loaded.Encode()).Selected(output, 0));
+        Assert.False(AudioPreferences.Decode("version=9").TryLevel(input, out _));
+        Assert.Empty(AudioPreferences.Identity(0, 1, 0, 0, 1, 0, 0));
+    }
+
     [Fact] public void MixingSaturatesWithoutWrappingAndHonorsEachStreamGain()
     {
         var m = new AudioMixer(); long a = m.Open(1, 1000, "one", 0), b = m.Open(2, 1000, "two", 0);

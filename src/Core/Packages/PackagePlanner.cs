@@ -13,6 +13,9 @@ internal enum PackagePathState { Missing, Directory, Occupied }
 internal sealed record BundledComponent(string Name, string Version, string Activation);
 internal static class BootstrapComponents
 {
+    public const string LockPreferences = "zenith-native-lock-preferences-abi";
+    public const string ScheduledUpdates = "zenith-native-update-schedule-abi";
+
     // Inventory of the current image, not proof of independently installed packages.
     public static readonly BundledComponent[] All =
     {
@@ -48,7 +51,9 @@ internal static class BootstrapComponents
         new("zenith-native-open-with-abi", "1.0", "portal extended payloads, org.zenith.portal.OpenWith and the org.zenith.files.manage action (kernel 0.0.65)"),
         new("zenith-native-network-center-abi", "1.0", "network status, traffic and event history, diagnostics, ping, safe apply and connect/disconnect (667) (kernel 0.0.69)"),
         new("zenith-native-package-center-abi", "1.0", "Orbit's package service: overview, packages with reasons, details from the signed package, plans, apply and refresh jobs, history and sources (668) (kernel 0.0.70)"),
+        new(ScheduledUpdates, "1.0", "Read the scheduled package check preference and change it using its observed revision (668)"),
         new("zenith-native-desktop-preferences-abi", "1.0", "Revisioned panel, window, task switcher and workspace preferences (672)"),
+        new(LockPreferences, "1.0", "Revisioned lock screen preferences and per-user recent Settings pages (672)"),
         new("zenith-native-notifications-abi", "1.1", "Post desktop notifications; buttons (event 13), per-sender switches, Do Not Disturb and popup time (call 670)"),
         new("zenith-native-notification-preferences-abi", "1.0", "Revisioned notification visibility, corner, hover and sound preferences (call 670, v2 settings packets)"),
         new("zenith-native-style-catalog-abi", "1.0", "Meridian's pickers: every choice of a setting and previews drawn by the desktop, system sound level, switches and preview (669) (kernel 0.0.72)"),
@@ -58,6 +63,7 @@ internal static class BootstrapComponents
         new("zenith-native-graphics-abi", "1.0", "owned private graphical surfaces and routed events"),
         new("zenith-native-key-edges-abi", "1.0", "opt-in focused physical keyboard press and release events (671)"),
         new("zenith-native-network-abi", "1.0", "owned bounded TCP/verified-TLS clients and atomic download sinks"),
+        new("zenith-native-web-transport-abi", "1.0", "public and configured TLS roots and up to six sequential client connections"),
         new("zenith-native-path-abi", "1.0", "owned namespace/metadata operations and private descriptor seeks"),
         new("zenith-native-process-abi", "1.0", "exported environment and owned process lifecycle"),
         new("zenith-native-audio-abi", "1.0", "HDA playback, permissioned capture and session mixer"),

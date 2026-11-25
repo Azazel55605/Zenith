@@ -17,6 +17,25 @@ int main(int argc,char **argv){
     if(argc==2&&same(argv[1],"--absent"))return !state.available&&zenith_audio_open(0,0)==-19?0:fail("AUDIO_PROBE absent device failure\n");
     if(argc==2&&same(argv[1],"--empty"))return !state.stream_count?0:fail("AUDIO_PROBE leaked stream\n");
     if(argc==2&&same(argv[1],"--deny"))return zenith_audio_open(1,0)==-13?0:fail("AUDIO_PROBE microphone admission failure\n");
+    if(argc==2&&(same(argv[1],"--remember")||same(argv[1],"--remembered"))){
+        for(unsigned int d=0;d<2;d++){
+            unsigned int id=d?state.input:state.output,volume=d?23:70;
+            if(!id)return 1;
+            if(same(argv[1],"--remember")){
+                struct zenith_audio_control r={1,Z_AUDIO_DEVICE_VOLUME,id,volume,0,state.revision};
+                if(zenith_audio_control(&r)||zenith_audio_read(&state))return 1;
+                r.action=Z_AUDIO_DEVICE_MUTE;r.value=d;r.revision=state.revision;
+                if(zenith_audio_control(&r)||zenith_audio_read(&state))return 1;
+            }
+            int match=0;
+            for(unsigned int i=0;i<state.device_count;i++){
+                const struct zenith_audio_device *dev=&state.devices[i];
+                if(dev->id==id&&dev->direction==d&&dev->volume==volume&&(dev->flags&3)==(2|d))match=1;
+            }
+            if(!match)return fail("AUDIO_PROBE missing device preference\n");
+        }
+        return state.stream_count!=0;
+    }
     if(zenith_call(661,1,sizeof(state),0)!=-14||zenith_call(661,(unsigned long)&state,8,0)!=-22)return fail("AUDIO_PROBE range checks failed\n");
     struct zenith_audio_control bad={1,Z_AUDIO_DEVICE_VOLUME,state.output,101,0,state.revision};
     if(zenith_audio_control(&bad)!=-22)return fail("AUDIO_PROBE gain bound failed\n");

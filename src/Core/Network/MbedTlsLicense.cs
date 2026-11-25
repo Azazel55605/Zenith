@@ -3,6 +3,10 @@ namespace Zenith.Core.Network;
 internal static class MbedTlsLicense
 {
     public const string Text = """
+        Public HTTPS trust anchors: Mozilla CA certificate data, Mozilla Public License 2.0.
+        Source: https://curl.se/ca/cacert-2026-11-05.pem
+        License: https://www.mozilla.org/MPL/2.0/
+
         Mbed TLS 3.6.7 — The Mbed TLS Contributors
         Zenith selects the Apache-2.0 license for Mbed TLS.
         Source: https://github.com/Mbed-TLS/mbedtls/tree/mbedtls-3.6.7

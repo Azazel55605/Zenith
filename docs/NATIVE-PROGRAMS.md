@@ -421,9 +421,13 @@ GNU tools and the managed recovery implementations. Owned network clients use th
 The new `zenith-native-network-abi` 1.0 capability adds invocation-local bounded
 TCP/verified-TLS connections, resolver/echo/status primitives and atomic download
 sinks. It is absent from kernel 0.0.22. [Request layout, bounds and ownership](archive/2026-10-26/native-network-clients.md#ownership-and-service-contract)
-and the [native HTTP profile](archive/2026-10-26/native-network-clients.md#native-http-profile)
-are the owning contract. Native client algorithms are independently packaged in
-zenith-net-tools; privileged configuration/trust and drivers remain kernel services.
+and the [original HTTP profile](archive/2026-10-26/native-network-clients.md#native-http-profile)
+describe tagged net-tools 0.1.0. The curl-style client also requires
+`zenith-native-web-transport-abi` 1.0. Its verified TLS connections use public
+and configured roots. An invocation can open six sequential connections with
+one active at a time, enough for the first request and five redirect hops.
+The existing network calls and original package remain compatible.
+[Current HTTP profile](NETWORKING.md#transfer-and-transport-bounds)
 
 ## System monitor
 

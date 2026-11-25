@@ -133,6 +133,11 @@ def main():
         check(re.search(r'ORBIT_COUNTS \| 1 \| 0 \| 2 \| 1', out) is not None, 'the overview: 1 installed, no updates, 2 available, 1 not offered')
         check('ORBIT_KEY | ' + hashlib.sha256(key).hexdigest() in out, 'the overview names the trusted key')
         check(re.search(r'ORBIT_SOURCE \| core \| 10 \| https://10\.0\.2\.2:\d+ \| 1 \|', out) is not None, 'the core source: mirror and generation')
+        status('sudo -u user -- native run orbit --schedule off', 'O_SCHEDULE_DENY', 1)
+        status('native run orbit --schedule off', 'O_SCHEDULE_OFF')
+        out = status('native run orbit --status | logger', 'O_READ_SCHEDULE')
+        check('ORBIT_SCHEDULED | 0 |' in out, 'disabled daily checks read back')
+        status('native run orbit --schedule on', 'O_SCHEDULE_ON')
         out = status('native run orbit --list | logger', 'O_LIST')
         check('ORBIT_PACKAGE zenith-orbit state=0 installed=0.1.0' in out and 'title=Orbit' in out, 'Orbit is installed and titled from its about file')
         check('ORBIT_PACKAGE hello-tools state=2 installed=- candidate=1.0.0' in out, 'hello-tools is available')
@@ -178,6 +183,16 @@ def main():
 
         m = h.Machine(keep / 'desktop', disk, 'session=de', network=net + ['-device', 'virtio-gpu-pci', '-device', 'virtio-keyboard-pci', '-device', 'virtio-mouse-pci'], monitor=monitor)
         check(m.wait('desktop ready (installed)', timeout=180), 'the desktop starts')
+        if '--scheduled' in sys.argv[2:]:
+            check(m.wait('pkg: background update check started', 0, 180), 'the desktop starts its scheduled refresh')
+            title = 'from Orbit: 1 update is ready'
+            check(m.wait(title, 0, 120), 'the scheduled check offers the pending update')
+            posts = re.findall(r'notify: posted (\d+) ' + re.escape(title), m.log())
+            check(len(posts) == 1, 'a single notice for this offer')
+            toast = 'notify: toast ' + posts[0] + ' shown at '
+            check(m.wait(toast, 0, 30) and m.wait(' buttons=1', m.log().index(toast), 30)
+                  and re.search(re.escape(toast) + r'\d+,\d+ \d+x\d+ buttons=1\b', m.log()),
+                  'the update toast has its review action')
         time.sleep(2)
         typed('sh /root/g0\n', 'user: ORBIT_READY', 'Orbit opens')
         check(m.wait('user: ORBIT_READY updates=1 installed=3', 0, 30), 'on the overview: one update, three installed')

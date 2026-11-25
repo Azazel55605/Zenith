@@ -22,6 +22,7 @@ enum {
     Z_PKG_HISTORY=8,    /* "transaction" time uid user source ok command message, each followed by its "change" lines */
     Z_PKG_SOURCES=9,    /* "key", "source" name priority mirror generation issued expires entries checked, "cache" */
     Z_PKG_REFRESH=10,   /* downloads the signed package lists (a job; open to every user) */
+    Z_PKG_SCHEDULE=12,  /* value: enabled; input: observed 64-bit settings revision */
     Z_PKG_WAIT=11       /* value: milliseconds up to 5000; 1 when no job runs any more */
 };
 /* List states. */

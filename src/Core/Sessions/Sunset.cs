@@ -105,3 +105,27 @@ internal sealed class ScreenLockPolicy
     /// <summary>Seconds to wait before the next attempt; 0 when one may be made now.</summary>
     public long Wait(long nowSeconds) => Math.Max(0, _retryAt - nowSeconds);
 }
+
+/// <summary>Monotonic inactivity deadline for one desktop session. A late poll retains the
+/// original due time so a busy frame cannot grant extra password-free wake time.</summary>
+internal sealed class IdleLockTimer
+{
+    private long _lastActivity;
+    private int _timeout = -1;
+
+    public long? Poll(long now, int timeout, bool activity)
+    {
+        if (timeout != _timeout || now < _lastActivity) { _timeout = timeout; _lastActivity = now; }
+        if (timeout > 0 && now - _lastActivity >= timeout)
+        {
+            long due = _lastActivity + timeout;
+            _lastActivity = now;
+            return due;
+        }
+        if (activity || timeout == 0) { _lastActivity = now; }
+        return null;
+    }
+
+    public void Reset() => _timeout = -1;
+    public static bool CanWake(long now, long graceUntil) => graceUntil > 0 && now < graceUntil;
+}

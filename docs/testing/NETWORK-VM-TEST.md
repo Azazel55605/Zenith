@@ -4,9 +4,10 @@
 > [the master roadmap](../ROADMAP.md#state-and-evidence); version-specific examples
 > are historical handoffs, not new release instructions.
 
-Use the current compatible kernel/net-tools/manuals receipts. The network ABI first
-shipped in 0.0.23; compatibility is capability-based, not a request to install that
-historical version. Installed results live in the master evidence table.
+The tagged `zenith-net-tools/v0.1.0` package provides the original file downloader,
+which requires `zenith-native-network-abi` 1.0. Version 0.2.0 adds the curl-style client.
+Its signed manifest additionally requires `zenith-native-web-transport-abi` 1.0.
+Run the public HTTPS checks below with net-tools 0.2.0 and kernel 0.0.80 or later.
 
 ## Distributor
 
@@ -19,7 +20,7 @@ git pull --ff-only
 sudo systemctl start zenith-distributor.service
 ```
 
-Await successful delivery of all three release tags in the dashboard. Source/tag
+Check delivery of the kernel, net-tools and manual pages in the dashboard. Source/tag
 publication is separate from distributor signing, delivery and installed tests.
 
 ## Installed Zenith
@@ -43,8 +44,8 @@ net-tools --version
 which fetch nslookup nc
 ```
 
-Expected version: net-tools 0.1.0; command routing should show signed native
-net-tools. A present modified/unowned executable refuses; `recovery COMMAND ...`
+Record the net-tools version from the installed receipt. Command routing should
+show signed native net-tools. A present modified/unowned executable refuses; `recovery COMMAND ...`
 explicitly selects the earlier builtin. Configuration/trust/NTP remain trusted
 services. `man native-cli` and `man network` document the profile.
 
@@ -80,12 +81,28 @@ usable prompt, preserve an existing destination, discard staging and release the
 network lease. Do not overwrite a real installed executable or trust file for this
 check; malicious-input/tamper/certificate tests use disposable automated fixtures.
 
-The service remains serialized: overlapping clients can report network busy.
-There is no insecure TLS flag, redirect/chunk/compression support, arbitrary raw
-packet/listener interface or general POSIX socket compatibility. Default fetch is
-bounded to 8 MiB; --kernel raises the file bound without granting boot-file writes.
-Native fetch does not replay GET after body failure; connect retains bounded retry.
+## Public HTTPS checks for the curl-style client
 
-Please report exact versions, session used, commands/output, and boot confirmation.
-After installed network acceptance, the next stage is protected graphical-client
-and settings services, followed by independent Settings and shared UI design work.
+Confirm that the running kernel lists the web transport capability and the installed
+client lists the new options. Tagged net-tools 0.1.0 can still run on this kernel
+with its original command syntax.
+
+```sh
+pkg list | grep zenith-native-web-transport-abi
+fetch --help
+fetch -I https://curl.se/ca/cacert-2026-11-05.pem
+fetch -sL https://curl.se/ca/cacert-2026-11-05.pem | wc -c
+fetch -sL -o ~/cli-net/public-ca.pem https://curl.se/ca/cacert-2026-11-05.pem
+wc -c ~/cli-net/public-ca.pem
+```
+
+Expect capability 1.0, a successful HEAD response and matching nonzero byte
+counts for the pipe and file. The public file is test data for the byte-count check. Repeat the private mirror check above to
+confirm that its configured CA also works.
+
+File downloads default to 8 MiB. `--kernel` raises the file bound to 32 MiB +
+4096 bytes. Native stdout supports 1 MiB. The network service permits one
+active client connection. A framing or write error discards the staged file.
+
+Record the package and kernel versions, session, boot confirmation and results
+against N3 in the master roadmap.

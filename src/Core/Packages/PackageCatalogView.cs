@@ -35,6 +35,17 @@ internal sealed class ChangePlan
 /// planner (<see cref="RepositoryPlanner"/>) and set rules (<see cref="PackageManager.ValidateSet"/>) as the shell.</summary>
 internal static class PackageCatalogView
 {
+    public static (int Count, string Key) UpdateOffers(IEnumerable<PackageRow> rows)
+    {
+        var offers = new List<string>();
+        foreach (var row in rows)
+        {
+            if (row.State == PackageRowState.Update) { offers.Add(row.Name + "=" + row.Candidate); }
+        }
+        offers.Sort(StringComparer.Ordinal);
+        return (offers.Count, string.Join("\n", offers));
+    }
+
     private static int Newest(RepositoryEntry a, RepositoryEntry b) => PackageVersions.Compare(b.Version, a.Version);
 
     public static List<PackageRow> Rows(IReadOnlyList<RepositoryEntry> catalog, IReadOnlyList<PackageRepository> repositories,

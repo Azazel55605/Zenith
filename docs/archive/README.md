@@ -4,6 +4,10 @@ Archived material preserves decisions and test evidence. It is **not current
 status**; “pending”, “active” and “next” apply to the original recording date.
 Start with [current status](../ROADMAP.md#state-and-evidence) or [active work](../ROADMAP.md#current-focus-and-execution-order).
 
+## Previous roadmap snapshot
+
+The master roadmap at the 0.0.79 source revision preserves the October–November distributor investigations, dates, measurements and initial acceptance requests. Its pending items describe those runs. Use the current master for outstanding work. [Historical snapshot](https://github.com/Azazel55605/Zenith/blob/1ad9b84d4ff03ac6e011ad45f312849f10586d27/docs/ROADMAP.md)
+
 ## Investigation records
 
 - [2026-11-09 pointer, scheduler and fractional scale](2026-11-09/pointer-scheduler-scale.md): 80 Hz PS/2 and relative VMware input, a starved idle-thread desktop, per-wake traces; absolute and device-drawn pointer, park switch and desktop share, filtered 125-175%.

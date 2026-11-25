@@ -40,7 +40,7 @@ internal static class ProcessDesktopPreferences
         if (data.Length != Bytes || Read(data, 0) != 1 || Read(data, 8) != 0) { return -22; }
         uint page = Read(data, 4), count = Read(data, 12);
         int fields = DesktopPreferences.ChoiceCount(page);
-        if (fields == 0 || count > DesktopPreferences.MaximumDesktops) { return -22; }
+        if (page is < 1 or > 6 || fields == 0 || count > DesktopPreferences.MaximumDesktops) { return -22; }
         var values = new uint[fields];
         for (int i = 0; i < 10; i++)
         {

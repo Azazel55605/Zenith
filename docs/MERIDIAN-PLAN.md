@@ -1,9 +1,6 @@
 # Meridian — System Settings implementation plan
 
-**Planned 2026-10-27.** User scope: every menu in the supplied outline must be
-implemented; incomplete features must have a WIP message at the top of their page.
-This document proposes implementation order, dependencies and acceptance. It does
-not claim all underlying services exist. The [active implementation](components/SESSIONS-DESKTOP.md#native-app-migration) now supplies the first shell; this plan remains the owner for subsequent phases.
+Meridian implements the requested menu structure and shows a WIP message at the top of pages with unfinished features. This document defines scope, service contracts and acceptance. The [master roadmap](ROADMAP.md#meridian--every-requested-destination) records which controls work and orders the remaining work.
 
 [Complete page/control inventory](MERIDIAN-PAGES.md) ·
 [Original user outline](archive/2026-10-27/meridian-user-requirements.md) ·
@@ -11,12 +8,7 @@ not claim all underlying services exist. The [active implementation](components/
 
 ## Delivery approach
 
-Build the **complete navigation and page structure first**, then activate real
-features in small, tested slices. Do not wait for audio, Bluetooth or printer
-support to make their menus visible. The outline defines **10 top-level categories
-and 43 destination pages**; group headings are navigation, not duplicate pages.
-The page inventory preserves all requested controls and identifies their service
-owner and delivery phase.
+The registry contains **10 top-level categories and 44 destination pages**. Group headings organize those pages. Activate controls in independently testable service increments and keep unavailable pages reachable. [Control inventory](MERIDIAN-PAGES.md)
 
 Use **Meridian — System Settings** as the application name. Initially retain the
 published `zenith-settings` package and `native run settings` entry point. Renaming
@@ -30,32 +22,9 @@ no assumed Qt/KCM, KWin, PipeWire, NetworkManager, SDDM or systemd dependency.
 
 ## Baseline and gaps
 
-The 0.0.25 source/Settings 0.1.0 release has a locally qualified Appearance page:
-manual light/dark mode, six accents, signed semantic palettes, system-wide root-only
-save/apply/reboot behavior, revision conflicts and unsaved-close protection.
-Release tags are pushed; distributor delivery and installed acceptance remain
-unconfirmed. [Evidence](archive/2026-10-27/appearance-settings.md).
+The shared service supports per-user appearance with inherited defaults, authorized system edits, revision checks and draft protection. Meridian uses typed interfaces for keyboard, time zone, session, display, wired networking, HDA audio, appearance and desktop behavior. Some pages still contain only the planned sections. The master table distinguishes them by page ID. [Current coverage](ROADMAP.md#meridian--every-requested-destination)
 
-Existing trusted services also cover selected keyboard layouts, timezone, default
-session, accounts, primary-NIC IPv4 configuration, one-shot NTP and reboot/poweroff.
-Keyboard layout/time zone now have a bounded typed system-default service and
-Meridian selectors with root-only revisioned saves. Their remaining page features
-stay WIP. Other services are useful foundations, **not completed Meridian pages or
-general native management APIs**. Legacy native graphics has fixed surfaces up to 640x480; explicitly negotiated
-viewport clients now resize up to 1920x1000 with generation-checked acknowledgement,
-legacy forced-opaque pixels and an explicit foreground/material extension with
-shared host policy. Meridian now has atomic transparency/blur preferences;
-[desktop integration](archive/2026-10-28/desktop-material-integration.md) records
-local qualification. It still has
-bounded lifetime/request budgets and no shared dynamic native font loading.
-Integer display scaling magnifies the completed UI; it does not add fractional
-text rasterization or Unicode. UI text atlases currently cover ASCII.
-
-The [primary display service](DISPLAY-SETTINGS.md) supplies driver-bounded mode
-choices, integer scaling and host-owned Keep/Revert. Virtio/GOP remain fixed-mode
-with the pinned drivers. Driver support must be measured before showing a mode
-as selectable. Audio, Bluetooth, printers, indexing, true screen
-locking and suspend must remain WIP until their service/driver foundations exist.
+Viewport-aware native clients resize within resource budgets. The compositor supports material frames and the primary-display Keep/Revert transaction. Sharp fractional text, multiple outputs, broader font support, remaining device services and long-lived client acceptance have distinct owners. [Graphical client contract](GRAPHICAL-CLIENTS.md) · [Display settings](DISPLAY-SETTINGS.md)
 
 ## WIP and capability behavior
 
@@ -90,34 +59,22 @@ home immediately; later phases progressively remove WIP banners.
 
 | Phase / master owner | Work and deliverable | Feature acceptance |
 |---|---|---|
-| **M0 — Current release acceptance / Q1** | Confirm distributor delivery and the kernel-first installed Appearance checklist. Keep planning and shell design moving in parallel. | Existing save/apply/reboot and CLI/GUI behavior confirmed on the installed VM before publishing a successor. |
-| **M1 — Complete Meridian shell / U1, D1** | Register all 10 categories/43 pages, Quick Settings startup page, hierarchical navigation, breadcrumbs/back, settings search, direct page links and bounded recent-page history. Move the working Appearance controls into Colors. Build shared scrolling, text/number fields, lists, selectors, sliders and dialogs; virtualize long navigation so control limits are respected. | Every inventory page is reachable by keyboard/pointer/search, every unavailable feature has the required WIP state, no false save actions, page navigation protects drafts. |
+| **M0 — Appearance baseline / Q1** | Original kernel-first Appearance qualification. Q2 now owns release acceptance. | Exercise save, apply, reboot and CLI/GUI agreement on the installed release. |
+| **M1 — Complete Meridian shell / U1, D1** | Register all 10 categories/44 pages, Quick Settings startup page, hierarchical navigation, breadcrumbs/back, settings search, direct page links and bounded recent-page history. Move the working Appearance controls into Colors. Build shared scrolling, text/number fields, lists, selectors, sliders and dialogs; virtualize long navigation so control limits are respected. | Every inventory page is reachable by keyboard/pointer/search, every unavailable feature has the required WIP state, no false save actions, page navigation protects drafts. |
 | **M1 foundation gate / U1** | Add a general long-lived interactive-client profile, responsive/clipped layouts and bounded Unicode-preserving text input (initial glyph coverage first). Do not grant Meridian an app-name-based privilege/budget bypass. | Leave settings open idle and active well beyond existing short invocation limits; no unexplained disappearance, unbounded memory/request growth, or lost drafts on ordinary navigation. Keep watchdog/cancel isolation. |
 | **M2 — Display first / D2** | Audit pinned drivers and expose primary-display identity/current mode/supported modes. Implement guarded resolution changes and integer UI scaling, coordinated font/layout/surface updates and legacy-client compatibility. Then orientation/refresh where actually supported. | Actual supported VM profile changes mode and scale, including a smaller viewport; Keep/Revert works, and client failure or timeout restores the previous known-good display. Unimplemented hardware controls remain WIP/unsupported. |
 | **M3 — Shared preferences and existing services / S1** | Add user-versus-system scope, system-default inheritance and migration of existing root-only appearance defaults. Connect Meridian to typed keyboard-layout, timezone, About, primary-NIC and account-list services. Show actual device/runtime state and pending/restart effects. | Two accounts retain independent personal preferences; ordinary users cannot alter system defaults/accounts/network/clock authority; CLI and GUI agree. No page writes privileged files directly. |
 | **M4 — Input and basic interaction / S2** | Device registry, mouse/touchpad policies, keyboard model/repeat/Num Lock and layout groups/switching, typing test, shortcut registry/conflict handling, initial Workspace behavior. | Multiple-device settings bind to stable identities; DE/Headless keymaps remain correct; shortcut capture cannot steal protected system input; changes survive relogin/reboot as appropriate. |
 | **M5 — Appearance assets and compositor styling / S4, D3** | Wallpaper color/image, picker/catalogs, slideshow, dynamic pairs; custom accent picker; 2–3 widget styles, button variants, decoration styles, icons/cursors, animation controls and optional transparency/translucency/blur. | Changes reach the shared toolkit/compositor, preserve contrast/input, recover from missing assets, and update independently of kernel bytes where no new service is needed. Effects have an opaque/reduced-motion fallback. |
 | **M6 — Time, day/night and locale/text / S3** | One shared day/night scheduler; manual times first, solar schedule/manual location next, opt-in automatic location later. Connect scheduled themes/wallpapers and Night Light; extend clock synchronization. Add locale formatting, translations, native font selection/rendering and font management. | Theme and Night Light follow one schedule through DST/time changes; manual fallback works without location/network; locale/font changes preserve text and do not render unusable UI. |
-| **M7 — Desktop/workspace service contracts / W1, S5** | Notification/OSD policy, DE focus/titlebar/snap behavior, task switcher, virtual desktops and shared runner providers. Make file-click/drag/drop/clipboard behavior effective in newly ported apps. | Owner/session isolation holds; DE and future WM expose truthful capabilities; Files/Editor use shared policies rather than hardcoded copies. Basic settings search already works from M1. |
+| **M7 — Desktop/workspace service contracts / W1, S5** | Notification/OSD policy, DE focus/titlebar/snap behavior, task switcher, virtual desktops and shared runner providers. Make file-click/drag/drop/clipboard behavior effective in newly ported apps. | Owner/session isolation holds; DE and WM expose truthful capabilities; Files/Editor use shared policies rather than hardcoded copies. Basic settings search already works from M1. |
 | **M8 — Device, media and discovery services / H2, N2, S5** | Safe removable-device automount, bounded per-user file indexing, PCM playback/recording, device format tests and level meters, live stream inventory and system sound packs. Add advanced connection profiles/priority/negotiation as network support grows. | Real supported devices and service-backed values; bounded disk/CPU/buffer use, permission-aware search/capture, mount failure recovery, no automatic execution from removable media. |
 | **M9 — Secure session and lifecycle / W3** | True screen lock, idle/grace policy, administrative auto-login, users add/delete/password flows, autostart, shutdown/reboot/logout confirmations and session restore. Add software idle dimming; implement suspend only after real resume support. | Lock preserves apps while blocking input/content leakage; authentication stays trusted; unsafe account deletion is refused; restart/autostart loops and unsaved work are handled explicitly. |
 | **M10 — Explicit later capabilities / H3** | Specialized Accessibility features, Bluetooth, printers and physical-hardware capabilities not already proven. Advanced per-app audio routing follows the basic mixer/stream service. | Separate small backend/driver specs and real device acceptance. Pages remain visible/WIP until then; a placeholder or VM-only result does not establish hardware support. |
 
 ### Current foundation and next contracts
 
-The local shell already registers all 43 pages, search, group navigation and recent
-links; Colors has scoped persistence/inheritance, keyboard/time-zone/session pages
-have searchable catalogues, network/accounts show authorized read-only data and
-About has selected real metadata. The shared-settings S1 slice is locally implemented;
-see [contract and evidence](archive/2026-10-28/shared-settings-stage.md).
-This does not finish M1: shared form/text/control richness, responsive scale/layout
-and long-duration lifetime acceptance remain U1/D1/D2. Every backend beyond those
-must retain WIP until its own service and native acceptance exists.
-
-The master current-focus section orders design parity, shared/display foundations
-and the remaining Editor/Terminal/Sunrise ports. Files is explicitly excluded from
-that migration batch; its later makeover is A1. App ports consume these shared
-contracts rather than waiting for all 43 Settings backends or copying their own style.
+Aurora, Polaris and Horizon consume the native client and toolkit contracts. Sunrise still uses a trusted frontend and needs typed installer operations for its native migration. U1 owns shared widget and lifetime improvements, D2 owns display scaling, and each Meridian service owns its authority, persistence and WIP behavior. [App boundaries](components/SESSIONS-DESKTOP.md#native-app-migration) · [Current execution order](ROADMAP.md#current-focus-and-execution-order)
 
 ## Service and state architecture
 
@@ -195,7 +152,7 @@ requirements. The later Accessibility page does not defer these fundamentals.
 
 ## Acceptance and tracking
 
-M1 acceptance must enumerate the registry and compare it with all 43 inventory IDs;
+M1 acceptance must enumerate the registry and compare it with all 44 inventory IDs;
 open every page, test search/back/recent links, top-of-page WIP semantics and draft
 navigation with keyboard and pointer. Check dark/light, all accents, small supported
 viewports and long labels. Verify WIP controls cannot write or claim success.

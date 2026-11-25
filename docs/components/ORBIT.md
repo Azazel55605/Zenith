@@ -63,7 +63,7 @@ Answers are line-based text: a header line, then tab-separated records.
 
 | Operation | Value / input | Output |
 |---|---|---|
-| 1 overview | | kernel (running, staged, pending), counts, key, sources, cache, system (free, installed root, busy, may apply, clock) |
+| 1 overview | | kernel (running, staged, pending), counts, key, sources, cache, system (free, installed root, busy, may apply, clock), `scheduled` (enabled, settings revision) |
 | 2 list | | `pkg` records: name, kind, source, state (current, update, available, not offered, local), versions, sizes, files, programs, title, summary, category, icon, reason |
 | 3 details | name; value 1 downloads a package that is not installed | state, about fields, `can`, `needs`, `conflicts`, `file`, `change`, `planned`, `mine` (its transactions), digest, signed |
 | 4 plan | `install`/`upgrade`/`remove NAME`, `kernel` lines | `action` (verb, name, from, to, source, bytes, also needed), `blocked`, sizes, restart, `command` |
@@ -74,6 +74,7 @@ Answers are line-based text: a header line, then tab-separated records.
 | 9 sources | | key, sources, cache |
 | 10 refresh | | a job id (every user) |
 | 11 wait | milliseconds (up to 5000) | 1 when no job runs any more, so a program without a window does not spin |
+| 12 schedule | value 0/1, input is the observed little-endian u64 settings revision | Saves the installed system's schedule. Returns 0 on success, -13 for missing permission or -11 for a stale revision. |
 
 Calls run outside the filesystem service gate and count with the interactive calls. Jobs hold the package service
 (the same one `pkg` uses), so the shell and Orbit never change packages at the same time.
@@ -95,8 +96,12 @@ files and capabilities), `NativePackageCenter.cs` (call 668 and the jobs), `Pack
   and the offered update; on the desktop the window, the update in the plan, Ctrl+Enter applying it, search opening
   a package page and the history page.
 
+## Daily update checks
+
+**Updates → Check daily and notify about updates** controls the installed system's schedule. The default is on. An administrator can also use `native run orbit --schedule off` or `--schedule on`. Orbit checks two minutes after desktop startup and then daily. Offline or busy systems retry after half an hour. When the offered packages or versions change, a notification’s **Show updates** button opens the list. Installation requires a separate action.
+
+The first check after a reboot can remind the user about pending updates again. Run the Orbit gate with `--scheduled` to exercise the startup timer and the actionable notification against its signed test repository.
+
 ## Next
 
-- Scheduled checks and an update notification on the taskbar, a kernel update from the desktop in the gate (staged
-  and confirmed), package screenshots, and per-package changelogs from the distributor once packages are re-released
-  with about files.
+- Exercise staging and confirming a kernel from the desktop. Package screenshots and changelogs need distributor metadata.

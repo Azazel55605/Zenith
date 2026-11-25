@@ -1,515 +1,145 @@
 # Zenith — master roadmap
 
-**Single work tracker · audited 2026-10-27 · source baseline `a558f66`.**
-Start here for priorities, current state, outstanding work and release acceptance.
-Component pages expand these work IDs; technical guides explain contracts, not a
-second schedule. [Documentation map](README.md) · [Maintenance rules](MAINTAINING.md).
+**Audited 2026-11-25 against source and remote tags at `1ad9b84` (kernel 0.0.79).** The implementation rows include the release candidate for kernel 0.0.80, Settings 0.17.0, Orbit 0.3.0, net-tools 0.2.0 and manuals 0.1.10. This is the single work tracker. The order below is a proposal for what to tackle next. Component pages describe the contracts, limits and tests behind each ID. [Documentation map](README.md) · [Maintenance rules](MAINTAINING.md)
 
 ## Product definition
 
-A usable, independently updateable desktop OS: authenticated Desktop and local
-Headless sessions with serial recovery; a full floating DE and later selectable
-automatic-tiling WM; dependable Terminal, Editor, Files and Sunrise installation;
-Meridian settings with consistent CLI services; signed packages and recoverable
-updates. Applications must update and fail independently of the kernel. No Linux
-binary compatibility, POSIX completeness or particular filesystem is implied.
+Zenith should take someone from a fresh install through sign-in, configuration, daily work, a signed update and recovery of a usable system. It has a floating desktop, a selectable automatic-tiling WM, a local headless session and serial recovery. Desktop applications target Zenith’s native ABI and should survive each other’s failures and update independently. The neutral light and dark design supports opaque, translucent and blurred surfaces. [Design language](DESIGN-LANGUAGE.md)
 
-The accepted neutral light/dark design is the target, including optional transparent,
-translucent and blurred surfaces. **Opaque mode is the same design with effects off.**
-[Visual specification and parity gaps](DESIGN-LANGUAGE.md).
-
-**A finished core product** requires the core rows below to pass their exits,
-usable install → login → configure → edit/save → manage files → update → recover
-workflows, and a published supported-device matrix. A growing menu/app count is not
-completion. Later hardware capabilities and developer ports have explicit separate
-exits; optional experiments do not block the core product.
+The core exit includes exercising those workflows on published media and documenting the hardware on which they work. Broader hardware support, developer ports and optional apps have their own exits below.
 
 ## State and evidence
 
-States: **accepted** = operator exercised that scope; **local** = implemented and
-locally tested; **partial** = some behavior exists; **planned** = implementation
-missing; **verification** = evidence needed, not an assumed reproducible defect.
-A row's implementation state does not imply publication or installed acceptance.
-
-| Baseline | Established | Boundary |
+| Scope | What we can verify | What still needs evidence |
 |---|---|---|
-| Boot/storage/accounts/packages | Installed ext2, permissions, authentication, signed named updates, retained kernels and distributor/dashboard | New roots up to 2 TiB, existing 512 MiB roots until migrated; no general journal/repair, complete system snapshot or hardware certification |
-| CLI extraction | Base/filesystem/text/network tools, owned streams/jobs/raw leases; operator exercises through 0.0.23 | Shell evaluation and privileged administration remain trusted; no full PTY/POSIX runtime |
-| Graphical ABI / 0.0.24 | Qualified private surfaces/events and independent probe; operator installed/tested | Trusted compositor/greeter; fixed opaque client surfaces |
-| Appearance / 0.0.25 | Tags at qualified `12ded91` pushed: Settings 0.1.0, theme 0.1.1, manuals 0.1.6 | Last operator report: building. Distributor completion and installed acceptance unconfirmed (**Q1**) |
-| Meridian/materials / 0.0.26 | Full clean Release qualification at `1487c93`: 765 host/239 controller, all ten native gates and light materials passed. Release set: kernel 0.0.26, Settings 0.2.0, desktop-tools 0.1.0. [Evidence](archive/2026-10-28/desktop-material-integration.md#release-qualification) | Operator installed 0.0.26; reported rapid wheel/move freezes remain under investigation (**Q2/U1**). Most Meridian pages remain WIP until their backends exist |
-| Shared settings / 0.0.27 | Clean Release qualified at `0d86635`: 782 host/240 controller, all ten native gates. Release set: kernel 0.0.27, Settings 0.3.0, desktop-tools 0.2.0. [Evidence](archive/2026-10-28/shared-settings-stage.md#clean-release-qualification) | Distributor exposed input/handoff failures. Public-prompt controller fixes now pass hidden cancellation and shared settings there. A later mouse failure is reproduced as a stranded virtio queue on QEMU 10.0.13. [Kernel recovery candidate](archive/2026-10-28/virtio-mouse-drain.md) is clean-source qualified at `5306703`: 322 controller/782 host/eight adapter tests and all ten native gates; the same ELF passes 20 restricted-CPU QEMU 10 cycles. Successor publication and installed acceptance pending (**Q2/H1**). 0.0.27 remains immutable; driver-dependent pages remain WIP |
+| Current release | `kernel/v0.0.79`, `zenith-settings/v0.16.0` and `zenith-man-pages/v0.1.9` point to `1ad9b84` on origin. The local unsigned acceptance run passed the host and controller tests, runtime adapters, kernel build and all 28 VM gates, including the new WM gate. [Tagged source](https://github.com/Azazel55605/Zenith/tree/kernel/v0.0.79) · [WM gate](../tools/wm-smoke.py) | On the audit date the signature-verified stable core indexes (v3 and v4, generation **207**) offered kernel **0.0.78**, Settings **0.15.2** and manuals **0.1.8**. Q2 stays open for publication of the tagged versions and their installed checks. |
+| Installed desktop | The operator confirmed default multicore on VMware, the Polaris stages, earlier Aurora/Horizon releases, HDA playback, and the appearance and taskbar-center changes. The installed workspace pager switches desktops. [SMP](components/MULTICORE.md) · [Appearance](components/APPEARANCE.md) · [Audio](components/AUDIO.md) | Panel position and WM gaps across sign-out/reboot, microphone capture, sustained load and individual hardware profiles have separate exits. VMware Workstation fullscreen captures Ctrl+Alt+Left/Right on the operator's host. Both keyboard paths passed in QEMU. |
+| Install, update and recover | Signed packages, retained kernels, seedable installer media, offline ext2 growth and a recovery boot all exist. A locally seeded ISO was installed in VMware. [Packages](components/PACKAGES.md) · [Storage](components/STORAGE-SECURITY.md) | Fresh install from the distributor's published ISO, distributor restore, and recovery of a matched kernel **and** root are distinct tasks (PK3, PK6, R2–R3). |
 
-Evidence: [CLI](archive/2026-10-26/cli-process-foundation.md),
-[text](archive/2026-10-26/native-text-traversal.md),
-[network](archive/2026-10-26/native-network-clients.md),
-[graphics](archive/2026-10-26/protected-graphical-clients.md),
-[Appearance](archive/2026-10-27/appearance-settings.md),
-[Meridian foundation](archive/2026-10-27/meridian-shell.md).
-Old 0.0.13/0.0.19 build failures are historical investigations, not current retry tasks.
+**Tagged** identifies source available on origin. **Qualified** identifies behavior exercised by the listed checks. **Installed** is reserved for the operator's observation of that scope. **Partial** and **planned** refer to implementation. Dated evidence and the original release chronology are in the [archive](archive/README.md#previous-roadmap-snapshot).
+
+**Local qualification since 0.0.79.** The kernel build and 1,188 host tests passed. The display picker has 5K and 8K fixtures. Local QEMU runs exercised display Keep/Revert, recent pages after reboot with a second account, a scheduled Orbit notice from a signed repository, HDA input/output preferences after reboot, and idle locking on both sides of the password grace period. Installed high-resolution display and audio-device checks remain open. [Display](../tools/native-display-smoke.py) · [Meridian](../tools/native-settings-smoke.py) · [Orbit](../tools/orbit-smoke.py) · [Audio](../tools/native-audio-smoke.py) · [Sunset](../tools/sunset-smoke.py)
 
 ## Current focus and execution order
 
-**2026-11-18 — Audio devices and application mixer (H2, release-qualified).** Intel HDA playback/capture,
-fixed PCM queues, recording permission, device selection and Meridian's three Sound pages are implemented.
-Fresh Release acceptance at `5f3ba1f` passed all 1095 host tests, 588 controller tests, runtime adapters and
-all 23 native VM gates, including actual HDA DMA/WAV/mute checks. The Horizon blocker was a missing
-stationary-middle input edge in desktop dispatch; corrected with six regressions and all 169 Horizon checks
-passing (A1/Q2). Release set: `kernel/v0.0.68`, `zenith-settings/v0.12.0`, `zenith-man-pages/v0.1.8`.
-Installed VMware playback confirmed with Auto Detect and explicit virtual HD Audio. VMware microphone capture remains pending. Persistence, additional hardware/formats,
-independent routing, system sounds and extra panels follow separately. [Audio H2](components/AUDIO.md).
+Estimates below are **active engineering effort for one person**, including a focused regression or VM check. Each range applies to the named slice. Queue time, distributor builds, hardware availability and repairs discovered during acceptance can add calendar time.
 
-**2026-11-19 — Appearance: reorganized, and concepts for what comes next (U14).** Requested: more wallpapers,
-Application Style with the materials from Colors, window decorations, icon sets, cursor packs, a system sound pack,
-session splash, login and boot styles, more animation; "some settings also dont belong in this category … move them";
-"for newly added stuff create concepts first". Done: materials moved to Application Style, System Sounds to Sound,
-locking/auto-login and boot diagnostics out of the style pages, a Startup & Login group. Seven concepts await
-approval (AP1–AP7). [Appearance](components/APPEARANCE.md).
-
-**2026-11-19 — Orbit, the package manager (U12, released in kernel 0.0.70).** Requested: "build the last app next, this way the concepts
-are done … look at the concept and implement the app". Orbit O1 over call 668 (`zenith-native-package-center-abi`):
-a visible plan with what else is needed, sizes, signatures, restart and the exact pkg commands, applied as one
-transaction; packages that cannot be installed listed with the reason; package pages with capabilities read from
-what a package declares and its own signed about file; one history for Orbit, the shell and the installer; sources and
-trust. Every package now carries `packaging/about/NAME.about`. Beacon 0.1.1 puts each sidebar row's icon and count on
-its own row (`zui_add` answers 1, not an index). [Orbit](components/ORBIT.md).
-
-**2026-11-18 — Beacon, network sections and taskbar centers (U11/A1, released in kernel 0.0.69).** Requested: "finish the base apps:
-Horizon's copy permissions, then Beacon; extend the network sections in Meridian and Observatory; then network and
-sound centers on the taskbar". Horizon copies keep permissions (kernel). Beacon B1 over call 667 (status, traffic
-history, events, diagnostics, ping, safe apply, connect/disconnect); Meridian's Connections page shows and edits the
-connection; Observatory lists the connection and the programs using the network; the taskbar has network and sound
-centers. [Beacon](components/BEACON.md).
-
-**2026-11-18 — Aurora finished to AU4 (U2, released).** Requested: "finish Aurora". Code folding (indentation and
-Markdown headings), several cursors (Alt+click, Ctrl+Alt+Up/Down, Ctrl+D), colour schemes (Accent, Classic, Warm,
-High contrast) and middle click to close a tab; Aurora's own code is built for size to keep package headroom.
-Compiler and language-server features still wait for process/toolchain support. [Aurora AU4](components/AURORA.md).
-
-**2026-11-18 — Horizon finished to HZ5 (A1, released in kernel 0.0.67).** Requested: "finish Horizon" (removable drives stay deferred).
-Middle click (new input bit 8: a folder opens in a new tab, a tab closes), the wide layout checked by the gate,
-permissions kept through Compress and Extract, zip64 archives read, and thumbnails of interlaced PNG and
-progressive JPEG. [Horizon HZ5](components/HORIZON.md#stages).
-
-**2026-11-18 — Windows open sized to the screen (D2, local).** Requested: "change the window default size
-based on screen resolution; windows can spawn at a larger scale when screenspace is available". Resizable
-native windows open scaled up with their proportions (up to 3/4 of the work area's width, 4/5 of its height,
-twice the request), shown only once a frame of that size arrives; `settings set windows fit|compact`
-(default fit). Gates install with `compact` so their pointer coordinates stay valid; aurora-smoke checks
-`fit`. [Opening size](GRAPHICAL-CLIENTS.md#owned-viewport-extension).
-
-**2026-11-17 — Aurora AU2-AU3 (U2, local).** Project tree, outline, minimap, regular expressions, bracket
-matching, overwrite mode, recovery copies after a crash and polled changes on disk. [Aurora](components/AURORA.md).
-
-**2026-11-17 — Horizon completed to HZ4 (A1, local).** Requested: "complete Horizon, then Aurora". HZ2: opening files
-through a new Desktop Portal interface (`org.zenith.portal.OpenWith`, extended payloads), associations, split view,
-zoom, drag and drop and Properties. HZ3: the Trash and a bounded search below the folder. HZ4: archives and
-thumbnails as kernel work (own DEFLATE, zip, tar, PNG, BMP and JPEG code, call 660), tabs restored at sign-in and
-Unlock (the org.zenith.files.manage action). Removable drives in Devices wait for S6's sign-off decisions.
-[Horizon stages](components/HORIZON.md#stages).
-
-**2026-11-17 — Aurora, the text editor (U2, local).** Requested: build the approved Aurora concept and
-make sure the Horizon 0.1.2 material failure (an RGB mix on a premultiplied frame, refused by the
-desktop, ending the app) cannot recur. [Aurora AU1](components/AURORA.md) is a native editor with
-documents, find/replace, safe saving and the new window clipboard calls 639/659 (kernel 0.0.64).
-Its frames are checked against the desktop's own rule in host tests, repaired and logged at run time,
-and its gate runs with whole-app transparency on. The editor logic sits behind a platform interface
-so the host test drives the real editor. Released as `kernel/v0.0.64` and `zenith-aurora/v0.1.0`.
-
-**2026-11-16 — Keys lost during a collection (Q3/W1/H1, local).** `kernel/v0.0.60` and
-`v0.0.61` failed the distributor Settings gate. One run committed `gb` in the Keyboard
-combo, but the Tab to Apply never arrived, so the final Enter reopened the combo. Another
-typed `sh /root` without `/a` and Enter. Both serial logs show a memory-pressure
-collection during the keys. `GarbageCollector.Collect` runs with interrupts masked, so
-nothing returns used event buffers to the virtio keyboard. The driver posted 32 of
-QEMU's 64 queue entries, at about 4 events per key, and QEMU drops events once the
-queue is full. The patcher now posts all 64 (`tools/PatcherFixup/Program.cs`). This is a
-likely cause of the open W1 keyboard-loss bug and of the 0.0.48 "gb left unapplied"
-failure. The Settings and login gates pass locally. Local runs never hit a collection
-during typing, so the fix awaits distributor runs. A longer collection can still
-overflow 64 entries; shortening or splitting masked collections is the remaining fix.
-
-**2026-11-09 — Pointer, scheduler and fractional scale (Q3/C4/D2, local).** Operator
-report on 0.0.50: moving windows and the pointer felt laggy. The PS/2 mouse reported
-80 times a second; VMware fed relative steps; the desktop (scheduler idle thread)
-starved behind parked and busy threads, so with Observatory open it presented 0-7
-frames a second. Now: 200 Hz PS/2, VMware absolute pointer and device-drawn pointer,
-parked threads switch away at once, program slice waits block, the kernel loop gets
-the CPU after 6 ms and hands it back when it would halt; quieted per-wake traces.
-Same scene: 32-41 desktop frames a second at the same CPU0 (25%). 125/150/175% are
-offered as a filtered stopgap; sharp HiDPI is the next D2 project.
-[Evidence](archive/2026-11-09/pointer-scheduler-scale.md).
-
-**2026-11-09 — Rendering phase 4 (Q3/C4, local).** Operator report on 0.0.49:
-CPU0 about 41% idle, effects off slower. A client's frame redrew its whole window
-and every translucent window over it; composition now follows the rectangle that
-really changed (material reach, whole-window fallback), with an exact faster blend,
-faster frame validation, no post-frame spin, damage-only animation frames and
-physical-resolution boot/power screens. CPU0 with Observatory under Polaris at
-1920x1200 falls from 61-74% to 23-30% in every material mode; `fps verify` exact.
-Open: the desktop (scheduler idle thread) starves while programs run on APs (needs
-a scheduler change), a timing-sensitive AP race, sharp HiDPI (shell, ABI, toolkit),
-VMware 3D. [Evidence](archive/2026-11-09/rendering-phase4.md).
-
-**2026-11-09 — Rendering phase 3 (Q3/C4, local).** Review of 0.0.48: its AP
-foreground tiles never ran for shell windows or Polaris and did not address the
-measured costs. Every VMware present copied the driver's whole VRAM back buffer
-and waited for a full-screen update (about 25 ms, the CPU0 load). Presents now
-write only damaged rows to the visible framebuffer with one SVGA update; backdrop
-sampling is about 4x faster and incremental. Animation at 1024x768 with blur rises
-from 31 to 166 fps (worst frame 33 to 2-4 ms); pixels match full composes.
-[Evidence](archive/2026-11-09/rendering-phase3.md). Installed VMware acceptance pending.
-
-**2026-11-08 — Q3/U1: distributor 0.0.48 public process-command delivery.**
-The fault-only guard passes the focused distributor gate, but the next full run
-stops earlier waiting for `TTY_RAW_READY` after cancellation and a collection.
-There is no retained launch screen or raw-reader status proving why. The current
-candidate acknowledges all six exact public GUI commands for both test labels,
-retaining each before Enter. Payloads, literal controls, credentials, local-console
-transport and zero-delay EOF timing remain unchanged. It parks the pointer once
-without clicking to avoid obscuring carets, and adds read-only final-screen/CPU
-capture for public raw-input timeouts. All 570 controller tests and the focused
-GUI/local gate pass locally. The full native-process gate also passes locally
-in 794.425s, including all 64 stream checks; distributor full retry remains pending. [Evidence](archive/2026-11-08/process-raw-fault-input.md).
-
-
-**2026-11-08 — Q3/U1: distributor 0.0.48 shared Settings input.**
-The Keyboard shared-default check selects `gb` but leaves it unapplied. The
-before-navigation image contains Terminal only; the opening transition is later
-interrupted by input. The controller repair fences the first shared-page
-navigation key on completed opening and a stable rendered frame. Every key,
-save marker and CLI-parity assertion remains unchanged. The full local Settings
-gate passes, including all four shared-page saves, reboot and ext2 audit; the
-operator confirms the distributor prepared replay passes (2026-11-08). This
-does not establish a settings-service failure.
-[Investigation](archive/2026-11-08/settings-opening-handoff.md).
-The subsequent prepared replay stopped earlier at contention: its saved `/root/io`
-used the previous HTTP server's temporary port. A replay-only controller repair
-refreshes that public fixture script through the guest before the original launch;
-the real overlap and filesystem assertions remain mandatory. The full prepared
-replay now passes locally in 115.708s, including the original contention and
-shared-page checks. The operator confirms the repaired prepared replay passes
-on the distributor too. Full release retry and installed acceptance remain separate.
-
-
-
-
-**2026-11-08 — Q3/W1: distributor 0.0.48 login Terminal handoff.**
-The server times out at `LOGIN_META_REMOVE`; its retained image is an authenticated
-Desktop without a Terminal. The fixture sent its one opening shortcut before the
-initial input drain/welcome fade finished. Controller policy now observes the
-fade before that shortcut and a focused public prompt before command typing;
-credentials, kernel, tagged fixture and result assertions remain unchanged.
-Local unchanged-0.0.48 login acceptance passes all 81 checks; distributor retry
-remains required. [Evidence and repair](archive/2026-11-08/login-terminal-handoff.md).
-
-
-**2026-11-07 — 0.0.48 release tags; distributor and installed acceptance pending.**
-Published `kernel/v0.0.48`, `zenith-settings/v0.10.2`,
-`zenith-observatory/v0.3.1`, `zenith-polaris/v0.3.3` and
-`zenith-desktop-tools/v0.4.3` at qualified source `2e93304`. A fresh unsigned
-acceptance run passes all 15 mandatory VM gates together, 887 host tests,
-536 controller tests and eight runtime-adapter checks. Matching native clients
-require framebuffer ABI 1.0 from the new kernel. Build/sign/delivery and installed
-VMware clock, Limine/splash, physical 4K and long-duration memory checks remain
-external acceptance. [Qualification and scope](archive/2026-11-07/display-memory-composition.md#0048-release-qualification).
-
-**2026-11-07 — 0.0.47 installed regressions (Q3/M2/D2/S3, locally qualified).**
-Operator reports fresh idle growth (~386 MiB/5 minutes), native toolkit apps exiting
-on 1080p maximize, incorrect VMware clock and low-resolution/misaligned Limine.
-Local pressure replay reclaims ~303 MiB and 4.95 million objects. Allocation debt
-now triggers collection before physical exhaustion, with corrected weak-handle
-ownership. The follow-up corrects material-area admission, replaces static client
-framebuffer sizing with invocation-owned growth and resource refusal, samples
-guarded VMware host UTC independently of personal formatting, and carries boot
-display preferences through menu publication. [Implementation and evidence](archive/2026-11-07/display-memory-composition.md).
-The frozen follow-up `d03b4b6` passes 887 host, 536 controller and all 15
-individual mandatory VM gates; a failed SMP setup download passed a fresh isolated
-recheck. Phase 3 rendering has exact-pixel, actual-AP and one-CPU fallback
-evidence. Network packet/download throughput remains separate. No successor release or installed acceptance claimed.
-
-**2026-11-07 — Rendering overhaul (phases 1–2 published).** Kernel 0.0.47
-at `b280c08` contains paced frames, damage-only presents/composition, integer
-scaling, retained blur and content caches. The operator confirms installation
-and better performance; the reported memory, VMware clock/boot and native maximize
-failures remain distinct acceptance gaps. The current follow-up above adds private
-AP foreground tiles (phase 3) alongside the existing parallel blur path. Local
-whole-scene comparisons are pixel-identical. Final timings vary under
-concurrent qualification load (scalar 22.1–31.5 ms, parallel 21.5–25.2 ms); no
-consistent speedup or installed VMware performance acceptance is claimed. Use
-`fps parallel-bench` and `tools/frame-bench.py` for reproducible measurements.
-Open: TCP receive costs about 0.85 ms per frame (downloads ~2 MiB/s in QEMU),
-Cosmos uses only the largest memory region. Network throughput remains separate.
-
-**2026-11-04 — M2/D2 primary display implementation; local qualification.**
-Audit of the pinned 3.0.89 assemblies confirms VMware SVGA changes modes; Virtio
-and GOP currently ignore requested dimensions. Bounded actual primary
-modes, integer scaling, shared root-only native/CLI requests, in-place desktop
-resize and host-owned 15-second Keep/Revert are implemented. Previous frame
-allocations survive until confirmation; client exit/timeout/session teardown
-reverts, and only kept choices persist. See the [display contract](DISPLAY-SETTINGS.md)
-and [local qualification](archive/2026-11-04/primary-display-settings.md). Orientation, refresh,
-brightness, fractional scale and multiple outputs remain WIP. C4 distributor and
-operator follow-up below is still outstanding.
-
-
-**2026-11-03 — selected work: C4 after C1–C3.** Polaris U3 is operator
-confirmed; the next engineering focus is useful multicore execution on the four-vCPU
-VM. C1 native queues, private IST stacks, wake/IPI, cancellation and quiescence are
-locally complete ([evidence](archive/2026-11-03/native-worker-queues.md)). C2's
-execution-state foundation is locally complete ([evidence](archive/2026-11-03/per-cpu-execution-state.md));
-C3 now has locally qualified pinned managed jobs, GC/root barriers and complete-frame
-UI handoff ([evidence](archive/2026-11-03/pinned-managed-workers.md)). C4 is locally
-complete: production material computation, IRQ ownership, protected application
-queues/migration and BSP-owned service concurrency are qualified
-([evidence](archive/2026-11-03/protected-process-migration.md)). Distributor and
-operator VM acceptance remain Q2/H1; `smp=native` remains opt-in.
-Do not enable managed AP execution by merely increasing the scheduler CPU count.
-Drawing/process latency needs separate measured workloads: CPU count alone is not
-a performance result. [Implementation sequence and acceptance](components/MULTICORE.md).
-
-**2026-11-04 — C4 release tags published:** `kernel/v0.0.44`,
-`sunbeam-tools/v0.7.0` and `zenith-gui-probe/v0.2.0` point to qualified commit
-`8502029`. [Final CI](https://github.com/Azazel55605/Zenith/actions/runs/41824046258)
-passed all 14 native and 14 system-integration gates plus the complete-coverage
-aggregate in **33m 27s**. CI now shares one source/hash-bound build across isolated
-runners, caches downloads and preserves independent failed-job retries; no guest
-gate is omitted. [Recorded qualification and hashes](archive/2026-11-04/c4-release-and-ci.md).
-The distributor's build/sign/publish and actual four-vCPU installed verification
-remain Q2/H1; `smp=native` remains opt-in.
-**C4 installed VMware blocker (2026-11-04):** distributor 0.0.44 built
-successfully. The ordinary CPU test passes with Polaris closed, but managed-test
-still halts in the recovery terminal. Serial and local replay establish two
-faults: stale user CS/SS after kernel GDT growth, and omitted suspended BSP
-boot/UI stack roots during worker collection. Selector rebinding, a bounded
-boot-stack scanner and retry of refused (never accepted) diagnostic enqueues
-are implemented and locally verified: 498 controller tests, 106 native CPU checks,
-72 graphical checks and the full 1/2/4-CPU managed suite. Full clean-source release
-qualification and a new kernel are required before installed retesting.
-[Diagnosis and acceptance](archive/2026-11-04/installed-cpu-return-and-gc.md).
-Q2/H1 multicore acceptance remains blocked until the repaired candidate is
-qualified and retested on VMware; retain opt-in. Kernel updates and rollbacks
-now keep `smp=native` on the menu when the running kernel was booted with it
-(local, host-tested); before, every update silently dropped the opt-in.
-The repairs and the carried opt-in are qualified at `fde3f9a` and tagged
-`kernel/v0.0.45`; the VMware retest with `smp=native` is pending.
-**0.0.45 graphics-gate follow-up (U7/Q2):** server evidence shows Observatory
-retired three seconds after its launch status, beyond the tagged helper's 1.5s
-sleep. The following Polaris command could be lost during teardown. Current
-controller policy now observes host admission, one Escape, surface retirement
-and a focused rendered public prompt, including both Observatory views. No tagged
-kernel/client or result assertion changes. The exact server fixture passes all
-40 unchanged tagged desktop checks and its ext2 audit locally; all 517 controller
-tests pass. Distributor-host confirmation remains pending; [evidence and replay](archive/2026-11-04/observatory-handoff.md).
-
-C4 distributor follow-up (2026-11-04): repeated `CPU_TEST` observations can match
-old results because universal-newline log snapshots supplied shorter offsets to
-the raw UART incremental reader. Current controller policy and direct helpers
-now preserve CRLF; regression checks retain exact CPU identity/overlap assertions.
-The tagged kernel is unchanged. Local TCG acceptance passes all 106 CPU checks; focused distributor verification is pending. [Diagnosis and evidence](archive/2026-11-04/cpu-gate-uart-offsets.md).
-C4 settings gate follow-up (2026-11-04): retained pixels prove the wheel reached
-40px, while its Home baseline was captured 3px early. The controller now observes
-the exact Home controls before measuring; the original 40px and animation checks
-remain unchanged. [Evidence and validation](archive/2026-11-04/settings-wheel-baseline.md).
-Distributor setup now explicitly installs `xorriso`; existing VMs need that
-package before retrying the new ISO-editing gates.
-
-**Operator follow-up for installed 0.0.26:** rapid wheel navigation and movement
-can freeze the VM (no panic reported). Root cause found 2026-10-29: device IRQs dropped during native user windows; see H1. U1/D3
-own reproduction, bounded redraw/input handling and continued host responsiveness.
-S1/D1 own persistent hierarchical navigation and inset sidebar/detail containers;
-U1/D2 own the explicit native resize/maximize contract. Files remains excluded.
-These corrections and the first typed Settings slice are being validated together. The untagged local follow-up adds
-persistent inset navigation, owned resize/maximize and a system-wide whole-app
-background preference. The visual follow-up removes stacked rectangular underlays,
-unifies the title/sidebar treatment and adds bounded reduced-grid whole-window blur
-([visual evidence](archive/2026-10-28/meridian-material-simplification.md)).
-Targeted native tests pass; the operator freeze is not yet
-proven resolved. [Evidence and limits](archive/2026-10-28/meridian-workspace-input.md).
-
-1. **G1 / documentation — audited:** tracking is consolidated here; stale blockers
-   are reconciled and accepted requirements preserved. Keep this ownership model.
-2. **D1 / shared design — local follow-up:** smooth native shape coverage and a
-   completed-window corner mask fix the reported edge/rectangle bleed. Terminal,
-   Editor and Sunrise now use the design tokens/shared host controls; Files stays
-   excluded. [Evidence](archive/2026-10-28/smooth-edges-and-system-apps.md).
-3. **D3 / advanced rendering — software integration locally qualified:** saved
-   transparency/blur controls, host chrome/taskbar, Meridian material regions,
-   contrast and bounded resource/work fallback now share one policy. See
-   [desktop integration](archive/2026-10-28/desktop-material-integration.md).
-   Q2 owns installed acceptance; sustained device performance and D2 resize/scale
-   qualification remain. Protected authentication and document planes stay solid.
-4. **S1 / shared Meridian settings — Release qualified:** Personal appearance profiles
-   inherit system defaults until overridden; Colors exposes both scopes and an
-   explicit reset. Keyboard/time-zone/session defaults share revisioned root-only
-   services with CLI; searchable selectors use real catalogues. Network and account
-   pages show authorized read-only service data. Q2 owns installed acceptance.
-   [Scope and evidence](archive/2026-10-28/shared-settings-stage.md). Unsupported
-   edits/drivers retain WIP banners; richer controls and display modes belong to
-   U1/D2 and the remaining S2–S5 stages.
-5. **U2–U4 / finish native app migration:** Editor, Terminal and Sunrise over typed
-   service contracts, using the shared presentation already applied to their trusted
-   windows. Welcome/System have local native frontends. **Files is excluded** and
-   gets its own later overhaul, A1.
-6. **Q2 / release acceptance:** qualify coherent batches, publish compatible
-   kernels first, then clients; record actual installed observations. Q1 confirmation
-   can happen in parallel; do not mutate existing tags.
-7. **W1–W3 / desktop and workflows:** full DE/lifecycle, notifications/workspaces,
-   automatic tiling, Files overhaul and shared app behavior. Activate Meridian pages
-   alongside their services rather than waiting for every backend to exist.
-8. **PK1–PK4, R1–R3, H1–H3 / product hardening:** package/config/trust, storage and
-   whole-system recovery, supported hardware, secure sessions and real media/devices.
-   Backend dependencies below determine the detailed order, not calendar promises.
-9. **C1–C4 and X1–X4 / larger tracks:** managed multicore and developer ports follow
-   their safety/resource prerequisites. They are not prerequisites for the next UI app.
+| Suggested order | First observable result and dependency | Rough effort |
+|---|---|---|
+| Verify the release (Q2, PK6, H2) | Once the signed versions appear, install from the published seeded ISO on a disposable VM. Check WM/panel persistence and floating windows. A real microphone can be tested independently on an installed HDA system. | Hours to 1–2 days of checks |
+| Qualify the desktop updates on an installed system (D2, S1, U12, H2, W3) | Check an advertised high-resolution mode, personal appearance and recent pages, daily notifications, HDA endpoint recall, and locking with the chosen grace. | Hours once hardware and packages are available |
+| Qualify the public downloader (N3) | Test the signed CLI on the installed VM against public sites and the private mirror. Extend large-file staging with disk-space checks. | Days for installed checks. Larger transfers need a separate storage and ABI estimate |
+| Connect external storage (N4, S6) | Start SMB with authenticated list/get/put, then add Horizon and mount semantics. For USB, qualify hot-plug and surprise removal before desktop automount. | Several weeks each for basic SMB or safe removable media. Mountable SMB is a further milestone |
+| Harden updates and recovery (PK1–PK4, R1–R3, H1) | Run a restore drill with a real backup and an isolated target. Matched kernel/root rollback first needs configuration policy, a storage strategy, retention and power-loss tests. | 1–2 days for the drill. Several weeks to months for matched recovery |
+| Expand the platform (D2, U4, U6, C5, H3, X1–X4) | Native Sunrise needs typed installer operations. Sharp fractional scaling and multi-monitor need driver, compositor and app support. User threads, restartable services, hardware drivers and toolchains each need a target and a gate. | Multi-week projects individually. Broad hardware or toolchain support spans months |
 
 ## Core delivery work
 
-Each row is a deliverable with a concrete exit. Update this table when its state
-changes; put smaller implementation steps in the linked component, using the same ID.
+Each row names the working boundary and what closes the remaining scope. Related rows share one owner for the work, such as N3 for the downloader and H2 for audio devices.
 
-| ID | State | Work, dependency and exit |
+| ID | State | Delivered scope and remaining exit |
 |---|---|---|
-| G1 | local, complete | One tracker; obsolete guides consolidated and open items mapped. [Audit and checks](archive/2026-10-27/documentation-and-material-contract.md) complete; future agents follow [maintenance](MAINTAINING.md). |
-| D1 | local; installed verification pending | [Shared visual parity](DESIGN-LANGUAGE.md): neutral segments, antialiased swatches/switches, label/help rows, restrained navigation and completed-window rounded masks implemented. Remaining system windows share the design; [quality follow-up](archive/2026-10-28/smooth-edges-and-system-apps.md). Both modes/six accents and draft/permission behavior locally qualified; [evidence](archive/2026-10-28/shared-widget-parity.md). Q2 owns installed confirmation; U1/D2 own richer widgets/hover transport, Unicode and scale; D3 owns effects. |
-| D2 | partial | Native clients now grow private framebuffers rather than reserve a fixed 1920x1200 maximum; low-level byte/dimension budgets remain. Bounded resize/maximize and [primary display transactions](DISPLAY-SETTINGS.md) implemented: driver-bounded VMware modes, integer 100/200% complete-UI scaling, filtered 125/150/175% on VMware (stopgap), root-only shared GUI/CLI, host-owned Keep/Revert, timeout/client-exit rollback, persistence and safe boot. Local QEMU qualification is separate from Q2/H1 installed driver/input acceptance. Orientation/refresh, sharp fractional scale (shell at device resolution, client ABI scale, toolkit atlases) and multiple outputs remain open. |
-| D3 | software implementation local; device acceptance pending | System-wide whole-app materials for native/trusted app bodies, a contrast-clamped translucency level, compatible preferences and adaptive tint/blur caches locally tested. Explicit format-2 foreground/regions, cached tint/box diffusion, atomic saved/effective/available preferences, Meridian controls/sidebar and host chrome/taskbar integrated. Shared contrast, 8 MiB cache and per-frame work budgets fall back without changing preferences/layout. [Contract](GRAPHICAL-CLIENTS.md#opt-in-material-frames-d3-first-slice), [local evidence](archive/2026-10-28/desktop-material-integration.md). Q2: installed on/off/light/dark/overlap acceptance and sustained performance; D2: resize/scale qualification. Hardware/GPU acceleration is not implemented. Protected credentials remain solid. |
-| U1 | partial | A single wheel notch scrolled 0 px in toolkit clients (`-code/2` truncation); fixed at 40 px per notch with host and native-gate checks, released as `zenith-settings/v0.6.0` and `zenith-desktop-tools/v0.4.0`. A previewed colour mode now paints opaque surfaces instead of host materials (local). The BSP-only raw fallback retains its older CPU-loop budget; C4 adds local AP timer quanta for opt-in protected apps ([audit](archive/2026-10-30/system-audit.md)). Owned viewport generation/acknowledgement, pane-aware saturated wheel handling and drag keyboard routing locally tested; operator freeze root cause found under H1. Accepted [behavior design](MERIDIAN-BEHAVIOR.md): scroll area, list view, combo box, form layout, footer, dialog, Lucide icons and opt-in hover ABI. Stage 1 (toolkit primitives, [plan](components/USERLAND-UI-STAGE1.md)) is local: sanitizer host tests, the UI gallery smoke (15 checks) and Settings gate (96 checks) pass on kernel 0.0.29; UI programs fit the package file limit with headroom. Icons are a system-wide `zenith-icons` package and remaining trusted apps share the workspace layout (Files and Editor excluded). Stage 3 (opt-in pointer motion, hover and Page Up/Down) is local; [evidence](archive/2026-10-30/meridian-stage2.md). [Shared native UI/runtime](components/USERLAND.md): lists, fields, selectors, sliders, dialogs, multiline text, clipboard, resizing/hover, runtime fonts/Unicode/IME; long-duration quota and teardown acceptance beyond old invocation limits. Existing profile renewal alone is not full long-lived-app qualification. |
-| U2 | AU1 released (kernel 0.0.64, zenith-aurora 0.1.0); AU2-AU3 released (kernel 0.0.65, zenith-aurora 0.2.0), operator confirmed installed 2026-11-18; AU4 released (zenith-aurora 0.3.0; 0.4.0 follows the widget styles) | [Aurora](components/AURORA.md), requested 2026-11-17 from the [concept](design/editor-concept.svg) (Kate): native `zenith-aurora` replaces the built-in Editor when installed. AU1: 8 documents (tabs and sidebar), UTF-8 text up to 1 MiB with binary/invalid UTF-8 refused, CRLF and BOM kept, selection, undo/redo, find/replace, go to line, syntax colours from the accent palette, open/save-as dialogs, staged save that never truncates (out of space/permission keep the old file), changes on disk, unsaved-close prompts, and the window clipboard (calls 639/659, paste only after Ctrl+V; `zenith-native-clipboard-abi` 1.0). Every frame passes the desktop's material rule (host-checked in three modes; repaired and logged at run time). Host tests and `tools/aurora-smoke.py` (gate `t`) local. AU2: project tree, outline, minimap, horizontal scrolling, bracket matching, overwrite mode, regular expressions; AU3: private recovery copies offered after a crash, changes on disk polled. |
-| U3 | complete | **Polaris**: [design and stages](components/SHELL.md#polaris-design), [concept](design/terminal-concept.svg) based on Konsole and kitty. P1 to P5 are released and confirmed installed: P1 to P3 at `53635fc` (`kernel/v0.0.41`, `zenith-polaris/v0.1.0`), P4 at `ff6308a` (`kernel/v0.0.42`, `zenith-polaris/v0.2.0`), P5 and the concept's look at `95d2943` (`kernel/v0.0.43`, `zenith-polaris/v0.3.0`, with adaptive material contrast in the shared compositor). The kernel-owned session provides the shell, byte streams, resize, raw and canonical input, hidden prompts, type-ahead, jobs, EOF and cancel; the built-in Terminal, local console and serial stay as recovery hosts. The first 0.0.43 and 0.3.0 server builds failed at the index step once `core` passed the 64 entries installed kernels read; signed indexes now list each package's newest three versions (`96de90c`), and the retries released. Not built, for later work: profiles, inline images, regular expressions in find, opening a hint directly, glyphs beyond the Hack atlas. |
-| U4 | native migration planned | Shared-design Sunrise frontend is locally implemented; a Region step (keyboard applied live, time zone) and a review of seeded apps, trust and mirror reachability were added 2026-11-10 (PK6); extraction still needs: native wizard over typed root/live-only disk/account/progress service. Preserve pre-erase asset/target checks, explicit destructive consent, secret handling, maintenance exclusion and teardown. Validate disposable install/reboot/recovery before replacing recovery UI. |
-| U5 | partial | Welcome/System: native frontends and signed shell/menu launch locally pass; finish D1 parity, live preferences and independent upgrade/cancel/other-user acceptance with Q2. Keep recovery start windows and fail-closed executable validation. |
-| U6 | planned | Separate service/compositor/session processes: owned/versioned IPC, authority and restart/compatibility contracts → fault isolation → independent restart/upgrade. Existing typed syscalls are a foundation, not completion. Keep drivers/GC/BSP limits explicit. |
-| U7 | O1–O3 released (`kernel/v0.0.45`, `zenith-observatory/v0.1.0` onward; network section and page fades through zenith-observatory 0.6.1) | **Observatory**: [design and stages](components/OBSERVATORY.md), [concept](design/observatory-concept.svg) based on Task Manager and Mission Center. O1 kernel monitor (measured halted time per CPU, calls 642–644, `top`), O2 Performance (CPU, memory and display cards, two-minute graphs, per-CPU graphs) and O3 Processes (filter, sort, details, End process) are implemented locally. Needs a new kernel, `zenith-icons` with four added icons and the new `zenith-observatory` package. **2026-11-13 (local):** O4 Disk and Network cards and the Apps page over call 649 (kernel 0.0.56; ext2/raw disk byte counters, Ethernet ingress/egress counters, windows with their owning PID). Per-program CPU/memory and O5 History and Services follow. |
-| U8 | released (Mounts in kernel 0.0.56/zenith-equinox 0.3.0, Unlock in 0.0.57/0.4.0); device confirmation pending | [Equinox](components/EQUINOX.md) partition manager requested 2026-11-10: `disk` command and zenith-native-disk-abi 1.0 (647/648) over one DiskService; plan/apply app with Now/After bars, create/delete/grow/new table, history; growing uses the 4 KiB ext2 profile's reserved descriptor blocks. `equinox-smoke.py` and `large-ext2-smoke.py` in the release plan. Shrink/move, formatting existing partitions and drag handles remain. Operator, 2026-11-10: "not even close" to the [concept](design/equinox-concept.svg); Equinox 0.2.0 redesign local: concept layout with docked plan panel, bars with use/hatching/dashed new partitions, editor previews, status cards; snapshot extras (use, fs state, GPT copies; kernel 0.0.54); UI atlas gains · → — …. Device confirmation pending. **2026-11-13 (local):** Mounts page: mount at `/mnt/<name>`, unmount, mount at startup through `/etc/fstab` (only the partition's own line is changed, hand edits kept byte for byte, unknown lines skipped and reported, re-read before every write); root, boot and system mounts are never unmounted; disk ABI actions 5–7 and extras version 2 under the same capability. |
-| U9 | released in kernel 0.0.55, fixes in 0.0.56; installed verification pending | [Prism](components/PRISM.md) launcher, requested 2026-11-12: start menu or search palette (Meta, Alt+Space) over installed apps, windows, Meridian pages, actions, calculator and commands; the app list shows only installed apps. Meridian › Search picks what the taskbar button opens. 2026-11-13: closing it with a click elsewhere left its image on screen; overlays now force a full compose of the next frame. File search and pinned apps remain. |
-| U10 | SS1 released (kernel 0.0.60–0.0.61 and every kernel since; the Sunset gate requires every icon from the pack, 38 checks); Meta+Shift+L and Prism typing fixed in kernel 0.0.74 | **Sunset** (name chosen), [design and stages](components/SUNSET.md), [concept](design/sunset-concept.svg), requested 2026-11-15: the Lock / Log out / Restart / Shut down popup drawn by the desktop (Meta+Shift+L, Ctrl+Alt+Delete, launcher, Prism actions), naming unsaved windows, running commands, updates and windowless programs with a Show button for each window, and the lock screen (own password, throttled attempts, nothing behind it drawn or reachable). Restart and Shut down are open to the signed-in person once nothing is in the way. Next: SS2 idle lock, SS3 per-program reasons. |
-| U11 | B1 released (kernel 0.0.69, zenith-beacon 0.1.0–0.2.1); taskbar network and sound centers operator-confirmed 2026-11-21 | **Beacon**, [design and stages](components/BEACON.md), [concept](design/beacon-concept.svg), requested 2026-11-18 with network sections in Meridian and Observatory and taskbar network and sound centers: status in plain words, traffic for a minute, hour, day and week, a history kept across restarts, diagnostics from the adapter to secure web, ping, and an editor that keeps the old settings until new ones connect (call 667, `zenith-native-network-center-abi`). Trace, profiles, Wi-Fi and VPN wait for N2. |
-| U12 | O1 released (kernel 0.0.70, zenith-orbit 0.1.0–0.2.1) | **Orbit**, [design and stages](components/ORBIT.md), [concept](design/orbit-concept.svg), requested 2026-11-19 as the last concept app: overview, updates, installed, browse, history and sources; a plan applied as one transaction (install, upgrade and remove together, then a kernel stage) with also-needed packages, sizes, restart and the exact pkg commands; not-offered packages with reasons; package pages from signed about files and declared capabilities; one transaction history for every source (call 668, `zenith-native-package-center-abi`). Next: scheduled checks and a taskbar update notice. |
-| U13 | Quill released (zenith-quill 0.1.0–0.2.0, kernel 0.0.71); HTTP and transfer scoped | Three native CLI tools requested 2026-11-19. **Quill** (`zenith-quill/v0.1.0`): signed package and shell entry for single-file terminal editing, search, undo/redo, and staged save with unsaved-changes confirmation. Local QEMU edit/save/shell-return checks passed on COM1, the built-in Terminal and Polaris. The follow-up adds alternate-screen rendering, viewport resize, a thin caret and an inverted shortcut footer. The rebuilt kernel passed the short-command and fullscreen COM1 check. Local graphical edit/save/shell-return passed in both terminals, and a live Polaris maximize moved the footer to the resized viewport bottom. Shipping this requires the next kernel and the matching Quill and Polaris updates. Follow-up publication and installed VMware acceptance remain open. [Usage and validation](components/SHELL.md#u13--quill). **Curl-style HTTP client**: reuse native TCP/TLS and file staging, add streaming stdout/file output, HEAD, bounded redirects and chunked decoding. Public HTTPS needs an appropriate CA trust store beyond the current private CA bundle. Keep the package fetch profile independent. **Remote transfers**: start with list/get/put over HTTPS WebDAV if we control the server, or scope SFTP first if existing SSH servers are the target. Use verified peer identity and test interrupted transfers. Defer mounting to a read-only VFS adapter with defined credentials, timeouts and disconnect behavior, then assess writable mounts. |
-| U14 | AP0–AP12 released in kernels 0.0.72–0.0.74 with zenith-settings 0.14.0, zenith-sounds, zenith-icons-bold/fine and the app updates; operator accepted 2026-11-21 (widget styles, icon sets, pickers, splash, motion, snapping, notifications, toasts, bell); boot animations and six sounds reworked after that test (kernel 0.0.75, zenith-sounds 0.2.0, zenith-settings 0.14.1, local); notification sources, buttons, per-app choices and the appearance gate local (AP13, kernel 0.0.76) | **Appearance**, [plan](components/APPEARANCE.md), requested 2026-11-19: Meridian's Appearance reorganized (materials in Application Style, System Sounds under Sound, locking and boot diagnostics in Security and System, Startup & Login group); concepts for Application Style and icon sets, four window decorations, four more wallpapers (needs a wallpaper ABI revision), two cursor packs, the Zenith Chimes sound pack, session splash/login/boot styles, and twelve new animations. |
-| S1 | partial | KDE-baseline navigation/page model ([design](MERIDIAN-BEHAVIOR.md), [plan](components/MERIDIAN-STAGE2.md)) is local: drill-down sidebar, scrolling form pages, combo choices, uniform footer and unsaved-changes dialog; [evidence](archive/2026-10-30/meridian-stage2.md). Clean-source qualified at `2a80ce2` and tagged `zenith-settings/v0.4.0`; distributor build and installed acceptance pending. Shared-settings slice Release qualified at `0d86635`: per-UID appearance/inheritance, searchable keyboard/time-zone/session catalogues, root-only system saves and authorized read-only network/account summaries. [Meridian shared services](MERIDIAN-PLAN.md): per-user overrides/system defaults, CLI parity, revision conflicts, typed keyboard/timezone/network/account summaries and actual About metadata. Two-account/reboot/error tests; never grant authority via environment or a page name. |
-| W1 | partial | [Desktop motion, taskbar and login plan](components/MOTION.md): stage 1 (wheel fix, frame timing) qualified at `94b4086` and tagged `kernel/v0.0.31`, device confirmation pending; stage 2 layers and `fps motion` qualified at `653558e` and tagged `kernel/v0.0.32`, server build pending. Operator confirmed wheel scrolling on 0.0.31 in VMware. [Compose caches and SSE2 material rows](components/MOTION.md#compose-cost) qualified at `4ed14b9` and tagged `kernel/v0.0.33`; operator reports a clear improvement in VMware, numbers pending. [Stage 3 window animations](components/MOTION.md#stage-3-window-animations) clean-source qualified at `7b24640` (all ten native gates), tagged `kernel/v0.0.34`: open, close, minimize, restore and maximize, with stable taskbar pill order; operator confirms they look and work well in VMware on 0.0.34. [Stage 4 taskbar](components/MOTION.md#stage-4-taskbar): theme sizes, icons, overflow list, three visibility modes, F11 fullscreen, sliding bar and a `windows.taskbar` page, tagged `kernel/v0.0.35` at `86201da`; operator confirms hiding works in VMware. Docked and dock-when-maximized shapes, and the bar animating with its window, qualified at `d5e2cba` and tagged `kernel/v0.0.37`; `kernel/v0.0.36` failed its server gate on a race in the gate itself, and `zenith-settings/v0.8.0` is installed. Icons on pills are not yet seen on an installed system. [Stage 5 login](components/MOTION.md#stage-5-login): shared controls, hover, cursor-only redraws, power confirmation and session crossfades, qualified at `d5e2cba` (all ten native gates) and tagged `kernel/v0.0.37`; device confirmation pending. Operator confirms on 0.0.37: dock animations, the logout fade and pill icons; the sign-in fade barely showed. [Stage 6 in applications](components/MOTION.md#stage-6-inside-applications): native frame pacing, a stall fix, call 628 clock, smooth scrolling and compositor page crossfades in Meridian, longer sign-in fade; qualified at `6d67746` (all ten native gates), tagged `kernel/v0.0.38` and `zenith-settings/v0.9.0`. `kernel/v0.0.38` failed its server gate: the settings gate took a reference frame while the form still scrolled. The same work found a lost key after a window closes, fixed with the gate, qualified at `e0c01a5` (all ten native gates) and tagged `kernel/v0.0.39`; `zenith-settings/v0.9.0` built; operator confirms scrolling, page changes and the sign-in fade on 0.0.39. [Stage 7 boot and shutdown](components/MOTION.md#stage-7-boot-and-shutdown): boot screen and shutdown fade, qualified at `5224d09` (all ten native gates) and tagged `kernel/v0.0.40`, after two runs failed on the keyboard bug below; installed, operator confirms the boot screen and shutdown fade work. Known bug, cause open: typed keys are lost in runs with `tools/keyboard-loss-replay.py`, on PS/2 and virtio and at a similar rate on `d5e2cba`, so it predates stages 6 and 7; it can fail a gate that types. QEMU's input layer receives every key and the desktop's poll already sees fewer, with the poll stalled up to about 830 ms and 8 keys, the PS/2 buffer, arriving after it. vCPU threads wait at most 21 ms for the host. What stops the guest servicing the keyboard is not found. Side by side, polling `info registers` at 10 Hz prevents it (0 of 1,470 lines, against about 10%); `info status` polling, an idle monitor and a 1 Hz poll do not, nor do split irqchip, no x2APIC or no TSC deadline. Background package or file work makes no difference. The gates now poll this way through `validation-accelerator.py`; `tools/keyboard-loss-replay.py` does not, so it still measures the bug. Seen under QEMU/KVM only, on AMD with AVIC and on the Intel build server without it; operator has not seen it in VMware. Separately, the network gate under TCG crashed about 1 run in 12: `#PF` at RIP 0, then `System halted`, which reads as a test timeout. Cause found in a captured dump: Cosmos keeps a new thread's context at its stack base and re-enables interrupts one instruction before loading the real stack, so an interrupt there ran below the allocation. `ThreadStartFixup` moves the context up; 48 of 48 TCG network runs passed with it, released in `kernel/v0.0.42`. Whether this also explains the older freeze is unknown. One VM also froze for 190 s with interrupts off at an SSE instruction entering `RhpCidResolve`, printing nothing; cause open. [Full DE](components/SESSIONS-DESKTOP.md): usable keyboard-searchable launcher/panel, consistent dialogs, window identity/focus/move/snap, notifications/OSD, task switcher and virtual desktops. The Meridian Apps & Windows slice implements notification visibility, popup placement/hover/sound, taskbar top/bottom placement and pins, floating window focus/titlebar/snap, task switcher layouts/sorting/grouping and workspace scope, and named virtual desktops with live switching. Host regressions and focused installed QEMU probes cover preference persistence, notifications, the panel, window behavior, task switching, and desktop switching. [Usage and contract](components/SESSIONS-DESKTOP.md#w1--apps-and-windows). Distributor and installed VMware acceptance are open. Requires U1/U6; prove app faults and busy/unsaved/session teardown. |
-| W2 | single-display release targets `kernel/v0.0.79` and `zenith-settings/v0.16.0`; installed VMware acceptance pending | [Tiling WM](components/SESSIONS-DESKTOP.md#w2--automatic-tiling) selectable at login and boot. Master/stack placement, independent inner and outer tile gaps in Meridian and the CLI, directional focus and reorder, floating exceptions, named desktops, shared top/bottom panel and headless recovery. `zenith-man-pages/v0.1.9` covers the settings and shortcuts. Multi-output placement awaits multi-monitor display support. |
-| W3 | partial (Sunset SS1 released) | ~~Shut down is disabled while native apps run; needs a close-all flow~~ ([audit](archive/2026-10-30/system-audit.md)): windowed native apps no longer block (only windowless programs count), and [Sunset](components/SUNSET.md) (U10) names every blocker with a Show button before log out, restart or shut down. ~~Secure lock~~ (Sunset lock screen: own password, throttled, nothing behind it drawn or reachable). Remaining: idle lock and grace, guarded auto-login, autostart, restore and confirmation policies. Requires session/app lifecycle; lock retains applications and blocks content/input leakage, never masquerades as logout. Password/elevation remains trusted. |
-| W4 | released in kernel 0.0.57 (`zenith-equinox` 0.4.0, `zenith-settings` 0.11.0); operator exit pending | [sudo and the Desktop Portal](components/PORTAL.md), requested 2026-11-13. Administrators are root and the `wheel` group (created once on existing installs with the installer's account; new installs add it). `sudo` asks for the account's own password, remembers it per terminal for five minutes and logs every use; `groups` and `gpasswd -a/-d`. Desktop Portal: a broker of named, versioned interfaces (calls 650 to 653, zenith-native-portal-abi 1.0) with a trusted desktop dialog no program can draw over; the first interface, org.zenith.portal.Authorization, grants one process the disk or system-settings calls as root until it exits. Equinox and Meridian show Unlock. Stage EL1 local (kernel 0.0.57, `tools/portal-smoke.py`); terminal agent, more interfaces and finer policy are EL2 to EL4. Exit: operator unlocks Equinox and runs sudo on an installed system. |
-| A1 | HZ1 released (kernel 0.0.58-0.0.59, zenith-horizon 0.1.0-0.1.2); HZ2-HZ4 released (kernel 0.0.65, zenith-horizon 0.2.0), operator confirmed installed 2026-11-18; HZ5 released (kernel 0.0.67, zenith-horizon 0.3.0; 0.4.0 widget styles and job notifications); removable drives deferred (S6) | **Horizon** (name signed off), [design and stages](components/HORIZON.md), [concept](design/files-concept.svg) based on Dolphin, tabs added 2026-11-15. HZ1: kernel 0.0.58 adds zenith-native-files-abi 1.0 (654 listing with times and item counts, 655 free space, 656–658 copy/move/delete jobs run in the kernel as the caller, with questions and cancel) and the input extension (627 bits 2/4: right-click, F-keys, click modifiers); zenith-horizon 0.1.0: tabs, places/devices, breadcrumb and typed location, history, icons/details views, sort, multi-selection, filter, information panel, new folder/rename/delete, copy/cut/paste with the transfer strip and question, context menu. Host tests (job engine, encoding) pass; `tools/horizon-smoke.py` gate added. Next: HZ2 split view, zoom, drag and drop, Properties, opening files through an OpenWith portal interface; HZ3 Trash, removable drives, search; HZ4 archives, thumbnails, restored tabs. The built-in Files window stays for testing. |
-| A2 | folded into U2 | Tabs/documents, syntax support and private crash recovery shipped in Aurora AU1–AU3 (U2). Build and diagnostic tools wait for process/SDK support and are tracked under Aurora's Next. |
-| PK1 | planned | [Configuration and activation](components/PACKAGES.md): `/etc` merge/conflict policy, shared defaults, restart notices and compatibility preflight across active apps/services/kernel. Retain local changes and recover interrupted operations. |
-| PK2 | planned | Signing-key rotation/revocation/roles, repository and transport certificate renewal procedures, compromise/rollback/expiry tests and independent security review before broader exposure. Private working HTTPS is not a complete public trust lifecycle. |
-| PK3 | verification | Distributor backup **restore** drill, deployment recovery and useful failure/phase/storage diagnostics. Build retries, version grouping, reporting/automatic cleanup already exist; improve only from measured gaps. Never clean active/pinned evidence. |
-| PK4 | partial | Combined update/recovery compatibility: kernel-first capability handling, schema/rollback rules and truthful partial-commit state. Requires PK1 + R2; current `pkg update` coordinates separate commits, not an atomic snapshot. |
-| PK6 | local; installed from a locally seeded ISO 2026-11-17, published-ISO install pending | [Installer ISO with trust and apps](components/PACKAGES.md#pk6--installer-iso-trust-and-apps-out-of-the-box), requested 2026-11-10: a seed boot module carries the package key, TLS CA, HTTPS mirror and the newest core packages; the live boot pins the trust, Sunrise installs the packages; the distributor publishes `iso/zenith-installer-VERSION.iso` per kernel and `release.sh installer` reseeds it. `installer-seed-smoke.py` in the release plan. `tools/local-installer.py` seeds local builds from the published mirror (2026-11-17). Exit: operator installs from the published ISO and runs `pkg update` with no manual trust step. |
-| PK5 | local; installed verification pending | [Guest cache maintenance](components/PACKAGES.md#pk5--guest-cache-maintenance): `pkg clean [--dry-run]` and `pkg clean auto on\|off`; archives and abandoned stages leave the cache after every completed update/install and periodically (day-old archives, hour-old stages); signed indexes, installed files, trust and boot generations stay. Downloads check root space first and clean or fail with required/available bytes. Repository gate and host tests local; operator full-disk acceptance pending. |
-| R1 | capacity local; migration and durability open | [Storage capacity/durability](components/STORAGE-SECURITY.md): 4 KiB ext2 up to 2 TiB, files past 4 GiB and whole-disk installs implemented locally (2026-11-10); existing 512 MiB roots still need migration; decide repair/journal or generation strategy. Keep traversal/symlink/held-handle authorization regressions. |
-| R2 | planned | [Matched system recovery](UPDATE-RECOVERY.md): define kernel/root/package/config/account/service/home scope → select/budget backend → retain consistent generations → trial/restore/boot identity and retention. `/home` and mutable schemas need explicit policy; no filesystem choice is assumed. |
-| R3 | planned | Failed shutdown leaves a partly unmounted running system ([audit](archive/2026-10-30/system-audit.md)). Recovery failure matrix: short writes/out-of-space/power cuts, trial without modifying preserved state, interrupted activation/restore, damaged root/ESP and external recovery/backup. Requires R1/R2; kernel retention alone does not meet this exit. |
-| N1 | verification | [Sustained networking](components/NETWORKING.md): repeatable VMware/proxy/DNS/TCP/TLS transfer/cancel/replacement benchmarks and actionable counters. Port-allocation mitigation is installed; stale-flow location remains unproved. No current reproduction is assumed from old traces. |
-| N2 | planned, later | Beyond primary wired IPv4 clients: socket/listener/UDP/server contracts, connection/device profiles and additional NICs; Wi-Fi/IPv6 only after explicit driver/protocol scopes. Reconnect/link loss/authz tests per supported profile. |
-| N3 | planned; not started (operator, 2026-11-21: "no implementation for the download feature yet") | **Internet downloads.** Verified 2026-11-21: `fetch URL FILE` reaches only the package mirror over HTTPS, since TLS trusts one pinned PEM file of at most 4 KiB at `/etc/zenith/tls-ca.pem`. Redirects and responses without Content-Length are refused, downloads stop at 8 MiB (32 MiB for kernels), TLS is 1.2 with P-256 only, and there is no graphical way to download. Needed: a public certificate set as a package, separate from the pinned mirror trust; limited redirects that never go from HTTPS to HTTP; chunked responses; downloads bounded by free disk instead of 8 MiB; X25519/P-384; progress and a finished notification. Where downloading lives in the desktop is open: the operator asked how feasible a ported browser (Ladybird) would be instead of a download app. |
-| N4 | planned; concept first | **SMB network shares** (operator, 2026-11-21, protocol chosen: SMB). No network file-share client exists (no SMB, WebDAV, SFTP or VM shared folders); today files come only through `fetch` from an HTTP server. Proposed: an SMB2/3 client (NTLMv2 sign-in, signing; encryption later) shown in Horizon as "Connect to server" next to the local places, with saved servers and credentials kept per user. |
-| H1 | partial; input candidates local | [System audit](archive/2026-10-30/system-audit.md): VMware power-off repair qualified at `cdba28a` and tagged `kernel/v0.0.30`, device confirmation pending; open findings below map to owners. [Supported device matrix](components/BOOT-RECOVERY.md): publish actual QEMU/VMware boot/storage/display/input/network support and repeatable recovery scenarios; verify physical/USB install separately. Operator VMware all-input freeze reproduced with PS/2 under KVM; root cause is the native user window acknowledging device IRQs without their drivers. [Forwarding candidate](archive/2026-10-29/native-device-irq-forwarding.md) passes the reproducer; clean-source qualified at `760c5fe` (all ten native gates) and tagged `kernel/v0.0.29`. Operator installed 0.0.29 in VMware and reports no recurrence so far (2026-10-30); keep observing under sustained use (**Q2**). [Stranded virtio input](archive/2026-10-28/virtio-mouse-drain.md) reproduced; bounded IRQ-scoped periodic drain is clean-source qualified at `5306703`, with all ten native gates and the exact QEMU 10 restricted-CPU reproducer passing; distributor/installed acceptance remains with Q2. PS/2 and installed wheel/drag anomalies remain unverified; absolute pointer/hardware cursor/damage presentation need driver work. |
-| H2 | partial, locally qualified | [Audio devices and application mixer](components/AUDIO.md): Intel HDA output/input routes, bounded PCM playback/capture, permissioned recording and Meridian device/per-app controls passed host/UI and actual DMA/native QEMU checks. Full Release passed all 23 VM gates at `5f3ba1f`; installed VMware playback confirmed with explicit virtual HD Audio, and VMware microphone capture remains pending. System sounds, additional formats/routing and removable-device automount follow later. |
-| H3 | planned, later | True suspend/resume, Bluetooth, printers and specialized accessibility. Define each scope/driver dependency first; WIP pages stay visible. Never count a menu or VM-only demo as device support. |
-| Q1 | verification | Confirm 0.0.25 distributor result and [Appearance installed procedure](testing/SETTINGS-VM-TEST.md); retain current release immutability. |
-| Q2 | 0.0.44 built/installed; multicore correction released with C5 (`kernel/v0.0.63`) | `kernel/v0.0.44`, `sunbeam-tools/v0.7.0` and `zenith-gui-probe/v0.2.0` are tagged at CI-qualified `8502029`. All 28 fresh VM gates and the aggregate passed in 33m 27s; local fresh Release acceptance also passed all 14 mandatory native gates. Parallel CI shares one source-bound build, caches downloads and verifies every result ([qualification](archive/2026-11-04/c4-release-and-ci.md), [contract](DEVELOPMENT.md#ci-and-releases)). Operator confirms distributor 0.0.44 built and is installed; CPU diagnostics exposed the return/GC faults described above. Their repaired candidate has local targeted qualification; new release and VMware acceptance remain Q2/H1. |
-| Q3 | continuous; parallel controller local | [Parallel native validation and exact retry receipts](archive/2026-10-28/parallel-native-validation.md) locally implemented; four actual gates pass concurrently. Default up to four, configurable up to eight within CPU/RAM budget; distributor timing pending. The [0.0.47 follow-up](archive/2026-11-07/display-memory-composition.md) adds locally qualified allocation-debt collection and weak-handle ownership repairs; installed-duration acceptance remains open. Measure boot/app responsiveness, idle memory/CPU, transfer/build phase times and stability across repeated workflows. Keep CI/controller/toolchain drift checks, fault injection and installed evidence distinct; enforce supported-profile performance budgets before claiming product readiness. |
+| G1 | Maintained | This file owns priorities and work IDs. Keep component contracts and the page inventory linked as requirements or evidence change. [Maintenance rules](MAINTAINING.md) |
+| D1 | Implemented, installed appearance baseline | Native apps and trusted surfaces share light/dark roles, accents, antialiased controls, window masks and material fallbacks. Check both themes, focus, contrast and geometry when adding controls. [Specimen and visual contract](DESIGN-LANGUAGE.md) |
+| D2 | Primary output implemented | Bounded dynamic native surfaces, maximize, resolution and 100/200% scale use a guarded Keep/Revert transaction. VMware also offers filtered 125/150/175% when supported. Meridian presents advertised high-resolution modes within the service’s framebuffer budget. The binding has fixtures for 5K and 8K. Device-resolution text and client scaling, multiple outputs, and driver-backed orientation, refresh, brightness and tearing controls are larger changes. Qualify input mapping, timeout and safe boot per supported profile. [Display contract](DISPLAY-SETTINGS.md) |
+| D3 | Software materials implemented | The taskbar, chrome and app bodies use optional tint/blur with opacity and workload fallbacks. Partial redraw and parallel software composition have pixel-comparison checks. Keep credentials opaque and measure sustained overlap/drag at real resolutions. GPU acceleration is a separate driver track. [Material contract](GRAPHICAL-CLIENTS.md#opt-in-material-frames-d3-first-slice) · [Renderer evidence](archive/2026-11-09/rendering-phase4.md) |
+| U1 | Toolkit in use, runtime work open | Shared controls, selectors, scroll/resize events, input fields, materials and an authorized clipboard serve independently packaged apps. Finish reusable text/file controls where apps still own them, broader font/Unicode/shaping/IME support and long-running quota, pressure and teardown tests. [Shared runtime](components/USERLAND.md) |
+| U2 | Aurora AU1–AU4 tagged | Aurora handles multi-document UTF-8 editing, staged saves, external changes and recovery, project navigation, folding and multiple cursors. Package 0.4.0 is tagged. Compiler diagnostics and language-server integration depend on process/IPC and toolchain support. [Aurora](components/AURORA.md) |
+| U3 | Polaris P1–P5 installed | The native terminal hosts kernel-owned shell sessions with raw/canonical input, tabs, splits and scrollback. The built-in terminal and serial console remain recovery paths. Retain secret-input and cancellation checks. Optional improvements include profiles, regex find, opening hints directly, inline images and glyph coverage. [Polaris](components/SHELL.md#polaris-design) |
+| U4 | Native installer frontend planned | Trusted Sunrise already installs the system, including region and seed choices. Expose typed live/root-only disk, account, progress and cancellation operations, then migrate the wizard. Prove target identity, erase consent, secret handling and recovery after interruption. [Installer boundary](components/BOOT-RECOVERY.md) |
+| U5 | Native Welcome and System implemented | Signed desktop-tools frontends launch from the shell/menu, share presentation and keep trusted recovery fallbacks. Verify independent package upgrade, teardown and ordinary-user behavior on installed systems. [App migration](components/SESSIONS-DESKTOP.md#native-app-migration) |
+| U6 | Planned | Define versioned IPC, ownership and restart semantics for compositor, session and privileged services. Prove independent restart or upgrade with live clients, revoked authority and a usable recovery session. [Runtime separation](components/USERLAND.md) |
+| U7 | Observatory O1–O3 and O4 views implemented | CPU, memory, display, disk, network and window-to-program views use measured data. For the rest of O4, attribute CPU time and resident memory to each program. O5 needs bounded on-disk history and a service model before it can list services. Package 0.6.1 is tagged. [Observatory](components/OBSERVATORY.md) |
+| U8 | Equinox implemented, device checks open | Plan/apply disk edits, offline GPT/ext2 growth, mounts, startup mounts and trusted Unlock exist. Verify on disposable target media. Shrink/move, formatting existing volumes, labels and removable media have additional requirements. [Equinox](components/EQUINOX.md) |
+| U9 | Prism implemented, providers partial | The start menu and palette search installed apps, windows, settings, actions, calculator and commands. Remaining work includes bounded file search (S5), start-menu pins and configurable shortcuts. The panel already has its own ordered pins (W1). [Prism](components/PRISM.md) |
+| U10 | Sunset SS1 implemented | Manual lock authenticates the current user and hides the session. Log out, restart and power off report blockers. W3 adds an idle deadline and configurable password grace to the same lock. User switching and per-app save reasons/Save All need session and app lifecycle work. [Sunset](components/SUNSET.md) |
+| U11 | Beacon implemented, centers installed | Wired status/editing, traffic history and diagnostics are shared across Beacon, Meridian, Observatory and the panel. Follow-ups include traceroute support and further device/profile work in N2. [Beacon](components/BEACON.md) |
+| U12 | Orbit O1 implemented | Browse packages, inspect sources and history, plan and apply changes. Daily checks can be disabled from Updates. The taskbar notice opens the list when offered versions change. A GUI kernel stage/confirm gate and distributor screenshots/changelogs remain. [Orbit](components/ORBIT.md) |
+| U13 | Editor tagged, downloader in development | Quill 0.2.0 has the regular command, full-height editing and a command bar. N3 owns the implemented curl-style fetch options and their qualification. N4 owns file transfer and later mounting. [Command-line tools](components/SHELL.md) |
+| U14 | Appearance AP0–AP12 installed, follow-ups tagged | Widget variants, wallpaper/cursor/icon pickers, chrome, session/login/boot styles, motion, notifications and system sound controls exist. Later tags cover revised splash/sounds and actionable per-app notifications. Remaining appearance controls are in S3/S4 and the page table below. [Appearance](components/APPEARANCE.md) |
+| S1 | Shared settings implemented, coverage partial | Per-user preferences with inherited defaults, authorized system edits, search/navigation, Apply/Discard and CLI parity exist. Quick Settings offers an immediate personal light/dark action and remembers recent pages per account. Account management and other pages in the inventory remain. Exercise permission denial, revision conflicts and reboot. [Meridian contracts](MERIDIAN-PLAN.md) |
+| W1 | Apps & Windows implemented for one display | Notifications and history, five panel visibility modes, panel position and pins, focus/raise/snap policies, Alt+Tab options and up to eight named desktops are implemented. Retain busy/unsaved/fault teardown checks. Monitor-specific behavior depends on D2. [Apps & Windows](components/SESSIONS-DESKTOP.md#w1--apps-and-windows) |
+| W2 | Single-display WM tagged | The selectable master/stack WM supports directional focus and reorder, floating exceptions, per-workspace windows and separate inner/outer gaps **only in WM**. The top/bottom panel is shared with the floating desktop. Q2 owns installed checks. Multiple-output placement depends on D2. [Tiling WM](components/SESSIONS-DESKTOP.md#w2--automatic-tiling) |
+| W3 | Trusted lock and session actions implemented | Automatic locking uses the trusted password screen. Meridian and the CLI expose inactivity and grace. Manual locking always asks for the account password. Guard automatic login, autostart, session restore and confirmation policy. Check screen/input privacy, busy apps, wrong-user denial and recovery. [Session lifecycle](components/SUNSET.md) |
+| W4 | Elevation implemented, installed check open | Terminal sudo and trusted Desktop Portal authorization cover disk and settings, with additional file-management and Open With contracts. Verify installed sudo and Equinox Unlock. Finer grants, more interfaces and the terminal agent have separate exits. [Portal](components/PORTAL.md) |
+| A1 | Horizon HZ1–HZ5 tagged | Horizon implements tabs, transfers, selection, file associations and archive operations. HZ2–HZ4 have installed confirmation. Further device and remote-share integration depend on S6 and N4. [Horizon](components/HORIZON.md) |
+| A2 | Folded into U2 | Aurora owns the graphical editor and its remaining integrations. [Aurora](components/AURORA.md) |
+| PK1 | Planned | Preserve local configuration across upgrades, expose conflicts and required restarts, and preflight compatibility for active services/apps. Exercise interrupted activation. [Packages](components/PACKAGES.md) |
+| PK2 | Planned | Define and exercise package-key rotation, revocation, roles, expiry, transport certificate renewal and recovery from compromise. Keep package signing and HTTPS trust separate. [Package operations](PACKAGE-SERVER.md) |
+| PK3 | Verification | Restore an actual distributor backup into isolation, recover deployment and verify its indexes/artifacts. Keep retries, diagnostic receipts and retention safe for active or pinned runs. [Distributor runbook](../deploy/distributor/README.md) |
+| PK4 | Partial | Combined updates coordinate data-package commits and kernel staging. Define schema and compatibility rules across an interruption or rollback. Match package and kernel state to recovery generations after PK1 and R2. [Recovery](UPDATE-RECOVERY.md) |
+| PK5 | Cleanup implemented, installed check open | `pkg clean`, dry-run, periodic cleanup and download space preflight exist. Exercise interrupted cleanup and a nearly full disposable installed root, including reboot and retention of protected data. [Cache maintenance](components/PACKAGES.md#pk5--guest-cache-maintenance) |
+| PK6 | Seeded install implemented, published-media check open | The installer can carry mirror trust and core apps. A locally seeded ISO installed successfully in VMware. Verify an install and first `pkg update` directly from the published seeded ISO. [Seeded installer](components/PACKAGES.md#pk6--installer-iso-trust-and-apps-out-of-the-box) |
+| R1 | Larger filesystem and offline growth implemented | New 4 KiB ext2 roots support up to 2 TiB and files over 4 GiB. Equinox/`disk grow` can extend a supported partition and filesystem offline. Reinstall was the chosen route for old 512 MiB, 1 KiB-block roots. Decide repair/journal or generation policy and extend traversal, link, rename and held-handle semantics with authorization tests. [Storage](components/STORAGE-SECURITY.md) |
+| R2 | Planned | Define what rolls back together across kernel, root, packages, configuration, accounts and services, and how home data is treated. Budget space and retention, then prove trial boot and restore on disposable generations. [Matched recovery](UPDATE-RECOVERY.md) |
+| R3 | Planned and verification | Fix failed shutdown leaving a partly unmounted system. Exercise out-of-space and power-loss during updates, interrupted activation/restore, damaged root/ESP and recovery from external media. Full coverage depends on R1/R2. [Audit](archive/2026-10-30/system-audit.md) · [Recovery design](UPDATE-RECOVERY.md) |
+| N1 | Download performance under investigation | The same archive transfers much faster on the laptop than in a Zenith QEMU guest. Packet captures identified reversed outgoing ACKs and the socket receive path repeatedly copied unread bytes. Qualify the fixes on installed VMware and profile the remaining HTTPS cost. [Networking](components/NETWORKING.md#n1--reliability-verification) |
+| N2 | Primary wired profile implemented, expansion planned | Extend beyond the current wired IPv4 connection to multiple profiles/devices, priorities, link negotiation and listener/UDP/server APIs. Trace, additional NICs, IPv6 and Wi-Fi need explicit protocol/device work and reconnect tests. [Networking](components/NETWORKING.md) |
+| N3 | Curl-style CLI and public HTTPS implemented locally | Signed fetch supports stdout, named file output, HEAD, redirects, chunked bodies and verified public TLS 1.2. Package mirror trust stays independently configured. Open items include installed qualification, disk-aware limits for larger files and a decision on desktop integration. [Transport contract](NETWORKING.md#transfer-and-transport-bounds) |
+| N4 | SMB selected, implementation planned | Deliver SMB2/3 browse, download and upload with NTLMv2 authentication, signing and per-user server/credential storage. Cover disconnects and partial writes. Add Horizon integration and a read-only mount before assessing writable mounts or encryption. [Networking](components/NETWORKING.md) |
+| H1 | VM support established, hardware matrix open | Publish tested boot, storage, graphics, input, network and power profiles. Recheck VMware resolution/boot, clock source, pointer, keyboard and shutdown where relevant. Exercise physical install and recovery on named hardware. [Supported-device work](components/BOOT-RECOVERY.md) |
+| H2 | HDA playback and capture implemented | Output/input selection, volume/mute, permissioned capture and per-app streams pass the HDA gate. VMware audible playback is confirmed. Installed systems remember selected endpoints, level and mute by hardware identity. Verify VMware microphone capture and qualify independent routing, other formats, jack changes and additional controllers. System sounds are covered by U14. [Audio](components/AUDIO.md) |
+| H3 | Planned, hardware-dependent | Suspend/resume, Bluetooth, printing and specialized accessibility each require a scoped service/driver and useful behavior on supported hardware. Keep unavailable settings visible with a WIP explanation. [Meridian inventory](MERIDIAN-PAGES.md) |
+| Q1 | Superseded release check | The old request to reconfirm the 0.0.25 Appearance build is historical. Later installed Appearance evidence is recorded under U14. Q2 owns verification of current artifacts. [Initial Appearance qualification](archive/2026-10-27/appearance-settings.md) |
+| Q2 | Current acceptance open | Verify the signed distributor index and installed versions for kernel 0.0.80, Settings 0.17.0, Orbit 0.3.0, net-tools 0.2.0 and manuals 0.1.10. In DE and WM, verify panel position, pager, gap persistence, floating exceptions, maximize/fullscreen and return from sign-in. Include at least one key path the host delivers to the guest. [WM checks](../tools/wm-smoke.py) · [Test procedures](testing/README.md) |
+| Q3 | Continuous | Parallel release gates and exact successful-result reuse exist. Retain repeatable profiles for idle memory growth, GC/input loss, AP contention, redraw/blur and network throughput. Compare equal workloads and uptime on the installed kernel. Keep historical distributor failures as fixtures with an identified reproduction. [Validation](archive/2026-10-28/parallel-native-validation.md) · [Memory/display baseline](archive/2026-11-07/display-memory-composition.md) |
 
 ## Meridian — every requested destination
 
-All **10 categories / 44 pages** exist as local navigation. Colors/material preferences, keyboard layout, time zone and selected About data
-currently have backends. The table includes every
-page so an apparently finished menu cannot hide unfinished product work.
-[Detailed controls and scope](MERIDIAN-PAGES.md) · [Service contracts/phase details](MERIDIAN-PLAN.md).
-The M0–M10 names in that guide are Meridian phases, not separate project milestones.
+The tagged Settings package registers **44 pages in 10 categories**. A page can have working controls and still display a WIP message for the rest. This table tracks that boundary. The inventory defines the individual controls. [Page inventory](MERIDIAN-PAGES.md) · [Service contracts](MERIDIAN-PLAN.md) · [Client implementation](../userland/settings/meridian.c)
 
-| Category / page IDs | Backend state | Remaining work / master owner |
+| Pages | Working today | Remaining scope and owner |
 |---|---|---|
-| Quick Settings — `quick.overview` | partial | Manual theme links exist; quick controls, persistent history and shared automatic schedule (**S1**, **S3**) |
-| Mouse & Touchpad — `input.mouse`, `input.touchpad` | WIP | Stable device selection, primary buttons, pointer/scroll speed, acceleration/inversion (**S2**) |
-| Keyboard — `input.keyboard`, `input.shortcuts` | partial | Typed layout selector, save/discard and CLI parity implemented for system defaults. Model/repeat/Num Lock/test, layout switching and conflict-safe shortcut capture (**S1**, **S2**) |
-| Sound — `audio.playback`, `audio.recording`, `audio.streams` | local, qualified | Real HDA endpoints, live default/volume/mute/test, permissioned capture and per-app streams (**H2**); VMware playback confirmed, microphone capture pending. Persistence, system sounds and advanced routing follow later |
-| Display — `display.configuration`, `display.night-light` | partial | Primary mode/integer scale and Keep/Revert implemented locally ([contract](DISPLAY-SETTINGS.md)); installed acceptance Q2/H1. Orientation/refresh/brightness/tearing, multiple outputs and global temperature transform/schedule remain WIP (**D2**, **S3**) |
-| Accessibility — `input.accessibility` | WIP | Baseline keyboard/contrast/text in U1; specialized features need scoped implementation (**H3**) |
-| Devices — `devices.bluetooth`, `devices.external`, `devices.printers` | WIP | Bluetooth/printer services later; stable safe automount policies and actual states (**H2**, **H3**) |
-| Networking — `network.connections` | partial | Actual primary NIC/IP/DNS information works; typed wired configuration/autoconnect next; multiple profiles/priorities/link negotiation as supported (**S1**, **N2**) |
-| Wallpaper — `style.wallpaper` | WIP | Color/image/slideshow picker, categories and scheduled light/dark pairs (**S4**, **S3**) |
-| Colors — `style.colors` | partial | Personal/system modes, six accents, materials/level and inherited defaults work; arbitrary-color picker and automatic switching (**S1**, **S4**, **S3**) |
-| Style — `style.application`, `style.decorations`, `style.icons`, `style.cursors` | WIP | Shared widget/button and host decoration variants, icon/cursor packs; optional materials without layout redesign (**D1**, **D3**, **S4**) |
-| Sounds/splashes — `audio.sounds` (moved to Sound 2026-11-19), `style.splash`, `style.login`, `style.boot-splash` | WIP | Sound events/packs after audio; authenticated transition/login/boot styles preserve diagnostics and trusted auth (**H2**, **S4**, **W3**) |
-| Text — `style.fonts`, `style.font-management` | WIP | Shared native font loading/rendering/AA/hinting; All/Personal/System catalog/import (**U1**, **S3**) |
-| Taskbar — `windows.taskbar` | implemented locally | Five visibility modes, top/bottom position, ordered app pins and workspace pager (**W1**) |
-| Animations — `style.animations` | partial | Global speed and reduced motion work for window changes; per-operation controls only for implemented effects remain (**S4**, **W1**) |
-| Apps/windows — `windows.notifications`, `windows.behavior`, `windows.switcher`, `windows.desktops` | implemented locally | Popup visibility/placement/sound, configurable floating window behavior, Alt+Tab layouts/sorts/grouping and workspace scope, and up to eight named, reorderable desktops (**W1**). Monitor filtering remains with multi-monitor support. |
-| Workspace — `workspace.behavior`, `workspace.search` | WIP | Shared click/scroll/paste/drag policies, OSD and runner providers; bounded authorized file indexing separate from working settings search (**S2**, **W1**, **S5**) |
-| Security — `security.locking` | WIP | Actual lock/idle/grace with administrative auto-login policy (**W3**) |
-| Locale/time — `locale.region`, `locale.time`, `locale.day-night` | partial | Typed system-default time-zone selector implemented. Remaining: Per-field language/number/currency/address/phone/measurement/SI-IEC formats; clock/timezone/sync policy and one day/night schedule (**S1**, **S3**) |
-| About — `system.about` | partial | Runtime/boot/display/clock metadata works; real running/installed versions and hardware inventory (**U5**, **S1**, **H1**) |
-| System — `system.power`, `system.users`, `system.autostart`, `system.session` | partial | Account information and registered default-session selector work; remaining: safe dim/suspend, guarded account lifecycle/password flows, autostart, confirmation/session restore (**W3**, **H3**) |
+| Quick Settings — `quick.overview` | Direct light/dark switch, links to Colors and Wallpaper, and recent pages across launches for the signed-in account | Automatic mode via the shared schedule (S3) |
+| Mouse and touchpad — `input.mouse`, `input.touchpad` | Page destinations | Device identity, handedness, speed, acceleration and per-device scroll settings (S2) |
+| Keyboard and shortcuts — `input.keyboard`, `input.shortcuts` | System keyboard-layout selection and fixed desktop shortcuts | Model, repeat, Num Lock, typing test, multiple-layout switching and conflict-checked custom shortcuts with protected recovery chords (S2) |
+| Audio devices and apps — `audio.playback`, `audio.recording`, `audio.streams` | Select HDA input/output, test speakers, retain device levels/mutes and adjust live per-app streams | Verify VMware recording, add further devices, formats and routing (H2) |
+| System Sounds — `audio.sounds` | Pack selection, level, per-event switches and audible preview | Wire events to new producers as those features ship, including removable drives (U14, S6) |
+| Display — `display.configuration`, `display.night-light` | Primary display resolution, supported scales and Keep/Revert | Sharp fractional rendering and multiple outputs (D2). Night Light needs a display-wide color transform and shared day/night timing (S3) |
+| Accessibility and devices — `input.accessibility`, `devices.bluetooth`, `devices.external`, `devices.printers` | Page destinations, keyboard access to existing controls, manual mounts through Equinox | Specialized accessibility, Bluetooth and printing (H3). Removable identity, safe eject, automount and status (S6) |
+| Network — `network.connections` | Live wired state, DHCP/manual IPv4, gateway/DNS and guarded apply | Multiple profiles, priorities, link negotiation and additional device types (N2, U11) |
+| Wallpaper and colors — `style.wallpaper`, `style.colors` | Built-in dynamic/solid wallpapers, light/dark mode, six accent presets and personal/default inheritance | Image import, slideshows, arbitrary accent picker and a shared automatic schedule (S3, S4) |
+| Application, decorations, icons, cursors — `style.application`, `style.decorations`, `style.icons`, `style.cursors` | Live widget/button and decoration variants, materials, icon and cursor pickers, cursor size | Preserve system-wide application and fallback as new apps and assets arrive (U1, U14, D3) |
+| Startup & Login — `style.splash`, `style.login`, `style.boot-splash` | Session, sign-in and boot style pickers | Keep authentication, diagnostic and rescue paths usable under each variant (U14, W3, H1) |
+| Text — `style.fonts`, `style.font-management` | Packaged fonts and existing toolkit rendering | System-wide typeface/rendering choices, validated per-user/system font install and management (U1, S3) |
+| Motion — `style.animations` | Global motion speed/reduction and workspace transition settings | Further per-effect controls and desktop peek (S4, W1) |
+| Notifications and taskbar — `windows.notifications`, `windows.taskbar` | History, Do Not Disturb, per-app popup controls, sound, placement and timeout. Panel visibility, top/bottom position, ordered pins and pager | Installed acceptance of the new panel settings (Q2). Future notification sources share U14 |
+| Windows and desktops — `windows.behavior`, `windows.switcher`, `windows.desktops` | Floating focus/raise/snap, WM-only tile gaps, Alt+Tab presentation and scope, and named/reorderable workspaces | Qualify DE/WM on the installed release (Q2). Monitor filters and placement need D2 (W1, W2) |
+| Workspace — `workspace.behavior`, `workspace.search` | Prism mode and built-in providers | Shared click/drag/scroll/paste policy, customizable providers and bounded user-scoped file search (S2, S5, U9) |
+| Security — `security.locking` | Manual lock, automatic lock after inactivity, adjustable password grace | Guarded auto-login and locking before suspend (W3, H3) |
+| Locale and time — `locale.region`, `locale.time`, `locale.day-night` | System time-zone selection, clock status and one-shot network time | Per-field locale formats, date/time editing and sync policy, common manual/solar schedule and fallback (S3) |
+| About — `system.about` | Runtime, boot, display and clock information | Complete the hardware inventory and distinguish installed and running software where available (S1, U5, H1) |
+| System — `system.power`, `system.users`, `system.autostart`, `system.session` | Account information and registered default-session selection | Guarded account/password management, autostart, session restore and confirmation, idle dimming and real suspend/resume (S1, W3, H3) |
 
-| ID | State | Shared settings work and exit |
+| ID | State | Shared work and exit |
 |---|---|---|
-| S2 | planned | Input/device registry and shared workspace policies; device-specific support, protected shortcuts, relogin/reboot and DE/local keyboard tests. Builds on S1/U1. |
-| S3 | planned | One day/night/time/location service for theme/wallpaper/Night Light; manual fallback and opt-in location. Then locale, translation and font management. DST/time changes, malformed fonts and two-user tests; clock authority stays separate from personal formatting. |
-| S4 | planned | Wallpaper/assets/style presets, custom accent picker, cursor/icons and reduced-motion effects. Validated resources + shared toolkit/host consumption + opaque fallback. D3 owns composition, not individual apps. | **2026-11-12:** cream light mode; wallpaper choice (Zenith dynamic in dark and cream, eight solid colors) applied live when the choice, mode or accent changes; resolution and scale are separate choices. Signed off and implemented the same day: the [Meridian cursor set](design/cursor-concept.svg) (Light and Dark; resize, move, text and working shapes) and the [dynamic wallpapers](design/wallpaper-concept.svg) Dunes, Aurora and Contour. 2026-11-13: the device-drawn pointer used the 200% image at 150%; the set is now drawn at each scale's exact size (24, 30, 36, 42, 48 px). Remaining: cursor size choice, an animated busy arc, image wallpapers and scheduling (S3).
-| S5 | planned | Shared runner providers then bounded per-user file indexing: include/exclude rules, real status, capacity and permission-aware results; reuse in launcher and Files. No indexing merely to search settings pages. |
-| S6 | design | [Removable storage](components/REMOVABLE-STORAGE.md), requested 2026-11-13: pinned Cosmos already has xHCI, USB mass storage and hot-plug, untested in Zenith. Proposed: device-generation in the disk revision, removable/ejectable flags, Eject (sync, unmount, refuse while files are open or for the root disk), read-only after surprise removal until checked, session automount under `/media` with no-exec and sync-on-close, notifications and a taskbar indicator, FAT32 formatting. Automount default and mount location need sign-off. Stages RS1–RS4. |
+| S2 | Planned beyond existing bindings | Define device settings and editable shortcuts, including conflict detection, trusted reserved chords and shared workspace input behavior. Prove per-device persistence and recovery keyboard access. |
+| S3 | Time zone implemented, shared scheduling planned | Implement a manual fallback and optional location-based day/night schedule consumed by appearance and Night Light. Add locale and font controls with per-user scope. Cover DST, unavailable location, clock changes and validation of imported fonts. |
+| S4 | Style and material controls implemented, assets partial | Complete custom accent selection, imported wallpaper and slideshows. Reuse the shared schedule for automatic changes. Keep preview, contrast, resource validation and opaque fallback consistent. [Appearance](components/APPEARANCE.md) |
+| S5 | Built-in providers implemented, file index planned | Reuse authorized results in Prism and Horizon. Add bounded per-user indexing, include/exclude controls, capacity reporting, revocation and removal of stale results. [Prism](components/PRISM.md) |
+| S6 | Design, policy choices open | Qualify xHCI attach, hot-plug and surprise removal on ext2 and FAT32, then implement volume identity, safe eject and desktop integration. Decide the automount default and location. Add FAT32 formatting to Equinox. exFAT is the first candidate for larger exchange files. The component plan records separate read and write estimates for exFAT, ext4, NTFS and Btrfs. [Removable storage](components/REMOVABLE-STORAGE.md#additional-filesystem-estimates) |
 
 ## Larger engineering tracks
 
-| ID | State | Dependency-ordered work and exit |
+| ID | State | Delivered scope and remaining exit |
 |---|---|---|
-| C1 | accepted with C5 (multicore by default since `kernel/v0.0.63`; operator confirms SMP merged and working 2026-11-21) | Opt-in eight-slot native AP queues, private GDT/TSS/interrupt/fault stacks, race-free wake/IPI/HLT, queued/running cancellation, stale-token rejection and acknowledged shutdown. Native pixel pilot matches scalar output and scales in local 1/2/4-CPU tests. [Evidence and limits](archive/2026-11-03/native-worker-queues.md); Q2/H1 own distributor and installed acceptance. Ordinary managed apps still use the BSP. |
-| C2 | accepted with C5 (multicore by default since `kernel/v0.0.63`; operator confirms SMP merged and working 2026-11-21) | Hardware logical CPU identity, CPU-local IRQ switch/error state, full baseline FP context, native AP timer/reschedule paths and early process ownership refusal. 106 CPU checks and full AP-enabled process gate passed. [Audit and evidence](archive/2026-11-03/per-cpu-execution-state.md). General managed AP dispatch remains C4; C3 admits only its qualified fixed jobs. |
-| C3 | accepted with C5 (multicore by default since `kernel/v0.0.63`; operator confirms SMP merged and working 2026-11-21) | Sealed allocation/heap/metadata ownership, stopped-root GC epochs, per-thread TLS/exception state and fixed pinned managed jobs. 1/2/4-CPU pressure/fault/cancel, exact rendered frames/input and full AP-enabled process qualification passed; four-CPU frame pilot was 2.58× its one-CPU case in local TCG. [Evidence and limits](archive/2026-11-03/pinned-managed-workers.md). Q2/H1 own external acceptance; general scheduling remains C4. |
-| C4 | accepted with C5 (multicore by default since `kernel/v0.0.63`; operator confirms SMP merged and working 2026-11-21) | Private per-CPU protected bridges, timer quanta, affinity/ready transfer, exact tickets and safe cancellation/reaping are qualified. All 14 mandatory native gates passed on one frozen kernel; 1/2/4-CPU installed I/O/process coverage, eight-CPU and TCG checks, full 64-pipeline/GC-root contention, graphical teardown, recovery and independent ext2 audits passed. Services and arbitrary managed kernel threads retain BSP ownership; `smp=native` stays opt-in. [Evidence, measurements and architecture decision](archive/2026-11-03/protected-process-migration.md). [C4 release/CI qualification](archive/2026-11-04/c4-release-and-ci.md) is tagged as kernel 0.0.44; Q2/H1 own external acceptance. |
-| C5 | C5.1–C5.4 accepted: released in `kernel/v0.0.63` (multicore by default with two or more CPUs, `smp=off` opts out; 1/2/4/8-CPU stress gate and VMware install passed 2026-11-17), operator confirms merged and working 2026-11-21; C5.5 planned | **General SMP** (operator, 2026-11-15: "I need the proper multicore workflow implemented"; not just the compositor, processes in general). Today only native user code between system calls and fixed compute jobs leave the BSP; every system call, kernel thread, built-in app, GC and the scheduler stay there, so offloading barely helps (4-CPU scene compose +2–8 %). Stages: C5.0 measure BSP load per program at 1/2/4 CPUs; C5.1 audit and replace interrupt-masking critical sections (Cosmos and Zenith) with SMP locks, per-CPU context-switch slots; C5.2 the general scheduler on every CPU with timer preemption, cross-CPU wake IPIs, idle stealing and all-CPU GC stops; C5.3 native service threads run on their program's CPU and kernel threads anywhere, drivers and IRQs stay on the BSP behind queues; C5.4 on by default with 2+ CPUs (`smp=off` opts out) after a 1/2/4/8-CPU stress gate and VMware check; C5.5 user threads in native programs. [Plan and evidence](components/MULTICORE.md#c5--general-smp). |
-| X1 | partial | Host cross-SDK exists in freestanding form; finish documented startup/headers/libc subset/compiler runtime and supported-API matrix; install/upgrade a real independent program. |
-| X2 | planned, later | PTY/terminal capabilities + libc source audit → nano/reduced Vim proof; optional Bash requires subprocess/pipe/signal/POSIX compatibility beyond the existing custom shell. |
-| X3 | planned, later | Deliberately scoped Python REPL/import/file I/O first, then modules backed by implemented APIs. No implied PyPI/subprocess/thread support. |
-| X4 | planned, later | On-Zenith GCC/binutils/make/runtime after process/SDK and storage budgets; compile/run a small program before self-hosting claims. [Developer-port requirements](DEVELOPER-TOOLS.md). |
-| X5 | implemented locally | **Larger native programs**. The loader streams the signed executable to private pages and authenticates the same bytes before entry. `zenith-native-large-abi 1.0` selects 4 MiB files, 32 MiB package payloads, a 256 MiB ELF address window with at most 64 MiB resident startup image, and 32 MiB native file reads per budget window. Transactions cap old plus new payload at 64 MiB. The distributor keeps oversized manifests out of legacy catalogs and publishes them through v4. Exit: the [X5 smoke](../tools/native-large-smoke.py) installs and runs a signed program above both legacy image limits and reads 18 MiB, alongside an unchanged legacy read budget. A 0.0.71 QEMU fixture refused both the missing capability and the oversized signed file. Publication and installed acceptance remain open. [Native contract](NATIVE-PROGRAMS.md) · [Optional Doom prerequisites](APPLICATIONS.md#doom-engine-package-requested-feasibility-slice). |
+| C1 | Foundation accepted with C5 | Per-CPU native work queues, private stacks, targeted wakeup, cancellation and shutdown. Keep scalar parity and CPU-count regression coverage. [Worker evidence](archive/2026-11-03/native-worker-queues.md) |
+| C2 | Foundation accepted with C5 | Hardware CPU identity, CPU-local interrupt/switch state and FP context preservation. Keep timer, interrupt and register-restore tests. [Execution-state evidence](archive/2026-11-03/per-cpu-execution-state.md) |
+| C3 | Foundation accepted with C5 | Managed worker ownership, roots across collection, per-thread state and bounded pinned jobs. Preserve fault, cancellation and GC-pressure tests. [Managed-worker evidence](archive/2026-11-03/pinned-managed-workers.md) |
+| C4 | Foundation accepted with C5 | Protected process execution across CPUs, affinity/ready transfer and safe cancellation/reaping. Compositor and process regression gates cover the original concurrent workloads. [Process migration](archive/2026-11-03/protected-process-migration.md) |
+| C5 | General SMP installed, C5.5 open | Since kernel 0.0.63, general scheduling defaults on with two or more CPUs. `smp=off` selects the single-CPU fallback. Service threads can follow their programs, while drivers and IRQ handling retain explicit ownership. The remaining feature is several user threads in one native address space. Prove creation, scheduling, fault/exit, collection and teardown under load. [SMP contract and stress results](components/MULTICORE.md#c5--general-smp) |
+| X1 | Partial | The freestanding host cross-SDK builds independent native apps. Document and test the supported startup, headers, libc and compiler runtime surface before promising additional ports. [Developer tools](DEVELOPER-TOOLS.md) |
+| X2 | Later | Audit PTY, libc, signals and subprocess compatibility for a specific external editor or shell. Quill already covers basic editing and Polaris hosts the Zenith shell. Select a port and prove an actual interactive session. [Port requirements](DEVELOPER-TOOLS.md) |
+| X3 | Later | Start Python with an interactive interpreter, file I/O and imports. Qualify each additional runtime or module dependency separately. [Developer tools](DEVELOPER-TOOLS.md) |
+| X4 | Later | On-Zenith GCC/binutils/make need working process, SDK and storage support. Compile and run a small program inside Zenith before widening the target. [Developer tools](DEVELOPER-TOOLS.md) |
+| X5 | Tagged since kernel 0.0.77 | Capability-gated large native programs and signed catalog v4 are in the released source. The loader authenticates the mapped bytes. The native-large gate installs and runs a signed oversized program, reads 18 MiB and checks the legacy limits. Keep resource and compatibility checks on future ABI changes. [Native limits](NATIVE-PROGRAMS.md) · [Gate](../tools/native-large-smoke.py) |
 
 ## Scope decisions and non-blocking ideas
 
-**Optional Doom engine** has a local `zenith-doom` package preview based on
-PureDOOM. It uses X5 for executable size and reads. A signed preview installed
-in QEMU, drew a frame from a 27.5 MiB Freedoom test IWAD, and returned to the
-shell on Escape. The [focused key-edge ABI](GRAPHICAL-CLIENTS.md#focused-physical-keys)
-is implemented locally. QEMU PS/2 and virtio tests verified release, focus reset
-and launcher isolation. The engine-only `zenith-doom/v0.2.0` source release
-requires those ABIs and ships no WADs. A signed QEMU install ran a separately
-supplied Freedoom level and verified continuous turning, release, launcher
-capture reset, and menu exit. Distributor and installed acceptance are open.
-The installed 0.2.0 checker rejected the supplied BFG-style base WADs because
-their magic is `PWAD`. The local adapter recognizes the base resource layout
-and handles the Doom II alternate title lump. Both supplied WADs passed the
-checker, entered their first level, and exited cleanly in a signed QEMU install
-of the engine-only `zenith-doom/v0.2.1` release. Distributor publication and
-installed VMware acceptance are open.
-The `zenith-doom/v0.3.0` source release adds a desktop launcher entry, a themed WAD browser
-with a remembered folder, and a larger resizable game window with 4:3 scaling.
-A signed QEMU install launched both supplied WADs. It selected Doom II from a
-nested folder under a filename with spaces, maximized the game, entered and
-restored from F11 fullscreen with a PS/2 keyboard, and reopened in the
-last-played folder. F11 did not toggle with the VirtIO keyboard in this fixture.
-Distributor publication and installed VMware acceptance remain open for 0.3.0.
-Remaining work includes save/config storage and audio. Acceptance requires a supported user-supplied IWAD, guest
-gameplay and save/load, clean exit, and an independent package update. Follow
-the [port contract](APPLICATIONS.md#doom-engine-package-requested-feasibility-slice).
+The optional Doom engine has a native WAD browser and a resizable game window. The signed stable extra index (generation **203**) offers `zenith-doom/v0.4.1` with the updated launcher and window materials. Players supply their own WADs. Remaining port work includes per-user saves/config, audio, and installed save/load and independent-update checks. [Doom package contract](APPLICATIONS.md#doom-engine-package-requested-feasibility-slice) · [Package changes](../packaging/about/zenith-doom.about)
 
-Concepts exist for [Sunset](design/sunset-concept.svg) and [Prism](design/prism-concept.svg) (implemented as U9) and for [Orbit](design/orbit-concept.svg), [Beacon](design/beacon-concept.svg) and [Equinox](design/equinox-concept.svg) below. Equinox (U8) was requested 2026-11-10 and is implemented locally with its `disk` command base. Sunset (U10) was requested 2026-11-15. Beacon (U11) and Orbit (U12) are implemented. Observatory is promoted to U7. Orbit/package
-browser, Beacon/network panel, archive app, screenshots,
-SSH and diagnostic export are proposed additional applications, not approved core
-release blockers. Keep them in [application requirements](APPLICATIONS.md), and add
-an explicit work row only when promoted. Btrfs is a possible recovery backend, not
-an accepted prerequisite; WASM is an optional runtime investigation, not the desktop.
+SMB is the selected file-transfer protocol (N4). A Ladybird port is a feasibility question outside the current download scope. Additional apps such as a standalone archiver, screenshot utility, SSH client or diagnostic exporter need a product decision before entering core delivery. A recovery backend choice belongs to R2. WASM remains an optional runtime investigation. [Application scope](APPLICATIONS.md)
 
 ## Completion and update rules
 
-A master row is accepted only after its stated exit and the relevant environment
-checks. Attach exact evidence; separate source, local qualification, publication
-and operator acceptance. Split a large row into component steps without inventing
-another roadmap. Reopen a resolved defect only with new evidence. Every newly
-accepted requirement must map to an ID here. No unchecked task may live solely in
-a technical guide, chat, archive or source comment without a master owner.
+Record which scope changed, on which revision and in which environment. Keep Git tags, local qualification, signed publication and installed acceptance separate. Give every accepted requirement one master owner. Keep technical steps in the component page and dated results in the archive. Reopen an old failure with new evidence and a reproducible check.

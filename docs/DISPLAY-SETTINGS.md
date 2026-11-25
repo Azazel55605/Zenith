@@ -7,7 +7,7 @@ See the [master roadmap](ROADMAP.md) for qualification and remaining scope.
 
 ## Use and recovery
 
-Choose **Resolution and scale**, then Apply. A host-owned 15-second preview offers
+Choose **Resolution** and **Scale**, then Apply. A host-owned 15-second preview offers
 Keep and Revert. Only Keep persists the choice. Timeout, requesting client exit
 and desktop teardown restore the previous layout and retained buffers. Open
 window objects and application drafts remain in place; windows are clamped into
@@ -50,9 +50,10 @@ recovery remains available; display mutation requires an active graphical owner.
 ## Driver and transaction boundaries
 
 Pinned Cosmos 3.0.89 VMware SVGA canvases have real mode setters. Choices are
-bounded by the device's maximum width/height, framebuffer offset and memory for
-two 32-bit frames, plus a conservative 1920x1200 limit. A 16 MiB device can fit
-1600x1200 double buffering, but not 1920x1200. Mode application verifies actual
+bounded by device dimensions, framebuffer offset, VRAM for two 32-bit frames and the logical layout's memory budget.
+Meridian lists the modes the driver offers, including 5120×2880 or 7680×4320 when supported. The service and picker require at least 800×600 logical pixels, a maximum dimension of 16384 and a maximum of 32 Mi pixels per frame. Hardware memory can impose a lower limit. The host fixture also checks rejection of oversized and overflowing dimensions. [Catalog](../src/Gui/Shell/DisplayController.cs) · [Meridian binding](../userland/settings/bindings.c)
+
+A 16 MiB device can fit 1600×1200 double buffering. A 1920×1200 mode needs more memory. Mode application verifies actual
 SVGA width, height, bit depth and pitch registers. Logical desktop and scaled
 output buffers are allocated before switching; the previous buffers survive
 until confirmation. An unrecoverable hardware restoration error propagates.
@@ -76,7 +77,7 @@ Settings releases keep working. All buffers and
 reserved fields are validated. Preview ownership is the captured PID; callers
 cannot confirm or revert another application's trial. Root authority is checked
 at request admission; persistence runs in an explicitly restored trusted scope.
-Managed service/device work stays on the BSP, including opt-in `smp=native` boots.
+The desktop owner performs hardware changes. General managed scheduling and device ownership follow the selected SMP mode. [Multicore contract](MULTICORE.md)
 
 The mandatory `tools/native-display-smoke.py` gate uses disposable installed
 disks. It checks GUI Keep/Revert, native client exit, independent timeout,

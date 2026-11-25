@@ -56,10 +56,10 @@ never infer current failures from old release logs or claim a menu stub is a bac
   file writes and Sunbeam tee; new bundles declare zenith-native-io-abi 1.0.
   The stream extension adds live standard descriptors/canonical host input and
   8 KiB byte pipes (eight shell stages/workers, eight native contexts globally).
-  Default raw entry stays serialized on the BSP; opt-in C4 private AP bridges
-  schedule protected user contexts at syscall/timer boundaries. Managed service
-  actors and their captured credentials remain on the BSP; waits may overlap. New
-  bundles require zenith-native-stream-abi 1.0. Keep stream/cancel/early-exit tests.
+  The single-CPU fallback serializes raw entry on the BSP. C4 private AP bridges
+  schedule protected user contexts at syscall/timer boundaries. In C5 managed mode
+  service threads can follow their programs with their captured credentials.
+  Stream bundles require zenith-native-stream-abi 1.0. Keep stream/cancel/early-exit tests.
   The CLI extension adds exported envp, an owner-filtered process table,
   cooperative PID cancellation, foreground raw-input leases and four bounded shell
   jobs. Preserve per-invocation stop callbacks and terminal restoration across all
@@ -113,10 +113,13 @@ never infer current failures from old release logs or claim a menu stub is a bac
   See docs/NATIVE-PROGRAMS.md for foreground ABI limits; preserve fault/NX/W^X,
   credentials and same-kernel executable-upgrade acceptance. Selected CLI packages are independent; full GUI/service migration still needs
   additional controlled APIs.
-- Opt-in x64 `smp=native` starts isolated native integer workers (docs/MULTICORE.md).
+- x64 defaults to managed SMP with two or more CPUs since kernel 0.0.63. Preserve
+  `smp=off` recovery and the explicit `smp=native` mode. The C1–C4 constraints
+  below apply to that worker mode. C5 defines general scheduling, service
+  placement and driver ownership in [the multicore contract](docs/MULTICORE.md).
   The x64 IDT loader must preserve IF: Cosmos 3.0.89's premature STI is redirected
   in signature-checked build copies. Keep installed UEFI startup/IRQ-state checks.
-  General managed scheduling, collection and drivers stay on the BSP. C4's
+  In explicit `smp=native` mode, general scheduling, collection and drivers stay on the BSP. C4's
   protected user contexts use private AP bridges and a bounded native ready pool;
   their managed service actors remain on the BSP. APs own static queues, private GDT/TSS/work/IST stacks and owned
   pixel buffers. C3 admits only a fixed trusted managed entry after the complete
@@ -130,8 +133,8 @@ never infer current failures from old release logs or claim a menu stub is a bac
   ownership. Completed jobs retain capacity until reaped; failed queues stay
   reserved. Cancellation completion is distinct from checksum success; stop admission
   permanently and require AP halt acknowledgement before disk shutdown. Preserve
-  default-disabled boots and 1/2/4-CPU acceptance; do not enable
-  general managed AP execution from CPU count alone. Preserve the mandatory CPU
+  disabled-mode boots, 1/2/4-CPU worker coverage and the 1/2/4/8-CPU default-mode
+  stress matrix. Keep the runtime admission checks before managed AP entry. Preserve the mandatory CPU
   and managed gates, including cold exception dispatch, pinned/interior roots,
   repeated real collection, fault/cancel, exact rendered frames and input.
   C2 adapts only signature-checked build copies of x64 IRQ code: CPU-local switch
@@ -155,7 +158,7 @@ never infer current failures from old release logs or claim a menu stub is a bac
   No AP receives a Surface, credential, scene pointer or managed array reference.
   Central IRQ registration/allocation/freeing remain BSP-owned; reserved native
   F1/F3/F4/F5/F6 vectors must be refused before the registry lock/body, including
-  default-disabled boots. Keep the pinned MSI 40–EE range and signature drift
+  `smp=off` boots. Keep the pinned MSI 40–EE range and signature drift
   rejection. Compositor/native gate and actual full-scene pixel comparison remain
   mandatory; bounded task distribution is not general thread/process migration.
   C4 protected-process admission is a separate generation/affinity pool. Keep
@@ -170,8 +173,8 @@ never infer current failures from old release logs or claim a menu stub is a bac
   does not mean an empty boot stack. Bound saved SP by recorded boot-stack limits
   and fail-stop before scanning invalid bounds. Preserve the fresh
   native-smp gate, 1/2/4-CPU actual execution/overlap and ext2 audits, and the full
-  four-CPU process gate with one parked managed-root owner. Default AP admission
-  remains opt-in until distributor and operator acceptance.
+  four-CPU process gate with one parked managed-root owner. Keep these explicit-mode
+  regressions alongside the default managed-SMP checks.
 - GUI input must periodically drain registered mice before sampling coordinates,
   even if a virtio notification was missed. Keep polling IRQ-scoped on the BSP,
   restore prior flags on success/exception, bound virtio drains to 64 events and

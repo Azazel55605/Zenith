@@ -14,6 +14,7 @@ static uint8_t *dma;
 static uint64_t physical;
 static uint32_t pci,inputs,outputs,count,selected[2],last[2],running[2],serviced[2],errors;
 static struct endpoint endpoints[MAX_ENDPOINTS];
+static uint32_t codec_model[15],controller_model;
 static uint32_t caps[MAX_NODES],connections[MAX_NODES][32],connection_count[MAX_NODES];
 static inline void out32(uint16_t p,uint32_t v){__asm__ volatile("outl %0,%1"::"a"(v),"Nd"(p));}
 static inline uint32_t in32(uint16_t p){uint32_t v;__asm__ volatile("inl %1,%0":"=a"(v):"Nd"(p));return v;}
@@ -34,7 +35,7 @@ uint64_t zenith_hda_probe(void){
         if((vendor&0xffff)==0xffff){if(!fn)break;continue;}
         if((config(slot,8)>>8)!=0x040300)continue;
         uint32_t bar=config(slot,0x10);if((bar&1)||!(bar&~15u))continue;
-        pci=slot;uint64_t address=bar&~15u;if((bar&6)==4)address|=(uint64_t)config(slot,0x14)<<32;
+        pci=slot;controller_model=vendor;uint64_t address=bar&~15u;if((bar&6)==4)address|=(uint64_t)config(slot,0x14)<<32;
         /* Preserve command bits; do not echo write-one-to-clear status. */
         config_write(slot,4,(config(slot,4)&0xffff)|6u);return address;
     }
@@ -137,6 +138,7 @@ uint64_t zenith_hda_initialize(uint64_t address,uint64_t virtual_dma,uint64_t ph
     w32(8,1);if(!wait32(8,1,1)||!delay(24000))return 0;
     uint32_t codecs=r16(14);
     for(uint32_t c=0;c<15;c++)if(codecs&(1u<<c)){
+        codec_model[c]=get(c,0,0xf00,0);
         uint32_t range=get(c,0,0xf00,4),first=range>>16,number=range&255;
         for(uint32_t g=first;g<first+number&&g<MAX_NODES;g++)if((get(c,g,0xf00,5)&255)==1)enumerate(c,g);
     }
@@ -149,7 +151,8 @@ uint64_t zenith_hda_initialize(uint64_t address,uint64_t virtual_dma,uint64_t ph
 uint64_t zenith_hda_field(uint64_t index,uint64_t field){
     if(index==UINT64_MAX)return field==0?count:errors;
     if(index>=count)return 0;struct endpoint *e=&endpoints[index];
-    switch(field){case 0:return e->id;case 1:return e->direction;case 2:return e->config;case 3:return e->codec;case 4:return e->pin;case 5:return selected[e->direction]==e->id;default:return 0;}
+    switch(field){case 0:return e->id;case 1:return e->direction;case 2:return e->config;case 3:return e->codec;case 4:return e->pin;case 5:return selected[e->direction]==e->id;
+        case 6:return pci;case 7:return controller_model;case 8:return codec_model[e->codec];default:return 0;}
 }
 uint64_t zenith_hda_run(uint64_t direction,uint64_t enable){
     if(!mmio||direction>1||!selected[direction])return 0;

@@ -9,6 +9,10 @@ static int material_surface;
 static unsigned long system_revision(void){
     return shell.desktop.ready?shell.desktop.saved.revision:shell.bindings.preferences.revision;
 }
+static long visit_page(const char *id){
+    unsigned long n=0;while(id[n])n++;
+    return zenith_call(672,(unsigned long)id,5,n);
+}
 static long present(void){
     struct zui *u=meridian_ui(&shell);
     /* Kernels before 0.0.38 refuse this and the frame simply appears. */
@@ -203,7 +207,19 @@ static int bounds(void){
     if(zenith_appearance_read(&after)||before.revision!=after.revision)return 9;
     print("SETTINGS_BOUNDS_OK\n");return 0;
 }
+static long recent_pages(char history[385]){
+    long bytes=zenith_call(672,(unsigned long)history,4,384);
+    if(bytes<0||bytes>383)return -1;
+    history[bytes]=0;
+    return bytes;
+}
 int main(int argc,char **argv){
+    if(argc==2&&same(argv[1],"--recent")){
+        char history[385];long bytes=recent_pages(history);
+        if(bytes<0){print("settings: recent pages unavailable\n");return 1;}
+        if(!bytes){print("No recent settings pages.\n");return 0;}
+        print(history);print("\n");return 0;
+    }
     if(argc==2&&same(argv[1],"--display"))return display_show();
     if(argc==6&&same(argv[1],"--display-test"))return display_test(argv);
     if(argc==2&&same(argv[1],"--version")){print("settings " SUNBEAM_VERSION "\n");return 0;}
@@ -250,7 +266,7 @@ int main(int argc,char **argv){
     }
     const char *page=0;
     if(argc==3&&same(argv[1],"--page"))page=argv[2];
-    else if(argc!=1){print("usage: native run settings [--page ID | --system-info | --show | --set dark|light ACCENT | --materials solid|transparent|blur | --materials-show | --version | --bounds]\n");return 2;}
+    else if(argc!=1){print("usage: native run settings [--page ID | --recent | --system-info | --show | --set dark|light ACCENT | --materials solid|transparent|blur | --materials-show | --version | --bounds]\n");return 2;}
     zui_icons_use_packages();
     struct settings_backend backend={read_settings,save_settings,dirty,scope_action};
     if(!meridian_init(&shell,pixels,backend,page)){print("settings: service unavailable\n");return 1;}
@@ -260,6 +276,8 @@ int main(int argc,char **argv){
     struct zenith_material_settings material_state={0};
     material_surface=zenith_material_settings_read(&material_state)==0&&(material_state.version==1||material_state.version==2)&&!material_state.reserved&&
         zenith_gui_material_caps(&caps)==0&&caps.version==2&&(caps.features&3)==3;
+    char history[385]={0};
+    if(recent_pages(history)>=0)meridian_recent(&shell,history,visit_page);
     /* 640x480 is the largest surface the host admits at open; maximize goes beyond it. */
     if(!meridian_resize(&shell,640,480,640*480))return 1;
     handle=material_surface?zenith_gui_open_material(640,480,"Meridian",8):zenith_gui_open(640,480,"Meridian",8);

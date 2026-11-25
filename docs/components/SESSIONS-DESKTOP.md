@@ -17,12 +17,12 @@ updateable. A resource package does not make the greeter an independent process.
 
 | Master ID / app | Current frontend | Detailed exit |
 |---|---|---|
-| U5 Welcome/System | Native `desktop-tools` frontends, signed shell and menu dispatch locally tested | D1 parity, live preference/independent upgrade/user/teardown and Q2 release acceptance |
-| S1 Meridian | Native 44-page shell, seven groups, search/recent links, scoped Colors/inheritance, searchable keyboard/time-zone/session choices, authorized network/account information and selected About data | U1 richer controls/lifetime tests, real page backends and Q1/Q2; WIP scope is not functionality |
-| U2 Editor | Trusted window, shared-design toolbar/canvas/status, guarded chrome close | Shared multiline text/selection, clipboard/dialogs, UTF-8/LF/CRLF, undo/search, external changes and permission-aware staged saves |
-| U3 Terminal | Trusted shell host, shared material canvas, solid hidden input and appearance-aware ANSI scrollback | Owned PTY/session byte/mode protocol, native renderer, raw/canonical/secret/type-ahead/jobs/EOF/cancel and all recovery hosts |
-| U4 Sunrise | Trusted installer, shared fields/navigation/action controls and credential-solid account entry | Typed root/live-only wizard with explicit erase consent, safe account secrets, progress and maintenance blockers |
-| A1 Files | Intentionally unchanged | Separate full navigation/transfer/selection overhaul after this migration batch |
+| U5 Welcome/System | Signed desktop-tools frontends with shell/menu dispatch and trusted recovery fallbacks | Installed upgrade, permissions and teardown checks |
+| S1 Meridian | Native Settings with 44 pages, eight navigation groups, scoped preferences and authorized system controls | Finish remaining backends and check the installed settings scope. [Page coverage](../ROADMAP.md#meridian--every-requested-destination) |
+| U2 Editor | Native Aurora with tabs, editable UTF-8 documents, staged saving, recovery, project navigation and folding | External compiler/language-server integration depends on process and toolchain work. [Aurora](AURORA.md) |
+| U3 Terminal | Native Polaris runs kernel-owned terminal sessions with recovery hosts | Preserve input modes, owned sessions and shell return across upgrades. [Polaris](SHELL.md#polaris-design) |
+| U4 Sunrise | Trusted installer, shared fields/navigation and protected credential entry | Provide typed live/root-only disk, account and progress operations for the native wizard |
+| A1 Files | Native Horizon with tabs, selection, transfers and archive operations | Removable media and network shares depend on S6 and N4. [Horizon](HORIZON.md) |
 
 The asynchronous launcher captures credentials and owns cancellation; compositor
 input never performs executable verification/entry. Missing native Welcome/System
@@ -32,43 +32,14 @@ not indiscriminately journalled. Session stop revokes surfaces and invocations.
 
 ## D1–D3 / S1–S5 — Shared presentation and Settings
 
-- [x] [Meridian behavior design](../MERIDIAN-BEHAVIOR.md) stage 2 (local): drill-down
-  navigation, form pages, combo choices, footer and unsaved-changes dialog
-  ([implementation plan](MERIDIAN-STAGE2.md)).
-- [x] D1: smooth native controls, completed-window corner masks, shared system-app
-  controls and accepted segments/swatches/rows/navigation
-  and host chrome locally; Q2 owns installed confirmation, U1/D2 richer widgets/hover/text/scale;
-  preserve [material roles](../DESIGN-LANGUAGE.md#materials-and-optional-effects).
-- [x] U1/D2: opt-in bounded client resize/maximize, stable sidebar/detail workspaces
-  and drag keyboard routing; continuous title/sidebar materials and reduced-grid
-  whole-background blur remove the stacked rectangular content underlay; [targeted tests and unresolved operator freeze](../archive/2026-10-28/meridian-workspace-input.md).
-- [x] D2 primary slice: driver-bounded display modes, integer scaling and host-owned Keep/Revert; installed/device acceptance remains Q2/H1.
-- [x] S1: typed root-only keyboard/time-zone system-default catalogues and saves,
-  stale revision checks, explicit save/discard and CLI parity.
-- [x] S1 shared stage: per-UID profiles, live default inheritance/reset, searchable
-  catalogues, registered default sessions and read-only network/account summaries.
-  [Contract/evidence](../archive/2026-10-28/shared-settings-stage.md); Q2 owns installed two-account acceptance.
-- [ ] S1 remaining broader backends: guarded edits/authority and richer About inventory;
-  driver/device, clock scheduling and account lifecycle remain their roadmap owners.
-- [ ] S2–S5: activate the [44-page inventory](../MERIDIAN-PAGES.md) in backend order;
-  [Meridian contracts](../MERIDIAN-PLAN.md) specify details, not a second schedule.
-- [ ] D3: software integration locally qualified: explicit foreground/regions,
-  cached tint/blur, saved/effective controls, shared chrome/taskbar/Meridian policy,
-  contrast and bounded resource/work fallback. [Evidence](../archive/2026-10-28/desktop-material-integration.md).
-  Q2 installed/device/sustained performance and D2 resize/scale acceptance remain;
-  credential entry remains solid. Terminal, Editor, non-credential Sunrise and
-  recovery Welcome/System bodies now opt into the whole-background policy; Files
-  is excluded. System-wide translucency level maps onto a readable contrast range. Supported workspace apps may
-  opt into the system-wide whole-background setting; legacy preference saves preserve
-  its bit. Taskbar customization belongs to W1/S4.
+The shared layout, controls, inset workspaces, rounded masks and taskbar/chrome materials implement the accepted appearance. Optional whole-window translucency keeps credentials opaque. Signed apps use the same roles in both appearances. [Design language](../DESIGN-LANGUAGE.md) · [Material contract](../GRAPHICAL-CLIENTS.md#opt-in-material-frames-d3-first-slice)
+
+S1 provides revisioned system settings and per-UID appearance overrides with inheritance. Check permissions and persistence at each new consumer. The primary display service owns mode changes and rollback. S2–S5 own new input policies, shared scheduling, asset controls and search. [Page coverage](../ROADMAP.md#meridian--every-requested-destination) · [Display settings](../DISPLAY-SETTINGS.md)
 
 ## W1–W3 / U6 — Product desktop and lifecycle
 
 The DE and WM share the launcher, panel, notifications, switcher and workspaces.
-Owned IPC/restart boundaries support eventual
-compositor/session separation. True locking must preserve apps while denying
-input/content; administrative auto-login, autostart/restore, dimming and suspend
-need explicit trusted lifecycle/device support. Keep recovery until these exits pass.
+Sunset's manual lock preserves apps and denies input and visibility until the owning user authenticates. W3 owns idle/grace, guarded automatic login, autostart and restore. U6 owns independently restartable compositor and session services. [Sunset](SUNSET.md)
 
 ### W1 — Apps and Windows
 
@@ -170,8 +141,7 @@ serial fallback with a saved WM default. Installed VMware acceptance is open.
 [GUI](../../src/Gui), [trusted apps](../../src/Apps), [native apps](../../userland).
 [Login](../LOGIN-SESSIONS.md), [settings](../NATIVE-SETTINGS.md),
 [graphics/lifetime/metadata](../GRAPHICAL-CLIENTS.md), [app requirements](../APPLICATIONS.md).
-[Current local foundation](../archive/2026-10-27/meridian-shell.md); Q1/Q2 in the
-master roadmap own actual publication/installed evidence.
+[Original shell qualification](../archive/2026-10-27/meridian-shell.md) · [Current release evidence](../ROADMAP.md#state-and-evidence)
 
 ### M2/D2 display transaction
 
@@ -183,5 +153,4 @@ and maps physical input into logical coordinates (minimum 800x600 logical).
 The host owns the 15-second preview and client-exit/session rollback. Kept settings
 use `/etc/zenith/display.conf`; `display=safe` ignores them during recovery boot.
 [Contract](../DISPLAY-SETTINGS.md), [local evidence](../archive/2026-11-04/primary-display-settings.md).
-Installed VMware/device acceptance remains Q2/H1; orientation/refresh, fractional
-scale and multi-output support remain D2.
+VMware also supports filtered intermediate scales. D2 owns sharp fractional rendering, orientation/refresh and multiple outputs. Q2/H1 track installed and hardware acceptance.

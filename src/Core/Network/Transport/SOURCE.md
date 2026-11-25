@@ -46,6 +46,18 @@ are checked; changes fail the build rather than guessing another layout. The inj
 assembly has no Cosmos dependency, so no initializer cycle/private UnsafeAccessor
 binding is required. No private object offsets are assumed.
 
+The TCP socket fast path reads the published byte count directly and copies just
+the requested prefix from immutable chunks. This applies to the socket plug and
+the executed `System.Net.Sockets.Socket.Available` body. Full-size incoming
+segments get their own chunk. Small writes share chunks up to 4 KiB.
+
+The pinned IPv4 transmit queue drained each batch in reverse. A 4 MiB HTTP
+download in QEMU produced 2,759 backward ACKs amongst 3,047 pure ACKs from the
+guest. The adapter visits pending entries oldest first and permits the original
+number of visits per pass. Entries waiting on ARP continue to occupy their
+positions and packets enqueued during a send wait for the next pass. The sender
+still receives the existing receive-window update when the application drains data.
+
 `BoundedTcpBuffer` uses immutable byte-array snapshots and compare/exchange. One
 consumer can advance while NIC appends without losing unread bytes or invalidating
 the span being copied. Pending data is capped at 128 KiB per connection. Overflow

@@ -332,8 +332,8 @@ native run settings --settings-info accounts
 
 ## Desktop preferences
 
-`zenith-native-desktop-preferences-abi 1.0` uses call 672 for the four Apps &
-Windows preference pages. It preserves the legacy taskbar mode calls. Read
+`zenith-native-desktop-preferences-abi 1.0` uses call 672 for Apps &
+Windows preferences, Screen Locking and the caller's recent Meridian pages. Read
 uses `(buffer, 1, page)`. Save uses `(buffer, 2, 640)`. Each page has one
 revisioned save, authorized by root or the scoped system-settings portal grant.
 A stale revision or refused disk write keeps the live settings intact. The
@@ -353,7 +353,7 @@ and defaults to zero. Only tiled windows in WM mode use these values.
 
 The little-endian 640-byte record has four u32 values (version 1, page ID,
 flags, count), a u64 revision, eight u32 page values, two additional u32
-fields at offsets 56 and 60, and eight 72-byte entries. Pages 1–4 reserve
+fields at offsets 56 and 60, and eight 72-byte entries. Pages 1–4 and 6 reserve
 those two fields as zero. Read flag bit 0 means writable. Flags are zero on save.
 An entry contains a u32 stable ID, a 65-byte UTF-8 name and three zero bytes.
 Names are NUL-terminated and padded, and unused values and entries are zero.
@@ -365,11 +365,18 @@ Names are NUL-terminated and padded, and unused values and entries are zero.
 | 3 Task switcher | Cards/list, recent/open/title sort, group by application, current/all workspaces | None |
 | 4 Virtual desktops | Animate switching | One to eight ordered names (1–48 UTF-8 bytes) with unique stable IDs |
 | 5 Extended window behavior | The eight page 2 values, then inner gap at offset 56 and outer gap at offset 60 | None |
+| 6 Screen Locking | Timeout index (off, 1, 5, 10, 15, 30 minutes), then grace index (0, 5, 15, 30 seconds) | None |
 
 Meridian requests page 5 for Window Behavior so Apply can save the whole
 form in one transaction. On kernels that only implement page 2, Meridian
 uses that page and displays the original controls. Saving page 2 on a newer
 kernel preserves both gaps.
+
+Recent pages use two operations scoped to the calling account. `(buffer, 4, 384)`
+returns the byte length of up to six newline-separated page IDs, newest first.
+`(page_id, 5, length)` remembers one ID of 1–63 ASCII bytes and returns zero on
+success. Revisiting a page moves it to the front. The Quick Settings overview
+does not count as a visit. On installed systems the list survives reboot.
 
 Boolean values are 0/1. Titlebar action IDs 0–3 are maximize/restore,
 minimize, toggle fullscreen and do nothing. App catalogue reads use

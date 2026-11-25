@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using Zenith.Core.Security;
 using Zenith.Core.Storage;
 
@@ -12,7 +13,9 @@ internal sealed class NativePersonalAppearanceStore : IPersonalAppearanceStore
     private readonly Dictionary<uint, string> _live = new();
     public bool Persistent => SystemMounts.Mode == BootMode.Installed;
     public bool Available(uint uid) => uid == 0 || (uid != 65534 && Accounts.Service?.Find(Accounts.Service.Name(uid))?.Uid == uid);
-    private static string PathFor(uint uid) => "/etc/zenith/preferences/" + uid + ".conf";
+    private readonly bool _recentPages;
+    public NativePersonalAppearanceStore(bool recentPages = false) { _recentPages = recentPages; }
+    private string PathFor(uint uid) => "/etc/zenith/preferences/" + uid + (_recentPages ? ".recent" : ".conf");
     internal static void Ancestors(bool create)
     {
         var metadata = new VfsFileMetadata();
@@ -33,6 +36,20 @@ internal sealed class NativePersonalAppearanceStore : IPersonalAppearanceStore
         if (new VfsFileMetadata().TryRead(path, out var stat) && (stat.Type != "regular file" || stat.Links != 1 || stat.Uid != 0 || (stat.Mode & 0x12) != 0))
         { throw new IOException("unsafe preference record"); }
     }
+    private static readonly NativePersonalAppearanceStore Recent = new(recentPages: true);
+    public static byte[] RecentPages(uint uid, string? visit)
+    {
+        lock (Recent)
+        {
+            if (!Recent.Available(uid)) { throw new UnauthorizedAccessException(); }
+            string? previous = Recent.Read(uid);
+            string list = RecentPageList.Update(previous, visit);
+            byte[] bytes = Encoding.ASCII.GetBytes(list);
+            if (visit is not null && list != previous) { Recent.Replace(uid, list); }
+            return bytes;
+        }
+    }
+
     public string? Read(uint uid)
     {
         if (!Persistent) { return _live.GetValueOrDefault(uid); }

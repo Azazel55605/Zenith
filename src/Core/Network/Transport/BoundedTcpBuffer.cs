@@ -18,6 +18,17 @@ public sealed class BoundedTcpBuffer
         public readonly int Offset, Count;
         public readonly bool Overflow;
         private byte[]? _snapshot;
+        public void CopyPrefix(Span<byte> destination)
+        {
+            if (destination.Length > Count) { throw new ArgumentOutOfRangeException(nameof(destination)); }
+            for (int i = 0; !destination.IsEmpty; i++)
+            {
+                var chunk = Chunks[i].AsSpan(i == 0 ? Offset : 0);
+                int length = Math.Min(chunk.Length, destination.Length);
+                chunk[..length].CopyTo(destination);
+                destination = destination[length..];
+            }
+        }
         public ReadOnlySpan<byte> Data
         {
             get
@@ -26,12 +37,8 @@ public sealed class BoundedTcpBuffer
                 if (Chunks.Length == 1) { return Chunks[0].AsSpan(Offset, Count); }
                 byte[]? cached = Volatile.Read(ref _snapshot);
                 if (cached is not null) { return cached; }
-                var bytes = new byte[Count]; int written = 0;
-                for (int i = 0; i < Chunks.Length; i++)
-                {
-                    var chunk = Chunks[i].AsSpan(i == 0 ? Offset : 0);
-                    chunk.CopyTo(bytes.AsSpan(written)); written += chunk.Length;
-                }
+                var bytes = new byte[Count];
+                CopyPrefix(bytes);
                 return Interlocked.CompareExchange(ref _snapshot, bytes, null) ?? bytes;
             }
         }
@@ -42,6 +49,8 @@ public sealed class BoundedTcpBuffer
         get { var state = Volatile.Read(ref _state); return state.Overflow ? (ushort)0 : (ushort)Math.Max(0, ReceiveWindow - state.Count); }
     }
     public ReadOnlySpan<byte> Data => Volatile.Read(ref _state).Data;
+    public int Count => Volatile.Read(ref _state).Count;
+    public void CopyPrefix(Span<byte> destination) => Volatile.Read(ref _state).CopyPrefix(destination);
     public bool Append(ReadOnlySpan<byte> bytes)
     {
         if (bytes.Length == 0) { return !Volatile.Read(ref _state).Overflow; }
@@ -54,9 +63,17 @@ public sealed class BoundedTcpBuffer
             if (overflow) { after = new State(Array.Empty<byte[]>(), 0, 0, true); }
             else
             {
-                // Copy at most the last 4 KiB chunk, rather than the entire
-                // unread window on every packet. Earlier chunks stay immutable.
-                int merge = before.Chunks.Length == 0 ? 0 : Math.Min(bytes.Length, ChunkSize - before.Chunks[^1].Length);
+                // Keep full-size TCP segments intact. Pack small writes to bound the
+                // number of chunk references even when the peer sends one byte at a time.
+                int merge = 0;
+                if (before.Chunks.Length > 0)
+                {
+                    int tail = before.Chunks[^1].Length;
+                    if (tail < 1024 || bytes.Length < 1024)
+                    {
+                        merge = Math.Min(bytes.Length, ChunkSize - tail);
+                    }
+                }
                 int added = (bytes.Length - merge + ChunkSize - 1) / ChunkSize;
                 var chunks = new byte[before.Chunks.Length + added][];
                 before.Chunks.CopyTo(chunks, 0);
@@ -90,8 +107,13 @@ public sealed class BoundedTcpBuffer
             int offset = before.Offset + count, first = 0;
             while (first < before.Chunks.Length && offset >= before.Chunks[first].Length)
             { offset -= before.Chunks[first++].Length; }
-            var chunks = new byte[before.Chunks.Length - first][];
-            Array.Copy(before.Chunks, first, chunks, 0, chunks.Length);
+            var chunks = before.Chunks;
+            if (first == chunks.Length) { chunks = Array.Empty<byte[]>(); }
+            else if (first != 0)
+            {
+                chunks = new byte[before.Chunks.Length - first][];
+                Array.Copy(before.Chunks, first, chunks, 0, chunks.Length);
+            }
             var after = new State(chunks, offset, before.Count - count);
             if (ReferenceEquals(Interlocked.CompareExchange(ref _state, after, before), before)) { return; }
         }
@@ -109,6 +131,8 @@ public static class TcpReceiveBridge
         return Interlocked.CompareExchange(ref buffer, created, null) ?? created;
     }
     public static ReadOnlySpan<byte> Data(ref BoundedTcpBuffer? buffer) => Get(ref buffer).Data;
+    public static int Count(ref BoundedTcpBuffer? buffer) => Get(ref buffer).Count;
+    public static void CopyPrefix(ref BoundedTcpBuffer? buffer, Span<byte> destination) => Get(ref buffer).CopyPrefix(destination);
     public static bool Append(ref BoundedTcpBuffer? buffer, ReadOnlySpan<byte> bytes) => Get(ref buffer).Append(bytes);
     public static ushort Window(ref BoundedTcpBuffer? buffer) => Get(ref buffer).Window;
     public static void Advance(ref BoundedTcpBuffer? buffer, int count) => Get(ref buffer).Advance(count);

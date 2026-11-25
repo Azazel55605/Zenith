@@ -24,6 +24,38 @@ public class SettingsServiceTests
         new(store, keyboard ?? (_ => { }), _ => { }, mode => mode != SessionMode.WindowManager);
 
     [Fact]
+    public void LockAndUpdatePolicySurviveRebootAndRespectAuthorization()
+    {
+        var store = new Store();
+        using var root = CredentialContext.Enter(Credentials.Root);
+        var service = Service(store); service.Load();
+        Assert.Equal(0, service.DesktopPreferences.IdleSeconds);
+        Assert.True(service.DesktopPreferences.ScheduledUpdates);
+        ulong revision = service.DesktopSnapshot().Revision;
+        Assert.Equal(0, service.SaveDesktopPreferences(6, [2, 2], [], revision));
+        Assert.Equal(-11, service.SaveDesktopPreferences(7, [0], [], revision));
+        Assert.Equal(-22, service.SaveDesktopPreferences(6, [6, 0], [], revision + 1));
+        using (CredentialContext.Enter(Credentials.Nobody))
+        { Assert.Equal(-13, service.SaveDesktopPreferences(7, [0], [], revision + 1)); }
+        Assert.Equal(0, service.SaveDesktopPreferences(7, [0], [], revision + 1));
+        var reboot = Service(store);
+        Assert.Empty(reboot.Load());
+        Assert.Equal(300, reboot.DesktopPreferences.IdleSeconds);
+        Assert.Equal(15, reboot.DesktopPreferences.GraceSeconds);
+        Assert.False(reboot.DesktopPreferences.ScheduledUpdates);
+    }
+
+    [Fact]
+    public void RecentPagesUseStableIdsAndAreBoundedAndDeduplicated()
+    {
+        var previous = "input.keyboard\nstyle.colors\ninput.keyboard\n../bad\nquick.overview\nlocale.time\naudio.playback\naudio.recording\nwindows.taskbar";
+        Assert.Equal("windows.desktops\ninput.keyboard\nstyle.colors\nlocale.time\naudio.playback\naudio.recording",
+            RecentPageList.Update(previous, "windows.desktops"));
+        Assert.StartsWith("locale.time\ninput.keyboard", RecentPageList.Update(previous, "locale.time"));
+        Assert.Throws<ArgumentException>(() => RecentPageList.Update(previous, "style.colors\nother"));
+    }
+
+    [Fact]
     public void LegacySettingsLoadWithCanonicalAliasesAndNoBootWrites()
     {
         var store = new Store(); store.Files[SettingsService.KeyboardPath] = "# keep\nKEYMAP=\"uk\"\nFONT=large\n";

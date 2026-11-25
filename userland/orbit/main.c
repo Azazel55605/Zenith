@@ -91,7 +91,7 @@ struct pkg { char name[48],kind[8],repo[8],installed[16],candidate[16],latest[16
 static struct pkg pkgs[72];static int npkgs;
 static char list_error[200];
 static struct { char running[16],high[16]; int pending; long installed,updates,available,not_offered;
-                char key[72]; long free_bytes; int mutable_root,busy,may_apply; long offset,now; char error[200]; int have; } ov;
+                char key[72]; long free_bytes; int mutable_root,busy,may_apply,scheduled; unsigned long settings_revision; long offset,now; char error[200]; int have; } ov;
 struct source { char name[8],mirror[160]; long priority,generation,issued,expires,entries,checked; };
 static struct source sources[2];static int nsources,cache_auto;
 static void on_overview(char **f,int n){
@@ -100,6 +100,7 @@ static void on_overview(char **f,int n){
     else if(same(f[0],"key")&&n>=2)copy(ov.key,f[1],sizeof(ov.key));
     else if(same(f[0],"source")&&n>=9&&nsources<2){struct source *s=&sources[nsources++];copy(s->name,f[1],8);s->priority=to_long(f[2]);copy(s->mirror,f[3],160);
         s->generation=to_long(f[4]);s->issued=to_long(f[5]);s->expires=to_long(f[6]);s->entries=to_long(f[7]);s->checked=to_long(f[8]);}
+    else if(same(f[0],"scheduled")&&n==3){ov.scheduled=same(f[1],"1");ov.settings_revision=(unsigned long)to_long(f[2]);}
     else if(same(f[0],"cache")&&n>=2)cache_auto=same(f[1],"1");
     else if(same(f[0],"system")&&n>=7){ov.free_bytes=to_long(f[1]);ov.mutable_root=same(f[2],"1");ov.busy=same(f[3],"1");ov.may_apply=same(f[4],"1");ov.offset=to_long(f[5]);ov.now=to_long(f[6]);}
     else if(same(f[0],"error")&&n>=2)copy(ov.error,f[1],sizeof(ov.error));
@@ -194,7 +195,7 @@ static const char *page_names[PAGES+2]={"Overview","Updates","Installed","Browse
 static const char *page_icons[PAGES]={"house","download","package","search","clock","list"};
 static int page,back_page=PAGE_BROWSE;
 enum { ID_NAV=10,ID_CHECK=30,ID_REVIEW=31,ID_APPLY=32,ID_COMMAND=33,ID_CANCEL_JOB=34,ID_BACK=35,ID_TOGGLE_PLAN=36,ID_FETCH=37,ID_SEARCH=38,
-       ID_PLAN_PAGE=39,ID_CLEAR=40,ID_MARK=100,ID_ROW=300 };
+       ID_PLAN_PAGE=39,ID_CLEAR=40,ID_SCHEDULE=41,ID_MARK=100,ID_ROW=300 };
 static struct zui_scroll page_scroll,plan_scroll;
 /* A new page crossfades in (call 629, as in Meridian); older kernels refuse it and the page appears at once. */
 static int fade_page;
@@ -223,13 +224,20 @@ static void poll_job(void){
     if(applied){for(int i=0;i<npkgs;i++)pkgs[i].mark=0;nprevious=0;}
     load();
 }
-static int pending_apply;static long auth_handle;static int granted;
+static int pending_schedule=-1;static unsigned long pending_revision;static long auth_handle;static int granted;
 static void start_apply(void);
 static void ask_permission(void){
     if(auth_handle>0)return;
     long h=zenith_authorize("Authorize",Z_ACTION_PACKAGES);
     if(h<0){say(h==-38?"This Zenith cannot ask for permission. Run Orbit as root to apply.":"Changing software needs an administrator.",1);return;}
-    auth_handle=h;pending_apply=1;print("ORBIT_AUTHORIZE asking\n");say("Waiting for an administrator to allow the change...",0);
+    auth_handle=h;print("ORBIT_AUTHORIZE asking\n");say("Waiting for an administrator to allow the change...",0);
+}
+static void set_schedule(int enabled,unsigned long revision){
+    long result=zenith_packages(Z_PKG_SCHEDULE,(unsigned int)enabled,0,0,&revision,sizeof(revision));
+    if(result==-13&&!granted){pending_schedule=enabled;pending_revision=revision;ask_permission();if(auth_handle<=0)pending_schedule=-1;return;}
+    load();
+    say(!result?(enabled?"Daily update checks enabled.":"Daily update checks disabled."):
+        result==-11?"Settings changed elsewhere. Check the current choice and try again.":"Could not save the update schedule.",result!=0);
 }
 static void poll_permission(void){
     if(auth_handle<=0)return;
@@ -237,8 +245,8 @@ static void poll_permission(void){
     if(s<0){auth_handle=0;return;}
     if(!Z_PORTAL_FINAL(r.state))return;
     zenith_portal_close(auth_handle);auth_handle=0;
-    if(r.state==Z_PORTAL_APPROVED){granted=1;print("ORBIT_AUTHORIZE granted\n");pending_apply=0;start_apply();}
-    else{pending_apply=0;print("ORBIT_AUTHORIZE denied\n");say("The change was not allowed.",1);}
+    if(r.state==Z_PORTAL_APPROVED){granted=1;print("ORBIT_AUTHORIZE granted\n");if(pending_schedule>=0){int enabled=pending_schedule;pending_schedule=-1;set_schedule(enabled,pending_revision);}else start_apply();}
+    else{pending_schedule=-1;print("ORBIT_AUTHORIZE denied\n");say("The change was not allowed.",1);}
 }
 static void start_job(unsigned int op){
     char message[300]={0};
@@ -444,6 +452,10 @@ static void draw_updates(struct zui_rect c){
     char t[200];checked_line(t);heading(x,y,w-160,"Updates",t);
     zui_add(&ui,ID_CHECK,ZUI_BUTTON,(struct zui_rect){x+w-140,y+4,140,34},job_id>0&&same(job.kind,"refresh")?"Checking...":"Check now",0,job_id<=0);
     y+=70;
+    if(ov.settings_revision){
+        zui_add(&ui,ID_SCHEDULE,ZUI_TOGGLE,(struct zui_rect){x,y,w,32},"Check daily and notify about updates",ov.scheduled,ov.mutable_root&&auth_handle<=0);
+        y+=44;
+    }
     if(note[0])notice(x,&y,w,note,note_bad);
     else if(list_error[0])notice(x,&y,w,list_error,1);
     begin_rows(c);
@@ -794,6 +806,7 @@ static void action(int id){
     if(id>=ID_NAV&&id<ID_NAV+PAGES){go(id-ID_NAV);if(page==PAGE_HISTORY)load_history();return;}
     if(id>=ID_MARK&&id<ID_MARK+72){toggle(id-ID_MARK);return;}
     if(id>=ID_ROW&&id<ID_ROW+72){int i=id-ID_ROW;if(i<npkgs)open_details(pkgs[i].name,0);return;}
+    if(id==ID_SCHEDULE){if(auth_handle<=0)set_schedule(!ov.scheduled,ov.settings_revision);return;}
     if(id==ID_CHECK){start_refresh();return;}
     if(id==ID_REVIEW){go(PAGE_UPDATES);return;}
     if(id==ID_APPLY){start_apply();return;}
@@ -856,12 +869,19 @@ static int command(int argc,char **argv){
         if(r<0){o=put(line,r==-13?"ORBIT_DENIED ":r==-16?"ORBIT_BUSY ":"ORBIT_REFUSED ");o=put(o,message);put(o,"\n");print(line);return 1;}
         return wait_job(r);
     }
+    if(argc==3&&same(argv[1],"--schedule")){
+        if(!same(argv[2],"on")&&!same(argv[2],"off"))return 2;
+        if(read_op(Z_PKG_OVERVIEW,0,0,0,on_overview)<0||!ov.settings_revision)return 1;
+        r=zenith_packages(Z_PKG_SCHEDULE,same(argv[2],"on"),0,0,&ov.settings_revision,sizeof(ov.settings_revision));
+        if(r<0){print(r==-13?"orbit: administrator permission required\n":"orbit: could not save schedule\n");return 1;}
+        print("Update schedule saved.\n");return 0;
+    }
     if(same(argv[1],"--refresh")){
         char message[300]={0};r=zenith_packages(Z_PKG_REFRESH,0,message,sizeof(message)-1,0,0);
         if(r<0){o=put(line,r==-16?"ORBIT_BUSY ":"ORBIT_REFUSED ");o=put(o,message);put(o,"\n");print(line);return 1;}
         return wait_job(r);
     }
-    print("usage: native run orbit [--status | --list | --details NAME [--fetch] | --plan ... | --apply ... | --refresh | --history | --sources]\n");return 2;
+    print("usage: native run orbit [--status | --list | --details NAME [--fetch] | --plan ... | --apply ... | --schedule on|off | --refresh | --history | --sources]\n");return 2;
 }
 
 int main(int argc,char **argv){

@@ -25,9 +25,8 @@ or automatic failed-boot fallback.
   [Qualified evidence](../archive/2026-10-28/virtio-mouse-drain.md): clean source
   `5306703` passes all ten native gates and the exact QEMU 10 restricted-CPU
   reproducer. The operator's fresh standalone distributor Settings gate passed
-  on 2026-10-29; Q2 still owns the parallel release retry and installed confirmation.
-- [ ] Investigate driver-specific relative/absolute pointer, hardware cursor and
-  damage presentation work from measured failures/performance.
+  on 2026-10-29; that retry is historical. Q2 tracks the current release.
+- [ ] Exercise relative/absolute pointer input, hardware cursor and damage presentation on each supported profile. Record resolution, driver and measured failure or performance before opening a new fix.
 
 ## R2 / R3 — Whole-system recovery
 

@@ -49,7 +49,8 @@ increment a debug counter; content is never silently dropped.
   its pages under a ← back header and opens its first page. Quick Settings opens
   directly. Back, Alt+Left, or Backspace outside an edited field returns to the
   categories with that category selected.
-- **Search:** typing filters all 43 pages by title and `pages.json` keywords;
+- Quick Settings changes the signed-in account's light/dark choice immediately. Older kernels with only system appearance show that scope explicitly. The overview displays up to three recent destinations alongside the permanent links. Meridian keeps the six most recent distinct page IDs per account. `native run settings --recent` reads the same history.
+- **Search:** typing filters all 44 pages by title and `pages.json` keywords;
   results replace the sidebar and show their category as a subtitle. Esc clears
   it and restores the previous sidebar. Ctrl+F focuses search; Tab cycles
   sidebar, page and footer.

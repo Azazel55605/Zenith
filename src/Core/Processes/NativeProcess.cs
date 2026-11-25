@@ -552,6 +552,12 @@ internal sealed unsafe class NativeProcess
                         case 8: return Send(Zenith.Core.Packages.PackageCenter.History());
                         case 9: return Send(Zenith.Core.Packages.PackageCenter.Sources());
                         case 11: return Zenith.Core.Packages.PackageCenter.Wait(value, stop);
+                        case 12:
+                            if (!mayApply) { return -13; }
+                            if (value > 1 || given.Length != 8 || capacity != 0) { return -22; }
+                            if (Zenith.Core.Storage.SystemMounts.Mode != Zenith.Core.Storage.BootMode.Installed) { return -30; }
+                            return Zenith.Core.Configuration.SystemConfiguration.Settings.SaveDesktopPreferences(7, [value], [],
+                                System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(given));
                         default: return -22;
                     }
                 }
@@ -854,10 +860,26 @@ internal sealed unsafe class NativeProcess
                 if(!Valid(c.Arg0,ProcessDisplaySettings.RequestBytes,false)) { return -14; }
                 return ProcessDisplaySettings.Request(Zenith.Core.Configuration.SystemConfiguration.Display,ReadUser(c.Arg0,ProcessDisplaySettings.RequestBytes),(int)c.Uid,(int)c.Pid);
             }
-            // Desktop preferences 1.0: read a page (1), save its revisioned draft (2), or list installed apps (3).
+            // Desktop pages (1–2), installed apps (3) and the caller's recent Meridian pages (4–5).
             if (c.Call == 672)
             {
                 var service = Zenith.Core.Configuration.SystemConfiguration.Settings;
+                if (c.Arg1 is 4 or 5)
+                {
+                    bool write = c.Arg1 == 5;
+                    if (write ? c.Arg2 is < 1 or > 63 : c.Arg2 != 384) { return -22; }
+                    if (!Valid(c.Arg0, (int)c.Arg2, !write)) { return -14; }
+                    try
+                    {
+                        string? visit = write ? Encoding.ASCII.GetString(ReadUser(c.Arg0, (int)c.Arg2)) : null;
+                        byte[] pages = Zenith.Core.Configuration.NativePersonalAppearanceStore.RecentPages((uint)c.Uid, visit);
+                        if (!write && pages.Length > 0) { Transfer(c.Arg0, pages, true); }
+                        return write ? 0 : pages.Length;
+                    }
+                    catch (UnauthorizedAccessException) { return -13; }
+                    catch (ArgumentException) { return -22; }
+                    catch (IOException) { return -5; }
+                }
                 if (c.Arg1 == 3)
                 {
                     if (c.Arg2 is < 8 or > 8192 || !Valid(c.Arg0, (int)c.Arg2, true)) { return -22; }
@@ -868,7 +890,7 @@ internal sealed unsafe class NativeProcess
                 }
                 if (c.Arg1 == 1)
                 {
-                    if (c.Arg2 is < 1 or > 5 || !Valid(c.Arg0, ProcessDesktopPreferences.Bytes, true)) { return -22; }
+                    if (c.Arg2 is < 1 or > 6 || !Valid(c.Arg0, ProcessDesktopPreferences.Bytes, true)) { return -22; }
                     bool writable = CredentialContext.Current.IsRoot
                         || Zenith.Core.Portal.ProcessPrivileges.Holds((int)c.Pid, Zenith.Core.Portal.Privilege.SystemSettings);
                     Transfer(c.Arg0, ProcessDesktopPreferences.Snapshot(service, (uint)c.Arg2, writable), true);

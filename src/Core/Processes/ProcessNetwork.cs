@@ -33,6 +33,7 @@ internal sealed class ProcessNetwork : IDisposable
 {
     public const int MaximumIo = 65536, MaximumTransfer = 32 * 1024 * 1024 + 4096;
     public const int MaximumCalls = 32768;
+    public const int MaximumConnections = 6; // Initial request plus five redirects, one live connection at a time.
     private readonly IProcessNetworkSource _source;
     private readonly Dictionary<int, IDisposable> _handles = new();
     private int _next = 10000, _received, _sent, _written, _connections, _downloads, _controls;
@@ -79,7 +80,7 @@ internal sealed class ProcessNetwork : IDisposable
     public int Connect(string host, int port, bool secure)
     {
         if (_closed) { return -9; } Check();
-        if (_connections >= 2) { return -28; }
+        if (_connections >= MaximumConnections) { return -28; }
         foreach (var item in _handles.Values) { if (item is IProcessConnection) { return -16; } }
         if (_handles.Count >= 2) { return -24; }
         if (port is < 1 or > 65535) { return -22; }

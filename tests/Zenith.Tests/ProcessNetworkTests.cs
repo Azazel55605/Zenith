@@ -48,7 +48,15 @@ public sealed class ProcessNetworkTests
         Assert.Equal(0, first.Close(handle)); Assert.True(firstSource.Connection.Closed);
         int next = first.Connect("host", 80, false); Assert.True(next > handle);
         Assert.Equal(-9, first.Read(handle, new byte[10]));
-        first.Close(next); Assert.Equal(-28, first.Connect("host", 80, false));
+        first.Close(next);
+        for (int i = 2; i < 6; i++)
+        {
+            int handleAfterRedirect = first.Connect("host", 443, true);
+            Assert.True(handleAfterRedirect > next);
+            Assert.Equal(0, first.Close(handleAfterRedirect));
+            next = handleAfterRedirect;
+        }
+        Assert.Equal(-28, first.Connect("host", 80, false));
     }
     [Fact]
     public void TeardownReleasesConnectionAndAbortsUncommittedDownload()

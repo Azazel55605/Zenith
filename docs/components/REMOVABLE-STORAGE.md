@@ -2,8 +2,7 @@
 
 [Master roadmap](../ROADMAP.md) · [Documentation](../README.md)
 
-Work IDs below are detailed steps of the master tracker (S6). **Design only: nothing here is
-implemented yet.** Decisions marked *sign-off* need the operator's choice before work starts.
+Work IDs below are detailed steps of the master tracker (S6). The driver capabilities below exist upstream. Zenith’s removable-volume policy and RS1–RS4 are still at design stage. The automount default and mount path remain operator decisions.
 
 ## What exists today
 
@@ -16,8 +15,7 @@ implemented yet.** Decisions marked *sign-off* need the operator's choice before
   nothing in Zenith tells a USB disk apart from an internal one. A USB disk present at boot would
   already show in `lsblk`, `disk` and Equinox, and Zenith would treat it like a second SATA disk.
 - **The device table holds at most 8 disks**, internal and USB together.
-- **Filesystems:** ext2 read/write (Zenith's driver) and FAT32 (Cosmos's driver). Most sticks over
-  32 GB come formatted as exFAT, which Zenith cannot read. NTFS is not supported either.
+- Zenith registers disk filesystem drivers for ext2 and FAT32. NTFS, exFAT, ext4 volumes with extents or other unsupported features, and Btrfs cannot be mounted. Detecting a USB disk or listing a partition in Equinox does not require a driver for its filesystem.
 - **Mounting** is root-only. As of kernel 0.0.56 it is also available through Equinox › Mounts,
   and `/etc/fstab` lines are mounted at startup. A partition that is missing at startup is skipped,
   so an fstab line for a stick that is not plugged in never stops the boot.
@@ -71,7 +69,7 @@ changes may be lost. The next time it is plugged in, an ext2 volume left "not cl
 
 **Where it shows up.**
 - **Taskbar:** a USB indicator appears while removable volumes are mounted. Its popover lists
-  them with **Open** (a Polaris tab at the mount point, until there is a file manager) and
+  them with **Open** in Horizon at the mount point and
   **Eject**.
 - **Equinox:** removable disks get a USB icon and an Eject button. On the Mounts page, removable
   volumes are listed as automounted and are never offered "Mount at every startup" by default. An
@@ -81,9 +79,20 @@ changes may be lost. The next time it is plugged in, an ext2 volume left "not cl
 - **Sunrise:** it lists USB disks as removable with a warning, and never offers the stick it booted
   from as the install target.
 
-**Formatting.** Equinox formats ext2 today. Removable drives need **FAT32** for exchange with other
-systems, so a FAT32 format action is needed. exFAT read support comes later: Microsoft published the
-specification in 2019. Licensing and the driver are a separate decision.
+**Formatting.** Equinox formats ext2 today. FAT32 formatting is the next exchange-format action for Equinox.
+
+### Additional filesystem estimates
+
+These planning ranges assume one engineer, a working removable block device and an existing driver that can be integrated. Read-only means listing directories and copying ordinary files from a clean volume. The read/write range is cumulative and includes interoperability, disk-full handling and interrupted writes. Formatting and repair tools would be separate deliverables.
+
+| Filesystem | Useful read-only mount | Reliable read/write | What drives the effort |
+| --- | --- | --- | --- |
+| exFAT | 1–2 weeks | 3–6 weeks | A portable implementation such as FatFs can use Zenith’s sector I/O. Writes must keep directory entries, cluster chains and the allocation bitmap consistent across removal. This is the first candidate for exchanging files larger than 4 GiB with Windows and Linux. [FatFs](https://elm-chan.org/fsw/ff/) |
+| ext4 | 2–5 weeks | 2–4 months | Extents, feature flags, checksums and journal state determine which Linux-formatted volumes can mount safely. Audit a port such as lwext4 against the features enabled by current formatters. [lwext4 feature coverage](https://github.com/gkostka/lwext4#supported-ext234-features) |
+| NTFS | 3–6 weeks | 3–6 months | File records, attributes and directory indexes complicate even a reader. Writes add journal recovery and interoperability with Windows, including dirty or hibernated volumes. [Linux NTFS3](https://docs.kernel.org/filesystems/ntfs3.html) |
+| Btrfs | 1–3 months | 6–12+ months | A single-device reader needs chunk mapping, tree traversal, checksums and support for common compression. Writes add copy-on-write transactions and extent reference accounting. Multi-device support is outside both ranges. [Btrfs design](https://btrfs.readthedocs.io/en/latest/dev/dev-btrfs-design.html) |
+
+Qualify attach, eject and surprise removal on ext2 and FAT32 first. Select a driver and supported on-disk features before scheduling each additional format.
 
 ## Kernel and ABI changes, when this is built
 
@@ -106,6 +115,6 @@ specification in 2019. Licensing and the driver are a separate decision.
    is not clean, sync on close and no-exec.
 3. **RS3 desktop:** automount for the session user, notifications, the taskbar indicator, and
    Equinox Eject.
-4. **RS4 formats:** FAT32 formatting in Equinox; exFAT read support after its own decision.
+4. **RS4 formats:** FAT32 formatting in Equinox. Evaluate exFAT first among the additional filesystem candidates above.
 
-Not planned: NTFS, MTP phones, optical drives, UASP (Cosmos has Bulk-Only Transport only).
+MTP phones, optical drives and UASP are outside RS1–RS4. Cosmos uses Bulk-Only Transport for USB mass storage.

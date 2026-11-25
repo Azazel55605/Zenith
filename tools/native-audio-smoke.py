@@ -46,10 +46,11 @@ def main():
         assert 'AUDIO_PROBE_OK' in machine.log(),'real input/output PCM'
         status('native run audio-probe --fault','A_FAULT',139);status('native run audio-probe --empty','A_TEARDOWN')
         status('sudo -u user -- native run audio-probe --deny','A_CAPTURE_DENIED')
-        disk=stop()
+        status('native run audio-probe --remember','A_REMEMBER');disk=stop()
         for name,mode in [('output','--output'),('muted','--muted')]:
             wav=(keep/(name+'.wav')).resolve()
             boot(name,disk,'wav,id=sound,path='+str(wav)+',out.frequency=48000,out.channels=2,out.format=s16')
+            status('native run audio-probe --remembered','A_RESTORED_'+name.upper())
             status('native run audio-probe '+mode,'A_'+name.upper());disk=stop()
             data=wav.read_bytes();assert data[:4]==b'RIFF' and data[8:12]==b'WAVE','actual WAV output'
             start=data.index(b'data',12)+8;pcm=data[start:];assert len(pcm)%2==0

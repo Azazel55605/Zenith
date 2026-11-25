@@ -295,11 +295,18 @@ if (assembly.Name.Name == "System.Private.CoreLib")
     QuietMonitorInterop(module.GetType("Interop/Sys")
         ?? throw new InvalidOperationException("Patched CoreLib monitor type changed"));
 }
+if (assembly.Name.Name == "System.Net.Sockets")
+{
+    var socket = module.GetType("System.Net.Sockets.Socket");
+    changed |= NetworkBulkFixup.AdaptReads(socket.Methods.Single(m => m.Name == "get_Available"), 1, 0);
+}
 if (assembly.Name.Name == "Cosmos.Kernel.Plugs")
 {
     QuietMonitorInterop(module.GetType("Cosmos.Kernel.Plugs.System.InteropSysPlug"));
     var socketPlug = module.GetType("Cosmos.Kernel.Plugs.System.Net.Sockets.SocketPlug")
         ?? throw new InvalidOperationException("Cosmos socket plug changed");
+    changed |= NetworkBulkFixup.AdaptReads(socketPlug.Methods.Single(m => m.Name == "get_Available"), 1, 0);
+    changed |= NetworkBulkFixup.AdaptReads(socketPlug.Methods.Single(m => m.Name == "ReceiveTcp"), 5, 2);
     // CloseTcp does not retire SYN_SENT registrations. Mark a timed-out connect
     // CLOSED before throwing so the owner's explicit Close removes its table
     // entry and local port. Only adapt the pinned failure path in build copies.
@@ -507,6 +514,7 @@ if (assembly.Name.Name == "Cosmos.Kernel.System")
     // Set the L2 broadcast address before enqueueing, retaining the unicast path.
     var outgoing = module.GetType("Cosmos.Kernel.System.Network.IPv4.OutgoingBuffer")
         ?? throw new InvalidOperationException("Cosmos outgoing IPv4 buffer changed");
+    changed |= NetworkBulkFixup.OrderIpv4Queue(outgoing);
     var enqueue = outgoing.Methods.Single(m => m.Name == "AddPacket" && m.Parameters.Count == 2);
     if (!enqueue.IsStatic || !enqueue.HasBody
         || enqueue.Parameters[0].ParameterType.FullName != "Cosmos.Kernel.System.Network.IPv4.IPPacket"
@@ -783,6 +791,7 @@ if (assembly.Name.Name == "Cosmos.Kernel.System")
         dispose.Body.MaxStackSize = Math.Max(dispose.Body.MaxStackSize, 1);
         changed = true; Console.WriteLine("Adapted Cosmos TCP receive buffer: bounded CAS snapshots (128 KiB)");
     }
+    changed |= NetworkBulkFixup.AddReceiveAccessors(tcp, transportSupport.MainModule.GetType("Zenith.Core.Network.Transport.TcpReceiveBridge"));
     // Successful-packet tracing performs hundreds of port writes in the RX path.
     // Remove only pinned informational statements; preserve rejection/error logs.
     QuietTrace(handle, "[NetworkStack] HandlePacket called, len=", "\n");

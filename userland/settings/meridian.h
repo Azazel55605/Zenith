@@ -41,6 +41,9 @@ struct meridian {
     int focus_row; /* sidebar row to focus next frame: -1 none, -2 the highlighted row */
     int pending,pending_row,pending_page;
     int recent[6],recent_count;
+    long (*visit)(const char *id);
+    const char *quick_message;
+    int quick_restore_scope;
     long (*information_read)(unsigned int,struct zenith_settings_information *);
     char public_information[4096];unsigned int public_kind;int public_error;
     char information[4096];
@@ -69,6 +72,7 @@ void meridian_system_services(struct meridian *app,long (*read)(struct zenith_sy
 void meridian_information_services(struct meridian *app,long (*read)(unsigned int,struct zenith_settings_information *));
 void meridian_network_services(struct meridian *app,long (*call)(unsigned int,unsigned int,void *,unsigned int,const void *,unsigned int));
 void meridian_audio_services(struct meridian *app,long (*read)(struct zenith_audio *),long (*control)(const struct zenith_audio_control *));
+void meridian_recent(struct meridian *app,const char *history,long (*visit)(const char *));
 void meridian_refresh(struct meridian *app);
 int meridian_open(struct meridian *app,const char *id);
 struct zui *meridian_ui(struct meridian *app);

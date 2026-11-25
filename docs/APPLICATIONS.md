@@ -1,12 +1,6 @@
 # Zenith applications, naming and developer tools
 
-Work owners: **A1/A2/X1–X4** in the [master roadmap](ROADMAP.md). This page is a contract/procedure, not a separate work tracker.
-
-> Product requirements and feasibility: future app/tool ideas are not shipped packages. Current work: [Sessions/desktop](components/SESSIONS-DESKTOP.md) and [Userland](components/USERLAND.md).
-
-Requirements/names only. [ROADMAP](ROADMAP.md) owns A1/A2, X1–X4 and priorities.
-Names marked chosen are operator-approved; other names remain proposals; package
-identities must be finalized separately from UI requirements.
+The application names below include both installed programs and proposed extensions. The [master roadmap](ROADMAP.md#core-delivery-work) owns delivery state for A1/A2, U2–U14 and X1–X5. Component pages define each program’s behavior and limits.
 
 ## Naming policy proposal
 
@@ -37,27 +31,9 @@ collisions before publishing finalized identities.
 
 ## Files and graphical Editor requirements
 
-Horizon builds on the existing [Files rework](ROADMAP.md#product-definition): locations,
-places, real metadata, sorting, multi-selection, keyboard operation and permission-aware
-copy/move/rename/delete. Add tabs and editor/application associations after the basic
-operation model is reliable. Trash, search and archives need explicit persistence,
-capacity, recursion and recovery policies. Keep current Files available for testing.
+Horizon is the native file manager. It provides locations and tabs, selection and file operations, associations, and bounded archive creation/extraction. Removable devices depend on S6 and remote shares on N4. [Horizon](components/HORIZON.md)
 
-Aurora should first be a dependable graphical text editor, shared across DE and WM:
-
-- Open/save/save-as through shared file dialogs and the guarded filesystem service.
-- UTF-8 text, LF/CRLF handling, selection, clipboard, undo/redo and find/replace.
-- Modified-document indication, unsaved-close prompt and external-change detection.
-- Explicit permission, out-of-space and unsupported/binary-file diagnostics.
-- Bounded file/buffer size; saving must not silently truncate or discard content.
-- Keyboard-complete operation, line/column feedback and configurable indentation.
-
-Follow with multiple documents/tabs, syntax highlighting, optional crash-recovery
-copies and a project sidebar. Recovery copies must have a defined per-user privacy,
-cleanup and reboot policy. Compiler execution, diagnostics and language-server features
-come after process/IPC/toolchain support; initial Editor is not an IDE promise.
-Both apps ultimately become independent userland programs; a GUI redesign alone
-does not establish isolation or independent compiled-package updates.
+Aurora is the native graphical editor. It supports multiple documents, UTF-8 with LF/CRLF, clipboard, undo/redo, find/replace, project navigation, recovery copies and external-change handling. Keep permission, free-space and unsaved-close behavior intact when extending it. Compiler diagnostics and language-server work depend on process and toolchain support. [Aurora](components/AURORA.md)
 
 ## Doom engine package: requested feasibility slice
 
@@ -67,8 +43,7 @@ the executable, its adapter, the corresponding source, and the license. It
 ships no WADs, including the Freedoom fixture used for local validation.
 
 [PureDOOM](https://github.com/Daivuk/PureDOOM) is pinned in the
-[port sources](../userland/doom/UPSTREAM.md). Version 0.3.0 adds **Doom** to
-the desktop launcher. Its native WAD browser uses the Zenith UI toolkit and
+[port sources](../userland/doom/UPSTREAM.md). Since version 0.3.0, **Doom** is available in the desktop launcher. Version 0.4.1 uses the newer app layout and window materials. Its native WAD browser uses the Zenith UI toolkit and
 the current theme. It opens in `~/doom` when available and remembers the last
 folder used to start a game. Browse folders, select a `.wad`, and choose **Play**.
 The engine opens the file read-only and identifies the game from its map directory.
@@ -97,7 +72,7 @@ included in the kernel 0.0.77 source tag.
 The engine recognizes classic `IWAD` files and BFG-style base games that
 start with `PWAD`, including their alternate title graphic. Standalone loading
 rejects ordinary add-on PWADs. A Doom WAD with the fourth episode selects Ultimate Doom.
-A source build uses `python3 -B tools/build-userland.py DESTINATION --program doom --version 0.3.0`.
+A source build uses `python3 -B tools/build-userland.py DESTINATION --program doom --version 0.4.1`.
 
 - [X5](ROADMAP.md) owns the executable/package size increase and the larger
   native read budget needed for WAD startup and level transitions.
@@ -124,13 +99,7 @@ Master work is X1–X5; optional Doom stays outside the main product sequence.
 
 ## Additional product ideas, proposed
 
-Useful next applications include a keyboard-searchable launcher, consistent notifications,
-shared clipboard/file dialogs, an archive manager, diagnostic-report export, a network
-panel and graphical package plans showing dependency changes and restart requirements.
-A process monitor needs real process/resource accounting; an SSH client/server needs
-native execution, authentication and transport work. Theme/icon/font/wallpaper packs
-need bounded runtime asset loading and per-user preferences before data updates affect
-the desktop. Add screenshot capture when graphics APIs and image encoding are available.
+Prism handles launcher search, Observatory monitors processes and resources, Beacon manages the wired connection, and Orbit shows package plans and changes. Notifications, clipboard and the theme and asset services are in use. Potential additional tools include a standalone archive manager, screenshot utility, SSH client and diagnostic exporter. [Desktop and remaining app work](ROADMAP.md#core-delivery-work)
 
 Prioritize common workflows (install, edit/save, move files, configure networking,
 update and recover) over a large application count. New ideas do not reorder the

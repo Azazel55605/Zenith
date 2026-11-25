@@ -4,10 +4,9 @@
 
 The work IDs below expand the master tracker. [Runtime contract](../MULTICORE.md).
 
-C1–C4 are jointly CI-qualified and tagged as `kernel/v0.0.44` at `8502029`.
-[Release and CI evidence](../archive/2026-11-04/c4-release-and-ci.md) records the
-complete fresh gate matrix. Distributor publication and installed-VM acceptance
-remain separate under Q2/H1.
+**Current default.** Since kernel 0.0.63, x64 with two or more CPUs starts the general scheduler across CPUs. `smp=off` selects single-CPU operation. C5.1–C5.4 passed the stress gate and installed VMware checks. Multiple user threads in one native address space remain open as C5.5. [C5 implementation and results](#c5--general-smp)
+
+The C1–C4 sections below record the staged implementation and its limits **at each milestone**. Statements about opt-in operation and pending installed checks in those sections describe the original kernel 0.0.44 qualification. [C4 release evidence](../archive/2026-11-04/c4-release-and-ci.md)
 
 ## C1 — Native worker foundation
 
@@ -394,5 +393,5 @@ released explicitly on the exception path; a lock left held on one CPU now stall
 [AP entry/interrupts](../../src/Native/x64/CpuWorkers.s),
 [CPU gate](../../tools/native-cpu-smoke.py),
 [host queue tests](../../tools/test_cpu_workers.py).
-Preserve default-disabled boots and 1/2/4-CPU opt-in cases. Timing results from one
+Preserve the single-CPU fallback, explicit worker modes and default multicore boots in the 1/2/4/8-CPU tests. Timing results from one
 host or accelerator do not certify a different hypervisor or physical machine.

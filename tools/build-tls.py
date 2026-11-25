@@ -1,14 +1,37 @@
 #!/usr/bin/env python3
 """Build the checksum-pinned freestanding TLS objects, with no network/host library link."""
 import argparse
+import base64
 import concurrent.futures
 import hashlib
 from pathlib import Path
+import re
 import subprocess
 import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SHA256 = '807f0a1cc7c63b571180e9efeb6236b677e550869eb0442ace33aa9c69055fcc'
+WEB_CA_SHA256 = '427c064216761a1e72a8b30f0d954d08cb6e4435a82091fb865afd20c8497285'
+
+def web_ca_header(out):
+    pem = (ROOT / 'vendor/web-pki/cacert.pem').read_bytes()
+    if hashlib.sha256(pem).hexdigest() != WEB_CA_SHA256:
+        raise RuntimeError('Web CA bundle checksum mismatch')
+    blocks = re.findall(rb'-----BEGIN CERTIFICATE-----(.*?)-----END CERTIFICATE-----', pem, re.S)
+    certs = [base64.b64decode(b''.join(block.split()), validate=True) for block in blocks]
+    if not certs or any(not 0 < len(cert) <= 65535 for cert in certs):
+        raise RuntimeError('Invalid web CA certificate lengths')
+    der = b''.join(certs)
+    lines = ['static const unsigned char web_ca_data[] =']
+    for i in range(0, len(der), 32):
+        lines.append('"' + ''.join(f'\\x{b:02x}' for b in der[i:i + 32]) + '"')
+    lines += [';', 'static const unsigned short web_ca_lengths[] = {',
+              ','.join(str(len(cert)) for cert in certs), '};', '']
+    header = out / 'web-ca.h'
+    content = '\n'.join(lines)
+    if not header.exists() or header.read_text() != content:
+        header.write_text(content)
+    return header
 
 def check_native_imports(objects):
     # Catch accidental host libc dependencies before the kernel link, including
@@ -31,13 +54,14 @@ def build(out, arch, host=False):
     if hashlib.sha256(archive.read_bytes()).hexdigest() != SHA256:
         raise RuntimeError('Mbed TLS source checksum mismatch')
     out.mkdir(parents=True, exist_ok=True)
+    ca_header = web_ca_header(out)
     source = out / 'mbedtls-mbedtls-3.6.7'
     if not source.exists():
         with tarfile.open(archive) as package:
             package.extractall(out, filter='data')
     flags = ['-D' + name + '=zenith_tls_' + name for name in ['memcpy', 'memmove', 'memset', 'memcmp', 'strlen', 'strcmp', 'strchr', 'strstr']] + ['-O2', '-std=c99', '-ffreestanding', '-fno-stack-protector', '-fno-builtin',
              '-I' + str(source / 'include'), '-I' + str(source / 'library'),
-             '-I' + str(ROOT / 'src/Native/Tls'), '-DMBEDTLS_CONFIG_FILE="config.h"']
+             '-I' + str(ROOT / 'src/Native/Tls'), '-iquote', str(out), '-DMBEDTLS_CONFIG_FILE="config.h"']
     if host:
         flags += ['-fPIC', '-DZENITH_TLS_HOST_TEST']
     else:
@@ -57,6 +81,8 @@ def build(out, arch, host=False):
     def compile_one(path):
         obj = out / ('tls-' + path.stem + '.o')
         inputs = [path, ROOT / 'src/Native/Tls/config.h', Path(__file__), *sorted((ROOT / 'src/Native/Tls/libc').glob('*.h'))]
+        if path.stem == 'bridge':
+            inputs.append(ca_header)
         if obj.exists() and obj.stat().st_mtime >= max(p.stat().st_mtime for p in inputs): return obj
         test_flags = ['-DZENITH_TLS_SELFTEST'] if path.stem in ['aes', 'gcm', 'sha256', 'sha512', 'ctr_drbg', 'bridge'] else []
         subprocess.run(['clang', *flags, *test_flags, '-c', str(path), '-o', str(obj)], check=True)

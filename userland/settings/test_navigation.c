@@ -52,6 +52,11 @@ static void display_tests(void){
     assert(!binding_writable(&b,BIND_DISPLAY)&&binding_changed(&b,BIND_DISPLAY));
     binding_reset(&b,BIND_DISPLAY);binding_refresh(&b);assert(!binding_any_changed(&b)&&!prefs_dirty);
     ds.flags=1;binding_refresh(&b);assert(!binding_writable(&b,BIND_DISPLAY)&&binding_choose(&b,BIND_DISPLAY,1)==-13);
+    ds.flags=11;ds.mode_count=6;ds.modes[2].width=5120;ds.modes[2].height=2880;
+    ds.modes[3].width=16384;ds.modes[3].height=8192;ds.modes[4].width=~0U;ds.modes[4].height=600;
+    ds.modes[5].width=7680;ds.modes[5].height=4320;binding_refresh(&b);
+    assert(binding_choice_count(&b,BIND_DISPLAY)==4&&!strcmp(binding_choice_name(&b,BIND_DISPLAY,2),"5120 x 2880"));
+    assert(!binding_choose(&b,BIND_DISPLAY,3)&&binding_scale_count(&b)==5);
     ds.mode_count=25;binding_refresh(&b);assert(!b.display_ready&&!binding_choice_count(&b,BIND_DISPLAY));
 }
 static unsigned int pixels[600*480];

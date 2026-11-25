@@ -14,11 +14,7 @@ exercised; shell evaluation and privileged operations remain trusted.
 
 ## U3 — Native Terminal and PTY
 
-- [ ] Define invocation/session-owned shell and PTY byte/mode/resize channels.
-- [ ] Preserve canonical/raw input, hidden prompts, type-ahead, EOF and cancellation.
-- [ ] Port rendering/selection/scrollback to shared userland controls; retain recovery.
-- [ ] Test busy/jobs, account changes, session stop, crash/close and independent update
-  across graphical, local text and serial paths. No arbitrary privileged command RPC.
+Polaris P1–P5 are implemented and have installed acceptance. Its native client handles the grid, selection, scrollback, tabs and panes. The kernel owns shell and terminal sessions, raw/canonical/hidden input, cancellation and recovery. Retain coverage for jobs, ordinary users, session stop and independent updates across graphical and console hosts. [Current release evidence](../ROADMAP.md#state-and-evidence)
 
 ### Polaris design
 
@@ -36,7 +32,7 @@ cursor as state, never the text of a hidden prompt, and owns only the grid, scro
 **Recovery.** The kernel Terminal window stays, as a host of the same session code. It remains what a
 missing or failing Polaris falls back to, and local console and serial are unchanged.
 
-**Problems to solve, found in the current kernel:**
+**Constraints that shaped the original Polaris port**
 
 | Limit | Effect on Polaris | Plan |
 |---|---|---|
@@ -117,8 +113,7 @@ save and shell return on COM1, the built-in Terminal and Polaris. The COM1
 test also checked undo/redo, search, exit confirmation and the saved ext2
 bytes and permissions. The follow-up verified the alternate screen and footer
 on COM1, the built-in Terminal and Polaris, including live maximization in
-Polaris. Publication and installed VMware acceptance are
-tracked in the [roadmap](../ROADMAP.md).
+Polaris. The expanded editor is tagged as `zenith-quill/v0.2.0`. U13 tracks the command-line tools in the [roadmap](../ROADMAP.md).
 
 ## H1 / N1 / X2 — Related work
 

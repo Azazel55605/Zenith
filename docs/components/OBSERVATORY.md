@@ -70,10 +70,7 @@ Each is qualified separately.
      and CPU, and End app behind the same confirmation as End process.
    - `--probe` prints the activity snapshot for gates.
 
-   Still open from the original O4: **per-program use**, per-program CPU time and
-   memory, which need accounting in the process bridge and page allocator; Apps
-   groups windows with their programs; disk and network rate cards need counters
-   in the block and network drivers.
+   The remaining O4 work is per-program CPU time and memory with accounting in the process bridge and page allocator. The disk and network cards already use the activity counters exposed by call 649. [Activity ABI](../../userland/include/zenith_monitor.h)
 5. **O5 History and Services:** history kept on disk in a fixed size, with 10 min
    and 1 h ranges, and a Services page once services exist as a model.
 

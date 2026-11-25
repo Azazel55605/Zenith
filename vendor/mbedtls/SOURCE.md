@@ -20,7 +20,10 @@ The source archive permits offline builds, contains the original license notices
 and keeps dependency changes independently reviewable from our bridge/configuration.
 
 `src/Native/Tls/config.h` enables only client TLS 1.2 ECDHE-RSA/ECDHE-ECDSA AES-GCM,
-P-256, SHA-256/384/512, RSA/PKCS#1, PEM/X.509 and CTR-DRBG. No OS, sockets, filesystem,
+X25519 and P-256/384/521, SHA-256/384/512, RSA/PKCS#1, PEM/X.509 and CTR-DRBG.
+SHA-1 parsing accommodates old root self-signature identifiers. The default X.509
+profile still requires SHA-256 or stronger signatures on issued certificates.
+No OS, sockets, filesystem,
 PSA, time libc, resumption or server code is enabled. Library date flags are added
 by a verification callback comparing each certificate with the explicit system UTC
 snapshot; all existing validation flags remain intact. Verification is required.
@@ -45,7 +48,8 @@ These checks establish integration, not independent cryptographic certification.
 Keep dependency updates explicit: verify release/security notes, replace archive and
 checksum together, review configuration/ABI, rerun host and native faults/cancellation
 and missing-entropy rejection. Do not disable certificate verification to make an
-incompatible mirror work. TLS 1.3/public roots/revocation/multiple concurrent TLS
+incompatible mirror work. The public fetch trust anchors have their own
+[source and update procedure](../web-pki/SOURCE.md). TLS 1.3/revocation/multiple concurrent TLS
 sessions require new implementation and validation.
 
 The same fixed-memory port verifies offline package RSA-PSS/SHA256 signatures

@@ -8,7 +8,7 @@ namespace Zenith.Core.Shell.Commands;
 
 internal static class ConfigurationCommands
 {
-    private const string SettingsUsage = "settings [show | set keyboard|timezone|session|animations|taskbar|panel-position|tile-split|windows|wallpaper|cursor|cursor-size|decoration|widgets|buttons|splash|login|boot|sounds|icons|sound-level|sound-off|translucency VALUE | set tile-gaps INNER OUTER | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]";
+    private const string SettingsUsage = "settings [show | set keyboard|timezone|session|animations|taskbar|panel-position|tile-split|windows|wallpaper|cursor|cursor-size|decoration|widgets|buttons|splash|login|boot|sounds|icons|sound-level|sound-off|translucency VALUE | set idle-lock MINUTES GRACE_SECONDS | set tile-gaps INNER OUTER | set appearance dark|light ACCENT | set materials solid|transparent|blur|background|background-blur]";
 
     public static void Register(Action<Command> add)
     {
@@ -133,6 +133,7 @@ internal static class ConfigurationCommands
             c.WriteLine("taskbar=" + SettingsService.TaskbarNames[settings.Current.Taskbar]);
             c.WriteLine("panel-position=" + (settings.DesktopPreferences.TaskbarPosition == 1 ? "top" : "bottom"));
             var desktop = settings.DesktopPreferences;
+            c.WriteLine("idle-lock=" + desktop.IdleSeconds / 60 + " min, grace=" + desktop.GraceSeconds + " s");
             c.WriteLine("tile-split=" + desktop.MasterPercent);
             c.WriteLine("tile-gaps=" + desktop.TileInnerGap + "," + desktop.TileOuterGap + " (inner,outer; WM logical pixels)");
             c.WriteLine("windows=" + SettingsService.WindowsNames[settings.Current.Windows] + " (new windows)");
@@ -151,6 +152,16 @@ internal static class ConfigurationCommands
             c.WriteLine("materials saved=" + appearance.Saved.Materials + " effective=" + materials.Effective
                 + " translucency=" + appearance.Saved.Translucency + "%" + " available=" + materials.Available + " fallback=" + materials.Reason);
             return 0;
+        }
+        if (c.Args.Length >= 2 && c.Args[0] == "set" && c.Args[1] == "idle-lock")
+        {
+            if (c.Args.Length != 4) { return c.Fail("usage: settings set idle-lock MINUTES GRACE_SECONDS"); }
+            int minutes = Array.IndexOf(new[] { "0", "1", "5", "10", "15", "30" }, c.Args[2]);
+            int grace = Array.IndexOf(new[] { "0", "5", "15", "30" }, c.Args[3]);
+            if (minutes < 0 || grace < 0) { return c.Fail("minutes: 0,1,5,10,15,30; grace seconds: 0,5,15,30"); }
+            int result = settings.SaveDesktopPreferences(6, [(uint)minutes, (uint)grace], [], settings.DesktopSnapshot().Revision);
+            if (result != 0) { return c.Fail("could not save idle lock (" + result + ")"); }
+            c.WriteLine("saved idle lock"); return 0;
         }
         if (c.Args.Length >= 2 && c.Args[0] == "set" && c.Args[1] == "tile-gaps")
         {

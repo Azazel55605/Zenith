@@ -70,10 +70,11 @@ internal static class ManualPages
             depth 15 or 1024-byte paths. Glob supports * and ?. tree uses ASCII
             branches; du reports rounded logical-file KiB (including with -h).
             recovery COMMAND retains the earlier trusted implementation/profile.
-            Network package: zenith-net-tools (requires zenith-native-network-abi 1.0).
+            Tagged zenith-net-tools 0.1.0 uses zenith-native-network-abi 1.0.
+            Version 0.2.0 also requires zenith-native-web-transport-abi 1.0
+            for public TLS roots and up to six sequential connections per invocation.
             ip/ifconfig, nslookup, ping, nc -z and fetch dispatch to the signed package.
-            Its native HTTP decoder requires exact Content-Length, refuses redirects,
-            chunking/compression/truncation and preserves destinations on failure.
+            See man network for fetch options, HTTP framing and transfer bounds.
             HTTPS uses trusted certificate/hostname/date verification with no bypass.
             A process owns its connection/sink handles; exit/fault/cancel cleans them.
             Existing global network serialization remains; other clients report busy.
@@ -107,14 +108,23 @@ internal static class ManualPages
             netcfg ntp HOST [PORT] | ntp off  (root; saved boot target)
             netcfg dns auto | dns IP [IP [IP]]  (root)
             tls selftest | trust FILE SHA256  (trust import: root)
-            fetch [--replace] [--kernel] http(s)://HOST[:PORT]/PATH FILE
+            fetch [-ILs] [-o FILE | -O] [--replace] URL [FILE]
+            fetch [--max-filesize BYTES | --kernel] URL [FILE]
 
             With zenith-net-tools installed, ip/ifconfig/nslookup/ping/nc/fetch run
             as signed protected native clients. recovery COMMAND selects the trusted
             builtin explicitly. New packages require a compatible network-ABI kernel.
-            Default fetch limit is 8 MiB; --kernel permits 32 MiB + 4096, without
-            boot-file privilege or package-signature trust. Native fetch does not
-            replay GET after response/body failure; connect retains bounded retry.
+            Tagged net-tools 0.1.0 accepts URL FILE with a declared Content-Length.
+            The options below apply to version 0.2.0, which requires zenith-native-web-transport-abi 1.0.
+            fetch URL writes the response bytes to stdout (1 MiB maximum).
+            -o FILE or URL FILE saves a download atomically; -O saves the last
+            filename in the original URL. -s hides file progress and completion.
+            -I sends HEAD and prints headers. -L follows up to five redirects
+            and requires HTTPS on every hop after the first HTTPS connection.
+            The default file limit is 8 MiB. --max-filesize BYTES sets an explicit
+            limit; --kernel selects the maximum of 32 MiB + 4096 bytes.
+            GET accepts Content-Length or chunked framing and requests identity
+            encoding. Example: fetch -L -o notes.txt https://example.org/notes
 
             Single primary IPv4 uplink; DHCP configures asynchronously at boot.
             Configuration: /etc/zenith/network.conf; hostname, hosts and resolv.conf
@@ -124,10 +134,8 @@ internal static class ManualPages
             dns auto clears local overrides; dns IP saves up to three IPv4 servers. Failed DHCP retries after thirty seconds.
 
             NTP adjusts software UTC only and is unauthenticated. No default server.
-            fetch accepts status 200 with Content-Length; default max 8 MiB, headers 8 KiB,
-            --kernel allows 32 MiB + 4096 bytes, total timeout 180 seconds;
-            two attempts, idle 3s/body 30s per attempt plus DNS/connect time. Ctrl+C
-            cancels polling; Cosmos TCP connect observes cancellation after up to 5s.
+            recovery fetch [--replace] [--kernel] URL FILE uses the bundled
+            downloader. It requires status 200 and a declared Content-Length.
             Downloads stage privately beside FILE and commit only when complete.
             Existing names require --replace and must be regular files. Errors and
             cancellation preserve the prior destination and remove staging.
@@ -136,11 +144,11 @@ internal static class ManualPages
             of the exact ASCII PEM file against a hash from a trusted channel.
             tls bootstrap URL SHA256 downloads/imports that bundle in one step,
             bounded to 4096 bytes; failed verification preserves existing trust.
-            No trust is installed by default. No insecure bypass, redirects,
-            compression or chunking. NTP/BCL/filesystem time remains unauthenticated.
+            HTTPS fetch checks the compiled web roots and configured local CAs.
+            Package transport uses the configured local CAs. A trusted CA verifies
+            the connection; package installation also requires a trusted signature.
             TCP pending data 128 KiB; UDP/ICMP queues 32 packets; IPv4 frames bounded.
-            nc supports probes only. Package authentication and Internet-wide
-            protocol hardening remain future work.
+            nc supports TCP connection probes.
             """),
         ("settings", """
             SETTINGS AND SESSION FOUNDATION

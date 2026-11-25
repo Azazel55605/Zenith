@@ -1,6 +1,6 @@
 # M3 IPv4 networking
 
-Work owners: **N1/N2/PK2** in the [master roadmap](ROADMAP.md). This page is a contract/procedure, not a separate work tracker.
+Work owners: **N1/N2/N3/PK2** in the [master roadmap](ROADMAP.md).
 
 > Technical/operating reference for the bounded IPv4 client. Work steps: [Networking](components/NETWORKING.md).
 
@@ -14,9 +14,9 @@ Work owners: **N1/N2/PK2** in the [master roadmap](ROADMAP.md). This page is a c
 
 Zenith provides one primary IPv4 uplink, DHCP/static/off configuration, DNS/hosts
 lookup, ICMP and TCP diagnostics, optional NTP, and bounded HTTP/verified HTTPS
-file downloads. Both the test DE and headless shell use this service. This is a
-bounded LAN client profile; Internet-wide protocol hardening and package installation
-are separate work. Home DNS is **10.0.10.3**; the package VM is not provisioned yet.
+file downloads. The signed net-tools package supplies the interactive `fetch`
+command in the desktop and headless shells. The package manager keeps its own
+download policy and mirror trust. See the [deployed package server](PACKAGE-SERVER.md).
 
 ## Test on your network
 
@@ -98,8 +98,11 @@ netcfg ntp off
 ntp HOST [PORT]
 tls selftest
 tls trust FILE SHA256
-fetch [--replace] http://HOST[:PORT]/PATH FILE
-fetch [--replace] https://HOST[:PORT]/PATH FILE
+fetch https://example.org/info.txt
+fetch -I https://example.org/info.txt
+fetch -Ls -o /tmp/info.txt https://example.org/info.txt
+fetch -O https://example.org/files/report.txt
+recovery fetch [--replace] [--kernel] http(s)://HOST[:PORT]/PATH FILE
 ```
 
 Configuration writes, NTP and trust import require root; diagnostics and downloads
@@ -145,8 +148,14 @@ or prove package metadata freshness. TLS checks certificate dates against curren
 system UTC. Ensure the boot RTC or your chosen time service supplies a reasonable
 time; an invalid clock causes TLS initialization/date verification to fail.
 
-No public or private CA is trusted by default. To use your future VM's HTTPS service,
-export its issuing CA's ASCII PEM file and obtain the **SHA256 of the exact PEM file**
+Ordinary HTTPS downloads verify the server using the kernel's versioned web CA
+bundle and the administrator's optional local CA. The package repository client,
+HTTPS trust bootstrap and Beacon's mirror check require the local CA. Updating
+the web bundle therefore cannot expand which issuers can authenticate a package
+repository. [Web CA source and update procedure](../vendor/web-pki/SOURCE.md)
+
+To use a privately issued server certificate, export the issuing CA's ASCII PEM
+file and obtain the **SHA256 of the exact PEM file**
 through a trusted channel. This hash is not the DER certificate fingerprint reported
 by `openssl x509 -fingerprint`. On the host/VM use `sha256sum ca.pem`.
 Copy the file through a local volume or download it over HTTP, then:
@@ -173,14 +182,30 @@ Import validates the hash and complete PEM bundle before staged replacement of
 `/etc/zenith/tls-ca.pem` (maximum 4096 bytes). Malformed files and wrong hashes preserve
 old trust. HTTPS verifies CA chain, DNS name or IPv4 SAN, key/algorithm policy and
 **every certificate's validity dates**. There is no insecure bypass. The server must
-support TLS 1.2 ECDHE-RSA or ECDHE-ECDSA with AES-128/256-GCM and P-256; RSA keys
-must meet the library's 2048-bit minimum. TLS 1.3, client certificates, revocation
-retrieval, public CA bundles, tickets/resumption and certificate pin rotation are
+support TLS 1.2 ECDHE-RSA or ECDHE-ECDSA with AES-128/256-GCM. The bridge supports
+X25519, P-256, P-384 and P-521. RSA keys must meet the library's 2048-bit minimum.
+TLS 1.3, client certificates, revocation retrieval, tickets/resumption and certificate pin rotation are
 not implemented. IP URLs require a matching IP SAN, not just a DNS certificate.
 
 ## Transfer and transport bounds
 
-Fetch sends HTTP/1.0 with identity encoding and close semantics. Only status 200
+With signed `zenith-net-tools` installed, `fetch URL` writes the HTTP or HTTPS
+response body to stdout. Pipes and redirections carry binary data up to the
+1 MiB native standard-stream limit. Use `-o FILE` or the existing `URL FILE`
+form for atomic file output. `-O` derives the filename from the original URL
+path and ignores its query. File progress for `-o` and `-O` goes to stderr;
+`-s` suppresses progress and the completion message. Errors go to stderr.
+
+Native fetch sends HTTP/1.1 with identity encoding and accepts declared-length
+or chunked GET responses. `-I` issues HEAD and writes the final headers.
+`-L` follows up to five relative or absolute redirects. Each HTTPS hop verifies
+the destination, and a redirect from HTTPS to HTTP fails. Files default to
+8 MiB. `--max-filesize BYTES` sets the bound and `--kernel` selects the maximum
+32 MiB + 4096 bytes. Existing regular files require `--replace`. These limits
+apply to decoded body bytes. Chunk metadata and HTTP headers have separate
+bounds. Signed package installation continues to verify the package signature.
+
+The recovery builtin and the package downloader send HTTP/1.0 with identity encoding and close semantics. Only status 200
 with exactly one numeric Content-Length is accepted. Redirects, chunking,
 compression, credentials and fragments are rejected. URLs are printable ASCII
 and at most 350 characters, headers 8192 bytes, payloads 8 MiB by default. Explicit `fetch --kernel` permits 32 MiB + 4096 bytes
@@ -265,6 +290,8 @@ python3 -B tools/build-tls.py /tmp/zenith-tls-host --host
 python3 -B tools/test_tls_bridge.py /tmp/zenith-tls-host/libzenith-tls.so
 python3 -B tools/test_run_network.py
 python3 -B tools/network-smoke.py /tmp/zenith-network
+# Optional internet test with signed net-tools and independent ext2 byte verification:
+python3 -B tools/native-network-smoke.py /tmp/zenith-native-web --public-https
 # Explicit real home DNS acceptance; CI never uses private LAN addresses:
 python3 -B tools/network-smoke.py /tmp/zenith-network-lan --lan-dns 10.0.10.3
 ```

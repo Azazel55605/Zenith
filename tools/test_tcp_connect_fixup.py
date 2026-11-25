@@ -36,6 +36,7 @@ class TcpConnectFixupTests(unittest.TestCase):
         result = self.run_fixup()
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn('Adapted TCP port candidates', result.stdout)
+        self.assertIn('Adapted IPv4 queued transmissions to FIFO order', result.stdout)
         self.assertEqual(original, self.source.read_bytes())
 
     def test_seeded_port_adaptation_is_byte_idempotent(self):
@@ -52,6 +53,15 @@ class TcpConnectFixupTests(unittest.TestCase):
         altered = before.replace(b's_nextPort', b'x_nextPort'); self.copy.write_bytes(altered)
         result = self.run_fixup()
         self.assertNotEqual(0, result.returncode)
+        self.assertEqual(altered, self.copy.read_bytes())
+
+    def test_changed_queue_drain_is_not_rewritten(self):
+        self.system_copy(); before = self.copy.read_bytes()
+        self.assertIn(b'RemoveAt\x00', before)
+        altered = before.replace(b'RemoveAt\x00', b'RemoveBt\x00'); self.copy.write_bytes(altered)
+        result = self.run_fixup()
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn('queue removal sites changed', result.stderr)
         self.assertEqual(altered, self.copy.read_bytes())
 
     def test_real_timeout_retirement_and_unchanged_package(self):

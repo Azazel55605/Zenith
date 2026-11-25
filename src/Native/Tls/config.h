@@ -30,6 +30,9 @@ int zenith_tls_printf(const char *, ...);
 #define MBEDTLS_ECDSA_C
 #define MBEDTLS_ECP_C
 #define MBEDTLS_ECP_DP_SECP256R1_ENABLED
+#define MBEDTLS_ECP_DP_SECP384R1_ENABLED
+#define MBEDTLS_ECP_DP_SECP521R1_ENABLED
+#define MBEDTLS_ECP_DP_CURVE25519_ENABLED
 #define MBEDTLS_ECP_NIST_OPTIM
 #define MBEDTLS_GCM_C
 #define MBEDTLS_MD_C
@@ -40,6 +43,9 @@ int zenith_tls_printf(const char *, ...);
 #define MBEDTLS_PKCS1_V15
 #define MBEDTLS_PKCS1_V21
 #define MBEDTLS_RSA_C
+/* Some otherwise valid trust anchors have a legacy self-signature. Mbed TLS's
+   default verification profile still rejects SHA-1 on issued certificates. */
+#define MBEDTLS_SHA1_C
 #define MBEDTLS_SHA256_C
 #define MBEDTLS_SHA384_C
 #define MBEDTLS_SHA512_C

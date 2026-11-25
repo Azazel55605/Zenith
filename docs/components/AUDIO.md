@@ -2,7 +2,7 @@
 
 Owner and progress: [master roadmap H2](../ROADMAP.md). First scope: actual output and
 input devices, default selection, volume/mute and application streams in Meridian.
-System sounds and additional panels are explicitly subsequent work.
+System sound packs, event selection and previews now use this mixer. [Appearance integration](APPEARANCE.md)
 
 ## Implemented contract
 
@@ -10,10 +10,8 @@ System sounds and additional panels are explicitly subsequent work.
   PCM route. Enumerate codec widgets and bounded connection paths; never invent a
   device when no route exists. This matches the user's VMware HDA model; QEMU's
   intel-hda with hda-duplex supplies independent playback/capture qualification.
-- One selected output and input, shared by all application streams. Choices/gains
-  last for the current boot. Additional controllers, per-app physical routing,
-  remembered preferences, jack hot-plug and other PCM formats remain subsequent
-  H2 work; unsupported hardware displays its actual absence.
+- One selected output and input, shared by all application streams. Installed systems save each endpoint's level and mute plus the preferred input and output in `/etc/zenith/audio-devices.conf`. The key includes PCI location, controller and codec model, codec address, direction, pin and pin configuration. A missing or changed endpoint falls back to the driver’s default. Returning hardware can recover its saved settings. Recording still requires its usual permission.
+- Live boots and per-app stream controls last for the session. Further controllers, independent routing, jack hot-plug and more PCM formats remain H2 work.
 - A BSP-owned polling thread services fixed eight-period DMA rings. No audio IRQ,
   per-frame allocation, UI-loop processing, unbounded backlog or device I/O on APs.
   Each of sixteen invocation-owned streams has a 32 KiB ring. Playback is mixed
@@ -65,5 +63,4 @@ device`. Keeping Auto Detect and explicitly setting `sound.virtualDev = "hdaudio
 in the powered-off VM's `.vmx` resolved detection and playback. VMware microphone
 capture and other physical hardware remain unverified.
 
-Additional formats, remembered choices, independent routing, extra controllers,
-system sounds and further panels remain subsequent H2 work.
+H2 still owns independent device routing, additional formats, extra controllers and installed capture checks. U14 owns sound packs and their desktop events.

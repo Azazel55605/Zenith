@@ -3,29 +3,17 @@
 [Ordered plan and WIP rules](MERIDIAN-PLAN.md) ·
 [Original outline](archive/2026-10-27/meridian-user-requirements.md)
 
-**Reviewed scope, 2026-10-27.** All destinations are now registered in the unshipped Meridian shell; most feature backends remain WIP. [Implementation boundaries](components/SESSIONS-DESKTOP.md#native-app-migration). Every destination
-below must be present from M1, including later-phase features. Group names become
-expandable navigation headings; nested option groups/tabs remain available inside
-their page. Page IDs are proposed stable navigation/search identities, not an ABI.
+The Settings package registers every destination below. These stable IDs drive the page table, navigation and launcher deep links. Groups organize pages inside the ten top-level categories. Incomplete controls retain a WIP explanation.
 
-Baseline describes verified source foundations, not completed page implementations
-or installed acceptance: **A** = the current Appearance client has working controls;
-**C** = a related trusted CLI/core service exists; **H** = selected host behavior
-exists but lacks a general native settings contract; **—** = no completed foundation
-claimed. Any incomplete requested section keeps its page's top WIP banner.
+The third column records the service foundations identified when each part of the inventory was specified. **A** indicates an Appearance control, **C** a trusted CLI/core service, **H** host behavior and **—** an initially missing foundation. Current implementation and remaining work for every page are in the [master roadmap](ROADMAP.md#meridian--every-requested-destination).
 
-Scope goals: **U** personal/session preferences; **S** administrator/system policy;
-**U/S** separate personal choice and administrator default/device authority. These
-are targets: current Appearance writes remain system-wide/root-only until M3.
-All phase references refer to [M0–M10](MERIDIAN-PLAN.md#feature-dependencies-and-master-ownership).
-
-Work state and delivery order live only in the [master roadmap](ROADMAP.md#meridian--every-requested-destination); this inventory is control scope, not a second tracker.
+**U** denotes personal/session preferences and **S** denotes system or administrator policy. Meridian supports personal appearance overrides, inherited defaults and authorized changes to shared system settings. [Service contracts and phases](MERIDIAN-PLAN.md#feature-dependencies-and-master-ownership)
 
 ## 1. Quick Settings
 
 | ID / page | Requested sections and controls | Baseline; activation / owner |
 |---|---|---|
-| `quick.overview` — Quick Settings | Startup overview; manual quick theme toggle and automatic time-based mode; links to Wallpaper, Colors/Themes and other settings; recently visited pages/options. Show real summaries, not placeholder device readings. | A partial; manual links/control M1, user history M1/M3, automatic mode M6. U; settings navigation + shared day/night service. |
+| `quick.overview` — Quick Settings | Startup overview; manual quick theme toggle and automatic time-based mode; links to Wallpaper, Colors/Themes and other settings; recently visited pages/options. Show real summaries, not placeholder device readings. | Manual dark/light and per-account recent pages are implemented. Automatic mode needs M6. U; settings navigation + shared day/night service. |
 
 ## 2. Input & Output
 
@@ -106,7 +94,7 @@ Window Management groups Taskbar, Window Behavior, Task Switcher and Virtual Des
 
 | ID / page | Requested sections and controls | Baseline; activation / owner |
 |---|---|---|
-| `security.locking` — Screen Locking | Automatic lock and idle timeout; delay before password is required; administrative auto-login configuration/link. Never implement lock as destructive logout or treat auto-login as password grace. | C for authentication/logout only, no true lock; M9. U/S; trusted lock/authentication and login policy services. |
+| `security.locking` — Screen Locking | Automatic lock and idle timeout; delay before password is required; administrative auto-login configuration/link. Never implement lock as destructive logout or treat auto-login as password grace. | Trusted manual and idle locking with grace are implemented. Guarded auto-login remains in M9. U/S; trusted lock/authentication and login policy services. |
 
 ## 9. Language & Time
 

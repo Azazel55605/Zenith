@@ -40,6 +40,7 @@ internal sealed partial class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     private readonly Toasts _toasts = new();
     private readonly Zenith.Gui.Shell.Portal.PortalHost _portal = new();
     private readonly Zenith.Gui.Shell.Sunset.SunsetView _sunset;
+    private readonly Zenith.Core.Sessions.IdleLockTimer _idleLock = new();
     private readonly Zenith.Gui.Shell.Sunset.LockScreen _lock = new();
     private const long SunsetOpenMicros = 120_000;
     // Cosmos reports no key releases: Meta followed within three seconds by Shift+L counts as Meta+Shift+L (a memory
@@ -400,6 +401,7 @@ internal sealed partial class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         PublishWindows();
         // A portal dialog (a program asking for permission) opens above everything and closes Prism.
         RunPendingPower();
+        bool lockedAtStart = _lock.IsLocked;
         if (_lock.IsLocked) { if (_lock.Tick()) { _lockDirty = true; _sceneDirty = true; } }
         else if (_portal.Tick())
         {
@@ -410,7 +412,7 @@ internal sealed partial class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         if (_sunset.Tick(_scene.Width, _scene.Height)) { _sceneDirty = true; }
         // Notifications: toasts over the work area (not on the lock screen, where they wait).
         // System checks that become notifications: the disk filling up (at most once a minute).
-        long checkNow = FrameStats.Now * 1_000_000 / System.Diagnostics.Stopwatch.Frequency;
+        long checkNow = System.Diagnostics.Stopwatch.GetElapsedTime(0, FrameStats.Now).Ticks / 10;
         Zenith.Core.Storage.StorageWatch.Check(checkNow);
         Zenith.Core.Packages.PackageCenter.BackgroundCheck(checkNow);
         if (!_lock.IsLocked)
@@ -423,6 +425,7 @@ internal sealed partial class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         if (_generation != Accounts.Generation)
         {
             foreach (var window in Windows.Windows) { if (window is TerminalWindow terminal && terminal.IsBusy) { return; } }
+            _idleLock.Reset();
             _generation = Accounts.Generation;
             _apps.Stop(); _apps = new NativeAppLauncher();
             _nativeClients.Stop();
@@ -442,17 +445,33 @@ internal sealed partial class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         Window? beforeInput = KeyEdgesOwner();
         _input.Poll();
         bool altReleased = ReadWorkspaceKeys();
-        bool routeKeyEdges = true;
+        long idleNow = FrameStats.Now / System.Diagnostics.Stopwatch.Frequency;
+        bool physicalInput = _input.HasActivity || !_input.KeyEdges.IsEmpty || _input.LostKeyEdges;
+        bool consumeWake = lockedAtStart && !_lock.IsLocked;
+        if (consumeWake) { _idleLock.Reset(); _composeAll = _sceneDirty = true; }
+        if (!_lock.IsLocked && !consumeWake &&
+            _idleLock.Poll(idleNow, _desktopPreferences.IdleSeconds, physicalInput) is long lockDue &&
+            ((Zenith.Gui.Shell.Sunset.ISunsetHost)this).LockUnavailable is null)
+        {
+            LockDesktop(_desktopPreferences.GraceSeconds == 0 ? 0 : lockDue + _desktopPreferences.GraceSeconds);
+            consumeWake = physicalInput;
+        }
+        if (physicalInput && _lock.WakeDuringGrace(idleNow))
+        {
+            _idleLock.Reset(); consumeWake = _composeAll = _sceneDirty = true;
+        }
+        if (_lock.IsLocked || consumeWake) { _desktopModifiers = 0; }
+        bool routeKeyEdges = !consumeWake;
 
         // A release or a hover change only redraws; the click that started an animation must not cut it short.
         bool interrupts = _input.Activity.InterruptsMotion;
         if (_input.Activity.LeftPressed || _input.Keys.Count > 0 || _input.Scroll != 0) { Zenith.Gui.Motion.OverlayMotion.Finish(); }
-        if (_input.Activity.RoutesWithoutMotion || _switcherTabs != 0 || _tilingKeys.Count != 0)
+        if (!consumeWake && (_input.Activity.RoutesWithoutMotion || _switcherTabs != 0 || _tilingKeys.Count != 0))
         {
             routeKeyEdges = HandleInput(altReleased);
             _sceneDirty = true;
         }
-        else if (_input.Moved)
+        else if (!consumeWake && _input.Moved)
         {
             routeKeyEdges = HandleInput(altReleased);   // drags move windows on motion alone
             long hover = HoverKey();
@@ -679,8 +698,8 @@ internal sealed partial class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
     private void StartTransition()
     {
         WindowTransition? change = Windows.TakeTransition();
-        if (ApplyWorkspaceTransition()) { return; }
         if (_lock.IsLocked) { return; }
+        if (ApplyWorkspaceTransition()) { return; }
         var (shown, docked) = WantedBar();
         bool wasShown = _taskbar.Shown, wasDocked = _taskbar.Docked;
         bool barMoves = shown != wasShown || (shown && docked != wasDocked);
@@ -1243,14 +1262,21 @@ internal sealed partial class Desktop : Zenith.Gui.Shell.Sunset.ISunsetHost
         return list;
     }
 
+    private void LockDesktop(long graceUntil = 0)
+    {
+        _motion.Interrupt(); ReportMotion(); _prism.Close(); _sunset.Close(); _taskbar.ClosePopups(); CancelSwitcher();
+        Windows.CancelPointerCapture(); _keyEdgesOwner?.ResetKeyEdges();
+        _lock.Lock(SessionName(), Accounts.Session.Uid, graceUntil);
+        _lockDirty = _sceneDirty = _composeAll = true; _lastLocked = false;
+    }
+
     string? Zenith.Gui.Shell.Sunset.ISunsetHost.Act(Zenith.Core.Sessions.SunsetAction action)
     {
         _sceneDirty = true; _composeAll = true;
         switch (action)
         {
             case Zenith.Core.Sessions.SunsetAction.Lock:
-                _motion.Interrupt(); ReportMotion(); _prism.Close();
-                _lock.Lock(SessionName(), Accounts.Session.Uid); _lockDirty = true; _lastLocked = false;
+                LockDesktop();
                 return null;
             case Zenith.Core.Sessions.SunsetAction.LogOut:
                 return Zenith.Core.Sessions.SessionRuntime.RequestLogout();

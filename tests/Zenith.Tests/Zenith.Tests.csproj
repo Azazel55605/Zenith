@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <!-- Download only the HAL contract assembly: do not import the Cosmos kernel build pipeline. -->
-  <ItemGroup><Compile Include="../../src/Core/Audio/AudioMixer.cs" LinkBase="Kernel/Audio" /></ItemGroup>
+  <ItemGroup><Compile Include="../../src/Core/Audio/AudioMixer.cs;../../src/Core/Audio/AudioPreferences.cs" LinkBase="Kernel/Audio" /></ItemGroup>
   <ItemGroup><Compile Include="../../src/Core/IO/*.cs" LinkBase="Kernel/IO" /></ItemGroup>
   <ItemGroup>
     <PackageDownload Include="Cosmos.Kernel.HAL.Interfaces" Version="[$(CosmosVersion)]" />

@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using Zenith.Core.Storage;
 using Zenith.Core.Time;
 
 namespace Zenith.Core.Network;
@@ -18,10 +19,12 @@ internal sealed unsafe class TlsConnection : IDisposable
     private readonly Action _cancel, _ready;
     private readonly byte[] _wire = new byte[8192];
     private bool _active;
-    public TlsConnection(Socket socket, string host, string ca, Action cancel, Action ready)
+    public TlsConnection(Socket socket, string host, Action cancel, Action ready, bool webTrust)
     {
         _socket = socket; _cancel = cancel; _ready = ready;
-        Open(host, ca); _active = true;
+        string? ca = BoundedFile.ReadText(TrustPath, 4096);
+        if (!webTrust && ca is null) { throw new IOException("no TLS trust bundle; root must run tls trust FILE SHA256"); }
+        Open(host, ca, webTrust); _active = true;
         try
         {
             var timer = Stopwatch.StartNew();
@@ -29,7 +32,7 @@ internal sealed unsafe class TlsConnection : IDisposable
             {
                 Check(timer, 15000); int result = Handshake(); Drain();
                 if (result == 0) { if (Verify() != 0) { throw new IOException("TLS certificate verification failed"); } break; }
-                Retry(result); Pump();
+                Pump(result);
             }
         }
         catch { Dispose(); throw; }
@@ -42,15 +45,16 @@ internal sealed unsafe class TlsConnection : IDisposable
     private static extern int NativeSelfTest();
     public static void ValidateTrust(string ca)
     {
-        Open("trust.invalid", ca); Close();
+        Open("trust.invalid", ca, false); Close();
     }
-    private static void Open(string host, string ca)
+    private static void Open(string host, string? ca, bool webTrust)
     {
-        byte[] roots = Encoding.ASCII.GetBytes(ca + "\0"), name = Encoding.ASCII.GetBytes(host + "\0");
+        byte[] roots = ca is null ? Array.Empty<byte>() : Encoding.ASCII.GetBytes(ca + "\0");
+        byte[] name = Encoding.ASCII.GetBytes(host + "\0");
         DateTime now = SystemClock.UtcNow;
         fixed (byte* root = roots, hostname = name)
         {
-            int result = NativeOpen(root, (nuint)roots.Length, hostname, now.Year, now.Month, now.Day, now.Hour, now.Minute, now.Second);
+            int result = NativeOpen(root, (nuint)roots.Length, hostname, now.Year, now.Month, now.Day, now.Hour, now.Minute, now.Second, webTrust ? 1 : 0);
             if (result != 0) { throw new IOException("TLS initialization rejected trust/clock/entropy (code=" + result + ")"); }
         }
     }
@@ -62,7 +66,7 @@ internal sealed unsafe class TlsConnection : IDisposable
             Check(timer, 15000); int result;
             fixed (byte* p = bytes) { result = NativeWrite(p + offset, (nuint)(bytes.Length - offset)); }
             Drain(); if (result > 0) { offset += result; continue; }
-            Retry(result); Pump();
+            Pump(result);
         }
     }
     public int Read(byte[] bytes, int maximum = 3000)
@@ -74,13 +78,11 @@ internal sealed unsafe class TlsConnection : IDisposable
             fixed (byte* p = bytes) { result = NativeRead(p, (nuint)bytes.Length); }
             Drain(); if (result > 0) { return result; }
             if (result == 0 || result == PeerClosed) { return 0; }
-            Retry(result); Pump();
+            Pump(result);
         }
     }
     private void Check(Stopwatch timer, int maximum)
     { _cancel(); _ready(); if (timer.ElapsedMilliseconds > maximum) { throw new IOException("TLS operation timed out"); } }
-    private static void Retry(int code)
-    { if (code != WantRead && code != WantWrite) { throw new IOException("TLS handshake/record rejected (code=" + code + ")"); } }
     private void Drain()
     {
         while (true)
@@ -91,8 +93,15 @@ internal sealed unsafe class TlsConnection : IDisposable
             if (count < 0 || _socket.Send(_wire, 0, count, SocketFlags.None) != count) { throw new IOException("TLS transport write failed"); }
         }
     }
-    private void Pump()
+    private void Pump(int result)
     {
+        // Drain() already made room in the output queue, so retry the pending
+        // write immediately. A peer waiting for that write may send nothing.
+        if (result == WantWrite) { return; }
+        if (result != WantRead) { throw new IOException("TLS handshake/record rejected (code=" + result + ")"); }
+        // A nonfatal TLS alert can return WANT_READ with the next record already
+        // queued. Let Mbed TLS consume it before taking another window from TCP.
+        if (NativePendingInput() > 0) { return; }
         _cancel(); _ready(); int available = _socket.Available;
         if (available > 0)
         {
@@ -105,7 +114,7 @@ internal sealed unsafe class TlsConnection : IDisposable
     }
     public void Dispose() { if (_active) { Close(); _active = false; } }
     [DllImport("*", EntryPoint = "zenith_tls_open")]
-    private static extern int NativeOpen(byte* ca, nuint length, byte* hostname, int year, int month, int day, int hour, int minute, int second);
+    private static extern int NativeOpen(byte* ca, nuint length, byte* hostname, int year, int month, int day, int hour, int minute, int second, int webTrust);
     [DllImport("*", EntryPoint = "zenith_tls_close")]
     private static extern void Close();
     [DllImport("*", EntryPoint = "zenith_tls_handshake")]
@@ -118,6 +127,8 @@ internal sealed unsafe class TlsConnection : IDisposable
     private static extern int NativeWrite(byte* data, nuint length);
     [DllImport("*", EntryPoint = "zenith_tls_push")]
     private static extern int NativePush(byte* data, nuint length);
+    [DllImport("*", EntryPoint = "zenith_tls_pending_input")]
+    private static extern int NativePendingInput();
     [DllImport("*", EntryPoint = "zenith_tls_pull")]
     private static extern int NativePull(byte* data, nuint length);
 }

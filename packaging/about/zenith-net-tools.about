@@ -4,3 +4,4 @@ summary	Downloads and network checks
 description	Programs for the shell that fetch files over HTTPS and check connections.
 category	tools
 icon	network
+change	0.2.0	Fetch public HTTPS URLs, follow redirects, inspect headers and stream binary or chunked responses to a file or pipe.

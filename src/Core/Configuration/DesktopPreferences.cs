@@ -17,6 +17,12 @@ internal sealed record DesktopPreferences
     public int MasterPercent { get; init; } = DefaultTileSplit;
     public int TileInnerGap { get; init; }
     public int TileOuterGap { get; init; }
+    // Selection indices are also the stable values of the Meridian page.
+    public uint IdleTimeout { get; init; }
+    public uint IdleGrace { get; init; }
+    public int IdleSeconds => IdleTimeout switch { 1 => 60, 2 => 300, 3 => 600, 4 => 900, 5 => 1800, _ => 0 };
+    public int GraceSeconds => IdleGrace switch { 1 => 5, 2 => 15, 3 => 30, _ => 0 };
+    public bool ScheduledUpdates { get; init; } = true;
     public uint TaskbarPosition { get; init; }
     public string[] TaskbarPins { get; init; } = Array.Empty<string>();
     public uint FocusMode { get; init; }
@@ -34,7 +40,7 @@ internal sealed record DesktopPreferences
     public DesktopEntry[] Desktops { get; init; } = new DesktopEntry[] { new(0, "Desktop 1") };
     public uint DesktopMotion { get; init; } = 1;
 
-    public static int ChoiceCount(uint page) => page switch { 1 => 2, 2 => 8, 3 => 4, 4 => 1, 5 => 10, _ => 0 };
+    public static int ChoiceCount(uint page) => page switch { 1 => 2, 2 => 8, 3 => 4, 4 => 1, 5 => 10, 6 => 2, 7 => 1, _ => 0 };
 
     public uint[] Choices(uint page, uint taskbar) => page switch
     {
@@ -43,6 +49,8 @@ internal sealed record DesktopPreferences
         3 => new[] { SwitcherLayout, SwitcherSort, SwitcherGroup, SwitcherScope },
         4 => new[] { DesktopMotion },
         5 => [.. Choices(2, taskbar), (uint)TileInnerGap, (uint)TileOuterGap],
+        6 => [IdleTimeout, IdleGrace],
+        7 => [ScheduledUpdates ? 1u : 0u],
         _ => Array.Empty<uint>()
     };
 
@@ -57,6 +65,11 @@ internal sealed record DesktopPreferences
 
     public DesktopPreferences? Edit(uint page, uint[] values, DesktopEntry[] entries)
     {
+        if (values.Length != ChoiceCount(page)) { return null; }
+        if (page == 6 && entries.Length == 0 && values[0] <= 5 && values[1] <= 3)
+        { return this with { IdleTimeout = values[0], IdleGrace = values[1] }; }
+        if (page == 7 && entries.Length == 0 && values[0] <= 1)
+        { return this with { ScheduledUpdates = values[0] == 1 }; }
         if (page == 1 && values[0] < SettingsService.TaskbarNames.Length && values[1] < 2 && entries.Length <= MaximumPins)
         {
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -171,7 +184,7 @@ internal sealed partial class SettingsService
                 { DesktopPreferences = DesktopPreferences with { TileInnerGap = inner, TileOuterGap = outer }; }
                 else { errors.Add(DesktopPath + ": invalid WM_GAPS; using default gaps"); }
             }
-            for (uint page = 2; page <= 4; page++)
+            foreach (uint page in new uint[] { 2, 3, 4, 6, 7 })
             {
                 string key = DesktopKey(page);
                 try
@@ -237,7 +250,7 @@ internal sealed partial class SettingsService
         if (fields.TryGetValue("VERSION", out string? version) && version != "1") { throw new FormatException("unsupported settings VERSION"); }
     }
 
-    private static string DesktopKey(uint page) => page switch { 2 => "WINDOWS", 3 => "SWITCHER", 4 => "WORKSPACES", _ => throw new ArgumentOutOfRangeException(nameof(page)) };
+    private static string DesktopKey(uint page) => page switch { 2 => "WINDOWS", 3 => "SWITCHER", 4 => "WORKSPACES", 6 => "IDLE_LOCK", 7 => "UPDATE_CHECKS", _ => throw new ArgumentOutOfRangeException(nameof(page)) };
 
     public int SaveDesktopPreferences(uint page, uint[] choices, DesktopEntry[] entries, ulong revision)
     {
@@ -278,5 +291,31 @@ internal sealed partial class SettingsService
             _revision++;
             return 0;
         }
+    }
+}
+
+internal static class RecentPageList
+{
+    private static bool Valid(string id)
+    {
+        if (id.Length is < 1 or > 63 || id == "quick.overview") { return false; }
+        foreach (char c in id) { if (!(c is >= 'a' and <= 'z' or >= '0' and <= '9' or '.' or '-')) { return false; } }
+        return true;
+    }
+
+    public static string Update(string? previous, string? visit)
+    {
+        var pages = new List<string>(6);
+        if (visit is not null)
+        {
+            if (!Valid(visit)) { throw new ArgumentException("invalid page ID"); }
+            pages.Add(visit);
+        }
+        foreach (string id in (previous ?? "").Split('\n'))
+        {
+            if (Valid(id) && !pages.Contains(id)) { pages.Add(id); }
+            if (pages.Count == 6) { break; }
+        }
+        return string.Join("\n", pages);
     }
 }

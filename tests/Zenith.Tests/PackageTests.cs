@@ -47,6 +47,23 @@ public class PackageTests
         Assert.False(plan.Applicable); Assert.Contains("zenith-native-fs-abi", Assert.Single(plan.Blockers));
         Assert.True(Plan(text).Applicable);
     }
+    [Theory]
+    [InlineData("zenith-net-tools", "zenith-native-network-abi", "zenith-native-web-transport-abi")]
+    [InlineData("zenith-settings", "zenith-native-settings-abi", BootstrapComponents.LockPreferences)]
+    [InlineData("zenith-orbit", "zenith-native-package-center-abi", BootstrapComponents.ScheduledUpdates)]
+    public void AddedServiceRequirementBlocksOnlyTheUpdatedClientOnAnOlderKernel(string client, string previous, string capability)
+    {
+        string original = Text().Replace("hello-docs", client) + $"requires\t{previous}\t1.0\n";
+        string updated = original + $"requires\t{capability}\t1.0\n";
+        var old = BootstrapComponents.All.Where(c => c.Name != capability).ToArray();
+        PackagePlan OldPlan(string manifest) => PackagePlanner.Plan(PackageManifest.Parse(manifest),
+            new Source(Data), "x86_64", old, _ => PackagePathState.Missing);
+
+        Assert.True(OldPlan(original).Applicable);
+        Assert.Equal("missing exact dependency " + capability + "=1.0", Assert.Single(OldPlan(updated).Blockers));
+        Assert.True(Plan(original).Applicable);
+        Assert.True(Plan(updated).Applicable);
+    }
     [Fact]
     public void RoundTripAndPlanVerifyPayloadWithoutMutating()
     {

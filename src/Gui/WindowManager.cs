@@ -165,6 +165,13 @@ internal sealed partial class WindowManager
     /// <summary>Open windows, oldest first; unlike the stack, focus does not reorder it.</summary>
     public IReadOnlyList<Window> OpenOrder => _opened;
 
+    internal void CancelPointerCapture()
+    {
+        _dragging = null; _contentDrag = null; _lastTitleClick = null; _pointerWindow = null;
+        _snapZone = SnapNone; _snapStart = 0;
+        CancelPointerFocus();
+    }
+
     public bool IsDragging => _dragging is not null || _contentDrag is not null;
     /// <summary>A snap preview is on screen (the desktop composes everything while it shows).</summary>
     public bool SnapPreviewShown => _snapZone != SnapNone && _dragging is not null;

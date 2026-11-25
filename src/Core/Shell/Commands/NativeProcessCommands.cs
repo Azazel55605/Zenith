@@ -83,7 +83,8 @@ internal static class NativeProcessCommands
                 if (!recovery.TryGetValue(name, out var fallback)) { continue; }
                 string program = group.Program;
                 string path = "/usr/share/zenith/native/" + program + ".elf";
-                add(new Command(name, fallback.Usage, "Packaged " + program + " command; recovery builtin when absent", c =>
+                string usage = name == "fetch" ? "fetch [-ILs] [-o FILE | -O] [--replace] [--max-filesize BYTES | --kernel] URL [FILE]" : fallback.Usage;
+                add(new Command(name, usage, "Packaged " + program + " command; recovery builtin when absent", c =>
                 {
                     if (Zenith.Core.Packages.NativePackageSource.State(path)==Zenith.Core.Packages.PackagePathState.Missing) { return fallback.Run(c); }
                     return Execute(c, program, new[] { program, name }.Concat(c.Args).ToArray());

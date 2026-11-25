@@ -368,7 +368,7 @@ internal static class NetworkService
     }
     // A native transport owns the existing global network operation until close.
     // DNS/TLS and the framework tables stay serialized with trusted clients.
-    internal static Zenith.Core.Processes.IProcessConnection OpenClient(string host, int port, bool secure, Action cancel)
+    internal static Zenith.Core.Processes.IProcessConnection OpenClient(string host, int port, bool secure, Action cancel, bool webTrust = false)
     {
         var operation = Enter(); Socket? socket = null; TlsConnection? tls = null;
         try
@@ -376,9 +376,7 @@ internal static class NetworkService
             socket = ConnectCore(host, port, cancel);
             if (secure)
             {
-                string ca = BoundedFile.ReadText(TlsConnection.TrustPath, 4096)
-                    ?? throw new IOException("no TLS trust bundle; root must import a trusted CA");
-                tls = new TlsConnection(socket, host, ca, cancel, Ready);
+                tls = new TlsConnection(socket, host, cancel, Ready, webTrust);
             }
             return new ClientConnection(socket, tls, operation, cancel);
         }
@@ -468,7 +466,7 @@ internal static class NetworkService
             throw;
         }
     }
-    public static int Fetch(string url, string destination, bool replace, Action cancel, Action<string> report, int maximum = HttpDownload.DefaultMaximumBytes)
+    public static int Fetch(string url, string destination, bool replace, Action cancel, Action<string> report, int maximum = HttpDownload.DefaultMaximumBytes, bool webTrust = false)
     {
         return Run(() => { var target = HttpTarget.Parse(url); var metadata = new VfsFileMetadata();
         if (metadata.TryRead(destination, out var existing) && (!replace || existing.Type != "regular file"))
@@ -493,8 +491,7 @@ internal static class NetworkService
                         byte[] request = target.Request;
                         if (target.Secure)
                         {
-                            string ca = BoundedFile.ReadText(TlsConnection.TrustPath, 4096) ?? throw new IOException("no TLS trust bundle; root must run tls trust FILE SHA256");
-                            tls = new TlsConnection(socket, target.Host, ca, cancel, Ready); tls.Write(request);
+                            tls = new TlsConnection(socket, target.Host, cancel, Ready, webTrust); tls.Write(request);
                         }
                         else if (socket.Send(request, 0, request.Length, SocketFlags.None) != request.Length) { throw new IOException("short HTTP request write"); }
                         var total = Stopwatch.StartNew(); var idle = Stopwatch.StartNew(); int nextProgress = 65536;
