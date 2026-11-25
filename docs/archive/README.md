@@ -10,6 +10,8 @@ The master roadmap at the 0.0.79 source revision preserves the October–Novembe
 
 ## Investigation records
 
+- [2026-11-25 kernel 0.0.80 qualification](2026-11-25/kernel-0.0.80.md) records the five release versions, kernel and ISO digests, fresh VM gates and public HTTPS check.
+
 - [2026-11-09 pointer, scheduler and fractional scale](2026-11-09/pointer-scheduler-scale.md): 80 Hz PS/2 and relative VMware input, a starved idle-thread desktop, per-wake traces; absolute and device-drawn pointer, park switch and desktop share, filtered 125-175%.
 - [2026-11-09 rendering phase 4](2026-11-09/rendering-phase4.md): changed-rectangle composition, CPU0 with native programs, motion and present damage, power screens at physical resolution; scheduler starvation and an AP race recorded.
 - [2026-11-09 rendering phase 3](2026-11-09/rendering-phase3.md): VMware present cost, direct SVGA updates, fast and incremental backdrop sampling, and measured results.
