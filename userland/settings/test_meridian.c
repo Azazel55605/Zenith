@@ -319,8 +319,16 @@ int main(int argc,char **argv){
     /* Desktop forms use revisioned drafts and the same keyboard, focus, and Apply/Reset controls. */
     app.desktop.read=fake_desktop_read;app.desktop.save=fake_desktop_save;
     app.desktop.apps=fake_desktop_catalog;app.desktop.dirty=mark;
-    assert(meridian_resize(&app,1150,960,1920*1000));
+    assert(meridian_resize(&app,640,480,1920*1000));
     assert(meridian_open(&app,"windows.taskbar"));draw();
+    /* The installed Settings gate changes visibility by keyboard at this size. */
+    key(0,4,1);key(0,4,1);
+    assert(app.ui.focus==find_label("Dock when maximized"));
+    key(0,2,0);key(0,8,0);key(0,8,0);key(0,2,0);
+    assert(dirty&&desktop_state[1].values[0]==0&&app.desktop.draft.values[0]==2);
+    key(0,4,0);key(0,4,0);assert(app.ui.focus==find_label("Apply"));key(0,2,0);
+    assert(!dirty&&desktop_state[1].values[0]==2);
+    assert(meridian_resize(&app,1150,960,1920*1000));draw();
     click_label("Bottom");click_label("Top");
     click_label("Choose an application");click_label("Aurora");
     assert(dirty&&app.desktop.draft.values[1]==1&&app.desktop.draft.count==1);

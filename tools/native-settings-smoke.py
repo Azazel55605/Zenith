@@ -334,13 +334,17 @@ def main():
         print('PASS hidden Terminal input stays solid; cancellation restores materials',flush=True)
         for script,count,direction,expected,exit_marker in (('k',4,'down','keyboard=gb (active gb)','S_KEYBOARD'),('t',1,'down','timezone=Europe/London (active Europe/London)','S_TIMEZONE'),('x',2,'down','taskbar=docked','S_TASKBAR'),('q',1,'up','session=de (next boot)','S_SESSION_PAGE')):
             desktop_script(script,'MERIDIAN_FOCUSED')
-            # Keyboard path: footer buttons start disabled, so Shift+Tab lands on the
-            # combo; Enter opens it, Down moves, Enter commits, Tab reaches Apply.
+            # At 640x480, Taskbar has a Screen edge selector between Visibility
+            # and the footer. The other shared forms expose one selector.
+            selector_tabs = 2 if script == 'x' else 1
             time.sleep(.5);observer.capture(keep/('shared-'+script+'.ppm'))
-            monitor_command(monitor,'sendkey shift-tab 30');time.sleep(.1);monitor_command(monitor,'sendkey ret 30');time.sleep(.2)
+            for _ in range(selector_tabs):
+                monitor_command(monitor,'sendkey shift-tab 30');time.sleep(.1)
+            monitor_command(monitor,'sendkey ret 30');time.sleep(.2)
             for _ in range(count):monitor_command(monitor,'sendkey '+direction+' 30');time.sleep(.05)
             monitor_command(monitor,'sendkey ret 30');time.sleep(.2)
-            monitor_command(monitor,'sendkey tab 30');time.sleep(.1)
+            for _ in range(selector_tabs):
+                monitor_command(monitor,'sendkey tab 30');time.sleep(.1)
             off=len(m.log());monitor_command(monitor,'sendkey ret 30')
             if not m.wait('user: SYSTEM_SETTINGS_REVISION_CHANGED',off,15):
                 observer.capture(keep/('shared-save-failure-'+script+'.ppm'));raise RuntimeError('shared system apply; retained screenshot')

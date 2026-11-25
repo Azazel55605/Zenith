@@ -6,6 +6,9 @@ static long handle=-1;
 static int selected_scope=-1;
 static unsigned int scope_info;
 static int material_surface;
+static unsigned long system_revision(void){
+    return shell.desktop.ready?shell.desktop.saved.revision:shell.bindings.preferences.revision;
+}
 static long present(void){
     struct zui *u=meridian_ui(&shell);
     /* Kernels before 0.0.38 refuse this and the frame simply appears. */
@@ -304,14 +307,15 @@ int main(int argc,char **argv){
         if((r>0&&e.type==Z_GUI_RESIZE)||(i&31)==0){if(!viewport()){result=zui_window_closed(handle)?0:1;break;}}
         if(r<0){result=1;break;}
         int previous_page=shell.page,previous_mode=shell.nav.mode;
-        int edited=binding_any_changed(&shell.bindings),prompt=shell.dialog.open;unsigned long rev=shell.colors.state.revision,preference_revision=shell.bindings.preferences.revision;
+        int edited=binding_any_changed(&shell.bindings),prompt=shell.dialog.open;
+        unsigned long rev=shell.colors.state.revision,preference_revision=system_revision();
         if(r){meridian_event(&shell,&e);if(e.type==Z_GUI_FOCUS&&e.code)print("MERIDIAN_FOCUSED\n");}
         if(previous_page!=shell.page){print("MERIDIAN_PAGE ");print(meridian_pages[shell.page].id);print("\n");}
         if(previous_mode!=NAV_CATEGORIES&&shell.nav.mode==NAV_CATEGORIES)print("MERIDIAN_PAGE navigation\n");
         if((i&31)==0){meridian_refresh(&shell);zui_apply_style(&shell.ui);if(motion_clock>=0)shell.ui.motion_percent=zui_motion_percent(shell.bindings.preferences.animation);}
         if(!edited&&binding_any_changed(&shell.bindings))print("SETTINGS_UNSAVED\n");
         if(!prompt&&shell.dialog.open)print("SETTINGS_DISCARD_PROMPT\n");
-        if(shell.bindings.preferences.revision!=preference_revision)print("SYSTEM_SETTINGS_REVISION_CHANGED\n");
+        if(system_revision()!=preference_revision)print("SYSTEM_SETTINGS_REVISION_CHANGED\n");
         if(shell.colors.state.revision!=rev)print("SETTINGS_REVISION_CHANGED\n");
         struct zui *u=meridian_ui(&shell);
         if(shell.closing)continue;
