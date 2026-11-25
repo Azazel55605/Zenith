@@ -53,7 +53,8 @@ class WakeTests(unittest.TestCase):
         self.assertIn('queue=2;tickets=300;state=1;irq=3/3;irqFlags=512', baseline)
         result = self.adapt(); self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn('Adapted scheduler wake', result.stdout)
-        self.assertEqual('queue=1;tickets=200;state=1;irq=3/3;irqFlags=512;passPreserved=True', self.tick(self.copy, 'late-signal'))
+        # C5 queue deduplication enters one additional balanced IRQ scope inside InsertByPass.
+        self.assertEqual('queue=1;tickets=200;state=1;irq=4/4;irqFlags=512;passPreserved=True', self.tick(self.copy, 'late-signal'))
         self.assertEqual(original, self.source.read_bytes())
 
     def test_wake_current_then_yield_keeps_one_sorted_queue_entry(self):
@@ -70,7 +71,7 @@ class WakeTests(unittest.TestCase):
     def test_created_thread_is_enqueued_once_without_losing_new_thread_state(self):
         self.assertIn('queue=2;tickets=300;state=0;irq=2/2;irqFlags=512', self.tick(self.copy, 'created'))
         result = self.adapt(); self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual('queue=1;tickets=200;state=0;irq=2/2;irqFlags=512;passPreserved=True', self.tick(self.copy, 'created'))
+        self.assertEqual('queue=1;tickets=200;state=0;irq=3/3;irqFlags=512;passPreserved=True', self.tick(self.copy, 'created'))
 
     def test_ready_running_and_dead_late_signals_preserve_state_and_irq_scope(self):
         result = self.adapt(); self.assertEqual(0, result.returncode, result.stderr)
@@ -81,7 +82,7 @@ class WakeTests(unittest.TestCase):
 
     def test_blocked_waiter_still_wakes_and_late_signal_is_idempotent(self):
         result = self.adapt(); self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual('queue=1;tickets=200;state=1;irq=2/2;irqFlags=512;passPreserved=True', self.tick(self.copy, 'blocked'))
+        self.assertEqual('queue=1;tickets=200;state=1;irq=3/3;irqFlags=512;passPreserved=True', self.tick(self.copy, 'blocked'))
 
     def test_self_dispatch_after_current_sleep_expires_restores_running_without_switch(self):
         for mode in ('dispatch-interrupt', 'dispatch-voluntary'):

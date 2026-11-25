@@ -1,5 +1,4 @@
-// Run the real pinned wake/scheduler code. Only privileged IRQ and UART I/O
-// are replaced in a separate host-only copy; queue/state/accounting stay real.
+// Run the pinned scheduler's queue, state and accounting logic on one simulated CPU.
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -11,17 +10,28 @@ string host = Path.Combine(Path.GetDirectoryName(args[0])!, "host-" + Path.GetFi
 using (var source = AssemblyDefinition.ReadAssembly(args[0]))
 {
     var module = source.MainModule;
-    // Host tests run real scheduler logic but cannot execute the hardware CPU
-    // identity P/Invoke. Substitute only that leaf, as with privileged IRQ I/O.
-    var schedulerIdentity = module.GetType("Cosmos.Kernel.Core.Scheduler.SchedulerManager")
-        .Methods.FirstOrDefault(m => m.Name == "_zenithCurrentCpuId");
-    if (schedulerIdentity is not null)
+    // The host models one CPU, an uncontended lock and no desktop park policy.
+    var schedulerType = module.GetType("Cosmos.Kernel.Core.Scheduler.SchedulerManager");
+    var cpuBridge = module.GetType("Cosmos.Kernel.Core.CPU.InternalCpu");
+    foreach (var bridge in schedulerType.Methods.Concat(cpuBridge.Methods).Where(m => m.IsPInvokeImpl && m.PInvokeInfo.EntryPoint
+        is "zenith_cpu_logical_id" or "zenith_sched_lock" or "zenith_sched_unlock" or "zenith_cpu_kick" or "zenith_cpu_park_policy" or "zenith_gc_running_stack"))
     {
-        schedulerIdentity.PInvokeInfo = null; schedulerIdentity.IsPInvokeImpl = false;
-        schedulerIdentity.ImplAttributes = Mono.Cecil.MethodImplAttributes.IL | Mono.Cecil.MethodImplAttributes.Managed;
-        schedulerIdentity.Body = new Mono.Cecil.Cil.MethodBody(schedulerIdentity);
-        schedulerIdentity.Body.Instructions.Add(Instruction.Create(OpCodes.Ldc_I4_0));
-        schedulerIdentity.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
+        string entry = bridge.PInvokeInfo.EntryPoint;
+        bool returnsSuccess = entry is "zenith_sched_lock" or "zenith_sched_unlock";
+        bridge.PInvokeInfo = null; bridge.IsPInvokeImpl = false;
+        bridge.ImplAttributes = Mono.Cecil.MethodImplAttributes.IL | Mono.Cecil.MethodImplAttributes.Managed;
+        bridge.Body = new Mono.Cecil.Cil.MethodBody(bridge);
+        var il = bridge.Body.GetILProcessor();
+        if (entry == "zenith_gc_running_stack")
+        {
+            il.Emit(OpCodes.Ldstr, "CPU 0 dispatched an AP stack publication");
+            il.Emit(OpCodes.Newobj, module.ImportReference(typeof(InvalidOperationException).GetConstructor(new[] { typeof(string) })!));
+            il.Emit(OpCodes.Throw);
+            continue;
+        }
+        il.Emit(returnsSuccess ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
+        if (bridge.ReturnType.MetadataType == MetadataType.UInt64) { il.Emit(OpCodes.Conv_U8); }
+        il.Emit(OpCodes.Ret);
     }
     var native = module.GetType("Cosmos.Kernel.Core.Bridge.CpuNative");
     var flags = new FieldDefinition("_hostIrqFlags", Mono.Cecil.FieldAttributes.Public | Mono.Cecil.FieldAttributes.Static, module.TypeSystem.UInt64);

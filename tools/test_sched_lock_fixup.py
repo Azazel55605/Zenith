@@ -31,6 +31,18 @@ class SchedulerLockFixupTests(unittest.TestCase):
     def adapt(self, path):
         return subprocess.run(['dotnet', str(ROOT / 'tools/PatcherFixup/bin/Release/net10.0/PatcherFixup.dll'), str(path)], capture_output=True, text=True)
 
+    def test_arm64_keeps_its_platform_scheduler(self):
+        source = self.source.parents[3] / 'linux-arm64/lib/net10.0' / self.source.name
+        with tempfile.TemporaryDirectory() as folder:
+            copy = Path(folder) / source.name
+            shutil.copyfile(source, copy)
+            result = self.adapt(copy)
+            self.assertEqual(0, result.returncode, result.stderr)
+            metadata = copy.read_bytes()
+            for name in (b'zenith_sched_lock', b'zenith_sched_unlock', b'zenith_cpu_kick'):
+                with self.subTest(entry=name):
+                    self.assertFalse(name + b'\0' in metadata, 'x64 scheduler import found in arm64 metadata')
+
     def test_every_masked_section_and_interrupt_path_takes_the_lock(self):
         work = tempfile.TemporaryDirectory(); self.addCleanup(work.cleanup)
         copy = Path(work.name) / self.source.name; shutil.copyfile(self.source, copy)

@@ -62,8 +62,13 @@ if (assembly.Name.Name == "Cosmos.Kernel.Core")
     changed |= SchedulerTicketsFixup.Apply(module);
     changed |= MonitorTimeoutFixup.ApplyCondition(module);
     // Last: the fixups above match the original shapes of the scheduler paths this one wraps.
-    changed |= SchedulerLockFixup.Apply(module);
-    changed |= ManagedDispatchFixup.Apply(module);
+    // The native SMP scheduler lock, CPU kicks and pinned owners are implemented on x64.
+    // The pinned ARM64 thread context identifies the single-CPU path.
+    if (!module.GetType("Cosmos.Kernel.Core.Scheduler.ThreadContext").Fields.Any(f => f.Name == "X0"))
+    {
+        changed |= SchedulerLockFixup.Apply(module);
+        changed |= ManagedDispatchFixup.Apply(module);
+    }
     var allocator = module.GetType("Cosmos.Kernel.Core.Memory.PageAllocator")
         ?? throw new InvalidOperationException("Cosmos allocator type changed");
     var pages = allocator.Methods.Single(m => m.Name == "AllocPages" && m.Parameters.Count == 3);
