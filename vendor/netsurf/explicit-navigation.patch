@@ -1,0 +1,32 @@
+--- a/content/fetch.h
++++ b/content/fetch.h
+@@ -252,6 +252,13 @@
+  * set the http code of a fetch
+  */
+ void fetch_set_http_code(struct fetch *fetch, long http_code);
++
++/**
++ * Read the initiating navigation context. The optional referer is borrowed
++ * from the fetch and is independent of the outgoing HTTP Referer policy.
++ * Embedded and automatically refreshed content is normally unverifiable.
++ */
++bool fetch_navigation_context(const struct fetch *fetch, const nsurl **referer);
+ 
+ /**
+  * set cookie data on a fetch
+--- a/content/fetch.c
++++ b/content/fetch.c
+@@ -797,6 +797,13 @@
+ 
+ 	fetch->http_code = http_code;
+ }
++
++/* exported interface documented in content/fetch.h */
++bool fetch_navigation_context(const struct fetch *fetch, const nsurl **referer)
++{
++	*referer = fetch->referer;
++	return fetch->verifiable;
++}
+ 
+ 
+ /* exported interface documented in content/fetch.h */

@@ -1,7 +1,8 @@
 ZENITH-ABOUT	1
 title	Nebula
 summary	Web browser, powered by NetSurf
-description	Open web addresses and local HTML documents in a Zenith window. The NetSurf engine lays out the text, links and styles; Nebula adds the toolbar, Page info, find, zoom and clear notices for what it cannot do yet.
+description	Open web addresses and local HTML documents in a Zenith window. Use the star to save a bookmark, find a recent page from the address bar, or open Page info to check the connection.
 category	apps
 icon	network
 change	0.1.0	First release: Nebula, Zenith's browser window around the NetSurf 3.11 engine, with Page info, find, zoom and notices for the connection limit and files it cannot show
+change	0.2.0	Tabs in the sidebar with the page in the content inset; bookmarks, recent pages and a start page; link and history menus; no six-connection limit on kernel 0.0.82

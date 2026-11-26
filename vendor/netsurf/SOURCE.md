@@ -5,7 +5,10 @@ redraw, navigation, content cache and URL handling. The selected image handlers
 support PNG, GIF, BMP and ICO. NetSurf's progressive PNG handler uses the pinned
 libpng decoder with the same zlib as the browser core. This build uses the upstream JavaScript-disabled
 configuration. HTTP and HTTPS are registered by the Zenith frontend after
-initialisation. Ordinary file URLs use NetSurf's file fetcher. The target
+initialisation. Its private `nebula:start` handler uses the initiating
+navigation context exposed by `explicit-navigation.patch` to deny embedded
+or externally referred requests for the user's bookmarks and recent pages.
+Ordinary file URLs use NetSurf's file fetcher. The target
 configuration selects stdio reads for those files.
 
 ## Upstream sources

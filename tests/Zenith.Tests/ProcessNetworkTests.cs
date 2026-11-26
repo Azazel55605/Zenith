@@ -28,10 +28,16 @@ public sealed class ProcessNetworkTests
         public Connection Connection = new();
         public Sink Sink = new();
         public int Opens;
+        public bool RefuseConnection;
         public string Status() => "network snapshot";
         public string Resolve(string host, string? server, int port) => "10.0.2.2";
         public long Echo(string host) => 7;
-        public IProcessConnection Connect(string host, int port, bool secure) { Opens++; return Connection = new(); }
+        public IProcessConnection Connect(string host, int port, bool secure)
+        {
+            Opens++;
+            if (RefuseConnection) { throw new IOException("connection refused"); }
+            return Connection = new();
+        }
         public IProcessDownload Download(string path, bool replace, int maximum, bool exact) => Sink = new();
         public void ThrowIfCancelled() { }
     }
@@ -57,6 +63,53 @@ public sealed class ProcessNetworkTests
             next = handleAfterRedirect;
         }
         Assert.Equal(-28, first.Connect("host", 80, false));
+    }
+    [Fact]
+    public void InteractiveWebConnectionsCanReopenAfterFailuresWithoutConsumingLegacyQuota()
+    {
+        var source = new Source();
+        using var network = new ProcessNetwork(source, 7011);
+        Assert.Equal(-13, network.ConnectWeb("host", 443, true, liveInteractive: false));
+        Assert.Equal(-22, network.ConnectWeb("host", 0, true, liveInteractive: true));
+        Assert.False(network.UsedWebSession);
+        Assert.Equal(0, source.Opens);
+        source.RefuseConnection = true;
+        for (int i = 0; i <= ProcessNetwork.MaximumConnections; i++)
+        {
+            Assert.Throws<IOException>(() => network.ConnectWeb("offline", 443, true, liveInteractive: true));
+        }
+        source.RefuseConnection = false;
+
+        byte[] request = new byte[ProcessNetwork.MaximumIo];
+        int previous = 0;
+        for (int i = 0; i < 32; i++)
+        {
+            int socket = network.ConnectWeb("host", 443, true, liveInteractive: true);
+            Assert.True(socket > previous);
+            Assert.Equal(-16, network.ConnectWeb("other", 80, false, liveInteractive: true));
+            Assert.Equal(-16, network.Connect("other", 80, false));
+            Assert.Equal(request.Length, network.Write(socket, request));
+            Assert.Equal(-28, network.Write(socket, new byte[1]));
+            Assert.Equal(request.Length, network.Read(socket, request));
+            Assert.Equal(0, network.Close(socket));
+            Assert.True(source.Connection.Closed);
+            Assert.Equal(-9, network.Read(socket, request));
+            previous = socket;
+        }
+        Assert.True(network.UsedWebSession);
+        var totals = Assert.Single(ProcessNetwork.Programs(), u => u.Pid == 7011);
+        Assert.Equal(0, totals.Connections);
+        Assert.Equal(32L * request.Length, totals.Received);
+        Assert.Equal(totals.Received, totals.Sent);
+        for (int i = 0; i < ProcessNetwork.MaximumConnections; i++)
+        {
+            int socket = network.Connect("host", 443, true);
+            Assert.True(socket > previous);
+            Assert.Equal(0, network.Close(socket));
+            previous = socket;
+        }
+        Assert.Equal(-28, network.Connect("host", 443, true));
+        Assert.True(network.ConnectWeb("host", 443, true, liveInteractive: true) > previous);
     }
     [Fact]
     public void TeardownReleasesConnectionAndAbortsUncommittedDownload()
@@ -120,6 +173,27 @@ public sealed class ProcessNetworkTests
         source.Connection.BadWrite = true; Assert.Throws<IOException>(() => network.Write(handle, new byte[1]));
     }
     [Fact]
+    public void BrowserReadAllowanceRenewsOnlyWhenOpeningAnotherSocket()
+    {
+        using var network = new ProcessNetwork(new Source());
+        int socket = network.ConnectWeb("site", 443, true, liveInteractive: true);
+        var chunk = new byte[ProcessNetwork.MaximumIo];
+        int remaining = 2 * (ProcessNetwork.MaximumTransfer + 8192);
+        while (remaining > chunk.Length)
+        {
+            Assert.Equal(chunk.Length, network.Read(socket, chunk));
+            remaining -= chunk.Length;
+        }
+        Assert.Equal(remaining, network.Read(socket, chunk));
+        Assert.Equal(-28, network.Read(socket, chunk));
+        Assert.Equal(0, network.Close(socket));
+        int next = network.ConnectWeb("site", 443, true, liveInteractive: true);
+        Assert.Equal(chunk.Length, network.Read(next, chunk));
+        Assert.Equal(0, network.Close(next));
+        int ordinary = network.Connect("site", 443, true);
+        Assert.Equal(chunk.Length, network.Read(ordinary, chunk));
+    }
+    [Fact]
     public void MetadataCallsAndDiagnosticTextAreBounded()
     {
         using var network = new ProcessNetwork(new Source());
@@ -147,10 +221,15 @@ public sealed class ProcessNetworkTests
         Assert.True(ProcessNetworkRequest.TryRead(Request(8, input: 1, length: 4, value: 445), out _));
         Assert.True(ProcessNetworkRequest.TryRead(Request(9, output: 1, capacity: 64), out _));
         Assert.True(ProcessNetworkRequest.TryRead(Request(10, input: 1, length: 32, output: 2, capacity: 4096), out _));
+        Assert.True(ProcessNetworkRequest.TryRead(Request(11, flags: 1, input: 1, length: 4, value: 443), out _));
+        Assert.True(ProcessNetworkRequest.TryRead(Request(11, flags: 0, input: 1, length: 4, value: 80), out _));
         foreach (byte[] malformed in new[] {
             Request(0), Request(8), Request(8, flags: 1, input: 1, length: 4, value: 445),
             Request(9, output: 1, capacity: 65), Request(9, input: 1, length: 4, output: 1, capacity: 1),
-            Request(10, output: 2, capacity: 5), Request(5, flags: 4, input: 1, length: 4), Request(1, output: 1, capacity: 4097), Request(1, flags: 1, output: 1, capacity: 16),
+            Request(10, output: 2, capacity: 5), Request(11, input: 1, length: 254, value: 80),
+            Request(11, flags: 2, input: 1, length: 4, value: 443), Request(11, input: 1, length: 4, value: 65536),
+            Request(11, input: 1, length: 4, value: 443, output: 1, capacity: 16), Request(12),
+            Request(5, flags: 4, input: 1, length: 4), Request(1, output: 1, capacity: 4097), Request(1, flags: 1, output: 1, capacity: 16),
             Request(4, input: 1, length: 254, value: 443), Request(4, input: 1, length: 1, value: 65536),
             Request(3, input: 1, length: 1, output: 1, capacity: 16), Request(6, input: 1, length: 1, output: 1, capacity: 16),
             Request(2, input: 1, length: 1, target: 1, output: 1, capacity: 16, value: 53),

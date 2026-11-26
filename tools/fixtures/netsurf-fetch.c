@@ -86,7 +86,7 @@ long zenith_web_read(long socket, void *data, size_t size)
     return size;
 }
 void zenith_web_close(long socket) { assert(socket == 1); closes++; }
-const char *zenith_web_error(long code) { return code == -28 ? "connection quota reached" : "certificate check failed"; }
+const char *zenith_web_error(long code) { return code == -28 ? "transfer limit reached" : "certificate check failed"; }
 
 static const char *http = "http://example.org:81/p?q=1#fragment";
 static const char *https = "https://example.org/p";
@@ -167,7 +167,7 @@ int main(void)
         connect_result = i ? -28 : -5;
         job = fetch(https);
         assert(connects == 1 && secure && !closes && !job.finished);
-        assert(!strcmp(job.error, i ? "connection quota reached" : "certificate check failed"));
+        assert(!strcmp(job.error, i ? "transfer limit reached" : "certificate check failed"));
     }
 
     configure("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n12345");
@@ -182,7 +182,7 @@ int main(void)
     configure("HTTP/1.1 204 No Content\r\n\r\n");
     job = fetch(http);
     assert(job.finished == 1 && closes == 1);
-    puts("PASS TLS and quota failures, queued/active cancellation and subsequent navigation");
+    puts("PASS TLS and resource errors, queued/active cancellation and subsequent navigation");
 
     for (size_t i = 0; i < scheme_count; i++) {
         ops->finalise(schemes[i]);

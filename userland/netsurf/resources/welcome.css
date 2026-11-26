@@ -6,3 +6,5 @@ p { margin: 1em 0; }
 a { color: #135e81; }
 ul { padding-left: 1.25em; }
 li { margin: .5em 0; }
+.start-list { list-style: none; margin: 0 0 1.5em; padding: 0; }
+.start-list a { display: block; padding: .45em .75em; background: #e5eeee; }

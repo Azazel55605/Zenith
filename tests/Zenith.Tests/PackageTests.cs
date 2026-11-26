@@ -49,6 +49,7 @@ public class PackageTests
     }
     [Theory]
     [InlineData("zenith-net-tools", "zenith-native-network-abi", "zenith-native-web-transport-abi")]
+    [InlineData("zenith-netsurf", "zenith-native-web-transport-abi", "zenith-native-browser-network-abi")]
     [InlineData("zenith-settings", "zenith-native-settings-abi", BootstrapComponents.LockPreferences)]
     [InlineData("zenith-orbit", "zenith-native-package-center-abi", BootstrapComponents.ScheduledUpdates)]
     public void AddedServiceRequirementBlocksOnlyTheUpdatedClientOnAnOlderKernel(string client, string previous, string capability)

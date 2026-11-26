@@ -1,8 +1,41 @@
-"""A small inline PNG and an independent pixel check for the browser guest gate."""
+"""PNG fixtures and independent guest-rendering checks for the browser gate."""
 import base64
 import io
 
 from PIL import Image, ImageDraw
+
+
+STRIP_SIZE = 12
+STRIP_COLORS = [(40 + i * 13, 191 - i * 7, 68 + i * 9) for i in range(12)]
+
+
+def external_strip(directory):
+    """Use distinct URLs so twelve image loads cannot be served by a single fetch."""
+    paths = []
+    for i, color in enumerate(STRIP_COLORS):
+        name = f"tile-{i:02}.png"
+        Image.new("RGB", (STRIP_SIZE, STRIP_SIZE), color).save(directory / name)
+        paths.append("/" + name)
+    images = "".join(f'<img src="{path}" alt="">' for path in paths)
+    return f"<p>{images}</p>", paths
+
+
+def strip_rendered(frame):
+    line = b"".join(bytes(color) * STRIP_SIZE for color in STRIP_COLORS)
+    return contains_pixels(frame, [line] * STRIP_SIZE)
+
+
+def contains_pixels(frame, rows):
+    pixels = frame.tobytes()
+    stride = frame.width * 3
+    first = rows[0]
+    start = pixels.find(first)
+    while start >= 0:
+        if (start % 3 == 0 and start % stride + len(first) <= stride and
+                all(pixels.startswith(row, start + y * stride) for y, row in enumerate(rows))):
+            return True
+        start = pixels.find(first, start + 1)
+    return False
 
 
 def image_html():
@@ -20,16 +53,6 @@ def image_html():
 
 def is_rendered(frame):
     """Require the asymmetric 36x24 original at native size, composited over white."""
-    rgb = frame.convert("RGB")
-    data = rgb.tobytes()
-    stride = rgb.width * 3
     upper = bytes((241, 36, 151)) * 11 + bytes((18, 190, 221)) * 25
     lower = bytes((43, 103, 24)) * 11 + bytes((255, 255, 255)) * 25
-    start = data.find(upper)
-    while start >= 0:
-        if (start % 3 == 0 and start % stride + len(upper) <= stride and
-                all(data[start + y*stride:start + y*stride + len(upper)] == (upper if y < 9 else lower)
-                    for y in range(24))):
-            return True
-        start = data.find(upper, start + 1)
-    return False
+    return contains_pixels(frame, [upper] * 9 + [lower] * 15)

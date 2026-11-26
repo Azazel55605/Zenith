@@ -12,12 +12,13 @@ UPSTREAM = CORE / "netsurf-all-3.11/netsurf"
 
 
 def main():
+    subprocess.run([sys.executable, "-B", ROOT / "tools/netsurf/test-profile.py"], check=True)
     subprocess.run([sys.executable, ROOT / "tools/netsurf/build-runtime.py"], check=True)
     subprocess.run([sys.executable, ROOT / "tools/build-netsurf-core.py"], check=True)
     with tempfile.TemporaryDirectory(prefix="zenith-netsurf-frontend-") as directory:
         tmp = Path(directory)
         atlas = tmp / "atlas.c"
-        subprocess.run([sys.executable, ROOT / "tools/build-ui-fonts.py", atlas, "--mono"], check=True)
+        subprocess.run([sys.executable, ROOT / "tools/build-ui-fonts.py", atlas, "--mono", "--browser"], check=True)
         # Pull only the production UTF-8 decoder, leaving the engine's window
         # and navigation symbols to the fixture's observation callbacks.
         decoder = ["netsurf-all-3.11__netsurf__utils__utf8.c.o",
@@ -35,9 +36,14 @@ def main():
         subprocess.run([*compiler, ROOT / "tools/fixtures/netsurf/frontend.c",
                         *(tmp / obj for obj in decoder), "-lm", "-o", binary], check=True)
         subprocess.run([binary], check=True)
+        typography = tmp / "typography-test"
+        subprocess.run([*compiler, ROOT / "tools/fixtures/netsurf/typography.c",
+                        *(tmp / obj for obj in decoder), "-lm", "-o", typography], check=True)
+        subprocess.run([typography], check=True)
         navigation = tmp / "navigation-test"
         subprocess.run([*compiler, ROOT / "tools/fixtures/netsurf/navigation.c",
-                        ROOT / "userland/netsurf/fetch.c", CORE / "libnetsurf.a",
+                        '-DNEBULA_RESOURCE_DIR="' + str(ROOT / "userland/netsurf/resources") + '/"',
+                        ROOT / "userland/netsurf/fetch.c", ROOT / "userland/netsurf/start-page.c", CORE / "libnetsurf.a",
                         "-lm", "-o", navigation], check=True)
         subprocess.run([navigation, CORE / "resources", CORE / "resources/Messages"], check=True)
 

@@ -26,12 +26,11 @@ def copy(source, destination):
 def pack_source(destination):
     """Ship the corresponding build inputs together, within the signed per-file limit."""
     inputs = [ROOT / name for name in (
-        "tools/build-userland.py", "tools/build-ui-fonts.py", "tools/build-netsurf-core.py",
-        "tools/fixtures/netsurf/frontend.c",
+        "tools/build-userland.py", "tools/build-ui-fonts.py", "tools/build-ui-icons.py", "tools/build-netsurf-core.py",
         "userland/sunbeam/zenith.h", "userland/net-tools/http_response.h", "Resources/Fonts/Inter-Regular.ttf",
         "Resources/Fonts/Inter-SemiBold.ttf", "Resources/Fonts/Hack-Regular.ttf",
         "Resources/Fonts/LICENSE-Inter.txt", "Resources/Fonts/LICENSE-Hack.txt")]
-    for folder in (HERE, APP, UI, ROOT / "userland/include", ROOT / "vendor/netsurf", ROOT / "vendor/netsurf-runtime"):
+    for folder in (HERE, APP, UI, ROOT / "tools/fixtures/netsurf", ROOT / "userland/include", ROOT / "vendor/netsurf", ROOT / "vendor/netsurf-runtime"):
         inputs.extend(path for path in folder.rglob("*") if path.is_file() and "__pycache__" not in path.parts)
     with tarfile.open(destination, "w:xz", preset=2) as archive:
         for path in sorted(inputs):
@@ -54,7 +53,7 @@ def build(destination, version):
     with tempfile.TemporaryDirectory(prefix="netsurf-link-", dir=CORE) as directory:
         work = Path(directory)
         atlas = work / "atlas.c"
-        subprocess.run([sys.executable, ROOT / "tools/build-ui-fonts.py", atlas, "--mono"], check=True)
+        subprocess.run([sys.executable, ROOT / "tools/build-ui-fonts.py", atlas, "--mono", "--browser"], check=True)
         flags = ["-std=gnu11", "-Os", "-ffunction-sections", "-fdata-sections", "-fno-pie",
                  "-fno-stack-protector", "-mno-red-zone", "-fcf-protection=none", "-fno-builtin",
                  "-fno-asynchronous-unwind-tables", "-fno-unwind-tables", "-nostdinc",
@@ -65,6 +64,7 @@ def build(destination, version):
         objects = []
         for source in [HERE / "runtime/start.s", APP / "libc_zenith.c", APP / "fetch.c",
                        APP / "fetch-transport.c", APP / "frontend.c", APP / "font.c", APP / "plot.c",
+                       APP / "profile.c", APP / "start-page.c",
                        UI / "ui.c", UI / "widgets.c", UI / "runtime.c", UI / "text.c", atlas]:
             obj = work / (source.stem + ".o")
             subprocess.run([cc, *flags, "-c", source, "-o", obj], check=True)

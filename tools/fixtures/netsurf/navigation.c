@@ -7,7 +7,11 @@
 #include "../../../userland/netsurf/fetch-transport.h"
 #include "netsurf/content.h"
 #include <assert.h>
+#include "profile-stub.h"
 #include <time.h>
+
+/* The active tab stands in for the old single window. */
+#define window (*active_tab())
 
 static const char *resources;
 static unsigned connections;
@@ -58,7 +62,6 @@ long zenith_web_read(long fd, void *data, size_t bytes)
 }
 void zenith_web_close(long fd) { (void)fd; abort(); }
 unsigned zenith_web_attempts(void) { return connections; }
-unsigned zenith_web_refused(void) { return 0; }
 
 static void await_document(const char *title)
 {
@@ -82,6 +85,8 @@ static void enter_address(const char *address)
     key(&window, &(struct zenith_gui_event){.type = Z_GUI_KEY, .extra = 2});
 }
 
+#include "start-tests.h"
+
 int main(int argc, char **argv)
 {
     assert(argc == 3);
@@ -98,7 +103,7 @@ int main(int argc, char **argv)
     assert(zenith_fetch_register() == NSERROR_OK);
     bitmap_fmt_t format = {.layout = BITMAP_LAYOUT_ARGB8888, .pma = false};
     bitmap_set_format(&format);
-    zui_init(&window.ui, starting_pixels, START_W, START_H);
+    zui_init(&W.ui, starting_pixels, START_W, START_H);
 
     const char *page = "data:text/html,%3Ctitle%3ELocal%20test%3C/title%3E"
                        "%3Cbody%20style%3D%27background%3A%23c7d4a5%27%3E"
@@ -120,8 +125,9 @@ int main(int argc, char **argv)
     /* Scan for the core's actual link hit box and reproduce the host's leave
      * notification when a click takes capture. */
     int link_x = -1, link_y = -1;
-    for (int y = TOOLBAR; y < TOOLBAR + 50 && link_x < 0; y += 2) {
-        for (int x = 0; x < 120; x += 2) {
+    struct zui_rect pr = page_rect();
+    for (int y = pr.y; y < pr.y + 50 && link_x < 0; y += 2) {
+        for (int x = pr.x; x < pr.x + 120; x += 2) {
             pointer(&window, &(struct zenith_gui_event){.type = Z_GUI_MOVE, .x = x, .y = y});
             if (!strcmp(window.status, "https://fixture.invalid/")) {
                 link_x = x; link_y = y; break;
@@ -133,7 +139,7 @@ int main(int argc, char **argv)
     pointer(&window, &(struct zenith_gui_event){.type = Z_GUI_MOVE, .x = -1, .y = -1});
     pointer(&window, &(struct zenith_gui_event){.type = Z_GUI_UP, .code = 1, .x = link_x, .y = link_y});
     await_document("Error occurred fetching page");
-    assert(connections == 1);
+    assert(connections == 1 && displayed_kind(&window) == PAGE_UNVERIFIED);
     size_t size = 0;
     const uint8_t *data = content_get_source_data(browser_window_get_content(window.browser), &size);
     assert(data && size);
@@ -143,6 +149,7 @@ int main(int argc, char **argv)
     enter_address(page);
     await_document("Local test");
     assert(!window.address_focus);
+    check_start();
     browser_window_destroy(window.browser);
     netsurf_exit();
     nsoption_finalise(nsoptions, nsoptions_default);

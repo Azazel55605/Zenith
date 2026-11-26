@@ -7,3 +7,4 @@ installed by the browser package because `zenith-icons` is at its package file l
 `book-open` (Using Nebula), `chevron-up` (previous match), `code` (Scripts), `ellipsis` (menu), `globe`
 (built-in pages, Connections), `lock-open` (pages without TLS), `minus` and `plus` (zoom), `rotate-cw` (Reload),
 `star` (bookmarks, stage B4).
+`panel-left` (hide or show the sidebar), `moon` (put a tab to sleep), `undo-2` (reopen a closed tab).

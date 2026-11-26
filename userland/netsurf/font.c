@@ -10,6 +10,9 @@ struct face {
     int em, native_em;
 };
 
+/* Generated alongside the bitmap atlases from the same list of codepoints. */
+unsigned zenith_page_glyph(unsigned codepoint);
+
 static struct face choose(const plot_font_style_t *style)
 {
     /* At 96 dpi, 1pt = 4/3 CSS px. Zenith's atlases use pixel sizes. */
@@ -31,19 +34,7 @@ static unsigned glyph(const char *s, size_t n, size_t *at)
         c = utf8_to_ucs4(s + *at, n - *at);
         *at = utf8_next(s, n, *at);
     }
-    if (c == 0xa0)
-        c = ' ';
-    if (c >= 32 && c <= 126)
-        return c - 32;
-    if (c == 0xb7)
-        return 95;
-    if (c == 0x2192)
-        return 96;
-    if (c == 0x2014)
-        return 97;
-    if (c == 0x2026)
-        return 98;
-    return '?' - 32;
+    return zenith_page_glyph(c);
 }
 
 static int scaled(struct face f, int value)
@@ -110,6 +101,56 @@ static nserror split(const plot_font_style_t *style, const char *s, size_t n, in
     return NSERROR_OK;
 }
 
+/* Map destination pixel centres to ink samples. Use fixed-point steps per glyph so
+ * scaling does not divide inside the pixel loop. The atlas has tight ink boxes. */
+static int clamp_sample(int coordinate, int size)
+{
+    int last = (size - 1) << 16;
+    return coordinate < 0 ? 0 : coordinate > last ? last : coordinate;
+}
+
+static void paint_glyph(struct page_raster *r, const unsigned char *ink, int src_w, int src_h,
+                        long left, long top, int w, int h, uint32_t rgb)
+{
+    long x0 = left < r->clip.x0 ? r->clip.x0 : left;
+    long y0 = top < r->clip.y0 ? r->clip.y0 : top;
+    long x1 = left + w > r->clip.x1 ? r->clip.x1 : left + w;
+    long y1 = top + h > r->clip.y1 ? r->clip.y1 : top + h;
+    if (x0 >= x1 || y0 >= y1) return;
+
+    if (w == src_w && h == src_h) {
+        for (long y = y0; y < y1; y++) {
+            const unsigned char *row = ink + (y - top) * src_w;
+            for (long x = x0; x < x1; x++) {
+                unsigned alpha = row[x - left];
+                if (alpha) page_blend(r->pixels + y * r->stride + x, rgb, alpha);
+            }
+        }
+        return;
+    }
+
+    int dx = (src_w << 16) / w, dy = (src_h << 16) / h;
+    /* Anchor the sampling grid to the glyph, even when only part of it is redrawn. */
+    int first_x = dx / 2 - 32768 + (int)(x0 - left) * dx;
+    int sy = dy / 2 - 32768 + (int)(y0 - top) * dy;
+    for (long y = y0; y < y1; y++, sy += dy) {
+        int v = clamp_sample(sy, src_h), iy = v >> 16;
+        unsigned fy = (unsigned)(v >> 8) & 255;
+        const unsigned char *row = ink + iy * src_w;
+        const unsigned char *next = iy + 1 < src_h ? row + src_w : row;
+        int sx = first_x;
+        for (long x = x0; x < x1; x++, sx += dx) {
+            int u = clamp_sample(sx, src_w), ix = u >> 16;
+            int jx = ix + 1 < src_w ? ix + 1 : ix;
+            unsigned fx = (unsigned)(u >> 8) & 255;
+            unsigned upper = row[ix] * (256 - fx) + row[jx] * fx;
+            unsigned lower = next[ix] * (256 - fx) + next[jx] * fx;
+            unsigned alpha = (upper * (256 - fy) + lower * fy + 32768) >> 16;
+            if (alpha) page_blend(r->pixels + y * r->stride + x, rgb, alpha);
+        }
+    }
+}
+
 nserror zenith_plot_text(const struct redraw_context *ctx, const plot_font_style_t *style, int x, int baseline,
                          const char *s, size_t n)
 {
@@ -122,14 +163,7 @@ nserror zenith_plot_text(const struct redraw_context *ctx, const plot_font_style
         const unsigned char *box = f.atlas->boxes + g * 4, *ink = f.atlas->pixels + f.atlas->offsets[g];
         long left = pen + scaled(f, box[0]), upper = top + scaled(f, box[1]);
         int w = scaled(f, box[2]), h = scaled(f, box[3]);
-        for (long y = upper < r->clip.y0 ? r->clip.y0 : upper; y < upper + h && y < r->clip.y1; y++) {
-            const unsigned char *row = ink + (y - upper) * box[3] / h * box[2];
-            for (long px = left < r->clip.x0 ? r->clip.x0 : left; px < left + w && px < r->clip.x1; px++) {
-                unsigned a = row[(px - left) * box[2] / w];
-                if (a)
-                    page_blend(r->pixels + y * r->stride + px, rgb, a);
-            }
-        }
+        paint_glyph(r, ink, box[2], box[3], left, upper, w, h, rgb);
         pen += scaled(f, f.atlas->advance[g]);
     }
     return NSERROR_OK;

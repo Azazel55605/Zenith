@@ -429,6 +429,22 @@ one active at a time, enough for the first request and five redirect hops.
 The existing network calls and original package remain compatible.
 [Current HTTP profile](NETWORKING.md#transfer-and-transport-bounds)
 
+`zenith-native-browser-network-abi` 1.0 adds operation 11 to call 500. A
+process that enabled interactive mode on its own live window (605) can open
+successive web connections throughout the session. Closing one releases its
+slot immediately, including after a failed transfer. An unsuccessful connect
+returns the underlying error without reserving a slot. The request takes the
+same host, port and verified-TLS flag as operation 4. A second live socket
+returns `-16`. A windowless or noninteractive caller gets `-13`.
+
+Reads (501), writes (502) and close (503) use the existing handle layout.
+The bounds on a browser socket are 64 KiB outbound and
+`2 * (MaximumTransfer + 8192)` bytes inbound. They reset for each new socket.
+The per-minute interactive window renewal also renews the network call budget
+once a process uses operation 11. A closed window retains the existing bounded
+cleanup interval. Observatory reports cumulative bytes across those sockets.
+Operations 4 and 8 retain their shared six-attempt and lifetime byte limits.
+
 `zenith-native-transfer-abi` 1.0 extends the existing 80-byte call 500 request.
 Operations 8–10 and the new flag require this capability. All unused fields must be zero.
 

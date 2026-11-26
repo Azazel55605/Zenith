@@ -52,8 +52,9 @@ def generate(upstream, out):
     run([compiler, "-I.", "tools/split-messages.c", "-lz", "-o", out / "split-messages"], cwd=netsurf)
     resources = out / "resources"
     resources.mkdir(exist_ok=True)
-    run([out / "split-messages", "-l", "en", "-p", "any", "-i", netsurf / "resources/FatMessages",
-         "-o", resources / "Messages"])
+    # The generator records its input pathname in a comment in the installed asset.
+    run([out / "split-messages", "-l", "en", "-p", "any", "-i", "resources/FatMessages",
+         "-o", resources / "Messages"], cwd=netsurf)
     for name in ("default.css", "internal.css", "adblock.css", "quirks.css", "SearchEngines"):
         shutil.copyfile(netsurf / "resources" / name, resources / name)
     for name in ("credits.html", "licence.html"):

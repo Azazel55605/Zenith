@@ -1035,6 +1035,7 @@ internal sealed unsafe class NativeProcess
                     case ProcessNetworkOperation.Echo: return network.Echo(input);
                     case ProcessNetworkOperation.Connect: return network.Connect(input, (int)r.Value, r.Flags != 0);
                     case ProcessNetworkOperation.ConnectBulk: return network.Connect(input, (int)r.Value, false, bulk: true);
+                    case ProcessNetworkOperation.ConnectWeb: return network.ConnectWeb(input, (int)r.Value, r.Flags != 0, _interactive.Enabled && graphics.Live);
                     case ProcessNetworkOperation.Download: return network.Download(files.Resolve(input), (r.Flags & 1) != 0, (int)r.Value, (r.Flags & 2) != 0);
                     case ProcessNetworkOperation.Entropy:
                     case ProcessNetworkOperation.ReadCredential:
@@ -1357,7 +1358,11 @@ internal sealed unsafe class NativeProcess
                     // A live window app may use its CPU for the whole minute: it is on screen and closing
                     // it stops it. 1000 quanta (10 s a minute) killed apps that keep drawing, such as
                     // Observatory's gliding graphs, with status 124. Windowless programs keep the watchdog.
-                    { calls = graphicsCalls = readBytes = directoryBytes = 0; files.RenewBudget(); graphics.RenewBudget(); context.Ticks = ProcessInteractive.LiveQuantaPerWindow; }
+                    {
+                        calls = graphicsCalls = readBytes = directoryBytes = 0;
+                        if (network!.UsedWebSession) { networkCalls = 0; }
+                        files.RenewBudget(); graphics.RenewBudget(); context.Ticks = ProcessInteractive.LiveQuantaPerWindow;
+                    }
                     status = Zenith.Core.Multiprocessing.CpuWorkers.RunProcessSlice((ulong)&context, affinity, cancelled, out int cpu);
                     if (status == -1)
                     {
