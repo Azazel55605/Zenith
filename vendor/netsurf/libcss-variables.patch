@@ -1,0 +1,293 @@
+--- a/src/lex/lex.c
++++ b/src/lex/lex.c
+@@ -624,9 +624,5 @@
+ 
+ 		if (perror == PARSERUTILS_EOF) {
+-			/* CHAR is the only match here */
+-			/* Remove the '-' we read above */
+-			lexer->bytesReadForToken -= 1;
+-			t->data.len -= 1;
+-			return emitToken(lexer, CSS_TOKEN_CHAR, token);
++			return emitToken(lexer, CSS_TOKEN_IDENT, token);
+ 		}
+ 
+@@ -638,8 +634,8 @@
+ 			t->type = CSS_TOKEN_CDC;
+ 		} else {
+-			/* Remove the '-' we read above */
+-			lexer->bytesReadForToken -= 1;
+-			t->data.len -= 1;
+-			t->type = CSS_TOKEN_CHAR;
++			/* Two dashes start an identifier unless they form "-->". */
++			lexer->state = sIDENT;
++			lexer->substate = 0;
++			return IdentOrFunction(lexer, token);
+ 		}
+ 		break;
+--- a/src/stylesheet.h
++++ b/src/stylesheet.h
+@@ -28,4 +28,5 @@
+ 
+ typedef struct css_style {
++	struct css_var_decl *variables, *variables_tail;
+ 	css_code_t *bytecode;	      /**< Pointer to bytecode */
+ 	uint32_t used;		      /**< number of code entries used */
+@@ -189,4 +190,5 @@
+ 	bool quirks_used;			/**< Quirks actually used */
+ 
++	bool uses_variables;
+ 	bool uses_revert;			/**< Uses 'revert' property value */
+ 
+--- a/src/stylesheet.c
++++ b/src/stylesheet.c
+@@ -12,4 +12,5 @@
+ #include "stylesheet.h"
+ #include "bytecode/bytecode.h"
++#include "select/variables.h"
+ #include "parse/language.h"
+ #include "parse/mq.h"
+@@ -450,4 +451,6 @@
+ 		if (r->type == CSS_RULE_IMPORT && i->sheet == NULL) {
+ 			i->sheet = import;
++			parent->uses_variables |= import->uses_variables;
++			parent->uses_revert |= import->uses_revert;
+ 
+ 			return CSS_OK;
+@@ -662,4 +665,5 @@
+ 	s->allocated = CSS_STYLE_DEFAULT_SIZE;
+ 	s->used = 0;
++	s->variables = s->variables_tail = NULL;
+ 	s->sheet = sheet;
+ 
+@@ -695,4 +699,5 @@
+ 			style->used * sizeof(css_code_t));
+ 
++	css_vars_merge(target, style);
+ 	target->used += style->used;
+ 
+@@ -759,4 +764,6 @@
+ 
+ 	sheet = style->sheet;
++	css_vars_free_decls(style->variables);
++	style->variables = style->variables_tail = NULL;
+ 
+ 	if (sheet->cached_style == NULL) {
+--- a/src/parse/parse.c
++++ b/src/parse/parse.c
+@@ -9,4 +9,5 @@
+ #include <ctype.h>
+ #include <stdbool.h>
++#include <string.h>
+ 
+ #include <libwapcaplet/libwapcaplet.h>
+@@ -1730,7 +1731,9 @@
+ 				(lwc_string_data(token->idata)[0] == ';' ||
+ 				lwc_string_data(token->idata)[0] == '}')) {
+-			/* Parse error */
+-			parser->parseError = true;
+-
++			/* Empty custom-property values participate in the cascade. */
++			const css_token *property = parserutils_vector_peek(parser->tokens, 0);
++			parser->parseError = property == NULL || property->type != CSS_TOKEN_IDENT ||
++					lwc_string_length(property->idata) <= 2 ||
++					memcmp(lwc_string_data(property->idata), "--", 2) != 0;
+ 			return done(parser);
+ 		}
+--- a/src/parse/language.c
++++ b/src/parse/language.c
+@@ -17,4 +17,5 @@
+ #include "parse/important.h"
+ #include "parse/language.h"
++#include "select/variables.h"
+ #include "parse/mq.h"
+ #include "parse/parse.h"
+@@ -1981,6 +1982,6 @@
+  ******************************************************************************/
+ 
+-css_error parseProperty(css_language *c, const css_token *property,
+-		const parserutils_vector *vector, int32_t *ctx, css_rule *rule)
++static css_error compileProperty(css_language *c, const css_token *property,
++		const parserutils_vector *vector, int32_t *ctx, css_rule *rule, css_style **compiled)
+ {
+ 	css_error error;
+@@ -1991,4 +1992,7 @@
+ 	const css_token *token;
+ 
++	if (!compiled && css_vars_name(property->idata))
++		return css_vars_defer(c, property, vector, ctx, rule, true);
++
+ 	/* Find property index */
+ 	/** \todo improve on this linear search */
+@@ -2002,4 +2006,7 @@
+ 	if (i == LAST_PROP + 1)
+ 		return CSS_INVALID;
++
++	if (!compiled && css_vars_used(vector, *ctx))
++		return css_vars_defer(c, property, vector, ctx, rule, false);
+ 
+ 	/* Get handler */
+@@ -2037,4 +2044,10 @@
+ 	}
+ 
++	/* A computed var() substitution belongs to this cascade only. */
++	if (compiled != NULL) {
++		*compiled = style;
++		return CSS_OK;
++	}
++
+ 	/* A feature query only needs the parser's verdict. */
+ 	if (rule == NULL) {
+@@ -2059,2 +2072,20 @@
+ }
+ 
++css_error parseProperty(css_language *c, const css_token *property,
++		const parserutils_vector *v, int32_t *pos, css_rule *rule)
++{
++	return compileProperty(c, property, v, pos, rule, NULL);
++}
++
++/* Property handlers need their originating stylesheet and its interned keyword
++ * table. Its download-time parser can already have been destroyed. */
++css_error css__parse_expanded(css_stylesheet *sheet, lwc_string *property,
++		const parserutils_vector *v, css_style **compiled)
++{
++	css_language language = {.sheet = sheet, .strings = sheet->propstrings};
++	css_token token = {.type = CSS_TOKEN_IDENT, .idata = property};
++	int32_t pos = 0;
++	consumeWhitespace(v, &pos);
++	return compileProperty(&language, &token, v, &pos, NULL, compiled);
++}
++
+--- a/src/select/select.h
++++ b/src/select/select.h
+@@ -54,4 +54,5 @@
+ 
+ struct css_node_data {
++	struct css_var_map *variables[CSS_PSEUDO_ELEMENT_COUNT];
+ 	css_select_results partial;
+ 	css_bloom *bloom;
+@@ -68,4 +69,5 @@
+  */
+ typedef struct css_select_state {
++	bool collect_variables;
+ 	void *node;			/* Node we're selecting for */
+ 	const css_media *media;		/* Currently active media spec */
+--- a/src/select/select.c
++++ b/src/select/select.c
+@@ -24,4 +24,5 @@
+ #include "select/font_face.h"
+ #include "select/select.h"
++#include "select/variables.h"
+ #include "select/strings.h"
+ #include "select/unit.h"
+@@ -54,4 +55,5 @@
+ 	void *pw;	/**< Client's private selection context */
+ 
++	bool uses_variables;
+ 	bool uses_revert;  /**< A sheet used revert property value */
+ 
+@@ -160,4 +162,5 @@
+ 
+ 	for (i = 0; i < CSS_PSEUDO_ELEMENT_COUNT; i++) {
++		css_vars_unref(node_data->variables[i]);
+ 		if (node_data->partial.styles[i] != NULL) {
+ 			css_computed_style_destroy(
+@@ -412,4 +415,5 @@
+ 
+ 	ctx->uses_revert |= sheet->uses_revert;
++	ctx->uses_variables |= sheet->uses_variables;
+ 
+ 	ctx->n_sheets++;
+@@ -1307,5 +1311,6 @@
+ 	css_hint *hints = NULL;
+ 	void *parent = NULL;
+-	struct css_node_data *share;
++	struct css_node_data *share = NULL;
++	struct css_node_data *parent_data = NULL;
+ 
+ 	if (ctx == NULL || node == NULL || result == NULL || handler == NULL ||
+@@ -1335,5 +1340,11 @@
+ 
+ 	/* Check if we can share another node's style */
+-	error = css_select_style__get_sharable_node_data(node, &state, &share);
++	if (parent) {
++		error = handler->get_libcss_node_data(pw, parent, (void **)&parent_data);
++		if (error != CSS_OK) goto cleanup;
++	}
++	bool uses_variables = ctx->uses_variables || (inline_style && inline_style->uses_variables)
++			|| (parent_data && parent_data->variables[0]);
++	if (!uses_variables) error = css_select_style__get_sharable_node_data(node, &state, &share);
+ 	if (error != CSS_OK) {
+ 		goto cleanup;
+@@ -1355,5 +1366,5 @@
+ 
+ 	/* Not sharing; need to select. */
+-	if (ctx->uses_revert ||
++	if (ctx->uses_revert || (parent_data && css_vars_may_revert(parent_data->variables[0])) ||
+ 			(inline_style != NULL && inline_style->uses_revert)) {
+ 		/* Need to track UA and USER origin styles for revert. */
+@@ -1371,4 +1382,32 @@
+ 	if (error != CSS_OK) {
+ 		goto cleanup;
++	}
++
++	/* Collect the custom-property winners before interpreting dependent ordinary
++	 * declarations. Matching uses the same selectors, imports, media, origins
++	 * and specificity as the regular cascade. */
++	if (uses_variables) {
++		state.collect_variables = true;
++		for (i = 0; i < ctx->n_sheets; i++) {
++			const css_select_sheet *s = &ctx->sheets[i];
++			if (!s->sheet->uses_variables || s->sheet->disabled ||
++			    !mq__list_match(s->media, unit_ctx, media, &ctx->str)) continue;
++			error = select_from_sheet(ctx, s->sheet, s->origin, &state);
++			if (error != CSS_OK) goto cleanup;
++		}
++		if (inline_style && inline_style->uses_variables && inline_style->rule_list &&
++		    inline_style->rule_list->type == CSS_RULE_SELECTOR) {
++			const css_style *s = ((css_rule_selector *)inline_style->rule_list)->style;
++			state.current_origin = CSS_ORIGIN_AUTHOR;
++			state.current_specificity = UINT32_MAX;
++			state.current_pseudo = CSS_PSEUDO_ELEMENT_NONE;
++			if (s && (error = css_vars_collect(&state, s)) != CSS_OK) goto cleanup;
++		}
++		state.collect_variables = false;
++		state.current_pseudo = CSS_PSEUDO_ELEMENT_NONE;
++		state.current_origin = CSS_ORIGIN_UA;
++		state.current_specificity = 0;
++		error = css_vars_finish(&state, parent_data ? parent_data->variables[0] : NULL);
++		if (error != CSS_OK) goto cleanup;
+ 	}
+ 
+@@ -1437,4 +1476,7 @@
+ 		/* No bytecode if input was empty or wholly invalid */
+ 		if (sel->style != NULL) {
++			/* Inline author declarations outrank selector specificity. */
++			state.current_origin = CSS_ORIGIN_AUTHOR;
++			state.current_specificity = UINT32_MAX;
+ 			/* Inline style applies to base element only */
+ 			state.current_pseudo = CSS_PSEUDO_ELEMENT_NONE;
+@@ -2782,7 +2824,21 @@
+ css_error cascade_style(const css_style *style, css_select_state *state)
+ {
++	if (state->collect_variables) return css_vars_collect(state, style);
+ 	css_style s = *style;
+-
+-	while (s.used > 0) {
++	const struct css_var_decl *var = style->variables;
++	while (s.used > 0 || var) {
++		while (var && var->offset == (size_t)(s.bytecode - style->bytecode)) {
++			if (!var->custom) {
++				css_style *expanded = NULL;
++				css_error err = css_vars_compile(style->sheet, var,
++						state->node_data->variables[state->current_pseudo], &expanded);
++				if (err != CSS_OK) return err;
++				err = cascade_style(expanded, state);
++				css__stylesheet_style_destroy(expanded);
++				if (err != CSS_OK) return err;
++			}
++			var = var->next;
++		}
++		if (!s.used) break;
+ 		opcode_t op;
+ 		css_error error;

@@ -9,11 +9,18 @@ LIBS = {"libwapcaplet", "libparserutils", "libhubbub", "libcss", "libdom", "libn
 NETSURF_HASH = "4dea880ff3c2f698bfd62c982b259340f9abcd7f67e6c8eb2b32c61f71644b7b"
 ZLIB_HASH = "02dd159783677a749c04adbdd02b55b8a2bcc7e054f51b76b549199a916ad584"
 LIBPNG_HASH = "d80dd2a38a37f803cb9b6ac7b14bd6e74ddc3b654780a8380bdf93523fdb4389"
+JPEG_HASH = "8b9eaa13242690ebd03e1728ab1edf97a81a78ed6e83624d493655f31ac95ab5"
 
 
 def selected(parts):
     if len(parts) < 2:
         return False
+    if parts[0] == "jpeg-10" and len(parts) == 2:
+        leaf = parts[1]
+        return (leaf in {"README", "jconfig.txt", "jaricom.c", "jcomapi.c", "jerror.c", "jutils.c",
+                         "jmemmgr.c", "jmemnobs.c", "jquant1.c", "jquant2.c"}
+                or (leaf.startswith("j") and leaf.endswith(".h"))
+                or (leaf.startswith(("jd", "jidct")) and leaf.endswith(".c") and leaf != "jdatadst.c"))
     if parts[0] == "zlib-1.4":
         return len(parts) == 2 and (parts[-1].endswith((".h", ".c")) or parts[-1] in ("README", "LICENSE"))
     if parts[0] == "libpng-1.6.59":
@@ -47,10 +54,12 @@ def main():
     p.add_argument("netsurf", type=Path)
     p.add_argument("zlib", type=Path)
     p.add_argument("libpng", type=Path)
+    p.add_argument("jpeg", type=Path)
     p.add_argument("output", type=Path)
     args = p.parse_args()
     with tarfile.open(args.output, "x:xz", preset=6) as out:
-        for path, digest in ((args.netsurf, NETSURF_HASH), (args.zlib, ZLIB_HASH), (args.libpng, LIBPNG_HASH)):
+        for path, digest in ((args.netsurf, NETSURF_HASH), (args.zlib, ZLIB_HASH),
+                             (args.libpng, LIBPNG_HASH), (args.jpeg, JPEG_HASH)):
             if hashlib.sha256(path.read_bytes()).hexdigest() != digest:
                 raise ValueError(f"Upstream archive digest mismatch: {path}")
             with tarfile.open(path) as src:

@@ -1,0 +1,389 @@
+--- a/src/parse/mq.h
++++ b/src/parse/mq.h
+@@ -13,4 +13,8 @@
+ 
+ typedef struct {
++	css_fixed numerator, denominator;
++} css_mq_ratio;
++
++typedef struct {
+ 	enum {
+ 		CSS_MQ_VALUE_TYPE_NUM,
+@@ -20,5 +24,6 @@
+ 	} type;
+ 	union {
+-		css_fixed num_or_ratio; /* Where ratio is the result of a/b */
++		css_fixed number;
++		css_mq_ratio ratio;
+ 		struct {
+ 			css_fixed len;
+@@ -33,5 +38,5 @@
+  * "name" is encoded by setting the operator to "bool"
+  * "value op name" is encoded verbatim (with op2 set to "unused")
+- * "name op value" inverts the operator to encode (i.e < becomes >=) (and sets op2 to "unused")
++ * "name op value" inverts the operator to encode (i.e. < becomes >) (and sets op2 to "unused")
+  * "value op name op value" is encoded using op2 and value2
+  */
+--- a/src/parse/mq.c
++++ b/src/parse/mq.c
+@@ -85,5 +85,5 @@
+ static css_error mq_parse_ratio(
+ 		const parserutils_vector *vector, int32_t *ctx,
+-		const css_token *numerator, css_fixed *ratio)
++		const css_token *numerator, css_mq_ratio *ratio)
+ {
+ 	const css_token *token;
+@@ -107,12 +107,14 @@
+ 	}
+ 
+-	num = css__number_from_lwc_string(numerator->idata, true, &num_len);
+-	den = css__number_from_lwc_string(token->idata, true, &den_len);
+-
+-	if (num == 0 || den == 0) {
+-		return CSS_INVALID;
+-	}
+-
+-	*ratio = css_divide_fixed(num, den);
++	num = css__number_from_lwc_string(numerator->idata, false, &num_len);
++	den = css__number_from_lwc_string(token->idata, false, &den_len);
++
++	if (num < 0 || den < 0 || num_len != lwc_string_length(numerator->idata) ||
++	    den_len != lwc_string_length(token->idata)) {
++		return CSS_INVALID;
++	}
++
++	ratio->numerator = num;
++	ratio->denominator = den;
+ 
+ 	return CSS_OK;
+@@ -148,5 +150,5 @@
+ 		size_t num_len;
+ 		value->type = CSS_MQ_VALUE_TYPE_NUM;
+-		value->data.num_or_ratio = css__number_from_lwc_string(
++		value->data.number = css__number_from_lwc_string(
+ 				token->idata, false, &num_len);
+ 	} else if (token->type == CSS_TOKEN_DIMENSION) {
+@@ -174,5 +176,5 @@
+ }
+ 
+-static css_error mq_parse_op(const css_token *token,
++static css_error mq_parse_op(const parserutils_vector *vector, int32_t *ctx, const css_token *token,
+ 		css_mq_feature_op *op)
+ {
+@@ -206,4 +208,10 @@
+ 	}
+ 
++	if (len == 1 && (*op == CSS_MQ_FEATURE_OP_LT || *op == CSS_MQ_FEATURE_OP_GT) &&
++			tokenIsChar(parserutils_vector_peek(vector, *ctx), '=')) {
++		parserutils_vector_iterate(vector, ctx);
++		*op = *op == CSS_MQ_FEATURE_OP_LT ? CSS_MQ_FEATURE_OP_LTE : CSS_MQ_FEATURE_OP_GTE;
++	}
++
+ 	return CSS_OK;
+ }
+@@ -268,5 +276,5 @@
+ 	css_mq_feature *result;
+ 	css_mq_feature_op op, op2;
+-	css_fixed ratio, ratio2;
++	css_mq_ratio ratio, ratio2;
+ 	bool name_first = false, value_is_ratio = false, value2_is_ratio = false, match;
+ 	css_error error;
+@@ -309,5 +317,5 @@
+ 	/* Op */
+ 	token = parserutils_vector_iterate(vector, ctx);
+-	error = mq_parse_op(token, &op);
++	error = mq_parse_op(vector, ctx, token, &op);
+ 	if (error != CSS_OK) {
+ 		return error;
+@@ -337,5 +345,5 @@
+ 			tokenIsChar(parserutils_vector_peek(vector, *ctx), '/')) {
+ 		/* ratio */
+-		error = mq_parse_ratio(vector, ctx, token, &ratio);
++		error = mq_parse_ratio(vector, ctx, value_or_name, &ratio);
+ 		if (error != CSS_OK) {
+ 			return error;
+@@ -351,5 +359,5 @@
+ 		/* Op2 */
+ 		token = parserutils_vector_iterate(vector, ctx);
+-		error = mq_parse_op(token, &op2);
++		error = mq_parse_op(vector, ctx, token, &op2);
+ 		if (error != CSS_OK) {
+ 			return error;
+@@ -381,8 +389,8 @@
+ 		consumeWhitespace(vector, ctx);
+ 
+-		if (value_or_name->type == CSS_TOKEN_NUMBER &&
++		if (value2->type == CSS_TOKEN_NUMBER &&
+ 				tokenIsChar(parserutils_vector_peek(vector, *ctx), '/')) {
+ 			/* ratio */
+-			error = mq_parse_ratio(vector, ctx, token, &ratio2);
++			error = mq_parse_ratio(vector, ctx, value2, &ratio2);
+ 			if (error != CSS_OK) {
+ 				return error;
+@@ -402,11 +410,11 @@
+ 		/* Invert operator */
+ 		if (op == CSS_MQ_FEATURE_OP_LT) {
++			op = CSS_MQ_FEATURE_OP_GT;
++		} else if (op == CSS_MQ_FEATURE_OP_LTE) {
+ 			op = CSS_MQ_FEATURE_OP_GTE;
+-		} else if (op == CSS_MQ_FEATURE_OP_LTE) {
+-			op = CSS_MQ_FEATURE_OP_GT;
+ 		} else if (op == CSS_MQ_FEATURE_OP_GT) {
++			op = CSS_MQ_FEATURE_OP_LT;
++		} else if (op == CSS_MQ_FEATURE_OP_GTE) {
+ 			op = CSS_MQ_FEATURE_OP_LTE;
+-		} else if (op == CSS_MQ_FEATURE_OP_GTE) {
+-			op = CSS_MQ_FEATURE_OP_LT;
+ 		}
+ 	}
+@@ -414,8 +422,8 @@
+ 	if (value_is_ratio) {
+ 		result->value.type = CSS_MQ_VALUE_TYPE_RATIO;
+-		result->value.data.num_or_ratio = ratio;
++		result->value.data.ratio = ratio;
+ 	} else {
+ 		/* num/dim/ident */
+-		error = mq_populate_value(&result->value, name_or_value);
++		error = mq_populate_value(&result->value, name_first ? value_or_name : name_or_value);
+ 		if (error != CSS_OK) {
+ 			css__mq_feature_destroy(result);
+@@ -427,5 +435,5 @@
+ 		if (value2_is_ratio) {
+ 			result->value2.type = CSS_MQ_VALUE_TYPE_RATIO;
+-			result->value2.data.num_or_ratio = ratio;
++			result->value2.data.ratio = ratio2;
+ 		} else {
+ 			/* num/dim/ident */
+@@ -502,5 +510,5 @@
+ 					tokenIsChar(parserutils_vector_peek(vector, *ctx), '/')) {
+ 				/* ratio */
+-				css_fixed ratio;
++				css_mq_ratio ratio;
+ 
+ 				error = mq_parse_ratio(vector, ctx, token, &ratio);
+@@ -511,5 +519,5 @@
+ 
+ 				result->value.type = CSS_MQ_VALUE_TYPE_RATIO;
+-				result->value.data.num_or_ratio = ratio;
++				result->value.data.ratio = ratio;
+ 			} else {
+ 				/* num/dim/ident */
+--- a/src/select/strings.h
++++ b/src/select/strings.h
+@@ -43,4 +43,8 @@
+ 	lwc_string *width;
+ 	lwc_string *height;
++	lwc_string *orientation;
++	lwc_string *portrait;
++	lwc_string *landscape;
++	lwc_string *aspect_ratio;
+ 	lwc_string *prefers_color_scheme;
+ } css_select_strings;
+--- a/src/select/strings.c
++++ b/src/select/strings.c
+@@ -187,4 +187,28 @@
+ 			"height", SLEN("height"),
+ 			&str->height);
++	if (error != lwc_error_ok)
++		return css_error_from_lwc_error(error);
++
++	error = lwc_intern_string(
++			"orientation", SLEN("orientation"),
++			&str->orientation);
++	if (error != lwc_error_ok)
++		return css_error_from_lwc_error(error);
++
++	error = lwc_intern_string(
++			"portrait", SLEN("portrait"),
++			&str->portrait);
++	if (error != lwc_error_ok)
++		return css_error_from_lwc_error(error);
++
++	error = lwc_intern_string(
++			"landscape", SLEN("landscape"),
++			&str->landscape);
++	if (error != lwc_error_ok)
++		return css_error_from_lwc_error(error);
++
++	error = lwc_intern_string(
++			"aspect-ratio", SLEN("aspect-ratio"),
++			&str->aspect_ratio);
+ 	if (error != lwc_error_ok)
+ 		return css_error_from_lwc_error(error);
+@@ -258,4 +282,12 @@
+ 	if (str->width != NULL)
+ 		lwc_string_unref(str->width);
++	if (str->orientation != NULL)
++		lwc_string_unref(str->orientation);
++	if (str->portrait != NULL)
++		lwc_string_unref(str->portrait);
++	if (str->landscape != NULL)
++		lwc_string_unref(str->landscape);
++	if (str->aspect_ratio != NULL)
++		lwc_string_unref(str->aspect_ratio);
+ 	if (str->height != NULL)
+ 		lwc_string_unref(str->height);
+--- a/src/select/mq.h
++++ b/src/select/mq.h
+@@ -22,9 +22,9 @@
+ 	css_fixed v;
+ 
+-	if (value->type != CSS_MQ_VALUE_TYPE_DIM) {
+-		return false;
+-	}
+-
+-	if (value->data.dim.unit != UNIT_PX) {
++	if (value->type == CSS_MQ_VALUE_TYPE_NUM && value->data.number == 0) {
++		v = 0;
++	} else if (value->type != CSS_MQ_VALUE_TYPE_DIM) {
++		return false;
++	} else if (value->data.dim.unit != UNIT_PX) {
+ 		v = css_unit_len2px_mq(unit_ctx,
+ 				value->data.dim.len,
+@@ -57,9 +57,9 @@
+ 		return true;
+ 	}
+-	if (value->type != CSS_MQ_VALUE_TYPE_DIM) {
+-		return false;
+-	}
+-
+-	if (value->data.dim.unit != UNIT_PX) {
++	if (value->type == CSS_MQ_VALUE_TYPE_NUM && value->data.number == 0) {
++		v = 0;
++	} else if (value->type != CSS_MQ_VALUE_TYPE_DIM) {
++		return false;
++	} else if (value->data.dim.unit != UNIT_PX) {
+ 		v = css_unit_len2px_mq(unit_ctx,
+ 				value->data.dim.len,
+@@ -83,5 +83,5 @@
+ 		css_mq_feature_op op,
+ 		const css_mq_value *value,
+-		const lwc_string *client_value)
++		lwc_string *client_value)
+ {
+ 	bool is_match;
+@@ -97,9 +97,38 @@
+ 	switch (op) {
+ 	case CSS_MQ_FEATURE_OP_EQ:
+-		return (lwc_string_isequal(value->data.ident,
++		return (lwc_string_caseless_isequal(value->data.ident,
+ 				client_value, &is_match) == lwc_error_ok) &&
+ 				is_match;
+ 	default:
+ 		return false;
++	}
++}
++
++/* Compare value / 1 or numerator / denominator to viewport width / height
++ * without rounding either ratio. Both fixed-point factors fit in 32 bits. */
++static inline bool mq_match_ratio(const css_mq_value *value, css_mq_feature_op op,
++		const css_media *media, bool second)
++{
++	css_mq_ratio ratio;
++	if (value->type == CSS_MQ_VALUE_TYPE_RATIO) {
++		ratio = value->data.ratio;
++	} else if (value->type == CSS_MQ_VALUE_TYPE_NUM && value->data.number >= 0) {
++		ratio = (css_mq_ratio){value->data.number, INTTOFIX(1)};
++	} else {
++		return false;
++	}
++	if ((ratio.numerator == 0 && ratio.denominator == 0) ||
++	    (media->width == 0 && media->height == 0)) return false;
++	int64_t left = (int64_t)ratio.numerator * media->height;
++	int64_t right = (int64_t)ratio.denominator * media->width;
++	int comparison = (left > right) - (left < right);
++	if (second) comparison = -comparison;
++	switch (op) {
++	case CSS_MQ_FEATURE_OP_LT: return comparison < 0;
++	case CSS_MQ_FEATURE_OP_LTE: return comparison <= 0;
++	case CSS_MQ_FEATURE_OP_EQ: return comparison == 0;
++	case CSS_MQ_FEATURE_OP_GTE: return comparison >= 0;
++	case CSS_MQ_FEATURE_OP_GT: return comparison > 0;
++	default: return false;
+ 	}
+ }
+@@ -125,4 +154,5 @@
+ 			str->width, &match) == lwc_error_ok &&
+ 			match == true) {
++		if (feat->op == CSS_MQ_FEATURE_OP_BOOL) return media->width != 0;
+ 		if (!mq_match_feature_range_length_op1(feat->op, &feat->value,
+ 					media->width, unit_ctx)) {
+@@ -135,4 +165,5 @@
+ 			str->height, &match) == lwc_error_ok &&
+ 			match == true) {
++		if (feat->op == CSS_MQ_FEATURE_OP_BOOL) return media->height != 0;
+ 		if (!mq_match_feature_range_length_op1(feat->op, &feat->value,
+ 				media->height, unit_ctx)) {
+@@ -143,4 +174,14 @@
+ 				&feat->value2, media->height, unit_ctx);
+ 
++	} else if (lwc_string_isequal(feat->name, str->orientation, &match) == lwc_error_ok && match) {
++		if (feat->op == CSS_MQ_FEATURE_OP_BOOL) return true;
++		return feat->op2 == CSS_MQ_FEATURE_OP_UNUSED &&
++			mq_match_feature_eq_ident_op1(feat->op, &feat->value,
++				media->width > media->height ? str->landscape : str->portrait);
++	} else if (lwc_string_isequal(feat->name, str->aspect_ratio, &match) == lwc_error_ok && match) {
++		if (feat->op == CSS_MQ_FEATURE_OP_BOOL) return media->width > 0;
++		return mq_match_ratio(&feat->value, feat->op, media, false) &&
++			(feat->op2 == CSS_MQ_FEATURE_OP_UNUSED ||
++			 mq_match_ratio(&feat->value2, feat->op2, media, true));
+ 	} else if (lwc_string_isequal(feat->name,
+ 			str->prefers_color_scheme, &match) == lwc_error_ok &&
+--- a/src/select/unit.c
++++ b/src/select/unit.c
+@@ -268,12 +268,25 @@
+ 
+ 	case CSS_UNIT_VH:
++		return FDIV(viewport_height, F_100);
++
++	case CSS_UNIT_VW:
+ 		return FDIV(viewport_width, F_100);
+-
+-	case CSS_UNIT_VW:
+-		return FDIV(viewport_height, F_100);
+ 
+ 	default:
+ 		return 0;
+ 	}
++}
++
++/* Apply the percentage to the full viewport before rounding. Rounding a
++ * single vw to a device pixel first makes, for instance, 100vw incorrect. */
++static bool viewport_length(const css_computed_style *style, const css_unit_ctx *ctx,
++		css_fixed length, css_unit unit, css_fixed *result)
++{
++	unit = css_unit__map_viewport_units(style, ctx->viewport_height, ctx->viewport_width, unit);
++	if (unit != CSS_UNIT_VW && unit != CSS_UNIT_VH) return false;
++	css_fixed axis = unit == CSS_UNIT_VW ? ctx->viewport_width : ctx->viewport_height;
++	int64_t value = (int64_t)length * axis / F_100;
++	*result = value > INT_MAX ? INT_MAX : value < INT_MIN ? INT_MIN : (css_fixed)value;
++	return true;
+ }
+ 
+@@ -284,4 +297,8 @@
+ 		const css_unit unit)
+ {
++	css_fixed viewport_px;
++	if (viewport_length(NULL, ctx, length, unit, &viewport_px))
++		return viewport_px;
++
+ 	/* In the media query context there is no reference or root element
+ 	 * style, so these are hard-coded to NULL. */
+@@ -312,4 +329,8 @@
+ 		const css_unit unit)
+ {
++	css_fixed viewport_px;
++	if (viewport_length(style, ctx, length, unit, &viewport_px))
++		return viewport_px;
++
+ 	css_fixed px_per_unit = css_unit__px_per_unit(
+ 			ctx->measure,
+@@ -338,4 +359,8 @@
+ 		const css_unit unit)
+ {
++	css_fixed viewport_px;
++	if (viewport_length(style, ctx, length, unit, &viewport_px))
++		return css_unit_css2device_px(viewport_px, ctx->device_dpi);
++
+ 	css_fixed px_per_unit = css_unit__px_per_unit(
+ 			ctx->measure,

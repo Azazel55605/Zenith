@@ -1,0 +1,861 @@
+--- a/content/handlers/css/select.c
++++ b/content/handlers/css/select.c
+@@ -192,4 +192,14 @@
+ }
+ 
++void nscss_invalidate_style(dom_node *n)
++{
++	void *old;
++	if (get_libcss_node_data(NULL, n, &old) == CSS_OK && old != NULL &&
++	    dom_node_set_user_data(n, corestring_dom___ns_key_libcss_node_data,
++				NULL, NULL, &old) == DOM_NO_ERR)
++		css_libcss_node_data_handler(&selection_handler, CSS_NODE_DELETED,
++				NULL, n, NULL, old);
++}
++
+ /* Handler for libcss_node_data, stored as libdom node user data */
+ static void nscss_dom_user_data_handler(dom_node_operation operation,
+--- a/content/handlers/css/select.h
++++ b/content/handlers/css/select.h
+@@ -45,4 +45,5 @@
+ 		const char *charset, const char *url, bool allow_quirks);
+ 
++void nscss_invalidate_style(dom_node *node);
+ css_select_results *nscss_get_style(nscss_select_ctx *ctx, dom_node *n,
+ 		const css_media *media,
+--- a/content/handlers/html/box_construct.c
++++ b/content/handlers/html/box_construct.c
+@@ -37,4 +37,5 @@
+ #include "utils/nsurl.h"
+ #include "netsurf/misc.h"
++#include "netsurf/plot_style.h"
+ #include "css/select.h"
+ #include "desktop/gui_internal.h"
+@@ -42,4 +43,8 @@
+ #include "html/private.h"
+ #include "html/object.h"
++#include "html/html.h"
++#include "html/interaction.h"
++#include "desktop/frames.h"
++#include "desktop/scrollbar.h"
+ #include "html/box.h"
+ #include "html/box_manipulate.h"
+@@ -52,5 +57,12 @@
+  * Context for box tree construction
+  */
++struct previous_binding {
++	struct previous_binding *next;
++	struct box *box;
++};
++
+ struct box_construct_ctx {
++	struct previous_binding *bindings; /* old DOM associations for rollback */
++	bool synchronous;
+ 	html_content *content;		/**< Content we're constructing for */
+ 
+@@ -287,5 +299,7 @@
+ 
+ 	/* Select style for element */
+-	styles = nscss_get_style(&ctx, n, &c->media, &c->unit_len_ctx,
++	css_unit_ctx units = c->unit_len_ctx;
++	units.root_style = root_style;
++	styles = nscss_get_style(&ctx, n, &c->media, &units,
+ 			inline_style);
+ 
+@@ -483,4 +497,18 @@
+ 	assert(ctx->n != NULL);
+ 
++	if (ctx->synchronous) {
++		struct box *previous = box_for_node(ctx->n);
++		if (previous != NULL) {
++			struct previous_binding *binding = talloc(ctx->bctx, struct previous_binding);
++			void *old;
++			if (binding == NULL) return false;
++			if (dom_node_set_user_data(ctx->n, corestring_dom___ns_key_box_node_data,
++					NULL, NULL, &old) != DOM_NO_ERR) return false;
++			binding->box = previous;
++			binding->next = ctx->bindings;
++			ctx->bindings = binding;
++		}
++		nscss_invalidate_style(ctx->n);
++	}
+ 	box_extract_properties(ctx->n, &props);
+ 
+@@ -1241,8 +1269,11 @@
+ 		assert(ctx->n != NULL);
+ 
+-		if (box_construct_element(ctx, &convert_children) == false) {
++		ctx->content->converting_element = ctx->n;
++		bool converted = box_construct_element(ctx, &convert_children);
++		ctx->content->converting_element = NULL;
++		if (!converted) {
+ 			ctx->cb(ctx->content, false);
+ 			dom_node_unref(ctx->n);
+-			free(ctx);
++			if (!ctx->synchronous) free(ctx);
+ 			return;
+ 		}
+@@ -1258,5 +1289,5 @@
+ 				ctx->cb(ctx->content, false);
+ 				dom_node_unref(next);
+-				free(ctx);
++				if (!ctx->synchronous) free(ctx);
+ 				return;
+ 			}
+@@ -1270,5 +1301,5 @@
+ 					ctx->cb(ctx->content, false);
+ 					dom_node_unref(ctx->n);
+-					free(ctx);
++					if (!ctx->synchronous) free(ctx);
+ 					return;
+ 				}
+@@ -1303,8 +1334,8 @@
+ 			assert(ctx->n == NULL);
+ 
+-			free(ctx);
++			if (!ctx->synchronous) free(ctx);
+ 			return;
+ 		}
+-	} while (++num_processed < max_processed_before_yield);
++	} while (ctx->synchronous || ++num_processed < max_processed_before_yield);
+ 
+ 	/* More work to do: schedule a continuation */
+@@ -1332,5 +1363,5 @@
+ 	}
+ 
+-	ctx = malloc(sizeof(*ctx));
++	ctx = calloc(1, sizeof(*ctx));
+ 	if (ctx == NULL) {
+ 		return NSERROR_NOMEM;
+@@ -1348,4 +1379,116 @@
+ }
+ 
++
++static void restyle_finished(html_content *c, bool success)
++{
++	/* On success the normaliser already set c->layout. */
++	if (!success) c->layout = NULL;
++}
++
++static void refresh_control_boxes(html_content *c)
++{
++	for (struct form *f = c->forms; f; f = f->prev)
++		for (struct form_control *g = f->controls; g; g = g->next)
++			g->box = box_for_node(g->node);
++	for (struct form_control *g = c->unowned_controls; g; g = g->unowned_next)
++		g->box = box_for_node(g->node);
++}
++
++/* Construct from the live DOM while the old layout and its resources remain
++ * valid. No user input or fetch callbacks can run during the synchronous swap.
++ * If construction fails, restore the old DOM bindings and resource owners. */
++bool box_restyle(html_content *c)
++{
++	dom_element *root;
++	if (dom_document_get_document_element(c->document, &root) != DOM_NO_ERR || !root)
++		return false;
++	int *arena = talloc_zero(NULL, int);
++	if (!arena) { dom_node_unref(root); return false; }
++	struct box_construct_ctx ctx = {
++		.content = c, .n = (dom_node *)root, .cb = restyle_finished,
++		.bctx = arena, .synchronous = true
++	};
++	int *old_arena = c->bctx;
++	struct box *old_layout = c->layout;
++	struct content_html_iframe *old_iframes = c->iframe;
++	struct content_html_frames *old_frameset = c->frameset;
++	colour old_background = c->background_colour;
++
++	c->old_objects = c->object_list;
++	c->object_list = NULL;
++	c->rebuilding_boxes = true;
++	c->bctx = arena;
++	c->layout = NULL;
++	c->frameset = NULL;
++	c->iframe = NULL;
++	c->background_colour = NS_TRANSPARENT;
++	convert_xml_to_box(&ctx);
++	c->rebuilding_boxes = false;
++	bool success = c->layout != NULL;
++	dom_node *focused = NULL, *selected = NULL;
++	if (success) {
++		if (c->focus_type != HTML_FOCUS_SELF)
++			focused = c->focus_owner.content->node;
++		if (c->selection_type == HTML_SELECTION_TEXTAREA || c->selection_type == HTML_SELECTION_CONTENT)
++			selected = c->selection_owner.content->node;
++	} else {
++		c->bctx = old_arena;
++		c->layout = old_layout;
++		c->iframe = old_iframes;
++		c->frameset = old_frameset;
++		c->background_colour = old_background;
++	}
++	while (ctx.bindings) {
++		struct previous_binding *b = ctx.bindings;
++		ctx.bindings = b->next;
++		if (!success) {
++			void *old;
++			dom_node_set_user_data(b->box->node, corestring_dom___ns_key_box_node_data,
++					b->box, NULL, &old);
++		} else if (b->box->scroll_x || b->box->scroll_y) {
++			struct box *next = box_for_node(b->box->node);
++			if (next && next != b->box) {
++				next->scroll_x = b->box->scroll_x;
++				next->scroll_y = b->box->scroll_y;
++				if (next->scroll_x) {
++					struct html_scrollbar_data *data = scrollbar_get_data(next->scroll_x);
++					data->box = next;
++				}
++				if (next->scroll_y) {
++					struct html_scrollbar_data *data = scrollbar_get_data(next->scroll_y);
++					data->box = next;
++				}
++				b->box->scroll_x = b->box->scroll_y = NULL;
++			}
++		}
++		talloc_free(b);
++	}
++	if (success) {
++		if (focused) {
++			struct box *b = box_for_node(focused);
++			if (b && b != c->focus_owner.content) c->focus_owner.content = b;
++			else html_set_focus(c, HTML_FOCUS_SELF,
++					(union html_focus_owner){.self = true}, true, 0, 0, 0, NULL);
++		}
++		if (selected) {
++			struct box *b = box_for_node(selected);
++			if (b && b != c->selection_owner.content) c->selection_owner.content = b;
++			else html_set_selection(c, HTML_SELECTION_NONE,
++					(union html_selection_owner){.none = true}, true);
++		}
++		if (c->drag_type != HTML_DRAG_NONE)
++			html_set_drag_type(c, HTML_DRAG_NONE,
++				(union html_drag_owner){.no_owner = true}, NULL);
++	}
++	html_object_end_restyle(c, success);
++	talloc_free(success ? old_arena : arena);
++	refresh_control_boxes(c);
++	if (success) {
++		if (c->visible_select_menu && !c->visible_select_menu->box)
++			c->visible_select_menu = NULL;
++		browser_window_rebind_iframes(c->bw);
++	}
++	return success;
++}
+ 
+ /* exported function documented in html/box_construct.h */
+--- a/content/handlers/html/box_construct.h
++++ b/content/handlers/html/box_construct.h
+@@ -88,4 +88,5 @@
+  * aborts any ongoing box construction
+  */
++bool box_restyle(struct html_content *c);
+ nserror cancel_dom_to_box(void *box_conversion_context);
+ 
+--- a/content/handlers/html/box_manipulate.c
++++ b/content/handlers/html/box_manipulate.c
+@@ -38,4 +38,6 @@
+ #include "html/interaction.h"
+ #include "html/box.h"
++#include "html/box_construct.h"
++#include "utils/corestrings.h"
+ #include "html/box_manipulate.h"
+ 
+@@ -69,4 +71,10 @@
+ 
+ 	if (b->node != NULL) {
++		/* Hidden descendants may never be visited by the next box tree. */
++		if (box_for_node(b->node) == b) {
++			void *old;
++			dom_node_set_user_data(b->node, corestring_dom___ns_key_box_node_data,
++					NULL, NULL, &old);
++		}
+ 		dom_node_unref(b->node);
+ 	}
+@@ -235,15 +243,8 @@
+ void box_free_box(struct box *box)
+ {
+-	if (!(box->flags & CLONE)) {
+-		if (box->gadget)
+-			form_free_control(box->gadget);
+-		if (box->scroll_x != NULL)
+-			scrollbar_destroy(box->scroll_x);
+-		if (box->scroll_y != NULL)
+-			scrollbar_destroy(box->scroll_y);
+-		if (box->styles != NULL)
+-			css_select_results_destroy(box->styles);
+-	}
+-
++	/* Styles, scrollbars and DOM links are owned by the box destructor.
++	 * The document keeps form state when normalisation removes a box. */
++	if (box->gadget && box->gadget->box == box)
++		box->gadget->box = NULL;
+ 	talloc_free(box);
+ }
+--- a/content/handlers/html/box_special.c
++++ b/content/handlers/html/box_special.c
+@@ -588,5 +588,6 @@
+ 	box_add_child(box, inline_container);
+ 
+-	return box_textarea_create_textarea(html, box, node);
++	return box->gadget->data.text.ta != NULL ||
++			box_textarea_create_textarea(html, box, node);
+ }
+ 
+@@ -804,5 +805,5 @@
+ 	struct form_control *gadget;
+ 
+-	gadget = html_forms_get_control_for_node(content->forms, n);
++	gadget = html_forms_get_control_for_node(content, n);
+ 	if (!gadget)
+ 		return false;
+@@ -1244,5 +1245,5 @@
+ 	nserror error;
+ 
+-	gadget = html_forms_get_control_for_node(content->forms, n);
++	gadget = html_forms_get_control_for_node(content, n);
+ 	if (gadget == NULL) {
+ 		return false;
+@@ -1673,9 +1674,10 @@
+ 	dom_exception err;
+ 
+-	gadget = html_forms_get_control_for_node(content->forms, n);
++	gadget = html_forms_get_control_for_node(content, n);
+ 	if (gadget == NULL)
+ 		return false;
+ 
+ 	gadget->html = content;
++	if (gadget->data.select.num_items) goto options_ready;
+ 	err = dom_node_get_first_child(n, &c);
+ 	if (err != DOM_NO_ERR) {
+@@ -1766,4 +1768,5 @@
+ 	}
+ 
++options_ready:
+ 	if (gadget->data.select.num_items == 0) {
+ 		/* no options: ignore entire select */
+@@ -1830,5 +1833,5 @@
+ {
+ 	/* Get the form_control for the DOM node */
+-	box->gadget = html_forms_get_control_for_node(content->forms, n);
++	box->gadget = html_forms_get_control_for_node(content, n);
+ 	if (box->gadget == NULL)
+ 		return false;
+--- a/content/handlers/html/form.c
++++ b/content/handlers/html/form.c
+@@ -1498,4 +1498,9 @@
+ 	}
+ 
++	if (control->form == NULL && control->html != NULL) {
++		struct form_control **p = &control->html->unowned_controls;
++		while (*p && *p != control) p = &(*p)->unowned_next;
++		if (*p) *p = control->unowned_next;
++	}
+ 	/* unlink the control from the form */
+ 	if (control->form != NULL) {
+--- a/content/handlers/html/form_internal.h
++++ b/content/handlers/html/form_internal.h
+@@ -115,4 +115,5 @@
+ 
+ 	struct form_control *prev;      /**< Previous control in this form */
++	struct form_control *unowned_next; /**< Document-owned controls outside forms. */
+ 	struct form_control *next;	/**< Next control in this form. */
+ };
+--- a/content/handlers/html/forms.c
++++ b/content/handlers/html/forms.c
+@@ -543,5 +543,5 @@
+ /* documented in html_internal.h */
+ struct form_control *
+-html_forms_get_control_for_node(struct form *forms, dom_node *node)
++html_forms_get_control_for_node(html_content *html, dom_node *node)
+ {
+ 	struct form *f;
+@@ -549,4 +549,8 @@
+ 	dom_exception err;
+ 	dom_string *ds_name = NULL;
++
++	struct form *forms = html->forms;
++	for (ctl = html->unowned_controls; ctl; ctl = ctl->unowned_next)
++		if (ctl->node == node) return ctl;
+ 
+ 	/* Step one, see if we already have a control */
+@@ -588,5 +592,9 @@
+ 	if (ds_name != NULL)
+ 		dom_string_unref(ds_name);
+-
++	if (ctl && ctl->form == NULL) {
++		ctl->html = html;
++		ctl->unowned_next = html->unowned_controls;
++		html->unowned_controls = ctl;
++	}
+ 	return ctl;
+ }
+--- a/content/handlers/html/html.c
++++ b/content/handlers/html/html.c
+@@ -44,4 +44,5 @@
+ #include "netsurf/content.h"
+ #include "netsurf/browser_window.h"
++#include "desktop/frames.h"
+ #include "netsurf/utf8.h"
+ #include "netsurf/keypress.h"
+@@ -1063,11 +1064,26 @@
+ 	htmlc->reflowing = true;
+ 
+-	htmlc->unit_len_ctx.viewport_width = css_unit_device2css_px(
++	bool restyled = false;
++	css_media old_media = htmlc->media;
++	css_unit_ctx old_units = htmlc->unit_len_ctx;
++	htmlc->media.width = htmlc->unit_len_ctx.viewport_width = css_unit_device2css_px(
+ 			INTTOFIX(width), htmlc->unit_len_ctx.device_dpi);
+-	htmlc->unit_len_ctx.viewport_height = css_unit_device2css_px(
++	htmlc->media.height = htmlc->unit_len_ctx.viewport_height = css_unit_device2css_px(
+ 			INTTOFIX(height), htmlc->unit_len_ctx.device_dpi);
++	if ((old_media.width != htmlc->media.width || old_media.height != htmlc->media.height) &&
++	    css_select_ctx_media_changed(htmlc->select_ctx, &old_units, &old_media,
++			    &htmlc->unit_len_ctx, &htmlc->media)) {
++		restyled = box_restyle(htmlc);
++		if (!restyled) {
++			/* Retry the original transition on the next layout. */
++			htmlc->media = old_media;
++			htmlc->unit_len_ctx.viewport_width = old_units.viewport_width;
++			htmlc->unit_len_ctx.viewport_height = old_units.viewport_height;
++		}
++	}
+ 	htmlc->unit_len_ctx.root_style = htmlc->layout->style;
+ 
+ 	layout_document(htmlc, width, height);
++	if (restyled && htmlc->bw) browser_window_create_iframes(htmlc->bw);
+ 	layout = htmlc->layout;
+ 
+@@ -1215,4 +1231,6 @@
+ 
+ 	selection_destroy(html->sel);
++
++	while (html->unowned_controls) form_free_control(html->unowned_controls);
+ 
+ 	/* Destroy forms */
+--- a/content/handlers/html/html.h
++++ b/content/handlers/html/html.h
+@@ -100,4 +100,8 @@
+ 	content_type permitted_types;
+ 	bool background;  /**< This object is a background image. */
++	struct nsurl *requested_url;
++	struct dom_node *element;
++	struct box *replacement;
++	bool pending;
+ };
+ 
+--- a/content/handlers/html/object.c
++++ b/content/handlers/html/object.c
+@@ -166,4 +166,8 @@
+ 
+ 	box = o->box;
++	/* Hidden images keep their handle and load contribution. They have
++	 * no presentation target until a later style exposes their node. */
++	if (!box && event->type != CONTENT_MSG_DONE && event->type != CONTENT_MSG_ERROR)
++		return NSERROR_OK;
+ 
+ 	switch (event->type) {
+@@ -195,7 +199,9 @@
+ 
+ 	case CONTENT_MSG_DONE:
++		o->pending = false;
+ 		c->base.active--;
+ 		NSLOG(netsurf, INFO, "%d fetches active", c->base.active);
+ 
++		if (!box) break;
+ 		html_object_done(box, object, o->background);
+ 
+@@ -227,4 +233,5 @@
+ 		o->content = NULL;
+ 
++		o->pending = false;
+ 		c->base.active--;
+ 		NSLOG(netsurf, INFO, "%d fetches active", c->base.active);
+@@ -537,4 +544,5 @@
+ 
+ 	if (object->content != NULL) {
++		object->pending = false;
+ 		/* remove existing object */
+ 		if (content_get_status(object->content) != CONTENT_STATUS_DONE) {
+@@ -560,4 +568,5 @@
+ 		return false;
+ 
++	object->pending = true;
+ 	for (page = c; page != NULL; page = page->page) {
+ 		page->base.active++;
+@@ -647,4 +656,5 @@
+ 			object->content = NULL;
+ 			if (object->box != NULL) {
++				object->pending = false;
+ 				htmlc->base.active--;
+ 				NSLOG(netsurf, INFO, "%d fetches active",
+@@ -699,4 +709,6 @@
+ 		}
+ 
++		nsurl_unref(victim->requested_url);
++		if (victim->element) dom_node_unref(victim->element);
+ 		html->object_list = victim->next;
+ 		free(victim);
+@@ -705,4 +717,41 @@
+ }
+ 
++
++/* Newly acquired handles are on object_list; the previous handles stay
++ * attached to their original boxes throughout construction and rollback. */
++void html_object_end_restyle(html_content *html, bool commit)
++{
++	struct content_html_object *drop = commit ? NULL : html->object_list;
++	struct content_html_object *keep = commit ? html->object_list : NULL;
++	while (html->old_objects) {
++		struct content_html_object *o = html->old_objects;
++		html->old_objects = o->next;
++		/* Images belong to their DOM element across display:none or a
++		 * media-dependent background change, even when uncacheable. */
++		if (!commit || o->replacement || o->box == NULL ||
++		    (o->element && o->permitted_types == CONTENT_IMAGE)) {
++			if (commit) o->box = o->replacement;
++			o->replacement = NULL;
++			o->next = keep;
++			keep = o;
++		} else {
++			o->next = drop;
++			drop = o;
++		}
++	}
++
++	html->object_list = drop;
++	for (struct content_html_object *o = drop; o; o = o->next) {
++		if (o->pending) html->base.active--;
++		if (commit && o->box && o->content && html->bw &&
++		    content_get_type(o->content) != CONTENT_NONE)
++			content_close(o->content);
++	}
++	html_object_free_objects(html);
++	html->object_list = keep;
++	html->num_objects = 0;
++	for (; keep != NULL; keep = keep->next)
++		html->num_objects++;
++}
+ 
+ /* exported interface documented in html/object.h */
+@@ -723,4 +772,24 @@
+ 		return true;
+ 
++	/* Transfer a previously acquired handle after the replacement tree is
++	 * complete. In particular, redirects and Cache-Control: no-store do
++	 * not turn a viewport change into a second network request. */
++	if (c->rebuilding_boxes && box != NULL) {
++		for (object = c->old_objects; object; object = object->next) {
++			if (object->element == c->converting_element && !object->replacement &&
++			    (object->box || object->element) && object->background == background &&
++			    object->permitted_types == permitted_types &&
++			    nsurl_compare(url, object->requested_url, NSURL_COMPLETE)) {
++				object->replacement = box;
++				if (object->content && content_get_status(object->content) == CONTENT_STATUS_DONE)
++					html_object_done(box, object->content, background);
++				else if (object->box) {
++					if (background) box->background = object->box->background;
++					else box->object = object->box->object;
++				}
++				return true;
++			}
++		}
++	}
+ 	child.charset = c->encoding;
+ 	child.quirks = c->base.quirks;
+@@ -758,4 +827,8 @@
+ 	}
+ 
++	object->requested_url = nsurl_ref(url);
++	object->element = box && c->converting_element ? dom_node_ref(c->converting_element) : NULL;
++	object->pending = box != NULL;
++
+ 	/* add to content object list */
+ 	object->next = c->object_list;
+--- a/content/handlers/html/object.h
++++ b/content/handlers/html/object.h
+@@ -55,4 +55,5 @@
+  * \return NSERROR_OK on success else appropriate error code.
+  */
++void html_object_end_restyle(struct html_content *html, bool commit);
+ nserror html_object_free_objects(struct html_content *html);
+ 
+--- a/content/handlers/html/private.h
++++ b/content/handlers/html/private.h
+@@ -124,4 +124,8 @@
+ 	/** Whether an initial layout has been done */
+ 	bool had_initial_layout;
++	bool rebuilding_boxes;
++	struct form_control *unowned_controls;
++	struct content_html_object *old_objects;
++	dom_node *converting_element; /* borrowed during conversion of one element */
+ 
+ 	/** Whether scripts are enabled for this content */
+@@ -317,5 +321,5 @@
+ /* in html/forms.c */
+ struct form *html_forms_get_forms(const char *docenc, dom_html_document *doc);
+-struct form_control *html_forms_get_control_for_node(struct form *forms,
++struct form_control *html_forms_get_control_for_node(html_content *html,
+ 		dom_node *node);
+ 
+--- a/desktop/browser_private.h
++++ b/desktop/browser_private.h
+@@ -241,4 +241,5 @@
+ 	/** iframe parent box */
+ 	struct box *box;
++	struct dom_node *iframe_element; /* retained while this child exists */
+ 
+ 	/** [cols * rows] children */
+@@ -248,5 +249,5 @@
+ 	/** [iframe_count] iframes */
+ 	int iframe_count;
+-	struct browser_window *iframes;
++	struct browser_window **iframes; /* child addresses remain stable across media changes */
+ 
+ 	/** browser window child of root browser window which has input focus */
+--- a/desktop/browser_window.c
++++ b/desktop/browser_window.c
+@@ -380,5 +380,5 @@
+ 	if (bw->iframes) {
+ 		for (index = 0; index < bw->iframe_count; index++) {
+-			if (browser_window_check_throbber(&bw->iframes[index]))
++			if (browser_window_check_throbber(bw->iframes[index]))
+ 				return true;
+ 		}
+@@ -1963,5 +1963,5 @@
+ 	/* scale iframes */
+ 	for (i = 0; i < bw->iframe_count; i++) {
+-		res = browser_window_set_scale_internal(&bw->iframes[i], scale);
++		res = browser_window_set_scale_internal(bw->iframes[i], scale);
+ 	}
+ 
+@@ -2023,5 +2023,5 @@
+ 	if (bw->iframes != NULL) {
+ 		for (i = 0; i < bw->iframe_count; i++) {
+-			browser_window_find_target_internal(&bw->iframes[i],
++			browser_window_find_target_internal(bw->iframes[i],
+ 							    target,
+ 							    depth,
+@@ -4114,5 +4114,5 @@
+ 		children = bw->iframe_count;
+ 		for (index = 0; index < children; index++)
+-			browser_window_stop(&bw->iframes[index]);
++			browser_window_stop(bw->iframes[index]);
+ 	}
+ 
+--- a/desktop/frames.c
++++ b/desktop/frames.c
+@@ -22,4 +22,5 @@
+ 
+ #include <assert.h>
++#include <dom/dom.h>
+ #include <limits.h>
+ #include <stdbool.h>
+@@ -37,4 +38,5 @@
+ #include "html/box.h"
+ #include "html/box_inspect.h"
++#include "html/box_construct.h"
+ 
+ #include "desktop/browser_private.h"
+@@ -61,5 +63,5 @@
+ 	case SCROLLBAR_MSG_MOVED:
+ 		if (bw->browser_window_type == BROWSER_WINDOW_IFRAME) {
+-			html_redraw_a_box(bw->parent->current_content, bw->box);
++			if (bw->box) html_redraw_a_box(bw->parent->current_content, bw->box);
+ 		} else {
+ 			struct rect rect;
+@@ -185,53 +187,50 @@
+ nserror browser_window_invalidate_iframe(struct browser_window *bw)
+ {
+-	html_redraw_a_box(bw->parent->current_content, bw->box);
++	if (bw->box) html_redraw_a_box(bw->parent->current_content, bw->box);
+ 	return NSERROR_OK;
+ }
+ 
+ /* exported function documented in desktop/frames.h */
++void browser_window_rebind_iframes(struct browser_window *bw)
++{
++	if (!bw || !bw->iframes) return;
++	for (int i = 0; i < bw->iframe_count; i++) {
++		struct browser_window *frame = bw->iframes[i];
++		frame->box = box_for_node(frame->iframe_element);
++		if (frame->box) frame->box->iframe = frame;
++	}
++}
++
+ nserror browser_window_create_iframes(struct browser_window *bw)
+ {
+-	nserror ret = NSERROR_OK;
+-	struct browser_window *window;
+-	struct content_html_iframe *cur;
++	struct content_html_iframe *cur, *list;
+ 	struct rect rect;
+-	int iframes = 0;
+-	int index;
+-	struct content_html_iframe *iframe;
+-
+-	bw->iframe_count = 0;
+-
+-	/* only html contents can have iframes */
+-	if (content_get_type(bw->current_content) != CONTENT_HTML) {
++	size_t count;
++	nserror err;
++	if (!bw || !bw->current_content || content_get_type(bw->current_content) != CONTENT_HTML)
+ 		return NSERROR_OK;
+-	}
+-
+-	/* obtain the iframes for this content */
+-	iframe = html_get_iframe(bw->current_content);
+-	if (iframe == NULL) {
+-		return NSERROR_OK;
+-	}
+-
+-	/* Count iframe list and allocate enough space within the
+-	 * browser window.
+-	 */
+-	for (cur = iframe; cur; cur = cur->next) {
+-		iframes++;
+-	}
+-	bw->iframes = calloc(iframes, sizeof(*bw));
+-	if (!bw->iframes) {
+-		return NSERROR_NOMEM;
+-	}
+-	bw->iframe_count = iframes;
+-
+-	index = 0;
+-	for (cur = iframe; cur; cur = cur->next) {
+-		window = &(bw->iframes[index++]);
+-
+-		/* Initialise common parts */
+-		browser_window_initialise_common(BW_CREATE_NONE,
+-				window, NULL);
+-
+-		/* window characteristics */
++	list = html_get_iframe(bw->current_content);
++	count = bw->iframe_count;
++	for (cur = list; cur; cur = cur->next)
++		if (!cur->box->iframe) count++;
++	if (count == (size_t)bw->iframe_count) return NSERROR_OK;
++	if (count > INT_MAX || count > SIZE_MAX / sizeof(*bw->iframes)) return NSERROR_NOMEM;
++	struct browser_window **children = realloc(bw->iframes, count * sizeof(*children));
++	if (!children) return NSERROR_NOMEM;
++	bw->iframes = children;
++	for (cur = list; cur; cur = cur->next) {
++		if (cur->box->iframe) continue;
++		struct browser_window *window = calloc(1, sizeof(*window));
++		if (!window) return NSERROR_NOMEM;
++		if (cur->name != NULL && !(window->name = strdup(cur->name))) {
++			free(window);
++			return NSERROR_NOMEM;
++		}
++		err = browser_window_initialise_common(BW_CREATE_NONE, window, NULL);
++		if (err != NSERROR_OK) {
++			free(window->name);
++			free(window);
++			return err;
++		}
+ 		window->browser_window_type = BROWSER_WINDOW_IFRAME;
+ 		window->scrolling = cur->scrolling;
+@@ -242,47 +241,22 @@
+ 		window->margin_height = cur->margin_height;
+ 		window->scale = bw->scale;
+-		if (cur->name != NULL) {
+-			window->name = strdup(cur->name);
+-			if (window->name == NULL) {
+-				free(bw->iframes) ;
+-				bw->iframes = 0;
+-				bw->iframe_count = 0;
+-				return NSERROR_NOMEM;
+-			}
+-		}
+-
+-		/* linking */
+ 		window->box = cur->box;
++		window->iframe_element = dom_node_ref(cur->box->node);
+ 		window->parent = bw;
+ 		window->box->iframe = window;
+-
+-		/* iframe dimensions */
++		bw->iframes[bw->iframe_count++] = window;
+ 		box_bounds(window->box, &rect);
+-
+ 		browser_window_set_position(window, rect.x0, rect.y0);
+-		browser_window_set_dimensions(window, rect.x1 - rect.x0,
+-				rect.y1 - rect.y0);
+-	}
+-
+-	/* calculate dimensions */
++		browser_window_set_dimensions(window, rect.x1 - rect.x0, rect.y1 - rect.y0);
++		if (cur->url) {
++			err = browser_window_navigate(window, cur->url,
++					hlcache_handle_get_url(bw->current_content),
++					BW_NAVIGATE_UNVERIFIABLE, NULL, NULL, bw->current_content);
++			if (err != NSERROR_OK) return err;
++		}
++	}
+ 	browser_window_update_extent(bw);
+ 	browser_window_recalculate_iframes(bw);
+-
+-	index = 0;
+-	for (cur = iframe; cur; cur = cur->next) {
+-		window = &(bw->iframes[index++]);
+-		if (cur->url) {
+-			/* fetch iframe's content */
+-			ret = browser_window_navigate(window,
+-				cur->url,
+-				hlcache_handle_get_url(bw->current_content),
+-				BW_NAVIGATE_UNVERIFIABLE,
+-				NULL,
+-				NULL,
+-				bw->current_content);
+-		}
+-	}
+-
+-	return ret;
++	return NSERROR_OK;
+ }
+ 
+@@ -295,7 +269,7 @@
+ 
+ 	for (index = 0; index < bw->iframe_count; index++) {
+-		window = &(bw->iframes[index]);
+-
+-		if (window != NULL) {
++		window = bw->iframes[index];
++
++		if (window->box != NULL) {
+ 			browser_window_handle_scrollbars(window);
+ 		}
+@@ -311,9 +285,11 @@
+ 	if (bw->iframes != NULL) {
+ 		for (i = 0; i < bw->iframe_count; i++) {
+-			if (bw->iframes[i].box != NULL) {
+-				bw->iframes[i].box->iframe = NULL;
+-				bw->iframes[i].box = NULL;
+-			}
+-			browser_window_destroy_internal(&bw->iframes[i]);
++			if (bw->iframes[i]->box != NULL) {
++				bw->iframes[i]->box->iframe = NULL;
++				bw->iframes[i]->box = NULL;
++			}
++			browser_window_destroy_internal(bw->iframes[i]);
++			dom_node_unref(bw->iframes[i]->iframe_element);
++			free(bw->iframes[i]);
+ 		}
+ 		free(bw->iframes);
+@@ -1029,5 +1005,5 @@
+ 	if (bw->iframes) {
+ 		for (i = 0; i < bw->iframe_count; i++)
+-			if (browser_window_resize_frames(&bw->iframes[i],
++			if (bw->iframes[i]->box && browser_window_resize_frames(bw->iframes[i],
+ 					mouse, x, y, pointer))
+ 				return true;
+--- a/desktop/frames.h
++++ b/desktop/frames.h
+@@ -35,4 +35,5 @@
+  * \return NSERROR_OK or error code on faliure.
+  */
++void browser_window_rebind_iframes(struct browser_window *bw);
+ nserror browser_window_create_iframes(struct browser_window *bw);
+ 

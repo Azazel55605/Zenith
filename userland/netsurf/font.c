@@ -123,7 +123,7 @@ static void paint_glyph(struct page_raster *r, const unsigned char *ink, int src
             const unsigned char *row = ink + (y - top) * src_w;
             for (long x = x0; x < x1; x++) {
                 unsigned alpha = row[x - left];
-                if (alpha) page_blend(r->pixels + y * r->stride + x, rgb, alpha);
+                if (alpha) page_blend(r->pixels + y * r->stride + x, rgb, (alpha * (rgb >> 24) + 127) / 255);
             }
         }
         return;
@@ -146,7 +146,7 @@ static void paint_glyph(struct page_raster *r, const unsigned char *ink, int src
             unsigned upper = row[ix] * (256 - fx) + row[jx] * fx;
             unsigned lower = next[ix] * (256 - fx) + next[jx] * fx;
             unsigned alpha = (upper * (256 - fy) + lower * fy + 32768) >> 16;
-            if (alpha) page_blend(r->pixels + y * r->stride + x, rgb, alpha);
+            if (alpha) page_blend(r->pixels + y * r->stride + x, rgb, (alpha * (rgb >> 24) + 127) / 255);
         }
     }
 }
@@ -156,7 +156,8 @@ nserror zenith_plot_text(const struct redraw_context *ctx, const plot_font_style
 {
     struct page_raster *r = ctx->priv;
     struct face f = choose(style);
-    uint32_t rgb = page_rgb(style->foreground);
+    uint32_t rgb = ns_color_to_nscss(style->foreground);
+    if ((rgb >> 24) == 0) return NSERROR_OK;
     long pen = x, top = (long)baseline - scaled(f, f.atlas->ascent);
     for (size_t i = 0; i < n && pen < r->clip.x1;) {
         unsigned g = glyph(s, n, &i);

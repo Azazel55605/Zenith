@@ -1,0 +1,93 @@
+--- a/content/handlers/css/utils.h
++++ b/content/handlers/css/utils.h
+@@ -26,51 +26,8 @@
+ /** DPI of the screen, in fixed point units */
+ extern css_fixed nscss_screen_dpi;
+ 
+-/**
+- * Temporary helper wrappers for for libcss computed style getter, while
+- * we don't support all values of display.
+- */
+-static inline uint8_t ns_computed_display(
+-		const css_computed_style *style, bool root)
+-{
+-	uint8_t value = css_computed_display(style, root);
+-
+-	switch (value) {
+-	case CSS_DISPLAY_GRID:
+-		return CSS_DISPLAY_BLOCK;
+-
+-	case CSS_DISPLAY_INLINE_GRID:
+-		return CSS_DISPLAY_INLINE_BLOCK;
+-
+-	default:
+-		break;
+-	}
+-
+-	return value;
+-}
+-
+-/**
+- * Temporary helper wrappers for for libcss computed style getter, while
+- * we don't support all values of display.
+- */
+-static inline uint8_t ns_computed_display_static(
+-		const css_computed_style *style)
+-{
+-	uint8_t value = css_computed_display_static(style);
+-
+-	switch (value) {
+-	case CSS_DISPLAY_GRID:
+-		return CSS_DISPLAY_BLOCK;
+-
+-	case CSS_DISPLAY_INLINE_GRID:
+-		return CSS_DISPLAY_INLINE_BLOCK;
+-
+-	default:
+-		break;
+-	}
+-
+-	return value;
+-}
++#define ns_computed_display css_computed_display
++#define ns_computed_display_static css_computed_display_static
+ 
+ static inline uint8_t ns_computed_min_height(
+ 		const css_computed_style *style,
+--- a/content/handlers/html/box_construct.c
++++ b/content/handlers/html/box_construct.c
+@@ -108,8 +108,8 @@
+ 	BOX_NONE,            /* CSS_DISPLAY_NONE */
+ 	BOX_FLEX,            /* CSS_DISPLAY_FLEX */
+ 	BOX_INLINE_FLEX,     /* CSS_DISPLAY_INLINE_FLEX */
+-	BOX_BLOCK,           /* CSS_DISPLAY_GRID */
+-	BOX_INLINE_BLOCK,    /* CSS_DISPLAY_INLINE_GRID */
++	BOX_FLEX,            /* CSS_DISPLAY_GRID */
++	BOX_INLINE_FLEX,     /* CSS_DISPLAY_INLINE_GRID */
+ };
+ 
+ 
+--- a/content/handlers/html/layout_flex.c
++++ b/content/handlers/html/layout_flex.c
+@@ -1052,6 +1052,10 @@
+ 	struct flex_ctx *ctx;
+ 	bool success = false;
+ 
++	uint8_t display = css_computed_display_static(flex->style);
++	if (display == CSS_DISPLAY_GRID || display == CSS_DISPLAY_INLINE_GRID)
++		return layout_grid(flex, available_width, content);
++
+ 	ctx = layout_flex_ctx__create(content, flex);
+ 	if (ctx == NULL) {
+ 		return false;
+--- a/content/handlers/html/layout_internal.h
++++ b/content/handlers/html/layout_internal.h
+@@ -66,6 +66,8 @@
+  * \param[in] content          memory pool for any new boxes
+  * \return  true on success, false on memory exhaustion
+  */
++bool layout_grid(struct box *grid, int available_width, html_content *content);
++
+ bool layout_flex(
+ 		struct box *flex,
+ 		int available_width,

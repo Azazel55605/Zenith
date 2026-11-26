@@ -90,6 +90,13 @@ static void check_coverage(int em)
             if (abs(a - nearest) > 4) interpolated++;
         }
     }
+    plot_font_style_t translucent = style;
+    translucent.foreground = 0x7fffffff; /* NetSurf stores inverse alpha. */
+    uint32_t half[height][width];
+    paint(&translucent, "W", half);
+    for (int y = 0; y < height; y++)
+        for (int x = 0; x < width; x++)
+            assert((half[y][x] & 255) == ((image[y][x] & 255) * 128 + 127) / 255);
     if (em != 14) {
         assert(interpolated > 5);
         uint32_t clipped[height][width] = {0};

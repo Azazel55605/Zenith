@@ -1,0 +1,44 @@
+--- a/include/netsurf/plot_style.h
++++ b/include/netsurf/plot_style.h
+@@ -36,7 +36,7 @@
+ #define WIDGET_BLOBC 0x000000
+ 
+ /** Transparent colour value. */
+-#define NS_TRANSPARENT 0x01000000
++#define NS_TRANSPARENT 0xff000000
+ 
+ /** 22:10 fixed point */
+ #define PLOT_STYLE_RADIX (10)
+--- a/content/handlers/html/redraw.c
++++ b/content/handlers/html/redraw.c
+@@ -735,7 +735,7 @@
+ 			 */
+ 			if ((r.x0 >= r.x1) ||
+ 			    (r.y0 >= r.y1) ||
+-			    (nscss_color_is_transparent(bgcol) == false) ||
++			    ((bgcol >> 24) == 255) ||
+ 			    ((clip_box->background != NULL) &&
+ 			     content_get_opaque(clip_box->background)))
+ 				continue;
+@@ -1974,8 +1974,8 @@
+ 		/* clear to background colour */
+ 		result = (ctx->plot->clip(ctx, clip) == NSERROR_OK);
+ 
+-		if (html->background_colour != NS_TRANSPARENT)
+-			pstyle_fill_bg.fill_colour = html->background_colour;
++		/* The root box paints its own or the propagated body background.
++		 * Start on the embedding canvas so that partial alpha is applied once. */
+ 
+ 		result &= (ctx->plot->rectangle(ctx, &pstyle_fill_bg, clip) == NSERROR_OK);
+ 
+--- a/content/handlers/html/redraw_border.c
++++ b/content/handlers/html/redraw_border.c
+@@ -106,7 +106,7 @@
+ 	struct rect rect;
+ 
+ 	if (c == NS_TRANSPARENT) {
+-		return res;
++		return NSERROR_OK;
+ 	}
+ 
+ 	plot_style_bdr.stroke_type = PLOT_OP_TYPE_DASH;

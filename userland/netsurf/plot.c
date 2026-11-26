@@ -30,12 +30,18 @@ static void fill(struct page_raster *r, long x0, long y0, long x1, long y1, uint
     x1 = imin(x1, r->clip.x1);
     y0 = imax(y0, r->clip.y0);
     y1 = imin(y1, r->clip.y1);
-    if (x0 >= x1 || y0 >= y1)
+    unsigned alpha = rgb >> 24;
+    if (x0 >= x1 || y0 >= y1 || !alpha)
         return;
     for (long y = y0; y < y1; y++) {
         uint32_t *p = r->pixels + y * r->stride + x0;
-        for (long x = x0; x < x1; x++)
-            *p++ = rgb;
+        if (alpha == 255) {
+            for (long x = x0; x < x1; x++)
+                *p++ = rgb;
+        } else {
+            for (long x = x0; x < x1; x++)
+                page_blend(p++, rgb, alpha);
+        }
     }
 }
 
@@ -44,7 +50,7 @@ static void segment(struct page_raster *r, const plot_style_t *style, int x0, in
     if (style->stroke_type == PLOT_OP_TYPE_NONE || style->stroke_colour == NS_TRANSPARENT)
         return;
     long thick = imax(1, plot_style_fixed_to_int(style->stroke_width)), half = thick / 2;
-    uint32_t rgb = page_rgb(style->stroke_colour);
+    uint32_t rgb = ns_color_to_nscss(style->stroke_colour);
     bool horizontal = labs((long)x1 - x0) >= labs((long)y1 - y0);
     long a = horizontal ? x0 : y0, b = horizontal ? x1 : y1;
     long c = horizontal ? y0 : x0, d = horizontal ? y1 : x1;
@@ -92,7 +98,7 @@ static nserror line(const struct redraw_context *ctx, const plot_style_t *style,
 static nserror rectangle(const struct redraw_context *ctx, const plot_style_t *style, const struct rect *s)
 {
     if (style->fill_type != PLOT_OP_TYPE_NONE && style->fill_colour != NS_TRANSPARENT)
-        fill(ctx->priv, s->x0, s->y0, s->x1, s->y1, page_rgb(style->fill_colour));
+        fill(ctx->priv, s->x0, s->y0, s->x1, s->y1, ns_color_to_nscss(style->fill_colour));
     if (style->stroke_type != PLOT_OP_TYPE_NONE) {
         segment(ctx->priv, style, s->x0, s->y0, s->x1, s->y0);
         segment(ctx->priv, style, s->x1, s->y0, s->x1, s->y1);
@@ -113,11 +119,11 @@ static nserror disc(const struct redraw_context *ctx, const plot_style_t *s, int
         long dy = y - cy;
         long outer = (long)sqrt((double)radius * radius - (double)dy * dy);
         if (s->fill_type != PLOT_OP_TYPE_NONE && s->fill_colour != NS_TRANSPARENT)
-            fill(r, cx - outer, y, cx + outer + 1, y + 1, page_rgb(s->fill_colour));
+            fill(r, cx - outer, y, cx + outer + 1, y + 1, ns_color_to_nscss(s->fill_colour));
         if (s->stroke_type != PLOT_OP_TYPE_NONE && s->stroke_colour != NS_TRANSPARENT) {
             long cut = labs(dy) >= inner ? 0 : (long)sqrt((double)inner * inner - (double)dy * dy);
-            fill(r, cx - outer, y, cx - cut + 1, y + 1, page_rgb(s->stroke_colour));
-            fill(r, cx + cut, y, cx + outer + 1, y + 1, page_rgb(s->stroke_colour));
+            fill(r, cx - outer, y, cx - cut + 1, y + 1, ns_color_to_nscss(s->stroke_colour));
+            fill(r, cx + cut, y, cx + outer + 1, y + 1, ns_color_to_nscss(s->stroke_colour));
         }
     }
     return NSERROR_OK;
@@ -177,7 +183,7 @@ static nserror polygon(const struct redraw_context *ctx, const plot_style_t *s, 
         }
         qsort(hits, count, sizeof(*hits), compare_double);
         for (unsigned k = 1; k < count; k += 2)
-            fill(r, (long)ceil(hits[k - 1]), y, (long)ceil(hits[k]), y + 1, page_rgb(s->fill_colour));
+            fill(r, (long)ceil(hits[k - 1]), y, (long)ceil(hits[k]), y + 1, ns_color_to_nscss(s->fill_colour));
     }
     if (hits != local)
         free(hits);

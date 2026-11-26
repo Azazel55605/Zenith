@@ -86,10 +86,73 @@ static void enter_address(const char *address)
 }
 
 #include "start-tests.h"
+#include "sheet-media-tests.h"
+#include "color-tests.h"
+#include "jpeg-tests.h"
+#include "layout-tests.h"
+#include "math-tests.h"
+#include "flex-tests.h"
+#include "grid-areas-tests.h"
+#include "live-media-tests.h"
+#include "variables-tests.h"
+#include "published-layout.h"
+#include "find-layout-tests.h"
+
+static void check_page_source(void)
+{
+    /* The current tab contains the private bookmarks page. */
+    ui_action(&window, MENU_SOURCE);
+    assert(!window.source.bytes);
+    unsigned previous_connections = connections;
+    char path[] = "/tmp/nebula-source-XXXXXX.html";
+    int fd = mkstemps(path, 5);
+    assert(fd >= 0);
+    FILE *file = fdopen(fd, "wb");
+    assert(file);
+    static const char body[] = "<!-- <img src='https://never.invalid/a'> -->\r\n"
+                               "<title>Source snapshot</title><p>Caf\xc3\xa9</p>\n"
+                               "<!--\x00\xff\t";
+    assert(fwrite(body, 1, sizeof(body) - 1, file) == sizeof(body) - 1);
+    for (int i = 0; i < 200; i++) fputs("1234567890\n", file);
+    fputs("-->\n", file);
+    assert(fclose(file) == 0);
+    enter_address(path);
+    await_document("Source snapshot");
+    assert(unlink(path) == 0);
+    key(&window, &(struct zenith_gui_event){.type = Z_GUI_KEY, .code = 'u', .modifiers = 2});
+    assert(window.source.bytes && window.source.length == sizeof(body) - 1 + 2204 &&
+           !memcmp(window.source.bytes, body, sizeof(body) - 1));
+    struct zui_rect pr = page_rect();
+    render_page(&window, pr);
+    assert(window.source.rows > 200 && window.source.first == 0);
+    assert(W.page[0] == (0xff000000u | W.ui.theme.surface));
+    unsigned ink = 0;
+    for (int y = 40; y < 40 + zui_mono.height; y++)
+        for (int x = 12; x < pr.w - 12; x++)
+            ink += W.page[y * pr.w + x] != W.page[0];
+    assert(ink > 0);
+    key(&window, &(struct zenith_gui_event){.type = Z_GUI_KEY, .extra = 11});
+    assert(window.source.first == window.source.rows - source_page_rows(pr.h));
+    render_page(&window, pr);
+    struct gui_window *original = &window;
+    assert(new_tab(NEBULA_START_URL, true, NULL) != NULL);
+    await_document("Welcome to Nebula");
+    assert(&window != original && !window.source.bytes);
+    close_tab(W.active);
+    assert(&window == original && window.source.first > 0);
+    key(&window, &(struct zenith_gui_event){.type = Z_GUI_KEY, .extra = 1});
+    assert(!window.source.bytes && !strcmp(browser_window_get_title(window.browser), "Source snapshot"));
+    ui_action(&window, MENU_SOURCE);
+    assert(window.source.bytes);
+    enter_address(NEBULA_START_URL);
+    await_document("Welcome to Nebula");
+    assert(!window.source.bytes && !window.source.checkpoints && connections == previous_connections);
+    puts("PASS cached page source survives tab switches, wraps and scrolls as inert text, and excludes private pages");
+}
 
 int main(int argc, char **argv)
 {
-    assert(argc == 3);
+    assert(argc == 4 || argc == 6);
     resources = argv[1];
     window_ops.set_title = host_title;
     fetch_ops.get_resource_url = host_resource;
@@ -106,7 +169,8 @@ int main(int argc, char **argv)
     zui_init(&W.ui, starting_pixels, START_W, START_H);
 
     const char *page = "data:text/html,%3Ctitle%3ELocal%20test%3C/title%3E"
-                       "%3Cbody%20style%3D%27background%3A%23c7d4a5%27%3E"
+                       "%3Cbody%20style%3D%27background%3A%23c7d4a5%3Bmargin%3A0%3B"
+                       "border-right%3A6px%20solid%20%236c3185%27%3E"
                        "%3Ca%20href%3D%27https://fixture.invalid/%27%3EVisit%3C/a%3E%3C/body%3E";
     nsurl *url;
     assert(nsurl_create(page, &url) == NSERROR_OK);
@@ -119,6 +183,8 @@ int main(int argc, char **argv)
         .interactive = true, .background_images = true, .plot = &zenith_plotters, .priv = &raster};
     assert(browser_window_redraw(window.browser, 0, 0, &clip, &ctx));
     assert(starting_pixels[60 * START_W + 60] == 0xffc7d4a5);
+    /* A normal block's right border must fit on screen beside the tab rail. */
+    assert(starting_pixels[5 * START_W + page_rect().w - 3] == 0xff6c3185);
 
     enter_address("mailto:postmaster@localhost");
     assert(window.address_focus && strstr(window.status, "Unsupported address") && connections == 0);
@@ -140,6 +206,8 @@ int main(int argc, char **argv)
     pointer(&window, &(struct zenith_gui_event){.type = Z_GUI_UP, .code = 1, .x = link_x, .y = link_y});
     await_document("Error occurred fetching page");
     assert(connections == 1 && displayed_kind(&window) == PAGE_UNVERIFIED);
+    ui_action(&window, MENU_SOURCE);
+    assert(!window.source.bytes && connections == 1);
     size_t size = 0;
     const uint8_t *data = content_get_source_data(browser_window_get_content(window.browser), &size);
     assert(data && size);
@@ -150,6 +218,22 @@ int main(int argc, char **argv)
     await_document("Local test");
     assert(!window.address_focus);
     check_start();
+    check_jpeg_files(argv[3]);
+    check_page_source();
+    if (argc == 6 && *argv[4]) check_published_layout(argv[4]);
+    if (argc == 6 && *argv[5]) check_published_stylesheet(argv[5]);
+    check_stylesheet_media();
+    check_zoom_with_find();
+    check_color_syntax();
+    check_responsive_math();
+    check_layout_dpi();
+    check_grid_layout();
+    check_formatting_margins();
+    check_named_grid_areas();
+    check_flex_layout();
+    check_live_media();
+    check_css_variables();
+    check_find_across_reflow();
     browser_window_destroy(window.browser);
     netsurf_exit();
     nsoption_finalise(nsoptions, nsoptions_default);

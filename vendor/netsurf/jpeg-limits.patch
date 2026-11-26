@@ -1,0 +1,89 @@
+--- a/content/handlers/image/jpeg.c
++++ b/content/handlers/image/jpeg.c
+@@ -43,6 +43,7 @@
+ 
+ #define JPEG_INTERNAL_OPTIONS
+ #include "jpeglib.h"
++#include "jerror.h"
+ #include "jpeg.h"
+ 
+ /** absolute minimum size of a jpeg below which it is not even worth
+@@ -56,7 +57,18 @@
+ 
+ static char nsjpeg_error_buffer[JMSG_LENGTH_MAX];
+ 
+-static unsigned char nsjpeg_eoi[] = { 0xff, JPEG_EOI };
++/* Match the Zenith bitmap limit before allocating progressive coefficients
++ * or computing the upstream content cache's signed four-byte pixel count. */
++static void nsjpeg_read_header(j_decompress_ptr cinfo)
++{
++	jpeg_read_header(cinfo, TRUE);
++	if ((uint64_t)cinfo->image_width * cinfo->image_height > 8u * 1024u * 1024u) {
++		ERREXIT(cinfo, JERR_WIDTH_OVERFLOW);
++	}
++	/* The browser shares a 24 MiB arena with all tabs. The no-backing-store
++	 * allocator rejects progressive images that need more coefficient space. */
++	cinfo->mem->max_memory_to_use = 8L * 1024 * 1024;
++}
+ 
+ /**
+  * Content create entry point.
+@@ -96,14 +108,13 @@
+ /**
+  * JPEG data source manager: fill the input buffer.
+  *
+- * This can only occur if the JPEG data was truncated or corrupted. Insert a
+- * fake EOI marker to allow the decompressor to output as much as possible.
++ * The complete response is already in memory. A request for more input
++ * means that the file ended before its declared image was complete.
+  */
+ static boolean nsjpeg_fill_input_buffer(j_decompress_ptr cinfo)
+ {
+-	cinfo->src->next_input_byte = nsjpeg_eoi;
+-	cinfo->src->bytes_in_buffer = 2;
+- 	return TRUE;
++	ERREXIT(cinfo, JERR_INPUT_EOF);
++	return FALSE;
+ }
+ 
+ 
+@@ -287,7 +298,9 @@
+ 	/* handler for fatal errors during decompression */
+ 	if (setjmp(setjmp_buffer)) {
+ 		jpeg_destroy_decompress(&cinfo);
+-		return bitmap;
++		if (bitmap != NULL)
++			guit->bitmap->destroy(bitmap);
++		return NULL;
+ 	}
+ 
+ 	cinfo.client_data = &setjmp_buffer;
+@@ -299,7 +312,7 @@
+ 	cinfo.src = &source_mgr;
+ 
+ 	/* read JPEG header information */
+-	jpeg_read_header(&cinfo, TRUE);
++	nsjpeg_read_header(&cinfo);
+ 
+ 	/* set output processing parameters */
+ 	if (cinfo.jpeg_color_space == JCS_CMYK ||
+@@ -370,9 +383,8 @@
+ 		break;
+ 	}
+ 
++	jpeg_finish_decompress(&cinfo);
+ 	guit->bitmap->modified(bitmap);
+-
+-	jpeg_finish_decompress(&cinfo);
+ 	jpeg_destroy_decompress(&cinfo);
+ 
+ 	return bitmap;
+@@ -416,7 +428,7 @@
+ 	source_mgr.next_input_byte = (unsigned char *) data;
+ 	source_mgr.bytes_in_buffer = size;
+ 	cinfo.src = &source_mgr;
+-	jpeg_read_header(&cinfo, TRUE);
++	nsjpeg_read_header(&cinfo);
+ 	cinfo.out_color_space = JCS_RGB;
+ 	cinfo.dct_method = JDCT_ISLOW;
+ 

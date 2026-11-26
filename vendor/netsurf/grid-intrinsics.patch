@@ -1,0 +1,133 @@
+--- a/content/handlers/html/layout.c
++++ b/content/handlers/html/layout.c
+@@ -888,6 +888,7 @@
+ 	bool using_min_border_box = false;
+ 	bool using_max_border_box = false;
+ 	bool child_has_height = false;
++	bool grid = lh__box_is_grid(block);
+ 
+ 	assert(block->type == BOX_BLOCK ||
+ 			block->type == BOX_FLEX ||
+@@ -1013,7 +1014,9 @@
+ 				continue;
+ 			}
+ 
+-			if (lh__box_is_flex_container(block) &&
++			if (grid) {
++				/* Track sizes are resolved after all child contributions are known. */
++			} else if (lh__box_is_flex_container(block) &&
+ 			    lh__flex_main_is_horizontal(block)) {
+ 				if (block->style != NULL &&
+ 				    css_computed_flex_wrap(block->style) ==
+@@ -1035,6 +1038,7 @@
+ 			if (child_has_height)
+ 				block->flags |= HAS_HEIGHT;
+ 		}
++		if (grid) layout_grid_intrinsic(block, content, &min, &max);
+ 	}
+ 
+ 	if (max < min) {
+@@ -1043,7 +1047,8 @@
+ 	}
+ 
+ 	/* fixed width takes priority */
+-	if (block->type != BOX_TABLE_CELL && !lh__box_is_flex_item(block)) {
++	if (block->type != BOX_TABLE_CELL &&
++	    (!lh__box_is_flex_item(block) || lh__box_is_grid(block->parent))) {
+ 		bool border_box = bs == CSS_BOX_SIZING_BORDER_BOX;
+ 		enum css_max_width_e max_type;
+ 		enum css_min_width_e min_type;
+@@ -2597,7 +2602,7 @@
+ 	       b->type == BOX_FLEX ||
+ 	       b->type == BOX_INLINE_FLEX);
+ 	layout_float_find_dimensions(&content->unit_len_ctx, width, b->style, b);
+-	if (b->type == BOX_TABLE || b->type == BOX_INLINE_FLEX) {
++	if (b->type == BOX_TABLE || lh__box_is_flex_container(b)) {
+ 		if (b->type == BOX_TABLE) {
+ 			if (!layout_table(b, width, content))
+ 				return false;
+--- a/content/handlers/html/layout_internal.h
++++ b/content/handlers/html/layout_internal.h
+@@ -120,6 +120,17 @@
+ 	return b->type == BOX_FLEX ||
+ 	       b->type == BOX_INLINE_FLEX;
+ }
++
++/* Grid shares the flex box construction/normalization path. */
++static inline bool lh__box_is_grid(const struct box *box)
++{
++	if (!box || !lh__box_is_flex_container(box) || !box->style) return false;
++	uint8_t display = css_computed_display_static(box->style);
++	return display == CSS_DISPLAY_GRID || display == CSS_DISPLAY_INLINE_GRID;
++}
++
++void layout_grid_intrinsic(const struct box *grid, const html_content *content,
++		int *minimum, int *maximum);
+ 
+ /** Layout helper: Check whether box takes part in inline flow. */
+ static inline bool lh__box_is_flex_item(const struct box *b)
+--- a/content/handlers/html/box_construct.c
++++ b/content/handlers/html/box_construct.c
+@@ -626,6 +626,7 @@
+ 			case BOX_INLINE_FLEX:
+ 				box->type = BOX_FLEX;
+ 				break;
++			case BOX_INLINE:
+ 			case BOX_INLINE_BLOCK:
+ 				box->type = BOX_BLOCK;
+ 				break;
+--- a/content/handlers/html/layout_flex.c
++++ b/content/handlers/html/layout_flex.c
+@@ -1134,7 +1134,7 @@
+ 
+ 	layout_find_dimensions(
+ 			ctx->unit_len_ctx, available_width, -1,
+-			flex, flex->style, NULL, &flex->height,
++			flex, flex->style, NULL, lh__box_is_grid(flex->parent) ? NULL : &flex->height,
+ 			NULL, NULL, &max_height, &min_height,
+ 			flex->margin, flex->padding, flex->border);
+ 
+--- a/content/handlers/html/layout.c
++++ b/content/handlers/html/layout.c
+@@ -1052,6 +1052,7 @@
+ 		bool border_box = bs == CSS_BOX_SIZING_BORDER_BOX;
+ 		enum css_max_width_e max_type;
+ 		enum css_min_width_e min_type;
++		int authored_min = 0;
+ 		css_unit unit = CSS_UNIT_PX;
+ 		css_fixed value = 0;
+ 
+@@ -1068,6 +1069,11 @@
+ 			int val = FIXTOINT(css_unit_len2device_px(block->style,
+ 					&content->unit_len_ctx, value, unit));
+ 
++			authored_min = val;
++			if (max < val) {
++				max = val;
++				using_max_border_box = border_box;
++			}
+ 			if (min < val) {
+ 				min = val;
+ 				using_min_border_box = border_box;
+@@ -1079,7 +1085,8 @@
+ 			int val = FIXTOINT(css_unit_len2device_px(block->style,
+ 					&content->unit_len_ctx, value, unit));
+ 
+-			if (val >= 0 && max > val) {
++			val = max(authored_min, val);
++			if (max > val) {
+ 				max = val;
+ 				using_max_border_box = border_box;
+ 			}
+--- a/content/handlers/html/layout.c
++++ b/content/handlers/html/layout.c
+@@ -1189,6 +1189,9 @@
+ 			/* Check whether box is the box current margin collapses
+ 			 * to */
+ 			if (box->flags & MAKE_HEIGHT ||
++					/* An independent flex/grid formatting context
++					 * finishes the current margin chain. */
++					box->type == BOX_FLEX ||
+ 					box->border[TOP].width ||
+ 					box->padding[TOP] ||
+ 					(box->style &&

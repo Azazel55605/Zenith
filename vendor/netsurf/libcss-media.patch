@@ -1,0 +1,78 @@
+--- a/include/libcss/select.h
++++ b/include/libcss/select.h
+@@ -216,4 +216,9 @@
+ 		const css_stylesheet **sheet);
+ 
++/** Compare active sheet, import and nested media conditions at two viewports. */
++bool css_select_ctx_media_changed(const css_select_ctx *ctx,
++		const css_unit_ctx *old_units, const css_media *old_media,
++		const css_unit_ctx *new_units, const css_media *new_media);
++
+ css_error css_select_default_style(css_select_ctx *ctx,
+ 		css_select_handler *handler, void *pw,
+--- a/src/select/select.c
++++ b/src/select/select.c
+@@ -219,4 +219,57 @@
+ 
+ 	return CSS_OK;
++}
++
++#define IMPORT_STACK_SIZE 256
++
++/* Use the selector's own media matcher. Walk imports within the same depth
++ * limit as select_from_sheet; parsed @media ancestry is walked iteratively. */
++static bool rules_media_changed(const css_select_ctx *ctx, const css_rule *rule,
++		const css_unit_ctx *ou, const css_media *om,
++		const css_unit_ctx *nu, const css_media *nm, unsigned depth)
++{
++	while (rule != NULL) {
++		const css_mq_query *q = NULL;
++		if (rule->type == CSS_RULE_IMPORT)
++			q = ((const css_rule_import *)rule)->media;
++		else if (rule->type == CSS_RULE_MEDIA)
++			q = ((const css_rule_media *)rule)->media;
++		if (rule->type == CSS_RULE_IMPORT || rule->type == CSS_RULE_MEDIA) {
++			bool old = mq__list_match(q, ou, om, &ctx->str);
++			bool now = mq__list_match(q, nu, nm, &ctx->str);
++			if (old != now) return true;
++			if (now && rule->type == CSS_RULE_MEDIA) {
++				const css_rule *child = ((const css_rule_media *)rule)->first_child;
++				if (child != NULL) {
++					rule = child;
++					continue;
++				}
++			}
++			if (now && rule->type == CSS_RULE_IMPORT && depth < IMPORT_STACK_SIZE) {
++				const css_stylesheet *s = ((const css_rule_import *)rule)->sheet;
++				if (s && rules_media_changed(ctx, s->rule_list, ou, om,
++						nu, nm, depth + 1)) return true;
++			}
++		}
++		while (rule->next == NULL && rule->ptype == CSS_RULE_PARENT_RULE)
++			rule = rule->parent;
++		rule = rule->next;
++	}
++	return false;
++}
++
++bool css_select_ctx_media_changed(const css_select_ctx *ctx,
++		const css_unit_ctx *ou, const css_media *om,
++		const css_unit_ctx *nu, const css_media *nm)
++{
++	for (uint32_t i = 0; i < ctx->n_sheets; i++) {
++		const css_select_sheet *s = &ctx->sheets[i];
++		if (s->sheet->disabled) continue;
++		bool old = mq__list_match(s->media, ou, om, &ctx->str);
++		bool now = mq__list_match(s->media, nu, nm, &ctx->str);
++		if (old != now || (now && rules_media_changed(ctx, s->sheet->rule_list,
++				ou, om, nu, nm, 0))) return true;
++	}
++	return false;
+ }
+ 
+@@ -1725,5 +1778,4 @@
+ }
+ 
+-#define IMPORT_STACK_SIZE 256
+ 
+ css_error select_from_sheet(css_select_ctx *ctx, const css_stylesheet *sheet,

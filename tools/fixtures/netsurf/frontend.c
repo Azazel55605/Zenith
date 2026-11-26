@@ -49,6 +49,15 @@ static nsurl *loaded;
 const char *browser_window_get_title(struct browser_window *bw) { (void)bw; return "Fixture Page"; }
 struct hlcache_handle *browser_window_get_content(struct browser_window *bw) { (void)bw; return (struct hlcache_handle *)loaded; }
 nsurl *hlcache_handle_get_url(const struct hlcache_handle *h) { return (nsurl *)h; }
+content_status content_get_status(struct hlcache_handle *h) { (void)h; return CONTENT_STATUS_DONE; }
+content_type content_get_type(struct hlcache_handle *h) { (void)h; return CONTENT_HTML; }
+const uint8_t *content_get_source_data(struct hlcache_handle *h, size_t *size)
+{
+    static const uint8_t body[] = "<p>test</p>";
+    (void)h;
+    *size = sizeof(body) - 1;
+    return body;
+}
 nserror browser_window_get_features(struct browser_window *bw, int x, int y, struct browser_window_features *features)
 {
     (void)bw;
@@ -126,7 +135,7 @@ static void test_input(void)
     assert(browser_window_create(BW_CREATE_HISTORY, first, NULL, NULL, NULL)==NSERROR_OK);
     struct gui_window *g=active_tab();
     assert(g && W.count==1 && W.active==0);
-    const struct zui_rect pr = page_rect(), back = toolbar_button(0), forward = toolbar_button(1);
+    const struct zui_rect pr = page_rect(), back = toolbar_button(TB_BACK), forward = toolbar_button(TB_FORWARD);
     const int PX = pr.x + 30, PY = pr.y + 9;
     reset_address(g,g->current);
     pressed('l',0,2); assert(g->address_focus && g->select_address);
@@ -201,6 +210,18 @@ static void test_input(void)
     /* Only a link's address or a loading message shows in the pill; "Done" does not. */
     status(g,"Done (0.2s)"); assert(!pill_status(g)); status(g,"https://example.org/"); assert(pill_status(g));
 
+    /* The read-only source cannot dispatch to the link at this position on the underlying page. */
+    pressed('u', 0, 2);
+    assert(g->source.bytes && g->sy == 40);
+    unsigned prev_click = observed.click, prev_press = observed.press;
+    for (int button = 1; button <= 3; button++)
+        pointer(g, &(struct zenith_gui_event){.type = button == 1 ? Z_GUI_DOWN : Z_GUI_SECONDARY,
+                                               .code = button, .x = pr.x + 24, .y = pr.y + 16});
+    pointer(g, &(struct zenith_gui_event){.type = Z_GUI_UP, .code = 1, .x = pr.x + 24, .y = pr.y + 16});
+    assert(!W.popover && W.count == 1 && observed.click == prev_click && observed.press == prev_press);
+    ui_action(g, MENU_SOURCE);
+    assert(!g->source.bytes && g->sy == 40);
+
     /* Tabs: Ctrl+T opens the start page after the active tab with the address ready; Ctrl+Tab and Ctrl+1 switch;
      * each tab keeps its own scroll; Ctrl+W closes and Ctrl+Shift+T reopens; the last tab closes the window. */
     struct gui_window *first_tab = g;
@@ -229,8 +250,32 @@ static void test_input(void)
     pressed('t',0,2); assert(W.count==TABS_MAX);
     /* The sidebar folds to a rail in this 640 px window and hides with Ctrl+Shift+S; the inset follows. */
     assert(sidebar_width()==RAIL_W && content_rect().x==RAIL_W+24);
+    struct gui_window *tab = active_tab();
+    int viewport_w, viewport_h;
+    assert(dimensions(tab, &viewport_w, &viewport_h) == NSERROR_OK);
+    assert(viewport_w == START_W - RAIL_W - 36 && viewport_h == pr.h);
+    /* A focused element beyond the page's right edge must scroll into view,
+     * even if its coordinates would fit inside the outer window. */
+    tab->ex = START_W * 2;
+    tab->sx = 0;
+    struct rect target = {viewport_w - 4, 0, viewport_w + 20, 8};
+    assert(set_scroll(tab, &target) == NSERROR_OK && tab->sx == 20);
     pressed('s',0,3); assert(sidebar_width()==0 && content_rect().x==12);
+    assert(dimensions(tab, &viewport_w, &viewport_h) == NSERROR_OK && viewport_w == START_W - 24);
     pressed('s',0,3); assert(sidebar_width()==RAIL_W);
+    /* The engine lays pages out for the inset, not the window, in every sidebar state; the toolbar button
+     * toggles the sidebar like Ctrl+Shift+S. */
+    for (int round = 0; round < 3; round++) {
+        int lw = 0, lh = 0;
+        dimensions(active_tab(), &lw, &lh);
+        assert(lw == page_rect().w && lh == page_rect().h && lw == content_rect().w && lw < W.ui.width - 24 + 1);
+        ui_action(active_tab(), SIDEBAR_TOGGLE);
+    }
+    assert(sidebar_width()==0);
+    ui_action(active_tab(), SIDEBAR_TOGGLE); assert(sidebar_width()==RAIL_W);
+    W.ui.width = RAIL_BELOW;
+    assert(dimensions(tab, &viewport_w, &viewport_h) == NSERROR_OK && viewport_w == RAIL_BELOW - SIDEBAR_W - 36);
+    W.ui.width = START_W;
     while (W.count > 1) pressed('w',0,2);
     pressed('w',0,2); assert(W.done && W.count==0);
     puts("PASS address editing, UTF-8 deletion, cancel, navigation, history, reload, scroll, pointer dispatch, find, zoom, pill and tabs");

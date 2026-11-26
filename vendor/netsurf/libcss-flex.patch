@@ -1,0 +1,106 @@
+--- a/src/parse/properties/flex.c
++++ b/src/parse/properties/flex.c
+@@ -43,6 +43,7 @@
+ 	css_style *shrink_style;
+ 	css_style *basis_style;
+ 	bool short_auto = false;
++	int32_t after_first;
+ 	bool short_none = false;
+ 	enum flag_value flag_value;
+ 	bool match;
+@@ -91,6 +92,12 @@
+ 		return error;
+ 	}
+ 
++	/* "auto" alone is the keyword shorthand. In a sequence such as
++	 * "auto 2", it is just the basis; parse the factors normally. */
++	after_first = *ctx;
++	parserutils_vector_iterate(vector, &after_first);
++	consumeWhitespace(vector, &after_first);
++	const css_token *next = parserutils_vector_peek(vector, after_first);
+ 	/* Handle shorthand none, equivalent of flex: 0 0 auto; */
+ 	if ((token->type == CSS_TOKEN_IDENT) &&
+ 		(lwc_string_caseless_isequal(
+@@ -99,7 +106,8 @@
+ 		short_none = true;
+ 		parserutils_vector_iterate(vector, ctx);
+ 
+-	} else if ((token->type == CSS_TOKEN_IDENT) &&
++	} else if ((next == NULL || tokenIsChar(next, '!')) &&
++		(token->type == CSS_TOKEN_IDENT) &&
+ 		(lwc_string_caseless_isequal(
+ 			token->idata, c->strings[AUTO],
+ 			&match) == lwc_error_ok && match)) {
+@@ -119,18 +127,24 @@
+ 			goto css__parse_flex_cleanup;
+ 		}
+ 
+-		if ((grow) && 
+-			   (error = css__parse_flex_grow(c, vector,
+-				ctx, grow_style)) == CSS_OK) {
++		/* The two unitless factors form a pair. In "0 0 180px" the
++		 * second zero means no shrink, not a zero-pixel basis. */
++		if (grow && token->type == CSS_TOKEN_NUMBER &&
++		    (error = css__parse_flex_grow(c, vector, ctx, grow_style)) == CSS_OK) {
+ 			grow = false;
+-		} else if ((basis) && 
+-			   (error = css__parse_flex_basis(c, vector, 
+-				ctx, basis_style)) == CSS_OK) {
++			consumeWhitespace(vector, ctx);
++			token = parserutils_vector_peek(vector, *ctx);
++			if (token != NULL && token->type == CSS_TOKEN_NUMBER) {
++				error = css__parse_flex_shrink(c, vector, ctx, shrink_style);
++				if (error != CSS_OK)
++					goto css__parse_flex_cleanup;
++				shrink = false;
++			}
++		} else if (basis &&
++			   (error = css__parse_flex_basis(c, vector, ctx, basis_style)) == CSS_OK) {
+ 			basis = false;
+-		} else if ((shrink) && 
+-			   (error = css__parse_flex_shrink(c, vector, 
+-				ctx, shrink_style)) == CSS_OK) {
+-			shrink = false;
++		} else {
++			error = CSS_INVALID;
+ 		}
+ 
+ 		if (error == CSS_OK) {
+@@ -149,7 +163,7 @@
+ 		if (error != CSS_OK)
+ 			goto css__parse_flex_cleanup;
+ 
+-		css_fixed grow_num = short_auto ? INTTOFIX(1) : 0;
++		css_fixed grow_num = short_none ? 0 : INTTOFIX(1);
+ 		error = css__stylesheet_style_append(grow_style, grow_num);
+ 		if (error != CSS_OK)
+ 			goto css__parse_flex_cleanup;
+@@ -169,7 +183,7 @@
+ 
+ 	if (basis) {
+ 		/* Default is auto, but zero if grow or shrink are set */
+-		if (!grow || !shrink) {
++		if (!short_auto && !short_none) {
+ 			error = css__stylesheet_style_appendOPV(basis_style, 
+ 					CSS_PROP_FLEX_BASIS, 0,
+ 					FLEX_BASIS_SET);
+@@ -177,7 +191,7 @@
+ 				goto css__parse_flex_cleanup;
+ 
+ 			error = css__stylesheet_style_vappend(
+-					basis_style, 2, 0, UNIT_PX);
++					basis_style, 2, 0, UNIT_PCT);
+ 			if (error != CSS_OK)
+ 				goto css__parse_flex_cleanup;
+ 
+--- a/src/parse/properties/properties.h
++++ b/src/parse/properties/properties.h
+@@ -559,7 +559,7 @@
+ #define UNIT_MASK_BREAK_INSIDE          (0)
+ #define UNIT_MASK_COLUMN_COUNT          (0)
+ #define UNIT_MASK_COLUMN_FILL           (0)
+-#define UNIT_MASK_COLUMN_GAP            (UNIT_LENGTH)
++#define UNIT_MASK_COLUMN_GAP            (UNIT_LENGTH | UNIT_PCT)
+ #define UNIT_MASK_COLUMN_RULE_COLOR     (0)
+ #define UNIT_MASK_COLUMN_RULE_STYLE     (0)
+ #define UNIT_MASK_COLUMN_RULE_WIDTH     (UNIT_LENGTH)

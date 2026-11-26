@@ -2,16 +2,16 @@
 
 [Nebula](BROWSER.md) · [Tabs concept](../design/browser-tabs-concept.svg) · [First concept](../design/browser-concept.svg) · [Master roadmap](../ROADMAP.md)
 
-This plan answers the B5 question "a second window, or tabs" (requested 2026-11-26): tabs. It has not been accepted yet. Regenerate the sheet with `python3 tools/design/browser-tabs-concept.py`.
+Nebula implements B5 with tabs in a shared window. Regenerate the sheet with `python3 tools/design/browser-tabs-concept.py`.
 
-## Implemented (not yet released)
+## Implemented in the 0.2.0 source tag
 
 `userland/netsurf/frontend.c` implements T0–T3 and most of T4.
 
 **State and layout**
 - The process has one `struct nebula_window` holding up to 16 tabs; each tab is a `struct gui_window`.
 - The page renders into its own buffer only when the engine asks. Every frame lays out the workspace, the sidebar and the toolbar, then copies the page into the inset, keeping its rounded lower corners.
-- The window opens at 640×480 with the rail. A window 820 px or wider shows the full sidebar, and Ctrl+Shift+S or the menu hides it.
+- The window opens at 640×480 with the rail. A window 820 px or wider shows the full sidebar, and Ctrl+Shift+S, the menu, or the sidebar button at the start of the toolbar hides or shows it. The button is tinted while the sidebar shows.
 
 **Tabs**
 - New tab, close, switch, and all the keys in the table below.

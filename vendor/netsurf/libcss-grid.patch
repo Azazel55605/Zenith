@@ -1,0 +1,374 @@
+--- a/include/libcss/properties.h
++++ b/include/libcss/properties.h
+@@ -141,6 +141,20 @@
+ 	CSS_PROP_FILL_OPACITY			= 0x07c,
+ 	CSS_PROP_STROKE_OPACITY			= 0x07d,
+ 
++	CSS_PROP_GRID_TEMPLATE_COLUMNS,
++	CSS_PROP_GRID_TEMPLATE_ROWS,
++	CSS_PROP_GRID_COLUMN_START,
++	CSS_PROP_GRID_COLUMN_END,
++	CSS_PROP_GRID_ROW_START,
++	CSS_PROP_GRID_ROW_END,
++	CSS_PROP_GRID_AUTO_ROWS,
++	CSS_PROP_GRID_AUTO_COLUMNS,
++	CSS_PROP_GRID_TEMPLATE_AREAS,
++	CSS_PROP_GRID_AUTO_FLOW,
++	CSS_PROP_ROW_GAP,
++	CSS_PROP_JUSTIFY_ITEMS,
++	CSS_PROP_JUSTIFY_SELF,
++
+ 	CSS_N_PROPERTIES
+ };
+ 
+@@ -564,7 +578,8 @@
+ 	CSS_JUSTIFY_CONTENT_CENTER		= 0x3,
+ 	CSS_JUSTIFY_CONTENT_SPACE_BETWEEN	= 0x4,
+ 	CSS_JUSTIFY_CONTENT_SPACE_AROUND	= 0x5,
+-	CSS_JUSTIFY_CONTENT_SPACE_EVENLY	= 0x6
++	CSS_JUSTIFY_CONTENT_SPACE_EVENLY	= 0x6,
++	CSS_JUSTIFY_CONTENT_STRETCH		= 0x7
+ };
+ 
+ enum css_left_e {
+--- a/src/bytecode/opcodes.h
++++ b/src/bytecode/opcodes.h
+@@ -454,7 +454,8 @@
+ 	JUSTIFY_CONTENT_CENTER		= 0x0002,
+ 	JUSTIFY_CONTENT_SPACE_BETWEEN	= 0x0003,
+ 	JUSTIFY_CONTENT_SPACE_AROUND	= 0x0004,
+-	JUSTIFY_CONTENT_SPACE_EVENLY	= 0x0005
++	JUSTIFY_CONTENT_SPACE_EVENLY	= 0x0005,
++	JUSTIFY_CONTENT_STRETCH		= 0x0006
+ };
+ 
+ enum op_left {
+--- a/src/parse/important.c
++++ b/src/parse/important.c
+@@ -89,6 +89,19 @@
+ 		/* Advance past any property-specific data */
+ 		if (hasFlagValue(opv) == false) {
+ 			switch (op) {
++			case CSS_PROP_GRID_TEMPLATE_COLUMNS:
++			case CSS_PROP_GRID_TEMPLATE_ROWS:
++			case CSS_PROP_GRID_COLUMN_START:
++			case CSS_PROP_GRID_COLUMN_END:
++			case CSS_PROP_GRID_ROW_START:
++			case CSS_PROP_GRID_ROW_END:
++			case CSS_PROP_GRID_AUTO_ROWS:
++			case CSS_PROP_GRID_AUTO_COLUMNS:
++			case CSS_PROP_GRID_TEMPLATE_AREAS:
++			case CSS_PROP_GRID_AUTO_FLOW:
++				if (value != 0) offset++; /* interned grid value */
++				break;
++
+ 			case CSS_PROP_AZIMUTH:
+ 				if ((value & ~AZIMUTH_BEHIND) == AZIMUTH_ANGLE)
+ 					offset += 2; /* length + units */
+@@ -163,6 +176,7 @@
+ 			case CSS_PROP_HEIGHT:
+ 			case CSS_PROP_WIDTH:
+ 			case CSS_PROP_COLUMN_WIDTH:
++			case CSS_PROP_ROW_GAP:
+ 			case CSS_PROP_COLUMN_GAP:
+ 				assert(BOTTOM_SET == (enum op_bottom)LEFT_SET);
+ 				assert(BOTTOM_SET == (enum op_bottom)RIGHT_SET);
+--- a/src/parse/properties/properties.c
++++ b/src/parse/properties/properties.c
+@@ -158,7 +158,32 @@
+ 	css__parse_width,
+ 	css__parse_word_spacing,
+ 	css__parse_writing_mode,
+-	css__parse_z_index
++	css__parse_z_index,
++	css__parse_grid_template_columns,
++	css__parse_grid_template_rows,
++	css__parse_grid_column_start,
++	css__parse_grid_column_end,
++	css__parse_grid_row_start,
++	css__parse_grid_row_end,
++	css__parse_grid_auto_rows,
++	css__parse_grid_auto_columns,
++	css__parse_grid_template_areas,
++	css__parse_grid_auto_flow,
++	css__parse_row_gap,
++	css__parse_justify_items,
++	css__parse_justify_self,
++	css__parse_grid,
++	css__parse_grid_template,
++	css__parse_grid_area,
++	css__parse_gap,
++	css__parse_grid_row,
++	css__parse_grid_column,
++	css__parse_gap,
++	css__parse_column_gap,
++	css__parse_row_gap,
++	css__parse_place_items,
++	css__parse_place_self,
++	css__parse_place_content,
+ };
+ 
+ /** Mapping from property bytecode index to bytecode unit class mask. */
+--- a/src/parse/properties/properties.gen
++++ b/src/parse/properties/properties.gen
+@@ -203,6 +203,7 @@
+ column_fill:CSS_PROP_COLUMN_FILL IDENT:( INHERIT: INITIAL: REVERT: UNSET: BALANCE:0,COLUMN_FILL_BALANCE AUTO:0,COLUMN_FILL_AUTO IDENT:)
+ 
+ column_gap:CSS_PROP_COLUMN_GAP IDENT:( INHERIT: INITIAL: REVERT: UNSET: NORMAL:0,COLUMN_GAP_NORMAL IDENT:) LENGTH_UNIT:( UNIT_PX:COLUMN_GAP_SET RANGE:<0 MASK:UNIT_MASK_COLUMN_GAP LENGTH_UNIT:)
++row_gap:CSS_PROP_ROW_GAP IDENT:( INHERIT: INITIAL: REVERT: UNSET: NORMAL:0,COLUMN_GAP_NORMAL IDENT:) LENGTH_UNIT:( UNIT_PX:COLUMN_GAP_SET RANGE:<0 MASK:UNIT_MASK_COLUMN_GAP LENGTH_UNIT:)
+ 
+ column_rule_color:CSS_PROP_COLUMN_RULE_COLOR IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) COLOR:COLUMN_RULE_COLOR_SET
+ 
+@@ -218,11 +219,13 @@
+ 
+ box_sizing:CSS_PROP_BOX_SIZING IDENT:( INHERIT: INITIAL: REVERT: UNSET: CONTENT_BOX:0,BOX_SIZING_CONTENT_BOX BORDER_BOX:0,BOX_SIZING_BORDER_BOX IDENT:)
+ 
+-align_content:CSS_PROP_ALIGN_CONTENT IDENT:( INHERIT: INITIAL: REVERT: UNSET: STRETCH:0,ALIGN_CONTENT_STRETCH FLEX_START:0,ALIGN_CONTENT_FLEX_START FLEX_END:0,ALIGN_CONTENT_FLEX_END CENTER:0,ALIGN_CONTENT_CENTER SPACE_BETWEEN:0,ALIGN_CONTENT_SPACE_BETWEEN SPACE_AROUND:0,ALIGN_CONTENT_SPACE_AROUND SPACE_EVENLY:0,ALIGN_CONTENT_SPACE_EVENLY IDENT:)
+-
+-align_items:CSS_PROP_ALIGN_ITEMS IDENT:( INHERIT: INITIAL: REVERT: UNSET: STRETCH:0,ALIGN_ITEMS_STRETCH FLEX_START:0,ALIGN_ITEMS_FLEX_START FLEX_END:0,ALIGN_ITEMS_FLEX_END CENTER:0,ALIGN_ITEMS_CENTER BASELINE:0,ALIGN_ITEMS_BASELINE IDENT:)
+-
+-align_self:CSS_PROP_ALIGN_SELF IDENT:( INHERIT: INITIAL: REVERT: UNSET: STRETCH:0,ALIGN_SELF_STRETCH FLEX_START:0,ALIGN_SELF_FLEX_START FLEX_END:0,ALIGN_SELF_FLEX_END CENTER:0,ALIGN_SELF_CENTER BASELINE:0,ALIGN_SELF_BASELINE AUTO:0,ALIGN_SELF_AUTO IDENT:)
++align_content:CSS_PROP_ALIGN_CONTENT IDENT:( INHERIT: INITIAL: REVERT: UNSET: STRETCH:0,ALIGN_CONTENT_STRETCH FLEX_START:0,ALIGN_CONTENT_FLEX_START FLEX_END:0,ALIGN_CONTENT_FLEX_END CENTER:0,ALIGN_CONTENT_CENTER SPACE_BETWEEN:0,ALIGN_CONTENT_SPACE_BETWEEN SPACE_AROUND:0,ALIGN_CONTENT_SPACE_AROUND SPACE_EVENLY:0,ALIGN_CONTENT_SPACE_EVENLY BOX_START:0,ALIGN_CONTENT_FLEX_START BOX_END:0,ALIGN_CONTENT_FLEX_END NORMAL:0,ALIGN_CONTENT_STRETCH IDENT:)
++
++align_items:CSS_PROP_ALIGN_ITEMS IDENT:( INHERIT: INITIAL: REVERT: UNSET: STRETCH:0,ALIGN_ITEMS_STRETCH FLEX_START:0,ALIGN_ITEMS_FLEX_START FLEX_END:0,ALIGN_ITEMS_FLEX_END CENTER:0,ALIGN_ITEMS_CENTER BASELINE:0,ALIGN_ITEMS_BASELINE BOX_START:0,ALIGN_ITEMS_FLEX_START BOX_END:0,ALIGN_ITEMS_FLEX_END NORMAL:0,ALIGN_ITEMS_STRETCH SELF_START:0,ALIGN_ITEMS_FLEX_START SELF_END:0,ALIGN_ITEMS_FLEX_END IDENT:)
++justify_items:CSS_PROP_JUSTIFY_ITEMS IDENT:( INHERIT: INITIAL: REVERT: UNSET: STRETCH:0,CSS_ALIGN_ITEMS_STRETCH FLEX_START:0,CSS_ALIGN_ITEMS_FLEX_START FLEX_END:0,CSS_ALIGN_ITEMS_FLEX_END CENTER:0,CSS_ALIGN_ITEMS_CENTER BASELINE:0,CSS_ALIGN_ITEMS_BASELINE BOX_START:0,CSS_ALIGN_ITEMS_FLEX_START BOX_END:0,CSS_ALIGN_ITEMS_FLEX_END NORMAL:0,CSS_ALIGN_ITEMS_STRETCH SELF_START:0,CSS_ALIGN_ITEMS_FLEX_START SELF_END:0,CSS_ALIGN_ITEMS_FLEX_END IDENT:)
++
++align_self:CSS_PROP_ALIGN_SELF IDENT:( INHERIT: INITIAL: REVERT: UNSET: STRETCH:0,ALIGN_SELF_STRETCH FLEX_START:0,ALIGN_SELF_FLEX_START FLEX_END:0,ALIGN_SELF_FLEX_END CENTER:0,ALIGN_SELF_CENTER BASELINE:0,ALIGN_SELF_BASELINE AUTO:0,ALIGN_SELF_AUTO BOX_START:0,ALIGN_SELF_FLEX_START BOX_END:0,ALIGN_SELF_FLEX_END NORMAL:0,ALIGN_SELF_STRETCH SELF_START:0,ALIGN_SELF_FLEX_START SELF_END:0,ALIGN_SELF_FLEX_END IDENT:)
++justify_self:CSS_PROP_JUSTIFY_SELF IDENT:( INHERIT: INITIAL: REVERT: UNSET: STRETCH:0,CSS_ALIGN_SELF_STRETCH FLEX_START:0,CSS_ALIGN_SELF_FLEX_START FLEX_END:0,CSS_ALIGN_SELF_FLEX_END CENTER:0,CSS_ALIGN_SELF_CENTER BASELINE:0,CSS_ALIGN_SELF_BASELINE AUTO:0,CSS_ALIGN_SELF_AUTO BOX_START:0,CSS_ALIGN_SELF_FLEX_START BOX_END:0,CSS_ALIGN_SELF_FLEX_END NORMAL:0,CSS_ALIGN_SELF_STRETCH SELF_START:0,CSS_ALIGN_SELF_FLEX_START SELF_END:0,CSS_ALIGN_SELF_FLEX_END IDENT:)
+ 
+ flex_basis:CSS_PROP_FLEX_BASIS IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,FLEX_BASIS_AUTO CONTENT:0,FLEX_BASIS_CONTENT IDENT:) LENGTH_UNIT:( UNIT_PX:FLEX_BASIS_SET MASK:UNIT_MASK_FLEX_BASIS RANGE:<0 LENGTH_UNIT:)
+ 
+@@ -234,6 +237,6 @@
+ 
+ flex_wrap:CSS_PROP_FLEX_WRAP IDENT:( INHERIT: INITIAL: REVERT: UNSET: NOWRAP:0,FLEX_WRAP_NOWRAP WRAP_STRING:0,FLEX_WRAP_WRAP WRAP_REVERSE:0,FLEX_WRAP_WRAP_REVERSE IDENT:)
+ 
+-justify_content:CSS_PROP_JUSTIFY_CONTENT IDENT:( INHERIT: INITIAL: REVERT: UNSET: FLEX_START:0,JUSTIFY_CONTENT_FLEX_START FLEX_END:0,JUSTIFY_CONTENT_FLEX_END CENTER:0,JUSTIFY_CONTENT_CENTER SPACE_BETWEEN:0,JUSTIFY_CONTENT_SPACE_BETWEEN SPACE_AROUND:0,JUSTIFY_CONTENT_SPACE_AROUND SPACE_EVENLY:0,JUSTIFY_CONTENT_SPACE_EVENLY IDENT:)
++justify_content:CSS_PROP_JUSTIFY_CONTENT IDENT:( INHERIT: INITIAL: REVERT: UNSET: FLEX_START:0,JUSTIFY_CONTENT_FLEX_START FLEX_END:0,JUSTIFY_CONTENT_FLEX_END CENTER:0,JUSTIFY_CONTENT_CENTER SPACE_BETWEEN:0,JUSTIFY_CONTENT_SPACE_BETWEEN SPACE_AROUND:0,JUSTIFY_CONTENT_SPACE_AROUND SPACE_EVENLY:0,JUSTIFY_CONTENT_SPACE_EVENLY BOX_START:0,JUSTIFY_CONTENT_FLEX_START BOX_END:0,JUSTIFY_CONTENT_FLEX_END NORMAL:0,JUSTIFY_CONTENT_STRETCH STRETCH:0,JUSTIFY_CONTENT_STRETCH IDENT:)
+ 
+ order:CSS_PROP_ORDER IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) NUMBER:( true:ORDER_SET NUMBER:)
+--- a/src/parse/properties/properties.h
++++ b/src/parse/properties/properties.h
+@@ -21,6 +21,29 @@
+ 		css_style *result);
+ 
+ extern const css_prop_handler property_handlers[LAST_PROP + 1 - FIRST_PROP];
++
++css_error css__parse_grid_template_columns(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_grid_template_rows(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_grid_column_start(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_grid_column_end(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_grid_row_start(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_grid_row_end(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_grid_auto_rows(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_grid_auto_columns(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_grid_template_areas(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_grid_auto_flow(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_row_gap(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_justify_items(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_justify_self(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_grid(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_grid_template(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_grid_area(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_gap(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_grid_row(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_grid_column(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_place_items(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_place_self(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
++css_error css__parse_place_content(css_language *c, const parserutils_vector *v, int32_t *ctx, css_style *result);
+ 
+ css_error css__parse_align_content(css_language *c,
+ 		const parserutils_vector *vector, int32_t *ctx,
+--- a/src/parse/propstrings.c
++++ b/src/parse/propstrings.c
+@@ -233,6 +233,31 @@
+ 	SMAP("word-spacing"),
+ 	SMAP("writing-mode"),
+ 	SMAP("z-index"),
++	SMAP("grid-template-columns"),
++	SMAP("grid-template-rows"),
++	SMAP("grid-column-start"),
++	SMAP("grid-column-end"),
++	SMAP("grid-row-start"),
++	SMAP("grid-row-end"),
++	SMAP("grid-auto-rows"),
++	SMAP("grid-auto-columns"),
++	SMAP("grid-template-areas"),
++	SMAP("grid-auto-flow"),
++	SMAP("row-gap"),
++	SMAP("justify-items"),
++	SMAP("justify-self"),
++	SMAP("grid"),
++	SMAP("grid-template"),
++	SMAP("grid-area"),
++	SMAP("gap"),
++	SMAP("grid-row"),
++	SMAP("grid-column"),
++	SMAP("grid-gap"),
++	SMAP("grid-column-gap"),
++	SMAP("grid-row-gap"),
++	SMAP("place-items"),
++	SMAP("place-self"),
++	SMAP("place-content"),
+ 
+ 	SMAP("inherit"),
+ 	SMAP("unset"),
+@@ -474,6 +499,10 @@
+ 	SMAP("border-box"),
+ 	SMAP("stretch"),
+ 	SMAP("inline-flex"),
++	SMAP("start"),
++	SMAP("end"),
++	SMAP("self-start"),
++	SMAP("self-end"),
+ 	SMAP("flex-start"),
+ 	SMAP("flex-end"),
+ 	SMAP("space-between"),
+--- a/src/parse/propstrings.h
++++ b/src/parse/propstrings.h
+@@ -69,7 +69,12 @@
+ 	VERTICAL_ALIGN, VISIBILITY, VOICE_FAMILY, VOLUME, WHITE_SPACE, WIDOWS,
+ 	WIDTH, WORD_SPACING, WRITING_MODE, Z_INDEX,
+ 
+-	LAST_PROP = Z_INDEX,
++	GRID_TEMPLATE_COLUMNS, GRID_TEMPLATE_ROWS, GRID_COLUMN_START, GRID_COLUMN_END,
++	GRID_ROW_START, GRID_ROW_END, GRID_AUTO_ROWS, GRID_AUTO_COLUMNS,
++	GRID_TEMPLATE_AREAS, GRID_AUTO_FLOW, ROW_GAP, JUSTIFY_ITEMS, JUSTIFY_SELF,
++	GRID_SHORTHAND, GRID_TEMPLATE, GRID_AREA, GAP, GRID_ROW, GRID_COLUMN, GRID_GAP,
++	GRID_COLUMN_GAP, GRID_ROW_GAP, PLACE_ITEMS, PLACE_SELF, PLACE_CONTENT,
++	LAST_PROP = PLACE_CONTENT,
+ 
+ 	/* Other keywords */
+ 	INHERIT, UNSET, IMPORTANT, NONE, BOTH, FIXED, SCROLL, TRANSPARENT,
+@@ -107,7 +112,7 @@
+ 	LIBCSS_RIGHT, CURRENTCOLOR, ODD, EVEN, SRC, LOCAL, INITIAL, REVERT,
+ 	FORMAT, WOFF, TRUETYPE, OPENTYPE, EMBEDDED_OPENTYPE, SVG, COLUMN,
+ 	AVOID_PAGE, AVOID_COLUMN, BALANCE, HORIZONTAL_TB, VERTICAL_RL,
+-	VERTICAL_LR, CONTENT_BOX, BORDER_BOX, STRETCH, INLINE_FLEX, FLEX_START,
++	VERTICAL_LR, CONTENT_BOX, BORDER_BOX, STRETCH, INLINE_FLEX, BOX_START, BOX_END, SELF_START, SELF_END, FLEX_START,
+ 	FLEX_END, SPACE_BETWEEN, SPACE_AROUND, SPACE_EVENLY, ROW, ROW_REVERSE,
+ 	COLUMN_REVERSE, WRAP_STRING, WRAP_REVERSE, AND, OR, ONLY, INFINITE,
+ 	GRID, INLINE_GRID, STICKY,
+--- a/src/select/computed.c
++++ b/src/select/computed.c
+@@ -186,6 +186,27 @@
+ 	if (style->i.list_style_image != NULL)
+ 		lwc_string_unref(style->i.list_style_image);
+ 
++	if (style->i.grid_template_columns != NULL)
++		lwc_string_unref(style->i.grid_template_columns);
++	if (style->i.grid_template_rows != NULL)
++		lwc_string_unref(style->i.grid_template_rows);
++	if (style->i.grid_column_start != NULL)
++		lwc_string_unref(style->i.grid_column_start);
++	if (style->i.grid_column_end != NULL)
++		lwc_string_unref(style->i.grid_column_end);
++	if (style->i.grid_row_start != NULL)
++		lwc_string_unref(style->i.grid_row_start);
++	if (style->i.grid_row_end != NULL)
++		lwc_string_unref(style->i.grid_row_end);
++	if (style->i.grid_auto_rows != NULL)
++		lwc_string_unref(style->i.grid_auto_rows);
++	if (style->i.grid_auto_columns != NULL)
++		lwc_string_unref(style->i.grid_auto_columns);
++	if (style->i.grid_template_areas != NULL)
++		lwc_string_unref(style->i.grid_template_areas);
++	if (style->i.grid_auto_flow != NULL)
++		lwc_string_unref(style->i.grid_auto_flow);
++
+ 	if (style->i.background_image != NULL)
+ 		lwc_string_unref(style->i.background_image);
+ 
+--- a/src/select/dispatch.c
++++ b/src/select/dispatch.c
+@@ -522,5 +522,18 @@
+ 	{
+ 		PROPERTY_FUNCS(stroke_opacity),
+ 		1,
+-	}
++	},
++	{ PROPERTY_FUNCS(grid_template_columns), 0 },
++	{ PROPERTY_FUNCS(grid_template_rows), 0 },
++	{ PROPERTY_FUNCS(grid_column_start), 0 },
++	{ PROPERTY_FUNCS(grid_column_end), 0 },
++	{ PROPERTY_FUNCS(grid_row_start), 0 },
++	{ PROPERTY_FUNCS(grid_row_end), 0 },
++	{ PROPERTY_FUNCS(grid_auto_rows), 0 },
++	{ PROPERTY_FUNCS(grid_auto_columns), 0 },
++	{ PROPERTY_FUNCS(grid_template_areas), 0 },
++	{ PROPERTY_FUNCS(grid_auto_flow), 0 },
++	{ PROPERTY_FUNCS(row_gap), 0 },
++	{ PROPERTY_FUNCS(justify_items), 0 },
++	{ PROPERTY_FUNCS(justify_self), 0 },
+ };
+--- a/src/select/properties/justify_content.c
++++ b/src/select/properties/justify_content.c
+@@ -23,6 +23,9 @@
+ 
+ 	if (hasFlagValue(opv) == false) {
+ 		switch (getValue(opv)) {
++		case JUSTIFY_CONTENT_STRETCH:
++			value = CSS_JUSTIFY_CONTENT_STRETCH;
++			break;
+ 		case JUSTIFY_CONTENT_FLEX_START:
+ 			value = CSS_JUSTIFY_CONTENT_FLEX_START;
+ 			break;
+@@ -61,7 +64,7 @@
+ css_error css__initial_justify_content(css_select_state *state)
+ {
+ 	return set_justify_content(state->computed,
+-			CSS_JUSTIFY_CONTENT_FLEX_START);
++			CSS_JUSTIFY_CONTENT_STRETCH);
+ }
+ 
+ css_error css__copy_justify_content(
+--- a/src/select/properties/properties.h
++++ b/src/select/properties/properties.h
+@@ -22,6 +22,19 @@
+   css_error css__compose_##pname (const css_computed_style *parent, const css_computed_style *child, css_computed_style *result); \
+   uint32_t destroy_##pname (void *bytecode)
+ 
++PROPERTY_FUNCS(grid_template_columns);
++PROPERTY_FUNCS(grid_template_rows);
++PROPERTY_FUNCS(grid_column_start);
++PROPERTY_FUNCS(grid_column_end);
++PROPERTY_FUNCS(grid_row_start);
++PROPERTY_FUNCS(grid_row_end);
++PROPERTY_FUNCS(grid_auto_rows);
++PROPERTY_FUNCS(grid_auto_columns);
++PROPERTY_FUNCS(grid_template_areas);
++PROPERTY_FUNCS(grid_auto_flow);
++PROPERTY_FUNCS(row_gap);
++PROPERTY_FUNCS(justify_items);
++PROPERTY_FUNCS(justify_self);
+ PROPERTY_FUNCS(align_content);
+ PROPERTY_FUNCS(align_items);
+ PROPERTY_FUNCS(align_self);
+--- a/src/select/select_config.py
++++ b/src/select/select_config.py
+@@ -28,6 +28,8 @@
+     ('align_content', 3),
+     ('align_items', 3),
+     ('align_self', 3),
++    ('justify_items', 3),
++    ('justify_self', 3),
+     ('background_attachment', 2),
+     ('background_repeat', 3),
+     ('border_collapse', 2),
+@@ -85,6 +87,17 @@
+     ('font_size', 4, 'length', 'CSS_FONT_SIZE_DIMENSION'),
+     ('height', 2, 'length', 'CSS_HEIGHT_SET'),
+     ('line_height', 2, 'length', None, None, None, 'get'),
++    ('grid_template_columns', 1, 'string'),
++    ('grid_template_rows', 1, 'string'),
++    ('grid_column_start', 1, 'string'),
++    ('grid_column_end', 1, 'string'),
++    ('grid_row_start', 1, 'string'),
++    ('grid_row_end', 1, 'string'),
++    ('grid_auto_rows', 1, 'string'),
++    ('grid_auto_columns', 1, 'string'),
++    ('grid_template_areas', 1, 'string'),
++    ('grid_auto_flow', 1, 'string'),
++    ('row_gap', 2, 'length', 'CSS_COLUMN_GAP_SET', 'CSS_COLUMN_GAP_NORMAL'),
+     ('list_style_image', 1, 'string'),
+     ('margin_top', 2, 'length', 'CSS_MARGIN_SET'),
+     ('margin_right', 2, 'length', 'CSS_MARGIN_SET'),

@@ -1,0 +1,223 @@
+--- a/src/parse/language.c
++++ b/src/parse/language.c
+@@ -7,6 +7,7 @@
+ 
+ #include <assert.h>
+ #include <string.h>
++#include <strings.h>
+ 
+ #include <parserutils/utils/stack.h>
+ 
+@@ -347,6 +348,128 @@
+ 	return CSS_OK;
+ }
+ 
++/* A feature query tests the same property parser used by the cascade.  The
++ * temporary style never reaches the selector hash or the document. */
++static bool supports_word(const css_token *token, const char *word)
++{
++	return token && token->idata && lwc_string_length(token->idata) == strlen(word) &&
++			strncasecmp(lwc_string_data(token->idata), word, strlen(word)) == 0;
++}
++
++static const css_token *supports_peek(const parserutils_vector *v, int32_t *pos)
++{
++	consumeWhitespace(v, pos);
++	return parserutils_vector_peek(v, *pos);
++}
++
++static css_error supports_condition(css_language *c, const parserutils_vector *v,
++		int32_t *pos, unsigned depth, bool *matches);
++
++/* Copy this argument up to its matching ')'. The source vector retains
++ * ownership of the tokens, as it does during ordinary declaration parsing. */
++static css_error supports_argument(css_language *c, const parserutils_vector *v,
++		int32_t *pos, const css_token *property, bool selector, bool *matches)
++{
++	const css_token *t;
++	unsigned nested = 0;
++	parserutils_vector *arg;
++	parserutils_error perr = parserutils_vector_create(sizeof(css_token), 8, &arg);
++	if (perr != PARSERUTILS_OK) return css_error_from_parserutils_error(perr);
++	css_error err = CSS_INVALID;
++	bool list = false;
++	while ((t = parserutils_vector_iterate(v, pos)) != NULL) {
++		if (tokenIsChar(t, ')')) {
++			if (nested == 0) {
++				int32_t first = 0;
++				consumeWhitespace(arg, &first);
++				if (property) {
++					err = parseProperty(c, property, arg, &first, NULL);
++				} else if (selector && !list && parserutils_vector_peek(arg, first)) {
++					css_rule *rule;
++					err = css__stylesheet_rule_create(c->sheet, CSS_RULE_SELECTOR, &rule);
++					if (err == CSS_OK) {
++						err = parseSelectorList(c, arg, rule);
++						css__stylesheet_rule_destroy(c->sheet, rule);
++					}
++				}
++				*matches = (err == CSS_OK);
++				if (err == CSS_INVALID) err = CSS_OK;
++				break;
++			}
++			nested--;
++		} else if (t->type == CSS_TOKEN_FUNCTION || tokenIsChar(t, '(')) {
++			nested++;
++		} else if (nested == 0 && tokenIsChar(t, ',')) {
++			list = true;
++		}
++		css_token copy = *t;
++		perr = parserutils_vector_append(arg, &copy);
++		if (perr != PARSERUTILS_OK) {
++			err = css_error_from_parserutils_error(perr);
++			break;
++		}
++	}
++	parserutils_vector_destroy(arg);
++	return err;
++}
++
++static css_error supports_operand(css_language *c, const parserutils_vector *v,
++		int32_t *pos, unsigned depth, bool *matches)
++{
++	const css_token *open = supports_peek(v, pos);
++	if (!open || depth > 32) return CSS_INVALID;
++	parserutils_vector_iterate(v, pos);
++	if (open->type == CSS_TOKEN_FUNCTION)
++		return supports_argument(c, v, pos, NULL, supports_word(open, "selector"), matches);
++	if (!tokenIsChar(open, '(')) return CSS_INVALID;
++	const css_token *first = supports_peek(v, pos);
++	if (!first) return CSS_INVALID;
++	if (first->type == CSS_TOKEN_IDENT) {
++		int32_t after = *pos + 1;
++		const css_token *colon = supports_peek(v, &after);
++		if (colon && tokenIsChar(colon, ':')) {
++			*pos = after + 1;
++			return supports_argument(c, v, pos, first, false, matches);
++		}
++		if (!supports_word(first, "not"))
++			return supports_argument(c, v, pos, NULL, false, matches);
++	}
++	/* Future syntax inside a balanced parenthesized block evaluates false. */
++	if (first->type != CSS_TOKEN_FUNCTION && !tokenIsChar(first, '(') &&
++			!supports_word(first, "not"))
++		return supports_argument(c, v, pos, NULL, false, matches);
++	css_error err = supports_condition(c, v, pos, depth + 1, matches);
++	if (err != CSS_OK) return err;
++	const css_token *close = supports_peek(v, pos);
++	if (!close || !tokenIsChar(close, ')')) return CSS_INVALID;
++	(*pos)++;
++	return CSS_OK;
++}
++
++static css_error supports_condition(css_language *c, const parserutils_vector *v,
++		int32_t *pos, unsigned depth, bool *matches)
++{
++	const css_token *t = supports_peek(v, pos);
++	if (t && t->type == CSS_TOKEN_IDENT && supports_word(t, "not")) {
++		(*pos)++;
++		css_error err = supports_operand(c, v, pos, depth, matches);
++		if (err == CSS_OK) *matches = !*matches;
++		return err;
++	}
++	css_error err = supports_operand(c, v, pos, depth, matches);
++	const char *operator = NULL;
++	while (err == CSS_OK && (t = supports_peek(v, pos)) && t->type == CSS_TOKEN_IDENT) {
++		if (!operator) operator = supports_word(t, "and") ? "and" : "or";
++		if (!supports_word(t, operator)) return CSS_INVALID;
++		(*pos)++;
++		bool operand;
++		err = supports_operand(c, v, pos, depth, &operand);
++		if (err == CSS_OK) *matches = (*operator == 'a') ? *matches && operand : *matches || operand;
++	}
++	return err;
++}
++
++
+ css_error handleStartAtRule(css_language *c, const parserutils_vector *vector)
+ {
+ 	parserutils_error perror;
+@@ -362,6 +485,7 @@
+ 
+ 	assert(c != NULL);
+ 
++	consumeWhitespace(vector, &ctx);
+ 	atkeyword = parserutils_vector_iterate(vector, &ctx);
+ 
+ 	consumeWhitespace(vector, &ctx);
+@@ -539,13 +663,23 @@
+ 		} else {
+ 			return CSS_INVALID;
+ 		}
+-	} else if (lwc_string_caseless_isequal(atkeyword->idata, c->strings[MEDIA],
+-			&match) == lwc_error_ok && match) {
++	} else if (supports_word(atkeyword, "media") || supports_word(atkeyword, "supports")) {
+ 		css_mq_query *media = NULL;
+-
+-		/* any0 = media query */
+-		error = css__mq_parse_media_list(
+-				c->strings, vector, &ctx, &media);
++		context_entry *parent = parserutils_stack_get_current(c->context);
++		css_rule *group = parent ? parent->data : NULL;
++
++		if (supports_word(atkeyword, "supports")) {
++			bool supported = false;
++			error = supports_condition(c, vector, &ctx, 0, &supported);
++			if (error != CSS_OK) return error;
++			if (supports_peek(vector, &ctx)) return CSS_INVALID;
++			media = calloc(1, sizeof(*media));
++			if (!media) return CSS_NOMEM;
++			media->type = CSS_MEDIA_ALL;
++			media->negate_type = !supported;
++		} else {
++			error = css__mq_parse_media_list(c->strings, vector, &ctx, &media);
++		}
+ 		if (error != CSS_OK)
+ 			return error;
+ 
+@@ -563,7 +697,7 @@
+ 			return error;
+ 		}
+ 
+-		error = css__stylesheet_add_rule(c->sheet, rule, NULL);
++		error = css__stylesheet_add_rule(c->sheet, rule, group);
+ 		if (error != CSS_OK) {
+ 			css__stylesheet_rule_destroy(c->sheet, rule);
+ 			return error;
+@@ -716,6 +850,8 @@
+ 	if (rule != NULL && rule->ptype != CSS_RULE_PARENT_STYLESHEET) {
+ 		if (rule->type == CSS_RULE_SELECTOR)
+ 			return handleEndRuleset(c, vector);
++		if (rule->type == CSS_RULE_MEDIA)
++			return handleEndAtRule(c, vector);
+ 	}
+ 
+ 	return CSS_OK;
+@@ -742,7 +878,13 @@
+ 		return CSS_INVALID;
+ 
+ 	if (rule->type == CSS_RULE_MEDIA) {
+-		/* Expect rulesets */
++		int32_t pos = 0;
++		const css_token *first = vector ? supports_peek(vector, &pos) : NULL;
++		if (first && first->type == CSS_TOKEN_ATKEYWORD) {
++			if (!supports_word(first, "supports") && !supports_word(first, "media"))
++				return CSS_INVALID;
++			return handleStartAtRule(c, vector);
++		}
+ 		return handleStartRuleset(c, vector);
+ 	} else {
+ 		/* Expect declarations */
+@@ -1898,6 +2040,12 @@
+ 		return CSS_INVALID;
+ 	}
+ 
++	/* A feature query only needs the parser's verdict. */
++	if (rule == NULL) {
++		css__stylesheet_style_destroy(style);
++		return CSS_OK;
++	}
++
+ 	/* If it's important, then mark the style appropriately */
+ 	if (flags != 0)
+ 		css__make_style_important(style);

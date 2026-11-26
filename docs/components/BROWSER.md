@@ -6,11 +6,11 @@ Nebula is Zenith's browser. Its About credits the engine as "powered by NetSurf"
 
 ## Current port
 
-The tagged `zenith-netsurf/v0.1.0` package supplies Nebula's native window, built on NetSurf 3.11. Kernel 0.0.81 limits that version to six connection attempts per process. The updated browser requires `zenith-native-browser-network-abi` 1.0 and the standard `zenith-icons` package for its navigation and page-security controls. A live interactive window can keep opening connections as it browses. Requests run one at a time, with an 8 MiB response limit.
+The `zenith-netsurf/v0.2.0` source tag adds sidebar tabs and per-user bookmarks and history to the NetSurf 3.11 port. The matching kernel tag is `kernel/v0.0.82`. The browser requires `zenith-native-browser-network-abi` 1.0 and the standard `zenith-icons` package for its navigation and page-security controls. A live interactive window can keep opening connections as it browses. Requests run one at a time, with an 8 MiB response limit.
 
 In an installed QEMU guest, the same HTTP page displayed four of its twelve external images on kernel 0.0.81 and all twelve on the development build. The browser then followed a verified HTTPS link in the same window. A separate public-site check on Google’s German homepage showed the logo, search field and accented button text. Submitting a search in that guest led to Google’s `/httpservice/retry/enablejs` page. JavaScript is disabled in this build. NetSurf’s CSS support also limits how closely some pages match their intended layout.
 
-## The proposal
+## Design
 
 The engine draws the page with the site's own CSS. Zenith draws everything around the page.
 
@@ -63,9 +63,9 @@ The frontend draws the window controls in `userland/netsurf/frontend.c`. The hos
 Differences from the concept:
 - Page info leaves out cookies.
 - Find has no match count.
-- Error pages are still the engine's. Page source, a second window, tabs and saving downloads remain open.
+- Error pages use the engine’s templates. Saving downloads remains open under B6/N3.
 
-The window may open at 640×480 at most (kernel limit) and grows after. The kernel refuses a program file that differs from its installed package, so test each build by installing it.
+The window opens at 640×480 with the tab rail. At 820 px wide it shows the full sidebar. The kernel refuses a program file that differs from its installed package, so test each build by installing it.
 
 ## Stages
 
@@ -75,12 +75,33 @@ The window may open at 640×480 at most (kernel limit) and grows after. The kern
 | B2 | States: error pages from packaged HTML, connection security, file-link card, Page info | B1 |
 | B3 | Menu, find bar, zoom, page source; link menu (Open, Open in new window, Copy address) | B1 |
 | B4 | Per-user bookmarks and history; start page and suggestions use them | B3 |
-| B5 | New window as a second browser process; decide whether to add tabs | kernel |
+| B5 | Sidebar tabs with independent navigation, focus and scroll. Remaining work is listed in the [tab plan](BROWSER-TABS.md). | B1, B4 |
 | B6 | Save to Downloads and a downloads list | N3 |
+
+## Page compatibility after 0.2.0
+
+The development build displays JPEG images and sizes the document to the available page inset as the sidebar changes. Ctrl+U or **View page source** displays the cached text of the active document. Escape returns to the page at its previous scroll position. The browser keeps its private start page and internal error documents out of the source viewer.
+
+The signed candidate rendered twelve PNGs and one JPEG from the same HTTP page in an installed QEMU guest. Opening the source displayed an HTML comment that was invisible on the page. Returning to the page issued no new requests. HTTPS navigation, saved bookmarks across restart and the independent ext2 audit passed.
+
+### Responsive layouts
+
+Hiding the rail, resizing the window or zooming can cross a stylesheet breakpoint. Nebula updates the open document and its live background tabs at their new viewport sizes. The browser retains form edits, caret position, decoded images and navigation history. Find refreshes its matches against the visible text. A sheet can express conditions in `@media`, an HTML `media` attribute or nested `@supports` groups. Viewport width, height, orientation and aspect ratio use CSS units.
+
+Grid supports explicit and implicit tracks, fractional sizes, percentages, `minmax()`, `fit-content()`, fixed and automatic repetition, named lines and areas, spans, gaps, row/column auto-placement and dense packing. `place-content`, `place-items` and `place-self` set alignment on both axes. Flexbox handles wrapping, gaps, reverse directions and main/cross-axis alignment. CSS custom properties inherit through the document and can supply colors and track lists. Widths, their minimums and maximums, and Grid tracks can mix lengths and percentages with `calc()`, `min()`, `max()` and `clamp()`. RGB, HSL and hex colors retain alpha when painted over other content.
+
+The host rendering tests compare exact item positions and sizes and exercise repeated breakpoint crossings with an edited form. At 90 DPI, both `240px` and `calc(120px + 120px)` paint 225 device pixels. At 144 DPI both paint 360. The published MDN mobile-first example showed one, two and three cards per row as the same page moved through 400, 920 and 1440 CSS pixels, then returned to one at 400. To repeat this check, save the unmodified HTML and pass its local path to `python3 -B tools/netsurf/test-frontend.py --mdn-responsive-page PATH`. [MDN responsive example](https://github.com/mdn/css-examples/blob/main/learn/media-queries/grid.html)
+
+A second host check uses the published Simple.css stylesheet unchanged on an article. Its full-width header picks up the inherited theme color. The article’s middle Grid track measures 360 px in a 400 px viewport and 720 px in a 1200 px viewport with a 16 px root font. A local copy of the full Simple.css demo, with both of its stylesheets, produced the same measurements when resized in both directions. Pass the downloaded main sheet to the fixture runner with `--simplecss-stylesheet PATH`. [Simple.css demo](https://simplecss.org/demo/) · [Stylesheet](https://cdn.simplecss.org/simple.css)
+
+The installed QEMU smoke test types into an HTTP form, hides and shows the rail, maximizes and restores the native window, counts the rendered Grid columns and submits the original draft. It also opens Find, zooms across a breakpoint and resets zoom while measuring the size of a `rem` element. The fixture server checks that these actions issue no new HTTP requests.
+
+### Compatibility work still open
+
+Subgrid, container queries, vertical-writing Grid layout, CSS transforms, rounded borders and box shadows remain open. CSS math outside the supported dimensions needs separate layout integration. Sites that build their page in JavaScript still need the separate scripting stage. Begin that stage with opt-in local execution, DOM updates, event delivery, an execution time limit and teardown on navigation and tab close.
 
 ## Open decisions
 
-- Windows only, or tabs with independent navigation and focus.
 - A default search engine, or addresses only.
 - Keep cookies between sessions, or only while the window is open.
 - Certificate override: never, or behind Details.

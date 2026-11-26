@@ -8,6 +8,7 @@ import http.server
 import importlib.util
 import io
 import json
+import math
 from pathlib import Path
 from statistics import median
 import subprocess
@@ -15,15 +16,24 @@ import sys
 import threading
 import time
 
-from PIL import Image, ImageChops
+from PIL import Image, ImageChops, ImageDraw, ImageFont
 import boot_image
 import guest_cpu_frame
+import guest_netsurf_jpeg
 import guest_netsurf_png
 from tls_fixture import certificates, context
 
 ROOT = Path(__file__).resolve().parents[1]
 GLYPH_SAMPLES = (("?", "3f385f"), ("Ü", "3b4963"), ("ä", "4f445a"), ("©", "3c4e4b"))
 PAGE_EDGE = "7c306e"
+SOURCE_COMMENT = "<!-- SOURCE-7F18 -->"
+RESPONSIVE_COLORS = ("304f93", "913455", "24714d")
+FIELD_COLOR = "d5be77"
+REM_COLOR = "8d5530"
+MEASURE_COLOR = "5b3047"
+GAP_COLOR = "487b26"
+GRID_COLORS = ("265d78", "72863a", "aa4e28")
+CARD_COLORS = ("43555f", "109820", "b05d3f")
 
 
 def load(name, filename):
@@ -63,7 +73,8 @@ def fixture_file(directory, filename, color, title, label, target=None, external
     else:
         style = f"<style>{css}</style>"
     element = f'<a class="swatch" href="{target}">{label}</a>' if target else f'<p class="swatch">{label}</p>'
-    (directory / filename).write_text(f'<!doctype html><html><head><meta charset="utf-8"><title>{title}</title>{style}</head>'
+    comment = SOURCE_COMMENT + "\n" if external else ""
+    (directory / filename).write_text(comment + f'<!doctype html><html><head><meta charset="utf-8"><title>{title}</title>{style}</head>'
                                       f'<body><h1>{title}</h1>{element}'
                                       f'{extra_html}</body></html>\n')
 
@@ -74,10 +85,203 @@ def glyph_examples():
     return f'<table style="font:20px monospace;color:white;text-align:center"><tr>{cells}</tr></table>'
 
 
+def responsive_fixture(served):
+    narrow, medium, wide = RESPONSIVE_COLORS
+    (served / "responsive.html").write_text(
+        '<!doctype html><meta charset="utf-8"><title>Responsive form</title>'
+        '<link rel="stylesheet" href="/responsive.css"><form action="/submitted.html" method="get">'
+        '<div class="field"><input aria-label="Draft" name="draft" autocomplete="off"></div>'
+        '<button type="submit">Submit responsive form</button></form>'
+        '<div class="grid">' + ''.join(f'<div style="background:#{color}"></div>' for color in GRID_COLORS) + '</div>'
+        '<div class="cards"><div class="first"></div><div class="second"></div><div class="third"></div></div>'
+        '<div class="rem"></div><div class="measure"></div><div class="gap-reference"></div>')
+    (served / "responsive.css").write_text(
+        f'html{{border-top:3px solid #{PAGE_EDGE}}} body{{margin:24px}}'
+        f'.field{{width:270px;padding:10px;background:#{FIELD_COLOR}}} input{{width:200px;height:24px}}'
+        f'button{{display:block;width:240px;height:60px;color:white;background:#{narrow};'
+        'font:bold 18px sans-serif;border:0;margin-top:12px}'
+        f'@media (min-width:620px){{button{{width:300px;background:#{medium}}}}}'
+        f'@media (min-width:900px){{button{{width:360px;background:#{wide}}}}}'
+        '.grid{display:grid;grid-template-columns:1fr 2fr;width:calc(120px + 120px);margin-top:8px}'
+        '.grid>div{height:16px}'
+        ':root{--card-tracks:repeat(auto-fit,minmax(270px,1fr));--first-tint:red;--brand:120deg 100% 50%;'
+        f'--third-tint:#{CARD_COLORS[2]}}}'
+        '.cards{display:grid;grid-template-columns:var(--card-tracks);'
+        '--first-tint:rgb(207 232 220 / 20%);gap:16px;background:#203040;margin-top:12px}'
+        '.cards>div{height:12px}.first{background-color:var(--first-tint)}'
+        '.second{background-color:var(--unset-tint,hsl(var(--brand) / 50%))}'
+        '.third{background-color:var(--third-tint)}'
+        f'html{{font-size:20px}} .rem{{width:2rem;height:6px;background:#{REM_COLOR}}}'
+        '@media(min-width:620px){html{font-size:30px}}'
+        f'.measure{{width:240px;height:12px;background:#{MEASURE_COLOR}}}'
+        f'.gap-reference{{width:16px;height:16px;background:#{GAP_COLOR}}}')
+    fixture_file(served, "submitted.html", "975414", "Submitted form", "Draft received")
+
+
+def check_responsive(mouse, monitor, inputs, login, click, keep, origin, requests):
+    inputs.monitor_text(monitor, "sendkey ctrl-l 50")
+    login.monitor_type(monitor, origin + "/responsive.html\n")
+
+    def observe(name, layout):
+        color = RESPONSIVE_COLORS[layout]
+        submit = rendered_swatch(mouse, keep, name, color)
+        with Image.open(keep / (name + ".png")) as frame:
+            edge = color_mask(frame, bytes.fromhex(PAGE_EDGE)).getbbox()
+            field = color_mask(frame, bytes.fromhex(FIELD_COLOR)).getbbox()
+            button = color_mask(frame, bytes.fromhex(color)).getbbox()
+            cards = [color_mask(frame, bytes.fromhex(c)).getbbox() for c in CARD_COLORS]
+            if not all(cards):
+                raise RuntimeError(f"Missing responsive Grid cards or alpha blend on {name}: {cards}")
+            previous_row = color_mask(frame, bytes.fromhex(GRID_COLORS[2])).getbbox()
+            measure = color_mask(frame, bytes.fromhex(MEASURE_COLOR)).getbbox()
+            gap = color_mask(frame, bytes.fromhex(GAP_COLOR)).getbbox()
+            # The clean Zenith profile uses 90 DPI, giving 225 device pixels for
+            # 240 CSS px. Compare spaces against independent, plainly sized boxes.
+            if (not measure or measure[2] - measure[0] != 225 or not gap or
+                    (gap[2] - gap[0], gap[3] - gap[1]) != (15, 15)):
+                raise RuntimeError(f"Missing 90-DPI CSS length references on {name}: {measure}, {gap}")
+            if not previous_row or cards[0][1] - previous_row[3] != measure[3] - measure[1]:
+                raise RuntimeError(f"Adjacent Grid containers lost their 12px margin on {name}: {previous_row}, {cards[0]}")
+            for i, card in enumerate(cards):
+                columns = layout + 1
+                col = i % columns
+                if col:
+                    if card[0] != cards[i - 1][2] + gap[2] - gap[0] or card[1] != cards[i - 1][1]:
+                        raise RuntimeError(f"Unexpected Grid column geometry on {name}: {cards}")
+                elif i and (card[0] != cards[0][0] or card[1] != cards[i-columns][3] + gap[3] - gap[1]):
+                    raise RuntimeError(f"Unexpected Grid row geometry on {name}: {cards}")
+        if not edge or not field or not button:
+            raise RuntimeError(f"Missing page edge or responsive form on {name}")
+        return submit, edge, field, button[2] - button[0]
+
+    _, original, field, narrow = observe("form-rail", 0)
+    if requests.count("/responsive.html") != 1 or requests.count("/responsive.css") != 1:
+        raise RuntimeError("Expected a single initial request for the form and its stylesheet")
+    before = requests.copy()
+    click(field[0] + 40, (field[1] + field[3]) // 2)
+    login.monitor_type(monitor, "preserved")
+    inputs.monitor_text(monitor, "sendkey ctrl-shift-s 50")
+    _, hidden, _, middle = observe("form-hidden", 1)
+
+    # Find overlays the bottom of the page. Observe it before changing zoom,
+    # then require both the new media colour and the scaled root-relative width.
+    with Image.open(keep / "form-hidden.png") as baseline:
+        overlay_area = (hidden[0] + 8, hidden[1] + 360, hidden[2] - 8, hidden[1] + 398)
+        baseline_strip = baseline.crop(overlay_area)
+    def find_visible(frame):
+        changed = ImageChops.difference(frame.crop(overlay_area), baseline_strip).convert("L").histogram()
+        return sum(changed[12:]) > baseline_strip.width * baseline_strip.height // 3
+    def rem_width(frame):
+        marker = color_mask(frame, bytes.fromhex(REM_COLOR)).getbbox()
+        return marker[2] - marker[0] if marker else 0
+    # A rem follows the browser's configured DPI. Use the actual narrow and
+    # wide root sizes; the unit test also pins results at exactly 96 DPI.
+    with Image.open(keep / "form-rail.png") as frame:
+        narrow_rem = rem_width(frame)
+    with Image.open(keep / "form-hidden.png") as frame:
+        wide_rem = rem_width(frame)
+    if narrow_rem <= 0 or abs(wide_rem - 1.5 * narrow_rem) > 1.5:
+        raise RuntimeError(f"2rem did not track the 20px and 30px root styles: {narrow_rem}, {wide_rem}")
+    inputs.monitor_text(monitor, "sendkey ctrl-f 50")
+    rendered_swatch(mouse, keep, "form-find", RESPONSIVE_COLORS[1],
+                    image_check=lambda frame: find_visible(frame) and rem_width(frame) == wide_rem)
+    inputs.monitor_text(monitor, "sendkey ctrl-equal 50")
+    rendered_swatch(mouse, keep, "form-find-zoom", RESPONSIVE_COLORS[0],
+                    image_check=lambda frame: find_visible(frame) and abs(rem_width(frame) - 1.1 * narrow_rem) <= 1)
+    inputs.monitor_text(monitor, "sendkey esc 50")
+    inputs.monitor_text(monitor, "sendkey ctrl-0 50")
+    rendered_swatch(mouse, keep, "form-find-reset", RESPONSIVE_COLORS[1],
+                    image_check=lambda frame: not find_visible(frame) and rem_width(frame) == wide_rem)
+    print("PASS open Find preserves the viewport, zoom updates live media and 2rem geometry, reset restores the page", flush=True)
+
+    inputs.monitor_text(monitor, "sendkey ctrl-shift-s 50")
+    _, shown, _, restored_width = observe("form-shown", 0)
+    if hidden[2] - hidden[0] <= original[2] - original[0] or shown != original or restored_width != narrow:
+        raise RuntimeError("The sidebar did not change and restore the page inset")
+
+    def maximize_button(edge):
+        # Default Zenith chrome: the page ends 12 px inside the right edge
+        # and begins 64 px below the client top. Maximize is at (-58,-22).
+        click(edge[2] + 12 - 58, edge[1] - 64 - 22)
+    maximize_button(shown)
+    _, maximized, _, largest = observe("form-maximized", 2)
+    maximize_button(maximized)
+    submit, restored, _, last_width = observe("form-restored", 0)
+    if not (narrow < middle < largest) or restored != original or last_width != narrow:
+        raise RuntimeError("Responsive control geometry did not follow both viewport changes")
+    with Image.open(keep / "form-restored.png") as frame:
+        tiles = [color_mask(frame, bytes.fromhex(color)).getbbox() for color in GRID_COLORS]
+        measure = color_mask(frame, bytes.fromhex(MEASURE_COLOR)).getbbox()
+        if not all(tiles):
+            raise RuntimeError("Missing painted CSS Grid tiles")
+        a, b, c = tiles
+        if not (b[2] - a[0] == measure[2] - measure[0] and a[1] == b[1] and a[2] == b[0] and c[0] == a[0] and c[1] == a[3]
+                and c[2] == a[2] and abs((b[2] - b[0]) - 2 * (a[2] - a[0])) <= 2):
+            raise RuntimeError(f"CSS Grid width did not resolve to 240 px with 1fr / 2fr and an automatic second row: {tiles}")
+    print("PASS calculated 240px Grid, fractions, gaps and 1/2/3 auto-fit cards with inherited tracks, scoped colors and alpha", flush=True)
+    if requests != before:
+        raise RuntimeError("Resizing or toggling the sidebar made a new HTTP request")
+    click(*submit)
+    rendered_swatch(mouse, keep, "form-submitted", "975414")
+    submission = [path for path in requests[len(before):] if path != "/favicon.ico"]
+    if submission != ["/submitted.html?draft=preserved"]:
+        raise RuntimeError("Submitting the form did not return the original unsaved input")
+    print("PASS responsive sidebar and maximize/restore updated CSS without requests and preserved the form draft",
+          flush=True)
+
+
 def color_mask(frame, rgb):
     masks = [band.point([255 if i == target else 0 for i in range(256)])
              for band, target in zip(frame.split(), rgb)]
     return ImageChops.multiply(ImageChops.multiply(masks[0], masks[1]), masks[2])
+
+
+def source_comment_mask():
+    font = ImageFont.truetype(ROOT / "Resources/Fonts/Hack-Regular.ttf", 14, layout_engine=ImageFont.Layout.BASIC)
+    ascent, descent = font.getmetrics()
+    advance = math.ceil(font.getlength("M"))
+    mask = Image.new("L", (len(SOURCE_COMMENT) * advance, ascent + descent))
+    draw = ImageDraw.Draw(mask)
+    for i, char in enumerate(SOURCE_COMMENT):
+        draw.text((i * advance + 1, ascent), char, font=font, anchor="ls", fill=255)
+    return mask
+
+
+def source_comment_visible(frame, origin, mask):
+    x, y = origin
+    sample = frame.crop((x, y, x + mask.width, y + mask.height)).convert("L")
+    bg = sample.getpixel((0, 0))
+    contrast = ImageChops.difference(sample, Image.new("L", sample.size, bg))
+    peak = contrast.getextrema()[1]
+    if peak < 45:
+        return False
+    expected = mask.point(lambda alpha: 255 if alpha >= 128 else 0)
+    actual = contrast.point(lambda value: 255 if value * 2 >= peak else 0)
+    difference = ImageChops.difference(expected, actual).histogram()[255]
+    return difference <= expected.histogram()[255] // 16
+
+
+def read_source(mouse, monitor, inputs, keep, page):
+    edge = color_mask(page, bytes.fromhex(PAGE_EDGE)).getbbox()
+    if not edge:
+        raise RuntimeError("Could not locate the HTTP document before opening Page source")
+    x, y = edge[:2]
+    # First line of raw HTML is a comment. It is invisible on the rendered page.
+    origin, mask = (x + 12, y + 40), source_comment_mask()
+    if source_comment_visible(page, origin, mask):
+        raise RuntimeError("Source marker unexpectedly visible on the HTML page")
+    inputs.monitor_text(monitor, "sendkey ctrl-u 50")
+    deadline = time.monotonic() + 30
+    path = keep / "page-source.ppm"
+    while True:
+        frame = Image.open(io.BytesIO(mouse.capture(path))).convert("RGB")
+        if source_comment_visible(frame, origin, mask):
+            frame.save(keep / "page-source.png")
+            break
+        if time.monotonic() >= deadline:
+            raise RuntimeError(f"Missing literal HTML comment in Page source; screen retained at {path}")
+        time.sleep(.12)
+    inputs.monitor_text(monitor, "sendkey esc 50")
 
 
 def glyphs_rendered(frame):
@@ -137,17 +341,19 @@ def menu_first_row(mouse, keep, name, before, anchor):
 
 
 def start_rule(frame, center, width):
-    """Find the start page's three-pixel accent rule. Reopened windows may move."""
+    """Find the start page's 3 CSS px accent rule. Its raster height follows DPI."""
     for y in range(1, frame.height - 3):
         color = frame.getpixel((center, y))
-        if (frame.getpixel((center, y - 1)) == color or frame.getpixel((center, y + 2)) != color
-                or frame.getpixel((center, y + 3)) == color):
+        if frame.getpixel((center, y - 1)) == color or frame.getpixel((center, y + 1)) != color:
+            continue
+        thickness = 3 if frame.getpixel((center, y + 2)) == color else 2
+        if frame.getpixel((center, y + thickness)) == color:
             continue
         row = frame.crop((0, y, frame.width, y + 1)).tobytes()
         run = bytes(color) * (width - 68)
         pos = row.find(run)
         if pos >= 0 and pos % 3 == 0 and not row.startswith(run + bytes(color) * 10, pos):
-            return pos // 3, y + 3
+            return pos // 3, y + thickness
     return None
 
 
@@ -215,6 +421,16 @@ def audit_profile(volume, url):
         raise RuntimeError("Bookmark was not saved and removed independently of browsing history")
 
 
+def audit_browser_payload(volume, payload):
+    files = sorted(path for path in payload.rglob("*") if path.is_file())
+    for path in files:
+        guest_path = "/" + path.relative_to(payload).as_posix()
+        result = subprocess.run(["debugfs", "-R", "cat " + guest_path, volume], capture_output=True, check=True)
+        if result.stdout != path.read_bytes():
+            raise RuntimeError("Installed browser payload differs at " + guest_path)
+    print(f"PASS all {len(files)} signed payload files matched the installed ext2 volume byte-for-byte")
+
+
 def rendered_swatch(mouse, keep, name, color, image_check=None):
     deadline = time.monotonic() + 60
     rgb = bytes.fromhex(color)
@@ -247,7 +463,7 @@ def rendered_swatch(mouse, keep, name, color, image_check=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("keep", type=Path, help="new directory for screenshots, logs and fixture copies")
-    parser.add_argument("--host", action="store_true", help="run the fetcher contract against the previously built upstream core")
+    parser.add_argument("--host", action="store_true", help="check the JPEG fixture and run the fetcher contract against the built core")
     parser.add_argument("--disk", type=Path, help="installed disposable Zenith disk with recovery Terminal")
     parser.add_argument("--elf", type=Path, help="exact ELF from this disk's build")
     parser.add_argument("--payload", type=Path, help="existing build-userland payload to package")
@@ -260,6 +476,8 @@ def main():
         if not (core / "libnetsurf.a").is_file():
             parser.error("build the netsurf payload first to provide its upstream core")
         keep.mkdir(parents=True, exist_ok=False)
+        guest_netsurf_jpeg.check_fixture(keep)
+        print("PASS host JPEG fixture, decoded color blocks and reversed-block negative control", flush=True)
         exe = keep / "fetch-contract"
         subprocess.run(["cc", "-std=c11", "-D_DEFAULT_SOURCE", "-g", "-fsanitize=address,undefined",
                         "-Wl,--gc-sections", "-no-pie", "-Wall", "-Wextra", "-Werror", "-I", core / "include",
@@ -313,10 +531,13 @@ def main():
         fixture_file(served, "local.html", "9635b2", "Local document", "Open HTTP page", origin + "/first.html",
                      extra_html=guest_netsurf_png.image_html())
         strip, asset_paths = guest_netsurf_png.external_strip(served)
+        photo = guest_netsurf_jpeg.write_fixture(served)
+        asset_paths.append("/" + guest_netsurf_jpeg.NAME)
         fixture_file(served, "first.html", "167b57", "HTTP styles", "Open secure page", secure + "/secure.html",
-                     external=True, extra_html=strip)
+                     external=True, extra_html=strip + photo)
         fixture_file(served, "secure.html", "a74726", "Verified HTTPS", "Secure page loaded",
                      extra_html=glyph_examples())
+        responsive_fixture(served)
         (served / "b").write_text("native run netsurf file:///root/ns-local.html | logger; echo NS_BROWSER_EXIT=$? | logger\n")
         profile_revision = 'for rev in /root/.nebula/r*; do latest=$rev; done\n'
         (served / "c").write_text(profile_revision + 'cat "$latest/data" > /root/browser-saved\n'
@@ -365,11 +586,20 @@ def main():
                 mouse.command("mouse_button 0")
             position = rendered_swatch(mouse, keep, "local", "9635b2", image_check=guest_netsurf_png.is_rendered)
             click(*position)
-            position = rendered_swatch(mouse, keep, "http", "167b57", image_check=guest_netsurf_png.strip_rendered)
+            def images_painted(frame):
+                return guest_netsurf_png.strip_rendered(frame) and guest_netsurf_jpeg.rendered(frame)
+            rendered_swatch(mouse, keep, "http", "167b57", image_check=images_painted)
             missing = set(asset_paths).difference(http_requests)
             if missing:
                 raise RuntimeError("HTTP image requests missing: " + ", ".join(sorted(missing)))
             print(f"PASS all {len(asset_paths)} independent HTTP images fetched and painted in one browser process", flush=True)
+            before_source = (http_requests.copy(), https_requests.copy())
+            with Image.open(keep / "http.png") as page:
+                read_source(mouse, monitor, inputs, keep, page)
+            position = rendered_swatch(mouse, keep, "source-return", "167b57", image_check=images_painted)
+            if (http_requests, https_requests) != before_source:
+                raise RuntimeError("Viewing or closing page source requested another resource")
+            print("PASS Ctrl+U showed the literal HTML comment and Escape restored the images without a request", flush=True)
             click(*position)
             rendered_swatch(mouse, keep, "https", "a74726", image_check=glyphs_rendered)
             print("PASS HTTPS document rendered distinct ?, Ü, ä, and © glyphs", flush=True)
@@ -416,6 +646,7 @@ def main():
             inputs.monitor_text(monitor, "sendkey ret 30")
             rendered_swatch(mouse, keep, "title-suggestion", "a74726", image_check=glyphs_rendered)
             print("PASS local history title suggestion opened the visited HTTPS page", flush=True)
+            check_responsive(mouse, monitor, inputs, login, click, keep, origin, http_requests)
             inputs.monitor_text(monitor, "sendkey ctrl-q 30")
             if not machine.wait("user: NS_REOPEN_EXIT=0", timeout=30):
                 raise RuntimeError("Reopened browser did not close cleanly")
@@ -433,9 +664,10 @@ def main():
             (keep / "requests.json").write_text(json.dumps({"http": http_requests, "https": https_requests}, indent=2))
             machine.stop()
         images.audit(machine.disk, args.elf, keep)
+        audit_browser_payload(keep / "root.ext2", payload)
         audit_profile(keep / "root.ext2", secure + "/secure.html")
         print("PASS bookmark saved, reopened from the start page after restart, and removed independently of history")
-    print("PASS signed Nebula installation, twelve external images, local/HTTP/verified HTTPS navigation and independent ext2 audit")
+    print("PASS signed Nebula installation, PNG and JPEG, page source, local/HTTP/verified HTTPS navigation and independent ext2 audit")
 
 
 if __name__ == "__main__":

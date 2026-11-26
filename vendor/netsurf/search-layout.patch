@@ -1,0 +1,135 @@
+--- a/content/textsearch.h
++++ b/content/textsearch.h
+@@ -49,6 +49,9 @@
+  */
+ nserror content_textsearch_clear(struct hlcache_handle *h);
+ 
++/* Refresh match boxes after layout while keeping the reader at the same offset. */
++void content_textsearch_reformat(struct content *c);
++
+ /**
+  * Ends the search process, invalidating all state freeing the list of
+  * found boxes.
+--- a/content/textsearch.c
++++ b/content/textsearch.c
+@@ -108,6 +108,7 @@
+ 	 */
+ 	char *string;
+ 	bool prev_case_sens;
++	bool show_all;
+ 	bool newsearch;
+ };
+ 
+@@ -204,7 +205,7 @@
+ search_text(struct textsearch_context *context,
+ 	    const char *string,
+ 	    int string_len,
+-	    search_flags_t flags)
++	    search_flags_t flags, const size_t *restore_index)
+ {
+ 	struct rect bounds;
+ 	union content_msg_data msg_data;
+@@ -221,20 +222,15 @@
+ 	}
+ 
+ 	/* check if we need to start a new search or continue an old one */
+-	if ((context->newsearch) ||
++	if (restore_index != NULL || (context->newsearch) ||
+ 	    (context->prev_case_sens != case_sensitive)) {
+-
+-		if (context->string != NULL) {
+-			free(context->string);
+-		}
+ 
+ 		context->current = NULL;
+ 		free_matches(context);
+-
+-		context->string = malloc(string_len + 1);
+-		if (context->string != NULL) {
+-			memcpy(context->string, string, string_len);
+-			context->string[string_len] = '\0';
++		context->newsearch = true;
++		if (restore_index == NULL) {
++			free(context->string);
++			context->string = strdup(string);
+ 		}
+ 
+ 		/* indicate find operation starting */
+@@ -260,6 +256,10 @@
+ 
+ 		/* new search, beginning at the top of the page */
+ 		context->current = context->found->next;
++		if (restore_index != NULL && context->current != NULL) {
++			for (size_t i = 0; i < *restore_index && context->current->next != NULL; i++)
++				context->current = context->current->next;
++		}
+ 		context->newsearch = false;
+ 
+ 	} else if (context->current != NULL) {
+@@ -279,6 +279,7 @@
+ 			     (context->current != NULL),
+ 			     NULL);
+ 
++	context->show_all = showall;
+ 	search_show_all(showall, context);
+ 
+ 	/* update back state */
+@@ -296,8 +297,7 @@
+ 			     NULL);
+ 
+ 
+-	if (context->current == NULL) {
+-		/* no current match */
++	if (restore_index != NULL || context->current == NULL) {
+ 		return res;
+ 	}
+ 
+@@ -321,6 +321,21 @@
+ }
+ 
+ 
++/* A reflow may replace every box, including inline text fragments. Rebuild
++ * the set of matches before it can be used for another Find or redraw. */
++void content_textsearch_reformat(struct content *c)
++{
++	struct textsearch_context *ctx = c->textsearch.context;
++	if (!ctx || ctx->newsearch || !c->textsearch.string) return;
++	size_t ordinal = 0;
++	for (struct list_entry *p = ctx->current; p && p->prev; p = p->prev)
++		ordinal++;
++	search_flags_t flags = (ctx->prev_case_sens ? SEARCH_FLAG_CASE_SENSITIVE : 0) |
++			(ctx->show_all ? SEARCH_FLAG_SHOWALL : 0);
++	search_text(ctx, c->textsearch.string, strlen(c->textsearch.string), flags, &ordinal);
++}
++
++
+ /**
+  * Begins/continues the search process
+  *
+@@ -354,7 +369,7 @@
+ 	}
+ 
+ 	if (i < string_len) {
+-		res = search_text(textsearch, string, string_len, flags);
++		res = search_text(textsearch, string, string_len, flags, NULL);
+ 	} else {
+ 		union content_msg_data msg_data;
+ 
+@@ -460,6 +475,7 @@
+ 	context->current = NULL;
+ 	context->string = NULL;
+ 	context->prev_case_sens = false;
++	context->show_all = false;
+ 	context->newsearch = true;
+ 	context->c = c;
+ 	context->gui_p = gui_data;
+--- a/content/handlers/html/html.c
++++ b/content/handlers/html/html.c
+@@ -1086,6 +1086,7 @@
+ 		c->height = layout->y + layout->descendant_y1;
+ 
+ 	selection_reinit(htmlc->sel);
++	content_textsearch_reformat(c);
+ 
+ 	htmlc->reflowing = false;
+ 	htmlc->had_initial_layout = true;

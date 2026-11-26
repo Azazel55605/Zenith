@@ -1,0 +1,192 @@
+--- a/content/handlers/html/css.c
++++ b/content/handlers/html/css.c
+@@ -224,18 +224,6 @@
+ 		dom_string_unref(val);
+ 	}
+ 
+-	/* media contains 'screen' or 'all' or not present */
+-	exc = dom_element_get_attribute(style, corestring_dom_media, &val);
+-	if (exc == DOM_NO_ERR && val != NULL) {
+-		if (strcasestr(dom_string_data(val), "screen") == NULL &&
+-				strcasestr(dom_string_data(val),
+-						"all") == NULL) {
+-			dom_string_unref(val);
+-			return NULL;
+-		}
+-		dom_string_unref(val);
+-	}
+-
+ 	/* Extend array */
+ 	stylesheets = realloc(c->stylesheets,
+ 			      sizeof(struct html_stylesheet) *
+@@ -251,7 +239,6 @@
+ 	c->stylesheets[c->stylesheet_count].node = dom_node_ref(style);
+ 	c->stylesheets[c->stylesheet_count].sheet = NULL;
+ 	c->stylesheets[c->stylesheet_count].modified = false;
+-	c->stylesheets[c->stylesheet_count].unused = false;
+ 	c->stylesheet_count++;
+ 
+ 	return c->stylesheets + (c->stylesheet_count - 1);
+@@ -349,42 +336,9 @@
+ 
+ 
+ /* exported function documented in html/css.h */
+-bool html_css_process_style(html_content *c, dom_node *node)
+-{
+-	unsigned int i;
+-	dom_string *val;
+-	dom_exception exc;
+-	struct html_stylesheet *s;
+-
+-	/* Find sheet */
+-	for (i = 0, s = c->stylesheets;	i != c->stylesheet_count; i++, s++) {
+-		if (s->node == node)
+-			break;
+-	}
+-
+-		/* Should already exist */
+-	if (i == c->stylesheet_count) {
+-		return false;
+-	}
+-
+-	exc = dom_element_get_attribute(node, corestring_dom_media, &val);
+-	if (exc == DOM_NO_ERR && val != NULL) {
+-		if (strcasestr(dom_string_data(val), "screen") == NULL &&
+-				strcasestr(dom_string_data(val),
+-						"all") == NULL) {
+-			s->unused = true;
+-		}
+-		dom_string_unref(val);
+-	}
+-
+-	return true;
+-}
+-
+-
+-/* exported function documented in html/css.h */
+ bool html_css_process_link(html_content *htmlc, dom_node *node)
+ {
+-	dom_string *rel, *type_attr, *media, *href;
++	dom_string *rel, *type_attr, *href;
+ 	struct html_stylesheet *stylesheets;
+ 	nsurl *joined;
+ 	dom_exception exc;
+@@ -419,17 +373,6 @@
+ 			return true;
+ 		}
+ 		dom_string_unref(type_attr);
+-	}
+-
+-	/* media contains 'screen' or 'all' or not present */
+-	exc = dom_element_get_attribute(node, corestring_dom_media, &media);
+-	if (exc == DOM_NO_ERR && media != NULL) {
+-		if (strcasestr(dom_string_data(media), "screen") == NULL &&
+-		    strcasestr(dom_string_data(media), "all") == NULL) {
+-			dom_string_unref(media);
+-			return true;
+-		}
+-		dom_string_unref(media);
+ 	}
+ 
+ 	/* href='...' */
+@@ -462,9 +405,7 @@
+ 	}
+ 
+ 	htmlc->stylesheets = stylesheets;
+-	htmlc->stylesheets[htmlc->stylesheet_count].node = NULL;
+ 	htmlc->stylesheets[htmlc->stylesheet_count].modified = false;
+-	htmlc->stylesheets[htmlc->stylesheet_count].unused = false;
+ 
+ 	/* start fetch */
+ 	child.charset = htmlc->encoding;
+@@ -481,6 +422,7 @@
+ 	if (ns_error != NSERROR_OK)
+ 		goto no_memory;
+ 
++	htmlc->stylesheets[htmlc->stylesheet_count].node = dom_node_ref(node);
+ 	htmlc->stylesheet_count++;
+ 
+ 	htmlc->base.active++;
+@@ -673,14 +615,6 @@
+ 		css_stylesheet *sheet = NULL;
+ 		css_origin origin = CSS_ORIGIN_AUTHOR;
+ 
+-		/* Filter out stylesheets for non-screen media. */
+-		/* TODO: We should probably pass the sheet in anyway, and let
+-		 *       libcss handle the filtering.
+-		 */
+-		if (hsheet->unused) {
+-			continue;
+-		}
+-
+ 		if (i < STYLESHEET_USER) {
+ 			origin = CSS_ORIGIN_UA;
+ 		} else if (i < STYLESHEET_START) {
+@@ -692,13 +626,17 @@
+ 		}
+ 
+ 		if (sheet != NULL) {
+-			/* TODO: Pass the sheet's full media query, instead of
+-			 *       "screen".
+-			 */
+-			css_ret = css_select_ctx_append_sheet(select_ctx,
+-							      sheet,
+-							      origin,
+-							      "screen");
++			dom_string *media = NULL;
++			if (hsheet->node != NULL && dom_element_get_attribute(
++					hsheet->node, corestring_dom_media, &media) != DOM_NO_ERR) {
++				css_select_ctx_destroy(select_ctx);
++				return NSERROR_NOMEM;
++			}
++			const char *query = media == NULL ? "" : dom_string_data(media);
++			query += strspn(query, " \t\r\n\f");
++			css_ret = css_select_ctx_append_sheet(select_ctx, sheet, origin,
++					*query == 0 ? "all" : query);
++			dom_string_unref(media);
+ 			if (css_ret != CSS_OK) {
+ 				css_select_ctx_destroy(select_ctx);
+ 				return css_error_to_nserror(css_ret);
+--- a/content/handlers/html/css.h
++++ b/content/handlers/html/css.h
+@@ -87,15 +87,6 @@
+ bool html_css_process_link(struct html_content *htmlc, dom_node *node);
+ 
+ /**
+- * process a css style dom node 
+- *
+- * \param htmlc The HTML content.
+- * \param node the DOM node to process. 
+- * \return true on success else false.
+- */
+-bool html_css_process_style(struct html_content *htmlc, dom_node *node);
+-
+-/**
+  * process a css style dom node update 
+  *
+  * \param htmlc The HTML content.
+--- a/content/handlers/html/dom_event.c
++++ b/content/handlers/html/dom_event.c
+@@ -621,12 +621,6 @@
+ 			html_process_inserted_meta(htmlc, (dom_node *)node);
+ 			break;
+ 
+-		case DOM_HTML_ELEMENT_TYPE_STYLE:
+-			if (nsoption_bool(author_level_css)) {
+-				html_css_process_style(htmlc, (dom_node *)node);
+-			}
+-			break;
+-
+ 		case DOM_HTML_ELEMENT_TYPE_SCRIPT:
+ 			dom_SCRIPT_showed_up(htmlc,
+ 					     (dom_html_script_element *)node);
+--- a/content/handlers/html/html.h
++++ b/content/handlers/html/html.h
+@@ -59,7 +59,6 @@
+ 	struct dom_node *node; /**< dom node associated with sheet */
+ 	struct hlcache_handle *sheet;
+ 	bool modified;
+-	bool unused;
+ };
+ 
+ 

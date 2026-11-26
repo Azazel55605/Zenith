@@ -12,7 +12,9 @@
 #include "fetch-transport.h"
 #include "fetch.h"
 #include "profile.h"
+#include "source-view.h"
 #include "start-page.h"
+#include "content/content.h"
 #include "netsurf/bitmap.h"
 #include "netsurf/browser_window.h"
 #include "netsurf/clipboard.h"
@@ -47,12 +49,13 @@ enum { TABS_MAX = 16, LIVE_TABS = 8, CLOSED_KEPT = 8, SIDEBAR_W = 240, RAIL_W = 
        ROW_H = 46, ROW_GAP = 4, RAIL_ROW = 44 };
 enum {
     BACK = 1, FORWARD, RELOAD, MENU, INFO, ADDRESS,
-    ZOOM_OUT, ZOOM_RESET, ZOOM_IN, MENU_FIND, MENU_COPY, MENU_INFO, MENU_GUIDE,
+    ZOOM_OUT, ZOOM_RESET, ZOOM_IN, MENU_FIND, MENU_COPY, MENU_INFO, MENU_GUIDE, MENU_SOURCE,
     INFO_COPY, CARD_COPY, CARD_CLOSE, FIND_PREV, FIND_NEXT, FIND_CLOSE, LINK_OPEN, LINK_COPY,
     BOOKMARK, MENU_HOME, HISTORY_FIRST, SUGGEST_FIRST = HISTORY_FIRST + HISTORY_ROWS,
     TAB_FIRST = SUGGEST_FIRST + SUGGESTIONS, TAB_CLOSE_FIRST = TAB_FIRST + TABS_MAX,
     NEW_TAB = TAB_CLOSE_FIRST + TABS_MAX, PLACE_BOOKMARKS, PLACE_HISTORY, MENU_SIDEBAR, LINK_TAB,
-    TAB_MENU_NEW, TAB_MENU_DUPLICATE, TAB_MENU_RELOAD, TAB_MENU_SLEEP, TAB_MENU_CLOSE, TAB_MENU_OTHERS, TAB_MENU_REOPEN
+    TAB_MENU_NEW, TAB_MENU_DUPLICATE, TAB_MENU_RELOAD, TAB_MENU_SLEEP, TAB_MENU_CLOSE, TAB_MENU_OTHERS, TAB_MENU_REOPEN,
+    SIDEBAR_TOGGLE
 };
 enum { POPOVER_NONE, POPOVER_MENU, POPOVER_INFO, POPOVER_BACK, POPOVER_FORWARD, POPOVER_LINK, POPOVER_SUGGEST,
        POPOVER_TAB };
@@ -60,6 +63,7 @@ enum { POPOVER_NONE, POPOVER_MENU, POPOVER_INFO, POPOVER_BACK, POPOVER_FORWARD, 
 /* One tab: the core's window for one browser_window, and everything that belongs to its page. */
 struct gui_window {
     struct browser_window *browser;
+    struct source_view source;
     struct zui_input address, find;
     char location[2048], current[2048], status[256], find_text[128], title[96];
     int sx, sy, ex, ey;
@@ -401,6 +405,7 @@ static void forget_tab(struct gui_window *g)
 }
 static void destroy_window(struct gui_window *g)
 {
+    source_close(&g->source);
     g->browser = NULL;
     if (g->keep) {
         /* Put to sleep: the tab stays in the list with its address. */
@@ -425,22 +430,25 @@ static bool get_scroll(struct gui_window *g, int *x, int *y)
 }
 static nserror set_scroll(struct gui_window *g, const struct rect *r)
 {
+    struct zui_rect page = page_rect();
     long x = g->sx, y = g->sy;
     if (r->x0 == r->x1 || r->x0 < x)
         x = r->x0;
-    else if (r->x1 > x + W.ui.width)
-        x = (long)r->x1 - W.ui.width;
+    else if (r->x1 > x + page.w)
+        x = (long)r->x1 - page.w;
     if (r->y0 == r->y1 || r->y0 < y)
         y = r->y0;
-    else if (r->y1 > y + viewport_height(g))
-        y = (long)r->y1 - viewport_height(g);
+    else if (r->y1 > y + page.h)
+        y = (long)r->y1 - page.h;
     scroll_to(g, x, y);
     return NSERROR_OK;
 }
 static nserror dimensions(struct gui_window *g, int *w, int *h)
 {
-    *w = W.ui.width;
-    *h = viewport_height(g);
+    (void)g;
+    struct zui_rect page = page_rect();
+    *w = page.w;
+    *h = page.h;
     return NSERROR_OK;
 }
 static nserror event(struct gui_window *g, enum gui_window_event ev)
@@ -450,6 +458,7 @@ static nserror event(struct gui_window *g, enum gui_window_event ev)
         extent(g);
         break;
     case GW_EVENT_START_THROBBER:
+        source_close(&g->source);
         g->loading = true;
         W.strip_at = 0;
         break;
@@ -457,6 +466,7 @@ static nserror event(struct gui_window *g, enum gui_window_event ev)
         g->loading = false;
         break;
     case GW_EVENT_NEW_CONTENT:
+        source_close(&g->source);
         g->page_dirty = true;
         g->present_document = true;
         g->caret_height = 0;
@@ -773,7 +783,8 @@ static bool inside(struct zui_rect r, int x, int y)
 {
     return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
 }
-/* The toolbar row at the top of the content inset. */
+/* The toolbar row at the top of the content inset: the sidebar toggle, then Back, Forward and Reload. */
+enum { TB_SIDEBAR, TB_BACK, TB_FORWARD, TB_RELOAD, TB_BUTTONS };
 static struct zui_rect toolbar_button(int index)
 {
     struct zui_rect c = content_rect();
@@ -783,7 +794,7 @@ static struct zui_rect address_rect(const struct gui_window *g)
 {
     (void)g;
     struct zui_rect c = content_rect();
-    int left = 8 + 3 * (BUTTON + 4) + 4;
+    int left = 8 + TB_BUTTONS * (BUTTON + 4) + 4;
     return (struct zui_rect){c.x + left, c.y + 8, c.w - left - (BUTTON + 16), 36};
 }
 static struct zui_rect menu_button(const struct gui_window *g)
@@ -920,9 +931,13 @@ static void draw_toolbar(struct gui_window *g)
     struct zui_rect c = content_rect();
     zui_fill(u, (struct zui_rect){c.x, c.y + TOOLBAR - 1, c.w, 1}, u->theme.border);
     bool live = g->browser != NULL;
-    icon_button(u, BACK, toolbar_button(0), "arrow-left", live && browser_window_history_back_available(g->browser));
-    icon_button(u, FORWARD, toolbar_button(1), "arrow-right", live && browser_window_history_forward_available(g->browser));
-    icon_button(u, RELOAD, toolbar_button(2), g->loading ? "x" : "rotate-cw", live);
+    /* The sidebar toggle: tinted while the sidebar shows, so its state reads at a glance. */
+    if (!W.sidebar_hidden && !is_hovered(u, SIDEBAR_TOGGLE))
+        zui_round_alpha(u, toolbar_button(TB_SIDEBAR), 8, u->theme.accent, 40);
+    icon_button(u, SIDEBAR_TOGGLE, toolbar_button(TB_SIDEBAR), "panel-left", 1);
+    icon_button(u, BACK, toolbar_button(TB_BACK), "arrow-left", live && browser_window_history_back_available(g->browser));
+    icon_button(u, FORWARD, toolbar_button(TB_FORWARD), "arrow-right", live && browser_window_history_forward_available(g->browser));
+    icon_button(u, RELOAD, toolbar_button(TB_RELOAD), g->loading ? "x" : "rotate-cw", live);
     draw_address(g);
     icon_button(u, MENU, menu_button(g), "ellipsis", 1);
     if (W.popover == POPOVER_MENU && !is_hovered(u, MENU))
@@ -1017,7 +1032,7 @@ static void draw_menu(struct gui_window *g)
     int w = 280, x = mb.x + mb.w - w;
     if (x < 8)
         x = 8;
-    struct zui_rect r = {x, mb.y + mb.h + 4, w, 6 + 36 + 9 + 4 * 34 + 9 + 2 * 34 + 6};
+    struct zui_rect r = {x, mb.y + mb.h + 4, w, 6 + 36 + 9 + 5 * 34 + 9 + 2 * 34 + 6};
     card(u, r);
     W.popover_rect = r;
     int y = r.y + 6, first = u->count;
@@ -1043,7 +1058,9 @@ static void draw_menu(struct gui_window *g)
     menu_row(u, MENU_COPY, (struct zui_rect){x + 6, y + 34, w - 12, 34}, "copy", "Copy page address", NULL);
     menu_row(u, MENU_INFO, (struct zui_rect){x + 6, y + 68, w - 12, 34}, page_icon(displayed_kind(g)), "Page info", NULL);
     menu_row(u, MENU_HOME, (struct zui_rect){x + 6, y + 102, w - 12, 34}, "star", "Bookmarks and history", "Alt+Home");
-    y += 4 * 34 + 4;
+    menu_row(u, MENU_SOURCE, (struct zui_rect){x + 6, y + 136, w - 12, 34}, "code",
+             g->source.bytes ? "Return to page" : "View page source", "Ctrl+U");
+    y += 5 * 34 + 4;
     divider(u, x + 10, y, w - 20);
     y += 5;
     menu_row(u, MENU_SIDEBAR, (struct zui_rect){x + 6, y, w - 12, 34}, "panel-left",
@@ -1396,12 +1413,20 @@ static bool render_page(struct gui_window *g, struct zui_rect pr)
     }
     W.page_w = pr.w;
     W.page_h = pr.h;
+    struct rect clip = {0, 0, pr.w, pr.h};
+    struct page_raster raster = {W.page, pr.w, pr.h, pr.w, clip};
+    if (g->source.bytes) {
+        if (source_layout(&g->source, pr.w)) {
+            source_paint(&g->source, &raster, &W.ui.theme);
+            return false;
+        }
+        source_close(&g->source);
+        note(g, "Not enough memory to show page source");
+    }
     for (size_t i = 0; i < need; i++)
         W.page[i] = 0xffffffffu;
     if (!g->browser || !browser_window_redraw_ready(g->browser))
         return false;
-    struct rect clip = {0, 0, pr.w, pr.h};
-    struct page_raster raster = {W.page, pr.w, pr.h, pr.w, clip};
     const struct redraw_context ctx = {
         .interactive = true, .background_images = true, .plot = &zenith_plotters, .priv = &raster};
     return browser_window_redraw(g->browser, -g->sx, -g->sy, &clip, &ctx);
@@ -1456,7 +1481,7 @@ static bool draw(void)
     draw_progress(g, now);
     W.strip_at = now;
     blit_page(pr);
-    if (g->caret_height > 0 && !g->address_focus && !g->find_focus) {
+    if (!g->source.bytes && g->caret_height > 0 && !g->address_focus && !g->find_focus) {
         zui_clip(u, pr);
         zui_fill(u, (struct zui_rect){pr.x + g->caret_x - g->sx, pr.y + g->caret_y - g->sy, 1, g->caret_height}, 0x303030);
         zui_clip(u, (struct zui_rect){0, 0, u->width, u->height});
@@ -1555,6 +1580,10 @@ static void set_zoom(struct gui_window *g, int direction)
 }
 static void open_find(struct gui_window *g)
 {
+    if (g->source.bytes) {
+        note(g, "Return to the page to search it");
+        return;
+    }
     if (!g->find.text)
         zui_input_init(&g->find, g->find_text, sizeof(g->find_text));
     W.popover = POPOVER_NONE;
@@ -1562,6 +1591,41 @@ static void open_find(struct gui_window *g)
     g->address_focus = g->select_address = false;
     reset_address(g, g->current);
     repaint(g);
+}
+/* Only inspect completed, user-visible text documents. The toolbar address can still
+ * name a failed HTTPS request while the loaded handle holds a private engine error page. */
+static void toggle_source(struct gui_window *g)
+{
+    if (g->source.bytes) {
+        source_close(&g->source);
+        return;
+    }
+    struct hlcache_handle *h = g->browser ? browser_window_get_content(g->browser) : NULL;
+    nsurl *url = h ? hlcache_handle_get_url(h) : NULL;
+    if (!url || g->loading || content_get_status(h) != CONTENT_STATUS_DONE ||
+        page_kind(nsurl_access(url)) == PAGE_INTERNAL) {
+        note(g, "Page source is unavailable for this page");
+        return;
+    }
+    content_type type = content_get_type(h);
+    if (type != CONTENT_HTML && type != CONTENT_TEXTPLAIN && type != CONTENT_CSS) {
+        note(g, "This page has no text source");
+        return;
+    }
+    size_t bytes = 0;
+    const uint8_t *body = content_get_source_data(h, &bytes);
+    if ((!body && bytes) || bytes >= INT_MAX) {
+        note(g, "Page source is unavailable for this page");
+        return;
+    }
+    g->source.bytes = body ? body : (const uint8_t *)"";
+    g->source.length = bytes;
+    close_find(g);
+    g->address_focus = g->select_address = false;
+    reset_address(g, g->current);
+    g->card.open = false;
+    W.page_pressed = W.dragging = false;
+    W.note_until = 0;
 }
 /* ---- Tabs ------------------------------------------------------------------------------------------------- */
 
@@ -1771,6 +1835,7 @@ static void ui_action(struct gui_window *g, int id)
         open_address(g, NEBULA_START_URL);
         return;
     case MENU_SIDEBAR:
+    case SIDEBAR_TOGGLE:
         toggle_sidebar();
         return;
     case LINK_TAB:
@@ -1869,6 +1934,9 @@ static void ui_action(struct gui_window *g, int id)
     case MENU_FIND:
         open_find(g);
         break;
+    case MENU_SOURCE:
+        toggle_source(g);
+        break;
     case MENU_COPY:
     case INFO_COPY:
         copy_to_clipboard(g->current, strlen(g->current));
@@ -1964,6 +2032,11 @@ static void key(struct gui_window *g, const struct zenith_gui_event *e)
         ui_action(g, BOOKMARK);
         return;
     }
+    if ((ctrl && !alt && !shift && letter == 'u') ||
+        (g->source.bytes && !g->address_focus && e->extra == 1)) {
+        ui_action(g, MENU_SOURCE);
+        return;
+    }
     if (alt && e->extra == 10) {
         ui_action(g, MENU_HOME);
         return;
@@ -2046,6 +2119,22 @@ static void key(struct gui_window *g, const struct zenith_gui_event *e)
     }
     if (e->extra == 1 && g->loading) {
         browser_window_stop(g->browser);
+        return;
+    }
+    if (g->source.bytes) {
+        long target = g->source.first;
+        int rows = source_page_rows(page_rect().h);
+        switch (e->extra) {
+        case 7: target--; break;
+        case 8: target++; break;
+        case 10: target = 0; break;
+        case 11: target = g->source.rows; break;
+        case 12: target -= rows; break;
+        case 13: target += rows; break;
+        default: return;
+        }
+        source_scroll(&g->source, target, page_rect().h);
+        repaint(g);
         return;
     }
     static const uint32_t special[] = {0,
@@ -2167,7 +2256,7 @@ static void secondary_press(struct gui_window *g, int x, int y)
         W.menu_tab = tab;
         W.popover = POPOVER_TAB;
     } else if (y < page_rect().y && !on_sidebar(x)) {
-        struct zui_rect back = toolbar_button(0), forward = toolbar_button(1);
+        struct zui_rect back = toolbar_button(TB_BACK), forward = toolbar_button(TB_FORWARD);
         if (inside(back, x, y) && g->browser) {
             browser_window_history_enumerate_back(g->browser, collect_entry, g);
             if (W.entry_count) W.popover = POPOVER_BACK;
@@ -2178,7 +2267,7 @@ static void secondary_press(struct gui_window *g, int x, int y)
             W.menu_x = forward.x;
         }
         W.menu_y = page_rect().y - 4;
-    } else if (!on_chrome(g, x, y)) {
+    } else if (!g->source.bytes && !on_chrome(g, x, y)) {
         nsurl *link = link_at(g, x, y);
         if (link) {
             W.context_link = nsurl_ref(link);
@@ -2195,7 +2284,7 @@ static void middle_press(struct gui_window *g, int x, int y)
         close_tab(tab);
         return;
     }
-    nsurl *link = on_chrome(g, x, y) ? NULL : link_at(g, x, y);
+    nsurl *link = g->source.bytes || on_chrome(g, x, y) ? NULL : link_at(g, x, y);
     if (link)
         new_tab(nsurl_access(link), false, NULL);
 }
@@ -2297,6 +2386,16 @@ static void pointer(struct gui_window *g, const struct zenith_gui_event *e)
             g->find_focus = true;
             g->address_focus = false;
             repaint(g);
+        }
+        return;
+    }
+    if (g->source.bytes) {
+        if (e->type == Z_GUI_SCROLL) {
+            source_scroll(&g->source, g->source.first - 3L * e->code, pr.h);
+            repaint(g);
+        } else if (e->type == Z_GUI_DOWN && g->address_focus) {
+            g->address_focus = g->select_address = false;
+            reset_address(g, g->current);
         }
         return;
     }

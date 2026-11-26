@@ -1,0 +1,3 @@
+The JPEG decoder in Nebula uses IJG libjpeg. This software is based in part on
+the work of the Independent JPEG Group. See README-IJG for the copyright
+notice, warranty disclaimer and terms of use.

@@ -2,7 +2,7 @@
 
 The native browser compiles NetSurf 3.11's HTML layout, CSS cascade, DOM,
 redraw, navigation, content cache and URL handling. The selected image handlers
-support PNG, GIF, BMP and ICO. NetSurf's progressive PNG handler uses the pinned
+support JPEG, PNG, GIF, BMP and ICO. NetSurf's progressive PNG handler uses the pinned
 libpng decoder with the same zlib as the browser core. This build uses the upstream JavaScript-disabled
 configuration. HTTP and HTTPS are registered by the Zenith frontend after
 initialisation. Its private `nebula:start` handler uses the initiating
@@ -18,7 +18,8 @@ configuration selects stdio reads for those files.
 | [NetSurf 3.11 complete source release](https://download.netsurf-browser.org/netsurf/releases/source-full/netsurf-all-3.11.tar.gz) | `4dea880ff3c2f698bfd62c982b259340f9abcd7f67e6c8eb2b32c61f71644b7b` |
 | [zlib 1.4 release](https://zlib.net/zlib-1.4.tar.gz) | `02dd159783677a749c04adbdd02b55b8a2bcc7e054f51b76b549199a916ad584` |
 | [libpng 1.6.59 release](https://downloads.sourceforge.net/project/libpng/libpng16/1.6.59/libpng-1.6.59.tar.xz) | `d80dd2a38a37f803cb9b6ac7b14bd6e74ddc3b654780a8380bdf93523fdb4389` |
-| Zenith source subset, `sources.tar.xz` | `5f7fc41018d986772234d9aee246abac30dcdcc2d9dc516ec15d610a9f7a90a5` |
+| [IJG libjpeg 10 release](https://www.ijg.org/files/jpegsrc.v10.tar.gz) | `8b9eaa13242690ebd03e1728ab1edf97a81a78ed6e83624d493655f31ac95ab5` |
+| Zenith source subset, `sources.tar.xz` | `48600e8ae992b65c0f82e6fe0f69443d6c2c0f7fbf8bf115944c8bd4091e246f` |
 
 The NetSurf archive digest also matches the original tarball recorded in
 [Debian's 3.11 source descriptor](https://deb.debian.org/debian/pool/main/n/netsurf/netsurf_3.11-2.dsc).
@@ -37,13 +38,27 @@ zlib release retains its `LICENSE`. The libpng subset includes its `LICENSE`,
 English resources remain in the subset. The Zenith browser package installs
 the applicable notices and its corresponding source archive.
 
+The JPEG decoder uses the upstream IJG decompression sources, portable ANSI C
+configuration and in-memory allocator. This software is based in part on the
+work of the Independent JPEG Group. The package includes IJG's full README.
+`jpeg-limits.patch` updates the NetSurf handler to reject images above the
+frontend's 8,388,608-pixel bitmap limit before decompression and caps progressive
+coefficient storage requests through IJG's 8 MiB memory setting. Incomplete
+images release their partial bitmaps when the decoder reaches the end of input.
+
+## Responsive CSS and layout
+
+The cross-build applies `libcss-*.patch` to LibCSS and the other patches to NetSurf. It stages the source overlays in `grid/`, `variables/` and `math/`, regenerates LibCSS’s computed-style accessors and compiles `layout_grid.c` into the HTML handler. The build fingerprint includes the relative paths and contents of the overlays, patches and archive. The signed browser’s corresponding source includes these inputs.
+
+Media conditions are evaluated by LibCSS. When a condition changes, the HTML handler reconstructs presentation boxes from the live DOM, transfers control and image ownership and recalculates Find matches. Ordinary changes within a breakpoint use NetSurf’s reformat path. The Grid parser stores its variable-length track lists and named areas in the stylesheet’s intern table. A template accepts up to 128 authored tracks per axis. Compiled math expressions in a track list share the width evaluator and use the containing Grid’s actual dimensions. The Flexbox changes cover basis parsing, wrapping, gaps and alignment. [CSS Grid Level 1](https://www.w3.org/TR/css-grid-1/) · [CSS Flexible Box Layout](https://www.w3.org/TR/css-flexbox-1/)
+
 ## Reproducing and building
 
 To reproduce the vendored archive from unmodified downloads, choose a new
-output pathname. The packer verifies all three inputs and normalises tar metadata.
+output pathname. The packer verifies all four inputs and normalises tar metadata.
 
 ```sh
-python3 vendor/netsurf/pack-sources.py netsurf-all-3.11.tar.gz zlib-1.4.tar.gz libpng-1.6.59.tar.xz /tmp/netsurf-sources.tar.xz
+python3 vendor/netsurf/pack-sources.py netsurf-all-3.11.tar.gz zlib-1.4.tar.gz libpng-1.6.59.tar.xz jpegsrc.v10.tar.gz /tmp/netsurf-sources.tar.xz
 cmp /tmp/netsurf-sources.tar.xz vendor/netsurf/sources.tar.xz
 ```
 
@@ -77,3 +92,9 @@ directory and compare the result with the checked-in copy.
 ```sh
 gperf src/treebuilder/element-type.gperf | sed 's/^\(const struct element_type_map\)/static \1/' > /tmp/hubbub-element-type.inc
 ```
+
+## CSS math
+
+The LibCSS patch adapts the computed-value union, generated accessors and ownership logic from `src/select/assets.py`, `src/select/select_generator.py` and `src/select/properties/width.c` at revision `d991ff10e4b23b06a345540a4b243c50d7a40368`. This checkout extends the representation to minimum and maximum widths. The NetSurf patch adapts the used-width changes in `content/handlers/html/layout.c` and `layout_internal.h` from the same upstream series through revision `e1d7a346dddf7d09a9738c48ca57663f090637ef`. [LibCSS source](https://github.com/netsurf-browser/libcss/commit/d991ff10e4b23b06a345540a4b243c50d7a40368) · [NetSurf layout changes](https://github.com/netsurf-browser/netsurf/commit/e1d7a346dddf7d09a9738c48ca57663f090637ef)
+
+The local `math/` parser validates length-percentage expressions and encodes them as interned postfix instructions. Widths and Grid tracks resolve those instructions at layout using the enclosing box, element and root fonts, and actual viewport. LibCSS scales the complete author length to device pixels before rounding. At 90 and 144 DPI, both `240px` and `calc(120px + 120px)` therefore paint 225 and 360 device pixels, respectively. The supported functions are `calc()`, `min()`, `max()` and `clamp()`, including nested calls and scalar multiplication and division. A single expression accepts up to 128 instructions and 32 nested functions or groups.

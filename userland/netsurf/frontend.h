@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 #include "netsurf/types.h"
+#include "netsurf/css.h"
 #include "netsurf/plot_style.h"
 #include "netsurf/plotters.h"
 
@@ -17,11 +18,6 @@ struct page_raster {
     int width, height, stride;
     struct rect clip;
 };
-
-static inline uint32_t page_rgb(colour c)
-{
-    return 0xff000000u | ((c & 255) << 16) | (c & 0xff00) | ((c >> 16) & 255);
-}
 
 static inline void page_blend(uint32_t *dst, uint32_t rgb, unsigned alpha)
 {
