@@ -10,6 +10,8 @@ The master roadmap at the 0.0.79 source revision preserves the October–Novembe
 
 ## Investigation records
 
+- [2026-11-26 kernel 0.0.81 and SMB CLI qualification](2026-11-26/kernel-0.0.81.md) records the four releases, fresh VM gates and signed file transfer checks.
+
 - [2026-11-25 kernel 0.0.80 qualification](2026-11-25/kernel-0.0.80.md) records the five release versions, kernel and ISO digests, fresh VM gates and public HTTPS check.
 
 - [2026-11-09 pointer, scheduler and fractional scale](2026-11-09/pointer-scheduler-scale.md): 80 Hz PS/2 and relative VMware input, a starved idle-thread desktop, per-wake traces; absolute and device-drawn pointer, park switch and desktop share, filtered 125-175%.
