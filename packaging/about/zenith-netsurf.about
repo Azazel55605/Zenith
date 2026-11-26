@@ -6,3 +6,4 @@ category	apps
 icon	network
 change	0.1.0	First release: Nebula, Zenith's browser window around the NetSurf 3.11 engine, with Page info, find, zoom and notices for the connection limit and files it cannot show
 change	0.2.0	Tabs in the sidebar with the page in the content inset; bookmarks, recent pages and a start page; link and history menus; no six-connection limit on kernel 0.0.82
+change	0.2.1	Pages fit the content inset; a sidebar button hides or shows the tabs; CSS Grid, Flex, variables, calc() and media queries; JPEG images; page source view
