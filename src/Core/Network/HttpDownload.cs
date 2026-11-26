@@ -33,7 +33,7 @@ internal sealed class HttpDownload
     // A definitive 404 is also the repository's optional-index fallback signal.
     // Retrying it can replace that signal with an unrelated transport failure.
     public static bool RetryGet(Exception error, int attempt)
-        => attempt == 0 && error is IOException && error.Message != "HTTP status 404";
+        => attempt == 0 && error is IOException && error.Message != "HTTP status 404" && error is not DownloadSpaceException;
     public static int IdleMilliseconds(int maximum) => maximum > DefaultMaximumBytes ? 30000 : 3000;
     public static int TransferMilliseconds(int maximum) => maximum > DefaultMaximumBytes ? 900000 : 30000;
     public static void CheckTimeout(long idle, long total, int received, int expected, int maximum)
@@ -48,10 +48,11 @@ internal sealed class HttpDownload
     private readonly Action _cancel;
     private int _headerLength;
     private readonly int _maximum;
-    public HttpDownload(Action<byte[], int, int> write, Action cancel, int maximum = DefaultMaximumBytes)
+    private readonly Action<int>? _checkSpace;
+    public HttpDownload(Action<byte[], int, int> write, Action cancel, int maximum = DefaultMaximumBytes, Action<int>? checkSpace = null)
     {
         if (maximum < 0 || maximum > MaximumBytes) { throw new ArgumentOutOfRangeException(nameof(maximum)); }
-        _write = write; _cancel = cancel; _maximum = maximum;
+        _write = write; _cancel = cancel; _maximum = maximum; _checkSpace = checkSpace;
     }
     public int Length { get; private set; } = -1;
     public int Received { get; private set; }
@@ -98,6 +99,13 @@ internal sealed class HttpDownload
             if (key == "transfer-encoding" || (key == "content-encoding" && !value.Equals("identity", StringComparison.OrdinalIgnoreCase)))
             { throw new IOException("HTTP transfer/compression encoding unsupported"); }
         }
-        if (length < 0) { throw new IOException("HTTP requires Content-Length"); } Length = length;
+        if (length < 0) { throw new IOException("HTTP requires Content-Length"); }
+        _checkSpace?.Invoke(length);
+        Length = length;
     }
+}
+
+internal sealed class DownloadSpaceException : IOException
+{
+    public DownloadSpaceException() : base("insufficient free space on download destination") { }
 }

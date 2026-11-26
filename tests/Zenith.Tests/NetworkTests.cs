@@ -9,6 +9,21 @@ namespace Zenith.Tests;
 public sealed class NetworkTests
 {
     [Fact]
+    public void ContentLengthPreflightRunsBeforeFirstBodyWriteAndDiskFullIsFinal()
+    {
+        int writes = 0;
+        var decoder = new HttpDownload((_, _, _) => writes++, () => { }, 100, size =>
+        {
+            Assert.Equal(3, size);
+            throw new DownloadSpaceException();
+        });
+        byte[] response = Encoding.ASCII.GetBytes("HTTP/1.0 200 OK\r\nContent-Length: 3\r\n\r\nabc");
+        var error = Assert.Throws<DownloadSpaceException>(() => decoder.Feed(response, response.Length));
+        Assert.False(HttpDownload.RetryGet(error, 0));
+        Assert.Equal(0, writes);
+    }
+
+    [Fact]
     public void MissingOptionalIndexKeepsIts404InsteadOfRetryingTransport()
     {
         var parser = new HttpDownload((_, _, _) => throw new Exception("error body must not commit"), () => { });

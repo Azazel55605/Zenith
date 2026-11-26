@@ -10,6 +10,8 @@ details views, an information panel, tabs, split panes and transfers that show h
 shared toolkit (`userland/ui`). The built-in Files window stays for testing and recovery; the
 launcher lists Horizon beside it once the package is installed.
 
+N4 adds a planned **Network browser tab** to Places. Browse saved servers and connected shares, enter a server or share address, and mount a selected share read-only. Connected files open through a regular filesystem path that other apps in the same login can use. The browser shares the normal tab history, split-pane navigation and keyboard controls. [Network tab flow and acceptance checks](NETWORKING.md#the-network-browser-tab)
+
 Requested 2026-11-15: overhaul Files as Horizon (name signed off), add tabs to the concept, then
 implement.
 

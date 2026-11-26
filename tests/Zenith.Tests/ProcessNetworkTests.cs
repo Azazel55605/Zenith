@@ -32,7 +32,7 @@ public sealed class ProcessNetworkTests
         public string Resolve(string host, string? server, int port) => "10.0.2.2";
         public long Echo(string host) => 7;
         public IProcessConnection Connect(string host, int port, bool secure) { Opens++; return Connection = new(); }
-        public IProcessDownload Download(string path, bool replace, int maximum) => Sink = new();
+        public IProcessDownload Download(string path, bool replace, int maximum, bool exact) => Sink = new();
         public void ThrowIfCancelled() { }
     }
     [Fact]
@@ -93,6 +93,22 @@ public sealed class ProcessNetworkTests
         Assert.Equal(-22, network.Download("a", false, ProcessNetwork.MaximumTransfer + 1));
     }
     [Fact]
+    public void BulkSocketMaySendMoreThan64KiBWithinItsInvocationBudget()
+    {
+        using var network = new ProcessNetwork(new Source());
+        int fd = network.Connect("files", 445, false, bulk: true);
+        Assert.True(network.IsConnection((ulong)fd));
+        byte[] block = new byte[ProcessNetwork.MaximumIo];
+        int budget = 2 * ProcessNetwork.MaximumTransfer;
+        while (budget >= block.Length) { Assert.Equal(block.Length, network.Write(fd, block)); budget -= block.Length; }
+        Assert.Equal(budget, network.Write(fd, new byte[budget]));
+        Assert.Equal(-28, network.Write(fd, new byte[1]));
+        Assert.Equal(0, network.Close(fd));
+        Assert.False(network.IsConnection((ulong)fd));
+        int next = network.Connect("files", 445, false, bulk: true);
+        Assert.Equal(-28, network.Write(next, new byte[1]));
+    }
+    [Fact]
     public void PartialReadsAtTheAggregateLimitAndFailedWritesRemainBounded()
     {
         var source = new Source(); using var network = new ProcessNetwork(source);
@@ -127,8 +143,14 @@ public sealed class ProcessNetworkTests
         Assert.True(ProcessNetworkRequest.TryRead(Request(2, input: 0x400000, length: 4, output: 0x401000, capacity: 16, value: 53), out _));
         Assert.True(ProcessNetworkRequest.TryRead(Request(4, flags: 1, input: 0x400000, length: 4, value: 443), out _));
         Assert.True(ProcessNetworkRequest.TryRead(Request(7, value: 10000, extra: 65536), out _));
+        Assert.True(ProcessNetworkRequest.TryRead(Request(5, flags: 3, input: 1, length: 5, value: 0), out _));
+        Assert.True(ProcessNetworkRequest.TryRead(Request(8, input: 1, length: 4, value: 445), out _));
+        Assert.True(ProcessNetworkRequest.TryRead(Request(9, output: 1, capacity: 64), out _));
+        Assert.True(ProcessNetworkRequest.TryRead(Request(10, input: 1, length: 32, output: 2, capacity: 4096), out _));
         foreach (byte[] malformed in new[] {
-            Request(0), Request(8), Request(1, output: 1, capacity: 4097), Request(1, flags: 1, output: 1, capacity: 16),
+            Request(0), Request(8), Request(8, flags: 1, input: 1, length: 4, value: 445),
+            Request(9, output: 1, capacity: 65), Request(9, input: 1, length: 4, output: 1, capacity: 1),
+            Request(10, output: 2, capacity: 5), Request(5, flags: 4, input: 1, length: 4), Request(1, output: 1, capacity: 4097), Request(1, flags: 1, output: 1, capacity: 16),
             Request(4, input: 1, length: 254, value: 443), Request(4, input: 1, length: 1, value: 65536),
             Request(3, input: 1, length: 1, output: 1, capacity: 16), Request(6, input: 1, length: 1, output: 1, capacity: 16),
             Request(2, input: 1, length: 1, target: 1, output: 1, capacity: 16, value: 53),

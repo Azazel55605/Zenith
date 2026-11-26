@@ -28,6 +28,11 @@ internal sealed class GuardedFilesystem : IVfsFilesystemType
         if (!CredentialContext.Current.IsRoot) { throw new UnauthorizedAccessException("operation requires root"); }
     }
     internal static IVfsInode Unwrap(IVfsInode inode) => inode is Node node ? node.Inner : inode;
+    internal static bool TryStatFs(IVfsInode inode, out VfsStatFs stat)
+    {
+        if (inode is Node node) { return node.StatFs(out stat); }
+        stat = default; return false;
+    }
     internal static bool IsUnix(IVfsInode inode)
     {
         inode = Unwrap(inode);
@@ -79,6 +84,7 @@ internal sealed class GuardedFilesystem : IVfsFilesystemType
         private readonly Volume _volume;
         internal IVfsInode _inner;
         public Node(Volume volume, IVfsInode inner) { _volume = volume; _inner = inner; }
+        public bool StatFs(out VfsStatFs stat) => _volume.StatFs(_volume, out stat);
         // Re-read ext2 metadata before authorization, including changes through another handle.
         public IVfsInode Inner => _inner is Ext2Inode ext ? ext.Superblock.ReadInode(ext.InodeNumber, ext.Name) : _inner;
         public string Name => _inner.Name;

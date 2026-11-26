@@ -60,7 +60,8 @@ internal static class NetworkCommands
             }
             if (c.Args.Length != p + 2) { return c.Fail("specify [--replace] [--kernel] URL FILE"); }
             var progress = new CommandProgress(c.Out, c.IsTerminal); int bytes;
-            try { bytes = NetworkService.Fetch(c.Args[p], c.Resolve(c.Args[p + 1]), replace, c.Shell.ThrowIfCancelled, progress.Report, kernel ? Zenith.Core.Boot.KernelPackage.MaximumBytes : HttpDownload.DefaultMaximumBytes, webTrust: true); }
+            try { bytes = NetworkService.Fetch(c.Args[p], c.Resolve(c.Args[p + 1]), replace, c.Shell.ThrowIfCancelled, progress.Report, kernel ? Zenith.Core.Boot.KernelPackage.MaximumBytes : HttpDownload.DefaultMaximumBytes, webTrust: true,
+                    timing: TransferProfile.Requested(c.Shell.Environment) ? progress.Timing : null); }
             catch { progress.Finish(); throw; }
             progress.Finish();
             c.WriteLine("fetch complete bytes=" + bytes + (c.Args[p].StartsWith("https://", StringComparison.Ordinal) ? " (verified TLS 1.2)" : " (plain HTTP; unauthenticated)")); return 0;

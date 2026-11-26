@@ -114,6 +114,46 @@ internal sealed class NativeProcessFiles : IProcessFiles, IProcessNamespace, IPr
         }
         catch { parent.Dispose(); throw; }
     }
+    // Pin the final directory entry and validate the same opened inode before exposing any bytes.
+    public static int ReadPrivateFile(string path, byte[] buffer)
+    {
+        int slash = path.LastIndexOf('/');
+        string name = path[(slash + 1)..];
+        if (name.Length == 0 || !VfsManager.TryOpenDirectory(slash == 0 ? "/" : path[..slash], out var parent))
+        { return -2; }
+        IVfsInode? expected;
+        try
+        {
+            bool found = parent.Inode.InodeOperations.Lookup(parent.Inode, name, out expected);
+            parent.Dispose();
+            if (!found || expected is null) { return -2; }
+        }
+        catch { parent.Dispose(); throw; }
+        if (!GuardedFilesystem.IsUnix(expected) || !expected.InodeOperations.GetAttr(expected, out var entry)
+            || !PrivateMode(entry)) { return -13; }
+        if (!VfsManager.TryOpenFile(path, out var file)) { return -2; }
+        try
+        {
+            if (!ReferenceEquals(expected, file.Inode) || !file.TryStat(out var stat) || !PrivateMode(stat))
+            { file.Dispose(); return -13; }
+            if (stat.Size == 0 || stat.Size > (ulong)buffer.Length) { file.Dispose(); return -34; }
+            int at = 0, size = (int)stat.Size;
+            while (at < size)
+            {
+                long n = file.Read(buffer.AsSpan(at, size - at));
+                if (n <= 0 || n > size - at) { file.Dispose(); return -5; }
+                at += (int)n;
+            }
+            bool stable = file.TryStat(out stat) && stat.Size == (ulong)size && PrivateMode(stat);
+            file.Dispose();
+            return stable ? size : -13;
+        }
+        catch { file.Dispose(); throw; }
+    }
+
+    private static bool PrivateMode(VfsStat stat)
+        => stat.Uid == CredentialContext.Current.Uid && (uint)stat.Mode is 0x8180 or 0x8100;
+
     public IProcessFile OpenCopyDestination(string path, IProcessFile source)
     {
         if (source is not RegularFile regular || regular.Writable) { throw new ArgumentException("copy source must be a readable regular file"); }

@@ -16,10 +16,12 @@ internal sealed class PackageReporter
     public Action Cancel = () => { };
     public Action<string> Say = _ => { }, Progress = _ => { };
     public Action Finish = () => { };
+    public Action<string>? Timing;
     public static PackageReporter For(CommandContext c)
     {
         var progress = new CommandProgress(c.Out, c.IsTerminal);
-        return new() { Cancel = c.Shell.ThrowIfCancelled, Say = c.WriteLine, Progress = progress.Report, Finish = progress.Finish };
+        return new() { Cancel = c.Shell.ThrowIfCancelled, Say = c.WriteLine, Progress = progress.Report, Finish = progress.Finish,
+            Timing = TransferProfile.Requested(c.Shell.Environment) ? progress.Timing : null };
     }
 }
 
@@ -82,7 +84,7 @@ internal static class NativeRepositories
                     try
                     {
                         NetworkService.Fetch(repository.Mirror.TrimEnd('/') + "/" + repository.Name + "/index" + version + ".zri",
-                            incoming, false, c.Cancel, progress.Progress, RepositoryIndex.MaximumBytes);
+                            incoming, false, c.Cancel, progress.Progress, RepositoryIndex.MaximumBytes, timing: c.Timing);
                         break;
                     }
                     catch (Exception error) when (version.Length != 0 && error.Message == "HTTP status 404"
@@ -137,7 +139,7 @@ internal static class NativeRepositories
             {
                 c.Say("Downloading " + entry.Name + " " + entry.Version);
                 NetworkService.Fetch(repository.Mirror!.TrimEnd('/') + "/" + entry.ArchivePath, path, false,
-                    c.Cancel, progress.Progress, entry.Bytes); progress.Finish();
+                    c.Cancel, progress.Progress, entry.Bytes, timing: c.Timing); progress.Finish();
             }
             catch { progress.Finish(); throw; }
         }

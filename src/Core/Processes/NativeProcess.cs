@@ -1034,7 +1034,24 @@ internal sealed unsafe class NativeProcess
                     case ProcessNetworkOperation.Resolve: output = network.Resolve(input, target, (int)r.Value); break;
                     case ProcessNetworkOperation.Echo: return network.Echo(input);
                     case ProcessNetworkOperation.Connect: return network.Connect(input, (int)r.Value, r.Flags != 0);
-                    case ProcessNetworkOperation.Download: return network.Download(files.Resolve(input), r.Flags != 0, (int)r.Value);
+                    case ProcessNetworkOperation.ConnectBulk: return network.Connect(input, (int)r.Value, false, bulk: true);
+                    case ProcessNetworkOperation.Download: return network.Download(files.Resolve(input), (r.Flags & 1) != 0, (int)r.Value, (r.Flags & 2) != 0);
+                    case ProcessNetworkOperation.Entropy:
+                    case ProcessNetworkOperation.ReadCredential:
+                    {
+                        network.Control();
+                        byte[] data = new byte[r.Capacity];
+                        try
+                        {
+                            int size = r.Operation == ProcessNetworkOperation.ReadCredential
+                                ? NativeProcessFiles.ReadPrivateFile(files.Resolve(input), data)
+                                : HardwareEntropy.Source.TryFill(data) ? data.Length : -5;
+                            if (size > 0) { Transfer(r.Output, data.AsSpan(0, size), true); }
+                            Array.Clear(data);
+                            return size;
+                        }
+                        catch { Array.Clear(data); throw; }
+                    }
                     case ProcessNetworkOperation.Commit: return network.Commit((int)r.Value, (int)r.Extra);
                 }
                 byte[] result = Encoding.UTF8.GetBytes(output ?? "");
@@ -1048,7 +1065,7 @@ internal sealed unsafe class NativeProcess
                 if (!Valid(c.Arg1, (int)c.Arg2, c.Call == 501)) { return -14; }
                 if (c.Call == 502) { return network.Write((int)c.Arg0, ReadUser(c.Arg1, (int)c.Arg2)); }
                 byte[] result = new byte[(int)c.Arg2]; int count = network.Read((int)c.Arg0, result);
-                if (count > 0) { Transfer(c.Arg1, result.AsSpan(0, count).ToArray(), true); }
+                if (count > 0) { Transfer(c.Arg1, result.AsSpan(0, count), true); }
                 return count;
             }
             if (c.Call == 503)
@@ -1363,8 +1380,8 @@ internal sealed unsafe class NativeProcess
                     if (elevated) { context.Uid = 0; context.Gid = 0; }
                     var caller = Zenith.Core.Security.CredentialContext.Enter(elevated ? Zenith.Core.Security.Credentials.Root : identity);
                     // Transport reads park like stdin; never hold the filesystem service gate
-                    // while waiting for a peer. Mutations and transport setup stay serialized.
-                    bool standard = context.Call is >= 661 and <= 671 or 642 or 643 or 644 or 649 or 651 or 653 or 657 or 658 or 400 or 401 or 402 or 403 or 404 or 410 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 639 or 645 or 646 or 659 || (context.Call == 672 && context.Arg1 is 1 or 3) || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
+                    // while waiting for a peer, including send acknowledgements. Staging-file writes stay serialized.
+                    bool standard = context.Call is >= 661 and <= 671 or 642 or 643 or 644 or 649 or 651 or 653 or 657 or 658 or 400 or 401 or 402 or 403 or 404 or 410 or 501 or 600 or 601 or 602 or 603 or 604 or 605 or 606 or 607 or 628 or 629 or 630 or 631 or 632 or 633 or 634 or 635 or 636 or 637 or 638 or 639 or 645 or 646 or 659 || (context.Call == 502 && network!.IsConnection(context.Arg0)) || (context.Call == 672 && context.Arg1 is 1 or 3) || ((context.Call is 0 or 1 or 3) && context.Arg0 <= 2);
                     if (!standard) { Monitor.Enter(s_serviceGate); }
                     try
                     {

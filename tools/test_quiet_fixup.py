@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Real pinned allocator trace adaptation, idempotence and drift refusal."""
+"""Real pinned trace adaptation, idempotence and drift refusal."""
 import os
 from pathlib import Path
 import shutil
@@ -102,5 +102,86 @@ class PatchedCoreLibQuietTests(MonitorQuietTests):
         result=self.run_fixup();self.assertEqual(0,result.returncode,result.stderr)
         self.assertIn('Quieted pinned monitor interop success traces',result.stdout)
         self.assertEqual(before,self.copy.read_bytes());self.assertEqual(before,self.source.read_bytes())
+
+class TcpRejectionQuietTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        temp = tempfile.TemporaryDirectory(prefix='zenith-tcp-trace-inspector-')
+        cls.addClassCleanup(temp.cleanup)
+        folder = Path(temp.name)
+        binaries = ROOT / 'tools/PatcherFixup/bin/Release/net10.0'
+        cls.tool = binaries / 'PatcherFixup.dll'
+        project = folder / 'check.csproj'
+        project.write_text(
+            '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType>'
+            '<TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings>'
+            '</PropertyGroup><ItemGroup>'
+            f'<Compile Include="{ROOT / "tools/fixtures/tcp-rejection-trace.cs"}"/>'
+            f'<Reference Include="Mono.Cecil"><HintPath>{binaries / "Mono.Cecil.dll"}</HintPath>'
+            '</Reference></ItemGroup></Project>')
+        subprocess.run(['dotnet', 'build', str(project), '-c', 'Release', '--nologo'],
+                       capture_output=True, check=True)
+        cls.driver = folder / 'bin/Release/net10.0/check.dll'
+
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        packages = Path(os.environ.get('NUGET_PACKAGES', Path.home() / '.nuget/packages'))
+        self.source = (packages / 'cosmos.kernel.system/3.0.89/runtimes/linux-x64/lib/net10.0/'
+                       'Cosmos.Kernel.System.dll')
+        self.copy = Path(temp.name) / self.source.name
+        self.references = Path(os.environ.get('ZENITH_FIXUP_REFERENCES', ROOT / 'output-x64'))
+        shutil.copyfile(self.source, self.copy)
+
+    def adapt(self):
+        return subprocess.run(['dotnet', str(self.tool), str(self.copy)], cwd=self.references,
+                              capture_output=True, text=True)
+
+    def inspect(self, *args):
+        run = subprocess.run(['dotnet', str(self.driver), str(self.copy), *map(str, args)],
+                             cwd=self.references, capture_output=True, text=True)
+        self.assertEqual(0, run.returncode, run.stderr)
+
+    def test_rejected_packets_keep_reset_and_ack_branches_across_repeated_adaptation(self):
+        original = self.source.read_bytes()
+        self.inspect('original')
+        result = self.adapt()
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.inspect('adapted')
+        adapted = self.copy.read_bytes()
+        result = self.adapt()
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(adapted, self.copy.read_bytes())
+        self.assertEqual(original, self.source.read_bytes())
+
+    def test_changed_rejection_literal_is_refused_without_writing(self):
+        original = self.copy.read_bytes()
+        text = '[TCP] Sequence number or segment data invalid, packet passed.\n'
+        old = text.encode('utf-16le')
+        changed = original.replace(old, text.replace('passed', 'drifts').encode('utf-16le'))
+        self.assertNotEqual(original, changed)
+        self.copy.write_bytes(changed)
+        self.assertNotEqual(0, self.adapt().returncode)
+        self.assertEqual(changed, self.copy.read_bytes())
+
+    def test_changed_rejection_sink_is_refused_without_writing(self):
+        altered = self.copy.with_name('drift.dll')
+        self.inspect('change-sink', altered)
+        altered.replace(self.copy)
+        before = self.copy.read_bytes()
+        self.assertNotEqual(0, self.adapt().returncode)
+        self.assertEqual(before, self.copy.read_bytes())
+
+
+    def test_changed_payload_accessor_is_refused_without_writing(self):
+        altered = self.copy.with_name('drift.dll')
+        self.inspect('change-payload', altered)
+        altered.replace(self.copy)
+        before = self.copy.read_bytes()
+        result = self.adapt()
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn('TCP contiguous delivery changed', result.stderr)
+        self.assertEqual(before, self.copy.read_bytes())
+
 
 if __name__=='__main__':unittest.main()

@@ -140,6 +140,14 @@
     "program": "horizon",
     "generate": "native"
   },
+  "zenith-smb": {
+    "kind": "data",
+    "name": "zenith-smb",
+    "repository": "extra",
+    "payload": "obj/packages/zenith-smb",
+    "program": "smb",
+    "generate": "native"
+  },
   "zenith-quill": {
     "kind": "data",
     "name": "zenith-quill",

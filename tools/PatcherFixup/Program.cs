@@ -797,6 +797,13 @@ if (assembly.Name.Name == "Cosmos.Kernel.System")
         changed = true; Console.WriteLine("Adapted Cosmos TCP receive buffer: bounded CAS snapshots (128 KiB)");
     }
     changed |= NetworkBulkFixup.AddReceiveAccessors(tcp, transportSupport.MainModule.GetType("Zenith.Core.Network.Transport.TcpReceiveBridge"));
+    // TcpSegmentPolicy counts rejection reasons. Keep the non-RST duplicate ACK branch intact.
+    const string rejectedSegment = "[TCP] Sequence number or segment data invalid, packet passed.\n";
+    var rejectedText = receive.Body.Instructions.Single(i => i.OpCode == OpCodes.Ldstr && (string)i.Operand == rejectedSegment);
+    if (rejectedText.Next.OpCode != OpCodes.Pop && !(rejectedText.Next.OpCode == OpCodes.Call
+        && rejectedText.Next.Operand is MethodReference print && print.FullName == "System.Void Cosmos.Kernel.Core.IO.Serial::WriteString(System.String)"))
+    { throw new InvalidOperationException("Cosmos TCP rejected segment trace contract changed"); }
+    QuietTrace(receive, rejectedSegment, rejectedSegment, rejectedText);
     // Successful-packet tracing performs hundreds of port writes in the RX path.
     // Remove only pinned informational statements; preserve rejection/error logs.
     QuietTrace(handle, "[NetworkStack] HandlePacket called, len=", "\n");
@@ -833,6 +840,7 @@ if (assembly.Name.Name == "Cosmos.Kernel.System")
             | FieldAttributes.Literal | FieldAttributes.HasDefault, module.TypeSystem.Boolean) { Constant = true });
         changed = true;
     }
+    changed |= TcpReassemblyFixup.Apply(tcp, packetType, transportSupport.MainModule);
     Console.WriteLine("Quieted pinned successful IPv4/TCP packet traces; errors remain enabled");
 }
 // Keyboard adaptations apply only to build copies of pinned Cosmos 3.0.89.

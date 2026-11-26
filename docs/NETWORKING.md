@@ -1,6 +1,6 @@
 # M3 IPv4 networking
 
-Work owners: **N1/N2/N3/PK2** in the [master roadmap](ROADMAP.md).
+Work owners: **N1/N2/N3/N4/PK2** in the [master roadmap](ROADMAP.md).
 
 > Technical/operating reference for the bounded IPv4 client. Work steps: [Networking](components/NETWORKING.md).
 
@@ -10,12 +10,16 @@ Work owners: **N1/N2/N3/PK2** in the [master roadmap](ROADMAP.md).
 - [Commands and saved configuration](#commands-and-saved-configuration)
 - [Clock and certificate trust](#clock-and-certificate-trust)
 - [Transfer and transport bounds](#transfer-and-transport-bounds)
+- [SMB file transfers](#smb-file-transfers)
+- [Recovery and package transfers](#recovery-and-package-transfers)
+- [Transfer timing](#transfer-timing)
 - [Build and validation](#build-and-validation)
 
 Zenith provides one primary IPv4 uplink, DHCP/static/off configuration, DNS/hosts
 lookup, ICMP and TCP diagnostics, optional NTP, and bounded HTTP/verified HTTPS
 file downloads. The signed net-tools package supplies the interactive `fetch`
-command in the desktop and headless shells. The package manager keeps its own
+command in the desktop and headless shells. The optional SMB client can
+browse network shares and copy files in either direction. The package manager keeps its own
 download policy and mirror trust. See the [deployed package server](PACKAGE-SERVER.md).
 
 ## Test on your network
@@ -205,6 +209,61 @@ the destination, and a redirect from HTTPS to HTTP fails. Files default to
 apply to decoded body bytes. Chunk metadata and HTTP headers have separate
 bounds. Signed package installation continues to verify the package signature.
 
+For a file with a known response length, the downloader queries the filesystem
+holding its staging file before writing the body. A replacement needs enough
+space for the full new file alongside the original. This also applies to the
+recovery downloader and package cache. Chunked downloads enforce the selected
+limit as data arrives. Concurrent writers can still consume free space during
+a transfer. Failed transfers discard their staging file and preserve the destination.
+
+## SMB file transfers
+
+The optional `zenith-smb` package supplies `smb`. It requires a kernel with
+`zenith-native-transfer-abi` 1.0. Give the server's account with `-U`. The
+foreground password prompt hides input. These examples use a share named `media`.
+
+```sh
+smb -U alex shares nas.home
+smb -U alex ls //nas.home/media/games
+smb -U alex get //nas.home/media/games/DOOM.WAD /home/alex/DOOM.WAD
+smb -U alex put /home/alex/notes.txt //nas.home/media/notes.txt
+```
+
+Put options before the operation. `--domain NAME` supplies the account domain,
+`--port PORT` selects a port other than TCP 445, and `--replace` permits
+replacement on get or put. Both transfers stage a single file and publish it
+after a successful transfer. The first version accepts files up to 32 MiB.
+Uploads require two SMB credits. The first compound request creates a
+temporary file and marks it for cleanup on disconnect. After flushing the file,
+the final compound request clears that mark and renames the file. If the
+connection drops during publication, inspect the destination before retrying.
+Passwords for unattended jobs can come from redirected input with
+`--password-stdin`, or from a file supplied with `--credentials PATH`.
+Create that file with mode 0600 **before writing credentials into it**.
+It must be a regular file owned by the caller on a filesystem with Unix
+permissions. Mode 0400 also works. Each line is one `key=value` pair.
+`server`, `username` and `password` are required. `domain` and `port` are
+optional. The server and port must match the command.
+
+The client supports direct TCP, NTLMv2 and signed SMB 2.1, 3.0 and 3.0.2.
+Account names must be printable ASCII. Passwords and file paths accept UTF-8.
+Signing protects message integrity. File contents travel in plaintext.
+Servers requiring SMB encryption, SMB 3.1.1 exclusively or Kerberos-only
+authentication need further client support. Horizon integration and filesystem
+mounts are tracked separately. [Native transfer ABI](NATIVE-PROGRAMS.md#owned-network-client-extension) · [SMB protocol sources](../userland/smb/vendor/SOURCE.md)
+
+To repeat the interoperability check, build the test server image and start
+the harness from the repository root. The guest option uses the kernel in
+`output-x64`, test-signs the package and verifies the saved bytes outside
+the guest. The Samba container uses an ephemeral loopback port.
+
+```sh
+docker build -t zenith-smb-fixture:bookworm tools/fixtures/smb
+python3 -B tools/smb-smoke.py /tmp/zenith-smb-check --guest --limit-check
+```
+
+## Recovery and package transfers
+
 The recovery builtin and the package downloader send HTTP/1.0 with identity encoding and close semantics. Only status 200
 with exactly one numeric Content-Length is accepted. Redirects, chunking,
 compression, credentials and fragments are rejected. URLs are printable ASCII
@@ -246,7 +305,10 @@ Ethernet/IPv4 lengths/options/checksums before framework parsing, reject fragmen
 IPv6/unsupported frames, cap each UDP/ICMP queue at 32 packets, and cap pending TCP
 at 128 KiB. They bypass unsafe legacy DHCP parsing and unused TCP option allocation.
 The receive window advertises up to 32,768 bytes without scale negotiation and
-shrinks/reopens with unread data. Immutable 4 KiB chunks reduce per-packet copies;
+shrinks/reopens with unread data. On an established TCP connection, ordinary data
+that arrives ahead of a gap can occupy a per-connection 32 KiB reorder buffer.
+The socket exposes those bytes once the missing prefix arrives. The kernel
+allocates this buffer on the first gap. Immutable 4 KiB chunks reduce per-packet copies;
 held read snapshots remain stable. High-volume successful IPv4/TCP serial tracing
 is disabled in adapted build copies; errors and service counters remain available.
 Limited IPv4 broadcasts also receive the Ethernet broadcast destination; a VMware
@@ -268,7 +330,7 @@ receive path when platform NIC interrupts are not delivered. `rx-polls` counts
 poll calls; `polled-frames` counts frames delivered by that path. The VMware
 screenshot showed a valid filter, zero NIC interrupts and zero received frames;
 the precise platform interrupt-routing cause remains unverified.
-Cosmos protocol state, retransmission/reassembly, ARP caching, connection retirement
+Cosmos protocol state, retransmission, ARP caching, connection retirement
 and shared tables still have limits; these bounds are not a whole-kernel budget or
 an Internet-facing server assurance. Native cleanup explicitly catches/disposes in
 owning frames because Cosmos 3.0.89 skips unwind-finally and misselects typed catches.
@@ -276,6 +338,20 @@ owning frames because Cosmos 3.0.89 skips unwind-finally and misselects typed ca
 HTTPS authenticates the transport to a trusted server. It does **not** authorize
 package installation: signed metadata/artifacts, rollback/expiry policy and the
 transaction executor remain package milestones. P0 is still inspect/plan only.
+
+## Transfer timing
+
+Run `export ZENITH_TRANSFER_PROFILE=1` in the guest shell. A subsequent `recovery fetch --kernel --replace URL FILE`, `pkg refresh`, or package archive download prints one `fetch timing` record per completed file. Use `export ZENITH_TRANSFER_PROFILE=0` to turn it off. The recovery command selects the built-in file downloader even when the signed net-tools package owns the regular `fetch` command.
+
+The record contains the saved byte count, successful attempt number, and elapsed milliseconds for that attempt. Setup includes name resolution, connection, TLS handshake and sending the request. Receive covers socket reads and feeding input to the TLS bridge. Wait covers explicit sleeps for incoming data. TLS record processing, staged file writes and the final flush/rename/filesystem sync have separate timers. The poll timer measures the kernel loop's E1000E polling during the response body and can overlap the reader. The poll, frame, read and wait counts help interpret those times. Interrupt-driven device work and scheduling can occur inside any measured interval. Package signature verification and installation run after the transfer timer.
+
+`frames-accepted` counts frames that passed the guest Ethernet filter. `polled-frames` counts frames delivered by timer-driven NIC polling, `peak-poll-frames` records the largest such batch and `rx-irqs` counts receive interrupts. `wait-timeouts` counts explicit waits for which the monitor reported a timeout. These counters cover all interface traffic during the measured receive interval.
+
+`ip` reports cumulative TCP counters. A profiled transfer reports changes during its receive loop, including concurrent connections. `tcp-buffered-segments` counts ahead segments that contributed new bytes to the reorder buffer. `tcp-recovered-bytes` counts previously buffered bytes delivered when a gap closed. For rejected segments, `ahead` starts after the next expected byte, `behind` ends at or before it, and `overlap` starts before it but includes new bytes. `window` starts exactly at the expected byte but its payload exceeds available receive space. `ambiguous` means the two sequence numbers differ by exactly half the 32-bit sequence space. These counts identify what the receiver saw. Measuring packet loss or retransmission requires a wire trace.
+
+Use `python3 -B tools/transfer-bench.py obj/transfer-profile --https --profile --runs 3` for comparable RAM-root and installed ext2 runs. The JSON records wall-clock throughput and the guest timings. The benchmark checks TCP acknowledgements, compares both installed files byte-for-byte, and runs an independent ext2 check. [Mirror results](components/NETWORKING.md#transfer-timing-and-tls-acceleration-2026-11-26)
+
+Add `--reorder` to swap occasional adjacent data segments from the loopback fixture servers on the private QEMU link. The gate records actual swaps per transfer and checks recovered bytes on kernels that report the counter.
 
 ## Build and validation
 

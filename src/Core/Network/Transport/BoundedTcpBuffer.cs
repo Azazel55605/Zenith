@@ -44,6 +44,36 @@ public sealed class BoundedTcpBuffer
         }
     }
     private State _state = new(Array.Empty<byte[]>(), 0, 0);
+    // Like the connection's RCV.NXT, this receive-side state is owned by the NIC receive path.
+    // Socket readers only access the immutable, already contiguous State above.
+    private TcpReorderWindow? _pending;
+
+    public int Receive(uint expected, uint sequence, byte[] bytes, bool fin)
+    {
+        int delta = unchecked((int)(sequence - expected));
+        long end = (long)delta + bytes.Length;
+        if (delta == int.MinValue || end <= 0 || end > Window || (fin && delta != 0)) { return 0; }
+        var fresh = bytes.AsSpan(delta < 0 ? -delta : 0);
+        if (delta <= 0 && (_pending is null || _pending.Empty))
+        {
+            return Append(fresh) ? fresh.Length : -1;
+        }
+        var pending = _pending ??= new TcpReorderWindow();
+        int inserted = pending.Store(delta < 0 ? expected : sequence, fresh);
+        if (delta > 0)
+        {
+            if (inserted > 0) { TcpSegmentPolicy.Buffered(); }
+            return 0;
+        }
+        // A FIN consumes the sequence number directly following its payload.
+        // Never expose buffered bytes beyond that point before the original FSM observes FIN.
+        byte[] ready = pending.Take(expected, fin ? fresh.Length : Window);
+        if (fin) { _pending = null; }
+        if (!Append(ready)) { return -1; }
+        if (ready.Length > inserted) { TcpSegmentPolicy.Recovered(ready.Length - inserted); }
+        return ready.Length;
+    }
+
     public ushort Window
     {
         get { var state = Volatile.Read(ref _state); return state.Overflow ? (ushort)0 : (ushort)Math.Max(0, ReceiveWindow - state.Count); }
@@ -134,6 +164,8 @@ public static class TcpReceiveBridge
     public static int Count(ref BoundedTcpBuffer? buffer) => Get(ref buffer).Count;
     public static void CopyPrefix(ref BoundedTcpBuffer? buffer, Span<byte> destination) => Get(ref buffer).CopyPrefix(destination);
     public static bool Append(ref BoundedTcpBuffer? buffer, ReadOnlySpan<byte> bytes) => Get(ref buffer).Append(bytes);
+    public static int Receive(ref BoundedTcpBuffer? buffer, uint expected, uint sequence, byte[] bytes, bool fin) =>
+        Get(ref buffer).Receive(expected, sequence, bytes, fin);
     public static ushort Window(ref BoundedTcpBuffer? buffer) => Get(ref buffer).Window;
     public static void Advance(ref BoundedTcpBuffer? buffer, int count) => Get(ref buffer).Advance(count);
     public static void Release(ref BoundedTcpBuffer? buffer) => Interlocked.Exchange(ref buffer, null);

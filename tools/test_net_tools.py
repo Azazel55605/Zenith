@@ -43,7 +43,10 @@ static long zenith_call(long op,unsigned long a,unsigned long b,unsigned long c)
             const char *root=getenv("NET_DIRECTORY");const char *path=(void *)r->input;
             char local[2048];if(path[0]!='/'){snprintf(local,sizeof(local),"%s/%s",root,path);path=local;}
             if(strncmp(root,path,strlen(root))||path[strlen(root)]!='/')return -13;
-            struct stat st;if(!lstat(path,&st)&&(!r->flags||!S_ISREG(st.st_mode))){last_error="destination exists";return -5;}
+            struct stat st;if(!lstat(path,&st)&&(!(r->flags&1)||!S_ISREG(st.st_mode))){last_error="destination exists";return -5;}
+            if((r->flags&2)&&getenv("NET_AVAILABLE")&&r->value>strtoul(getenv("NET_AVAILABLE"),0,10)){
+                last_error="insufficient free space";return -28;
+            }
             snprintf(destination,sizeof(destination),"%s",path);snprintf(stage,sizeof(stage),"%s/staging",root);
             sink=fopen(stage,"wb");written=0;return sink?10001:-5;
         }
@@ -93,6 +96,21 @@ int main(int argc,char **argv,char **env){return net_main(argc,argv,env);}
             self.assertEqual(data,out.read_bytes())
             self.assertIn(b'(verified TLS 1.2)',result.stdout)
             self.assertEqual(b'GET /a?b=c HTTP/1.1\r\nHost: example.test:8443\r\nConnection: close\r\nAccept-Encoding: identity\r\n\r\n',(folder/'request').read_bytes())
+
+    def test_disk_preflight_checks_output_bytes_and_preserves_existing_file(self):
+        out=Path(self.temp.name)/'space-test'
+        out.write_bytes(b'original')
+        response=b'HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nnew'
+        fail=self.run_client('fetch','--replace','http://host',str(out),response=response,mock={'NET_AVAILABLE':'2'})
+        self.assertNotEqual(0,fail.returncode)
+        self.assertIn(b'insufficient free space',fail.stderr)
+        self.assertEqual(b'original',out.read_bytes())
+        ok=self.run_client('fetch','--replace','http://host',str(out),response=response,mock={'NET_AVAILABLE':'3'})
+        self.assertEqual(0,ok.returncode,ok.stderr)
+        self.assertEqual(b'new',out.read_bytes())
+        ok=self.run_client('fetch','--replace','http://host',str(out),response=b'HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n1\r\nx\r\n0\r\n\r\n',mock={'NET_AVAILABLE':'1'})
+        self.assertEqual(0,ok.returncode,ok.stderr)
+        self.assertEqual(b'x',out.read_bytes())
 
     def test_stdout_and_head(self):
         body=bytes(range(256))*256

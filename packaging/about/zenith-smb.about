@@ -1,0 +1,7 @@
+ZENITH-ABOUT	1
+title	SMB file transfer
+summary	Browse shares and transfer files
+description	List network shares and directories, and upload or download a file through an authenticated, signed SMB session.
+category	tools
+icon	network
+change	0.1.0	List shares and directories and transfer individual files over signed SMB connections.

@@ -76,22 +76,28 @@ internal static class NetworkService
     }
     // Receivers wait here instead of a fixed sleep: the kernel loop pulses after it sees new frames
     // (IRQ or polled) and hands the CPU over, so a reader resumes as soon as data arrives; a missed
-    // pulse costs one bounded timeout. Measured download speed is limited elsewhere: managed
-    // processing of each received frame costs about 0.85 ms (QEMU e1000e, 2026-11-07).
+    // pulse costs one bounded timeout.
     private static readonly object s_data = new();
     private static int s_seenFrames;
-    public static void WaitForData(int milliseconds)
+    public static bool WaitForData(int milliseconds)
     {
         // Unconditional: returning early on unseen frames could spin a receiver while the kernel
         // loop that counts them (the scheduler's idle thread) never gets to run.
-        lock (s_data) { Monitor.Wait(s_data, milliseconds); }
+        lock (s_data) { return Monitor.Wait(s_data, milliseconds); }
     }
     public static void Tick()
     {
         // Cosmos exposes a restoring scope. Dispose explicitly on failure too:
         // NativeAOT 3.0.89 does not reliably execute unwind-finally handlers.
         var interrupts = Cosmos.Kernel.Core.Scheduler.SchedulerManager.MaskInterrupts();
-        try { E1000ReceiveFilter.Poll(); interrupts.Dispose(); }
+        try
+        {
+            var observer = TransferProfile.PollObserver;
+            long started = observer?.Mark() ?? 0;
+            int polled = E1000ReceiveFilter.Poll();
+            observer?.AddPoll(started, polled);
+            interrupts.Dispose();
+        }
         catch { interrupts.Dispose(); throw; }
         int frames = Zenith.Core.Network.Transport.EthernetIngress.Received;
         if (frames != Volatile.Read(ref s_seenFrames)) { lock (s_data) { Volatile.Write(ref s_seenFrames, frames); Monitor.PulseAll(s_data); } Zenith.Core.Processes.WakeSignal.Request(); }
@@ -130,9 +136,11 @@ internal static class NetworkService
     private static bool Expired => s_expiresAt != 0 && Stopwatch.GetTimestamp() >= s_expiresAt;
     private static void Ready()
     {
-        if (!Adapter.IsValid) { throw new IOException("no supported network adapter"); }
-        if (!Adapter.Ready || !Adapter.LinkUp) { throw new IOException("network link is down"); }
-        if (Adapter.IPConfig is null || Adapter.IPConfig.Address.ToString() == "0.0.0.0" || Expired)
+        var adapter = Adapter;
+        if (!adapter.IsValid) { throw new IOException("no supported network adapter"); }
+        if (!adapter.Ready || !adapter.LinkUp) { throw new IOException("network link is down"); }
+        var config = adapter.IPConfig;
+        if (config is null || config.Address.IsZero || Expired)
         { throw new IOException("no usable address; run netcfg apply (root)"); }
     }
     private static int s_dhcpReplies, s_dhcpRejected;
@@ -157,6 +165,7 @@ internal static class NetworkService
             b.Append("rx-polls=" + E1000ReceiveFilter.Polls + " polled-frames=" + E1000ReceiveFilter.PolledFrames + "\n");
         }
         b.Append("dhcp-replies=" + s_dhcpReplies + " rejected=" + s_dhcpRejected + " last-rejection=" + s_dhcpRejection + "\n");
+        b.Append(TcpSegmentPolicy.Counters().Fields() + "\n");
         b.Append("time=" + s_time + "\n"); return b.ToString();
     }
     public static void Apply(Action cancel)
@@ -466,7 +475,7 @@ internal static class NetworkService
             throw;
         }
     }
-    public static int Fetch(string url, string destination, bool replace, Action cancel, Action<string> report, int maximum = HttpDownload.DefaultMaximumBytes, bool webTrust = false)
+    public static int Fetch(string url, string destination, bool replace, Action cancel, Action<string> report, int maximum = HttpDownload.DefaultMaximumBytes, bool webTrust = false, Action<string>? timing = null)
     {
         return Run(() => { var target = HttpTarget.Parse(url); var metadata = new VfsFileMetadata();
         if (metadata.TryRead(destination, out var existing) && (!replace || existing.Type != "regular file"))
@@ -477,16 +486,23 @@ internal static class NetworkService
             for (int attempt = 0; attempt < 2; attempt++)
             {
                 cancel(); Socket? socket = null; TlsConnection? tls = null; IVfsFileHandle? staged = null; bool retry = false;
+                var profile = timing is null ? null : new TransferProfile();
                 try
                 {
                     if (File.Exists(temporary)) { File.Delete(temporary); }
                     if (!VfsManager.TryCreateFile(temporary, (VfsMode)0x180) || !VfsManager.TryOpenFile(temporary, out var file))
                     { throw new IOException("cannot stage download beside destination"); }
                     staged = file; int received;
+                    long setupStart = profile?.Mark() ?? 0;
+                    long commitStart;
                     using (file)
                     {
                         var decoder = new HttpDownload((bytes, offset, count) =>
-                        { if (file.Write(bytes.AsSpan(offset, count)) != count) { throw new IOException("download write failed"); } }, cancel, maximum);
+                        {
+                            long started = profile?.Mark() ?? 0;
+                            if (file.Write(bytes.AsSpan(offset, count)) != count) { throw new IOException("download write failed"); }
+                            if (profile is not null) { profile.WriteTicks += TransferProfile.Since(started); }
+                        }, cancel, maximum, bytes => DownloadSpace.Check(file, bytes));
                         socket = ConnectCore(target.Host, target.Port, cancel);
                         byte[] request = target.Request;
                         if (target.Secure)
@@ -494,18 +510,19 @@ internal static class NetworkService
                             tls = new TlsConnection(socket, target.Host, cancel, Ready, webTrust); tls.Write(request);
                         }
                         else if (socket.Send(request, 0, request.Length, SocketFlags.None) != request.Length) { throw new IOException("short HTTP request write"); }
+                        if (profile is not null) { profile.SetupTicks = TransferProfile.Since(setupStart); profile.ObservePolls(); }
                         var total = Stopwatch.StartNew(); var idle = Stopwatch.StartNew(); int nextProgress = 65536;
                         // Reuse bounded read storage throughout the transfer instead
                         // of allocating another bulk array for every socket read.
                         byte[] data = new byte[tls is null ? 131072 : 16384];
                         while (!decoder.Done)
                         {
-                            cancel(); Ready(); int available = socket.Available; bool progressed = false;
+                            cancel(); Ready(); int available = tls is null ? socket.Available : 0; bool progressed = false;
                             if (tls is not null)
                             {
                                 int remaining = HttpDownload.TransferMilliseconds(maximum) - (int)total.ElapsedMilliseconds;
                                 if (remaining <= 0) { HttpDownload.CheckTimeout(idle.ElapsedMilliseconds, total.ElapsedMilliseconds + 1, decoder.Received, decoder.Length, maximum); }
-                                int count = tls.Read(data, Math.Max(1, Math.Min(HttpDownload.IdleMilliseconds(maximum), remaining)));
+                                int count = tls.Read(data, Math.Max(1, Math.Min(HttpDownload.IdleMilliseconds(maximum), remaining)), profile);
                                 if (count > 0) { decoder.Feed(data, count); idle.Restart(); progressed = true; }
                                 else { decoder.Complete(); }
                                 if (decoder.Received >= nextProgress) { report("fetch progress " + decoder.Received + "/" + decoder.Length); nextProgress = decoder.Received + 65536; }
@@ -515,7 +532,9 @@ internal static class NetworkService
                                 // Transport adaptation caps pending data and preserves snapshots across IRQ appends.
                                 // Drain currently available data; file size never determines receive allocation.
                                 if (available > 131072) { throw new IOException("TCP receive staging exceeds 128 KiB"); }
+                                long receiveStart = profile?.Mark() ?? 0;
                                 int count = socket.Receive(data, 0, available, SocketFlags.None);
+                                profile?.AddReceive(receiveStart);
                                 if (count > 0) { decoder.Feed(data, count); idle.Restart(); progressed = true; }
                                 if (decoder.Received >= nextProgress) { report("fetch progress " + decoder.Received + "/" + decoder.Length); nextProgress = decoder.Received + 65536; }
                             }
@@ -523,20 +542,34 @@ internal static class NetworkService
                             HttpDownload.CheckTimeout(idle.ElapsedMilliseconds, total.ElapsedMilliseconds, decoder.Received, decoder.Length, maximum);
                             // Drain queued bytes immediately. Sleeping after each productive
                             // read throttles local transfers to one small window per tick.
-                            if (!decoder.Done && !progressed) { WaitForData(10); }
+                            if (!decoder.Done && !progressed)
+                            {
+                                long waitStart = profile?.Mark() ?? 0;
+                                bool signalled = WaitForData(10);
+                                profile?.AddWait(waitStart, signalled);
+                            }
                         }
-                        decoder.Complete(); report("fetch progress " + decoder.Received + "/" + decoder.Length); cancel(); if (!file.TryFlush()) { throw new IOException("download flush failed"); } received = decoder.Received;
+                        profile?.StopObserving();
+                        decoder.Complete(); report("fetch progress " + decoder.Received + "/" + decoder.Length); cancel();
+                        commitStart = profile?.Mark() ?? 0;
+                        if (!file.TryFlush()) { throw new IOException("download flush failed"); } received = decoder.Received;
                     }
                     cancel();
                     if (metadata.TryRead(destination, out existing) && (!replace || existing.Type != "regular file")) { throw new IOException("destination changed during download"); }
                     if (!VfsManager.TryRename(temporary, destination)) { throw new IOException("download commit failed"); }
-                    SystemMounts.SyncAll(); return received;
+                    SystemMounts.SyncAll();
+                    if (profile is not null)
+                    {
+                        profile.CommitTicks = TransferProfile.Since(commitStart);
+                        timing!(profile.Summary(received, attempt + 1));
+                    }
+                    return received;
                 }
                 // Use one catch-all: the released runtime does not reliably select typed catches.
                 // Do not invoke cancellation/output callbacks from inside its catch funclet.
                 catch (Exception e)
                 {
-                    staged?.Dispose(); tls?.Dispose(); Close(socket);
+                    profile?.StopObserving(); staged?.Dispose(); tls?.Dispose(); Close(socket);
                     if (!HttpDownload.RetryGet(e, attempt)) { throw; }
                     retry = true;
                 }

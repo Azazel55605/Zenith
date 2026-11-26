@@ -34,6 +34,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(b'0\r\n\r\n');return
         if self.path=='/bad-length':
             self.send_response(200);self.send_header('Content-Length','9999999999999');self.end_headers();return
+        if self.path=='/larger-than-tmp':
+            # The guest's /tmp mount is 16 MiB. No body is necessary for a capacity decision.
+            self.send_response(200);self.send_header('Content-Length',str(20*1024*1024));self.end_headers();return
         if self.path=='/truncated':
             self.send_response(200);self.send_header('Content-Length','10');self.end_headers();self.wfile.write(b'bad');return
         if self.path=='/slow':
@@ -70,7 +73,7 @@ def main():
     package('keygen',keep/'keys');key=(keep/'keys/public.pem').read_bytes();(served/'key.pem').write_bytes(key)
     package('build-native','zenith-net-tools','0.1.0',keep/'source',keep/'bundle','--repo','core')
     manifest=(keep/'bundle/manifest.tsv').read_text()
-    for capability in ('zenith-native-network-abi','zenith-native-web-transport-abi'):
+    for capability in ('zenith-native-network-abi','zenith-native-web-transport-abi','zenith-native-transfer-abi'):
         assert f'requires\t{capability}\t1.0\n' in manifest,capability+' missing'
     package('seal',keep/'bundle',keep/'keys/private.pem',served/'net-tools.zpk')
     subprocess.run([sys.executable,str(ROOT/'tools/build-userland.py'),str(keep/'upgrade-source'),'--program','net-tools','--version','0.1.1'],check=True)
@@ -92,6 +95,11 @@ def main():
         assert m.wait(marker,offset,timeout),marker+'; serial='+str(m.serial)
         checks+=1;print('PASS '+marker,flush=True)
     def status(text,label,code=0,timeout=180):command(text+'; echo '+label+'=$? | logger','user: '+label+'='+str(code),timeout)
+    def check_space(label):
+        off=len(m.log())
+        status('fetch --replace --kernel '+http+'/larger-than-tmp /tmp/capacity-probe',label,1)
+        assert 'insufficient free space on download destination' in m.log()[off:],label+' must reject the declared length'
+        command('cat /tmp/capacity-probe | logger','user: KEEP_CAPACITY_PROBE')
     def boot(name,disk=None):
         nonlocal m
         multicore=disk is not None and (ROOT/'src/Core/Multiprocessing/CpuWorkers.Process.cs').exists()
@@ -101,11 +109,14 @@ def main():
         boot('live');status('settings set windows compact; session set-default headless','NET_SESSION');status('install sata0 --yes','NET_INSTALL',timeout=600)
         command('poweroff','all filesystems unmounted');m.process.wait(timeout=30);disk=m.disk;m.stop();m=None
         boot('installed',disk)
+        status('echo KEEP_CAPACITY_PROBE > /tmp/capacity-probe','NET_SPACE_SETUP')
+        check_space('NET_RECOVERY_SPACE')
         status('fetch '+http+'/key.pem /root/net-key.pem','NET_KEY')
         status('pkg trust /root/net-key.pem '+hashlib.sha256(key).hexdigest(),'NET_TRUST')
         status('fetch '+http+'/net-tools.zpk /root/net-tools.zpk; pkg install /root/net-tools.zpk','NET_PACKAGE')
         command('which fetch | logger','user: fetch: signed native net-tools')
         command('net-tools --version | logger','user: net-tools 0.1.0')
+        check_space('NET_NATIVE_SPACE')
         if args.public_https:
             status('fetch -so /root/public-ca.pem https://curl.se/ca/cacert-2026-11-05.pem','NET_PUBLIC_CA')
         status('fetch '+http+'/tls.pem /root/net-tls.pem','NET_CA_FETCH')

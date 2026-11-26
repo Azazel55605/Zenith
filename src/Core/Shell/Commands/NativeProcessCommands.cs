@@ -59,6 +59,7 @@ internal static class NativeProcessCommands
         add(new Command("base-tools", "base-tools COMMAND [ARGS...]", "Run signed base tools", c => Execute(c, "base-tools", new[] { "base-tools" }.Concat(c.Args).ToArray())));
         add(new Command("fs-tools", "fs-tools COMMAND [ARGS...]", "Run signed filesystem tools", c => Execute(c, "fs-tools", new[] { "fs-tools" }.Concat(c.Args).ToArray())));
         add(new Command("quill", "quill FILE", "Edit a text file in the terminal", c => Execute(c, "quill", new[] { "quill" }.Concat(c.Args).ToArray())));
+        add(new Command("smb", "smb [OPTIONS] shares|ls|get|put ...", "List or transfer files on a signed SMB session", c => Execute(c, "smb", new[] { "smb" }.Concat(c.Args).ToArray())));
         add(new Command("net-tools", "net-tools COMMAND [ARGS...]", "Run signed network clients", c => Execute(c, "net-tools", new[] { "net-tools" }.Concat(c.Args).ToArray())));
         RegisterPackagedCommands(add);
 

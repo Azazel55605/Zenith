@@ -88,7 +88,7 @@ UDP and ICMP queues are adapted to BoundedPacketQueue<T> (32 packets, drop newes
 Immutable snapshots and compare/exchange avoid IRQ lock deadlocks and concurrent
 Queue<T> resize/dequeue corruption. The corresponding derived DNS/DHCP queue call
 sites are rebound too; Zenith still uses its own codecs. ARP caches, the outgoing
-queue, TCP sequence/reassembly/tables and connection retirement are not globally
+queue, TCP connection tables and connection retirement are not globally
 bounded by these adaptations. They need future Internet/server hardening.
 
 DateTimePlug.GetCurrentTicks returns ClockCorrection.Adjust(rawTicks), so BCL
@@ -103,14 +103,33 @@ rather than applying a guess. No dependency cache or sibling checkout is edited.
 P3 kernel delivery exposed an additional Cosmos 3.0.89 TCP issue: ACK-only payload
 is appended without acknowledging it, so a large ordinary HTTP response exhausts
 the peer's receive window. The signature-checked build copy now routes all nonempty
-ESTABLISHED payload through the existing acknowledge path. Its receive-range check
-uses TcpSegmentPolicy: exact next sequence and payload length within the window,
-including sequence wrap, rejecting gaps/duplicates without assembling corrupt data.
-ACK and outgoing payload packets advertise Zenith's receive window rather than the peer's send window. The two SocketPlug.SendTcp constructor sites are checked explicitly in copied Plugs before ILC cache evaluation.
-The advertised 32,768-byte unscaled window shrinks with unread bytes and reopens with an ACK when
-the application drains data. This prevents a response from filling the buffer while
-the download loop writes to disk. The patch checks the upstream ACK flag value and
-the original branch structure before replacing them; it does not add TCP reassembly.
+ESTABLISHED payload through the existing acknowledge path. Its receive-range check keeps the original
+contiguous rule for control packets. In ESTABLISHED, ordinary ACK or ACK+PSH
+payloads can also enter the pinned sender-ACK validation when they have new
+bytes inside the advertised window. Reassembly feeds those bytes to the usual
+ACK path. A gap leaves RCV.NXT unchanged. Filling it delivers the contiguous
+prefix, including any buffered bytes, and advances the cumulative ACK. Sequence
+arithmetic wraps at 32 bits. A retransmission overlapping the left edge supplies
+only its missing suffix; bytes already stored in the window take precedence.
+An out-of-order FIN awaits retransmission. An in-order FIN delivers exactly
+its payload and then enters the original FIN transition. RST and URG handling
+remain in the pinned stack.
+
+The per-connection reorder ring is allocated on the first gap. It holds at most
+32,768 bytes plus a 4 KiB presence bitmap. In-order transfers use the existing
+contiguous buffer directly. Queued ranges fit inside the advertised 32 KiB
+sequence interval. They occupy part of that interval without moving its right
+edge past the buffer budget. Socket reads still reopen the window and release
+of the per-connection buffer retires its pending state. Aggregate rejection,
+buffered-segment and recovered-byte counters are available through `ip` and
+transfer profiles. Rejected non-RST traffic keeps its duplicate ACK while
+aggregate counters replace its per-segment UART trace.
+
+ACK and outgoing payload packets advertise Zenith's receive window. The two
+SocketPlug.SendTcp constructor sites are checked explicitly in copied Plugs
+before ILC cache evaluation. The advertised window shrinks with unread bytes
+and reopens when the application drains them. The adapter checks the upstream
+ACK flag and branch structure before replacing the established payload append.
 Upstream source remains unchanged. Host policy tests and native real ELF-sized HTTP
 transfers cover this adaptation; the network lab remains a regression gate.
 

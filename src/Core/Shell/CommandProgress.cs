@@ -52,4 +52,10 @@ internal sealed class CommandProgress
         // Closing a status line must not replace an original failure/cancellation.
         try { _output.Write("\n"); } catch { }
     }
+
+    public void Timing(string summary)
+    {
+        Finish();
+        _output.Write(summary + "\n");
+    }
 }

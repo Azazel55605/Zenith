@@ -16,31 +16,33 @@ internal sealed class NativeProcessNetworkSource : IProcessNetworkSource
     public string Resolve(string host, string? server, int port) => NetworkService.Resolve(host, _cancel, server, port);
     public long Echo(string host) => NetworkService.Ping(host, _cancel);
     public IProcessConnection Connect(string host, int port, bool secure) => NetworkService.OpenClient(host, port, secure, _cancel, webTrust: true);
-    public IProcessDownload Download(string path, bool replace, int maximum) => new DownloadSink(path, replace, maximum, _cancel);
+    public IProcessDownload Download(string path, bool replace, int maximum, bool exact) => new DownloadSink(path, replace, maximum, exact, _cancel);
     public void ThrowIfCancelled() => _cancel();
 
     private sealed class DownloadSink : IProcessDownload
     {
         private readonly string _path, _temporary;
-        private readonly bool _replace;
+        private readonly bool _replace, _exact;
         private readonly int _maximum;
         private readonly Action _cancel;
         private readonly Credentials _identity = CredentialContext.Current;
         private IVfsFileHandle? _file;
         private int _written;
-        private bool _committed, _closed;
-        public DownloadSink(string path, bool replace, int maximum, Action cancel)
+        private bool _ownsTemporary, _closed;
+        public DownloadSink(string path, bool replace, int maximum, bool exact, Action cancel)
         {
-            _path = path; _replace = replace; _maximum = maximum; _cancel = cancel;
+            _path = path; _replace = replace; _maximum = maximum; _exact = exact; _cancel = cancel;
             CheckDestination(); byte[] random = new byte[8];
             if (!HardwareEntropy.Source.TryFill(random)) { throw new IOException("download staging requires hardware entropy"); }
             _temporary = path + ".native-fetch-" + Convert.ToHexString(random);
             if (File.Exists(_temporary) || Directory.Exists(_temporary)) { throw new IOException("download staging collision"); }
             try
             {
-                if (!VfsManager.TryCreateFile(_temporary, (VfsMode)0x180) || !VfsManager.TryOpenFile(_temporary, out var file))
+                _ownsTemporary = VfsManager.TryCreateFile(_temporary, (VfsMode)0x180);
+                if (!_ownsTemporary || !VfsManager.TryOpenFile(_temporary, out var file))
                 { throw new IOException("cannot stage native download beside destination"); }
                 _file = file;
+                if (exact) { DownloadSpace.Check(file, maximum); }
             }
             catch { Dispose(); throw; }
         }
@@ -59,11 +61,11 @@ internal sealed class NativeProcessNetworkSource : IProcessNetworkSource
         }
         public void Commit(int expected)
         {
-            _cancel(); if (_closed || _file is null || expected != _written) { throw new IOException("download length mismatch or closed staging"); }
+            _cancel(); if (_closed || _file is null || expected != _written || (_exact && expected != _maximum)) { throw new IOException("download length mismatch or closed staging"); }
             if (!_file.TryFlush()) { throw new IOException("native download flush failed"); }
             _file.Dispose(); _file = null; _cancel(); CheckDestination();
             if (!VfsManager.TryRename(_temporary, _path)) { throw new IOException("native download commit failed"); }
-            _committed = true; SystemMounts.SyncAll();
+            _ownsTemporary = false; SystemMounts.SyncAll();
         }
         public void Dispose()
         {
@@ -72,7 +74,7 @@ internal sealed class NativeProcessNetworkSource : IProcessNetworkSource
             try
             {
                 try { _file?.Dispose(); } catch { } _file = null;
-                if (!_committed) { try { if (File.Exists(_temporary)) { File.Delete(_temporary); } } catch { } }
+                if (_ownsTemporary) { try { File.Delete(_temporary); } catch { } }
                 caller.Dispose();
             }
             catch { caller.Dispose(); throw; }

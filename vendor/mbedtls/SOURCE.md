@@ -21,6 +21,7 @@ and keeps dependency changes independently reviewable from our bridge/configurat
 
 `src/Native/Tls/config.h` enables only client TLS 1.2 ECDHE-RSA/ECDHE-ECDSA AES-GCM,
 X25519 and P-256/384/521, SHA-256/384/512, RSA/PKCS#1, PEM/X.509 and CTR-DRBG.
+On x86-64, Mbed TLS selects AES-NI and PCLMULQDQ implementations according to the CPU's advertised features. Generic AES and GCM remain available on x86-64 guests without those features and on ARM64.
 SHA-1 parsing accommodates old root self-signature identifiers. The default X.509
 profile still requires SHA-256 or stronger signatures on issued certificates.
 No OS, sockets, filesystem,

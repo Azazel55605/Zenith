@@ -50,7 +50,8 @@ try
             if (native && name == "zenith-equinox") { manifest.Append("requires\tzenith-native-graphics-abi\t1.0\nrequires\tzenith-native-interactive-abi\t1.0\nrequires\tzenith-native-viewport-abi\t1.0\nrequires\tzenith-native-settings-abi\t1.0\nrequires\tzenith-native-personal-appearance-abi\t1.0\nrequires\tzenith-native-background-abi\t1.0\nrequires\tzenith-native-memory-abi\t1.0\nrequires\tzenith-native-framebuffer-abi\t1.0\nrequires\tzenith-native-disk-abi\t1.0\n"); }
             if (native && name == "zenith-beacon") { manifest.Append("requires\tzenith-native-graphics-abi\t1.0\nrequires\tzenith-native-interactive-abi\t1.0\nrequires\tzenith-native-viewport-abi\t1.0\nrequires\tzenith-native-settings-abi\t1.0\nrequires\tzenith-native-personal-appearance-abi\t1.0\nrequires\tzenith-native-background-abi\t1.0\nrequires\tzenith-native-memory-abi\t1.0\nrequires\tzenith-native-framebuffer-abi\t1.0\nrequires\tzenith-native-portal-abi\t1.0\nrequires\tzenith-native-network-center-abi\t1.0\n"); }
             if (native && name == "zenith-orbit") { manifest.Append("requires\tzenith-native-graphics-abi\t1.0\nrequires\tzenith-native-interactive-abi\t1.0\nrequires\tzenith-native-viewport-abi\t1.0\nrequires\tzenith-native-settings-abi\t1.0\nrequires\tzenith-native-personal-appearance-abi\t1.0\nrequires\tzenith-native-background-abi\t1.0\nrequires\tzenith-native-memory-abi\t1.0\nrequires\tzenith-native-framebuffer-abi\t1.0\nrequires\tzenith-native-portal-abi\t1.0\nrequires\tzenith-native-package-center-abi\t1.0\n"); }
-            if (native && name == "zenith-net-tools") { manifest.Append("requires\tzenith-native-network-abi\t1.0\nrequires\tzenith-native-web-transport-abi\t1.0\n"); }
+            if (native && name == "zenith-smb") { manifest.Append("requires\tzenith-native-network-abi\t1.0\nrequires\tzenith-native-transfer-abi\t1.0\n"); }
+            if (native && name == "zenith-net-tools") { manifest.Append("requires\tzenith-native-network-abi\t1.0\nrequires\tzenith-native-web-transport-abi\t1.0\nrequires\tzenith-native-transfer-abi\t1.0\n"); }
             if (native && name == "zenith-doom") { manifest.Append("requires\tzenith-native-graphics-abi\t1.0\nrequires\tzenith-native-interactive-abi\t1.0\nrequires\tzenith-native-key-edges-abi\t1.0\nrequires\tzenith-native-viewport-abi\t1.0\nrequires\tzenith-native-framebuffer-abi\t1.0\nrequires\tzenith-native-files-abi\t1.0\n"); }
             if (meta)
             {
@@ -93,7 +94,7 @@ try
                 manifest.Append("file\t").Append(aboutTarget).Append("\t0644\t").Append(data.Length).Append('\t').Append(PackagePlanner.Digest(data)).Append('\n');
             }
             if (native && executables == 0) { throw new IOException("native package requires a valid Zenith ABI executable"); }
-            if (large || total > PackageManifest.LegacyMaximumPayloadBytes || (native && name == "zenith-doom"))
+            if (large || total > PackageManifest.LegacyMaximumPayloadBytes || (native && name is "zenith-doom" or "zenith-smb"))
             { manifest.Append("requires\t").Append(PackageManifest.LargeNativeCapability).Append("\t1.0\n"); }
             string text = manifest.ToString();
             if (args.Length == 7) { text = text.Replace("ZENITH-PACKAGE\t1\n", "ZENITH-PACKAGE\t2\nrepository\t" + args[6] + "\n"); }

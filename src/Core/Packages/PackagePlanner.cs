@@ -62,6 +62,7 @@ internal static class BootstrapComponents
         new("zenith-native-window-state-abi", "1.0", "owned unsaved state and cancellable chrome close intent"),
         new("zenith-native-graphics-abi", "1.0", "owned private graphical surfaces and routed events"),
         new("zenith-native-key-edges-abi", "1.0", "opt-in focused physical keyboard press and release events (671)"),
+        new("zenith-native-transfer-abi", "1.0", "known-size download space checks, bounded bulk sends, entropy and private credential-file reads (500)"),
         new("zenith-native-network-abi", "1.0", "owned bounded TCP/verified-TLS clients and atomic download sinks"),
         new("zenith-native-web-transport-abi", "1.0", "public and configured TLS roots and up to six sequential client connections"),
         new("zenith-native-path-abi", "1.0", "owned namespace/metadata operations and private descriptor seeks"),

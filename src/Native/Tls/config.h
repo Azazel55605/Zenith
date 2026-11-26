@@ -19,6 +19,12 @@ int zenith_tls_printf(const char *, ...);
 #define MBEDTLS_PLATFORM_NO_STD_FUNCTIONS
 #define MBEDTLS_MEMORY_BUFFER_ALLOC_C
 #define MBEDTLS_AES_C
+/* Use Mbed TLS's runtime CPUID selection. Keep its portable AES/GHASH
+   implementations for older CPUs and hypervisors masking these features. */
+#if defined(__x86_64__)
+#define MBEDTLS_HAVE_ASM
+#define MBEDTLS_AESNI_C
+#endif
 #define MBEDTLS_AES_ROM_TABLES
 #define MBEDTLS_ASN1_PARSE_C
 #define MBEDTLS_ASN1_WRITE_C

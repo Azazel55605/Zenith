@@ -264,7 +264,10 @@ static int receive(long connection, const struct fetch_options *o,
                                : "HTTP response exceeds stdout byte limit (use "
                                  "-o FILE for large downloads)");
       if (o->file) {
-        *sink = control(5, (unsigned)o->replace, o->file, 0, 0, 0, o->limit, 0);
+        int exact = o->head || r->has_length;
+        unsigned long bytes = o->head ? r->used : r->expected;
+        *sink = control(5, (unsigned)o->replace | (exact ? 2u : 0u), o->file,
+                        0, 0, 0, exact ? bytes : o->limit, 0);
         if (*sink < 0)
           return service_error(*sink);
       }

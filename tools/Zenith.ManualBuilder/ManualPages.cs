@@ -40,6 +40,27 @@ internal static class ManualPages
             their streams. The first permission dialog requires an administrator.
             No microphone is opened merely by visiting the Recording page.
             """),
+        ("smb", """
+            SMB FILE TRANSFER
+
+            smb -U USER shares SERVER
+            smb -U USER ls //SERVER/SHARE[/DIR]
+            smb -U USER get //SERVER/SHARE/FILE LOCAL
+            smb -U USER put LOCAL //SERVER/SHARE/FILE
+
+            The zenith-smb package prompts for a hidden password. Put options
+            before the operation. Use --domain NAME for a domain account or
+            --port NUMBER to override TCP 445. Get and put accept --replace.
+            The limit is 32 MiB per file. Messages are signed. File contents
+            are unencrypted. Supported dialects are SMB 2.1, 3.0 and 3.0.2.
+
+            For unattended use, --password-stdin reads from redirected input.
+            Alternatively, use --credentials PATH in place of -U. Create the
+            file with mode 0600 before entering credentials. Its owner must be
+            the calling user. Each line holds one key=value pair. Supply server,
+            username and password. Domain and port are optional lowercase keys.
+            The server and port must match the destination.
+            """),
         ("native-cli", """
             NATIVE CLI PACKAGES
 

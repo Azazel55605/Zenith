@@ -5,3 +5,4 @@ description	Programs for the shell that fetch files over HTTPS and check connect
 category	tools
 icon	network
 change	0.2.0	Fetch public HTTPS URLs, follow redirects, inspect headers and stream binary or chunked responses to a file or pipe.
+change	0.2.1	Check available destination space before writing a download with a known length.

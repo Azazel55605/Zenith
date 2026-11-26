@@ -10,7 +10,7 @@ import sys
 import tempfile
 ROOT=Path(__file__).resolve().parents[1]
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('destination',type=Path);parser.add_argument('--version',default='0.1.0');parser.add_argument('--program',choices=('sunbeam','base-tools','fs-tools','net-tools','gui-probe','ui-gallery','settings','desktop-tools','polaris','observatory','equinox','horizon','aurora','audio-probe','beacon','orbit','quill','doom'),default='sunbeam');args=parser.parse_args()
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('destination',type=Path);parser.add_argument('--version',default='0.1.0');parser.add_argument('--program',choices=('sunbeam','base-tools','fs-tools','net-tools','gui-probe','ui-gallery','settings','desktop-tools','polaris','observatory','equinox','horizon','aurora','audio-probe','beacon','orbit','quill','doom','smb'),default='sunbeam');args=parser.parse_args()
     if not re.fullmatch(r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*))?',args.version):raise ValueError('invalid program version')
     destination=args.destination
     output=destination/('usr/share/zenith/native/'+args.program+'.elf');output.parent.mkdir(parents=True,exist_ok=True)
@@ -32,6 +32,12 @@ def main():
             extra.append(str(ROOT/'userland/aurora/buffer.c'))
         common=['-fcf-protection=none','-fno-stack-protector','-fno-builtin','-fno-unwind-tables','-fno-asynchronous-unwind-tables','-mno-red-zone',
             '-mno-sse','-mno-sse2','-mno-mmx','-Wall','-Wextra','-Werror']
+        if args.program=='smb':
+            crypto=Path(temporary)/'smb-crypto.o'
+            subprocess.run([sys.executable,str(ROOT/'tools/build-smb-crypto.py'),str(crypto)],check=True)
+            smb=ROOT/'userland/smb'
+            extra.extend(['-ffunction-sections','-fdata-sections','-Wl,--gc-sections',str(crypto),
+                          str(smb/'zenith_io.c'),str(smb/'client.c'),str(smb/'auth.c'),str(smb/'shares.c')])
         if args.program=='doom':
             engine=Path(temporary)/'doom-engine.o'
             # The upstream engine uses pre-C23 declarations and its own true/false enum.
@@ -52,6 +58,10 @@ def main():
         main_source=source/'main.c' if args.program in ('sunbeam','base-tools','fs-tools') else ROOT/'userland'/args.program/'main.c'
         subprocess.run([compiler,*target,'-nostdlib','-static','-fno-pie','-no-pie',*common,'-O2',
             '-DSUNBEAM_VERSION="'+args.version+'"','-Wl,-T,'+str(source/'link.ld'),'-Wl,--build-id=none',str(source/'start.s'),str(main_source),*extra,'-o',str(output)],check=True)
+    if args.program=='smb':
+        licenses=destination/'usr/share/doc/zenith-smb'
+        licenses.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(ROOT/'vendor/mbedtls/LICENSE',licenses/'LICENSE-mbedtls')
     if args.program=='doom':
         apps=destination/'usr/share/zenith/apps'
         apps.mkdir(parents=True,exist_ok=True)

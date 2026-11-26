@@ -429,6 +429,16 @@ one active at a time, enough for the first request and five redirect hops.
 The existing network calls and original package remain compatible.
 [Current HTTP profile](NETWORKING.md#transfer-and-transport-bounds)
 
+`zenith-native-transfer-abi` 1.0 extends the existing 80-byte call 500 request.
+Operations 8–10 and the new flag require this capability. All unused fields must be zero.
+
+| Operation | Inputs | Result |
+| --- | --- | --- |
+| 5, download sink | Destination path, maximum bytes. Flag 1 permits replacement. Flag 2 declares the exact final length. | The exact-length form checks space on the open staging file's volume. Commit must match the declared length. |
+| 8, bulk TCP connect | Host in the input span, port in `Value` | Invocation-owned socket for bounded uploads. It permits twice the transfer limit in aggregate outbound bytes including protocol framing. Operation 4 retains its 64 KiB send limit. |
+| 9, random bytes | Writable output span of 1–64 bytes | Bytes from the kernel hardware entropy source, or a failure. |
+| 10, read private file | Path in the input span, writable output span of up to 4096 bytes | Complete contents of a caller-owned Unix regular file with permissions 0400 or 0600. The service checks ownership and mode on the opened inode and rejects final-component symlinks. |
+
 ## System monitor
 
 `zenith-native-monitor-abi` 1.0 adds calls 642 (system snapshot), 643 (the

@@ -22,7 +22,7 @@ internal interface IProcessNetworkSource
     string Resolve(string host, string? server, int port);
     long Echo(string host);
     IProcessConnection Connect(string host, int port, bool secure);
-    IProcessDownload Download(string path, bool replace, int maximum);
+    IProcessDownload Download(string path, bool replace, int maximum, bool exact);
     /// <summary>Throws when the program is being cancelled (long network-center operations check it).</summary>
     void ThrowIfCancelled();
 }
@@ -43,9 +43,10 @@ internal sealed class ProcessNetwork : IDisposable
         if (_closed) { throw new IOException("native network context is closed"); }
         if (_lifetime.ElapsedMilliseconds > 900000) { throw new IOException("native network lifetime exceeded 900s"); }
     }
-    private void Control()
+    internal void Control()
     { Check(); if (++_controls > 32) { throw new IOException("native network control budget exceeded"); } }
     private bool _closed;
+    private int _sendLimit = MaximumIo;
     public string LastError { get; private set; } = "";
     public ProcessNetwork(IProcessNetworkSource source, int pid = 0)
     {
@@ -77,7 +78,7 @@ internal sealed class ProcessNetwork : IDisposable
     public string Status() { Control(); return _source.Status(); }
     public string Resolve(string host, string? server, int port) { Control(); return _source.Resolve(host, server, port); }
     public long Echo(string host) { Control(); return _source.Echo(host); }
-    public int Connect(string host, int port, bool secure)
+    public int Connect(string host, int port, bool secure, bool bulk = false)
     {
         if (_closed) { return -9; } Check();
         if (_connections >= MaximumConnections) { return -28; }
@@ -85,17 +86,18 @@ internal sealed class ProcessNetwork : IDisposable
         if (_handles.Count >= 2) { return -24; }
         if (port is < 1 or > 65535) { return -22; }
         _connections++; var connection = _source.Connect(host, port, secure);
+        _sendLimit = bulk ? 2 * MaximumTransfer : MaximumIo;
         _peer = host + ":" + port + (secure ? " TLS" : "");
         int handle = _next++; _handles.Add(handle, connection); return handle;
     }
-    public int Download(string path, bool replace, int maximum)
+    public int Download(string path, bool replace, int maximum, bool exact = false)
     {
         if (_closed) { return -9; } Check();
         if (_downloads >= 2) { return -28; }
         if (maximum is < 0 or > MaximumTransfer) { return -22; }
         foreach (var item in _handles.Values) { if (item is IProcessDownload) { return -16; } }
         if (_handles.Count >= 2) { return -24; }
-        _downloads++; var download = _source.Download(path, replace, maximum);
+        _downloads++; var download = _source.Download(path, replace, maximum, exact);
         if (_peer.Length == 0) { _peer = "download"; }
         int handle = _next++; _handles.Add(handle, download); return handle;
     }
@@ -111,6 +113,9 @@ internal sealed class ProcessNetwork : IDisposable
         if (!ReferenceEquals(target, buffer)) { target.AsSpan(0, count).CopyTo(buffer); }
         _received += count; return count;
     }
+    public bool IsConnection(ulong handle)
+        => handle <= int.MaxValue && _handles.TryGetValue((int)handle, out var item) && item is IProcessConnection;
+
     public int Write(int handle, byte[] buffer)
     {
         Check(); if (buffer.Length > MaximumIo) { return -22; }
@@ -118,7 +123,7 @@ internal sealed class ProcessNetwork : IDisposable
         int count;
         if (item is IProcessConnection connection)
         {
-            if (buffer.Length > 65536 - _sent) { return -28; }
+            if (buffer.Length > _sendLimit - _sent) { return -28; }
             count = connection.Write(buffer);
             if (count < 0 || count > buffer.Length) { throw new IOException("invalid native network write count"); }
             _sent += count;

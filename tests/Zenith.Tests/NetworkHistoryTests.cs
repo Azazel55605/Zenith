@@ -77,7 +77,7 @@ public class NetworkHistoryTests
     {
         public string Status() => ""; public string Resolve(string host, string? server, int port) => "10.0.2.2"; public long Echo(string host) => 1;
         public IProcessConnection Connect(string host, int port, bool secure) => new Link();
-        public IProcessDownload Download(string path, bool replace, int maximum) => throw new IOException();
+        public IProcessDownload Download(string path, bool replace, int maximum, bool exact) => throw new IOException();
         public void ThrowIfCancelled() { }
         private sealed class Link : IProcessConnection { public int Read(byte[] b) => 5; public int Write(byte[] b) => b.Length; public void Dispose() { } }
     }

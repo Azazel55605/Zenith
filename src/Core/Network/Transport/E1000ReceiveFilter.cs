@@ -18,13 +18,15 @@ public static class E1000ReceiveFilter
     public static void RegisterPoll(Action poll) => s_poll = poll;
 
     // Caller masks interrupts: poll and IRQ must not consume the same descriptor.
-    public static void Poll()
+    public static int Poll()
     {
-        if (s_poll is null) { return; }
+        if (s_poll is null) { return 0; }
         Polls++;
         int before = EthernetIngress.Received;
         s_poll();
-        PolledFrames += EthernetIngress.Received - before;
+        int count = unchecked(EthernetIngress.Received - before);
+        PolledFrames += count;
+        return count;
     }
 
     public static void ObserveInterrupt(uint cause)

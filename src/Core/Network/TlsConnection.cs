@@ -69,16 +69,18 @@ internal sealed unsafe class TlsConnection : IDisposable
             Pump(result);
         }
     }
-    public int Read(byte[] bytes, int maximum = 3000)
+    public int Read(byte[] bytes, int maximum = 3000, TransferProfile? profile = null)
     {
         var timer = Stopwatch.StartNew();
         while (true)
         {
             Check(timer, maximum); int result;
+            long recordStart = profile?.Mark() ?? 0;
             fixed (byte* p = bytes) { result = NativeRead(p, (nuint)bytes.Length); }
+            if (profile is not null) { profile.TlsTicks += TransferProfile.Since(recordStart); }
             Drain(); if (result > 0) { return result; }
             if (result == 0 || result == PeerClosed) { return 0; }
-            Pump(result);
+            Pump(result, profile);
         }
     }
     private void Check(Stopwatch timer, int maximum)
@@ -93,7 +95,7 @@ internal sealed unsafe class TlsConnection : IDisposable
             if (count < 0 || _socket.Send(_wire, 0, count, SocketFlags.None) != count) { throw new IOException("TLS transport write failed"); }
         }
     }
-    private void Pump(int result)
+    private void Pump(int result, TransferProfile? profile = null)
     {
         // Drain() already made room in the output queue, so retry the pending
         // write immediately. A peer waiting for that write may send nothing.
@@ -105,12 +107,19 @@ internal sealed unsafe class TlsConnection : IDisposable
         _cancel(); _ready(); int available = _socket.Available;
         if (available > 0)
         {
+            long receiveStart = profile?.Mark() ?? 0;
             int count = _socket.Receive(_wire, 0, Math.Min(available, _wire.Length), SocketFlags.None);
             fixed (byte* p = _wire)
             { if (count <= 0 || NativePush(p, (nuint)count) != count) { throw new IOException("TLS receive queue exceeded or closed"); } }
+            profile?.AddReceive(receiveStart);
         }
         else if (!_socket.Connected) { throw new IOException("TLS transport closed unexpectedly"); }
-        else { NetworkService.WaitForData(10); }
+        else
+        {
+            long waitStart = profile?.Mark() ?? 0;
+            bool signalled = NetworkService.WaitForData(10);
+            profile?.AddWait(waitStart, signalled);
+        }
     }
     public void Dispose() { if (_active) { Close(); _active = false; } }
     [DllImport("*", EntryPoint = "zenith_tls_open")]
