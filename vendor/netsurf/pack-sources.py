@@ -2,6 +2,8 @@
 """Reproduce sources.tar.xz from the verified, unmodified release tarballs."""
 import argparse
 import hashlib
+import subprocess
+import tempfile
 from pathlib import Path, PurePosixPath
 import tarfile
 
@@ -31,6 +33,8 @@ def selected(parts):
     if len(parts) == 2:
         return parts[1] in ("README.md", "ChangeLog.md")
     component, tail = parts[1], parts[2:]
+    if component == "nsgenbind":
+        return tail[0] in ("src", "COPYING", "README", "Makefile")
     if component not in LIBS | {"netsurf"}:
         return False
     if tail[-1].upper().startswith(("LICENSE", "LICENCE", "COPYING", "COPYRIGHT", "AUTHORS")):
@@ -39,7 +43,7 @@ def selected(parts):
         return tail[0].startswith(("README", "Makefile"))
     if component != "netsurf":
         return tail[0] in ("include", "src", "build") or tail[:2] == ("bindings", "hubbub")
-    if "duktape" in tail or tail[0] == "test":
+    if tail[0] == "test":
         return False
     if tail in (("resources", "en", "credits.html"), ("resources", "en", "licence.html")):
         return True
@@ -47,6 +51,30 @@ def selected(parts):
         return True
     return (tail[0] == "resources" and len(tail) == 2 and
             tail[1] in ("FatMessages", "default.css", "internal.css", "adblock.css", "quirks.css", "SearchEngines")) or tail == ("tools", "split-messages.c")
+
+
+def pack_genbind_parsers(src, out):
+    """Keep Flex/Bison development tools out of the offline browser build."""
+    prefix = "netsurf-all-3.11/nsgenbind/"
+    with tempfile.TemporaryDirectory() as directory:
+        work = Path(directory)
+        for language in ("nsgenbind", "webidl"):
+            for kind in ("parser.y", "lexer.l"):
+                name = language + "-" + kind
+                (work / name).write_bytes(src.extractfile(prefix + "src/" + name).read())
+            parser = language + "-parser"
+            lexer = language + "-lexer"
+            subprocess.run(["bison", "-d", "-t", "--define=api.prefix={" + language + "_}",
+                            "--output=" + parser + ".c", "--defines=" + parser + ".h",
+                            parser + ".y"], cwd=work, check=True)
+            subprocess.run(["flex", "--outfile=" + lexer + ".c", "--header-file=" + lexer + ".h",
+                            lexer + ".l"], cwd=work, check=True)
+        for path in sorted(work.iterdir()):
+            if path.suffix in (".c", ".h"):
+                member = tarfile.TarInfo(prefix + "generated/" + path.name)
+                member.size = path.stat().st_size
+                with path.open("rb") as data:
+                    out.addfile(member, data)
 
 
 def main():
@@ -68,6 +96,8 @@ def main():
                         clean = tarfile.TarInfo(member.name)
                         clean.size = member.size
                         out.addfile(clean, src.extractfile(member))
+                if digest == NETSURF_HASH:
+                    pack_genbind_parsers(src, out)
 
 
 if __name__ == "__main__":

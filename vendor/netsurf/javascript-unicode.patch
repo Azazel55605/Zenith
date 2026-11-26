@@ -1,0 +1,456 @@
+--- a/content/handlers/javascript/duktape/dukky.c
++++ b/content/handlers/javascript/duktape/dukky.c
+@@ -525,6 +525,83 @@
+ 	dukky_push_node_klass(ctx, node);
+ 	/* ... nodeptr klass */
+ 	return dukky_push_node_stacked(ctx);
++}
++
++/* Duktape string offsets count UTF-16 code units, stored as CESU-8.
++ * LibDOM uses UTF-8 scalar values. BMP text is already byte-compatible. */
++static bool dukky_surrogate(const uint8_t *s, size_t n)
++{
++	return n >= 3 && s[0] == 0xed && (s[1] & 0xe0) == 0xa0 && (s[2] & 0xc0) == 0x80;
++}
++
++const char *dukky_utf8_argument(duk_context *ctx, duk_idx_t index, duk_size_t *length)
++{
++	const uint8_t *s = (const uint8_t *)duk_to_lstring(ctx, index, length);
++	size_t i = 0, used = 0, n = *length;
++	while (i < n && !dukky_surrogate(s + i, n - i)) i++;
++	if (i == n) return (const char *)s;
++	index = duk_normalize_index(ctx, index);
++	uint8_t *out = duk_push_dynamic_buffer(ctx, n);
++	memcpy(out, s, i);
++	used = i;
++	while (i < n) {
++		if (!dukky_surrogate(s + i, n - i)) {
++			out[used++] = s[i++];
++			continue;
++		}
++		if (s[i + 1] < 0xb0 && dukky_surrogate(s + i + 3, n - i - 3) && s[i + 4] >= 0xb0) {
++			uint32_t high = ((s[i + 1] & 15) << 6) | (s[i + 2] & 63);
++			uint32_t low = ((s[i + 4] & 15) << 6) | (s[i + 5] & 63);
++			uint32_t scalar = 0x10000 + (high << 10) + low;
++			out[used++] = 0xf0 | (scalar >> 18);
++			out[used++] = 0x80 | ((scalar >> 12) & 63);
++			out[used++] = 0x80 | ((scalar >> 6) & 63);
++			out[used++] = 0x80 | (scalar & 63);
++			i += 6;
++		} else {
++			memcpy(out + used, "\xef\xbf\xbd", 3); /* Unpaired surrogate. */
++			used += 3;
++			i += 3;
++		}
++	}
++	duk_resize_buffer(ctx, -1, used);
++	duk_buffer_to_string(ctx, -1);
++	duk_replace(ctx, index);
++	return duk_get_lstring(ctx, index, length);
++}
++
++static void dukky_encode_surrogate(uint8_t *out, unsigned unit)
++{
++	out[0] = 0xed;
++	out[1] = 0x80 | ((unit >> 6) & 63);
++	out[2] = 0x80 | (unit & 63);
++}
++
++void dukky_push_dom_string(duk_context *ctx, const dom_string *str)
++{
++	const uint8_t *s = (const uint8_t *)dom_string_data(str);
++	size_t n = dom_string_byte_length(str), extra = 0;
++	for (size_t i = 0; i + 3 < n; i++) {
++		if (s[i] >= 0xf0 && s[i] <= 0xf4) { extra += 2; i += 3; }
++	}
++	if (!extra) {
++		duk_push_lstring(ctx, (const char *)s, n);
++		return;
++	}
++	uint8_t *out = duk_push_fixed_buffer(ctx, n + extra);
++	size_t used = 0;
++	for (size_t i = 0; i < n; ) {
++		if (n - i >= 4 && s[i] >= 0xf0 && s[i] <= 0xf4) {
++			uint32_t scalar = ((s[i] & 7) << 18) | ((s[i + 1] & 63) << 12) |
++					((s[i + 2] & 63) << 6) | (s[i + 3] & 63);
++			scalar -= 0x10000;
++			dukky_encode_surrogate(out + used, 0xd800 | (scalar >> 10));
++			dukky_encode_surrogate(out + used + 3, 0xdc00 | (scalar & 1023));
++			used += 6;
++			i += 4;
++		} else out[used++] = s[i++];
++	}
++	duk_buffer_to_string(ctx, -1);
+ }
+ 
+ static duk_ret_t
+--- a/content/handlers/javascript/duktape/dukky.h
++++ b/content/handlers/javascript/duktape/dukky.h
+@@ -26,6 +26,8 @@
+ #define DUKKY_H
+ 
+ duk_ret_t dukky_create_object(duk_context *ctx, const char *name, int args);
++void dukky_push_dom_string(duk_context *ctx, const dom_string *str);
++const char *dukky_utf8_argument(duk_context *ctx, duk_idx_t index, duk_size_t *length);
+ duk_bool_t dukky_push_node_stacked(duk_context *ctx);
+ duk_bool_t dukky_push_node(duk_context *ctx, struct dom_node *node);
+ void dukky_inject_not_ctr(duk_context *ctx, int idx, const char *name);
+--- a/content/handlers/javascript/duktape/Node.bnd
++++ b/content/handlers/javascript/duktape/Node.bnd
+@@ -43,7 +43,7 @@
+ 	dom_string *str = NULL;
+ 	exc = dom_node_get_node_name(priv->node, &str);
+ 	if (exc != DOM_NO_ERR) return 0;
+-	duk_push_lstring(ctx, dom_string_data(str), dom_string_length(str));
++	dukky_push_dom_string(ctx, str);
+ 	dom_string_unref(str);
+ 	return 1;
+ %}
+@@ -55,7 +55,7 @@
+ 	exc = dom_node_get_base(priv->node, &base);
+ 	if (exc != DOM_NO_ERR) return 0;
+ 	assert(base != NULL);
+-	duk_push_lstring(ctx, dom_string_data(base), dom_string_length(base));
++	dukky_push_dom_string(ctx, base);
+ 	dom_string_unref(base);
+ 	return 1;
+ %}
+@@ -204,7 +204,7 @@
+ 	}
+ 
+ 	if (content != NULL) {
+-		duk_push_lstring(ctx, dom_string_data(content), dom_string_length(content));
++		dukky_push_dom_string(ctx, content);
+ 		dom_string_unref(content);
+ 		return 1;
+ 	}
+@@ -216,7 +216,7 @@
+ 	dom_exception exc;
+ 	dom_string *content;
+ 	duk_size_t slen;
+-	const char *s = duk_safe_to_lstring(ctx, 0, &slen);
++	const char *s = dukky_utf8_argument(ctx, 0, &slen);
+ 	exc = dom_string_create((const uint8_t *)s, slen, &content);
+ 	if (exc != DOM_NO_ERR) return 0;
+ 	exc = dom_node_set_node_value(priv->node, content);
+@@ -236,7 +236,7 @@
+ 	}
+ 
+ 	if (content != NULL) {
+-		duk_push_lstring(ctx, dom_string_data(content), dom_string_length(content));
++		dukky_push_dom_string(ctx, content);
+ 		dom_string_unref(content);
+ 		return 1;
+ 	}
+@@ -248,7 +248,7 @@
+ 	dom_exception exc;
+ 	dom_string *content;
+ 	duk_size_t slen;
+-	const char *s = duk_safe_to_lstring(ctx, 0, &slen);
++	const char *s = dukky_utf8_argument(ctx, 0, &slen);
+ 	exc = dom_string_create((const uint8_t *)s, slen, &content);
+ 	if (exc != DOM_NO_ERR) return 0;
+ 	exc = dom_node_set_text_content(priv->node, content);
+@@ -350,14 +350,14 @@
+ 	dom_exception exc;
+ 	dom_string *ns, *pfx;
+ 	duk_size_t size;
+-	const char *s = duk_safe_to_lstring(ctx, 0, &size);
++	const char *s = dukky_utf8_argument(ctx, 0, &size);
+ 	exc = dom_string_create((const uint8_t *)s, size, &ns);
+ 	if (exc != DOM_NO_ERR) return 0;
+ 	exc = dom_node_lookup_prefix(priv->node, ns, &pfx);
+ 	dom_string_unref(ns);
+ 	if (exc != DOM_NO_ERR) return 0;
+ 	if (pfx == NULL) return 0;
+-	duk_push_lstring(ctx, dom_string_data(pfx), dom_string_length(pfx));
++	dukky_push_dom_string(ctx, pfx);
+ 	dom_string_unref(pfx);
+ 	return 0;
+ %}
+@@ -367,14 +367,14 @@
+ 	dom_exception exc;
+ 	dom_string *ns, *pfx;
+ 	duk_size_t size;
+-	const char *s = duk_safe_to_lstring(ctx, 0, &size);
++	const char *s = dukky_utf8_argument(ctx, 0, &size);
+ 	exc = dom_string_create((const uint8_t *)s, size, &pfx);
+ 	if (exc != DOM_NO_ERR) return 0;
+ 	exc = dom_node_lookup_namespace(priv->node, pfx, &ns);
+ 	dom_string_unref(pfx);
+ 	if (exc != DOM_NO_ERR) return 0;
+ 	if (ns == NULL) return 0;
+-	duk_push_lstring(ctx, dom_string_data(ns), dom_string_length(ns));
++	dukky_push_dom_string(ctx, ns);
+ 	dom_string_unref(ns);
+ 	return 0;
+ %}
+@@ -385,7 +385,7 @@
+ 	dom_exception exc;
+ 	dom_string *ns;
+ 	duk_size_t size;
+-	const char *s = duk_safe_to_lstring(ctx, 0, &size);
++	const char *s = dukky_utf8_argument(ctx, 0, &size);
+ 	bool ret;
+ 	exc = dom_string_create((const uint8_t *)s, size, &ns);
+ 	if (exc != DOM_NO_ERR) return 0;
+--- a/content/handlers/javascript/duktape/Element.bnd
++++ b/content/handlers/javascript/duktape/Element.bnd
+@@ -195,7 +195,7 @@
+ 	dom_exception exc;
+ 	dom_string *tagname;
+ 	duk_size_t len;
+-	const char *str = duk_to_lstring(ctx, 0, &len);
++	const char *str = dukky_utf8_argument(ctx, 0, &len);
+ 
+ 	exc = dom_string_create((const uint8_t *)str, len, &tagname);
+ 
+@@ -232,8 +232,7 @@
+ 	if (idstr == NULL) {
+ 		duk_push_lstring(ctx, "", 0);
+ 	} else {
+-		duk_push_lstring(ctx, dom_string_data(idstr),
+-				 dom_string_length(idstr));
++		dukky_push_dom_string(ctx, idstr);
+ 		dom_string_unref(idstr);
+ 	}
+ 	return 1;
+@@ -244,7 +243,7 @@
+ 	dom_string *idstr = NULL;
+ 	dom_exception exc;
+ 	duk_size_t slen;
+-	const char *s = duk_safe_to_lstring(ctx, 0, &slen);
++	const char *s = dukky_utf8_argument(ctx, 0, &slen);
+ 
+ 	exc = dom_string_create((const uint8_t *)s, slen, &idstr);
+ 	if (exc != DOM_NO_ERR) return 0;
+@@ -263,7 +262,7 @@
+ 	dom_string *attr = NULL;
+ 	dom_exception exc;
+ 	duk_size_t slen;
+-	const char *s = duk_safe_to_lstring(ctx, 0, &slen);
++	const char *s = dukky_utf8_argument(ctx, 0, &slen);
+ 
+ 	exc = dom_string_create((const uint8_t *)s, slen, &attr);
+ 	if (exc != DOM_NO_ERR) return 0;
+@@ -281,7 +280,7 @@
+ 	dom_exception exc;
+ 	duk_size_t slen;
+ 
+-	const char *s = duk_safe_to_lstring(ctx, 0, &slen);
++	const char *s = dukky_utf8_argument(ctx, 0, &slen);
+ 	exc = dom_string_create((const uint8_t *)s, slen, &attr_name);
+ 	duk_pop(ctx);
+ 	if (exc != DOM_NO_ERR) {
+@@ -298,8 +297,7 @@
+ 	if (attr_value == NULL) {
+ 		duk_push_null(ctx);
+ 	} else {
+-		duk_push_lstring(ctx, dom_string_data(attr_value),
+-				 dom_string_length(attr_value));
++		dukky_push_dom_string(ctx, attr_value);
+ 		dom_string_unref(attr_value);
+ 	}
+ 	return 1;
+@@ -310,8 +308,8 @@
+ 	dom_exception exc;
+ 	dom_string *attr_str, *value_str;
+ 	duk_size_t attr_len, value_len;
+-	const char *attr = duk_safe_to_lstring(ctx, 0, &attr_len);
+-	const char *value = duk_safe_to_lstring(ctx, 1, &value_len);
++	const char *attr = dukky_utf8_argument(ctx, 0, &attr_len);
++	const char *value = dukky_utf8_argument(ctx, 1, &value_len);
+ 
+ 	exc = dom_string_create((const uint8_t *)attr, attr_len, &attr_str);
+ 	if (exc != DOM_NO_ERR) return 0;
+@@ -337,7 +335,7 @@
+ 	duk_size_t slen;
+ 	bool res;
+ 
+-	const char *s = duk_safe_to_lstring(ctx, 0, &slen);
++	const char *s = dukky_utf8_argument(ctx, 0, &slen);
+ 	exc = dom_string_create((const uint8_t *)s, slen, &attr_name);
+ 	duk_pop(ctx);
+ 	if (exc != DOM_NO_ERR) {
+@@ -367,8 +365,7 @@
+ 	if (classstr == NULL) {
+ 		duk_push_lstring(ctx, "", 0);
+ 	} else {
+-		duk_push_lstring(ctx, dom_string_data(classstr),
+-				 dom_string_length(classstr));
++		dukky_push_dom_string(ctx, classstr);
+ 		dom_string_unref(classstr);
+ 	}
+ 	return 1;
+@@ -379,7 +376,7 @@
+ 	dom_string *classstr = NULL;
+ 	dom_exception exc;
+ 	duk_size_t slen;
+-	const char *s = duk_safe_to_lstring(ctx, 0, &slen);
++	const char *s = dukky_utf8_argument(ctx, 0, &slen);
+ 
+ 	exc = dom_string_create((const uint8_t *)s, slen, &classstr);
+ 	if (exc != DOM_NO_ERR) return 0;
+@@ -432,7 +429,7 @@
+ setter Element::innerHTML()
+ %{
+ 	duk_size_t size;
+-	const char *s = duk_safe_to_lstring(ctx, 0, &size);
++	const char *s = dukky_utf8_argument(ctx, 0, &size);
+ 	dom_hubbub_parser_params parse_params;
+ 	dom_hubbub_error error;
+ 	dom_hubbub_parser *parser = NULL;
+--- a/content/handlers/javascript/duktape/Document.bnd
++++ b/content/handlers/javascript/duktape/Document.bnd
+@@ -34,7 +34,7 @@
+ 		duk_safe_to_string(ctx, i);
+ 	}
+ 	duk_concat(ctx, duk_get_top(ctx));
+-	text = duk_safe_to_lstring(ctx, 0, &text_len);
++	text = dukky_utf8_argument(ctx, 0, &text_len);
+ 	NSLOG(netsurf, DEBUG, "Writing %*s", (int)text_len, text);
+ 
+ 	err = dom_node_get_user_data(priv->parent.node,
+@@ -68,7 +68,7 @@
+ 		duk_safe_to_string(ctx, i);
+ 	}
+ 	duk_concat(ctx, duk_get_top(ctx));
+-	text = duk_safe_to_lstring(ctx, 0, &text_len);
++	text = dukky_utf8_argument(ctx, 0, &text_len);
+ 
+ 	NSLOG(netsurf, DEBUG, "Writeln %*s", (int)text_len, text);
+ 	err = dom_node_get_user_data(priv->parent.node,
+@@ -95,7 +95,7 @@
+ 	dom_node *newnode;
+ 	dom_exception err;
+ 	duk_size_t text_len;
+-	const char *text = duk_safe_to_lstring(ctx, 0, &text_len);
++	const char *text = dukky_utf8_argument(ctx, 0, &text_len);
+ 	dom_string *text_str;
+ 
+ 	err = dom_string_create((const uint8_t*)text, text_len, &text_str);
+@@ -123,7 +123,7 @@
+ 	dom_node *newnode;
+ 	dom_exception err;
+ 	duk_size_t text_len;
+-	const char *text = duk_safe_to_lstring(ctx, 0, &text_len);
++	const char *text = dukky_utf8_argument(ctx, 0, &text_len);
+ 	dom_string *text_str;
+ 
+ 	err = dom_string_create((const uint8_t*)text, text_len, &text_str);
+@@ -153,8 +153,8 @@
+ 	dom_exception err;
+ 	duk_size_t text_len;
+ 	duk_size_t ns_len;
+-	const char *ns = duk_safe_to_lstring(ctx, 0, &ns_len);
+-	const char *text = duk_safe_to_lstring(ctx, 0, &text_len);
++	const char *ns = dukky_utf8_argument(ctx, 0, &ns_len);
++	const char *text = dukky_utf8_argument(ctx, 1, &text_len);
+ 	dom_string *text_str;
+ 	dom_string *ns_str;
+ 
+@@ -282,7 +282,7 @@
+ 	dom_element *element;
+ 	dom_exception exc;
+ 	duk_size_t text_len;
+-	const char *text = duk_safe_to_lstring(ctx, 0, &text_len);
++	const char *text = dukky_utf8_argument(ctx, 0, &text_len);
+ 
+ 	exc = dom_string_create((uint8_t*)text, text_len, &elementId_dom);
+ 	if (exc != DOM_NO_ERR) {
+@@ -332,7 +332,7 @@
+ 	dom_nodelist *nodes;
+ 	dom_exception err;
+ 	duk_size_t text_len;
+-	const char *text = duk_safe_to_lstring(ctx, 0, &text_len);
++	const char *text = dukky_utf8_argument(ctx, 0, &text_len);
+ 	dom_string *tag;
+ 
+ 	err = dom_string_create((uint8_t*)text, text_len, &tag);
+--- a/content/handlers/javascript/duktape/KeyboardEvent.bnd
++++ b/content/handlers/javascript/duktape/KeyboardEvent.bnd
+@@ -20,7 +20,7 @@
+ 		return 0;
+ 	}
+ 
+-	duk_push_lstring(ctx, dom_string_data(key), dom_string_length(key));
++	dukky_push_dom_string(ctx, key);
+ 	dom_string_unref(key);
+ 	return 1;
+ %}
+@@ -35,7 +35,7 @@
+ 		return 0;
+ 	}
+ 
+-	duk_push_lstring(ctx, dom_string_data(code), dom_string_length(code));
++	dukky_push_dom_string(ctx, code);
+ 	dom_string_unref(code);
+ 	return 1;
+ %}
+@@ -123,7 +123,7 @@
+ 	const char *s;
+ 	bool state;
+ 
+-	s = duk_safe_to_lstring(ctx, 0, &slen);
++	s = dukky_utf8_argument(ctx, 0, &slen);
+ 	err = dom_string_create((const uint8_t *)s, slen, &modifier);
+ 	duk_pop(ctx);
+ 	if (err != DOM_NO_ERR) {
+--- a/content/handlers/javascript/duktape/DOMTokenList.bnd
++++ b/content/handlers/javascript/duktape/DOMTokenList.bnd
+@@ -52,7 +52,7 @@
+         return 1;
+     }
+ 
+-    duk_push_lstring(ctx, dom_string_data(value), dom_string_byte_length(value));
++    dukky_push_dom_string(ctx, value);
+ 	dom_string_unref(value);
+ 
+ 	return 1;
+@@ -67,7 +67,7 @@
+ 	duk_idx_t spos;
+ 
+ 	for (spos = 0; spos < duk_get_top(ctx); ++spos) {
+-		s = duk_safe_to_lstring(ctx, spos, &slen);
++		s = dukky_utf8_argument(ctx, spos, &slen);
+ 
+ 		exc = dom_string_create_interned((const uint8_t *)s, slen, &value);
+ 		if (exc != DOM_NO_ERR) return 0;
+@@ -88,7 +88,7 @@
+ 	duk_idx_t spos;
+ 
+ 	for (spos = 0; spos < duk_get_top(ctx); ++spos) {
+-		s = duk_safe_to_lstring(ctx, spos, &slen);
++		s = dukky_utf8_argument(ctx, spos, &slen);
+ 
+ 		exc = dom_string_create_interned((const uint8_t *)s, slen, &value);
+ 		if (exc != DOM_NO_ERR) return 0;
+@@ -105,7 +105,7 @@
+ 	dom_exception exc;
+ 	dom_string *value;
+ 	duk_size_t slen;
+-	const char *s = duk_safe_to_lstring(ctx, 0, &slen);
++	const char *s = dukky_utf8_argument(ctx, 0, &slen);
+ 	bool present = false;
+ 
+ 	exc = dom_string_create_interned((const uint8_t *)s, slen, &value);
+@@ -125,7 +125,7 @@
+ 	dom_exception exc;
+ 	dom_string *value;
+ 	duk_size_t slen;
+-	const char *s = duk_require_lstring(ctx, 0, &slen);
++	const char *s = dukky_utf8_argument(ctx, 0, &slen);
+ 	bool forced = duk_get_top(ctx) > 1 && !duk_is_undefined(ctx, 1);
+ 	bool present;
+ 
+--- a/content/handlers/javascript/duktape/Location.bnd
++++ b/content/handlers/javascript/duktape/Location.bnd
+@@ -20,7 +20,7 @@
+ static duk_ret_t location_navigate(duk_context *ctx, nsurl *source, enum browser_window_nav_flags flags)
+ {
+ 	duk_size_t length;
+-	const char *text = duk_safe_to_lstring(ctx, 0, &length);
++	const char *text = dukky_utf8_argument(ctx, 0, &length);
+ 	duk_push_global_object(ctx);
+ 	duk_get_prop_string(ctx, -1, PRIVATE_MAGIC);
+ 	window_private_t *window = duk_get_pointer(ctx, -1);

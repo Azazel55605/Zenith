@@ -34,6 +34,7 @@ MEASURE_COLOR = "5b3047"
 GAP_COLOR = "487b26"
 GRID_COLORS = ("265d78", "72863a", "aa4e28")
 CARD_COLORS = ("43555f", "109820", "b05d3f")
+SCRIPT_DEMO = "file:///usr/share/zenith/netsurf/javascript.html"
 
 
 def load(name, filename):
@@ -303,8 +304,9 @@ def glyphs_rendered(frame):
 
 def check_toolbar_icons(frame, page_left, page_top):
     icons = load("ns_ui_icons", "tools/build-ui-icons.py")
-    for name, dx in (("arrow-left", 18), ("arrow-right", 58), ("lock", 142)):
-        mask = icons.rasterize((ROOT / "userland/ui/icons" / (name + ".svg")).read_text(), 16)
+    for name, dx in (("panel-left", 18), ("arrow-left", 58), ("arrow-right", 98), ("lock", 182)):
+        directory = "userland/netsurf/icons" if name == "panel-left" else "userland/ui/icons"
+        mask = icons.rasterize((ROOT / directory / (name + ".svg")).read_text(), 16)
         def matches(x, y):
             pixels = frame.crop((x, y, x + 16, y + 16)).convert("L").tobytes()
             base = median(v for v, alpha in zip(pixels, mask) if alpha == 0)
@@ -314,7 +316,7 @@ def check_toolbar_icons(frame, page_left, page_top):
         if not any(matches(page_left + dx + x, page_top - 34 + y)
                    for x in (-1, 0, 1) for y in (-1, 0, 1)):
             raise RuntimeError("Missing rendered standard toolbar icon: " + name)
-    print("PASS Back, Forward and verified HTTPS lock matched their standard toolbar glyphs")
+    print("PASS sidebar, Back, Forward and verified HTTPS lock matched their standard toolbar glyphs")
 
 
 def menu_first_row(mouse, keep, name, before, anchor):
@@ -460,6 +462,146 @@ def rendered_swatch(mouse, keep, name, color, image_check=None):
         time.sleep(.12)
 
 
+def local_script_fixtures(served):
+    (served / "js-loop.html").write_text("""<!doctype html><meta charset="utf-8">
+<title>Script time limit</title><style>
+button,p { display:block; width:260px; height:62px; padding:8px; background:#31597d;
+           color:white; font:bold 20px sans-serif }
+#state { background:#6d553e } #state.started { background:#367151 } </style>
+<button id="run" type="button">Run the loop</button><p id="state">Waiting to run</p>
+<script>document.getElementById("run").addEventListener("click", function () {
+  var state = document.getElementById("state");
+  state.textContent = "Loop entered";
+  state.className = "started";
+  while (true) {}
+});</script>""")
+    (served / "j").write_text(
+        f"native run netsurf {SCRIPT_DEMO}; echo NS_JS_DEFAULT_EXIT=$? | logger\n"
+        f"native run netsurf --javascript {SCRIPT_DEMO}; echo NS_JS_DEMO_EXIT=$? | logger\n"
+        "native run netsurf --javascript file:///root/js-loop.html; echo NS_JS_LOOP_EXIT=$? | logger\n")
+
+
+def check_local_scripts(machine, mouse, monitor, inputs, login, terminal, click, keep):
+    start = len(machine.log())
+    login.monitor_type(monitor, "sh /root/j\n")
+    rendered_swatch(mouse, keep, "js-default-off", "5f5266")
+    inputs.monitor_text(monitor, "sendkey ctrl-q 30")
+    if not machine.wait("user: NS_JS_DEFAULT_EXIT=0", start, 30):
+        raise RuntimeError("Default browser did not close before opening the opt-in demo")
+    rendered_swatch(mouse, keep, "js-ready", "3a5662")
+    button = rendered_swatch(mouse, keep, "js-button", "255b78")
+    click(*button)
+    rendered_swatch(mouse, keep, "js-click-one", "1d6957")
+
+    def reading_ink(frame):
+        bounds = color_mask(frame, bytes.fromhex("1d6957")).getbbox()
+        if bounds is None:
+            return None
+        return color_mask(frame.crop(bounds), b"\xff\xff\xff")
+
+    with Image.open(keep / "js-click-one.png") as frame:
+        first = reading_ink(frame)
+    click(*button)
+
+    def second_reading(frame):
+        current = reading_ink(frame)
+        return (current is not None and current.size == first.size
+                and ImageChops.difference(first, current).histogram()[255] > 35)
+
+    rendered_swatch(mouse, keep, "js-click-two", "1d6957", second_reading)
+    inputs.monitor_text(monitor, "sendkey ctrl-q 30")
+    if not machine.wait("user: NS_JS_DEMO_EXIT=0", start, 30):
+        raise RuntimeError("Opt-in local demo did not close cleanly")
+    button = rendered_swatch(mouse, keep, "js-loop-ready", "31597d")
+    click(*button)
+    rendered_swatch(mouse, keep, "js-loop-entered", "367151")
+    inputs.monitor_text(monitor, "sendkey ctrl-l 50")
+    login.monitor_type(monitor, SCRIPT_DEMO + "\n")
+    rendered_swatch(mouse, keep, "js-after-loop", "5f5266")
+    inputs.monitor_text(monitor, "sendkey ctrl-q 30")
+    if not machine.wait("user: NS_JS_LOOP_EXIT=0", start, 30):
+        raise RuntimeError("Navigating and closing after a script timeout did not complete")
+    guest_cpu_frame.prompt(mouse, terminal)
+    print("PASS local scripts default off, opt-in DOM text and class changes, loop interruption and file-scoped navigation", flush=True)
+
+
+def web_script_fixtures(served, origin):
+    page = """<!doctype html><html><head><meta charset="utf-8"><title>Script ordering</title>
+<style>html {border-top:3px solid #7c306e} body{margin:24px}
+p {box-sizing:border-box;width:260px;min-height:60px;color:white;padding:9px;font:bold 20px sans-serif}
+#result{background:#5f5266} #result.complete{background:#446b41} noscript p{background:#794332}</style>
+<script src="/js-first.js"></script>
+<script>window.order += "B";</script>
+<script src="/js-second.js"></script></head>
+<body><p id="result">Waiting for the scripts</p><noscript><p>Scripts are disabled</p></noscript>
+<script>var output = document.getElementById("result");
+if (window.order === "ABC") {
+  output.textContent = "Both scripts ran in order"; output.className = "complete";
+}</script></body></html>"""
+    (served / "js-web.html").write_text(page)
+    # Distinct colors acknowledge the newly painted destination even when both
+    # consecutive pages have the same permission or come from the same origin.
+    (served / "js-sibling.html").write_text(page.replace("#794332", "#735b36"))
+    (served / "js-next.html").write_text(page.replace("#446b41", "#2d6863"))
+    (served / "js-alternate.html").write_text(page.replace("#794332", "#7d485b"))
+    (served / "js-first.js").write_text('window.order = typeof window.order === "undefined" ? "A" : "reused";')
+    (served / "js-second.js").write_text('window.order += "C";')
+    (served / "w").write_text(f"native run netsurf --javascript {origin}/js-web.html; echo NS_JS_WEB_EXIT=$? | logger\n")
+
+
+def check_web_scripts(machine, mouse, monitor, inputs, login, terminal, click, keep, origin, alternate, secure,
+                      http_requests, alternate_requests, https_requests):
+    def type_url(url):
+        inputs.monitor_text(monitor, "sendkey ctrl-l 50")
+        login.monitor_type(monitor, url + "\n")
+
+    def script_requests(requests):
+        return [p for p in requests if p.endswith(".js")]
+
+    def toggle_permission(frame_name, menu_name):
+        with Image.open(keep / (frame_name + ".png")) as saved:
+            before = saved.convert("RGB")
+        edge = color_mask(before, bytes.fromhex(PAGE_EDGE)).getbbox()
+        if not edge:
+            raise RuntimeError("Script fixture did not paint its top edge")
+        right, top = edge[2], edge[1]
+        click(right - 26, top - 26)
+        # Final eligible-document menu row, beneath the sidebar and guide.
+        click(*menu_first_row(mouse, keep, menu_name, before, (right - 288, top + 294)))
+
+    start = len(machine.log())
+    login.monitor_type(monitor, "sh /root/w\n")
+    rendered_swatch(mouse, keep, "js-http", "446b41")
+    if sorted(script_requests(http_requests)) != ["/js-first.js", "/js-second.js"]:
+        raise RuntimeError(f"Unexpected initial HTTP script requests: {script_requests(http_requests)}")
+    inputs.monitor_text(monitor, "sendkey ctrl-t 50")
+    type_url(origin + "/js-sibling.html")
+    rendered_swatch(mouse, keep, "js-tab-off", "735b36")
+    inputs.monitor_text(monitor, "sendkey ctrl-w 50")
+    rendered_swatch(mouse, keep, "js-tab-restored", "446b41")
+    type_url(origin + "/js-next.html")
+    rendered_swatch(mouse, keep, "js-fresh-global", "2d6863")
+    type_url(alternate + "/js-alternate.html")
+    rendered_swatch(mouse, keep, "js-port-off", "7d485b")
+    if script_requests(alternate_requests):
+        raise RuntimeError("An ungranted origin fetched external scripts")
+    type_url(secure + "/js-web.html")
+    rendered_swatch(mouse, keep, "js-https-off", "794332")
+    if script_requests(https_requests):
+        raise RuntimeError("HTTPS scripts fetched before user opt-in")
+    toggle_permission("js-https-off", "js-allow-menu")
+    rendered_swatch(mouse, keep, "js-https", "446b41")
+    if sorted(script_requests(https_requests)) != ["/js-first.js", "/js-second.js"]:
+        raise RuntimeError(f"Unexpected HTTPS script requests: {script_requests(https_requests)}")
+    toggle_permission("js-https", "js-block-menu")
+    rendered_swatch(mouse, keep, "js-revoked", "794332")
+    inputs.monitor_text(monitor, "sendkey ctrl-q 30")
+    if not machine.wait("user: NS_JS_WEB_EXIT=0", start, 30):
+        raise RuntimeError("Browser did not close cleanly after web scripting")
+    guest_cpu_frame.prompt(mouse, terminal)
+    print("PASS HTTP and verified HTTPS classic script order, fresh globals, tab/origin isolation, menu grant and revocation", flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("keep", type=Path, help="new directory for screenshots, logs and fixture copies")
@@ -524,9 +666,10 @@ def main():
     net = ["-netdev", "user,id=net0", "-device", "e1000e,netdev=net0"]
     images = load("ns_audit", "tools/desktop-launch-replay.py")
     monitor = keep / "monitor.sock"
-    http_requests, https_requests = [], []
+    http_requests, alternate_requests, https_requests = [], [], []
     with ExitStack() as resources:
         origin = start_server(resources, served, http_requests)
+        alternate = start_server(resources, served, alternate_requests)
         secure = start_server(resources, served, https_requests, context(keep / "tls"))
         fixture_file(served, "local.html", "9635b2", "Local document", "Open HTTP page", origin + "/first.html",
                      extra_html=guest_netsurf_png.image_html())
@@ -538,6 +681,8 @@ def main():
         fixture_file(served, "secure.html", "a74726", "Verified HTTPS", "Secure page loaded",
                      extra_html=glyph_examples())
         responsive_fixture(served)
+        local_script_fixtures(served)
+        web_script_fixtures(served, origin)
         (served / "b").write_text("native run netsurf file:///root/ns-local.html | logger; echo NS_BROWSER_EXIT=$? | logger\n")
         profile_revision = 'for rev in /root/.nebula/r*; do latest=$rev; done\n'
         (served / "c").write_text(profile_revision + 'cat "$latest/data" > /root/browser-saved\n'
@@ -555,7 +700,8 @@ def main():
                 if not setup.wait("user: " + name + "=0", offset, timeout=1):
                     raise RuntimeError(f"{name} failed; see {setup.serial}")
             for remote, local in [("app-key", "ns-key"), ("ns-ca.pem", "ns-ca.pem"), ("local.html", "ns-local.html"),
-                                  ("b", "b"), ("c", "c"), ("q", "q"), ("icons.zpk", "ns-icons.zpk"),
+                                  ("b", "b"), ("c", "c"), ("q", "q"), ("j", "j"), ("w", "w"), ("js-loop.html", "js-loop.html"),
+                                  ("icons.zpk", "ns-icons.zpk"),
                                   ("browser.zpk", "ns-browser.zpk")]:
                 command(f"recovery fetch --kernel --replace {origin}/{remote} /root/{local}", "NS_GET_" + remote.split(".")[0].replace("-", "_"))
             command("pkg trust /root/ns-key " + hashlib.sha256(key).hexdigest(), "NS_TRUST")
@@ -578,12 +724,15 @@ def main():
             except RuntimeError:
                 inputs.monitor_text(monitor, "sendkey ctrl-alt-shift-t 50")
                 guest_cpu_frame.prompt(mouse, terminal)
-            login.monitor_type(monitor, "sh /root/b\n")
             def click(x, y, button=1):
                 (cx, cy), _ = mouse.position()
                 mouse.command(f"mouse_move {x-cx} {y-cy}")
                 mouse.command(f"mouse_button {button}")
                 mouse.command("mouse_button 0")
+            check_local_scripts(machine, mouse, monitor, inputs, login, terminal, click, keep)
+            check_web_scripts(machine, mouse, monitor, inputs, login, terminal, click, keep, origin, alternate, secure,
+                              http_requests, alternate_requests, https_requests)
+            login.monitor_type(monitor, "sh /root/b\n")
             position = rendered_swatch(mouse, keep, "local", "9635b2", image_check=guest_netsurf_png.is_rendered)
             click(*position)
             def images_painted(frame):
@@ -609,8 +758,8 @@ def main():
                 raise RuntimeError("Cannot locate the document and its navigation toolbar")
             left, top = edge[:2]
             check_toolbar_icons(secure_frame, left, top)
-            click(left + 26, top - 26, button=2)
-            click(*menu_first_row(mouse, keep, "back-history", secure_frame, (left + 8, top - 4)))
+            click(left + 66, top - 26, button=2)
+            click(*menu_first_row(mouse, keep, "back-history", secure_frame, (left + 48, top - 4)))
             link = rendered_swatch(mouse, keep, "back-to-http", "167b57", image_check=guest_netsurf_png.strip_rendered)
             http_frame = Image.open(keep / "back-to-http.png").convert("RGB")
             click(*link, button=2)
@@ -661,7 +810,8 @@ def main():
                 pass
             raise
         finally:
-            (keep / "requests.json").write_text(json.dumps({"http": http_requests, "https": https_requests}, indent=2))
+            (keep / "requests.json").write_text(json.dumps({"http": http_requests, "alternate": alternate_requests,
+                                                           "https": https_requests}, indent=2))
             machine.stop()
         images.audit(machine.disk, args.elf, keep)
         audit_browser_payload(keep / "root.ext2", payload)

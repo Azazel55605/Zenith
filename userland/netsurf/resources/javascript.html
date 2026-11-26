@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>JavaScript in Nebula</title>
+<link rel="stylesheet" href="welcome.css">
+<style>
+button, #reading { box-sizing: border-box; width: 250px; padding: 12px; font: bold 20px sans-serif; }
+button { height: 52px; background: #255b78; color: white; border: 0; }
+#reading { min-height: 52px; background: #5f5266; color: white; }
+#reading.ready { background: #3a5662; }
+#reading.changed { background: #1d6957; }
+</style></head>
+<body><main>
+<h1>JavaScript in Nebula</h1>
+<p>Allow JavaScript for this page, then press the button to update the counter.</p>
+<button type="button" id="count">Count a click</button>
+<p id="reading">Scripting is off</p>
+</main>
+<script>
+var reading = document.getElementById("reading");
+var clicks = 0;
+reading.textContent = "Waiting for a click";
+reading.className = "ready";
+document.getElementById("count").addEventListener("click", function () {
+    clicks += 1;
+    reading.textContent = clicks === 1 ? "Counted one click" : "Counted " + clicks + " clicks";
+    reading.className = "changed";
+});
+</script>
+</body></html>

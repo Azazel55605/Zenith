@@ -1,0 +1,45 @@
+--- a/src/core/element.c
++++ b/src/core/element.c
+@@ -96,8 +96,6 @@
+ 	lwc_string **classes = NULL;
+ 	uint32_t n_classes = 0;
+ 
+-	/* Any existing cached classes are replaced; destroy them */
+-	_dom_element_destroy_classes(ele);
+ 
+ 	/* Count number of classes */
+ 	for (pos = value; *pos != '\0'; ) {
+@@ -124,9 +122,10 @@
+ 				while (*pos != ' ' && *pos != '\0')
+ 					pos++;
+ 				if (lwc_intern_string(s, pos - s, 
+-						&classes[n_classes++]) !=
++						&classes[n_classes]) !=
+ 						lwc_error_ok)
+ 					goto error;
++				n_classes++;
+ 			} else {
+ 				while (*pos == ' ')
+ 					pos++;
+@@ -134,6 +133,7 @@
+ 		}
+ 	}
+ 
++	_dom_element_destroy_classes(ele);
+ 	ele->n_classes = n_classes;
+ 	ele->classes = classes;
+ 
+@@ -1676,6 +1676,13 @@
+ 		if (err != DOM_NO_ERR)
+ 			return err;
+ 
++		/* Selector matching reads the token cache rather than the Attr.
++		 * Replacing className/classList must refresh both before reflow. */
++		if (namespace == NULL && dom_string_isequal(name, doc->class_string)) {
++			err = _dom_element_create_classes(element, dom_string_data(value));
++			if (err != DOM_NO_ERR)
++				return err;
++		}
+ 		success = true;
+ 		err = _dom_dispatch_subtree_modified_event(doc,
+ 				(dom_event_target *) e, &success);

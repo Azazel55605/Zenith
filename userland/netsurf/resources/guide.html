@@ -7,6 +7,10 @@
 <p>The address field shows the site in bold. Click it, or press Ctrl+L, to type an address. An address without <code>https://</code> or <code>http://</code> opens over HTTPS. An absolute file path opens a local HTML document.</p>
 <p>Click the icon at the start of the address for Page info. A closed lock means Zenith verified the displayed HTTPS page. Nebula can keep opening connections as you browse.</p>
 <p>The menu at the right opens your bookmarks and recent pages. Click the star beside a page to save it, or click it again to remove it. As you type in the address field, use the arrow keys and Enter to open a matching bookmark or recent page. Suggestions stay on this computer. Right-click Back or Forward to choose a page, or right-click a link to open it or copy its address.</p>
+<h2>JavaScript</h2>
+<p>New tabs start with scripting off. Open the browser menu and choose <strong>Allow JavaScript and reload</strong> to run classic scripts. For a local page the choice covers that file. For a website it covers pages with the same scheme, host and port in this tab. Choose <strong>Block JavaScript and reload</strong> to turn it off. Page info shows the current state.</p>
+<p>Try the <a href="javascript.html">click counter</a> with scripting off, then enable it and click twice. From a desktop terminal, <code>native run netsurf --javascript https://example.org/</code> starts a tab with scripting enabled for that origin.</p>
+<p>Nebula leaves scripts off on pages that enforce a Content Security Policy. JavaScript modules and web APIs such as <code>fetch()</code> are still under development.</p>
 <h2>Keys</h2>
 <ul>
 <li>Ctrl+T: new tab; Ctrl+W: close the tab; Ctrl+Shift+T: reopen the last closed tab</li>
@@ -24,6 +28,6 @@
 <li>Ctrl+C: copy the selected text</li>
 <li>Ctrl+Q: close Nebula</li>
 </ul>
-<p>Nebula does not run scripts, and Zenith cannot save downloads yet: a link to a file shows its name and offers to copy its address.</p>
+<p>A link to a downloadable file opens a card with its name and a button to copy its address. Saving downloads is planned.</p>
 <p>Nebula is built on the NetSurf browser engine. <a href="nebula:start">Return to the start page</a></p>
 </main></body></html>

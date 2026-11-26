@@ -1,0 +1,363 @@
+--- a/content/handlers/html/script.c
++++ b/content/handlers/html/script.c
+@@ -55,67 +55,30 @@
+ }
+ 
+ 
+-/* exported internal interface documented in html/html_internal.h */
+-nserror html_script_exec(html_content *c, bool allow_defer)
+-{
+-	unsigned int i;
+-	struct html_script *s;
+-	script_handler_t *script_handler;
+-	bool have_run_something = false;
+-
+-	if (c->jsthread == NULL) {
+-		return NSERROR_BAD_PARAMETER;
+-	}
+-
+-	for (i = 0, s = c->scripts; i != c->scripts_count; i++, s++) {
+-		if (s->already_started) {
+-			continue;
+-		}
+-
+-		if ((s->type == HTML_SCRIPT_ASYNC) ||
+-		    (allow_defer && (s->type == HTML_SCRIPT_DEFER))) {
+-			/* ensure script content is present */
+-			if (s->data.handle == NULL)
+-				continue;
+-
+-			/* ensure script content fetch status is not an error */
+-			if (content_get_status(s->data.handle) ==
+-					CONTENT_STATUS_ERROR)
+-				continue;
+-
+-			/* ensure script handler for content type */
+-			script_handler = select_script_handler(
+-					content_get_type(s->data.handle));
+-			if (script_handler == NULL)
+-				continue; /* unsupported type */
+-
+-			if (content_get_status(s->data.handle) ==
+-					CONTENT_STATUS_DONE) {
+-				/* external script is now available */
+-				const uint8_t *data;
+-				size_t size;
+-				data = content_get_source_data(
+-						s->data.handle, &size );
+-				script_handler(c->jsthread, data, size,
+-					       nsurl_access(hlcache_handle_get_url(s->data.handle)));
+-				have_run_something = true;
+-				/* We have to re-acquire this here since the
+-				 * c->scripts array may have been reallocated
+-				 * as a result of executing this script.
+-				 */
+-				s = &(c->scripts[i]);
+-
+-				s->already_started = true;
+-
+-			}
+-		}
+-	}
+-
+-	if (have_run_something) {
+-		return html_proceed_to_done(c);
+-	}
+-
+-	return NSERROR_OK;
++/* Execute an external classic script once. JavaScript can synchronously add
++ * another script and reallocate c->scripts, so claim the entry first. */
++static void run_external(html_content *c, struct html_script *s)
++{
++	if (s->already_started) return;
++	s->already_started = true;
++	if (!c->enable_scripting || c->aborted || !c->jsthread || !s->data.handle)
++		return;
++	if (content_get_status(s->data.handle) == CONTENT_STATUS_DONE &&
++	    content_get_type(s->data.handle) == CONTENT_JS) {
++		size_t size;
++		const uint8_t *data = content_get_source_data(s->data.handle, &size);
++		js_exec(c->jsthread, data, size, nsurl_access(hlcache_handle_get_url(s->data.handle)));
++	}
++}
++
++void html_run_deferred_scripts(html_content *c)
++{
++	/* Initial conversion waits for every parser-blocking and deferred
++	 * response. A failed response counts as settled and is skipped. */
++	for (unsigned i = 0; i < c->scripts_count; i++) {
++		if (c->scripts[i].type == HTML_SCRIPT_DEFER)
++			run_external(c, &c->scripts[i]);
++	}
+ }
+ 
+ /* create new html script entry */
+@@ -183,6 +146,8 @@
+ 		NSLOG(netsurf, INFO, "script %d done '%s'", i,
+ 		      nsurl_access(hlcache_handle_get_url(script)));
+ 		parent->base.active--;
++		parent->async_fetches--;
++		run_external(parent, s);
+ 		NSLOG(netsurf, INFO, "%d fetches active", parent->base.active);
+ 
+ 		break;
+@@ -194,7 +159,9 @@
+ 
+ 		hlcache_handle_release(script);
+ 		s->data.handle = NULL;
++		s->already_started = true;
+ 		parent->base.active--;
++		parent->async_fetches--;
+ 		NSLOG(netsurf, INFO, "%d fetches active", parent->base.active);
+ 
+ 		break;
+@@ -203,20 +170,12 @@
+ 		break;
+ 	}
+ 
+-	/* if there are no active fetches remaining begin post parse
+-	 * conversion
+-	 */
+-	if (html_can_begin_conversion(parent)) {
+-		html_begin_conversion(parent);
+-	}
+-
+-	/* if we have already started converting though, then we can handle the
+-	 * scripts as they come in.
+-	 */
+-	else if (parent->conversion_begun) {
+-		return html_script_exec(parent, false);
+-	}
+-
++	if (event->type == CONTENT_MSG_DONE || event->type == CONTENT_MSG_ERROR) {
++		if (html_can_begin_conversion(parent))
++			html_begin_conversion(parent);
++		else if (parent->conversion_begun)
++			return html_proceed_to_done(parent);
++	}
+ 	return NSERROR_OK;
+ }
+ 
+@@ -287,7 +246,6 @@
+ 	html_content *parent = pw;
+ 	unsigned int i;
+ 	struct html_script *s;
+-	script_handler_t *script_handler;
+ 	dom_hubbub_error err;
+ 	unsigned int active_sync_scripts = 0;
+ 
+@@ -314,18 +272,7 @@
+ 		parent->base.active--;
+ 		NSLOG(netsurf, INFO, "%d fetches active", parent->base.active);
+ 
+-		s->already_started = true;
+-
+-		/* attempt to execute script */
+-		script_handler = select_script_handler(content_get_type(s->data.handle));
+-		if (script_handler != NULL && parent->jsthread != NULL) {
+-			/* script has a handler */
+-			const uint8_t *data;
+-			size_t size;
+-			data = content_get_source_data(s->data.handle, &size );
+-			script_handler(parent->jsthread, data, size,
+-				       nsurl_access(hlcache_handle_get_url(s->data.handle)));
+-		}
++		run_external(parent, s);
+ 
+ 		/* continue parse */
+ 		if (parent->parser != NULL && active_sync_scripts == 0) {
+@@ -501,7 +448,10 @@
+ 		nscript->already_started = true;
+ 		NSLOG(netsurf, INFO, "Fetch failed with error %d", ns_error);
+ 	} else {
+-		/* update base content active fetch count */
++		/* Async downloads delay load, but not parsing, deferred scripts,
++		 * DOMContentLoaded, or the first layout. */
++		if (script_type == HTML_SCRIPT_ASYNC)
++			c->async_fetches++;
+ 		c->base.active++;
+ 		NSLOG(netsurf, INFO, "%d fetches active", c->base.active);
+ 
+@@ -609,11 +559,28 @@
+ 		mimetype = dom_string_ref(corestring_dom_text_javascript);
+ 	}
+ 
++	/* A module or a JSON data block must never run as a classic script,
++	 * even if its src happens to return a JavaScript MIME type. */
++	const char *value = dom_string_data(mimetype);
++	size_t length = dom_string_byte_length(mimetype);
++	while (length && strchr(" \t\r\n\f", *value)) { value++; length--; }
++	while (length && strchr(" \t\r\n\f", value[length-1])) length--;
++	if (length) {
++		lwc_string *mime = NULL;
++		bool classic = lwc_intern_string(value, length, &mime) == lwc_error_ok &&
++				content_factory_type_from_mime_type(mime) == CONTENT_JS;
++		if (mime) lwc_string_unref(mime);
++		if (!classic) {
++			dom_string_unref(mimetype);
++			return DOM_HUBBUB_OK;
++		}
++	}
+ 	exc = dom_element_get_attribute(node, corestring_dom_src, &src);
+ 	if (exc != DOM_NO_ERR || src == NULL) {
+-		err = exec_inline_script(c, node, mimetype);
++		err = exec_inline_script(c, node, corestring_dom_text_javascript);
+ 	} else {
+-		err = exec_src_script(c, node, mimetype, src);
++		if (dom_string_byte_length(src))
++			err = exec_src_script(c, node, mimetype, src);
+ 		dom_string_unref(src);
+ 	}
+ 
+--- a/content/handlers/html/private.h
++++ b/content/handlers/html/private.h
+@@ -152,6 +152,8 @@
+ 
+ 	/** Number of entries in scripts */
+ 	unsigned int scripts_count;
++	bool load_event_fired;
++	unsigned int async_fetches; /**< In-flight scripts that do not block DOMContentLoaded. */
+ 	/** Scripts */
+ 	struct html_script *scripts;
+ 	/** javascript thread in use */
+@@ -266,17 +268,8 @@
+ bool html_exec(struct content *c, const char *src, size_t srclen);
+ 
+ 
+-/**
+- * Attempt script execution for defer and async scripts
+- *
+- * execute scripts using algorithm found in:
+- * http://www.whatwg.org/specs/web-apps/current-work/multipage/scripting-1.html#the-script-element
+- *
+- * \param htmlc html content.
+- * \param allow_defer allow deferred execution, if not, only async scripts.
+- * \return NSERROR_OK error code.
+- */
+-nserror html_script_exec(html_content *htmlc, bool allow_defer);
++/** Run settled classic defer scripts in document order at end of parse. */
++void html_run_deferred_scripts(html_content *htmlc);
+ 
+ 
+ /**
+--- a/content/handlers/html/html.c
++++ b/content/handlers/html/html.c
+@@ -288,7 +288,11 @@
+ 	switch (content__get_status(&html->base)) {
+ 	case CONTENT_STATUS_READY:
+ 		if (html->base.active == 0) {
+-			content_set_done(&html->base);
++			if (!html->load_event_fired && html->enable_scripting && html->jsthread && !html->aborted) {
++				html->load_event_fired = true;
++				js_fire_event(html->jsthread, "load", html->document, NULL);
++			}
++			if (html->base.active == 0) content_set_done(&html->base);
+ 			return NSERROR_OK;
+ 		}
+ 		break;
+@@ -377,14 +381,6 @@
+ 		return;
+ 	}
+ 
+-
+-	/* fire a simple event named load at the Document's Window
+-	 * object, but with its target set to the Document object (and
+-	 * the currentTarget set to the Window object)
+-	 */
+-	if (htmlc->jsthread != NULL) {
+-		js_fire_event(htmlc->jsthread, "load", htmlc->document, NULL);
+-	}
+ 
+ 	/* convert dom tree to box tree */
+ 	NSLOG(netsurf, INFO, "DOM to box (%p)", htmlc);
+@@ -840,8 +836,8 @@
+ {
+ 	unsigned int i;
+ 
+-	/* Cannot begin conversion if we're still fetching stuff */
+-	if (htmlc->base.active != 0)
++	/* Async script fetches can finish after the initial layout. */
++	if (htmlc->conversion_begun || htmlc->base.active != htmlc->async_fetches)
+ 		return false;
+ 
+ 	for (i = 0; i != htmlc->stylesheet_count; i++) {
+@@ -917,11 +913,10 @@
+ 	htmlc->conversion_begun = true;
+ 
+ 	/* complete script execution, including deferred scripts */
+-	html_script_exec(htmlc, true);
+-
+-	/* fire a simple event that bubbles named DOMContentLoaded at
+-	 * the Document.
+-	 */
++	html_run_deferred_scripts(htmlc);
++	if (htmlc->jsthread && htmlc->enable_scripting)
++		fire_generic_dom_event(corestring_dom_DOMContentLoaded,
++				(dom_node *)htmlc->document, true, false);
+ 
+ 	/* get encoding */
+ 	if (htmlc->encoding == NULL) {
+@@ -1018,7 +1013,7 @@
+ 
+ 	dom_node_unref(html);
+ 
+-	if (htmlc->base.active == 0) {
++	if (htmlc->base.active == htmlc->async_fetches) {
+ 		html_finish_conversion(htmlc);
+ 	}
+ 
+--- a/utils/corestringlist.h
++++ b/utils/corestringlist.h
+@@ -229,6 +229,7 @@
+ CORESTRING_DOM_STRING(DOMAttrModified);
+ CORESTRING_DOM_STRING(DOMNodeInserted);
+ CORESTRING_DOM_STRING(DOMNodeInsertedIntoDocument);
++CORESTRING_DOM_STRING(DOMContentLoaded);
+ CORESTRING_DOM_STRING(DOMSubtreeModified);
+ CORESTRING_DOM_STRING(drag);
+ CORESTRING_DOM_STRING(dragend);
+--- a/content/handlers/javascript/duktape/Document.bnd
++++ b/content/handlers/javascript/duktape/Document.bnd
+@@ -22,6 +22,17 @@
+ 
+ 
+ init Document(struct dom_document *document::node);
++
++getter Document::readyState()
++%{
++	struct html_content *html = NULL;
++	dom_node_get_user_data(priv->parent.node, corestring_dom___ns_key_html_content_data, &html);
++	const char *state = "loading";
++	if (html && html->parse_completed)
++		state = html->load_event_fired || content__get_status(&html->base) == CONTENT_STATUS_DONE ? "complete" : "interactive";
++	duk_push_string(ctx, state);
++	return 1;
++%}
+ 
+ method Document::write()
+ %{
+--- a/content/handlers/html/object.c
++++ b/content/handlers/html/object.c
+@@ -488,7 +488,7 @@
+ 		/* all objects have arrived */
+ 		content__reformat(&c->base, false, c->base.available_width,
+ 				c->base.available_height);
+-		content_set_done(&c->base);
++		html_proceed_to_done(c);
+ 	} else if (nsoption_bool(incremental_reflow) &&
+ 		   event->type == CONTENT_MSG_DONE &&
+ 		   box != NULL &&
+--- a/content/handlers/html/css.c
++++ b/content/handlers/html/css.c
+@@ -139,6 +139,11 @@
+ 	if (html_can_begin_conversion(parent)) {
+ 		html_begin_conversion(parent);
+ 	}
++	if ((event->type == CONTENT_MSG_DONE || event->type == CONTENT_MSG_ERROR) &&
++		   parent->conversion_begun && parent->base.active == parent->async_fetches) {
++		if (!parent->select_ctx) html_finish_conversion(parent);
++		else html_proceed_to_done(parent);
++	}
+ 
+ 	return NSERROR_OK;
+ }

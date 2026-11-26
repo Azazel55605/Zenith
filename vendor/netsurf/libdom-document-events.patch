@@ -1,0 +1,12 @@
+--- a/src/core/node.c
++++ b/src/core/node.c
+@@ -2443,7 +2443,8 @@
+ 		return DOM_UNSPECIFIED_EVENT_TYPE_ERR;
+ 	}
+ 
+-	doc = dom_node_get_owner(et);
++	/* A Document has no ownerDocument, but is itself an EventTarget. */
++	doc = target->type == DOM_DOCUMENT_NODE ? (dom_document *)target : dom_node_get_owner(et);
+ 	if (doc == NULL) {
+ 		/* TODO: In the progress of parsing, many Nodes in the DTD has
+ 		 * no document at all, do nothing for this kind of node */

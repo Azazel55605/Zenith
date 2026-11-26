@@ -1,0 +1,22 @@
+--- a/src/core/node.c
++++ b/src/core/node.c
+@@ -2457,8 +2457,8 @@
+ 	ntargets_allocated = 0;
+ 	ntargets = 0;
+ 
+-	/* Add interested event listeners to array */
+-	for (; target != NULL; target = target->parent) {
++	/* Capture and bubble visit ancestors. The target is dispatched separately. */
++	for (target = target->parent; target != NULL; target = target->parent) {
+ 		struct listener_entry *le = target->eti.listeners;
+ 		bool target_has_listener = false;
+ 
+@@ -2541,7 +2541,7 @@
+ 	/* Bubbling phase */
+ 	evt->phase = DOM_BUBBLING_PHASE;
+ 
+-	for (targetnr = 0; targetnr < ntargets; ++targetnr) {
++	for (targetnr = 0; evt->bubble && targetnr < ntargets; ++targetnr) {
+ 		dom_node_internal *node =
+ 			(dom_node_internal *) targets[targetnr];
+ 		err = _dom_event_target_dispatch(targets[targetnr],

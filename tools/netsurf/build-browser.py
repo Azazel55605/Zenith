@@ -111,6 +111,8 @@ def build(destination, version, core=ROOT / "obj/netsurf-core", sdk=ROOT / "obj/
         copy(sources / name / "COPYING", notices / ("COPYING-" + name))
     copy(core / "zlib-1.4/LICENSE", notices / "LICENSE-zlib")
     copy(core / "jpeg-10/README", notices / "README-IJG")
+    copy(ROOT / "vendor/netsurf/LICENSE-Duktape.txt", notices / "LICENSE-Duktape.txt")
+    copy(sources / "nsgenbind/COPYING", notices / "COPYING-nsgenbind")
     copy(ROOT / "vendor/netsurf/NOTICE-JPEG", notices / "NOTICE-JPEG")
     for name in ("LICENSE", "TRADEMARK"):
         copy(core / "libpng-1.6.59" / name, notices / (name + "-libpng"))

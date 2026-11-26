@@ -1,0 +1,160 @@
+--- a/include/netsurf/window.h
++++ b/include/netsurf/window.h
+@@ -376,6 +376,9 @@
+ 			    const char *msg,
+ 			    size_t msglen,
+ 			    browser_window_console_flags flags);
++
++	/** Query the owning tab before parsing a top-level HTML document. */
++	bool (*allow_scripts)(struct gui_window *gw, const struct nsurl *url);
+ };
+ 
+ #endif
+--- a/include/netsurf/browser_window.h
++++ b/include/netsurf/browser_window.h
+@@ -799,6 +799,9 @@
+ nserror browser_window_show_cookies(
+ 		const struct browser_window *bw);
+ 
++/** Stop script execution in this tab, including pending navigation. */
++void browser_window_revoke_scripts(struct browser_window *bw);
++
+ /**
+  * Show the certificate page for the current page.
+  *
+--- a/content/handlers/html/html.h
++++ b/content/handlers/html/html.h
+@@ -214,6 +214,12 @@
+ struct content_html_object *html_get_objects(struct hlcache_handle *h,
+ 		unsigned int *n);
+ 
++/** Apply the tab grant before parsing, or revoke it on the active document. */
++void html_set_scripting(struct hlcache_handle *h, bool enable);
++
++/** An enforced page policy takes precedence over a tab grant. */
++bool html_page_restricts_scripts(struct hlcache_handle *h);
++
+ /**
+  * get the offset within the docuemnt of a fragment id
+  */
+--- a/content/handlers/html/private.h
++++ b/content/handlers/html/private.h
+@@ -126,6 +126,7 @@
+ 
+ 	/** Whether scripts are enabled for this content */
+ 	bool enable_scripting;
++	bool script_policy_seen;
+ 
+ 	/* Title element node */
+ 	dom_node *title;
+--- a/content/handlers/html/html.c
++++ b/content/handlers/html/html.c
+@@ -500,7 +500,8 @@
+ 	c->scripts = NULL;
+ 	c->jsthread = NULL;
+ 
+-	c->enable_scripting = nsoption_bool(enable_javascript);
++	c->enable_scripting = false; /* CONTENT_MSG_LOADING supplies the owning tab. */
++	c->script_policy_seen = false;
+ 	c->base.active = 1; /* The html content itself is active */
+ 
+ 	if (lwc_intern_string("*", SLEN("*"), &c->universal) != lwc_error_ok) {
+@@ -644,6 +645,29 @@
+ }
+ 
+ 
++
++bool html_page_restricts_scripts(struct hlcache_handle *h)
++{
++	html_content *html = (html_content *)hlcache_handle_get_content(h);
++	return html->script_policy_seen ||
++		llcache_handle_get_header(html->base.llcache, "Content-Security-Policy") != NULL;
++}
++
++void html_set_scripting(struct hlcache_handle *h, bool enable)
++{
++	html_content *html = (html_content *)hlcache_handle_get_content(h);
++	if (enable && html_page_restricts_scripts(h))
++		enable = false;
++	if (html->enable_scripting == enable)
++		return;
++	if (!enable) {
++		html->enable_scripting = false;
++		if (html->jsthread)
++			js_closethread(html->jsthread);
++	} else if (html->parser && dom_hubbub_parser_enable_script(html->parser, true) == DOM_HUBBUB_OK) {
++		html->enable_scripting = true;
++	}
++}
+ 
+ static nserror
+ html_process_encoding_change(struct content *c,
+--- a/desktop/browser_window.c
++++ b/desktop/browser_window.c
+@@ -1479,6 +1479,10 @@
+ 
+ 	case CONTENT_MSG_LOADING:
+ 		assert(bw->loading_content == c);
++		if (content_get_type(c) == CONTENT_HTML && bw->parent == NULL && bw->window &&
++		    !bw->internal_nav && nsoption_bool(enable_javascript) && guit->window->allow_scripts &&
++		    guit->window->allow_scripts(bw->window, hlcache_handle_get_url(c)))
++			html_set_scripting(c, true);
+ 
+ #ifdef WITH_THEME_INSTALL
+ 		if (content_get_type(c) == CONTENT_THEME) {
+@@ -3980,6 +3984,15 @@
+ 	return true;
+ }
+ 
++
++/* Exported interface, documented in netsurf/browser_window.h */
++void browser_window_revoke_scripts(struct browser_window *bw)
++{
++	if (bw->current_content && content_get_type(bw->current_content) == CONTENT_HTML)
++		html_set_scripting(bw->current_content, false);
++	if (bw->loading_content && content_get_type(bw->loading_content) == CONTENT_HTML)
++		html_set_scripting(bw->loading_content, false);
++}
+ 
+ /* Exported interface, documented in netsurf/browser_window.h */
+ struct hlcache_handle *browser_window_get_content(struct browser_window *bw)
+--- a/content/handlers/html/dom_event.c
++++ b/content/handlers/html/dom_event.c
+@@ -323,11 +323,6 @@
+ 	nsurl *nsurl;
+ 	nserror error = NSERROR_OK;
+ 
+-	if (c->refresh) {
+-		/* refresh already delt with */
+-		return NSERROR_OK;
+-	}
+-
+ 	exc = dom_element_get_attribute(n, corestring_dom_http_equiv, &equiv);
+ 	if (exc != DOM_NO_ERR) {
+ 		return NSERROR_DOM;
+@@ -337,7 +332,24 @@
+ 		return NSERROR_OK;
+ 	}
+ 
+-	if (!dom_string_caseless_lwc_isequal(equiv, corestring_lwc_refresh)) {
++	/* Until individual CSP directives are supported, keep an enforced
++	 * policy authoritative by declining script execution for this page. */
++	if (dom_string_byte_length(equiv) == sizeof("Content-Security-Policy") - 1 &&
++	    strncasecmp(dom_string_data(equiv), "Content-Security-Policy",
++			dom_string_byte_length(equiv)) == 0) {
++		exc = dom_element_get_attribute(n, corestring_dom_content, &content);
++		if (exc == DOM_NO_ERR && content != NULL) {
++			c->script_policy_seen = true;
++			c->enable_scripting = false;
++			if (c->jsthread)
++				js_closethread(c->jsthread);
++			dom_string_unref(content);
++		}
++		dom_string_unref(equiv);
++		return NSERROR_OK;
++	}
++
++	if (c->refresh || !dom_string_caseless_lwc_isequal(equiv, corestring_lwc_refresh)) {
+ 		dom_string_unref(equiv);
+ 		return NSERROR_OK;
+ 	}

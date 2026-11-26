@@ -1,0 +1,182 @@
+--- a/content/handlers/html/private.h
++++ b/content/handlers/html/private.h
+@@ -124,6 +124,7 @@
+ 	/** Whether an initial layout has been done */
+ 	bool had_initial_layout;
+ 	bool rebuilding_boxes;
++	bool dom_modified; /**< Presentation needs new boxes for a scripted mutation. */
+ 	struct form_control *unowned_controls;
+ 	struct content_html_object *old_objects;
+ 	dom_node *converting_element; /* borrowed during conversion of one element */
+@@ -340,6 +341,9 @@
+  * Construct an event and fire it at the DOM
+  *
+  */
++bool html_node_is_connected(html_content *html, dom_node *node);
++void html_dom_modified(html_content *html);
++
+ bool fire_generic_dom_event(dom_string *type, dom_node *target,
+ 		    bool bubbles, bool cancelable);
+ 
+--- a/content/handlers/html/dom_event.c
++++ b/content/handlers/html/dom_event.c
+@@ -707,6 +707,12 @@
+ 
+ 	exc = dom_event_get_target(evt, &node);
+ 	if ((exc == DOM_NO_ERR) && (node != NULL)) {
++		/* Class, text, child-list and attribute edits all dispatch this event.
++		 * Let the listener return before replacing its hit-test boxes. */
++		if (htmlc->enable_scripting && !htmlc->dom_modified &&
++		    (htmlc->layout || htmlc->box_conversion_context) &&
++		    html_node_is_connected(htmlc, (dom_node *)node))
++			html_dom_modified(htmlc);
+ 		if (htmlc->title == (dom_node *)node) {
+ 			/* Node is our title node */
+ 			html_process_title(htmlc, (dom_node *)node);
+--- a/content/handlers/html/html.c
++++ b/content/handlers/html/html.c
+@@ -1047,6 +1047,37 @@
+ }
+ 
+ 
++/* LibDOM gives the Document no owner; test containment starting at its root. */
++bool html_node_is_connected(html_content *html, dom_node *node)
++{
++	dom_element *root;
++	bool connected = false;
++	if (!node) return false;
++	if (node == (dom_node *)html->document) return true;
++	if (dom_document_get_document_element(html->document, &root) == DOM_NO_ERR && root) {
++		dom_node_contains(root, node, &connected);
++		dom_node_unref(root);
++	}
++	return connected;
++}
++
++static void html_apply_dom_changes(void *pw)
++{
++	html_content *html = pw;
++	if (html->dom_modified && html->bw && html->had_initial_layout)
++		content__reformat(&html->base, false, html->base.available_width,
++				html->base.available_height);
++}
++
++void html_dom_modified(html_content *html)
++{
++	if (html->dom_modified || html->reflowing ||
++	    (!html->layout && !html->box_conversion_context)) return;
++	html->dom_modified = true;
++	if (html->bw && html->had_initial_layout)
++		guit->misc->schedule(0, html_apply_dom_changes, html);
++}
++
+ /**
+  * Reformat a CONTENT_HTML to a new width.
+  */
+@@ -1070,10 +1101,24 @@
+ 			INTTOFIX(width), htmlc->unit_len_ctx.device_dpi);
+ 	htmlc->media.height = htmlc->unit_len_ctx.viewport_height = css_unit_device2css_px(
+ 			INTTOFIX(height), htmlc->unit_len_ctx.device_dpi);
+-	if ((old_media.width != htmlc->media.width || old_media.height != htmlc->media.height) &&
+-	    css_select_ctx_media_changed(htmlc->select_ctx, &old_units, &old_media,
+-			    &htmlc->unit_len_ctx, &htmlc->media)) {
+-		restyled = box_restyle(htmlc);
++	if (htmlc->dom_modified ||
++	    ((old_media.width != htmlc->media.width || old_media.height != htmlc->media.height) &&
++	     css_select_ctx_media_changed(htmlc->select_ctx, &old_units, &old_media,
++			    &htmlc->unit_len_ctx, &htmlc->media))) {
++		/* Insertion, removal and media-attribute edits can change which
++		 * sheets participate. Keep the last usable context on failure. */
++		css_select_ctx *previous = htmlc->select_ctx;
++		css_select_ctx *fresh = NULL;
++		if (!htmlc->dom_modified ||
++		    html_css_new_selection_context(htmlc, &fresh) == NSERROR_OK) {
++			if (fresh) htmlc->select_ctx = fresh;
++			restyled = box_restyle(htmlc);
++			if (fresh) {
++				if (!restyled) htmlc->select_ctx = previous;
++				css_select_ctx_destroy(restyled ? previous : fresh);
++			}
++			if (restyled) htmlc->dom_modified = false;
++		}
+ 		if (!restyled) {
+ 			/* Retry the original transition on the next layout. */
+ 			htmlc->media = old_media;
+@@ -1224,6 +1269,7 @@
+ 	NSLOG(netsurf, INFO, "content %p", c);
+ 
+ 	/* If we're still converting a layout, cancel it */
++	guit->misc->schedule(-1, html_apply_dom_changes, html);
+ 	if (html->box_conversion_context != NULL) {
+ 		if (cancel_dom_to_box(html->box_conversion_context) != NSERROR_OK) {
+ 			NSLOG(netsurf, CRITICAL, "WARNING, Unable to cancel conversion context, browser may crash");
+@@ -1378,6 +1424,7 @@
+ 	html_content *htmlc = (html_content *) c;
+ 	nserror ret = NSERROR_OK;
+ 
++	guit->misc->schedule(-1, html_apply_dom_changes, htmlc);
+ 	selection_clear(htmlc->sel, false);
+ 
+ 	/* clear the html content reference to the browser window */
+--- a/content/handlers/html/css.c
++++ b/content/handlers/html/css.c
+@@ -136,6 +136,8 @@
+ 		break;
+ 	}
+ 
++	if (event->type == CONTENT_MSG_DONE && parent->enable_scripting)
++		html_dom_modified(parent);
+ 	if (html_can_begin_conversion(parent)) {
+ 		html_begin_conversion(parent);
+ 	}
+@@ -265,6 +267,11 @@
+ 		if (s->sheet != NULL) {
+ 			switch (content_get_status(s->sheet)) {
+ 			case CONTENT_STATUS_DONE:
++				/* The selector stores a borrowed sheet. Detach it before
++				 * releasing the handle when script replaces a live style. */
++				if (c->select_ctx)
++					css_select_ctx_remove_sheet(c->select_ctx,
++						nscss_get_stylesheet(s->sheet));
+ 				break;
+ 			default:
+ 				hlcache_handle_abort(s->sheet);
+@@ -621,7 +628,9 @@
+ 			origin = CSS_ORIGIN_USER;
+ 		}
+ 
+-		if (hsheet->sheet != NULL) {
++		if (hsheet->node && !html_node_is_connected(c, hsheet->node))
++			continue;
++		if (hsheet->sheet != NULL && content_get_status(hsheet->sheet) == CONTENT_STATUS_DONE) {
+ 			sheet = nscss_get_stylesheet(hsheet->sheet);
+ 		}
+ 
+--- a/content/handlers/html/object.c
++++ b/content/handlers/html/object.c
+@@ -728,8 +728,8 @@
+ 		html->old_objects = o->next;
+ 		/* Images belong to their DOM element across display:none or a
+ 		 * media-dependent background change, even when uncacheable. */
+-		if (!commit || o->replacement || o->box == NULL ||
+-		    (o->element && o->permitted_types == CONTENT_IMAGE)) {
++		if (!commit || o->replacement || (!o->element && !o->box) ||
++		    (o->permitted_types == CONTENT_IMAGE && html_node_is_connected(html, o->element))) {
+ 			if (commit) o->box = o->replacement;
+ 			o->replacement = NULL;
+ 			o->next = keep;
+--- a/content/handlers/html/interaction.c
++++ b/content/handlers/html/interaction.c
+@@ -1397,8 +1397,10 @@
+ 	}
+ 
+ 	/* fire dom click event */
+-	if (mouse & BROWSER_MOUSE_CLICK_1) {
+-		fire_generic_dom_event(corestring_dom_click, mas.node, true, true);
++	if ((mouse & BROWSER_MOUSE_CLICK_1) && mas.node &&
++	    !fire_generic_dom_event(corestring_dom_click, mas.node, true, true)) {
++		/* A listener cancelled the click's navigation or form submission. */
++		mas.result.action = ACTION_NONE;
+ 	}
+ 
+ 	/* deferred actions that can cause this browser_window to be destroyed

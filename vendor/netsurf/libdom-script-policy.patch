@@ -1,0 +1,29 @@
+--- a/bindings/hubbub/parser.h
++++ b/bindings/hubbub/parser.h
+@@ -76,6 +76,9 @@
+ 		dom_hubbub_parser **parser,
+ 		dom_document_fragment **fragment);
+ 
++/* Set scripting before the first input chunk, once the owning window is known. */
++dom_hubbub_error dom_hubbub_parser_enable_script(dom_hubbub_parser *parser, bool enable);
++
+ /* Destroy a Hubbub parser instance */
+ void dom_hubbub_parser_destroy(dom_hubbub_parser *parser);
+ 
+--- a/bindings/hubbub/parser.c
++++ b/bindings/hubbub/parser.c
+@@ -1068,6 +1068,14 @@
+ 					: "Windows-1252";
+ }
+ 
++dom_hubbub_error dom_hubbub_parser_enable_script(dom_hubbub_parser *parser, bool enable)
++{
++	hubbub_parser_optparams params = { .enable_scripting = enable };
++	hubbub_error err = hubbub_parser_setopt(parser->parser,
++			HUBBUB_PARSER_ENABLE_SCRIPTING, &params);
++	return err == HUBBUB_OK ? DOM_HUBBUB_OK : (DOM_HUBBUB_HUBBUB_ERR | err);
++}
++
+ /**
+  * Set the Parse pause state.
+  *

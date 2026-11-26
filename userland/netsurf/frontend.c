@@ -15,6 +15,7 @@
 #include "source-view.h"
 #include "start-page.h"
 #include "content/content.h"
+#include "content/handlers/html/html.h"
 #include "netsurf/bitmap.h"
 #include "netsurf/browser_window.h"
 #include "netsurf/clipboard.h"
@@ -55,7 +56,7 @@ enum {
     TAB_FIRST = SUGGEST_FIRST + SUGGESTIONS, TAB_CLOSE_FIRST = TAB_FIRST + TABS_MAX,
     NEW_TAB = TAB_CLOSE_FIRST + TABS_MAX, PLACE_BOOKMARKS, PLACE_HISTORY, MENU_SIDEBAR, LINK_TAB,
     TAB_MENU_NEW, TAB_MENU_DUPLICATE, TAB_MENU_RELOAD, TAB_MENU_SLEEP, TAB_MENU_CLOSE, TAB_MENU_OTHERS, TAB_MENU_REOPEN,
-    SIDEBAR_TOGGLE
+    SIDEBAR_TOGGLE, MENU_SCRIPTS
 };
 enum { POPOVER_NONE, POPOVER_MENU, POPOVER_INFO, POPOVER_BACK, POPOVER_FORWARD, POPOVER_LINK, POPOVER_SUGGEST,
        POPOVER_TAB };
@@ -63,6 +64,7 @@ enum { POPOVER_NONE, POPOVER_MENU, POPOVER_INFO, POPOVER_BACK, POPOVER_FORWARD, 
 /* One tab: the core's window for one browser_window, and everything that belongs to its page. */
 struct gui_window {
     struct browser_window *browser;
+    nsurl *script_scope;
     struct source_view source;
     struct zui_input address, find;
     char location[2048], current[2048], status[256], find_text[128], title[96];
@@ -105,6 +107,7 @@ struct nebula_window {
     bool foreground;                    /* whether that tab becomes active */
     struct gui_window *waking;          /* the sleeping tab that create_window gives the new browser_window */
     struct gui_window *created;         /* the tab create_window made last */
+    nsurl *initial_script_scope;        /* transferred to the first tab on CLI opt-in */
     char closed[CLOSED_KEPT][2048];
     int closed_count, tab_scroll, drag_tab, drag_y;
     bool tab_dragging;
@@ -185,7 +188,7 @@ static const char *file_type(const char *path)
                  {"txt", "text/plain"},   {"gif", "image/gif"},     {"bmp", "image/bmp"},
                  {"ico", "image/x-icon"}, {"png", "image/png"},     {"jpg", "image/jpeg"},
                  {"jpeg", "image/jpeg"},  {"svg", "image/svg+xml"}, {"woff", "font/woff"},
-                 {"woff2", "font/woff2"}};
+                 {"woff2", "font/woff2"}, {"js", "text/javascript"}};
     const char *ext = strrchr(path, '.');
     if (ext)
         for (size_t i = 0; i < sizeof(types) / sizeof(types[0]); i++)
@@ -240,6 +243,55 @@ static int viewport_height(const struct gui_window *g)
 static struct gui_window *active_tab(void)
 {
     return W.active >= 0 && W.active < W.count ? W.tabs[W.active] : NULL;
+}
+
+/* Decisions use the content's canonical final URL, including on redirects.
+ * Each new tab starts with no grant; sleeping keeps the original tab's choice. */
+static nsurl_component script_scope_parts(const nsurl *url)
+{
+    if (url) {
+        switch (nsurl_get_scheme_type(url)) {
+        case NSURL_SCHEME_FILE:
+            return NSURL_SCHEME | NSURL_AUTHORITY | NSURL_PATH;
+        case NSURL_SCHEME_HTTP:
+        case NSURL_SCHEME_HTTPS:
+            if (nsurl_has_component(url, NSURL_HOST) && !nsurl_has_component(url, NSURL_USERNAME) &&
+                !nsurl_has_component(url, NSURL_PASSWORD))
+                return NSURL_SCHEME | NSURL_HOST | NSURL_PORT;
+            break;
+        default:
+            break;
+        }
+    }
+    return 0;
+}
+
+static bool tab_allows_scripts(struct gui_window *g, const nsurl *url)
+{
+    nsurl_component parts = script_scope_parts(url);
+    return g && g->script_scope && parts && nsurl_compare(g->script_scope, url, parts);
+}
+
+static bool allow_page_scripts(nsurl *url)
+{
+    if (!script_scope_parts(url))
+        return false;
+    struct gui_window *g = active_tab();
+    nsurl **scope = g ? &g->script_scope : &W.initial_script_scope;
+    nsurl *previous = *scope;
+    *scope = nsurl_ref(url);
+    if (previous)
+        nsurl_unref(previous);
+    return true;
+}
+
+static nsurl *script_page(struct gui_window *g)
+{
+    struct hlcache_handle *h = !g->loading && g->browser ? browser_window_get_content(g->browser) : NULL;
+    if (!h || content_get_type(h) != CONTENT_HTML || content_get_status(h) != CONTENT_STATUS_DONE)
+        return NULL;
+    nsurl *url = hlcache_handle_get_url(h);
+    return script_scope_parts(url) ? url : NULL;
 }
 static int tab_index(const struct gui_window *g)
 {
@@ -352,6 +404,10 @@ static struct gui_window *create_window(struct browser_window *bw, struct gui_wi
     if (!g || W.count >= TABS_MAX)
         return NULL;
     memset(g, 0, sizeof(*g));
+    if (!W.count) {
+        g->script_scope = W.initial_script_scope;
+        W.initial_script_scope = NULL;
+    }
     g->used = true;
     g->browser = bw;
     g->scale = 1.f;
@@ -386,6 +442,10 @@ static void forget_tab(struct gui_window *g)
     int at = tab_index(g);
     if (at < 0)
         return;
+    if (g->script_scope) {
+        nsurl_unref(g->script_scope);
+        g->script_scope = NULL;
+    }
     memmove(&W.tabs[at], &W.tabs[at + 1], (size_t)(W.count - at - 1) * sizeof(W.tabs[0]));
     W.count--;
     if (at == W.active)
@@ -692,6 +752,7 @@ static struct gui_window_table window_ops = {.create = create_window,
                                              .set_title = title,
                                              .set_url = set_url,
                                              .set_status = status,
+                                             .allow_scripts = tab_allows_scripts,
                                              .place_caret = caret};
 static struct gui_misc_table misc_ops = {.schedule = schedule, .launch_url = launch_external};
 static struct gui_fetch_table fetch_ops = {.filetype = file_type, .get_resource_url = resource_url};
@@ -1032,7 +1093,8 @@ static void draw_menu(struct gui_window *g)
     int w = 280, x = mb.x + mb.w - w;
     if (x < 8)
         x = 8;
-    struct zui_rect r = {x, mb.y + mb.h + 4, w, 6 + 36 + 9 + 5 * 34 + 9 + 2 * 34 + 6};
+    nsurl *page = script_page(g);
+    struct zui_rect r = {x, mb.y + mb.h + 4, w, 6 + 36 + 9 + 5 * 34 + 9 + (page ? 3 : 2) * 34 + 6};
     card(u, r);
     W.popover_rect = r;
     int y = r.y + 6, first = u->count;
@@ -1066,6 +1128,9 @@ static void draw_menu(struct gui_window *g)
     menu_row(u, MENU_SIDEBAR, (struct zui_rect){x + 6, y, w - 12, 34}, "panel-left",
              W.sidebar_hidden ? "Show the sidebar" : "Hide the sidebar", "Ctrl+Shift+S");
     menu_row(u, MENU_GUIDE, (struct zui_rect){x + 6, y + 34, w - 12, 34}, "book-open", "Using Nebula", NULL);
+    if (page)
+        menu_row(u, MENU_SCRIPTS, (struct zui_rect){x + 6, y + 68, w - 12, 34}, "code",
+                 tab_allows_scripts(g, page) ? "Block JavaScript and reload" : "Allow JavaScript and reload", NULL);
 }
 
 static void info_row(struct zui *u, int x, int y, int w, const char *icon, const char *key, const char *value, bool strong)
@@ -1113,7 +1178,13 @@ static void draw_info(struct gui_window *g)
     char used[32], zoom[16];
     snprintf(used, sizeof(used), "%u", zenith_web_attempts());
     snprintf(zoom, sizeof(zoom), "%d %%", (int)(g->scale * 100 + .5f));
-    info_row(u, ix, y, w - 36, "code", "Scripts", "Not supported", false);
+    nsurl *url = script_page(g);
+    const char *scripts = "Off";
+    if (url && html_page_restricts_scripts(browser_window_get_content(g->browser)))
+        scripts = "Blocked by page policy";
+    else if (tab_allows_scripts(g, url))
+        scripts = nsurl_get_scheme_type(url) == NSURL_SCHEME_FILE ? "On for this file" : "On for this origin";
+    info_row(u, ix, y, w - 36, "code", "Scripts", scripts, false);
     info_row(u, ix, y + 30, w - 36, "globe", "Connection attempts", used, false);
     y += 60;
     info_row(u, ix, y, w - 36, "search", "Zoom", zoom, false);
@@ -1945,6 +2016,22 @@ static void ui_action(struct gui_window *g, int id)
     case MENU_GUIDE:
         open_address(g, GUIDE_URL);
         break;
+    case MENU_SCRIPTS: {
+        nsurl *url = script_page(g);
+        if (!url)
+            break;
+        if (tab_allows_scripts(g, url)) {
+            nsurl_unref(g->script_scope);
+            g->script_scope = NULL;
+            browser_window_revoke_scripts(g->browser);
+        } else {
+            allow_page_scripts(url);
+        }
+        nserror err = browser_window_reload(g->browser, false);
+        if (err != NSERROR_OK)
+            navigation_error(g, err);
+        break;
+    }
     case LINK_OPEN:
         if (W.context_link) {
             struct hlcache_handle *content = browser_window_get_content(g->browser);
@@ -2538,14 +2625,16 @@ int main(int argc, char **argv)
         puts("netsurf " ZENITH_BROWSER_VERSION " (Nebula, NetSurf 3.11)");
         return 0;
     }
-    if (argc > 2 || (argc == 2 && !strcmp(argv[1], "--help"))) {
-        puts("netsurf [URL | /absolute/path.html]");
-        return argc > 2 ? 2 : 0;
+    bool opt_in = argc == 3 && !strcmp(argv[1], "--javascript");
+    if ((argc > 2 && !opt_in) || (opt_in && (!*argv[2] || argv[2][0] == '-')) ||
+        (argc == 2 && argv[1][0] == '-')) {
+        puts("netsurf [--javascript] [URL | /absolute/path.html]");
+        return argc == 2 && !strcmp(argv[1], "--help") ? 0 : 2;
     }
     if (netsurf_register(&operations) != NSERROR_OK ||
         nsoption_init(NULL, &nsoptions, &nsoptions_default) != NSERROR_OK)
         return 1;
-    nsoption_set_bool(enable_javascript, false);
+    nsoption_set_bool(enable_javascript, true); /* The owning tab must also grant the document. */
     nsoption_set_bool(target_blank, true);   /* target=_blank opens a tab */
     nsoption_set_uint(disc_cache_size, 0);
     int result = 1;
@@ -2561,8 +2650,25 @@ int main(int argc, char **argv)
     bitmap_fmt_t format = {.layout = BITMAP_LAYOUT_ARGB8888, .pma = false};
     bitmap_set_format(&format);
     nebula_profile_load(&W.profile);
+    const char *address = opt_in ? argv[2] : argc == 2 ? argv[1] : NEBULA_START_URL;
+    if (opt_in) {
+        nsurl *url = NULL;
+        bool allowed = parse_address(address, &url) == NSERROR_OK && allow_page_scripts(url);
+        if (url)
+            nsurl_unref(url);
+        if (!allowed) {
+            puts("netsurf: JavaScript is unavailable for this address");
+            result = 2;
+            goto exit_core;
+        }
+    }
     if (zenith_fetch_register() == NSERROR_OK && nebula_start_register(&W.profile, &W.ui.theme) == NSERROR_OK)
-        result = zenith_browser_run(argc == 2 ? argv[1] : NEBULA_START_URL);
+        result = zenith_browser_run(address);
+exit_core:
+    if (W.initial_script_scope) {
+        nsurl_unref(W.initial_script_scope);
+        W.initial_script_scope = NULL;
+    }
     netsurf_exit();
 done:
     while (alarms) {

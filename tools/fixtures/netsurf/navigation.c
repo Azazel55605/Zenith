@@ -39,11 +39,23 @@ static void host_title(struct gui_window *g, const char *text)
     (void)text;
 }
 
+static unsigned web_script_requests, insecure_script_requests;
+static bool fixture_tls;
+static char fixture_reply[16384];
+static size_t fixture_offset, fixture_length;
+static const char *web_page_fixture(const char *, const char **, const char **, int *);
+static const char *order_response(const char *, const char **);
+
 long zenith_web_connect(const char *host, unsigned port, bool tls)
 {
-    assert(!strcmp(host, "fixture.invalid") && tls && port == 443);
+    assert(port == (tls ? 443u : 80u));
     connections++;
-    return -13;
+    if (!strcmp(host, "fixture.invalid"))
+        return -13;
+    assert(!strcmp(host, "scripts.test") || !strcmp(host, "assets.test") || !strcmp(host, "other.test"));
+    fixture_tls = tls;
+    fixture_length = fixture_offset = 0;
+    return 8;
 }
 const char *zenith_web_error(long code)
 {
@@ -52,15 +64,38 @@ const char *zenith_web_error(long code)
 }
 long zenith_web_send(long fd, const void *data, size_t bytes)
 {
-    (void)fd; (void)data; (void)bytes;
-    abort();
+    assert(fd == 8 && bytes > 4 && !memcmp(data, "GET ", 4));
+    const char *start = (const char *)data + 4, *end = memchr(start, ' ', bytes - 4);
+    char path[256];
+    assert(end && (size_t)(end - start) < sizeof(path));
+    memcpy(path, start, end - start);
+    path[end - start] = 0;
+    const char *mime = "text/html", *extra = "";
+    int status = 200;
+    const char *body = !strncmp(path, "/order/", 7) ? order_response(path, &mime)
+                                                    : web_page_fixture(path, &mime, &extra, &status);
+    assert(body);
+    if (!strcmp(path, "/cdn.js")) {
+        web_script_requests++;
+        if (!fixture_tls) insecure_script_requests++;
+    }
+    int n = snprintf(fixture_reply, sizeof(fixture_reply),
+                     "HTTP/1.1 %d Fixture Response\r\n%sContent-Type: %s\r\nContent-Length: %zu\r\n\r\n%s",
+                     status, extra, mime, strlen(body), body);
+    assert(n > 0 && (size_t)n < sizeof(fixture_reply));
+    fixture_length = (size_t)n;
+    return (long)bytes;
 }
 long zenith_web_read(long fd, void *data, size_t bytes)
 {
-    (void)fd; (void)data; (void)bytes;
-    abort();
+    assert(fd == 8);
+    size_t left = fixture_length - fixture_offset;
+    if (bytes > left) bytes = left;
+    memcpy(data, fixture_reply + fixture_offset, bytes);
+    fixture_offset += bytes;
+    return (long)bytes;
 }
-void zenith_web_close(long fd) { (void)fd; abort(); }
+void zenith_web_close(long fd) { assert(fd == 8); }
 unsigned zenith_web_attempts(void) { return connections; }
 
 static void await_document(const char *title)
@@ -97,6 +132,10 @@ static void enter_address(const char *address)
 #include "variables-tests.h"
 #include "published-layout.h"
 #include "find-layout-tests.h"
+#include "javascript-local-tests.h"
+#include "javascript-engine-tests.h"
+#include "javascript-web-tests.h"
+#include "javascript-order-tests.h"
 
 static void check_page_source(void)
 {
@@ -234,6 +273,10 @@ int main(int argc, char **argv)
     check_live_media();
     check_css_variables();
     check_find_across_reflow();
+    check_local_javascript();
+    check_script_engine();
+    check_web_javascript();
+    check_script_order();
     browser_window_destroy(window.browser);
     netsurf_exit();
     nsoption_finalise(nsoptions, nsoptions_default);

@@ -1,0 +1,1141 @@
+--- a/desktop/browser_window.c
++++ b/desktop/browser_window.c
+@@ -1602,18 +1602,17 @@
+ 			 * window requires a new javascript thread object
+ 			 */
+ 			jsthread *thread;
++			jsheap *heap;
+ 			assert(bw->loading_content == c);
+ 
+-			if (js_newthread(bw->jsheap,
+-					 bw,
+-					 hlcache_handle_get_content(c),
+-					 &thread) == NSERROR_OK) {
+-				/* The content which is requesting the thread
+-				 * is required to keep hold of it and
+-				 * to destroy it when it is finished with it.
+-				 */
++			/* Each document owns its realm and mutable built-in prototypes.
++			 * Pages without script never allocate an interpreter. */
++			if (js_newheap(nsoption_int(script_timeout), &heap) != NSERROR_OK)
++				break;
++			if (js_newthread(heap, bw, hlcache_handle_get_content(c),
++					&thread) == NSERROR_OK)
+ 				*(event->data.jsthread) = thread;
+-			}
++			js_destroyheap(heap); /* Released with the last live thread. */
+ 		}
+ 		break;
+ 
+@@ -1898,10 +1897,6 @@
+ 		bw->favicon.current = NULL;
+ 	}
+ 
+-	if (bw->jsheap != NULL) {
+-		js_destroyheap(bw->jsheap);
+-		bw->jsheap = NULL;
+-	}
+ 
+ 	/* These simply free memory, so are safe here */
+ 
+@@ -3189,11 +3184,6 @@
+ {
+ 	nserror err;
+ 	assert(bw);
+-
+-	/* new javascript context for each window/(i)frame */
+-	err = js_newheap(nsoption_int(script_timeout), &bw->jsheap);
+-	if (err != NSERROR_OK)
+-		return err;
+ 
+ 	if (flags & BW_CREATE_CLONE) {
+ 		assert(existing != NULL);
+--- a/desktop/browser_private.h
++++ b/desktop/browser_private.h
+@@ -262,9 +262,6 @@
+ 	} selection;
+ 	bool can_edit;
+ 
+-	/** current javascript context */
+-	struct jsheap *jsheap;
+-
+ 	/** cache of the currently displayed status text. */
+ 	struct {
+ 		char *text; /**< Current status bar text. */
+--- a/content/handlers/javascript/duktape/dukky.c
++++ b/content/handlers/javascript/duktape/dukky.c
+@@ -51,17 +51,28 @@
+ #define HANDLER_MAGIC MAGIC(HANDLER_MAP)
+ #define EVENT_LISTENER_JS_MAGIC MAGIC(EVENT_LISTENER_JS_MAP)
+ #define GENERICS_MAGIC MAGIC(GENERICS_TABLE)
+-#define THREAD_MAP MAGIC(THREAD_MAP)
+ 
+ /**
+  * dukky javascript heap
+  */
++struct registered_listener {
++	struct registered_listener *next;
++	dom_element *element;
++	dom_string *name;
++	dom_event_listener *listener;
++	bool capture;
++};
++
+ struct jsheap {
++	struct registered_listener *listeners;
++	jsthread *owner;
+ 	duk_context *ctx; /**< duktape base context */
+-	duk_uarridx_t next_thread; /**< monotonic thread counter */
+ 	bool pending_destroy; /**< Whether this heap is pending destruction */
+ 	unsigned int live_threads; /**< number of live threads */
+ 	uint64_t exec_start_time;
++	unsigned budget_depth;
++	size_t allocated;
++	bool closed;
+ };
+ 
+ /**
+@@ -72,7 +83,6 @@
+ 	unsigned int in_use; /**< The number of times this thread is in use */
+ 	jsheap *heap; /**< The heap this thread belongs to */
+ 	duk_context *ctx; /**< The duktape thread context */
+-	duk_uarridx_t thread_idx; /**< The thread number */
+ };
+ 
+ static duk_ret_t dukky_populate_object(duk_context *ctx, void *udata)
+@@ -545,32 +555,50 @@
+  * block, as do debugging tools such as Electric Fence by Bruce Perens.
+  */
+ 
++/* The browser's libc arena is shared with layout, images and other tabs.
++ * Track the size of each interpreter allocation without relying on libc internals. */
++enum { DOCUMENT_HEAP_LIMIT = 4 * 1024 * 1024, ALL_HEAPS_LIMIT = 10 * 1024 * 1024 };
++static size_t all_allocated;
++
++typedef union {
++	size_t size;
++	max_align_t alignment;
++} dukky_allocation;
++
++static void *dukky_realloc_function(void *udata, void *ptr, duk_size_t size)
++{
++	jsheap *heap = udata;
++	dukky_allocation *header = ptr ? (dukky_allocation *)ptr - 1 : NULL;
++	size_t old = header ? header->size : 0;
++	if (size == 0) {
++		free(header);
++		heap->allocated -= old;
++		all_allocated -= old;
++		return NULL;
++	}
++	if (size > DOCUMENT_HEAP_LIMIT - sizeof(*header))
++		return NULL;
++	size_t bytes = sizeof(*header) + size;
++	if (bytes > DOCUMENT_HEAP_LIMIT - (heap->allocated - old) ||
++			bytes > ALL_HEAPS_LIMIT - (all_allocated - old))
++		return NULL;
++	header = realloc(header, bytes);
++	if (!header)
++		return NULL;
++	header->size = bytes;
++	heap->allocated = heap->allocated - old + bytes;
++	all_allocated = all_allocated - old + bytes;
++	return header + 1;
++}
++
+ static void *dukky_alloc_function(void *udata, duk_size_t size)
+ {
+-	if (size == 0)
+-		return NULL;
+-
+-	return malloc(size);
+-}
+-
+-static void *dukky_realloc_function(void *udata, void *ptr, duk_size_t size)
+-{
+-	if (ptr == NULL && size == 0)
+-		return NULL;
+-
+-	if (size == 0) {
+-		free(ptr);
+-		return NULL;
+-	}
+-
+-	return realloc(ptr, size);
+-}
+-
++	return dukky_realloc_function(udata, NULL, size);
++}
+ 
+ static void dukky_free_function(void *udata, void *ptr)
+ {
+-	if (ptr != NULL)
+-		free(ptr);
++	(void)dukky_realloc_function(udata, ptr, 0);
+ }
+ 
+ /* exported interface documented in js.h */
+@@ -592,6 +620,23 @@
+ 	/* NADA for now */
+ }
+ 
++
++static duk_ret_t dukky_init_prototypes(duk_context *ctx, void *unused)
++{
++	(void)unused;
++	/* The engine embedding object and its native helpers are private. */
++	duk_push_global_object(ctx);
++	duk_del_prop_string(ctx, -1, "Duktape");
++	duk_pop(ctx);
++	/* Create the prototype stuffs */
++	duk_push_global_object(ctx);
++	duk_push_boolean(ctx, true);
++	duk_put_prop_string(ctx, -2, "protos");
++	duk_put_global_string(ctx, PROTO_MAGIC);
++	/* Create prototypes here */
++	dukky_create_prototypes(ctx);
++	return 0;
++}
+ 
+ /* exported interface documented in js.h */
+ nserror
+@@ -609,16 +654,11 @@
+ 		ret,
+ 		NULL);
+ 	if (ret->ctx == NULL) { free(ret); return NSERROR_NOMEM; }
+-	/* Create the prototype stuffs */
+-	duk_push_global_object(ctx);
+-	duk_push_boolean(ctx, true);
+-	duk_put_prop_string(ctx, -2, "protos");
+-	duk_put_global_string(ctx, PROTO_MAGIC);
+-	/* Create prototypes here */
+-	dukky_create_prototypes(ctx);
+-	/* Now create the thread map */
+-	duk_push_object(ctx);
+-	duk_put_global_string(ctx, THREAD_MAP);
++	if (duk_safe_call(ctx, dukky_init_prototypes, NULL, 0, 0) != DUK_EXEC_SUCCESS) {
++		duk_destroy_heap(ctx);
++		free(ret);
++		return NSERROR_NOMEM;
++	}
+ 
+ 	*heap = ret;
+ 	return NSERROR_OK;
+@@ -643,113 +683,102 @@
+ 	}
+ }
+ 
+-/* Just for here, the CTX is in ret, not thread */
+-#define CTX (ret->ctx)
++struct dukky_document { void *win; void *doc; };
++
++static duk_ret_t dukky_init_document(duk_context *ctx, void *udata)
++{
++	struct dukky_document *env = udata;
++	/* Manufacture a Window object */
++	/* win_priv is a browser_window, doc_priv is an html content struct */
++	duk_push_pointer(ctx, env->win);
++	duk_push_pointer(ctx, env->doc);
++	if (dukky_create_object(ctx, PROTO_NAME(WINDOW), 2) != DUK_EXEC_SUCCESS)
++		return duk_throw(ctx);
++	duk_push_global_object(ctx);
++	duk_put_prop_string(ctx, -2, PROTO_MAGIC);
++	duk_dup(ctx, -1);
++	duk_put_prop_string(ctx, -2, "globalThis");
++	duk_set_global_object(ctx);
++
++	/* Now we need to prepare our node mapping table */
++	duk_push_object(ctx);
++	duk_push_pointer(ctx, NULL);
++	duk_push_null(ctx);
++	duk_put_prop(ctx, -3);
++	duk_put_global_string(ctx, NODE_MAGIC);
++
++	/* And now the event mapping table */
++	duk_push_object(ctx);
++	duk_put_global_string(ctx, EVENT_MAGIC);
++
++	/* Now load the polyfills */
++	/* ... */
++	duk_push_string(ctx, "polyfill.js");
++	/* ..., polyfill.js */
++	if (duk_pcompile_lstring_filename(ctx, DUK_COMPILE_EVAL,
++					  (const char *)polyfill_js, polyfill_js_len) != 0) {
++		NSLOG(dukky, CRITICAL, "%s", duk_safe_to_string(ctx, -1));
++		NSLOG(dukky, CRITICAL, "Unable to compile polyfill.js, thread aborted");
++		return duk_throw(ctx);
++	}
++	/* ..., (generics.js) */
++	if (dukky_pcall(ctx, 0, true) != 0) {
++		NSLOG(dukky, CRITICAL, "Unable to run polyfill.js, thread aborted");
++		return duk_throw(ctx);
++	}
++	/* ..., result */
++	duk_pop(ctx);
++	/* ... */
++
++	/* Now load the NetSurf table in */
++	/* ... */
++	duk_push_string(ctx, "generics.js");
++	/* ..., generics.js */
++	if (duk_pcompile_lstring_filename(ctx, DUK_COMPILE_EVAL,
++					  (const char *)generics_js, generics_js_len) != 0) {
++		NSLOG(dukky, CRITICAL, "%s", duk_safe_to_string(ctx, -1));
++		NSLOG(dukky, CRITICAL, "Unable to compile generics.js, thread aborted");
++		return duk_throw(ctx);
++	}
++	/* ..., (generics.js) */
++	if (dukky_pcall(ctx, 0, true) != 0) {
++		NSLOG(dukky, CRITICAL, "Unable to run generics.js, thread aborted");
++		return duk_throw(ctx);
++	}
++	/* ..., result */
++	duk_pop(ctx);
++	/* ... */
++	duk_push_global_object(ctx);
++	/* ..., Win */
++	duk_get_prop_string(ctx, -1, "NetSurf");
++	/* ..., Win, NetSurf */
++	duk_put_global_string(ctx, GENERICS_MAGIC);
++	/* ..., Win */
++	duk_del_prop_string(ctx, -1, "NetSurf");
++	duk_pop(ctx);
++	/* ... */
++
++	return 0;
++}
+ 
+ /* exported interface documented in js.h */
+ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **thread)
+ {
+-	jsthread *ret;
+-	assert(heap != NULL);
+-	assert(heap->pending_destroy == false);
+-
+-	ret = calloc(1, sizeof (*ret));
+-	if (ret == NULL) {
+-		NSLOG(dukky, ERROR, "Unable to allocate new JS thread structure");
+-		return NSERROR_NOMEM;
+-	}
+-
+-	NSLOG(dukky, DEBUG,
+-	      "New javascript/duktape thread, win_priv=%p, doc_priv=%p",
+-	      win_priv, doc_priv);
+-
+-	/* create new thread */
+-	duk_get_global_string(heap->ctx, THREAD_MAP); /* ... threads */
+-	duk_push_thread(heap->ctx); /* ... threads thread */
++	struct dukky_document env = { win_priv, doc_priv };
++	*thread = NULL;
++	if (heap->live_threads || heap->pending_destroy)
++		return NSERROR_INVALID;
++	jsthread *ret = calloc(1, sizeof(*ret));
++	if (!ret) return NSERROR_NOMEM;
+ 	ret->heap = heap;
+-	ret->ctx = duk_require_context(heap->ctx, -1);
+-	ret->thread_idx = heap->next_thread++;
+-	duk_put_prop_index(heap->ctx, -2, ret->thread_idx);
++	ret->ctx = heap->ctx;
++	if (duk_safe_call(heap->ctx, dukky_init_document, &env, 0, 0) != DUK_EXEC_SUCCESS) {
++		free(ret);
++		return NSERROR_INIT_FAILED;
++	}
++	heap->owner = ret;
+ 	heap->live_threads++;
+-	duk_pop(heap->ctx); /* ... */
+-	duk_push_int(CTX, 0);
+-	duk_push_int(CTX, 1);
+-	duk_push_int(CTX, 2);
+-	/* Manufacture a Window object */
+-	/* win_priv is a browser_window, doc_priv is an html content struct */
+-	duk_push_pointer(CTX, win_priv);
+-	duk_push_pointer(CTX, doc_priv);
+-	dukky_create_object(CTX, PROTO_NAME(WINDOW), 2);
+-	duk_push_global_object(CTX);
+-	duk_put_prop_string(CTX, -2, PROTO_MAGIC);
+-	duk_set_global_object(CTX);
+-
+-	/* Now we need to prepare our node mapping table */
+-	duk_push_object(CTX);
+-	duk_push_pointer(CTX, NULL);
+-	duk_push_null(CTX);
+-	duk_put_prop(CTX, -3);
+-	duk_put_global_string(CTX, NODE_MAGIC);
+-
+-	/* And now the event mapping table */
+-	duk_push_object(CTX);
+-	duk_put_global_string(CTX, EVENT_MAGIC);
+-
+-	/* Now load the polyfills */
+-	/* ... */
+-	duk_push_string(CTX, "polyfill.js");
+-	/* ..., polyfill.js */
+-	if (duk_pcompile_lstring_filename(CTX, DUK_COMPILE_EVAL,
+-					  (const char *)polyfill_js, polyfill_js_len) != 0) {
+-		NSLOG(dukky, CRITICAL, "%s", duk_safe_to_string(CTX, -1));
+-		NSLOG(dukky, CRITICAL, "Unable to compile polyfill.js, thread aborted");
+-		js_destroythread(ret);
+-		return NSERROR_INIT_FAILED;
+-	}
+-	/* ..., (generics.js) */
+-	if (dukky_pcall(CTX, 0, true) != 0) {
+-		NSLOG(dukky, CRITICAL, "Unable to run polyfill.js, thread aborted");
+-		js_destroythread(ret);
+-		return NSERROR_INIT_FAILED;
+-	}
+-	/* ..., result */
+-	duk_pop(CTX);
+-	/* ... */
+-
+-	/* Now load the NetSurf table in */
+-	/* ... */
+-	duk_push_string(CTX, "generics.js");
+-	/* ..., generics.js */
+-	if (duk_pcompile_lstring_filename(CTX, DUK_COMPILE_EVAL,
+-					  (const char *)generics_js, generics_js_len) != 0) {
+-		NSLOG(dukky, CRITICAL, "%s", duk_safe_to_string(CTX, -1));
+-		NSLOG(dukky, CRITICAL, "Unable to compile generics.js, thread aborted");
+-		js_destroythread(ret);
+-		return NSERROR_INIT_FAILED;
+-	}
+-	/* ..., (generics.js) */
+-	if (dukky_pcall(CTX, 0, true) != 0) {
+-		NSLOG(dukky, CRITICAL, "Unable to run generics.js, thread aborted");
+-		js_destroythread(ret);
+-		return NSERROR_INIT_FAILED;
+-	}
+-	/* ..., result */
+-	duk_pop(CTX);
+-	/* ... */
+-	duk_push_global_object(CTX);
+-	/* ..., Win */
+-	duk_get_prop_string(CTX, -1, "NetSurf");
+-	/* ..., Win, NetSurf */
+-	duk_put_global_string(CTX, GENERICS_MAGIC);
+-	/* ..., Win */
+-	duk_del_prop_string(CTX, -1, "NetSurf");
+-	duk_pop(CTX);
+-	/* ... */
+-
+-	dukky_log_stack_frame(CTX, "New thread created");
+-	NSLOG(dukky, DEBUG, "New thread is %p in heap %p", thread, heap);
+ 	*thread = ret;
+-
+ 	return NSERROR_OK;
+ }
+ 
+@@ -764,6 +793,9 @@
+ 	 * the code running, though we don't mind since we're in the
+ 	 * process of destruction at this point
+ 	 */
++	if (thread->heap->closed)
++		return NSERROR_OK;
++	thread->heap->closed = true;
+ 	duk_int_t top = duk_get_top(CTX);
+ 
+ 	/* Closing down the extant thread */
+@@ -787,22 +819,22 @@
+ 	assert(thread->in_use == 0);
+ 	assert(thread->pending_destroy == true);
+ 
+-	/* Closing down the extant thread */
+-	NSLOG(dukky, DEBUG, "Closing down extant thread %p in heap %p", thread, heap);
+-	duk_get_global_string(CTX, MAGIC(closedownThread));
+-	dukky_pcall(CTX, 0, true);
+-
+-	/* Now delete the thread from the heap */
+-	duk_get_global_string(heap->ctx, THREAD_MAP); /* ... threads */
+-	duk_del_prop_index(heap->ctx, -1, thread->thread_idx);
+-	duk_pop(heap->ctx); /* ... */
+-
+-	/* We can now free the thread object */
++	(void)js_closethread(thread);
++
++	/* DOM nodes can outlive their document's script context in the cache. */
++	while (heap->listeners) {
++		struct registered_listener *item = heap->listeners;
++		heap->listeners = item->next;
++		dom_event_target_remove_event_listener(item->element, item->name,
++				item->listener, item->capture);
++		dom_event_listener_unref(item->listener);
++		dom_string_unref(item->name);
++		dom_node_unref(item->element);
++		free(item);
++	}
++	heap->owner = NULL;
++
+ 	free(thread);
+-
+-	/* Finally give the heap a chance to clean up */
+-	duk_gc(heap->ctx, 0);
+-	duk_gc(heap->ctx, DUK_GC_COMPACT);
+ 	heap->live_threads--;
+ 
+ 	/* And if the heap should now go, blow it away */
+@@ -839,7 +871,7 @@
+ 
+ duk_bool_t dukky_check_timeout(void *udata)
+ {
+-#define JS_EXEC_TIMEOUT_MS 10000 /* 10 seconds */
++#define JS_EXEC_TIMEOUT_MS 500
+ 	jsheap *heap = (jsheap *) udata;
+ 	uint64_t now;
+ 
+@@ -849,45 +881,51 @@
+ 	 * so only test for execution timeout if we've recorded a
+ 	 * start time.
+ 	 */
+-	return heap->exec_start_time != 0 &&
+-			now > (heap->exec_start_time + JS_EXEC_TIMEOUT_MS);
++	return heap->budget_depth != 0 && now - heap->exec_start_time >= JS_EXEC_TIMEOUT_MS;
+ }
+ 
+ static void dukky_dump_error(duk_context *ctx)
+ {
+-	/* stack is ..., errobj */
+-	duk_dup_top(ctx);
+-	/* ..., errobj, errobj */
+-	NSLOG(jserrors, WARNING, "Uncaught error in JS: %s", duk_safe_to_stacktrace(ctx, -1));
+-	/* ..., errobj, errobj.stackstring */
+-	duk_pop(ctx);
+-	/* ..., errobj */
+-}
+-
+-static void dukky_reset_start_time(duk_context *ctx)
++	/* Thrown values can be arbitrary page objects. Leave them on the stack
++	 * and never invoke user getters while handling an exception. */
++	NSLOG(jserrors, WARNING, "JavaScript call failed (value type %d)", duk_get_type(ctx, -1));
++}
++
++static jsheap *dukky_heap(duk_context *ctx)
+ {
+ 	duk_memory_functions funcs;
+-	jsheap *heap;
+ 	duk_get_memory_functions(ctx, &funcs);
+-	heap = funcs.udata;
+-	(void) nsu_getmonotonic_ms(&heap->exec_start_time);
++	return funcs.udata;
++}
++
++/* Nested DOM dispatch shares the original deadline. The next independent
++ * callback gets a full budget even after a previous one timed out. */
++static jsheap *dukky_begin_budget(duk_context *ctx)
++{
++	jsheap *heap = dukky_heap(ctx);
++	if (heap->budget_depth++ == 0)
++		(void)nsu_getmonotonic_ms(&heap->exec_start_time);
++	return heap;
+ }
+ 
+ duk_int_t dukky_pcall(duk_context *ctx, duk_size_t argc, bool reset_timeout)
+ {
+-	if (reset_timeout) {
+-		dukky_reset_start_time(ctx);
+-	}
+-
++	(void)reset_timeout;
++	jsheap *heap = dukky_begin_budget(ctx);
+ 	duk_int_t ret = duk_pcall(ctx, argc);
+-	if (ret) {
+-		/* Something went wrong calling this... */
++	if (ret)
+ 		dukky_dump_error(ctx);
+-	}
+-
++	heap->budget_depth--;
+ 	return ret;
+ }
+ 
++static duk_int_t dukky_pcall_method(duk_context *ctx, duk_size_t argc)
++{
++	jsheap *heap = dukky_begin_budget(ctx);
++	duk_int_t ret = duk_pcall_method(ctx, argc);
++	heap->budget_depth--;
++	return ret;
++}
+ 
+ void dukky_push_generics(duk_context *ctx, const char *generic)
+ {
+@@ -928,7 +966,7 @@
+ 		return false;
+ 	}
+ 
+-	if (thread->pending_destroy) {
++	if (thread->pending_destroy || thread->heap->closed) {
+ 		NSLOG(dukky, DEEPDEBUG, "Skipping exec call because thread is dead");
+ 		return false;
+ 	}
+@@ -939,7 +977,7 @@
+ 	NSLOG(dukky, DEEPDEBUG, "Running %"PRIsizet" bytes from %s", txtlen, name);
+ 	/* NSLOG(dukky, DEEPDEBUG, "\n%s\n", txt); */
+ 
+-	dukky_reset_start_time(CTX);
++	jsheap *heap = dukky_begin_budget(CTX);
+ 	if (name != NULL) {
+ 		duk_push_string(CTX, name);
+ 	} else {
+@@ -967,6 +1005,7 @@
+ handle_error:
+ 	dukky_dump_error(CTX);
+ out:
++	heap->budget_depth--;
+ 	dukky_leave_thread(thread);
+ 	return ret;
+ }
+@@ -1140,7 +1179,7 @@
+ 	return true;
+ }
+ 
+-static void dukky_generic_event_handler(dom_event *evt, void *pw)
++static void dukky_dispatch_event(dom_event *evt, void *pw)
+ {
+ 	duk_context *ctx = (duk_context *)pw;
+ 	dom_string *name;
+@@ -1150,6 +1189,7 @@
+ 	duk_uarridx_t idx;
+ 	event_listener_flags flags;
+ 
++	if (dukky_heap(ctx)->closed) return;
+ 	NSLOG(dukky, DEBUG, "Handling an event in duktape interface...");
+ 	exc = dom_event_get_type(evt, &name);
+ 	if (exc != DOM_NO_ERR) {
+@@ -1197,8 +1237,7 @@
+ 	/* ... handler node */
+ 	dukky_push_event(ctx, evt);
+ 	/* ... handler node event */
+-	dukky_reset_start_time(ctx);
+-	if (duk_pcall_method(ctx, 1) != 0) {
++	if (dukky_pcall_method(ctx, 1) != 0) {
+ 		/* Failed to run the method */
+ 		/* ... err */
+ 		NSLOG(dukky, DEBUG,
+@@ -1207,22 +1246,8 @@
+ 		if (exc != DOM_NO_ERR)
+ 			NSLOG(dukky, DEBUG,
+ 			      "WORSE! could not stop propagation");
+-		duk_get_prop_string(ctx, -1, "name");
+-		duk_get_prop_string(ctx, -2, "message");
+-		duk_get_prop_string(ctx, -3, "fileName");
+-		duk_get_prop_string(ctx, -4, "lineNumber");
+-		duk_get_prop_string(ctx, -5, "stack");
+-		/* ... err name message fileName lineNumber stack */
+-		NSLOG(dukky, DEBUG, "Uncaught error in JS: %s: %s",
+-		      duk_safe_to_string(ctx, -5),
+-		      duk_safe_to_string(ctx, -4));
+-		NSLOG(dukky, INFO, "              was at: %s line %s",
+-		      duk_safe_to_string(ctx, -3),
+-		      duk_safe_to_string(ctx, -2));
+-		NSLOG(dukky, INFO, "         Stack trace: %s",
+-		      duk_safe_to_string(ctx, -1));
+-
+-		duk_pop_n(ctx, 6);
++		dukky_dump_error(ctx);
++		duk_pop(ctx);
+ 		/* ... */
+ 		goto handle_extras;
+ 	}
+@@ -1296,8 +1321,7 @@
+ 		/* ... copy handler callback node */
+ 		dukky_push_event(ctx, evt);
+ 		/* ... copy handler callback node event */
+-		dukky_reset_start_time(ctx);
+-		if (duk_pcall_method(ctx, 1) != 0) {
++		if (dukky_pcall_method(ctx, 1) != 0) {
+ 			/* Failed to run the method */
+ 			/* ... copy handler err */
+ 			NSLOG(dukky, DEBUG,
+@@ -1306,23 +1330,8 @@
+ 			if (exc != DOM_NO_ERR)
+ 				NSLOG(dukky, DEBUG,
+ 				      "WORSE! could not stop propagation");
+-			duk_get_prop_string(ctx, -1, "name");
+-			duk_get_prop_string(ctx, -2, "message");
+-			duk_get_prop_string(ctx, -3, "fileName");
+-			duk_get_prop_string(ctx, -4, "lineNumber");
+-			duk_get_prop_string(ctx, -5, "stack");
+-			/* ... err name message fileName lineNumber stack */
+-			NSLOG(dukky, DEBUG, "Uncaught error in JS: %s: %s",
+-			      duk_safe_to_string(ctx, -5),
+-			      duk_safe_to_string(ctx, -4));
+-			NSLOG(dukky, DEBUG,
+-			      "              was at: %s line %s",
+-			      duk_safe_to_string(ctx, -3),
+-			      duk_safe_to_string(ctx, -2));
+-			NSLOG(dukky, DEBUG, "         Stack trace: %s",
+-			      duk_safe_to_string(ctx, -1));
+-
+-			duk_pop_n(ctx, 7);
++			dukky_dump_error(ctx);
++			duk_pop_2(ctx);
+ 			/* ... copy */
+ 			continue;
+ 		}
+@@ -1339,6 +1348,41 @@
+ 	/* ... */
+ 	dom_node_unref(targ);
+ 	dom_string_unref(name);
++}
++
++/* A listener or timer can navigate away while its invocation is on the
++ * native stack. Keep the heap alive until the callback finishes unwinding. */
++jsthread *dukky_hold_callback(duk_context *ctx)
++{
++	jsheap *heap = dukky_heap(ctx);
++	if (heap->closed || !heap->owner) return NULL;
++	dukky_enter_thread(heap->owner);
++	return heap->owner;
++}
++
++void dukky_release_callback(jsthread *thread)
++{
++	dukky_leave_thread(thread);
++}
++
++static duk_ret_t dukky_safe_dispatch(duk_context *ctx, void *event)
++{
++	dukky_dispatch_event(event, ctx);
++	return 0;
++}
++
++static void dukky_generic_event_handler(dom_event *evt, void *pw)
++{
++	jsthread *thread = dukky_hold_callback(pw);
++	if (!thread) return;
++	jsheap *heap = dukky_begin_budget(pw);
++	(void)duk_safe_call(pw, dukky_safe_dispatch, evt, 0, 0);
++	heap->budget_depth--;
++	/* LibDOM must not advance from the current registration if teardown
++	 * detaches it when the last active callback leaves. */
++	if (thread->pending_destroy)
++		dom_event_stop_immediate_propagation(evt);
++	dukky_release_callback(thread);
+ }
+ 
+ void dukky_register_event_listener_for(duk_context *ctx,
+@@ -1385,21 +1429,24 @@
+ 		return;
+ 	}
+ 
+-	/* Otherwise add an event listener to the element */
+-	exc = dom_event_listener_create(dukky_generic_event_handler, ctx,
+-					&listen);
+-	if (exc != DOM_NO_ERR) return;
+-	exc = dom_event_target_add_event_listener(
+-		ele, name, listen, capture);
++	/* Keep the registration so destruction can detach the native callback
++	 * before releasing the Duktape context it references. */
++	jsheap *heap = dukky_heap(ctx);
++	struct registered_listener *item = malloc(sizeof(*item));
++	if (item == NULL) return;
++	exc = dom_event_listener_create(dukky_generic_event_handler, ctx, &listen);
++	if (exc == DOM_NO_ERR)
++		exc = dom_event_target_add_event_listener(ele, name, listen, capture);
+ 	if (exc != DOM_NO_ERR) {
+-		NSLOG(dukky, DEBUG,
+-		      "Unable to register listener for %p.%*s", ele,
+-		      (int)dom_string_length(name), dom_string_data(name));
+-	} else {
+-		NSLOG(dukky, DEBUG, "have registered listener for %p.%*s",
+-		      ele, (int)dom_string_length(name), dom_string_data(name));
+-	}
+-	dom_event_listener_unref(listen);
++		if (listen != NULL) dom_event_listener_unref(listen);
++		free(item);
++		return;
++	}
++	*item = (struct registered_listener){
++		.next = heap->listeners, .element = (dom_element *)dom_node_ref(ele),
++		.name = dom_string_ref(name), .listener = listen, .capture = capture
++	};
++	heap->listeners = item;
+ }
+ 
+ /* The sub-listeners are a list of {callback,flags} tuples */
+@@ -1573,6 +1620,8 @@
+ 	NSLOG(dukky, DEBUG, "Event: %s (doc=%p, target=%p)", type, doc,
+ 	      target);
+ 
++	if (thread->heap->closed) return true;
++
+ 	/** @todo Make this more generic, this only handles load and only
+ 	 * targetting the window, so that we actually stand a chance of
+ 	 * getting 3.4 out.
+@@ -1628,6 +1677,7 @@
+ 			dom_node_unref(body);
+ 			/* ... handlers */
+ 			duk_pop(CTX);
++			dom_event_unref(evt);
+ 			dukky_leave_thread(thread);
+ 			return true;
+ 		}
+@@ -1645,28 +1695,13 @@
+ 	/* ... handler Window */
+ 	dukky_push_event(CTX, evt);
+ 	/* ... handler Window event */
+-	dukky_reset_start_time(CTX);
+-	if (duk_pcall_method(CTX, 1) != 0) {
++	if (dukky_pcall_method(CTX, 1) != 0) {
+ 		/* Failed to run the handler */
+ 		/* ... err */
+ 		NSLOG(dukky, DEBUG,
+ 		      "OH NOES! An error running a handler.  Meh.");
+-		duk_get_prop_string(CTX, -1, "name");
+-		duk_get_prop_string(CTX, -2, "message");
+-		duk_get_prop_string(CTX, -3, "fileName");
+-		duk_get_prop_string(CTX, -4, "lineNumber");
+-		duk_get_prop_string(CTX, -5, "stack");
+-		/* ... err name message fileName lineNumber stack */
+-		NSLOG(dukky, DEBUG, "Uncaught error in JS: %s: %s",
+-		      duk_safe_to_string(CTX, -5),
+-		      duk_safe_to_string(CTX, -4));
+-		NSLOG(dukky, DEBUG, "              was at: %s line %s",
+-		      duk_safe_to_string(CTX, -3),
+-		      duk_safe_to_string(CTX, -2));
+-		NSLOG(dukky, DEBUG, "         Stack trace: %s",
+-		      duk_safe_to_string(CTX, -1));
+-
+-		duk_pop_n(CTX, 6);
++		dukky_dump_error(CTX);
++		duk_pop(CTX);
+ 		/* ... */
+ 		js_event_cleanup(thread, evt);
+ 		dom_event_unref(evt);
+--- a/content/handlers/javascript/duktape/duktape.c
++++ b/content/handlers/javascript/duktape/duktape.c
+@@ -92006,7 +92006,9 @@
+ 	for (;;) {
+ 		duk_small_int_t op;
+ 
+-		if (re_ctx->steps_count >= re_ctx->steps_limit) {
++		if (re_ctx->steps_count >= re_ctx->steps_limit ||
++		    ((re_ctx->steps_count & 1023U) == 0 &&
++		     DUK_USE_EXEC_TIMEOUT_CHECK(re_ctx->thr->heap->heap_udata))) {
+ 			DUK_ERROR_RANGE(re_ctx->thr, DUK_STR_REGEXP_EXECUTOR_STEP_LIMIT);
+ 			DUK_WO_NORETURN(return NULL;);
+ 		}
+--- a/content/handlers/javascript/duktape/Document.bnd
++++ b/content/handlers/javascript/duktape/Document.bnd
+@@ -362,57 +362,14 @@
+ 
+ getter Document::cookie()
+ %{
+-	char *cookie_str;
+-	struct html_content *htmlc;
+-	dom_exception err;
+-
+-	err = dom_node_get_user_data(priv->parent.node,
+-				     corestring_dom___ns_key_html_content_data,
+-				     &htmlc);
+-	if ((err == DOM_NO_ERR) && (htmlc != NULL)) {
+-		cookie_str = urldb_get_cookie(llcache_handle_get_url(htmlc->base.llcache), false);
+-		if (cookie_str != NULL) {
+-			duk_push_string(ctx, cookie_str);
+-			free(cookie_str);
+-		} else {
+-			duk_push_string(ctx, "");
+-		}
+-		return 1;
+-	} else {
+-		NSLOG(netsurf, INFO,
+-		      "error getting htmlc. parent node:%p htmlc:%p",
+-		      priv->parent.node, htmlc);
+-	}
+-	return 0;
++	/* The Zenith transport has no cookie jar. */
++	duk_push_string(ctx, "");
++	return 1;
+ %}
+ 
+ setter Document::cookie()
+ %{
+-	struct html_content *htmlc;
+-	dom_exception err;
+-
+-	const char * cookie_str = duk_safe_to_string(ctx, 0);
+-
+-	err = dom_node_get_user_data(priv->parent.node,
+-				     corestring_dom___ns_key_html_content_data,
+-				     &htmlc);
+-	if ((err == DOM_NO_ERR) && (htmlc != NULL)) {
+-		/* At this point we need to get the given cookie string parsed
+-		 * and inserted into the urldb
+-		 */
+-		bool ok = urldb_set_cookie(cookie_str, /* The cookie string to set */
+-					   /* The location to set the cookie for */
+-					   llcache_handle_get_url(htmlc->base.llcache),
+-					   NULL); /* The referer, which we trust */
+-		if (!ok) {
+-			NSLOG(netsurf, DEEPDEBUG, "unable to set cookie: %s", cookie_str);
+-			/* However there's no useful way to signal that to JS */
+-		}
+-	} else {
+-		NSLOG(netsurf, INFO,
+-		      "error getting htmlc. parent node:%p htmlc:%p",
+-		      priv->parent.node, htmlc);
+-	}
++	/* The Zenith transport has no cookie jar. */
+ 	return 0;
+ %}
+ 
+--- a/content/handlers/javascript/duktape/Window.bnd
++++ b/content/handlers/javascript/duktape/Window.bnd
+@@ -108,6 +108,8 @@
+ 	NSLOG(dukky, DEEPDEBUG,
+ 	      "Entered window scheduler callback: %"PRIsizet, priv->handle);
+ 
++	jsthread *thread = dukky_hold_callback(priv->ctx);
++	if (!thread) return;
+ 	priv->running = true;
+ 	window_call_callback(priv->ctx,
+ 			     priv->handle,
+@@ -130,6 +132,7 @@
+ 		window_remove_callback_bits(priv->ctx, priv->handle);
+ 		free(priv);
+ 	}
++	dukky_release_callback(thread);
+ }
+ 
+ static size_t
+@@ -180,7 +183,11 @@
+ 	duk_pop_2(ctx);
+ 	/* And we're back to func, timeout, ... */
+ 
+-	guit->misc->schedule(timeout, window_schedule_callback, sched);
++	if (guit->misc->schedule(timeout, window_schedule_callback, sched) != NSERROR_OK) {
++		RING_REMOVE(window->schedule_ring, sched);
++		window_remove_callback_bits(ctx, new_handle);
++		free(sched);
++	}
+ 	NSLOG(dukky, DEEPDEBUG, "Scheduled callback %"PRIsizet" for %d ms from now", new_handle, timeout);
+ 
+ 	return new_handle;
+@@ -313,7 +320,7 @@
+ 	EXPOSE(NaN);
+ 	EXPOSE(undefined);
+ 	EXPOSE(null);
+-	EXPOSE(globalThis);
++	/* globalThis is defined on each Window instance. */
+ 
+ 	/* ** Function properties */
+ 	EXPOSE(eval);
+@@ -481,17 +488,21 @@
+ 
+ getter Window::name()
+ %{
+-	const char *name;
+-	browser_window_get_name(priv->win, &name);
+-	duk_push_string(ctx, name);
++	/* A new document receives a fresh name, including when crossing origins. */
++	duk_push_global_object(ctx);
++	if (!duk_get_prop_string(ctx, -1, MAGIC(DocumentWindowName))) {
++		duk_pop(ctx);
++		duk_push_string(ctx, "");
++	}
+ 	return 1;
+ %}
+ 
+ setter Window::name()
+ %{
+-	const char *name;
+-	name = duk_to_string(ctx, -1);
+-	browser_window_set_name(priv->win, name);
++	duk_to_string(ctx, 0);
++	duk_push_global_object(ctx);
++	duk_dup(ctx, 0);
++	duk_put_prop_string(ctx, -2, MAGIC(DocumentWindowName));
+ 	return 0;
+ %}
+ 
+--- a/content/handlers/javascript/duktape/dukky.h
++++ b/content/handlers/javascript/duktape/dukky.h
+@@ -55,6 +55,10 @@
+ void dukky_push_generics(duk_context *ctx, const char *generic);
+ 
+ /* Log the current stack frame if possible */
++#include "javascript/js.h"
++jsthread *dukky_hold_callback(duk_context *ctx);
++void dukky_release_callback(jsthread *thread);
++
+ void dukky_log_stack_frame(duk_context *ctx, const char * reason);
+ 
+ #endif
+--- a/content/handlers/html/html.c
++++ b/content/handlers/html/html.c
+@@ -1368,8 +1368,9 @@
+ 	html_object_close_objects(htmlc);
+ 
+ 	if (htmlc->jsthread != NULL) {
+-		/* Close, but do not destroy (yet) the JS thread */
+ 		ret = js_closethread(htmlc->jsthread);
++		js_destroythread(htmlc->jsthread);
++		htmlc->jsthread = NULL;
+ 	}
+ 
+ 	return ret;
+--- a/content/handlers/javascript/duktape/duk_custom.h
++++ b/content/handlers/javascript/duktape/duk_custom.h
+@@ -28,6 +28,25 @@
+ #undef DUK_USE_DATE_PARSE_STRING
+ #endif
+ 
++/* Web pages have no native bytecode import/export or debugger protocol. */
++#undef DUK_USE_BYTECODE_DUMP_SUPPORT
++#undef DUK_USE_DEBUGGER_SUPPORT
++
++/* Zenith native stacks are bounded. Raise a JS error at the interpreter's
++ * recursion boundary before deeply nested input exhausts the C stack. */
++#undef DUK_USE_NATIVE_CALL_RECLIMIT
++#define DUK_USE_NATIVE_CALL_RECLIMIT 48
++#undef DUK_USE_COMPILER_RECLIMIT
++#define DUK_USE_COMPILER_RECLIMIT 128
++#undef DUK_USE_REGEXP_COMPILER_RECLIMIT
++#define DUK_USE_REGEXP_COMPILER_RECLIMIT 128
++#undef DUK_USE_REGEXP_EXECUTOR_RECLIMIT
++#define DUK_USE_REGEXP_EXECUTOR_RECLIMIT 96
++#undef DUK_USE_JSON_ENC_RECLIMIT
++#define DUK_USE_JSON_ENC_RECLIMIT 96
++#undef DUK_USE_JSON_DEC_RECLIMIT
++#define DUK_USE_JSON_DEC_RECLIMIT 96
++
+ #define DUK_USE_FASTINT
+ #define DUK_USE_REGEXP_CANON_WORKAROUND
+ 
+--- a/content/handlers/javascript/duktape/Location.bnd
++++ b/content/handlers/javascript/duktape/Location.bnd
+@@ -16,6 +16,31 @@
+ prologue Location()
+ %{
+ #include "netsurf/browser_window.h"
++
++static duk_ret_t location_navigate(duk_context *ctx, nsurl *source, enum browser_window_nav_flags flags)
++{
++	duk_size_t length;
++	const char *text = duk_safe_to_lstring(ctx, 0, &length);
++	duk_push_global_object(ctx);
++	duk_get_prop_string(ctx, -1, PRIVATE_MAGIC);
++	window_private_t *window = duk_get_pointer(ctx, -1);
++	duk_pop_2(ctx);
++	if (!window || window->closed_down || !window->win || !source || strlen(text) != length)
++		return 0;
++	nsurl *target = NULL;
++	if (nsurl_join(source, text, &target) != NSERROR_OK)
++		return duk_error(ctx, DUK_ERR_URI_ERROR, "Invalid navigation URL");
++	enum nsurl_scheme_type scheme = nsurl_get_scheme_type(target);
++	bool allowed = scheme == NSURL_SCHEME_HTTP || scheme == NSURL_SCHEME_HTTPS ||
++			(scheme == NSURL_SCHEME_FILE && nsurl_get_scheme_type(source) == NSURL_SCHEME_FILE);
++	if (allowed)
++		browser_window_navigate(window->win, target, source,
++				flags | BW_NAVIGATE_UNVERIFIABLE, NULL, NULL, NULL);
++	nsurl_unref(target);
++	if (!allowed)
++		return duk_error(ctx, DUK_ERR_TYPE_ERROR, "Navigation scheme unavailable to scripts");
++	return 0;
++}
+ %}
+ 
+ init Location(nsurl *url)
+@@ -37,7 +62,7 @@
+ 	window_private_t *priv_win = duk_get_pointer(ctx, -1);
+ 	duk_pop(ctx);
+ 
+-	if (priv_win->win != NULL) {
++	if (priv_win && !priv_win->closed_down && priv_win->win) {
+ 		browser_window_reload(priv_win->win, false);
+ 	} else {
+ 		NSLOG(netsurf, INFO, "failed to get browser context");
+@@ -47,60 +72,12 @@
+ 
+ method Location::assign()
+ %{
+-	/* retrieve the private data from the root object (window) */
+-	duk_push_global_object(ctx);
+-	duk_get_prop_string(ctx, -1, PRIVATE_MAGIC);
+-	window_private_t *priv_win = duk_get_pointer(ctx, -1);
+-	duk_pop(ctx);
+-
+-	if (priv_win == NULL || priv_win->win == NULL) {
+-		NSLOG(netsurf, INFO, "failed to get browser context");
+-		return 0;
+-	}
+-
+-	nsurl *joined;
+-	duk_size_t slen;
+-	const char *url = duk_safe_to_lstring(ctx, 0, &slen);
+-
+-	nsurl_join(priv->url, url, &joined);
+-	browser_window_navigate(priv_win->win,
+-				joined,
+-				NULL,
+-				BW_NAVIGATE_HISTORY,
+-				NULL,
+-				NULL,
+-				NULL);
+-	nsurl_unref(joined);
+-	return 0;
++	return location_navigate(ctx, priv->url, BW_NAVIGATE_HISTORY);
+ %}
+ 
+ method Location::replace()
+ %{
+-	/* retrieve the private data from the root object (window) */
+-	duk_push_global_object(ctx);
+-	duk_get_prop_string(ctx, -1, PRIVATE_MAGIC);
+-	window_private_t *priv_win = duk_get_pointer(ctx, -1);
+-	duk_pop(ctx);
+-
+-	if (priv_win == NULL || priv_win->win == NULL) {
+-		NSLOG(netsurf, INFO, "failed to get browser context");
+-		return 0;
+-	}
+-
+-	nsurl *joined;
+-	duk_size_t slen;
+-	const char *url = duk_safe_to_lstring(ctx, 0, &slen);
+-
+-	nsurl_join(priv->url, url, &joined);
+-	browser_window_navigate(priv_win->win,
+-				joined,
+-				NULL,
+-				BW_NAVIGATE_NONE,
+-				NULL,
+-				NULL,
+-				NULL);
+-	nsurl_unref(joined);
+-	return 0;
++	return location_navigate(ctx, priv->url, BW_NAVIGATE_NONE);
+ %}
+ 
+ getter Location::href()
+@@ -124,31 +101,7 @@
+ 
+ setter Location::href()
+ %{
+-	/* retrieve the private data from the root object (window) */
+-	duk_push_global_object(ctx);
+-	duk_get_prop_string(ctx, -1, PRIVATE_MAGIC);
+-	window_private_t *priv_win = duk_get_pointer(ctx, -1);
+-	duk_pop(ctx);
+-
+-	if (priv_win == NULL || priv_win->win == NULL) {
+-		NSLOG(netsurf, INFO, "failed to get browser context");
+-		return 0;
+-	}
+-
+-	nsurl *joined;
+-	duk_size_t slen;
+-	const char *url = duk_safe_to_lstring(ctx, 0, &slen);
+-
+-	nsurl_join(priv->url, url, &joined);
+-	browser_window_navigate(priv_win->win,
+-				joined,
+-				NULL,
+-				BW_NAVIGATE_HISTORY,
+-				NULL,
+-				NULL,
+-				NULL);
+-	nsurl_unref(joined);
+-	return 0;
++	return location_navigate(ctx, priv->url, BW_NAVIGATE_HISTORY);
+ %}
+ 
+ getter Location::origin()

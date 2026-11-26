@@ -1,0 +1,37 @@
+--- a/src/core/tokenlist.c
++++ b/src/core/tokenlist.c
+@@ -137,7 +137,7 @@
+ 	/* OK, there's something here to do, so let's do it... */
+ 
+ 	/* Count number of entries */
+-	for (pos = dom_string_data(value), remaining = dom_string_length(value);
++	for (pos = dom_string_data(value), remaining = dom_string_byte_length(value);
+ 	     remaining > 0;) {
+ 		if (*pos != ' ') {
+ 			while (*pos != ' ' && remaining > 0) {
+@@ -174,7 +174,7 @@
+ 
+ 	/* And now parse those entries into the buffer */
+ 	for (pos = dom_string_data(value),
+-	    remaining = dom_string_length(value),
++	    remaining = dom_string_byte_length(value),
+ 	    n_entries = 0;
+ 	     remaining > 0;) {
+ 		if (*pos != ' ') {
+@@ -237,14 +237,14 @@
+ 	}
+ 
+ 	for (n = 0; n < list->len; ++n)
+-		nchars += dom_string_length(list->entries[n]);
++		nchars += dom_string_byte_length(list->entries[n]);
+ 
+ 	buffer = calloc(1, nchars + list->len);
+ 	if (buffer == NULL)
+ 		return DOM_NO_MEM_ERR;
+ 
+ 	for (next = buffer, n = 0; n < list->len; ++n) {
+-		uint32_t slen = dom_string_length(list->entries[n]);
++		uint32_t slen = dom_string_byte_length(list->entries[n]);
+ 		memcpy(next, dom_string_data(list->entries[n]), slen);
+ 		next[slen] = ' ';
+ 		next += slen + 1;

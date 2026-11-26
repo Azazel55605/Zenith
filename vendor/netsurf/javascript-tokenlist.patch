@@ -1,0 +1,74 @@
+--- a/content/handlers/javascript/duktape/DOMTokenList.bnd
++++ b/content/handlers/javascript/duktape/DOMTokenList.bnd
+@@ -52,7 +52,7 @@
+         return 1;
+     }
+ 
+-    duk_push_lstring(ctx, dom_string_data(value), dom_string_length(value));
++    duk_push_lstring(ctx, dom_string_data(value), dom_string_byte_length(value));
+ 	dom_string_unref(value);
+ 
+ 	return 1;
+@@ -68,8 +68,6 @@
+ 
+ 	for (spos = 0; spos < duk_get_top(ctx); ++spos) {
+ 		s = duk_safe_to_lstring(ctx, spos, &slen);
+-
+-		duk_safe_to_lstring(ctx, 0, &slen);
+ 
+ 		exc = dom_string_create_interned((const uint8_t *)s, slen, &value);
+ 		if (exc != DOM_NO_ERR) return 0;
+@@ -91,8 +89,6 @@
+ 
+ 	for (spos = 0; spos < duk_get_top(ctx); ++spos) {
+ 		s = duk_safe_to_lstring(ctx, spos, &slen);
+-
+-		duk_safe_to_lstring(ctx, 0, &slen);
+ 
+ 		exc = dom_string_create_interned((const uint8_t *)s, slen, &value);
+ 		if (exc != DOM_NO_ERR) return 0;
+@@ -130,34 +126,22 @@
+ 	dom_string *value;
+ 	duk_size_t slen;
+ 	const char *s = duk_require_lstring(ctx, 0, &slen);
+-	bool toggle_set = duk_get_top(ctx) > 1;
+-	bool toggle = duk_opt_boolean(ctx, 1, 0);
++	bool forced = duk_get_top(ctx) > 1 && !duk_is_undefined(ctx, 1);
+ 	bool present;
+ 
+ 	exc = dom_string_create_interned((const uint8_t *)s, slen, &value);
+ 	if (exc != DOM_NO_ERR) return 0;
+-
+ 	exc = dom_tokenlist_contains(priv->tokens, value, &present);
+-	if (exc != DOM_NO_ERR) {
++	if (exc == DOM_NO_ERR) {
++		bool wanted = forced ? duk_to_boolean(ctx, 1) : !present;
++		if (wanted != present)
++			exc = wanted ? dom_tokenlist_add(priv->tokens, value) :
++					dom_tokenlist_remove(priv->tokens, value);
+ 		dom_string_unref(value);
+-		return 0;
+-	}
+-
+-	/* Decision matrix is based on present, toggle_set, and toggle */
+-	if (toggle_set) {
+-		if (toggle) {
+-			exc = dom_tokenlist_add(priv->tokens, value);
+-		} else {
+-			exc = dom_tokenlist_remove(priv->tokens, value);
+-		}
+-	} else {
+-		if (present) {
+-			exc = dom_tokenlist_add(priv->tokens, value);
+-		} else {
+-			exc = dom_tokenlist_remove(priv->tokens, value);
+-		}
++		if (exc != DOM_NO_ERR) return 0;
++		duk_push_boolean(ctx, wanted);
++		return 1;
+ 	}
+ 	dom_string_unref(value);
+-
+ 	return 0;
+ %}
+\ No newline at end of file

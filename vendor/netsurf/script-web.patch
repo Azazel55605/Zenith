@@ -1,0 +1,101 @@
+--- a/utils/corestringlist.h
++++ b/utils/corestringlist.h
+@@ -197,6 +197,8 @@
+ CORESTRING_DOM_STRING(ArrowRight);
+ CORESTRING_DOM_STRING(ArrowUp);
+ CORESTRING_DOM_STRING(async);
++CORESTRING_DOM_STRING(crossorigin);
++CORESTRING_DOM_STRING(integrity);
+ CORESTRING_DOM_STRING(background);
+ CORESTRING_DOM_STRING(beforeprint);
+ CORESTRING_DOM_STRING(beforeunload);
+--- a/content/handlers/html/script.c
++++ b/content/handlers/html/script.c
+@@ -401,6 +401,33 @@
+ 		return DOM_HUBBUB_NOMEM;
+ 	}
+ 
++	/* Resolve against <base>, but authorize relative to the document. */
++	enum nsurl_scheme_type page = nsurl_get_scheme_type(content_get_url(&c->base));
++	enum nsurl_scheme_type src_scheme = nsurl_get_scheme_type(joined);
++	bool allowed = (page == NSURL_SCHEME_FILE && src_scheme == NSURL_SCHEME_FILE) ||
++		((page == NSURL_SCHEME_HTTP || page == NSURL_SCHEME_HTTPS) &&
++		 (src_scheme == NSURL_SCHEME_HTTPS ||
++		  (src_scheme == NSURL_SCHEME_HTTP && page == NSURL_SCHEME_HTTP)));
++	/* The GET backend does not verify SRI hashes or negotiate script CORS.
++	 * Do not silently run a response under weaker conditions. */
++	dom_string *integrity = NULL;
++	bool cors = false;
++	if (dom_element_get_attribute(node, corestring_dom_integrity, &integrity) != DOM_NO_ERR ||
++	    dom_element_has_attribute(node, corestring_dom_crossorigin, &cors) != DOM_NO_ERR)
++		allowed = false;
++	if (integrity != NULL) {
++		if (dom_string_byte_length(integrity) != 0)
++			allowed = false;
++		dom_string_unref(integrity);
++	}
++	if (cors && !nsurl_compare(content_get_url(&c->base), joined, NSURL_SCHEME | NSURL_HOST | NSURL_PORT))
++		allowed = false;
++	if (!allowed || nsurl_has_component(joined, NSURL_USERNAME) ||
++	    nsurl_has_component(joined, NSURL_PASSWORD)) {
++		nsurl_unref(joined);
++		return DOM_HUBBUB_OK;
++	}
++
+ 	NSLOG(netsurf, INFO, "script %i '%s'", c->scripts_count,
+ 	      nsurl_access(joined));
+ 
+@@ -568,6 +595,9 @@
+ 	dom_exception exc; /* returned by libdom functions */
+ 	dom_string *src, *mimetype;
+ 	dom_hubbub_error err = DOM_HUBBUB_OK;
++
++	if (!c->enable_scripting)
++		return DOM_HUBBUB_OK;
+ 
+ 	/* ensure javascript context is available */
+ 	/* We should only ever be here if scripting was enabled for this
+--- a/content/llcache.c
++++ b/content/llcache.c
+@@ -3993,6 +3993,14 @@
+ 	nsurl *hsts_url;
+ 	bool hsts_in_use;
+ 
++	/* A web document cannot load local files or private browser pages,
++	 * even when their contents are already in the cache. */
++	if (referer != NULL && (nsurl_get_scheme_type(referer) == NSURL_SCHEME_HTTP ||
++			nsurl_get_scheme_type(referer) == NSURL_SCHEME_HTTPS) &&
++	    (nsurl_get_scheme_type(url) == NSURL_SCHEME_FILE ||
++	     strncmp(nsurl_access(url), "nebula:", 7) == 0))
++		return NSERROR_PERMISSION;
++
+ 	/* Perform HSTS transform */
+ 	error = llcache_hsts_transform_url(url, &hsts_url, &hsts_in_use);
+ 	if (error != NSERROR_OK) {
+--- a/utils/nsurl/parse.c
++++ b/utils/nsurl/parse.c
+@@ -905,10 +905,21 @@
+ 				/* Add non-redundant ports to NetSurf URL */
+ 				sec_start = norm_start + colon - pegs->at +
+ 						skip;
++				size_t port_len = norm_start + length - sec_start;
++				if (url->scheme_type == NSURL_SCHEME_HTTP ||
++				    url->scheme_type == NSURL_SCHEME_HTTPS) {
++					while (port_len > 1 && *sec_start == '0') {
++						sec_start++;
++						port_len--;
++					}
++					if ((url->scheme_type == NSURL_SCHEME_HTTP &&
++					     port_len == 2 && memcmp(sec_start, "80", 2) == 0) ||
++					    (url->scheme_type == NSURL_SCHEME_HTTPS &&
++					     port_len == 3 && memcmp(sec_start, "443", 3) == 0))
++						flags |= NSURL_F_NO_PORT;
++				}
+ 				if (!(flags & NSURL_F_NO_PORT) &&
+-						lwc_intern_string(sec_start,
+-						length -
+-						(colon - pegs->at + skip),
++						lwc_intern_string(sec_start, port_len,
+ 						&url->port) != lwc_error_ok) {
+ 					return NSERROR_NOMEM;
+ 				}

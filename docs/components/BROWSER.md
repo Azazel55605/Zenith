@@ -8,7 +8,7 @@ Nebula is Zenith's browser. Its About credits the engine as "powered by NetSurf"
 
 The `zenith-netsurf/v0.2.0` source tag adds sidebar tabs and per-user bookmarks and history to the NetSurf 3.11 port. The matching kernel tag is `kernel/v0.0.82`. The browser requires `zenith-native-browser-network-abi` 1.0 and the standard `zenith-icons` package for its navigation and page-security controls. A live interactive window can keep opening connections as it browses. Requests run one at a time, with an 8 MiB response limit.
 
-In an installed QEMU guest, the same HTTP page displayed four of its twelve external images on kernel 0.0.81 and all twelve on the development build. The browser then followed a verified HTTPS link in the same window. A separate public-site check on Google’s German homepage showed the logo, search field and accented button text. Submitting a search in that guest led to Google’s `/httpservice/retry/enablejs` page. JavaScript is disabled in this build. NetSurf’s CSS support also limits how closely some pages match their intended layout.
+In an installed QEMU guest, the same HTTP page displayed four of its twelve external images on kernel 0.0.81 and all twelve on the development build. The browser then followed a verified HTTPS link in the same window. A separate public-site check on Google’s German homepage showed the logo, search field and accented button text. Submitting a search in that guest led to Google’s `/httpservice/retry/enablejs` page. That measurement used the script-disabled 0.2.0 browser. NetSurf’s CSS support also limits how closely some pages match their intended layout.
 
 ## Design
 
@@ -33,7 +33,7 @@ The engine draws the page with the site's own CSS. Zenith draws everything aroun
 
 **Page info**
 - Connection security and certificate.
-- Scripts: not supported.
+- Script permission for the displayed document, including site policy restrictions.
 - Images loaded out of the total.
 - Connection attempts in the current session.
 - How long cookies are kept.
@@ -52,7 +52,7 @@ The frontend draws the window controls in `userland/netsurf/frontend.c`. The hos
 
 - **Toolbar:** Back, Forward and Reload/Stop as icon buttons. The address field shows "Not secure" for HTTP, the host in bold and the path quieter. Ctrl+L or a click shows the whole address, selected. The ellipsis button opens the menu.
 - **Loading and links:** a 3 px accent segment travels under the toolbar while a page loads. A pill at the bottom left shows a hovered link's address or a loading message. It clears when the pointer leaves the page, and the core's "Done" message is not shown.
-- **Menu:** Zoom (−, value, +; Ctrl+Plus, Ctrl+Minus, Ctrl+0), Find on page, Copy page address, Page info, Using Nebula (the packaged guide).
+- **Menu:** Zoom (−, value, +; Ctrl+Plus, Ctrl+Minus, Ctrl+0), Find on page, Copy page address, Page info, Using Nebula (the packaged guide), and a per-tab JavaScript permission for the displayed page.
 - **Page info:** the displayed document’s connection security, host, script support, connection attempts, zoom and Copy address. A failed HTTPS navigation never earns a verified lock.
 - **Find bar (Ctrl+F):** searches as you type, highlighting every match. Enter and Shift+Enter go to the next and previous match, and Esc closes the bar. It says "No matches" when there are none. The core reports no count.
 - **Navigation menus:** right-click Back or Forward for recent entries in that direction. Right-click a link to open it or copy its address.
@@ -80,7 +80,7 @@ The window opens at 640×480 with the tab rail. At 820 px wide it shows the full
 
 ## Page compatibility after 0.2.0
 
-The development build displays JPEG images and sizes the document to the available page inset as the sidebar changes. Ctrl+U or **View page source** displays the cached text of the active document. Escape returns to the page at its previous scroll position. The browser keeps its private start page and internal error documents out of the source viewer.
+Nebula 0.2.1 displays JPEG images and sizes the document to the available page inset as the sidebar changes. Ctrl+U or **View page source** displays the cached text of the active document. Escape returns to the page at its previous scroll position. The browser keeps its private start page and internal error documents out of the source viewer.
 
 The signed candidate rendered twelve PNGs and one JPEG from the same HTTP page in an installed QEMU guest. Opening the source displayed an HTML comment that was invisible on the page. Returning to the page issued no new requests. HTTPS navigation, saved bookmarks across restart and the independent ext2 audit passed.
 
@@ -98,7 +98,21 @@ The installed QEMU smoke test types into an HTTP form, hides and shows the rail,
 
 ### Compatibility work still open
 
-Subgrid, container queries, vertical-writing Grid layout, CSS transforms, rounded borders and box shadows remain open. CSS math outside the supported dimensions needs separate layout integration. Sites that build their page in JavaScript still need the separate scripting stage. Begin that stage with opt-in local execution, DOM updates, event delivery, an execution time limit and teardown on navigation and tab close.
+Subgrid, container queries, vertical-writing Grid layout, CSS transforms, rounded borders and box shadows remain open. CSS math outside the supported dimensions needs separate layout integration. Broader JavaScript compatibility on public sites is tracked below.
+
+### Opt-in JavaScript
+
+Nebula 0.3.0 uses Duktape 2.7.0 and NetSurf’s DOM bindings. A new tab starts with scripts off. **Allow JavaScript and reload** grants either the exact local file or an HTTP(S) origin (scheme, hostname and port) in that tab. A new origin needs its own grant. Closing the tab forgets the permission. Navigation creates a fresh global environment, and closing or leaving a document cancels its timers. **Block JavaScript and reload** revokes the grant and reloads the page. Page info shows whether the displayed document can run scripts.
+
+Open **Using Nebula → click counter** to compare the same page with scripting off and on. The command-line equivalent is `native run netsurf --javascript /usr/share/zenith/netsurf/javascript.html`. A URL can replace the path. The existing Zenith certificate verifier handles HTTPS page and script downloads.
+
+The current target is classic inline and external scripts, including blocking, deferred and async loading, DOM events and text/class changes that update layout and paint. Each callback has a 500 ms execution budget. Each document can allocate up to 4 MiB in its interpreter, with a 10 MiB process-wide interpreter budget.
+
+In the host frontend, the unchanged Selenium JavaScript example handled a click on its child paragraph, removed the paragraph and left its sibling visible. Find and the rendered pixels both reflected the change. This test replayed the published HTML and image from the original URL. [Selenium example](https://www.selenium.dev/selenium/web/javascriptPage.html)
+
+The signed QEMU candidate ran the packaged local click counter, interrupted a looping handler, and ran HTTP and verified HTTPS scripts with independent permissions. On the live Google homepage it rendered the logo and navigation. A direct search still opened Google’s enable-JavaScript interstitial.
+
+An enforced Content Security Policy keeps scripts off for the document until Nebula can apply individual directives. HTTPS pages skip HTTP scripts. Script requests that require subresource integrity verification or cross-origin CORS checks are skipped. Dynamically inserted scripts, modules, JavaScript network APIs and persistent browser storage remain open. Compatibility on framework-driven sites needs further work.
 
 ## Open decisions
 

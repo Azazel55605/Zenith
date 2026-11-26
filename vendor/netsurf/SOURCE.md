@@ -3,8 +3,9 @@
 The native browser compiles NetSurf 3.11's HTML layout, CSS cascade, DOM,
 redraw, navigation, content cache and URL handling. The selected image handlers
 support JPEG, PNG, GIF, BMP and ICO. NetSurf's progressive PNG handler uses the pinned
-libpng decoder with the same zlib as the browser core. This build uses the upstream JavaScript-disabled
-configuration. HTTP and HTTPS are registered by the Zenith frontend after
+libpng decoder with the same zlib as the browser core. The browser embeds the
+Duktape 2.7.0 interpreter and WebIDL bindings from the same NetSurf release.
+HTTP and HTTPS are registered by the Zenith frontend after
 initialisation. Its private `nebula:start` handler uses the initiating
 navigation context exposed by `explicit-navigation.patch` to deny embedded
 or externally referred requests for the user's bookmarks and recent pages.
@@ -19,7 +20,7 @@ configuration selects stdio reads for those files.
 | [zlib 1.4 release](https://zlib.net/zlib-1.4.tar.gz) | `02dd159783677a749c04adbdd02b55b8a2bcc7e054f51b76b549199a916ad584` |
 | [libpng 1.6.59 release](https://downloads.sourceforge.net/project/libpng/libpng16/1.6.59/libpng-1.6.59.tar.xz) | `d80dd2a38a37f803cb9b6ac7b14bd6e74ddc3b654780a8380bdf93523fdb4389` |
 | [IJG libjpeg 10 release](https://www.ijg.org/files/jpegsrc.v10.tar.gz) | `8b9eaa13242690ebd03e1728ab1edf97a81a78ed6e83624d493655f31ac95ab5` |
-| Zenith source subset, `sources.tar.xz` | `48600e8ae992b65c0f82e6fe0f69443d6c2c0f7fbf8bf115944c8bd4091e246f` |
+| Zenith source subset, `sources.tar.xz` | `987f93fe8eddee92139390af2dbc83f920151af3357b8ba8bba555b2c8a79603` |
 
 The NetSurf archive digest also matches the original tarball recorded in
 [Debian's 3.11 source descriptor](https://deb.debian.org/debian/pool/main/n/netsurf/netsurf_3.11-2.dsc).
@@ -48,9 +49,30 @@ images release their partial bitmaps when the decoder reaches the end of input.
 
 ## Responsive CSS and layout
 
-The cross-build applies `libcss-*.patch` to LibCSS and the other patches to NetSurf. It stages the source overlays in `grid/`, `variables/` and `math/`, regenerates LibCSS’s computed-style accessors and compiles `layout_grid.c` into the HTML handler. The build fingerprint includes the relative paths and contents of the overlays, patches and archive. The signed browser’s corresponding source includes these inputs.
+The cross-build applies `libcss-*.patch` to LibCSS, `libdom-*.patch` to LibDOM and the remaining patches to NetSurf. It stages the source overlays in `grid/`, `variables/` and `math/`, regenerates LibCSS’s computed-style accessors and compiles `layout_grid.c` into the HTML handler. The build fingerprint includes the relative paths and contents of the overlays, patches and archive. The signed browser’s corresponding source includes these inputs.
 
 Media conditions are evaluated by LibCSS. When a condition changes, the HTML handler reconstructs presentation boxes from the live DOM, transfers control and image ownership and recalculates Find matches. Ordinary changes within a breakpoint use NetSurf’s reformat path. The Grid parser stores its variable-length track lists and named areas in the stylesheet’s intern table. A template accepts up to 128 authored tracks per axis. Compiled math expressions in a track list share the width evaluator and use the containing Grid’s actual dimensions. The Flexbox changes cover basis parsing, wrapping, gaps and alignment. [CSS Grid Level 1](https://www.w3.org/TR/css-grid-1/) · [CSS Flexible Box Layout](https://www.w3.org/TR/css-flexbox-1/)
+
+## JavaScript implementation
+
+The upstream release includes Duktape 2.7.0, its MIT notice and NetSurf's
+DOM binding descriptions under `content/handlers/javascript/duktape`. The core
+build compiles the release's nsgenbind 0.9 on the host, generates the DOM C
+bindings from the included WebIDL and compiles those bindings with the target
+SDK. Regenerating the source subset uses GNU Bison 3.8.2 and Flex 2.7.6. Their
+generated parser sources are in the subset so normal package builds work offline
+with the existing host C toolchain. Installed packages carry the Duktape notice,
+generator sources, binders and the complete source needed to repeat the build.
+
+Every script-enabled document receives a private interpreter heap on first use.
+Callbacks have a 500 ms monotonic execution budget. Nested callbacks share the
+outer deadline. Interpreter allocations are limited to 4 MiB per document and
+10 MiB across the process. Duktape's embedding helpers and bytecode loading are
+unavailable to page scripts. DOM text, attributes and class tokens convert
+between JavaScript's UTF-16 code units and LibDOM’s UTF-8 strings. Closing a
+document cancels its timers and detaches its native event listeners. Window
+names are scoped to one document. The Zenith HTTP transport has no cookie jar,
+and the DOM reports cookies disabled.
 
 ## Reproducing and building
 

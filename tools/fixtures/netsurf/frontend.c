@@ -43,6 +43,25 @@ nserror nsurl_create(const char *s, nsurl **out)
 nserror netsurf_path_to_nsurl(const char *s, nsurl **out) { return nsurl_create(s, out); }
 void nsurl_unref(nsurl *url) { assert(url == (nsurl *)destination); }
 nsurl *nsurl_ref(nsurl *url) { return url; }
+enum nsurl_scheme_type nsurl_get_scheme_type(const nsurl *url)
+{
+    const char *text = (const char *)url;
+    return !strncmp(text, "file:", 5) ? NSURL_SCHEME_FILE :
+           !strncmp(text, "https:", 6) ? NSURL_SCHEME_HTTPS :
+           !strncmp(text, "http:", 5) ? NSURL_SCHEME_HTTP : NSURL_SCHEME_OTHER;
+}
+bool nsurl_compare(const nsurl *a, const nsurl *b, nsurl_component parts)
+{
+    (void)parts; /* Full origin and file component comparisons use real nsurls in navigation.c. */
+    return !strcmp((const char *)a, (const char *)b);
+}
+bool nsurl_has_component(const nsurl *url, nsurl_component part)
+{
+    return part == NSURL_HOST && (nsurl_get_scheme_type(url) == NSURL_SCHEME_HTTPS ||
+                                  nsurl_get_scheme_type(url) == NSURL_SCHEME_HTTP);
+}
+void browser_window_revoke_scripts(struct browser_window *bw) { (void)bw; }
+bool html_page_restricts_scripts(struct hlcache_handle *h) { (void)h; return false; }
 const char *nsurl_access(const nsurl *url) { return (const char *)url; }
 size_t nsurl_length(const nsurl *url) { return strlen(nsurl_access(url)); }
 static nsurl *loaded;
