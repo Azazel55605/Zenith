@@ -17,6 +17,19 @@ void smb_clear(void)
     smb_wipe(&session, sizeof(session));
 }
 
+int smb_valid_component(const char *s, size_t n)
+{
+    if (!n || n > 255 || (n == 1 && *s == '.') || (n == 2 && s[0] == '.' && s[1] == '.'))
+        return 0;
+    for (size_t i = 0; i < n; i++) {
+        unsigned char c = (unsigned char)s[i];
+        if (c < 32 || c == 127 || c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' ||
+            c == '>' || c == '|')
+            return 0;
+    }
+    return 1;
+}
+
 int smb_utf16(const char *text, uint8_t *out, size_t cap)
 {
     const uint8_t *p = (const uint8_t *)text;
@@ -313,14 +326,14 @@ static int negotiate(struct smb_session *s)
     return 0;
 }
 
-static int tree_connect(struct smb_session *s, const char *share)
+static int tree_connect(struct smb_session *s, const char *server, const char *share, unsigned type)
 {
     char unc[520];
-    size_t host = strlen(s->req->server), len = strlen(share);
+    size_t host = strlen(server), len = strlen(share);
     if (!host || host > 255 || !len || len > 255)
         return fail(s, "invalid share or server name");
     unc[0] = unc[1] = '\\';
-    memcpy(unc + 2, s->req->server, host);
+    memcpy(unc + 2, server, host);
     unc[host + 2] = '\\';
     memcpy(unc + 3 + host, share, len + 1);
     smb_request_start(s, SMB_TREE_CONNECT, 9);
@@ -334,7 +347,7 @@ static int tree_connect(struct smb_session *s, const char *share)
         return -1;
     if (r32(p + 4) & 0x8000u)
         return fail(s, "share requires SMB encryption");
-    if (p[2] != (s->req->operation == SMB_SHARES ? 2 : 1))
+    if (p[2] != type)
         return fail(s, "unsupported share type");
     s->tid = r32(s->packet + 36);
     return 0;
@@ -425,92 +438,275 @@ int smb_open(struct smb_session *s, const char *path, uint32_t access, uint32_t 
     return 0;
 }
 
-static int close_file(struct smb_session *s)
+static int close_file_id(struct smb_session *s, const uint8_t id[16])
 {
     smb_request_start(s, SMB_CLOSE, 24);
-    memcpy(s->packet + 72, s->file, 16);
+    memcpy(s->packet + 72, id, 16);
     return smb_exchange(s, 88) || smb_response(s, 60) ? -1 : 0;
 }
 
-static int directory(struct smb_session *s)
+int smb_session_open_directory(struct smb_session *s, const char *path, struct smb_read_handle *out)
 {
-    if (smb_open(s, s->req->path, 0x81, 7, 1, 1, 0))
-        return -1;
-    for (unsigned page = 0; page < 4096; page++) {
-        smb_request_start(s, SMB_QUERY_DIR, 33);
-        uint8_t *p = s->packet + 64;
-        p[2] = 1;
-        memcpy(p + 8, s->file, 16);
-        /* The search handle retains its cursor with RestartScans clear.
-         * Some SMB servers require the search pattern on subsequent pages. */
-        w16(p + 24, 96);
-        w16(p + 26, 2);
-        w16(p + 32, '*');
-        w32(p + 28, SMB_IO_SIZE);
-        if (smb_exchange(s, 98))
-            return -1;
-        if (s->status == NT_NO_MORE_FILES || (!page && s->status == 0xc000000fu)) {
-            s->status = 0;
-            return close_file(s);
-        }
-        if (smb_response(s, 9))
-            return -1;
-        size_t offset = r16(p + 2), len = r32(p + 4);
-        if (offset < 72 || !len || !inside(s->received, offset, len))
-            return protocol_error(s, "invalid directory response");
-        p = s->packet + offset;
-        for (;;) {
-            if (len < 64)
-                return protocol_error(s, "short directory record");
-            size_t next = r32(p), namesize = r32(p + 60);
-            size_t record = next ? next : len;
-            if (next > len || (next & 7) || !inside(record, 64, namesize))
-                return protocol_error(s, "invalid directory record");
-            char name[SMB_PATH];
-            if (smb_utf8(p + 64, namesize, name, sizeof(name)) <= 0)
-                return fail(s, "invalid directory name");
-            if (strcmp(name, ".") && strcmp(name, "..") &&
-                s->io->entry(s->io->user, name, (r32(p + 56) & 16) != 0, r64(p + 40)))
-                return fail(s, "directory output failed");
-            if (!next)
-                break;
-            len -= next;
-            p += next;
-        }
-    }
-    return fail(s, "directory exceeds enumeration limit");
+    return smb_handle_open(s, path, SMB_HANDLE_DIRECTORY, SMB_SHARE_ALL, out, NULL);
 }
 
-static int download(struct smb_session *s)
+int smb_session_close_directory(struct smb_session *s, struct smb_read_handle cursor)
 {
-    uint64_t size = 0;
-    if (smb_open(s, s->req->path, 0x81, 1, 1, 0x40, &size))
+    return smb_handle_close(s, cursor, SMB_HANDLE_DIRECTORY);
+}
+
+int smb_session_next_directory(struct smb_session *s, struct smb_read_handle cursor, smb_directory_entry entry,
+                               void *user)
+{
+    struct smb_open_slot *slot = smb_handle_find(s, cursor, SMB_HANDLE_DIRECTORY);
+    if (!slot)
+        return -1;
+    if (!entry)
+        return fail(s, "missing directory entry callback");
+    if (slot->at_end > 0)
+        return 0;
+    if (slot->at_end < 0)
+        return fail(s, "directory cursor must be reopened");
+
+    /* The server advances its cursor even if local delivery fails partway. */
+    slot->at_end = -1;
+    if (slot->pages >= 4096)
+        return fail(s, "directory exceeds enumeration limit");
+    smb_request_start(s, SMB_QUERY_DIR, 33);
+    uint8_t *p = s->packet + 64;
+    p[2] = 1; /* FileDirectoryInformation */
+    memcpy(p + 8, slot->file, 16);
+    w16(p + 24, 96);
+    w16(p + 26, 2);
+    w16(p + 32, '*');
+    w32(p + 28, SMB_IO_SIZE);
+    if (smb_exchange(s, 98))
+        return -1;
+    if (s->status == NT_NO_MORE_FILES || (!slot->pages && s->status == 0xc000000fu)) {
+        s->status = 0;
+        slot->at_end = 1;
+        return 0;
+    }
+    if (smb_response(s, 9))
+        return -1;
+    size_t offset = r16(p + 2), len = r32(p + 4);
+    if (offset < 72 || !len || len > SMB_IO_SIZE || !inside(s->received, offset, len))
+        return protocol_error(s, "invalid directory response");
+    p = s->packet + offset;
+    for (;;) {
+        if (len < 64)
+            return protocol_error(s, "short directory record");
+        size_t next = r32(p), namesize = r32(p + 60);
+        size_t record = next ? next : len;
+        if (next > len || (next & 7) || !inside(record, 64, namesize))
+            return protocol_error(s, "invalid directory record");
+        char name[SMB_PATH];
+        if (smb_utf8(p + 64, namesize, name, sizeof(name)) <= 0)
+            return fail(s, "invalid directory name");
+        if (strcmp(name, ".") && strcmp(name, "..") &&
+            entry(user, name, (r32(p + 56) & 16) != 0, r64(p + 40)))
+            return fail(s, "directory output failed");
+        if (!next)
+            break;
+        len -= next;
+        p += next;
+    }
+    slot->pages++;
+    slot->at_end = 0;
+    return 1;
+}
+
+static int close_file(struct smb_session *s)
+{
+    return close_file_id(s, s->file);
+}
+
+static int directory(struct smb_session *s, const char *path)
+{
+    struct smb_read_handle cursor;
+    if (smb_session_open_directory(s, path, &cursor))
+        return -1;
+    int result;
+    do {
+        result = smb_session_next_directory(s, cursor, s->io->entry, s->io->user);
+    } while (result > 0);
+    if (result < 0)
+        return -1; /* One-shot CLI closes its transport on return. */
+    return smb_session_close_directory(s, cursor);
+}
+
+static int ready(struct smb_session *s)
+{
+    if (!s->authenticated || !s->tid || s->broken)
+        return fail(s, "SMB session is closed");
+    s->error = 0;
+    s->status = 0;
+    return 0;
+}
+
+static int valid_path(const char *path, enum smb_handle_type type)
+{
+    if (!path || strlen(path) > SMB_PATH)
+        return 0;
+    if (!*path)
+        return type == SMB_HANDLE_DIRECTORY;
+    for (;;) {
+        const char *end = path;
+        while (*end && *end != '/')
+            end++;
+        if (!smb_valid_component(path, (size_t)(end - path)))
+            return 0;
+        if (!*end)
+            return 1;
+        path = end + 1;
+    }
+}
+
+struct smb_open_slot *smb_handle_find(struct smb_session *s, struct smb_read_handle handle, enum smb_handle_type type)
+{
+    if (ready(s))
+        return 0;
+    if (handle.owner == s && handle.number) {
+        for (unsigned i = 0; i < SMB_MAX_OPEN_READS; i++)
+            if (s->handles[i].number == handle.number && s->handles[i].type == type)
+                return &s->handles[i];
+    }
+    fail(s, "invalid or closed SMB handle");
+    return 0;
+}
+
+int smb_handle_open(struct smb_session *s, const char *path, enum smb_handle_type type, unsigned sharing,
+                    struct smb_read_handle *out, uint64_t *size)
+{
+    if (ready(s))
+        return -1;
+    if (!out || !valid_path(path, type))
+        return fail(s, "invalid remote path or handle");
+    unsigned index = 0;
+    while (index < SMB_MAX_OPEN_READS && s->handles[index].number)
+        index++;
+    if (index == SMB_MAX_OPEN_READS || s->last_handle == UINT64_MAX)
+        return fail(s, "SMB handle limit reached");
+    int dir = type == SMB_HANDLE_DIRECTORY;
+    uint64_t length;
+    /* Open the final reparse point itself so it can be refused. */
+    if (smb_open(s, path, 0x81, sharing, 1, 0x200000 | (dir ? 1 : 0x40), &length))
+        return -1;
+    uint32_t attributes = r32(s->packet + 64 + 56);
+    if ((attributes & 0x400) || ((attributes & 0x10) != 0) != dir) {
+        if (close_file(s))
+            s->broken = 1;
+        return fail(s, "unsupported remote file type");
+    }
+    struct smb_open_slot *slot = &s->handles[index];
+    slot->type = type;
+    slot->number = ++s->last_handle;
+    memcpy(slot->file, s->file, sizeof(slot->file));
+    *out = (struct smb_read_handle){s, slot->number};
+    if (size)
+        *size = length;
+    return 0;
+}
+
+int smb_handle_close(struct smb_session *s, struct smb_read_handle handle, enum smb_handle_type type)
+{
+    struct smb_open_slot *slot = smb_handle_find(s, handle, type);
+    if (!slot)
+        return -1;
+    int result = close_file_id(s, slot->file);
+    smb_wipe(slot, sizeof(*slot));
+    if (result)
+        s->broken = 1; /* An uncertain CLOSE must not consume unbounded server handles. */
+    return result;
+}
+
+int smb_session_open_read(struct smb_session *s, const char *path, struct smb_read_handle *out, uint64_t *size)
+{
+    return smb_handle_open(s, path, SMB_HANDLE_FILE, SMB_SHARE_ALL, out, size);
+}
+
+int smb_session_close_read(struct smb_session *s, struct smb_read_handle handle)
+{
+    return smb_handle_close(s, handle, SMB_HANDLE_FILE);
+}
+
+/* The returned view is valid until the next request on the session. The CLI
+ * streams it straight to its staging sink. Read-at callers receive a copy. */
+static int read_span(struct smb_session *s, struct smb_read_handle handle, uint64_t offset,
+                     size_t capacity, const uint8_t **data)
+{
+    struct smb_open_slot *file = smb_handle_find(s, handle, SMB_HANDLE_FILE);
+    if (!file)
+        return -1;
+    /* SMB file sizes and offsets use nonnegative signed 64-bit file positions.
+     * For live handles only the server knows where the current EOF is. */
+    if (offset >= INT64_MAX || !capacity)
+        return 0;
+    uint32_t want = s->max_read < SMB_IO_SIZE ? s->max_read : SMB_IO_SIZE;
+    if (want > capacity)
+        want = (uint32_t)capacity;
+    if (want > (uint64_t)INT64_MAX - offset)
+        want = (uint32_t)((uint64_t)INT64_MAX - offset);
+    smb_request_start(s, SMB_READ, 49);
+    uint8_t *p = s->packet + 64;
+    w32(p + 4, want);
+    w64(p + 8, offset);
+    memcpy(p + 16, file->file, 16);
+    if (smb_exchange(s, 113))
+        return -1;
+    if (s->status == 0xc0000011u) { /* STATUS_END_OF_FILE */
+        s->status = 0;
+        return 0;
+    }
+    if (smb_response(s, 17))
+        return -1;
+    size_t pos = p[2], count = r32(p + 4);
+    if (!count || count > want || pos < 80 || !inside(s->received, pos, count))
+        return protocol_error(s, "invalid read response");
+    *data = s->packet + pos;
+    return (int)count;
+}
+
+int smb_session_read_at(struct smb_session *s, struct smb_read_handle handle, uint64_t offset, void *out,
+                        size_t capacity)
+{
+    if (capacity && !out)
+        return fail(s, "missing read buffer");
+    const uint8_t *data;
+    int count = read_span(s, handle, offset, capacity, &data);
+    if (count > 0)
+        memcpy(out, data, (size_t)count);
+    return count;
+}
+
+static int download(struct smb_session *s, const char *path)
+{
+    uint64_t size;
+    struct smb_read_handle file;
+    /* A whole-file transfer stages the measured length; deny other SMB
+     * writers and deleters for its duration, as the CLI has always done. */
+    if (smb_handle_open(s, path, SMB_HANDLE_FILE, SMB_SHARE_READ, &file, &size))
         return -1;
     if (s->io->download_begin(s->io->user, size))
         return fail(s, "cannot stage local download");
-    uint32_t limit = s->max_read < SMB_IO_SIZE ? s->max_read : SMB_IO_SIZE;
     for (uint64_t at = 0; at < size;) {
-        smb_request_start(s, SMB_READ, 49);
-        uint8_t *p = s->packet + 64;
-        uint32_t wanted = size - at < limit ? (uint32_t)(size - at) : limit;
-        w32(p + 4, wanted);
-        w64(p + 8, at);
-        memcpy(p + 16, s->file, 16);
-        if (smb_exchange(s, 113) || smb_response(s, 17))
+        const uint8_t *data;
+        size_t want = size - at < SMB_IO_SIZE ? (size_t)(size - at) : SMB_IO_SIZE;
+        int count = read_span(s, file, at, want, &data);
+        if (count < 0)
             return -1;
-        size_t off = p[2], n = r32(p + 4);
-        if (!n || n > wanted || off < 80 || !inside(s->received, off, n))
-            return protocol_error(s, "invalid read response");
-        while (n) {
-            int written = s->io->download_write(s->io->user, s->packet + off, n);
-            if (written <= 0 || (size_t)written > n)
+        if (!count)
+            return fail(s, "remote file shortened during download");
+        while (count) {
+            int n = s->io->download_write(s->io->user, data, (size_t)count);
+            if (n <= 0 || n > count)
                 return fail(s, "local download write failed");
-            off += (size_t)written;
-            n -= (size_t)written;
-            at += (size_t)written;
+            at += (unsigned)n;
+            data += n;
+            count -= n;
         }
     }
-    return close_file(s);
+    return smb_session_close_read(s, file);
 }
 
 static void make_disposition(struct smb_session *s, size_t at, int deleted)
@@ -535,7 +731,7 @@ static int disposition(struct smb_session *s, int deleted)
     return smb_exchange(s, 97) || smb_response(s, 2) ? -1 : 0;
 }
 
-static int publish_file(struct smb_session *s)
+static int publish_file(struct smb_session *s, const struct smb_request *req)
 {
     if (s->credits < 2)
         return fail(s, "server must grant two credits to publish an upload");
@@ -549,8 +745,8 @@ static int publish_file(struct smb_session *s)
     w16(p + 8, 96);
     memcpy(p + 16, s->file, 16);
     memset(p + 32, 0, 20);
-    p[32] = (uint8_t)(s->req->replace != 0);
-    int n = smb_utf16(s->req->path, p + 52, 2 * SMB_PATH);
+    p[32] = (uint8_t)(req->replace != 0);
+    int n = smb_utf16(req->path, p + 52, 2 * SMB_PATH);
     if (n <= 0)
         return fail(s, "invalid upload filename");
     for (int i = 0; i < n; i += 2)
@@ -566,11 +762,11 @@ static int publish_file(struct smb_session *s)
     return s->status ? smb_response(s, 2) : 0;
 }
 
-static int upload(struct smb_session *s)
+static int upload(struct smb_session *s, const struct smb_request *req)
 {
     char tmp[SMB_PATH];
     uint8_t random[12];
-    const char *path = s->req->path;
+    const char *path = req->path;
     size_t prefix = 0;
     for (size_t i = 0; path[i]; i++)
         if (path[i] == '/' || path[i] == '\\')
@@ -604,8 +800,8 @@ static int upload(struct smb_session *s)
         goto cleanup;
     }
     uint32_t limit = s->max_write < SMB_IO_SIZE ? s->max_write : SMB_IO_SIZE;
-    for (uint64_t at = 0; at < s->req->upload_size;) {
-        size_t want = s->req->upload_size - at < limit ? (size_t)(s->req->upload_size - at) : limit;
+    for (uint64_t at = 0; at < req->upload_size;) {
+        size_t want = req->upload_size - at < limit ? (size_t)(req->upload_size - at) : limit;
         smb_request_start(s, SMB_WRITE, 49);
         uint8_t *p = s->packet + 64;
         size_t n = 0;
@@ -636,7 +832,7 @@ static int upload(struct smb_session *s)
     }
     smb_request_start(s, SMB_FLUSH, 24);
     memcpy(s->packet + 72, s->file, 16);
-    if (smb_exchange(s, 88) || smb_response(s, 4) || publish_file(s))
+    if (smb_exchange(s, 88) || smb_response(s, 4) || publish_file(s, req))
         goto cleanup;
     result = 0;
 cleanup:
@@ -654,20 +850,72 @@ cleanup:
     return result;
 }
 
+/* Invalidate every token and wipe session keys and wire data. Keep the serial
+ * number across reconnects so a token from an old attachment cannot name a
+ * newly opened file in the same storage. Keep only structured diagnostics. */
+static void retire(struct smb_session *s)
+{
+    uint64_t last = s->last_handle;
+    uint32_t status = s->status;
+    const char *error = s->error;
+    smb_wipe(s, sizeof(*s));
+    s->last_handle = last;
+    s->status = status;
+    s->error = error;
+}
+
+static int connect_share(struct smb_session *s, const struct smb_io *io, const struct smb_request *req, int ipc)
+{
+    if (s->io)
+        return fail(s, "SMB session already in use");
+    s->error = 0;
+    s->status = 0;
+    if (!io || !req || !io->send || !io->recv || !io->random || !req->server || !req->domain ||
+        !req->username || !req->password || !req->username[0] || !req->password[0] ||
+        (!ipc && (!req->share || !smb_valid_component(req->share, strlen(req->share)))))
+        return fail(s, "missing SMB credentials or invalid share");
+    s->io = io;
+    s->packet = s->transport + 4;
+    s->credits = 1;
+    if (negotiate(s) || smb_auth(s, req) ||
+        tree_connect(s, req->server, ipc ? "IPC$" : req->share, ipc ? 2 : 1) || validate_negotiation(s)) {
+        retire(s);
+        return -1;
+    }
+    return 0;
+}
+
+int smb_session_connect(struct smb_session *s, const struct smb_io *io, const struct smb_request *req)
+{
+    return connect_share(s, io, req, 0);
+}
+
+int smb_session_disconnect(struct smb_session *s)
+{
+    if (!s->io)
+        return 0;
+    int result = s->broken ? -1 : 0;
+    /* A tree disconnect closes the tree's open files and directory searches. */
+    if (!result) {
+        smb_request_start(s, SMB_TREE_DISCONNECT, 4);
+        result = smb_exchange(s, 68) || smb_response(s, 4) ? -1 : 0;
+    }
+    if (!result) {
+        s->tid = 0;
+        smb_request_start(s, SMB_LOGOFF, 4);
+        result = smb_exchange(s, 68) || smb_response(s, 4) ? -1 : 0;
+    }
+    retire(s);
+    return result;
+}
+
 int smb_execute(const struct smb_io *io, const struct smb_request *req)
 {
     struct smb_session *s = &session;
     smb_clear();
-    s->packet = s->transport + 4;
-    s->io = io;
-    s->credits = 1;
-    s->req = req;
-    if (!io || !req || !io->send || !io->recv || !io->random || !req->server || !req->domain ||
-        !req->username || !req->password || !req->username[0] || !req->password[0] ||
-        (req->operation != SMB_SHARES && (!req->share || !req->path)))
-        return fail(s, "missing SMB credentials or request");
-    if (negotiate(s) || smb_auth(s) || tree_connect(s, req->operation == SMB_SHARES ? "IPC$" : req->share) ||
-        validate_negotiation(s))
+    if (!req || (req->operation != SMB_SHARES && !req->path))
+        return fail(s, "missing SMB request");
+    if (connect_share(s, io, req, req->operation == SMB_SHARES))
         return -1;
     switch (req->operation) {
     case SMB_SHARES:
@@ -676,15 +924,15 @@ int smb_execute(const struct smb_io *io, const struct smb_request *req)
         break;
     case SMB_LIST:
         if (io->entry)
-            return directory(s);
+            return directory(s, req->path);
         break;
     case SMB_GET:
         if (io->download_begin && io->download_write)
-            return download(s);
+            return download(s, req->path);
         break;
     case SMB_PUT:
         if (io->upload_read)
-            return upload(s);
+            return upload(s, req);
         break;
     }
     return fail(s, "unsupported SMB operation");

@@ -102,28 +102,16 @@ def build_host(keep):
     run([sys.executable, ROOT / "tools/build-smb-crypto.py", crypto])
     sources = [
         ROOT / "userland/smb" / name
-        for name in ("main.c", "client.c", "auth.c", "shares.c")
+        for name in ("client.c", "auth.c", "shares.c")
     ]
     binary = keep / "smb"
-    run(
-        [
-            "cc",
-            "-std=c11",
-            "-Wall",
-            "-Wextra",
-            "-Werror",
-            "-Os",
-            "-ffunction-sections",
-            "-fdata-sections",
-            "-no-pie",
-            "-Wl,--gc-sections",
-            *sources,
-            FIXTURE / "posix_io.c",
-            crypto,
-            "-o",
-            binary,
-        ]
-    )
+    common = [
+        "cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-Os", "-ffunction-sections", "-fdata-sections",
+        "-no-pie", "-Wl,--gc-sections", *sources, FIXTURE / "posix_io.c", crypto,
+    ]
+    run([*common, ROOT / "userland/smb/main.c", "-o", binary])
+    run([*common, FIXTURE / "read_session.c", FIXTURE / "directory_cursors.c", FIXTURE / "live_reader.c",
+         "-o", keep / "read-session"])
     return binary
 
 
@@ -291,6 +279,19 @@ def host_checks(binary, cid, port, password, keep):
         else:
             raise AssertionError(names)
     print("PASS failed or interrupted staging CREATE preserves the share with no orphan", flush=True)
+
+
+def read_session_checks(cid, port, password, keep):
+    # These files belong only to the disposable container. The sparse hole occupies no data blocks.
+    run([
+        "docker", "exec", cid, "sh", "-ec",
+        "cd /srv/transfer; printf small > session-small; printf abcLOW > session-large; "
+        "printf BEYOND | dd of=session-large bs=1 seek=4294967313 conv=notrunc status=none; "
+        "mkdir cursor-many cursor-empty; i=0; while [ $i -lt 600 ]; do "
+        "touch cursor-many/item-$(printf '%04d' $i); i=$((i+1)); done",
+    ])
+    result = run([keep / "read-session", str(port)], input=password.encode() + b"\n")
+    print(result.stdout.decode(), end="", flush=True)
 
 
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
@@ -518,6 +519,7 @@ def main():
     password = secrets.token_urlsafe(24)
     with samba(args.image, password, keep) as (cid, port):
         host_checks(binary, cid, port, password, keep)
+        read_session_checks(cid, port, password, keep)
         if args.guest:
             if args.limit_check:
                 run(

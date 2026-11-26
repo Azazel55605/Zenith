@@ -98,19 +98,6 @@ static int valid_server(const char *s)
     return 1;
 }
 
-static int valid_component(const char *s, size_t n)
-{
-    if (!n || n > 255 || (n == 1 && *s == '.') || (n == 2 && s[0] == '.' && s[1] == '.'))
-        return 0;
-    for (size_t i = 0; i < n; i++) {
-        unsigned char c = (unsigned char)s[i];
-        if (c < 32 || c == 127 || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' ||
-            c == '>' || c == '|')
-            return 0;
-    }
-    return 1;
-}
-
 static int parse_remote(struct options *o, const char *unc)
 {
     if (unc[0] != '/' || unc[1] != '/')
@@ -129,7 +116,7 @@ static int parse_remote(struct options *o, const char *unc)
     n = 0;
     while (unc[n] && unc[n] != '/')
         n++;
-    if (!valid_component(unc, n))
+    if (!smb_valid_component(unc, n))
         return 0;
     for (size_t i = 0; i < n; i++)
         o->share[i] = unc[i];
@@ -145,7 +132,7 @@ static int parse_remote(struct options *o, const char *unc)
         n = 0;
         while (unc[n] && unc[n] != '/')
             n++;
-        if (!valid_component(unc, n))
+        if (!smb_valid_component(unc, n))
             return 0;
         unc += n;
         if (*unc == '/' && !*++unc)

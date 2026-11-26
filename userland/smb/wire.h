@@ -1,10 +1,11 @@
 #ifndef ZENITH_SMB_WIRE_H
 #define ZENITH_SMB_WIRE_H
-#include "client.h"
+#include "session.h"
 #include "crypto.h"
 #include <string.h>
 
-enum { SMB_IO_SIZE = 32768, SMB_PACKET = 65536, SMB_PATH = 1024 };
+enum { SMB_PATH = 1024 };
+enum { SMB_SHARE_READ = 1, SMB_SHARE_ALL = 7 }; /* read, write and delete */
 enum {
     SMB_NEGOTIATE,
     SMB_SESSION_SETUP,
@@ -28,18 +29,6 @@ enum {
 #define NT_MORE_PROCESSING 0xc0000016u
 #define NT_NO_MORE_FILES 0x80000006u
 
-struct smb_session {
-    const struct smb_io *io;
-    const struct smb_request *req;
-    uint8_t transport[4 + SMB_PACKET], *packet;
-    uint8_t file[16], guid[16], client_guid[16], key[16], signing[16];
-    size_t received;
-    uint64_t message, sid;
-    uint32_t tid, status, capabilities, max_read, max_write, credits;
-    uint16_t dialect, security;
-    int authenticated, broken;
-    const char *error;
-};
 static inline uint16_t r16(const uint8_t *p)
 {
     return p[0] | (uint16_t)p[1] << 8;
@@ -81,7 +70,11 @@ int smb_utf8(const uint8_t *text, size_t n, char *out, size_t cap);
 void smb_request_start(struct smb_session *s, uint16_t command, uint16_t size);
 int smb_exchange(struct smb_session *s, size_t length);
 int smb_response(struct smb_session *s, unsigned size);
-int smb_auth(struct smb_session *s);
+int smb_handle_open(struct smb_session *s, const char *path, enum smb_handle_type type, unsigned sharing,
+                    struct smb_read_handle *out, uint64_t *size);
+struct smb_open_slot *smb_handle_find(struct smb_session *s, struct smb_read_handle handle, enum smb_handle_type type);
+int smb_handle_close(struct smb_session *s, struct smb_read_handle handle, enum smb_handle_type type);
+int smb_auth(struct smb_session *s, const struct smb_request *req);
 int smb_shares(struct smb_session *s);
 int smb_open(struct smb_session *s, const char *path, uint32_t access, uint32_t sharing, uint32_t disposition,
              uint32_t options, uint64_t *size);

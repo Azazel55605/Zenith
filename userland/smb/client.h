@@ -25,6 +25,7 @@ struct smb_request {
 };
 /* Caller owns the connected direct-TCP socket, closes it on all exits, and
  * commits its local staging file only after success. Single invocation per process. */
+int smb_valid_component(const char *text, size_t length);
 int smb_execute(const struct smb_io *io, const struct smb_request *request);
 const char *smb_error(void);
 uint32_t smb_ntstatus(void);
