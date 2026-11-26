@@ -1,0 +1,41 @@
+--- a/utils/config.h
++++ b/utils/config.h
+@@ -199,4 +199,17 @@
+ 	#define NO_IPV6
+ #endif
+ 
+-#endif
++/* Zenith userland has read/seek and path-based VFS calls. It has no signals,
++ * file mappings, procfs canonicalisation, or directory-relative *at calls. */
++#ifdef __zenith__
++#undef HAVE_SIGPIPE
++#undef HAVE_MMAP
++#undef WITH_MMAP
++#undef HAVE_REALPATH
++#undef HAVE_UTSNAME
++#undef HAVE_DIRFD
++#undef HAVE_FSTATAT
++#undef HAVE_UNLINKAT
++#endif
++
++#endif
+--- a/utils/utils.c
++++ b/utils/utils.c
+@@ -457,11 +457,17 @@
+ #include "utils/utsname.h"
+ 
+ int uname(struct utsname *buf) {
++#ifdef __zenith__
++	memset(buf, 0, sizeof(*buf));
++	strcpy(buf->sysname, "Zenith");
++	strcpy(buf->machine, "x86_64");
++#else
+ 	strcpy(buf->sysname,"windows");
+ 	strcpy(buf->nodename,"nodename");
+ 	strcpy(buf->release,"release");
+ 	strcpy(buf->version,"version");
+ 	strcpy(buf->machine,"pc");
++#endif
+ 
+ 	return 0;
+ }

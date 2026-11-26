@@ -23,6 +23,7 @@ package: small session controls may belong to the desktop/session package initia
 | Beacon (chosen, U11) | Network status, configuration, history and diagnostics; [concept](design/beacon-concept.svg), [design and stages](components/BEACON.md) | zenith-beacon |
 | Prism (chosen) | Keyboard launcher with apps, calculator and search, beside the start menu; [concept](design/prism-concept.svg). Theming and appearance belong to Meridian | zenith-prism |
 | Equinox (chosen) | Partition manager: disks, partitions, format, resize, as a plan applied at once, in the spirit of GParted and KDE Partition Manager; [concept](design/equinox-concept.svg), [component](components/EQUINOX.md) | zenith-equinox |
+| Nebula (chosen) | Web browser: Zenith's own frontend around the NetSurf engine, credited as "powered by NetSurf"; [concept](design/browser-concept.svg), [design and stages](components/BROWSER.md), [current port](#netsurf-browser) | zenith-netsurf today; zenith-nebula when the frontend is renamed |
 
 Package descriptions and searchable keywords must expose familiar terms such as
 Files, Editor, Settings and Updates. Prefer functionally useful first-party tools;
@@ -104,3 +105,13 @@ Prism handles launcher search, Observatory monitors processes and resources, Bea
 Prioritize common workflows (install, edit/save, move files, configure networking,
 update and recover) over a large application count. New ideas do not reorder the
 accepted installed-system/package delivery sequence in [ROADMAP](ROADMAP.md).
+
+## NetSurf browser
+
+The optional `zenith-netsurf` package supplies a native Zenith frontend for NetSurf 3.11. The app menu lists it as **Nebula**; the window around the engine follows the [Nebula concept](design/browser-concept.svg) ([stages](components/BROWSER.md)). Run `native run netsurf` in a desktop terminal and pass an HTTP or HTTPS URL, or an absolute HTML file path, to open it directly. Ctrl+L focuses the address field, Ctrl+F finds on the page, Ctrl+Plus/Minus/0 zoom and Ctrl+Q closes the window. The chrome uses Zenith's theme and the web viewport uses the site's CSS.
+
+Build the package payload with `python3 tools/build-userland.py obj/packages/zenith-netsurf --program netsurf`. The build uses GCC for x86-64, GNU binutils, make, Perl, Python with Pillow, and host zlib headers. The pinned engine, dependencies and C runtime build from the checkout. The installed package includes their notices and corresponding source under `/usr/share/doc/zenith-netsurf`.
+
+The engine supports HTML, CSS, plain text, PNG, BMP, ICO and GIF. JavaScript is disabled. HTTP and HTTPS use GET, verify certificates for HTTPS and limit each response to 8 MiB. History and cache last for the current session. Kernel 0.0.81 permits one live connection and six connection attempts per browser invocation. Stylesheets, images and redirects count toward that budget. [Work tracker](ROADMAP.md#scope-decisions-and-non-blocking-ideas)
+
+The [browser smoke test](../tools/netsurf-smoke.py) installs a test-signed package on a copy of a disposable disk, follows links from a local document to HTTP and HTTPS, and checks the resulting pixels. For an interactive check on a desktop with the package installed, run `native run netsurf https://example.org/`.

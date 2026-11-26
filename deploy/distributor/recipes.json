@@ -156,6 +156,14 @@
     "program": "quill",
     "generate": "native"
   },
+  "zenith-netsurf": {
+    "kind": "data",
+    "name": "zenith-netsurf",
+    "repository": "extra",
+    "payload": "obj/packages/zenith-netsurf",
+    "program": "netsurf",
+    "generate": "native"
+  },
   "zenith-doom": {
     "kind": "data",
     "name": "zenith-doom",

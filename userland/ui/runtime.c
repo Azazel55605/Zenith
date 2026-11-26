@@ -2,6 +2,8 @@
 #include "../include/zenith_style.h"
 #include "../include/zenith_settings.h"
 #include "../include/zenith_system_settings.h"
+
+#ifndef ZUI_WITH_LIBC
 /* Compiler-emitted structure initialization/copy helpers for freestanding clients. */
 void *memset(void *destination,int value,unsigned long size){
     unsigned char *p=destination;for(unsigned long i=0;i<size;i++)p[i]=(unsigned char)value;return destination;
@@ -11,6 +13,8 @@ void *memcpy(void *destination,const void *source,unsigned long size){
     for(unsigned long i=0;i<size;i++)d[i]=s[i];
     return destination;
 }
+#endif
+
 /* Package-installed icons: read one bounded root-owned file through the native ABI. The chosen icon set (style field
  * 17: Zenith, Bold or Fine) is looked up in its own folder first; a set that lacks an icon falls back to the default. */
 static int icon_set;   /* 0 default, 1 bold, 2 fine */

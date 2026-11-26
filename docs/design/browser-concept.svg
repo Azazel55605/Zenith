@@ -1,0 +1,348 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="2820" viewBox="0 0 1440 2820">
+<rect x="0" y="0" width="1440" height="2820" rx="0" fill="#151619"/>
+<text x="48" y="55" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="28" font-weight="600" text-anchor="start" xml:space="preserve">Zenith / Nebula concept</text>
+<text x="48" y="86" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="14" font-weight="400" text-anchor="start" xml:space="preserve">Proposal, not running UI · Nebula, the Zenith browser: Zenith chrome around the NetSurf 3.11 engine · accepted neutral surfaces, 8/12 radii, Inter and Hack · sample pages are fictional</text>
+<text x="48" y="130" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Dark · Reading a page</text>
+<text x="48" y="152" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">One band of chrome under the title, the page below it untouched. The site styles its page; Zenith styles everything around it.</text>
+<rect x="43.0" y="197.0" width="1354" height="765.0" rx="17.0" fill="#000" opacity="0.1"/>
+<rect x="45.5" y="194.5" width="1349" height="762.5" rx="14.5" fill="#000" opacity="0.14"/>
+<rect x="47.0" y="193.0" width="1346" height="761.0" rx="13.0" fill="#000" opacity="0.18"/>
+<rect x="48" y="192" width="1344" height="760" rx="12" fill="#202125" stroke="#45474F"/>
+<defs><linearGradient id="mat48192" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8BAAFF" stop-opacity=".22"/><stop offset=".6" stop-color="#25262B" stop-opacity="0"/><stop offset="1" stop-color="#3FB6B2" stop-opacity=".16"/></linearGradient></defs>
+<path d="M49 205a12 12 0 0 1 12-12H1379a12 12 0 0 1 12 12V284H49z" fill="#25262B"/>
+<path d="M49 205a12 12 0 0 1 12-12H1379a12 12 0 0 1 12 12V284H49z" fill="url(#mat48192)"/>
+<g transform="translate(62 203) scale(0.6666666666666666)" fill="none" stroke="#8BAAFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/></g>
+<text x="86" y="216" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Watching a comet from a dark field — Field Notes</text>
+<g transform="translate(1292 202) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12"/></g>
+<g transform="translate(1324 202) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(1356 202) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></g>
+<path d="M49 284H1391V284" stroke="#45474F" stroke-width="1" fill="none"/>
+<rect x="58" y="234" width="36" height="36" rx="8" fill="#2A2C31"/>
+<g transform="translate(66 242) scale(0.8333333333333334)" fill="none" stroke="#F1F2F4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></g>
+<g transform="translate(106 242) scale(0.8333333333333334)" fill="none" stroke="#8A8E98" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></g>
+<g transform="translate(146 242) scale(0.8333333333333334)" fill="none" stroke="#F1F2F4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.5 0 4.8 1 6.5 2.7L21 8"/><path d="M21 3v5h-5"/></g>
+<rect x="184" y="234" width="1152" height="36" rx="8" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(196 244) scale(0.6666666666666666)" fill="none" stroke="#8BCBA4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></g>
+<text x="220" y="257" font-family="Inter, sans-serif" font-size="14" xml:space="preserve"><tspan fill="#F1F2F4" font-weight="600">fieldnotes.example</tspan><tspan fill="#8A8E98" font-weight="400">/sky/comet-watching</tspan></text>
+<g transform="translate(1306 243) scale(0.75)" fill="none" stroke="#8BAAFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></g>
+<g transform="translate(1306 243) scale(.75)" fill="#8BAAFF" stroke="none"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></g>
+<g transform="translate(1348 242) scale(0.8333333333333334)" fill="none" stroke="#F1F2F4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></g>
+<rect x="49" y="285" width="1342" height="666" rx="0" fill="#FBFAF7"/>
+<clipPath id="pg49285"><rect x="49" y="285" width="1342" height="666"/></clipPath><g clip-path="url(#pg49285)">
+<rect x="49" y="285" width="1342" height="46" rx="0" fill="#1F3B36"/>
+<text x="81" y="314" fill="#F4F1E8" font-family="Inter, sans-serif" font-size="17" font-weight="700" text-anchor="start" xml:space="preserve">Field Notes</text>
+<text x="219" y="314" fill="#CFE3DC" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Sky</text>
+<text x="301" y="314" fill="#CFE3DC" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Weather</text>
+<text x="383" y="314" fill="#CFE3DC" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Tides</text>
+<text x="465" y="314" fill="#CFE3DC" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">About</text>
+<text x="97" y="381" fill="#3C7A6C" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="start" xml:space="preserve">Sky · November</text>
+<text x="97" y="417" fill="#23242A" font-family="Inter, sans-serif" font-size="30" font-weight="700" text-anchor="start" xml:space="preserve">Watching a comet from a dark field</text>
+<text x="97" y="445" fill="#5C606B" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">By the Field Notes editors · 6 min read</text>
+<text x="97" y="485" fill="#23242A" font-family="Inter, sans-serif" font-size="15" font-weight="400" text-anchor="start" xml:space="preserve">A comet is easiest to find in the hour after dusk, low in the west, a faint smudge with a</text>
+<text x="97" y="509" fill="#23242A" font-family="Inter, sans-serif" font-size="15" font-weight="400" text-anchor="start" xml:space="preserve">tail that points away from the Sun. Binoculars help more than a telescope: the wide field</text>
+<text x="97" y="533" fill="#23242A" font-family="Inter, sans-serif" font-size="15" font-weight="400" text-anchor="start" xml:space="preserve">shows the whole tail at once. Give your eyes twenty minutes to adapt before you look.</text>
+<rect x="97" y="575" width="360" height="170" rx="6" fill="#0F1A2E"/>
+<path d="M327 635 l-150 70" stroke="#C9D3FF" stroke-width="10" stroke-linecap="round" opacity=".18"/>
+<path d="M327 635 l-120 56" stroke="#E8EEFF" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+<circle cx="329" cy="634" r="6" fill="#FFFFFF"/>
+<circle cx="137" cy="605" r="1.3" fill="#FFFFFF" opacity=".8"/>
+<circle cx="397" cy="715" r="1.3" fill="#FFFFFF" opacity=".8"/>
+<circle cx="187" cy="725" r="1.3" fill="#FFFFFF" opacity=".8"/>
+<circle cx="427" cy="611" r="1.3" fill="#FFFFFF" opacity=".8"/>
+<circle cx="277" cy="599" r="1.3" fill="#FFFFFF" opacity=".8"/>
+<circle cx="157" cy="675" r="1.3" fill="#FFFFFF" opacity=".8"/>
+<circle cx="367" cy="685" r="1.3" fill="#FFFFFF" opacity=".8"/>
+<text x="97" y="765" fill="#5C606B" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" font-style="italic" xml:space="preserve">Figure 1. The tail points away from the Sun.</text>
+<text x="489" y="591" fill="#23242A" font-family="Inter, sans-serif" font-size="14" font-weight="700" text-anchor="start" xml:space="preserve">In this guide</text>
+<text x="489" y="619" fill="#2F5BC4" font-family="Inter, sans-serif" font-size="14" font-weight="400" text-anchor="start" xml:space="preserve">Finding the comet</text>
+<text x="489" y="645" fill="#2F5BC4" font-family="Inter, sans-serif" font-size="14" font-weight="400" text-anchor="start" xml:space="preserve">What to bring</text>
+<text x="489" y="671" fill="#2F5BC4" font-family="Inter, sans-serif" font-size="14" font-weight="400" text-anchor="start" xml:space="preserve">Photographing the tail</text>
+<line x1="489" y1="674" x2="643" y2="674" stroke="#2F5BC4"/>
+<text x="489" y="697" fill="#2F5BC4" font-family="Inter, sans-serif" font-size="14" font-weight="400" text-anchor="start" xml:space="preserve">Tonight’s sky chart</text>
+<text x="489" y="735" fill="#2F5BC4" font-family="Inter, sans-serif" font-size="14" font-weight="400" text-anchor="start" xml:space="preserve">Download the printable chart (PDF)</text>
+<text x="97" y="803" fill="#23242A" font-family="Inter, sans-serif" font-size="15" font-weight="400" text-anchor="start" xml:space="preserve">Most comets fade within weeks. Check the sky chart for its position each</text>
+<text x="97" y="827" fill="#23242A" font-family="Inter, sans-serif" font-size="15" font-weight="400" text-anchor="start" xml:space="preserve">night: it drifts a little against the stars.</text>
+</g>
+<rect x="1383" y="297" width="4" height="213" rx="2" fill="#000000" opacity="0.28"/>
+<rect x="57.0" y="917.0" width="437" height="31.0" rx="13.0" fill="#000" opacity="0.1"/>
+<rect x="59.5" y="914.5" width="432" height="28.5" rx="10.5" fill="#000" opacity="0.14"/>
+<rect x="61.0" y="913.0" width="429" height="27.0" rx="9.0" fill="#000" opacity="0.18"/>
+<rect x="62" y="912" width="427" height="26" rx="8" fill="#2A2C31" stroke="#45474F"/>
+<text x="72" y="929" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">https://fieldnotes.example/sky/comet-watching#photographing</text>
+<circle cx="118" cy="192" r="11" fill="#8BAAFF"/>
+<text x="118" y="196.5" fill="#151619" font-family="Inter, sans-serif" font-size="12" font-weight="700" text-anchor="middle" xml:space="preserve">1</text>
+<circle cx="348" cy="192" r="11" fill="#8BAAFF"/>
+<text x="348" y="196.5" fill="#151619" font-family="Inter, sans-serif" font-size="12" font-weight="700" text-anchor="middle" xml:space="preserve">2</text>
+<circle cx="1314" cy="192" r="11" fill="#8BAAFF"/>
+<text x="1314" y="196.5" fill="#151619" font-family="Inter, sans-serif" font-size="12" font-weight="700" text-anchor="middle" xml:space="preserve">3</text>
+<circle cx="1358" cy="192" r="11" fill="#8BAAFF"/>
+<text x="1358" y="196.5" fill="#151619" font-family="Inter, sans-serif" font-size="12" font-weight="700" text-anchor="middle" xml:space="preserve">4</text>
+<circle cx="54" cy="925" r="11" fill="#8BAAFF"/>
+<text x="54" y="929.5" fill="#151619" font-family="Inter, sans-serif" font-size="12" font-weight="700" text-anchor="middle" xml:space="preserve">5</text>
+<text x="48" y="984" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" text-anchor="start" xml:space="preserve">1  Icon buttons</text>
+<text x="48" y="1008" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Back, Forward and Reload as 36 px icon</text>
+<text x="48" y="1027" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">buttons; Reload turns into Stop while</text>
+<text x="48" y="1046" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">loading. Back and Forward hold a</text>
+<text x="48" y="1065" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">history list on secondary click.</text>
+<text x="320" y="984" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" text-anchor="start" xml:space="preserve">2  The address shows the site</text>
+<text x="320" y="1008" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Host in full text, the path quieter.</text>
+<text x="320" y="1027" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">The lock is the security summary and</text>
+<text x="320" y="1046" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">opens Page info. Focus (Ctrl+L) shows</text>
+<text x="320" y="1065" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">the whole address, selected.</text>
+<text x="592" y="984" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" text-anchor="start" xml:space="preserve">3  Bookmark star</text>
+<text x="592" y="1008" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Filled when the page is bookmarked.</text>
+<text x="592" y="1027" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Ctrl+D adds one; a click on a filled</text>
+<text x="592" y="1046" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">star offers Rename and Remove.</text>
+<text x="592" y="1065" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve"></text>
+<text x="864" y="984" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" text-anchor="start" xml:space="preserve">4  One menu</text>
+<text x="864" y="1008" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">New window, zoom, find, history,</text>
+<text x="864" y="1027" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">bookmarks, page source and About.</text>
+<text x="864" y="1046" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">No hidden second toolbar.</text>
+<text x="864" y="1065" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve"></text>
+<text x="1136" y="984" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" text-anchor="start" xml:space="preserve">5  Hover pill, no status bar</text>
+<text x="1136" y="1008" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">A link’s address appears only while</text>
+<text x="1136" y="1027" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">the pointer is on it; loading progress</text>
+<text x="1136" y="1046" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">is a 3 px line under the toolbar.</text>
+<text x="1136" y="1065" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">The page gains 24 px.</text>
+<text x="48" y="1104" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Dark · The address field, Page info and the menu</text>
+<rect x="48" y="1134" width="520" height="430" rx="12" fill="#202125" stroke="#45474F"/>
+<text x="68" y="1166" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Typing an address</text>
+<text x="68" y="1186" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Suggestions from bookmarks and history; Enter goes, Esc restores.</text>
+<rect x="68" y="1210" width="480" height="36" rx="8" fill="#2A2C31" stroke="#8BAAFF"/>
+<rect x="65" y="1207" width="486" height="42" rx="10" fill="none" stroke="#8BAAFF" opacity="0.35"/>
+<g transform="translate(80 1220) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></g>
+<text x="104" y="1233" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="400" text-anchor="start" xml:space="preserve">comet</text>
+<rect x="144" y="1219" width="1.5" height="18" rx="0" fill="#F1F2F4"/>
+<rect x="63.0" y="1259.0" width="490" height="277.0" rx="15.0" fill="#000" opacity="0.1"/>
+<rect x="65.5" y="1256.5" width="485" height="274.5" rx="12.5" fill="#000" opacity="0.14"/>
+<rect x="67.0" y="1255.0" width="482" height="273.0" rx="11.0" fill="#000" opacity="0.18"/>
+<rect x="68" y="1254" width="480" height="272" rx="10" fill="#2A2C31" stroke="#45474F"/>
+<rect x="74" y="1260" width="468" height="48" rx="6" fill="#2B3350"/>
+<g transform="translate(86 1275) scale(0.75)" fill="none" stroke="#8BAAFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></g>
+<text x="116" y="1281" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Watching a comet from a dark field</text>
+<text x="116" y="1299" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">fieldnotes.example/sky/comet-watching</text>
+<g transform="translate(86 1327) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></g>
+<text x="116" y="1333" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Comet tails explained</text>
+<text x="116" y="1351" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">skyguide.example/basics/tails</text>
+<g transform="translate(86 1379) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></g>
+<text x="116" y="1385" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Tonight’s sky chart</text>
+<text x="116" y="1403" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">fieldnotes.example/sky/chart</text>
+<g transform="translate(86 1431) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/></g>
+<text x="116" y="1437" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Go to comet</text>
+<text x="116" y="1455" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">https://comet</text>
+<g transform="translate(86 1483) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></g>
+<text x="116" y="1489" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Open a local file…</text>
+<text x="116" y="1507" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">HTML from your Zenith disk</text>
+<text x="68" y="1546" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Without a scheme an address becomes https://. No search engine by default.</text>
+<rect x="592" y="1134" width="380" height="430" rx="12" fill="#202125" stroke="#45474F"/>
+<text x="612" y="1166" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Page info</text>
+<text x="612" y="1186" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Opened from the lock. Plain words, no jargon first.</text>
+<rect x="612" y="1210" width="340" height="330" rx="10" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(628 1228) scale(0.8333333333333334)" fill="none" stroke="#8BCBA4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></g>
+<text x="658" y="1238" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="14" font-weight="600" text-anchor="start" xml:space="preserve">Secure connection</text>
+<text x="658" y="1258" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">fieldnotes.example</text>
+<text x="658" y="1275" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Certificate checked by Zenith</text>
+<path d="M624 1306H940V1306" stroke="#45474F" stroke-width="1" fill="none"/>
+<g transform="translate(628 1324) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></g>
+<text x="658" y="1337" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Scripts</text>
+<text x="936" y="1337" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">Not supported</text>
+<g transform="translate(628 1364) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></g>
+<text x="658" y="1377" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Images</text>
+<text x="936" y="1377" fill="#E7BB70" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="end" xml:space="preserve">4 of 6 loaded</text>
+<g transform="translate(628 1404) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/></g>
+<text x="658" y="1417" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Connections</text>
+<text x="936" y="1417" fill="#E7BB70" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="end" xml:space="preserve">6 of 6 used</text>
+<g transform="translate(628 1444) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/></g>
+<text x="658" y="1457" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Cookies</text>
+<text x="936" y="1457" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="end" xml:space="preserve">Kept until you close</text>
+<rect x="628" y="1488" width="148" height="36" rx="8" fill="#25262B" stroke="#45474F"/>
+<text x="702" y="1511" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">Certificate…</text>
+<rect x="788" y="1488" width="148" height="36" rx="8" fill="#8BAAFF"/>
+<text x="862" y="1511" fill="#151619" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">Load again</text>
+<rect x="996" y="1134" width="396" height="430" rx="12" fill="#202125" stroke="#45474F"/>
+<text x="1016" y="1166" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">The menu</text>
+<text x="1016" y="1186" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Everything else lives here, each with its key.</text>
+<rect x="1011.0" y="1209.0" width="366" height="275.0" rx="15.0" fill="#000" opacity="0.1"/>
+<rect x="1013.5" y="1206.5" width="361" height="272.5" rx="12.5" fill="#000" opacity="0.14"/>
+<rect x="1015.0" y="1205.0" width="358" height="271.0" rx="11.0" fill="#000" opacity="0.18"/>
+<rect x="1016" y="1204" width="356" height="270" rx="10" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(1032 1219) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></g>
+<text x="1058" y="1232" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">New window</text>
+<text x="1356" y="1232" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">Ctrl+N</text>
+<text x="1032" y="1266" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Zoom</text>
+<rect x="1222" y="1247" width="42" height="28" rx="6" fill="#25262B"/>
+<g transform="translate(1235 1253) scale(0.6666666666666666)" fill="none" stroke="#F1F2F4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></g>
+<rect x="1268" y="1247" width="42" height="28" rx="6" fill="#25262B"/>
+<text x="1289" y="1266" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle" xml:space="preserve">100 %</text>
+<rect x="1314" y="1247" width="42" height="28" rx="6" fill="#25262B"/>
+<g transform="translate(1327 1253) scale(0.6666666666666666)" fill="none" stroke="#F1F2F4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></g>
+<path d="M1026 1283H1362V1283" stroke="#45474F" stroke-width="1" fill="none"/>
+<g transform="translate(1032 1297) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></g>
+<text x="1058" y="1310" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Find on page</text>
+<text x="1356" y="1310" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">Ctrl+F</text>
+<rect x="1022" y="1322" width="344" height="34" rx="6" fill="#2B3350"/>
+<g transform="translate(1032 1331) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></g>
+<text x="1058" y="1344" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">History</text>
+<text x="1356" y="1344" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">Ctrl+H</text>
+<g transform="translate(1032 1365) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></g>
+<text x="1058" y="1378" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Bookmarks</text>
+<text x="1356" y="1378" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">Ctrl+B</text>
+<path d="M1026 1395H1362V1395" stroke="#45474F" stroke-width="1" fill="none"/>
+<g transform="translate(1032 1409) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></g>
+<text x="1058" y="1422" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Page source</text>
+<text x="1356" y="1422" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">Ctrl+U</text>
+<g transform="translate(1032 1443) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/></g>
+<text x="1058" y="1456" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">About Nebula</text>
+<text x="48" y="1600" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Light · A new window</text>
+<text x="48" y="1622" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">A start page drawn by the engine from a packaged HTML file, styled with the Zenith theme passed in as CSS.</text>
+<rect x="43.0" y="1651.0" width="1354" height="525.0" rx="17.0" fill="#000" opacity="0.1"/>
+<rect x="45.5" y="1648.5" width="1349" height="522.5" rx="14.5" fill="#000" opacity="0.14"/>
+<rect x="47.0" y="1647.0" width="1346" height="521.0" rx="13.0" fill="#000" opacity="0.18"/>
+<rect x="48" y="1646" width="1344" height="520" rx="12" fill="#FAFAFB" stroke="#CFD1D8"/>
+<path d="M49 1659a12 12 0 0 1 12-12H1379a12 12 0 0 1 12 12V1738H49z" fill="#EFF0F3"/>
+<g transform="translate(62 1657) scale(0.6666666666666666)" fill="none" stroke="#3157B7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/></g>
+<text x="86" y="1670" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">New window</text>
+<g transform="translate(1292 1656) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12"/></g>
+<g transform="translate(1324 1656) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6h12v12H6z"/></g>
+<g transform="translate(1356 1656) scale(0.6666666666666666)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></g>
+<path d="M49 1738H1391V1738" stroke="#CFD1D8" stroke-width="1" fill="none"/>
+<g transform="translate(66 1696) scale(0.8333333333333334)" fill="none" stroke="#7A7E88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></g>
+<g transform="translate(106 1696) scale(0.8333333333333334)" fill="none" stroke="#7A7E88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></g>
+<g transform="translate(146 1696) scale(0.8333333333333334)" fill="none" stroke="#202126" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.5 0 4.8 1 6.5 2.7L21 8"/><path d="M21 3v5h-5"/></g>
+<rect x="184" y="1688" width="1152" height="36" rx="8" fill="#FFFFFF" stroke="#3157B7"/>
+<rect x="181" y="1685" width="1158" height="42" rx="10" fill="none" stroke="#3157B7" opacity="0.35"/>
+<g transform="translate(1348 1696) scale(0.8333333333333334)" fill="none" stroke="#202126" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></g>
+<text x="220" y="1711" fill="#7A7E88" font-family="Inter, sans-serif" font-size="14" font-weight="400" text-anchor="start" xml:space="preserve">Search bookmarks and history, or enter an address</text>
+<rect x="49" y="1739" width="1342" height="426" rx="0" fill="#FAFAFB"/>
+<text x="720" y="1814" fill="#202126" font-family="Inter, sans-serif" font-size="24" font-weight="600" text-anchor="middle" xml:space="preserve">Good evening</text>
+<text x="720" y="1840" fill="#5C606B" font-family="Inter, sans-serif" font-size="14" font-weight="400" text-anchor="middle" xml:space="preserve">Pick up where you left off, or open a file from your disk.</text>
+<text x="248" y="1892" fill="#202126" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Bookmarks</text>
+<rect x="248" y="1908" width="176" height="96" rx="12" fill="#FFFFFF" stroke="#CFD1D8"/>
+<rect x="264" y="1924" width="32" height="32" rx="8" fill="#1F3B36"/>
+<text x="280" y="1946" fill="#FFFFFF" font-family="Inter, sans-serif" font-size="15" font-weight="700" text-anchor="middle" xml:space="preserve">F</text>
+<text x="264" y="1978" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Field Notes</text>
+<text x="264" y="1994" fill="#7A7E88" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">fieldnotes.example</text>
+<rect x="440" y="1908" width="176" height="96" rx="12" fill="#FFFFFF" stroke="#CFD1D8"/>
+<rect x="456" y="1924" width="32" height="32" rx="8" fill="#3157B7"/>
+<text x="472" y="1946" fill="#FFFFFF" font-family="Inter, sans-serif" font-size="15" font-weight="700" text-anchor="middle" xml:space="preserve">S</text>
+<text x="456" y="1978" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Sky guide</text>
+<text x="456" y="1994" fill="#7A7E88" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">skyguide.example</text>
+<rect x="632" y="1908" width="176" height="96" rx="12" fill="#FFFFFF" stroke="#CFD1D8"/>
+<rect x="648" y="1924" width="32" height="32" rx="8" fill="#7042BE"/>
+<text x="664" y="1946" fill="#FFFFFF" font-family="Inter, sans-serif" font-size="15" font-weight="700" text-anchor="middle" xml:space="preserve">Z</text>
+<text x="648" y="1978" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Zenith guide</text>
+<text x="648" y="1994" fill="#7A7E88" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Local file</text>
+<rect x="824" y="1908" width="176" height="96" rx="12" fill="#FFFFFF" stroke="#CFD1D8"/>
+<rect x="840" y="1924" width="32" height="32" rx="8" fill="#197571"/>
+<text x="856" y="1946" fill="#FFFFFF" font-family="Inter, sans-serif" font-size="15" font-weight="700" text-anchor="middle" xml:space="preserve">T</text>
+<text x="840" y="1978" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Tide tables</text>
+<text x="840" y="1994" fill="#7A7E88" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">tides.example</text>
+<rect x="1016" y="1908" width="176" height="96" rx="12" fill="#FFFFFF" stroke="#CFD1D8" stroke-dasharray="4 4"/>
+<g transform="translate(1036 1928) scale(1.0)" fill="none" stroke="#5C606B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></g>
+<text x="1032" y="1978" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Add</text>
+<text x="1032" y="1994" fill="#7A7E88" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Ctrl+D on any page</text>
+<text x="248" y="2046" fill="#202126" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Recent</text>
+<g transform="translate(248 2064) scale(0.6666666666666666)" fill="none" stroke="#7A7E88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></g>
+<text x="274" y="2077" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Watching a comet from a dark field</text>
+<text x="568" y="2077" fill="#7A7E88" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">fieldnotes.example</text>
+<text x="1192" y="2077" fill="#7A7E88" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">19:42</text>
+<g transform="translate(248 2094) scale(0.6666666666666666)" fill="none" stroke="#7A7E88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></g>
+<text x="274" y="2107" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Comet tails explained</text>
+<text x="568" y="2107" fill="#7A7E88" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">skyguide.example</text>
+<text x="1192" y="2107" fill="#7A7E88" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">19:30</text>
+<g transform="translate(248 2124) scale(0.6666666666666666)" fill="none" stroke="#7A7E88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></g>
+<text x="274" y="2137" fill="#202126" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">guide.html</text>
+<text x="568" y="2137" fill="#7A7E88" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Using the browser</text>
+<text x="1192" y="2137" fill="#7A7E88" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="end" xml:space="preserve">Yesterday</text>
+<text x="48" y="2200" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Dark · Honest states</text>
+<text x="48" y="2222" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">What the engine and kernel cannot do yet is said once, in place, with the one action that helps.</text>
+<rect x="48" y="2234" width="324" height="330" rx="12" fill="#202125" stroke="#45474F"/>
+<text x="68" y="2266" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Connection limit reached</text>
+<rect x="49" y="2282" width="322" height="52" rx="0" fill="#25262B"/>
+<g transform="translate(61 2298) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></g>
+<g transform="translate(91 2298) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></g>
+<g transform="translate(121 2298) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.5 0 4.8 1 6.5 2.7L21 8"/><path d="M21 3v5h-5"/></g>
+<rect x="153" y="2290" width="206" height="36" rx="8" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(165 2300) scale(0.6666666666666666)" fill="none" stroke="#8BCBA4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></g>
+<text x="188" y="2313" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">fieldnotes.example</text>
+<rect x="64" y="2350" width="292" height="80" rx="10" fill="#2A2C31" stroke="#E7BB70"/>
+<g transform="translate(78 2366) scale(0.75)" fill="none" stroke="#E7BB70" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></g>
+<text x="106" y="2380" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">2 images were not loaded.</text>
+<text x="106" y="2397" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">This page used all 6 connections</text>
+<text x="106" y="2414" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">a browser may open.</text>
+<rect x="64" y="2442" width="140" height="32" rx="8" fill="#8BAAFF"/>
+<text x="134" y="2463" fill="#151619" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">Load again</text>
+<text x="64" y="2502" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">A bar under the toolbar, shown once per</text>
+<text x="64" y="2519" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">page; the page stays readable. Goes away</text>
+<text x="64" y="2536" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">when the kernel budget (0.0.81) grows.</text>
+<rect x="388" y="2234" width="324" height="330" rx="12" fill="#202125" stroke="#45474F"/>
+<text x="408" y="2266" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Certificate not trusted</text>
+<rect x="389" y="2282" width="322" height="52" rx="0" fill="#25262B"/>
+<g transform="translate(401 2298) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></g>
+<g transform="translate(431 2298) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></g>
+<g transform="translate(461 2298) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.5 0 4.8 1 6.5 2.7L21 8"/><path d="M21 3v5h-5"/></g>
+<rect x="493" y="2290" width="206" height="36" rx="8" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(505 2300) scale(0.6666666666666666)" fill="none" stroke="#F39D9D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></g>
+<text x="528" y="2313" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">old-mirror.example</text>
+<g transform="translate(536 2354) scale(1.1666666666666667)" fill="none" stroke="#F39D9D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/></g>
+<text x="550" y="2406" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">This site’s identity can’t be checked</text>
+<text x="550" y="2426" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="middle" xml:space="preserve">Its certificate expired on 3 March 2025.</text>
+<rect x="480" y="2444" width="140" height="32" rx="8" fill="#8BAAFF"/>
+<text x="550" y="2465" fill="#151619" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">Go back</text>
+<text x="550" y="2496" fill="#8BAAFF" font-family="Inter, sans-serif" font-size="12" font-weight="600" text-anchor="middle" xml:space="preserve">Details</text>
+<text x="404" y="2524" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">No "continue anyway" in the first stage.</text>
+<rect x="728" y="2234" width="324" height="330" rx="12" fill="#202125" stroke="#45474F"/>
+<text x="748" y="2266" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">A link to a file</text>
+<rect x="729" y="2282" width="322" height="52" rx="0" fill="#25262B"/>
+<g transform="translate(741 2298) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></g>
+<g transform="translate(771 2298) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></g>
+<g transform="translate(801 2298) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.5 0 4.8 1 6.5 2.7L21 8"/><path d="M21 3v5h-5"/></g>
+<rect x="833" y="2290" width="206" height="36" rx="8" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(845 2300) scale(0.6666666666666666)" fill="none" stroke="#8BCBA4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></g>
+<text x="868" y="2313" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">fieldnotes.example</text>
+<rect x="744" y="2350" width="292" height="108" rx="10" fill="#2A2C31" stroke="#45474F"/>
+<g transform="translate(758 2366) scale(0.75)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></g>
+<text x="786" y="2380" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">sky-chart-november.pdf</text>
+<text x="786" y="2398" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">PDF · 1.8 MB</text>
+<text x="786" y="2415" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Nebula can’t show this file, and</text>
+<text x="786" y="2432" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Zenith can’t save downloads yet.</text>
+<rect x="744" y="2470" width="150" height="32" rx="8" fill="#25262B" stroke="#45474F"/>
+<text x="819" y="2491" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="middle" xml:space="preserve">Copy address</text>
+<text x="744" y="2526" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Becomes "Save to Downloads" with N3.</text>
+<rect x="1068" y="2234" width="324" height="330" rx="12" fill="#202125" stroke="#45474F"/>
+<text x="1088" y="2266" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="15" font-weight="600" text-anchor="start" xml:space="preserve">Find on page</text>
+<rect x="1084" y="2290" width="292" height="150" rx="6" fill="#FBFAF7"/>
+<rect x="1094" y="2306" width="42" height="17" rx="3" fill="#F2C94C"/>
+<rect x="1094" y="2366" width="42" height="17" rx="3" fill="#FBE9A9"/>
+<text x="1096" y="2318" fill="#23242A" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Comet season: look in the hour</text>
+<text x="1096" y="2338" fill="#23242A" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">after dusk, low in the west, for a</text>
+<text x="1096" y="2358" fill="#23242A" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">faint smudge. Binoculars help.</text>
+<text x="1096" y="2378" fill="#23242A" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Comet tails point away from the</text>
+<text x="1096" y="2398" fill="#23242A" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Sun and fade within weeks.</text>
+<rect x="1084" y="2448" width="292" height="48" rx="8" fill="#25262B" stroke="#45474F"/>
+<rect x="1092" y="2456" width="160" height="32" rx="6" fill="#2A2C31" stroke="#8BAAFF"/>
+<text x="1102" y="2477" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">comet</text>
+<text x="1264" y="2477" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">1 of 7</text>
+<g transform="translate(1308 2463) scale(0.75)" fill="none" stroke="#F1F2F4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></g>
+<g transform="translate(1334 2463) scale(0.75)" fill="none" stroke="#F1F2F4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></g>
+<g transform="translate(1356 2463) scale(0.6666666666666666)" fill="none" stroke="#B4B7C0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></g>
+<text x="1084" y="2524" fill="#8A8E98" font-family="Inter, sans-serif" font-size="12" font-weight="400" text-anchor="start" xml:space="preserve">Ctrl+F; slides up over the page bottom.</text>
+<text x="48" y="2614" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="16" font-weight="600" text-anchor="start" xml:space="preserve">Stages and open decisions</text>
+<text x="48" y="2654" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">B1  Chrome</text>
+<text x="170" y="2654" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Icon toolbar, host/path address with the lock, hover pill, progress line, material band.</text>
+<text x="48" y="2680" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">B2  States</text>
+<text x="170" y="2680" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Error pages from packaged HTML, connection-limit bar, file-link card, Page info.</text>
+<text x="48" y="2706" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">B3  Tools</text>
+<text x="170" y="2706" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Menu, find bar, zoom, page source; link menu: Open, Open in new window, Copy address.</text>
+<text x="48" y="2732" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">B4  Memory</text>
+<text x="170" y="2732" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Bookmarks and history kept per user; start page and address suggestions use them.</text>
+<text x="48" y="2758" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">B5  Windows</text>
+<text x="170" y="2758" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">New window opens a second browser; tabs wait for a larger kernel connection budget.</text>
+<text x="48" y="2784" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">B6  Downloads</text>
+<text x="170" y="2784" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">Save to Downloads and a downloads list, on top of the N3 download service.</text>
+<text x="900" y="2654" fill="#F1F2F4" font-family="Inter, sans-serif" font-size="13" font-weight="600" text-anchor="start" xml:space="preserve">Open decisions</text>
+<text x="900" y="2680" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">• Windows only, or tabs once the budget allows</text>
+<text x="900" y="2706" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">• A default search engine, or addresses only</text>
+<text x="900" y="2732" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">• Keep cookies between sessions, or per window only</text>
+<text x="900" y="2758" fill="#B4B7C0" font-family="Inter, sans-serif" font-size="13" font-weight="400" text-anchor="start" xml:space="preserve">• Certificate override: never, or behind Details</text>
+</svg>

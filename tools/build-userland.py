@@ -10,9 +10,13 @@ import sys
 import tempfile
 ROOT=Path(__file__).resolve().parents[1]
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('destination',type=Path);parser.add_argument('--version',default='0.1.0');parser.add_argument('--program',choices=('sunbeam','base-tools','fs-tools','net-tools','gui-probe','ui-gallery','settings','desktop-tools','polaris','observatory','equinox','horizon','aurora','audio-probe','beacon','orbit','quill','doom','smb'),default='sunbeam');args=parser.parse_args()
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('destination',type=Path);parser.add_argument('--version',default='0.1.0');parser.add_argument('--program',choices=('sunbeam','base-tools','fs-tools','net-tools','gui-probe','ui-gallery','settings','desktop-tools','polaris','observatory','equinox','horizon','aurora','audio-probe','beacon','orbit','quill','doom','smb','netsurf'),default='sunbeam');args=parser.parse_args()
     if not re.fullmatch(r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*))?',args.version):raise ValueError('invalid program version')
     destination=args.destination
+    if args.program == 'netsurf':
+        subprocess.run([sys.executable, str(ROOT/'tools/netsurf/build-browser.py'), str(destination),
+                        '--version', args.version], check=True)
+        return
     output=destination/('usr/share/zenith/native/'+args.program+'.elf');output.parent.mkdir(parents=True,exist_ok=True)
     source=ROOT/'userland/sunbeam'
     compiler=os.environ.get('ZENITH_USER_CC') or ('gcc' if shutil.which('gcc') else 'clang')

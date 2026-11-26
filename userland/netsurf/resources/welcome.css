@@ -1,0 +1,8 @@
+html { background-color: #f4f7f7; color: #213235; }
+body { margin: 32px; font-family: sans-serif; line-height: 1.5; }
+main { display: block; max-width: 40em; }
+h1 { color: #145d60; font-size: 1.75em; border-bottom: 3px solid #328782; padding-bottom: .4em; }
+p { margin: 1em 0; }
+a { color: #135e81; }
+ul { padding-left: 1.25em; }
+li { margin: .5em 0; }
